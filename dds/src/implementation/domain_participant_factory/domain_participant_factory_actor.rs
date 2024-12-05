@@ -512,6 +512,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             builtin_publisher,
             builtin_subscriber,
             topic_list,
+            self.configuration.domain_tag().to_owned(),
         );
 
         let domain_participant_actor = DomainParticipantActor::new(
@@ -698,17 +699,20 @@ struct DcpsParticipantReaderHistoryCache {
 
 impl HistoryCache for DcpsParticipantReaderHistoryCache {
     fn add_change(&mut self, cache_change: CacheChange) {
-        todo!("Add matched participant");
-
         self.participant_address
             .send_actor_mail(message_service::AddBuiltinParticipantsDetectorCacheChange {
+                participant_address: self.participant_address.clone(),
                 cache_change,
             })
             .ok();
     }
 
-    fn remove_change(&mut self, _sequence_number: i64) {
-        todo!()
+    fn remove_change(&mut self, sequence_number: i64) {
+        self.participant_address
+            .send_actor_mail(
+                message_service::RemoveBuiltinParticipantsDetectorCacheChange { sequence_number },
+            )
+            .ok();
     }
 }
 
@@ -726,8 +730,12 @@ impl HistoryCache for DcpsTopicsReaderHistoryCache {
             .ok();
     }
 
-    fn remove_change(&mut self, _sequence_number: i64) {
-        todo!()
+    fn remove_change(&mut self, sequence_number: i64) {
+        self.participant_address
+            .send_actor_mail(message_service::RemoveBuiltinTopicsDetectorCacheChange {
+                sequence_number,
+            })
+            .ok();
     }
 }
 
@@ -747,8 +755,12 @@ impl HistoryCache for DcpsSubscriptionsReaderHistoryCache {
             .ok();
     }
 
-    fn remove_change(&mut self, _sequence_number: i64) {
-        todo!()
+    fn remove_change(&mut self, sequence_number: i64) {
+        self.participant_address
+            .send_actor_mail(
+                message_service::RemoveBuiltinSubscriptionsDetectorCacheChange { sequence_number },
+            )
+            .ok();
     }
 }
 
@@ -766,7 +778,11 @@ impl HistoryCache for DcpsPublicationsReaderHistoryCache {
             .ok();
     }
 
-    fn remove_change(&mut self, _sequence_number: i64) {
-        todo!()
+    fn remove_change(&mut self, sequence_number: i64) {
+        self.participant_address
+            .send_actor_mail(
+                message_service::RemoveBuiltinPublicationsDetectorCacheChange { sequence_number },
+            )
+            .ok();
     }
 }

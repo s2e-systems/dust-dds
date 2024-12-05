@@ -26,6 +26,7 @@ use super::{publisher::PublisherEntity, subscriber::SubscriberEntity, topic::Top
 
 pub struct DomainParticipantEntity {
     domain_id: DomainId,
+    domain_tag: String,
     instance_handle: InstanceHandle,
     qos: DomainParticipantQos,
     builtin_subscriber: SubscriberEntity,
@@ -62,6 +63,7 @@ impl DomainParticipantEntity {
         builtin_publisher: PublisherEntity,
         builtin_subscriber: SubscriberEntity,
         topic_list: HashMap<String, TopicEntity>,
+        domain_tag: String,
     ) -> Self {
         Self {
             domain_id,
@@ -87,6 +89,7 @@ impl DomainParticipantEntity {
             listener,
             listener_mask,
             status_condition,
+            domain_tag,
         }
     }
 
@@ -385,5 +388,9 @@ impl DomainParticipantEntity {
 
     pub fn domain_id(&self) -> i32 {
         self.domain_id
+    }
+
+    pub fn domain_tag(&self) -> &str {
+        &self.domain_tag
     }
 }

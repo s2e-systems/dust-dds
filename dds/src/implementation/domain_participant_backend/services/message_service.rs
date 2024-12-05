@@ -28,7 +28,10 @@ use crate::{
     },
     runtime::actor::{ActorAddress, Mail, MailHandler},
     topic_definition::type_support::DdsDeserialize,
-    transport::{history_cache::CacheChange, types::ChangeKind},
+    transport::{
+        history_cache::CacheChange,
+        types::{ChangeKind, SequenceNumber},
+    },
 };
 
 use super::event_service;
@@ -255,6 +258,7 @@ impl MailHandler<AddCacheChange> for DomainParticipantActor {
 }
 
 pub struct AddBuiltinParticipantsDetectorCacheChange {
+    pub participant_address: ActorAddress<DomainParticipantActor>,
     pub cache_change: CacheChange,
 }
 impl Mail for AddBuiltinParticipantsDetectorCacheChange {
@@ -272,16 +276,24 @@ impl MailHandler<AddBuiltinParticipantsDetectorCacheChange> for DomainParticipan
                         message.cache_change.data_value.as_ref(),
                     )
                 {
-                    self.domain_participant
-                        .add_discovered_participant(discovered_participant_data);
+                    message
+                        .participant_address
+                        .send_actor_mail(discovery_service::AddDiscoveredParticipant {
+                            discovered_participant_data,
+                        })
+                        .ok();
                 }
             }
             ChangeKind::NotAliveDisposed => {
                 if let Ok(discovered_participant_handle) =
                     InstanceHandle::deserialize_data(message.cache_change.data_value.as_ref())
                 {
-                    self.domain_participant
-                        .remove_discovered_participant(&discovered_participant_handle);
+                    message
+                        .participant_address
+                        .send_actor_mail(discovery_service::RemoveDiscoveredParticipant {
+                            discovered_participant: discovered_participant_handle,
+                        })
+                        .ok();
                 }
             }
             ChangeKind::AliveFiltered
@@ -296,6 +308,21 @@ impl MailHandler<AddBuiltinParticipantsDetectorCacheChange> for DomainParticipan
         {
             reader.add_reader_change(message.cache_change).ok();
         }
+    }
+}
+
+pub struct RemoveBuiltinParticipantsDetectorCacheChange {
+    pub sequence_number: SequenceNumber,
+}
+impl Mail for RemoveBuiltinParticipantsDetectorCacheChange {
+    type Result = ();
+}
+impl MailHandler<RemoveBuiltinParticipantsDetectorCacheChange> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        _message: RemoveBuiltinParticipantsDetectorCacheChange,
+    ) -> <RemoveBuiltinParticipantsDetectorCacheChange as Mail>::Result {
+        todo!()
     }
 }
 
@@ -343,6 +370,21 @@ impl MailHandler<AddBuiltinTopicsDetectorCacheChange> for DomainParticipantActor
         {
             reader.add_reader_change(message.cache_change).ok();
         }
+    }
+}
+
+pub struct RemoveBuiltinTopicsDetectorCacheChange {
+    pub sequence_number: SequenceNumber,
+}
+impl Mail for RemoveBuiltinTopicsDetectorCacheChange {
+    type Result = ();
+}
+impl MailHandler<RemoveBuiltinTopicsDetectorCacheChange> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        _message: RemoveBuiltinTopicsDetectorCacheChange,
+    ) -> <RemoveBuiltinTopicsDetectorCacheChange as Mail>::Result {
+        todo!()
     }
 }
 
@@ -440,6 +482,21 @@ impl MailHandler<AddBuiltinPublicationsDetectorCacheChange> for DomainParticipan
         {
             reader.add_reader_change(message.cache_change).ok();
         }
+    }
+}
+
+pub struct RemoveBuiltinPublicationsDetectorCacheChange {
+    pub sequence_number: SequenceNumber,
+}
+impl Mail for RemoveBuiltinPublicationsDetectorCacheChange {
+    type Result = ();
+}
+impl MailHandler<RemoveBuiltinPublicationsDetectorCacheChange> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        _message: RemoveBuiltinPublicationsDetectorCacheChange,
+    ) -> <RemoveBuiltinPublicationsDetectorCacheChange as Mail>::Result {
+        todo!()
     }
 }
 
@@ -544,6 +601,21 @@ impl MailHandler<AddBuiltinSubscriptionsDetectorCacheChange> for DomainParticipa
         {
             reader.add_reader_change(message.cache_change).ok();
         }
+    }
+}
+
+pub struct RemoveBuiltinSubscriptionsDetectorCacheChange {
+    pub sequence_number: SequenceNumber,
+}
+impl Mail for RemoveBuiltinSubscriptionsDetectorCacheChange {
+    type Result = ();
+}
+impl MailHandler<RemoveBuiltinSubscriptionsDetectorCacheChange> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        _message: RemoveBuiltinSubscriptionsDetectorCacheChange,
+    ) -> <RemoveBuiltinSubscriptionsDetectorCacheChange as Mail>::Result {
+        todo!()
     }
 }
 

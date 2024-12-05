@@ -7,13 +7,23 @@ use crate::{
         DCPS_SUBSCRIPTION, DCPS_TOPIC,
     },
     implementation::{
-        data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
+        data_representation_builtin_endpoints::{
+            discovered_writer_data::DiscoveredWriterData,
+            spdp_discovered_participant_data::{
+                BuiltinEndpointQos, BuiltinEndpointSet, ParticipantProxy,
+                SpdpDiscoveredParticipantData,
+            },
+        },
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor,
             entities::{
                 data_reader::{DataReaderEntity, TransportReaderKind},
-                data_writer::DataWriterEntity,
+                data_writer::{DataWriterEntity, TransportWriterKind},
             },
+        },
+        domain_participant_factory::domain_participant_factory_actor::{
+            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
         },
         listeners::{
             data_reader_listener, data_writer_listener, domain_participant_listener,
@@ -26,16 +36,22 @@ use crate::{
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, SubscriberQos, TopicQos},
         qos_policy::{
-            QosPolicyId, DATA_REPRESENTATION_QOS_POLICY_ID, DEADLINE_QOS_POLICY_ID,
+            DurabilityQosPolicyKind, QosPolicyId, ReliabilityQosPolicyKind,
+            DATA_REPRESENTATION_QOS_POLICY_ID, DEADLINE_QOS_POLICY_ID,
             DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID,
             LIVELINESS_QOS_POLICY_ID, OWNERSHIP_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID,
             RELIABILITY_QOS_POLICY_ID, XCDR_DATA_REPRESENTATION,
         },
         status::StatusKind,
+        time::Duration,
     },
     runtime::actor::{ActorAddress, Mail, MailHandler},
     topic_definition::type_support::DdsSerialize,
-    transport::reader::WriterProxy,
+    transport::{
+        reader::WriterProxy,
+        types::{DurabilityKind, Guid, ReliabilityKind, ENTITYID_UNKNOWN},
+        writer::ReaderProxy,
+    },
 };
 
 pub struct AnnounceParticipant;
@@ -51,6 +67,39 @@ impl MailHandler<AnnounceParticipant> for DomainParticipantActor {
                 },
                 user_data: self.domain_participant.qos().user_data.clone(),
             };
+            let participant_proxy = ParticipantProxy {
+                domain_id: Some(self.domain_participant.domain_id()),
+                domain_tag: self.domain_participant.domain_tag().to_owned(),
+                protocol_version: self.transport.protocol_version(),
+                guid_prefix: self.transport.guid().prefix(),
+                vendor_id: self.transport.vendor_id(),
+                expects_inline_qos: false,
+                metatraffic_unicast_locator_list: self
+                    .transport
+                    .metatraffic_unicast_locator_list()
+                    .to_vec(),
+                metatraffic_multicast_locator_list: self
+                    .transport
+                    .metatraffic_multicast_locator_list()
+                    .to_vec(),
+                default_unicast_locator_list: self
+                    .transport
+                    .default_unicast_locator_list()
+                    .to_vec(),
+                default_multicast_locator_list: self
+                    .transport
+                    .default_multicast_locator_list()
+                    .to_vec(),
+                available_builtin_endpoints: BuiltinEndpointSet::default(),
+                manual_liveliness_count: 0,
+                builtin_endpoint_qos: BuiltinEndpointQos::default(),
+            };
+            let spdp_discovered_participant_data = SpdpDiscoveredParticipantData {
+                dds_participant_data: participant_builtin_topic_data,
+                participant_proxy,
+                lease_duration: Duration::new(100, 0),
+                discovered_participant_list: self.domain_participant.get_discovered_participants(),
+            };
             let timestamp = self.domain_participant.get_current_time();
 
             if let Some(dw) = self
@@ -58,7 +107,10 @@ impl MailHandler<AnnounceParticipant> for DomainParticipantActor {
                 .builtin_publisher_mut()
                 .lookup_datawriter_mut(DCPS_PARTICIPANT)
             {
-                dw.write_w_timestamp(participant_builtin_topic_data.serialize_data()?, timestamp)?;
+                dw.write_w_timestamp(
+                    spdp_discovered_participant_data.serialize_data()?,
+                    timestamp,
+                )?;
             }
         }
 
@@ -199,10 +251,7 @@ impl MailHandler<AnnounceDataReader> for DomainParticipantActor {
                 "Internal error. Data reader exists without associated topic".to_owned(),
             ))?;
 
-        let guid = match data_reader.transport_reader() {
-            TransportReaderKind::Stateful(r) => r.guid(),
-            TransportReaderKind::Stateless(r) => r.guid(),
-        };
+        let guid = data_reader.transport_reader().guid();
         let subscription_builtin_topic_data = SubscriptionBuiltinTopicData {
             key: BuiltInTopicKey { value: guid.into() },
             participant_key: BuiltInTopicKey { value: [0; 16] },
@@ -281,6 +330,31 @@ impl MailHandler<AnnounceTopic> for DomainParticipantActor {
     }
 }
 
+pub struct AnnounceDeletedDataReader {
+    pub data_reader: DataReaderEntity,
+}
+impl Mail for AnnounceDeletedDataReader {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<AnnounceDeletedDataReader> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: AnnounceDeletedDataReader,
+    ) -> <AnnounceDeletedDataReader as Mail>::Result {
+        let timestamp = self.domain_participant.get_current_time();
+        if let Some(dw) = self
+            .domain_participant
+            .builtin_publisher_mut()
+            .lookup_datawriter_mut(DCPS_SUBSCRIPTION)
+        {
+            let guid = message.data_reader.transport_reader().guid();
+            let key = InstanceHandle::new(guid.into());
+            dw.dispose_w_timestamp(key.serialize_data()?, timestamp)?;
+        }
+        Ok(())
+    }
+}
+
 pub struct AddDiscoveredTopic {
     pub topic_builtin_topic_data: TopicBuiltinTopicData,
     pub topic_name: String,
@@ -303,31 +377,88 @@ impl MailHandler<AddDiscoveredTopic> for DomainParticipantActor {
         Ok(())
     }
 }
-pub struct AnnounceDeletedDataReader {
-    pub data_reader: DataReaderEntity,
+
+pub struct AddDiscoveredParticipant {
+    pub discovered_participant_data: SpdpDiscoveredParticipantData,
 }
-impl Mail for AnnounceDeletedDataReader {
-    type Result = DdsResult<()>;
+impl Mail for AddDiscoveredParticipant {
+    type Result = ();
 }
-impl MailHandler<AnnounceDeletedDataReader> for DomainParticipantActor {
+impl MailHandler<AddDiscoveredParticipant> for DomainParticipantActor {
     fn handle(
         &mut self,
-        message: AnnounceDeletedDataReader,
-    ) -> <AnnounceDeletedDataReader as Mail>::Result {
-        let timestamp = self.domain_participant.get_current_time();
-        if let Some(dw) = self
-            .domain_participant
-            .builtin_publisher_mut()
-            .lookup_datawriter_mut(DCPS_SUBSCRIPTION)
+        message: AddDiscoveredParticipant,
+    ) -> <AddDiscoveredParticipant as Mail>::Result {
+        // pub fn add_discovered_participant(
+        //     &mut self,
+        //     discovered_participant_data: &SpdpDiscoveredParticipantData,
+        // ) {
+        // Check that the domainId of the discovered participant equals the local one.
+        // If it is not equal then there the local endpoints are not configured to
+        // communicate with the discovered participant.
+        // AND
+        // Check that the domainTag of the discovered participant equals the local one.
+        // If it is not equal then there the local endpoints are not configured to
+        // communicate with the discovered participant.
+        // IN CASE no domain id was transmitted the a local domain id is assumed
+        // (as specified in Table 9.19 - ParameterId mapping and default values)
+        let is_domain_id_matching = match message
+            .discovered_participant_data
+            .participant_proxy
+            .domain_id
         {
-            let guid = match message.data_reader.transport_reader() {
-                TransportReaderKind::Stateful(r) => r.guid(),
-                TransportReaderKind::Stateless(r) => r.guid(),
-            };
-            let key = InstanceHandle::new(guid.into());
-            dw.dispose_w_timestamp(key.serialize_data()?, timestamp)?;
+            Some(id) => id == self.domain_participant.domain_id(),
+            None => true,
+        };
+        let is_domain_tag_matching = message
+            .discovered_participant_data
+            .participant_proxy
+            .domain_tag
+            == self.domain_participant.domain_tag();
+
+        let is_participant_discovered = self
+            .domain_participant
+            .get_discovered_participant_data(&InstanceHandle::new(
+                message
+                    .discovered_participant_data
+                    .dds_participant_data
+                    .key
+                    .value,
+            ))
+            .is_some();
+
+        if is_domain_id_matching && is_domain_tag_matching && !is_participant_discovered {
+            add_matched_publications_detector(self, &message.discovered_participant_data);
+            add_matched_publications_announcer(self, &message.discovered_participant_data);
+            //         self.add_matched_subscriptions_detector(discovered_participant_data);
+            //         self.add_matched_subscriptions_announcer(discovered_participant_data);
+            //         self.add_matched_topics_detector(discovered_participant_data);
+            //         self.add_matched_topics_announcer(discovered_participant_data);
+            //         self.discovered_participant_list
+            //             .push(discovered_participant_data.clone());
+            //     }
         }
-        Ok(())
+
+        self.domain_participant
+            .add_discovered_participant(message.discovered_participant_data);
+    }
+}
+
+pub struct RemoveDiscoveredParticipant {
+    pub discovered_participant: InstanceHandle,
+}
+impl Mail for RemoveDiscoveredParticipant {
+    type Result = ();
+}
+impl MailHandler<RemoveDiscoveredParticipant> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: RemoveDiscoveredParticipant,
+    ) -> <RemoveDiscoveredParticipant as Mail>::Result {
+        todo!();
+
+        self.domain_participant
+            .remove_discovered_participant(&message.discovered_participant);
     }
 }
 
@@ -730,14 +861,69 @@ impl MailHandler<AddDiscoveredWriter> for DomainParticipantActor {
                     data_reader.add_matched_publication(
                         message.discovered_writer_data.dds_publication_data.clone(),
                     );
+                    let unicast_locator_list = if message
+                        .discovered_writer_data
+                        .writer_proxy
+                        .unicast_locator_list
+                        .is_empty()
+                    {
+                        todo!()
+                    } else {
+                        message
+                            .discovered_writer_data
+                            .writer_proxy
+                            .unicast_locator_list
+                    };
+                    let multicast_locator_list = if message
+                        .discovered_writer_data
+                        .writer_proxy
+                        .multicast_locator_list
+                        .is_empty()
+                    {
+                        todo!()
+                    } else {
+                        message
+                            .discovered_writer_data
+                            .writer_proxy
+                            .multicast_locator_list
+                    };
+                    let reliability_kind = match message
+                        .discovered_writer_data
+                        .dds_publication_data
+                        .reliability
+                        .kind
+                    {
+                        ReliabilityQosPolicyKind::BestEffort => ReliabilityKind::BestEffort,
+                        ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
+                    };
+                    let durability_kind = match message
+                        .discovered_writer_data
+                        .dds_publication_data
+                        .durability
+                        .kind
+                    {
+                        DurabilityQosPolicyKind::Volatile => DurabilityKind::Volatile,
+                        DurabilityQosPolicyKind::TransientLocal => DurabilityKind::TransientLocal,
+                        DurabilityQosPolicyKind::Transient => DurabilityKind::Transient,
+                        DurabilityQosPolicyKind::Persistent => DurabilityKind::Persistent,
+                    };
                     let writer_proxy = WriterProxy {
-                        remote_group_entity_id: todo!(),
-                        unicast_locator_list: todo!(),
-                        multicast_locator_list: todo!(),
-                        data_max_size_serialized: todo!(),
-                        remote_writer_guid: todo!(),
-                        reliability_kind: todo!(),
-                        durability_kind: todo!(),
+                        remote_writer_guid: message
+                            .discovered_writer_data
+                            .writer_proxy
+                            .remote_writer_guid,
+                        remote_group_entity_id: message
+                            .discovered_writer_data
+                            .writer_proxy
+                            .remote_group_entity_id,
+                        unicast_locator_list,
+                        multicast_locator_list,
+                        data_max_size_serialized: message
+                            .discovered_writer_data
+                            .writer_proxy
+                            .data_max_size_serialized,
+                        reliability_kind,
+                        durability_kind,
                     };
                     if let TransportReaderKind::Stateful(r) = data_reader.transport_reader_mut() {
                         r.add_matched_writer(writer_proxy);
@@ -1107,3 +1293,278 @@ fn is_discovered_topic_consistent(
         && &topic_qos.lifespan == topic_builtin_topic_data.lifespan()
         && &topic_qos.ownership == topic_builtin_topic_data.ownership()
 }
+
+fn add_matched_publications_detector(
+    domain_participant_actor: &mut DomainParticipantActor,
+    discovered_participant_data: &SpdpDiscoveredParticipantData,
+) {
+    if discovered_participant_data
+        .participant_proxy
+        .available_builtin_endpoints
+        .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_DETECTOR)
+    {
+        let remote_reader_guid = Guid::new(
+            discovered_participant_data.participant_proxy.guid_prefix,
+            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
+        );
+        let remote_group_entity_id = ENTITYID_UNKNOWN;
+        let expects_inline_qos = false;
+        let reader_proxy = ReaderProxy {
+            remote_reader_guid,
+            remote_group_entity_id,
+            reliability_kind: ReliabilityKind::Reliable,
+            durability_kind: DurabilityKind::TransientLocal,
+            unicast_locator_list: discovered_participant_data
+                .participant_proxy
+                .metatraffic_unicast_locator_list
+                .to_vec(),
+            multicast_locator_list: discovered_participant_data
+                .participant_proxy
+                .metatraffic_multicast_locator_list
+                .to_vec(),
+            expects_inline_qos,
+        };
+        if let Some(dw) = domain_participant_actor
+            .domain_participant
+            .builtin_publisher_mut()
+            .data_writer_list_mut()
+            .find(|dw| {
+                dw.transport_writer().guid().entity_id()
+                    == ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER
+            })
+        {
+            match dw.transport_writer_mut() {
+                TransportWriterKind::Stateful(w) => w.add_matched_reader(reader_proxy),
+                TransportWriterKind::Stateless(_) => panic!("Invalid built-in writer type"),
+            }
+        }
+    }
+}
+
+fn add_matched_publications_announcer(
+    domain_participant_actor: &mut DomainParticipantActor,
+    discovered_participant_data: &SpdpDiscoveredParticipantData,
+) {
+    if discovered_participant_data
+        .participant_proxy
+        .available_builtin_endpoints
+        .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_ANNOUNCER)
+    {
+        let remote_writer_guid = Guid::new(
+            discovered_participant_data.participant_proxy.guid_prefix,
+            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+        );
+        let remote_group_entity_id = ENTITYID_UNKNOWN;
+        let data_max_size_serialized = Default::default();
+
+        let writer_proxy = WriterProxy {
+            remote_writer_guid,
+            remote_group_entity_id,
+            unicast_locator_list: discovered_participant_data
+                .participant_proxy
+                .metatraffic_unicast_locator_list
+                .to_vec(),
+            multicast_locator_list: discovered_participant_data
+                .participant_proxy
+                .metatraffic_multicast_locator_list
+                .to_vec(),
+            reliability_kind: ReliabilityKind::Reliable,
+            durability_kind: DurabilityKind::TransientLocal,
+            data_max_size_serialized,
+        };
+        if let Some(dr) = domain_participant_actor
+            .domain_participant
+            .builtin_subscriber_mut()
+            .data_reader_list_mut()
+            .find(|dr| {
+                dr.transport_reader().guid().entity_id()
+                    == ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR
+            })
+        {
+            match dr.transport_reader_mut() {
+                TransportReaderKind::Stateful(r) => r.add_matched_writer(writer_proxy),
+                TransportReaderKind::Stateless(_) => panic!("Invalid built-in reader type"),
+            }
+        }
+    }
+}
+
+// fn add_matched_subscriptions_detector(
+//     &mut self,
+//     discovered_participant_data: &SpdpDiscoveredParticipantData,
+// ) {
+//     if discovered_participant_data
+//         .participant_proxy
+//         .available_builtin_endpoints
+//         .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_DETECTOR)
+//     {
+//         let remote_reader_guid = Guid::new(
+//             discovered_participant_data.participant_proxy.guid_prefix,
+//             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
+//         );
+//         let remote_group_entity_id = ENTITYID_UNKNOWN;
+//         let expects_inline_qos = false;
+//         let reader_proxy = ReaderProxy {
+//             remote_reader_guid,
+//             remote_group_entity_id,
+//             unicast_locator_list: discovered_participant_data
+//                 .participant_proxy
+//                 .metatraffic_unicast_locator_list
+//                 .to_vec(),
+//             multicast_locator_list: discovered_participant_data
+//                 .participant_proxy
+//                 .metatraffic_multicast_locator_list
+//                 .to_vec(),
+//             expects_inline_qos,
+//         };
+//         if let Some(w) = self
+//             .builtin_stateful_writer_list
+//             .iter_mut()
+//             .find(|w| w.guid().entity_id() == ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER)
+//         {
+//             w.add_matched_reader(
+//                 &reader_proxy,
+//                 ReliabilityKind::Reliable,
+//                 DurabilityKind::TransientLocal,
+//                 &[],
+//                 &[],
+//             );
+//             w.send_message(&self.message_sender);
+//         }
+//     }
+// }
+
+// fn add_matched_subscriptions_announcer(
+//     &mut self,
+//     discovered_participant_data: &SpdpDiscoveredParticipantData,
+// ) {
+//     if discovered_participant_data
+//         .participant_proxy
+//         .available_builtin_endpoints
+//         .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_ANNOUNCER)
+//     {
+//         let remote_writer_guid = Guid::new(
+//             discovered_participant_data.participant_proxy.guid_prefix,
+//             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
+//         );
+//         let remote_group_entity_id = ENTITYID_UNKNOWN;
+//         let data_max_size_serialized = Default::default();
+
+//         let writer_proxy = WriterProxy {
+//             remote_writer_guid,
+//             remote_group_entity_id,
+//             unicast_locator_list: discovered_participant_data
+//                 .participant_proxy
+//                 .metatraffic_unicast_locator_list
+//                 .to_vec(),
+//             multicast_locator_list: discovered_participant_data
+//                 .participant_proxy
+//                 .metatraffic_multicast_locator_list
+//                 .to_vec(),
+//             data_max_size_serialized,
+//         };
+//         if let Some(r) = self
+//             .builtin_stateful_reader_list
+//             .iter_mut()
+//             .find(|w| w.guid().entity_id() == ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR)
+//         {
+//             r.add_matched_writer(
+//                 &writer_proxy,
+//                 ReliabilityKind::Reliable,
+//                 DurabilityKind::TransientLocal,
+//                 &[],
+//                 &[],
+//             );
+//         }
+//     }
+// }
+
+// fn add_matched_topics_detector(
+//     &mut self,
+//     discovered_participant_data: &SpdpDiscoveredParticipantData,
+// ) {
+//     if discovered_participant_data
+//         .participant_proxy
+//         .available_builtin_endpoints
+//         .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_DETECTOR)
+//     {
+//         let remote_reader_guid = Guid::new(
+//             discovered_participant_data.participant_proxy.guid_prefix,
+//             ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
+//         );
+//         let remote_group_entity_id = ENTITYID_UNKNOWN;
+//         let expects_inline_qos = false;
+//         let reader_proxy = ReaderProxy {
+//             remote_reader_guid,
+//             remote_group_entity_id,
+//             unicast_locator_list: discovered_participant_data
+//                 .participant_proxy
+//                 .metatraffic_unicast_locator_list
+//                 .to_vec(),
+//             multicast_locator_list: discovered_participant_data
+//                 .participant_proxy
+//                 .metatraffic_multicast_locator_list
+//                 .to_vec(),
+//             expects_inline_qos,
+//         };
+//         if let Some(w) = self
+//             .builtin_stateful_writer_list
+//             .iter_mut()
+//             .find(|w| w.guid().entity_id() == ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER)
+//         {
+//             w.add_matched_reader(
+//                 &reader_proxy,
+//                 ReliabilityKind::Reliable,
+//                 DurabilityKind::TransientLocal,
+//                 &[],
+//                 &[],
+//             );
+//             w.send_message(&self.message_sender);
+//         }
+//     }
+// }
+
+// fn add_matched_topics_announcer(
+//     &mut self,
+//     discovered_participant_data: &SpdpDiscoveredParticipantData,
+// ) {
+//     if discovered_participant_data
+//         .participant_proxy
+//         .available_builtin_endpoints
+//         .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_ANNOUNCER)
+//     {
+//         let remote_writer_guid = Guid::new(
+//             discovered_participant_data.participant_proxy.guid_prefix,
+//             ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
+//         );
+//         let remote_group_entity_id = ENTITYID_UNKNOWN;
+//         let data_max_size_serialized = Default::default();
+
+//         let writer_proxy = WriterProxy {
+//             remote_writer_guid,
+//             remote_group_entity_id,
+//             unicast_locator_list: discovered_participant_data
+//                 .participant_proxy
+//                 .metatraffic_unicast_locator_list
+//                 .to_vec(),
+//             multicast_locator_list: discovered_participant_data
+//                 .participant_proxy
+//                 .metatraffic_multicast_locator_list
+//                 .to_vec(),
+//             data_max_size_serialized,
+//         };
+//         if let Some(r) = self
+//             .builtin_stateful_reader_list
+//             .iter_mut()
+//             .find(|w| w.guid().entity_id() == ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR)
+//         {
+//             r.add_matched_writer(
+//                 &writer_proxy,
+//                 ReliabilityKind::Reliable,
+//                 DurabilityKind::TransientLocal,
+//                 &[],
+//                 &[],
+//             );
+//         }
+//     }
+// }

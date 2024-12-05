@@ -32,7 +32,7 @@ use crate::{
     transport::{
         history_cache::CacheChange,
         reader::{TransportStatefulReader, TransportStatelessReader},
-        types::ChangeKind,
+        types::{ChangeKind, Guid},
     },
     xtypes::dynamic_type::DynamicType,
 };
@@ -125,6 +125,15 @@ pub struct IndexedSample {
 pub enum TransportReaderKind {
     Stateful(Box<dyn TransportStatefulReader>),
     Stateless(Box<dyn TransportStatelessReader>),
+}
+
+impl TransportReaderKind {
+    pub fn guid(&self) -> Guid {
+        match self {
+            TransportReaderKind::Stateful(r) => r.guid(),
+            TransportReaderKind::Stateless(r) => r.guid(),
+        }
+    }
 }
 
 pub struct DataReaderEntity {

@@ -12,7 +12,7 @@ use crate::{
         executor::{block_on, Executor},
     },
     transport::{
-        history_cache::{CacheChange, HistoryCache},
+        history_cache::HistoryCache,
         participant::TransportParticipant,
         reader::{TransportStatefulReader, TransportStatelessReader, WriterProxy},
         types::{
@@ -27,6 +27,7 @@ use super::{
     error::{RtpsError, RtpsErrorKind, RtpsResult},
     messages::overall_structure::RtpsMessageRead,
     participant::RtpsParticipant,
+    types::{PROTOCOLVERSION, VENDOR_ID_S2E},
 };
 
 const MAX_DATAGRAM_SIZE: usize = 65507;
@@ -300,11 +301,11 @@ impl TransportParticipant for RtpsTransport {
     }
 
     fn protocol_version(&self) -> ProtocolVersion {
-        todo!()
+        PROTOCOLVERSION
     }
 
     fn vendor_id(&self) -> VendorId {
-        todo!()
+        VENDOR_ID_S2E
     }
 
     fn metatraffic_unicast_locator_list(&self) -> &[Locator] {
@@ -441,86 +442,12 @@ impl TransportParticipant for RtpsTransport {
     }
 }
 
-struct ParticipantDiscoveryReaderHistoryCache {
-    rtps_participant_address: ActorAddress<RtpsParticipant>,
-    dcps_participant_reader_history_cache: Box<dyn HistoryCache>,
-}
-
-impl HistoryCache for ParticipantDiscoveryReaderHistoryCache {
-    fn add_change(&mut self, cache_change: CacheChange) {
-        // if let Ok(discovered_participant_data) =
-        //     SpdpDiscoveredParticipantData::deserialize_data(cache_change.data_value.as_ref())
-        // {
-        //     self.rtps_participant_address
-        //         .send_actor_mail(participant::AddDiscoveredParticipant {
-        //             discovered_participant_data,
-        //         })
-        //         .unwrap();
-        // }
-        // self.dcps_participant_reader_history_cache
-        //     .add_change(cache_change);
-    }
-
-    fn remove_change(&mut self, _sequence_number: i64) {
-        todo!()
-    }
-}
-
-struct PublicationsDiscoveryReaderHistoryCache {
-    rtps_participant_address: ActorAddress<RtpsParticipant>,
-    dcps_publications_reader_history_cache: Box<dyn HistoryCache>,
-}
-
-impl HistoryCache for PublicationsDiscoveryReaderHistoryCache {
-    fn add_change(&mut self, cache_change: CacheChange) {
-        // if let Ok(discovered_writer_data) =
-        //     DiscoveredWriterData::deserialize_data(cache_change.data_value.as_ref())
-        // {
-        //     self.rtps_participant_address
-        //         .send_actor_mail(participant::AddDiscoveredWriter {
-        //             discovered_writer_data,
-        //         })
-        //         .unwrap();
-        // }
-        // self.dcps_publications_reader_history_cache
-        //     .add_change(cache_change);
-    }
-
-    fn remove_change(&mut self, _sequence_number: i64) {
-        todo!()
-    }
-}
-
-struct SubscriptionsDiscoveryReaderHistoryCache {
-    rtps_participant_address: ActorAddress<RtpsParticipant>,
-    dcps_subscriptions_reader_history_cache: Box<dyn HistoryCache>,
-}
-
-impl HistoryCache for SubscriptionsDiscoveryReaderHistoryCache {
-    fn add_change(&mut self, cache_change: CacheChange) {
-        // if let Ok(discovered_reader_data) =
-        //     DiscoveredReaderData::deserialize_data(cache_change.data_value.as_ref())
-        // {
-        //     self.rtps_participant_address
-        //         .send_actor_mail(participant::AddDiscoveredReader {
-        //             discovered_reader_data,
-        //         })
-        //         .unwrap();
-        // }
-        // self.dcps_subscriptions_reader_history_cache
-        //     .add_change(cache_change);
-    }
-
-    fn remove_change(&mut self, _sequence_number: i64) {
-        todo!()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::sync::mpsc::{sync_channel, SyncSender};
 
     use crate::transport::{
+        history_cache::CacheChange,
         types::{ChangeKind, DurabilityKind, ENTITYID_UNKNOWN},
         writer::ReaderProxy,
     };
@@ -548,7 +475,7 @@ mod tests {
                 self.0.send(cache_change).unwrap();
             }
 
-            fn remove_change(&mut self, sequence_number: i64) {
+            fn remove_change(&mut self, _sequence_number: i64) {
                 todo!()
             }
         }
