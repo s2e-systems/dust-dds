@@ -8,9 +8,11 @@ use super::super::super::{
         submessage_elements::{Data, ParameterList},
         types::{SubmessageFlag, SubmessageKind},
     },
-    types::{EntityId, SequenceNumber},
 };
-use crate::rtps::error::{RtpsError, RtpsErrorKind};
+use crate::{
+    rtps::error::{RtpsError, RtpsErrorKind},
+    transport::types::{EntityId, SequenceNumber},
+};
 use std::io::Write;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -183,11 +185,11 @@ impl Submessage for DataSubmessage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::rtps::{
-        messages::{
+    use crate::{
+        rtps::messages::{
             overall_structure::write_submessage_into_bytes_vec, submessage_elements::Parameter,
         },
-        types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
+        transport::types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
     #[test]

@@ -1,12 +1,17 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 use crate::{
-    builtin_topics::{
-        PublicationBuiltinTopicData, SubscriptionBuiltinTopicData, TopicBuiltinTopicData,
-    },
+    builtin_topics::TopicBuiltinTopicData,
     domain::domain_participant_factory::DomainId,
     implementation::{
-        data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+        data_representation_builtin_endpoints::{
+            discovered_reader_data::DiscoveredReaderData,
+            discovered_writer_data::DiscoveredWriterData,
+            spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+        },
         domain_participant_backend::services::domain_participant_service::BUILT_IN_TOPIC_NAME_LIST,
         listeners::domain_participant_listener::DomainParticipantListenerActor,
         status_condition::status_condition_actor::StatusConditionActor,
@@ -25,6 +30,7 @@ use super::{publisher::PublisherEntity, subscriber::SubscriberEntity, topic::Top
 
 pub struct DomainParticipantEntity {
     domain_id: DomainId,
+    domain_tag: String,
     instance_handle: InstanceHandle,
     qos: DomainParticipantQos,
     builtin_subscriber: SubscriberEntity,
@@ -37,8 +43,8 @@ pub struct DomainParticipantEntity {
     default_topic_qos: TopicQos,
     discovered_participant_list: HashMap<InstanceHandle, SpdpDiscoveredParticipantData>,
     discovered_topic_list: HashMap<InstanceHandle, TopicBuiltinTopicData>,
-    discovered_reader_list: HashMap<InstanceHandle, SubscriptionBuiltinTopicData>,
-    discovered_writer_list: HashMap<InstanceHandle, PublicationBuiltinTopicData>,
+    discovered_reader_list: HashMap<InstanceHandle, DiscoveredReaderData>,
+    discovered_writer_list: HashMap<InstanceHandle, DiscoveredWriterData>,
     enabled: bool,
     ignored_participants: HashSet<InstanceHandle>,
     ignored_publications: HashSet<InstanceHandle>,
@@ -61,6 +67,7 @@ impl DomainParticipantEntity {
         builtin_publisher: PublisherEntity,
         builtin_subscriber: SubscriberEntity,
         topic_list: HashMap<String, TopicEntity>,
+        domain_tag: String,
     ) -> Self {
         Self {
             domain_id,
@@ -86,11 +93,16 @@ impl DomainParticipantEntity {
             listener,
             listener_mask,
             status_condition,
+            domain_tag,
         }
     }
 
     pub fn get_current_time(&self) -> Time {
-        Time::now()
+        let now_system_time = SystemTime::now();
+        let unix_time = now_system_time
+            .duration_since(UNIX_EPOCH)
+            .expect("Clock time is before Unix epoch start");
+        Time::new(unix_time.as_secs() as i32, unix_time.subsec_nanos())
     }
 
     pub fn enable(&mut self) {
@@ -185,7 +197,9 @@ impl DomainParticipantEntity {
     }
 
     pub fn find_topic(&self, topic_name: &str) -> Option<&TopicBuiltinTopicData> {
-        self.discovered_topic_list.values().find(|&discovered_topic_data| discovered_topic_data.name() == topic_name)
+        self.discovered_topic_list
+            .values()
+            .find(|&discovered_topic_data| discovered_topic_data.name() == topic_name)
     }
 
     pub fn add_discovered_participant(
@@ -206,13 +220,10 @@ impl DomainParticipantEntity {
             .remove(discovered_participant_handle);
     }
 
-    pub fn add_discovered_reader(
-        &mut self,
-        subscription_builtin_topic_data: SubscriptionBuiltinTopicData,
-    ) {
+    pub fn add_discovered_reader(&mut self, discovered_reader_data: DiscoveredReaderData) {
         self.discovered_reader_list.insert(
-            InstanceHandle::new(subscription_builtin_topic_data.key().value),
-            subscription_builtin_topic_data,
+            InstanceHandle::new(discovered_reader_data.dds_subscription_data.key().value),
+            discovered_reader_data,
         );
     }
 
@@ -220,25 +231,20 @@ impl DomainParticipantEntity {
         self.discovered_reader_list.remove(discovered_reader_handle);
     }
 
-    pub fn subscription_builtin_topic_data_list(
-        &self,
-    ) -> impl Iterator<Item = &SubscriptionBuiltinTopicData> {
+    pub fn discovered_reader_data_list(&self) -> impl Iterator<Item = &DiscoveredReaderData> {
         self.discovered_reader_list.values()
     }
 
-    pub fn add_discovered_writer(
-        &mut self,
-        publication_builtin_topic_data: PublicationBuiltinTopicData,
-    ) {
+    pub fn add_discovered_writer(&mut self, discovered_writer_data: DiscoveredWriterData) {
         self.discovered_writer_list.insert(
-            InstanceHandle::new(publication_builtin_topic_data.key().value),
-            publication_builtin_topic_data,
+            InstanceHandle::new(discovered_writer_data.dds_publication_data.key().value),
+            discovered_writer_data,
         );
     }
 
     pub fn publication_builtin_topic_data_list(
         &self,
-    ) -> impl Iterator<Item = &PublicationBuiltinTopicData> {
+    ) -> impl Iterator<Item = &DiscoveredWriterData> {
         self.discovered_writer_list.values()
     }
 
@@ -385,5 +391,15 @@ impl DomainParticipantEntity {
 
     pub fn domain_id(&self) -> i32 {
         self.domain_id
+    }
+
+    pub fn domain_tag(&self) -> &str {
+        &self.domain_tag
+    }
+
+    pub fn discovered_participant_list(
+        &self,
+    ) -> impl Iterator<Item = &SpdpDiscoveredParticipantData> {
+        self.discovered_participant_list.values()
     }
 }

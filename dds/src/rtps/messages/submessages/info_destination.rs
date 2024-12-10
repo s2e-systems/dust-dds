@@ -1,3 +1,5 @@
+use crate::transport::types::GuidPrefix;
+
 use super::super::super::{
     error::RtpsResult,
     messages::{
@@ -7,7 +9,6 @@ use super::super::super::{
         },
         types::SubmessageKind,
     },
-    types::GuidPrefix,
 };
 use std::io::Write;
 
@@ -54,9 +55,7 @@ impl Submessage for InfoDestinationSubmessage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::rtps::{
-        messages::overall_structure::write_submessage_into_bytes_vec, types::GUIDPREFIX_UNKNOWN,
-    };
+    use crate::{rtps::messages::overall_structure::write_submessage_into_bytes_vec, transport::types::GUIDPREFIX_UNKNOWN};
 
     #[test]
     fn serialize_heart_beat() {

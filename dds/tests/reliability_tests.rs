@@ -13,10 +13,6 @@ use dust_dds::{
         wait_set::{Condition, WaitSet},
     },
     rtps::{
-        discovery_types::{
-            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
-            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
-        },
         messages::{
             overall_structure::{
                 RtpsMessageHeader, RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageReadKind,
@@ -24,15 +20,42 @@ use dust_dds::{
             submessage_elements::{Data, ParameterList, SequenceNumberSet},
             submessages::{ack_nack::AckNackSubmessage, data::DataSubmessage},
         },
-        types::{EntityId, PROTOCOLVERSION, USER_DEFINED_READER_WITH_KEY, VENDOR_ID_S2E},
+        types::{PROTOCOLVERSION, VENDOR_ID_S2E},
     },
     subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     topic_definition::type_support::{DdsDeserialize, DdsType},
+    transport::types::{
+        EntityId, BUILT_IN_READER_WITH_KEY, BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_WITH_KEY,
+    },
 };
 use std::io::{BufRead, Read};
 
 mod utils;
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
+
+pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
+    EntityId::new([0x00, 0x01, 0x00], BUILT_IN_WRITER_WITH_KEY);
+
+pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER: EntityId =
+    EntityId::new([0x00, 0x01, 0x00], BUILT_IN_READER_WITH_KEY);
+
+pub const ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER: EntityId =
+    EntityId::new([0, 0, 0x02], BUILT_IN_WRITER_WITH_KEY);
+
+pub const ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR: EntityId =
+    EntityId::new([0, 0, 0x02], BUILT_IN_READER_WITH_KEY);
+
+pub const ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER: EntityId =
+    EntityId::new([0, 0, 0x03], BUILT_IN_WRITER_WITH_KEY);
+
+pub const ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR: EntityId =
+    EntityId::new([0, 0, 0x03], BUILT_IN_READER_WITH_KEY);
+
+pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER: EntityId =
+    EntityId::new([0, 0, 0x04], BUILT_IN_WRITER_WITH_KEY);
+
+pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR: EntityId =
+    EntityId::new([0, 0, 0x04], BUILT_IN_READER_WITH_KEY);
 
 #[derive(Clone, Debug, PartialEq, DdsType)]
 struct KeyedData {

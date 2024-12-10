@@ -1,9 +1,7 @@
 use dust_dds::{
     infrastructure::instance::InstanceHandle,
-    rtps::{
-        messages::overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
-        types::{GuidPrefix, Locator},
-    },
+    rtps::messages::overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
+    transport::types::{GuidPrefix, Locator},
     xtypes::{
         deserialize::XTypesDeserialize,
         error::XTypesError,

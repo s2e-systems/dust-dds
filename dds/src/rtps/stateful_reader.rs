@@ -7,29 +7,25 @@ use super::{
             heartbeat::HeartbeatSubmessage, heartbeat_frag::HeartbeatFragSubmessage,
         },
     },
-    types::{DurabilityKind, Guid, GuidPrefix, Locator, ENTITYID_UNKNOWN},
     writer_proxy::RtpsWriterProxy,
 };
-use crate::{
-    implementation::data_representation_builtin_endpoints::{
-        discovered_reader_data::ReaderProxy, discovered_writer_data::WriterProxy,
-    },
-    transport::{cache_change::CacheChange, reader::ReaderHistoryCache, types::ReliabilityKind},
+use crate::transport::{
+    history_cache::{CacheChange, HistoryCache},
+    reader::WriterProxy,
+    types::{Guid, GuidPrefix, ReliabilityKind},
 };
 use tracing::error;
 
 pub struct RtpsStatefulReader {
     guid: Guid,
-    topic_name: String,
     matched_writers: Vec<RtpsWriterProxy>,
-    history_cache: Box<dyn ReaderHistoryCache>,
+    history_cache: Box<dyn HistoryCache>,
 }
 
 impl RtpsStatefulReader {
-    pub fn new(guid: Guid, topic_name: String, history_cache: Box<dyn ReaderHistoryCache>) -> Self {
+    pub fn new(guid: Guid, history_cache: Box<dyn HistoryCache>) -> Self {
         Self {
             guid,
-            topic_name,
             matched_writers: Vec::new(),
             history_cache,
         }
@@ -39,18 +35,7 @@ impl RtpsStatefulReader {
         self.guid
     }
 
-    pub fn topic_name(&self) -> &str {
-        &self.topic_name
-    }
-
-    pub fn add_matched_writer(
-        &mut self,
-        writer_proxy: &WriterProxy,
-        reliability_kind: ReliabilityKind,
-        _durability_kind: DurabilityKind,
-        default_unicast_locator_list: &[Locator],
-        default_multicast_locator_list: &[Locator],
-    ) {
+    pub fn add_matched_writer(&mut self, writer_proxy: &WriterProxy) {
         if self
             .matched_writers
             .iter()
@@ -59,25 +44,13 @@ impl RtpsStatefulReader {
             return;
         }
 
-        let unicast_locator_list = if writer_proxy.unicast_locator_list.is_empty() {
-            default_unicast_locator_list
-        } else {
-            &writer_proxy.unicast_locator_list
-        };
-
-        let multicast_locator_list = if writer_proxy.unicast_locator_list.is_empty() {
-            default_multicast_locator_list
-        } else {
-            &writer_proxy.multicast_locator_list
-        };
-
         let rtps_writer_proxy = RtpsWriterProxy::new(
             writer_proxy.remote_writer_guid,
-            unicast_locator_list,
-            multicast_locator_list,
+            &writer_proxy.unicast_locator_list,
+            &writer_proxy.multicast_locator_list,
             Some(writer_proxy.data_max_size_serialized),
             writer_proxy.remote_group_entity_id,
-            reliability_kind,
+            writer_proxy.reliability_kind,
         );
         self.matched_writers.push(rtps_writer_proxy);
     }
@@ -85,16 +58,6 @@ impl RtpsStatefulReader {
     pub fn delete_matched_writer(&mut self, writer_guid: Guid) {
         self.matched_writers
             .retain(|x| x.remote_writer_guid() != writer_guid)
-    }
-
-    pub fn reader_proxy(&self) -> ReaderProxy {
-        ReaderProxy {
-            remote_reader_guid: self.guid,
-            remote_group_entity_id: ENTITYID_UNKNOWN,
-            unicast_locator_list: vec![],
-            multicast_locator_list: vec![],
-            expects_inline_qos: false,
-        }
     }
 
     pub fn matched_writer_lookup(&mut self, a_writer_guid: Guid) -> Option<&mut RtpsWriterProxy> {

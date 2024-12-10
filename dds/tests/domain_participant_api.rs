@@ -700,10 +700,6 @@ fn get_discovery_data_from_builtin_reader() {
         .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         .unwrap();
 
-    let topic_samples = topics_reader
-        .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-        .unwrap();
-
     let subscription_samples = subscriptions_reader
         .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         .unwrap();
@@ -712,14 +708,26 @@ fn get_discovery_data_from_builtin_reader() {
         .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         .unwrap();
 
+    let start_time = std::time::Instant::now();
+    loop {
+        if let Ok(topic_samples) =
+            topics_reader.read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        {
+            assert_eq!(
+                &topic_samples[0].data().unwrap().topic_data().value,
+                &topic_user_data
+            );
+            break;
+        }
+
+        if start_time.elapsed() > std::time::Duration::from_secs(10) {
+            panic!("Topic discovery data not received")
+        }
+    }
+
     assert_eq!(
         &participant_samples[0].data().unwrap().user_data().value,
         &participant_user_data
-    );
-
-    assert_eq!(
-        &topic_samples[0].data().unwrap().topic_data().value,
-        &topic_user_data
     );
 
     assert_eq!(

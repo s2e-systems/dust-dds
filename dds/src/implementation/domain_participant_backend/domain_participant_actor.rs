@@ -16,10 +16,12 @@ use crate::{
 pub struct DomainParticipantActor {
     pub transport: Box<dyn TransportParticipant>,
     pub instance_handle_counter: InstanceHandleCounter,
+    pub entity_counter: u16,
     pub domain_participant: DomainParticipantEntity,
     pub backend_executor: Executor,
     pub listener_executor: Executor,
     pub timer_driver: TimerDriver,
+    pub fragment_size: usize,
 }
 
 impl DomainParticipantActor {
@@ -30,14 +32,17 @@ impl DomainParticipantActor {
         listener_executor: Executor,
         timer_driver: TimerDriver,
         instance_handle_counter: InstanceHandleCounter,
+        fragment_size: usize,
     ) -> Self {
         Self {
             transport,
             instance_handle_counter,
+            entity_counter: 0,
             domain_participant,
             backend_executor,
             listener_executor,
             timer_driver,
+            fragment_size,
         }
     }
 

@@ -14,17 +14,17 @@ use super::{
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     infrastructure::{error::DdsResult, qos_policy::DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER},
-    rtps::types::{EntityId, Guid, Locator},
     topic_definition::type_support::{DdsDeserialize, DdsSerialize, TypeSupport},
+    transport::types::{EntityId, Guid, Locator},
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct WriterProxy {
-    pub(crate) remote_writer_guid: Guid,
-    pub(crate) remote_group_entity_id: EntityId,
-    pub(crate) unicast_locator_list: Vec<Locator>,
-    pub(crate) multicast_locator_list: Vec<Locator>,
-    pub(crate) data_max_size_serialized: i32,
+    pub remote_writer_guid: Guid,
+    pub remote_group_entity_id: EntityId,
+    pub unicast_locator_list: Vec<Locator>,
+    pub multicast_locator_list: Vec<Locator>,
+    pub data_max_size_serialized: i32,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -272,8 +272,8 @@ mod tests {
     use super::*;
     use crate::{
         builtin_topics::BuiltInTopicKey,
-        rtps::types::{
-            BUILT_IN_PARTICIPANT, BUILT_IN_READER_GROUP, BUILT_IN_WRITER_WITH_KEY,
+        transport::types::{
+            EntityId, Guid, BUILT_IN_PARTICIPANT, BUILT_IN_READER_GROUP, BUILT_IN_WRITER_WITH_KEY,
             USER_DEFINED_UNKNOWN,
         },
     };

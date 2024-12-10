@@ -1,38 +1,42 @@
 use super::{
-    reader::{ReaderHistoryCache, TransportReader},
-    types::TopicKind,
-    writer::WriterHistoryCache,
+    history_cache::HistoryCache,
+    reader::{TransportStatefulReader, TransportStatelessReader},
+    types::{EntityId, Guid, Locator, ProtocolVersion, ReliabilityKind, VendorId},
+    writer::{TransportStatefulWriter, TransportStatelessWriter},
 };
 
 pub trait TransportParticipant: Send + Sync {
-    fn guid(&self) -> [u8; 16];
+    fn guid(&self) -> Guid;
+    fn protocol_version(&self) -> ProtocolVersion;
+    fn vendor_id(&self) -> VendorId;
+    fn metatraffic_unicast_locator_list(&self) -> &[Locator];
+    fn metatraffic_multicast_locator_list(&self) -> &[Locator];
+    fn default_unicast_locator_list(&self) -> &[Locator];
+    fn default_multicast_locator_list(&self) -> &[Locator];
 
-    fn get_participant_discovery_writer(&self) -> Box<dyn WriterHistoryCache>;
-
-    fn get_participant_discovery_reader(&self) -> Box<dyn TransportReader>;
-
-    fn get_topics_discovery_writer(&self) -> Box<dyn WriterHistoryCache>;
-
-    fn get_topics_discovery_reader(&self) -> Box<dyn TransportReader>;
-
-    fn get_publications_discovery_writer(&self) -> Box<dyn WriterHistoryCache>;
-
-    fn get_publications_discovery_reader(&self) -> Box<dyn TransportReader>;
-
-    fn get_subscriptions_discovery_writer(&self) -> Box<dyn WriterHistoryCache>;
-
-    fn get_subscriptions_discovery_reader(&self) -> Box<dyn TransportReader>;
-
-    fn create_user_defined_reader(
+    fn create_stateless_reader(
         &mut self,
-        topic_name: &str,
-        topic_kind: TopicKind,
-        reader_history_cache: Box<dyn ReaderHistoryCache>,
-    ) -> Box<dyn TransportReader>;
+        entity_id: EntityId,
+        reader_history_cache: Box<dyn HistoryCache>,
+    ) -> Box<dyn TransportStatelessReader>;
 
-    fn create_user_defined_writer(
+    fn create_stateless_writer(
         &mut self,
-        topic_name: &str,
-        topic_kind: TopicKind,
-    ) -> Box<dyn WriterHistoryCache>;
+        entity_id: EntityId,
+        data_max_size_serialized: usize,
+    ) -> Box<dyn TransportStatelessWriter>;
+
+    fn create_stateful_reader(
+        &mut self,
+        entity_id: EntityId,
+        reliability_kind: ReliabilityKind,
+        reader_history_cache: Box<dyn HistoryCache>,
+    ) -> Box<dyn TransportStatefulReader>;
+
+    fn create_stateful_writer(
+        &mut self,
+        entity_id: EntityId,
+        reliability_kind: ReliabilityKind,
+        data_max_size_serialized: usize,
+    ) -> Box<dyn TransportStatefulWriter>;
 }

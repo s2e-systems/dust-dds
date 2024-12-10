@@ -1,13 +1,18 @@
 use crate::{
     builtin_topics::{
-        BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
-        TopicBuiltinTopicData, DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
+        BuiltInTopicKey, TopicBuiltinTopicData, DCPS_PARTICIPANT, DCPS_PUBLICATION,
+        DCPS_SUBSCRIPTION, DCPS_TOPIC,
     },
     implementation::{
-        data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+        data_representation_builtin_endpoints::{
+            discovered_reader_data::DiscoveredReaderData,
+            discovered_writer_data::DiscoveredWriterData,
+            spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+        },
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor,
-            entities::data_reader::AddChangeResult, services::discovery_service,
+            entities::data_reader::{AddChangeResult, TransportReaderKind},
+            services::discovery_service,
         },
         listeners::{data_reader_listener, domain_participant_listener, subscriber_listener},
         status_condition::status_condition_actor,
@@ -24,7 +29,10 @@ use crate::{
     },
     runtime::actor::{ActorAddress, Mail, MailHandler},
     topic_definition::type_support::DdsDeserialize,
-    transport::{cache_change::CacheChange, types::ChangeKind},
+    transport::{
+        history_cache::CacheChange,
+        types::{ChangeKind, SequenceNumber},
+    },
 };
 
 use super::event_service;
@@ -40,6 +48,7 @@ impl Mail for AddCacheChange {
 }
 impl MailHandler<AddCacheChange> for DomainParticipantActor {
     fn handle(&mut self, message: AddCacheChange) -> <AddCacheChange as Mail>::Result {
+        let reception_timestamp = self.domain_participant.get_current_time();
         let subscriber = self
             .domain_participant
             .get_mut_subscriber(message.subscriber_handle)
@@ -48,13 +57,13 @@ impl MailHandler<AddCacheChange> for DomainParticipantActor {
         let data_reader = subscriber
             .get_mut_data_reader(message.data_reader_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
-        let writer_instance_handle = InstanceHandle::new(message.cache_change.writer_guid);
+        let writer_instance_handle = InstanceHandle::new(message.cache_change.writer_guid.into());
 
         if data_reader
             .get_matched_publication_data(&writer_instance_handle)
             .is_some()
         {
-            match data_reader.add_reader_change(message.cache_change)? {
+            match data_reader.add_reader_change(message.cache_change, reception_timestamp)? {
                 AddChangeResult::Added(change_instance_handle) => {
                     if let DurationKind::Finite(deadline_missed_period) =
                         data_reader.qos().deadline.period
@@ -251,6 +260,7 @@ impl MailHandler<AddCacheChange> for DomainParticipantActor {
 }
 
 pub struct AddBuiltinParticipantsDetectorCacheChange {
+    pub participant_address: ActorAddress<DomainParticipantActor>,
     pub cache_change: CacheChange,
 }
 impl Mail for AddBuiltinParticipantsDetectorCacheChange {
@@ -268,30 +278,57 @@ impl MailHandler<AddBuiltinParticipantsDetectorCacheChange> for DomainParticipan
                         message.cache_change.data_value.as_ref(),
                     )
                 {
-                    self.domain_participant
-                        .add_discovered_participant(discovered_participant_data);
+                    message
+                        .participant_address
+                        .send_actor_mail(discovery_service::AddDiscoveredParticipant {
+                            discovered_participant_data,
+                        })
+                        .ok();
                 }
             }
             ChangeKind::NotAliveDisposed => {
                 if let Ok(discovered_participant_handle) =
                     InstanceHandle::deserialize_data(message.cache_change.data_value.as_ref())
                 {
-                    self.domain_participant
-                        .remove_discovered_participant(&discovered_participant_handle);
+                    message
+                        .participant_address
+                        .send_actor_mail(discovery_service::RemoveDiscoveredParticipant {
+                            discovered_participant: discovered_participant_handle,
+                        })
+                        .ok();
                 }
             }
             ChangeKind::AliveFiltered
             | ChangeKind::NotAliveUnregistered
             | ChangeKind::NotAliveDisposedUnregistered => (), // Do nothing,
         }
+
+        let reception_timestamp = self.domain_participant.get_current_time();
         if let Some(reader) = self
             .domain_participant
             .builtin_subscriber_mut()
             .data_reader_list_mut()
             .find(|dr| dr.topic_name() == DCPS_PARTICIPANT)
         {
-            reader.add_reader_change(message.cache_change).ok();
+            reader
+                .add_reader_change(message.cache_change, reception_timestamp)
+                .ok();
         }
+    }
+}
+
+pub struct RemoveBuiltinParticipantsDetectorCacheChange {
+    pub _sequence_number: SequenceNumber,
+}
+impl Mail for RemoveBuiltinParticipantsDetectorCacheChange {
+    type Result = ();
+}
+impl MailHandler<RemoveBuiltinParticipantsDetectorCacheChange> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        _message: RemoveBuiltinParticipantsDetectorCacheChange,
+    ) -> <RemoveBuiltinParticipantsDetectorCacheChange as Mail>::Result {
+        todo!()
     }
 }
 
@@ -331,14 +368,32 @@ impl MailHandler<AddBuiltinTopicsDetectorCacheChange> for DomainParticipantActor
             | ChangeKind::NotAliveDisposedUnregistered => (),
         }
 
+        let reception_timestamp = self.domain_participant.get_current_time();
         if let Some(reader) = self
             .domain_participant
             .builtin_subscriber_mut()
             .data_reader_list_mut()
             .find(|dr| dr.topic_name() == DCPS_TOPIC)
         {
-            reader.add_reader_change(message.cache_change).ok();
+            reader
+                .add_reader_change(message.cache_change, reception_timestamp)
+                .ok();
         }
+    }
+}
+
+pub struct RemoveBuiltinTopicsDetectorCacheChange {
+    pub _sequence_number: SequenceNumber,
+}
+impl Mail for RemoveBuiltinTopicsDetectorCacheChange {
+    type Result = ();
+}
+impl MailHandler<RemoveBuiltinTopicsDetectorCacheChange> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        _message: RemoveBuiltinTopicsDetectorCacheChange,
+    ) -> <RemoveBuiltinTopicsDetectorCacheChange as Mail>::Result {
+        todo!()
     }
 }
 
@@ -356,11 +411,11 @@ impl MailHandler<AddBuiltinPublicationsDetectorCacheChange> for DomainParticipan
     ) -> <AddBuiltinPublicationsDetectorCacheChange as Mail>::Result {
         match message.cache_change.kind {
             ChangeKind::Alive => {
-                if let Ok(publication_builtin_topic_data) =
-                    PublicationBuiltinTopicData::deserialize_data(
-                        message.cache_change.data_value.as_ref(),
-                    )
+                if let Ok(discovered_writer_data) =
+                    DiscoveredWriterData::deserialize_data(message.cache_change.data_value.as_ref())
                 {
+                    let publication_builtin_topic_data =
+                        &discovered_writer_data.dds_publication_data;
                     if self
                         .domain_participant
                         .find_topic(&publication_builtin_topic_data.topic_name)
@@ -390,14 +445,13 @@ impl MailHandler<AddBuiltinPublicationsDetectorCacheChange> for DomainParticipan
                     }
 
                     self.domain_participant
-                        .add_discovered_writer(publication_builtin_topic_data.clone());
+                        .add_discovered_writer(discovered_writer_data.clone());
                     for subscriber in self.domain_participant.subscriber_list() {
                         for data_reader in subscriber.data_reader_list() {
                             message
                                 .participant_address
                                 .send_actor_mail(discovery_service::AddDiscoveredWriter {
-                                    publication_builtin_topic_data: publication_builtin_topic_data
-                                        .clone(),
+                                    discovered_writer_data: discovered_writer_data.clone(),
                                     subscriber_handle: subscriber.instance_handle(),
                                     data_reader_handle: data_reader.instance_handle(),
                                     participant_address: message.participant_address.clone(),
@@ -429,14 +483,33 @@ impl MailHandler<AddBuiltinPublicationsDetectorCacheChange> for DomainParticipan
             }
             ChangeKind::AliveFiltered | ChangeKind::NotAliveUnregistered => (),
         }
+
+        let reception_timestamp = self.domain_participant.get_current_time();
         if let Some(reader) = self
             .domain_participant
             .builtin_subscriber_mut()
             .data_reader_list_mut()
             .find(|dr| dr.topic_name() == DCPS_PUBLICATION)
         {
-            reader.add_reader_change(message.cache_change).ok();
+            reader
+                .add_reader_change(message.cache_change, reception_timestamp)
+                .ok();
         }
+    }
+}
+
+pub struct RemoveBuiltinPublicationsDetectorCacheChange {
+    pub _sequence_number: SequenceNumber,
+}
+impl Mail for RemoveBuiltinPublicationsDetectorCacheChange {
+    type Result = ();
+}
+impl MailHandler<RemoveBuiltinPublicationsDetectorCacheChange> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        _message: RemoveBuiltinPublicationsDetectorCacheChange,
+    ) -> <RemoveBuiltinPublicationsDetectorCacheChange as Mail>::Result {
+        todo!()
     }
 }
 
@@ -454,38 +527,63 @@ impl MailHandler<AddBuiltinSubscriptionsDetectorCacheChange> for DomainParticipa
     ) -> <AddBuiltinSubscriptionsDetectorCacheChange as Mail>::Result {
         match message.cache_change.kind {
             ChangeKind::Alive => {
-                if let Ok(subscription_builtin_topic_data) =
-                    SubscriptionBuiltinTopicData::deserialize_data(
-                        message.cache_change.data_value.as_ref(),
-                    )
+                if let Ok(discovered_reader_data) =
+                    DiscoveredReaderData::deserialize_data(message.cache_change.data_value.as_ref())
                 {
                     if self
                         .domain_participant
-                        .find_topic(&subscription_builtin_topic_data.topic_name)
+                        .find_topic(&discovered_reader_data.dds_subscription_data.topic_name)
                         .is_none()
                     {
                         let reader_topic = TopicBuiltinTopicData {
                             key: BuiltInTopicKey::default(),
-                            name: subscription_builtin_topic_data.topic_name().to_string(),
-                            type_name: subscription_builtin_topic_data.get_type_name().to_string(),
+                            name: discovered_reader_data
+                                .dds_subscription_data
+                                .topic_name()
+                                .to_string(),
+                            type_name: discovered_reader_data
+                                .dds_subscription_data
+                                .get_type_name()
+                                .to_string(),
 
-                            topic_data: subscription_builtin_topic_data.topic_data().clone(),
-                            durability: subscription_builtin_topic_data.durability().clone(),
-                            deadline: subscription_builtin_topic_data.deadline().clone(),
-                            latency_budget: subscription_builtin_topic_data
+                            topic_data: discovered_reader_data
+                                .dds_subscription_data
+                                .topic_data()
+                                .clone(),
+                            durability: discovered_reader_data
+                                .dds_subscription_data
+                                .durability()
+                                .clone(),
+                            deadline: discovered_reader_data
+                                .dds_subscription_data
+                                .deadline()
+                                .clone(),
+                            latency_budget: discovered_reader_data
+                                .dds_subscription_data
                                 .latency_budget()
                                 .clone(),
-                            liveliness: subscription_builtin_topic_data.liveliness().clone(),
-                            reliability: subscription_builtin_topic_data.reliability().clone(),
-                            destination_order: subscription_builtin_topic_data
+                            liveliness: discovered_reader_data
+                                .dds_subscription_data
+                                .liveliness()
+                                .clone(),
+                            reliability: discovered_reader_data
+                                .dds_subscription_data
+                                .reliability()
+                                .clone(),
+                            destination_order: discovered_reader_data
+                                .dds_subscription_data
                                 .destination_order()
                                 .clone(),
                             history: HistoryQosPolicy::default(),
                             resource_limits: ResourceLimitsQosPolicy::default(),
                             transport_priority: TransportPriorityQosPolicy::default(),
                             lifespan: LifespanQosPolicy::default(),
-                            ownership: subscription_builtin_topic_data.ownership().clone(),
-                            representation: subscription_builtin_topic_data
+                            ownership: discovered_reader_data
+                                .dds_subscription_data
+                                .ownership()
+                                .clone(),
+                            representation: discovered_reader_data
+                                .dds_subscription_data
                                 .representation()
                                 .clone(),
                         };
@@ -493,14 +591,13 @@ impl MailHandler<AddBuiltinSubscriptionsDetectorCacheChange> for DomainParticipa
                     }
 
                     self.domain_participant
-                        .add_discovered_reader(subscription_builtin_topic_data.clone());
+                        .add_discovered_reader(discovered_reader_data.clone());
                     for publisher in self.domain_participant.publisher_list() {
                         for data_writer in publisher.data_writer_list() {
                             message
                                 .participant_address
                                 .send_actor_mail(discovery_service::AddDiscoveredReader {
-                                    subscription_builtin_topic_data:
-                                        subscription_builtin_topic_data.clone(),
+                                    discovered_reader_data: discovered_reader_data.clone(),
                                     publisher_handle: publisher.instance_handle(),
                                     data_writer_handle: data_writer.instance_handle(),
                                     participant_address: message.participant_address.clone(),
@@ -533,14 +630,32 @@ impl MailHandler<AddBuiltinSubscriptionsDetectorCacheChange> for DomainParticipa
             ChangeKind::AliveFiltered | ChangeKind::NotAliveUnregistered => (),
         }
 
+        let reception_timestamp = self.domain_participant.get_current_time();
         if let Some(reader) = self
             .domain_participant
             .builtin_subscriber_mut()
             .data_reader_list_mut()
             .find(|dr| dr.topic_name() == DCPS_SUBSCRIPTION)
         {
-            reader.add_reader_change(message.cache_change).ok();
+            reader
+                .add_reader_change(message.cache_change, reception_timestamp)
+                .ok();
         }
+    }
+}
+
+pub struct RemoveBuiltinSubscriptionsDetectorCacheChange {
+    pub _sequence_number: SequenceNumber,
+}
+impl Mail for RemoveBuiltinSubscriptionsDetectorCacheChange {
+    type Result = ();
+}
+impl MailHandler<RemoveBuiltinSubscriptionsDetectorCacheChange> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        _message: RemoveBuiltinSubscriptionsDetectorCacheChange,
+    ) -> <RemoveBuiltinSubscriptionsDetectorCacheChange as Mail>::Result {
+        todo!()
     }
 }
 
@@ -596,7 +711,11 @@ impl MailHandler<IsHistoricalDataReceived> for DomainParticipantActor {
             | DurabilityQosPolicyKind::Persistent => Ok(()),
         }?;
 
-        Ok(data_reader.transport_reader().is_historical_data_received())
+        if let TransportReaderKind::Stateful(r) = data_reader.transport_reader() {
+            Ok(r.is_historical_data_received())
+        } else {
+            Ok(true)
+        }
     }
 }
 

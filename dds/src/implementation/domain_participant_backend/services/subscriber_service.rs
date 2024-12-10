@@ -4,7 +4,7 @@ use crate::{
         any_data_reader_listener::AnyDataReaderListener,
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor,
-            entities::data_reader::DataReaderEntity,
+            entities::data_reader::{DataReaderEntity, TransportReaderKind},
             services::{data_reader_service, discovery_service, message_service},
         },
         listeners::{
@@ -17,10 +17,17 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataReaderQos, QosKind, SubscriberQos},
+        qos_policy::ReliabilityQosPolicyKind,
         status::StatusKind,
     },
     runtime::actor::{Actor, ActorAddress, Mail, MailHandler},
-    transport::{cache_change::CacheChange, reader::ReaderHistoryCache, types::TopicKind},
+    transport::{
+        history_cache::{CacheChange, HistoryCache},
+        types::{
+            EntityId, ReliabilityKind, TopicKind, USER_DEFINED_READER_NO_KEY,
+            USER_DEFINED_READER_WITH_KEY,
+        },
+    },
     xtypes::dynamic_type::DynamicType,
 };
 
@@ -43,7 +50,7 @@ impl MailHandler<CreateDataReader> for DomainParticipantActor {
             pub data_reader_handle: InstanceHandle,
         }
 
-        impl ReaderHistoryCache for UserDefinedReaderHistoryCache {
+        impl HistoryCache for UserDefinedReaderHistoryCache {
             fn add_change(&mut self, cache_change: CacheChange) {
                 self.domain_participant_address
                     .send_actor_mail(message_service::AddCacheChange {
@@ -53,6 +60,10 @@ impl MailHandler<CreateDataReader> for DomainParticipantActor {
                         data_reader_handle: self.data_reader_handle,
                     })
                     .ok();
+            }
+
+            fn remove_change(&mut self, _sequence_number: i64) {
+                todo!()
             }
         }
 
@@ -78,15 +89,34 @@ impl MailHandler<CreateDataReader> for DomainParticipantActor {
                 q
             }
         };
-        let transport_reader = self.transport.create_user_defined_reader(
-            &message.topic_name,
-            topic_kind,
-            Box::new(UserDefinedReaderHistoryCache {
-                domain_participant_address: message.domain_participant_address.clone(),
-                subscriber_handle: subscriber.instance_handle(),
-                data_reader_handle: reader_handle,
-            }),
+        self.entity_counter += 1;
+
+        let entity_kind = match topic_kind {
+            TopicKind::NoKey => USER_DEFINED_READER_NO_KEY,
+            TopicKind::WithKey => USER_DEFINED_READER_WITH_KEY,
+        };
+        let entity_id = EntityId::new(
+            [
+                0,
+                self.entity_counter.to_le_bytes()[0],
+                self.entity_counter.to_le_bytes()[1],
+            ],
+            entity_kind,
         );
+        let reliablity_kind = match qos.reliability.kind {
+            ReliabilityQosPolicyKind::BestEffort => ReliabilityKind::BestEffort,
+            ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
+        };
+        let transport_reader =
+            TransportReaderKind::Stateful(self.transport.create_stateful_reader(
+                entity_id,
+                reliablity_kind,
+                Box::new(UserDefinedReaderHistoryCache {
+                    domain_participant_address: message.domain_participant_address.clone(),
+                    subscriber_handle: subscriber.instance_handle(),
+                    data_reader_handle: reader_handle,
+                }),
+            ));
 
         let listener_mask = message.mask.to_vec();
         let status_condition = Actor::spawn(

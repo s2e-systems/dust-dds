@@ -1,10 +1,9 @@
 use crate::{
     infrastructure::time::Duration,
-    rtps::{
-        messages::types::ParameterId,
-        types::{EntityId, ENTITYID_UNKNOWN},
-    },
+    transport::types::{EntityId, Short, ENTITYID_UNKNOWN},
 };
+
+pub type ParameterId = Short;
 
 // Constant value from Table 9.13 - ParameterId Values
 pub const _PID_PAD: ParameterId = 0x0000;

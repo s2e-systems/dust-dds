@@ -29,7 +29,11 @@ use crate::{
     },
     runtime::{actor::Actor, executor::TaskHandle},
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
-    transport::{cache_change::CacheChange, reader::TransportReader, types::ChangeKind},
+    transport::{
+        history_cache::CacheChange,
+        reader::{TransportStatefulReader, TransportStatelessReader},
+        types::{ChangeKind, Guid},
+    },
     xtypes::dynamic_type::DynamicType,
 };
 
@@ -118,6 +122,20 @@ pub struct IndexedSample {
     pub sample: (Option<Arc<[u8]>>, SampleInfo),
 }
 
+pub enum TransportReaderKind {
+    Stateful(Box<dyn TransportStatefulReader>),
+    Stateless(Box<dyn TransportStatelessReader>),
+}
+
+impl TransportReaderKind {
+    pub fn guid(&self) -> Guid {
+        match self {
+            TransportReaderKind::Stateful(r) => r.guid(),
+            TransportReaderKind::Stateless(r) => r.guid(),
+        }
+    }
+}
+
 pub struct DataReaderEntity {
     instance_handle: InstanceHandle,
     sample_list: Vec<ReaderSample>,
@@ -141,7 +159,7 @@ pub struct DataReaderEntity {
     instances: HashMap<InstanceHandle, InstanceState>,
     instance_deadline_missed_task: HashMap<InstanceHandle, TaskHandle>,
     instance_ownership: HashMap<InstanceHandle, [u8; 16]>,
-    transport_reader: Box<dyn TransportReader>,
+    transport_reader: TransportReaderKind,
 }
 
 impl DataReaderEntity {
@@ -155,7 +173,7 @@ impl DataReaderEntity {
         status_condition: Actor<StatusConditionActor>,
         listener: Option<Actor<DataReaderListenerActor>>,
         listener_mask: Vec<StatusKind>,
-        transport_reader: Box<dyn TransportReader>,
+        transport_reader: TransportReaderKind,
     ) -> Self {
         Self {
             instance_handle,
@@ -512,7 +530,7 @@ impl DataReaderEntity {
 
         Ok(ReaderSample {
             kind: cache_change.kind,
-            writer_guid: cache_change.writer_guid,
+            writer_guid: cache_change.writer_guid.into(),
             instance_handle,
             source_timestamp: cache_change.source_timestamp.map(Into::into),
             data_value: cache_change.data_value.clone(),
@@ -525,8 +543,12 @@ impl DataReaderEntity {
         })
     }
 
-    pub fn add_reader_change(&mut self, cache_change: CacheChange) -> DdsResult<AddChangeResult> {
-        let sample = self.convert_cache_change_to_sample(cache_change, Time::now())?;
+    pub fn add_reader_change(
+        &mut self,
+        cache_change: CacheChange,
+        reception_timestamp: Time,
+    ) -> DdsResult<AddChangeResult> {
+        let sample = self.convert_cache_change_to_sample(cache_change, reception_timestamp)?;
         let change_instance_handle = sample.instance_handle;
         // data_reader exclusive access if the writer is not the allowed to write the sample do an early return
         if self.qos.ownership.kind == OwnershipQosPolicyKind::Exclusive {
@@ -853,8 +875,12 @@ impl DataReaderEntity {
         status
     }
 
-    pub fn transport_reader(&self) -> &dyn TransportReader {
-        self.transport_reader.as_ref()
+    pub fn transport_reader(&self) -> &TransportReaderKind {
+        &self.transport_reader
+    }
+
+    pub fn transport_reader_mut(&mut self) -> &mut TransportReaderKind {
+        &mut self.transport_reader
     }
 
     pub fn get_matched_publication_data(
