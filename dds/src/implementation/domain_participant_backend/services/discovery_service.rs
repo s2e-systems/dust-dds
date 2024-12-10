@@ -26,7 +26,8 @@ use crate::{
             ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
             ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
-            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
+            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
+            ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
         },
         listeners::{
             data_reader_listener, data_writer_listener, domain_participant_listener,
@@ -456,11 +457,8 @@ impl MailHandler<AddDiscoveredParticipant> for DomainParticipantActor {
             add_matched_publications_announcer(self, &message.discovered_participant_data);
             add_matched_subscriptions_detector(self, &message.discovered_participant_data);
             add_matched_subscriptions_announcer(self, &message.discovered_participant_data);
-            //         self.add_matched_topics_detector(discovered_participant_data);
-            //         self.add_matched_topics_announcer(discovered_participant_data);
-            //         self.discovered_participant_list
-            //             .push(discovered_participant_data.clone());
-            //     }
+            add_matched_topics_detector(self, &message.discovered_participant_data);
+            add_matched_topics_announcer(self, &message.discovered_participant_data);
         }
 
         self.domain_participant
@@ -1653,92 +1651,95 @@ fn add_matched_subscriptions_announcer(
     }
 }
 
-// fn add_matched_topics_detector(
-//     &mut self,
-//     discovered_participant_data: &SpdpDiscoveredParticipantData,
-// ) {
-//     if discovered_participant_data
-//         .participant_proxy
-//         .available_builtin_endpoints
-//         .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_DETECTOR)
-//     {
-//         let remote_reader_guid = Guid::new(
-//             discovered_participant_data.participant_proxy.guid_prefix,
-//             ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
-//         );
-//         let remote_group_entity_id = ENTITYID_UNKNOWN;
-//         let expects_inline_qos = false;
-//         let reader_proxy = ReaderProxy {
-//             remote_reader_guid,
-//             remote_group_entity_id,
-//             unicast_locator_list: discovered_participant_data
-//                 .participant_proxy
-//                 .metatraffic_unicast_locator_list
-//                 .to_vec(),
-//             multicast_locator_list: discovered_participant_data
-//                 .participant_proxy
-//                 .metatraffic_multicast_locator_list
-//                 .to_vec(),
-//             expects_inline_qos,
-//         };
-//         if let Some(w) = self
-//             .builtin_stateful_writer_list
-//             .iter_mut()
-//             .find(|w| w.guid().entity_id() == ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER)
-//         {
-//             w.add_matched_reader(
-//                 &reader_proxy,
-//                 ReliabilityKind::Reliable,
-//                 DurabilityKind::TransientLocal,
-//                 &[],
-//                 &[],
-//             );
-//             w.send_message(&self.message_sender);
-//         }
-//     }
-// }
+fn add_matched_topics_detector(
+    domain_participant_actor: &mut DomainParticipantActor,
+    discovered_participant_data: &SpdpDiscoveredParticipantData,
+) {
+    if discovered_participant_data
+        .participant_proxy
+        .available_builtin_endpoints
+        .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_DETECTOR)
+    {
+        let remote_reader_guid = Guid::new(
+            discovered_participant_data.participant_proxy.guid_prefix,
+            ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
+        );
+        let remote_group_entity_id = ENTITYID_UNKNOWN;
+        let expects_inline_qos = false;
+        let reader_proxy = transport::writer::ReaderProxy {
+            remote_reader_guid,
+            remote_group_entity_id,
+            reliability_kind: ReliabilityKind::Reliable,
+            durability_kind: DurabilityKind::TransientLocal,
+            unicast_locator_list: discovered_participant_data
+                .participant_proxy
+                .metatraffic_unicast_locator_list
+                .to_vec(),
+            multicast_locator_list: discovered_participant_data
+                .participant_proxy
+                .metatraffic_multicast_locator_list
+                .to_vec(),
+            expects_inline_qos,
+        };
+        if let Some(dw) = domain_participant_actor
+            .domain_participant
+            .builtin_publisher_mut()
+            .data_writer_list_mut()
+            .find(|dw| {
+                dw.transport_writer().guid().entity_id() == ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER
+            })
+        {
+            match dw.transport_writer_mut() {
+                TransportWriterKind::Stateful(w) => w.add_matched_reader(reader_proxy),
+                TransportWriterKind::Stateless(_) => panic!("Invalid built-in writer type"),
+            }
+        }
+    }
+}
 
-// fn add_matched_topics_announcer(
-//     &mut self,
-//     discovered_participant_data: &SpdpDiscoveredParticipantData,
-// ) {
-//     if discovered_participant_data
-//         .participant_proxy
-//         .available_builtin_endpoints
-//         .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_ANNOUNCER)
-//     {
-//         let remote_writer_guid = Guid::new(
-//             discovered_participant_data.participant_proxy.guid_prefix,
-//             ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
-//         );
-//         let remote_group_entity_id = ENTITYID_UNKNOWN;
-//         let data_max_size_serialized = Default::default();
+fn add_matched_topics_announcer(
+    domain_participant_actor: &mut DomainParticipantActor,
+    discovered_participant_data: &SpdpDiscoveredParticipantData,
+) {
+    if discovered_participant_data
+        .participant_proxy
+        .available_builtin_endpoints
+        .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_ANNOUNCER)
+    {
+        let remote_writer_guid = Guid::new(
+            discovered_participant_data.participant_proxy.guid_prefix,
+            ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
+        );
+        let remote_group_entity_id = ENTITYID_UNKNOWN;
+        let data_max_size_serialized = Default::default();
 
-//         let writer_proxy = WriterProxy {
-//             remote_writer_guid,
-//             remote_group_entity_id,
-//             unicast_locator_list: discovered_participant_data
-//                 .participant_proxy
-//                 .metatraffic_unicast_locator_list
-//                 .to_vec(),
-//             multicast_locator_list: discovered_participant_data
-//                 .participant_proxy
-//                 .metatraffic_multicast_locator_list
-//                 .to_vec(),
-//             data_max_size_serialized,
-//         };
-//         if let Some(r) = self
-//             .builtin_stateful_reader_list
-//             .iter_mut()
-//             .find(|w| w.guid().entity_id() == ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR)
-//         {
-//             r.add_matched_writer(
-//                 &writer_proxy,
-//                 ReliabilityKind::Reliable,
-//                 DurabilityKind::TransientLocal,
-//                 &[],
-//                 &[],
-//             );
-//         }
-//     }
-// }
+        let writer_proxy = transport::reader::WriterProxy {
+            remote_writer_guid,
+            remote_group_entity_id,
+            reliability_kind: ReliabilityKind::Reliable,
+            durability_kind: DurabilityKind::TransientLocal,
+            unicast_locator_list: discovered_participant_data
+                .participant_proxy
+                .metatraffic_unicast_locator_list
+                .to_vec(),
+            multicast_locator_list: discovered_participant_data
+                .participant_proxy
+                .metatraffic_multicast_locator_list
+                .to_vec(),
+            data_max_size_serialized,
+        };
+        if let Some(dr) = domain_participant_actor
+            .domain_participant
+            .builtin_subscriber_mut()
+            .data_reader_list_mut()
+            .find(|dr| {
+                dr.transport_reader().guid().entity_id() == ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR
+            })
+        {
+            match dr.transport_reader_mut() {
+                TransportReaderKind::Stateful(r) => r.add_matched_writer(writer_proxy),
+                TransportReaderKind::Stateless(_) => panic!("Invalid built-in reader type"),
+            }
+        }
+    }
+}
