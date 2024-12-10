@@ -318,7 +318,7 @@ impl MailHandler<AddBuiltinParticipantsDetectorCacheChange> for DomainParticipan
 }
 
 pub struct RemoveBuiltinParticipantsDetectorCacheChange {
-    pub sequence_number: SequenceNumber,
+    pub _sequence_number: SequenceNumber,
 }
 impl Mail for RemoveBuiltinParticipantsDetectorCacheChange {
     type Result = ();
@@ -383,7 +383,7 @@ impl MailHandler<AddBuiltinTopicsDetectorCacheChange> for DomainParticipantActor
 }
 
 pub struct RemoveBuiltinTopicsDetectorCacheChange {
-    pub sequence_number: SequenceNumber,
+    pub _sequence_number: SequenceNumber,
 }
 impl Mail for RemoveBuiltinTopicsDetectorCacheChange {
     type Result = ();
@@ -499,7 +499,7 @@ impl MailHandler<AddBuiltinPublicationsDetectorCacheChange> for DomainParticipan
 }
 
 pub struct RemoveBuiltinPublicationsDetectorCacheChange {
-    pub sequence_number: SequenceNumber,
+    pub _sequence_number: SequenceNumber,
 }
 impl Mail for RemoveBuiltinPublicationsDetectorCacheChange {
     type Result = ();
@@ -645,7 +645,7 @@ impl MailHandler<AddBuiltinSubscriptionsDetectorCacheChange> for DomainParticipa
 }
 
 pub struct RemoveBuiltinSubscriptionsDetectorCacheChange {
-    pub sequence_number: SequenceNumber,
+    pub _sequence_number: SequenceNumber,
 }
 impl Mail for RemoveBuiltinSubscriptionsDetectorCacheChange {
     type Result = ();

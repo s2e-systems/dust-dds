@@ -129,7 +129,7 @@ impl RtpsTransport {
             .into_iter()
             .filter(|x| {
                 if let Some(if_name) = interface_name {
-                    &x.name == if_name
+                    x.name == if_name
                 } else {
                     true
                 }
@@ -336,7 +336,7 @@ impl TransportParticipant for RtpsTransport {
 
         impl TransportStatelessReader for StatelessReader {
             fn guid(&self) -> Guid {
-                self.guid.into()
+                self.guid
             }
         }
 
@@ -352,7 +352,7 @@ impl TransportParticipant for RtpsTransport {
     fn create_stateless_writer(
         &mut self,
         entity_id: EntityId,
-        data_max_size_serialized: usize,
+        _data_max_size_serialized: usize,
     ) -> Box<dyn TransportStatelessWriter> {
         let guid = Guid::new(self.guid.prefix(), entity_id);
         block_on(
@@ -379,7 +379,7 @@ impl TransportParticipant for RtpsTransport {
 
         impl TransportStatefulReader for StatefulReader {
             fn guid(&self) -> Guid {
-                self.guid.into()
+                self.guid
             }
 
             fn is_historical_data_received(&self) -> bool {
@@ -405,7 +405,7 @@ impl TransportParticipant for RtpsTransport {
                 )
             }
 
-            fn remove_matched_writer(&mut self, remote_writer_guid: Guid) {
+            fn remove_matched_writer(&mut self, _remote_writer_guid: Guid) {
                 todo!()
             }
         }
@@ -550,7 +550,7 @@ mod tests {
                 self.0.send(cache_change).unwrap();
             }
 
-            fn remove_change(&mut self, sequence_number: i64) {
+            fn remove_change(&mut self, _sequence_number: i64) {
                 todo!()
             }
         }

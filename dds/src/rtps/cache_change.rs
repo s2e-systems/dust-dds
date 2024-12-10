@@ -119,7 +119,7 @@ impl CacheChange {
 
         Ok(CacheChange {
             kind,
-            writer_guid: Guid::new(source_guid_prefix, data_submessage.writer_id()).into(),
+            writer_guid: Guid::new(source_guid_prefix, data_submessage.writer_id()),
             source_timestamp: source_timestamp.map(Into::into),
             instance_handle,
             sequence_number: data_submessage.writer_sn(),

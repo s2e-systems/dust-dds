@@ -229,14 +229,9 @@ impl DataWriterEntity {
                     if let Some(&smallest_seq_num_instance) = s.front() {
                         if self.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
                             let start_time = std::time::Instant::now();
-                            loop {
-                                match &self.transport_writer {
-                                    TransportWriterKind::Stateful(w) => {
-                                        if w.is_change_acknowledged(smallest_seq_num_instance) {
-                                            break;
-                                        }
-                                    }
-                                    TransportWriterKind::Stateless(_) => break,
+                            while let TransportWriterKind::Stateful(w) = &self.transport_writer {
+                                if w.is_change_acknowledged(smallest_seq_num_instance) {
+                                    break;
                                 }
 
                                 if let DurationKind::Finite(t) =
@@ -377,7 +372,7 @@ impl DataWriterEntity {
 
         let cache_change = CacheChange {
             kind: ChangeKind::NotAliveDisposed,
-            writer_guid: self.transport_writer().guid().into(),
+            writer_guid: self.transport_writer().guid(),
             sequence_number: self.last_change_sequence_number,
             source_timestamp: Some(timestamp.into()),
             instance_handle: Some(instance_handle.into()),

@@ -116,7 +116,7 @@ impl DomainParticipantFactoryActor {
             .into_iter()
             .filter(|x| {
                 if let Some(if_name) = self.configuration.interface_name() {
-                    &x.name == if_name
+                    x.name == if_name
                 } else {
                     true
                 }
@@ -709,7 +709,9 @@ impl HistoryCache for DcpsParticipantReaderHistoryCache {
     fn remove_change(&mut self, sequence_number: i64) {
         self.participant_address
             .send_actor_mail(
-                message_service::RemoveBuiltinParticipantsDetectorCacheChange { sequence_number },
+                message_service::RemoveBuiltinParticipantsDetectorCacheChange {
+                    _sequence_number: sequence_number,
+                },
             )
             .ok();
     }
@@ -732,7 +734,7 @@ impl HistoryCache for DcpsTopicsReaderHistoryCache {
     fn remove_change(&mut self, sequence_number: i64) {
         self.participant_address
             .send_actor_mail(message_service::RemoveBuiltinTopicsDetectorCacheChange {
-                sequence_number,
+                _sequence_number: sequence_number,
             })
             .ok();
     }
@@ -757,7 +759,9 @@ impl HistoryCache for DcpsSubscriptionsReaderHistoryCache {
     fn remove_change(&mut self, sequence_number: i64) {
         self.participant_address
             .send_actor_mail(
-                message_service::RemoveBuiltinSubscriptionsDetectorCacheChange { sequence_number },
+                message_service::RemoveBuiltinSubscriptionsDetectorCacheChange {
+                    _sequence_number: sequence_number,
+                },
             )
             .ok();
     }
@@ -780,7 +784,9 @@ impl HistoryCache for DcpsPublicationsReaderHistoryCache {
     fn remove_change(&mut self, sequence_number: i64) {
         self.participant_address
             .send_actor_mail(
-                message_service::RemoveBuiltinPublicationsDetectorCacheChange { sequence_number },
+                message_service::RemoveBuiltinPublicationsDetectorCacheChange {
+                    _sequence_number: sequence_number,
+                },
             )
             .ok();
     }
