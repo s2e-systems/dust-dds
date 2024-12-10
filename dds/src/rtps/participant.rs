@@ -459,11 +459,15 @@ impl MailHandler<AddMatchedReader> for RtpsParticipant {
         {
             let mut reader_proxy = message.reader_proxy;
             if reader_proxy.unicast_locator_list.is_empty() {
-                reader_proxy.unicast_locator_list = self.default_unicast_locator_list.clone();
+                reader_proxy
+                    .unicast_locator_list
+                    .clone_from(&self.default_unicast_locator_list);
             }
 
             if reader_proxy.unicast_locator_list.is_empty() {
-                reader_proxy.multicast_locator_list = self.default_multicast_locator_list.clone();
+                reader_proxy
+                    .multicast_locator_list
+                    .clone_from(&self.default_multicast_locator_list);
             }
 
             w.add_matched_reader(&reader_proxy);
@@ -506,11 +510,15 @@ impl MailHandler<AddMatchedWriter> for RtpsParticipant {
         {
             let mut writer_proxy = message.writer_proxy;
             if writer_proxy.unicast_locator_list.is_empty() {
-                writer_proxy.unicast_locator_list = self.default_unicast_locator_list.clone();
+                writer_proxy
+                    .unicast_locator_list
+                    .clone_from(&self.default_unicast_locator_list);
             }
 
             if writer_proxy.unicast_locator_list.is_empty() {
-                writer_proxy.multicast_locator_list = self.default_multicast_locator_list.clone();
+                writer_proxy
+                    .multicast_locator_list
+                    .clone_from(&self.default_multicast_locator_list);
             }
 
             r.add_matched_writer(&writer_proxy);
