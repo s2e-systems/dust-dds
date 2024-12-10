@@ -263,16 +263,6 @@ impl<'de> DdsDeserialize<'de> for DiscoveredReaderData {
     }
 }
 
-impl DiscoveredReaderData {
-    pub fn reader_proxy(&self) -> &ReaderProxy {
-        &self.reader_proxy
-    }
-
-    pub fn subscription_builtin_topic_data(&self) -> &SubscriptionBuiltinTopicData {
-        &self.dds_subscription_data
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

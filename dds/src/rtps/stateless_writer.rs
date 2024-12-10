@@ -46,6 +46,10 @@ impl RtpsStatelessWriter {
             .push(RtpsReaderLocator::new(locator, false));
     }
 
+    pub fn reader_locator_remove(&mut self, locator: Locator) {
+        self.reader_locators.retain(|x| x.locator() != locator);
+    }
+
     pub fn send_message(&mut self, message_sender: &MessageSender) {
         for reader_locator in &mut self.reader_locators {
             while let Some(unsent_change_seq_num) =

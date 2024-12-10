@@ -477,8 +477,6 @@ impl MailHandler<RemoveDiscoveredParticipant> for DomainParticipantActor {
         &mut self,
         message: RemoveDiscoveredParticipant,
     ) -> <RemoveDiscoveredParticipant as Mail>::Result {
-        todo!();
-
         self.domain_participant
             .remove_discovered_participant(&message.discovered_participant);
     }
