@@ -4,10 +4,11 @@ use std::{
 };
 
 use crate::{
-    builtin_topics::{SubscriptionBuiltinTopicData, TopicBuiltinTopicData},
+    builtin_topics::TopicBuiltinTopicData,
     domain::domain_participant_factory::DomainId,
     implementation::{
         data_representation_builtin_endpoints::{
+            discovered_reader_data::DiscoveredReaderData,
             discovered_writer_data::DiscoveredWriterData,
             spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         },
@@ -42,7 +43,7 @@ pub struct DomainParticipantEntity {
     default_topic_qos: TopicQos,
     discovered_participant_list: HashMap<InstanceHandle, SpdpDiscoveredParticipantData>,
     discovered_topic_list: HashMap<InstanceHandle, TopicBuiltinTopicData>,
-    discovered_reader_list: HashMap<InstanceHandle, SubscriptionBuiltinTopicData>,
+    discovered_reader_list: HashMap<InstanceHandle, DiscoveredReaderData>,
     discovered_writer_list: HashMap<InstanceHandle, DiscoveredWriterData>,
     enabled: bool,
     ignored_participants: HashSet<InstanceHandle>,
@@ -219,13 +220,10 @@ impl DomainParticipantEntity {
             .remove(discovered_participant_handle);
     }
 
-    pub fn add_discovered_reader(
-        &mut self,
-        subscription_builtin_topic_data: SubscriptionBuiltinTopicData,
-    ) {
+    pub fn add_discovered_reader(&mut self, discovered_reader_data: DiscoveredReaderData) {
         self.discovered_reader_list.insert(
-            InstanceHandle::new(subscription_builtin_topic_data.key().value),
-            subscription_builtin_topic_data,
+            InstanceHandle::new(discovered_reader_data.dds_subscription_data.key().value),
+            discovered_reader_data,
         );
     }
 
@@ -233,9 +231,7 @@ impl DomainParticipantEntity {
         self.discovered_reader_list.remove(discovered_reader_handle);
     }
 
-    pub fn subscription_builtin_topic_data_list(
-        &self,
-    ) -> impl Iterator<Item = &SubscriptionBuiltinTopicData> {
+    pub fn discovered_reader_data_list(&self) -> impl Iterator<Item = &DiscoveredReaderData> {
         self.discovered_reader_list.values()
     }
 

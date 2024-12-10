@@ -1,10 +1,11 @@
 use crate::{
     builtin_topics::{
-        BuiltInTopicKey, SubscriptionBuiltinTopicData, TopicBuiltinTopicData, DCPS_PARTICIPANT,
-        DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
+        BuiltInTopicKey, TopicBuiltinTopicData, DCPS_PARTICIPANT, DCPS_PUBLICATION,
+        DCPS_SUBSCRIPTION, DCPS_TOPIC,
     },
     implementation::{
         data_representation_builtin_endpoints::{
+            discovered_reader_data::DiscoveredReaderData,
             discovered_writer_data::DiscoveredWriterData,
             spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         },
@@ -526,38 +527,63 @@ impl MailHandler<AddBuiltinSubscriptionsDetectorCacheChange> for DomainParticipa
     ) -> <AddBuiltinSubscriptionsDetectorCacheChange as Mail>::Result {
         match message.cache_change.kind {
             ChangeKind::Alive => {
-                if let Ok(subscription_builtin_topic_data) =
-                    SubscriptionBuiltinTopicData::deserialize_data(
-                        message.cache_change.data_value.as_ref(),
-                    )
+                if let Ok(discovered_reader_data) =
+                    DiscoveredReaderData::deserialize_data(message.cache_change.data_value.as_ref())
                 {
                     if self
                         .domain_participant
-                        .find_topic(&subscription_builtin_topic_data.topic_name)
+                        .find_topic(&discovered_reader_data.dds_subscription_data.topic_name)
                         .is_none()
                     {
                         let reader_topic = TopicBuiltinTopicData {
                             key: BuiltInTopicKey::default(),
-                            name: subscription_builtin_topic_data.topic_name().to_string(),
-                            type_name: subscription_builtin_topic_data.get_type_name().to_string(),
+                            name: discovered_reader_data
+                                .dds_subscription_data
+                                .topic_name()
+                                .to_string(),
+                            type_name: discovered_reader_data
+                                .dds_subscription_data
+                                .get_type_name()
+                                .to_string(),
 
-                            topic_data: subscription_builtin_topic_data.topic_data().clone(),
-                            durability: subscription_builtin_topic_data.durability().clone(),
-                            deadline: subscription_builtin_topic_data.deadline().clone(),
-                            latency_budget: subscription_builtin_topic_data
+                            topic_data: discovered_reader_data
+                                .dds_subscription_data
+                                .topic_data()
+                                .clone(),
+                            durability: discovered_reader_data
+                                .dds_subscription_data
+                                .durability()
+                                .clone(),
+                            deadline: discovered_reader_data
+                                .dds_subscription_data
+                                .deadline()
+                                .clone(),
+                            latency_budget: discovered_reader_data
+                                .dds_subscription_data
                                 .latency_budget()
                                 .clone(),
-                            liveliness: subscription_builtin_topic_data.liveliness().clone(),
-                            reliability: subscription_builtin_topic_data.reliability().clone(),
-                            destination_order: subscription_builtin_topic_data
+                            liveliness: discovered_reader_data
+                                .dds_subscription_data
+                                .liveliness()
+                                .clone(),
+                            reliability: discovered_reader_data
+                                .dds_subscription_data
+                                .reliability()
+                                .clone(),
+                            destination_order: discovered_reader_data
+                                .dds_subscription_data
                                 .destination_order()
                                 .clone(),
                             history: HistoryQosPolicy::default(),
                             resource_limits: ResourceLimitsQosPolicy::default(),
                             transport_priority: TransportPriorityQosPolicy::default(),
                             lifespan: LifespanQosPolicy::default(),
-                            ownership: subscription_builtin_topic_data.ownership().clone(),
-                            representation: subscription_builtin_topic_data
+                            ownership: discovered_reader_data
+                                .dds_subscription_data
+                                .ownership()
+                                .clone(),
+                            representation: discovered_reader_data
+                                .dds_subscription_data
                                 .representation()
                                 .clone(),
                         };
@@ -565,14 +591,13 @@ impl MailHandler<AddBuiltinSubscriptionsDetectorCacheChange> for DomainParticipa
                     }
 
                     self.domain_participant
-                        .add_discovered_reader(subscription_builtin_topic_data.clone());
+                        .add_discovered_reader(discovered_reader_data.clone());
                     for publisher in self.domain_participant.publisher_list() {
                         for data_writer in publisher.data_writer_list() {
                             message
                                 .participant_address
                                 .send_actor_mail(discovery_service::AddDiscoveredReader {
-                                    subscription_builtin_topic_data:
-                                        subscription_builtin_topic_data.clone(),
+                                    discovered_reader_data: discovered_reader_data.clone(),
                                     publisher_handle: publisher.instance_handle(),
                                     data_writer_handle: data_writer.instance_handle(),
                                     participant_address: message.participant_address.clone(),

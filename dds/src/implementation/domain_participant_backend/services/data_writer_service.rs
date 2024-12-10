@@ -410,15 +410,15 @@ impl MailHandler<Enable> for DomainParticipantActor {
         if !data_writer.enabled() {
             data_writer.enable();
 
-            for subscription_builtin_topic_data in self
+            for discovered_reader_data in self
                 .domain_participant
-                .subscription_builtin_topic_data_list()
+                .discovered_reader_data_list()
                 .cloned()
             {
                 message
                     .participant_address
                     .send_actor_mail(discovery_service::AddDiscoveredReader {
-                        subscription_builtin_topic_data,
+                        discovered_reader_data,
                         publisher_handle: message.publisher_handle,
                         data_writer_handle: message.data_writer_handle,
                         participant_address: message.participant_address.clone(),
