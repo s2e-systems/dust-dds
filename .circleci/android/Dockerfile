@@ -8,7 +8,7 @@ RUN wget https://dl.google.com/android/repository/commandlinetools-linux-1107670
 RUN yes | ./bin/sdkmanager --licenses
 RUN ./bin/sdkmanager --install "build-tools;35.0.0" "ndk;27.0.11902837"
 
-FROM cimg/rust:1.79.0
+FROM cimg/rust:1.81.0
 USER root
 RUN apt-get update && apt-get install -y \
     openjdk-19-jre-headless \
