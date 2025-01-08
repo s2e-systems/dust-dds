@@ -24,21 +24,21 @@ fn total_fragments_expected(data_frag_submessage: &DataFragSubmessage) -> u32 {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct RtpsWriterProxy {
-    pub(crate) remote_writer_guid: Guid,
-    pub(crate) unicast_locator_list: Vec<Locator>,
-    pub(crate) multicast_locator_list: Vec<Locator>,
-    pub(crate) data_max_size_serialized: Option<i32>,
-    pub(crate) remote_group_entity_id: EntityId,
-    pub(crate) first_available_seq_num: SequenceNumber,
-    pub(crate) last_available_seq_num: SequenceNumber,
-    pub(crate) highest_received_change_sn: SequenceNumber,
-    pub(crate) must_send_acknacks: bool,
-    pub(crate) last_received_heartbeat_count: Count,
-    pub(crate) last_received_heartbeat_frag_count: Count,
-    pub(crate) acknack_count: Count,
-    pub(crate) nack_frag_count: Count,
-    pub(crate) frag_buffer: HashMap<SequenceNumber, Vec<DataFragSubmessage>>,
-    pub(crate) reliability: ReliabilityKind,
+    remote_writer_guid: Guid,
+    unicast_locator_list: Vec<Locator>,
+    multicast_locator_list: Vec<Locator>,
+    data_max_size_serialized: Option<i32>,
+    remote_group_entity_id: EntityId,
+    first_available_seq_num: SequenceNumber,
+    last_available_seq_num: SequenceNumber,
+    highest_received_change_sn: SequenceNumber,
+    must_send_acknacks: bool,
+    last_received_heartbeat_count: Count,
+    last_received_heartbeat_frag_count: Count,
+    acknack_count: Count,
+    nack_frag_count: Count,
+    frag_buffer: HashMap<SequenceNumber, Vec<DataFragSubmessage>>,
+    reliability: ReliabilityKind,
 }
 
 impl RtpsWriterProxy {
@@ -130,6 +130,10 @@ impl RtpsWriterProxy {
 
     pub fn unicast_locator_list(&self) -> &[Locator] {
         self.unicast_locator_list.as_ref()
+    }
+
+    pub fn reliability(&self) -> ReliabilityKind {
+        self.reliability
     }
 
     pub fn available_changes_max(&self) -> SequenceNumber {

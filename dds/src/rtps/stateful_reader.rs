@@ -75,7 +75,7 @@ impl RtpsStatefulReader {
         let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id());
         let sequence_number = data_submessage.writer_sn();
         if let Some(writer_proxy) = self.matched_writer_lookup(writer_guid) {
-            match writer_proxy.reliability {
+            match writer_proxy.reliability() {
                 ReliabilityKind::BestEffort => {
                     let expected_seq_num = writer_proxy.available_changes_max() + 1;
                     if sequence_number >= expected_seq_num {
@@ -214,11 +214,5 @@ impl RtpsStatefulReader {
             .matched_writers
             .iter()
             .any(|p| !p.is_historical_data_received())
-    }
-
-    pub fn send_message(&mut self, message_sender: &MessageSender) {
-        for writer_proxy in self.matched_writers.iter_mut() {
-            writer_proxy.send_message(&self.guid, message_sender)
-        }
     }
 }
