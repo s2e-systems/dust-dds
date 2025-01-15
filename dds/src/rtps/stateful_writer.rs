@@ -36,7 +36,7 @@ impl RtpsStatefulWriter {
             guid,
             changes: Vec::new(),
             matched_readers: Vec::new(),
-            heartbeat_period: Duration::new(0, 200_000_000),
+            heartbeat_period: Duration::from_millis(200),
             data_max_size_serialized,
         }
     }

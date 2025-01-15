@@ -29,6 +29,12 @@ impl Duration {
     pub fn fraction(&self) -> u32 {
         self.fraction
     }
+
+    pub fn from_millis(millis: u64) -> Self {
+        let seconds = (millis / 1000) as i32;
+        let fraction = ((millis % 1000) * 2u64.pow(32) / 1000) as u32;
+        Self::new(seconds, fraction)
+    }
 }
 
 impl From<Duration> for std::time::Duration {
