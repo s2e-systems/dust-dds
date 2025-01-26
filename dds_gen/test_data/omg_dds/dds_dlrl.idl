@@ -1,0 +1,658 @@
+#include "dds_dcps.idl"
+
+#define DLRL_OID_TYPE_NATIVE long
+
+module DDS {
+
+
+// Type definitions
+// =================
+
+// Scope of action
+// ---------------
+
+enum ReferenceScope {
+	SIMPLE_CONTENT_SCOPE,           // only the reference content
+	REFERENCED_CONTENTS_SCOPE       // + referenced contents
+	};
+
+enum ObjectScope {
+	SIMPLE_OBJECT_SCOPE,            // only the object
+	CONTAINED_OBJECTS_SCOPE,        // + contained objects
+	RELATED_OBJECTS_SCOPE           // + all related objects
+	};
+
+// State of the underlying infrastructure
+// --------------------------------------
+
+enum DCPSState {
+    INITIAL,
+    REGISTERED,
+    ENABLED
+    };
+
+// Usage of the Cache
+// ------------------
+
+enum CacheUsage {
+    READ_ONLY,
+    WRITE_ONLY,
+    READ_WRITE
+    };
+
+// Object State
+// ------------
+enum ObjectState { 
+    OBJECT_VOID, 
+    OBJECT_NEW, 
+    OBJECT_NOT_MODIFIED, 
+    OBJECT_MODIFIED, 
+    OBJECT_DELETED 
+};
+
+// OID
+// ---
+
+struct DLRLOid {
+    DLRL_OID_TYPE_NATIVE value[3];
+    };
+
+
+// Miscellaneous
+// ------------
+
+typedef sequence<long>      LongSeq;
+
+typedef string          ClassName;
+typedef string          CacheName;
+typedef string          RelationName;
+
+
+// Exceptions
+// ==========
+
+exception DCPSError { string message; };
+exception BadHomeDefinition { string message; };
+exception NotFound { string message; };
+exception AlreadyExisting { string message; };
+exception AlreadyDeleted { string message; };
+exception PreconditionNotMet { string message; };
+exception NoSuchElement { string message; };
+exception SQLError { string message; };
+
+// DLRL Entities
+// =============
+
+/********************
+ * Forward References
+ ********************/
+
+valuetype ObjectRoot;
+typedef sequence<ObjectRoot> ObjectRootSeq;
+
+local interface ObjectHome;
+typedef sequence<ObjectHome> ObjectHomeSeq;
+
+local interface ObjectListener;
+typedef sequence<ObjectListener> ObjectListenerSeq;
+
+local interface Selection;
+typedef sequence<Selection> SelectionSeq;
+
+local interface CacheBase;
+typedef sequence<CacheBase> CacheBaseSeq;
+
+local interface CacheAccess;
+typedef sequence<CacheAccess> CacheAccessSeq;
+
+local interface CacheListener;
+typedef sequence<CacheListener> CacheListenerSeq;
+
+local interface Cache;
+
+local interface Contract;
+typedef sequence<Contract> ContractSeq;
+
+/*****************************************************
+ * ObjectListener : Root for Listeners to be attached to 
+ *      Home objects
+ *****************************************************/
+
+local interface ObjectListener {
+    boolean on_object_created (
+        in ObjectRoot the_object);
+
+    /**** will be generated with the proper Foo type* in the derived 
+		*	FooListener
+		*  boolean on_object_modified (    
+		*		in ObjectRoot the_object);
+		****/
+
+    boolean on_object_deleted (
+        in ObjectRoot the_object);
+    };
+
+
+/**********************************************************
+ * SelectionListener : Root for Listeners to be attached to 
+ *      Selection objects
+ **********************************************************/
+
+local interface SelectionListener {
+    /***
+     * will be generated with the proper Foo type 
+     * in the derived FooSelectionListener
+     *
+    void on_object_in (
+        in ObjectRoot the_object);
+    void on_object_modified (
+        in ObjectRoot the_object);
+     *
+     ***/
+    void on_object_out (
+        in ObjectRoot the_object);
+    };
+    
+
+/********************************************************
+ * CacheListener : Listener to be associated with a Cache
+ ********************************************************/
+
+local interface CacheListener {
+    void on_begin_updates ();
+    void on_end_updates ();
+    void on_updates_enabled( );
+    void on_updates_disabled( );
+};
+
+
+/********************************************************
+ * Contract : Control objects cloned on a CacheAccess refresh
+ ********************************************************/
+
+local interface Contract {
+    readonly attribute long depth;
+    readonly attribute ObjectScope scope;
+    readonly attribute ObjectRoot contracted_object.
+
+    void set_depth(
+	in long depth);
+    void set_scope(
+        in ObjectScope scope);
+};
+
+
+/******************************************
+ * ObjectRoot : Root fot the shared objects
+ ******************************************/
+enum RelationKind {
+    REF_RELATION,
+    LIST_RELATION,
+    INT_MAP_RELATION,
+    STR_MAP_RELATION};
+
+valuetype RelationDescription {
+    public RelationKind    kind;
+    public RelationName    name;
+    };
+valuetype ListRelationDescription : RelationDescription {
+    public long index;
+    };
+valuetype IntMapRelationDescription : RelationDescription {
+    public long key;
+    };
+valuetype StrMapRelationDescription : RelationDescription {
+    public string key;
+    };
+typedef sequence<RelationDescription> RelationDescriptionSeq;
+
+typedef short   RelatedObjectDepth;
+const RelatedObjectDepth UNLIMITED_RELATED_OBJECTS  = -1;
+
+valuetype ObjectRoot {
+
+    // State
+    // -----
+    private DLRLOid     m_oid;
+    private ClassName   m_class_name;
+    
+    // Attributes
+    // ----------
+    readonly attribute  DLRLOid             oid;
+    readonly attribute  ObjectState         read_state;
+    readonly attribute  ObjectState         write_state;
+    readonly attribute  ObjectHome          object_home;
+    readonly attribute  ClassName           class_name;
+    readonly attribute  CacheBase           owner;
+
+    // Operations
+    // ---------- 
+    void destroy ()
+        raises (
+            PreconditionNotMet);
+    boolean is_modified (
+        in ObjectScope scope);
+    RelationDescriptionSeq which_contained_modified ();
+    };
+
+/***********************************************
+* SelectionCriterion: Root of all filters and queries
+***********************************************/
+enum CriterionKind {
+    QUERY,
+    FILTER
+};
+
+local interface SelectionCriterion {
+    readonly attribute CriterionKind kind;
+};
+
+/***********************************************
+* FilterCriterion: Root of all the objects filters
+***********************************************/
+enum MembershipState {
+    UNDEFINED_MEMBERSHIP,
+    ALREADY_MEMBER,
+    NOT_MEMBER
+};
+
+local interface FilterCriterion : SelectionCriterion {
+    /***
+    * Following method will be generated properly typed
+    * in the generated derived classes
+    *
+    boolean check_object (
+    in ObjectRoot an_object,
+    in MembershipState membership_state);
+    *
+    ***/
+};
+/*******************************************************
+* QueryCriterion : Specialized SelectionCriterion to make a 
+* Query
+******************************************************/
+local interface QueryCriterion : SelectionCriterion {
+    // Attributes
+    // ---------
+    readonly attribute string expression;
+    readonly attribute StringSeq parameters;
+    //--- Methods
+    boolean set_query (
+        in string expression,
+        in StringSeq parameters) raises (SQLError);
+    boolean set_parameters ( in StringSeq parameters ) raises (SQLError);
+};
+
+
+/**********************************************************
+ * Selection : Root of all the selections (dynamic subsets)
+ **********************************************************/
+
+local interface Selection {
+ 
+    // Attributes
+    // ----------
+    readonly attribute boolean              auto_refresh;
+    readonly attribute boolean              concerns_contained;
+
+    /***
+     * Following attributes will be generated properly typed 
+     * in the generated derived classes
+     *
+    readonly attribute SelectionCriterion   criterion;
+    readonly attribute ObjectRootSeq        members;
+    readonly attribute SelectionListener    listener;
+     *
+     */
+
+    // Operations
+    // ----------
+    /***
+     * Following method will be generated properly typed
+     * in the generated derived classes
+     *
+    SelectionListener set_listener (
+        in SelectionListener listener);
+     *
+     ***/
+    void refresh ();
+    };
+
+
+/*********************************************************************
+ * ObjectHome : Root of all the representatives of applicative classes
+ *********************************************************************/
+
+local interface ObjectHome {
+    
+    // Attributes
+    // ----------
+    readonly attribute string           name;   // Shared name of the class
+    readonly attribute string           content_filter;
+    readonly attribute ObjectHome       parent;
+    readonly attribute ObjectHomeSeq    children;
+    readonly attribute unsigned long    registration_index;
+    readonly attribute boolean          auto_deref;
+    
+    /***
+     * Following attributes will be generated properly typed 
+     * in the generated derived classes
+     *
+    readonly attribute SelectionSeq         selections;
+    readonly attribute ObjectListenerSeq    listeners;
+     *
+     ***/
+
+    // Operations
+    // ----------
+
+    void set_content_filter (
+        in string expression)
+        raises (
+            SQLError,
+            PreconditionNotMet);
+
+    void set_auto_deref (
+        in boolean value);
+    void deref_all();
+    void underef_all ();
+
+    //--- Relations to topics
+
+    string get_topic_name (
+        in string attribute_name)
+        raises (
+            PreconditionNotMet);
+    StringSeq get_all_topic_names ()
+        raises (
+            PreconditionNotMet);
+
+            
+    // --- Listener management
+
+    /***
+     * Following methods will be generated properly typed
+     * in the generated derived classes
+     *
+		void attach_listener ( 
+			in ObjectListener listener,
+			in boolean concerns_contained_objects);
+		void detach_listener (
+			in ObjectListener listener);
+     *
+     ***/
+
+    // --- Selection management
+
+    /***
+     * Following methods will be generated properly typed
+     * in the generated derived classes
+     *
+    Selection create_selection(
+        in SelectionCriterion criterion,  
+        in boolean auto_refresh,  
+        in boolean concerns_contained_objects ) 
+        raises ( 
+            PreconditionNotMet );
+    void delete_selection (
+        in Selection a_selection)
+        raises (
+            PreconditionNotMet);           
+     *
+     ***/
+
+    // --- Object management
+
+    /***
+     * Following methods will be generated properly typed
+     * in the generated derived classes
+     *
+    ObjectRoot create_object(
+        in CacheAccess access)
+        raises (
+            PreconditionNotMet);
+    ObjectRoot create_unregistered_object (
+        in CacheAccess access)
+        raises (
+            PreconditionNotMet);
+    void register_object (
+        in ObjectRoot   unregistered_object)
+        raises (
+            AlreadyExisting,
+            PreconditionNotMet);
+
+    ObjectRoot find_object (
+        in DLRLOid  oid,
+        in CacheBase source)
+        raises (
+            NotFound);
+
+    ObjectRootSeq get_objects (
+        in CacheBase source);
+    ObjectRootSeq get_created_objects (
+        in CacheBase source);
+    ObjectRootSeq get_modified_objects (
+        in CacheBase source);
+    ObjectRootSeq get_deleted_objects (
+        in CacheBase source);
+
+
+     *
+     ***/
+    };
+
+/***********************
+ * Collection operations
+ ***********************/
+abstract valuetype Collection {
+
+    readonly attribute long length;
+
+    /***
+     * The following methods will be generated properly typed
+     * in the generated derived classes
+     *
+     readonly attribute ObjectRootSeq values;
+      *
+      ***/
+};
+
+abstract valuetype List : Collection {
+
+    void remove( );
+    LongSeq added_elements( );
+    LongSeq removed_elements( );
+    LongSeq modified_elements( );
+
+    /***
+     * The following methods will be generated properly typed
+     * in the generated derived classes
+     *
+     void add( in ObjectRoot value );
+     void put( in long key, in ObjectRoot value );
+     ObjectRoot get( in long key );
+      *
+      ***/
+};
+
+valuetype Set : Collection {
+    /***
+     * The following methods will be generated properly typed in 
+     * the generated derived classes. 
+     *
+    ObjectRootSeq added_elements( );
+    ObjectRootSeq removed_elements( );
+    boolean contains( ObjectRoot value );
+    void add( ObjectRoot value );
+    void remove( ObjectRoot value );
+     *
+     ***/ 
+};
+
+abstract valuetype StrMap : Collection {
+
+    readonly attribute StringSeq keys;
+    void remove( in string key );
+    StringSeq added_elements( );
+    StringSeq removed_elements( );
+    StringSeq modified_elements( );
+
+    /***
+     * The following methods will be generated properly typed
+     * in the generated derived classes
+     *
+     void put( in string key, in ObjectRoot value );
+     ObjectRoot get( in string key );
+      *
+      ***/
+};
+
+abstract valuetype IntMap : Collection {
+
+    readonly attribute LongSeq keys;
+    void remove( in long key );
+    LongSeq added_elements( );
+    LongSeq removed_elements( );
+    LongSeq modified_elements( );
+
+    /***
+     * The following methods will be generated properly typed
+     * in the generated derived classes
+     *
+     void put( in long key, in ObjectRoot value );
+     ObjectRoot get( in long key );
+      *
+      ***/
+};
+
+/************************************************************
+ * CacheBase : Base class to CacheAccess and Cache
+ ************************************************************/
+enum CacheKind {
+    CACHE_KIND,
+    CACHEACCESS_KIND
+};
+
+local interface CacheBase {
+    readonly attribute CacheUsage cache_usage;
+    readonly attribute ObjectRootSeq objects;
+    readonly attribute CacheKind kind;
+
+    void refresh( )  raises (DCPSError);
+};
+
+/************************************************************
+ * CacheAccess : Manager of the access of a subset of objects
+ *      (cloned) from a Cache
+ ************************************************************/
+
+local interface CacheAccess : CacheBase {
+
+    // Attributes
+    // ==========
+    readonly attribute Cache                owner;
+    readonly attribute ContractSeq          contracts;
+    readonly attribute StringSeq            type_names;
+
+    // Operations
+    // ==========
+    void write ()
+        raises (
+            ReadOnlyMode,
+            DCPSError);
+    void purge ();
+    void create_contract( 
+        in ObjectRoot object, 
+        in ObjectScope scope, in long depth ) 
+        raises (PreconditionNotMet);
+    void delete_contract( 
+        in Contract a_contract ) 
+        raises (PreconditionNotMet);
+}; 
+
+
+/***********************************************************************
+ * Cache : Manager of a set of related objects
+ *      is associated to one DDS::Publisher and/or one DDS::Subscriber
+ ***********************************************************************/
+
+local interface Cache : CacheBase {
+
+    // Attributes
+    // ----------    
+    readonly attribute DCPSState            pubsub_state;
+    readonly attribute DDS::Publisher       the_publisher;
+    readonly attribute DDS::Subscriber      the_subscriber;
+    readonly attribute boolean              updates_enabled;
+    readonly attribute ObjectHomeSeq        homes;
+    readonly attribute CacheAccessSeq       sub_accesses;
+    readonly attribute CacheListenerSeq     listeners;
+
+    // Operations
+    // ----------
+
+    //-- Infrastructure management
+    void register_all_for_pubsub()
+        raises (
+            BadHomeDefinition,
+            DCPSError,
+            PreconditionNotMet);
+    void enable_all_for_pubsub()
+        raises (
+            DCPSError,
+            PreconditionNotMet);
+
+    // -- Home management
+    unsigned long register_home (
+        in ObjectHome  a_home)
+        raises (
+            PreconditionNotMet);
+    ObjectHome find_home_by_name (
+        in ClassName class_name);
+    ObjectHome find_home_by_index (
+        in unsigned long index);
+
+    // -- Listener Management
+    void attach_listener (
+        in CacheListener listener);
+    void detach_listener (
+        in CacheListener listener);
+
+    // --- Updates management
+    void enable_updates ();
+    void disable_updates ();
+
+    // --- CacheAccess Management
+    CacheAccess create_access (
+        in CacheUsage purpose)
+        raises (
+            PreconditionNotMet);
+    void delete_access (
+        in CacheAccess access)
+        raises (
+            PreconditionNotMet);
+    };
+
+/************************************************
+ * CacheFactory : Factory to create Cache objects
+ ************************************************/
+
+valuetype CacheDescription {
+    public CacheName               name;
+    public DDS::DomainParticipant domain;
+    };
+
+local interface CacheFactory {
+    Cache create_cache (
+        in CacheUsage       cache_usage,
+        in CacheDescription cache_description)
+        raises (
+            DCPSError,
+            AlreadyExisting);
+    Cache find_cache_by_name(
+        in CacheName        name);
+    void delete_cache (
+        in Cache            a_cache);
+    };
+
+};

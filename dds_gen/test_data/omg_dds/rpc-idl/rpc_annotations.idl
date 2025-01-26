@@ -1,0 +1,45 @@
+module dds { 
+
+module rpc {
+
+@annotation
+local interface DDSRequestTopic {
+  attribute string name;
+};
+
+@annotation
+local interface DDSReplyTopic {
+  attribute string name;
+};
+
+@annotation 
+local interface Choice { 
+  attribute boolean value default true;
+};
+
+@annotation 
+local interface AutoId { 
+  attribute boolean value default true;
+};
+
+@annotation 
+local interface Empty { 
+  attribute boolean value default true;
+};
+
+@annotation 
+local interface Mutable { 
+  attribute boolean value default true;
+};
+
+@annotation
+local interface Qos 
+{
+  attribute string RequestProfile; 
+  attribute string ReplyProfile; 
+};
+
+
+}; // module rpc
+
+}; // module dds

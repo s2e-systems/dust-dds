@@ -1,0 +1,212 @@
+#ifdef INTERFACE
+
+module robot {
+
+exception TooFast {};
+
+enum Command { START_COMMAND, STOP_COMMAND };
+
+struct Status 
+{
+  string msg;
+};
+
+@DDSService
+interface RobotControl 
+{
+  void  command(Command com);
+  float setSpeed(float speed) raises (TooFast);
+  float getSpeed();
+  void  getStatus(out Status status);
+};
+
+}; //module robot
+
+#endif // INTERFACE
+
+#ifdef BASIC
+
+#include <rpc_types.idl>
+/******************************************/
+/*    Interface Specific Types Below      */
+/******************************************/
+
+module robot {
+
+@nested
+struct TooFast 
+{ 
+  dds::rpc::UnusedMember dummy; 
+};
+
+enum Command { START_COMMAND, STOP_COMMAND };
+
+@nested
+struct Status
+{
+  string msg;
+};
+
+@nested
+struct RobotControl_command_In 
+{ 
+  Command com; 
+};
+
+@nested
+struct RobotControl_setSpeed_In 
+{
+    float speed;
+};
+
+@nested
+struct RobotControl_getSpeed_In 
+{ 
+  dds::rpc::UnusedMember dummy; 
+};
+
+@nested
+struct RobotControl_getStatus_In 
+{ 
+  dds::rpc::UnusedMember dummy; 
+};
+
+const long RobotControl_command_Hash   = 1;
+const long RobotControl_setSpeed_Hash  = 2;
+const long RobotControl_getSpeed_Hash  = 3;
+const long RobotControl_getStatus_Hash = 4;
+
+@nested
+union RobotControl_Call switch(long) 
+{
+    default:
+       dds::rpc::UnknownOperation unknownOp;
+
+    case RobotControl_command_Hash:     
+       RobotControl_command_In command;
+
+    case RobotControl_setSpeed_Hash:
+       RobotControl_setSpeed_In setSpeed;
+
+    case RobotControl_getSpeed_Hash:
+       RobotControl_getSpeed_In getSpeed;
+    
+    case RobotControl_getStatus_Hash:
+       RobotControl_getStatus_In getStatus;
+};
+
+struct RobotControl_Request 
+{
+  dds::rpc::RequestHeader header;
+  RobotControl_Call       data;
+};
+
+/***********************************************/
+/*                   Reply Types               */
+/***********************************************/
+
+
+@nested
+struct RobotControl_command_Out 
+{ 
+  dds::rpc::UnusedMember dummy; 
+};
+
+@nested
+struct RobotControl_setSpeed_Out 
+{
+    float return_;
+};
+
+@nested
+struct RobotControl_getSpeed_Out 
+{ 
+  float return_; 
+};
+
+const long TooFast_Ex_Hash = 0xAFED; // HASH
+
+@nested
+struct RobotControl_getStatus_Out 
+{ 
+  Status status;
+};
+
+@nested
+union RobotControl_command_Result switch(long)
+{
+  default:
+    dds::rpc::UnknownException unknownEx;
+  
+  case dds::rpc::REMOTE_EX_OK:
+    RobotControl_command_Out result;
+};
+
+@nested
+union RobotControl_setSpeed_Result switch(long)
+{
+  default:
+    dds::rpc::UnknownException unknownEx;
+  
+  case dds::rpc::REMOTE_EX_OK:
+    RobotControl_setSpeed_Out result;
+
+  case TooFast_Ex_Hash:
+    TooFast toofast_ex;
+};
+
+@nested
+union RobotControl_getSpeed_Result switch(long)
+{
+  default:
+    dds::rpc::UnknownException unknownEx;
+  
+  case dds::rpc::REMOTE_EX_OK:
+    RobotControl_getSpeed_Out result;
+};
+
+@nested
+union RobotControl_getStatus_Result switch(long)
+{
+  default:
+    dds::rpc::UnknownException unknownEx;
+  
+  case dds::rpc::REMOTE_EX_OK:
+    RobotControl_getStatus_Out result;
+};
+
+@nested
+union RobotControl_Return switch(long)
+{
+  default: 
+    dds::rpc::UnknownOperation unknownOp;
+
+  case RobotControl_command_Hash:
+    RobotControl_command_Result command;
+
+  case RobotControl_setSpeed_Hash:
+    RobotControl_setSpeed_Result setSpeed;
+
+  case RobotControl_getSpeed_Hash:
+    RobotControl_getSpeed_Result getSpeed;
+
+  case RobotControl_getStatus_Hash:
+    RobotControl_getStatus_Result getStatus;
+};
+
+struct RobotControl_Reply
+{
+  dds::rpc::ReplyHeader  header;
+  RobotControl_Return    data;
+};
+
+}; // module robot
+
+#endif // BASIC
+
+
+
+#ifdef ENHANCED
+
+
+#endif // ENHANCED

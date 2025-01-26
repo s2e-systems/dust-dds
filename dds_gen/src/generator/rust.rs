@@ -81,7 +81,7 @@ pub fn generate_rust_source(pair: IdlPair, writer: &mut String) {
         Rule::struct_def => struct_def(pair, writer),
         Rule::member => member(pair, writer),
         Rule::struct_forward_dcl => (), // Forward declarations are irrelevant in Rust mapping
-        Rule::union_dcl => todo!(),
+        Rule::union_dcl => todo!("Union declaration has not been implemented yet"),
         Rule::union_def => todo!(),
         Rule::switch_type_spec => todo!(),
         Rule::switch_body => todo!(),
@@ -218,7 +218,89 @@ pub fn generate_rust_source(pair: IdlPair, writer: &mut String) {
         Rule::annotation_appl => annotation_appl(pair, writer),
         Rule::annotation_appl_params => todo!(),
         Rule::annotation_appl_param => todo!(),
+        Rule::preprocessor_directive => preprocessor_directive(pair, writer),
+        Rule::preprocessor_command => preprocessor_command(pair, writer),
+        Rule::preprocessor_define => preprocessor_define(pair, writer),
+        Rule::preprocessor_ifdef => preprocessor_ifdef(pair, writer),
+        Rule::preprocessor_ifndef => preprocessor_ifndef(pair, writer),
+        Rule::preprocessor_endif => preprocessor_endif(pair, writer),
+        Rule::preprocessor_include => preprocessor_include(pair, writer),
+        Rule::filename => todo!(),
+        Rule::preprocessor_pragma => preprocessor_pragma(pair, writer),
     }
+}
+
+fn preprocessor_directive(pair: IdlPair, writer: &mut String) {
+    dbg!("PRE_PROCESSOR_DIRECTIVE");
+    let pair_details = pair.as_str();
+    let mut inner_pairs = pair.clone().into_inner();
+
+    dbg!("preprocessor_directive: ", &pair.as_str());
+    dbg!("preprocessor_rule: ", &pair.as_rule());
+
+    match inner_pairs.next() {
+        Some(pair) => generate_rust_source(pair, writer),
+        None => panic!(
+            "Must have an element according to the grammar: {}",
+            pair_details
+        ),
+    };
+}
+
+fn preprocessor_command(pair: IdlPair, writer: &mut String) {
+    dbg!("#");
+    dbg!("preprocessor_command: ", pair.as_str());
+    dbg!("preprocessor_rule: ", pair.as_rule());
+
+    let mut inner_pairs = pair.clone().into_inner();
+    match inner_pairs.next() {
+        Some(pair) => generate_rust_source(pair, writer),
+        None => panic!("Must have an element according to the grammar."),
+    };
+}
+
+fn preprocessor_define(pair: IdlPair, writer: &mut String) {
+    dbg!("#define");
+    dbg!("preprocessor_define: ", pair.as_str());
+}
+fn preprocessor_ifdef(pair: IdlPair, writer: &mut String) {
+    dbg!("#ifdef");
+    dbg!("preprocessor_ifdef: ", pair.as_str());
+}
+fn preprocessor_ifndef(pair: IdlPair, writer: &mut String) {
+    dbg!("#ifndef");
+    dbg!("preprocessor_ifndef: ", pair.as_str());
+}
+fn preprocessor_endif(pair: IdlPair, writer: &mut String) {
+    dbg!("#endif");
+    dbg!("preprocessor_endif: ", pair.as_str());
+}
+fn preprocessor_include(pair: IdlPair, writer: &mut String) {
+    dbg!("#include");
+    dbg!("preprocessor_include: ", pair.as_str());
+    dbg!("preprocessor_rule: ", pair.as_rule());
+
+    let mut inner_pairs = pair.clone().into_inner();
+    let include_path = match inner_pairs.next() {
+        Some(pair) => pair.as_str(),
+        None => panic!(
+            "Preprocessor include: Must have an element according to the grammar: {}",
+            &pair.as_str()
+        ),
+    };
+
+    let rust_include = include_path.replace(".idl", ".rs");
+
+    let written = format!("#include!(\"{}\");", rust_include);
+
+    writer.push_str(&written);
+    dbg!("rust_include: ", written);
+    dbg!("include_path: ", include_path);
+}
+
+fn preprocessor_pragma(pair: IdlPair, writer: &mut String) {
+    dbg!("#pragma");
+    dbg!("preprocessor_pragma: ", pair.as_str());
 }
 
 fn specification(pair: IdlPair, writer: &mut String) {
@@ -228,12 +310,16 @@ fn specification(pair: IdlPair, writer: &mut String) {
 }
 
 fn definition(pair: IdlPair, writer: &mut String) {
-    generate_rust_source(
-        pair.into_inner()
-            .next()
-            .expect("Must have an element according to the grammar"),
-        writer,
-    )
+    let pair_details = pair.as_str();
+    let mut inner_pairs = pair.into_inner();
+
+    match inner_pairs.next() {
+        Some(pair) => generate_rust_source(pair, writer),
+        None => panic!(
+            "Must have an element according to the grammar: {}",
+            pair_details
+        ),
+    };
 }
 
 fn module_dcl(pair: IdlPair, writer: &mut String) {
@@ -257,30 +343,42 @@ fn module_dcl(pair: IdlPair, writer: &mut String) {
 }
 
 fn type_dcl(pair: IdlPair, writer: &mut String) {
-    generate_rust_source(
-        pair.into_inner()
-            .next()
-            .expect("Must have an element according to the grammar"),
-        writer,
-    )
+    let pair_details = pair.as_str();
+    let mut inner_pairs = pair.into_inner();
+
+    match inner_pairs.next() {
+        Some(pair) => generate_rust_source(pair, writer),
+        None => panic!(
+            "Must have an element according to the grammar: {}",
+            pair_details
+        ),
+    };
 }
 
 fn constr_type_dcl(pair: IdlPair, writer: &mut String) {
-    generate_rust_source(
-        pair.into_inner()
-            .next()
-            .expect("Must have an element according to the grammar"),
-        writer,
-    )
+    let pair_details = pair.as_str();
+    let mut inner_pairs = pair.into_inner();
+
+    match inner_pairs.next() {
+        Some(pair) => generate_rust_source(pair, writer),
+        None => panic!(
+            "Must have an element according to the grammar: {}",
+            pair_details
+        ),
+    };
 }
 
 fn struct_dcl(pair: IdlPair, writer: &mut String) {
-    generate_rust_source(
-        pair.into_inner()
-            .next()
-            .expect("Must have an element according to the grammar"),
-        writer,
-    )
+    let pair_details = pair.as_str();
+    let mut inner_pairs = pair.into_inner();
+
+    match inner_pairs.next() {
+        Some(pair) => generate_rust_source(pair, writer),
+        None => panic!(
+            "Must have an element according to the grammar: {}",
+            pair_details
+        ),
+    };
 }
 
 fn struct_def(pair: IdlPair, writer: &mut String) {
@@ -326,12 +424,16 @@ fn enum_dcl(pair: IdlPair, writer: &mut String) {
 }
 
 fn enumerator(pair: IdlPair, writer: &mut String) {
-    generate_rust_source(
-        pair.into_inner()
-            .next()
-            .expect("Must have an element according to the grammar"),
-        writer,
-    )
+    let pair_details = pair.as_str();
+    let mut inner_pairs = pair.into_inner();
+
+    match inner_pairs.next() {
+        Some(pair) => generate_rust_source(pair, writer),
+        None => panic!(
+            "Must have an element according to the grammar: {}",
+            pair_details
+        ),
+    };
 }
 
 fn member(pair: IdlPair, writer: &mut String) {
@@ -397,12 +499,16 @@ fn declarators(pair: IdlPair, writer: &mut String) {
 }
 
 fn interface_dcl(pair: IdlPair, writer: &mut String) {
-    generate_rust_source(
-        pair.into_inner()
-            .next()
-            .expect("Must have an element according to the grammar"),
-        writer,
-    )
+    let pair_details = pair.as_str();
+    let mut inner_pairs = pair.into_inner();
+
+    match inner_pairs.next() {
+        Some(pair) => generate_rust_source(pair, writer),
+        None => panic!(
+            "Must have an element according to the grammar: {}",
+            pair_details
+        ),
+    };
 }
 
 fn interface_def(pair: IdlPair, writer: &mut String) {
@@ -464,12 +570,16 @@ fn interface_body(pair: IdlPair, writer: &mut String) {
 }
 
 fn export(pair: IdlPair, writer: &mut String) {
-    generate_rust_source(
-        pair.into_inner()
-            .next()
-            .expect("Must have an element according to the grammar"),
-        writer,
-    )
+    let pair_details = pair.as_str();
+    let mut inner_pairs = pair.into_inner();
+
+    match inner_pairs.next() {
+        Some(pair) => generate_rust_source(pair, writer),
+        None => panic!(
+            "Must have an element according to the grammar: {}",
+            pair_details
+        ),
+    };
 }
 
 fn op_dcl(pair: IdlPair, writer: &mut String) {
@@ -534,26 +644,34 @@ fn param_attribute(pair: IdlPair, writer: &mut String) {
     match pair.as_str() {
         "inout" | "out" => writer.push_str("&mut "),
         "in" => writer.push('&'),
-        _ => panic!("Invalid option by grammar"),
+        _ => panic!("Invalid option by grammar: {}", &pair.as_str()),
     }
 }
 
 fn simple_declarator(pair: IdlPair, writer: &mut String) {
-    generate_rust_source(
-        pair.into_inner()
-            .next()
-            .expect("Must have an element according to the grammar"),
-        writer,
-    )
+    let pair_details = pair.as_str();
+    let mut inner_pairs = pair.into_inner();
+
+    match inner_pairs.next() {
+        Some(pair) => generate_rust_source(pair, writer),
+        None => panic!(
+            "Must have an element according to the grammar: {}",
+            pair_details
+        ),
+    };
 }
 
 fn typedef_dcl(pair: IdlPair, writer: &mut String) {
-    generate_rust_source(
-        pair.into_inner()
-            .next()
-            .expect("Must have an element according to the grammar"),
-        writer,
-    )
+    let pair_details = pair.as_str();
+    let mut inner_pairs = pair.into_inner();
+
+    match inner_pairs.next() {
+        Some(pair) => generate_rust_source(pair, writer),
+        None => panic!(
+            "Must have an element according to the grammar: {}",
+            pair_details
+        ),
+    };
 }
 
 fn type_declarator(pair: IdlPair, writer: &mut String) {
@@ -566,7 +684,7 @@ fn type_declarator(pair: IdlPair, writer: &mut String) {
     let any_declarators = inner_pairs
         .clone()
         .find(|p| p.as_rule() == Rule::any_declarators)
-        .expect("Must have any_declarators according to grammar");
+        .expect("Must have any_declarators according to grammar: {}");
     for any_declarator in any_declarators.into_inner() {
         writer.push_str("pub type ");
         generate_rust_source(any_declarator, writer);
@@ -577,12 +695,16 @@ fn type_declarator(pair: IdlPair, writer: &mut String) {
 }
 
 fn any_declarator(pair: IdlPair, writer: &mut String) {
-    generate_rust_source(
-        pair.into_inner()
-            .next()
-            .expect("Must have an element according to the grammar"),
-        writer,
-    )
+    let pair_details = pair.as_str();
+    let mut inner_pairs = pair.into_inner();
+
+    match inner_pairs.next() {
+        Some(pair) => generate_rust_source(pair, writer),
+        None => panic!(
+            "Must have an element according to the grammar: {}",
+            pair_details
+        ),
+    };
 }
 
 fn identifier(pair: IdlPair, writer: &mut String) {
@@ -590,30 +712,42 @@ fn identifier(pair: IdlPair, writer: &mut String) {
 }
 
 fn type_spec(pair: IdlPair, writer: &mut String) {
-    generate_rust_source(
-        pair.into_inner()
-            .next()
-            .expect("Must have an element according to the grammar"),
-        writer,
-    )
+    let pair_details = pair.as_str();
+    let mut inner_pairs = pair.into_inner();
+
+    match inner_pairs.next() {
+        Some(pair) => generate_rust_source(pair, writer),
+        None => panic!(
+            "Must have an element according to the grammar: {}",
+            pair_details
+        ),
+    };
 }
 
 fn simple_type_spec(pair: IdlPair, writer: &mut String) {
-    generate_rust_source(
-        pair.into_inner()
-            .next()
-            .expect("Must have an element according to the grammar"),
-        writer,
-    )
+    let pair_details = pair.as_str();
+    let mut inner_pairs = pair.into_inner();
+
+    match inner_pairs.next() {
+        Some(pair) => generate_rust_source(pair, writer),
+        None => panic!(
+            "Must have an element according to the grammar: {}",
+            pair_details
+        ),
+    };
 }
 
 fn base_type_spec(pair: IdlPair, writer: &mut String) {
-    generate_rust_source(
-        pair.into_inner()
-            .next()
-            .expect("Must have an element according to the grammar"),
-        writer,
-    )
+    let pair_details = pair.as_str();
+    let mut inner_pairs = pair.into_inner();
+
+    match inner_pairs.next() {
+        Some(pair) => generate_rust_source(pair, writer),
+        None => panic!(
+            "Must have an element according to the grammar: {}",
+            pair_details
+        ),
+    };
 }
 
 fn floating_pt_type(pair: IdlPair, writer: &mut String) {
@@ -626,12 +760,16 @@ fn floating_pt_type(pair: IdlPair, writer: &mut String) {
 }
 
 fn integer_type(pair: IdlPair, writer: &mut String) {
-    generate_rust_source(
-        pair.into_inner()
-            .next()
-            .expect("Must have an element according to the grammar"),
-        writer,
-    )
+    let pair_details = pair.as_str();
+    let mut inner_pairs = pair.into_inner();
+
+    match inner_pairs.next() {
+        Some(pair) => generate_rust_source(pair, writer),
+        None => panic!(
+            "Must have an element according to the grammar: {}",
+            pair_details
+        ),
+    };
 }
 
 fn signed_tiny_int(_pair: IdlPair, writer: &mut String) {
@@ -639,12 +777,16 @@ fn signed_tiny_int(_pair: IdlPair, writer: &mut String) {
 }
 
 fn signed_int(pair: IdlPair, writer: &mut String) {
-    generate_rust_source(
-        pair.into_inner()
-            .next()
-            .expect("Must have an element according to the grammar"),
-        writer,
-    )
+    let pair_details = pair.as_str();
+    let mut inner_pairs = pair.into_inner();
+
+    match inner_pairs.next() {
+        Some(pair) => generate_rust_source(pair, writer),
+        None => panic!(
+            "Must have an element according to the grammar: {}",
+            pair_details
+        ),
+    };
 }
 
 fn signed_short_int(_pair: IdlPair, writer: &mut String) {
@@ -664,12 +806,16 @@ fn unsigned_tiny_int(_pair: IdlPair, writer: &mut String) {
 }
 
 fn unsigned_int(pair: IdlPair, writer: &mut String) {
-    generate_rust_source(
-        pair.into_inner()
-            .next()
-            .expect("Must have an element according to the grammar"),
-        writer,
-    )
+    let pair_details = pair.as_str();
+    let mut inner_pairs = pair.into_inner();
+
+    match inner_pairs.next() {
+        Some(pair) => generate_rust_source(pair, writer),
+        None => panic!(
+            "Must have an element according to the grammar: {}",
+            pair_details
+        ),
+    };
 }
 
 fn unsigned_short_int(_pair: IdlPair, writer: &mut String) {
@@ -689,12 +835,16 @@ fn octet_type(_pair: IdlPair, writer: &mut String) {
 }
 
 fn template_type_spec(pair: IdlPair, writer: &mut String) {
-    generate_rust_source(
-        pair.into_inner()
-            .next()
-            .expect("Must have an element according to the grammar"),
-        writer,
-    )
+    let pair_details = pair.as_str();
+    let mut inner_pairs = pair.into_inner();
+
+    match inner_pairs.next() {
+        Some(pair) => generate_rust_source(pair, writer),
+        None => panic!(
+            "Must have an element according to the grammar: {}",
+            pair_details
+        ),
+    };
 }
 
 fn sequence_type(pair: IdlPair, writer: &mut String) {
@@ -719,21 +869,29 @@ fn wide_string_type(_pair: IdlPair, writer: &mut String) {
 }
 
 fn fixed_array_size(pair: IdlPair, writer: &mut String) {
-    generate_rust_source(
-        pair.into_inner()
-            .next()
-            .expect("Must have an element according to the grammar"),
-        writer,
-    )
+    let pair_details = pair.as_str();
+    let mut inner_pairs = pair.into_inner();
+
+    match inner_pairs.next() {
+        Some(pair) => generate_rust_source(pair, writer),
+        None => panic!(
+            "Must have an element according to the grammar: {}",
+            pair_details
+        ),
+    };
 }
 
 fn positive_int_const(pair: IdlPair, writer: &mut String) {
-    generate_rust_source(
-        pair.into_inner()
-            .next()
-            .expect("Must have an element according to the grammar"),
-        writer,
-    )
+    let pair_details = pair.as_str();
+    let mut inner_pairs = pair.into_inner();
+
+    match inner_pairs.next() {
+        Some(pair) => generate_rust_source(pair, writer),
+        None => panic!(
+            "Must have an element according to the grammar: {}",
+            pair_details
+        ),
+    };
 }
 
 fn const_expr(pair: IdlPair, writer: &mut String) {
@@ -956,5 +1114,21 @@ mod tests {
             "pub trait MyInterface{fn op(s:&mut String,a:&mut i16,u:&char,);\nfn sum(a:&u16,b:&u16,)->u16;\n}\n",
             &out
         );
+    }
+
+    #[test]
+    fn parse_include() {
+        let mut out = String::new();
+
+        let p = IdlParser::parse(
+            Rule::preprocessor_directive,
+            "#include \"hello_world.rs\"\n",
+        )
+        .unwrap()
+        .next()
+        .unwrap();
+
+        generate_rust_source(p, &mut out);
+        assert_eq!("#include!(\"hello_world.rs\");", &out);
     }
 }
