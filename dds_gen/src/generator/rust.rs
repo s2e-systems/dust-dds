@@ -231,12 +231,11 @@ pub fn generate_rust_source(pair: IdlPair, writer: &mut String) {
 }
 
 fn preprocessor_directive(pair: IdlPair, writer: &mut String) {
-    dbg!("PRE_PROCESSOR_DIRECTIVE");
+    
     let pair_details = pair.as_str();
     let mut inner_pairs = pair.clone().into_inner();
 
-    dbg!("preprocessor_directive: ", &pair.as_str());
-    dbg!("preprocessor_rule: ", &pair.as_rule());
+    
 
     match inner_pairs.next() {
         Some(pair) => generate_rust_source(pair, writer),
@@ -248,11 +247,9 @@ fn preprocessor_directive(pair: IdlPair, writer: &mut String) {
 }
 
 fn preprocessor_command(pair: IdlPair, writer: &mut String) {
-    dbg!("#");
-    dbg!("preprocessor_command: ", pair.as_str());
-    dbg!("preprocessor_rule: ", pair.as_rule());
+    
 
-    let mut inner_pairs = pair.clone().into_inner();
+    let mut inner_pairs = pair.into_inner();
     match inner_pairs.next() {
         Some(pair) => generate_rust_source(pair, writer),
         None => panic!("Must have an element according to the grammar."),
@@ -260,8 +257,7 @@ fn preprocessor_command(pair: IdlPair, writer: &mut String) {
 }
 
 fn preprocessor_define(pair: IdlPair, writer: &mut String) {
-    dbg!("#define");
-    dbg!("preprocessor_define: ", pair.as_str());
+    
 }
 fn preprocessor_ifdef(pair: IdlPair, writer: &mut String) {
     dbg!("#ifdef");
@@ -276,9 +272,7 @@ fn preprocessor_endif(pair: IdlPair, writer: &mut String) {
     dbg!("preprocessor_endif: ", pair.as_str());
 }
 fn preprocessor_include(pair: IdlPair, writer: &mut String) {
-    dbg!("#include");
-    dbg!("preprocessor_include: ", pair.as_str());
-    dbg!("preprocessor_rule: ", pair.as_rule());
+    
 
     let mut inner_pairs = pair.clone().into_inner();
     let include_path = match inner_pairs.next() {
