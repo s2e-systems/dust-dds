@@ -1,0 +1,1212 @@
+/*
+ * dds-xtypes_discovery.idl needed for the declarations
+ * of DDS Entities and DDS Entity Qos
+ */
+ // DDSSEC11-96
+#include "dds-xtypes_discovery.idl"  /* http://www.omg.org/spec/DDS-XTypes/20170301/dds-xtypes_discovery.idl */
+
+// The types in this file shall be serialized with XCDR encoding version 1
+module DDS {
+    module Security {
+
+        // DynamicData is in DDS-XTYPES but including the XTYPES IDL
+        // Would make the file not compilable by legacy IDL compilers
+        // that do not understand the new anotation syntax
+        native DynamicData;
+
+        typedef sequence<octet>         OctetSeq;
+        typedef sequence<long long>     LongLongSeq;
+
+        // DDSSEC12-29
+        @extensibility(FINAL)
+        struct Property_t {
+            string name;
+            string value;
+            @non_serialized boolean propagate;
+        };
+        typedef sequence< Property_t >  PropertySeq;
+
+        // DDSSEC12-29
+        @extensibility(FINAL)
+        struct BinaryProperty_t {
+            string name;
+            OctetSeq value;
+            @non_serialized boolean propagate;
+        };
+        typedef sequence< BinaryProperty_t >  BinaryPropertySeq;
+
+        // DDSSEC11-96
+        // DDSSEC12-29
+        @extensibility(FINAL)
+        struct DataHolder {
+            string                        class_id;
+            @optional  PropertySeq        properties; 
+            @optional  BinaryPropertySeq  binary_properties; 
+        };
+        typedef sequence<DataHolder> DataHolderSeq;
+        typedef DataHolder Token;
+
+        // DDSSEC11-43
+        typedef Token MessageToken;
+        typedef MessageToken AuthRequestMessageToken;
+        typedef MessageToken HandshakeMessageToken;
+      
+        // DDSSEC11-82
+        typedef sequence<HandshakeMessageToken> HandshakeMessageTokenSeq;
+        typedef Token  IdentityToken;
+        typedef Token  IdentityStatusToken;
+        typedef Token  PermissionsToken;
+        typedef Token  AuthenticatedPeerCredentialToken;
+        typedef Token  PermissionsCredentialToken;
+
+        typedef Token  CryptoToken;
+        typedef Token  ParticipantCryptoToken;
+        typedef Token  DatawriterCryptoToken;
+        typedef Token  DatareaderCryptoToken;
+
+        typedef sequence<CryptoToken>  CryptoTokenSeq;
+        typedef CryptoTokenSeq  ParticipantCryptoTokenSeq;
+        typedef CryptoTokenSeq  DatawriterCryptoTokenSeq;
+        typedef CryptoTokenSeq  DatareaderCryptoTokenSeq;
+
+        // DDSSEC12-90
+        typedef string<64> CryptoAlgorithmName;
+        // Symmetric Ciphers 
+        const string CNAME_AES128_GMAC                          = "AES128+GCM";
+        const string CNAME_AES128_GCM                           = "AES128+GCM";
+        const string CNAME_AES256_GMAC                          = "AES256+GCM";
+        const string CNAME_AES256_GCM                           = "AES256+GCM";
+        // Digital Signature 
+        const string CNAME_RSASSA_PSS_MGF1SHA256_2048_SHA256    = "RSASSA-PSS-MGF1SHA256+2048+SHA256";
+        const string CNAME_RSASSA_PKCS1_V15_2048_SHA256         = "RSASSA-PKCS1-V1_5+2048+SHA256";
+        const string CNAME_ECDSA_P256_SHA256_NAME               = "ECDSA+P256+SHA256";
+        const string CNAME_ECDSA_P384_SHA384                    = "ECDSA+P384+SHA384";
+        // Key Establishment 
+        const string CNAME_DHE_MODP_2048_256                    = "DHE+MODP-2048-256";
+        const string CNAME_ECDHE_CEUM_P256                      = "ECDHE-CEUM+P256";
+        const string CNAME_ECDHE_CEUM_P384                      = "ECDHE-CEUM+P384";
+
+        // DDSSEC12-90
+        @doc("Range 0x01 <= value <  0x80 reserved for DDS-Sec. spec.")
+        @doc("Range 0x80 <= value <=  0xFF are reserved for implementation-specific algos.")    
+        typedef octet CryptoAlgorithmId;
+        const CryptoAlgorithmId   CID_INVALID                           = 0x00;
+        // Symmetric Ciphers 
+        const CryptoAlgorithmId   CID_AES128_GMAC                       = 0x01;
+        const CryptoAlgorithmId   CID_AES128_GCM                        = 0x02;
+        const CryptoAlgorithmId   CID_AES256_GMAC                       = 0x03;
+        const CryptoAlgorithmId   CID_AES256_GCM                        = 0x04;
+        // Digital Signature 
+        const CryptoAlgorithmId   CID_RSASSA_PSS_MGF1SHA256_2048_SHA256 = 0x10;
+        const CryptoAlgorithmId   CID_RSASSA_PKCS1_V15_2048_SHA256      = 0x11;
+        const CryptoAlgorithmId   CID_ECDSA_P256_SHA256                 = 0x12;
+        const CryptoAlgorithmId   CID_ECDSA_P384_SHA384                 = 0x13;
+        // Key Establishment 
+        const CryptoAlgorithmId   CID_DHE_MODP_2048_256                 = 0x20;
+        const CryptoAlgorithmId   CID_ECDHE_CEUM_P256                   = 0x21;
+        const CryptoAlgorithmId   CID_ECDHE_CEUM_P384                   = 0x22;
+
+        // DDSSEC12-90
+        @doc("Range 0x00000001 <= value <  0x00010000 reserved DDS-Sec. spec.")
+        @doc("Range 0x00010000 <= value <  0x80000000 reserved vendor-specific algos.")
+        typedef uint32 CryptoAlgorithmBit;
+        const CryptoAlgorithmBit  CRYPTO_ALGORITHM_COMPATIBILITY_MODE       = (0x80000000);
+        // Symmetric Ciphers 
+        const CryptoAlgorithmBit  CBIT_AES128_GMAC                          =  1 << 0;
+        const CryptoAlgorithmBit  CBIT_AES128_GCM                           =  1 << 0;
+        const CryptoAlgorithmBit  CBIT_AES256_GMAC                          =  1 << 1;
+        const CryptoAlgorithmBit  CBIT_AES256_GCM                           =  1 << 1;
+        // Digital Signature 
+        const CryptoAlgorithmBit  CBIT_RSASSA_PSS_MGF1SHA256_2048_SHA256    = 1 << 0;
+        const CryptoAlgorithmBit  CBIT_RSASSA_PKCS1_V15_2048_SHA256         = 1 << 1;
+        const CryptoAlgorithmBit  CBIT_ECDSA_P256_SHA256                    = 1 << 2;
+        const CryptoAlgorithmBit  CBIT_ECDSA_P384_SHA384                    = 1 << 3;
+        // Key Establishment 
+        const CryptoAlgorithmBit  CBIT_DHE_MODP_2048_256                    = 1 << 0;
+        const CryptoAlgorithmBit  CBIT_ECDHE_CEUM_P256                      = 1 << 1;
+        const CryptoAlgorithmBit  CBIT_ECDHE_CEUM_P384                      = 1 << 2;
+
+        // DDSSEC12-90
+        typedef uint32  CryptoAlgorithmSet;
+        const CryptoAlgorithmSet CRYPTO_ALGORITHM_SET_ALL   = 0xffffffff;
+        const CryptoAlgorithmSet CRYPTO_ALGORITHM_SET_EMPTY = 0x00000000;
+
+        // DDSSEC12-90
+        @extensibility (FINAL)
+        struct CryptoAlgorithmRequirements {
+            CryptoAlgorithmSet  supported_mask; 
+            CryptoAlgorithmSet  required_mask;
+        };
+
+        // DDSSEC12-90
+        @extensibility (APPENDABLE)
+        struct ParticipantSecurityDigitalSignatureAlgorithmInfo {
+            CryptoAlgorithmRequirements trust_chain;
+            CryptoAlgorithmRequirements message_auth;
+        }; 
+
+        // DDSSEC12-90
+        @extensibility (APPENDABLE)
+        struct ParticipantSecurityKeyEstablishmentAlgorithmInfo  {
+            CryptoAlgorithmRequirements shared_secret;
+        }; 
+
+        // DDSSEC12-90
+        @extensibility (APPENDABLE)
+        struct ParticipantSecuritySymmetricCipherAlgorithmInfo  {
+            CryptoAlgorithmSet  supported_mask;
+            CryptoAlgorithmSet  builtin_endpoints_required_mask;
+            CryptoAlgorithmSet  builtin_kx_endpoints_required_mask;
+            CryptoAlgorithmSet  user_endpoints_default_required_mask;
+        };
+
+        // DDSSEC12-90
+        @extensibility (APPENDABLE)
+        struct ParticipantSecurityAlgorithmInfo  {
+            ParticipantSecurityDigitalSignatureAlgorithmInfo  digital_signature;
+            ParticipantSecurityKeyEstablishmentAlgorithmInfo  key_establishment;
+            ParticipantSecuritySymmetricCipherAlgorithmInfo   symmetric_cipher;
+        }; 
+
+        // DDSSEC12-90
+        @extensibility (APPENDABLE)
+        struct EndpointSecuritySymmetricCipherAlgorithmInfo  {
+            CryptoAlgorithmSet  required_mask;
+            @non_serialized
+            CryptoAlgorithmSet  supported_mask;
+        };
+
+        // DDSSEC12-90
+        @extensibility (APPENDABLE)
+        struct EndpointSecurityAlgorithmInfo  {
+            EndpointSecuritySymmetricCipherAlgorithmInfo   symmetric_cipher;
+        };
+
+        // DDSSEC12-122
+        typedef octet CryptoTransformKeyRevision[3];
+        #define  CRYPTO_TRANSFORM_KEY_REVISION_NONE    {0x00, 0x00, 0x00}
+        typedef int32 CryptoTransformKeyRevisionIntHolder;
+
+        // DDSSEC12-90 DDSSEC12-122
+        @extensibility(FINAL)
+        struct CryptoTransformKind {
+            CryptoTransformKeyRevision      transformation_key_revision;
+            CryptoAlgorithmId               transformation_algorithm_id;
+        };
+        #define  CRYPTO_TRANSFORM_KIND_INVALID  {{0x00, 0x00, 0x00}, 0x00}
+
+        // DDSSEC12-90
+        typedef octet    CryptoTransformKeyId[4];
+
+        // DDSSEC12-90
+        @extensibility(FINAL)
+        struct CryptoTransformIdentifier {
+            CryptoTransformKind   transformation_kind;
+            CryptoTransformKeyId  transformation_key_id;
+        };  
+
+        // DDSSEC11-96
+        @extensibility(APPENDABLE)
+        struct PropertyQosPolicy {
+            PropertySeq        value;
+            BinaryPropertySeq  binary_value;
+        }; 
+
+        // DDSSEC12-29
+        @extensibility(FINAL)
+        struct Tag {
+            string name;
+            string value;
+        };
+        typedef sequence< Tag > TagSeq;
+
+        // DDSSEC11-34 DDSSEC12-29
+        @extensibility(APPENDABLE)
+        struct DataTags {
+            TagSeq tags;
+        };
+        typedef DataTags DataTagQosPolicy;
+
+        // DDSSEC11-96
+        // See http://www.omg.org/spec/DDS-XTypes/20170301/dds-xtypes_discovery.idl
+        @extensibility(MUTABLE)
+	    struct DomainParticipantQos :  DDS::DomainParticipantQos {
+            PropertyQosPolicy  property;
+        };
+
+        // DDSSEC11-96
+        // See http://www.omg.org/spec/DDS-XTypes/20170301/dds-xtypes_discovery.idl
+        // DDSSEC11-34
+        @extensibility(MUTABLE)
+        struct DataWriterQos  :  DDS::DataWriterQos {
+            PropertyQosPolicy  property;
+            DataTagQosPolicy   data_tags;
+        };
+
+        // DDSSEC11-96
+        // See http://www.omg.org/spec/DDS-XTypes/20170301/dds-xtypes_discovery.idl
+        // DDSSEC11-34
+        @extensibility(MUTABLE)
+        struct DataReaderQos  :  DDS::DataReaderQos {
+            PropertyQosPolicy  property;
+            DataTagQosPolicy   data_tags;
+        };
+    
+        // DDSSEC12-29
+        typedef octet GUID_t[16];
+
+        // DDSSEC11-88 DDSSEC12-29
+        @extensibility(FINAL)
+        struct MessageIdentity {
+            GUID_t     source_guid;
+            long long  sequence_number;
+        };
+        typedef string GenericMessageClassId;
+
+        @extensibility(APPENDABLE)
+        struct ParticipantGenericMessage {
+            /* target for the request. Can be GUID_UNKNOWN */
+            MessageIdentity         message_identity;
+            MessageIdentity         related_message_identity;
+            GUID_t                  destination_participant_guid; 
+            GUID_t                  destination_endpoint_guid; 
+            GUID_t                  source_endpoint_guid; 
+            GenericMessageClassId   message_class_id;
+            DataHolderSeq           message_data;
+        }; 
+
+        // DDSSEC11-137
+        typedef unsigned long ParticipantSecurityAttributesMask;
+        typedef unsigned long PluginParticipantSecurityAttributesMask;
+
+        // DDSSEC12-94
+        struct ParticipantSecurityAttributesMaskExt {
+            unsigned short  is_set;
+            unsigned short  value;
+        };
+
+        // DDSEC12-90 DDSEC12-94
+        @extensibility(APPENDABLE)
+        struct ParticipantSecurityProtectionInfo  {
+            ParticipantSecurityAttributesMask        participant_security_attributes; 
+            PluginParticipantSecurityAttributesMask  plugin_participant_security_attributes; 
+            ParticipantSecurityAttributesMaskExt     participant_security_optional_attributes;
+        };
+        #define PARTICIPANT_SECURITY_ATTRIBUTES_INFO_DEFAULT  {0}
+
+        // DDSSEC12-90 DDSEC12-92 DDSEC12-94
+        // Used in ParticipantSecurityAttributesMask
+        #define PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_VALID                   (0x00000001 << 31)
+        #define PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_RTPS_AXK_PROTECTED      (0x00000001 << 0)
+        #define PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_DISCOVERY_PROTECTED     (0x00000001 << 1)
+        #define PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_LIVELINESS_PROTECTED    (0x00000001 << 2)
+        #define PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_KEY_REVISION_ENABLED    (0x00000001 << 3)
+        #define PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_RTPS_PSK_PROTECTED      (0x00000001 << 4)
+
+
+        // Used in ParticipantSecurityAttributesMaskExt
+        #define PARTICIPANT_SECURITY_OPT_ATTRIBUTES_FLAG_ALLOW_UNAUTHENTICATED_PARTICIPANTS (0x0001 << 0)
+        #define PARTICIPANT_SECURITY_OPT_ATTRIBUTES_FLAG_IS_ACCESS_PROTECTED                (0x0001 << 1)
+
+        // These are plugin-specific
+        #define PLUGIN_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_RTPS_AXK_ENCRYPTED               (0x00000001 << 0)
+        #define PLUGIN_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_BUILTIN_IS_DISCOVERY_ENCRYPTED      (0x00000001 << 1)
+        #define PLUGIN_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_LIVELINESS_ENCRYPTED             (0x00000001 << 2)
+        #define PLUGIN_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_RTPS_ORIGIN_AUTHENTICATED        (0x00000001 << 3)
+        #define PLUGIN_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_DISCOVERY_ORIGIN_AUTHENTICATED   (0x00000001 << 4)
+        #define PLUGIN_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_LIVELINESS_ORIGIN_AUTHENTICATED  (0x00000001 << 5)
+        #define PLUGIN_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_RTPS_PSK_ENCRYPTED               (0x00000001 << 6)
+
+
+        // DDSSEC11-106
+        typedef unsigned long EndpointSecurityAttributesMask;
+        typedef unsigned long PluginEndpointSecurityAttributesMask;
+
+        // DDSSEC12-90 
+        @extensibility(APPENDABLE)
+        struct EndpointSecurityProtectionInfo  {
+            EndpointSecurityAttributesMask        endpoint_security_attributes; 
+            PluginEndpointSecurityAttributesMask  plugin_endpoint_security_attributes; 
+        };     
+        #define ENDPOINT_SECURITY_ATTRIBUTES_INFO_DEFAULT  {0}
+
+        // DDSSEC12-90 
+        // Used in EndpointSecurityAttributesMask
+        #define ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_READ_PROTECTED         (0x00000001 << 0)
+        #define ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_WRITE_PROTECTED        (0x00000001 << 1)
+        #define ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_DISCOVERY_PROTECTED    (0x00000001 << 2)
+        #define ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_SUBMESSAGE_PROTECTED   (0x00000001 << 3)
+        #define ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_PAYLOAD_PROTECTED      (0x00000001 << 4)
+        #define ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_KEY_PROTECTED          (0x00000001 << 5)
+        #define ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_LIVELINESS_PROTECTED   (0x00000001 << 6)
+        #define ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID                  (0x00000001 << 31)
+
+        // These are plugin-specific
+        #define PLUGIN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_SUBMESSAGE_ENCRYPTED            (0x00000001 << 0)
+        #define PLUGIN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_PAYLOAD_ENCRYPTED               (0x00000001 << 1)
+        #define PLUGIN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_SUBMESSAGE_ORIGIN_AUTHENTICATED (0x00000001 << 2)
+
+        typedef unsigned long AvailableBuiltinEndpointsExtSet_t;
+
+        // See http://www.omg.org/spec/DDS-XTypes/20170301/dds-xtypes_discovery.idl
+        // DDSSEC11-96 DDSSEC11-137
+        // DDSSEC12-86 DDSSEC12-90
+        @extensibility(MUTABLE)
+        struct ParticipantBuiltinTopicData  :  DDS::ParticipantBuiltinTopicData {
+            @id(0x1001)  IdentityToken     identity_token;     
+            @id(0x1002)  PermissionsToken  permissions_token;  
+            @id(0x0059)  PropertyQosPolicy property;
+            @id(0x1005)  ParticipantSecurityProtectionInfo   protection_info;
+            @id(0x1007)  AvailableBuiltinEndpointsExtSet_t   available_builtin_endpoints_ext;
+            @id(0x1010)  ParticipantSecurityDigitalSignatureAlgorithmInfo  digital_signature;
+            @id(0x1011)  ParticipantSecurityKeyEstablishmentAlgorithmInfo  key_establishment;
+            @id(0x1012)  ParticipantSecuritySymmetricCipherAlgorithmInfo   symmetric_cipher;
+        };
+
+        // DDSSEC11-82
+        @extensibility(MUTABLE)
+        struct ParticipantBuiltinTopicDataSecure  :  ParticipantBuiltinTopicData {
+            @id(0x1006) @optional IdentityStatusToken identity_status_token;
+        };
+
+        // DDSSEC11-85
+        // DDSSEC12-90
+        @extensibility(MUTABLE) 
+        struct PublicationBuiltinTopicData  : DDS::PublicationBuiltinTopicData {
+            @id(0x1004) @optional EndpointSecurityProtectionInfo                protection_info;
+            @id(0x1013) @optional EndpointSecuritySymmetricCipherAlgorithmInfo  symmetric_cipher;
+        };
+
+        // DDSSEC11-85
+        // DDSSEC12-90
+        @extensibility(MUTABLE) 
+        struct SubscriptionBuiltinTopicData  : DDS::SubscriptionBuiltinTopicData {
+            @id(0x1004) @optional EndpointSecurityProtectionInfo                protection_info;
+            @id(0x1013) @optional EndpointSecuritySymmetricCipherAlgorithmInfo  symmetric_cipher;
+        };
+      
+        // DDSSEC11-96
+        // See http://www.omg.org/spec/DDS-XTypes/20170301/dds-xtypes_discovery.idl
+        @extensibility(MUTABLE)
+        struct PublicationBuiltinTopicDataSecure  :  PublicationBuiltinTopicData {
+            @id(0x1003)  DataTags data_tags;
+        };
+
+        // DDSSEC11-96
+        // See http://www.omg.org/spec/DDS-XTypes/20170301/dds-xtypes_discovery.idl
+        @extensibility(MUTABLE)
+        struct SubscriptionBuiltinTopicDataSecure  :  DDS::SubscriptionBuiltinTopicData {
+            @id(0x1003)  DataTags data_tags;
+        };
+
+
+        // DDSSEC11-24
+        typedef long ReturnCode_t;
+        const ReturnCode_t RETCODE_NOT_ALLOWED_BY_SECURITY = 1000;
+
+        // DDSSEC11-15 typedef long SecurityExceptionCode;
+        typedef long SecurityExceptionCode;
+
+        struct SecurityException {
+            string  message;
+            long    code;      // DDSSEC11-15
+            long    minor_code;
+        };
+
+        enum ValidationResult_t {
+            VALIDATION_OK,
+            VALIDATION_FAILED,
+            VALIDATION_PENDING_RETRY,
+            VALIDATION_PENDING_HANDSHAKE_REQUEST,
+            VALIDATION_PENDING_HANDSHAKE_MESSAGE,
+            VALIDATION_OK_FINAL_MESSAGE
+        };
+
+        native IdentityHandle;
+        native HandshakeHandle;
+        native SharedSecretHandle;
+        native PermissionsHandle;
+        native ParticipantCryptoHandle;
+        native ParticipantCryptoHandleSeq;
+        native DatawriterCryptoHandle;
+        native DatawriterCryptoHandleSeq;
+        native DatareaderCryptoHandle;
+        native DatareaderCryptoHandleSeq;
+
+        // DDSSEC11-96
+        interface Authentication;
+
+        // DDSSEC11-82
+        enum AuthStatusKind {
+	        @value(1) IDENTITY_STATUS
+        };
+      
+        // DDSSEC11-96
+        interface AuthenticationListener {
+            boolean
+                on_revoke_identity(
+                    in    Authentication     plugin,
+                    in    IdentityHandle     handle,
+                    inout SecurityException  ex);
+
+            // DDSSEC11-82
+            boolean
+                on_status_changed(
+                    in    Authentication     plugin,
+                    in    IdentityHandle     handle,
+                    in    AuthStatusKind     status_kind,
+                    inout SecurityException  ex);
+         };
+
+        // DDSSEC11-96
+        interface Authentication {
+            // DDSSEC11-88
+            ValidationResult_t
+                validate_local_identity(
+                    inout IdentityHandle        local_identity_handle,
+                    inout GUID_t                adjusted_participant_guid,
+                    in    DomainId_t            domain_id,
+                    in    DomainParticipantQos  participant_qos,
+                    in    GUID_t                candidate_participant_guid,
+                    inout SecurityException     ex );
+
+            boolean
+                get_identity_token(
+                    inout IdentityToken      identity_token,
+                    in    IdentityHandle     handle,
+                    inout SecurityException  ex );
+
+	        // DDSSEC11-82
+            boolean
+                get_identity_status_token(
+                    inout IdentityStatusToken      identity_status_token,
+                    in    IdentityHandle           handle,
+                    inout SecurityException        ex );
+
+            // DDSSEC12-90
+            boolean
+                set_participant_security_config(
+                    inout ParticipantSecurityAlgorithmInfo  adjusted_algorithm_info,
+                    in    IdentityHandle                    handle,
+                    in    ParticipantSecurityConfig         participant_security_config,
+                    inout SecurityException                 ex );
+
+            boolean
+                set_permissions_credential_and_token(
+                    in    IdentityHandle         handle,
+                    in    PermissionsCredential  permissions_credential,
+                    in    PermissionsToken       permissions_token,
+                    inout SecurityException      ex );
+
+            // DDSSEC11-21
+            // DDSSEC11-88
+            // DDSSEC11-85
+            ValidationResult_t
+                validate_remote_identity(
+                    inout  IdentityHandle           remote_identity_handle,
+                    inout  AuthRequestMessageToken  local_auth_request_token,	
+                    in     AuthRequestMessageToken  remote_auth_request_token,	
+                    in     IdentityHandle           local_identity_handle,
+                    in     IdentityToken            remote_identity_token,
+                    in     GUID_t                   remote_participant_guid,
+                    inout  SecurityException        ex );
+
+            // DDSSEC11-46
+            // DDSSEC11-118
+            ValidationResult_t
+                begin_handshake_request(
+                    inout HandshakeHandle        handshake_handle,
+                    inout HandshakeMessageToken  handshake_message,
+                    in    IdentityHandle         initiator_identity_handle,
+                    in    IdentityHandle         replier_identity_handle,
+                    in    OctetSeq               serialized_local_participant_data,
+                    inout SecurityException      ex );
+
+            // DDSSEC11-46
+            ValidationResult_t
+                begin_handshake_reply(
+                    inout HandshakeHandle        handshake_handle,
+                    inout HandshakeMessageToken  handshake_message_out,
+                    in    IdentityHandle         initiator_identity_handle,
+                    in    IdentityHandle         replier_identity_handle,
+                    in    OctetSeq               serialized_local_participant_data,
+                    inout SecurityException      ex );
+
+            ValidationResult_t
+                process_handshake(
+                    inout HandshakeMessageToken  handshake_message_out,
+                    in    HandshakeMessageToken  handshake_message_in,
+                    in    HandshakeHandle        handshake_handle,
+                    inout SecurityException      ex );
+
+            SharedSecretHandle
+                get_shared_secret(
+                    in    HandshakeHandle    handshake_handle,
+                    inout SecurityException  ex );
+
+            boolean
+                get_authenticated_peer_credential_token(
+                    inout AuthenticatedPeerCredentialToken  peer_credential_token,
+                    in    HandshakeHandle                   handshake_handle,
+                    inout SecurityException                 ex );
+
+            boolean
+                set_listener(
+                    in   AuthenticationListener  listener,
+                    inout SecurityException   ex );
+
+            boolean
+                return_identity_token(
+                    in    IdentityToken      token,
+                    inout SecurityException  ex);
+
+	        // DDSSEC11-82
+            boolean
+                return_identity_status_token(
+                    in    IdentityStatusToken  token,
+                    inout SecurityException    ex);
+
+            boolean
+                return_authenticated_peer_credential_token(
+                    in   AuthenticatedPeerCredentialToken peer_credential_token,
+                    inout SecurityException  ex);
+
+            boolean
+                return_handshake_handle(
+                    in    HandshakeHandle    handshake_handle,
+                    inout SecurityException  ex);
+
+            boolean
+                return_identity_handle(
+                    in   IdentityHandle      identity_handle,
+                    inout SecurityException  ex);
+
+            boolean
+                return_sharedsecret_handle(
+                    in    SharedSecretHandle  sharedsecret_handle,
+                    inout SecurityException   ex);
+        };
+
+        // DDSSEC11-137 DDSEC11-85
+        // DDSSEC12-90  DDSSEC12-94 DDSSEC12-122
+        @extensibility (APPENDABLE)
+        struct ParticipantSecurityConfig  {
+            boolean     allow_unauthenticated_participants;
+            boolean     is_access_protected;
+            boolean     is_rtps_axk_protected;
+            boolean     is_rtps_psk_protected;
+            boolean     is_discovery_protected;
+            boolean     is_liveliness_protected;
+            boolean     is_key_revision_enabled;
+            PluginParticipantSecurityAttributesMask  plugin_participant_attributes;
+            PropertySeq                              ac_endpoint_properties;
+            ParticipantSecurityAlgorithmInfo         algorithm_info;
+        };
+
+        // DDSSEC11-16
+        // DDSSEC12-90
+        @extensibility (APPENDABLE)
+        struct TopicSecurityConfig  {
+            boolean  is_read_protected;
+            boolean  is_write_protected;
+            boolean  is_discovery_protected;
+            boolean  is_liveliness_protected;
+        };
+      
+        // DDSSEC11-16 DDSSEC11-106 DDSEC11-85
+        // DDSSEC12-90
+        struct EndpointSecurityConfig  : TopicSecurityConfig {
+            boolean     is_submessage_protected;
+            boolean     is_payload_protected;
+            boolean     is_key_protected;
+            PluginEndpointSecurityAttributesMask    plugin_endpoint_attributes; 
+            PropertySeq                             ac_endpoint_properties; 
+            EndpointSecurityAlgorithmInfo           algorithm_info;
+        };
+
+       // DDSSEC12-90 
+        // Used in EndpointSecurityAttributesMask
+
+        // DDSSEC11-106      
+        struct PluginEndpointSecurityAttributes {
+            boolean     is_submessage_encrypted;
+            boolean     is_payload_encrypted;
+            boolean     is_submessage_origin_authenticated;
+        };
+      
+        // DDSSEC11-96
+        interface AccessControl;
+        typedef long  DomainId_t;
+
+        // DDSSEC11-96
+        interface AccessControlListener {
+            boolean on_revoke_permissions(
+                in   AccessControl plugin,
+                in   PermissionsHandle handle);
+        };
+
+        // DDSSEC11-96
+        interface AccessControl {
+            PermissionsHandle
+                validate_local_permissions(
+                    in    Authentication         auth_plugin,
+                    in    IdentityHandle         identity,
+                    in    DomainId_t             domain_id,
+                    in    DomainParticipantQos   participant_qos,
+                    inout SecurityException      ex );
+
+            PermissionsHandle
+                validate_remote_permissions(
+                    in    Authentication                    auth_plugin,
+                    in    IdentityHandle                    local_identity_handle,
+                    in    IdentityHandle                    remote_identity_handle,
+                    in    PermissionsToken                  remote_permissions_token,
+                    in    AuthenticatedPeerCredentialToken  remote_credential_token,
+                    inout SecurityException                 ex );
+
+            boolean
+                check_create_participant(
+                    in    PermissionsHandle     permissions_handle,
+                    in    DomainId_t            domain_id,
+                    in    DomainParticipantQos  qos,
+                    inout SecurityException     ex );
+
+            boolean
+                check_create_datawriter(
+                    in    PermissionsHandle   permissions_handle,
+                    in    DomainId_t          domain_id,
+                    in    string              topic_name,
+                    in    DataWriterQos       qos,
+                    in    PartitionQosPolicy  partition,
+                    in    DataTags            data_tag,
+                    inout SecurityException   ex);
+
+            boolean
+                check_create_datareader(
+                    in    PermissionsHandle   permissions_handle,
+                    in    DomainId_t          domain_id,
+                    in    string              topic_name,
+                    in    DataReaderQos       qos,
+                    in    PartitionQosPolicy  partition,
+                    in    DataTags            data_tag,
+                    inout SecurityException   ex);
+
+            // DDSSEC11-33
+            boolean
+                check_create_topic(
+                    in    PermissionsHandle permissions_handle,
+                    in    DomainId_t         domain_id,
+                    in    string             topic_name,
+                    in    TopicQos           qos,
+                    inout SecurityException  ex);
+
+            boolean
+                check_local_datawriter_register_instance(
+                    in    PermissionsHandle  permissions_handle,
+                    in    DataWriter         writer,
+                    in    DynamicData        key,
+                    inout SecurityException  ex);
+
+            boolean
+                check_local_datawriter_dispose_instance(
+                    in    PermissionsHandle  permissions_handle,
+                    in    DataWriter         writer,
+                    in    DynamicData        key,
+                    inout SecurityException  ex);
+
+            boolean
+                check_remote_participant(
+                    in    PermissionsHandle                  permissions_handle,
+                    in    DomainId_t                         domain_id,
+                    in    ParticipantBuiltinTopicDataSecure  participant_data,
+                    inout SecurityException                  ex);
+
+            boolean
+                check_remote_datawriter(
+                    in   PermissionsHandle                  permissions_handle,
+                    in   DomainId_t                         domain_id,
+                    in   PublicationBuiltinTopicDataSecure  publication_data,
+                    inout SecurityException                 ex);
+
+            boolean
+                check_remote_datareader(
+                    in    PermissionsHandle                   permissions_handle,
+                    in    DomainId_t                          domain_id,
+                    in    SubscriptionBuiltinTopicDataSecure  subscription_data,
+                    inout boolean                             relay_only,
+                    inout SecurityException                   ex);
+
+            boolean
+                check_remote_topic(
+                    in    PermissionsHandle      permissions_handle,
+                    in    DomainId_t             domain_id,
+                    in    TopicBuiltinTopicData  topic_data,
+                    inout SecurityException      ex);
+
+            // DDSSEC11-34
+            boolean
+                check_local_datawriter_match(
+                    in    PermissionsHandle  writer_permissions_handle,
+                    in    PermissionsHandle  reader_permissions_handle,
+                    in    PublicationBuiltinTopicDataSecure  publication_data,
+                    in    SubscriptionBuiltinTopicDataSecure subscription_data,
+                    inout SecurityException  ex);
+
+            // DDSSEC11-34
+            boolean
+                check_local_datareader_match(
+                    in    PermissionsHandle  reader_permissions_handle,
+                    in    PermissionsHandle  writer_permissions_handle,
+                    in    SubscriptionBuiltinTopicDataSecure subscription_data,
+                    in    PublicationBuiltinTopicDataSecure  publication_data,
+                    inout SecurityException  ex);
+
+            boolean
+                check_remote_datawriter_register_instance(
+                    in    PermissionsHandle   permissions_handle,
+                    in    DataReader          reader,
+                    in    InstanceHandle_t    publication_handle,
+                    in    DynamicData         key,
+                    in    InstanceHandle_t    instance_handle,
+                    inout SecurityException   ex);
+
+            boolean
+                check_remote_datawriter_dispose_instance(
+                    in    PermissionsHandle  permissions_handle,
+                    in    DataReader         reader,
+                    in    InstanceHandle_t   publication_handle,
+                    in    DynamicData        key,
+                    inout SecurityException  ex);
+
+            boolean
+                get_permissions_token(
+                    inout PermissionsToken   permissions_token,
+                    in    PermissionsHandle  handle,
+                    inout SecurityException  ex);
+
+            boolean
+                get_permissions_credential_token(
+                    inout PermissionsCredentialToken permissions_credential_token,
+                    in    PermissionsHandle  handle,
+                    inout SecurityException  ex);
+
+            boolean
+                set_listener(
+                    in    AccessControlListener  listener,
+                    inout SecurityException      ex);
+
+            boolean
+                return_permissions_token(
+                    in    PermissionsToken   token,
+                    inout SecurityException  ex);
+
+            boolean
+                return_permissions_credential_token(
+                    in    PermissionsCredentialToken  permissions_credential_token,
+                    inout SecurityException           ex);
+
+            // DDSSEC12-90
+            boolean
+                get_participant_security_config(
+                    in    PermissionsHandle         permissions_handle,
+                    inout ParticipantSecurityConfig participant_security_config,
+                    inout SecurityException         ex);
+
+            // DDSSEC11-16
+            // DDSSEC12-90
+            boolean
+                get_topic_security_config (
+                    in    PermissionsHandle         permissions_handle, 
+                    in    String                    topic_name, 
+                    inout TopicSecurityConfig       topic_security_config, 
+                    inout SecurityException         ex);
+                 
+            // DDSSEC11-16
+            // DDSSEC12-90
+           boolean
+                get_datawriter_security_config(
+                    in    PermissionsHandle         permissions_handle,
+                    in    PartitionQosPolicy        partition,
+                    in    DataTagQosPolicy          data_tag,
+                    inout EndpointSecurityConfig    endpoint_security_config,
+                    inout SecurityException         ex);
+		    
+            // DDSSEC11-16
+            // DDSSEC12-90
+            boolean
+                get_datareader_security_config(
+                    in    PermissionsHandle         permissions_handle,
+                    in    PartitionQosPolicy        partition,
+                    in    DataTagQosPolicy          data_tag,
+                    inout EndpointSecurityConfig    endpoint_security_config,
+                    inout SecurityException         ex);
+
+            // DDSSEC11-112
+            // DDSSEC12-90
+            boolean
+                return_participant_sec_config(
+                    in ParticipantSecurityConfig    config,
+                    inout SecurityException         ex);
+
+            // DDSSEC12-90
+            boolean
+                return_topic_sec_config(
+                    in TopicSecurityConfig          config,
+                    inout SecurityException         ex);
+
+            // DDSSEC11-112
+            // DDSSEC12-90
+            boolean
+                return_datawriter_sec_config(
+                    in EndpointSecurityConfig       config,
+                    inout SecurityException         ex);
+
+            // DDSSEC11-112
+            // DDSSEC12-90
+            boolean
+                return_datareader_sec_config(
+                    in EndpointSecurityConfig       config,
+                    inout SecurityException         ex);
+        };
+
+        // DDSSEC11-96
+        interface CryptoKeyFactory {
+
+            // DDSSEC11-3 DDSSEC11-85
+            // DDSSEC12-90
+            ParticipantCryptoHandle
+                register_local_participant(
+                    inout ParticipantSecurityAlgorithmInfo  adjusted_algorithm_info,        
+                    in    IdentityHandle                    participant_identity,
+                    in    PermissionsHandle                 participant_permissions,
+                    in    PropertySeq                       participant_properties,
+                    in    ParticipantSecurityConfig         participant_security_config,
+                    inout SecurityException                 ex  );
+
+            ParticipantCryptoHandle
+                register_matched_remote_participant(
+                    in    ParticipantCryptoHandle  local_participant_crypto_handle,
+                    in    IdentityHandle           remote_participant_identity,
+                    in    PermissionsHandle        remote_participant_permissions,
+                    in    SharedSecretHandle       shared_secret,
+                    inout SecurityException        ex);
+
+            // DDSSEC11-3 DDSSEC11-85
+            // DDSSEC12-90
+            DatawriterCryptoHandle
+                register_local_datawriter(
+                    inout EndpointSecurityAlgorithmInfo adjusted_algorithm_info,        
+                    in    ParticipantCryptoHandle       participant_crypto,
+                    in    PropertySeq                   datawriter_properties,
+                    in    EndpointSecurityConfig        datawriter_security_config,
+                    in    GUID_t                        endpoint_guid,
+                    inout SecurityException             ex);
+
+            DatareaderCryptoHandle
+                register_matched_remote_datareader(
+                    in    DatawriterCryptoHandle   local_datawriter_crypto_handle,
+                    in    ParticipantCryptoHandle  remote_participant_crypto,
+                    in    SharedSecretHandle       shared_secret,
+                    in    boolean                  relay_only,
+                    inout SecurityException        ex);
+
+            // DDSSEC11-3 DDSSEC11-85
+            // DDSSEC12-90
+            DatareaderCryptoHandle
+                register_local_datareader(
+                    inout EndpointSecurityAlgorithmInfo adjusted_algorithm_info,        
+                    in    ParticipantCryptoHandle       participant_crypto,
+                    in    PropertySeq                   datareader_properties,
+                    in    EndpointSecurityConfig        datareader_security_config,
+                    in    GUID_t                        endpoint_guid,
+                    inout SecurityException             ex);
+
+            DatawriterCryptoHandle
+                register_matched_remote_datawriter(
+                    in    DatareaderCryptoHandle   local_datareader_crypto_handle,
+                    in    ParticipantCryptoHandle  remote_participant_crypt,
+                    in    SharedSecretHandle       shared_secret,
+                    inout SecurityException        ex );
+
+            // DDSSEC12-122
+            CryptoTransformKeyRevisionIntHolder 
+                revise_local_entity_keys(
+                    in    ParticipantCryptoHandle  participant_crypto_handle,
+                    inout SecurityException        ex );
+
+            // DDSSEC12-122
+            boolean 
+                activate_key_revision(
+                    in    ParticipantCryptoHandle           local_participant_crypto_handle,
+                    CryptoTransformKeyRevisionIntHolder     key_revision,
+                    inout SecurityException                 ex );
+
+            boolean
+                unregister_participant(
+                    in    ParticipantCryptoHandle  participant_crypto_handle,
+                    inout SecurityException        ex);
+
+            boolean
+                unregister_datawriter(
+                    in    DatawriterCryptoHandle  datawriter_crypto_handle,
+                    inout SecurityException       ex  );
+
+            boolean
+                unregister_datareader(
+                    in    DatareaderCryptoHandle  datareader_crypto_handle,
+                    inout SecurityException       ex  );
+        };
+
+
+        // DDSSEC11-96
+        interface CryptoKeyExchange {
+            // DDSSEC12-122
+            boolean
+                create_local_participant_crypto_tokens(
+                    inout ParticipantCryptoTokenSeq             local_participant_crypto_tokens,
+                    in    ParticipantCryptoHandle               local_participant_crypto,
+                    in    ParticipantCryptoHandle               remote_participant_crypto,
+                    in    CryptoTransformKeyRevisionIntHolder   key_revision,
+                    inout SecurityException                     ex);
+
+            boolean
+                set_remote_participant_crypto_tokens(
+                    in    ParticipantCryptoHandle    local_participant_crypto,
+                    in    ParticipantCryptoHandle    remote_participant_crypto,
+                    in    ParticipantCryptoTokenSeq  remote_participant_tokens,
+                    inout SecurityException          ex);
+
+            // DDSSEC12-122
+            boolean
+                create_local_datawriter_crypto_tokens(
+                    inout DatawriterCryptoTokenSeq              local_datawriter_crypto_tokens,
+                    in    DatawriterCryptoHandle                local_datawriter_crypto,
+                    in    DatareaderCryptoHandle                remote_datareader_crypto,
+                    in    CryptoTransformKeyRevisionIntHolder   key_revision,
+                    inout SecurityException                     ex);
+
+            boolean
+                set_remote_datawriter_crypto_tokens(
+                    in    DatareaderCryptoHandle    local_datareader_crypto,
+                    in    DatawriterCryptoHandle    remote_datawriter_crypto,
+                    in    DatawriterCryptoTokenSeq  remote_datawriter_tokens,
+                    inout SecurityException         ex);
+
+            // DDSSEC12-122
+            boolean
+                create_local_datareader_crypto_tokens(
+                    inout DatareaderCryptoTokenSeq              local_datareader_cryto_tokens,
+                    in    DatareaderCryptoHandle                local_datareader_crypto,
+                    in    DatawriterCryptoHandle                remote_datawriter_crypto,
+                    in    CryptoTransformKeyRevisionIntHolder   key_revision,
+                    inout SecurityException                     ex);
+
+            boolean
+                set_remote_datareader_crypto_tokens(
+                    in    DatawriterCryptoHandle    local_datawriter_crypto,
+                    in    DatareaderCryptoHandle    remote_datareader_crypto,
+                    in    DatareaderCryptoTokenSeq  remote_datareader_tokens,
+                    inout SecurityException         ex);
+
+            boolean
+                return_crypto_tokens(
+                    in    CryptoTokenSeq     crypto_tokens,
+                    inout SecurityException  ex);
+        };
+
+        enum SecureSumessageCategory_t {
+            INFO_SUBMESSAGE,
+            DATAWRITER_SUBMESSAGE,
+            DATAREADER_SUBMESSAGE
+        };
+
+        // DDSSEC11-96
+        // DDSSEC11-123
+        interface CryptoTransform {
+            boolean
+                encode_serialized_payload(
+                    inout OctetSeq                encoded_buffer,
+                    inout OctetSeq                extra_inline_qos,
+                    in    OctetSeq                plain_buffer,
+                    in    DatawriterCryptoHandle  sending_datawriter_crypto,
+                    inout SecurityException       ex);
+
+	    // DDSSEC11-66
+            boolean
+                encode_datawriter_submessage(
+                    inout OctetSeq                   encoded_rtps_submessage,
+                    in    OctetSeq                   plain_rtps_submessage,
+                    in    DatawriterCryptoHandle     sending_datawriter_crypto,
+                    in    DatareaderCryptoHandleSeq  receiving_datareader_crypto_list,
+                    inout long                       receiving_datareader_crypto_list_index,
+                    inout SecurityException          ex);
+
+            boolean
+                encode_datareader_submessage(
+                    inout OctetSeq                   encoded_rtps_submessage,
+                    in    OctetSeq                   plain_rtps_submessage,
+                    in    DatareaderCryptoHandle     sending_datareader_crypto,
+                    in    DatawriterCryptoHandleSeq  receiving_datawriter_crypto_list,
+                    inout SecurityException          ex);
+
+            // DDSSEC11-66
+            // DDSSEC12-94
+            boolean
+                encode_rtps_message(
+                    inout OctetSeq encoded_rtps_message,
+                    in    OctetSeq plain_rtps_message,
+                    in    ParticipantCryptoHandle sending_participant_crypto,
+                    in    ParticipantCryptoHandleSeq receiving_participant_crypto_list,
+                    inout long                       receiving_participant_crypto_list_index,
+                    in    boolean                    transform_with_psk,
+                    inout SecurityException ex);
+
+            boolean
+                decode_rtps_message(
+                    inout OctetSeq                 plain_buffer,
+                    in    OctetSeq                 encoded_buffer,
+                    in    ParticipantCryptoHandle  receiving_participant_crypto,
+                    in    ParticipantCryptoHandle  sending_participant_crypto,
+                    inout SecurityException        ex);
+
+            boolean
+                preprocess_secure_submsg(
+                    inout DatawriterCryptoHandle         datawriter_crypto,
+                    inout DatareaderCryptoHandle         datareader_crypto,
+                    inout SecureSumessageCategory_t      secure_submessage_category,
+                    in    OctetSeq                       encoded_rtps_submessage,
+                    in    ParticipantCryptoHandle        receiving_participant_crypto,
+                    in    ParticipantCryptoHandle        sending_participant_crypto,
+                    inout SecurityException              ex);
+
+            boolean
+                decode_datawriter_submessage(
+                    inout OctetSeq                plain_rtps_submessage,
+                    in    OctetSeq                encoded_rtps_submessage,
+                    in    DatareaderCryptoHandle  receiving_datareader_crypto,
+                    in    DatawriterCryptoHandle  sending_datawriter_crypto,
+                    in    SecurityException       ex);
+
+            boolean
+                decode_datareader_submessage(
+                    inout OctetSeq                plain_rtps_message,
+                    in    OctetSeq                encoded_rtps_message,
+                    in    DatawriterCryptoHandle  receiving_datawriter_crypto,
+                    in    DatareaderCryptoHandle  sending_datareader_crypto,
+                    inout SecurityException       ex );
+
+            // DDSSEC11-123
+            boolean
+                decode_serialized_payload(
+                    inout OctetSeq                plain_buffer,
+                    in    OctetSeq                encoded_buffer,
+                    in    OctetSeq                inline_qos,
+                    in    DatareaderCryptoHandle  receiving_datareader_crypto,
+                    in    DatawriterCryptoHandle  sending_datawriter_crypto,
+                    inout SecurityException       ex);
+        };
+
+        enum LoggingLevel {
+            EMERGENCY_LEVEL, // System is unusable. Should not continue use.
+            ALERT_LEVEL,     // Should be corrected immediately
+            CRITICAL_LEVEL,  // A failure in primary application.
+            ERROR_LEVEL,     // General error conditions
+            WARNING_LEVEL,   // May indicate future error if action not taken.
+            NOTICE_LEVEL,    // Unusual, but nor erroneous event or condition.
+            INFORMATIONAL_LEVEL, // Normal operational. Requires no action.
+            DEBUG_LEVEL
+        };
+        
+        // DDSSEC11-96
+        @extensibility(FINAL)
+        struct NameValuePair {
+            string name;
+            string value;
+        }; 
+
+        // DDSSEC11-85
+        typedef sequence<NameValuePair> NameValuePairSeq;
+
+
+        // DDSSEC12-108
+        @extensibility(FINAL)
+        struct LegacyTime_t {
+            long sec;
+            unsigned long nanosec;
+        };
+
+        // DDSSEC12-108
+        @extensibility(FINAL)
+        struct Time_t {
+            long long sec;
+            unsigned long nanosec;
+        };
+
+        // DDSSEC11-96
+        // DDSSEC12-29 DDSSEC12-108
+        @extensibility(APPENDABLE)
+        struct BuiltinLoggingType {
+            octet  facility;  // Set to 0x10. Indicates sec/auth msgs
+            LoggingLevel severity;
+            LegacyTime_t timestamp; // Since epoch 1970-01-01 00:00:00 +0000 (UTC)
+            string hostname;  // IP host name of originator
+            string hostip;    // IP address of originator
+            string appname;   // Identify the device or application 
+            string procid;    // Process name/ID for syslog system
+            string msgid;     // Identify the type of message
+            string message;   // Free-form message
+                
+            // Note that certain string keys (SD-IDs) are reserved by IANA
+            map<string, NameValuePairSeq>  structured_data; 
+        };
+
+        // DDSSEC12-108
+        @extensibility(APPENDABLE)
+        struct BuiltinLoggingTypeV2 {
+            octet  facility;  // Set to 0x10. Indicates sec/auth msgs
+            LoggingLevel severity;
+            Time_t timestamp; // Since epoch 1970-01-01 00:00:00 +0000 (UTC)
+            string hostname;  // IP host name of originator
+            string hostip;    // IP address of originator
+            string appname;   // Identify the device or application 
+            string procid;    // Process name/ID for syslog system
+            string msgid;     // Identify the type of message
+            string message;   // Free-form message
+                
+            // Note that certain string keys (SD-IDs) are reserved by IANA
+            map<string, NameValuePairSeq>  structured_data; 
+        };
+    
+        // DDSSEC11-85
+        struct LogOptions {
+            LoggingLevel logging_level;
+            string       log_file;
+            boolean      distribute;
+        };
+
+        // DDSSEC11-96
+        interface LoggerListener {
+            boolean on_log_message(in BuiltinLoggingType msg);
+        };
+        
+        // DDSSEC11-96
+        interface Logging {
+            boolean set_log_options(
+                    in    LogOptions options,
+                    inout SecurityException ex);
+
+            boolean log(
+                    in    BuiltinLoggingType msg,
+                    inout SecurityException ex);
+
+            boolean enable_logging(
+                    inout SecurityException ex);
+                    
+            boolean set_listener(
+                    in LoggerListener listener, 
+                    inout SecurityException ex);
+
+        };
+    };
+};
+
