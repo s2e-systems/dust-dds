@@ -3,9 +3,11 @@ use pest::Parser;
 
 mod generator;
 mod parser;
+mod preprocessor;
 
 pub fn compile_idl(idl_source: &str) -> Result<String, String> {
-    let parsed_idl = parser::IdlParser::parse(parser::Rule::specification, idl_source)
+    let processed_idl = preprocessor::Preprocessor::new().parse(idl_source)?;
+    let parsed_idl = parser::IdlParser::parse(parser::Rule::specification, processed_idl.as_ref())
         .map_err(|e| format!("Error parsing IDL string: {}", e))?
         .next()
         .expect("Must contain a specification");
