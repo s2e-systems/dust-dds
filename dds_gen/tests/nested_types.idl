@@ -1,0 +1,15 @@
+enum Presence
+{
+    Present, NotPresent
+};
+
+struct Color {
+    uint8 red;
+    uint8 green;
+    uint8 blue;
+};
+
+struct ColorSensor {
+    Presence state;
+    Color value;
+};

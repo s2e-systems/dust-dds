@@ -1,33 +1,10 @@
+use std::path::Path;
+
 use syn::File;
 
 #[test]
 fn structs_generation() {
-    let idl = r#"
-        struct Point {
-            double x;
-            double y;
-        };
-
-        struct ChessSquare {
-            @key char column;
-            @key unsigned short line;
-        };
-
-        struct HelloWorld {
-            string message;
-            unsigned long id;
-        };
-
-        struct Sentence {
-            sequence<wstring> words;
-            sequence<sequence<unsigned long, 2> > dependencies;
-        };
-
-        struct User {
-            wstring<8> name;
-            boolean active;
-        };
-    "#;
+    let idl_file = Path::new("tests/structs_generation.idl");
 
     let expected = syn::parse2::<File>(
         r#"
@@ -62,49 +39,20 @@ fn structs_generation() {
     )
     .unwrap();
 
-    let result =
-        syn::parse2::<File>(dust_dds_gen::compile_idl(idl).unwrap().parse().unwrap()).unwrap();
+    let result = syn::parse2::<File>(
+        dust_dds_gen::compile_idl(idl_file)
+            .unwrap()
+            .parse()
+            .unwrap(),
+    )
+    .unwrap();
 
     assert_eq!(result, expected);
 }
 
 #[test]
 fn module_generation() {
-    let idl = r#"
-        /*
-        * Module IDL example
-        */
-
-        /// Game module
-        module Game
-        {
-            /// Chess
-            module Chess
-            {
-                enum ChessPiece
-                {
-                    Pawn, Rook, Knight, Bishop, Queen, King
-                };
-
-                struct ChessSquare
-                {
-                    char column;          // A, B, ..., G
-                    unsigned short line;  // 1, 2, ..., 8
-                };
-            };
-
-            module Cards
-            {
-                enum Suit { Spades, Hearts, Diamonds, Clubs /*, NoTrumpCard */ };
-            };
-        };
-
-        struct Point
-        {
-            double x;
-            double y;
-        };
-    "#;
+    let idl_file = Path::new("tests/module_generation.idl");
 
     let expected = syn::parse2::<File>(
         r#"
@@ -146,31 +94,20 @@ fn module_generation() {
     )
     .unwrap();
 
-    let result =
-        syn::parse2::<File>(dust_dds_gen::compile_idl(idl).unwrap().parse().unwrap()).unwrap();
+    let result = syn::parse2::<File>(
+        dust_dds_gen::compile_idl(idl_file)
+            .unwrap()
+            .parse()
+            .unwrap(),
+    )
+    .unwrap();
 
     assert_eq!(result, expected);
 }
 
 #[test]
 fn nested_types() {
-    let idl = r#"
-        enum Presence
-        {
-            Present, NotPresent
-        };
-
-        struct Color {
-            uint8 red;
-            uint8 green;
-            uint8 blue;
-        };
-
-        struct ColorSensor {
-            Presence state;
-            Color value;
-        };
-    "#;
+    let idl_file = Path::new("tests/nested_types.idl");
 
     let expected = syn::parse2::<File>(
         r#"
@@ -196,8 +133,13 @@ fn nested_types() {
     )
     .unwrap();
 
-    let result =
-        syn::parse2::<File>(dust_dds_gen::compile_idl(idl).unwrap().parse().unwrap()).unwrap();
+    let result = syn::parse2::<File>(
+        dust_dds_gen::compile_idl(idl_file)
+            .unwrap()
+            .parse()
+            .unwrap(),
+    )
+    .unwrap();
 
     assert_eq!(result, expected);
 }

@@ -1,0 +1,17 @@
+struct BasicTypes {
+    boolean a;
+    char b;
+    wchar c;
+    octet d;
+    string e;
+    wstring f;
+    short g;
+    unsigned short h;
+    long i;
+    unsigned long j;
+    long long k;
+    unsigned long long l;
+    float m;
+    double n;
+    // fixed o;
+};

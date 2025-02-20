@@ -1,18 +1,37 @@
-use std::fmt::Write;
+use std::{
+    fs::File,
+    io::{self, BufRead, BufReader},
+    path::Path,
+};
 
 pub struct Preprocessor;
 
 impl Preprocessor {
-    pub fn new() -> Self {
-        Self
+    pub fn parse(idl_filepath: &Path) -> io::Result<String> {
+        let mut output = String::new();
+
+        Self::parse_file(idl_filepath, &mut output)?;
+
+        Ok(output)
     }
 
-    pub fn parse(&mut self, idl_source: &str) -> Result<String, String> {
-        let mut output = String::new();
-        for line in idl_source.lines() {
-            output.write_str(line).map_err(|e| e.to_string())?;
+    fn parse_file(idl_filepath: &Path, output: &mut String) -> io::Result<()> {
+        let idl_file = File::open(idl_filepath)?;
+        let mut idl_file_reader = BufReader::new(idl_file);
+
+        let mut line_buffer = String::new();
+        loop {
+            line_buffer.clear();
+            let line_read = idl_file_reader.read_line(&mut line_buffer)?;
+            if line_read == 0 {
+                break;
+            }
+
+            output.push_str(&line_buffer);
+            output.push_str("\n");
         }
-        Ok(idl_source.to_string())
+
+        Ok(())
     }
 }
 
@@ -22,14 +41,10 @@ mod tests {
 
     #[test]
     fn preprocessor_makes_no_changes() {
-        let input = r#"
-        struct A {
-            i32 a
-        };"#;
+        let idl_file = Path::new("src/preprocessor/test_resources/simple_struct.idl");
+        let expected = "struct SimpleStruct {\r\n\n    boolean a;\r\n\n    char b;\r\n\n    long i;\r\n\n};\n";
+        let output = Preprocessor::parse(idl_file).unwrap();
 
-        let mut preprocessor = Preprocessor::new();
-
-        let output = preprocessor.parse(input).unwrap();
-        assert_eq!(input, output);
+        assert_eq!(output, expected);
     }
 }

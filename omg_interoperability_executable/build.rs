@@ -11,8 +11,7 @@ fn main() {
     let cargo_manifest_path = Path::new(&cargo_manifest_dir);
     let build_path = cargo_target_path.join("idl");
     let idl_path = cargo_manifest_path.join("shape.idl");
-    let idl_src = std::fs::read_to_string(idl_path).expect("Couldn't read IDL source file!");
-    let compiled_idl = dust_dds_gen::compile_idl(&idl_src).expect("Couldn't parse IDL file");
+    let compiled_idl = dust_dds_gen::compile_idl(&idl_path).expect("Couldn't parse IDL file");
     let compiled_idl_path = build_path.as_path().join("shape.rs");
     fs::create_dir_all(build_path).expect("Creating build path failed");
     let mut file = File::create(compiled_idl_path).expect("Failed to create file");
