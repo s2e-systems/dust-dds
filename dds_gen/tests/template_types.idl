@@ -1,0 +1,6 @@
+ struct TemplateTypes {
+    sequence<sequence<octet>> a;
+    string<256> b;
+    sequence<short, 128> c;
+    wstring<64> d;
+};

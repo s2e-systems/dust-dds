@@ -1,27 +1,10 @@
+use std::path::Path;
+
 use syn::File;
 
 #[test]
 fn basic_types() {
-    let idl = r#"
-        struct BasicTypes {
-            boolean a;
-            char b;
-            wchar c;
-            octet d;
-            string e;
-            wstring f;
-            short g;
-            unsigned short h;
-            long i;
-            unsigned long j;
-            long long k;
-            unsigned long long l;
-            float m;
-            double n;
-            // fixed o;
-        };
-    "#;
-
+    let idl_file = Path::new("tests/basic_types.idl");
     let expected = syn::parse2::<File>(
         r#"
             #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
@@ -47,22 +30,20 @@ fn basic_types() {
     )
     .unwrap();
 
-    let result =
-        syn::parse2::<File>(dust_dds_gen::compile_idl(idl).unwrap().parse().unwrap()).unwrap();
+    let result = syn::parse2::<File>(
+        dust_dds_gen::compile_idl(&idl_file)
+            .unwrap()
+            .parse()
+            .unwrap(),
+    )
+    .unwrap();
 
     assert_eq!(result, expected);
 }
 
 #[test]
 fn template_types() {
-    let idl = r#"
-        struct TemplateTypes {
-            sequence<sequence<octet>> a;
-            string<256> b;
-            sequence<short, 128> c;
-            wstring<64> d;
-        };
-    "#;
+    let idl_file = Path::new("tests/template_types.idl");
 
     let expected = syn::parse2::<File>(
         r#"
@@ -79,18 +60,20 @@ fn template_types() {
     )
     .unwrap();
 
-    let result =
-        syn::parse2::<File>(dust_dds_gen::compile_idl(idl).unwrap().parse().unwrap()).unwrap();
+    let result = syn::parse2::<File>(
+        dust_dds_gen::compile_idl(idl_file)
+            .unwrap()
+            .parse()
+            .unwrap(),
+    )
+    .unwrap();
 
     assert_eq!(result, expected);
 }
 
 #[test]
 fn enums() {
-    let idl = r#"
-        enum Suits { Spades, Hearts, Diamonds, Clubs };
-        enum Direction { North, East, South, West };
-    "#;
+    let idl_file = Path::new("tests/enums.idl");
 
     let expected = syn::parse2::<File>(
         r#"
@@ -114,8 +97,13 @@ fn enums() {
     )
     .unwrap();
 
-    let result =
-        syn::parse2::<File>(dust_dds_gen::compile_idl(idl).unwrap().parse().unwrap()).unwrap();
+    let result = syn::parse2::<File>(
+        dust_dds_gen::compile_idl(idl_file)
+            .unwrap()
+            .parse()
+            .unwrap(),
+    )
+    .unwrap();
 
     assert_eq!(result, expected);
 }
