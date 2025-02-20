@@ -48,4 +48,14 @@ mod tests {
 
         assert_eq!(output, expected);
     }
+
+    #[test]
+    fn preprocessor_file_with_include() {
+        let idl_file = Path::new("src/preprocessor/test_resources/file_with_include.idl");
+        let expected =
+            "struct SimpleStruct {\r\n\n    long i;\r\n\n};\nstruct SimpleStruct {\r\n\n    long i;\r\n\n};\nstruct OtherStruct {\r\n\n    long i;\r\n\n};\n";
+        let output = Preprocessor::parse(idl_file).unwrap();
+
+        assert_eq!(output, expected);
+    }
 }
