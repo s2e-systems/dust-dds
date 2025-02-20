@@ -309,7 +309,7 @@ fn enum_dcl(pair: IdlPair, writer: &mut String) {
         .clone()
         .find(|p| p.as_rule() == Rule::identifier)
         .expect("Must have an identifier according to the grammar");
-    writer.push_str("#[derive(Debug)]\n");
+    writer.push_str("#[derive(Debug, dust_dds::serialized_payload::cdr::deserialize::CdrDeserialize, dust_dds::serialized_payload::cdr::serialize::CdrSerialize)]\n");
     writer.push_str("pub enum ");
     generate_rust_source(identifier, writer);
     writer.push('{');
@@ -893,7 +893,7 @@ mod tests {
         generate_rust_source(p, &mut out);
         println!("RESULT: {}", out);
         assert_eq!(
-            "#[derive(Debug)]\npub enum Suits{Spades,Hearts,Diamonds,Clubs,}",
+            "#[derive(Debug, dust_dds::serialized_payload::cdr::deserialize::CdrDeserialize, dust_dds::serialized_payload::cdr::serialize::CdrSerialize)]\npub enum Suits{Spades,Hearts,Diamonds,Clubs,}",
             &out
         );
     }
