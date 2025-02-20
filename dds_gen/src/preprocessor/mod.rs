@@ -28,7 +28,7 @@ impl Preprocessor {
             }
 
             output.push_str(&line_buffer);
-            output.push_str("\n");
+            output.push('\n');
         }
 
         Ok(())
@@ -42,7 +42,8 @@ mod tests {
     #[test]
     fn preprocessor_makes_no_changes() {
         let idl_file = Path::new("src/preprocessor/test_resources/simple_struct.idl");
-        let expected = "struct SimpleStruct {\r\n\n    boolean a;\r\n\n    char b;\r\n\n    long i;\r\n\n};\n";
+        let expected =
+            "struct SimpleStruct {\r\n\n    boolean a;\r\n\n    char b;\r\n\n    long i;\r\n\n};\n";
         let output = Preprocessor::parse(idl_file).unwrap();
 
         assert_eq!(output, expected);
