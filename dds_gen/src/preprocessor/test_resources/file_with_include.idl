@@ -1,0 +1,6 @@
+#include "file_included.idl"
+#include <file_included.idl>
+
+struct OtherStruct {
+    long i;
+};
