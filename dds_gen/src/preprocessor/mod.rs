@@ -11,15 +11,17 @@ pub struct Preprocessor {
 }
 
 impl Preprocessor {
-    pub fn parse(idl_filepath: &Path) -> io::Result<String> {
-        let mut preprocessor = Preprocessor {
+    pub fn new() -> Self {
+        Self {
             output: String::new(),
             define_list: HashMap::new(),
-        };
+        }
+    }
 
-        preprocessor.parse_file(idl_filepath)?;
+    pub fn parse(mut self, idl_filepath: &Path) -> io::Result<String> {
+        self.parse_file(idl_filepath)?;
 
-        Ok(preprocessor.output)
+        Ok(self.output)
     }
 
     fn parse_file(&mut self, idl_filepath: &Path) -> io::Result<()> {
@@ -84,10 +86,10 @@ impl Preprocessor {
                 .join(&include_file_token[1..include_file_token.len() - 1]);
             self.parse_file(&include_filepath)
         } else {
-            return Err(io::Error::new(
+            Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 "Invalid #include filename enclosing characters. Expected \"\" or <>",
-            ));
+            ))
         }
     }
 }
@@ -101,7 +103,7 @@ mod tests {
         let idl_file = Path::new("src/preprocessor/test_resources/simple_struct.idl");
         let expected =
             "struct SimpleStruct {\r\n\n    boolean a;\r\n\n    char b;\r\n\n    long i;\r\n\n};\n";
-        let output = Preprocessor::parse(idl_file).unwrap();
+        let output = Preprocessor::new().parse(idl_file).unwrap();
 
         assert_eq!(output, expected);
     }
@@ -111,7 +113,7 @@ mod tests {
         let idl_file = Path::new("src/preprocessor/test_resources/file_with_include.idl");
         let expected =
             "struct SimpleStruct {\r\n\n    long i;\r\n\n};\nstruct SimpleStruct {\r\n\n    long i;\r\n\n};\n\r\n\nstruct OtherStruct {\r\n\n    long i;\r\n\n};\n";
-        let output = Preprocessor::parse(idl_file).unwrap();
+        let output = Preprocessor::new().parse(idl_file).unwrap();
 
         assert_eq!(output, expected);
     }
@@ -121,7 +123,7 @@ mod tests {
         let idl_file = Path::new("src/preprocessor/test_resources/file_with_define.idl");
         let expected =
             "\r\n\nstruct SimpleStruct {\r\n\n    boolean a;\r\n\n    char b;\r\n\n    long i;\r\n\n};\n";
-        let output = Preprocessor::parse(idl_file).unwrap();
+        let output = Preprocessor::new().parse(idl_file).unwrap();
 
         assert_eq!(output, expected);
     }
