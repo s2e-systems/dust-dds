@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     fs::File,
     io::{self, BufRead, BufReader},
     path::Path,
@@ -6,12 +7,14 @@ use std::{
 
 pub struct Preprocessor {
     output: String,
+    define_list: HashMap<String, String>,
 }
 
 impl Preprocessor {
     pub fn parse(idl_filepath: &Path) -> io::Result<String> {
         let mut preprocessor = Preprocessor {
             output: String::new(),
+            define_list: HashMap::new(),
         };
 
         preprocessor.parse_file(idl_filepath)?;
@@ -40,6 +43,15 @@ impl Preprocessor {
                     ))?;
                     self.include_file(idl_filepath, include_file_token)?;
                     continue;
+                } else if first_token == "#define" {
+                    let macro_name = token_iter.next().ok_or(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "Missing macro name for preprocessor directive #define",
+                    ))?;
+                    let value = token_iter.next().unwrap_or_default();
+                    self.define_list
+                        .insert(macro_name.to_string(), value.to_string());
+                    continue;
                 } else if first_token.starts_with('#') {
                     return Err(std::io::Error::new(
                         io::ErrorKind::InvalidData,
@@ -48,6 +60,9 @@ impl Preprocessor {
                 }
             }
 
+            for (define_macro, define_value) in self.define_list.iter() {
+                line_buffer = line_buffer.replace(define_macro.as_str(), &define_value);
+            }
             self.output.push_str(&line_buffer);
             self.output.push('\n');
         }
@@ -96,6 +111,16 @@ mod tests {
         let idl_file = Path::new("src/preprocessor/test_resources/file_with_include.idl");
         let expected =
             "struct SimpleStruct {\r\n\n    long i;\r\n\n};\nstruct SimpleStruct {\r\n\n    long i;\r\n\n};\n\r\n\nstruct OtherStruct {\r\n\n    long i;\r\n\n};\n";
+        let output = Preprocessor::parse(idl_file).unwrap();
+
+        assert_eq!(output, expected);
+    }
+
+    #[test]
+    fn preprocessor_file_with_define() {
+        let idl_file = Path::new("src/preprocessor/test_resources/file_with_define.idl");
+        let expected =
+            "\r\n\nstruct SimpleStruct {\r\n\n    boolean a;\r\n\n    char b;\r\n\n    long i;\r\n\n};\n";
         let output = Preprocessor::parse(idl_file).unwrap();
 
         assert_eq!(output, expected);
