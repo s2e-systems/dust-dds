@@ -1,0 +1,9 @@
+#define BOOL boolean
+#define CHARACTER char
+#define I32 long
+
+struct SimpleStruct {
+    BOOL a;
+    CHARACTER b;
+    I32 i;
+};
