@@ -72,7 +72,7 @@ impl Preprocessor {
             // Replace all occurences of the define macro by their values. The order of this
             // iteration is not guaranteed
             for (define_macro, define_value) in self.define_list.iter() {
-                line_buffer = line_buffer.replace(define_macro.as_str(), &define_value);
+                line_buffer = line_buffer.replace(define_macro.as_str(), define_value);
             }
             self.output.push_str(&line_buffer);
             self.output.push('\n');
