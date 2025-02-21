@@ -77,14 +77,14 @@ fn enums() {
 
     let expected = syn::parse2::<File>(
         r#"
-    #[derive(Debug)]
+    #[derive(Debug, dust_dds::serialized_payload::cdr::deserialize::CdrDeserialize, dust_dds::serialized_payload::cdr::serialize::CdrSerialize)]
     pub enum Suits {
         Spades,
         Hearts,
         Diamonds,
         Clubs,
     }
-    #[derive(Debug)]
+    #[derive(Debug, dust_dds::serialized_payload::cdr::deserialize::CdrDeserialize, dust_dds::serialized_payload::cdr::serialize::CdrSerialize)]
     pub enum Direction {
         North,
         East,
