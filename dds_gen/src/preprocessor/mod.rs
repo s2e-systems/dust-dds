@@ -54,6 +54,13 @@ impl Preprocessor {
                     self.define_list
                         .insert(macro_name.to_string(), value.to_string());
                     continue;
+                } else if first_token == "#undef" {
+                    let macro_name = token_iter.next().ok_or(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "Missing macro name for preprocessor directive #undef",
+                    ))?;
+                    self.define_list.remove(macro_name);
+                    continue;
                 } else if first_token.starts_with('#') {
                     return Err(std::io::Error::new(
                         io::ErrorKind::InvalidData,
@@ -62,6 +69,8 @@ impl Preprocessor {
                 }
             }
 
+            // Replace all occurences of the define macro by their values. The order of this
+            // iteration is not guaranteed
             for (define_macro, define_value) in self.define_list.iter() {
                 line_buffer = line_buffer.replace(define_macro.as_str(), &define_value);
             }
