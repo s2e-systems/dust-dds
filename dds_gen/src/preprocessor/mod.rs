@@ -158,4 +158,13 @@ mod tests {
 
         assert_eq!(output, expected);
     }
+
+    #[test]
+    fn preprocessor_file_with_ifdef_not_defined() {
+        let idl_file = Path::new("src/preprocessor/test_resources/file_with_ifdef_not_defined.idl");
+        let expected = "\r\n\n";
+        let output = Preprocessor::new().parse(idl_file).unwrap();
+
+        assert_eq!(output, expected);
+    }
 }
