@@ -61,6 +61,18 @@ impl Preprocessor {
                     ))?;
                     self.define_list.remove(macro_name);
                     continue;
+                } else if first_token == "#ifdef" {
+                    let macro_name = token_iter.next().ok_or(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "Missing macro name for preprocessor directive #ifdef",
+                    ))?;
+                    if self.define_list.contains_key(macro_name) {
+                        continue;
+                    } else {
+                        todo!("Jump over until #endif")
+                    }
+                } else if first_token == "#endif" {
+                    continue;
                 } else if first_token.starts_with('#') {
                     return Err(std::io::Error::new(
                         io::ErrorKind::InvalidData,
@@ -132,6 +144,16 @@ mod tests {
         let idl_file = Path::new("src/preprocessor/test_resources/file_with_define.idl");
         let expected =
             "\r\n\nstruct SimpleStruct {\r\n\n    boolean a;\r\n\n    char b;\r\n\n    long i;\r\n\n};\n";
+        let output = Preprocessor::new().parse(idl_file).unwrap();
+
+        assert_eq!(output, expected);
+    }
+
+    #[test]
+    fn preprocessor_file_with_ifdef() {
+        let idl_file = Path::new("src/preprocessor/test_resources/file_with_ifdef.idl");
+        let expected =
+            "\r\n\nstruct SimpleStruct {\r\n\n    boolean a;\r\n\n    char b;\r\n\n    long i;\r\n\n};\r\n\n\r\n\n";
         let output = Preprocessor::new().parse(idl_file).unwrap();
 
         assert_eq!(output, expected);
