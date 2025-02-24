@@ -101,6 +101,18 @@ impl<'a> Preprocessor<'a> {
                     }
                 }
             }
+            Rule::ifndef_directive => {
+                let mut ifdef_pairs = pair.into_inner();
+                let ifdef_identifier = ifdef_pairs
+                    .next()
+                    .expect("#ifndef identifier must exist according to grammar")
+                    .as_str();
+                if !self.define_list.contains_key(ifdef_identifier) {
+                    for ifdef_line in ifdef_pairs {
+                        self.generate_preprocessed_idl(ifdef_line)?;
+                    }
+                }
+            }
             Rule::other_line => {
                 let mut line = pair.as_str().to_string();
                 // Replace all occurences of the define macro by their values. The order of this
@@ -170,6 +182,24 @@ mod tests {
     #[test]
     fn preprocessor_file_with_ifdef_not_defined() {
         let idl_file = Path::new("src/preprocessor/test_resources/file_with_ifdef_not_defined.idl");
+        let expected = "";
+        let output = Preprocessor::parse(idl_file).unwrap();
+
+        assert_eq!(output, expected);
+    }
+
+    #[test]
+    fn preprocessor_file_with_ifndef() {
+        let idl_file = Path::new("src/preprocessor/test_resources/file_with_ifndef.idl");
+        let expected = "struct SimpleStruct {\nboolean a;\nchar b;\nlong i;\n};\n\n";
+        let output = Preprocessor::parse(idl_file).unwrap();
+
+        assert_eq!(output, expected);
+    }
+
+    #[test]
+    fn preprocessor_file_with_ifndef_defined() {
+        let idl_file = Path::new("src/preprocessor/test_resources/file_with_ifndef_defined.idl");
         let expected = "";
         let output = Preprocessor::parse(idl_file).unwrap();
 
