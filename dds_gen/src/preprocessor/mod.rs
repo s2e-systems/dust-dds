@@ -9,7 +9,7 @@ use pest::Parser;
 use pest_derive::Parser;
 
 #[derive(Parser)]
-#[grammar = "preprocessor\\preprocessor_grammar.pest"]
+#[grammar = "preprocessor/preprocessor_grammar.pest"]
 pub struct IdlPreprocessorParser;
 
 pub struct Preprocessor<'a> {
