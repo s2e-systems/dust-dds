@@ -1,0 +1,17 @@
+file              =  { SOI ~ line* ~ EOI }
+line              =  { (directive | other_line) ~ NEWLINE }
+directive         = _{ include_directive | define_directive | ifdef_directive | ifndef_directive }
+include_directive = _{ "#include" ~ include_file }
+include_file      =  { (quoted_string | angle_bracketed_string) }
+define_directive  =  { "#define" ~ identifier ~ value? }
+ifdef_directive   =  { "#ifdef" ~ identifier ~ NEWLINE ~ line* ~ "#endif" }
+ifndef_directive  =  { "#ifndef" ~ identifier ~ NEWLINE ~ line* ~ "#endif" }
+other_line        =  { !"#" ~ (!NEWLINE ~ ANY)* }
+
+quoted_string          = @{ ("\"") ~ (!"\"" ~ ANY)* ~ "\"" }
+angle_bracketed_string = @{ ("<") ~ (!">" ~ ANY)* ~ ">" }
+identifier             = @{ (ASCII_ALPHANUMERIC | "_" | "-")+ }
+value                  =  { (!NEWLINE ~ ANY)* }
+
+WHITESPACE = _{ " " | "\t" }
+NEWLINE    = _{ "\n" | "\r\n" }

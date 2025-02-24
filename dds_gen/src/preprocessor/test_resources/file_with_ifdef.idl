@@ -1,0 +1,10 @@
+#define SIMPLE_STRUCT
+
+#ifdef SIMPLE_STRUCT
+struct SimpleStruct {
+    boolean a;
+    char b;
+    long i;
+};
+
+#endif
