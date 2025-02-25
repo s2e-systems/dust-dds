@@ -22,5 +22,5 @@ pub mod subscription;
 pub mod topic_definition;
 
 /// Contains the [`DustDdsConfiguration`](crate::configuration::DustDdsConfiguration) struct that allow configuring the runtime options
-/// of the DustDDS systems
+/// of the Dust DDS systems
 pub mod configuration;

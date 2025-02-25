@@ -116,7 +116,7 @@ The subscriber side can be implemented as:
 ## IDL type generation
 
 If using only Rust, you can make use of the procedural macros to enable a type to be transmitted
-using DustDDS. The key fields can also be defined as part of the macro.
+using Dust DDS. The key fields can also be defined as part of the macro.
 
 ```rust
 use dust_dds::topic_definition::type_support::DdsType;
