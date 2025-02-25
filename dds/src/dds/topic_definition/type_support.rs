@@ -51,7 +51,7 @@ use crate::xtypes::{
     xcdr_serializer::{Xcdr1BeSerializer, Xcdr1LeSerializer},
 };
 /// This is a convenience derive to allow the user to easily derive all the different traits needed for a type to be used for
-/// communication with DustDDS. If the individual traits are manually derived then this derive should not be used.
+/// communication with Dust DDS. If the individual traits are manually derived then this derive should not be used.
 ///
 /// This trait can be automatically derived. The generated trait uses by default a CdrLe
 /// representation and it determines whether the type is keyed or not depending on whether
