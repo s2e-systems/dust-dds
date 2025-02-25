@@ -9,14 +9,28 @@ Some of the relevant features of Dust DDS IDLgen:
 
 ## Usage
 
-This IDL gen is shipped as a library instead of a self standing tool since its main use case is to be integrated with a `build.rs` script. The entry function is `dust_dds_gen::compile_idl(&idl_path)` which generates a string with the output Rust code. Here is an example of an idl file:
+This IDL gen is shipped as a library instead of a self standing tool since its main use case is to be integrated with a `build.rs` script. The entry function is `dust_dds_gen::compile_idl(&idl_path)` which generates a string with the output Rust code. Here is an example of a 'build.rs' file using the IDL generator:
 
-```idl
-struct HelloWorldType {
-  @key
-  uint8 id;
-  string msg;
-};
+```rust
+fn main() {
+    let cargo_target_dir = std::env::var("OUT_DIR").unwrap();
+    let cargo_manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
+    let cargo_target_path = Path::new(&cargo_target_dir);
+    let cargo_manifest_path = Path::new(&cargo_manifest_dir);
+    let build_path = cargo_target_path.join("idl");
+    let idl_path = cargo_manifest_path.join("res/ShapeType.idl");
+    let compiled_idl = dust_dds_gen::compile_idl(&idl_path).expect("Couldn't parse IDL file");
+    let compiled_idl_path = build_path.as_path().join("shapes_type.rs");
+    fs::create_dir_all(build_path).expect("Creating build path failed");
+    let mut file = File::create(compiled_idl_path).expect("Failed to create file");
+    file.write_all(compiled_idl.as_bytes()).expect("Failed to write to file");
+}
+```
+
+Once the file is generated it can be included in the code by using the `include!` macro:
+
+```rust
+include!(concat!(env!("OUT_DIR"), "/idl/shapes_type.rs"));
 ```
 
 ## License
