@@ -13,7 +13,7 @@ use crate::{
     },
     transport::{
         history_cache::HistoryCache,
-        participant::TransportParticipant,
+        participant::{Transport, TransportParticipant},
         reader::{TransportStatefulReader, TransportStatelessReader, WriterProxy},
         types::{
             EntityId, Guid, GuidPrefix, Locator, ProtocolVersion, ReliabilityKind, VendorId,
@@ -100,6 +100,14 @@ pub fn read_message(
         Ok(RtpsMessageRead::try_from(&buf[0..bytes])?)
     } else {
         Err(RtpsError::new(RtpsErrorKind::NotEnoughData, ""))
+    }
+}
+
+pub struct RtpsTransportFactory;
+
+impl Transport for RtpsTransportFactory {
+    fn create_participant(&self) -> Box<dyn TransportParticipant> {
+        todo!()
     }
 }
 

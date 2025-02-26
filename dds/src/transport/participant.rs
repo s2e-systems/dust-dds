@@ -5,6 +5,10 @@ use super::{
     writer::{TransportStatefulWriter, TransportStatelessWriter},
 };
 
+pub trait Transport: Send + Sync {
+    fn create_participant(&self) -> Box<dyn TransportParticipant>;
+}
+
 pub trait TransportParticipant: Send + Sync {
     fn guid(&self) -> Guid;
     fn protocol_version(&self) -> ProtocolVersion;

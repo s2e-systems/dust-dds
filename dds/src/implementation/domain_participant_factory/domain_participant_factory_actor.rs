@@ -40,7 +40,7 @@ use crate::{
         status::StatusKind,
         time::{Duration, DurationKind},
     },
-    rtps::transport::RtpsTransport,
+    rtps::transport::{RtpsTransport, RtpsTransportFactory},
     runtime::{
         actor::{Actor, ActorAddress, ActorBuilder, Mail, MailHandler},
         executor::Executor,
@@ -49,7 +49,7 @@ use crate::{
     topic_definition::type_support::TypeSupport,
     transport::{
         history_cache::{CacheChange, HistoryCache},
-        participant::TransportParticipant,
+        participant::{Transport, TransportParticipant},
         types::{
             EntityId, GuidPrefix, ReliabilityKind, BUILT_IN_READER_WITH_KEY,
             BUILT_IN_WRITER_WITH_KEY,
@@ -91,12 +91,24 @@ pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER: EntityId =
 pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR: EntityId =
     EntityId::new([0, 0, 0x04], BUILT_IN_READER_WITH_KEY);
 
-#[derive(Default)]
 pub struct DomainParticipantFactoryActor {
     domain_participant_list: HashMap<InstanceHandle, Actor<DomainParticipantActor>>,
     qos: DomainParticipantFactoryQos,
     default_participant_qos: DomainParticipantQos,
     configuration: DustDdsConfiguration,
+    transport: Box<dyn Transport>,
+}
+
+impl Default for DomainParticipantFactoryActor {
+    fn default() -> Self {
+        Self {
+            domain_participant_list: Default::default(),
+            qos: Default::default(),
+            default_participant_qos: Default::default(),
+            configuration: Default::default(),
+            transport: Box::new(RtpsTransportFactory),
+        }
+    }
 }
 
 impl DomainParticipantFactoryActor {
