@@ -12,7 +12,7 @@ use crate::{
         status::StatusKind,
     },
     runtime::executor::block_on,
-    transport::participant::TransportParticipant,
+    transport::participant::Transport,
 };
 
 use std::sync::OnceLock;
@@ -141,7 +141,7 @@ impl DomainParticipantFactory {
 
     /// Set the transport to be used by the [`DomainParticipants`] entities
     /// created by the [`DomainParticipantFactory`] singleton
-    pub fn set_transport(&self, transport: Box<dyn TransportParticipant>) -> DdsResult<()> {
+    pub fn set_transport(&self, transport: Box<dyn Transport>) -> DdsResult<()> {
         block_on(self.participant_factory_async.set_transport(transport))
     }
 }

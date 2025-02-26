@@ -106,8 +106,12 @@ pub fn read_message(
 pub struct RtpsTransportFactory;
 
 impl Transport for RtpsTransportFactory {
-    fn create_participant(&self) -> Box<dyn TransportParticipant> {
-        todo!()
+    fn create_participant(
+        &self,
+        guid_prefix: GuidPrefix,
+        domain_id: DomainId,
+    ) -> Box<dyn TransportParticipant> {
+        Box::new(RtpsTransport::new(guid_prefix, domain_id, None, None).unwrap())
     }
 }
 

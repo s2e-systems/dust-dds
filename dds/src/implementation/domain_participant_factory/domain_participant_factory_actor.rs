@@ -40,7 +40,7 @@ use crate::{
         status::StatusKind,
         time::{Duration, DurationKind},
     },
-    rtps::transport::{RtpsTransport, RtpsTransportFactory},
+    rtps::transport::RtpsTransportFactory,
     runtime::{
         actor::{Actor, ActorAddress, ActorBuilder, Mail, MailHandler},
         executor::Executor,
@@ -49,7 +49,7 @@ use crate::{
     topic_definition::type_support::TypeSupport,
     transport::{
         history_cache::{CacheChange, HistoryCache},
-        participant::{Transport, TransportParticipant},
+        participant::Transport,
         types::{
             EntityId, GuidPrefix, ReliabilityKind, BUILT_IN_READER_WITH_KEY,
             BUILT_IN_WRITER_WITH_KEY,
@@ -201,12 +201,9 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         let guid_prefix = self.create_new_guid_prefix();
         let participant_actor_builder = ActorBuilder::new();
 
-        let mut transport = Box::new(RtpsTransport::new(
-            guid_prefix,
-            message.domain_id,
-            self.configuration.interface_name(),
-            self.configuration.udp_receive_buffer_size(),
-        )?);
+        let mut transport = self
+            .transport
+            .create_participant(guid_prefix, message.domain_id);
 
         let mut instance_handle_counter = InstanceHandleCounter::default();
         fn sedp_data_reader_qos() -> DataReaderQos {
@@ -705,14 +702,14 @@ impl MailHandler<GetConfiguration> for DomainParticipantFactoryActor {
 }
 
 pub struct SetTransport {
-    pub transport: Box<dyn TransportParticipant>,
+    pub transport: Box<dyn Transport>,
 }
 impl Mail for SetTransport {
     type Result = ();
 }
 impl MailHandler<SetTransport> for DomainParticipantFactoryActor {
-    fn handle(&mut self, _: SetTransport) -> <SetTransport as Mail>::Result {
-        todo!()
+    fn handle(&mut self, message: SetTransport) -> <SetTransport as Mail>::Result {
+        self.transport = message.transport;
     }
 }
 

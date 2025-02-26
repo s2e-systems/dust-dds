@@ -1,12 +1,18 @@
+use crate::domain::domain_participant_factory::DomainId;
+
 use super::{
     history_cache::HistoryCache,
     reader::{TransportStatefulReader, TransportStatelessReader},
-    types::{EntityId, Guid, Locator, ProtocolVersion, ReliabilityKind, VendorId},
+    types::{EntityId, Guid, GuidPrefix, Locator, ProtocolVersion, ReliabilityKind, VendorId},
     writer::{TransportStatefulWriter, TransportStatelessWriter},
 };
 
 pub trait Transport: Send + Sync {
-    fn create_participant(&self) -> Box<dyn TransportParticipant>;
+    fn create_participant(
+        &self,
+        guid_prefix: GuidPrefix,
+        domain_id: DomainId,
+    ) -> Box<dyn TransportParticipant>;
 }
 
 pub trait TransportParticipant: Send + Sync {

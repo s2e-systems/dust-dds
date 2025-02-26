@@ -19,7 +19,7 @@ use crate::{
         status::StatusKind,
     },
     runtime::{actor::Actor, executor::Executor, timer::TimerDriver},
-    transport::participant::TransportParticipant,
+    transport::participant::Transport,
 };
 
 /// Async version of [`DomainParticipantFactory`](crate::domain::domain_participant_factory::DomainParticipantFactory).
@@ -180,7 +180,7 @@ impl DomainParticipantFactoryAsync {
     }
 
     /// Async version of [`set_transport`](crate::domain::domain_participant_factory::DomainParticipantFactory::set_transport).
-    pub async fn set_transport(&self, transport: Box<dyn TransportParticipant>) -> DdsResult<()> {
+    pub async fn set_transport(&self, transport: Box<dyn Transport>) -> DdsResult<()> {
         Ok(self
             .domain_participant_factory_actor
             .send_actor_mail(domain_participant_factory_actor::SetTransport { transport })
