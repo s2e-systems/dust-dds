@@ -40,7 +40,7 @@ use crate::{
         status::StatusKind,
         time::{Duration, DurationKind},
     },
-    rtps::transport::RtpsTransportFactory,
+    rtps::factory::RtpsParticipantFactory,
     runtime::{
         actor::{Actor, ActorAddress, ActorBuilder, Mail, MailHandler},
         executor::Executor,
@@ -48,8 +48,8 @@ use crate::{
     },
     topic_definition::type_support::TypeSupport,
     transport::{
+        factory::TransportParticipantFactory,
         history_cache::{CacheChange, HistoryCache},
-        participant::Transport,
         types::{
             EntityId, GuidPrefix, ReliabilityKind, BUILT_IN_READER_WITH_KEY,
             BUILT_IN_WRITER_WITH_KEY,
@@ -96,7 +96,7 @@ pub struct DomainParticipantFactoryActor {
     qos: DomainParticipantFactoryQos,
     default_participant_qos: DomainParticipantQos,
     configuration: DustDdsConfiguration,
-    transport: Box<dyn Transport>,
+    transport: Box<dyn TransportParticipantFactory>,
 }
 
 impl Default for DomainParticipantFactoryActor {
@@ -106,7 +106,7 @@ impl Default for DomainParticipantFactoryActor {
             qos: Default::default(),
             default_participant_qos: Default::default(),
             configuration: Default::default(),
-            transport: Box::new(RtpsTransportFactory::default()),
+            transport: Box::new(RtpsParticipantFactory::default()),
         }
     }
 }
@@ -689,7 +689,7 @@ impl MailHandler<GetConfiguration> for DomainParticipantFactoryActor {
 }
 
 pub struct SetTransport {
-    pub transport: Box<dyn Transport>,
+    pub transport: Box<dyn TransportParticipantFactory>,
 }
 impl Mail for SetTransport {
     type Result = ();

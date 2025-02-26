@@ -1,6 +1,7 @@
 pub mod behavior_types;
 pub mod cache_change;
 pub mod error;
+pub mod factory;
 pub mod message_receiver;
 pub mod message_sender;
 pub mod messages;
