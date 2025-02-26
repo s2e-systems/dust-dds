@@ -30,11 +30,8 @@ pub trait TransportParticipant: Send + Sync {
         reader_history_cache: Box<dyn HistoryCache>,
     ) -> Box<dyn TransportStatelessReader>;
 
-    fn create_stateless_writer(
-        &mut self,
-        entity_id: EntityId,
-        data_max_size_serialized: usize,
-    ) -> Box<dyn TransportStatelessWriter>;
+    fn create_stateless_writer(&mut self, entity_id: EntityId)
+        -> Box<dyn TransportStatelessWriter>;
 
     fn create_stateful_reader(
         &mut self,
@@ -47,6 +44,5 @@ pub trait TransportParticipant: Send + Sync {
         &mut self,
         entity_id: EntityId,
         reliability_kind: ReliabilityKind,
-        data_max_size_serialized: usize,
     ) -> Box<dyn TransportStatefulWriter>;
 }

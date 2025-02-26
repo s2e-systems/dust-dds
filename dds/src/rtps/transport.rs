@@ -103,7 +103,23 @@ pub fn read_message(
     }
 }
 
-pub struct RtpsTransportFactory;
+pub struct RtpsTransportFactory {
+    fragment_size: usize,
+}
+
+impl RtpsTransportFactory {
+    pub fn new(fragment_size: usize) -> Self {
+        Self { fragment_size }
+    }
+}
+
+impl Default for RtpsTransportFactory {
+    fn default() -> Self {
+        Self {
+            fragment_size: 1344,
+        }
+    }
+}
 
 impl Transport for RtpsTransportFactory {
     fn create_participant(
@@ -111,12 +127,15 @@ impl Transport for RtpsTransportFactory {
         guid_prefix: GuidPrefix,
         domain_id: DomainId,
     ) -> Box<dyn TransportParticipant> {
-        Box::new(RtpsTransport::new(guid_prefix, domain_id, None, None).unwrap())
+        Box::new(
+            RtpsTransport::new(guid_prefix, domain_id, None, None, self.fragment_size).unwrap(),
+        )
     }
 }
 
 pub struct RtpsTransport {
     guid: Guid,
+    fragment_size: usize,
     rtps_participant: Actor<RtpsParticipant>,
     default_unicast_locator_list: Vec<Locator>,
     default_multicast_locator_list: Vec<Locator>,
@@ -132,6 +151,7 @@ impl RtpsTransport {
         domain_id: DomainId,
         interface_name: Option<&str>,
         udp_receive_buffer_size: Option<usize>,
+        fragment_size: usize,
     ) -> RtpsResult<Self> {
         let executor = Executor::new();
 
@@ -302,6 +322,7 @@ impl RtpsTransport {
             default_multicast_locator_list,
             metatraffic_unicast_locator_list,
             metatraffic_multicast_locator_list,
+            fragment_size,
             _executor: executor,
         })
     }
@@ -364,7 +385,6 @@ impl TransportParticipant for RtpsTransport {
     fn create_stateless_writer(
         &mut self,
         entity_id: EntityId,
-        _data_max_size_serialized: usize,
     ) -> Box<dyn TransportStatelessWriter> {
         let guid = Guid::new(self.guid.prefix(), entity_id);
         block_on(
@@ -438,14 +458,13 @@ impl TransportParticipant for RtpsTransport {
         &mut self,
         entity_id: EntityId,
         _reliability_kind: ReliabilityKind,
-        data_max_size_serialized: usize,
     ) -> Box<dyn TransportStatefulWriter> {
         let guid = Guid::new(self.guid.prefix(), entity_id);
         block_on(
             self.rtps_participant
                 .send_actor_mail(participant::CreateStatefulWriter {
                     writer_guid: guid,
-                    data_max_size_serialized,
+                    data_max_size_serialized: self.fragment_size,
                     rtps_participant_address: self.rtps_participant.address(),
                 })
                 .receive_reply(),
@@ -476,6 +495,7 @@ mod tests {
             domain_id,
             interface_name,
             udp_receive_buffer_size,
+            1344,
         )
         .unwrap();
 
@@ -493,15 +513,13 @@ mod tests {
 
         let entity_id = EntityId::new([1, 2, 3], 4);
         let reliability_kind = ReliabilityKind::Reliable;
-        let data_max_size_serialized = 1000;
         let (sender, receiver) = sync_channel(0);
         let reader_history_cache = Box::new(MockHistoryCache(sender));
         let mut reader =
             transport.create_stateful_reader(entity_id, reliability_kind, reader_history_cache);
 
         let entity_id = EntityId::new([5, 6, 7], 8);
-        let mut writer =
-            transport.create_stateful_writer(entity_id, reliability_kind, data_max_size_serialized);
+        let mut writer = transport.create_stateful_writer(entity_id, reliability_kind);
 
         let reader_proxy = ReaderProxy {
             remote_reader_guid: reader.guid(),
@@ -521,7 +539,6 @@ mod tests {
             durability_kind: DurabilityKind::Volatile,
             unicast_locator_list: vec![],
             multicast_locator_list: vec![],
-            data_max_size_serialized: 5000,
         };
         reader.add_matched_writer(writer_proxy);
 
@@ -552,6 +569,7 @@ mod tests {
             domain_id,
             interface_name,
             udp_receive_buffer_size,
+            1344,
         )
         .unwrap();
 
@@ -573,8 +591,7 @@ mod tests {
         let _reader = transport.create_stateless_reader(entity_id, reader_history_cache);
 
         let entity_id = EntityId::new([5, 6, 7], 8);
-        let data_max_size_serialized = 1000;
-        let mut writer = transport.create_stateless_writer(entity_id, data_max_size_serialized);
+        let mut writer = transport.create_stateless_writer(entity_id);
         for locator in transport.default_unicast_locator_list() {
             writer.add_reader_locator(locator.clone());
         }

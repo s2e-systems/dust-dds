@@ -27,7 +27,6 @@ pub struct RtpsWriterProxy {
     remote_writer_guid: Guid,
     unicast_locator_list: Vec<Locator>,
     multicast_locator_list: Vec<Locator>,
-    data_max_size_serialized: Option<i32>,
     remote_group_entity_id: EntityId,
     first_available_seq_num: SequenceNumber,
     last_available_seq_num: SequenceNumber,
@@ -46,7 +45,6 @@ impl RtpsWriterProxy {
         remote_writer_guid: Guid,
         unicast_locator_list: &[Locator],
         multicast_locator_list: &[Locator],
-        data_max_size_serialized: Option<i32>,
         remote_group_entity_id: EntityId,
         reliability: ReliabilityKind,
     ) -> Self {
@@ -54,7 +52,6 @@ impl RtpsWriterProxy {
             remote_writer_guid,
             unicast_locator_list: unicast_locator_list.to_vec(),
             multicast_locator_list: multicast_locator_list.to_vec(),
-            data_max_size_serialized,
             remote_group_entity_id,
             first_available_seq_num: 1,
             last_available_seq_num: 0,
