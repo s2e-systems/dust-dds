@@ -119,7 +119,7 @@ impl RtpsTransport {
     pub fn new(
         guid_prefix: GuidPrefix,
         domain_id: DomainId,
-        interface_name: Option<&str>,
+        interface_name: &Option<String>,
         udp_receive_buffer_size: Option<usize>,
         fragment_size: usize,
     ) -> RtpsResult<Self> {
@@ -131,7 +131,7 @@ impl RtpsTransport {
             .into_iter()
             .filter(|x| {
                 if let Some(if_name) = interface_name {
-                    x.name == if_name
+                    &x.name == if_name
                 } else {
                     true
                 }
@@ -463,7 +463,7 @@ mod tests {
         let mut transport = RtpsTransport::new(
             guid_prefix,
             domain_id,
-            interface_name,
+            &interface_name,
             udp_receive_buffer_size,
             1344,
         )
@@ -537,7 +537,7 @@ mod tests {
         let mut transport = RtpsTransport::new(
             guid_prefix,
             domain_id,
-            interface_name,
+            &interface_name,
             udp_receive_buffer_size,
             1344,
         )

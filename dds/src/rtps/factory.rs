@@ -77,7 +77,14 @@ impl TransportParticipantFactory for RtpsParticipantFactory {
         domain_id: i32,
     ) -> Box<dyn TransportParticipant> {
         Box::new(
-            RtpsTransport::new(guid_prefix, domain_id, None, None, self.fragment_size).unwrap(),
+            RtpsTransport::new(
+                guid_prefix,
+                domain_id,
+                &self.interface_name,
+                self.udp_receive_buffer_size,
+                self.fragment_size,
+            )
+            .unwrap(),
         )
     }
 }
