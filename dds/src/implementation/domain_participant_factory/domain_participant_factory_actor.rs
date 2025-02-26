@@ -322,6 +322,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         let dcps_participant_transport_reader = transport.create_stateless_reader(
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
             ReliabilityKind::BestEffort,
+            DCPS_PARTICIPANT,
             Box::new(DcpsParticipantReaderHistoryCache {
                 participant_address: participant_actor_builder.address(),
             }),
@@ -341,6 +342,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         let dcps_topic_transport_reader = transport.create_stateful_reader(
             ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
             ReliabilityKind::Reliable,
+            DCPS_TOPIC,
             Box::new(DcpsTopicsReaderHistoryCache {
                 participant_address: participant_actor_builder.address(),
             }),
@@ -360,6 +362,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         let dcps_publication_transport_reader = transport.create_stateful_reader(
             ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
             ReliabilityKind::Reliable,
+            DCPS_PUBLICATION,
             Box::new(DcpsPublicationsReaderHistoryCache {
                 participant_address: participant_actor_builder.address(),
             }),
@@ -379,6 +382,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         let dcps_subscription_transport_reader = transport.create_stateful_reader(
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
             ReliabilityKind::Reliable,
+            DCPS_SUBSCRIPTION,
             Box::new(DcpsSubscriptionsReaderHistoryCache {
                 participant_address: participant_actor_builder.address(),
             }),
@@ -412,6 +416,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         let mut dcps_participant_transport_writer = transport.create_stateless_writer(
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
             ReliabilityKind::BestEffort,
+            DCPS_PARTICIPANT,
         );
         for &discovery_locator in transport.metatraffic_multicast_locator_list() {
             dcps_participant_transport_writer.add_reader_locator(discovery_locator);
@@ -432,6 +437,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         let dcps_topics_transport_writer = transport.create_stateful_writer(
             ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
             ReliabilityKind::Reliable,
+            DCPS_TOPIC,
         );
         let mut dcps_topics_writer = DataWriterEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
@@ -448,6 +454,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         let dcps_publications_transport_writer = transport.create_stateful_writer(
             ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
             ReliabilityKind::Reliable,
+            DCPS_PUBLICATION,
         );
         let mut dcps_publications_writer = DataWriterEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
@@ -465,6 +472,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         let dcps_subscriptions_transport_writer = transport.create_stateful_writer(
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
             ReliabilityKind::Reliable,
+            DCPS_SUBSCRIPTION,
         );
         let mut dcps_subscriptions_writer = DataWriterEntity::new(
             instance_handle_counter.generate_new_instance_handle(),

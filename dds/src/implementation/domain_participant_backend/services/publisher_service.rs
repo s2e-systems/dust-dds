@@ -81,9 +81,9 @@ impl MailHandler<CreateDataWriter> for DomainParticipantActor {
             ReliabilityQosPolicyKind::BestEffort => ReliabilityKind::BestEffort,
             ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
         };
-        let transport_writer = self
-            .transport
-            .create_stateful_writer(entity_id, reliablity_kind);
+        let transport_writer =
+            self.transport
+                .create_stateful_writer(entity_id, reliablity_kind, &message.topic_name);
 
         let topic_name = message.topic_name;
 

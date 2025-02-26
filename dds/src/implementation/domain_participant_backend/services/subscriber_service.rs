@@ -111,6 +111,7 @@ impl MailHandler<CreateDataReader> for DomainParticipantActor {
             TransportReaderKind::Stateful(self.transport.create_stateful_reader(
                 entity_id,
                 reliablity_kind,
+                &message.topic_name,
                 Box::new(UserDefinedReaderHistoryCache {
                     domain_participant_address: message.domain_participant_address.clone(),
                     subscriber_handle: subscriber.instance_handle(),

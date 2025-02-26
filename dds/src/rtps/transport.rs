@@ -331,6 +331,7 @@ impl TransportParticipant for RtpsTransport {
         &mut self,
         entity_id: EntityId,
         _reliability_kind: ReliabilityKind,
+        _topic_name: &str,
         reader_history_cache: Box<dyn HistoryCache>,
     ) -> Box<dyn TransportStatelessReader> {
         let guid = Guid::new(self.guid.prefix(), entity_id);
@@ -357,6 +358,7 @@ impl TransportParticipant for RtpsTransport {
         &mut self,
         entity_id: EntityId,
         _reliability_kind: ReliabilityKind,
+        _topic_name: &str,
     ) -> Box<dyn TransportStatelessWriter> {
         let guid = Guid::new(self.guid.prefix(), entity_id);
         block_on(
@@ -373,6 +375,7 @@ impl TransportParticipant for RtpsTransport {
         &mut self,
         entity_id: EntityId,
         _reliability_kind: ReliabilityKind,
+        _topic_name: &str,
         reader_history_cache: Box<dyn HistoryCache>,
     ) -> Box<dyn TransportStatefulReader> {
         let guid = Guid::new(self.guid.prefix(), entity_id);
@@ -430,6 +433,7 @@ impl TransportParticipant for RtpsTransport {
         &mut self,
         entity_id: EntityId,
         _reliability_kind: ReliabilityKind,
+        _topic_name: &str,
     ) -> Box<dyn TransportStatefulWriter> {
         let guid = Guid::new(self.guid.prefix(), entity_id);
         block_on(
@@ -487,11 +491,15 @@ mod tests {
         let reliability_kind = ReliabilityKind::Reliable;
         let (sender, receiver) = sync_channel(0);
         let reader_history_cache = Box::new(MockHistoryCache(sender));
-        let mut reader =
-            transport.create_stateful_reader(entity_id, reliability_kind, reader_history_cache);
+        let mut reader = transport.create_stateful_reader(
+            entity_id,
+            reliability_kind,
+            "test",
+            reader_history_cache,
+        );
 
         let entity_id = EntityId::new([5, 6, 7], 8);
-        let mut writer = transport.create_stateful_writer(entity_id, reliability_kind);
+        let mut writer = transport.create_stateful_writer(entity_id, reliability_kind, "test");
 
         let reader_proxy = ReaderProxy {
             remote_reader_guid: reader.guid(),
@@ -563,11 +571,13 @@ mod tests {
         let _reader = transport.create_stateless_reader(
             entity_id,
             ReliabilityKind::BestEffort,
+            "test",
             reader_history_cache,
         );
 
         let entity_id = EntityId::new([5, 6, 7], 8);
-        let mut writer = transport.create_stateless_writer(entity_id, ReliabilityKind::BestEffort);
+        let mut writer =
+            transport.create_stateless_writer(entity_id, ReliabilityKind::BestEffort, "test");
         for locator in transport.default_unicast_locator_list() {
             writer.add_reader_locator(locator.clone());
         }
