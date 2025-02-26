@@ -184,10 +184,10 @@ impl DomainParticipantFactoryAsync {
         &self,
         transport: Box<dyn TransportParticipantFactory>,
     ) -> DdsResult<()> {
-        Ok(self
-            .domain_participant_factory_actor
+        self.domain_participant_factory_actor
             .send_actor_mail(domain_participant_factory_actor::SetTransport { transport })
             .receive_reply()
-            .await)
+            .await;
+        Ok(())
     }
 }

@@ -10,6 +10,12 @@ pub struct RtpsParticipantFactoryBuilder {
     udp_receive_buffer_size: Option<usize>,
 }
 
+impl Default for RtpsParticipantFactoryBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RtpsParticipantFactoryBuilder {
     /// Construct a transport factory builder with all the default options.
     pub fn new() -> Self {
