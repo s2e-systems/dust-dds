@@ -321,6 +321,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
 
         let dcps_participant_transport_reader = transport.create_stateless_reader(
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
+            ReliabilityKind::BestEffort,
             Box::new(DcpsParticipantReaderHistoryCache {
                 participant_address: participant_actor_builder.address(),
             }),
@@ -408,8 +409,10 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         builtin_subscriber.insert_data_reader(dcps_publication_reader);
         builtin_subscriber.insert_data_reader(dcps_subscription_reader);
 
-        let mut dcps_participant_transport_writer =
-            transport.create_stateless_writer(ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
+        let mut dcps_participant_transport_writer = transport.create_stateless_writer(
+            ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
+            ReliabilityKind::BestEffort,
+        );
         for &discovery_locator in transport.metatraffic_multicast_locator_list() {
             dcps_participant_transport_writer.add_reader_locator(discovery_locator);
         }

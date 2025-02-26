@@ -17,11 +17,15 @@ pub trait TransportParticipant: Send + Sync {
     fn create_stateless_reader(
         &mut self,
         entity_id: EntityId,
+        reliability_kind: ReliabilityKind,
         reader_history_cache: Box<dyn HistoryCache>,
     ) -> Box<dyn TransportStatelessReader>;
 
-    fn create_stateless_writer(&mut self, entity_id: EntityId)
-        -> Box<dyn TransportStatelessWriter>;
+    fn create_stateless_writer(
+        &mut self,
+        entity_id: EntityId,
+        reliability_kind: ReliabilityKind,
+    ) -> Box<dyn TransportStatelessWriter>;
 
     fn create_stateful_reader(
         &mut self,

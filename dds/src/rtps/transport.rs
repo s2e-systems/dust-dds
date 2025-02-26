@@ -330,6 +330,7 @@ impl TransportParticipant for RtpsTransport {
     fn create_stateless_reader(
         &mut self,
         entity_id: EntityId,
+        _reliability_kind: ReliabilityKind,
         reader_history_cache: Box<dyn HistoryCache>,
     ) -> Box<dyn TransportStatelessReader> {
         let guid = Guid::new(self.guid.prefix(), entity_id);
@@ -355,6 +356,7 @@ impl TransportParticipant for RtpsTransport {
     fn create_stateless_writer(
         &mut self,
         entity_id: EntityId,
+        _reliability_kind: ReliabilityKind,
     ) -> Box<dyn TransportStatelessWriter> {
         let guid = Guid::new(self.guid.prefix(), entity_id);
         block_on(
@@ -558,10 +560,14 @@ mod tests {
         let entity_id = EntityId::new([1, 2, 3], 4);
         let (sender, receiver) = sync_channel(0);
         let reader_history_cache = Box::new(MockHistoryCache(sender));
-        let _reader = transport.create_stateless_reader(entity_id, reader_history_cache);
+        let _reader = transport.create_stateless_reader(
+            entity_id,
+            ReliabilityKind::BestEffort,
+            reader_history_cache,
+        );
 
         let entity_id = EntityId::new([5, 6, 7], 8);
-        let mut writer = transport.create_stateless_writer(entity_id);
+        let mut writer = transport.create_stateless_writer(entity_id, ReliabilityKind::BestEffort);
         for locator in transport.default_unicast_locator_list() {
             writer.add_reader_locator(locator.clone());
         }
