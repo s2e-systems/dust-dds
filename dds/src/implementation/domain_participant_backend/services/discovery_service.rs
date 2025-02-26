@@ -200,7 +200,6 @@ impl MailHandler<AnnounceDataWriter> for DomainParticipantActor {
             remote_group_entity_id: ENTITYID_UNKNOWN,
             unicast_locator_list: vec![],
             multicast_locator_list: vec![],
-            data_max_size_serialized: self.fragment_size as i32,
         };
         let discovered_writer_data = DiscoveredWriterData {
             dds_publication_data,
@@ -1083,10 +1082,6 @@ impl MailHandler<AddDiscoveredWriter> for DomainParticipantActor {
                             .remote_group_entity_id,
                         unicast_locator_list,
                         multicast_locator_list,
-                        data_max_size_serialized: message
-                            .discovered_writer_data
-                            .writer_proxy
-                            .data_max_size_serialized,
                         reliability_kind,
                         durability_kind,
                     };
@@ -1520,7 +1515,6 @@ fn add_matched_publications_announcer(
             ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
         );
         let remote_group_entity_id = ENTITYID_UNKNOWN;
-        let data_max_size_serialized = Default::default();
 
         let writer_proxy = transport::reader::WriterProxy {
             remote_writer_guid,
@@ -1535,7 +1529,6 @@ fn add_matched_publications_announcer(
                 .to_vec(),
             reliability_kind: ReliabilityKind::Reliable,
             durability_kind: DurabilityKind::TransientLocal,
-            data_max_size_serialized,
         };
         if let Some(dr) = domain_participant_actor
             .domain_participant
@@ -1615,7 +1608,6 @@ fn add_matched_subscriptions_announcer(
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
         );
         let remote_group_entity_id = ENTITYID_UNKNOWN;
-        let data_max_size_serialized = Default::default();
 
         let writer_proxy = transport::reader::WriterProxy {
             remote_writer_guid,
@@ -1630,7 +1622,6 @@ fn add_matched_subscriptions_announcer(
                 .participant_proxy
                 .metatraffic_multicast_locator_list
                 .to_vec(),
-            data_max_size_serialized,
         };
         if let Some(dr) = domain_participant_actor
             .domain_participant
@@ -1709,7 +1700,6 @@ fn add_matched_topics_announcer(
             ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
         );
         let remote_group_entity_id = ENTITYID_UNKNOWN;
-        let data_max_size_serialized = Default::default();
 
         let writer_proxy = transport::reader::WriterProxy {
             remote_writer_guid,
@@ -1724,7 +1714,6 @@ fn add_matched_topics_announcer(
                 .participant_proxy
                 .metatraffic_multicast_locator_list
                 .to_vec(),
-            data_max_size_serialized,
         };
         if let Some(dr) = domain_participant_actor
             .domain_participant

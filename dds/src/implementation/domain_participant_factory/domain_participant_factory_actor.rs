@@ -40,7 +40,7 @@ use crate::{
         status::StatusKind,
         time::{Duration, DurationKind},
     },
-    rtps::transport::RtpsTransport,
+    rtps::factory::RtpsParticipantFactory,
     runtime::{
         actor::{Actor, ActorAddress, ActorBuilder, Mail, MailHandler},
         executor::Executor,
@@ -48,8 +48,8 @@ use crate::{
     },
     topic_definition::type_support::TypeSupport,
     transport::{
+        factory::TransportParticipantFactory,
         history_cache::{CacheChange, HistoryCache},
-        participant::TransportParticipant,
         types::{
             EntityId, GuidPrefix, ReliabilityKind, BUILT_IN_READER_WITH_KEY,
             BUILT_IN_WRITER_WITH_KEY,
@@ -91,12 +91,24 @@ pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER: EntityId =
 pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR: EntityId =
     EntityId::new([0, 0, 0x04], BUILT_IN_READER_WITH_KEY);
 
-#[derive(Default)]
 pub struct DomainParticipantFactoryActor {
     domain_participant_list: HashMap<InstanceHandle, Actor<DomainParticipantActor>>,
     qos: DomainParticipantFactoryQos,
     default_participant_qos: DomainParticipantQos,
     configuration: DustDdsConfiguration,
+    transport: Box<dyn TransportParticipantFactory>,
+}
+
+impl Default for DomainParticipantFactoryActor {
+    fn default() -> Self {
+        Self {
+            domain_participant_list: Default::default(),
+            qos: Default::default(),
+            default_participant_qos: Default::default(),
+            configuration: Default::default(),
+            transport: Box::new(RtpsParticipantFactory::default()),
+        }
+    }
 }
 
 impl DomainParticipantFactoryActor {
@@ -114,13 +126,6 @@ impl DomainParticipantFactoryActor {
         let interface_address = NetworkInterface::show()
             .expect("Could not scan interfaces")
             .into_iter()
-            .filter(|x| {
-                if let Some(if_name) = self.configuration.interface_name() {
-                    x.name == if_name
-                } else {
-                    true
-                }
-            })
             .flat_map(|i| {
                 i.addr
                     .into_iter()
@@ -189,12 +194,9 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         let guid_prefix = self.create_new_guid_prefix();
         let participant_actor_builder = ActorBuilder::new();
 
-        let mut transport = Box::new(RtpsTransport::new(
-            guid_prefix,
-            message.domain_id,
-            self.configuration.interface_name(),
-            self.configuration.udp_receive_buffer_size(),
-        )?);
+        let mut transport = self
+            .transport
+            .create_participant(guid_prefix, message.domain_id);
 
         let mut instance_handle_counter = InstanceHandleCounter::default();
         fn sedp_data_reader_qos() -> DataReaderQos {
@@ -406,10 +408,8 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         builtin_subscriber.insert_data_reader(dcps_publication_reader);
         builtin_subscriber.insert_data_reader(dcps_subscription_reader);
 
-        let mut dcps_participant_transport_writer = transport.create_stateless_writer(
-            ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
-            self.configuration.fragment_size(),
-        );
+        let mut dcps_participant_transport_writer =
+            transport.create_stateless_writer(ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
         for &discovery_locator in transport.metatraffic_multicast_locator_list() {
             dcps_participant_transport_writer.add_reader_locator(discovery_locator);
         }
@@ -429,7 +429,6 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         let dcps_topics_transport_writer = transport.create_stateful_writer(
             ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
             ReliabilityKind::Reliable,
-            self.configuration.fragment_size(),
         );
         let mut dcps_topics_writer = DataWriterEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
@@ -446,7 +445,6 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         let dcps_publications_transport_writer = transport.create_stateful_writer(
             ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
             ReliabilityKind::Reliable,
-            self.configuration.fragment_size(),
         );
         let mut dcps_publications_writer = DataWriterEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
@@ -464,7 +462,6 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         let dcps_subscriptions_transport_writer = transport.create_stateful_writer(
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
             ReliabilityKind::Reliable,
-            self.configuration.fragment_size(),
         );
         let mut dcps_subscriptions_writer = DataWriterEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
@@ -520,7 +517,6 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             listener_executor,
             timer_driver,
             instance_handle_counter,
-            self.configuration.fragment_size(),
         );
         let participant_handle = domain_participant_actor
             .domain_participant
@@ -689,6 +685,18 @@ impl Mail for GetConfiguration {
 impl MailHandler<GetConfiguration> for DomainParticipantFactoryActor {
     fn handle(&mut self, _: GetConfiguration) -> <GetConfiguration as Mail>::Result {
         self.configuration.clone()
+    }
+}
+
+pub struct SetTransport {
+    pub transport: Box<dyn TransportParticipantFactory>,
+}
+impl Mail for SetTransport {
+    type Result = ();
+}
+impl MailHandler<SetTransport> for DomainParticipantFactoryActor {
+    fn handle(&mut self, message: SetTransport) -> <SetTransport as Mail>::Result {
+        self.transport = message.transport;
     }
 }
 

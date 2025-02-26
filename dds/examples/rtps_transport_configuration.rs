@@ -1,7 +1,7 @@
 use dust_dds::{
-    configuration::DustDdsConfigurationBuilder,
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{qos::QosKind, status::NO_STATUS},
+    rtps::factory::RtpsParticipantFactoryBuilder,
     topic_definition::type_support::DdsType,
 };
 
@@ -15,14 +15,14 @@ struct HelloWorldType {
 fn main() {
     let domain_id = 0;
     let participant_factory = DomainParticipantFactory::get_instance();
-    let configuration = DustDdsConfigurationBuilder::new()
-        .domain_tag("abc".to_string())
-        .build()
-        .unwrap();
+    let transport = Box::new(
+        RtpsParticipantFactoryBuilder::new()
+            .fragment_size(500)
+            .build()
+            .unwrap(),
+    );
 
-    participant_factory
-        .set_configuration(configuration)
-        .unwrap();
+    participant_factory.set_transport(transport).unwrap();
 
     let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)

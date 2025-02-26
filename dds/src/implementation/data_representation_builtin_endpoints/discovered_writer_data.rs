@@ -1,8 +1,8 @@
 use super::{
     parameter_id_values::{
-        PID_DATA_MAX_SIZE_SERIALIZED, PID_DATA_REPRESENTATION, PID_DEADLINE, PID_DESTINATION_ORDER,
-        PID_DURABILITY, PID_ENDPOINT_GUID, PID_GROUP_DATA, PID_GROUP_ENTITYID, PID_LATENCY_BUDGET,
-        PID_LIFESPAN, PID_LIVELINESS, PID_MULTICAST_LOCATOR, PID_OWNERSHIP, PID_OWNERSHIP_STRENGTH,
+        PID_DATA_REPRESENTATION, PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY,
+        PID_ENDPOINT_GUID, PID_GROUP_DATA, PID_GROUP_ENTITYID, PID_LATENCY_BUDGET, PID_LIFESPAN,
+        PID_LIVELINESS, PID_MULTICAST_LOCATOR, PID_OWNERSHIP, PID_OWNERSHIP_STRENGTH,
         PID_PARTICIPANT_GUID, PID_PARTITION, PID_PRESENTATION, PID_RELIABILITY, PID_TOPIC_DATA,
         PID_TOPIC_NAME, PID_TYPE_NAME, PID_UNICAST_LOCATOR, PID_USER_DATA,
     },
@@ -24,7 +24,6 @@ pub struct WriterProxy {
     pub remote_group_entity_id: EntityId,
     pub unicast_locator_list: Vec<Locator>,
     pub multicast_locator_list: Vec<Locator>,
-    pub data_max_size_serialized: i32,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -201,11 +200,6 @@ impl DdsSerialize for DiscoveredWriterData {
             PID_MULTICAST_LOCATOR,
             &self.writer_proxy.multicast_locator_list,
         )?;
-        serializer.write_with_default(
-            PID_DATA_MAX_SIZE_SERIALIZED,
-            &self.writer_proxy.data_max_size_serialized,
-            &Default::default(),
-        )?;
 
         serializer.write_sentinel()?;
         Ok(serializer.writer)
@@ -260,8 +254,6 @@ impl<'de> DdsDeserialize<'de> for DiscoveredWriterData {
                     .read_with_default(PID_GROUP_ENTITYID, Default::default())?,
                 unicast_locator_list: pl_deserializer.read_collection(PID_UNICAST_LOCATOR)?,
                 multicast_locator_list: pl_deserializer.read_collection(PID_MULTICAST_LOCATOR)?,
-                data_max_size_serialized: pl_deserializer
-                    .read_with_default(PID_DATA_MAX_SIZE_SERIALIZED, Default::default())?,
             },
         })
     }
@@ -314,7 +306,6 @@ mod tests {
                 remote_group_entity_id: EntityId::new([21, 22, 23], BUILT_IN_READER_GROUP),
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
-                data_max_size_serialized: Default::default(),
             },
         };
 
@@ -382,7 +373,6 @@ mod tests {
                 remote_group_entity_id: EntityId::new([21, 22, 23], BUILT_IN_PARTICIPANT),
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
-                data_max_size_serialized: Default::default(),
             },
         };
 

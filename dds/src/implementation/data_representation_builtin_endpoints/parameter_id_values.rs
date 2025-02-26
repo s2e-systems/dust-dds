@@ -48,12 +48,12 @@ pub const _PID_GROUP_GUID: ParameterId = 0x0052;
 pub const PID_BUILTIN_ENDPOINT_SET: ParameterId = 0x0058;
 pub const PID_BUILTIN_ENDPOINT_QOS: ParameterId = 0x0077;
 pub const _PID_PROPERTY_LIST: ParameterId = 0x0059;
-pub const PID_TYPE_MAX_SIZE_SERIALIZED: ParameterId = 0x0060;
+pub const _PID_TYPE_MAX_SIZE_SERIALIZED: ParameterId = 0x0060;
 pub const _PID_ENTITY_NAME: ParameterId = 0x0062;
 pub const PID_ENDPOINT_GUID: ParameterId = 0x005a;
 // Following PID is not defined in standard
 // (but its listed in "Table 9.14 - ParameterId mapping and default values")
-pub const PID_DATA_MAX_SIZE_SERIALIZED: ParameterId = PID_TYPE_MAX_SIZE_SERIALIZED;
+pub const _PID_DATA_MAX_SIZE_SERIALIZED: ParameterId = _PID_TYPE_MAX_SIZE_SERIALIZED;
 // Following PID is listed in "Table 9.19 – Deprecated ParameterId Values" but
 // also in "Table 9.14 - ParameterId mapping and default values"
 pub const PID_GROUP_ENTITYID: ParameterId = 0x0053;

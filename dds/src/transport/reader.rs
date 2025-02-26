@@ -8,7 +8,6 @@ pub struct WriterProxy {
     pub durability_kind: DurabilityKind,
     pub unicast_locator_list: Vec<Locator>,
     pub multicast_locator_list: Vec<Locator>,
-    pub data_max_size_serialized: i32,
 }
 
 pub trait TransportStatelessReader: Send + Sync {

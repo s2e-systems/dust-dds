@@ -48,7 +48,6 @@ impl RtpsStatefulReader {
             writer_proxy.remote_writer_guid,
             &writer_proxy.unicast_locator_list,
             &writer_proxy.multicast_locator_list,
-            Some(writer_proxy.data_max_size_serialized),
             writer_proxy.remote_group_entity_id,
             writer_proxy.reliability_kind,
         );
