@@ -692,6 +692,18 @@ impl MailHandler<GetConfiguration> for DomainParticipantFactoryActor {
     }
 }
 
+pub struct SetTransport {
+    pub transport: Box<dyn TransportParticipant>,
+}
+impl Mail for SetTransport {
+    type Result = ();
+}
+impl MailHandler<SetTransport> for DomainParticipantFactoryActor {
+    fn handle(&mut self, _: SetTransport) -> <SetTransport as Mail>::Result {
+        todo!()
+    }
+}
+
 struct DcpsParticipantReaderHistoryCache {
     participant_address: ActorAddress<DomainParticipantActor>,
 }
