@@ -31,7 +31,7 @@ use crate::{
     topic_definition::type_support::DdsDeserialize,
     transport::{
         history_cache::CacheChange,
-        types::{ChangeKind, SequenceNumber},
+        types::{ChangeKind, SequenceNumber, GUID_UNKNOWN},
     },
 };
 
@@ -57,11 +57,13 @@ impl MailHandler<AddCacheChange> for DomainParticipantActor {
         let data_reader = subscriber
             .get_mut_data_reader(message.data_reader_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
-        let writer_instance_handle = InstanceHandle::new(message.cache_change.writer_guid.into());
 
         if data_reader
-            .get_matched_publication_data(&writer_instance_handle)
+            .get_matched_publication_data(&InstanceHandle::new(
+                message.cache_change.writer_guid.into(),
+            ))
             .is_some()
+            || message.cache_change.writer_guid == GUID_UNKNOWN
         {
             match data_reader.add_reader_change(message.cache_change, reception_timestamp)? {
                 AddChangeResult::Added(change_instance_handle) => {
