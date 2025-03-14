@@ -35,7 +35,8 @@ impl Iterator for MessageReceiver {
                 | RtpsSubmessageReadKind::Gap(_)
                 | RtpsSubmessageReadKind::Heartbeat(_)
                 | RtpsSubmessageReadKind::HeartbeatFrag(_)
-                | RtpsSubmessageReadKind::NackFrag(_) => return Some(submessage),
+                | RtpsSubmessageReadKind::NackFrag(_)
+                | RtpsSubmessageReadKind::Ping(_) => return Some(submessage),
 
                 RtpsSubmessageReadKind::InfoDestination(m) => {
                     self.dest_guid_prefix = m.guid_prefix();
@@ -183,6 +184,9 @@ impl MessageReceiver {
                     }
                 }
                 RtpsSubmessageReadKind::Pad(_) => (),
+                RtpsSubmessageReadKind::Ping(m) => {
+                    print!("Received ping with sequence number {}", m.sequence_number())
+                }
             }
         }
     }

@@ -18,6 +18,7 @@ use super::{
             },
         },
     },
+    submessages::ping::PingSubmessage,
     types::{ProtocolId, SubmessageFlag, SubmessageKind},
 };
 use std::{
@@ -288,6 +289,7 @@ pub enum RtpsSubmessageReadKind {
     InfoTimestamp(InfoTimestampSubmessage),
     NackFrag(NackFragSubmessage),
     Pad(PadSubmessage),
+    Ping(PingSubmessage),
 }
 #[derive(Clone, Debug, PartialEq, Eq, Copy)]
 pub struct RtpsMessageHeader {

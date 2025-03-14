@@ -97,6 +97,7 @@ pub enum SubmessageKind {
     DATA_FRAG,
     NACK_FRAG,
     HEARTBEAT_FRAG,
+    PING,
 }
 
 pub const DATA: u8 = 0x15;
@@ -111,6 +112,7 @@ pub const INFO_SRC: u8 = 0x0c;
 pub const DATA_FRAG: u8 = 0x16;
 pub const NACK_FRAG: u8 = 0x12;
 pub const HEARTBEAT_FRAG: u8 = 0x13;
+pub const PING: u8 = 0x81;
 
 impl WriteIntoBytes for SubmessageKind {
     fn write_into_bytes(&self, buf: &mut dyn Write) {
@@ -127,6 +129,7 @@ impl WriteIntoBytes for SubmessageKind {
             SubmessageKind::DATA_FRAG => DATA_FRAG,
             SubmessageKind::NACK_FRAG => NACK_FRAG,
             SubmessageKind::HEARTBEAT_FRAG => HEARTBEAT_FRAG,
+            SubmessageKind::PING => PING,
         };
         data.write_into_bytes(buf);
     }
