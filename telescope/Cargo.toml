@@ -13,3 +13,7 @@ description = "Dust DDS Telescope"
 dust_dds = { path = "../dds" }
 socket2 = "0.5"
 network-interface = "1.1.1"
+
+[[bin]]
+name = "dust_dds-ping"
+path = "src/ping/main.rs"

@@ -41,7 +41,7 @@ impl PingSubmessage {
 
 impl Submessage for PingSubmessage {
     fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut dyn Write) {
-        SubmessageHeaderWrite::new(SubmessageKind::INFO_DST, &[], octets_to_next_header)
+        SubmessageHeaderWrite::new(SubmessageKind::PING, &[], octets_to_next_header)
             .write_into_bytes(buf);
     }
 
