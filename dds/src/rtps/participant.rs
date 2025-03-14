@@ -1,3 +1,5 @@
+use core::net::SocketAddr;
+
 use crate::{
     rtps::{message_receiver::MessageReceiver, stateful_writer::RtpsStatefulWriter},
     runtime::{
@@ -151,8 +153,13 @@ impl RtpsParticipant {
             .retain(|x| x.guid() != reader_guid);
     }
 
-    pub fn process_builtin_rtps_message(&mut self, message: RtpsMessageRead) {
+    pub fn process_builtin_rtps_message(
+        &mut self,
+        message: RtpsMessageRead,
+        source_address: SocketAddr,
+    ) {
         MessageReceiver::new(message).process_message(
+            source_address,
             &mut self.stateless_reader_list,
             &mut self.stateful_reader_list,
             &mut self.stateful_writer_list,
@@ -160,8 +167,13 @@ impl RtpsParticipant {
         );
     }
 
-    pub fn process_user_defined_rtps_message(&mut self, message: RtpsMessageRead) {
+    pub fn process_user_defined_rtps_message(
+        &mut self,
+        message: RtpsMessageRead,
+        source_address: SocketAddr,
+    ) {
         MessageReceiver::new(message).process_message(
+            source_address,
             &mut self.stateless_reader_list,
             &mut self.stateful_reader_list,
             &mut self.stateful_writer_list,
@@ -172,6 +184,7 @@ impl RtpsParticipant {
 
 pub struct ProcessBuiltinRtpsMessage {
     pub rtps_message: RtpsMessageRead,
+    pub source_address: SocketAddr,
 }
 impl Mail for ProcessBuiltinRtpsMessage {
     type Result = ();
@@ -181,12 +194,13 @@ impl MailHandler<ProcessBuiltinRtpsMessage> for RtpsParticipant {
         &mut self,
         message: ProcessBuiltinRtpsMessage,
     ) -> <ProcessBuiltinRtpsMessage as Mail>::Result {
-        self.process_builtin_rtps_message(message.rtps_message);
+        self.process_builtin_rtps_message(message.rtps_message, message.source_address);
     }
 }
 
 pub struct ProcessUserDefinedRtpsMessage {
     pub rtps_message: RtpsMessageRead,
+    pub source_address: SocketAddr,
 }
 impl Mail for ProcessUserDefinedRtpsMessage {
     type Result = ();
@@ -196,7 +210,7 @@ impl MailHandler<ProcessUserDefinedRtpsMessage> for RtpsParticipant {
         &mut self,
         message: ProcessUserDefinedRtpsMessage,
     ) -> <ProcessUserDefinedRtpsMessage as Mail>::Result {
-        self.process_user_defined_rtps_message(message.rtps_message);
+        self.process_user_defined_rtps_message(message.rtps_message, message.source_address);
     }
 }
 

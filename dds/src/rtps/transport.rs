@@ -94,10 +94,10 @@ fn get_multicast_socket(
 pub fn read_message(
     socket: &mut std::net::UdpSocket,
     buf: &mut [u8],
-) -> RtpsResult<RtpsMessageRead> {
-    let (bytes, _) = socket.recv_from(buf)?;
+) -> RtpsResult<(RtpsMessageRead, SocketAddr)> {
+    let (bytes, src_addr) = socket.recv_from(buf)?;
     if bytes > 0 {
-        Ok(RtpsMessageRead::try_from(&buf[0..bytes])?)
+        Ok((RtpsMessageRead::try_from(&buf[0..bytes])?, src_addr))
     } else {
         Err(RtpsError::new(RtpsErrorKind::NotEnoughData, ""))
     }
@@ -156,7 +156,7 @@ impl RtpsTransport {
         let user_defined_unicast_port = default_unicast_socket.local_addr()?.port().into();
         let default_unicast_locator_list: Vec<_> = interface_address_list
             .clone()
-            .map(|a| Locator::from_ip_and_port(&a, user_defined_unicast_port))
+            .map(|a| Locator::from_ip_and_port(&a.ip(), user_defined_unicast_port))
             .collect();
 
         let default_multicast_locator_list = vec![];
@@ -169,7 +169,7 @@ impl RtpsTransport {
             metatraffic_unicast_socket.local_addr()?.port().into();
         let metatraffic_unicast_locator_list: Vec<Locator> = interface_address_list
             .clone()
-            .map(|a| Locator::from_ip_and_port(&a, metattrafic_unicast_locator_port))
+            .map(|a| Locator::from_ip_and_port(&a.ip(), metattrafic_unicast_locator_port))
             .collect();
 
         // Open socket for multicast metatraffic data
@@ -205,7 +205,7 @@ impl RtpsTransport {
             .spawn(move || {
                 let mut buf = Box::new([0; MAX_DATAGRAM_SIZE]);
                 loop {
-                    if let Ok(rtps_message) =
+                    if let Ok((rtps_message, source_address)) =
                         read_message(&mut metatraffic_multicast_socket, buf.as_mut_slice())
                     {
                         tracing::trace!(
@@ -213,7 +213,10 @@ impl RtpsTransport {
                             "Received metatraffic multicast RTPS message"
                         );
                         let r = rtps_participant_address.send_actor_mail(
-                            participant::ProcessBuiltinRtpsMessage { rtps_message },
+                            participant::ProcessBuiltinRtpsMessage {
+                                rtps_message,
+                                source_address,
+                            },
                         );
                         if r.is_err() {
                             break;
@@ -229,7 +232,7 @@ impl RtpsTransport {
             .spawn(move || {
                 let mut buf = Box::new([0; MAX_DATAGRAM_SIZE]);
                 loop {
-                    if let Ok(rtps_message) =
+                    if let Ok((rtps_message, source_address)) =
                         read_message(&mut metatraffic_unicast_socket, buf.as_mut_slice())
                     {
                         tracing::trace!(
@@ -238,7 +241,10 @@ impl RtpsTransport {
                         );
 
                         let r = rtps_participant_address.send_actor_mail(
-                            participant::ProcessBuiltinRtpsMessage { rtps_message },
+                            participant::ProcessBuiltinRtpsMessage {
+                                rtps_message,
+                                source_address,
+                            },
                         );
                         if r.is_err() {
                             break;
@@ -254,7 +260,7 @@ impl RtpsTransport {
             .spawn(move || {
                 let mut buf = Box::new([0; MAX_DATAGRAM_SIZE]);
                 loop {
-                    if let Ok(rtps_message) =
+                    if let Ok((rtps_message, source_address)) =
                         read_message(&mut default_unicast_socket, buf.as_mut_slice())
                     {
                         tracing::trace!(
@@ -262,7 +268,10 @@ impl RtpsTransport {
                             "Received user defined data unicast RTPS message"
                         );
                         let r = rtps_participant_address.send_actor_mail(
-                            participant::ProcessUserDefinedRtpsMessage { rtps_message },
+                            participant::ProcessUserDefinedRtpsMessage {
+                                rtps_message,
+                                source_address,
+                            },
                         );
                         if r.is_err() {
                             break;

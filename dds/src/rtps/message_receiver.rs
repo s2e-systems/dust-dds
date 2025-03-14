@@ -1,3 +1,5 @@
+use core::net::SocketAddr;
+
 use super::{
     message_sender::MessageSender,
     messages::{
@@ -9,7 +11,10 @@ use super::{
     stateful_writer::RtpsStatefulWriter,
     stateless_reader::RtpsStatelessReader,
 };
-use crate::transport::types::{GuidPrefix, Locator, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN};
+use crate::{
+    rtps::messages::submessages::ping::PingSubmessage,
+    transport::types::{GuidPrefix, Locator, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN},
+};
 
 pub struct MessageReceiver {
     source_version: ProtocolVersion,
@@ -81,6 +86,7 @@ impl MessageReceiver {
 
     pub fn process_message(
         mut self,
+        source_address: SocketAddr,
         stateless_reader_list: &mut [RtpsStatelessReader],
         stateful_reader_list: &mut [RtpsStatefulReader],
         stateful_writer_list: &mut [RtpsStatefulWriter],
@@ -185,7 +191,14 @@ impl MessageReceiver {
                 }
                 RtpsSubmessageReadKind::Pad(_) => (),
                 RtpsSubmessageReadKind::Ping(m) => {
-                    print!("Received ping with sequence number {}", m.sequence_number())
+                    let destination_locator_list = vec![Locator::from_ip_and_port(
+                        &source_address.ip(),
+                        source_address.port() as u32,
+                    )];
+                    message_sender.write_message(
+                        &[Box::new(PingSubmessage::new(m.sequence_number()))],
+                        destination_locator_list,
+                    );
                 }
             }
         }

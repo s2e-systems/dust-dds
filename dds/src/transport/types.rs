@@ -1,7 +1,6 @@
 use core::net::IpAddr;
 
 use dust_dds_derive::{XTypesDeserialize, XTypesSerialize};
-use network_interface::Addr;
 
 pub type Octet = u8;
 pub type Short = i16;
@@ -227,8 +226,8 @@ impl Locator {
         self.address
     }
 
-    pub fn from_ip_and_port(ip_addr: &Addr, port: u32) -> Self {
-        match ip_addr.ip() {
+    pub fn from_ip_and_port(ip_addr: &IpAddr, port: u32) -> Self {
+        match ip_addr {
             IpAddr::V4(a) => Self {
                 kind: LOCATOR_KIND_UDP_V4,
                 port,

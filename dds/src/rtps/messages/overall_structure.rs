@@ -1,4 +1,7 @@
-use crate::transport::types::{GuidPrefix, ProtocolVersion, VendorId};
+use crate::{
+    rtps::messages::types::PING,
+    transport::types::{GuidPrefix, ProtocolVersion, VendorId},
+};
 
 use super::{
     super::{
@@ -208,6 +211,8 @@ impl TryFrom<&[u8]> for RtpsMessageRead {
                                 .map(RtpsSubmessageReadKind::NackFrag),
                             PAD => PadSubmessage::try_from_bytes(&submessage_header, v)
                                 .map(RtpsSubmessageReadKind::Pad),
+                            PING => PingSubmessage::try_from_bytes(&submessage_header, v)
+                                .map(RtpsSubmessageReadKind::Ping),
                             _ => Err(RtpsError::new(
                                 RtpsErrorKind::InvalidData,
                                 "Unknown message",

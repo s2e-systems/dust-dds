@@ -8,7 +8,10 @@ use dust_dds::{
     },
     transport::types::GUIDPREFIX_UNKNOWN,
 };
-use std::{net::UdpSocket, time::Duration};
+use std::{
+    net::UdpSocket,
+    time::{Duration, Instant},
+};
 
 pub fn main() {
     let socket = UdpSocket::bind("0.0.0.0:0").unwrap();
@@ -19,12 +22,16 @@ pub fn main() {
 
     let rtps_message_header =
         RtpsMessageHeader::new(PROTOCOLVERSION_2_4, VENDOR_ID_S2E, GUIDPREFIX_UNKNOWN);
+    let mut buffer = [0u8; 100];
     for sequence_number in 0..4 {
         let ping_submessage = PingSubmessage::new(sequence_number);
         let rtps_message =
             RtpsMessageWrite::new(&rtps_message_header, &[Box::new(ping_submessage)]);
+        let send_time = Instant::now();
         socket
             .send_to(rtps_message.buffer(), "192.168.1.185:7400")
             .unwrap();
+        let (_recv_size, _recv_addr) = socket.recv_from(&mut buffer).unwrap();
+        println!("Received reply after {:?}", send_time.elapsed());
     }
 }

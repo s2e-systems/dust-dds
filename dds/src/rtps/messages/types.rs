@@ -112,7 +112,7 @@ pub const INFO_SRC: u8 = 0x0c;
 pub const DATA_FRAG: u8 = 0x16;
 pub const NACK_FRAG: u8 = 0x12;
 pub const HEARTBEAT_FRAG: u8 = 0x13;
-pub const PING: u8 = 0x81;
+pub const PING: u8 = 0x83;
 
 impl WriteIntoBytes for SubmessageKind {
     fn write_into_bytes(&self, buf: &mut dyn Write) {
