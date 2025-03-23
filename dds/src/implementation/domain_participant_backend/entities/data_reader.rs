@@ -355,7 +355,7 @@ impl DataReaderEntity {
                 sample_rank: 0,     // To be filled up after collection is created
                 generation_rank: 0, // To be filled up after collection is created
                 absolute_generation_rank,
-                source_timestamp: cache_change.source_timestamp.map(Into::into),
+                source_timestamp: cache_change.source_timestamp,
                 instance_handle: cache_change.instance_handle,
                 publication_handle: InstanceHandle::new(cache_change.writer_guid),
                 valid_data,

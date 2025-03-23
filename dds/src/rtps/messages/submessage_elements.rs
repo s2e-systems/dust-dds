@@ -12,10 +12,9 @@ use std::{
     ops::Range,
     sync::Arc,
 };
-///
-/// This files shall only contain the types as listed in the DDS-RTPS Version 2.3
-/// 8.3.5 RTPS SubmessageElements
-///
+
+// This files shall only contain the types as listed in the DDS-RTPS Version 2.3
+// 8.3.5 RTPS SubmessageElements
 
 const PID_SENTINEL: i16 = 0x0001;
 

@@ -218,7 +218,7 @@ struct PyiImplVisitor<'ast> {
     dust_dds_ast_file: &'ast syn::File,
 }
 
-impl<'ast> PyiImplVisitor<'ast> {
+impl PyiImplVisitor<'_> {
     fn write_fn_item(&mut self, fn_item: &ImplItemFn) {
         fn is_constructor(fn_item: &ImplItemFn) -> bool {
             fn_item

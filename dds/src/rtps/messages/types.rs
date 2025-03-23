@@ -4,8 +4,8 @@ use super::{
 };
 use std::io::{Read, Write};
 
-/// This files shall only contain the types as listed in the DDSI-RTPS Version 2.5
-/// Table 8.13 - Types used to define RTPS messages
+// This files shall only contain the types as listed in the DDSI-RTPS Version 2.5
+// Table 8.13 - Types used to define RTPS messages
 
 type Octet = u8;
 type Long = i32;
