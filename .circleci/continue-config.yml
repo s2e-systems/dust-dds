@@ -9,7 +9,7 @@ parameters:
     default: false
 
 orbs:
-  rust: circleci/rust@1.6.1
+  rust: circleci/rust@1.6.2
 
 jobs:
   hello_world_on_macos:
@@ -53,12 +53,12 @@ jobs:
       - setup_remote_docker
       - run:
           name: Build Docker image
-          command: docker build --file .circleci/Dockerfile --tag s2esystems/dust_dds_interoperability:1.81.0 .
+          command: docker build --file .circleci/Dockerfile --tag s2esystems/dust_dds_interoperability:1.85.0 .
       - run:
           name: Push image to DockerHub
           command: |
             echo $DOCKERHUB_ACCESS_TOKEN | docker login --username $DOCKERHUB_USERNAME --password-stdin
-            docker push s2esystems/dust_dds_interoperability:1.81.0
+            docker push s2esystems/dust_dds_interoperability:1.85.0
   build_and_push_android_docker_image:
     docker:
       - image: cimg/base:current
@@ -67,16 +67,16 @@ jobs:
       - setup_remote_docker
       - run:
           name: Build Android Docker image
-          command: docker build --file .circleci/android/Dockerfile --tag s2esystems/dust_dds_android:1.81.0 .
+          command: docker build --file .circleci/android/Dockerfile --tag s2esystems/dust_dds_android:1.85.0 .
       - run:
           name: Push Android image to DockerHub
           command: |
             echo $DOCKERHUB_ACCESS_TOKEN | docker login --username $DOCKERHUB_USERNAME --password-stdin
-            docker push s2esystems/dust_dds_android:1.81.0
+            docker push s2esystems/dust_dds_android:1.85.0
 
   clippy:
     docker:
-      - image: cimg/rust:1.81.0
+      - image: cimg/rust:1.85.0
     resource_class: large
     steps:
       - checkout
@@ -84,7 +84,7 @@ jobs:
       - run: cargo clippy -- -D warnings
   benchmark:
     docker:
-      - image: cimg/rust:1.81.0
+      - image: cimg/rust:1.85.0
     resource_class: large
     steps:
       - checkout
@@ -97,7 +97,7 @@ jobs:
           path: ./target/criterion
   tests:
     docker:
-      - image: cimg/rust:1.81.0
+      - image: cimg/rust:1.85.0
     resource_class: large
     steps:
       - checkout
@@ -144,7 +144,7 @@ jobs:
           path: /tmp/coverage
   compilation_times:
     docker:
-      - image: cimg/rust:1.81.0
+      - image: cimg/rust:1.85.0
     resource_class: large
     steps:
       - checkout
@@ -154,7 +154,7 @@ jobs:
 
   interoperability_tests:
     docker:
-      - image: s2esystems/dust_dds_interoperability:1.81.0
+      - image: s2esystems/dust_dds_interoperability:1.85.0
     steps:
       - checkout
       - run:
@@ -261,7 +261,7 @@ jobs:
 
   multi_machine_tests:
     docker:
-      - image: cimg/rust:1.81.0
+      - image: cimg/rust:1.85.0
     steps:
       - checkout
       - setup_remote_docker
@@ -274,13 +274,13 @@ jobs:
           name: Run 2 subscribers with different IPs
           command: |
             # create docker volume (since direct mapping is not possible)
-            docker create -v /var --name storage cimg/rust:1.81.0 /bin/true
+            docker create -v /var --name storage cimg/rust:1.85.0 /bin/true
             docker cp ./target/debug/multiple_subscriber_test_subscriber storage:/var
             docker cp ./target/debug/multiple_subscriber_test_publisher storage:/var
             docker network create --subnet 192.0.2.0/24 test-network
-            docker run --detach --name subscriber_1 --volumes-from storage --network=test-network --ip=192.0.2.5 cimg/rust:1.81.0  /var/multiple_subscriber_test_subscriber
-            docker run --detach --name subscriber_2 --volumes-from storage --network=test-network --ip=192.0.2.6  cimg/rust:1.81.0  /var/multiple_subscriber_test_subscriber
-            docker run --rm --name publisher --volumes-from storage --network=test-network --ip=192.0.2.7  cimg/rust:1.81.0  /var/multiple_subscriber_test_publisher
+            docker run --detach --name subscriber_1 --volumes-from storage --network=test-network --ip=192.0.2.5 cimg/rust:1.85.0  /var/multiple_subscriber_test_subscriber
+            docker run --detach --name subscriber_2 --volumes-from storage --network=test-network --ip=192.0.2.6  cimg/rust:1.85.0  /var/multiple_subscriber_test_subscriber
+            docker run --rm --name publisher --volumes-from storage --network=test-network --ip=192.0.2.7  cimg/rust:1.85.0  /var/multiple_subscriber_test_publisher
             docker logs subscriber_1 | tee subscriber_1.out
             docker logs subscriber_2 | tee subscriber_2.out
             echo "Received: id: 8, msg: Hello world" | cmp subscriber_1.out
@@ -288,7 +288,7 @@ jobs:
 
   shapes_demo_build:
     docker:
-      - image: cimg/rust:1.81.0
+      - image: cimg/rust:1.85.0
     steps:
       - checkout
       - run:
@@ -297,7 +297,7 @@ jobs:
 
   telescope_build:
     docker:
-      - image: cimg/rust:1.81.0
+      - image: cimg/rust:1.85.0
     steps:
       - checkout
       - run:
@@ -306,7 +306,7 @@ jobs:
 
   shapes_demo_android_build:
     docker:
-      - image: s2esystems/dust_dds_android:1.81.0
+      - image: s2esystems/dust_dds_android:1.85.0
     steps:
       - checkout
       - run:
