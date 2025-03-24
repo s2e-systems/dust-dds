@@ -24,7 +24,7 @@ impl Write for ByteCounter {
 }
 
 fn round_up_to_multiples(position: usize, alignment: usize) -> usize {
-    position.div_ceil(alignment)
+    position.div_ceil(alignment) * alignment
 }
 
 struct CollectionWriter<'a, C> {
