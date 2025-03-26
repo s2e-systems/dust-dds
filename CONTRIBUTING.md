@@ -43,7 +43,7 @@ There are a few general guideline to observe when contributing:
 1. **Refer the issue number on the title of your PR**: This makes it easy to create Release Notes and understand what all has been changed between Releases
 1. **Do not add additional crate dependencies**: One of the goals of Dust DDS is to be used as a building block for other projects. This means we keep the number of dependent crates to a minimum. If you think a new dependency needs to be added this has to be discussed beforehand in the issue.
 1. **Add tests for every new feature/bug**: Every new bug fix or added feature should come together with the relevant test cases. You can use the existing test suite as an example for creating new tests.
-1. **Follow coding style and architecture**: Ensure your code change adheres to project standards. All our code follows the standard Rust formatter style and is linted using clippy. This is automatically verified by PR checks.
+1. **Follow coding style and architecture**: All our code follows the standard Rust formatter style and is linted using clippy. This is automatically verified by PR checks.
 1. **Make sure all PR checks are passing**: In general we will only start the review process once the automatic checks are all passing.
 1. **Engage in discussion**: Be open to feedback and revise your contribution as needed.
 
