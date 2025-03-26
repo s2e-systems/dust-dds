@@ -523,23 +523,11 @@ mod tests {
 
     #[test]
     fn simple_key_be() {
+        #[rustfmt::skip]
         let data = [
-            0,
-            0,
-            0,
-            0b0000_0010, //rtps header
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            1, //key_field1 (i64)
-            0,
-            2,
-            0,
-            0, //key_field1 (i16) | padding 2 bytes
+            0, 0, 0, 0b0000_0010, //rtps header
+            0, 0, 0, 0, 0, 0, 0, 1, //key_field1 (i64)
+            0, 2, 0, 0, //key_field1 (i16) | padding 2 bytes
         ];
         let expected_instance_handle =
             InstanceHandle::new([0, 0, 0, 0, 0, 0, 0, 1, 0, 2, 0, 0, 0, 0, 0, 0]);
@@ -547,23 +535,11 @@ mod tests {
             get_instance_handle_from_serialized_foo(&data, &Simple::get_type()).unwrap(),
             expected_instance_handle
         );
+        #[rustfmt::skip]
         let expected_key = vec![
-            0,
-            1,
-            0,
-            0b0000_0010, // RTPS header
-            1,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0, // key_field1
-            2,
-            0,
-            0,
-            0, // key_field2 | padding 2 bytes
+            0, 1, 0, 0b0000_0010, // RTPS header
+            1, 0, 0, 0, 0, 0, 0, 0, // key_field1
+            2, 0, 0, 0, // key_field2 | padding 2 bytes
         ];
         assert_eq!(
             get_serialized_key_from_serialized_foo(&data, &Simple::get_type()).unwrap(),
@@ -577,23 +553,11 @@ mod tests {
 
     #[test]
     fn simple_key_le() {
+        #[rustfmt::skip]
         let data = [
-            0,
-            1,
-            0,
-            0b0000_0010, //rtps header
-            1,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0, //key_field1 (i64)
-            2,
-            0,
-            0,
-            0, //key_field1 (i16) | padding 2 bytes
+            0, 1, 0, 0b0000_0010, //rtps header
+            1, 0, 0, 0, 0, 0, 0, 0, //key_field1 (i64)
+            2, 0, 0, 0, //key_field1 (i16) | padding 2 bytes
         ];
         let expected_instance_handle =
             InstanceHandle::new([0, 0, 0, 0, 0, 0, 0, 1, 0, 2, 0, 0, 0, 0, 0, 0]);
