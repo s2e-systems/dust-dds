@@ -1,9 +1,7 @@
 use crate::transport::types::{Long, UnsignedLong};
 
-///
-/// This files shall only contain the types as listed in the DDSI-RTPS Version 2.5
-/// Table 8.52 - Types definitions for the Behavior Module
-///
+// This files shall only contain the types as listed in the DDSI-RTPS Version 2.5
+// Table 8.52 - Types definitions for the Behavior Module
 
 /// Special constant value representing a zero duration
 pub const DURATION_ZERO: Duration = Duration {

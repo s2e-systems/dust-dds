@@ -403,7 +403,7 @@ pub fn get_serialized_key_from_serialized_foo(
             _ => panic!("representation_identifier not supported"),
         }
     }
-    let padding_len = ((collection.len() + 4 - 1) / 4 * 4) - collection.len();
+    let padding_len = collection.len().div_ceil(4) * 4 - collection.len();
     const ZEROS: [u8; 4] = [0; 4];
     collection.extend_from_slice(&ZEROS[..padding_len]);
     collection[3] |= padding_len as u8;
@@ -523,6 +523,7 @@ mod tests {
 
     #[test]
     fn simple_key_be() {
+        #[rustfmt::skip]
         let data = [
             0, 0, 0, 0b0000_0010, //rtps header
             0, 0, 0, 0, 0, 0, 0, 1, //key_field1 (i64)
@@ -534,6 +535,7 @@ mod tests {
             get_instance_handle_from_serialized_foo(&data, &Simple::get_type()).unwrap(),
             expected_instance_handle
         );
+        #[rustfmt::skip]
         let expected_key = vec![
             0, 1, 0, 0b0000_0010, // RTPS header
             1, 0, 0, 0, 0, 0, 0, 0, // key_field1
@@ -551,10 +553,11 @@ mod tests {
 
     #[test]
     fn simple_key_le() {
+        #[rustfmt::skip]
         let data = [
             0, 1, 0, 0b0000_0010, //rtps header
             1, 0, 0, 0, 0, 0, 0, 0, //key_field1 (i64)
-            2, 0, 0, 0,//key_field1 (i16) | padding 2 bytes
+            2, 0, 0, 0, //key_field1 (i16) | padding 2 bytes
         ];
         let expected_instance_handle =
             InstanceHandle::new([0, 0, 0, 0, 0, 0, 0, 1, 0, 2, 0, 0, 0, 0, 0, 0]);
@@ -563,9 +566,22 @@ mod tests {
             expected_instance_handle
         );
         let expected_key = vec![
-            0, 1, 0, 0b0000_0010, // RTPS header
-            1, 0, 0, 0, 0, 0, 0, 0, // key_field1
-            2, 0, 0, 0, // key_field2 | padding 2 bytes
+            0,
+            1,
+            0,
+            0b0000_0010, // RTPS header
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0, // key_field1
+            2,
+            0,
+            0,
+            0, // key_field2 | padding 2 bytes
         ];
         assert_eq!(
             get_serialized_key_from_serialized_foo(&data, &Simple::get_type()).unwrap(),

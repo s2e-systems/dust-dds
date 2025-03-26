@@ -15,10 +15,8 @@ use crate::{
 
 use std::io::{Read, Write};
 
-///
-/// This files shall only contain the types as listed in the DDSI-RTPS Version 2.5
-/// Table 8.2 - Types of the attributes that appear in the RTPS Entities and Classes
-///
+// This files shall only contain the types as listed in the DDSI-RTPS Version 2.5
+// Table 8.2 - Types of the attributes that appear in the RTPS Entities and Classes
 
 impl WriteIntoBytes for Octet {
     fn write_into_bytes(&self, buf: &mut dyn Write) {
@@ -147,8 +145,6 @@ impl From<&DurabilityQosPolicy> for DurabilityKind {
     }
 }
 
-/// InstanceHandle_t
-/// Type used to represent the identity of a data-object whose changes in value are communicated by the RTPS protocol.
 // Defined elsewhere in DDS
 
 impl TryReadFromBytes for ProtocolVersion {

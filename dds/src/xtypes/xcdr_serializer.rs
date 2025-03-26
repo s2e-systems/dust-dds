@@ -24,7 +24,7 @@ impl Write for ByteCounter {
 }
 
 fn round_up_to_multiples(position: usize, alignment: usize) -> usize {
-    (position + alignment - 1) / alignment * alignment
+    position.div_ceil(alignment) * alignment
 }
 
 struct CollectionWriter<'a, C> {
@@ -473,7 +473,7 @@ impl Xcdr2LeSerializer<'_, ()> {
     }
 }
 
-impl<'a, C: Write> SerializeMutableStruct for &mut Xcdr2BeSerializer<'a, C> {
+impl<C: Write> SerializeMutableStruct for &mut Xcdr2BeSerializer<'_, C> {
     fn serialize_field<T: XTypesSerialize>(
         &mut self,
         value: &T,
@@ -494,7 +494,7 @@ impl<'a, C: Write> SerializeMutableStruct for &mut Xcdr2BeSerializer<'a, C> {
     }
 }
 
-impl<'a, C: Write> SerializeMutableStruct for &mut Xcdr2LeSerializer<'a, C> {
+impl<C: Write> SerializeMutableStruct for &mut Xcdr2LeSerializer<'_, C> {
     fn serialize_field<T: XTypesSerialize>(
         &mut self,
         value: &T,
@@ -545,7 +545,7 @@ where
     }
 }
 
-impl<'a, C: Write> SerializeAppendableStruct for &mut Xcdr2BeSerializer<'a, C> {
+impl<C: Write> SerializeAppendableStruct for &mut Xcdr2BeSerializer<'_, C> {
     fn serialize_field<T: XTypesSerialize>(
         &mut self,
         value: &T,
@@ -559,7 +559,7 @@ impl<'a, C: Write> SerializeAppendableStruct for &mut Xcdr2BeSerializer<'a, C> {
     }
 }
 
-impl<'a, C: Write> SerializeAppendableStruct for &mut Xcdr2LeSerializer<'a, C> {
+impl<C: Write> SerializeAppendableStruct for &mut Xcdr2LeSerializer<'_, C> {
     fn serialize_field<T: XTypesSerialize>(
         &mut self,
         value: &T,
@@ -1419,7 +1419,6 @@ mod tests {
         );
     }
 
-    
     #[derive(Debug, PartialEq)]
     struct BasicTypes {
         f1: bool,
@@ -1501,13 +1500,13 @@ mod tests {
             vec![
                 1, 2, 0, 3, // f1: bool | f2: i8 | f3: i16
                 0, 0, 0, 4, // f4: i32
-                0, 0, 0, 0, // f5-1: i64 
+                0, 0, 0, 0, // f5-1: i64
                 0, 0, 0, 5, // f5-2: i64
-                6, 0, 0, 7, // f6: u8 | padding (1 byte) | f7: u16 
+                6, 0, 0, 7, // f6: u8 | padding (1 byte) | f7: u16
                 0, 0, 0, 8, // f8: u32
                 0, 0, 0, 0, // f9-1: u64
                 0, 0, 0, 9, // f9-2: u64
-                0x3F, 0x80, 0x00, 0x00, // f10: f32 
+                0x3F, 0x80, 0x00, 0x00, // f10: f32
                 0x3F, 0xF0, 0x00, 0x00, // f11-1: f64
                 0x00, 0x00, 0x00, 0x00, // f11-2: f64
                 b'a', // f12: char
@@ -1518,13 +1517,13 @@ mod tests {
             vec![
                 1, 2, 3, 0, // f1: bool | f2: i8 | f3: i16
                 4, 0, 0, 0, // f4: i32
-                5, 0, 0, 0, // f5-1: i64 
+                5, 0, 0, 0, // f5-1: i64
                 0, 0, 0, 0, // f5-2: i64
-                6, 0, 7, 0, // f6: u8 | padding (1 byte) | f7: u16 
+                6, 0, 7, 0, // f6: u8 | padding (1 byte) | f7: u16
                 8, 0, 0, 0, // f8: u32
                 9, 0, 0, 0, // f9-1: u64
                 0, 0, 0, 0, // f9-2: u64
-                0x00, 0x00, 0x80, 0x3F, // f10: f32 
+                0x00, 0x00, 0x80, 0x3F, // f10: f32
                 0x00, 0x00, 0x00, 0x00, // f11-1: f64
                 0x00, 0x00, 0xF0, 0x3F, // f11-2: f64
                 b'a', // f12: char
