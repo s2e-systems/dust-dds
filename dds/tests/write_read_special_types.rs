@@ -31,6 +31,13 @@ struct MutableType {
     another_id: u64,
 }
 
+// This tests the ability of the DdsType derive macro to work with
+// arrays whose length is given by a separate constant.
+// If this compiles, the test passes.
+const ARRAY_LENGTH: usize = 10;
+#[derive(DdsType)]
+struct ArrayContainingType([u8; ARRAY_LENGTH]);
+
 #[test]
 fn foo_with_lifetime_should_read_and_write() {
     #[derive(Clone, Debug, PartialEq, DdsType)]

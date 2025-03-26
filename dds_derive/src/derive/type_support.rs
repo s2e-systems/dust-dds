@@ -24,7 +24,7 @@ fn get_type_identifier(type_: &Type) -> Result<TokenStream> {
                                         is_external: false,
                                     }
                                 },
-                                array_bound_seq: vec![#len],
+                                array_bound_seq: vec![dust_dds::xtypes::type_object::SBound::try_from(#len).unwrap()],
                                 element_identifier: #element_identifier,
                             })
                         }
@@ -38,7 +38,7 @@ fn get_type_identifier(type_: &Type) -> Result<TokenStream> {
                                         is_external: false,
                                     }
                                 },
-                                array_bound_seq: vec![#len],
+                                array_bound_seq: vec![dust_dds::xtypes::type_object::LBound::try_from(#len).unwrap()],
                                 element_identifier: #element_identifier,
                             })
                         }
