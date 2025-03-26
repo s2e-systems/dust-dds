@@ -403,7 +403,7 @@ pub fn get_serialized_key_from_serialized_foo(
             _ => panic!("representation_identifier not supported"),
         }
     }
-    let padding_len = (collection.len().div_ceil(4) * 4) - collection.len();
+    let padding_len = collection.len().div_ceil(4) * 4 - collection.len();
     const ZEROS: [u8; 4] = [0; 4];
     collection.extend_from_slice(&ZEROS[..padding_len]);
     collection[3] |= padding_len as u8;
