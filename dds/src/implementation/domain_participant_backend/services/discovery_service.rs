@@ -1051,21 +1051,11 @@ impl MailHandler<AddDiscoveredWriter> for DomainParticipantActor {
                             .writer_proxy
                             .multicast_locator_list
                     };
-                    let reliability_kind = match message
-                        .discovered_writer_data
-                        .dds_publication_data
-                        .reliability
-                        .kind
-                    {
+                    let reliability_kind = match data_reader.qos().reliability.kind {
                         ReliabilityQosPolicyKind::BestEffort => ReliabilityKind::BestEffort,
                         ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
                     };
-                    let durability_kind = match message
-                        .discovered_writer_data
-                        .dds_publication_data
-                        .durability
-                        .kind
-                    {
+                    let durability_kind = match data_reader.qos().durability.kind {
                         DurabilityQosPolicyKind::Volatile => DurabilityKind::Volatile,
                         DurabilityQosPolicyKind::TransientLocal => DurabilityKind::TransientLocal,
                         DurabilityQosPolicyKind::Transient => DurabilityKind::Transient,
