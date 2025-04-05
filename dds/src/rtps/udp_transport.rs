@@ -285,7 +285,7 @@ fn get_multicast_socket(
     socket.set_reuse_address(true)?;
     #[cfg(target_family = "unix")]
     socket.set_reuse_port(true)?;
-    socket.set_nonblocking(true)?;
+    socket.set_nonblocking(false)?;
     socket.set_read_timeout(Some(std::time::Duration::from_millis(50)))?;
 
     socket.bind(&socket_addr.into())?;
@@ -428,7 +428,7 @@ impl TransportParticipantFactory for UdpTransportParticipantFactory {
         default_unicast_socket
             .bind(&SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)).into())
             .unwrap();
-        default_unicast_socket.set_nonblocking(true).unwrap();
+        default_unicast_socket.set_nonblocking(false).unwrap();
         if let Some(buffer_size) = self.udp_receive_buffer_size {
             default_unicast_socket
                 .set_recv_buffer_size(buffer_size)
@@ -445,7 +445,7 @@ impl TransportParticipantFactory for UdpTransportParticipantFactory {
         // Open socket for unicast metatraffic data
         let mut metatraffic_unicast_socket =
             std::net::UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0))).unwrap();
-        metatraffic_unicast_socket.set_nonblocking(true).unwrap();
+        metatraffic_unicast_socket.set_nonblocking(false).unwrap();
         let metattrafic_unicast_locator_port = metatraffic_unicast_socket
             .local_addr()
             .unwrap()
@@ -492,13 +492,62 @@ impl TransportParticipantFactory for UdpTransportParticipantFactory {
             add_stateful_writer_sender,
         };
 
+        let (socket_sender, socket_receiver) = channel();
+        let socket_sender_clone = socket_sender.clone();
+        std::thread::Builder::new()
+            .name("default_unicast_socket".to_string())
+            .spawn(move || {
+                let mut buf = [0; MAX_DATAGRAM_SIZE];
+                loop {
+                    if let Ok(rtps_message) =
+                        read_message(&mut default_unicast_socket, buf.as_mut_slice())
+                    {
+                        socket_sender_clone
+                            .send(rtps_message)
+                            .expect("receiver available");
+                    }
+                }
+            })
+            .expect("failed to spawn thread");
+        let socket_sender_clone = socket_sender.clone();
+        std::thread::Builder::new()
+            .name("metatraffic_multicast_socket".to_string())
+            .spawn(move || {
+                let mut buf = [0; MAX_DATAGRAM_SIZE];
+                loop {
+                    if let Ok(rtps_message) =
+                        read_message(&mut metatraffic_multicast_socket, buf.as_mut_slice())
+                    {
+                        socket_sender_clone
+                            .send(rtps_message)
+                            .expect("receiver available");
+                    }
+                }
+            })
+            .expect("failed to spawn thread");
+        let socket_sender_clone = socket_sender.clone();
+        std::thread::Builder::new()
+            .name("metatraffic_unicast_socket".to_string())
+            .spawn(move || {
+                let mut buf = [0; MAX_DATAGRAM_SIZE];
+                loop {
+                    if let Ok(rtps_message) =
+                        read_message(&mut metatraffic_unicast_socket, buf.as_mut_slice())
+                    {
+                        socket_sender_clone
+                            .send(rtps_message)
+                            .expect("receiver available");
+                    }
+                }
+            })
+            .expect("failed to spawn thread");
+
         std::thread::Builder::new()
             .name("Socket receiver".to_string())
             .spawn(move || {
                 let mut stateless_reader_list = Vec::new();
                 let mut stateful_reader_list = Vec::new();
                 let mut stateful_writer_list = Vec::new();
-                let mut buf = [0; MAX_DATAGRAM_SIZE];
                 loop {
                     if let Ok(stateless_reader) = add_stateless_reader_receiver.try_recv() {
                         stateless_reader_list.push(stateless_reader);
@@ -560,29 +609,7 @@ impl TransportParticipantFactory for UdpTransportParticipantFactory {
                         rtps_stateful_writer.send_message(&message_sender);
                     }
 
-                    if let Ok(rtps_message) =
-                        read_message(&mut default_unicast_socket, buf.as_mut_slice())
-                    {
-                        MessageReceiver::new(rtps_message).process_message(
-                            &mut stateless_reader_list,
-                            &mut stateful_reader_list,
-                            &mut stateful_writer_list,
-                            &message_sender,
-                        );
-                    }
-                    if let Ok(rtps_message) =
-                        read_message(&mut metatraffic_multicast_socket, buf.as_mut_slice())
-                    {
-                        MessageReceiver::new(rtps_message).process_message(
-                            &mut stateless_reader_list,
-                            &mut stateful_reader_list,
-                            &mut stateful_writer_list,
-                            &message_sender,
-                        );
-                    }
-                    if let Ok(rtps_message) =
-                        read_message(&mut metatraffic_unicast_socket, buf.as_mut_slice())
-                    {
+                    if let Ok(rtps_message) = socket_receiver.try_recv() {
                         MessageReceiver::new(rtps_message).process_message(
                             &mut stateless_reader_list,
                             &mut stateful_reader_list,
