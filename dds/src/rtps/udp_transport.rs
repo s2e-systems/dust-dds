@@ -327,19 +327,19 @@ pub fn read_message(
     }
 }
 
-pub struct GlobalParticipantFactoryBuilder {
+pub struct UdpTransportParticipantFactoryBuilder {
     interface_name: Option<String>,
     fragment_size: usize,
     udp_receive_buffer_size: Option<usize>,
 }
 
-impl Default for GlobalParticipantFactoryBuilder {
+impl Default for UdpTransportParticipantFactoryBuilder {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl GlobalParticipantFactoryBuilder {
+impl UdpTransportParticipantFactoryBuilder {
     /// Construct a transport factory builder with all the default options.
     pub fn new() -> Self {
         Self {
@@ -368,7 +368,7 @@ impl GlobalParticipantFactoryBuilder {
     }
 
     /// Build a new participant factory
-    pub fn build(self) -> Result<GlobalTransportParticipantFactory, String> {
+    pub fn build(self) -> Result<UdpTransportParticipantFactory, String> {
         let fragment_size_range = 8..=65000;
         if !fragment_size_range.contains(&self.fragment_size) {
             Err(format!(
@@ -376,7 +376,7 @@ impl GlobalParticipantFactoryBuilder {
                 fragment_size_range
             ))
         } else {
-            Ok(GlobalTransportParticipantFactory {
+            Ok(UdpTransportParticipantFactory {
                 interface_name: self.interface_name,
                 fragment_size: self.fragment_size,
                 udp_receive_buffer_size: self.udp_receive_buffer_size,
@@ -385,21 +385,21 @@ impl GlobalParticipantFactoryBuilder {
     }
 }
 
-pub struct GlobalTransportParticipantFactory {
+pub struct UdpTransportParticipantFactory {
     interface_name: Option<String>,
     fragment_size: usize,
     udp_receive_buffer_size: Option<usize>,
 }
 
-impl Default for GlobalTransportParticipantFactory {
+impl Default for UdpTransportParticipantFactory {
     fn default() -> Self {
-        GlobalParticipantFactoryBuilder::new()
+        UdpTransportParticipantFactoryBuilder::new()
             .build()
             .expect("Default configuration should work")
     }
 }
 
-impl TransportParticipantFactory for GlobalTransportParticipantFactory {
+impl TransportParticipantFactory for UdpTransportParticipantFactory {
     fn create_participant(
         &self,
         guid_prefix: GuidPrefix,
@@ -480,7 +480,7 @@ impl TransportParticipantFactory for GlobalTransportParticipantFactory {
         let (add_stateful_reader_sender, add_stateful_reader_receiver) = channel();
         let (add_stateful_writer_sender, add_stateful_writer_receiver) = channel();
 
-        let global_participant = GlobalParticipant {
+        let global_participant = UdpTransportParticipant {
             guid,
             message_sender: message_sender.clone(),
             default_unicast_locator_list,
@@ -614,7 +614,7 @@ struct StatefulWriterActor {
     remove_change_receiver: Receiver<i64>,
 }
 
-pub struct GlobalParticipant {
+pub struct UdpTransportParticipant {
     guid: Guid,
     message_sender: Arc<MessageSender>,
     default_unicast_locator_list: Vec<Locator>,
@@ -626,7 +626,7 @@ pub struct GlobalParticipant {
     add_stateful_writer_sender: Sender<StatefulWriterActor>,
 }
 
-impl TransportParticipant for GlobalParticipant {
+impl TransportParticipant for UdpTransportParticipant {
     fn guid(&self) -> Guid {
         self.guid
     }
@@ -873,7 +873,9 @@ mod tests {
     fn basic_transport_stateful_reader_writer_usage() {
         let guid_prefix = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
         let domain_id = 0;
-        let transport = GlobalParticipantFactoryBuilder::new().build().unwrap();
+        let transport = UdpTransportParticipantFactoryBuilder::new()
+            .build()
+            .unwrap();
         let mut participant = transport.create_participant(guid_prefix, domain_id);
 
         struct MockHistoryCache(SyncSender<CacheChange>);
@@ -937,7 +939,9 @@ mod tests {
     fn basic_transport_stateless_reader_writer_usage() {
         let guid_prefix = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
         let domain_id = 0;
-        let transport = GlobalParticipantFactoryBuilder::new().build().unwrap();
+        let transport = UdpTransportParticipantFactoryBuilder::new()
+            .build()
+            .unwrap();
         let mut participant = transport.create_participant(guid_prefix, domain_id);
 
         struct MockHistoryCache(SyncSender<CacheChange>);
