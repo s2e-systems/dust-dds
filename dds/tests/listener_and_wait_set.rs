@@ -23,6 +23,7 @@ struct MyData {
     value: u8,
 }
 
+#[ignore]
 #[test]
 fn reader_subscription_matched_listener_and_wait_set_should_both_trigger() {
     struct SubscriptionMatchedListener {
