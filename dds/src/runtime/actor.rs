@@ -75,10 +75,6 @@ impl<A> Clone for ActorAddress<A> {
 }
 
 impl<A> ActorAddress<A> {
-    pub fn is_closed(&self) -> bool {
-        self.mail_sender.is_closed()
-    }
-
     pub fn send_actor_mail<M>(&self, mail: M) -> DdsResult<ReplyReceiver<M>>
     where
         A: MailHandler<M> + Send,
