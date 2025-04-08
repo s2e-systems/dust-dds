@@ -31,7 +31,7 @@ use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use socket2::Socket;
 use std::sync::{
     mpsc::{channel, Receiver, Sender},
-    Arc,
+    Arc, Mutex,
 };
 
 pub struct MessageReceiver {
@@ -101,7 +101,7 @@ impl MessageReceiver {
     fn process_message(
         mut self,
         stateless_reader_list: &mut [RtpsStatelessReader],
-        stateful_reader_list: &mut [StatefulReaderActor],
+        stateful_reader_list: &mut [Arc<Mutex<RtpsStatefulReader>>],
         stateful_writer_list: &mut [StatefulWriterActor],
         message_sender: &MessageSender,
     ) {
@@ -137,18 +137,15 @@ impl MessageReceiver {
                             source_timestamp,
                         );
                     }
-                    for StatefulReaderActor {
-                        rtps_stateful_reader,
-                        is_historical_data_received_receiver: _,
-                        add_matched_writer_receiver: _,
-                        remove_matched_writer_receiver: _,
-                    } in stateful_reader_list.iter_mut()
-                    {
-                        rtps_stateful_reader.on_data_submessage_received(
-                            data_submessage,
-                            self.source_guid_prefix,
-                            source_timestamp,
-                        );
+                    for rtps_stateful_reader in stateful_reader_list.iter_mut() {
+                        rtps_stateful_reader
+                            .lock()
+                            .expect("rtps_stateful_reader alive")
+                            .on_data_submessage_received(
+                                data_submessage,
+                                self.source_guid_prefix,
+                                source_timestamp,
+                            );
                     }
                 }
                 RtpsSubmessageReadKind::DataFrag(datafrag_submessage) => {
@@ -157,59 +154,46 @@ impl MessageReceiver {
                     } else {
                         None
                     };
-                    for StatefulReaderActor {
-                        rtps_stateful_reader,
-                        is_historical_data_received_receiver: _,
-                        add_matched_writer_receiver: _,
-                        remove_matched_writer_receiver: _,
-                    } in stateful_reader_list.iter_mut()
-                    {
-                        rtps_stateful_reader.on_data_frag_submessage_received(
-                            datafrag_submessage,
-                            self.source_guid_prefix,
-                            source_timestamp,
-                        );
+                    for rtps_stateful_reader in stateful_reader_list.iter_mut() {
+                        rtps_stateful_reader
+                            .lock()
+                            .expect("rtps_stateful_reader alive")
+                            .on_data_frag_submessage_received(
+                                datafrag_submessage,
+                                self.source_guid_prefix,
+                                source_timestamp,
+                            );
                     }
                 }
                 RtpsSubmessageReadKind::HeartbeatFrag(heartbeat_frag_submessage) => {
-                    for StatefulReaderActor {
-                        rtps_stateful_reader,
-                        is_historical_data_received_receiver: _,
-                        add_matched_writer_receiver: _,
-                        remove_matched_writer_receiver: _,
-                    } in stateful_reader_list.iter_mut()
-                    {
-                        rtps_stateful_reader.on_heartbeat_frag_submessage_received(
-                            heartbeat_frag_submessage,
-                            self.source_guid_prefix,
-                        );
+                    for rtps_stateful_reader in stateful_reader_list.iter_mut() {
+                        rtps_stateful_reader
+                            .lock()
+                            .expect("rtps_stateful_reader alive")
+                            .on_heartbeat_frag_submessage_received(
+                                heartbeat_frag_submessage,
+                                self.source_guid_prefix,
+                            );
                     }
                 }
                 RtpsSubmessageReadKind::Gap(gap_submessage) => {
-                    for StatefulReaderActor {
-                        rtps_stateful_reader,
-                        is_historical_data_received_receiver: _,
-                        add_matched_writer_receiver: _,
-                        remove_matched_writer_receiver: _,
-                    } in stateful_reader_list.iter_mut()
-                    {
+                    for rtps_stateful_reader in stateful_reader_list.iter_mut() {
                         rtps_stateful_reader
+                            .lock()
+                            .expect("rtps_stateful_reader alive")
                             .on_gap_submessage_received(gap_submessage, self.source_guid_prefix);
                     }
                 }
                 RtpsSubmessageReadKind::Heartbeat(heartbeat_submessage) => {
-                    for StatefulReaderActor {
-                        rtps_stateful_reader,
-                        is_historical_data_received_receiver: _,
-                        add_matched_writer_receiver: _,
-                        remove_matched_writer_receiver: _,
-                    } in stateful_reader_list.iter_mut()
-                    {
-                        rtps_stateful_reader.on_heartbeat_submessage_received(
-                            heartbeat_submessage,
-                            self.source_guid_prefix,
-                            message_sender,
-                        );
+                    for rtps_stateful_reader in stateful_reader_list.iter_mut() {
+                        rtps_stateful_reader
+                            .lock()
+                            .expect("rtps_stateful_reader alive")
+                            .on_heartbeat_submessage_received(
+                                heartbeat_submessage,
+                                self.source_guid_prefix,
+                                message_sender,
+                            );
                     }
                 }
                 RtpsSubmessageReadKind::NackFrag(nackfrag_submessage) => {
@@ -559,25 +543,6 @@ impl TransportParticipantFactory for UdpTransportParticipantFactory {
                         stateful_reader_list.push(stateful_reader_pair);
                     }
 
-                    for StatefulReaderActor {
-                        rtps_stateful_reader,
-                        is_historical_data_received_receiver,
-                        add_matched_writer_receiver,
-                        remove_matched_writer_receiver,
-                    } in &mut stateful_reader_list
-                    {
-                        if let Ok(writer_proxy) = add_matched_writer_receiver.try_recv() {
-                            rtps_stateful_reader.add_matched_writer(&writer_proxy);
-                        }
-                        if let Ok(writer_guid) = remove_matched_writer_receiver.try_recv() {
-                            rtps_stateful_reader.delete_matched_writer(writer_guid);
-                        }
-                        if let Ok(reply_sender) = is_historical_data_received_receiver.try_recv() {
-                            reply_sender
-                                .send(rtps_stateful_reader.is_historical_data_received())
-                                .expect("receiver available");
-                        }
-                    }
                     for StatefulWriterActor {
                         rtps_stateful_writer,
                         add_matched_reader_receiver,
@@ -626,10 +591,7 @@ impl TransportParticipantFactory for UdpTransportParticipantFactory {
 }
 
 struct StatefulReaderActor {
-    rtps_stateful_reader: RtpsStatefulReader,
-    is_historical_data_received_receiver: Receiver<Sender<bool>>,
-    add_matched_writer_receiver: Receiver<WriterProxy>,
-    remove_matched_writer_receiver: Receiver<Guid>,
+    rtps_stateful_reader: Arc<Mutex<RtpsStatefulReader>>,
 }
 
 struct StatefulWriterActor {
@@ -649,7 +611,7 @@ pub struct UdpTransportParticipant {
     metatraffic_multicast_locator_list: Vec<Locator>,
     fragment_size: usize,
     add_stateless_reader_sender: Sender<RtpsStatelessReader>,
-    add_stateful_reader_sender: Sender<StatefulReaderActor>,
+    add_stateful_reader_sender: Sender<Arc<Mutex<RtpsStatefulReader>>>,
     add_stateful_writer_sender: Sender<StatefulWriterActor>,
 }
 
@@ -745,52 +707,43 @@ impl TransportParticipant for UdpTransportParticipant {
     ) -> Box<dyn TransportStatefulReader> {
         struct StatefulReader {
             guid: Guid,
-            is_historical_data_received_sender: Sender<Sender<bool>>,
-            add_matched_writer_sender: Sender<WriterProxy>,
-            remove_matched_writer_sender: Sender<Guid>,
+            rtps_stateful_reader: Arc<Mutex<RtpsStatefulReader>>,
         }
         impl TransportStatefulReader for StatefulReader {
             fn guid(&self) -> Guid {
                 self.guid
             }
             fn is_historical_data_received(&self) -> bool {
-                let (reply_sender, reply_receiver) = channel();
-                self.is_historical_data_received_sender
-                    .send(reply_sender)
-                    .expect("receiver available");
-                reply_receiver.recv().expect("sender alive")
+                self.rtps_stateful_reader
+                    .lock()
+                    .expect("rtps_stateful_reader is valid")
+                    .is_historical_data_received()
             }
             fn add_matched_writer(&mut self, writer_proxy: WriterProxy) {
-                self.add_matched_writer_sender
-                    .send(writer_proxy)
-                    .expect("receiver valid");
+                self.rtps_stateful_reader
+                    .lock()
+                    .expect("rtps_stateful_reader is valid")
+                    .add_matched_writer(&writer_proxy)
             }
             fn remove_matched_writer(&mut self, remote_writer_guid: Guid) {
-                self.remove_matched_writer_sender
-                    .send(remote_writer_guid)
-                    .expect("receiver alive");
+                self.rtps_stateful_reader
+                    .lock()
+                    .expect("rtps_stateful_reader is valid")
+                    .delete_matched_writer(remote_writer_guid)
             }
         }
-        let (is_historical_data_received_sender, is_historical_data_received_receiver) =
-            std::sync::mpsc::channel();
-        let (add_matched_writer_sender, add_matched_writer_receiver) = std::sync::mpsc::channel();
-        let (remove_matched_writer_sender, remove_matched_writer_receiver) =
-            std::sync::mpsc::channel();
+
         let guid = Guid::new(self.guid.prefix(), entity_id);
-        let rtps_stateful_reader = RtpsStatefulReader::new(guid, reader_history_cache);
+        let rtps_stateful_reader = Arc::new(Mutex::new(RtpsStatefulReader::new(
+            guid,
+            reader_history_cache,
+        )));
         self.add_stateful_reader_sender
-            .send(StatefulReaderActor {
-                rtps_stateful_reader,
-                is_historical_data_received_receiver,
-                add_matched_writer_receiver,
-                remove_matched_writer_receiver,
-            })
+            .send(rtps_stateful_reader.clone())
             .expect("receiver alive");
         Box::new(StatefulReader {
             guid,
-            is_historical_data_received_sender,
-            add_matched_writer_sender,
-            remove_matched_writer_sender,
+            rtps_stateful_reader,
         })
     }
 
