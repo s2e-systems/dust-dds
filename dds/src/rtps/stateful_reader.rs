@@ -1,10 +1,13 @@
 use super::{
-    message_sender::MessageSender, messages::{
-        self, overall_structure::RtpsMessageWrite, submessages::{
+    messages::{
+        self,
+        submessages::{
             data::DataSubmessage, data_frag::DataFragSubmessage, gap::GapSubmessage,
             heartbeat::HeartbeatSubmessage, heartbeat_frag::HeartbeatFragSubmessage,
-        }
-    }, stateless_writer::WriteMessage, writer_proxy::RtpsWriterProxy
+        },
+    },
+    stateless_writer::WriteMessage,
+    writer_proxy::RtpsWriterProxy,
 };
 use crate::transport::{
     history_cache::{CacheChange, HistoryCache},
