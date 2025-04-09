@@ -98,7 +98,7 @@ fn read_datagram<'a>(
     socket: &mut std::net::UdpSocket,
     buf: &'a mut [u8],
 ) -> std::io::Result<&'a [u8]> {
-    let (bytes, _) = socket.recv_from(buf)?;
+    let bytes = socket.recv(buf)?;
     if bytes > 0 {
         Ok(&buf[0..bytes])
     } else {
