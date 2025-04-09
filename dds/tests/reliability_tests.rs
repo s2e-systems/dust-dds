@@ -445,10 +445,9 @@ fn writer_should_not_send_heartbeat_after_acknack() {
         .unwrap()
         .default_unicast_locator_port();
 
-    let received_data_heartbeat = RtpsMessageRead::try_from(buffer.as_slice())
-        .unwrap()
-        .submessages();
-    let received_heartbeat = received_data_heartbeat
+    let rtps_message = RtpsMessageRead::try_from(buffer.as_slice()).unwrap();
+    let received_heartbeat = rtps_message
+        .submessages()
         .iter()
         .find(|s| matches!(s, RtpsSubmessageReadKind::Heartbeat(_)))
         .unwrap();
@@ -633,10 +632,9 @@ fn writer_should_resend_data_after_acknack_request() {
         .unwrap();
     mock_reader_socket.recv(&mut buffer).unwrap();
 
-    let received_data_heartbeat = RtpsMessageRead::try_from(buffer.as_slice())
-        .unwrap()
-        .submessages();
-    let received_heartbeat = received_data_heartbeat
+    let rtps_message = RtpsMessageRead::try_from(buffer.as_slice()).unwrap();
+    let received_heartbeat = rtps_message
+        .submessages()
         .iter()
         .find(|s| matches!(s, RtpsSubmessageReadKind::Heartbeat(_)))
         .unwrap();

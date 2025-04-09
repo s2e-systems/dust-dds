@@ -1,6 +1,8 @@
 use super::{
+    message_receiver::MessageReceiver,
     messages::{
         self,
+        overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
         submessages::{
             data::DataSubmessage, data_frag::DataFragSubmessage, gap::GapSubmessage,
             heartbeat::HeartbeatSubmessage, heartbeat_frag::HeartbeatFragSubmessage,
@@ -201,6 +203,49 @@ impl RtpsStatefulReader {
             if writer_proxy.last_received_heartbeat_count() < heartbeat_frag_submessage.count() {
                 writer_proxy
                     .set_last_received_heartbeat_frag_count(heartbeat_frag_submessage.count());
+            }
+        }
+    }
+
+    pub fn process_message(&mut self, rtps_message: &RtpsMessageRead, message_writer: &impl WriteMessage) {
+        let mut message_receiver = MessageReceiver::new(rtps_message);
+
+        while let Some(submessage) = message_receiver.next() {
+            match submessage {
+                RtpsSubmessageReadKind::Data(data_submessage) => {
+                    self.on_data_submessage_received(
+                        data_submessage,
+                        message_receiver.source_guid_prefix(),
+                        message_receiver.source_timestamp(),
+                    );
+                }
+                RtpsSubmessageReadKind::DataFrag(data_frag_submessage) => {
+                    self.on_data_frag_submessage_received(
+                        data_frag_submessage,
+                        message_receiver.source_guid_prefix(),
+                        message_receiver.source_timestamp(),
+                    );
+                }
+                RtpsSubmessageReadKind::HeartbeatFrag(heartbeat_frag_submessage) => {
+                    self.on_heartbeat_frag_submessage_received(
+                        heartbeat_frag_submessage,
+                        message_receiver.source_guid_prefix(),
+                    );
+                }
+                RtpsSubmessageReadKind::Gap(gap_submessage) => {
+                    self.on_gap_submessage_received(
+                        gap_submessage,
+                        message_receiver.source_guid_prefix(),
+                    );
+                }
+                RtpsSubmessageReadKind::Heartbeat(heartbeat_submessage) => {
+                    self.on_heartbeat_submessage_received(
+                        heartbeat_submessage,
+                        message_receiver.source_guid_prefix(),
+                        message_writer,
+                    );
+                }
+                _ => (),
             }
         }
     }

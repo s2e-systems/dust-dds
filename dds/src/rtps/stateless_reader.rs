@@ -1,4 +1,11 @@
-use super::messages::{self, submessages::data::DataSubmessage};
+use super::{
+    message_receiver::MessageReceiver,
+    messages::{
+        self,
+        overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
+        submessages::data::DataSubmessage,
+    },
+};
 use crate::transport::{
     history_cache::{CacheChange, HistoryCache},
     types::{Guid, GuidPrefix, ENTITYID_UNKNOWN},
@@ -41,6 +48,20 @@ impl RtpsStatelessReader {
                 self.history_cache.add_change(change);
             } else {
                 error!("Error converting data submessage to reader cache change. Discarding data")
+            }
+        }
+    }
+
+    pub fn process_message(&mut self, rtps_message: &RtpsMessageRead) {
+        let mut message_receiver = MessageReceiver::new(rtps_message);
+
+        while let Some(submessage) = message_receiver.next() {
+            if let RtpsSubmessageReadKind::Data(data_submessage) = &submessage {
+                self.on_data_submessage_received(
+                    data_submessage,
+                    message_receiver.source_guid_prefix(),
+                    message_receiver.source_timestamp(),
+                );
             }
         }
     }

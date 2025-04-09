@@ -136,8 +136,8 @@ impl RtpsMessageRead {
         self.header
     }
 
-    pub fn submessages(self) -> Vec<RtpsSubmessageReadKind> {
-        self.submessages
+    pub fn submessages(&self) -> &[RtpsSubmessageReadKind] {
+        &self.submessages
     }
 }
 

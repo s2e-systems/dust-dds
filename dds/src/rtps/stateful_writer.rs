@@ -1,7 +1,8 @@
 use super::{
     behavior_types::Duration,
+    message_receiver::MessageReceiver,
     messages::{
-        overall_structure::RtpsMessageWrite,
+        overall_structure::{RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageReadKind},
         submessage_elements::{ParameterList, SequenceNumberSet, SerializedDataFragment},
         submessages::{
             ack_nack::AckNackSubmessage, data_frag::DataFragSubmessage, gap::GapSubmessage,
@@ -195,6 +196,34 @@ impl RtpsStatefulWriter {
                     self.heartbeat_period,
                     message_writer,
                 );
+            }
+        }
+    }
+
+    pub fn process_message(
+        &mut self,
+        rtps_message: &RtpsMessageRead,
+        message_writer: &impl WriteMessage,
+    ) {
+        let mut message_receiver = MessageReceiver::new(rtps_message);
+
+        while let Some(submessage) = message_receiver.next() {
+            match &submessage {
+                RtpsSubmessageReadKind::AckNack(acknack_submessage) => {
+                    self.on_acknack_submessage_received(
+                        acknack_submessage,
+                        message_receiver.source_guid_prefix(),
+                        message_writer,
+                    );
+                }
+                RtpsSubmessageReadKind::NackFrag(nackfrag_submessage) => {
+                    self.on_nack_frag_submessage_received(
+                        nackfrag_submessage,
+                        message_receiver.source_guid_prefix(),
+                        message_writer,
+                    );
+                }
+                _ => (),
             }
         }
     }

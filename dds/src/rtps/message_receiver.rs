@@ -5,7 +5,7 @@ use super::messages::{
 };
 use crate::transport::types::{GuidPrefix, Locator, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN};
 
-pub struct MessageReceiver {
+pub struct MessageReceiver<'a> {
     source_version: ProtocolVersion,
     source_vendor_id: VendorId,
     source_guid_prefix: GuidPrefix,
@@ -14,14 +14,14 @@ pub struct MessageReceiver {
     _multicast_reply_locator_list: Vec<Locator>,
     have_timestamp: bool,
     timestamp: messages::types::Time,
-    submessages: std::vec::IntoIter<RtpsSubmessageReadKind>,
+    iter: std::slice::Iter<'a, RtpsSubmessageReadKind>,
 }
 
-impl Iterator for MessageReceiver {
-    type Item = RtpsSubmessageReadKind;
+impl<'a> Iterator for MessageReceiver<'a> {
+    type Item = &'a RtpsSubmessageReadKind;
 
     fn next(&mut self) -> Option<Self::Item> {
-        for submessage in self.submessages.by_ref() {
+        for submessage in self.iter.by_ref() {
             match &submessage {
                 RtpsSubmessageReadKind::AckNack(_)
                 | RtpsSubmessageReadKind::Data(_)
@@ -56,8 +56,8 @@ impl Iterator for MessageReceiver {
     }
 }
 
-impl MessageReceiver {
-    pub fn new(message: RtpsMessageRead) -> Self {
+impl<'a> MessageReceiver<'a> {
+    pub fn new(message: &'a RtpsMessageRead) -> Self {
         let header = message.header();
         Self {
             source_version: header.version(),
@@ -68,7 +68,7 @@ impl MessageReceiver {
             _multicast_reply_locator_list: Vec::new(),
             have_timestamp: false,
             timestamp: TIME_INVALID,
-            submessages: message.submessages().into_iter(),
+            iter: message.submessages().iter(),
         }
     }
 
@@ -102,5 +102,13 @@ impl MessageReceiver {
         } else {
             None
         }
+    }
+
+    pub fn have_timestamp(&self) -> bool {
+        self.have_timestamp
+    }
+
+    pub fn timestamp(&self) -> messages::types::Time {
+        self.timestamp
     }
 }
