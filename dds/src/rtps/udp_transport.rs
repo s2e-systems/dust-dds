@@ -65,7 +65,6 @@ fn get_multicast_socket(
     #[cfg(target_family = "unix")]
     socket.set_reuse_port(true)?;
     socket.set_nonblocking(true)?;
-    socket.set_read_timeout(Some(std::time::Duration::from_millis(50)))?;
 
     socket.bind(&socket_addr.into())?;
     let addr = Ipv4Addr::new(
