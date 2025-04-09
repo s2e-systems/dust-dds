@@ -1,3 +1,5 @@
+use super::stateless_writer::WriteMessage;
+use crate::transport::types::LOCATOR_KIND_UDP_V6;
 use core::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4};
 use dust_dds::{
     domain::domain_participant_factory::DomainId,
@@ -31,14 +33,10 @@ use socket2::Socket;
 use std::{
     net::{ToSocketAddrs, UdpSocket},
     sync::{
-        mpsc::{channel, Receiver, Sender},
+        mpsc::{channel, Sender},
         Arc, Mutex,
     },
 };
-
-use crate::transport::types::LOCATOR_KIND_UDP_V6;
-
-use super::stateless_writer::WriteMessage;
 
 pub struct MessageReceiver {
     source_version: ProtocolVersion,
@@ -108,26 +106,21 @@ impl MessageReceiver {
         mut self,
         stateless_reader_list: &mut [RtpsStatelessReader],
         stateful_reader_list: &mut [Arc<Mutex<RtpsStatefulReader>>],
-        stateful_writer_list: &mut [StatefulWriterActor],
+        stateful_writer_list: &mut [Arc<Mutex<RtpsStatefulWriter>>],
         message_writer: &impl WriteMessage,
     ) {
         for submessage in self.submessages {
             match &submessage {
                 RtpsSubmessageReadKind::AckNack(acknack_submessage) => {
-                    for StatefulWriterActor {
-                        rtps_stateful_writer,
-                        add_matched_reader_receiver: _,
-                        remove_matched_reader_receiver: _,
-                        add_change_stateful_writer_receiver: _,
-                        is_change_acknowledged_receiver: _,
-                        remove_change_receiver: _,
-                    } in stateful_writer_list.iter_mut()
-                    {
-                        rtps_stateful_writer.on_acknack_submessage_received(
-                            acknack_submessage,
-                            self.source_guid_prefix,
-                            message_writer,
-                        );
+                    for rtps_stateful_writer in stateful_writer_list.iter_mut() {
+                        rtps_stateful_writer
+                            .lock()
+                            .expect("rtps_stateful_writer alive")
+                            .on_acknack_submessage_received(
+                                acknack_submessage,
+                                self.source_guid_prefix,
+                                message_writer,
+                            );
                     }
                 }
                 RtpsSubmessageReadKind::Data(data_submessage) => {
@@ -203,20 +196,15 @@ impl MessageReceiver {
                     }
                 }
                 RtpsSubmessageReadKind::NackFrag(nackfrag_submessage) => {
-                    for StatefulWriterActor {
-                        rtps_stateful_writer,
-                        add_matched_reader_receiver: _,
-                        remove_matched_reader_receiver: _,
-                        add_change_stateful_writer_receiver: _,
-                        is_change_acknowledged_receiver: _,
-                        remove_change_receiver: _,
-                    } in stateful_writer_list.iter_mut()
-                    {
-                        rtps_stateful_writer.on_nack_frag_submessage_received(
-                            nackfrag_submessage,
-                            self.source_guid_prefix,
-                            message_writer,
-                        );
+                    for rtps_stateful_writer in stateful_writer_list.iter_mut() {
+                        rtps_stateful_writer
+                            .lock()
+                            .expect("rtps_stateful_writer alive")
+                            .on_nack_frag_submessage_received(
+                                nackfrag_submessage,
+                                self.source_guid_prefix,
+                                message_writer,
+                            );
                     }
                 }
 
@@ -549,38 +537,11 @@ impl TransportParticipantFactory for UdpTransportParticipantFactory {
                     if let Ok(stateful_reader_pair) = add_stateful_reader_receiver.try_recv() {
                         stateful_reader_list.push(stateful_reader_pair);
                     }
-
-                    for StatefulWriterActor {
-                        rtps_stateful_writer,
-                        add_matched_reader_receiver,
-                        remove_matched_reader_receiver,
-                        add_change_stateful_writer_receiver,
-                        is_change_acknowledged_receiver,
-                        remove_change_receiver,
-                    } in &mut stateful_writer_list
-                    {
-                        if let Ok(reader_proxy) = add_matched_reader_receiver.try_recv() {
-                            rtps_stateful_writer.add_matched_reader(&reader_proxy);
-                        }
-                        if let Ok(reader_guid) = remove_matched_reader_receiver.try_recv() {
-                            rtps_stateful_writer.delete_matched_reader(reader_guid);
-                        }
-                        if let Ok((sequence_number, reply_sender)) =
-                            is_change_acknowledged_receiver.try_recv()
-                        {
-                            reply_sender
-                                .send(rtps_stateful_writer.is_change_acknowledged(sequence_number))
-                                .expect("receiver available");
-                        }
-                        if let Ok(change) = add_change_stateful_writer_receiver.try_recv() {
-                            rtps_stateful_writer.add_change(change);
-                            rtps_stateful_writer.write_message(message_writer.as_ref());
-
-                        }
-                        if let Ok(sequence_number) = remove_change_receiver.try_recv() {
-                            rtps_stateful_writer.remove_change(sequence_number);
-                        }
-                        rtps_stateful_writer.write_message(message_writer.as_ref());
+                    for rtps_stateful_writer in &mut stateful_writer_list {
+                        rtps_stateful_writer
+                            .lock()
+                            .expect("rtps_stateful_writer alive")
+                            .write_message(message_writer.as_ref());
                     }
 
                     if let Ok(rtps_message) = socket_receiver.try_recv() {
@@ -597,16 +558,6 @@ impl TransportParticipantFactory for UdpTransportParticipantFactory {
 
         Box::new(global_participant)
     }
-}
-
-
-struct StatefulWriterActor {
-    rtps_stateful_writer: RtpsStatefulWriter,
-    add_matched_reader_receiver: Receiver<ReaderProxy>,
-    remove_matched_reader_receiver: Receiver<Guid>,
-    add_change_stateful_writer_receiver: Receiver<CacheChange>,
-    is_change_acknowledged_receiver: Receiver<(i64, Sender<bool>)>,
-    remove_change_receiver: Receiver<i64>,
 }
 
 struct UdpLocator(Locator);
@@ -652,7 +603,6 @@ impl UdpLocator {
     }
 }
 
-
 struct MessageWriter {
     guid_prefix: GuidPrefix,
     socket: UdpSocket,
@@ -672,7 +622,6 @@ impl WriteMessage for MessageWriter {
         message: &messages::overall_structure::RtpsMessageWrite,
         locator_list: &[Locator],
     ) {
-
         let buf = message.buffer();
 
         for &destination_locator in locator_list {
@@ -718,7 +667,7 @@ pub struct UdpTransportParticipant {
     fragment_size: usize,
     add_stateless_reader_sender: Sender<RtpsStatelessReader>,
     add_stateful_reader_sender: Sender<Arc<Mutex<RtpsStatefulReader>>>,
-    add_stateful_writer_sender: Sender<StatefulWriterActor>,
+    add_stateful_writer_sender: Sender<Arc<Mutex<RtpsStatefulWriter>>>,
 }
 
 impl TransportParticipant for UdpTransportParticipant {
@@ -860,11 +809,8 @@ impl TransportParticipant for UdpTransportParticipant {
     ) -> Box<dyn TransportStatefulWriter> {
         struct StatefulWriter {
             guid: Guid,
-            add_matched_reader_sender: Sender<ReaderProxy>,
-            remove_matched_reader_sender: Sender<Guid>,
-            add_change_stateful_writer_sender: Sender<CacheChange>,
-            is_change_acknowledged_sender: Sender<(i64, Sender<bool>)>,
-            remove_change_sender: Sender<i64>,
+            rtps_stateful_writer: Arc<Mutex<RtpsStatefulWriter>>,
+            message_writer: Arc<MessageWriter>,
             default_unicast_locator_list: Vec<Locator>,
         }
         impl TransportStatefulWriter for StatefulWriter {
@@ -875,11 +821,10 @@ impl TransportParticipant for UdpTransportParticipant {
                 self
             }
             fn is_change_acknowledged(&self, sequence_number: i64) -> bool {
-                let (reply_sender, reply_receiver) = channel();
-                self.is_change_acknowledged_sender
-                    .send((sequence_number, reply_sender))
-                    .expect("receiver available");
-                reply_receiver.recv().expect("sender alive")
+                self.rtps_stateful_writer
+                    .lock()
+                    .expect("rtps_stateful_writer is valid")
+                    .is_change_acknowledged(sequence_number)
             }
             fn add_matched_reader(&mut self, mut reader_proxy: ReaderProxy) {
                 if reader_proxy.unicast_locator_list.is_empty() {
@@ -887,57 +832,50 @@ impl TransportParticipant for UdpTransportParticipant {
                         .unicast_locator_list
                         .clone_from(&self.default_unicast_locator_list);
                 }
-                self.add_matched_reader_sender
-                    .send(reader_proxy)
-                    .expect("receiver alive");
+                self.rtps_stateful_writer
+                    .lock()
+                    .expect("rtps_stateful_writer is valid")
+                    .add_matched_reader(&reader_proxy);
             }
             fn remove_matched_reader(&mut self, remote_reader_guid: Guid) {
-                self.remove_matched_reader_sender
-                    .send(remote_reader_guid)
-                    .expect("receiver alive");
+                self.rtps_stateful_writer
+                    .lock()
+                    .expect("rtps_stateful_writer is valid")
+                    .delete_matched_reader(remote_reader_guid);
             }
         }
         impl HistoryCache for StatefulWriter {
             fn add_change(&mut self, cache_change: CacheChange) {
-                self.add_change_stateful_writer_sender
-                    .send(cache_change)
-                    .expect("receiver alive");
+                self.rtps_stateful_writer
+                    .lock()
+                    .expect("rtps_stateful_writer is valid")
+                    .add_change(cache_change);
+                self.rtps_stateful_writer
+                    .lock()
+                    .expect("rtps_stateful_writer is valid")
+                    .write_message(self.message_writer.as_ref());
             }
 
             fn remove_change(&mut self, sequence_number: i64) {
-                self.remove_change_sender
-                    .send(sequence_number)
-                    .expect("receiver alive");
+                self.rtps_stateful_writer
+                    .lock()
+                    .expect("rtps_stateful_writer is valid")
+                    .remove_change(sequence_number);
             }
         }
 
-        let (add_matched_reader_sender, add_matched_reader_receiver) = std::sync::mpsc::channel();
-        let (remove_matched_reader_sender, remove_matched_reader_receiver) =
-            std::sync::mpsc::channel();
-        let (add_change_stateful_writer_sender, add_change_stateful_writer_receiver) =
-            std::sync::mpsc::channel();
-        let (is_change_acknowledged_sender, is_change_acknowledged_receiver) =
-            std::sync::mpsc::channel();
-        let (remove_change_sender, remove_change_receiver) = std::sync::mpsc::channel();
         let guid = Guid::new(self.guid.prefix(), entity_id);
-        let rtps_stateful_writer = RtpsStatefulWriter::new(guid, self.fragment_size);
+        let rtps_stateful_writer = Arc::new(Mutex::new(RtpsStatefulWriter::new(
+            guid,
+            self.fragment_size,
+        )));
         self.add_stateful_writer_sender
-            .send(StatefulWriterActor {
-                rtps_stateful_writer,
-                add_matched_reader_receiver,
-                remove_matched_reader_receiver,
-                add_change_stateful_writer_receiver,
-                is_change_acknowledged_receiver,
-                remove_change_receiver,
-            })
+            .send(rtps_stateful_writer.clone())
             .expect("receiver alive");
         Box::new(StatefulWriter {
             guid,
-            add_matched_reader_sender,
-            remove_matched_reader_sender,
-            add_change_stateful_writer_sender,
-            is_change_acknowledged_sender,
-            remove_change_sender,
+            rtps_stateful_writer,
+            message_writer: self.message_writer.clone(),
             default_unicast_locator_list: self.default_unicast_locator_list.clone(),
         })
     }
