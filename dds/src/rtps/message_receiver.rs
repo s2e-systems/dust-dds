@@ -14,14 +14,14 @@ pub struct MessageReceiver<'a> {
     _multicast_reply_locator_list: Vec<Locator>,
     have_timestamp: bool,
     timestamp: messages::types::Time,
-    iter: std::slice::Iter<'a, RtpsSubmessageReadKind>,
+    submessage_iter: std::slice::Iter<'a, RtpsSubmessageReadKind>,
 }
 
 impl<'a> Iterator for MessageReceiver<'a> {
     type Item = &'a RtpsSubmessageReadKind;
 
     fn next(&mut self) -> Option<Self::Item> {
-        for submessage in self.iter.by_ref() {
+        for submessage in self.submessage_iter.by_ref() {
             match &submessage {
                 RtpsSubmessageReadKind::AckNack(_)
                 | RtpsSubmessageReadKind::Data(_)
@@ -68,7 +68,7 @@ impl<'a> MessageReceiver<'a> {
             _multicast_reply_locator_list: Vec::new(),
             have_timestamp: false,
             timestamp: TIME_INVALID,
-            iter: message.submessages().iter(),
+            submessage_iter: message.submessages().iter(),
         }
     }
 
