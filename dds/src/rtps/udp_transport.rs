@@ -95,7 +95,7 @@ fn get_multicast_socket(
     Ok(socket.into())
 }
 
-pub fn read_message(
+fn read_message(
     socket: &mut std::net::UdpSocket,
     buf: &mut [u8],
 ) -> RtpsResult<RtpsMessageRead> {
@@ -107,19 +107,19 @@ pub fn read_message(
     }
 }
 
-pub struct UdpTransportParticipantFactoryBuilder {
+pub struct RtpsUdpTransportParticipantFactoryBuilder {
     interface_name: Option<String>,
     fragment_size: usize,
     udp_receive_buffer_size: Option<usize>,
 }
 
-impl Default for UdpTransportParticipantFactoryBuilder {
+impl Default for RtpsUdpTransportParticipantFactoryBuilder {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl UdpTransportParticipantFactoryBuilder {
+impl RtpsUdpTransportParticipantFactoryBuilder {
     /// Construct a transport factory builder with all the default options.
     pub fn new() -> Self {
         Self {
@@ -148,7 +148,7 @@ impl UdpTransportParticipantFactoryBuilder {
     }
 
     /// Build a new participant factory
-    pub fn build(self) -> Result<UdpTransportParticipantFactory, String> {
+    pub fn build(self) -> Result<RtpsUdpTransportParticipantFactory, String> {
         let fragment_size_range = 8..=65000;
         if !fragment_size_range.contains(&self.fragment_size) {
             Err(format!(
@@ -156,7 +156,7 @@ impl UdpTransportParticipantFactoryBuilder {
                 fragment_size_range
             ))
         } else {
-            Ok(UdpTransportParticipantFactory {
+            Ok(RtpsUdpTransportParticipantFactory {
                 interface_name: self.interface_name,
                 fragment_size: self.fragment_size,
                 udp_receive_buffer_size: self.udp_receive_buffer_size,
@@ -165,21 +165,21 @@ impl UdpTransportParticipantFactoryBuilder {
     }
 }
 
-pub struct UdpTransportParticipantFactory {
+pub struct RtpsUdpTransportParticipantFactory {
     interface_name: Option<String>,
     fragment_size: usize,
     udp_receive_buffer_size: Option<usize>,
 }
 
-impl Default for UdpTransportParticipantFactory {
+impl Default for RtpsUdpTransportParticipantFactory {
     fn default() -> Self {
-        UdpTransportParticipantFactoryBuilder::new()
+        RtpsUdpTransportParticipantFactoryBuilder::new()
             .build()
             .expect("Default configuration should work")
     }
 }
 
-impl TransportParticipantFactory for UdpTransportParticipantFactory {
+impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
     fn create_participant(
         &self,
         guid_prefix: GuidPrefix,
@@ -261,7 +261,7 @@ impl TransportParticipantFactory for UdpTransportParticipantFactory {
         let (add_stateful_reader_sender, add_stateful_reader_receiver) = channel();
         let (add_stateful_writer_sender, add_stateful_writer_receiver) = channel();
 
-        let global_participant = UdpTransportParticipant {
+        let global_participant = RtpsUdpTransportParticipant {
             guid,
             message_writer: message_writer.clone(),
             default_unicast_locator_list,
@@ -469,7 +469,7 @@ impl WriteMessage for MessageWriter {
     }
 }
 
-pub struct UdpTransportParticipant {
+pub struct RtpsUdpTransportParticipant {
     guid: Guid,
     message_writer: Arc<MessageWriter>,
     default_unicast_locator_list: Vec<Locator>,
@@ -481,7 +481,7 @@ pub struct UdpTransportParticipant {
     add_stateful_writer_sender: Sender<Arc<Mutex<RtpsStatefulWriter>>>,
 }
 
-impl TransportParticipant for UdpTransportParticipant {
+impl TransportParticipant for RtpsUdpTransportParticipant {
     fn guid(&self) -> Guid {
         self.guid
     }
@@ -708,7 +708,7 @@ mod tests {
     fn basic_transport_stateful_reader_writer_usage() {
         let guid_prefix = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
         let domain_id = 0;
-        let transport = UdpTransportParticipantFactoryBuilder::new()
+        let transport = RtpsUdpTransportParticipantFactoryBuilder::new()
             .build()
             .unwrap();
         let mut participant = transport.create_participant(guid_prefix, domain_id);
@@ -774,7 +774,7 @@ mod tests {
     fn basic_transport_stateless_reader_writer_usage() {
         let guid_prefix = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
         let domain_id = 0;
-        let transport = UdpTransportParticipantFactoryBuilder::new()
+        let transport = RtpsUdpTransportParticipantFactoryBuilder::new()
             .build()
             .unwrap();
         let mut participant = transport.create_participant(guid_prefix, domain_id);

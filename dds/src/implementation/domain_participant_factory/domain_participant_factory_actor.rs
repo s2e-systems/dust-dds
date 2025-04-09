@@ -40,7 +40,7 @@ use crate::{
         status::StatusKind,
         time::{Duration, DurationKind},
     },
-    rtps::udp_transport::UdpTransportParticipantFactory,
+    rtps::udp_transport::RtpsUdpTransportParticipantFactory,
     runtime::{
         actor::{Actor, ActorAddress, ActorBuilder, Mail, MailHandler},
         executor::Executor,
@@ -106,7 +106,7 @@ impl Default for DomainParticipantFactoryActor {
             qos: Default::default(),
             default_participant_qos: Default::default(),
             configuration: Default::default(),
-            transport: Box::new(UdpTransportParticipantFactory::default()),
+            transport: Box::new(RtpsUdpTransportParticipantFactory::default()),
         }
     }
 }
