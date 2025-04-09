@@ -1,9 +1,8 @@
-use core::net::{Ipv4Addr, SocketAddr};
+use core::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4};
 use dust_dds::{
     domain::domain_participant_factory::DomainId,
     rtps::{
         error::{RtpsError, RtpsErrorKind, RtpsResult},
-        message_sender::MessageSender,
         messages::{
             self,
             overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
@@ -29,10 +28,17 @@ use dust_dds::{
 };
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use socket2::Socket;
-use std::sync::{
-    mpsc::{channel, Receiver, Sender},
-    Arc, Mutex,
+use std::{
+    net::{ToSocketAddrs, UdpSocket},
+    sync::{
+        mpsc::{channel, Receiver, Sender},
+        Arc, Mutex,
+    },
 };
+
+use crate::transport::types::LOCATOR_KIND_UDP_V6;
+
+use super::stateless_writer::WriteMessage;
 
 pub struct MessageReceiver {
     source_version: ProtocolVersion,
@@ -103,7 +109,7 @@ impl MessageReceiver {
         stateless_reader_list: &mut [RtpsStatelessReader],
         stateful_reader_list: &mut [Arc<Mutex<RtpsStatefulReader>>],
         stateful_writer_list: &mut [StatefulWriterActor],
-        message_sender: &MessageSender,
+        message_writer: &impl WriteMessage,
     ) {
         for submessage in self.submessages {
             match &submessage {
@@ -120,7 +126,7 @@ impl MessageReceiver {
                         rtps_stateful_writer.on_acknack_submessage_received(
                             acknack_submessage,
                             self.source_guid_prefix,
-                            message_sender,
+                            message_writer,
                         );
                     }
                 }
@@ -192,7 +198,7 @@ impl MessageReceiver {
                             .on_heartbeat_submessage_received(
                                 heartbeat_submessage,
                                 self.source_guid_prefix,
-                                message_sender,
+                                message_writer,
                             );
                     }
                 }
@@ -209,7 +215,7 @@ impl MessageReceiver {
                         rtps_stateful_writer.on_nack_frag_submessage_received(
                             nackfrag_submessage,
                             self.source_guid_prefix,
-                            message_sender,
+                            message_writer,
                         );
                     }
                 }
@@ -454,10 +460,11 @@ impl TransportParticipantFactory for UdpTransportParticipantFactory {
         )
         .unwrap();
 
-        let message_sender = Arc::new(MessageSender::new(
+        let message_writer = Arc::new(MessageWriter::new(
             guid_prefix,
             std::net::UdpSocket::bind("0.0.0.0:0000").unwrap(),
         ));
+
         let guid = Guid::new(guid_prefix, ENTITYID_PARTICIPANT);
 
         let (add_stateless_reader_sender, add_stateless_reader_receiver) = channel();
@@ -466,7 +473,7 @@ impl TransportParticipantFactory for UdpTransportParticipantFactory {
 
         let global_participant = UdpTransportParticipant {
             guid,
-            message_sender: message_sender.clone(),
+            message_writer: message_writer.clone(),
             default_unicast_locator_list,
             metatraffic_unicast_locator_list,
             metatraffic_multicast_locator_list,
@@ -566,12 +573,14 @@ impl TransportParticipantFactory for UdpTransportParticipantFactory {
                                 .expect("receiver available");
                         }
                         if let Ok(change) = add_change_stateful_writer_receiver.try_recv() {
-                            rtps_stateful_writer.add_change(change, &message_sender);
+                            rtps_stateful_writer.add_change(change);
+                            rtps_stateful_writer.write_message(message_writer.as_ref());
+
                         }
                         if let Ok(sequence_number) = remove_change_receiver.try_recv() {
                             rtps_stateful_writer.remove_change(sequence_number);
                         }
-                        rtps_stateful_writer.send_message(&message_sender);
+                        rtps_stateful_writer.write_message(message_writer.as_ref());
                     }
 
                     if let Ok(rtps_message) = socket_receiver.try_recv() {
@@ -579,7 +588,7 @@ impl TransportParticipantFactory for UdpTransportParticipantFactory {
                             &mut stateless_reader_list,
                             &mut stateful_reader_list,
                             &mut stateful_writer_list,
-                            &message_sender,
+                            message_writer.as_ref(),
                         );
                     }
                 }
@@ -590,9 +599,6 @@ impl TransportParticipantFactory for UdpTransportParticipantFactory {
     }
 }
 
-struct StatefulReaderActor {
-    rtps_stateful_reader: Arc<Mutex<RtpsStatefulReader>>,
-}
 
 struct StatefulWriterActor {
     rtps_stateful_writer: RtpsStatefulWriter,
@@ -603,9 +609,109 @@ struct StatefulWriterActor {
     remove_change_receiver: Receiver<i64>,
 }
 
+struct UdpLocator(Locator);
+
+impl ToSocketAddrs for UdpLocator {
+    type Iter = std::option::IntoIter<SocketAddr>;
+
+    fn to_socket_addrs(&self) -> std::io::Result<Self::Iter> {
+        let locator_address = self.0.address();
+        match self.0.kind() {
+            LOCATOR_KIND_UDP_V4 => {
+                let address = SocketAddrV4::new(
+                    Ipv4Addr::new(
+                        locator_address[12],
+                        locator_address[13],
+                        locator_address[14],
+                        locator_address[15],
+                    ),
+                    self.0.port() as u16,
+                );
+                Ok(Some(SocketAddr::V4(address)).into_iter())
+            }
+            LOCATOR_KIND_UDP_V6 => todo!(),
+            _ => Err(std::io::ErrorKind::InvalidInput.into()),
+        }
+    }
+}
+
+impl UdpLocator {
+    fn is_multicast(&self) -> bool {
+        let locator_address = self.0.address();
+        match self.0.kind() {
+            LOCATOR_KIND_UDP_V4 => Ipv4Addr::new(
+                locator_address[12],
+                locator_address[13],
+                locator_address[14],
+                locator_address[15],
+            )
+            .is_multicast(),
+            LOCATOR_KIND_UDP_V6 => Ipv6Addr::from(locator_address).is_multicast(),
+            _ => false,
+        }
+    }
+}
+
+
+struct MessageWriter {
+    guid_prefix: GuidPrefix,
+    socket: UdpSocket,
+}
+
+impl MessageWriter {
+    fn new(guid_prefix: GuidPrefix, socket: UdpSocket) -> Self {
+        Self {
+            guid_prefix,
+            socket,
+        }
+    }
+}
+impl WriteMessage for MessageWriter {
+    fn write_message(
+        &self,
+        message: &messages::overall_structure::RtpsMessageWrite,
+        locator_list: &[Locator],
+    ) {
+
+        let buf = message.buffer();
+
+        for &destination_locator in locator_list {
+            if UdpLocator(destination_locator).is_multicast() {
+                let socket2: socket2::Socket = self.socket.try_clone().unwrap().into();
+                let interface_addresses = NetworkInterface::show();
+                let interface_addresses: Vec<_> = interface_addresses
+                    .expect("Could not scan interfaces")
+                    .into_iter()
+                    .flat_map(|i| {
+                        i.addr.into_iter().filter_map(|a| match a {
+                            Addr::V4(v4) => Some(v4.ip),
+                            _ => None,
+                        })
+                    })
+                    .collect();
+                for address in interface_addresses {
+                    if socket2.set_multicast_if_v4(&address).is_ok() {
+                        self.socket
+                            .send_to(buf, UdpLocator(destination_locator))
+                            .ok();
+                    }
+                }
+            } else {
+                self.socket
+                    .send_to(buf, UdpLocator(destination_locator))
+                    .ok();
+            }
+        }
+    }
+
+    fn guid_prefix(&self) -> GuidPrefix {
+        self.guid_prefix
+    }
+}
+
 pub struct UdpTransportParticipant {
     guid: Guid,
-    message_sender: Arc<MessageSender>,
+    message_writer: Arc<MessageWriter>,
     default_unicast_locator_list: Vec<Locator>,
     metatraffic_unicast_locator_list: Vec<Locator>,
     metatraffic_multicast_locator_list: Vec<Locator>,
@@ -664,7 +770,7 @@ impl TransportParticipant for UdpTransportParticipant {
     ) -> Box<dyn TransportStatelessWriter> {
         struct StatelessWriter {
             rtps_writer: RtpsStatelessWriter,
-            message_sender: Arc<MessageSender>,
+            message_writer: Arc<MessageWriter>,
         }
         impl TransportStatelessWriter for StatelessWriter {
             fn guid(&self) -> Guid {
@@ -685,7 +791,7 @@ impl TransportParticipant for UdpTransportParticipant {
         impl HistoryCache for StatelessWriter {
             fn add_change(&mut self, cache_change: CacheChange) {
                 self.rtps_writer.add_change(cache_change);
-                self.rtps_writer.send_message(&self.message_sender);
+                self.rtps_writer.write_message(self.message_writer.as_ref());
             }
 
             fn remove_change(&mut self, sequence_number: i64) {
@@ -695,7 +801,7 @@ impl TransportParticipant for UdpTransportParticipant {
         let guid = Guid::new(self.guid.prefix(), entity_id);
         Box::new(StatelessWriter {
             rtps_writer: RtpsStatelessWriter::new(guid),
-            message_sender: self.message_sender.clone(),
+            message_writer: self.message_writer.clone(),
         })
     }
 

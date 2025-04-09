@@ -3,7 +3,7 @@ use crate::transport::types::{EntityId, Guid, Locator, ReliabilityKind, Sequence
 use super::{
     message_sender::MessageSender,
     messages::{
-        overall_structure::Submessage,
+        overall_structure::{RtpsMessageWrite, Submessage},
         submessage_elements::{Data, FragmentNumberSet, SequenceNumberSet},
         submessages::{
             ack_nack::AckNackSubmessage, data::DataSubmessage, data_frag::DataFragSubmessage,
@@ -11,6 +11,7 @@ use super::{
         },
         types::Count,
     },
+    stateless_writer::WriteMessage,
 };
 
 use std::{cmp::max, collections::HashMap, sync::Arc};
@@ -282,6 +283,64 @@ impl RtpsWriterProxy {
             }
 
             message_sender.write_message(&submessages, self.unicast_locator_list().to_vec());
+        }
+    }
+
+    pub fn write_message(&mut self, reader_guid: &Guid, message_writer: &impl WriteMessage) {
+        if self.must_send_acknacks() || !self.missing_changes().count() == 0 {
+            self.set_must_send_acknacks(false);
+            self.increment_acknack_count();
+
+            let info_dst_submessage =
+                InfoDestinationSubmessage::new(self.remote_writer_guid().prefix());
+
+            let acknack_submessage = AckNackSubmessage::new(
+                true,
+                reader_guid.entity_id(),
+                self.remote_writer_guid().entity_id(),
+                SequenceNumberSet::new(
+                    self.available_changes_max() + 1,
+                    self.missing_changes().take(256),
+                ),
+                self.acknack_count(),
+            );
+
+            let mut submessages: Vec<Box<dyn Submessage + Send>> =
+                vec![Box::new(info_dst_submessage), Box::new(acknack_submessage)];
+
+            for (seq_num, owning_data_frag_list) in self.frag_buffer.iter() {
+                let total_fragments_expected = total_fragments_expected(&owning_data_frag_list[0]);
+                let mut missing_fragment_number = Vec::new();
+                for fragment_number in 1..=total_fragments_expected {
+                    if !owning_data_frag_list.iter().any(|x| {
+                        fragment_number >= x.fragment_starting_num()
+                            && fragment_number
+                                < x.fragment_starting_num() + (x.fragments_in_submessage() as u32)
+                    }) {
+                        missing_fragment_number.push(fragment_number)
+                    }
+                }
+
+                if !missing_fragment_number.is_empty() {
+                    self.nack_frag_count = self.nack_frag_count.wrapping_add(1);
+                    let nack_frag_submessage = NackFragSubmessage::new(
+                        reader_guid.entity_id(),
+                        self.remote_writer_guid().entity_id(),
+                        *seq_num,
+                        FragmentNumberSet::new(
+                            missing_fragment_number[0],
+                            missing_fragment_number.into_iter(),
+                        ),
+                        self.nack_frag_count,
+                    );
+
+                    submessages.push(Box::new(nack_frag_submessage))
+                }
+            }
+
+            let rtps_message =
+                RtpsMessageWrite::from_submessages(&submessages, message_writer.guid_prefix());
+            message_writer.write_message(&rtps_message, self.unicast_locator_list());
         }
     }
 

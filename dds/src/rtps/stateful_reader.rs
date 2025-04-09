@@ -1,13 +1,10 @@
 use super::{
-    message_sender::MessageSender,
-    messages::{
-        self,
-        submessages::{
+    message_sender::MessageSender, messages::{
+        self, overall_structure::RtpsMessageWrite, submessages::{
             data::DataSubmessage, data_frag::DataFragSubmessage, gap::GapSubmessage,
             heartbeat::HeartbeatSubmessage, heartbeat_frag::HeartbeatFragSubmessage,
-        },
-    },
-    writer_proxy::RtpsWriterProxy,
+        }
+    }, stateless_writer::WriteMessage, writer_proxy::RtpsWriterProxy
 };
 use crate::transport::{
     history_cache::{CacheChange, HistoryCache},
@@ -160,7 +157,7 @@ impl RtpsStatefulReader {
         &mut self,
         heartbeat_submessage: &HeartbeatSubmessage,
         source_guid_prefix: GuidPrefix,
-        message_sender: &MessageSender,
+        message_writer: &impl WriteMessage,
     ) {
         let writer_guid = Guid::new(source_guid_prefix, heartbeat_submessage.writer_id());
         if let Some(writer_proxy) = self
@@ -182,7 +179,7 @@ impl RtpsStatefulReader {
                 }
                 writer_proxy.missing_changes_update(heartbeat_submessage.last_sn());
                 writer_proxy.lost_changes_update(heartbeat_submessage.first_sn());
-                writer_proxy.send_message(&self.guid, message_sender);
+                writer_proxy.write_message(&self.guid, message_writer);
             }
         }
     }
