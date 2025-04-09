@@ -19,7 +19,7 @@ pub trait WriteMessage {
 
 pub struct RtpsStatelessWriter {
     guid: Guid,
-    pub changes: Vec<CacheChange>,
+    changes: Vec<CacheChange>,
     reader_locators: Vec<RtpsReaderLocator>,
 }
 

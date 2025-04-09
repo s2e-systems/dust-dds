@@ -72,28 +72,8 @@ impl<'a> MessageReceiver<'a> {
         }
     }
 
-    pub fn _source_version(&self) -> ProtocolVersion {
-        self.source_version
-    }
-
-    pub fn _source_vendor_id(&self) -> VendorId {
-        self.source_vendor_id
-    }
-
     pub fn source_guid_prefix(&self) -> GuidPrefix {
         self.source_guid_prefix
-    }
-
-    pub fn _dest_guid_prefix(&self) -> GuidPrefix {
-        self.dest_guid_prefix
-    }
-
-    pub fn _unicast_reply_locator_list(&self) -> &[Locator] {
-        self._unicast_reply_locator_list.as_ref()
-    }
-
-    pub fn _multicast_reply_locator_list(&self) -> &[Locator] {
-        self._multicast_reply_locator_list.as_ref()
     }
 
     pub fn source_timestamp(&self) -> Option<messages::types::Time> {
@@ -102,13 +82,5 @@ impl<'a> MessageReceiver<'a> {
         } else {
             None
         }
-    }
-
-    pub fn have_timestamp(&self) -> bool {
-        self.have_timestamp
-    }
-
-    pub fn timestamp(&self) -> messages::types::Time {
-        self.timestamp
     }
 }
