@@ -1,10 +1,9 @@
 use super::{
-    message_receiver::MessageReceiver,
-    messages::{
+    error::RtpsResult, message_receiver::MessageReceiver, messages::{
         self,
         overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
         submessages::data::DataSubmessage,
-    },
+    }
 };
 use crate::transport::{
     history_cache::{CacheChange, HistoryCache},
@@ -29,7 +28,7 @@ impl RtpsStatelessReader {
         self.guid
     }
 
-    pub fn on_data_submessage_received(
+    fn on_data_submessage_received(
         &mut self,
         data_submessage: &DataSubmessage,
         source_guid_prefix: GuidPrefix,
@@ -52,8 +51,9 @@ impl RtpsStatelessReader {
         }
     }
 
-    pub fn process_message(&mut self, rtps_message: &RtpsMessageRead) {
-        let mut message_receiver = MessageReceiver::new(rtps_message);
+    pub fn process_message(&mut self, datagram: &[u8]) -> RtpsResult<()> {
+        let rtps_message = RtpsMessageRead::try_from(datagram)?;
+        let mut message_receiver = MessageReceiver::new(&rtps_message);
 
         while let Some(submessage) = message_receiver.next() {
             if let RtpsSubmessageReadKind::Data(data_submessage) = &submessage {
@@ -63,6 +63,7 @@ impl RtpsStatelessReader {
                     message_receiver.source_timestamp(),
                 );
             }
-        }
+        };
+        Ok(())
     }
 }

@@ -1,4 +1,5 @@
 use super::{
+    message_sender::WriteMessage,
     messages::{
         overall_structure::{RtpsMessageWrite, Submessage},
         submessage_elements::{Data, FragmentNumberSet, SequenceNumberSet},
@@ -8,7 +9,6 @@ use super::{
         },
         types::Count,
     },
-    stateless_writer::WriteMessage,
 };
 use crate::transport::types::{EntityId, Guid, Locator, ReliabilityKind, SequenceNumber};
 use std::{cmp::max, collections::HashMap, sync::Arc};
@@ -281,7 +281,7 @@ impl RtpsWriterProxy {
 
             let rtps_message =
                 RtpsMessageWrite::from_submessages(&submessages, message_writer.guid_prefix());
-            message_writer.write_message(&rtps_message, self.unicast_locator_list());
+            message_writer.write_message(rtps_message.buffer(), self.unicast_locator_list());
         }
     }
 

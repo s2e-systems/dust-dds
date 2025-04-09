@@ -1,6 +1,8 @@
 use super::{
     behavior_types::Duration,
+    error::RtpsResult,
     message_receiver::MessageReceiver,
+    message_sender::WriteMessage,
     messages::{
         overall_structure::{RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageReadKind},
         submessage_elements::{ParameterList, SequenceNumberSet, SerializedDataFragment},
@@ -12,7 +14,6 @@ use super::{
         types::TIME_INVALID,
     },
     reader_proxy::RtpsReaderProxy,
-    stateless_writer::WriteMessage,
 };
 use crate::transport::{
     history_cache::CacheChange,
@@ -202,10 +203,11 @@ impl RtpsStatefulWriter {
 
     pub fn process_message(
         &mut self,
-        rtps_message: &RtpsMessageRead,
+        datagram: &[u8],
         message_writer: &impl WriteMessage,
-    ) {
-        let mut message_receiver = MessageReceiver::new(rtps_message);
+    ) -> RtpsResult<()> {
+        let rtps_message = RtpsMessageRead::try_from(datagram)?;
+        let mut message_receiver = MessageReceiver::new(&rtps_message);
 
         while let Some(submessage) = message_receiver.next() {
             match &submessage {
@@ -226,6 +228,7 @@ impl RtpsStatefulWriter {
                 _ => (),
             }
         }
+        Ok(())
     }
 }
 
@@ -272,7 +275,8 @@ fn write_message_to_reader_proxy_best_effort(
             ));
             let rtps_message =
                 RtpsMessageWrite::from_submessages(&[gap_submessage], message_writer.guid_prefix());
-            message_writer.write_message(&rtps_message, reader_proxy.unicast_locator_list());
+            message_writer
+                .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list());
 
             reader_proxy.set_highest_sent_seq_num(next_unsent_change_seq_num);
         } else if let Some(cache_change) = changes
@@ -341,7 +345,7 @@ fn write_message_to_reader_proxy_best_effort(
                         message_writer.guid_prefix(),
                     );
                     message_writer
-                        .write_message(&rtps_message, reader_proxy.unicast_locator_list());
+                        .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list());
                 }
             } else {
                 let info_dst = Box::new(InfoDestinationSubmessage::new(
@@ -364,7 +368,8 @@ fn write_message_to_reader_proxy_best_effort(
                     &[info_dst, info_timestamp, data_submessage],
                     message_writer.guid_prefix(),
                 );
-                message_writer.write_message(&rtps_message, reader_proxy.unicast_locator_list());
+                message_writer
+                    .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list());
             }
         } else {
             let gap_submessage = Box::new(GapSubmessage::new(
@@ -375,7 +380,8 @@ fn write_message_to_reader_proxy_best_effort(
             ));
             let rtps_message =
                 RtpsMessageWrite::from_submessages(&[gap_submessage], message_writer.guid_prefix());
-            message_writer.write_message(&rtps_message, reader_proxy.unicast_locator_list());
+            message_writer
+                .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list());
         }
 
         reader_proxy.set_highest_sent_seq_num(next_unsent_change_seq_num);
@@ -420,7 +426,8 @@ fn write_message_to_reader_proxy_reliable(
                     &[info_dst, gap_submessage, heartbeat_submessage],
                     message_writer.guid_prefix(),
                 );
-                message_writer.write_message(&rtps_message, reader_proxy.unicast_locator_list());
+                message_writer
+                    .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list());
             } else {
                 write_change_message_reader_proxy_reliable(
                     reader_proxy,
@@ -457,7 +464,7 @@ fn write_message_to_reader_proxy_reliable(
             &[info_dst, heartbeat_submessage],
             message_writer.guid_prefix(),
         );
-        message_writer.write_message(&rtps_message, reader_proxy.unicast_locator_list());
+        message_writer.write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list());
     }
 
     // Middle-part of the state-machine - Figure 8.19 RTPS standard
@@ -561,7 +568,7 @@ fn write_change_message_reader_proxy_reliable(
                         message_writer.guid_prefix(),
                     );
                     message_writer
-                        .write_message(&rtps_message, reader_proxy.unicast_locator_list());
+                        .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list());
                 }
             } else {
                 let info_dst = Box::new(InfoDestinationSubmessage::new(
@@ -592,7 +599,8 @@ fn write_change_message_reader_proxy_reliable(
                     &[info_dst, info_timestamp, data_submessage, heartbeat],
                     message_writer.guid_prefix(),
                 );
-                message_writer.write_message(&rtps_message, reader_proxy.unicast_locator_list());
+                message_writer
+                    .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list());
             }
         }
         _ => {
@@ -611,7 +619,8 @@ fn write_change_message_reader_proxy_reliable(
                 &[info_dst, gap_submessage],
                 message_writer.guid_prefix(),
             );
-            message_writer.write_message(&rtps_message, reader_proxy.unicast_locator_list());
+            message_writer
+                .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list());
         }
     }
 }

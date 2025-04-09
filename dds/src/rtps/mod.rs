@@ -2,6 +2,7 @@ pub mod behavior_types;
 pub mod cache_change;
 pub mod error;
 pub mod message_receiver;
+pub mod message_sender;
 pub mod messages;
 pub mod reader_locator;
 pub mod reader_proxy;

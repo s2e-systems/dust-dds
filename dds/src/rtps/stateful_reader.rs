@@ -1,15 +1,12 @@
 use super::{
-    message_receiver::MessageReceiver,
-    messages::{
+    error::RtpsResult, message_receiver::MessageReceiver, message_sender::WriteMessage, messages::{
         self,
         overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
         submessages::{
             data::DataSubmessage, data_frag::DataFragSubmessage, gap::GapSubmessage,
             heartbeat::HeartbeatSubmessage, heartbeat_frag::HeartbeatFragSubmessage,
         },
-    },
-    stateless_writer::WriteMessage,
-    writer_proxy::RtpsWriterProxy,
+    }, writer_proxy::RtpsWriterProxy
 };
 use crate::transport::{
     history_cache::{CacheChange, HistoryCache},
@@ -207,8 +204,13 @@ impl RtpsStatefulReader {
         }
     }
 
-    pub fn process_message(&mut self, rtps_message: &RtpsMessageRead, message_writer: &impl WriteMessage) {
-        let mut message_receiver = MessageReceiver::new(rtps_message);
+    pub fn process_message(
+        &mut self,
+        datagram: &[u8],
+        message_writer: &impl WriteMessage,
+    ) -> RtpsResult<()> {
+        let rtps_message = RtpsMessageRead::try_from(datagram)?;
+        let mut message_receiver = MessageReceiver::new(&rtps_message);
 
         while let Some(submessage) = message_receiver.next() {
             match submessage {
@@ -248,6 +250,7 @@ impl RtpsStatefulReader {
                 _ => (),
             }
         }
+        Ok(())
     }
 }
 

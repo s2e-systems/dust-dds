@@ -1,4 +1,5 @@
 use super::{
+    message_sender::WriteMessage,
     messages::{
         overall_structure::RtpsMessageWrite,
         submessage_elements::SequenceNumberSet,
@@ -9,13 +10,8 @@ use super::{
 };
 use crate::transport::{
     history_cache::CacheChange,
-    types::{Guid, GuidPrefix, Locator, SequenceNumber, ENTITYID_UNKNOWN},
+    types::{Guid, Locator, SequenceNumber, ENTITYID_UNKNOWN},
 };
-
-pub trait WriteMessage {
-    fn write_message(&self, message: &RtpsMessageWrite, locator_list: &[Locator]);
-    fn guid_prefix(&self) -> GuidPrefix;
-}
 
 pub struct RtpsStatelessWriter {
     guid: Guid,
@@ -88,7 +84,8 @@ impl RtpsStatelessWriter {
                         &[info_ts_submessage, data_submessage],
                         message_writer.guid_prefix(),
                     );
-                    message_writer.write_message(&rtps_message, &[reader_locator.locator()]);
+                    message_writer
+                        .write_message(rtps_message.buffer(), &[reader_locator.locator()]);
                 } else {
                     let gap_submessage = Box::new(GapSubmessage::new(
                         ENTITYID_UNKNOWN,
@@ -100,7 +97,8 @@ impl RtpsStatelessWriter {
                         &[gap_submessage],
                         message_writer.guid_prefix(),
                     );
-                    message_writer.write_message(&rtps_message, &[reader_locator.locator()]);
+                    message_writer
+                        .write_message(rtps_message.buffer(), &[reader_locator.locator()]);
                 }
                 reader_locator.set_highest_sent_change_sn(unsent_change_seq_num);
             }
