@@ -93,18 +93,6 @@ fn get_multicast_socket(
     Ok(socket.into())
 }
 
-fn read_datagram<'a>(socket: &std::net::UdpSocket, buf: &'a mut [u8]) -> std::io::Result<&'a [u8]> {
-    let bytes = socket.recv(buf)?;
-    if bytes > 0 {
-        Ok(&buf[0..bytes])
-    } else {
-        Err(std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            "Not enough bytes on socket",
-        ))
-    }
-}
-
 pub struct RtpsUdpTransportParticipantFactoryBuilder {
     interface_name: Option<String>,
     fragment_size: usize,
@@ -181,9 +169,9 @@ enum ChannelMessageKind {
     AddStatelessReader(RtpsStatelessReader),
     AddStatefulReader(Arc<Mutex<RtpsStatefulReader>>),
     AddStatefulWriter(Arc<Mutex<RtpsStatefulWriter>>),
-    SomethingOnMetatrafficMulticastSocket,
-    SomethingOnMetatrafficUnicastSocket,
-    SomethingOnDefaultUnicastSocket,
+    MetatrafficMulticastSocket(Vec<u8>),
+    MetatrafficUnicastSocket(Vec<u8>),
+    DefaultUnicastSocket(Vec<u8>),
     Poke,
 }
 
@@ -281,63 +269,58 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
             chanel_message_sender: chanel_message_sender.clone(),
         };
 
-        let metatraffic_multicast_socket_clone = metatraffic_multicast_socket.clone();
-        let metatraffic_unicast_socket_clone = metatraffic_unicast_socket.clone();
-        let default_unicast_socket_clone = default_unicast_socket.clone();
-
         let chanel_message_sender_clone = chanel_message_sender.clone();
 
-        let (unlock_metatraffic_multicast_sender, unlock_metatraffic_multicast_receiver) =
-            channel();
         std::thread::Builder::new()
             .name("SomethingOnMetatrafficMulticastSocket".to_string())
             .spawn(move || {
                 let mut buf = [0; MAX_DATAGRAM_SIZE];
                 loop {
-                    if let Ok(size) = metatraffic_multicast_socket_clone.peek(&mut buf) {
+                    if let Ok(size) = metatraffic_multicast_socket.recv(&mut buf) {
                         if size > 0 {
                             chanel_message_sender_clone
-                                .send(ChannelMessageKind::SomethingOnMetatrafficMulticastSocket)
+                                .send(ChannelMessageKind::MetatrafficMulticastSocket(
+                                    buf[..size].to_owned(),
+                                ))
                                 .expect("msg");
-                            unlock_metatraffic_multicast_receiver.recv().expect("msg");
                         }
                     }
                 }
             })
             .expect("failed to spawn thread");
 
-        let (unlock_metatraffic_unicast_sender, unlock_metatraffic_unicast_receiver) = channel();
         let chanel_message_sender_clone = chanel_message_sender.clone();
         std::thread::Builder::new()
             .name("SomethingOnMetatrafficUnicastSocket".to_string())
             .spawn(move || {
                 let mut buf = [0; MAX_DATAGRAM_SIZE];
                 loop {
-                    if let Ok(size) = metatraffic_unicast_socket_clone.peek(&mut buf) {
+                    if let Ok(size) = metatraffic_unicast_socket.recv(&mut buf) {
                         if size > 0 {
                             chanel_message_sender_clone
-                                .send(ChannelMessageKind::SomethingOnMetatrafficUnicastSocket)
+                                .send(ChannelMessageKind::MetatrafficUnicastSocket(
+                                    buf[..size].to_owned(),
+                                ))
                                 .expect("msg");
-                            unlock_metatraffic_unicast_receiver.recv().expect("msg");
                         }
                     }
                 }
             })
             .expect("failed to spawn thread");
 
-        let (unlock_default_unicast_sender, unlock_default_unicast_receiver) = channel();
         let chanel_message_sender_clone = chanel_message_sender.clone();
         std::thread::Builder::new()
             .name("SomethingOnDefaultUnicastSocket".to_string())
             .spawn(move || {
                 let mut buf = [0; MAX_DATAGRAM_SIZE];
                 loop {
-                    if let Ok(size) = default_unicast_socket_clone.peek(&mut buf) {
+                    if let Ok(size) = default_unicast_socket.recv(&mut buf) {
                         if size > 0 {
                             chanel_message_sender_clone
-                                .send(ChannelMessageKind::SomethingOnDefaultUnicastSocket)
+                                .send(ChannelMessageKind::DefaultUnicastSocket(
+                                    buf[..size].to_owned(),
+                                ))
                                 .expect("msg");
-                            unlock_default_unicast_receiver.recv().expect("msg");
                         }
                     }
                 }
@@ -373,50 +356,32 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                             ChannelMessageKind::AddStatefulWriter(stateful_writer) => {
                                 stateful_writer_list.push(stateful_writer)
                             }
-                            ChannelMessageKind::SomethingOnMetatrafficMulticastSocket => {
-                                let mut buf = [0; MAX_DATAGRAM_SIZE];
-                                if let Ok(datagram) =
-                                    read_datagram(&metatraffic_multicast_socket, &mut buf)
-                                {
-                                    process_message(
-                                        datagram,
-                                        &message_writer,
-                                        &mut stateless_reader_list,
-                                        &stateful_reader_list,
-                                        &stateful_writer_list,
-                                    );
-                                }
-                                unlock_metatraffic_multicast_sender.send(()).expect("msg");
+                            ChannelMessageKind::MetatrafficMulticastSocket(datagram) => {
+                                process_message(
+                                    &datagram,
+                                    &message_writer,
+                                    &mut stateless_reader_list,
+                                    &stateful_reader_list,
+                                    &stateful_writer_list,
+                                );
                             }
-                            ChannelMessageKind::SomethingOnMetatrafficUnicastSocket => {
-                                let mut buf = [0; MAX_DATAGRAM_SIZE];
-                                if let Ok(datagram) =
-                                    read_datagram(&metatraffic_unicast_socket, &mut buf)
-                                {
-                                    process_message(
-                                        datagram,
-                                        &message_writer,
-                                        &mut stateless_reader_list,
-                                        &stateful_reader_list,
-                                        &stateful_writer_list,
-                                    );
-                                }
-                                unlock_metatraffic_unicast_sender.send(()).expect("msg");
+                            ChannelMessageKind::MetatrafficUnicastSocket(datagram) => {
+                                process_message(
+                                    &datagram,
+                                    &message_writer,
+                                    &mut stateless_reader_list,
+                                    &stateful_reader_list,
+                                    &stateful_writer_list,
+                                );
                             }
-                            ChannelMessageKind::SomethingOnDefaultUnicastSocket => {
-                                let mut buf = [0; MAX_DATAGRAM_SIZE];
-                                if let Ok(datagram) =
-                                    read_datagram(&default_unicast_socket, &mut buf)
-                                {
-                                    process_message(
-                                        datagram,
-                                        &message_writer,
-                                        &mut stateless_reader_list,
-                                        &stateful_reader_list,
-                                        &stateful_writer_list,
-                                    );
-                                }
-                                unlock_default_unicast_sender.send(()).expect("msg");
+                            ChannelMessageKind::DefaultUnicastSocket(datagram) => {
+                                process_message(
+                                    &datagram,
+                                    &message_writer,
+                                    &mut stateless_reader_list,
+                                    &stateful_reader_list,
+                                    &stateful_writer_list,
+                                );
                             }
                             ChannelMessageKind::Poke => {
                                 for rtps_stateful_writer in &stateful_writer_list {
