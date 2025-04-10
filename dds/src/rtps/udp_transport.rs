@@ -223,8 +223,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                 .unwrap();
         }
 
-        let mut default_unicast_socket =
-            Arc::new(std::net::UdpSocket::from(default_unicast_socket));
+        let default_unicast_socket = Arc::new(std::net::UdpSocket::from(default_unicast_socket));
         let user_defined_unicast_port = default_unicast_socket.local_addr().unwrap().port().into();
         let default_unicast_locator_list: Vec<_> = interface_address_list
             .clone()
@@ -232,7 +231,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
             .collect();
 
         // Open socket for unicast metatraffic data
-        let mut metatraffic_unicast_socket = Arc::new(
+        let metatraffic_unicast_socket = Arc::new(
             std::net::UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0))).unwrap(),
         );
 
@@ -297,7 +296,6 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                 loop {
                     if let Ok(size) = metatraffic_multicast_socket_clone.peek(&mut buf) {
                         if size > 0 {
-                            println!("SomethingOnMetatrafficMulticastSocket");
                             chanel_message_sender_clone
                                 .send(ChannelMessageKind::SomethingOnMetatrafficMulticastSocket)
                                 .expect("msg");
@@ -317,7 +315,6 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                 loop {
                     if let Ok(size) = metatraffic_unicast_socket_clone.peek(&mut buf) {
                         if size > 0 {
-                            println!("SomethingOnMetatrafficUnicastSocket");
                             chanel_message_sender_clone
                                 .send(ChannelMessageKind::SomethingOnMetatrafficUnicastSocket)
                                 .expect("msg");
@@ -337,7 +334,6 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                 loop {
                     if let Ok(size) = default_unicast_socket_clone.peek(&mut buf) {
                         if size > 0 {
-                            println!("SomethingOnDefaultUnicastSocket");
                             chanel_message_sender_clone
                                 .send(ChannelMessageKind::SomethingOnDefaultUnicastSocket)
                                 .expect("msg");
@@ -395,7 +391,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                             ChannelMessageKind::SomethingOnMetatrafficUnicastSocket => {
                                 let mut buf = [0; MAX_DATAGRAM_SIZE];
                                 if let Ok(datagram) =
-                                    read_datagram(&mut metatraffic_unicast_socket, &mut buf)
+                                    read_datagram(&metatraffic_unicast_socket, &mut buf)
                                 {
                                     process_message(
                                         datagram,
@@ -410,7 +406,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                             ChannelMessageKind::SomethingOnDefaultUnicastSocket => {
                                 let mut buf = [0; MAX_DATAGRAM_SIZE];
                                 if let Ok(datagram) =
-                                    read_datagram(&mut default_unicast_socket, &mut buf)
+                                    read_datagram(&default_unicast_socket, &mut buf)
                                 {
                                     process_message(
                                         datagram,
