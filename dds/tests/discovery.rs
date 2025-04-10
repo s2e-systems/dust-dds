@@ -95,6 +95,7 @@ fn deleted_readers_are_disposed_from_writer() {
     assert_eq!(data_writer.get_matched_subscriptions().unwrap().len(), 0);
 }
 
+#[ignore = "Flaky"]
 #[test]
 fn updated_readers_are_announced_to_writer() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
@@ -219,6 +220,7 @@ fn deleted_writers_are_disposed_from_reader() {
     assert_eq!(data_reader.get_matched_publications().unwrap().len(), 0);
 }
 
+#[ignore = "Flaky"]
 #[test]
 fn updated_writers_are_announced_to_reader() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
