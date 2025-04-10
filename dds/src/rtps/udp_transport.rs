@@ -169,9 +169,9 @@ enum ChannelMessageKind {
     AddStatelessReader(RtpsStatelessReader),
     AddStatefulReader(Arc<Mutex<RtpsStatefulReader>>),
     AddStatefulWriter(Arc<Mutex<RtpsStatefulWriter>>),
-    MetatrafficMulticastSocket(Vec<u8>),
-    MetatrafficUnicastSocket(Vec<u8>),
-    DefaultUnicastSocket(Vec<u8>),
+    MetatrafficMulticastSocket(Arc<[u8]>),
+    MetatrafficUnicastSocket(Arc<[u8]>),
+    DefaultUnicastSocket(Arc<[u8]>),
     Poke,
 }
 
@@ -280,7 +280,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                         if size > 0 {
                             chanel_message_sender_clone
                                 .send(ChannelMessageKind::MetatrafficMulticastSocket(
-                                    buf[..size].to_owned(),
+                                    buf[..size].into(),
                                 ))
                                 .expect("msg");
                         }
@@ -299,7 +299,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                         if size > 0 {
                             chanel_message_sender_clone
                                 .send(ChannelMessageKind::MetatrafficUnicastSocket(
-                                    buf[..size].to_owned(),
+                                    buf[..size].into(),
                                 ))
                                 .expect("msg");
                         }
@@ -317,9 +317,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                     if let Ok(size) = default_unicast_socket.recv(&mut buf) {
                         if size > 0 {
                             chanel_message_sender_clone
-                                .send(ChannelMessageKind::DefaultUnicastSocket(
-                                    buf[..size].to_owned(),
-                                ))
+                                .send(ChannelMessageKind::DefaultUnicastSocket(buf[..size].into()))
                                 .expect("msg");
                         }
                     }
