@@ -217,7 +217,6 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
             .clone()
             .map(|a| Locator::from_ip_and_port(&a, user_defined_unicast_port))
             .collect();
-
         // Open socket for unicast metatraffic data
         let metatraffic_unicast_socket = Arc::new(
             std::net::UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0))).unwrap(),
@@ -252,7 +251,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
 
         let message_writer = Arc::new(MessageWriter::new(
             guid_prefix,
-            std::net::UdpSocket::bind("0.0.0.0:0000").unwrap(),
+            default_unicast_socket.clone(),
         ));
 
         let guid = Guid::new(guid_prefix, ENTITYID_PARTICIPANT);
@@ -282,7 +281,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                                 .send(ChannelMessageKind::MetatrafficMulticastSocket(
                                     buf[..size].into(),
                                 ))
-                                .expect("msg");
+                                .expect("chanel_message sender alive");
                         }
                     }
                 }
@@ -301,7 +300,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                                 .send(ChannelMessageKind::MetatrafficUnicastSocket(
                                     buf[..size].into(),
                                 ))
-                                .expect("msg");
+                                .expect("chanel_message sender alive");
                         }
                     }
                 }
@@ -318,7 +317,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                         if size > 0 {
                             chanel_message_sender_clone
                                 .send(ChannelMessageKind::DefaultUnicastSocket(buf[..size].into()))
-                                .expect("msg");
+                                .expect("chanel_message sender alive");
                         }
                     }
                 }
@@ -332,7 +331,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                 std::thread::sleep(std::time::Duration::from_millis(50));
                 chanel_message_sender_clone
                     .send(ChannelMessageKind::Poke)
-                    .expect("msg");
+                    .expect("chanel_message sender alive");
             })
             .expect("failed to spawn thread");
 
@@ -468,11 +467,11 @@ impl UdpLocator {
 
 struct MessageWriter {
     guid_prefix: GuidPrefix,
-    socket: UdpSocket,
+    socket: Arc<UdpSocket>,
 }
 
 impl MessageWriter {
-    fn new(guid_prefix: GuidPrefix, socket: UdpSocket) -> Self {
+    fn new(guid_prefix: GuidPrefix, socket: Arc<UdpSocket>) -> Self {
         Self {
             guid_prefix,
             socket,
@@ -565,7 +564,7 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
             .send(ChannelMessageKind::AddStatelessReader(
                 RtpsStatelessReader::new(guid, reader_history_cache),
             ))
-            .expect("receiver alive");
+            .expect("chanel_message receiver alive");
         Box::new(StatelessReader {
             guid: Guid::new(self.guid.prefix(), entity_id),
         })
@@ -654,7 +653,7 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
             .send(ChannelMessageKind::AddStatefulReader(
                 rtps_stateful_reader.clone(),
             ))
-            .expect("receiver alive");
+            .expect("chanel_message receiver alive");
         Box::new(StatefulReader {
             guid,
             rtps_stateful_reader,
@@ -732,7 +731,7 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
             .send(ChannelMessageKind::AddStatefulWriter(
                 rtps_stateful_writer.clone(),
             ))
-            .expect("receiver alive");
+            .expect("chanel_message receiver alive");
         Box::new(StatefulWriter {
             guid,
             rtps_stateful_writer,
