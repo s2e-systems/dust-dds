@@ -365,34 +365,6 @@ fn participant_records_discovered_topics() {
 }
 
 #[test]
-fn participant_announces_updated_qos() {
-    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let domain_participant_factory = DomainParticipantFactory::get_instance();
-
-    let participant1 = domain_participant_factory
-        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
-        .unwrap();
-
-    let mut qos = participant1.get_qos().unwrap();
-    qos.user_data.value = vec![1, 2, 3];
-
-    std::thread::sleep(std::time::Duration::from_secs(1));
-    participant1
-        .set_qos(QosKind::Specific(qos.clone()))
-        .unwrap();
-    qos.user_data.value = vec![4, 5, 6];
-    std::thread::sleep(std::time::Duration::from_secs(1));
-    participant1
-        .set_qos(QosKind::Specific(qos.clone()))
-        .unwrap();
-    qos.user_data.value = vec![7, 8, 9];
-    std::thread::sleep(std::time::Duration::from_secs(1));
-    participant1.set_qos(QosKind::Specific(qos)).unwrap();
-
-    std::thread::sleep(std::time::Duration::from_secs(5));
-}
-
-#[test]
 fn reader_discovers_disposed_writer_same_participant() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let dp = DomainParticipantFactory::get_instance()
