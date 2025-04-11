@@ -211,7 +211,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                 .unwrap();
         }
 
-        let default_unicast_socket = Arc::new(std::net::UdpSocket::from(default_unicast_socket));
+        let default_unicast_socket = std::net::UdpSocket::from(default_unicast_socket);
         let user_defined_unicast_port = default_unicast_socket.local_addr().unwrap().port().into();
         let default_unicast_locator_list: Vec<_> = interface_address_list
             .clone()
@@ -251,7 +251,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
 
         let message_writer = Arc::new(MessageWriter::new(
             guid_prefix,
-            default_unicast_socket.clone(),
+            default_unicast_socket.try_clone().expect("Socket cloning"),
         ));
 
         let guid = Guid::new(guid_prefix, ENTITYID_PARTICIPANT);
@@ -467,11 +467,11 @@ impl UdpLocator {
 
 struct MessageWriter {
     guid_prefix: GuidPrefix,
-    socket: Arc<UdpSocket>,
+    socket: UdpSocket,
 }
 
 impl MessageWriter {
-    fn new(guid_prefix: GuidPrefix, socket: Arc<UdpSocket>) -> Self {
+    fn new(guid_prefix: GuidPrefix, socket: UdpSocket) -> Self {
         Self {
             guid_prefix,
             socket,
