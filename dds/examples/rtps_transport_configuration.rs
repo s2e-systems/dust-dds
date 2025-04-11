@@ -1,8 +1,8 @@
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{qos::QosKind, status::NO_STATUS},
-    rtps::factory::RtpsParticipantFactoryBuilder,
     topic_definition::type_support::DdsType,
+    rtps::udp_transport::RtpsUdpTransportParticipantFactoryBuilder
 };
 
 #[derive(DdsType, Debug)]
@@ -16,7 +16,7 @@ fn main() {
     let domain_id = 0;
     let participant_factory = DomainParticipantFactory::get_instance();
     let transport = Box::new(
-        RtpsParticipantFactoryBuilder::new()
+        RtpsUdpTransportParticipantFactoryBuilder::new()
             .fragment_size(500)
             .build()
             .unwrap(),

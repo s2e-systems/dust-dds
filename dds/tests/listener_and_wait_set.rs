@@ -26,7 +26,7 @@ struct MyData {
 #[test]
 fn reader_subscription_matched_listener_and_wait_set_should_both_trigger() {
     struct SubscriptionMatchedListener {
-        sender: std::sync::mpsc::SyncSender<SubscriptionMatchedStatus>,
+        sender: Option<std::sync::mpsc::SyncSender<SubscriptionMatchedStatus>>,
     }
 
     impl DataReaderListener<'_> for SubscriptionMatchedListener {
@@ -36,7 +36,9 @@ fn reader_subscription_matched_listener_and_wait_set_should_both_trigger() {
             _the_reader: DataReader<MyData>,
             status: SubscriptionMatchedStatus,
         ) {
-            self.sender.send(status).unwrap();
+            if let Some(s) = self.sender.take() {
+                s.send(status).unwrap()
+            };
         }
     }
 
@@ -91,7 +93,9 @@ fn reader_subscription_matched_listener_and_wait_set_should_both_trigger() {
     };
 
     let (sender, receiver) = std::sync::mpsc::sync_channel(1);
-    let reader_listener = SubscriptionMatchedListener { sender };
+    let reader_listener = SubscriptionMatchedListener {
+        sender: Some(sender),
+    };
 
     let reader = subscriber
         .create_datareader(

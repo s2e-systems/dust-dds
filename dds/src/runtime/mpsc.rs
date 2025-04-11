@@ -89,13 +89,6 @@ impl<T> MpscSender<T> {
             .expect("Mutex shouldn't be poisoned")
             .close();
     }
-
-    pub fn is_closed(&self) -> bool {
-        self.inner
-            .lock()
-            .expect("Mutex shouldn't be poisoned")
-            .is_closed
-    }
 }
 
 pub struct MpscReceiver<T> {

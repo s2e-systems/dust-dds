@@ -1,4 +1,4 @@
-use crate::transport::types::{GuidPrefix, ProtocolVersion, VendorId};
+use crate::{rtps::types::{PROTOCOLVERSION_2_4, VENDOR_ID_S2E}, transport::types::{GuidPrefix, ProtocolVersion, VendorId}};
 
 use super::{
     super::{
@@ -136,8 +136,8 @@ impl RtpsMessageRead {
         self.header
     }
 
-    pub fn submessages(self) -> Vec<RtpsSubmessageReadKind> {
-        self.submessages
+    pub fn submessages(&self) -> &[RtpsSubmessageReadKind] {
+        &self.submessages
     }
 }
 
@@ -271,6 +271,12 @@ impl RtpsMessageWrite {
 
     pub fn buffer(&self) -> &[u8] {
         &self.data
+    }
+
+    pub fn from_submessages(submessages: &[Box<dyn Submessage + Send>], guid_prefix: GuidPrefix) -> Self {
+        let header =
+        RtpsMessageHeader::new(PROTOCOLVERSION_2_4, VENDOR_ID_S2E, guid_prefix);
+        RtpsMessageWrite::new(&header, submessages)
     }
 }
 

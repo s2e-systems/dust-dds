@@ -1,16 +1,16 @@
-use crate::transport::{
-    history_cache::CacheChange,
-    types::{Guid, Locator, SequenceNumber, ENTITYID_UNKNOWN},
-};
-
 use super::{
-    message_sender::MessageSender,
+    message_sender::WriteMessage,
     messages::{
+        overall_structure::RtpsMessageWrite,
         submessage_elements::SequenceNumberSet,
         submessages::{gap::GapSubmessage, info_timestamp::InfoTimestampSubmessage},
         types::TIME_INVALID,
     },
     reader_locator::RtpsReaderLocator,
+};
+use crate::transport::{
+    history_cache::CacheChange,
+    types::{Guid, Locator, SequenceNumber, ENTITYID_UNKNOWN},
 };
 
 pub struct RtpsStatelessWriter {
@@ -50,7 +50,11 @@ impl RtpsStatelessWriter {
         self.reader_locators.retain(|x| x.locator() != locator);
     }
 
-    pub fn send_message(&mut self, message_sender: &MessageSender) {
+    pub fn reader_locator_list(&mut self) -> &mut [RtpsReaderLocator] {
+        &mut self.reader_locators
+    }
+
+    pub fn write_message(&mut self, message_writer: &impl WriteMessage) {
         for reader_locator in &mut self.reader_locators {
             while let Some(unsent_change_seq_num) =
                 reader_locator.next_unsent_change(self.changes.iter())
@@ -76,10 +80,12 @@ impl RtpsStatelessWriter {
                         cache_change.as_data_submessage(ENTITYID_UNKNOWN, self.guid.entity_id()),
                     );
 
-                    message_sender.write_message(
+                    let rtps_message = RtpsMessageWrite::from_submessages(
                         &[info_ts_submessage, data_submessage],
-                        vec![reader_locator.locator()],
+                        message_writer.guid_prefix(),
                     );
+                    message_writer
+                        .write_message(rtps_message.buffer(), &[reader_locator.locator()]);
                 } else {
                     let gap_submessage = Box::new(GapSubmessage::new(
                         ENTITYID_UNKNOWN,
@@ -87,8 +93,12 @@ impl RtpsStatelessWriter {
                         unsent_change_seq_num,
                         SequenceNumberSet::new(unsent_change_seq_num + 1, []),
                     ));
-
-                    message_sender.write_message(&[gap_submessage], vec![reader_locator.locator()]);
+                    let rtps_message = RtpsMessageWrite::from_submessages(
+                        &[gap_submessage],
+                        message_writer.guid_prefix(),
+                    );
+                    message_writer
+                        .write_message(rtps_message.buffer(), &[reader_locator.locator()]);
                 }
                 reader_locator.set_highest_sent_change_sn(unsent_change_seq_num);
             }

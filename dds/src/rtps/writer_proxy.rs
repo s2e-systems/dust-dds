@@ -1,9 +1,7 @@
-use crate::transport::types::{EntityId, Guid, Locator, ReliabilityKind, SequenceNumber};
-
 use super::{
-    message_sender::MessageSender,
+    message_sender::WriteMessage,
     messages::{
-        overall_structure::Submessage,
+        overall_structure::{RtpsMessageWrite, Submessage},
         submessage_elements::{Data, FragmentNumberSet, SequenceNumberSet},
         submessages::{
             ack_nack::AckNackSubmessage, data::DataSubmessage, data_frag::DataFragSubmessage,
@@ -12,7 +10,7 @@ use super::{
         types::Count,
     },
 };
-
+use crate::transport::types::{EntityId, Guid, Locator, ReliabilityKind, SequenceNumber};
 use std::{cmp::max, collections::HashMap, sync::Arc};
 
 fn total_fragments_expected(data_frag_submessage: &DataFragSubmessage) -> u32 {
@@ -229,7 +227,7 @@ impl RtpsWriterProxy {
         self.acknack_count = self.acknack_count.wrapping_add(1);
     }
 
-    pub fn send_message(&mut self, reader_guid: &Guid, message_sender: &MessageSender) {
+    pub fn write_message(&mut self, reader_guid: &Guid, message_writer: &impl WriteMessage) {
         if self.must_send_acknacks() || !self.missing_changes().count() == 0 {
             self.set_must_send_acknacks(false);
             self.increment_acknack_count();
@@ -281,7 +279,9 @@ impl RtpsWriterProxy {
                 }
             }
 
-            message_sender.write_message(&submessages, self.unicast_locator_list().to_vec());
+            let rtps_message =
+                RtpsMessageWrite::from_submessages(&submessages, message_writer.guid_prefix());
+            message_writer.write_message(rtps_message.buffer(), self.unicast_locator_list());
         }
     }
 

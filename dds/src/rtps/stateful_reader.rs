@@ -1,13 +1,12 @@
 use super::{
-    message_sender::MessageSender,
-    messages::{
+    error::RtpsResult, message_receiver::MessageReceiver, message_sender::WriteMessage, messages::{
         self,
+        overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
         submessages::{
             data::DataSubmessage, data_frag::DataFragSubmessage, gap::GapSubmessage,
             heartbeat::HeartbeatSubmessage, heartbeat_frag::HeartbeatFragSubmessage,
         },
-    },
-    writer_proxy::RtpsWriterProxy,
+    }, writer_proxy::RtpsWriterProxy
 };
 use crate::transport::{
     history_cache::{CacheChange, HistoryCache},
@@ -160,7 +159,7 @@ impl RtpsStatefulReader {
         &mut self,
         heartbeat_submessage: &HeartbeatSubmessage,
         source_guid_prefix: GuidPrefix,
-        message_sender: &MessageSender,
+        message_writer: &impl WriteMessage,
     ) {
         let writer_guid = Guid::new(source_guid_prefix, heartbeat_submessage.writer_id());
         if let Some(writer_proxy) = self
@@ -182,7 +181,7 @@ impl RtpsStatefulReader {
                 }
                 writer_proxy.missing_changes_update(heartbeat_submessage.last_sn());
                 writer_proxy.lost_changes_update(heartbeat_submessage.first_sn());
-                writer_proxy.send_message(&self.guid, message_sender);
+                writer_proxy.write_message(&self.guid, message_writer);
             }
         }
     }
@@ -203,6 +202,55 @@ impl RtpsStatefulReader {
                     .set_last_received_heartbeat_frag_count(heartbeat_frag_submessage.count());
             }
         }
+    }
+
+    pub fn process_message(
+        &mut self,
+        datagram: &[u8],
+        message_writer: &impl WriteMessage,
+    ) -> RtpsResult<()> {
+        let rtps_message = RtpsMessageRead::try_from(datagram)?;
+        let mut message_receiver = MessageReceiver::new(&rtps_message);
+
+        while let Some(submessage) = message_receiver.next() {
+            match submessage {
+                RtpsSubmessageReadKind::Data(data_submessage) => {
+                    self.on_data_submessage_received(
+                        data_submessage,
+                        message_receiver.source_guid_prefix(),
+                        message_receiver.source_timestamp(),
+                    );
+                }
+                RtpsSubmessageReadKind::DataFrag(data_frag_submessage) => {
+                    self.on_data_frag_submessage_received(
+                        data_frag_submessage,
+                        message_receiver.source_guid_prefix(),
+                        message_receiver.source_timestamp(),
+                    );
+                }
+                RtpsSubmessageReadKind::HeartbeatFrag(heartbeat_frag_submessage) => {
+                    self.on_heartbeat_frag_submessage_received(
+                        heartbeat_frag_submessage,
+                        message_receiver.source_guid_prefix(),
+                    );
+                }
+                RtpsSubmessageReadKind::Gap(gap_submessage) => {
+                    self.on_gap_submessage_received(
+                        gap_submessage,
+                        message_receiver.source_guid_prefix(),
+                    );
+                }
+                RtpsSubmessageReadKind::Heartbeat(heartbeat_submessage) => {
+                    self.on_heartbeat_submessage_received(
+                        heartbeat_submessage,
+                        message_receiver.source_guid_prefix(),
+                        message_writer,
+                    );
+                }
+                _ => (),
+            }
+        }
+        Ok(())
     }
 }
 

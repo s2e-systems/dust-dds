@@ -1025,8 +1025,6 @@ fn data_reader_sample_rejected_listener() {
     writer.write(&MyData { id: 1, value: 1 }, None).unwrap();
     writer.write(&MyData { id: 1, value: 2 }, None).unwrap();
 
-    std::thread::sleep(std::time::Duration::from_secs(1));
-
     let status = receiver
         .recv_timeout(std::time::Duration::from_secs(10))
         .unwrap();
