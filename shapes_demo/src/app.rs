@@ -185,6 +185,9 @@ impl ShapesDemoApp {
                     kind: ReliabilityQosPolicyKind::Reliable,
                     max_blocking_time: DurationKind::Infinite,
                 },
+                destination_order: DestinationOrderQosPolicy {
+                    kind: DestinationOrderQosPolicyKind::BySourceTimestamp,
+                },
                 writer_data_lifecycle,
                 ..Default::default()
             }
