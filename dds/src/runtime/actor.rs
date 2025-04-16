@@ -1,7 +1,6 @@
 use super::{
     executor::ExecutorHandle,
     mpsc::{mpsc_channel, MpscReceiver, MpscSender},
-    oneshot::{oneshot, OneshotReceiver, OneshotSender},
 };
 use crate::infrastructure::error::{DdsError, DdsResult};
 
@@ -9,11 +8,8 @@ pub trait Mail {
     type Result;
 }
 
-pub trait MailHandler<M>
-where
-    M: Mail,
-{
-    fn handle(&mut self, message: M) -> M::Result;
+pub trait MailHandler<M> {
+    fn handle(&mut self, message: M);
 }
 
 struct ReplyMail<M>
@@ -21,25 +17,6 @@ where
     M: Mail,
 {
     mail: Option<M>,
-    reply_sender: Option<OneshotSender<M::Result>>,
-}
-
-pub struct ReplyReceiver<M>
-where
-    M: Mail,
-{
-    reply_receiver: OneshotReceiver<M::Result>,
-}
-
-impl<M> ReplyReceiver<M>
-where
-    M: Mail,
-{
-    pub async fn receive_reply(self) -> M::Result {
-        self.reply_receiver
-            .await
-            .expect("The mail reply sender is never dropped")
-    }
 }
 
 pub trait GenericHandler<A> {
@@ -50,15 +27,9 @@ impl<A, M> GenericHandler<A> for ReplyMail<M>
 where
     A: MailHandler<M> + Send,
     M: Mail + Send,
-    <M as Mail>::Result: Send,
 {
     fn handle(&mut self, actor: &mut A) {
-        let result =
-            <A as MailHandler<M>>::handle(actor, self.mail.take().expect("Must have a message"));
-        self.reply_sender
-            .take()
-            .expect("Must have a sender")
-            .send(result);
+        <A as MailHandler<M>>::handle(actor, self.mail.take().expect("Must have a message"));
     }
 }
 
@@ -75,20 +46,15 @@ impl<A> Clone for ActorAddress<A> {
 }
 
 impl<A> ActorAddress<A> {
-    pub fn send_actor_mail<M>(&self, mail: M) -> DdsResult<ReplyReceiver<M>>
+    pub fn send_actor_mail<M>(&self, mail: M) -> DdsResult<()>
     where
         A: MailHandler<M> + Send,
         M: Mail + Send + 'static,
         M::Result: Send,
     {
-        let (reply_sender, reply_receiver) = oneshot();
         self.mail_sender
-            .send(Box::new(ReplyMail {
-                mail: Some(mail),
-                reply_sender: Some(reply_sender),
-            }))
-            .map_err(|_| DdsError::AlreadyDeleted)?;
-        Ok(ReplyReceiver { reply_receiver })
+            .send(Box::new(ReplyMail { mail: Some(mail) }))
+            .map_err(|_| DdsError::AlreadyDeleted)
     }
 }
 
@@ -122,20 +88,15 @@ where
         self.mail_sender.close();
     }
 
-    pub fn send_actor_mail<M>(&self, mail: M) -> ReplyReceiver<M>
+    pub fn send_actor_mail<M>(&self, mail: M)
     where
         A: MailHandler<M>,
         M: Mail + Send + 'static,
         M::Result: Send,
     {
-        let (reply_sender, reply_receiver) = oneshot();
         self.mail_sender
-            .send(Box::new(ReplyMail {
-                mail: Some(mail),
-                reply_sender: Some(reply_sender),
-            }))
+            .send(Box::new(ReplyMail { mail: Some(mail) }))
             .expect("Message will always be sent when actor exists");
-        ReplyReceiver { reply_receiver }
     }
 }
 
@@ -178,7 +139,10 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::runtime::executor::{block_on, Executor};
+    use crate::runtime::{
+        executor::{block_on, Executor},
+        oneshot::{oneshot, OneshotSender},
+    };
 
     use super::*;
 
@@ -188,14 +152,15 @@ mod tests {
 
     pub struct Increment {
         value: u8,
+        result_sender: OneshotSender<u8>,
     }
     impl Mail for Increment {
         type Result = u8;
     }
     impl MailHandler<Increment> for MyActor {
-        fn handle(&mut self, message: Increment) -> <Increment as Mail>::Result {
+        fn handle(&mut self, message: Increment) {
             self.data += message.value;
-            self.data
+            message.result_sender.send(self.data);
         }
     }
 
@@ -204,13 +169,15 @@ mod tests {
         let executor = Executor::new();
         let my_data = MyActor { data: 0 };
         let actor = Actor::spawn(my_data, &executor.handle());
+        let (result_sender, result_receiver) = oneshot();
 
         assert_eq!(
             block_on(async {
-                actor
-                    .send_actor_mail(Increment { value: 10 })
-                    .receive_reply()
-                    .await
+                actor.send_actor_mail(Increment {
+                    value: 10,
+                    result_sender,
+                });
+                result_receiver.await.unwrap()
             }),
             10
         )
@@ -222,12 +189,15 @@ mod tests {
         let my_data = MyActor { data: 0 };
         let actor = Actor::spawn(my_data, &executor.handle());
 
+        let (result_sender, result_receiver) = oneshot();
+
         assert_eq!(
             block_on(async {
-                actor
-                    .send_actor_mail(Increment { value: 10 })
-                    .receive_reply()
-                    .await
+                actor.send_actor_mail(Increment {
+                    value: 10,
+                    result_sender,
+                });
+                result_receiver.await.unwrap()
             }),
             10
         );
@@ -242,20 +212,26 @@ mod tests {
         let actor = Actor::spawn(my_data, &executor.handle());
         let actor_address = actor.address();
 
+        let (result_sender, result_receiver) = oneshot();
         assert_eq!(
             block_on(async {
-                actor
-                    .send_actor_mail(Increment { value: 10 })
-                    .receive_reply()
-                    .await
+                actor.send_actor_mail(Increment {
+                    value: 10,
+                    result_sender,
+                });
+                result_receiver.await.unwrap()
             }),
             10
         );
 
         block_on(actor.stop());
+        let (result_sender, _) = oneshot();
 
         assert!(actor_address
-            .send_actor_mail(Increment { value: 10 })
+            .send_actor_mail(Increment {
+                value: 10,
+                result_sender
+            })
             .is_err());
     }
 }
