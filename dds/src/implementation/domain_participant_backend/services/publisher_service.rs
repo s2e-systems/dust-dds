@@ -19,7 +19,10 @@ use crate::{
         qos_policy::ReliabilityQosPolicyKind,
         status::StatusKind,
     },
-    runtime::actor::{Actor, ActorAddress, Mail, MailHandler},
+    runtime::{
+        actor::{Actor, ActorAddress, MailHandler},
+        oneshot::OneshotSender,
+    },
     transport::types::{
         EntityId, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY,
         USER_DEFINED_WRITER_WITH_KEY,
@@ -36,16 +39,15 @@ pub struct CreateDataWriter {
     pub a_listener: Option<Box<dyn AnyDataWriterListener + Send>>,
     pub mask: Vec<StatusKind>,
     pub participant_address: ActorAddress<DomainParticipantActor>,
-}
-impl Mail for CreateDataWriter {
-    type Result = DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)>;
+    pub reply_sender:
+        OneshotSender<DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)>>,
 }
 impl MailHandler<CreateDataWriter> for DomainParticipantActor {
-    fn handle(&mut self, message: CreateDataWriter) -> <CreateDataWriter as Mail>::Result {
-        let topic = self
-            .domain_participant
-            .get_topic(&message.topic_name)
-            .ok_or(DdsError::AlreadyDeleted)?;
+    fn handle(&mut self, message: CreateDataWriter) {
+        let Some(topic) = self.domain_participant.get_topic(&message.topic_name) else {
+            message.reply_sender.send(Err(DdsError::AlreadyDeleted));
+            return;
+        };
 
         let topic_kind = get_topic_kind(topic.type_support().as_ref());
         let type_support = topic.type_support().clone();
@@ -66,15 +68,23 @@ impl MailHandler<CreateDataWriter> for DomainParticipantActor {
         );
 
         let writer_handle = self.instance_handle_counter.generate_new_instance_handle();
-        let publisher = self
+        let Some(publisher) = self
             .domain_participant
             .get_mut_publisher(message.publisher_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
+        else {
+            message.reply_sender.send(Err(DdsError::AlreadyDeleted));
+            return;
+        };
+
         let qos = match message.qos {
             QosKind::Default => publisher.default_datawriter_qos().clone(),
             QosKind::Specific(q) => {
-                q.is_consistent()?;
-                q
+                if q.is_consistent().is_ok() {
+                    q
+                } else {
+                    message.reply_sender.send(Err(DdsError::InconsistentPolicy));
+                    return;
+                }
             }
         };
         let reliablity_kind = match qos.reliability.kind {
@@ -124,7 +134,9 @@ impl MailHandler<CreateDataWriter> for DomainParticipantActor {
                 .ok();
         }
 
-        Ok((data_writer_handle, writer_status_condition_address))
+        message
+            .reply_sender
+            .send(Ok((data_writer_handle, writer_status_condition_address)));
     }
 }
 
@@ -132,108 +144,112 @@ pub struct DeleteDataWriter {
     pub publisher_handle: InstanceHandle,
     pub datawriter_handle: InstanceHandle,
     pub participant_address: ActorAddress<DomainParticipantActor>,
-}
-impl Mail for DeleteDataWriter {
-    type Result = DdsResult<()>;
+    pub reply_sender: OneshotSender<DdsResult<()>>,
 }
 impl MailHandler<DeleteDataWriter> for DomainParticipantActor {
-    fn handle(&mut self, message: DeleteDataWriter) -> <DeleteDataWriter as Mail>::Result {
-        let publisher = self
+    fn handle(&mut self, message: DeleteDataWriter) {
+        let Some(publisher) = self
             .domain_participant
             .get_mut_publisher(message.publisher_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
+        else {
+            message.reply_sender.send(Err(DdsError::AlreadyDeleted));
+            return;
+        };
 
-        let data_writer = publisher
-            .remove_data_writer(message.datawriter_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
+        let Some(data_writer) = publisher.remove_data_writer(message.datawriter_handle) else {
+            message.reply_sender.send(Err(DdsError::AlreadyDeleted));
+            return;
+        };
         message
             .participant_address
             .send_actor_mail(discovery_service::AnnounceDeletedDataWriter { data_writer })
             .ok();
-        Ok(())
+        message.reply_sender.send(Ok(()))
     }
 }
 
 pub struct SetDefaultDataWriterQos {
     pub publisher_handle: InstanceHandle,
     pub qos: QosKind<DataWriterQos>,
-}
-impl Mail for SetDefaultDataWriterQos {
-    type Result = DdsResult<()>;
+    pub reply_sender: OneshotSender<DdsResult<()>>,
 }
 impl MailHandler<SetDefaultDataWriterQos> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: SetDefaultDataWriterQos,
-    ) -> <SetDefaultDataWriterQos as Mail>::Result {
-        let publisher = self
+    fn handle(&mut self, message: SetDefaultDataWriterQos) {
+        let Some(publisher) = self
             .domain_participant
             .get_mut_publisher(message.publisher_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
+        else {
+            message.reply_sender.send(Err(DdsError::AlreadyDeleted));
+            return;
+        };
+
         let qos = match message.qos {
             QosKind::Default => DataWriterQos::default(),
             QosKind::Specific(q) => q,
         };
-        publisher.set_default_datawriter_qos(qos)
+        publisher.set_default_datawriter_qos(qos);
+        message.reply_sender.send(Ok(()));
     }
 }
 
 pub struct GetDefaultDataWriterQos {
     pub publisher_handle: InstanceHandle,
+    pub reply_sender: OneshotSender<DdsResult<DataWriterQos>>,
 }
-impl Mail for GetDefaultDataWriterQos {
-    type Result = DdsResult<DataWriterQos>;
-}
+
 impl MailHandler<GetDefaultDataWriterQos> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: GetDefaultDataWriterQos,
-    ) -> <GetDefaultDataWriterQos as Mail>::Result {
-        Ok(self
+    fn handle(&mut self, message: GetDefaultDataWriterQos) {
+        let Some(publisher) = self
             .domain_participant
-            .get_publisher(message.publisher_handle)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .default_datawriter_qos()
-            .clone())
+            .get_mut_publisher(message.publisher_handle)
+        else {
+            message.reply_sender.send(Err(DdsError::AlreadyDeleted));
+            return;
+        };
+        message
+            .reply_sender
+            .send(Ok(publisher.default_datawriter_qos().clone()));
     }
 }
 
 pub struct SetQos {
     pub publisher_handle: InstanceHandle,
     pub qos: QosKind<PublisherQos>,
-}
-impl Mail for SetQos {
-    type Result = DdsResult<()>;
+    pub reply_sender: OneshotSender<DdsResult<()>>,
 }
 impl MailHandler<SetQos> for DomainParticipantActor {
-    fn handle(&mut self, message: SetQos) -> <SetQos as Mail>::Result {
+    fn handle(&mut self, message: SetQos) {
         let qos = match message.qos {
             QosKind::Default => self.domain_participant.default_publisher_qos().clone(),
             QosKind::Specific(q) => q,
         };
-        let publisher = self
+        let Some(publisher) = self
             .domain_participant
             .get_mut_publisher(message.publisher_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
+        else {
+            message.reply_sender.send(Err(DdsError::AlreadyDeleted));
+            return;
+        };
 
-        publisher.set_qos(qos)
+        message.reply_sender.send(publisher.set_qos(qos));
     }
 }
 
 pub struct GetQos {
     pub publisher_handle: InstanceHandle,
-}
-impl Mail for GetQos {
-    type Result = DdsResult<PublisherQos>;
+    pub reply_sender: OneshotSender<DdsResult<PublisherQos>>,
 }
 impl MailHandler<GetQos> for DomainParticipantActor {
-    fn handle(&mut self, message: GetQos) -> <GetQos as Mail>::Result {
-        Ok(self
+    fn handle(&mut self, message: GetQos) {
+        let Some(publisher) = self
             .domain_participant
-            .get_publisher(message.publisher_handle)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .qos()
-            .clone())
+            .get_mut_publisher(message.publisher_handle)
+        else {
+            message.reply_sender.send(Err(DdsError::AlreadyDeleted));
+            return;
+        };
+
+        message.reply_sender.send(Ok(publisher.qos().clone()));
     }
 }
 
@@ -241,26 +257,28 @@ pub struct SetListener {
     pub publisher_handle: InstanceHandle,
     pub a_listener: Option<Box<dyn PublisherListenerAsync + Send>>,
     pub mask: Vec<StatusKind>,
-}
-impl Mail for SetListener {
-    type Result = DdsResult<()>;
+    pub reply_sender: OneshotSender<DdsResult<()>>,
 }
 impl MailHandler<SetListener> for DomainParticipantActor {
-    fn handle(&mut self, message: SetListener) -> <SetQos as Mail>::Result {
-        self.domain_participant
+    fn handle(&mut self, message: SetListener) {
+        let Some(publisher) = self
+            .domain_participant
             .get_mut_publisher(message.publisher_handle)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .set_listener(
-                message.a_listener.map(|l| {
-                    Actor::spawn(
-                        PublisherListenerActor::new(l),
-                        &self.listener_executor.handle(),
-                    )
-                }),
-                message.mask,
-            );
+        else {
+            message.reply_sender.send(Err(DdsError::AlreadyDeleted));
+            return;
+        };
+        publisher.set_listener(
+            message.a_listener.map(|l| {
+                Actor::spawn(
+                    PublisherListenerActor::new(l),
+                    &self.listener_executor.handle(),
+                )
+            }),
+            message.mask,
+        );
 
-        Ok(())
+        message.reply_sender.send(Ok(()));
     }
 }
 

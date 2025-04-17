@@ -36,7 +36,6 @@ use crate::{
         status_condition::status_condition_actor,
     },
     infrastructure::{
-        error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, SubscriberQos, TopicQos},
         qos_policy::{
@@ -49,7 +48,7 @@ use crate::{
         status::StatusKind,
         time::Duration,
     },
-    runtime::actor::{ActorAddress, Mail, MailHandler},
+    runtime::actor::{ActorAddress, MailHandler},
     topic_definition::type_support::DdsSerialize,
     transport::{
         self,
@@ -58,11 +57,8 @@ use crate::{
 };
 
 pub struct AnnounceParticipant;
-impl Mail for AnnounceParticipant {
-    type Result = DdsResult<()>;
-}
 impl MailHandler<AnnounceParticipant> for DomainParticipantActor {
-    fn handle(&mut self, _: AnnounceParticipant) -> <AnnounceParticipant as Mail>::Result {
+    fn handle(&mut self, _: AnnounceParticipant) {
         if self.domain_participant.enabled() {
             let participant_builtin_topic_data = ParticipantBuiltinTopicData {
                 key: BuiltInTopicKey {
@@ -110,26 +106,17 @@ impl MailHandler<AnnounceParticipant> for DomainParticipantActor {
                 .builtin_publisher_mut()
                 .lookup_datawriter_mut(DCPS_PARTICIPANT)
             {
-                dw.write_w_timestamp(
-                    spdp_discovered_participant_data.serialize_data()?,
-                    timestamp,
-                )?;
+                if let Ok(serialized_data) = spdp_discovered_participant_data.serialize_data() {
+                    dw.write_w_timestamp(serialized_data, timestamp).ok();
+                }
             }
         }
-
-        Ok(())
     }
 }
 
 pub struct AnnounceDeletedParticipant;
-impl Mail for AnnounceDeletedParticipant {
-    type Result = DdsResult<()>;
-}
 impl MailHandler<AnnounceDeletedParticipant> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        _: AnnounceDeletedParticipant,
-    ) -> <AnnounceDeletedParticipant as Mail>::Result {
+    fn handle(&mut self, _: AnnounceDeletedParticipant) {
         if self.domain_participant.enabled() {
             let timestamp = self.domain_participant.get_current_time();
             if let Some(dw) = self
@@ -138,11 +125,11 @@ impl MailHandler<AnnounceDeletedParticipant> for DomainParticipantActor {
                 .lookup_datawriter_mut(DCPS_PARTICIPANT)
             {
                 let key = InstanceHandle::new(self.transport.guid().into());
-                dw.dispose_w_timestamp(key.serialize_data()?, timestamp)?;
+                if let Ok(serialized_data) = key.serialize_data() {
+                    dw.dispose_w_timestamp(serialized_data, timestamp).ok();
+                }
             }
         }
-
-        Ok(())
     }
 }
 
@@ -150,27 +137,22 @@ pub struct AnnounceDataWriter {
     pub publisher_handle: InstanceHandle,
     pub data_writer_handle: InstanceHandle,
 }
-impl Mail for AnnounceDataWriter {
-    type Result = DdsResult<()>;
-}
 impl MailHandler<AnnounceDataWriter> for DomainParticipantActor {
-    fn handle(&mut self, message: AnnounceDataWriter) -> <AnnounceDataWriter as Mail>::Result {
-        let publisher = self
+    fn handle(&mut self, message: AnnounceDataWriter) {
+        let Some(publisher) = self
             .domain_participant
             .get_publisher(message.publisher_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-        let data_writer = publisher
-            .get_data_writer(message.data_writer_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-        let topic_data = self
-            .domain_participant
-            .get_topic(data_writer.topic_name())
-            .ok_or(DdsError::Error(
-                "Internal error. Data writer exists without associated topic".to_owned(),
-            ))?
-            .qos()
-            .topic_data
-            .clone();
+        else {
+            return;
+        };
+        let Some(data_writer) = publisher.get_data_writer(message.data_writer_handle) else {
+            return;
+        };
+        let Some(topic) = self.domain_participant.get_topic(data_writer.topic_name()) else {
+            return;
+        };
+
+        let topic_data = topic.qos().topic_data.clone();
 
         let dds_publication_data = PublicationBuiltinTopicData {
             key: BuiltInTopicKey {
@@ -211,23 +193,18 @@ impl MailHandler<AnnounceDataWriter> for DomainParticipantActor {
             .builtin_publisher_mut()
             .lookup_datawriter_mut(DCPS_PUBLICATION)
         {
-            dw.write_w_timestamp(discovered_writer_data.serialize_data()?, timestamp)?;
+            if let Ok(serialized_data) = discovered_writer_data.serialize_data() {
+                dw.write_w_timestamp(serialized_data, timestamp).ok();
+            }
         }
-        Ok(())
     }
 }
 
 pub struct AnnounceDeletedDataWriter {
     pub data_writer: DataWriterEntity,
 }
-impl Mail for AnnounceDeletedDataWriter {
-    type Result = DdsResult<()>;
-}
 impl MailHandler<AnnounceDeletedDataWriter> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: AnnounceDeletedDataWriter,
-    ) -> <AnnounceDeletedDataWriter as Mail>::Result {
+    fn handle(&mut self, message: AnnounceDeletedDataWriter) {
         let timestamp = self.domain_participant.get_current_time();
         if let Some(dw) = self
             .domain_participant
@@ -235,9 +212,10 @@ impl MailHandler<AnnounceDeletedDataWriter> for DomainParticipantActor {
             .lookup_datawriter_mut(DCPS_PUBLICATION)
         {
             let key = InstanceHandle::new(message.data_writer.transport_writer().guid().into());
-            dw.dispose_w_timestamp(key.serialize_data()?, timestamp)?;
+            if let Ok(serialized_data) = key.serialize_data() {
+                dw.dispose_w_timestamp(serialized_data, timestamp).ok();
+            }
         }
-        Ok(())
     }
 }
 
@@ -245,24 +223,20 @@ pub struct AnnounceDataReader {
     pub subscriber_handle: InstanceHandle,
     pub data_reader_handle: InstanceHandle,
 }
-impl Mail for AnnounceDataReader {
-    type Result = DdsResult<()>;
-}
 impl MailHandler<AnnounceDataReader> for DomainParticipantActor {
-    fn handle(&mut self, message: AnnounceDataReader) -> <AnnounceDataReader as Mail>::Result {
-        let subscriber = self
+    fn handle(&mut self, message: AnnounceDataReader) {
+        let Some(subscriber) = self
             .domain_participant
             .get_subscriber(message.subscriber_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-        let data_reader = subscriber
-            .get_data_reader(message.data_reader_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-        let topic = self
-            .domain_participant
-            .get_topic(data_reader.topic_name())
-            .ok_or(DdsError::Error(
-                "Internal error. Data reader exists without associated topic".to_owned(),
-            ))?;
+        else {
+            return;
+        };
+        let Some(data_reader) = subscriber.get_data_reader(message.data_reader_handle) else {
+            return;
+        };
+        let Some(topic) = self.domain_participant.get_topic(data_reader.topic_name()) else {
+            return;
+        };
 
         let guid = data_reader.transport_reader().guid();
         let dds_subscription_data = SubscriptionBuiltinTopicData {
@@ -302,24 +276,21 @@ impl MailHandler<AnnounceDataReader> for DomainParticipantActor {
             .builtin_publisher_mut()
             .lookup_datawriter_mut(DCPS_SUBSCRIPTION)
         {
-            dw.write_w_timestamp(discovered_reader_data.serialize_data()?, timestamp)?;
+            if let Ok(serialized_data) = discovered_reader_data.serialize_data() {
+                dw.write_w_timestamp(serialized_data, timestamp).ok();
+            }
         }
-        Ok(())
     }
 }
 
 pub struct AnnounceTopic {
     pub topic_name: String,
 }
-impl Mail for AnnounceTopic {
-    type Result = DdsResult<()>;
-}
 impl MailHandler<AnnounceTopic> for DomainParticipantActor {
-    fn handle(&mut self, message: AnnounceTopic) -> <AnnounceTopic as Mail>::Result {
-        let topic = self
-            .domain_participant
-            .get_topic(&message.topic_name)
-            .ok_or(DdsError::AlreadyDeleted)?;
+    fn handle(&mut self, message: AnnounceTopic) {
+        let Some(topic) = self.domain_participant.get_topic(&message.topic_name) else {
+            return;
+        };
 
         let topic_builtin_topic_data = TopicBuiltinTopicData {
             key: BuiltInTopicKey {
@@ -348,23 +319,18 @@ impl MailHandler<AnnounceTopic> for DomainParticipantActor {
             .builtin_publisher_mut()
             .lookup_datawriter_mut(DCPS_TOPIC)
         {
-            dw.write_w_timestamp(topic_builtin_topic_data.serialize_data()?, timestamp)?;
+            if let Ok(serialized_data) = topic_builtin_topic_data.serialize_data() {
+                dw.write_w_timestamp(serialized_data, timestamp).ok();
+            }
         }
-        Ok(())
     }
 }
 
 pub struct AnnounceDeletedDataReader {
     pub data_reader: DataReaderEntity,
 }
-impl Mail for AnnounceDeletedDataReader {
-    type Result = DdsResult<()>;
-}
 impl MailHandler<AnnounceDeletedDataReader> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: AnnounceDeletedDataReader,
-    ) -> <AnnounceDeletedDataReader as Mail>::Result {
+    fn handle(&mut self, message: AnnounceDeletedDataReader) {
         let timestamp = self.domain_participant.get_current_time();
         if let Some(dw) = self
             .domain_participant
@@ -373,9 +339,10 @@ impl MailHandler<AnnounceDeletedDataReader> for DomainParticipantActor {
         {
             let guid = message.data_reader.transport_reader().guid();
             let key = InstanceHandle::new(guid.into());
-            dw.dispose_w_timestamp(key.serialize_data()?, timestamp)?;
+            if let Ok(serialized_data) = key.serialize_data() {
+                dw.dispose_w_timestamp(serialized_data, timestamp).ok();
+            }
         }
-        Ok(())
     }
 }
 
@@ -383,36 +350,25 @@ pub struct AddDiscoveredTopic {
     pub topic_builtin_topic_data: TopicBuiltinTopicData,
     pub topic_name: String,
 }
-impl Mail for AddDiscoveredTopic {
-    type Result = DdsResult<()>;
-}
 impl MailHandler<AddDiscoveredTopic> for DomainParticipantActor {
-    fn handle(&mut self, message: AddDiscoveredTopic) -> <AddDiscoveredTopic as Mail>::Result {
-        let topic = self
-            .domain_participant
-            .get_mut_topic(&message.topic_name)
-            .ok_or(DdsError::AlreadyDeleted)?;
+    fn handle(&mut self, message: AddDiscoveredTopic) {
+        let Some(topic) = self.domain_participant.get_mut_topic(&message.topic_name) else {
+            return;
+        };
         if topic.topic_name() == message.topic_builtin_topic_data.name()
             && topic.type_name() == message.topic_builtin_topic_data.get_type_name()
             && !is_discovered_topic_consistent(topic.qos(), &message.topic_builtin_topic_data)
         {
             topic.increment_inconsistent_topic_status();
         }
-        Ok(())
     }
 }
 
 pub struct AddDiscoveredParticipant {
     pub discovered_participant_data: SpdpDiscoveredParticipantData,
 }
-impl Mail for AddDiscoveredParticipant {
-    type Result = ();
-}
 impl MailHandler<AddDiscoveredParticipant> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: AddDiscoveredParticipant,
-    ) -> <AddDiscoveredParticipant as Mail>::Result {
+    fn handle(&mut self, message: AddDiscoveredParticipant) {
         // pub fn add_discovered_participant(
         //     &mut self,
         //     discovered_participant_data: &SpdpDiscoveredParticipantData,
@@ -468,14 +424,8 @@ impl MailHandler<AddDiscoveredParticipant> for DomainParticipantActor {
 pub struct RemoveDiscoveredParticipant {
     pub discovered_participant: InstanceHandle,
 }
-impl Mail for RemoveDiscoveredParticipant {
-    type Result = ();
-}
 impl MailHandler<RemoveDiscoveredParticipant> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: RemoveDiscoveredParticipant,
-    ) -> <RemoveDiscoveredParticipant as Mail>::Result {
+    fn handle(&mut self, message: RemoveDiscoveredParticipant) {
         self.domain_participant
             .remove_discovered_participant(&message.discovered_participant);
     }
@@ -487,11 +437,8 @@ pub struct AddDiscoveredReader {
     pub data_writer_handle: InstanceHandle,
     pub participant_address: ActorAddress<DomainParticipantActor>,
 }
-impl Mail for AddDiscoveredReader {
-    type Result = DdsResult<()>;
-}
 impl MailHandler<AddDiscoveredReader> for DomainParticipantActor {
-    fn handle(&mut self, message: AddDiscoveredReader) -> <AddDiscoveredReader as Mail>::Result {
+    fn handle(&mut self, message: AddDiscoveredReader) {
         let default_unicast_locator_list = if let Some(p) = self
             .domain_participant
             .discovered_participant_list()
@@ -522,10 +469,12 @@ impl MailHandler<AddDiscoveredReader> for DomainParticipantActor {
         } else {
             vec![]
         };
-        let publisher = self
+        let Some(publisher) = self
             .domain_participant
             .get_mut_publisher(message.publisher_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
+        else {
+            return;
+        };
 
         let is_any_name_matched = message
             .discovered_reader_data
@@ -577,9 +526,10 @@ impl MailHandler<AddDiscoveredReader> for DomainParticipantActor {
             || is_any_local_regex_matched_with_received_partition_qos;
         if is_partition_matched {
             let publisher_qos = publisher.qos().clone();
-            let data_writer = publisher
-                .get_mut_data_writer(message.data_writer_handle)
-                .ok_or(DdsError::AlreadyDeleted)?;
+            let Some(data_writer) = publisher.get_mut_data_writer(message.data_writer_handle)
+            else {
+                return;
+            };
 
             let is_matched_topic_name = message
                 .discovered_reader_data
@@ -675,49 +625,54 @@ impl MailHandler<AddDiscoveredReader> for DomainParticipantActor {
                         .contains(&StatusKind::PublicationMatched)
                     {
                         let status = data_writer.get_publication_matched_status();
-                        let the_writer = self.get_data_writer_async(
+                        let Ok(the_writer) = self.get_data_writer_async(
                             message.participant_address,
                             message.publisher_handle,
                             message.data_writer_handle,
-                        )?;
-                        if let Some(l) = self
+                        ) else {
+                            return;
+                        };
+                        let Some(publisher) = self
                             .domain_participant
                             .get_mut_publisher(message.publisher_handle)
-                            .ok_or(DdsError::AlreadyDeleted)?
-                            .get_mut_data_writer(message.data_writer_handle)
-                            .ok_or(DdsError::AlreadyDeleted)?
-                            .listener()
-                        {
+                        else {
+                            return;
+                        };
+                        let Some(data_writer) =
+                            publisher.get_mut_data_writer(message.data_writer_handle)
+                        else {
+                            return;
+                        };
+                        if let Some(l) = data_writer.listener() {
                             l.send_actor_mail(data_writer_listener::TriggerPublicationMatched {
                                 the_writer,
                                 status,
                             });
                         }
-                    } else if self
-                        .domain_participant
-                        .get_mut_publisher(message.publisher_handle)
-                        .ok_or(DdsError::AlreadyDeleted)?
+                    } else if publisher
                         .listener_mask()
                         .contains(&StatusKind::PublicationMatched)
                     {
-                        let the_writer = self.get_data_writer_async(
+                        let Ok(the_writer) = self.get_data_writer_async(
                             message.participant_address,
                             message.publisher_handle,
                             message.data_writer_handle,
-                        )?;
-                        let status = self
+                        ) else {
+                            return;
+                        };
+                        let Some(publisher) = self
                             .domain_participant
                             .get_mut_publisher(message.publisher_handle)
-                            .ok_or(DdsError::AlreadyDeleted)?
-                            .get_mut_data_writer(message.data_writer_handle)
-                            .ok_or(DdsError::AlreadyDeleted)?
-                            .get_publication_matched_status();
-                        if let Some(l) = self
-                            .domain_participant
-                            .get_mut_publisher(message.publisher_handle)
-                            .ok_or(DdsError::AlreadyDeleted)?
-                            .listener()
-                        {
+                        else {
+                            return;
+                        };
+                        let Some(data_writer) =
+                            publisher.get_mut_data_writer(message.data_writer_handle)
+                        else {
+                            return;
+                        };
+                        let status = data_writer.get_publication_matched_status();
+                        if let Some(l) = publisher.listener() {
                             l.send_actor_mail(publisher_listener::TriggerOnPublicationMatched {
                                 the_writer,
                                 status,
@@ -728,18 +683,25 @@ impl MailHandler<AddDiscoveredReader> for DomainParticipantActor {
                         .listener_mask()
                         .contains(&StatusKind::PublicationMatched)
                     {
-                        let the_writer = self.get_data_writer_async(
+                        let Ok(the_writer) = self.get_data_writer_async(
                             message.participant_address,
                             message.publisher_handle,
                             message.data_writer_handle,
-                        )?;
-                        let status = self
+                        ) else {
+                            return;
+                        };
+                        let Some(publisher) = self
                             .domain_participant
                             .get_mut_publisher(message.publisher_handle)
-                            .ok_or(DdsError::AlreadyDeleted)?
-                            .get_mut_data_writer(message.data_writer_handle)
-                            .ok_or(DdsError::AlreadyDeleted)?
-                            .get_publication_matched_status();
+                        else {
+                            return;
+                        };
+                        let Some(data_writer) =
+                            publisher.get_mut_data_writer(message.data_writer_handle)
+                        else {
+                            return;
+                        };
+                        let status = data_writer.get_publication_matched_status();
                         if let Some(l) = self.domain_participant.listener() {
                             l.send_actor_mail(
                                 domain_participant_listener::TriggerPublicationMatched {
@@ -750,15 +712,22 @@ impl MailHandler<AddDiscoveredReader> for DomainParticipantActor {
                         }
                     }
 
-                    self.domain_participant
+                    let Some(publisher) = self
+                        .domain_participant
                         .get_mut_publisher(message.publisher_handle)
-                        .ok_or(DdsError::AlreadyDeleted)?
-                        .get_mut_data_writer(message.data_writer_handle)
-                        .ok_or(DdsError::AlreadyDeleted)?
-                        .status_condition()
-                        .send_actor_mail(status_condition_actor::AddCommunicationState {
+                    else {
+                        return;
+                    };
+                    let Some(data_writer) =
+                        publisher.get_mut_data_writer(message.data_writer_handle)
+                    else {
+                        return;
+                    };
+                    data_writer.status_condition().send_actor_mail(
+                        status_condition_actor::AddCommunicationState {
                             state: StatusKind::PublicationMatched,
-                        });
+                        },
+                    );
                 } else {
                     data_writer.add_incompatible_subscription(
                         InstanceHandle::new(
@@ -776,19 +745,25 @@ impl MailHandler<AddDiscoveredReader> for DomainParticipantActor {
                         .contains(&StatusKind::OfferedIncompatibleQos)
                     {
                         let status = data_writer.get_offered_incompatible_qos_status();
-                        let the_writer = self.get_data_writer_async(
+                        let Ok(the_writer) = self.get_data_writer_async(
                             message.participant_address,
                             message.publisher_handle,
                             message.data_writer_handle,
-                        )?;
-                        if let Some(l) = self
+                        ) else {
+                            return;
+                        };
+                        let Some(publisher) = self
                             .domain_participant
                             .get_mut_publisher(message.publisher_handle)
-                            .ok_or(DdsError::AlreadyDeleted)?
-                            .get_mut_data_writer(message.data_writer_handle)
-                            .ok_or(DdsError::AlreadyDeleted)?
-                            .listener()
-                        {
+                        else {
+                            return;
+                        };
+                        let Some(data_writer) =
+                            publisher.get_mut_data_writer(message.data_writer_handle)
+                        else {
+                            return;
+                        };
+                        if let Some(l) = data_writer.listener() {
                             l.send_actor_mail(
                                 data_writer_listener::TriggerOfferedIncompatibleQos {
                                     the_writer,
@@ -796,31 +771,30 @@ impl MailHandler<AddDiscoveredReader> for DomainParticipantActor {
                                 },
                             );
                         }
-                    } else if self
-                        .domain_participant
-                        .get_mut_publisher(message.publisher_handle)
-                        .ok_or(DdsError::AlreadyDeleted)?
+                    } else if publisher
                         .listener_mask()
                         .contains(&StatusKind::OfferedIncompatibleQos)
                     {
-                        let the_writer = self.get_data_writer_async(
+                        let Ok(the_writer) = self.get_data_writer_async(
                             message.participant_address,
                             message.publisher_handle,
                             message.data_writer_handle,
-                        )?;
-                        let status = self
+                        ) else {
+                            return;
+                        };
+                        let Some(publisher) = self
                             .domain_participant
                             .get_mut_publisher(message.publisher_handle)
-                            .ok_or(DdsError::AlreadyDeleted)?
-                            .get_mut_data_writer(message.data_writer_handle)
-                            .ok_or(DdsError::AlreadyDeleted)?
-                            .get_offered_incompatible_qos_status();
-                        if let Some(l) = self
-                            .domain_participant
-                            .get_mut_publisher(message.publisher_handle)
-                            .ok_or(DdsError::AlreadyDeleted)?
-                            .listener()
-                        {
+                        else {
+                            return;
+                        };
+                        let Some(data_writer) =
+                            publisher.get_mut_data_writer(message.data_writer_handle)
+                        else {
+                            return;
+                        };
+                        let status = data_writer.get_offered_incompatible_qos_status();
+                        if let Some(l) = publisher.listener() {
                             l.send_actor_mail(publisher_listener::TriggerOfferedIncompatibleQos {
                                 the_writer,
                                 status,
@@ -831,18 +805,25 @@ impl MailHandler<AddDiscoveredReader> for DomainParticipantActor {
                         .listener_mask()
                         .contains(&StatusKind::OfferedIncompatibleQos)
                     {
-                        let the_writer = self.get_data_writer_async(
+                        let Ok(the_writer) = self.get_data_writer_async(
                             message.participant_address,
                             message.publisher_handle,
                             message.data_writer_handle,
-                        )?;
-                        let status = self
+                        ) else {
+                            return;
+                        };
+                        let Some(publisher) = self
                             .domain_participant
                             .get_mut_publisher(message.publisher_handle)
-                            .ok_or(DdsError::AlreadyDeleted)?
-                            .get_mut_data_writer(message.data_writer_handle)
-                            .ok_or(DdsError::AlreadyDeleted)?
-                            .get_offered_incompatible_qos_status();
+                        else {
+                            return;
+                        };
+                        let Some(data_writer) =
+                            publisher.get_mut_data_writer(message.data_writer_handle)
+                        else {
+                            return;
+                        };
+                        let status = data_writer.get_offered_incompatible_qos_status();
                         if let Some(l) = self.domain_participant.listener() {
                             l.send_actor_mail(
                                 domain_participant_listener::TriggerOfferedIncompatibleQos {
@@ -853,19 +834,25 @@ impl MailHandler<AddDiscoveredReader> for DomainParticipantActor {
                         }
                     }
 
-                    self.domain_participant
+                    let Some(publisher) = self
+                        .domain_participant
                         .get_mut_publisher(message.publisher_handle)
-                        .ok_or(DdsError::AlreadyDeleted)?
-                        .get_mut_data_writer(message.data_writer_handle)
-                        .ok_or(DdsError::AlreadyDeleted)?
-                        .status_condition()
-                        .send_actor_mail(status_condition_actor::AddCommunicationState {
+                    else {
+                        return;
+                    };
+                    let Some(data_writer) =
+                        publisher.get_mut_data_writer(message.data_writer_handle)
+                    else {
+                        return;
+                    };
+                    data_writer.status_condition().send_actor_mail(
+                        status_condition_actor::AddCommunicationState {
                             state: StatusKind::OfferedIncompatibleQos,
-                        });
+                        },
+                    );
                 }
             }
         }
-        Ok(())
     }
 }
 
@@ -874,21 +861,17 @@ pub struct RemoveDiscoveredReader {
     pub publisher_handle: InstanceHandle,
     pub data_writer_handle: InstanceHandle,
 }
-impl Mail for RemoveDiscoveredReader {
-    type Result = DdsResult<()>;
-}
 impl MailHandler<RemoveDiscoveredReader> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: RemoveDiscoveredReader,
-    ) -> <RemoveDiscoveredReader as Mail>::Result {
-        let publisher = self
+    fn handle(&mut self, message: RemoveDiscoveredReader) {
+        let Some(publisher) = self
             .domain_participant
             .get_mut_publisher(message.publisher_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-        let data_writer = publisher
-            .get_mut_data_writer(message.data_writer_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
+        else {
+            return;
+        };
+        let Some(data_writer) = publisher.get_mut_data_writer(message.data_writer_handle) else {
+            return;
+        };
         if data_writer
             .get_matched_subscription_data(&message.subscription_handle)
             .is_some()
@@ -901,7 +884,6 @@ impl MailHandler<RemoveDiscoveredReader> for DomainParticipantActor {
                 },
             );
         }
-        Ok(())
     }
 }
 
@@ -911,11 +893,8 @@ pub struct AddDiscoveredWriter {
     pub data_reader_handle: InstanceHandle,
     pub participant_address: ActorAddress<DomainParticipantActor>,
 }
-impl Mail for AddDiscoveredWriter {
-    type Result = DdsResult<()>;
-}
 impl MailHandler<AddDiscoveredWriter> for DomainParticipantActor {
-    fn handle(&mut self, message: AddDiscoveredWriter) -> <AddDiscoveredWriter as Mail>::Result {
+    fn handle(&mut self, message: AddDiscoveredWriter) {
         let default_unicast_locator_list = if let Some(p) = self
             .domain_participant
             .discovered_participant_list()
@@ -946,10 +925,12 @@ impl MailHandler<AddDiscoveredWriter> for DomainParticipantActor {
         } else {
             vec![]
         };
-        let subscriber = self
+        let Some(subscriber) = self
             .domain_participant
             .get_mut_subscriber(message.subscriber_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
+        else {
+            return;
+        };
         let is_any_name_matched = message
             .discovered_writer_data
             .dds_publication_data
@@ -1000,9 +981,10 @@ impl MailHandler<AddDiscoveredWriter> for DomainParticipantActor {
             || is_any_local_regex_matched_with_received_partition_qos;
         if is_partition_matched {
             let subscriber_qos = subscriber.qos().clone();
-            let data_reader = subscriber
-                .get_mut_data_reader(message.data_reader_handle)
-                .ok_or(DdsError::AlreadyDeleted)?;
+            let Some(data_reader) = subscriber.get_mut_data_reader(message.data_reader_handle)
+            else {
+                return;
+            };
             let is_matched_topic_name = message
                 .discovered_writer_data
                 .dds_publication_data
@@ -1083,50 +1065,55 @@ impl MailHandler<AddDiscoveredWriter> for DomainParticipantActor {
                         .listener_mask()
                         .contains(&StatusKind::SubscriptionMatched)
                     {
-                        let status = data_reader.get_subscription_matched_status();
-                        let the_reader = self.get_data_reader_async(
+                        let Ok(the_reader) = self.get_data_reader_async(
                             message.participant_address,
                             message.subscriber_handle,
                             message.data_reader_handle,
-                        )?;
-                        if let Some(l) = self
+                        ) else {
+                            return;
+                        };
+                        let Some(subscriber) = self
                             .domain_participant
                             .get_mut_subscriber(message.subscriber_handle)
-                            .ok_or(DdsError::AlreadyDeleted)?
-                            .get_mut_data_reader(message.data_reader_handle)
-                            .ok_or(DdsError::AlreadyDeleted)?
-                            .listener()
-                        {
+                        else {
+                            return;
+                        };
+                        let Some(data_reader) =
+                            subscriber.get_mut_data_reader(message.data_reader_handle)
+                        else {
+                            return;
+                        };
+                        let status = data_reader.get_subscription_matched_status();
+                        if let Some(l) = data_reader.listener() {
                             l.send_actor_mail(data_reader_listener::TriggerSubscriptionMatched {
                                 the_reader,
                                 status,
                             });
                         }
-                    } else if self
-                        .domain_participant
-                        .get_mut_subscriber(message.subscriber_handle)
-                        .ok_or(DdsError::AlreadyDeleted)?
+                    } else if subscriber
                         .listener_mask()
                         .contains(&StatusKind::SubscriptionMatched)
                     {
-                        let the_reader = self.get_data_reader_async(
+                        let Ok(the_reader) = self.get_data_reader_async(
                             message.participant_address,
                             message.subscriber_handle,
                             message.data_reader_handle,
-                        )?;
-                        let status = self
+                        ) else {
+                            return;
+                        };
+                        let Some(subscriber) = self
                             .domain_participant
                             .get_mut_subscriber(message.subscriber_handle)
-                            .ok_or(DdsError::AlreadyDeleted)?
-                            .get_mut_data_reader(message.data_reader_handle)
-                            .ok_or(DdsError::AlreadyDeleted)?
-                            .get_subscription_matched_status();
-                        if let Some(l) = self
-                            .domain_participant
-                            .get_mut_subscriber(message.subscriber_handle)
-                            .ok_or(DdsError::AlreadyDeleted)?
-                            .listener()
-                        {
+                        else {
+                            return;
+                        };
+                        let Some(data_reader) =
+                            subscriber.get_mut_data_reader(message.data_reader_handle)
+                        else {
+                            return;
+                        };
+                        let status = data_reader.get_subscription_matched_status();
+                        if let Some(l) = subscriber.listener() {
                             l.send_actor_mail(subscriber_listener::TriggerSubscriptionMatched {
                                 the_reader,
                                 status,
@@ -1137,18 +1124,25 @@ impl MailHandler<AddDiscoveredWriter> for DomainParticipantActor {
                         .listener_mask()
                         .contains(&StatusKind::SubscriptionMatched)
                     {
-                        let the_reader = self.get_data_reader_async(
+                        let Ok(the_reader) = self.get_data_reader_async(
                             message.participant_address,
                             message.subscriber_handle,
                             message.data_reader_handle,
-                        )?;
-                        let status = self
+                        ) else {
+                            return;
+                        };
+                        let Some(subscriber) = self
                             .domain_participant
                             .get_mut_subscriber(message.subscriber_handle)
-                            .ok_or(DdsError::AlreadyDeleted)?
-                            .get_mut_data_reader(message.data_reader_handle)
-                            .ok_or(DdsError::AlreadyDeleted)?
-                            .get_subscription_matched_status();
+                        else {
+                            return;
+                        };
+                        let Some(data_reader) =
+                            subscriber.get_mut_data_reader(message.data_reader_handle)
+                        else {
+                            return;
+                        };
+                        let status = data_reader.get_subscription_matched_status();
                         if let Some(l) = self.domain_participant.listener() {
                             l.send_actor_mail(
                                 domain_participant_listener::TriggerSubscriptionMatched {
@@ -1159,15 +1153,22 @@ impl MailHandler<AddDiscoveredWriter> for DomainParticipantActor {
                         }
                     }
 
-                    self.domain_participant
+                    let Some(subscriber) = self
+                        .domain_participant
                         .get_mut_subscriber(message.subscriber_handle)
-                        .ok_or(DdsError::AlreadyDeleted)?
-                        .get_mut_data_reader(message.data_reader_handle)
-                        .ok_or(DdsError::AlreadyDeleted)?
-                        .status_condition()
-                        .send_actor_mail(status_condition_actor::AddCommunicationState {
+                    else {
+                        return;
+                    };
+                    let Some(data_reader) =
+                        subscriber.get_mut_data_reader(message.data_reader_handle)
+                    else {
+                        return;
+                    };
+                    data_reader.status_condition().send_actor_mail(
+                        status_condition_actor::AddCommunicationState {
                             state: StatusKind::SubscriptionMatched,
-                        });
+                        },
+                    );
                 } else {
                     data_reader.add_requested_incompatible_qos(
                         InstanceHandle::new(
@@ -1185,19 +1186,25 @@ impl MailHandler<AddDiscoveredWriter> for DomainParticipantActor {
                         .contains(&StatusKind::RequestedIncompatibleQos)
                     {
                         let status = data_reader.get_requested_incompatible_qos_status();
-                        let the_reader = self.get_data_reader_async(
+                        let Ok(the_reader) = self.get_data_reader_async(
                             message.participant_address,
                             message.subscriber_handle,
                             message.data_reader_handle,
-                        )?;
-                        if let Some(l) = self
+                        ) else {
+                            return;
+                        };
+                        let Some(subscriber) = self
                             .domain_participant
                             .get_mut_subscriber(message.subscriber_handle)
-                            .ok_or(DdsError::AlreadyDeleted)?
-                            .get_mut_data_reader(message.data_reader_handle)
-                            .ok_or(DdsError::AlreadyDeleted)?
-                            .listener()
-                        {
+                        else {
+                            return;
+                        };
+                        let Some(data_reader) =
+                            subscriber.get_mut_data_reader(message.data_reader_handle)
+                        else {
+                            return;
+                        };
+                        if let Some(l) = data_reader.listener() {
                             l.send_actor_mail(
                                 data_reader_listener::TriggerRequestedIncompatibleQos {
                                     the_reader,
@@ -1205,31 +1212,30 @@ impl MailHandler<AddDiscoveredWriter> for DomainParticipantActor {
                                 },
                             );
                         }
-                    } else if self
-                        .domain_participant
-                        .get_mut_subscriber(message.subscriber_handle)
-                        .ok_or(DdsError::AlreadyDeleted)?
+                    } else if subscriber
                         .listener_mask()
                         .contains(&StatusKind::RequestedIncompatibleQos)
                     {
-                        let the_reader = self.get_data_reader_async(
+                        let Ok(the_reader) = self.get_data_reader_async(
                             message.participant_address,
                             message.subscriber_handle,
                             message.data_reader_handle,
-                        )?;
-                        let status = self
+                        ) else {
+                            return;
+                        };
+                        let Some(subscriber) = self
                             .domain_participant
                             .get_mut_subscriber(message.subscriber_handle)
-                            .ok_or(DdsError::AlreadyDeleted)?
-                            .get_mut_data_reader(message.data_reader_handle)
-                            .ok_or(DdsError::AlreadyDeleted)?
-                            .get_requested_incompatible_qos_status();
-                        if let Some(l) = self
-                            .domain_participant
-                            .get_mut_subscriber(message.subscriber_handle)
-                            .ok_or(DdsError::AlreadyDeleted)?
-                            .listener()
-                        {
+                        else {
+                            return;
+                        };
+                        let Some(data_reader) =
+                            subscriber.get_mut_data_reader(message.data_reader_handle)
+                        else {
+                            return;
+                        };
+                        let status = data_reader.get_requested_incompatible_qos_status();
+                        if let Some(l) = subscriber.listener() {
                             l.send_actor_mail(
                                 subscriber_listener::TriggerRequestedIncompatibleQos {
                                     the_reader,
@@ -1242,18 +1248,25 @@ impl MailHandler<AddDiscoveredWriter> for DomainParticipantActor {
                         .listener_mask()
                         .contains(&StatusKind::RequestedIncompatibleQos)
                     {
-                        let the_reader = self.get_data_reader_async(
+                        let Ok(the_reader) = self.get_data_reader_async(
                             message.participant_address,
                             message.subscriber_handle,
                             message.data_reader_handle,
-                        )?;
-                        let status = self
+                        ) else {
+                            return;
+                        };
+                        let Some(subscriber) = self
                             .domain_participant
                             .get_mut_subscriber(message.subscriber_handle)
-                            .ok_or(DdsError::AlreadyDeleted)?
-                            .get_mut_data_reader(message.data_reader_handle)
-                            .ok_or(DdsError::AlreadyDeleted)?
-                            .get_requested_incompatible_qos_status();
+                        else {
+                            return;
+                        };
+                        let Some(data_reader) =
+                            subscriber.get_mut_data_reader(message.data_reader_handle)
+                        else {
+                            return;
+                        };
+                        let status = data_reader.get_requested_incompatible_qos_status();
                         if let Some(l) = self.domain_participant.listener() {
                             l.send_actor_mail(
                                 domain_participant_listener::TriggerRequestedIncompatibleQos {
@@ -1264,19 +1277,25 @@ impl MailHandler<AddDiscoveredWriter> for DomainParticipantActor {
                         }
                     }
 
-                    self.domain_participant
+                    let Some(subscriber) = self
+                        .domain_participant
                         .get_mut_subscriber(message.subscriber_handle)
-                        .ok_or(DdsError::AlreadyDeleted)?
-                        .get_mut_data_reader(message.data_reader_handle)
-                        .ok_or(DdsError::AlreadyDeleted)?
-                        .status_condition()
-                        .send_actor_mail(status_condition_actor::AddCommunicationState {
+                    else {
+                        return;
+                    };
+                    let Some(data_reader) =
+                        subscriber.get_mut_data_reader(message.data_reader_handle)
+                    else {
+                        return;
+                    };
+                    data_reader.status_condition().send_actor_mail(
+                        status_condition_actor::AddCommunicationState {
                             state: StatusKind::RequestedIncompatibleQos,
-                        });
+                        },
+                    );
                 }
             }
         }
-        Ok(())
     }
 }
 
@@ -1285,28 +1304,23 @@ pub struct RemoveDiscoveredWriter {
     pub subscriber_handle: InstanceHandle,
     pub data_reader_handle: InstanceHandle,
 }
-impl Mail for RemoveDiscoveredWriter {
-    type Result = DdsResult<()>;
-}
 impl MailHandler<RemoveDiscoveredWriter> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: RemoveDiscoveredWriter,
-    ) -> <RemoveDiscoveredWriter as Mail>::Result {
-        let subscriber = self
+    fn handle(&mut self, message: RemoveDiscoveredWriter) {
+        let Some(subscriber) = self
             .domain_participant
             .get_mut_subscriber(message.subscriber_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-        let data_reader = subscriber
-            .get_mut_data_reader(message.data_reader_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
+        else {
+            return;
+        };
+        let Some(data_reader) = subscriber.get_mut_data_reader(message.data_reader_handle) else {
+            return;
+        };
         if data_reader
             .get_matched_publication_data(&message.publication_handle)
             .is_some()
         {
             data_reader.remove_matched_publication(&message.publication_handle);
         }
-        Ok(())
     }
 }
 

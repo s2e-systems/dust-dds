@@ -42,8 +42,9 @@ use crate::{
     },
     rtps::udp_transport::RtpsUdpTransportParticipantFactory,
     runtime::{
-        actor::{Actor, ActorAddress, ActorBuilder, Mail, MailHandler},
+        actor::{Actor, ActorAddress, ActorBuilder, MailHandler},
         executor::Executor,
+        oneshot::OneshotSender,
         timer::TimerDriver,
     },
     topic_definition::type_support::TypeSupport,
@@ -65,7 +66,7 @@ use std::{
         Arc, OnceLock,
     },
 };
-use tracing::{error, warn};
+use tracing::warn;
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
     EntityId::new([0x00, 0x01, 0x00], BUILT_IN_WRITER_WITH_KEY);
@@ -167,17 +168,17 @@ pub struct CreateParticipant {
     pub qos: QosKind<DomainParticipantQos>,
     pub listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
     pub status_kind: Vec<StatusKind>,
-}
-impl Mail for CreateParticipant {
-    type Result = DdsResult<(
-        ActorAddress<DomainParticipantActor>,
-        InstanceHandle,
-        ActorAddress<StatusConditionActor>,
-        ActorAddress<StatusConditionActor>,
-    )>;
+    pub reply_sender: OneshotSender<
+        DdsResult<(
+            ActorAddress<DomainParticipantActor>,
+            InstanceHandle,
+            ActorAddress<StatusConditionActor>,
+            ActorAddress<StatusConditionActor>,
+        )>,
+    >,
 }
 impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
-    fn handle(&mut self, message: CreateParticipant) -> <CreateParticipant as Mail>::Result {
+    fn handle(&mut self, message: CreateParticipant) {
         let backend_executor = Executor::new();
         let backend_executor_handle = backend_executor.handle();
 
@@ -543,12 +544,9 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             self.configuration.participant_announcement_interval();
 
         backend_executor_handle.spawn(async move {
-            while let Ok(r) =
+            while let Ok(_) =
                 participant_address.send_actor_mail(discovery_service::AnnounceParticipant)
             {
-                if let Err(announce_result) = r.receive_reply().await {
-                    error!("Error announcing participant: {:?}", announce_result);
-                }
                 timer_handle.sleep(participant_announcement_interval).await;
             }
         });
@@ -563,56 +561,52 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         self.domain_participant_list
             .insert(participant_handle, participant_actor);
 
-        Ok((
+        message.reply_sender.send(Ok((
             participant_address,
             participant_handle,
             participant_status_condition_address,
             builtin_subscriber_status_condition_address,
-        ))
+        )));
     }
 }
 
 pub struct DeleteParticipant {
     pub handle: InstanceHandle,
-}
-impl Mail for DeleteParticipant {
-    type Result = DdsResult<Actor<DomainParticipantActor>>;
+    pub reply_sender: OneshotSender<DdsResult<Actor<DomainParticipantActor>>>,
 }
 impl MailHandler<DeleteParticipant> for DomainParticipantFactoryActor {
-    fn handle(&mut self, message: DeleteParticipant) -> <DeleteParticipant as Mail>::Result {
-        self.domain_participant_list
-            .remove(&message.handle)
-            .ok_or(DdsError::PreconditionNotMet(
+    fn handle(&mut self, message: DeleteParticipant) {
+        let result = self.domain_participant_list.remove(&message.handle).ok_or(
+            DdsError::PreconditionNotMet(
                 "Participant can only be deleted from its parent domain participant factory"
                     .to_string(),
-            ))
+            ),
+        );
+        message.reply_sender.send(result);
     }
 }
 
-pub struct GetParticipantList;
-impl Mail for GetParticipantList {
-    type Result = Vec<ActorAddress<DomainParticipantActor>>;
+pub struct GetParticipantList {
+    pub reply_sender: OneshotSender<Vec<ActorAddress<DomainParticipantActor>>>,
 }
+
 impl MailHandler<GetParticipantList> for DomainParticipantFactoryActor {
-    fn handle(&mut self, _: GetParticipantList) -> <GetParticipantList as Mail>::Result {
-        self.domain_participant_list
+    fn handle(&mut self, message: GetParticipantList) {
+        let participant_list = self
+            .domain_participant_list
             .values()
             .map(|a| a.address())
-            .collect()
+            .collect();
+        message.reply_sender.send(participant_list);
     }
 }
 
 pub struct SetDefaultParticipantQos {
     pub qos: QosKind<DomainParticipantQos>,
-}
-impl Mail for SetDefaultParticipantQos {
-    type Result = DdsResult<()>;
+    pub reply_sender: OneshotSender<DdsResult<()>>,
 }
 impl MailHandler<SetDefaultParticipantQos> for DomainParticipantFactoryActor {
-    fn handle(
-        &mut self,
-        message: SetDefaultParticipantQos,
-    ) -> <SetDefaultParticipantQos as Mail>::Result {
+    fn handle(&mut self, message: SetDefaultParticipantQos) {
         let qos = match message.qos {
             QosKind::Default => DomainParticipantQos::default(),
             QosKind::Specific(q) => q,
@@ -620,82 +614,72 @@ impl MailHandler<SetDefaultParticipantQos> for DomainParticipantFactoryActor {
 
         self.default_participant_qos = qos;
 
-        Ok(())
+        message.reply_sender.send(Ok(()))
     }
 }
 
-pub struct GetDefaultParticipantQos;
-impl Mail for GetDefaultParticipantQos {
-    type Result = DomainParticipantQos;
+pub struct GetDefaultParticipantQos {
+    pub reply_sender: OneshotSender<DomainParticipantQos>,
 }
+
 impl MailHandler<GetDefaultParticipantQos> for DomainParticipantFactoryActor {
-    fn handle(
-        &mut self,
-        _: GetDefaultParticipantQos,
-    ) -> <GetDefaultParticipantQos as Mail>::Result {
-        self.default_participant_qos.clone()
+    fn handle(&mut self, message: GetDefaultParticipantQos) {
+        let q = self.default_participant_qos.clone();
+        message.reply_sender.send(q);
     }
 }
 
 pub struct SetQos {
     pub qos: QosKind<DomainParticipantFactoryQos>,
+    pub reply_sender: OneshotSender<DdsResult<()>>,
 }
-impl Mail for SetQos {
-    type Result = DdsResult<()>;
-}
+
 impl MailHandler<SetQos> for DomainParticipantFactoryActor {
-    fn handle(&mut self, message: SetQos) -> <SetQos as Mail>::Result {
+    fn handle(&mut self, message: SetQos) {
         let qos = match message.qos {
             QosKind::Default => DomainParticipantFactoryQos::default(),
             QosKind::Specific(q) => q,
         };
 
         self.qos = qos;
-
-        Ok(())
+        message.reply_sender.send(Ok(()));
     }
 }
 
-pub struct GetQos;
-impl Mail for GetQos {
-    type Result = DomainParticipantFactoryQos;
+pub struct GetQos {
+    pub reply_sender: OneshotSender<DomainParticipantFactoryQos>,
 }
 impl MailHandler<GetQos> for DomainParticipantFactoryActor {
-    fn handle(&mut self, _: GetQos) -> <GetQos as Mail>::Result {
-        self.qos.clone()
+    fn handle(&mut self, message: GetQos) {
+        let q = self.qos.clone();
+        message.reply_sender.send(q);
     }
 }
 
 pub struct SetConfiguration {
     pub configuration: DustDdsConfiguration,
 }
-impl Mail for SetConfiguration {
-    type Result = ();
-}
 impl MailHandler<SetConfiguration> for DomainParticipantFactoryActor {
-    fn handle(&mut self, message: SetConfiguration) -> <SetConfiguration as Mail>::Result {
+    fn handle(&mut self, message: SetConfiguration) {
         self.configuration = message.configuration;
     }
 }
 
-pub struct GetConfiguration;
-impl Mail for GetConfiguration {
-    type Result = DustDdsConfiguration;
+pub struct GetConfiguration {
+    pub reply_sender: OneshotSender<DustDdsConfiguration>,
 }
 impl MailHandler<GetConfiguration> for DomainParticipantFactoryActor {
-    fn handle(&mut self, _: GetConfiguration) -> <GetConfiguration as Mail>::Result {
-        self.configuration.clone()
+    fn handle(&mut self, message: GetConfiguration) {
+        let c = self.configuration.clone();
+        message.reply_sender.send(c);
     }
 }
 
 pub struct SetTransport {
     pub transport: Box<dyn TransportParticipantFactory>,
 }
-impl Mail for SetTransport {
-    type Result = ();
-}
 impl MailHandler<SetTransport> for DomainParticipantFactoryActor {
-    fn handle(&mut self, message: SetTransport) -> <SetTransport as Mail>::Result {
+    fn handle(&mut self, message: SetTransport) {
         self.transport = message.transport;
     }
 }

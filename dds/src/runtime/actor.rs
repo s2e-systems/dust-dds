@@ -4,18 +4,11 @@ use super::{
 };
 use crate::infrastructure::error::{DdsError, DdsResult};
 
-pub trait Mail {
-    type Result;
-}
-
 pub trait MailHandler<M> {
     fn handle(&mut self, message: M);
 }
 
-struct ReplyMail<M>
-where
-    M: Mail,
-{
+struct ReplyMail<M> {
     mail: Option<M>,
 }
 
@@ -26,7 +19,7 @@ pub trait GenericHandler<A> {
 impl<A, M> GenericHandler<A> for ReplyMail<M>
 where
     A: MailHandler<M> + Send,
-    M: Mail + Send,
+    M: Send,
 {
     fn handle(&mut self, actor: &mut A) {
         <A as MailHandler<M>>::handle(actor, self.mail.take().expect("Must have a message"));
@@ -49,8 +42,7 @@ impl<A> ActorAddress<A> {
     pub fn send_actor_mail<M>(&self, mail: M) -> DdsResult<()>
     where
         A: MailHandler<M> + Send,
-        M: Mail + Send + 'static,
-        M::Result: Send,
+        M: Send + 'static,
     {
         self.mail_sender
             .send(Box::new(ReplyMail { mail: Some(mail) }))
@@ -91,8 +83,7 @@ where
     pub fn send_actor_mail<M>(&self, mail: M)
     where
         A: MailHandler<M>,
-        M: Mail + Send + 'static,
-        M::Result: Send,
+        M: Send + 'static,
     {
         self.mail_sender
             .send(Box::new(ReplyMail { mail: Some(mail) }))
@@ -153,9 +144,6 @@ mod tests {
     pub struct Increment {
         value: u8,
         result_sender: OneshotSender<u8>,
-    }
-    impl Mail for Increment {
-        type Result = u8;
     }
     impl MailHandler<Increment> for MyActor {
         fn handle(&mut self, message: Increment) {
