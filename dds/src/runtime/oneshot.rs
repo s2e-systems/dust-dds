@@ -5,9 +5,17 @@ use std::{
     task::{Context, Poll, Waker},
 };
 
+use crate::infrastructure::error::DdsError;
+
 #[derive(Debug)]
 pub enum OneshotRecvError {
     SenderDropped,
+}
+
+impl From<OneshotRecvError> for DdsError {
+    fn from(_: OneshotRecvError) -> Self {
+        DdsError::Error("Internal error: Oneshot sender dropped".to_owned())
+    }
 }
 
 pub fn oneshot<T>() -> (OneshotSender<T>, OneshotReceiver<T>) {

@@ -48,9 +48,7 @@ impl MailHandler<SetQos> for DomainParticipantActor {
             return;
         };
 
-        topic.set_qos(qos);
-
-        message.reply_sender.send(Ok(()));
+        message.reply_sender.send(topic.set_qos(qos));
     }
 }
 

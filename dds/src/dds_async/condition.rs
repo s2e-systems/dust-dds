@@ -1,7 +1,7 @@
 use crate::{
     implementation::status_condition::status_condition_actor::{self, StatusConditionActor},
     infrastructure::{error::DdsResult, status::StatusKind},
-    runtime::actor::ActorAddress,
+    runtime::{actor::ActorAddress, oneshot::oneshot},
 };
 
 /// Async version of [`StatusCondition`](crate::infrastructure::condition::StatusCondition).
@@ -20,23 +20,21 @@ impl StatusConditionAsync {
     /// Async version of [`get_enabled_statuses`](crate::infrastructure::condition::StatusCondition::get_enabled_statuses).
     #[tracing::instrument(skip(self))]
     pub async fn get_enabled_statuses(&self) -> DdsResult<Vec<StatusKind>> {
-        Ok(self
-            .address
-            .send_actor_mail(status_condition_actor::GetStatusConditionEnabledStatuses)?
-            .receive_reply()
-            .await)
+        let (reply_sender, reply_receiver) = oneshot();
+        self.address.send_actor_mail(
+            status_condition_actor::GetStatusConditionEnabledStatuses { reply_sender },
+        )?;
+        Ok(reply_receiver.await?)
     }
 
     /// Async version of [`set_enabled_statuses`](crate::infrastructure::condition::StatusCondition::set_enabled_statuses).
     #[tracing::instrument(skip(self))]
     pub async fn set_enabled_statuses(&self, mask: &[StatusKind]) -> DdsResult<()> {
-        self.address
-            .send_actor_mail(status_condition_actor::SetStatusConditionEnabledStatuses {
+        self.address.send_actor_mail(
+            status_condition_actor::SetStatusConditionEnabledStatuses {
                 status_mask: mask.to_vec(),
-            })?
-            .receive_reply()
-            .await;
-
+            },
+        )?;
         Ok(())
     }
 
@@ -51,10 +49,11 @@ impl StatusConditionAsync {
     /// Async version of [`get_trigger_value`](crate::infrastructure::condition::StatusCondition::get_trigger_value).
     #[tracing::instrument(skip(self))]
     pub async fn get_trigger_value(&self) -> DdsResult<bool> {
-        Ok(self
-            .address
-            .send_actor_mail(status_condition_actor::GetStatusConditionTriggerValue)?
-            .receive_reply()
-            .await)
+        let (reply_sender, reply_receiver) = oneshot();
+        self.address
+            .send_actor_mail(status_condition_actor::GetStatusConditionTriggerValue {
+                reply_sender,
+            })?;
+        Ok(reply_receiver.await?)
     }
 }

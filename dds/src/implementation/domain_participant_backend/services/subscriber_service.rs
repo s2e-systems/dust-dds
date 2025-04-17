@@ -260,8 +260,9 @@ impl MailHandler<SetDefaultDataReaderQos> for DomainParticipantActor {
             QosKind::Default => DataReaderQos::default(),
             QosKind::Specific(q) => q,
         };
-        subscriber.set_default_data_reader_qos(qos);
-        message.reply_sender.send(Ok(()));
+        message
+            .reply_sender
+            .send(subscriber.set_default_data_reader_qos(qos));
     }
 }
 
@@ -305,8 +306,7 @@ impl MailHandler<SetQos> for DomainParticipantActor {
             return;
         };
 
-        subscriber.set_qos(qos);
-        message.reply_sender.send(Ok(()));
+        message.reply_sender.send(subscriber.set_qos(qos));
     }
 }
 

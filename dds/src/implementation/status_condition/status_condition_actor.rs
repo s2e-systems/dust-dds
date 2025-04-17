@@ -60,7 +60,7 @@ impl StatusConditionActor {
 }
 
 pub struct GetStatusConditionEnabledStatuses {
-    reply_sender: OneshotSender<Vec<StatusKind>>,
+    pub reply_sender: OneshotSender<Vec<StatusKind>>,
 }
 impl MailHandler<GetStatusConditionEnabledStatuses> for StatusConditionActor {
     fn handle(&mut self, message: GetStatusConditionEnabledStatuses) {
@@ -79,7 +79,7 @@ impl MailHandler<SetStatusConditionEnabledStatuses> for StatusConditionActor {
 }
 
 pub struct GetStatusConditionTriggerValue {
-    reply_sender: OneshotSender<bool>,
+    pub reply_sender: OneshotSender<bool>,
 }
 impl MailHandler<GetStatusConditionTriggerValue> for StatusConditionActor {
     fn handle(&mut self, message: GetStatusConditionTriggerValue) {

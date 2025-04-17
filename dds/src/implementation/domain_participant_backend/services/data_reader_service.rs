@@ -213,13 +213,13 @@ impl MailHandler<WaitForHistoricalData> for DomainParticipantActor {
                     Box::pin(async move {
                         loop {
                             let (reply_sender, reply_receiver) = oneshot();
-                            message
-                                .participant_address
-                                .send_actor_mail(IsHistoricalDataReceived {
+                            message.participant_address.send_actor_mail(
+                                IsHistoricalDataReceived {
                                     subscriber_handle: message.subscriber_handle,
                                     data_reader_handle: message.data_reader_handle,
                                     reply_sender,
-                                });
+                                },
+                            )?;
 
                             let reply = reply_receiver.await;
                             match reply {

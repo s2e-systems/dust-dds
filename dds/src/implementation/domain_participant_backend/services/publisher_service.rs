@@ -187,8 +187,9 @@ impl MailHandler<SetDefaultDataWriterQos> for DomainParticipantActor {
             QosKind::Default => DataWriterQos::default(),
             QosKind::Specific(q) => q,
         };
-        publisher.set_default_datawriter_qos(qos);
-        message.reply_sender.send(Ok(()));
+        message
+            .reply_sender
+            .send(publisher.set_default_datawriter_qos(qos));
     }
 }
 

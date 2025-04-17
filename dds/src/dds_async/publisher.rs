@@ -18,7 +18,7 @@ use crate::{
         status::StatusKind,
         time::Duration,
     },
-    runtime::actor::ActorAddress,
+    runtime::{actor::ActorAddress, oneshot::oneshot},
 };
 
 /// Async version of [`Publisher`](crate::publication::publisher::Publisher).
@@ -62,8 +62,8 @@ impl PublisherAsync {
     {
         let topic_name = a_topic.get_name();
         let listener = a_listener.map::<Box<dyn AnyDataWriterListener + Send>, _>(|b| Box::new(b));
-        let (guid, writer_status_condition_address) = self
-            .participant_address()
+        let (reply_sender, reply_receiver) = oneshot();
+        self.participant_address()
             .send_actor_mail(publisher_service::CreateDataWriter {
                 publisher_handle: self.handle,
                 topic_name,
@@ -71,9 +71,9 @@ impl PublisherAsync {
                 a_listener: listener,
                 mask: mask.to_vec(),
                 participant_address: self.participant_address().clone(),
-            })?
-            .receive_reply()
-            .await?;
+                reply_sender,
+            })?;
+        let (guid, writer_status_condition_address) = reply_receiver.await??;
 
         Ok(DataWriterAsync::new(
             guid,
@@ -89,14 +89,15 @@ impl PublisherAsync {
         &self,
         a_datawriter: &DataWriterAsync<Foo>,
     ) -> DdsResult<()> {
+        let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
             .send_actor_mail(publisher_service::DeleteDataWriter {
                 publisher_handle: self.handle,
                 datawriter_handle: a_datawriter.get_instance_handle().await,
                 participant_address: self.participant_address().clone(),
-            })?
-            .receive_reply()
-            .await
+                reply_sender,
+            })?;
+        reply_receiver.await?
     }
 
     /// Async version of [`delete_datawriter`](crate::publication::publisher::Publisher::lookup_datawriter).
@@ -153,24 +154,26 @@ impl PublisherAsync {
     /// Async version of [`set_default_datawriter_qos`](crate::publication::publisher::Publisher::set_default_datawriter_qos).
     #[tracing::instrument(skip(self))]
     pub async fn set_default_datawriter_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
+        let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
             .send_actor_mail(publisher_service::SetDefaultDataWriterQos {
                 publisher_handle: self.handle,
                 qos,
-            })?
-            .receive_reply()
-            .await
+                reply_sender,
+            })?;
+        reply_receiver.await?
     }
 
     /// Async version of [`get_default_datawriter_qos`](crate::publication::publisher::Publisher::get_default_datawriter_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_default_datawriter_qos(&self) -> DdsResult<DataWriterQos> {
+        let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
             .send_actor_mail(publisher_service::GetDefaultDataWriterQos {
                 publisher_handle: self.handle,
-            })?
-            .receive_reply()
-            .await
+                reply_sender,
+            })?;
+        reply_receiver.await?
     }
 
     /// Async version of [`copy_from_topic_qos`](crate::publication::publisher::Publisher::copy_from_topic_qos).
@@ -188,24 +191,26 @@ impl PublisherAsync {
     /// Async version of [`set_qos`](crate::publication::publisher::Publisher::set_qos).
     #[tracing::instrument(skip(self))]
     pub async fn set_qos(&self, qos: QosKind<PublisherQos>) -> DdsResult<()> {
+        let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
             .send_actor_mail(publisher_service::SetQos {
                 publisher_handle: self.handle,
                 qos,
-            })?
-            .receive_reply()
-            .await
+                reply_sender,
+            })?;
+        reply_receiver.await?
     }
 
     /// Async version of [`get_qos`](crate::publication::publisher::Publisher::get_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_qos(&self) -> DdsResult<PublisherQos> {
+        let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
             .send_actor_mail(publisher_service::GetQos {
                 publisher_handle: self.handle,
-            })?
-            .receive_reply()
-            .await
+                reply_sender,
+            })?;
+        reply_receiver.await?
     }
 
     /// Async version of [`set_listener`](crate::publication::publisher::Publisher::set_listener).
@@ -215,14 +220,15 @@ impl PublisherAsync {
         a_listener: Option<Box<dyn PublisherListenerAsync + Send>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
+        let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
             .send_actor_mail(publisher_service::SetListener {
                 publisher_handle: self.handle,
                 a_listener,
                 mask: mask.to_vec(),
-            })?
-            .receive_reply()
-            .await
+                reply_sender,
+            })?;
+        reply_receiver.await?
     }
 
     /// Async version of [`get_statuscondition`](crate::publication::publisher::Publisher::get_statuscondition).
