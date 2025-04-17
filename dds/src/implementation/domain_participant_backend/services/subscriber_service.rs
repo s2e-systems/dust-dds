@@ -202,6 +202,7 @@ impl MailHandler<DeleteDataReader> for DomainParticipantActor {
 pub struct LookupDataReader {
     pub subscriber_handle: InstanceHandle,
     pub topic_name: String,
+    #[allow(clippy::type_complexity)]
     pub reply_sender:
         OneshotSender<DdsResult<Option<(InstanceHandle, ActorAddress<StatusConditionActor>)>>>,
 }

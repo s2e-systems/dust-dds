@@ -36,6 +36,7 @@ pub struct Read {
     pub view_states: Vec<ViewStateKind>,
     pub instance_states: Vec<InstanceStateKind>,
     pub specific_instance_handle: Option<InstanceHandle>,
+    #[allow(clippy::type_complexity)]
     pub reply_sender: OneshotSender<DdsResult<Vec<(Option<Arc<[u8]>>, SampleInfo)>>>,
 }
 impl MailHandler<Read> for DomainParticipantActor {
@@ -75,6 +76,7 @@ pub struct Take {
     pub view_states: Vec<ViewStateKind>,
     pub instance_states: Vec<InstanceStateKind>,
     pub specific_instance_handle: Option<InstanceHandle>,
+    #[allow(clippy::type_complexity)]
     pub reply_sender: OneshotSender<DdsResult<Vec<(Option<Arc<[u8]>>, SampleInfo)>>>,
 }
 impl MailHandler<Take> for DomainParticipantActor {
@@ -108,6 +110,7 @@ pub struct ReadNextInstance {
     pub sample_states: Vec<SampleStateKind>,
     pub view_states: Vec<ViewStateKind>,
     pub instance_states: Vec<InstanceStateKind>,
+    #[allow(clippy::type_complexity)]
     pub reply_sender: OneshotSender<DdsResult<Vec<(Option<Arc<[u8]>>, SampleInfo)>>>,
 }
 impl MailHandler<ReadNextInstance> for DomainParticipantActor {
@@ -141,6 +144,7 @@ pub struct TakeNextInstance {
     pub sample_states: Vec<SampleStateKind>,
     pub view_states: Vec<ViewStateKind>,
     pub instance_states: Vec<InstanceStateKind>,
+    #[allow(clippy::type_complexity)]
     pub reply_sender: OneshotSender<DdsResult<Vec<(Option<Arc<[u8]>>, SampleInfo)>>>,
 }
 impl MailHandler<TakeNextInstance> for DomainParticipantActor {

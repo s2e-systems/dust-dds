@@ -351,6 +351,7 @@ impl MailHandler<DeleteUserDefinedTopic> for DomainParticipantActor {
 pub struct FindTopic {
     pub topic_name: String,
     pub type_support: Arc<dyn DynamicType + Send + Sync>,
+    #[allow(clippy::type_complexity)]
     pub reply_sender: OneshotSender<
         DdsResult<Option<(InstanceHandle, ActorAddress<StatusConditionActor>, String)>>,
     >,
@@ -415,6 +416,7 @@ impl MailHandler<FindTopic> for DomainParticipantActor {
 
 pub struct LookupTopicdescription {
     pub topic_name: String,
+    #[allow(clippy::type_complexity)]
     pub reply_sender: OneshotSender<
         DdsResult<Option<(String, InstanceHandle, ActorAddress<StatusConditionActor>)>>,
     >,

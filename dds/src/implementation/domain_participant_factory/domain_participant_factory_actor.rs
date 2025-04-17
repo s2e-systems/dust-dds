@@ -168,6 +168,7 @@ pub struct CreateParticipant {
     pub qos: QosKind<DomainParticipantQos>,
     pub listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
     pub status_kind: Vec<StatusKind>,
+    #[allow(clippy::type_complexity)]
     pub reply_sender: OneshotSender<
         DdsResult<(
             ActorAddress<DomainParticipantActor>,
@@ -544,8 +545,9 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             self.configuration.participant_announcement_interval();
 
         backend_executor_handle.spawn(async move {
-            while let Ok(_) =
-                participant_address.send_actor_mail(discovery_service::AnnounceParticipant)
+            while participant_address
+                .send_actor_mail(discovery_service::AnnounceParticipant)
+                .is_ok()
             {
                 timer_handle.sleep(participant_announcement_interval).await;
             }
