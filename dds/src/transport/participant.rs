@@ -1,6 +1,6 @@
 use super::types::{EntityId, Guid, Locator, ProtocolVersion, ReliabilityKind, VendorId};
 
-pub trait TransportParticipant: Send + Sync {
+pub trait TransportParticipant: Send {
     type HistoryCache;
     type StatelessReader;
     type StatefulReader;

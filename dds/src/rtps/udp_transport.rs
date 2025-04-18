@@ -1,5 +1,5 @@
 use crate::transport::types::LOCATOR_KIND_UDP_V6;
-use core::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4};
+use core::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4};
 use dust_dds::{
     domain::domain_participant_factory::DomainId,
     rtps::{
@@ -429,6 +429,36 @@ fn process_message(
             .lock()
             .expect("stateful_writer alive")
             .process_message(datagram, message_writer);
+    }
+}
+
+impl Locator {
+    pub fn from_ip_and_port(ip_addr: &Addr, port: u32) -> Self {
+        match ip_addr.ip() {
+            IpAddr::V4(a) => Locator::new(
+                LOCATOR_KIND_UDP_V4,
+                port,
+                [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    a.octets()[0],
+                    a.octets()[1],
+                    a.octets()[2],
+                    a.octets()[3],
+                ],
+            ),
+            IpAddr::V6(a) => Locator::new(LOCATOR_KIND_UDP_V6, port, a.octets()),
+        }
     }
 }
 

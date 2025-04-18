@@ -2,6 +2,8 @@
 #![forbid(missing_docs)]
 #![cfg_attr(not(feature = "std"), no_std)]
 #![doc = include_str!("../README.md")]
+
+extern crate alloc;
 #[cfg(feature = "std")]
 mod dds;
 
@@ -30,7 +32,7 @@ pub mod transport;
 mod runtime;
 
 /// Contains the XTypes serializer and deserializer
-#[cfg(feature = "std")]
+#[cfg(feature = "xtypes")]
 #[doc(hidden)]
 pub mod xtypes;
 

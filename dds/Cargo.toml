@@ -34,7 +34,8 @@ tracing-subscriber = "0.3"
 [features]
 default = ["rtps_messages", "std"]
 rtps_messages = ["transport"]
-transport = []
+transport = ["xtypes"]
+xtypes = []
 
 std = [
 	"dep:md5",
