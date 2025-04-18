@@ -1,11 +1,9 @@
 use crate::{
-    implementation::data_representation_inline_qos::parameter_id_values::{
-        PID_KEY_HASH, PID_STATUS_INFO,
-    },
     rtps_messages::{
         self,
         submessage_elements::{Parameter, ParameterList},
         submessages::data::DataSubmessage,
+        types::ParameterId,
     },
     transport::{
         history_cache::CacheChange,
@@ -18,6 +16,9 @@ use super::error::RtpsError;
 use alloc::{sync::Arc, vec::Vec};
 
 use crate::xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize};
+
+pub const PID_KEY_HASH: ParameterId = 0x0070;
+pub const PID_STATUS_INFO: ParameterId = 0x0071;
 
 #[derive(Clone, Copy, PartialEq, Eq, XTypesSerialize, XTypesDeserialize, Debug)]
 struct StatusInfo(pub [u8; 4]);
