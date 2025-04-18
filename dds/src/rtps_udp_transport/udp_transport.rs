@@ -3,6 +3,7 @@ use core::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4};
 use dust_dds::{
     domain::domain_participant_factory::DomainId,
     rtps::{
+        message_sender::WriteMessage,
         stateful_reader::RtpsStatefulReader,
         stateful_writer::RtpsStatefulWriter,
         stateless_reader::RtpsStatelessReader,
@@ -30,8 +31,6 @@ use std::{
         Arc, Mutex,
     },
 };
-
-use super::message_sender::WriteMessage;
 
 const MAX_DATAGRAM_SIZE: usize = 65507;
 

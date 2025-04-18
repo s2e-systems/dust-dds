@@ -22,6 +22,10 @@ pub mod rtps;
 pub mod rtps_messages;
 
 #[cfg(feature = "std")]
+#[doc(hidden)]
+pub mod rtps_udp_transport;
+
+#[cfg(feature = "std")]
 mod implementation;
 
 #[cfg(feature = "transport")]
