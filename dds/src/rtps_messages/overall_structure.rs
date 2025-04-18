@@ -101,6 +101,13 @@ impl<T> Cursor<T> {
     }
 }
 
+impl Write for Vec<u8> {
+    fn write_all(&mut self, buf: &[u8]) -> RtpsMessageResult<()> {
+        self.extend_from_slice(buf);
+        Ok(())
+    }
+}
+
 impl Write for Cursor<Vec<u8>> {
     fn write_all(&mut self, buf: &[u8]) -> RtpsMessageResult<()> {
         let start_pos = self.pos as usize;

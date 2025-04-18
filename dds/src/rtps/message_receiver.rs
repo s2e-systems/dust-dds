@@ -7,6 +7,8 @@ use crate::{
     transport::types::{GuidPrefix, Locator, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN},
 };
 
+use alloc::vec::Vec;
+
 pub struct MessageReceiver<'a> {
     source_version: ProtocolVersion,
     source_vendor_id: VendorId,
@@ -16,7 +18,7 @@ pub struct MessageReceiver<'a> {
     _multicast_reply_locator_list: Vec<Locator>,
     have_timestamp: bool,
     timestamp: rtps_messages::types::Time,
-    submessage_iter: std::slice::Iter<'a, RtpsSubmessageReadKind>,
+    submessage_iter: core::slice::Iter<'a, RtpsSubmessageReadKind>,
 }
 
 impl<'a> Iterator for MessageReceiver<'a> {

@@ -3,61 +3,23 @@ use crate::{rtps_messages::error::RtpsMessageError, xtypes::error::XTypesError};
 pub type RtpsResult<T> = Result<T, RtpsError>;
 
 #[derive(Debug)]
-pub enum RtpsErrorKind {
+pub enum RtpsError {
     Io,
     InvalidData,
     NotEnoughData,
     MessageError,
-}
-
-#[derive(Debug)]
-pub struct RtpsError {
-    kind: RtpsErrorKind,
-    msg: String,
-}
-
-impl RtpsError {
-    pub fn new(kind: RtpsErrorKind, msg: impl ToString) -> Self {
-        Self {
-            kind,
-            msg: msg.to_string(),
-        }
-    }
-}
-
-impl std::fmt::Display for RtpsError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}: {}",
-            match self.kind {
-                RtpsErrorKind::InvalidData => "Invalid data",
-                RtpsErrorKind::NotEnoughData => "Not enough data",
-                RtpsErrorKind::Io => "Io",
-                RtpsErrorKind::MessageError => "Message error",
-            },
-            self.msg
-        )
-    }
-}
-
-impl From<std::io::Error> for RtpsError {
-    fn from(e: std::io::Error) -> Self {
-        RtpsError::new(RtpsErrorKind::Io, e)
-    }
+    XTypesError,
+    ParameterNotFound,
 }
 
 impl From<XTypesError> for RtpsError {
-    fn from(value: XTypesError) -> Self {
-        RtpsError::new(
-            RtpsErrorKind::InvalidData,
-            format!("XTypesError: {:?}", value),
-        )
+    fn from(_: XTypesError) -> Self {
+        RtpsError::XTypesError
     }
 }
 
 impl From<RtpsMessageError> for RtpsError {
     fn from(_: RtpsMessageError) -> Self {
-        RtpsError::new(RtpsErrorKind::MessageError, String::new())
+        RtpsError::MessageError
     }
 }

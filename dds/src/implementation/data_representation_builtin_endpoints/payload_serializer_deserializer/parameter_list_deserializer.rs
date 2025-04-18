@@ -1,13 +1,15 @@
 use crate::{
     implementation::data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
-    rtps::error::{RtpsError, RtpsErrorKind},
-    rtps_messages::types::ParameterId,
+    rtps::error::RtpsError,
+    rtps_messages::{
+        overall_structure::{BufRead, Read},
+        types::ParameterId,
+    },
     xtypes::{
         deserialize::XTypesDeserialize,
         xcdr_deserializer::{Xcdr1BeDeserializer, Xcdr1LeDeserializer},
     },
 };
-use std::io::{BufRead, Read};
 
 #[derive(Clone, Copy)]
 enum CdrEndianness {
@@ -58,10 +60,7 @@ impl<'a> ParameterIterator<'a> {
             CdrEndianness::LittleEndian => ParameterId::from_le_bytes(length),
         } as usize;
         if self.reader.len() < length {
-            Err(RtpsError::new(
-                RtpsErrorKind::NotEnoughData,
-                "Not enough data to get parameter length".to_string(),
-            ))
+            Err(RtpsError::NotEnoughData)
         } else if pid == PID_SENTINEL {
             Ok(None)
         } else {
@@ -80,18 +79,12 @@ pub struct ParameterListCdrDeserializer<'de> {
 impl<'de> ParameterListCdrDeserializer<'de> {
     pub fn new(bytes: &'de [u8]) -> Result<Self, RtpsError> {
         if bytes.len() < 4 {
-            return Err(RtpsError::new(
-                RtpsErrorKind::InvalidData,
-                "Missing representation identifier".to_string(),
-            ));
+            return Err(RtpsError::InvalidData);
         }
         let endianness = match [bytes[0], bytes[1]] {
             PL_CDR_BE => CdrEndianness::BigEndian,
             PL_CDR_LE => CdrEndianness::LittleEndian,
-            _ => Err(RtpsError::new(
-                RtpsErrorKind::InvalidData,
-                "Unknownn representation identifier".to_string(),
-            ))?,
+            _ => Err(RtpsError::InvalidData)?,
         };
 
         Ok(Self {
@@ -119,10 +112,7 @@ impl<'de> ParameterListCdrDeserializer<'de> {
                 return parameter.deserialize(self.endianness);
             }
         }
-        Err(RtpsError::new(
-            crate::rtps::error::RtpsErrorKind::InvalidData,
-            format!("Parameter with id {} not found", pid),
-        ))
+        Err(RtpsError::ParameterNotFound)
     }
 
     pub fn read_collection<T>(&self, pid: ParameterId) -> Result<Vec<T>, RtpsError>

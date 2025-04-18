@@ -1,12 +1,6 @@
-use std::sync::Arc;
-
 use crate::{
-    implementation::data_representation_inline_qos::{
-        parameter_id_values::{PID_KEY_HASH, PID_STATUS_INFO},
-        types::{
-            StatusInfo, STATUS_INFO_DISPOSED, STATUS_INFO_DISPOSED_UNREGISTERED,
-            STATUS_INFO_FILTERED, STATUS_INFO_UNREGISTERED,
-        },
+    implementation::data_representation_inline_qos::parameter_id_values::{
+        PID_KEY_HASH, PID_STATUS_INFO,
     },
     rtps_messages::{
         self,
@@ -18,6 +12,19 @@ use crate::{
         types::{ChangeKind, EntityId, Guid, GuidPrefix},
     },
 };
+
+use super::error::RtpsError;
+
+use alloc::{sync::Arc, vec::Vec};
+
+use crate::xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize};
+
+#[derive(Clone, Copy, PartialEq, Eq, XTypesSerialize, XTypesDeserialize, Debug)]
+struct StatusInfo(pub [u8; 4]);
+const STATUS_INFO_DISPOSED: StatusInfo = StatusInfo([0, 0, 0, 0b00000001]);
+const STATUS_INFO_UNREGISTERED: StatusInfo = StatusInfo([0, 0, 0, 0b0000010]);
+const STATUS_INFO_DISPOSED_UNREGISTERED: StatusInfo = StatusInfo([0, 0, 0, 0b00000011]);
+const STATUS_INFO_FILTERED: StatusInfo = StatusInfo([0, 0, 0, 0b0000100]);
 
 impl CacheChange {
     pub fn as_data_submessage(&self, reader_id: EntityId, writer_id: EntityId) -> DataSubmessage {
@@ -67,7 +74,7 @@ impl CacheChange {
         data_submessage: &DataSubmessage,
         source_guid_prefix: GuidPrefix,
         source_timestamp: Option<rtps_messages::types::Time>,
-    ) -> Result<Self, String> {
+    ) -> Result<Self, RtpsError> {
         let kind = match data_submessage
             .inline_qos()
             .parameter()
@@ -85,16 +92,10 @@ impl CacheChange {
                             Ok(ChangeKind::NotAliveDisposedUnregistered)
                         }
                         STATUS_INFO_FILTERED => Ok(ChangeKind::AliveFiltered),
-                        _ => Err(format!(
-                            "Received invalid status info parameter with value {:?}",
-                            status_info
-                        )),
+                        _ => Err(RtpsError::InvalidData),
                     }
                 } else {
-                    Err(format!(
-                        "Received invalid status info parameter length. Expected 4, got {:?}",
-                        p.length()
-                    ))
+                    Err(RtpsError::InvalidData)
                 }
             }
             None => Ok(ChangeKind::Alive),

@@ -8,6 +8,7 @@ use crate::{
         types::{EntityId, Guid, Locator, ReliabilityKind, SequenceNumber},
     },
 };
+use alloc::vec::Vec;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct HeartbeatMachine {
@@ -23,7 +24,7 @@ impl HeartbeatMachine {
             timer: std::time::Instant::now(),
         }
     }
-    pub fn is_time_for_heartbeat(&self, heartbeat_period: std::time::Duration) -> bool {
+    pub fn is_time_for_heartbeat(&self, heartbeat_period: core::time::Duration) -> bool {
         self.timer.elapsed() >= heartbeat_period
     }
     pub fn generate_new_heartbeat(

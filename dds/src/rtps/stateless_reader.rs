@@ -10,7 +10,7 @@ use crate::{
         types::{Guid, GuidPrefix, ENTITYID_UNKNOWN},
     },
 };
-use tracing::error;
+use alloc::boxed::Box;
 
 pub struct RtpsStatelessReader {
     guid: Guid,
@@ -46,8 +46,6 @@ impl RtpsStatelessReader {
                 // Stateless reader behavior. We add the change if the data is correct. No error is printed
                 // because all readers would get changes marked with ENTITYID_UNKNOWN
                 self.history_cache.add_change(change);
-            } else {
-                error!("Error converting data submessage to reader cache change. Discarding data")
             }
         }
     }

@@ -11,7 +11,10 @@ use crate::{
     },
     transport::types::{EntityId, Guid, Locator, ReliabilityKind, SequenceNumber},
 };
-use std::{cmp::max, collections::HashMap, sync::Arc};
+use alloc::{boxed::Box, sync::Arc, vec::Vec};
+
+use core::cmp::max;
+use std::collections::HashMap;
 
 fn total_fragments_expected(data_frag_submessage: &DataFragSubmessage) -> u32 {
     let data_size = data_frag_submessage.data_size();

@@ -17,7 +17,7 @@ use crate::{
         types::{Guid, GuidPrefix, ReliabilityKind},
     },
 };
-use tracing::error;
+use alloc::{boxed::Box, vec::Vec};
 
 pub struct RtpsStatefulReader {
     guid: Guid,
@@ -92,8 +92,6 @@ impl RtpsStatefulReader {
                             source_timestamp,
                         ) {
                             self.history_cache.add_change(change);
-                        } else {
-                            error!("Error converting data submessage to reader cache change. Discarding data")
                         }
                     }
                 }
@@ -108,8 +106,6 @@ impl RtpsStatefulReader {
                             source_timestamp,
                         ) {
                             self.history_cache.add_change(change);
-                        } else {
-                            error!("Error converting data submessage to reader cache change. Discarding data")
                         }
                     }
                 }

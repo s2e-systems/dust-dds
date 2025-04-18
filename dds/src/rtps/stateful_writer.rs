@@ -22,6 +22,7 @@ use crate::{
         writer::ReaderProxy,
     },
 };
+use alloc::{boxed::Box, vec::Vec};
 
 pub struct RtpsStatefulWriter {
     guid: Guid,
@@ -183,7 +184,7 @@ impl RtpsStatefulWriter {
                 && nackfrag_submessage.count() > reader_proxy.last_received_nack_frag_count()
             {
                 reader_proxy
-                    .requested_changes_set(std::iter::once(nackfrag_submessage.writer_sn()));
+                    .requested_changes_set(core::iter::once(nackfrag_submessage.writer_sn()));
                 reader_proxy.set_last_received_nack_frag_count(nackfrag_submessage.count());
 
                 write_message_to_reader_proxy_reliable(
@@ -315,7 +316,7 @@ fn write_message_to_reader_proxy_best_effort(
                     let data_size = cache_change.data_value().len() as u32;
 
                     let start = frag_index * data_max_size_serialized;
-                    let end = std::cmp::min(
+                    let end = core::cmp::min(
                         (frag_index + 1) * data_max_size_serialized,
                         cache_change.data_value().len(),
                     );
@@ -336,7 +337,7 @@ fn write_message_to_reader_proxy_best_effort(
                         fragments_in_submessage,
                         fragment_size,
                         data_size,
-                        ParameterList::new(vec![]),
+                        ParameterList::new(Vec::new()),
                         serialized_payload,
                     ));
                     let rtps_message = RtpsMessageWrite::from_submessages(
@@ -537,7 +538,7 @@ fn write_change_message_reader_proxy_reliable(
                     let data_size = cache_change.data_value().len() as u32;
 
                     let start = frag_index * data_max_size_serialized;
-                    let end = std::cmp::min(
+                    let end = core::cmp::min(
                         (frag_index + 1) * data_max_size_serialized,
                         cache_change.data_value().len(),
                     );
@@ -558,7 +559,7 @@ fn write_change_message_reader_proxy_reliable(
                         fragments_in_submessage,
                         fragment_size,
                         data_size,
-                        ParameterList::new(vec![]),
+                        ParameterList::new(Vec::new()),
                         serialized_payload,
                     ));
 
