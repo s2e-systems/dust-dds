@@ -1,11 +1,11 @@
-use super::{
-    reader::{TransportStatefulReader, TransportStatelessReader},
-    types::{EntityId, Guid, Locator, ProtocolVersion, ReliabilityKind, VendorId},
-    writer::{TransportStatefulWriter, TransportStatelessWriter},
-};
+use super::types::{EntityId, Guid, Locator, ProtocolVersion, ReliabilityKind, VendorId};
 
 pub trait TransportParticipant: Send + Sync {
     type HistoryCache;
+    type StatelessReader;
+    type StatefulReader;
+    type StatelessWriter;
+    type StatefulWriter;
 
     fn guid(&self) -> Guid;
     fn protocol_version(&self) -> ProtocolVersion;
@@ -19,21 +19,20 @@ pub trait TransportParticipant: Send + Sync {
         &mut self,
         entity_id: EntityId,
         reader_history_cache: Self::HistoryCache,
-    ) -> Box<dyn TransportStatelessReader>;
+    ) -> Self::StatelessReader;
 
-    fn create_stateless_writer(&mut self, entity_id: EntityId)
-        -> Box<dyn TransportStatelessWriter>;
+    fn create_stateless_writer(&mut self, entity_id: EntityId) -> Self::StatelessWriter;
 
     fn create_stateful_reader(
         &mut self,
         entity_id: EntityId,
         reliability_kind: ReliabilityKind,
         reader_history_cache: Self::HistoryCache,
-    ) -> Box<dyn TransportStatefulReader>;
+    ) -> Self::StatefulReader;
 
     fn create_stateful_writer(
         &mut self,
         entity_id: EntityId,
         reliability_kind: ReliabilityKind,
-    ) -> Box<dyn TransportStatefulWriter>;
+    ) -> Self::StatefulWriter;
 }

@@ -52,10 +52,12 @@ use crate::{
         factory::TransportParticipantFactory,
         history_cache::{CacheChange, HistoryCache},
         participant::TransportParticipant,
+        reader::{TransportStatefulReader, TransportStatelessReader},
         types::{
             EntityId, GuidPrefix, ReliabilityKind, BUILT_IN_READER_WITH_KEY,
             BUILT_IN_WRITER_WITH_KEY,
         },
+        writer::{TransportStatefulWriter, TransportStatelessWriter},
     },
 };
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
@@ -71,8 +73,15 @@ use tracing::warn;
 
 pub type DdsTransportParticipantFactory =
     Box<dyn TransportParticipantFactory<TransportParticipant = DdsTransportParticipant>>;
-pub type DdsTransportParticipant =
-    Box<dyn TransportParticipant<HistoryCache = Box<dyn HistoryCache>>>;
+pub type DdsTransportParticipant = Box<
+    dyn TransportParticipant<
+        HistoryCache = Box<dyn HistoryCache>,
+        StatelessReader = Box<dyn TransportStatelessReader>,
+        StatefulReader = Box<dyn TransportStatefulReader>,
+        StatelessWriter = Box<dyn TransportStatelessWriter>,
+        StatefulWriter = Box<dyn TransportStatefulWriter>,
+    >,
+>;
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
     EntityId::new([0x00, 0x01, 0x00], BUILT_IN_WRITER_WITH_KEY);

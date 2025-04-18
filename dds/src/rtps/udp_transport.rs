@@ -176,7 +176,15 @@ enum ChannelMessageKind {
 }
 
 impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
-    type TransportParticipant = Box<dyn TransportParticipant<HistoryCache = Box<dyn HistoryCache>>>;
+    type TransportParticipant = Box<
+        dyn TransportParticipant<
+            HistoryCache = Box<dyn HistoryCache>,
+            StatelessReader = Box<dyn TransportStatelessReader>,
+            StatefulReader = Box<dyn TransportStatefulReader>,
+            StatelessWriter = Box<dyn TransportStatelessWriter>,
+            StatefulWriter = Box<dyn TransportStatefulWriter>,
+        >,
+    >;
 
     fn create_participant(
         &self,
@@ -528,6 +536,10 @@ pub struct RtpsUdpTransportParticipant {
 
 impl TransportParticipant for RtpsUdpTransportParticipant {
     type HistoryCache = Box<dyn HistoryCache>;
+    type StatelessReader = Box<dyn TransportStatelessReader>;
+    type StatelessWriter = Box<dyn TransportStatelessWriter>;
+    type StatefulReader = Box<dyn TransportStatefulReader>;
+    type StatefulWriter = Box<dyn TransportStatefulWriter>;
 
     fn guid(&self) -> Guid {
         self.guid
@@ -554,7 +566,7 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
         &mut self,
         entity_id: EntityId,
         reader_history_cache: Self::HistoryCache,
-    ) -> Box<dyn TransportStatelessReader> {
+    ) -> Self::StatelessReader {
         struct StatelessReader {
             guid: Guid,
         }
@@ -573,10 +585,7 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
             guid: Guid::new(self.guid.prefix(), entity_id),
         })
     }
-    fn create_stateless_writer(
-        &mut self,
-        entity_id: EntityId,
-    ) -> Box<dyn TransportStatelessWriter> {
+    fn create_stateless_writer(&mut self, entity_id: EntityId) -> Self::StatelessWriter {
         struct StatelessWriter {
             rtps_writer: RtpsStatelessWriter,
             message_writer: Arc<MessageWriter>,
@@ -619,7 +628,7 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
         entity_id: EntityId,
         _reliability_kind: ReliabilityKind,
         reader_history_cache: Self::HistoryCache,
-    ) -> Box<dyn TransportStatefulReader> {
+    ) -> Self::StatefulReader {
         struct StatefulReader {
             guid: Guid,
             rtps_stateful_reader: Arc<Mutex<RtpsStatefulReader>>,
@@ -668,7 +677,7 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
         &mut self,
         entity_id: EntityId,
         _reliability_kind: ReliabilityKind,
-    ) -> Box<dyn TransportStatefulWriter> {
+    ) -> Self::StatefulWriter {
         struct StatefulWriter {
             guid: Guid,
             rtps_stateful_writer: Arc<Mutex<RtpsStatefulWriter>>,
