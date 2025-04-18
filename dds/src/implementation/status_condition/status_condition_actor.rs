@@ -1,6 +1,6 @@
 use crate::{
     infrastructure::status::StatusKind,
-    runtime::actor::{Mail, MailHandler},
+    runtime::{actor::MailHandler, oneshot::OneshotSender},
 };
 
 #[derive(Debug)]
@@ -59,58 +59,40 @@ impl StatusConditionActor {
     }
 }
 
-pub struct GetStatusConditionEnabledStatuses;
-impl Mail for GetStatusConditionEnabledStatuses {
-    type Result = Vec<StatusKind>;
+pub struct GetStatusConditionEnabledStatuses {
+    pub reply_sender: OneshotSender<Vec<StatusKind>>,
 }
 impl MailHandler<GetStatusConditionEnabledStatuses> for StatusConditionActor {
-    fn handle(
-        &mut self,
-        _: GetStatusConditionEnabledStatuses,
-    ) -> <GetStatusConditionEnabledStatuses as Mail>::Result {
-        self.get_enabled_statuses()
+    fn handle(&mut self, message: GetStatusConditionEnabledStatuses) {
+        let status = self.get_enabled_statuses();
+        message.reply_sender.send(status);
     }
 }
 
 pub struct SetStatusConditionEnabledStatuses {
     pub status_mask: Vec<StatusKind>,
 }
-impl Mail for SetStatusConditionEnabledStatuses {
-    type Result = ();
-}
 impl MailHandler<SetStatusConditionEnabledStatuses> for StatusConditionActor {
-    fn handle(
-        &mut self,
-        message: SetStatusConditionEnabledStatuses,
-    ) -> <SetStatusConditionEnabledStatuses as Mail>::Result {
+    fn handle(&mut self, message: SetStatusConditionEnabledStatuses) {
         self.set_enabled_statuses(message.status_mask);
     }
 }
 
-pub struct GetStatusConditionTriggerValue;
-impl Mail for GetStatusConditionTriggerValue {
-    type Result = bool;
+pub struct GetStatusConditionTriggerValue {
+    pub reply_sender: OneshotSender<bool>,
 }
 impl MailHandler<GetStatusConditionTriggerValue> for StatusConditionActor {
-    fn handle(
-        &mut self,
-        _: GetStatusConditionTriggerValue,
-    ) -> <GetStatusConditionTriggerValue as Mail>::Result {
-        self.get_trigger_value()
+    fn handle(&mut self, message: GetStatusConditionTriggerValue) {
+        let value = self.get_trigger_value();
+        message.reply_sender.send(value);
     }
 }
 
 pub struct AddCommunicationState {
     pub state: StatusKind,
 }
-impl Mail for AddCommunicationState {
-    type Result = ();
-}
 impl MailHandler<AddCommunicationState> for StatusConditionActor {
-    fn handle(
-        &mut self,
-        message: AddCommunicationState,
-    ) -> <AddCommunicationState as Mail>::Result {
+    fn handle(&mut self, message: AddCommunicationState) {
         self.add_communication_state(message.state);
     }
 }
@@ -118,14 +100,8 @@ impl MailHandler<AddCommunicationState> for StatusConditionActor {
 pub struct RemoveCommunicationState {
     pub state: StatusKind,
 }
-impl Mail for RemoveCommunicationState {
-    type Result = ();
-}
 impl MailHandler<RemoveCommunicationState> for StatusConditionActor {
-    fn handle(
-        &mut self,
-        message: RemoveCommunicationState,
-    ) -> <RemoveCommunicationState as Mail>::Result {
+    fn handle(&mut self, message: RemoveCommunicationState) {
         self.remove_communication_state(message.state);
     }
 }

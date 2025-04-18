@@ -20,7 +20,10 @@ use crate::{
         qos_policy::ReliabilityQosPolicyKind,
         status::StatusKind,
     },
-    runtime::actor::{Actor, ActorAddress, Mail, MailHandler},
+    runtime::{
+        actor::{Actor, ActorAddress, MailHandler},
+        oneshot::OneshotSender,
+    },
     transport::{
         history_cache::{CacheChange, HistoryCache},
         types::{
@@ -38,12 +41,11 @@ pub struct CreateDataReader {
     pub a_listener: Option<Box<dyn AnyDataReaderListener>>,
     pub mask: Vec<StatusKind>,
     pub domain_participant_address: ActorAddress<DomainParticipantActor>,
-}
-impl Mail for CreateDataReader {
-    type Result = DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)>;
+    pub reply_sender:
+        OneshotSender<DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)>>,
 }
 impl MailHandler<CreateDataReader> for DomainParticipantActor {
-    fn handle(&mut self, message: CreateDataReader) -> <CreateDataReader as Mail>::Result {
+    fn handle(&mut self, message: CreateDataReader) {
         struct UserDefinedReaderHistoryCache {
             pub domain_participant_address: ActorAddress<DomainParticipantActor>,
             pub subscriber_handle: InstanceHandle,
@@ -67,10 +69,10 @@ impl MailHandler<CreateDataReader> for DomainParticipantActor {
             }
         }
 
-        let topic = self
-            .domain_participant
-            .get_topic(&message.topic_name)
-            .ok_or(DdsError::AlreadyDeleted)?;
+        let Some(topic) = self.domain_participant.get_topic(&message.topic_name) else {
+            message.reply_sender.send(Err(DdsError::AlreadyDeleted));
+            return;
+        };
 
         let topic_kind = get_topic_kind(topic.type_support().as_ref());
         let topic_name = topic.topic_name().to_owned();
@@ -78,15 +80,23 @@ impl MailHandler<CreateDataReader> for DomainParticipantActor {
         let reader_handle = self.instance_handle_counter.generate_new_instance_handle();
 
         let type_support = topic.type_support().clone();
-        let subscriber = self
+        let Some(subscriber) = self
             .domain_participant
             .get_mut_subscriber(message.subscriber_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
+        else {
+            message.reply_sender.send(Err(DdsError::AlreadyDeleted));
+            return;
+        };
+
         let qos = match message.qos {
             QosKind::Default => subscriber.default_data_reader_qos().clone(),
             QosKind::Specific(q) => {
-                q.is_consistent()?;
-                q
+                if q.is_consistent().is_ok() {
+                    q
+                } else {
+                    message.reply_sender.send(Err(DdsError::InconsistentPolicy));
+                    return;
+                }
             }
         };
         self.entity_counter += 1;
@@ -153,9 +163,12 @@ impl MailHandler<CreateDataReader> for DomainParticipantActor {
                     subscriber_handle: message.subscriber_handle,
                     data_reader_handle: reader_handle,
                     participant_address: message.domain_participant_address.clone(),
-                })?;
+                })
+                .ok();
         }
-        Ok((data_reader_handle, reader_status_condition_address))
+        message
+            .reply_sender
+            .send(Ok((data_reader_handle, reader_status_condition_address)))
     }
 }
 
@@ -163,62 +176,69 @@ pub struct DeleteDataReader {
     pub subscriber_handle: InstanceHandle,
     pub datareader_handle: InstanceHandle,
     pub participant_address: ActorAddress<DomainParticipantActor>,
-}
-impl Mail for DeleteDataReader {
-    type Result = DdsResult<()>;
+    pub reply_sender: OneshotSender<DdsResult<()>>,
 }
 impl MailHandler<DeleteDataReader> for DomainParticipantActor {
-    fn handle(&mut self, message: DeleteDataReader) -> <DeleteDataReader as Mail>::Result {
-        let subscriber = self
+    fn handle(&mut self, message: DeleteDataReader) {
+        let Some(subscriber) = self
             .domain_participant
             .get_mut_subscriber(message.subscriber_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-        let data_reader = subscriber
-            .remove_data_reader(message.datareader_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
+        else {
+            message.reply_sender.send(Err(DdsError::AlreadyDeleted));
+            return;
+        };
+        let Some(data_reader) = subscriber.remove_data_reader(message.datareader_handle) else {
+            message.reply_sender.send(Err(DdsError::AlreadyDeleted));
+            return;
+        };
         message
             .participant_address
             .send_actor_mail(discovery_service::AnnounceDeletedDataReader { data_reader })
             .ok();
-        Ok(())
+        message.reply_sender.send(Ok(()));
     }
 }
 
 pub struct LookupDataReader {
     pub subscriber_handle: InstanceHandle,
     pub topic_name: String,
-}
-impl Mail for LookupDataReader {
-    type Result = DdsResult<Option<(InstanceHandle, ActorAddress<StatusConditionActor>)>>;
+    #[allow(clippy::type_complexity)]
+    pub reply_sender:
+        OneshotSender<DdsResult<Option<(InstanceHandle, ActorAddress<StatusConditionActor>)>>>,
 }
 impl MailHandler<LookupDataReader> for DomainParticipantActor {
-    fn handle(&mut self, message: LookupDataReader) -> <LookupDataReader as Mail>::Result {
+    fn handle(&mut self, message: LookupDataReader) {
         if self
             .domain_participant
             .get_topic(&message.topic_name)
             .is_none()
         {
-            return Err(DdsError::BadParameter);
+            message.reply_sender.send(Err(DdsError::BadParameter));
+            return;
         }
 
         // Built-in subscriber is identified by the handle of the participant itself
         if self.domain_participant.instance_handle() == message.subscriber_handle {
-            Ok(self
+            message.reply_sender.send(Ok(self
                 .domain_participant
                 .builtin_subscriber_mut()
                 .data_reader_list_mut()
                 .find(|dr| dr.topic_name() == message.topic_name)
                 .map(|x: &mut DataReaderEntity| {
                     (x.instance_handle(), x.status_condition().address())
-                }))
+                })))
         } else {
-            let s = self
+            let Some(s) = self
                 .domain_participant
                 .get_mut_subscriber(message.subscriber_handle)
-                .ok_or(DdsError::AlreadyDeleted)?;
-            Ok(s.data_reader_list_mut()
+            else {
+                message.reply_sender.send(Err(DdsError::AlreadyDeleted));
+                return;
+            };
+            message.reply_sender.send(Ok(s
+                .data_reader_list_mut()
                 .find(|dr| dr.topic_name() == message.topic_name)
-                .map(|x| (x.instance_handle(), x.status_condition().address())))
+                .map(|x| (x.instance_handle(), x.status_condition().address()))))
         }
     }
 }
@@ -226,83 +246,86 @@ impl MailHandler<LookupDataReader> for DomainParticipantActor {
 pub struct SetDefaultDataReaderQos {
     pub subscriber_handle: InstanceHandle,
     pub qos: QosKind<DataReaderQos>,
-}
-impl Mail for SetDefaultDataReaderQos {
-    type Result = DdsResult<()>;
+    pub reply_sender: OneshotSender<DdsResult<()>>,
 }
 impl MailHandler<SetDefaultDataReaderQos> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: SetDefaultDataReaderQos,
-    ) -> <SetDefaultDataReaderQos as Mail>::Result {
-        let subscriber = self
+    fn handle(&mut self, message: SetDefaultDataReaderQos) {
+        let Some(subscriber) = self
             .domain_participant
             .get_mut_subscriber(message.subscriber_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
+        else {
+            message.reply_sender.send(Err(DdsError::AlreadyDeleted));
+            return;
+        };
         let qos = match message.qos {
             QosKind::Default => DataReaderQos::default(),
             QosKind::Specific(q) => q,
         };
-        subscriber.set_default_data_reader_qos(qos)
+        message
+            .reply_sender
+            .send(subscriber.set_default_data_reader_qos(qos));
     }
 }
 
 pub struct GetDefaultDataReaderQos {
     pub subscriber_handle: InstanceHandle,
-}
-impl Mail for GetDefaultDataReaderQos {
-    type Result = DdsResult<DataReaderQos>;
+    pub reply_sender: OneshotSender<DdsResult<DataReaderQos>>,
 }
 impl MailHandler<GetDefaultDataReaderQos> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: GetDefaultDataReaderQos,
-    ) -> <GetDefaultDataReaderQos as Mail>::Result {
-        Ok(self
+    fn handle(&mut self, message: GetDefaultDataReaderQos) {
+        let Some(subscriber) = self
             .domain_participant
-            .get_subscriber(message.subscriber_handle)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .default_data_reader_qos()
-            .clone())
+            .get_mut_subscriber(message.subscriber_handle)
+        else {
+            message.reply_sender.send(Err(DdsError::AlreadyDeleted));
+            return;
+        };
+
+        message
+            .reply_sender
+            .send(Ok(subscriber.default_data_reader_qos().clone()));
     }
 }
 
 pub struct SetQos {
     pub subscriber_handle: InstanceHandle,
     pub qos: QosKind<SubscriberQos>,
-}
-impl Mail for SetQos {
-    type Result = DdsResult<()>;
+    pub reply_sender: OneshotSender<DdsResult<()>>,
 }
 impl MailHandler<SetQos> for DomainParticipantActor {
-    fn handle(&mut self, message: SetQos) -> <SetQos as Mail>::Result {
+    fn handle(&mut self, message: SetQos) {
         let qos = match message.qos {
             QosKind::Default => self.domain_participant.default_subscriber_qos().clone(),
             QosKind::Specific(q) => q,
         };
-        let subscriber = self
+
+        let Some(subscriber) = self
             .domain_participant
             .get_mut_subscriber(message.subscriber_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
+        else {
+            message.reply_sender.send(Err(DdsError::AlreadyDeleted));
+            return;
+        };
 
-        subscriber.set_qos(qos)
+        message.reply_sender.send(subscriber.set_qos(qos));
     }
 }
 
 pub struct GetSubscriberQos {
     pub subscriber_handle: InstanceHandle,
-}
-impl Mail for GetSubscriberQos {
-    type Result = DdsResult<SubscriberQos>;
+    pub reply_sender: OneshotSender<DdsResult<SubscriberQos>>,
 }
 impl MailHandler<GetSubscriberQos> for DomainParticipantActor {
-    fn handle(&mut self, message: GetSubscriberQos) -> <GetSubscriberQos as Mail>::Result {
-        Ok(self
+    fn handle(&mut self, message: GetSubscriberQos) {
+        let Some(subscriber) = self
             .domain_participant
-            .get_subscriber(message.subscriber_handle)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .qos()
-            .clone())
+            .get_mut_subscriber(message.subscriber_handle)
+        else {
+            message.reply_sender.send(Err(DdsError::AlreadyDeleted));
+            return;
+        };
+
+        message.reply_sender.send(Ok(subscriber.qos().clone()));
     }
 }
 
@@ -310,23 +333,26 @@ pub struct SetListener {
     pub subscriber_handle: InstanceHandle,
     pub a_listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
     pub mask: Vec<StatusKind>,
-}
-impl Mail for SetListener {
-    type Result = DdsResult<()>;
+    pub reply_sender: OneshotSender<DdsResult<()>>,
 }
 impl MailHandler<SetListener> for DomainParticipantActor {
-    fn handle(&mut self, message: SetListener) -> <SetListener as Mail>::Result {
+    fn handle(&mut self, message: SetListener) {
         let listener = message.a_listener.map(|l| {
             Actor::spawn(
                 SubscriberListenerActor::new(l),
                 &self.listener_executor.handle(),
             )
         });
-        self.domain_participant
+        let Some(subscriber) = self
+            .domain_participant
             .get_mut_subscriber(message.subscriber_handle)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .set_listener(listener, message.mask);
-        Ok(())
+        else {
+            message.reply_sender.send(Err(DdsError::AlreadyDeleted));
+            return;
+        };
+
+        subscriber.set_listener(listener, message.mask);
+        message.reply_sender.send(Ok(()))
     }
 }
 

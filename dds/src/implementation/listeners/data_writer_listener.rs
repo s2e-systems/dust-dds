@@ -4,7 +4,7 @@ use crate::{
     infrastructure::status::{
         OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
     },
-    runtime::actor::{Mail, MailHandler},
+    runtime::actor::MailHandler,
 };
 
 pub struct DataWriterListenerActor {
@@ -21,14 +21,8 @@ pub struct TriggerPublicationMatched {
     pub the_writer: DataWriterAsync<()>,
     pub status: PublicationMatchedStatus,
 }
-impl Mail for TriggerPublicationMatched {
-    type Result = ();
-}
 impl MailHandler<TriggerPublicationMatched> for DataWriterListenerActor {
-    fn handle(
-        &mut self,
-        message: TriggerPublicationMatched,
-    ) -> <TriggerPublicationMatched as Mail>::Result {
+    fn handle(&mut self, message: TriggerPublicationMatched) {
         self.listener
             .trigger_on_publication_matched(message.the_writer, message.status);
     }
@@ -38,14 +32,8 @@ pub struct TriggerOfferedIncompatibleQos {
     pub the_writer: DataWriterAsync<()>,
     pub status: OfferedIncompatibleQosStatus,
 }
-impl Mail for TriggerOfferedIncompatibleQos {
-    type Result = ();
-}
 impl MailHandler<TriggerOfferedIncompatibleQos> for DataWriterListenerActor {
-    fn handle(
-        &mut self,
-        message: TriggerOfferedIncompatibleQos,
-    ) -> <TriggerOfferedIncompatibleQos as Mail>::Result {
+    fn handle(&mut self, message: TriggerOfferedIncompatibleQos) {
         self.listener
             .trigger_on_offered_incompatible_qos(message.the_writer, message.status);
     }
@@ -55,14 +43,8 @@ pub struct TriggerOfferedDeadlineMissed {
     pub the_writer: DataWriterAsync<()>,
     pub status: OfferedDeadlineMissedStatus,
 }
-impl Mail for TriggerOfferedDeadlineMissed {
-    type Result = ();
-}
 impl MailHandler<TriggerOfferedDeadlineMissed> for DataWriterListenerActor {
-    fn handle(
-        &mut self,
-        message: TriggerOfferedDeadlineMissed,
-    ) -> <TriggerOfferedDeadlineMissed as Mail>::Result {
+    fn handle(&mut self, message: TriggerOfferedDeadlineMissed) {
         self.listener
             .trigger_on_offered_deadline_missed(message.the_writer, message.status);
     }

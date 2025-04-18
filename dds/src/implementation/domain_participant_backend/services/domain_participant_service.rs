@@ -31,7 +31,10 @@ use crate::{
         status::StatusKind,
         time::Time,
     },
-    runtime::actor::{Actor, ActorAddress, Mail, MailHandler},
+    runtime::{
+        actor::{Actor, ActorAddress, MailHandler},
+        oneshot::OneshotSender,
+    },
     xtypes::dynamic_type::DynamicType,
 };
 
@@ -48,15 +51,11 @@ pub struct CreateUserDefinedPublisher {
     pub qos: QosKind<PublisherQos>,
     pub a_listener: Option<Box<dyn PublisherListenerAsync + Send>>,
     pub mask: Vec<StatusKind>,
-}
-impl Mail for CreateUserDefinedPublisher {
-    type Result = DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)>;
+    pub reply_sender:
+        OneshotSender<DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)>>,
 }
 impl MailHandler<CreateUserDefinedPublisher> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: CreateUserDefinedPublisher,
-    ) -> <CreateUserDefinedPublisher as Mail>::Result {
+    fn handle(&mut self, message: CreateUserDefinedPublisher) {
         let publisher_qos = match message.qos {
             QosKind::Default => self.domain_participant.default_publisher_qos().clone(),
             QosKind::Specific(q) => q,
@@ -94,45 +93,48 @@ impl MailHandler<CreateUserDefinedPublisher> for DomainParticipantActor {
 
         self.domain_participant.insert_publisher(publisher);
 
-        Ok((publisher_handle, publisher_status_condition_address))
+        message
+            .reply_sender
+            .send(Ok((publisher_handle, publisher_status_condition_address)));
     }
 }
 
 pub struct DeleteUserDefinedPublisher {
     pub participant_handle: InstanceHandle,
     pub publisher_handle: InstanceHandle,
-}
-impl Mail for DeleteUserDefinedPublisher {
-    type Result = DdsResult<()>;
+    pub reply_sender: OneshotSender<DdsResult<()>>,
 }
 impl MailHandler<DeleteUserDefinedPublisher> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: DeleteUserDefinedPublisher,
-    ) -> <DeleteUserDefinedPublisher as Mail>::Result {
+    fn handle(&mut self, message: DeleteUserDefinedPublisher) {
         if message.participant_handle != self.domain_participant.instance_handle() {
-            return Err(DdsError::PreconditionNotMet(
+            message.reply_sender.send(Err(DdsError::PreconditionNotMet(
                 "Publisher can only be deleted from its parent participant".to_string(),
-            ));
+            )));
+            return;
         }
-
-        if self
+        let Some(publisher) = self
             .domain_participant
             .get_publisher(message.publisher_handle)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .data_writer_list()
-            .count()
-            > 0
-        {
-            return Err(DdsError::PreconditionNotMet(
-                "Publisher still contains data writers".to_string(),
-            ));
-        }
-        self.domain_participant
-            .remove_publisher(&message.publisher_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
+        else {
+            message.reply_sender.send(Err(DdsError::AlreadyDeleted));
+            return;
+        };
 
-        Ok(())
+        if publisher.data_writer_list().count() > 0 {
+            message.reply_sender.send(Err(DdsError::PreconditionNotMet(
+                "Publisher still contains data writers".to_string(),
+            )));
+            return;
+        }
+        let Some(_) = self
+            .domain_participant
+            .remove_publisher(&message.publisher_handle)
+        else {
+            message.reply_sender.send(Err(DdsError::AlreadyDeleted));
+            return;
+        };
+
+        message.reply_sender.send(Ok(()));
     }
 }
 
@@ -140,15 +142,11 @@ pub struct CreateUserDefinedSubscriber {
     pub qos: QosKind<SubscriberQos>,
     pub a_listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
     pub mask: Vec<StatusKind>,
-}
-impl Mail for CreateUserDefinedSubscriber {
-    type Result = DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)>;
+    pub reply_sender:
+        OneshotSender<DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)>>,
 }
 impl MailHandler<CreateUserDefinedSubscriber> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: CreateUserDefinedSubscriber,
-    ) -> <CreateUserDefinedSubscriber as Mail>::Result {
+    fn handle(&mut self, message: CreateUserDefinedSubscriber) {
         let subscriber_qos = match message.qos {
             QosKind::Default => self.domain_participant.default_subscriber_qos().clone(),
             QosKind::Specific(q) => q,
@@ -187,48 +185,49 @@ impl MailHandler<CreateUserDefinedSubscriber> for DomainParticipantActor {
 
         self.domain_participant.insert_subscriber(subscriber);
 
-        Ok((
-            subscriber_handle,
-            subscriber_status_condition_address,
-        ))
+        message
+            .reply_sender
+            .send(Ok((subscriber_handle, subscriber_status_condition_address)))
     }
 }
 
 pub struct DeleteUserDefinedSubscriber {
     pub participant_handle: InstanceHandle,
     pub subscriber_handle: InstanceHandle,
-}
-impl Mail for DeleteUserDefinedSubscriber {
-    type Result = DdsResult<()>;
+    pub reply_sender: OneshotSender<DdsResult<()>>,
 }
 impl MailHandler<DeleteUserDefinedSubscriber> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: DeleteUserDefinedSubscriber,
-    ) -> <DeleteUserDefinedSubscriber as Mail>::Result {
+    fn handle(&mut self, message: DeleteUserDefinedSubscriber) {
         if self.domain_participant.instance_handle() != message.participant_handle {
-            return Err(DdsError::PreconditionNotMet(
+            message.reply_sender.send(Err(DdsError::PreconditionNotMet(
                 "Subscriber can only be deleted from its parent participant".to_string(),
-            ));
+            )));
+            return;
         }
 
-        if self
+        let Some(subscriber) = self
             .domain_participant
             .get_subscriber(message.subscriber_handle)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .data_reader_list()
-            .count()
-            > 0
-        {
-            return Err(DdsError::PreconditionNotMet(
-                "Subscriber still contains data readers".to_string(),
-            ));
-        }
-        self.domain_participant
-            .remove_subscriber(&message.subscriber_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
+        else {
+            message.reply_sender.send(Err(DdsError::AlreadyDeleted));
+            return;
+        };
 
-        Ok(())
+        if subscriber.data_reader_list().count() > 0 {
+            message.reply_sender.send(Err(DdsError::PreconditionNotMet(
+                "Subscriber still contains data readers".to_string(),
+            )));
+            return;
+        }
+        let Some(_) = self
+            .domain_participant
+            .remove_subscriber(&message.subscriber_handle)
+        else {
+            message.reply_sender.send(Err(DdsError::AlreadyDeleted));
+            return;
+        };
+
+        message.reply_sender.send(Ok(()))
     }
 }
 
@@ -240,22 +239,24 @@ pub struct CreateTopic {
     pub mask: Vec<StatusKind>,
     pub type_support: Arc<dyn DynamicType + Send + Sync>,
     pub participant_address: ActorAddress<DomainParticipantActor>,
-}
-impl Mail for CreateTopic {
-    type Result = DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)>;
+    pub reply_sender:
+        OneshotSender<DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)>>,
 }
 impl MailHandler<CreateTopic> for DomainParticipantActor {
-    fn handle(&mut self, message: CreateTopic) -> <CreateTopic as Mail>::Result {
+    fn handle(&mut self, message: CreateTopic) {
         if self
             .domain_participant
             .get_topic(&message.topic_name)
             .is_some()
         {
-            return Err(DdsError::PreconditionNotMet(format!(
-                "Topic with name {} already exists.
+            message
+                .reply_sender
+                .send(Err(DdsError::PreconditionNotMet(format!(
+                    "Topic with name {} already exists.
              To access this topic call the lookup_topicdescription method.",
-                message.topic_name
-            )));
+                    message.topic_name
+                ))));
+            return;
         }
 
         let qos = match message.qos {
@@ -301,67 +302,68 @@ impl MailHandler<CreateTopic> for DomainParticipantActor {
                 .ok();
         }
 
-        Ok((topic_handle, topic_status_condition_address))
+        message
+            .reply_sender
+            .send(Ok((topic_handle, topic_status_condition_address)))
     }
 }
 
 pub struct DeleteUserDefinedTopic {
     pub participant_handle: InstanceHandle,
     pub topic_name: String,
-}
-impl Mail for DeleteUserDefinedTopic {
-    type Result = DdsResult<()>;
+    pub reply_sender: OneshotSender<DdsResult<()>>,
 }
 impl MailHandler<DeleteUserDefinedTopic> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: DeleteUserDefinedTopic,
-    ) -> <DeleteUserDefinedTopic as Mail>::Result {
+    fn handle(&mut self, message: DeleteUserDefinedTopic) {
         if self.domain_participant.instance_handle() != message.participant_handle {
-            return Err(DdsError::PreconditionNotMet(
+            message.reply_sender.send(Err(DdsError::PreconditionNotMet(
                 "Topic can only be deleted from its parent participant".to_string(),
-            ));
+            )));
+            return;
         }
 
         if BUILT_IN_TOPIC_NAME_LIST.contains(&message.topic_name.as_str()) {
-            return Ok(());
+            message.reply_sender.send(Ok(()));
+            return;
         }
 
-        if Arc::strong_count(
-            self.domain_participant
-                .get_topic(&message.topic_name)
-                .ok_or(DdsError::AlreadyDeleted)?
-                .type_support(),
-        ) > 1
-        {
-            return Err(DdsError::PreconditionNotMet(
+        let Some(topic) = self.domain_participant.get_topic(&message.topic_name) else {
+            message.reply_sender.send(Err(DdsError::AlreadyDeleted));
+            return;
+        };
+
+        if Arc::strong_count(topic.type_support()) > 1 {
+            message.reply_sender.send(Err(DdsError::PreconditionNotMet(
                 "Topic still attached to some data writer or data reader".to_string(),
-            ));
+            )));
+            return;
         }
 
-        self.domain_participant
-            .remove_topic(&message.topic_name)
-            .ok_or(DdsError::AlreadyDeleted)?;
+        let Some(_) = self.domain_participant.remove_topic(&message.topic_name) else {
+            message.reply_sender.send(Err(DdsError::AlreadyDeleted));
+            return;
+        };
 
-        Ok(())
+        message.reply_sender.send(Ok(()));
     }
 }
 
 pub struct FindTopic {
     pub topic_name: String,
     pub type_support: Arc<dyn DynamicType + Send + Sync>,
-}
-impl Mail for FindTopic {
-    type Result = DdsResult<Option<(InstanceHandle, ActorAddress<StatusConditionActor>, String)>>;
+    #[allow(clippy::type_complexity)]
+    pub reply_sender: OneshotSender<
+        DdsResult<Option<(InstanceHandle, ActorAddress<StatusConditionActor>, String)>>,
+    >,
 }
 impl MailHandler<FindTopic> for DomainParticipantActor {
-    fn handle(&mut self, message: FindTopic) -> <FindTopic as Mail>::Result {
+    fn handle(&mut self, message: FindTopic) {
         if let Some(topic) = self.domain_participant.get_topic(&message.topic_name) {
-            Ok(Some((
+            message.reply_sender.send(Ok(Some((
                 topic.instance_handle(),
                 topic.status_condition().address(),
                 topic.type_name().to_owned(),
-            )))
+            ))));
         } else {
             if let Some(discovered_topic_data) =
                 self.domain_participant.find_topic(&message.topic_name)
@@ -400,102 +402,90 @@ impl MailHandler<FindTopic> for DomainParticipantActor {
                 let topic_status_condition_address = topic.status_condition().address();
 
                 self.domain_participant.insert_topic(topic);
-                return Ok(Some((
+                message.reply_sender.send(Ok(Some((
                     topic_handle,
                     topic_status_condition_address,
                     type_name,
-                )));
+                ))));
+                return;
             }
-            Ok(None)
+            message.reply_sender.send(Ok(None));
         }
     }
 }
 
 pub struct LookupTopicdescription {
     pub topic_name: String,
-}
-impl Mail for LookupTopicdescription {
-    type Result = DdsResult<Option<(String, InstanceHandle, ActorAddress<StatusConditionActor>)>>;
+    #[allow(clippy::type_complexity)]
+    pub reply_sender: OneshotSender<
+        DdsResult<Option<(String, InstanceHandle, ActorAddress<StatusConditionActor>)>>,
+    >,
 }
 impl MailHandler<LookupTopicdescription> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: LookupTopicdescription,
-    ) -> <LookupTopicdescription as Mail>::Result {
+    fn handle(&mut self, message: LookupTopicdescription) {
         if let Some(topic) = self.domain_participant.get_topic(&message.topic_name) {
-            Ok(Some((
+            message.reply_sender.send(Ok(Some((
                 topic.type_name().to_owned(),
                 topic.instance_handle(),
                 topic.status_condition().address(),
-            )))
+            ))))
         } else {
-            Ok(None)
+            message.reply_sender.send(Ok(None))
         }
     }
 }
 
 pub struct IgnoreParticipant {
     pub handle: InstanceHandle,
-}
-impl Mail for IgnoreParticipant {
-    type Result = DdsResult<()>;
+    pub reply_sender: OneshotSender<DdsResult<()>>,
 }
 impl MailHandler<IgnoreParticipant> for DomainParticipantActor {
-    fn handle(&mut self, message: IgnoreParticipant) -> <IgnoreParticipant as Mail>::Result {
+    fn handle(&mut self, message: IgnoreParticipant) {
         if self.domain_participant.enabled() {
             self.domain_participant.ignore_participant(message.handle);
-            Ok(())
+            message.reply_sender.send(Ok(()))
         } else {
-            Err(DdsError::NotEnabled)
+            message.reply_sender.send(Err(DdsError::NotEnabled))
         }
     }
 }
 
 pub struct IgnoreSubscription {
     pub handle: InstanceHandle,
-}
-impl Mail for IgnoreSubscription {
-    type Result = DdsResult<()>;
+    pub reply_sender: OneshotSender<DdsResult<()>>,
 }
 impl MailHandler<IgnoreSubscription> for DomainParticipantActor {
-    fn handle(&mut self, message: IgnoreSubscription) -> <IgnoreSubscription as Mail>::Result {
+    fn handle(&mut self, message: IgnoreSubscription) {
         if self.domain_participant.enabled() {
             self.domain_participant.ignore_subscription(message.handle);
-            Ok(())
+            message.reply_sender.send(Ok(()))
         } else {
-            Err(DdsError::NotEnabled)
+            message.reply_sender.send(Err(DdsError::NotEnabled))
         }
     }
 }
 
 pub struct IgnorePublication {
     pub handle: InstanceHandle,
-}
-impl Mail for IgnorePublication {
-    type Result = DdsResult<()>;
+    pub reply_sender: OneshotSender<DdsResult<()>>,
 }
 impl MailHandler<IgnorePublication> for DomainParticipantActor {
-    fn handle(&mut self, message: IgnorePublication) -> <IgnorePublication as Mail>::Result {
+    fn handle(&mut self, message: IgnorePublication) {
         if self.domain_participant.enabled() {
             self.domain_participant.ignore_publication(message.handle);
-            Ok(())
+            message.reply_sender.send(Ok(()))
         } else {
-            Err(DdsError::NotEnabled)
+            message.reply_sender.send(Err(DdsError::NotEnabled))
         }
     }
 }
 
 pub struct DeleteContainedEntities {
     pub participant_address: ActorAddress<DomainParticipantActor>,
-}
-impl Mail for DeleteContainedEntities {
-    type Result = DdsResult<()>;
+    pub reply_sender: OneshotSender<DdsResult<()>>,
 }
 impl MailHandler<DeleteContainedEntities> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: DeleteContainedEntities,
-    ) -> <DeleteContainedEntities as Mail>::Result {
+    fn handle(&mut self, message: DeleteContainedEntities) {
         let deleted_publisher_list: Vec<PublisherEntity> =
             self.domain_participant.drain_publisher_list().collect();
         for mut publisher in deleted_publisher_list {
@@ -520,52 +510,43 @@ impl MailHandler<DeleteContainedEntities> for DomainParticipantActor {
 
         self.domain_participant.delete_all_topics();
 
-        Ok(())
+        message.reply_sender.send(Ok(()))
     }
 }
 
 pub struct SetDefaultPublisherQos {
     pub qos: QosKind<PublisherQos>,
-}
-impl Mail for SetDefaultPublisherQos {
-    type Result = DdsResult<()>;
+    pub reply_sender: OneshotSender<DdsResult<()>>,
 }
 impl MailHandler<SetDefaultPublisherQos> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: SetDefaultPublisherQos,
-    ) -> <SetDefaultPublisherQos as Mail>::Result {
+    fn handle(&mut self, message: SetDefaultPublisherQos) {
         let qos = match message.qos {
             QosKind::Default => PublisherQos::default(),
             QosKind::Specific(q) => q,
         };
 
         self.domain_participant.set_default_publisher_qos(qos);
-        Ok(())
+        message.reply_sender.send(Ok(()))
     }
 }
 
-pub struct GetDefaultPublisherQos;
-impl Mail for GetDefaultPublisherQos {
-    type Result = DdsResult<PublisherQos>;
+pub struct GetDefaultPublisherQos {
+    pub reply_sender: OneshotSender<DdsResult<PublisherQos>>,
 }
 impl MailHandler<GetDefaultPublisherQos> for DomainParticipantActor {
-    fn handle(&mut self, _: GetDefaultPublisherQos) -> <GetDefaultPublisherQos as Mail>::Result {
-        Ok(self.domain_participant.default_publisher_qos().clone())
+    fn handle(&mut self, message: GetDefaultPublisherQos) {
+        message
+            .reply_sender
+            .send(Ok(self.domain_participant.default_publisher_qos().clone()))
     }
 }
 
 pub struct SetDefaultSubscriberQos {
     pub qos: QosKind<SubscriberQos>,
-}
-impl Mail for SetDefaultSubscriberQos {
-    type Result = DdsResult<()>;
+    pub reply_sender: OneshotSender<DdsResult<()>>,
 }
 impl MailHandler<SetDefaultSubscriberQos> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: SetDefaultSubscriberQos,
-    ) -> <SetDefaultSubscriberQos as Mail>::Result {
+    fn handle(&mut self, message: SetDefaultSubscriberQos) {
         let qos = match message.qos {
             QosKind::Default => SubscriberQos::default(),
             QosKind::Specific(q) => q,
@@ -573,135 +554,137 @@ impl MailHandler<SetDefaultSubscriberQos> for DomainParticipantActor {
 
         self.domain_participant.set_default_subscriber_qos(qos);
 
-        Ok(())
+        message.reply_sender.send(Ok(()))
     }
 }
 
-pub struct GetDefaultSubscriberQos;
-impl Mail for GetDefaultSubscriberQos {
-    type Result = DdsResult<SubscriberQos>;
+pub struct GetDefaultSubscriberQos {
+    pub reply_sender: OneshotSender<DdsResult<SubscriberQos>>,
 }
 impl MailHandler<GetDefaultSubscriberQos> for DomainParticipantActor {
-    fn handle(&mut self, _: GetDefaultSubscriberQos) -> <GetDefaultSubscriberQos as Mail>::Result {
-        Ok(self.domain_participant.default_subscriber_qos().clone())
+    fn handle(&mut self, message: GetDefaultSubscriberQos) {
+        message
+            .reply_sender
+            .send(Ok(self.domain_participant.default_subscriber_qos().clone()))
     }
 }
 
 pub struct SetDefaultTopicQos {
     pub qos: QosKind<TopicQos>,
-}
-impl Mail for SetDefaultTopicQos {
-    type Result = DdsResult<()>;
+    pub reply_sender: OneshotSender<DdsResult<()>>,
 }
 impl MailHandler<SetDefaultTopicQos> for DomainParticipantActor {
-    fn handle(&mut self, message: SetDefaultTopicQos) -> <SetDefaultTopicQos as Mail>::Result {
+    fn handle(&mut self, message: SetDefaultTopicQos) {
         let qos = match message.qos {
             QosKind::Default => TopicQos::default(),
             QosKind::Specific(q) => {
-                q.is_consistent()?;
-                q
+                if q.is_consistent().is_ok() {
+                    q
+                } else {
+                    message.reply_sender.send(Err(DdsError::InconsistentPolicy));
+                    return;
+                }
             }
         };
 
-        self.domain_participant.set_default_topic_qos(qos)
+        message
+            .reply_sender
+            .send(self.domain_participant.set_default_topic_qos(qos))
     }
 }
 
-pub struct GetDefaultTopicQos;
-impl Mail for GetDefaultTopicQos {
-    type Result = DdsResult<TopicQos>;
+pub struct GetDefaultTopicQos {
+    pub reply_sender: OneshotSender<DdsResult<TopicQos>>,
 }
+
 impl MailHandler<GetDefaultTopicQos> for DomainParticipantActor {
-    fn handle(&mut self, _: GetDefaultTopicQos) -> <GetDefaultTopicQos as Mail>::Result {
-        Ok(self.domain_participant.get_default_topic_qos().clone())
+    fn handle(&mut self, message: GetDefaultTopicQos) {
+        message
+            .reply_sender
+            .send(Ok(self.domain_participant.get_default_topic_qos().clone()))
     }
 }
 
-pub struct GetDiscoveredParticipants;
-impl Mail for GetDiscoveredParticipants {
-    type Result = DdsResult<Vec<InstanceHandle>>;
+pub struct GetDiscoveredParticipants {
+    pub reply_sender: OneshotSender<DdsResult<Vec<InstanceHandle>>>,
 }
 impl MailHandler<GetDiscoveredParticipants> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        _: GetDiscoveredParticipants,
-    ) -> <GetDiscoveredParticipants as Mail>::Result {
-        Ok(self.domain_participant.get_discovered_participants())
+    fn handle(&mut self, message: GetDiscoveredParticipants) {
+        message
+            .reply_sender
+            .send(Ok(self.domain_participant.get_discovered_participants()))
     }
 }
 
 pub struct GetDiscoveredParticipantData {
     pub participant_handle: InstanceHandle,
-}
-impl Mail for GetDiscoveredParticipantData {
-    type Result = DdsResult<ParticipantBuiltinTopicData>;
+    pub reply_sender: OneshotSender<DdsResult<ParticipantBuiltinTopicData>>,
 }
 impl MailHandler<GetDiscoveredParticipantData> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: GetDiscoveredParticipantData,
-    ) -> <GetDiscoveredParticipantData as Mail>::Result {
-        Ok(self
+    fn handle(&mut self, message: GetDiscoveredParticipantData) {
+        let Some(handle) = self
             .domain_participant
             .get_discovered_participant_data(&message.participant_handle)
-            .ok_or(DdsError::BadParameter)?
-            .dds_participant_data
-            .clone())
+        else {
+            message.reply_sender.send(Err(DdsError::BadParameter));
+            return;
+        };
+        message
+            .reply_sender
+            .send(Ok(handle.dds_participant_data.clone()));
     }
 }
 
-pub struct GetDiscoveredTopics;
-impl Mail for GetDiscoveredTopics {
-    type Result = DdsResult<Vec<InstanceHandle>>;
+pub struct GetDiscoveredTopics {
+    pub reply_sender: OneshotSender<DdsResult<Vec<InstanceHandle>>>,
 }
 impl MailHandler<GetDiscoveredTopics> for DomainParticipantActor {
-    fn handle(&mut self, _: GetDiscoveredTopics) -> <GetDiscoveredTopics as Mail>::Result {
-        Ok(self.domain_participant.get_discovered_topics())
+    fn handle(&mut self, message: GetDiscoveredTopics) {
+        message
+            .reply_sender
+            .send(Ok(self.domain_participant.get_discovered_topics()))
     }
 }
 
 pub struct GetDiscoveredTopicData {
     pub topic_handle: InstanceHandle,
-}
-impl Mail for GetDiscoveredTopicData {
-    type Result = DdsResult<TopicBuiltinTopicData>;
+    pub reply_sender: OneshotSender<DdsResult<TopicBuiltinTopicData>>,
 }
 impl MailHandler<GetDiscoveredTopicData> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: GetDiscoveredTopicData,
-    ) -> <GetDiscoveredTopicData as Mail>::Result {
-        self.domain_participant
+    fn handle(&mut self, message: GetDiscoveredTopicData) {
+        let Some(handle) = self
+            .domain_participant
             .get_discovered_topic_data(&message.topic_handle)
-            .cloned()
-            .ok_or(DdsError::PreconditionNotMet(
+        else {
+            message.reply_sender.send(Err(DdsError::PreconditionNotMet(
                 "Topic with this handle not discovered".to_owned(),
-            ))
+            )));
+            return;
+        };
+
+        message.reply_sender.send(Ok(handle.clone()))
     }
 }
 
-pub struct GetCurrentTime;
-impl Mail for GetCurrentTime {
-    type Result = Time;
+pub struct GetCurrentTime {
+    pub reply_sender: OneshotSender<Time>,
 }
 impl MailHandler<GetCurrentTime> for DomainParticipantActor {
-    fn handle(&mut self, _: GetCurrentTime) -> <GetCurrentTime as Mail>::Result {
-        self.domain_participant.get_current_time()
+    fn handle(&mut self, message: GetCurrentTime) {
+        message
+            .reply_sender
+            .send(self.domain_participant.get_current_time())
     }
 }
 
 pub struct SetDomainParticipantQos {
     pub qos: QosKind<DomainParticipantQos>,
     pub domain_participant_address: ActorAddress<DomainParticipantActor>,
+    pub reply_sender: OneshotSender<DdsResult<()>>,
 }
-impl Mail for SetDomainParticipantQos {
-    type Result = DdsResult<()>;
-}
+
 impl MailHandler<SetDomainParticipantQos> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: SetDomainParticipantQos,
-    ) -> <SetDomainParticipantQos as Mail>::Result {
+    fn handle(&mut self, message: SetDomainParticipantQos) {
         let qos = match message.qos {
             QosKind::Default => DomainParticipantQos::default(),
             QosKind::Specific(q) => q,
@@ -714,29 +697,28 @@ impl MailHandler<SetDomainParticipantQos> for DomainParticipantActor {
                 .send_actor_mail(discovery_service::AnnounceParticipant)
                 .ok();
         }
-        Ok(())
+        message.reply_sender.send(Ok(()))
     }
 }
 
-pub struct GetDomainParticipantQos;
-impl Mail for GetDomainParticipantQos {
-    type Result = DdsResult<DomainParticipantQos>;
+pub struct GetDomainParticipantQos {
+    pub reply_sender: OneshotSender<DdsResult<DomainParticipantQos>>,
 }
 impl MailHandler<GetDomainParticipantQos> for DomainParticipantActor {
-    fn handle(&mut self, _: GetDomainParticipantQos) -> <GetDomainParticipantQos as Mail>::Result {
-        Ok(self.domain_participant.qos().clone())
+    fn handle(&mut self, message: GetDomainParticipantQos) {
+        message
+            .reply_sender
+            .send(Ok(self.domain_participant.qos().clone()));
     }
 }
 
 pub struct SetListener {
     pub listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
     pub status_kind: Vec<StatusKind>,
-}
-impl Mail for SetListener {
-    type Result = DdsResult<()>;
+    pub reply_sender: OneshotSender<DdsResult<()>>,
 }
 impl MailHandler<SetListener> for DomainParticipantActor {
-    fn handle(&mut self, message: SetListener) -> <SetListener as Mail>::Result {
+    fn handle(&mut self, message: SetListener) {
         let participant_listener = message.listener.map(|l| {
             Actor::spawn(
                 DomainParticipantListenerActor::new(l),
@@ -745,18 +727,15 @@ impl MailHandler<SetListener> for DomainParticipantActor {
         });
         self.domain_participant
             .set_listener(participant_listener, message.status_kind);
-        Ok(())
+        message.reply_sender.send(Ok(()))
     }
 }
 
 pub struct Enable {
     pub domain_participant_address: ActorAddress<DomainParticipantActor>,
 }
-impl Mail for Enable {
-    type Result = DdsResult<()>;
-}
 impl MailHandler<Enable> for DomainParticipantActor {
-    fn handle(&mut self, message: Enable) -> <Enable as Mail>::Result {
+    fn handle(&mut self, message: Enable) {
         if !self.domain_participant.enabled() {
             self.domain_participant.enable();
 
@@ -765,16 +744,16 @@ impl MailHandler<Enable> for DomainParticipantActor {
                 .send_actor_mail(discovery_service::AnnounceParticipant)
                 .ok();
         }
-        Ok(())
     }
 }
 
-pub struct IsEmpty;
-impl Mail for IsEmpty {
-    type Result = bool;
+pub struct IsEmpty {
+    pub reply_sender: OneshotSender<bool>,
 }
 impl MailHandler<IsEmpty> for DomainParticipantActor {
-    fn handle(&mut self, _: IsEmpty) -> <IsEmpty as Mail>::Result {
-        self.domain_participant.is_empty()
+    fn handle(&mut self, message: IsEmpty) {
+        message
+            .reply_sender
+            .send(self.domain_participant.is_empty());
     }
 }

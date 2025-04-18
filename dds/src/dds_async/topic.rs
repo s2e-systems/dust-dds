@@ -13,7 +13,7 @@ use crate::{
         qos::{QosKind, TopicQos},
         status::{InconsistentTopicStatus, StatusKind},
     },
-    runtime::actor::ActorAddress,
+    runtime::{actor::ActorAddress, oneshot::oneshot},
     xtypes::dynamic_type::DynamicType,
 };
 use std::sync::Arc;
@@ -50,13 +50,14 @@ impl TopicAsync {
     /// Async version of [`get_inconsistent_topic_status`](crate::topic_definition::topic::Topic::get_inconsistent_topic_status).
     #[tracing::instrument(skip(self))]
     pub async fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
-        self.participant
-            .participant_address()
-            .send_actor_mail(topic_service::GetInconsistentTopicStatus {
+        let (reply_sender, reply_receiver) = oneshot();
+        self.participant.participant_address().send_actor_mail(
+            topic_service::GetInconsistentTopicStatus {
                 topic_name: self.topic_name.clone(),
-            })?
-            .receive_reply()
-            .await
+                reply_sender,
+            },
+        )?;
+        reply_receiver.await?
     }
 }
 
@@ -84,26 +85,30 @@ impl TopicAsync {
     /// Async version of [`set_qos`](crate::topic_definition::topic::Topic::set_qos).
     #[tracing::instrument(skip(self))]
     pub async fn set_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
+        let (reply_sender, reply_receiver) = oneshot();
         self.participant
             .participant_address()
             .send_actor_mail(topic_service::SetQos {
                 topic_name: self.topic_name.clone(),
                 topic_qos: qos,
-            })?
-            .receive_reply()
-            .await
+                reply_sender,
+            })?;
+
+        reply_receiver.await?
     }
 
     /// Async version of [`get_qos`](crate::topic_definition::topic::Topic::get_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_qos(&self) -> DdsResult<TopicQos> {
+        let (reply_sender, reply_receiver) = oneshot();
         self.participant
             .participant_address()
             .send_actor_mail(topic_service::GetQos {
                 topic_name: self.topic_name.clone(),
-            })?
-            .receive_reply()
-            .await
+                reply_sender,
+            })?;
+
+        reply_receiver.await?
     }
 
     /// Async version of [`get_statuscondition`](crate::topic_definition::topic::Topic::get_statuscondition).
@@ -126,9 +131,8 @@ impl TopicAsync {
             .send_actor_mail(topic_service::Enable {
                 topic_name: self.topic_name.clone(),
                 participant_address: self.participant.participant_address().clone(),
-            })?
-            .receive_reply()
-            .await
+            })?;
+        Ok(())
     }
 
     /// Async version of [`get_instance_handle`](crate::topic_definition::topic::Topic::get_instance_handle).
@@ -152,12 +156,14 @@ impl TopicAsync {
     #[doc(hidden)]
     #[tracing::instrument(skip(self))]
     pub async fn get_type_support(&self) -> DdsResult<Arc<dyn DynamicType + Send + Sync>> {
+        let (reply_sender, reply_receiver) = oneshot();
         self.participant
             .participant_address()
             .send_actor_mail(topic_service::GetTypeSupport {
                 topic_name: self.topic_name.clone(),
-            })?
-            .receive_reply()
-            .await
+                reply_sender,
+            })?;
+
+        reply_receiver.await?
     }
 }
