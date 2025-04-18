@@ -1,6 +1,7 @@
 use super::time::{DURATION_ZERO_NSEC, DURATION_ZERO_SEC};
 use crate::{
     infrastructure::time::{Duration, DurationKind},
+    transport::types::{DurabilityKind, ReliabilityKind},
     xtypes::{
         bytes::{ByteBuf, Bytes},
         deserialize::XTypesDeserialize,
@@ -1177,6 +1178,26 @@ impl Default for ReaderDataLifecycleQosPolicy {
         Self {
             autopurge_nowriter_samples_delay: DurationKind::Infinite,
             autopurge_disposed_samples_delay: DurationKind::Infinite,
+        }
+    }
+}
+
+impl From<&ReliabilityQosPolicy> for ReliabilityKind {
+    fn from(value: &ReliabilityQosPolicy) -> Self {
+        match value.kind {
+            ReliabilityQosPolicyKind::BestEffort => ReliabilityKind::BestEffort,
+            ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
+        }
+    }
+}
+
+impl From<&DurabilityQosPolicy> for DurabilityKind {
+    fn from(value: &DurabilityQosPolicy) -> Self {
+        match value.kind {
+            DurabilityQosPolicyKind::Volatile => DurabilityKind::Volatile,
+            DurabilityQosPolicyKind::TransientLocal => DurabilityKind::TransientLocal,
+            DurabilityQosPolicyKind::Transient => DurabilityKind::Transient,
+            DurabilityQosPolicyKind::Persistent => DurabilityKind::Persistent,
         }
     }
 }

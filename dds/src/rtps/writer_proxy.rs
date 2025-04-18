@@ -11,7 +11,7 @@ use crate::{
     },
     transport::types::{EntityId, Guid, Locator, ReliabilityKind, SequenceNumber},
 };
-use alloc::{boxed::Box, sync::Arc, vec::Vec};
+use alloc::{boxed::Box, sync::Arc, vec, vec::Vec};
 
 use core::cmp::max;
 use std::collections::HashMap;

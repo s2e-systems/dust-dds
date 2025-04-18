@@ -35,11 +35,11 @@ impl Duration {
     }
 }
 
-impl From<Duration> for std::time::Duration {
+impl From<Duration> for core::time::Duration {
     fn from(value: Duration) -> Self {
         let secs = value.seconds as u64 * 1_000_000_000;
-        let nanosecs = (value.fraction as f64 / 2f64.powf(32.0) * 1_000_000_000.0).round() as u64;
-        std::time::Duration::from_nanos(secs + nanosecs)
+        let nanosecs = (value.fraction as u64 * 1_000_000_000) / (1u64 << 32);
+        core::time::Duration::from_nanos(secs + nanosecs)
     }
 }
 

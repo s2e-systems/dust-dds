@@ -1,35 +1,4 @@
-use crate::{
-    infrastructure::qos_policy::{
-        DurabilityQosPolicy, DurabilityQosPolicyKind, ReliabilityQosPolicy,
-        ReliabilityQosPolicyKind,
-    },
-    transport::types::{DurabilityKind, ProtocolVersion, ReliabilityKind, VendorId},
-};
-
-// This files shall only contain the types as listed in the DDSI-RTPS Version 2.5
-// Table 8.2 - Types of the attributes that appear in the RTPS Entities and Classes
-
-impl From<&ReliabilityQosPolicy> for ReliabilityKind {
-    fn from(value: &ReliabilityQosPolicy) -> Self {
-        match value.kind {
-            ReliabilityQosPolicyKind::BestEffort => ReliabilityKind::BestEffort,
-            ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
-        }
-    }
-}
-
-impl From<&DurabilityQosPolicy> for DurabilityKind {
-    fn from(value: &DurabilityQosPolicy) -> Self {
-        match value.kind {
-            DurabilityQosPolicyKind::Volatile => DurabilityKind::Volatile,
-            DurabilityQosPolicyKind::TransientLocal => DurabilityKind::TransientLocal,
-            DurabilityQosPolicyKind::Transient => DurabilityKind::Transient,
-            DurabilityQosPolicyKind::Persistent => DurabilityKind::Persistent,
-        }
-    }
-}
-
-// Defined elsewhere in DDS
+use crate::transport::types::{ProtocolVersion, VendorId};
 
 pub const PROTOCOLVERSION: ProtocolVersion = PROTOCOLVERSION_2_4;
 #[allow(dead_code)]
