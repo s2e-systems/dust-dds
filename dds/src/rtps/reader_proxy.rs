@@ -1,11 +1,12 @@
-use crate::transport::{
-    history_cache::CacheChange,
-    types::{EntityId, Guid, Locator, ReliabilityKind, SequenceNumber},
-};
-
-use super::messages::{
-    submessages::{heartbeat::HeartbeatSubmessage, heartbeat_frag::HeartbeatFragSubmessage},
-    types::{Count, FragmentNumber},
+use crate::{
+    rtps_messages::{
+        submessages::{heartbeat::HeartbeatSubmessage, heartbeat_frag::HeartbeatFragSubmessage},
+        types::{Count, FragmentNumber},
+    },
+    transport::{
+        history_cache::CacheChange,
+        types::{EntityId, Guid, Locator, ReliabilityKind, SequenceNumber},
+    },
 };
 
 #[derive(Debug, PartialEq, Eq)]

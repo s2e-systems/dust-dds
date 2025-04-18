@@ -1,8 +1,7 @@
 use super::{
-    super::error::RtpsResult,
-    overall_structure::{Endianness, TryReadFromBytes, WriteIntoBytes},
+    error::RtpsMessageResult,
+    overall_structure::{Endianness, Read, TryReadFromBytes, Write, WriteIntoBytes},
 };
-use std::io::{Read, Write};
 
 // This files shall only contain the types as listed in the DDSI-RTPS Version 2.5
 // Table 8.13 - Types used to define RTPS messages
@@ -14,7 +13,7 @@ type Short = i16;
 type UnsignedShort = u16;
 
 impl TryReadFromBytes for Long {
-    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsResult<Self> {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsMessageResult<Self> {
         let mut bytes = [0; 4];
         data.read_exact(&mut bytes)?;
         Ok(match endianness {
@@ -25,7 +24,7 @@ impl TryReadFromBytes for Long {
 }
 
 impl TryReadFromBytes for UnsignedLong {
-    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsResult<Self> {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsMessageResult<Self> {
         let mut bytes = [0; 4];
         data.read_exact(&mut bytes)?;
         Ok(match endianness {
@@ -36,7 +35,7 @@ impl TryReadFromBytes for UnsignedLong {
 }
 
 impl TryReadFromBytes for Short {
-    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsResult<Self> {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsMessageResult<Self> {
         let mut bytes = [0; 2];
         data.read_exact(&mut bytes)?;
         Ok(match endianness {
@@ -47,7 +46,7 @@ impl TryReadFromBytes for Short {
 }
 
 impl TryReadFromBytes for UnsignedShort {
-    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsResult<Self> {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsMessageResult<Self> {
         let mut bytes = [0; 2];
         data.read_exact(&mut bytes)?;
         Ok(match endianness {
@@ -157,7 +156,10 @@ impl Time {
         self.fraction
     }
 
-    pub fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsResult<Self> {
+    pub fn try_read_from_bytes(
+        data: &mut &[u8],
+        endianness: &Endianness,
+    ) -> RtpsMessageResult<Self> {
         let seconds = UnsignedLong::try_read_from_bytes(data, endianness)?;
         let fraction = UnsignedLong::try_read_from_bytes(data, endianness)?;
         Ok(Self { seconds, fraction })
@@ -180,11 +182,11 @@ impl From<Time> for crate::transport::types::Time {
 }
 
 fn fraction_to_nanosec(fraction: u32) -> u32 {
-    (fraction as f64 / 2f64.powf(32.0) * 1_000_000_000.0).round() as u32
+    ((fraction as u64 * 1_000_000_000) / (1u64 << 32)) as u32
 }
 
 fn nanosec_to_fraction(nanosec: u32) -> u32 {
-    (nanosec as f64 / 1_000_000_000.0 * 2f64.powf(32.0)).round() as u32
+    (((nanosec as u64 * (1u64 << 32)) + 500_000_000) / 1_000_000_000) as u32
 }
 
 #[allow(dead_code)]

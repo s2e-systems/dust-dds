@@ -1,8 +1,6 @@
 use crate::{
-    rtps::{
-        error::{RtpsError, RtpsErrorKind},
-        messages::types::ParameterId,
-    },
+    rtps::error::{RtpsError, RtpsErrorKind},
+    rtps_messages::types::ParameterId,
     xtypes::{serialize::XTypesSerialize, xcdr_serializer::Xcdr1LeSerializer},
 };
 use std::io::Write;

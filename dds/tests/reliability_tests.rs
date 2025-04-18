@@ -12,15 +12,13 @@ use dust_dds::{
         time::{Duration, DurationKind},
         wait_set::{Condition, WaitSet},
     },
-    rtps::{
-        messages::{
-            overall_structure::{
-                RtpsMessageHeader, RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageReadKind,
-            },
-            submessage_elements::{Data, ParameterList, SequenceNumberSet},
-            submessages::{ack_nack::AckNackSubmessage, data::DataSubmessage},
+    rtps::types::{PROTOCOLVERSION, VENDOR_ID_S2E},
+    rtps_messages::{
+        overall_structure::{
+            BufRead, RtpsMessageHeader, RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageReadKind,
         },
-        types::{PROTOCOLVERSION, VENDOR_ID_S2E},
+        submessage_elements::{Data, ParameterList, SequenceNumberSet},
+        submessages::{ack_nack::AckNackSubmessage, data::DataSubmessage},
     },
     subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     topic_definition::type_support::{DdsDeserialize, DdsType},
@@ -28,7 +26,7 @@ use dust_dds::{
         EntityId, BUILT_IN_READER_WITH_KEY, BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_WITH_KEY,
     },
 };
-use std::io::{BufRead, Read};
+use std::io::Read;
 
 mod utils;
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;

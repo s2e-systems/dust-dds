@@ -1,16 +1,13 @@
 use crate::transport::types::{GuidPrefix, Long, ProtocolVersion, VendorId};
 
-use super::super::super::{
-    error::RtpsResult,
-    messages::{
-        overall_structure::{
-            Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes,
-            WriteIntoBytes,
-        },
-        types::SubmessageKind,
+use super::super::{
+    error::RtpsMessageResult,
+    overall_structure::{
+        Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes, Write,
+        WriteIntoBytes,
     },
+    types::SubmessageKind,
 };
-use std::io::Write;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct InfoSourceSubmessage {
@@ -23,7 +20,7 @@ impl InfoSourceSubmessage {
     pub fn try_from_bytes(
         submessage_header: &SubmessageHeaderRead,
         mut data: &[u8],
-    ) -> RtpsResult<Self> {
+    ) -> RtpsMessageResult<Self> {
         let endianness = submessage_header.endianness();
         let _unused = Long::try_read_from_bytes(&mut data, endianness)?;
         Ok(Self {
@@ -78,10 +75,8 @@ impl Submessage for InfoSourceSubmessage {
 mod tests {
     use super::*;
     use crate::{
-        rtps::{
-            messages::overall_structure::write_submessage_into_bytes_vec,
-            types::{PROTOCOLVERSION_1_0, VENDOR_ID_UNKNOWN},
-        },
+        rtps::types::{PROTOCOLVERSION_1_0, VENDOR_ID_UNKNOWN},
+        rtps_messages::overall_structure::write_submessage_into_bytes_vec,
         transport::types::GUIDPREFIX_UNKNOWN,
     };
 

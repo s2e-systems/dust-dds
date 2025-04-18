@@ -1,4 +1,4 @@
-use crate::rtps::messages::types::ParameterId;
+use crate::rtps_messages::types::ParameterId;
 
 pub const _PID_CONTENT_FILTER_INFO: ParameterId = 0x0055;
 pub const _PID_COHERENT_SET: ParameterId = 0x0056;

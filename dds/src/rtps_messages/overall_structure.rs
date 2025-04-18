@@ -1,29 +1,23 @@
-use crate::{rtps::types::{PROTOCOLVERSION_2_4, VENDOR_ID_S2E}, transport::types::{GuidPrefix, ProtocolVersion, VendorId}};
+use crate::transport::types::{
+    EntityId, GuidPrefix, Locator, Long, Octet, ProtocolVersion, SequenceNumber, UnsignedLong,
+    VendorId,
+};
 
 use super::{
-    super::{
-        error::{RtpsError, RtpsErrorKind, RtpsResult},
-        messages::{
-            submessages::{
-                ack_nack::AckNackSubmessage, data::DataSubmessage, data_frag::DataFragSubmessage,
-                gap::GapSubmessage, heartbeat::HeartbeatSubmessage,
-                heartbeat_frag::HeartbeatFragSubmessage,
-                info_destination::InfoDestinationSubmessage, info_reply::InfoReplySubmessage,
-                info_source::InfoSourceSubmessage, info_timestamp::InfoTimestampSubmessage,
-                nack_frag::NackFragSubmessage, pad::PadSubmessage,
-            },
-            types::{
-                ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT, HEARTBEAT_FRAG, INFO_DST, INFO_REPLY,
-                INFO_SRC, INFO_TS, NACK_FRAG, PAD,
-            },
-        },
+    error::{RtpsMessageError, RtpsMessageResult},
+    submessages::{
+        ack_nack::AckNackSubmessage, data::DataSubmessage, data_frag::DataFragSubmessage,
+        gap::GapSubmessage, heartbeat::HeartbeatSubmessage,
+        heartbeat_frag::HeartbeatFragSubmessage, info_destination::InfoDestinationSubmessage,
+        info_reply::InfoReplySubmessage, info_source::InfoSourceSubmessage,
+        info_timestamp::InfoTimestampSubmessage, nack_frag::NackFragSubmessage, pad::PadSubmessage,
     },
-    types::{ProtocolId, SubmessageFlag, SubmessageKind},
+    types::{
+        ProtocolId, SubmessageFlag, SubmessageKind, ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT,
+        HEARTBEAT_FRAG, INFO_DST, INFO_REPLY, INFO_SRC, INFO_TS, NACK_FRAG, PAD,
+    },
 };
-use std::{
-    io::{BufRead, Cursor, Write},
-    sync::Arc,
-};
+use alloc::{boxed::Box, sync::Arc, vec::Vec};
 
 pub enum Endianness {
     BigEndian,
@@ -40,11 +34,219 @@ impl Endianness {
 }
 
 pub trait TryReadFromBytes: Sized {
-    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsResult<Self>;
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsMessageResult<Self>;
+}
+
+pub trait Read {
+    fn read_exact(&mut self, buf: &mut [u8]) -> RtpsMessageResult<()>;
+}
+
+impl Read for &[u8] {
+    fn read_exact(&mut self, buf: &mut [u8]) -> RtpsMessageResult<()> {
+        if buf.len() > self.len() {
+            *self = &self[self.len()..];
+
+            return Err(RtpsMessageError::Io);
+        }
+
+        let (a, b) = self.split_at(buf.len());
+
+        if buf.len() == 1 {
+            buf[0] = a[0];
+        } else {
+            buf.copy_from_slice(a);
+        }
+
+        *self = b;
+
+        Ok(())
+    }
+}
+
+pub trait BufRead {
+    fn consume(&mut self, amt: usize);
+}
+
+impl BufRead for &[u8] {
+    fn consume(&mut self, amt: usize) {
+        *self = &self[amt..];
+    }
+}
+
+pub trait Write {
+    fn write_all(&mut self, buf: &[u8]) -> RtpsMessageResult<()>;
+}
+
+#[derive(Debug, Default, Eq, PartialEq)]
+pub struct Cursor<T> {
+    inner: T,
+    pos: u64,
+}
+
+impl<T> Cursor<T> {
+    pub fn new(inner: T) -> Self {
+        Self { inner, pos: 0 }
+    }
+
+    pub const fn position(&self) -> u64 {
+        self.pos
+    }
+
+    pub const fn set_position(&mut self, pos: u64) {
+        self.pos = pos;
+    }
+
+    pub fn into_inner(self) -> T {
+        self.inner
+    }
+}
+
+impl Write for Cursor<Vec<u8>> {
+    fn write_all(&mut self, buf: &[u8]) -> RtpsMessageResult<()> {
+        let start_pos = self.pos as usize;
+        let end_pos = start_pos + buf.len();
+        if self.inner.len() < end_pos {
+            self.inner.resize(end_pos, 0);
+        }
+
+        self.inner.as_mut_slice()[start_pos..end_pos].clone_from_slice(buf);
+        self.pos = end_pos as u64;
+
+        Ok(())
+    }
 }
 
 pub trait WriteIntoBytes {
     fn write_into_bytes(&self, buf: &mut dyn Write);
+}
+impl WriteIntoBytes for Octet {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
+        buf.write_all(&[*self]).expect("buffer big enough");
+    }
+}
+
+impl WriteIntoBytes for Long {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
+        buf.write_all(self.to_le_bytes().as_slice())
+            .expect("buffer big enough");
+    }
+}
+
+impl WriteIntoBytes for UnsignedLong {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
+        buf.write_all(self.to_le_bytes().as_slice())
+            .expect("buffer big enough");
+    }
+}
+
+impl WriteIntoBytes for u16 {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
+        buf.write_all(self.to_le_bytes().as_slice())
+            .expect("buffer big enough");
+    }
+}
+
+impl WriteIntoBytes for i16 {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
+        buf.write_all(self.to_le_bytes().as_slice())
+            .expect("buffer big enough");
+    }
+}
+
+impl<const N: usize> WriteIntoBytes for [Octet; N] {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
+        buf.write_all(self).expect("buffer big enough");
+    }
+}
+
+impl WriteIntoBytes for &[u8] {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
+        buf.write_all(self).expect("buffer big enough");
+    }
+}
+
+impl TryReadFromBytes for GuidPrefix {
+    fn try_read_from_bytes(data: &mut &[u8], _endianness: &Endianness) -> RtpsMessageResult<Self> {
+        let mut guid_prefix = [0; 12];
+        data.read_exact(&mut guid_prefix)?;
+        Ok(guid_prefix)
+    }
+}
+
+impl TryReadFromBytes for EntityId {
+    fn try_read_from_bytes(data: &mut &[u8], _endianness: &Endianness) -> RtpsMessageResult<Self> {
+        let mut entity_key = [0; 3];
+        let mut entity_kind = [0; 1];
+        data.read_exact(&mut entity_key)?;
+        data.read_exact(&mut entity_kind)?;
+        Ok(EntityId::new(entity_key, entity_kind[0]))
+    }
+}
+
+impl WriteIntoBytes for EntityId {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
+        self.entity_key().write_into_bytes(buf);
+        self.entity_kind().write_into_bytes(buf);
+    }
+}
+
+impl TryReadFromBytes for SequenceNumber {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsMessageResult<Self> {
+        let high = i32::try_read_from_bytes(data, endianness)?;
+        let low = u32::try_read_from_bytes(data, endianness)?;
+        let value = ((high as i64) << 32) + low as i64;
+        Ok(value)
+    }
+}
+
+impl WriteIntoBytes for SequenceNumber {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
+        let high = (*self >> 32) as Long;
+        let low = *self as UnsignedLong;
+        high.write_into_bytes(buf);
+        low.write_into_bytes(buf);
+    }
+}
+
+impl WriteIntoBytes for Locator {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
+        self.kind().write_into_bytes(buf);
+        self.port().write_into_bytes(buf);
+        self.address().write_into_bytes(buf);
+    }
+}
+
+impl TryReadFromBytes for Locator {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsMessageResult<Self> {
+        let kind = i32::try_read_from_bytes(data, endianness)?;
+        let port = u32::try_read_from_bytes(data, endianness)?;
+        let mut address = [0; 16];
+        data.read_exact(&mut address)?;
+        Ok(Self::new(kind, port, address))
+    }
+}
+
+impl TryReadFromBytes for ProtocolVersion {
+    fn try_read_from_bytes(data: &mut &[u8], _endianness: &Endianness) -> RtpsMessageResult<Self> {
+        let mut bytes = [0; 2];
+        data.read_exact(&mut bytes)?;
+        Ok(Self::new(bytes[0], bytes[1]))
+    }
+}
+
+impl WriteIntoBytes for ProtocolVersion {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
+        self._major().write_into_bytes(buf);
+        self._minor().write_into_bytes(buf);
+    }
+}
+
+impl TryReadFromBytes for VendorId {
+    fn try_read_from_bytes(data: &mut &[u8], _endianness: &Endianness) -> RtpsMessageResult<Self> {
+        let mut bytes = [0; 2];
+        data.read_exact(&mut bytes)?;
+        Ok(bytes)
+    }
 }
 
 pub trait Submessage {
@@ -74,7 +276,7 @@ pub struct SubmessageHeaderRead {
 }
 
 impl SubmessageHeaderRead {
-    pub fn try_read_from_bytes(data: &mut &[u8]) -> RtpsResult<Self> {
+    pub fn try_read_from_bytes(data: &mut &[u8]) -> RtpsMessageResult<Self> {
         if data.len() >= 4 {
             let submessage_id = data[0];
             let flags_byte = data[1];
@@ -101,10 +303,7 @@ impl SubmessageHeaderRead {
                 endianness,
             })
         } else {
-            Err(RtpsError::new(
-                RtpsErrorKind::NotEnoughData,
-                "Submessage header",
-            ))
+            Err(RtpsMessageError::NotEnoughData)
         }
     }
 
@@ -142,9 +341,9 @@ impl RtpsMessageRead {
 }
 
 impl TryFrom<&[u8]> for RtpsMessageRead {
-    type Error = RtpsError;
+    type Error = RtpsMessageError;
 
-    fn try_from(mut v: &[u8]) -> RtpsResult<Self> {
+    fn try_from(mut v: &[u8]) -> RtpsMessageResult<Self> {
         if v.len() >= 20 {
             if b"RTPS" == &[v[0], v[1], v[2], v[3]] {
                 let major = v[4];
@@ -163,7 +362,7 @@ impl TryFrom<&[u8]> for RtpsMessageRead {
                 v.consume(20);
 
                 const MAX_SUBMESSAGES: usize = 2_usize.pow(16);
-                let mut submessages = vec![];
+                let mut submessages = Vec::new();
                 for _ in 0..MAX_SUBMESSAGES {
                     if v.len() < 4 {
                         break;
@@ -207,10 +406,7 @@ impl TryFrom<&[u8]> for RtpsMessageRead {
                                 .map(RtpsSubmessageReadKind::NackFrag),
                             PAD => PadSubmessage::try_from_bytes(&submessage_header, v)
                                 .map(RtpsSubmessageReadKind::Pad),
-                            _ => Err(RtpsError::new(
-                                RtpsErrorKind::InvalidData,
-                                "Unknown message",
-                            )),
+                            _ => Err(RtpsMessageError::UnknownMessage),
                         };
                         if let Ok(submessage) = submessage {
                             submessages.push(submessage);
@@ -223,16 +419,10 @@ impl TryFrom<&[u8]> for RtpsMessageRead {
                     submessages,
                 })
             } else {
-                Err(RtpsError::new(
-                    RtpsErrorKind::InvalidData,
-                    "RTPS not in data",
-                ))
+                Err(RtpsMessageError::InvalidData)
             }
         } else {
-            Err(RtpsError::new(
-                RtpsErrorKind::NotEnoughData,
-                "Rtps message header",
-            ))
+            Err(RtpsMessageError::NotEnoughData)
         }
     }
 }
@@ -271,12 +461,6 @@ impl RtpsMessageWrite {
 
     pub fn buffer(&self) -> &[u8] {
         &self.data
-    }
-
-    pub fn from_submessages(submessages: &[Box<dyn Submessage + Send>], guid_prefix: GuidPrefix) -> Self {
-        let header =
-        RtpsMessageHeader::new(PROTOCOLVERSION_2_4, VENDOR_ID_S2E, guid_prefix);
-        RtpsMessageWrite::new(&header, submessages)
     }
 }
 
@@ -374,13 +558,45 @@ impl WriteIntoBytes for SubmessageHeaderWrite {
 mod tests {
     use super::*;
     use crate::{
-        rtps::messages::{
+        rtps_messages::{
             submessage_elements::{Data, Parameter, ParameterList},
             submessages::{data::DataSubmessage, info_timestamp::InfoTimestampSubmessage},
             types::Time,
         },
         transport::types::{EntityId, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
+
+    #[test]
+    fn deserialize_u16() {
+        let mut data = &[7, 0, 123][..];
+        let result = u16::try_read_from_bytes(&mut data, &Endianness::LittleEndian).unwrap();
+        assert_eq!(result, 7);
+        assert_eq!(data, &[123]);
+    }
+
+    #[test]
+    fn serialize_sequence_number() {
+        let data: SequenceNumber = 7;
+        let result = write_into_bytes_vec(data);
+        assert_eq!(
+            result,
+            vec![
+                0, 0, 0, 0, // high (long)
+                7, 0, 0, 0, // low (unsigned long)
+            ]
+        );
+    }
+
+    #[test]
+    fn serialize_entity_id() {
+        let data = EntityId::new([1, 2, 3], 0x04);
+        assert_eq!(
+            write_into_bytes_vec(data),
+            vec![
+            1, 2, 3, 0x04, //value (long)
+        ]
+        );
+    }
 
     #[test]
     fn serialize_rtps_message_no_submessage() {

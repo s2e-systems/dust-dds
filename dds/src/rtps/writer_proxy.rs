@@ -1,6 +1,6 @@
-use super::{
-    message_sender::WriteMessage,
-    messages::{
+use super::message_sender::WriteMessage;
+use crate::{
+    rtps_messages::{
         overall_structure::{RtpsMessageWrite, Submessage},
         submessage_elements::{Data, FragmentNumberSet, SequenceNumberSet},
         submessages::{
@@ -9,8 +9,8 @@ use super::{
         },
         types::Count,
     },
+    transport::types::{EntityId, Guid, Locator, ReliabilityKind, SequenceNumber},
 };
-use crate::transport::types::{EntityId, Guid, Locator, ReliabilityKind, SequenceNumber};
 use std::{cmp::max, collections::HashMap, sync::Arc};
 
 fn total_fragments_expected(data_frag_submessage: &DataFragSubmessage) -> u32 {

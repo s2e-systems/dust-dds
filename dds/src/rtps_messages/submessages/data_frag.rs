@@ -1,21 +1,14 @@
-use crate::{
-    rtps::messages::submessage_elements::SerializedDataFragment,
-    transport::types::{EntityId, SequenceNumber},
-};
+use crate::transport::types::{EntityId, SequenceNumber};
 
-use super::super::super::{
-    error::{RtpsError, RtpsErrorKind, RtpsResult},
-    messages::{
-        overall_structure::{
-            Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes,
-            WriteIntoBytes,
-        },
-        submessage_elements::ParameterList,
-        types::{FragmentNumber, SubmessageFlag, SubmessageKind},
+use super::super::{
+    error::{RtpsMessageError, RtpsMessageResult},
+    overall_structure::{
+        Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes, Write,
+        WriteIntoBytes,
     },
+    submessage_elements::{ParameterList, SerializedDataFragment},
+    types::{FragmentNumber, SubmessageFlag, SubmessageKind},
 };
-use std::io::Write;
-
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DataFragSubmessage {
     inline_qos_flag: bool,
@@ -36,12 +29,9 @@ impl DataFragSubmessage {
     pub fn try_from_bytes(
         submessage_header: &SubmessageHeaderRead,
         data: &[u8],
-    ) -> RtpsResult<Self> {
+    ) -> RtpsMessageResult<Self> {
         if submessage_header.submessage_length() as usize > data.len() {
-            return Err(RtpsError::new(
-                RtpsErrorKind::InvalidData,
-                "Submessage header length value bigger than actual data in the buffer",
-            ));
+            return Err(RtpsMessageError::InvalidData);
         }
 
         let mut slice = data;
@@ -64,10 +54,7 @@ impl DataFragSubmessage {
             let data_size = u32::try_read_from_bytes(&mut slice, endianness)?;
 
             if octets_to_inline_qos > submessage_header.submessage_length() as usize {
-                return Err(RtpsError::new(
-                    RtpsErrorKind::InvalidData,
-                    "Invalid octets to inline qos",
-                ));
+                return Err(RtpsMessageError::InvalidData);
             }
 
             let mut data_starting_at_inline_qos =
@@ -95,10 +82,7 @@ impl DataFragSubmessage {
                 serialized_payload,
             })
         } else {
-            Err(RtpsError::new(
-                RtpsErrorKind::NotEnoughData,
-                "DataFrag submessage",
-            ))
+            Err(RtpsMessageError::NotEnoughData)
         }
     }
 
@@ -221,7 +205,7 @@ impl Submessage for DataFragSubmessage {
 mod tests {
     use super::*;
     use crate::{
-        rtps::messages::{
+        rtps_messages::{
             overall_structure::write_submessage_into_bytes_vec, submessage_elements::Parameter,
         },
         transport::types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},

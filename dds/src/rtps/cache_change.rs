@@ -8,16 +8,15 @@ use crate::{
             STATUS_INFO_FILTERED, STATUS_INFO_UNREGISTERED,
         },
     },
+    rtps_messages::{
+        self,
+        submessage_elements::{Parameter, ParameterList},
+        submessages::data::DataSubmessage,
+    },
     transport::{
         history_cache::CacheChange,
         types::{ChangeKind, EntityId, Guid, GuidPrefix},
     },
-};
-
-use super::messages::{
-    self,
-    submessage_elements::{Parameter, ParameterList},
-    submessages::data::DataSubmessage,
 };
 
 impl CacheChange {
@@ -67,7 +66,7 @@ impl CacheChange {
     pub fn try_from_data_submessage(
         data_submessage: &DataSubmessage,
         source_guid_prefix: GuidPrefix,
-        source_timestamp: Option<messages::types::Time>,
+        source_timestamp: Option<rtps_messages::types::Time>,
     ) -> Result<Self, String> {
         let kind = match data_submessage
             .inline_qos()

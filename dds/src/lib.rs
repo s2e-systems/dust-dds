@@ -2,6 +2,8 @@
 #![forbid(missing_docs)]
 #![cfg_attr(not(feature = "std"), no_std)]
 #![doc = include_str!("../README.md")]
+
+extern crate alloc;
 #[cfg(feature = "std")]
 mod dds;
 
@@ -15,15 +17,23 @@ pub mod dds_async;
 #[cfg(feature = "std")]
 pub mod rtps;
 
+#[cfg(feature = "rtps_messages")]
+#[doc(hidden)]
+pub mod rtps_messages;
+
 #[cfg(feature = "std")]
 mod implementation;
+
+#[cfg(feature = "transport")]
 #[doc(hidden)]
+/// Contains the Dust DDS transport interface definition.
 pub mod transport;
 
 #[cfg(feature = "std")]
 mod runtime;
 
 /// Contains the XTypes serializer and deserializer
+#[cfg(feature = "xtypes")]
 #[doc(hidden)]
 pub mod xtypes;
 

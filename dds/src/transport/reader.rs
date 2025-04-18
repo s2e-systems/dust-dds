@@ -1,4 +1,5 @@
 use super::types::{DurabilityKind, EntityId, Guid, Locator, ReliabilityKind};
+use alloc::vec::Vec;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct WriterProxy {
@@ -10,11 +11,11 @@ pub struct WriterProxy {
     pub multicast_locator_list: Vec<Locator>,
 }
 
-pub trait TransportStatelessReader: Send + Sync {
+pub trait TransportStatelessReader: Send {
     fn guid(&self) -> Guid;
 }
 
-pub trait TransportStatefulReader: Send + Sync {
+pub trait TransportStatefulReader: Send {
     fn guid(&self) -> Guid;
     fn is_historical_data_received(&self) -> bool;
     fn add_matched_writer(&mut self, writer_proxy: WriterProxy);

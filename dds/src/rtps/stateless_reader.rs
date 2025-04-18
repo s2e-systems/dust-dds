@@ -1,13 +1,14 @@
-use super::{
-    error::RtpsResult, message_receiver::MessageReceiver, messages::{
+use super::{error::RtpsResult, message_receiver::MessageReceiver};
+use crate::{
+    rtps_messages::{
         self,
         overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
         submessages::data::DataSubmessage,
-    }
-};
-use crate::transport::{
-    history_cache::{CacheChange, HistoryCache},
-    types::{Guid, GuidPrefix, ENTITYID_UNKNOWN},
+    },
+    transport::{
+        history_cache::{CacheChange, HistoryCache},
+        types::{Guid, GuidPrefix, ENTITYID_UNKNOWN},
+    },
 };
 use tracing::error;
 
@@ -32,7 +33,7 @@ impl RtpsStatelessReader {
         &mut self,
         data_submessage: &DataSubmessage,
         source_guid_prefix: GuidPrefix,
-        source_timestamp: Option<messages::types::Time>,
+        source_timestamp: Option<rtps_messages::types::Time>,
     ) {
         if data_submessage.reader_id() == ENTITYID_UNKNOWN
             || data_submessage.reader_id() == self.guid.entity_id()
@@ -63,7 +64,7 @@ impl RtpsStatelessReader {
                     message_receiver.source_timestamp(),
                 );
             }
-        };
+        }
         Ok(())
     }
 }

@@ -1,5 +1,5 @@
 use crate::transport::types::LOCATOR_KIND_UDP_V6;
-use core::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4};
+use core::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4};
 use dust_dds::{
     domain::domain_participant_factory::DomainId,
     rtps::{
@@ -176,11 +176,21 @@ enum ChannelMessageKind {
 }
 
 impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
+    type TransportParticipant = Box<
+        dyn TransportParticipant<
+            HistoryCache = Box<dyn HistoryCache>,
+            StatelessReader = Box<dyn TransportStatelessReader>,
+            StatefulReader = Box<dyn TransportStatefulReader>,
+            StatelessWriter = Box<dyn TransportStatelessWriter>,
+            StatefulWriter = Box<dyn TransportStatefulWriter>,
+        >,
+    >;
+
     fn create_participant(
         &self,
         guid_prefix: GuidPrefix,
         domain_id: i32,
-    ) -> Box<dyn TransportParticipant> {
+    ) -> Self::TransportParticipant {
         let interface_address_list = NetworkInterface::show()
             .expect("Could not scan interfaces")
             .into_iter()
@@ -422,6 +432,36 @@ fn process_message(
     }
 }
 
+impl Locator {
+    pub fn from_ip_and_port(ip_addr: &Addr, port: u32) -> Self {
+        match ip_addr.ip() {
+            IpAddr::V4(a) => Locator::new(
+                LOCATOR_KIND_UDP_V4,
+                port,
+                [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    a.octets()[0],
+                    a.octets()[1],
+                    a.octets()[2],
+                    a.octets()[3],
+                ],
+            ),
+            IpAddr::V6(a) => Locator::new(LOCATOR_KIND_UDP_V6, port, a.octets()),
+        }
+    }
+}
+
 struct UdpLocator(Locator);
 
 impl ToSocketAddrs for UdpLocator {
@@ -525,6 +565,12 @@ pub struct RtpsUdpTransportParticipant {
 }
 
 impl TransportParticipant for RtpsUdpTransportParticipant {
+    type HistoryCache = Box<dyn HistoryCache>;
+    type StatelessReader = Box<dyn TransportStatelessReader>;
+    type StatelessWriter = Box<dyn TransportStatelessWriter>;
+    type StatefulReader = Box<dyn TransportStatefulReader>;
+    type StatefulWriter = Box<dyn TransportStatefulWriter>;
+
     fn guid(&self) -> Guid {
         self.guid
     }
@@ -549,8 +595,8 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
     fn create_stateless_reader(
         &mut self,
         entity_id: EntityId,
-        reader_history_cache: Box<dyn HistoryCache>,
-    ) -> Box<dyn TransportStatelessReader> {
+        reader_history_cache: Self::HistoryCache,
+    ) -> Self::StatelessReader {
         struct StatelessReader {
             guid: Guid,
         }
@@ -569,10 +615,7 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
             guid: Guid::new(self.guid.prefix(), entity_id),
         })
     }
-    fn create_stateless_writer(
-        &mut self,
-        entity_id: EntityId,
-    ) -> Box<dyn TransportStatelessWriter> {
+    fn create_stateless_writer(&mut self, entity_id: EntityId) -> Self::StatelessWriter {
         struct StatelessWriter {
             rtps_writer: RtpsStatelessWriter,
             message_writer: Arc<MessageWriter>,
@@ -614,8 +657,8 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
         &mut self,
         entity_id: EntityId,
         _reliability_kind: ReliabilityKind,
-        reader_history_cache: Box<dyn HistoryCache>,
-    ) -> Box<dyn TransportStatefulReader> {
+        reader_history_cache: Self::HistoryCache,
+    ) -> Self::StatefulReader {
         struct StatefulReader {
             guid: Guid,
             rtps_stateful_reader: Arc<Mutex<RtpsStatefulReader>>,
@@ -664,7 +707,7 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
         &mut self,
         entity_id: EntityId,
         _reliability_kind: ReliabilityKind,
-    ) -> Box<dyn TransportStatefulWriter> {
+    ) -> Self::StatefulWriter {
         struct StatefulWriter {
             guid: Guid,
             rtps_stateful_writer: Arc<Mutex<RtpsStatefulWriter>>,

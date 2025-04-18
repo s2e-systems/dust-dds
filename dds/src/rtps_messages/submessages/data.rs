@@ -1,19 +1,13 @@
-use super::super::super::{
-    error::RtpsResult,
-    messages::{
-        overall_structure::{
-            Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes,
-            WriteIntoBytes,
-        },
-        submessage_elements::{Data, ParameterList},
-        types::{SubmessageFlag, SubmessageKind},
+use super::super::{
+    error::{RtpsMessageError, RtpsMessageResult},
+    overall_structure::{
+        Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes, Write,
+        WriteIntoBytes,
     },
+    submessage_elements::{Data, ParameterList},
+    types::{SubmessageFlag, SubmessageKind},
 };
-use crate::{
-    rtps::error::{RtpsError, RtpsErrorKind},
-    transport::types::{EntityId, SequenceNumber},
-};
-use std::io::Write;
+use crate::transport::types::{EntityId, SequenceNumber};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DataSubmessage {
@@ -32,12 +26,9 @@ impl DataSubmessage {
     pub fn try_from_bytes(
         submessage_header: &SubmessageHeaderRead,
         data: &[u8],
-    ) -> RtpsResult<Self> {
+    ) -> RtpsMessageResult<Self> {
         if submessage_header.submessage_length() as usize > data.len() {
-            return Err(RtpsError::new(
-                RtpsErrorKind::InvalidData,
-                "Submessage header length value bigger than actual data in the buffer",
-            ));
+            return Err(RtpsMessageError::InvalidData);
         }
         let mut slice = data;
         let endianness = submessage_header.endianness();
@@ -53,10 +44,7 @@ impl DataSubmessage {
         let writer_sn = SequenceNumber::try_read_from_bytes(&mut slice, endianness)?;
 
         if octets_to_inline_qos > submessage_header.submessage_length() as usize {
-            return Err(RtpsError::new(
-                RtpsErrorKind::InvalidData,
-                "Invalid octets to inline qos",
-            ));
+            return Err(RtpsMessageError::InvalidData);
         }
         let mut data_starting_at_inline_qos =
             &data[octets_to_inline_qos..submessage_header.submessage_length() as usize];
@@ -186,7 +174,7 @@ impl Submessage for DataSubmessage {
 mod tests {
     use super::*;
     use crate::{
-        rtps::messages::{
+        rtps_messages::{
             overall_structure::write_submessage_into_bytes_vec, submessage_elements::Parameter,
         },
         transport::types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},

@@ -1,16 +1,13 @@
 use crate::transport::types::{EntityId, SequenceNumber};
 
-use super::super::super::{
-    error::RtpsResult,
-    messages::{
-        overall_structure::{
-            Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes,
-            WriteIntoBytes,
-        },
-        types::{Count, SubmessageFlag, SubmessageKind},
+use super::super::{
+    error::RtpsMessageResult,
+    overall_structure::{
+        Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes, Write,
+        WriteIntoBytes,
     },
+    types::{Count, SubmessageFlag, SubmessageKind},
 };
-use std::io::Write;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct HeartbeatSubmessage {
@@ -27,7 +24,7 @@ impl HeartbeatSubmessage {
     pub fn try_from_bytes(
         submessage_header: &SubmessageHeaderRead,
         mut data: &[u8],
-    ) -> RtpsResult<Self> {
+    ) -> RtpsMessageResult<Self> {
         let endianness = submessage_header.endianness();
         Ok(Self {
             final_flag: submessage_header.flags()[1],
@@ -114,7 +111,7 @@ impl Submessage for HeartbeatSubmessage {
 mod tests {
     use super::*;
     use crate::{
-        rtps::messages::overall_structure::write_submessage_into_bytes_vec,
+        rtps_messages::overall_structure::write_submessage_into_bytes_vec,
         transport::types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 

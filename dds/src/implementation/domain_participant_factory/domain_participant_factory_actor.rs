@@ -51,10 +51,13 @@ use crate::{
     transport::{
         factory::TransportParticipantFactory,
         history_cache::{CacheChange, HistoryCache},
+        participant::TransportParticipant,
+        reader::{TransportStatefulReader, TransportStatelessReader},
         types::{
             EntityId, GuidPrefix, ReliabilityKind, BUILT_IN_READER_WITH_KEY,
             BUILT_IN_WRITER_WITH_KEY,
         },
+        writer::{TransportStatefulWriter, TransportStatelessWriter},
     },
 };
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
@@ -67,6 +70,18 @@ use std::{
     },
 };
 use tracing::warn;
+
+pub type DdsTransportParticipantFactory =
+    Box<dyn TransportParticipantFactory<TransportParticipant = DdsTransportParticipant>>;
+pub type DdsTransportParticipant = Box<
+    dyn TransportParticipant<
+        HistoryCache = Box<dyn HistoryCache>,
+        StatelessReader = Box<dyn TransportStatelessReader>,
+        StatefulReader = Box<dyn TransportStatefulReader>,
+        StatelessWriter = Box<dyn TransportStatelessWriter>,
+        StatefulWriter = Box<dyn TransportStatefulWriter>,
+    >,
+>;
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
     EntityId::new([0x00, 0x01, 0x00], BUILT_IN_WRITER_WITH_KEY);
@@ -97,7 +112,7 @@ pub struct DomainParticipantFactoryActor {
     qos: DomainParticipantFactoryQos,
     default_participant_qos: DomainParticipantQos,
     configuration: DustDdsConfiguration,
-    transport: Box<dyn TransportParticipantFactory>,
+    transport: DdsTransportParticipantFactory,
 }
 
 impl Default for DomainParticipantFactoryActor {
@@ -678,7 +693,7 @@ impl MailHandler<GetConfiguration> for DomainParticipantFactoryActor {
 }
 
 pub struct SetTransport {
-    pub transport: Box<dyn TransportParticipantFactory>,
+    pub transport: DdsTransportParticipantFactory,
 }
 impl MailHandler<SetTransport> for DomainParticipantFactoryActor {
     fn handle(&mut self, message: SetTransport) {
