@@ -264,7 +264,10 @@ impl RtpsWriterProxy {
             let mut submessages: Vec<Box<dyn Submessage + Send>> =
                 vec![Box::new(info_dst_submessage), Box::new(acknack_submessage)];
 
-            for missing_seq_num in self.missing_changes().take(256) {
+            let mut missing_fragment_seq_num_list: Vec<SequenceNumber> =
+                self.frag_buffer.iter().map(|f| f.writer_sn()).collect();
+            missing_fragment_seq_num_list.dedup();
+            for missing_seq_num in missing_fragment_seq_num_list {
                 let Some(missing_seq_num_frag) = self
                     .frag_buffer
                     .iter()
