@@ -1,12 +1,10 @@
-use super::{
-    error::RtpsResult,
-    messages::overall_structure::{Endianness, TryReadFromBytes, WriteIntoBytes},
-};
+use super::error::RtpsResult;
 use crate::{
     infrastructure::qos_policy::{
         DurabilityQosPolicy, DurabilityQosPolicyKind, ReliabilityQosPolicy,
         ReliabilityQosPolicyKind,
     },
+    rtps_messages::overall_structure::{Endianness, TryReadFromBytes, WriteIntoBytes},
     transport::types::{
         DurabilityKind, EntityId, GuidPrefix, Locator, Long, Octet, ProtocolVersion,
         ReliabilityKind, SequenceNumber, UnsignedLong, VendorId,
@@ -191,7 +189,7 @@ pub const VENDOR_ID_S2E: VendorId = [0x01, 0x14];
 
 #[cfg(test)]
 mod tests {
-    use crate::rtps::messages::overall_structure::write_into_bytes_vec;
+    use crate::rtps_messages::overall_structure::write_into_bytes_vec;
 
     use super::*;
 

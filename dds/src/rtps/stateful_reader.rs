@@ -1,17 +1,21 @@
 use super::{
-    error::RtpsResult, message_receiver::MessageReceiver, message_sender::WriteMessage, messages::{
+    error::RtpsResult, message_receiver::MessageReceiver, message_sender::WriteMessage,
+    writer_proxy::RtpsWriterProxy,
+};
+use crate::{
+    rtps_messages::{
         self,
         overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
         submessages::{
             data::DataSubmessage, data_frag::DataFragSubmessage, gap::GapSubmessage,
             heartbeat::HeartbeatSubmessage, heartbeat_frag::HeartbeatFragSubmessage,
         },
-    }, writer_proxy::RtpsWriterProxy
-};
-use crate::transport::{
-    history_cache::{CacheChange, HistoryCache},
-    reader::WriterProxy,
-    types::{Guid, GuidPrefix, ReliabilityKind},
+    },
+    transport::{
+        history_cache::{CacheChange, HistoryCache},
+        reader::WriterProxy,
+        types::{Guid, GuidPrefix, ReliabilityKind},
+    },
 };
 use tracing::error;
 
@@ -68,7 +72,7 @@ impl RtpsStatefulReader {
         &mut self,
         data_submessage: &DataSubmessage,
         source_guid_prefix: GuidPrefix,
-        source_timestamp: Option<messages::types::Time>,
+        source_timestamp: Option<rtps_messages::types::Time>,
     ) {
         let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id());
         let sequence_number = data_submessage.writer_sn();
@@ -117,7 +121,7 @@ impl RtpsStatefulReader {
         &mut self,
         data_frag_submessage: &DataFragSubmessage,
         source_guid_prefix: GuidPrefix,
-        source_timestamp: Option<messages::types::Time>,
+        source_timestamp: Option<rtps_messages::types::Time>,
     ) {
         let writer_guid = Guid::new(source_guid_prefix, data_frag_submessage.writer_id());
         let sequence_number = data_frag_submessage.writer_sn();

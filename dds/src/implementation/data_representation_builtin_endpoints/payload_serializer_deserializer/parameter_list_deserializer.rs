@@ -1,9 +1,7 @@
 use crate::{
     implementation::data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
-    rtps::{
-        error::{RtpsError, RtpsErrorKind},
-        messages::types::ParameterId,
-    },
+    rtps::error::{RtpsError, RtpsErrorKind},
+    rtps_messages::types::ParameterId,
     xtypes::{
         deserialize::XTypesDeserialize,
         xcdr_deserializer::{Xcdr1BeDeserializer, Xcdr1LeDeserializer},

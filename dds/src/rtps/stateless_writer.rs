@@ -1,16 +1,15 @@
-use super::{
-    message_sender::WriteMessage,
-    messages::{
+use super::{message_sender::WriteMessage, reader_locator::RtpsReaderLocator};
+use crate::{
+    rtps_messages::{
         overall_structure::RtpsMessageWrite,
         submessage_elements::SequenceNumberSet,
         submessages::{gap::GapSubmessage, info_timestamp::InfoTimestampSubmessage},
         types::TIME_INVALID,
     },
-    reader_locator::RtpsReaderLocator,
-};
-use crate::transport::{
-    history_cache::CacheChange,
-    types::{Guid, Locator, SequenceNumber, ENTITYID_UNKNOWN},
+    transport::{
+        history_cache::CacheChange,
+        types::{Guid, Locator, SequenceNumber, ENTITYID_UNKNOWN},
+    },
 };
 
 pub struct RtpsStatelessWriter {

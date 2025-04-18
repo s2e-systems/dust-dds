@@ -1,9 +1,9 @@
 use super::{
-    behavior_types::Duration,
-    error::RtpsResult,
-    message_receiver::MessageReceiver,
-    message_sender::WriteMessage,
-    messages::{
+    behavior_types::Duration, error::RtpsResult, message_receiver::MessageReceiver,
+    message_sender::WriteMessage, reader_proxy::RtpsReaderProxy,
+};
+use crate::{
+    rtps_messages::{
         overall_structure::{RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageReadKind},
         submessage_elements::{ParameterList, SequenceNumberSet, SerializedDataFragment},
         submessages::{
@@ -13,15 +13,14 @@ use super::{
         },
         types::TIME_INVALID,
     },
-    reader_proxy::RtpsReaderProxy,
-};
-use crate::transport::{
-    history_cache::CacheChange,
-    types::{
-        ChangeKind, DurabilityKind, EntityId, Guid, GuidPrefix, ReliabilityKind, SequenceNumber,
-        ENTITYID_UNKNOWN,
+    transport::{
+        history_cache::CacheChange,
+        types::{
+            ChangeKind, DurabilityKind, EntityId, Guid, GuidPrefix, ReliabilityKind,
+            SequenceNumber, ENTITYID_UNKNOWN,
+        },
+        writer::ReaderProxy,
     },
-    writer::ReaderProxy,
 };
 
 pub struct RtpsStatefulWriter {

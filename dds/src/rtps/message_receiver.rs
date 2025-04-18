@@ -1,9 +1,11 @@
-use super::messages::{
-    self,
-    overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
-    types::TIME_INVALID,
+use crate::{
+    rtps_messages::{
+        self,
+        overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
+        types::TIME_INVALID,
+    },
+    transport::types::{GuidPrefix, Locator, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN},
 };
-use crate::transport::types::{GuidPrefix, Locator, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN};
 
 pub struct MessageReceiver<'a> {
     source_version: ProtocolVersion,
@@ -13,7 +15,7 @@ pub struct MessageReceiver<'a> {
     _unicast_reply_locator_list: Vec<Locator>,
     _multicast_reply_locator_list: Vec<Locator>,
     have_timestamp: bool,
-    timestamp: messages::types::Time,
+    timestamp: rtps_messages::types::Time,
     submessage_iter: std::slice::Iter<'a, RtpsSubmessageReadKind>,
 }
 
@@ -76,7 +78,7 @@ impl<'a> MessageReceiver<'a> {
         self.source_guid_prefix
     }
 
-    pub fn source_timestamp(&self) -> Option<messages::types::Time> {
+    pub fn source_timestamp(&self) -> Option<rtps_messages::types::Time> {
         if self.have_timestamp {
             Some(self.timestamp)
         } else {

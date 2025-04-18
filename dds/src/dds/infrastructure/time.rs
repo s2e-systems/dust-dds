@@ -138,8 +138,8 @@ impl From<Duration> for crate::rtps::behavior_types::Duration {
     }
 }
 
-impl From<crate::rtps::messages::types::Time> for Duration {
-    fn from(value: crate::rtps::messages::types::Time) -> Self {
+impl From<crate::rtps_messages::types::Time> for Duration {
+    fn from(value: crate::rtps_messages::types::Time) -> Self {
         Self {
             sec: value.seconds() as i32,
             nanosec: fraction_to_nanosec(value.fraction()),
@@ -147,12 +147,9 @@ impl From<crate::rtps::messages::types::Time> for Duration {
     }
 }
 
-impl From<Duration> for crate::rtps::messages::types::Time {
+impl From<Duration> for crate::rtps_messages::types::Time {
     fn from(value: Duration) -> Self {
-        crate::rtps::messages::types::Time::new(
-            value.sec as u32,
-            nanosec_to_fraction(value.nanosec),
-        )
+        crate::rtps_messages::types::Time::new(value.sec as u32, nanosec_to_fraction(value.nanosec))
     }
 }
 
