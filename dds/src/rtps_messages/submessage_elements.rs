@@ -270,7 +270,9 @@ impl ParameterList {
     }
 
     pub fn empty() -> Self {
-        Self { parameter: vec![] }
+        Self {
+            parameter: Vec::new(),
+        }
     }
 
     pub fn parameter(&self) -> &[Parameter] {
@@ -283,7 +285,7 @@ impl ParameterList {
     ) -> RtpsMessageResult<Self> {
         const MAX_PARAMETERS: usize = 2_usize.pow(16);
 
-        let mut parameter = vec![];
+        let mut parameter = Vec::new();
         for _ in 0..MAX_PARAMETERS {
             let parameter_i = Parameter::try_read_from_bytes(data, endianness)?;
             if parameter_i.parameter_id() == PID_SENTINEL {

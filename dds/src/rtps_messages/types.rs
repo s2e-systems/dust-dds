@@ -182,11 +182,11 @@ impl From<Time> for crate::transport::types::Time {
 }
 
 fn fraction_to_nanosec(fraction: u32) -> u32 {
-    (fraction as f64 / 2f64.powf(32.0) * 1_000_000_000.0).round() as u32
+    ((fraction as u64 * 1_000_000_000) / (1u64 << 32)) as u32
 }
 
 fn nanosec_to_fraction(nanosec: u32) -> u32 {
-    (nanosec as f64 / 1_000_000_000.0 * 2f64.powf(32.0)).round() as u32
+    (((nanosec as u64 * (1u64 << 32)) + 500_000_000) / 1_000_000_000) as u32
 }
 
 #[allow(dead_code)]

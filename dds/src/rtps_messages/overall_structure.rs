@@ -362,7 +362,7 @@ impl TryFrom<&[u8]> for RtpsMessageRead {
                 v.consume(20);
 
                 const MAX_SUBMESSAGES: usize = 2_usize.pow(16);
-                let mut submessages = vec![];
+                let mut submessages = Vec::new();
                 for _ in 0..MAX_SUBMESSAGES {
                     if v.len() < 4 {
                         break;

@@ -7,6 +7,7 @@ use super::super::{
     submessage_elements::LocatorList,
     types::{SubmessageFlag, SubmessageKind},
 };
+use alloc::vec::Vec;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct InfoReplySubmessage {
@@ -26,7 +27,7 @@ impl InfoReplySubmessage {
         let multicast_locator_list = if multicast_flag {
             LocatorList::try_read_from_bytes(&mut data, endianness)?
         } else {
-            LocatorList::new(vec![])
+            LocatorList::new(Vec::new())
         };
         Ok(Self {
             multicast_flag,
