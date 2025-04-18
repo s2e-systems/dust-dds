@@ -1,15 +1,12 @@
 use crate::transport::types::{EntityId, SequenceNumber};
 
-use super::super::super::{
-    error::RtpsResult,
-    messages::{
-        overall_structure::{
-            Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes,
-            WriteIntoBytes,
-        },
-        submessage_elements::FragmentNumberSet,
-        types::{Count, SubmessageKind},
+use super::super::{
+    error::RtpsMessageResult,
+    overall_structure::{
+        Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes, WriteIntoBytes,
     },
+    submessage_elements::FragmentNumberSet,
+    types::{Count, SubmessageKind},
 };
 use std::io::Write;
 
@@ -26,7 +23,7 @@ impl NackFragSubmessage {
     pub fn try_from_bytes(
         submessage_header: &SubmessageHeaderRead,
         mut data: &[u8],
-    ) -> RtpsResult<Self> {
+    ) -> RtpsMessageResult<Self> {
         let endianness = submessage_header.endianness();
         Ok(Self {
             reader_id: EntityId::try_read_from_bytes(&mut data, endianness)?,
@@ -95,7 +92,7 @@ impl Submessage for NackFragSubmessage {
 mod tests {
     use super::*;
     use crate::{
-        rtps::messages::overall_structure::write_submessage_into_bytes_vec,
+        rtps_messages::overall_structure::write_submessage_into_bytes_vec,
         transport::types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 

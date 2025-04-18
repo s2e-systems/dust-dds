@@ -1,11 +1,7 @@
-use super::super::super::{
-    error::RtpsResult,
-    messages::{
-        overall_structure::{
-            Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, WriteIntoBytes,
-        },
-        types::{SubmessageFlag, SubmessageKind, Time, TIME_INVALID},
-    },
+use super::super::{
+    error::RtpsMessageResult,
+    overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, WriteIntoBytes},
+    types::{SubmessageFlag, SubmessageKind, Time, TIME_INVALID},
 };
 use std::io::Write;
 
@@ -19,7 +15,7 @@ impl InfoTimestampSubmessage {
     pub fn try_from_bytes(
         submessage_header: &SubmessageHeaderRead,
         mut data: &[u8],
-    ) -> RtpsResult<Self> {
+    ) -> RtpsMessageResult<Self> {
         let invalidate_flag = submessage_header.flags()[1];
         let timestamp = if invalidate_flag {
             TIME_INVALID
@@ -70,7 +66,7 @@ impl Submessage for InfoTimestampSubmessage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::rtps::messages::overall_structure::write_submessage_into_bytes_vec;
+    use crate::rtps_messages::overall_structure::write_submessage_into_bytes_vec;
 
     #[test]
     fn serialize_info_timestamp_valid_time() {

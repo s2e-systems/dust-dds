@@ -12,15 +12,13 @@ use dust_dds::{
         time::{Duration, DurationKind},
         wait_set::{Condition, WaitSet},
     },
-    rtps::{
-        messages::{
-            overall_structure::{
-                RtpsMessageHeader, RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageReadKind,
-            },
-            submessage_elements::{Data, ParameterList, SequenceNumberSet},
-            submessages::{ack_nack::AckNackSubmessage, data::DataSubmessage},
+    rtps::types::{PROTOCOLVERSION, VENDOR_ID_S2E},
+    rtps_messages::{
+        overall_structure::{
+            RtpsMessageHeader, RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageReadKind,
         },
-        types::{PROTOCOLVERSION, VENDOR_ID_S2E},
+        submessage_elements::{Data, ParameterList, SequenceNumberSet},
+        submessages::{ack_nack::AckNackSubmessage, data::DataSubmessage},
     },
     subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     topic_definition::type_support::{DdsDeserialize, DdsType},

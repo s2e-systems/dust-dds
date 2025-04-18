@@ -1,4 +1,4 @@
-use crate::xtypes::error::XTypesError;
+use crate::{rtps_messages::error::RtpsMessageError, xtypes::error::XTypesError};
 
 pub type RtpsResult<T> = Result<T, RtpsError>;
 
@@ -7,6 +7,7 @@ pub enum RtpsErrorKind {
     Io,
     InvalidData,
     NotEnoughData,
+    MessageError,
 }
 
 #[derive(Debug)]
@@ -33,6 +34,7 @@ impl std::fmt::Display for RtpsError {
                 RtpsErrorKind::InvalidData => "Invalid data",
                 RtpsErrorKind::NotEnoughData => "Not enough data",
                 RtpsErrorKind::Io => "Io",
+                RtpsErrorKind::MessageError => "Message error",
             },
             self.msg
         )
@@ -47,6 +49,15 @@ impl From<std::io::Error> for RtpsError {
 
 impl From<XTypesError> for RtpsError {
     fn from(value: XTypesError) -> Self {
-        RtpsError::new(RtpsErrorKind::InvalidData, format!("XTypesError: {:?}", value))
+        RtpsError::new(
+            RtpsErrorKind::InvalidData,
+            format!("XTypesError: {:?}", value),
+        )
+    }
+}
+
+impl From<RtpsMessageError> for RtpsError {
+    fn from(_: RtpsMessageError) -> Self {
+        RtpsError::new(RtpsErrorKind::MessageError, format!(""))
     }
 }

@@ -1,10 +1,12 @@
-use super::error::RtpsResult;
 use crate::{
     infrastructure::qos_policy::{
         DurabilityQosPolicy, DurabilityQosPolicyKind, ReliabilityQosPolicy,
         ReliabilityQosPolicyKind,
     },
-    rtps_messages::overall_structure::{Endianness, TryReadFromBytes, WriteIntoBytes},
+    rtps_messages::{
+        error::RtpsMessageResult,
+        overall_structure::{Endianness, TryReadFromBytes, WriteIntoBytes},
+    },
     transport::types::{
         DurabilityKind, EntityId, GuidPrefix, Locator, Long, Octet, ProtocolVersion,
         ReliabilityKind, SequenceNumber, UnsignedLong, VendorId,
@@ -63,7 +65,7 @@ impl WriteIntoBytes for &[u8] {
 }
 
 impl TryReadFromBytes for GuidPrefix {
-    fn try_read_from_bytes(data: &mut &[u8], _endianness: &Endianness) -> RtpsResult<Self> {
+    fn try_read_from_bytes(data: &mut &[u8], _endianness: &Endianness) -> RtpsMessageResult<Self> {
         let mut guid_prefix = [0; 12];
         data.read_exact(&mut guid_prefix)?;
         Ok(guid_prefix)
@@ -71,7 +73,7 @@ impl TryReadFromBytes for GuidPrefix {
 }
 
 impl TryReadFromBytes for EntityId {
-    fn try_read_from_bytes(data: &mut &[u8], _endianness: &Endianness) -> RtpsResult<Self> {
+    fn try_read_from_bytes(data: &mut &[u8], _endianness: &Endianness) -> RtpsMessageResult<Self> {
         let mut entity_key = [0; 3];
         let mut entity_kind = [0; 1];
         data.read_exact(&mut entity_key)?;
@@ -88,7 +90,7 @@ impl WriteIntoBytes for EntityId {
 }
 
 impl TryReadFromBytes for SequenceNumber {
-    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsResult<Self> {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsMessageResult<Self> {
         let high = i32::try_read_from_bytes(data, endianness)?;
         let low = u32::try_read_from_bytes(data, endianness)?;
         let value = ((high as i64) << 32) + low as i64;
@@ -114,7 +116,7 @@ impl WriteIntoBytes for Locator {
 }
 
 impl TryReadFromBytes for Locator {
-    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsResult<Self> {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsMessageResult<Self> {
         let kind = i32::try_read_from_bytes(data, endianness)?;
         let port = u32::try_read_from_bytes(data, endianness)?;
         let mut address = [0; 16];
@@ -146,7 +148,7 @@ impl From<&DurabilityQosPolicy> for DurabilityKind {
 // Defined elsewhere in DDS
 
 impl TryReadFromBytes for ProtocolVersion {
-    fn try_read_from_bytes(data: &mut &[u8], _endianness: &Endianness) -> RtpsResult<Self> {
+    fn try_read_from_bytes(data: &mut &[u8], _endianness: &Endianness) -> RtpsMessageResult<Self> {
         let mut bytes = [0; 2];
         data.read_exact(&mut bytes)?;
         Ok(Self::new(bytes[0], bytes[1]))
@@ -176,7 +178,7 @@ pub const PROTOCOLVERSION_2_3: ProtocolVersion = ProtocolVersion::new(2, 3);
 pub const PROTOCOLVERSION_2_4: ProtocolVersion = ProtocolVersion::new(2, 4);
 
 impl TryReadFromBytes for VendorId {
-    fn try_read_from_bytes(data: &mut &[u8], _endianness: &Endianness) -> RtpsResult<Self> {
+    fn try_read_from_bytes(data: &mut &[u8], _endianness: &Endianness) -> RtpsMessageResult<Self> {
         let mut bytes = [0; 2];
         data.read_exact(&mut bytes)?;
         Ok(bytes)

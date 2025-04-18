@@ -1,14 +1,11 @@
 use crate::transport::types::GuidPrefix;
 
-use super::super::super::{
-    error::RtpsResult,
-    messages::{
-        overall_structure::{
-            Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes,
-            WriteIntoBytes,
-        },
-        types::SubmessageKind,
+use super::super::{
+    error::RtpsMessageResult,
+    overall_structure::{
+        Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes, WriteIntoBytes,
     },
+    types::SubmessageKind,
 };
 use std::io::Write;
 
@@ -21,7 +18,7 @@ impl InfoDestinationSubmessage {
     pub fn try_from_bytes(
         submessage_header: &SubmessageHeaderRead,
         mut data: &[u8],
-    ) -> RtpsResult<Self> {
+    ) -> RtpsMessageResult<Self> {
         Ok(Self {
             guid_prefix: GuidPrefix::try_read_from_bytes(
                 &mut data,
@@ -55,7 +52,10 @@ impl Submessage for InfoDestinationSubmessage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{rtps::messages::overall_structure::write_submessage_into_bytes_vec, transport::types::GUIDPREFIX_UNKNOWN};
+    use crate::{
+        rtps_messages::overall_structure::write_submessage_into_bytes_vec,
+        transport::types::GUIDPREFIX_UNKNOWN,
+    };
 
     #[test]
     fn serialize_heart_beat() {

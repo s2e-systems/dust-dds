@@ -1,5 +1,5 @@
 use super::{
-    super::error::RtpsResult,
+    error::RtpsMessageResult,
     overall_structure::{Endianness, TryReadFromBytes, WriteIntoBytes},
 };
 use std::io::{Read, Write};
@@ -14,7 +14,7 @@ type Short = i16;
 type UnsignedShort = u16;
 
 impl TryReadFromBytes for Long {
-    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsResult<Self> {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsMessageResult<Self> {
         let mut bytes = [0; 4];
         data.read_exact(&mut bytes)?;
         Ok(match endianness {
@@ -25,7 +25,7 @@ impl TryReadFromBytes for Long {
 }
 
 impl TryReadFromBytes for UnsignedLong {
-    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsResult<Self> {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsMessageResult<Self> {
         let mut bytes = [0; 4];
         data.read_exact(&mut bytes)?;
         Ok(match endianness {
@@ -36,7 +36,7 @@ impl TryReadFromBytes for UnsignedLong {
 }
 
 impl TryReadFromBytes for Short {
-    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsResult<Self> {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsMessageResult<Self> {
         let mut bytes = [0; 2];
         data.read_exact(&mut bytes)?;
         Ok(match endianness {
@@ -47,7 +47,7 @@ impl TryReadFromBytes for Short {
 }
 
 impl TryReadFromBytes for UnsignedShort {
-    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsResult<Self> {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsMessageResult<Self> {
         let mut bytes = [0; 2];
         data.read_exact(&mut bytes)?;
         Ok(match endianness {
@@ -157,7 +157,10 @@ impl Time {
         self.fraction
     }
 
-    pub fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsResult<Self> {
+    pub fn try_read_from_bytes(
+        data: &mut &[u8],
+        endianness: &Endianness,
+    ) -> RtpsMessageResult<Self> {
         let seconds = UnsignedLong::try_read_from_bytes(data, endianness)?;
         let fraction = UnsignedLong::try_read_from_bytes(data, endianness)?;
         Ok(Self { seconds, fraction })

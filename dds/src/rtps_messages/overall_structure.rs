@@ -1,24 +1,21 @@
-use crate::{rtps::types::{PROTOCOLVERSION_2_4, VENDOR_ID_S2E}, transport::types::{GuidPrefix, ProtocolVersion, VendorId}};
+use crate::{
+    rtps::types::{PROTOCOLVERSION_2_4, VENDOR_ID_S2E},
+    transport::types::{GuidPrefix, ProtocolVersion, VendorId},
+};
 
 use super::{
-    super::{
-        error::{RtpsError, RtpsErrorKind, RtpsResult},
-        messages::{
-            submessages::{
-                ack_nack::AckNackSubmessage, data::DataSubmessage, data_frag::DataFragSubmessage,
-                gap::GapSubmessage, heartbeat::HeartbeatSubmessage,
-                heartbeat_frag::HeartbeatFragSubmessage,
-                info_destination::InfoDestinationSubmessage, info_reply::InfoReplySubmessage,
-                info_source::InfoSourceSubmessage, info_timestamp::InfoTimestampSubmessage,
-                nack_frag::NackFragSubmessage, pad::PadSubmessage,
-            },
-            types::{
-                ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT, HEARTBEAT_FRAG, INFO_DST, INFO_REPLY,
-                INFO_SRC, INFO_TS, NACK_FRAG, PAD,
-            },
-        },
+    error::{RtpsMessageError, RtpsMessageResult},
+    submessages::{
+        ack_nack::AckNackSubmessage, data::DataSubmessage, data_frag::DataFragSubmessage,
+        gap::GapSubmessage, heartbeat::HeartbeatSubmessage,
+        heartbeat_frag::HeartbeatFragSubmessage, info_destination::InfoDestinationSubmessage,
+        info_reply::InfoReplySubmessage, info_source::InfoSourceSubmessage,
+        info_timestamp::InfoTimestampSubmessage, nack_frag::NackFragSubmessage, pad::PadSubmessage,
     },
-    types::{ProtocolId, SubmessageFlag, SubmessageKind},
+    types::{
+        ProtocolId, SubmessageFlag, SubmessageKind, ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT,
+        HEARTBEAT_FRAG, INFO_DST, INFO_REPLY, INFO_SRC, INFO_TS, NACK_FRAG, PAD,
+    },
 };
 use std::{
     io::{BufRead, Cursor, Write},
@@ -40,7 +37,7 @@ impl Endianness {
 }
 
 pub trait TryReadFromBytes: Sized {
-    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsResult<Self>;
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsMessageResult<Self>;
 }
 
 pub trait WriteIntoBytes {
@@ -74,7 +71,7 @@ pub struct SubmessageHeaderRead {
 }
 
 impl SubmessageHeaderRead {
-    pub fn try_read_from_bytes(data: &mut &[u8]) -> RtpsResult<Self> {
+    pub fn try_read_from_bytes(data: &mut &[u8]) -> RtpsMessageResult<Self> {
         if data.len() >= 4 {
             let submessage_id = data[0];
             let flags_byte = data[1];
@@ -101,10 +98,7 @@ impl SubmessageHeaderRead {
                 endianness,
             })
         } else {
-            Err(RtpsError::new(
-                RtpsErrorKind::NotEnoughData,
-                "Submessage header",
-            ))
+            Err(RtpsMessageError::NotEnoughData)
         }
     }
 
@@ -142,9 +136,9 @@ impl RtpsMessageRead {
 }
 
 impl TryFrom<&[u8]> for RtpsMessageRead {
-    type Error = RtpsError;
+    type Error = RtpsMessageError;
 
-    fn try_from(mut v: &[u8]) -> RtpsResult<Self> {
+    fn try_from(mut v: &[u8]) -> RtpsMessageResult<Self> {
         if v.len() >= 20 {
             if b"RTPS" == &[v[0], v[1], v[2], v[3]] {
                 let major = v[4];
@@ -207,10 +201,7 @@ impl TryFrom<&[u8]> for RtpsMessageRead {
                                 .map(RtpsSubmessageReadKind::NackFrag),
                             PAD => PadSubmessage::try_from_bytes(&submessage_header, v)
                                 .map(RtpsSubmessageReadKind::Pad),
-                            _ => Err(RtpsError::new(
-                                RtpsErrorKind::InvalidData,
-                                "Unknown message",
-                            )),
+                            _ => Err(RtpsMessageError::UnknownMessage),
                         };
                         if let Ok(submessage) = submessage {
                             submessages.push(submessage);
@@ -223,16 +214,10 @@ impl TryFrom<&[u8]> for RtpsMessageRead {
                     submessages,
                 })
             } else {
-                Err(RtpsError::new(
-                    RtpsErrorKind::InvalidData,
-                    "RTPS not in data",
-                ))
+                Err(RtpsMessageError::InvalidData)
             }
         } else {
-            Err(RtpsError::new(
-                RtpsErrorKind::NotEnoughData,
-                "Rtps message header",
-            ))
+            Err(RtpsMessageError::NotEnoughData)
         }
     }
 }
@@ -273,9 +258,11 @@ impl RtpsMessageWrite {
         &self.data
     }
 
-    pub fn from_submessages(submessages: &[Box<dyn Submessage + Send>], guid_prefix: GuidPrefix) -> Self {
-        let header =
-        RtpsMessageHeader::new(PROTOCOLVERSION_2_4, VENDOR_ID_S2E, guid_prefix);
+    pub fn from_submessages(
+        submessages: &[Box<dyn Submessage + Send>],
+        guid_prefix: GuidPrefix,
+    ) -> Self {
+        let header = RtpsMessageHeader::new(PROTOCOLVERSION_2_4, VENDOR_ID_S2E, guid_prefix);
         RtpsMessageWrite::new(&header, submessages)
     }
 }
@@ -374,7 +361,7 @@ impl WriteIntoBytes for SubmessageHeaderWrite {
 mod tests {
     use super::*;
     use crate::{
-        rtps::messages::{
+        rtps_messages::{
             submessage_elements::{Data, Parameter, ParameterList},
             submessages::{data::DataSubmessage, info_timestamp::InfoTimestampSubmessage},
             types::Time,

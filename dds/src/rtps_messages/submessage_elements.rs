@@ -1,9 +1,7 @@
 use super::{
-    super::{
-        error::{RtpsError, RtpsErrorKind, RtpsResult},
-        messages::types::FragmentNumber,
-    },
+    error::{RtpsMessageError, RtpsMessageResult},
     overall_structure::{Endianness, TryReadFromBytes, WriteIntoBytes},
+    types::FragmentNumber,
     types::ParameterId,
 };
 use crate::transport::types::{Locator, SequenceNumber};
@@ -80,14 +78,11 @@ impl SequenceNumberSet {
 }
 
 impl TryReadFromBytes for SequenceNumberSet {
-    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsResult<Self> {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsMessageResult<Self> {
         let base = SequenceNumber::try_read_from_bytes(data, endianness)?;
         let num_bits = u32::try_read_from_bytes(data, endianness)?;
         if num_bits > 256 {
-            return Err(RtpsError::new(
-                RtpsErrorKind::InvalidData,
-                "Maximum number of bits in SequenceNumberSet is 256",
-            ));
+            return Err(RtpsMessageError::InvalidData);
         }
         let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard referred to as "M"
         let mut bitmap = [0; 8];
@@ -128,7 +123,10 @@ impl FragmentNumberSet {
         }
     }
 
-    pub fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsResult<Self> {
+    pub fn try_read_from_bytes(
+        data: &mut &[u8],
+        endianness: &Endianness,
+    ) -> RtpsMessageResult<Self> {
         let base = FragmentNumber::try_read_from_bytes(data, endianness)?;
         let num_bits = u32::try_read_from_bytes(data, endianness)?;
         let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard referred to as "M"
@@ -186,7 +184,7 @@ impl LocatorList {
 }
 
 impl TryReadFromBytes for LocatorList {
-    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsResult<Self> {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsMessageResult<Self> {
         let num_locators = u32::try_read_from_bytes(data, endianness)?;
         let mut locator_list = Vec::new();
         for _ in 0..num_locators {
@@ -232,14 +230,11 @@ impl Parameter {
         self.value.len() as i16
     }
 
-    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsResult<Self> {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsMessageResult<Self> {
         let mut slice = *data;
         let len = slice.len();
         if len < 4 {
-            return Err(RtpsError::new(
-                RtpsErrorKind::NotEnoughData,
-                "At least 4 bytes required for parameter",
-            ));
+            return Err(RtpsMessageError::NotEnoughData);
         }
         let parameter_id = i16::try_read_from_bytes(&mut slice, endianness)?;
         // This value shouldn't be negative otherwise when converting to usize it overflows
@@ -247,26 +242,17 @@ impl Parameter {
         data.consume(4);
 
         if parameter_id != PID_SENTINEL && length % 4 != 0 {
-            return Err(RtpsError::new(
-                RtpsErrorKind::InvalidData,
-                "Parameter length not multiple of 4",
-            ));
+            return Err(RtpsMessageError::InvalidData);
         }
         let value = if parameter_id == PID_SENTINEL {
             Arc::new([])
         } else {
             if data.len() < length as usize {
-                return Err(RtpsError::new(
-                    RtpsErrorKind::NotEnoughData,
-                    "Available data for parameter less than length",
-                ));
+                return Err(RtpsMessageError::NotEnoughData);
             }
             let value: Arc<[u8]> = Arc::from(&data[0..length as usize]);
             if length as usize > value.len() {
-                return Err(RtpsError::new(
-                    RtpsErrorKind::InvalidData,
-                    "Parameter length bigger than available data",
-                ));
+                return Err(RtpsMessageError::InvalidData);
             }
             data.consume(length as usize);
             value
@@ -294,7 +280,10 @@ impl ParameterList {
         self.parameter.as_ref()
     }
 
-    pub fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsResult<Self> {
+    pub fn try_read_from_bytes(
+        data: &mut &[u8],
+        endianness: &Endianness,
+    ) -> RtpsMessageResult<Self> {
         const MAX_PARAMETERS: usize = 2_usize.pow(16);
 
         let mut parameter = vec![];
@@ -437,7 +426,7 @@ impl WriteIntoBytes for Data {
 mod tests {
     use super::*;
     use crate::{
-        rtps::messages::{overall_structure::write_into_bytes_vec, types::Count},
+        rtps_messages::{overall_structure::write_into_bytes_vec, types::Count},
         transport::types::{GuidPrefix, ProtocolVersion, VendorId},
     };
 

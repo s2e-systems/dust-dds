@@ -1,11 +1,7 @@
-use super::super::super::{
-    error::RtpsResult,
-    messages::{
-        overall_structure::{
-            Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, WriteIntoBytes,
-        },
-        types::SubmessageKind,
-    },
+use super::super::{
+    error::RtpsMessageResult,
+    overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, WriteIntoBytes},
+    types::SubmessageKind,
 };
 use std::io::Write;
 
@@ -16,7 +12,7 @@ impl PadSubmessage {
     pub fn try_from_bytes(
         _submessage_header: &SubmessageHeaderRead,
         _data: &[u8],
-    ) -> RtpsResult<Self> {
+    ) -> RtpsMessageResult<Self> {
         Ok(Self {})
     }
 }
@@ -45,7 +41,7 @@ impl Submessage for PadSubmessage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::rtps::messages::overall_structure::{
+    use crate::rtps_messages::overall_structure::{
         write_submessage_into_bytes_vec, SubmessageHeaderRead,
     };
 

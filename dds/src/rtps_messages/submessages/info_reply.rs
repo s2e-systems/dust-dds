@@ -1,13 +1,10 @@
-use super::super::super::{
-    error::RtpsResult,
-    messages::{
-        overall_structure::{
-            Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes,
-            WriteIntoBytes,
-        },
-        submessage_elements::LocatorList,
-        types::{SubmessageFlag, SubmessageKind},
+use super::super::{
+    error::RtpsMessageResult,
+    overall_structure::{
+        Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes, WriteIntoBytes,
     },
+    submessage_elements::LocatorList,
+    types::{SubmessageFlag, SubmessageKind},
 };
 use std::io::Write;
 
@@ -22,7 +19,7 @@ impl InfoReplySubmessage {
     pub fn try_from_bytes(
         submessage_header: &SubmessageHeaderRead,
         mut data: &[u8],
-    ) -> RtpsResult<Self> {
+    ) -> RtpsMessageResult<Self> {
         let endianness = submessage_header.endianness();
         let multicast_flag = submessage_header.flags()[1];
         let unicast_locator_list = LocatorList::try_read_from_bytes(&mut data, endianness)?;
@@ -83,7 +80,7 @@ impl InfoReplySubmessage {
 mod tests {
     use super::*;
     use crate::{
-        rtps::messages::overall_structure::write_submessage_into_bytes_vec,
+        rtps_messages::overall_structure::write_submessage_into_bytes_vec,
         transport::types::Locator,
     };
 
