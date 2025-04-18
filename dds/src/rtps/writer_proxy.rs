@@ -2,10 +2,10 @@ use super::message_sender::WriteMessage;
 use crate::{
     rtps_messages::{
         overall_structure::{RtpsMessageWrite, Submessage},
-        submessage_elements::{Data, FragmentNumberSet, SequenceNumberSet},
+        submessage_elements::{Data, SequenceNumberSet},
         submessages::{
             ack_nack::AckNackSubmessage, data::DataSubmessage, data_frag::DataFragSubmessage,
-            info_destination::InfoDestinationSubmessage, nack_frag::NackFragSubmessage,
+            info_destination::InfoDestinationSubmessage,
         },
         types::Count,
     },
@@ -14,7 +14,6 @@ use crate::{
 use alloc::{boxed::Box, sync::Arc, vec, vec::Vec};
 
 use core::cmp::max;
-use std::collections::HashMap;
 
 fn total_fragments_expected(data_frag_submessage: &DataFragSubmessage) -> u32 {
     let data_size = data_frag_submessage.data_size();
@@ -37,7 +36,7 @@ pub struct RtpsWriterProxy {
     last_received_heartbeat_frag_count: Count,
     acknack_count: Count,
     nack_frag_count: Count,
-    frag_buffer: HashMap<SequenceNumber, Vec<DataFragSubmessage>>,
+    frag_buffer: Vec<DataFragSubmessage>,
     reliability: ReliabilityKind,
 }
 
@@ -62,15 +61,22 @@ impl RtpsWriterProxy {
             last_received_heartbeat_frag_count: 0,
             acknack_count: 0,
             nack_frag_count: 0,
-            frag_buffer: HashMap::new(),
+            frag_buffer: Vec::new(),
             reliability,
         }
     }
 
     pub fn push_data_frag(&mut self, submessage: DataFragSubmessage) {
-        let frag_bug_seq_num = self.frag_buffer.entry(submessage.writer_sn()).or_default();
-        if !frag_bug_seq_num.contains(&submessage) {
-            frag_bug_seq_num.push(submessage);
+        if self
+            .frag_buffer
+            .iter()
+            .find(|f| {
+                f.writer_sn() == submessage.writer_sn()
+                    && f.fragment_starting_num() == submessage.fragment_starting_num()
+            })
+            .is_none()
+        {
+            self.frag_buffer.push(submessage);
         }
     }
 
@@ -78,45 +84,56 @@ impl RtpsWriterProxy {
         &mut self,
         seq_num: SequenceNumber,
     ) -> Option<DataSubmessage> {
-        if let Some(seq_num_frag) = self.frag_buffer.get(&seq_num) {
-            let total_fragments_expected = total_fragments_expected(&seq_num_frag[0]);
+        let frag_submessage = self.frag_buffer.iter().find(|f| f.writer_sn() == seq_num)?;
+        let total_fragments_expected = total_fragments_expected(&frag_submessage);
 
-            let mut total_fragments = 0;
-            for frag_seq_num in seq_num_frag {
-                total_fragments += frag_seq_num.fragments_in_submessage() as u32;
+        let total_fragments = self
+            .frag_buffer
+            .iter()
+            .filter(|f| f.writer_sn() == seq_num)
+            .fold(0, |mut acc, f| {
+                acc += f.fragments_in_submessage() as u32;
+                acc
+            });
+
+        if total_fragments == total_fragments_expected {
+            let mut data = Vec::new();
+            for frag_number in 1..=total_fragments {
+                let frag = self
+                    .frag_buffer
+                    .iter()
+                    .find(|f| f.writer_sn() == seq_num && f.fragment_starting_num() == frag_number)
+                    .expect("All fragments should exist");
+                data.extend_from_slice(frag.serialized_payload().as_ref());
             }
 
-            if total_fragments == total_fragments_expected {
-                let mut frag_seq_num_list = self.frag_buffer.remove(&seq_num).expect("Must exist");
-                frag_seq_num_list.sort_by_key(|k| k.fragment_starting_num());
+            let frag = self
+                .frag_buffer
+                .iter()
+                .find(|f| f.writer_sn() == seq_num && f.fragment_starting_num() == 1)?;
 
-                let inline_qos_flag = frag_seq_num_list[0].inline_qos_flag();
-                let data_flag = !frag_seq_num_list[0].key_flag();
-                let key_flag = frag_seq_num_list[0].key_flag();
-                let non_standard_payload_flag = false;
-                let writer_id = self.remote_writer_guid.entity_id();
-                let reader_id = frag_seq_num_list[0].reader_id();
-                let writer_sn = seq_num;
-                let inline_qos = frag_seq_num_list[0].inline_qos().clone();
-                let mut data = Vec::new();
-                for frag in frag_seq_num_list {
-                    data.extend_from_slice(frag.serialized_payload().as_ref());
-                }
+            let inline_qos_flag = frag.inline_qos_flag();
+            let data_flag = !frag.key_flag();
+            let key_flag = frag.key_flag();
+            let non_standard_payload_flag = false;
+            let writer_id = self.remote_writer_guid.entity_id();
+            let reader_id = frag.reader_id();
+            let writer_sn = seq_num;
+            let inline_qos = frag.inline_qos().clone();
 
-                Some(DataSubmessage::new(
-                    inline_qos_flag,
-                    data_flag,
-                    key_flag,
-                    non_standard_payload_flag,
-                    reader_id,
-                    writer_id,
-                    writer_sn,
-                    inline_qos,
-                    Data::new(Arc::from(data)),
-                ))
-            } else {
-                None
-            }
+            self.frag_buffer.retain(|f| f.writer_sn() != seq_num);
+
+            Some(DataSubmessage::new(
+                inline_qos_flag,
+                data_flag,
+                key_flag,
+                non_standard_payload_flag,
+                reader_id,
+                writer_id,
+                writer_sn,
+                inline_qos,
+                Data::new(Arc::from(data)),
+            ))
         } else {
             None
         }
@@ -249,38 +266,38 @@ impl RtpsWriterProxy {
                 self.acknack_count(),
             );
 
-            let mut submessages: Vec<Box<dyn Submessage + Send>> =
+            let submessages: Vec<Box<dyn Submessage + Send>> =
                 vec![Box::new(info_dst_submessage), Box::new(acknack_submessage)];
 
-            for (seq_num, owning_data_frag_list) in self.frag_buffer.iter() {
-                let total_fragments_expected = total_fragments_expected(&owning_data_frag_list[0]);
-                let mut missing_fragment_number = Vec::new();
-                for fragment_number in 1..=total_fragments_expected {
-                    if !owning_data_frag_list.iter().any(|x| {
-                        fragment_number >= x.fragment_starting_num()
-                            && fragment_number
-                                < x.fragment_starting_num() + (x.fragments_in_submessage() as u32)
-                    }) {
-                        missing_fragment_number.push(fragment_number)
-                    }
-                }
+            // for (seq_num, owning_data_frag_list) in self.frag_buffer.iter() {
+            //     let total_fragments_expected = total_fragments_expected(&owning_data_frag_list[0]);
+            //     let mut missing_fragment_number = Vec::new();
+            //     for fragment_number in 1..=total_fragments_expected {
+            //         if !owning_data_frag_list.iter().any(|x| {
+            //             fragment_number >= x.fragment_starting_num()
+            //                 && fragment_number
+            //                     < x.fragment_starting_num() + (x.fragments_in_submessage() as u32)
+            //         }) {
+            //             missing_fragment_number.push(fragment_number)
+            //         }
+            //     }
 
-                if !missing_fragment_number.is_empty() {
-                    self.nack_frag_count = self.nack_frag_count.wrapping_add(1);
-                    let nack_frag_submessage = NackFragSubmessage::new(
-                        reader_guid.entity_id(),
-                        self.remote_writer_guid().entity_id(),
-                        *seq_num,
-                        FragmentNumberSet::new(
-                            missing_fragment_number[0],
-                            missing_fragment_number.into_iter(),
-                        ),
-                        self.nack_frag_count,
-                    );
+            //     if !missing_fragment_number.is_empty() {
+            //         self.nack_frag_count = self.nack_frag_count.wrapping_add(1);
+            //         let nack_frag_submessage = NackFragSubmessage::new(
+            //             reader_guid.entity_id(),
+            //             self.remote_writer_guid().entity_id(),
+            //             *seq_num,
+            //             FragmentNumberSet::new(
+            //                 missing_fragment_number[0],
+            //                 missing_fragment_number.into_iter(),
+            //             ),
+            //             self.nack_frag_count,
+            //         );
 
-                    submessages.push(Box::new(nack_frag_submessage))
-                }
-            }
+            //         submessages.push(Box::new(nack_frag_submessage))
+            //     }
+            // }
 
             let rtps_message =
                 RtpsMessageWrite::from_submessages(&submessages, message_writer.guid_prefix());

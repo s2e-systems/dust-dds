@@ -30,7 +30,7 @@ impl CacheChange {
     }
 }
 
-pub trait HistoryCache: Send + Sync {
+pub trait HistoryCache: Send {
     fn add_change(&mut self, cache_change: CacheChange);
 
     fn remove_change(&mut self, sequence_number: i64);
