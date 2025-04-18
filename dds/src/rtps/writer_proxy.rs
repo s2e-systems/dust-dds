@@ -67,15 +67,10 @@ impl RtpsWriterProxy {
     }
 
     pub fn push_data_frag(&mut self, submessage: DataFragSubmessage) {
-        if self
-            .frag_buffer
-            .iter()
-            .find(|f| {
-                f.writer_sn() == submessage.writer_sn()
-                    && f.fragment_starting_num() == submessage.fragment_starting_num()
-            })
-            .is_none()
-        {
+        if !self.frag_buffer.iter().any(|f| {
+            f.writer_sn() == submessage.writer_sn()
+                && f.fragment_starting_num() == submessage.fragment_starting_num()
+        }) {
             self.frag_buffer.push(submessage);
         }
     }
@@ -85,7 +80,7 @@ impl RtpsWriterProxy {
         seq_num: SequenceNumber,
     ) -> Option<DataSubmessage> {
         let frag_submessage = self.frag_buffer.iter().find(|f| f.writer_sn() == seq_num)?;
-        let total_fragments_expected = total_fragments_expected(&frag_submessage);
+        let total_fragments_expected = total_fragments_expected(frag_submessage);
 
         let total_fragments = self
             .frag_buffer
