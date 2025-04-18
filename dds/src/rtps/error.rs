@@ -58,6 +58,6 @@ impl From<XTypesError> for RtpsError {
 
 impl From<RtpsMessageError> for RtpsError {
     fn from(_: RtpsMessageError) -> Self {
-        RtpsError::new(RtpsErrorKind::MessageError, format!(""))
+        RtpsError::new(RtpsErrorKind::MessageError, String::new())
     }
 }
