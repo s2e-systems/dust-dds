@@ -15,12 +15,14 @@ pub mod dds_async;
 #[cfg(feature = "std")]
 pub mod rtps;
 
+#[cfg(feature = "std")]
 #[doc(hidden)]
 pub mod rtps_messages;
 
 #[cfg(feature = "std")]
 mod implementation;
 
+#[cfg(feature = "std")]
 #[doc(hidden)]
 pub mod transport;
 
@@ -28,6 +30,7 @@ pub mod transport;
 mod runtime;
 
 /// Contains the XTypes serializer and deserializer
+#[cfg(feature = "std")]
 #[doc(hidden)]
 pub mod xtypes;
 
