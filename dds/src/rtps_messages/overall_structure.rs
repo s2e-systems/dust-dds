@@ -16,7 +16,7 @@ use super::{
 };
 use alloc::{boxed::Box, sync::Arc};
 
-use std::io::{BufRead, Cursor, Write};
+use std::io::BufRead;
 
 pub enum Endianness {
     BigEndian,
@@ -34,6 +34,49 @@ impl Endianness {
 
 pub trait TryReadFromBytes: Sized {
     fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsMessageResult<Self>;
+}
+
+pub trait Write {
+    fn write_all(&mut self, buf: &[u8]) -> RtpsMessageResult<()>;
+}
+
+#[derive(Debug, Default, Eq, PartialEq)]
+pub struct Cursor<T> {
+    inner: T,
+    pos: u64,
+}
+
+impl<T> Cursor<T> {
+    pub fn new(inner: T) -> Self {
+        Self { inner, pos: 0 }
+    }
+
+    pub const fn position(&self) -> u64 {
+        self.pos
+    }
+
+    pub const fn set_position(&mut self, pos: u64) {
+        self.pos = pos;
+    }
+
+    pub fn into_inner(self) -> T {
+        self.inner
+    }
+}
+
+impl Write for Cursor<Vec<u8>> {
+    fn write_all(&mut self, buf: &[u8]) -> RtpsMessageResult<()> {
+        let start_pos = self.pos as usize;
+        let end_pos = start_pos + buf.len();
+        if self.inner.len() < end_pos {
+            self.inner.resize(end_pos, 0);
+        }
+
+        self.inner.as_mut_slice()[start_pos..end_pos].clone_from_slice(buf);
+        self.pos = end_pos as u64;
+
+        Ok(())
+    }
 }
 
 pub trait WriteIntoBytes {

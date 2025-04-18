@@ -1,9 +1,10 @@
 use super::super::{
     error::RtpsMessageResult,
-    overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, WriteIntoBytes},
+    overall_structure::{
+        Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, Write, WriteIntoBytes,
+    },
     types::SubmessageKind,
 };
-use std::io::Write;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct PadSubmessage {}

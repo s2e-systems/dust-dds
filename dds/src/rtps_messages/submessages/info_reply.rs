@@ -1,12 +1,12 @@
 use super::super::{
     error::RtpsMessageResult,
     overall_structure::{
-        Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes, WriteIntoBytes,
+        Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes, Write,
+        WriteIntoBytes,
     },
     submessage_elements::LocatorList,
     types::{SubmessageFlag, SubmessageKind},
 };
-use std::io::Write;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct InfoReplySubmessage {

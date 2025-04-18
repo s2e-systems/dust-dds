@@ -3,12 +3,12 @@ use crate::transport::types::EntityId;
 use super::super::{
     error::RtpsMessageResult,
     overall_structure::{
-        Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes, WriteIntoBytes,
+        Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes, Write,
+        WriteIntoBytes,
     },
     submessage_elements::SequenceNumberSet,
     types::{Count, SubmessageFlag, SubmessageKind},
 };
-use std::io::Write;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct AckNackSubmessage {

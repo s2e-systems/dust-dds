@@ -1,16 +1,13 @@
 use super::{
     error::{RtpsMessageError, RtpsMessageResult},
-    overall_structure::{Endianness, TryReadFromBytes, WriteIntoBytes},
+    overall_structure::{Endianness, TryReadFromBytes, Write, WriteIntoBytes},
     types::FragmentNumber,
     types::ParameterId,
 };
 use crate::transport::types::{Locator, SequenceNumber};
-use alloc::vec::Vec;
-use std::{
-    io::{BufRead, Write},
-    ops::Range,
-    sync::Arc,
-};
+use alloc::{sync::Arc, vec::Vec};
+use core::ops::Range;
+use std::io::BufRead;
 
 // This files shall only contain the types as listed in the DDS-RTPS Version 2.3
 // 8.3.5 RTPS SubmessageElements

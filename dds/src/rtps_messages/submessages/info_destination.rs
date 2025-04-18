@@ -3,11 +3,11 @@ use crate::transport::types::GuidPrefix;
 use super::super::{
     error::RtpsMessageResult,
     overall_structure::{
-        Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes, WriteIntoBytes,
+        Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes, Write,
+        WriteIntoBytes,
     },
     types::SubmessageKind,
 };
-use std::io::Write;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct InfoDestinationSubmessage {

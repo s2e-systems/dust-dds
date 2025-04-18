@@ -3,11 +3,11 @@ use crate::transport::types::{EntityId, SequenceNumber};
 use super::super::{
     error::RtpsMessageResult,
     overall_structure::{
-        Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes, WriteIntoBytes,
+        Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes, Write,
+        WriteIntoBytes,
     },
     types::{Count, FragmentNumber, SubmessageKind},
 };
-use std::io::Write;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct HeartbeatFragSubmessage {

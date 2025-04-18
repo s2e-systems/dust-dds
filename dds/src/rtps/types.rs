@@ -5,7 +5,7 @@ use crate::{
     },
     rtps_messages::{
         error::RtpsMessageResult,
-        overall_structure::{Endianness, TryReadFromBytes, WriteIntoBytes},
+        overall_structure::{Endianness, TryReadFromBytes, Write, WriteIntoBytes},
     },
     transport::types::{
         DurabilityKind, EntityId, GuidPrefix, Locator, Long, Octet, ProtocolVersion,
@@ -13,7 +13,7 @@ use crate::{
     },
 };
 
-use std::io::{Read, Write};
+use std::io::Read;
 
 // This files shall only contain the types as listed in the DDSI-RTPS Version 2.5
 // Table 8.2 - Types of the attributes that appear in the RTPS Entities and Classes
