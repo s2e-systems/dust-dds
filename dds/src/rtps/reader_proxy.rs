@@ -14,27 +14,33 @@ use alloc::vec::Vec;
 pub struct HeartbeatMachine {
     count: Count,
     reader_id: EntityId,
-    timer: std::time::Instant,
+    last_heartbeat_time: core::time::Duration,
 }
 impl HeartbeatMachine {
     fn new(reader_id: EntityId) -> Self {
         HeartbeatMachine {
             count: 0,
             reader_id,
-            timer: std::time::Instant::now(),
+            last_heartbeat_time: core::time::Duration::ZERO,
         }
     }
-    pub fn is_time_for_heartbeat(&self, heartbeat_period: core::time::Duration) -> bool {
-        self.timer.elapsed() >= heartbeat_period
+    pub fn is_time_for_heartbeat(
+        &self,
+        now: core::time::Duration,
+        heartbeat_period: core::time::Duration,
+    ) -> bool {
+        now - self.last_heartbeat_time >= heartbeat_period
     }
+
     pub fn generate_new_heartbeat(
         &mut self,
         writer_id: EntityId,
         first_sn: SequenceNumber,
         last_sn: SequenceNumber,
+        heartbeat_time: core::time::Duration,
     ) -> HeartbeatSubmessage {
         self.count = self.count.wrapping_add(1);
-        self.timer = std::time::Instant::now();
+        self.last_heartbeat_time = heartbeat_time;
         HeartbeatSubmessage::new(
             false,
             false,
