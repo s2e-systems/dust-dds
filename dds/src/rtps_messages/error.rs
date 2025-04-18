@@ -10,12 +10,6 @@ pub enum RtpsMessageError {
     UnknownMessage,
 }
 
-impl From<std::io::Error> for RtpsMessageError {
-    fn from(_: std::io::Error) -> Self {
-        RtpsMessageError::Io
-    }
-}
-
 impl From<XTypesError> for RtpsMessageError {
     fn from(_: XTypesError) -> Self {
         RtpsMessageError::InvalidData

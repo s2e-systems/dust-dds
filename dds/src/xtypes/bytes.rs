@@ -1,3 +1,4 @@
+#[cfg(feature = "std")]
 use dust_dds_derive::TypeSupport;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]

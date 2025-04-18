@@ -1,4 +1,7 @@
-use crate::transport::types::{GuidPrefix, ProtocolVersion, VendorId};
+use crate::transport::types::{
+    EntityId, GuidPrefix, Locator, Long, Octet, ProtocolVersion, SequenceNumber, UnsignedLong,
+    VendorId,
+};
 
 use super::{
     error::{RtpsMessageError, RtpsMessageResult},
@@ -14,9 +17,7 @@ use super::{
         HEARTBEAT_FRAG, INFO_DST, INFO_REPLY, INFO_SRC, INFO_TS, NACK_FRAG, PAD,
     },
 };
-use alloc::{boxed::Box, sync::Arc};
-
-use std::io::BufRead;
+use alloc::{boxed::Box, sync::Arc, vec::Vec};
 
 pub enum Endianness {
     BigEndian,
@@ -34,6 +35,42 @@ impl Endianness {
 
 pub trait TryReadFromBytes: Sized {
     fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsMessageResult<Self>;
+}
+
+pub trait Read {
+    fn read_exact(&mut self, buf: &mut [u8]) -> RtpsMessageResult<()>;
+}
+
+impl Read for &[u8] {
+    fn read_exact(&mut self, buf: &mut [u8]) -> RtpsMessageResult<()> {
+        if buf.len() > self.len() {
+            *self = &self[self.len()..];
+
+            return Err(RtpsMessageError::Io);
+        }
+
+        let (a, b) = self.split_at(buf.len());
+
+        if buf.len() == 1 {
+            buf[0] = a[0];
+        } else {
+            buf.copy_from_slice(a);
+        }
+
+        *self = b;
+
+        Ok(())
+    }
+}
+
+pub trait BufRead {
+    fn consume(&mut self, amt: usize);
+}
+
+impl BufRead for &[u8] {
+    fn consume(&mut self, amt: usize) {
+        *self = &self[amt..];
+    }
 }
 
 pub trait Write {
@@ -81,6 +118,135 @@ impl Write for Cursor<Vec<u8>> {
 
 pub trait WriteIntoBytes {
     fn write_into_bytes(&self, buf: &mut dyn Write);
+}
+impl WriteIntoBytes for Octet {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
+        buf.write_all(&[*self]).expect("buffer big enough");
+    }
+}
+
+impl WriteIntoBytes for Long {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
+        buf.write_all(self.to_le_bytes().as_slice())
+            .expect("buffer big enough");
+    }
+}
+
+impl WriteIntoBytes for UnsignedLong {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
+        buf.write_all(self.to_le_bytes().as_slice())
+            .expect("buffer big enough");
+    }
+}
+
+impl WriteIntoBytes for u16 {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
+        buf.write_all(self.to_le_bytes().as_slice())
+            .expect("buffer big enough");
+    }
+}
+
+impl WriteIntoBytes for i16 {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
+        buf.write_all(self.to_le_bytes().as_slice())
+            .expect("buffer big enough");
+    }
+}
+
+impl<const N: usize> WriteIntoBytes for [Octet; N] {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
+        buf.write_all(self).expect("buffer big enough");
+    }
+}
+
+impl WriteIntoBytes for &[u8] {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
+        buf.write_all(self).expect("buffer big enough");
+    }
+}
+
+impl TryReadFromBytes for GuidPrefix {
+    fn try_read_from_bytes(data: &mut &[u8], _endianness: &Endianness) -> RtpsMessageResult<Self> {
+        let mut guid_prefix = [0; 12];
+        data.read_exact(&mut guid_prefix)?;
+        Ok(guid_prefix)
+    }
+}
+
+impl TryReadFromBytes for EntityId {
+    fn try_read_from_bytes(data: &mut &[u8], _endianness: &Endianness) -> RtpsMessageResult<Self> {
+        let mut entity_key = [0; 3];
+        let mut entity_kind = [0; 1];
+        data.read_exact(&mut entity_key)?;
+        data.read_exact(&mut entity_kind)?;
+        Ok(EntityId::new(entity_key, entity_kind[0]))
+    }
+}
+
+impl WriteIntoBytes for EntityId {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
+        self.entity_key().write_into_bytes(buf);
+        self.entity_kind().write_into_bytes(buf);
+    }
+}
+
+impl TryReadFromBytes for SequenceNumber {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsMessageResult<Self> {
+        let high = i32::try_read_from_bytes(data, endianness)?;
+        let low = u32::try_read_from_bytes(data, endianness)?;
+        let value = ((high as i64) << 32) + low as i64;
+        Ok(value)
+    }
+}
+
+impl WriteIntoBytes for SequenceNumber {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
+        let high = (*self >> 32) as Long;
+        let low = *self as UnsignedLong;
+        high.write_into_bytes(buf);
+        low.write_into_bytes(buf);
+    }
+}
+
+impl WriteIntoBytes for Locator {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
+        self.kind().write_into_bytes(buf);
+        self.port().write_into_bytes(buf);
+        self.address().write_into_bytes(buf);
+    }
+}
+
+impl TryReadFromBytes for Locator {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsMessageResult<Self> {
+        let kind = i32::try_read_from_bytes(data, endianness)?;
+        let port = u32::try_read_from_bytes(data, endianness)?;
+        let mut address = [0; 16];
+        data.read_exact(&mut address)?;
+        Ok(Self::new(kind, port, address))
+    }
+}
+
+impl TryReadFromBytes for ProtocolVersion {
+    fn try_read_from_bytes(data: &mut &[u8], _endianness: &Endianness) -> RtpsMessageResult<Self> {
+        let mut bytes = [0; 2];
+        data.read_exact(&mut bytes)?;
+        Ok(Self::new(bytes[0], bytes[1]))
+    }
+}
+
+impl WriteIntoBytes for ProtocolVersion {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
+        self._major().write_into_bytes(buf);
+        self._minor().write_into_bytes(buf);
+    }
+}
+
+impl TryReadFromBytes for VendorId {
+    fn try_read_from_bytes(data: &mut &[u8], _endianness: &Endianness) -> RtpsMessageResult<Self> {
+        let mut bytes = [0; 2];
+        data.read_exact(&mut bytes)?;
+        Ok(bytes)
+    }
 }
 
 pub trait Submessage {
@@ -399,6 +565,38 @@ mod tests {
         },
         transport::types::{EntityId, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
+
+    #[test]
+    fn deserialize_u16() {
+        let mut data = &[7, 0, 123][..];
+        let result = u16::try_read_from_bytes(&mut data, &Endianness::LittleEndian).unwrap();
+        assert_eq!(result, 7);
+        assert_eq!(data, &[123]);
+    }
+
+    #[test]
+    fn serialize_sequence_number() {
+        let data: SequenceNumber = 7;
+        let result = write_into_bytes_vec(data);
+        assert_eq!(
+            result,
+            vec![
+                0, 0, 0, 0, // high (long)
+                7, 0, 0, 0, // low (unsigned long)
+            ]
+        );
+    }
+
+    #[test]
+    fn serialize_entity_id() {
+        let data = EntityId::new([1, 2, 3], 0x04);
+        assert_eq!(
+            write_into_bytes_vec(data),
+            vec![
+            1, 2, 3, 0x04, //value (long)
+        ]
+        );
+    }
 
     #[test]
     fn serialize_rtps_message_no_submessage() {
