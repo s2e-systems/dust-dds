@@ -176,11 +176,13 @@ enum ChannelMessageKind {
 }
 
 impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
+    type TransportParticipant = Box<dyn TransportParticipant<HistoryCache = Box<dyn HistoryCache>>>;
+
     fn create_participant(
         &self,
         guid_prefix: GuidPrefix,
         domain_id: i32,
-    ) -> Box<dyn TransportParticipant> {
+    ) -> Self::TransportParticipant {
         let interface_address_list = NetworkInterface::show()
             .expect("Could not scan interfaces")
             .into_iter()
@@ -525,6 +527,8 @@ pub struct RtpsUdpTransportParticipant {
 }
 
 impl TransportParticipant for RtpsUdpTransportParticipant {
+    type HistoryCache = Box<dyn HistoryCache>;
+
     fn guid(&self) -> Guid {
         self.guid
     }
@@ -549,7 +553,7 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
     fn create_stateless_reader(
         &mut self,
         entity_id: EntityId,
-        reader_history_cache: Box<dyn HistoryCache>,
+        reader_history_cache: Self::HistoryCache,
     ) -> Box<dyn TransportStatelessReader> {
         struct StatelessReader {
             guid: Guid,
@@ -614,7 +618,7 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
         &mut self,
         entity_id: EntityId,
         _reliability_kind: ReliabilityKind,
-        reader_history_cache: Box<dyn HistoryCache>,
+        reader_history_cache: Self::HistoryCache,
     ) -> Box<dyn TransportStatefulReader> {
         struct StatefulReader {
             guid: Guid,

@@ -1,9 +1,11 @@
-use super::{participant::TransportParticipant, types::GuidPrefix};
+use super::types::GuidPrefix;
 
-pub trait TransportParticipantFactory: Send + Sync {
+pub trait TransportParticipantFactory: Send {
+    type TransportParticipant;
+
     fn create_participant(
         &self,
         guid_prefix: GuidPrefix,
         domain_id: i32,
-    ) -> Box<dyn TransportParticipant>;
+    ) -> Self::TransportParticipant;
 }

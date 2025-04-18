@@ -15,14 +15,14 @@ pub mod dds_async;
 #[cfg(feature = "std")]
 pub mod rtps;
 
-#[cfg(feature = "std")]
+#[cfg(feature = "rtps_messages")]
 #[doc(hidden)]
 pub mod rtps_messages;
 
 #[cfg(feature = "std")]
 mod implementation;
 
-#[cfg(feature = "std")]
+#[cfg(feature = "transport")]
 #[doc(hidden)]
 pub mod transport;
 

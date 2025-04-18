@@ -1,6 +1,6 @@
 #![no_main]
 
-use dust_dds::rtps::messages::{
+use dust_dds::rtps_messages::{
     overall_structure::SubmessageHeaderRead, submessages::ack_nack::AckNackSubmessage,
 };
 use libfuzzer_sys::{fuzz_target, Corpus};

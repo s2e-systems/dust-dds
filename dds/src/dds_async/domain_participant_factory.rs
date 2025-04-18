@@ -10,7 +10,7 @@ use crate::{
     implementation::{
         domain_participant_backend::services::{discovery_service, domain_participant_service},
         domain_participant_factory::domain_participant_factory_actor::{
-            self, DomainParticipantFactoryActor,
+            self, DdsTransportParticipantFactory, DomainParticipantFactoryActor,
         },
     },
     infrastructure::{
@@ -19,7 +19,6 @@ use crate::{
         status::StatusKind,
     },
     runtime::{actor::Actor, executor::Executor, oneshot::oneshot, timer::TimerDriver},
-    transport::factory::TransportParticipantFactory,
 };
 
 /// Async version of [`DomainParticipantFactory`](crate::domain::domain_participant_factory::DomainParticipantFactory).
@@ -179,10 +178,7 @@ impl DomainParticipantFactoryAsync {
     }
 
     /// Async version of [`set_transport`](crate::domain::domain_participant_factory::DomainParticipantFactory::set_transport).
-    pub async fn set_transport(
-        &self,
-        transport: Box<dyn TransportParticipantFactory>,
-    ) -> DdsResult<()> {
+    pub async fn set_transport(&self, transport: DdsTransportParticipantFactory) -> DdsResult<()> {
         self.domain_participant_factory_actor
             .send_actor_mail(domain_participant_factory_actor::SetTransport { transport });
         Ok(())

@@ -5,16 +5,16 @@ use crate::{
         domain_participant::DomainParticipantAsync, publisher::PublisherAsync,
         subscriber::SubscriberAsync, topic::TopicAsync,
     },
+    implementation::domain_participant_factory::domain_participant_factory_actor::DdsTransportParticipant,
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
     },
     runtime::{actor::ActorAddress, executor::Executor, timer::TimerDriver},
-    transport::participant::TransportParticipant,
 };
 
 pub struct DomainParticipantActor {
-    pub transport: Box<dyn TransportParticipant>,
+    pub transport: DdsTransportParticipant,
     pub instance_handle_counter: InstanceHandleCounter,
     pub entity_counter: u16,
     pub domain_participant: DomainParticipantEntity,
@@ -26,7 +26,7 @@ pub struct DomainParticipantActor {
 impl DomainParticipantActor {
     pub fn new(
         domain_participant: DomainParticipantEntity,
-        transport: Box<dyn TransportParticipant>,
+        transport: DdsTransportParticipant,
         backend_executor: Executor,
         listener_executor: Executor,
         timer_driver: TimerDriver,

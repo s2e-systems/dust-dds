@@ -32,7 +32,9 @@ criterion = { version = "0.3", features = ["html_reports"] }
 tracing-subscriber = "0.3"
 
 [features]
-default = ["std"]
+default = ["rtps_messages", "std"]
+rtps_messages = ["transport"]
+transport = []
 
 std = [
 	"dep:md5",
