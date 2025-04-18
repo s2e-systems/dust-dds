@@ -2,10 +2,10 @@ use super::message_sender::WriteMessage;
 use crate::{
     rtps_messages::{
         overall_structure::{RtpsMessageWrite, Submessage},
-        submessage_elements::{Data, SequenceNumberSet},
+        submessage_elements::{Data, FragmentNumberSet, SequenceNumberSet},
         submessages::{
             ack_nack::AckNackSubmessage, data::DataSubmessage, data_frag::DataFragSubmessage,
-            info_destination::InfoDestinationSubmessage,
+            info_destination::InfoDestinationSubmessage, nack_frag::NackFragSubmessage,
         },
         types::Count,
     },
@@ -261,38 +261,47 @@ impl RtpsWriterProxy {
                 self.acknack_count(),
             );
 
-            let submessages: Vec<Box<dyn Submessage + Send>> =
+            let mut submessages: Vec<Box<dyn Submessage + Send>> =
                 vec![Box::new(info_dst_submessage), Box::new(acknack_submessage)];
 
-            // for (seq_num, owning_data_frag_list) in self.frag_buffer.iter() {
-            //     let total_fragments_expected = total_fragments_expected(&owning_data_frag_list[0]);
-            //     let mut missing_fragment_number = Vec::new();
-            //     for fragment_number in 1..=total_fragments_expected {
-            //         if !owning_data_frag_list.iter().any(|x| {
-            //             fragment_number >= x.fragment_starting_num()
-            //                 && fragment_number
-            //                     < x.fragment_starting_num() + (x.fragments_in_submessage() as u32)
-            //         }) {
-            //             missing_fragment_number.push(fragment_number)
-            //         }
-            //     }
+            for missing_seq_num in self.missing_changes().take(256) {
+                let Some(missing_seq_num_frag) = self
+                    .frag_buffer
+                    .iter()
+                    .find(|f| f.writer_sn() == missing_seq_num)
+                else {
+                    continue;
+                };
+                let total_fragments_expected = total_fragments_expected(missing_seq_num_frag);
+                let mut missing_fragment_number = Vec::new();
+                for fragment_number in 1..=total_fragments_expected {
+                    if self.frag_buffer.iter().any(|f| {
+                        f.writer_sn() == missing_seq_num
+                            && (fragment_number >= f.fragment_starting_num()
+                                && fragment_number
+                                    < f.fragment_starting_num()
+                                        + (f.fragments_in_submessage() as u32))
+                    }) {
+                        missing_fragment_number.push(fragment_number)
+                    }
+                }
 
-            //     if !missing_fragment_number.is_empty() {
-            //         self.nack_frag_count = self.nack_frag_count.wrapping_add(1);
-            //         let nack_frag_submessage = NackFragSubmessage::new(
-            //             reader_guid.entity_id(),
-            //             self.remote_writer_guid().entity_id(),
-            //             *seq_num,
-            //             FragmentNumberSet::new(
-            //                 missing_fragment_number[0],
-            //                 missing_fragment_number.into_iter(),
-            //             ),
-            //             self.nack_frag_count,
-            //         );
+                if !missing_fragment_number.is_empty() {
+                    self.nack_frag_count = self.nack_frag_count.wrapping_add(1);
+                    let nack_frag_submessage = NackFragSubmessage::new(
+                        reader_guid.entity_id(),
+                        self.remote_writer_guid().entity_id(),
+                        missing_seq_num,
+                        FragmentNumberSet::new(
+                            missing_fragment_number[0],
+                            missing_fragment_number.into_iter(),
+                        ),
+                        self.nack_frag_count,
+                    );
 
-            //         submessages.push(Box::new(nack_frag_submessage))
-            //     }
-            // }
+                    submessages.push(Box::new(nack_frag_submessage))
+                }
+            }
 
             let rtps_message =
                 RtpsMessageWrite::from_submessages(&submessages, message_writer.guid_prefix());
