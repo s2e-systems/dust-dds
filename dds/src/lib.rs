@@ -26,6 +26,7 @@ mod implementation;
 
 #[cfg(feature = "transport")]
 #[doc(hidden)]
+/// Contains the Dust DDS transport interface definition.
 pub mod transport;
 
 #[cfg(feature = "std")]
