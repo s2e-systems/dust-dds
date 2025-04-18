@@ -14,14 +14,14 @@ pub use dds::*;
 pub mod dds_async;
 
 #[doc(hidden)]
-#[cfg(feature = "std")]
+#[cfg(feature = "rtps")]
 pub mod rtps;
 
 #[cfg(feature = "rtps_messages")]
 #[doc(hidden)]
 pub mod rtps_messages;
 
-#[cfg(feature = "std")]
+#[cfg(feature = "rtps_udp_transport")]
 #[doc(hidden)]
 pub mod rtps_udp_transport;
 
