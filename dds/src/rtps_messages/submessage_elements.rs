@@ -5,6 +5,7 @@ use super::{
     types::ParameterId,
 };
 use crate::transport::types::{Locator, SequenceNumber};
+use alloc::vec::Vec;
 use std::{
     io::{BufRead, Write},
     ops::Range,

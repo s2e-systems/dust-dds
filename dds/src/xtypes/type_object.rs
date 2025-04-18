@@ -1,3 +1,5 @@
+use alloc::{boxed::Box, string::String, vec::Vec};
+
 pub trait XTypesTypeObject {
     fn type_object() -> TypeObject;
 }

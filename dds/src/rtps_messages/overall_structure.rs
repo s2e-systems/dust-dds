@@ -1,7 +1,4 @@
-use crate::{
-    rtps::types::{PROTOCOLVERSION_2_4, VENDOR_ID_S2E},
-    transport::types::{GuidPrefix, ProtocolVersion, VendorId},
-};
+use crate::transport::types::{GuidPrefix, ProtocolVersion, VendorId};
 
 use super::{
     error::{RtpsMessageError, RtpsMessageResult},
@@ -17,10 +14,9 @@ use super::{
         HEARTBEAT_FRAG, INFO_DST, INFO_REPLY, INFO_SRC, INFO_TS, NACK_FRAG, PAD,
     },
 };
-use std::{
-    io::{BufRead, Cursor, Write},
-    sync::Arc,
-};
+use alloc::{boxed::Box, sync::Arc};
+
+use std::io::{BufRead, Cursor, Write};
 
 pub enum Endianness {
     BigEndian,
@@ -256,14 +252,6 @@ impl RtpsMessageWrite {
 
     pub fn buffer(&self) -> &[u8] {
         &self.data
-    }
-
-    pub fn from_submessages(
-        submessages: &[Box<dyn Submessage + Send>],
-        guid_prefix: GuidPrefix,
-    ) -> Self {
-        let header = RtpsMessageHeader::new(PROTOCOLVERSION_2_4, VENDOR_ID_S2E, guid_prefix);
-        RtpsMessageWrite::new(&header, submessages)
     }
 }
 

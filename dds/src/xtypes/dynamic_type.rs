@@ -2,6 +2,7 @@ use super::{
     error::XTypesError,
     type_object::{TypeIdentifier, TypeKind},
 };
+use alloc::string::String;
 
 pub type ObjectName = String;
 

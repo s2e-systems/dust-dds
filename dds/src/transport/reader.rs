@@ -1,4 +1,5 @@
 use super::types::{DurabilityKind, EntityId, Guid, Locator, ReliabilityKind};
+use alloc::vec::Vec;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct WriterProxy {
