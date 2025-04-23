@@ -15,7 +15,7 @@ pub struct ReaderProxy {
     pub expects_inline_qos: bool,
 }
 
-pub trait TransportStatelessWriter: Send + Sync {
+pub trait TransportStatelessWriter: Send {
     fn guid(&self) -> Guid;
 
     fn history_cache(&mut self) -> &mut dyn HistoryCache;
@@ -24,7 +24,7 @@ pub trait TransportStatelessWriter: Send + Sync {
     fn remove_reader_locator(&mut self, locator: &Locator);
 }
 
-pub trait TransportStatefulWriter: Send + Sync {
+pub trait TransportStatefulWriter: Send {
     fn guid(&self) -> Guid;
 
     fn history_cache(&mut self) -> &mut dyn HistoryCache;

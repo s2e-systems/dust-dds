@@ -1,8 +1,8 @@
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{qos::QosKind, status::NO_STATUS},
+    rtps_udp_transport::udp_transport::RtpsUdpTransportParticipantFactoryBuilder,
     topic_definition::type_support::DdsType,
-    rtps::udp_transport::RtpsUdpTransportParticipantFactoryBuilder
 };
 
 #[derive(DdsType, Debug)]

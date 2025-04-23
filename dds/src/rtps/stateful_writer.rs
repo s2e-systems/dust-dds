@@ -1,6 +1,9 @@
 use super::{
-    behavior_types::Duration, error::RtpsResult, message_receiver::MessageReceiver,
-    message_sender::WriteMessage, reader_proxy::RtpsReaderProxy,
+    behavior_types::Duration,
+    error::RtpsResult,
+    message_receiver::MessageReceiver,
+    message_sender::{Clock, WriteMessage},
+    reader_proxy::RtpsReaderProxy,
 };
 use crate::{
     rtps_messages::{
@@ -22,6 +25,7 @@ use crate::{
         writer::ReaderProxy,
     },
 };
+use alloc::{boxed::Box, vec::Vec};
 
 pub struct RtpsStatefulWriter {
     guid: Guid,
@@ -105,7 +109,7 @@ impl RtpsStatefulWriter {
             .retain(|rp| rp.remote_reader_guid() != reader_guid);
     }
 
-    pub fn write_message(&mut self, message_writer: &impl WriteMessage) {
+    pub fn write_message(&mut self, message_writer: &impl WriteMessage, clock: &impl Clock) {
         for reader_proxy in &mut self.matched_readers {
             match reader_proxy.reliability() {
                 ReliabilityKind::BestEffort => write_message_to_reader_proxy_best_effort(
@@ -124,6 +128,7 @@ impl RtpsStatefulWriter {
                     self.data_max_size_serialized,
                     self.heartbeat_period,
                     message_writer,
+                    clock,
                 ),
             }
         }
@@ -134,6 +139,7 @@ impl RtpsStatefulWriter {
         acknack_submessage: &AckNackSubmessage,
         source_guid_prefix: GuidPrefix,
         message_writer: &impl WriteMessage,
+        clock: &impl Clock,
     ) {
         if &self.guid.entity_id() == acknack_submessage.writer_id() {
             let reader_guid = Guid::new(source_guid_prefix, *acknack_submessage.reader_id());
@@ -160,6 +166,7 @@ impl RtpsStatefulWriter {
                         self.data_max_size_serialized,
                         self.heartbeat_period,
                         message_writer,
+                        clock,
                     );
                 }
             }
@@ -171,6 +178,7 @@ impl RtpsStatefulWriter {
         nackfrag_submessage: &NackFragSubmessage,
         source_guid_prefix: GuidPrefix,
         message_writer: &impl WriteMessage,
+        clock: &impl Clock,
     ) {
         let reader_guid = Guid::new(source_guid_prefix, nackfrag_submessage.reader_id());
 
@@ -183,7 +191,7 @@ impl RtpsStatefulWriter {
                 && nackfrag_submessage.count() > reader_proxy.last_received_nack_frag_count()
             {
                 reader_proxy
-                    .requested_changes_set(std::iter::once(nackfrag_submessage.writer_sn()));
+                    .requested_changes_set(core::iter::once(nackfrag_submessage.writer_sn()));
                 reader_proxy.set_last_received_nack_frag_count(nackfrag_submessage.count());
 
                 write_message_to_reader_proxy_reliable(
@@ -195,6 +203,7 @@ impl RtpsStatefulWriter {
                     self.data_max_size_serialized,
                     self.heartbeat_period,
                     message_writer,
+                    clock,
                 );
             }
         }
@@ -204,6 +213,7 @@ impl RtpsStatefulWriter {
         &mut self,
         datagram: &[u8],
         message_writer: &impl WriteMessage,
+        clock: &impl Clock,
     ) -> RtpsResult<()> {
         let rtps_message = RtpsMessageRead::try_from(datagram)?;
         let mut message_receiver = MessageReceiver::new(&rtps_message);
@@ -215,6 +225,7 @@ impl RtpsStatefulWriter {
                         acknack_submessage,
                         message_receiver.source_guid_prefix(),
                         message_writer,
+                        clock,
                     );
                 }
                 RtpsSubmessageReadKind::NackFrag(nackfrag_submessage) => {
@@ -222,6 +233,7 @@ impl RtpsStatefulWriter {
                         nackfrag_submessage,
                         message_receiver.source_guid_prefix(),
                         message_writer,
+                        clock,
                     );
                 }
                 _ => (),
@@ -315,7 +327,7 @@ fn write_message_to_reader_proxy_best_effort(
                     let data_size = cache_change.data_value().len() as u32;
 
                     let start = frag_index * data_max_size_serialized;
-                    let end = std::cmp::min(
+                    let end = core::cmp::min(
                         (frag_index + 1) * data_max_size_serialized,
                         cache_change.data_value().len(),
                     );
@@ -336,7 +348,7 @@ fn write_message_to_reader_proxy_best_effort(
                         fragments_in_submessage,
                         fragment_size,
                         data_size,
-                        ParameterList::new(vec![]),
+                        ParameterList::new(Vec::new()),
                         serialized_payload,
                     ));
                     let rtps_message = RtpsMessageWrite::from_submessages(
@@ -397,7 +409,9 @@ fn write_message_to_reader_proxy_reliable(
     data_max_size_serialized: usize,
     heartbeat_period: Duration,
     message_writer: &impl WriteMessage,
+    clock: &impl Clock,
 ) {
+    let now = clock.now();
     // Top part of the state machine - Figure 8.19 RTPS standard
     if reader_proxy.unsent_changes(changes.iter()) {
         while let Some(next_unsent_change_seq_num) = reader_proxy.next_unsent_change(changes.iter())
@@ -416,7 +430,7 @@ fn write_message_to_reader_proxy_reliable(
                 let heartbeat_submessage = Box::new(
                     reader_proxy
                         .heartbeat_machine()
-                        .generate_new_heartbeat(writer_id, first_sn, last_sn),
+                        .generate_new_heartbeat(writer_id, first_sn, last_sn, now),
                 );
                 let info_dst = Box::new(InfoDestinationSubmessage::new(
                     reader_proxy.remote_reader_guid().prefix(),
@@ -437,6 +451,7 @@ fn write_message_to_reader_proxy_reliable(
                     data_max_size_serialized,
                     next_unsent_change_seq_num,
                     message_writer,
+                    clock,
                 );
             }
             reader_proxy.set_highest_sent_seq_num(next_unsent_change_seq_num);
@@ -445,14 +460,14 @@ fn write_message_to_reader_proxy_reliable(
         // Idle
     } else if reader_proxy
         .heartbeat_machine()
-        .is_time_for_heartbeat(heartbeat_period.into())
+        .is_time_for_heartbeat(now, heartbeat_period.into())
     {
         let first_sn = seq_num_min.unwrap_or(1);
         let last_sn = seq_num_max.unwrap_or(0);
         let heartbeat_submessage = Box::new(
             reader_proxy
                 .heartbeat_machine()
-                .generate_new_heartbeat(writer_id, first_sn, last_sn),
+                .generate_new_heartbeat(writer_id, first_sn, last_sn, now),
         );
 
         let info_dst = Box::new(InfoDestinationSubmessage::new(
@@ -483,6 +498,7 @@ fn write_message_to_reader_proxy_reliable(
                 data_max_size_serialized,
                 next_requested_change_seq_num,
                 message_writer,
+                clock,
             );
         }
     }
@@ -498,7 +514,9 @@ fn write_change_message_reader_proxy_reliable(
     data_max_size_serialized: usize,
     change_seq_num: SequenceNumber,
     message_writer: &impl WriteMessage,
+    clock: &impl Clock,
 ) {
+    let now = clock.now();
     match changes
         .iter()
         .find(|cc| cc.sequence_number() == change_seq_num)
@@ -537,7 +555,7 @@ fn write_change_message_reader_proxy_reliable(
                     let data_size = cache_change.data_value().len() as u32;
 
                     let start = frag_index * data_max_size_serialized;
-                    let end = std::cmp::min(
+                    let end = core::cmp::min(
                         (frag_index + 1) * data_max_size_serialized,
                         cache_change.data_value().len(),
                     );
@@ -558,7 +576,7 @@ fn write_change_message_reader_proxy_reliable(
                         fragments_in_submessage,
                         fragment_size,
                         data_size,
-                        ParameterList::new(vec![]),
+                        ParameterList::new(Vec::new()),
                         serialized_payload,
                     ));
 
@@ -591,7 +609,7 @@ fn write_change_message_reader_proxy_reliable(
                 let heartbeat = Box::new(
                     reader_proxy
                         .heartbeat_machine()
-                        .generate_new_heartbeat(writer_id, first_sn, last_sn),
+                        .generate_new_heartbeat(writer_id, first_sn, last_sn, now),
                 );
 
                 let rtps_message = RtpsMessageWrite::from_submessages(

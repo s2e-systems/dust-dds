@@ -12,6 +12,8 @@ use crate::{
     },
 };
 
+use alloc::{boxed::Box, vec::Vec};
+
 pub struct RtpsStatelessWriter {
     guid: Guid,
     changes: Vec<CacheChange>,

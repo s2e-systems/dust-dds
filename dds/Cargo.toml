@@ -32,18 +32,15 @@ criterion = { version = "0.3", features = ["html_reports"] }
 tracing-subscriber = "0.3"
 
 [features]
-default = ["rtps_messages", "std"]
+default = ["rtps", "rtps_udp_transport", "std"]
+rtps_udp_transport = ["rtps", "dep:socket2", "dep:network-interface"]
+rtps = ["rtps_messages"]
 rtps_messages = ["transport"]
 transport = ["xtypes"]
 xtypes = []
 
-std = [
-	"dep:md5",
-	"dep:socket2",
-	"dep:network-interface",
-	"dep:fnmatch-regex",
-	"dep:tracing",
-]
+std = ["dep:md5", "dep:fnmatch-regex", "dep:tracing"]
+
 
 [[bench]]
 name = "benchmark"

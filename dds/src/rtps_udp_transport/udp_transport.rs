@@ -1,8 +1,9 @@
-use crate::transport::types::LOCATOR_KIND_UDP_V6;
+use crate::{rtps::message_sender::Clock, transport::types::LOCATOR_KIND_UDP_V6};
 use core::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4};
 use dust_dds::{
     domain::domain_participant_factory::DomainId,
     rtps::{
+        message_sender::WriteMessage,
         stateful_reader::RtpsStatefulReader,
         stateful_writer::RtpsStatefulWriter,
         stateless_reader::RtpsStatelessReader,
@@ -30,8 +31,6 @@ use std::{
         Arc, Mutex,
     },
 };
-
-use super::message_sender::WriteMessage;
 
 const MAX_DATAGRAM_SIZE: usize = 65507;
 
@@ -367,6 +366,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                                 process_message(
                                     &datagram,
                                     &message_writer,
+                                    &RtpsUdpTransportClock,
                                     &mut stateless_reader_list,
                                     &stateful_reader_list,
                                     &stateful_writer_list,
@@ -376,6 +376,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                                 process_message(
                                     &datagram,
                                     &message_writer,
+                                    &RtpsUdpTransportClock,
                                     &mut stateless_reader_list,
                                     &stateful_reader_list,
                                     &stateful_writer_list,
@@ -385,6 +386,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                                 process_message(
                                     &datagram,
                                     &message_writer,
+                                    &RtpsUdpTransportClock,
                                     &mut stateless_reader_list,
                                     &stateful_reader_list,
                                     &stateful_writer_list,
@@ -395,7 +397,10 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                                     rtps_stateful_writer
                                         .lock()
                                         .expect("rtps_stateful_writer alive")
-                                        .write_message(message_writer.as_ref());
+                                        .write_message(
+                                            message_writer.as_ref(),
+                                            &RtpsUdpTransportClock,
+                                        );
                                 }
                             }
                         }
@@ -411,6 +416,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
 fn process_message(
     datagram: &[u8],
     message_writer: &MessageWriter,
+    clock: &impl Clock,
     stateless_reader_list: &mut [RtpsStatelessReader],
     stateful_reader_list: &[Arc<Mutex<RtpsStatefulReader>>],
     stateful_writer_list: &[Arc<Mutex<RtpsStatefulWriter>>],
@@ -428,7 +434,7 @@ fn process_message(
         let _ = stateful_writer
             .lock()
             .expect("stateful_writer alive")
-            .process_message(datagram, message_writer);
+            .process_message(datagram, message_writer, clock);
     }
 }
 
@@ -551,6 +557,16 @@ impl WriteMessage for MessageWriter {
 
     fn guid_prefix(&self) -> GuidPrefix {
         self.guid_prefix
+    }
+}
+
+pub struct RtpsUdpTransportClock;
+
+impl Clock for RtpsUdpTransportClock {
+    fn now(&self) -> core::time::Duration {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("Clock should always give valid Unix time")
     }
 }
 
@@ -754,7 +770,7 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
                 self.rtps_stateful_writer
                     .lock()
                     .expect("rtps_stateful_writer is valid")
-                    .write_message(self.message_writer.as_ref());
+                    .write_message(self.message_writer.as_ref(), &RtpsUdpTransportClock);
             }
 
             fn remove_change(&mut self, sequence_number: i64) {

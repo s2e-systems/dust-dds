@@ -40,8 +40,8 @@ pub enum DdsError {
 }
 
 impl From<RtpsError> for DdsError {
-    fn from(value: RtpsError) -> Self {
-        DdsError::Error(value.to_string())
+    fn from(_value: RtpsError) -> Self {
+        DdsError::Error(String::new())
     }
 }
 

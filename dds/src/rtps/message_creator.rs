@@ -4,6 +4,7 @@ use crate::{
 };
 
 use super::types::{PROTOCOLVERSION_2_4, VENDOR_ID_S2E};
+use alloc::boxed::Box;
 
 impl RtpsMessageWrite {
     pub fn from_submessages(

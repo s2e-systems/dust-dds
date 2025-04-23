@@ -1,9 +1,8 @@
 use crate::{
-    rtps::error::{RtpsError, RtpsErrorKind},
-    rtps_messages::types::ParameterId,
+    rtps::error::RtpsError,
+    rtps_messages::{overall_structure::Write, types::ParameterId},
     xtypes::{serialize::XTypesSerialize, xcdr_serializer::Xcdr1LeSerializer},
 };
-use std::io::Write;
 
 const PL_CDR_LE: [u8; 2] = [0x00, 0x03];
 const REPRESENTATION_OPTIONS: [u8; 2] = [0x00, 0x00];
@@ -33,7 +32,7 @@ impl ParameterListCdrSerializer {
         let data_len = Xcdr1LeSerializer::bytes_len(value)?;
         let padded_length = (data_len + 3) & !3;
         if padded_length > u16::MAX as usize {
-            return Err(RtpsError::new(RtpsErrorKind::InvalidData, format!("Serialized parameter ID {} with serialized size {} exceeds maximum parameter size of {}", id, padded_length, u16::MAX)));
+            return Err(RtpsError::InvalidData);
         }
         self.writer.write_all(&id.to_le_bytes())?;
         self.writer
