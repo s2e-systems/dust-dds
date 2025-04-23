@@ -266,6 +266,7 @@ impl RtpsWriterProxy {
 
             let mut missing_fragment_seq_num_list: Vec<SequenceNumber> =
                 self.frag_buffer.iter().map(|f| f.writer_sn()).collect();
+            missing_fragment_seq_num_list.sort();
             missing_fragment_seq_num_list.dedup();
             for missing_seq_num in missing_fragment_seq_num_list {
                 let Some(missing_seq_num_frag) = self
@@ -380,5 +381,67 @@ mod tests {
             reconstructed_data.serialized_payload().as_ref(),
             data.as_ref()
         );
+    }
+
+    #[test]
+    fn proxy_should_send_acknack_frag_for_all_missing_fragments() {
+        struct MockMessageWriter;
+        impl WriteMessage for MockMessageWriter {
+            fn write_message(&self, datagram: &[u8], locator_list: &[Locator]) {
+                todo!()
+            }
+
+            fn guid_prefix(&self) -> crate::transport::types::GuidPrefix {
+                todo!()
+            }
+        }
+
+        let remote_writer_guid = GUID_UNKNOWN;
+        let unicast_locator_list = &[];
+        let multicast_locator_list = &[];
+        let remote_group_entity_id = ENTITYID_UNKNOWN;
+        let reliability = ReliabilityKind::BestEffort;
+        let mut proxy = RtpsWriterProxy::new(
+            remote_writer_guid,
+            unicast_locator_list,
+            multicast_locator_list,
+            remote_group_entity_id,
+            reliability,
+        );
+
+        let data = Data::new(vec![1; 32].into());
+        let data_frag1 = DataFragSubmessage::new(
+            false,
+            false,
+            false,
+            ENTITYID_UNKNOWN,
+            ENTITYID_UNKNOWN,
+            1,
+            1,
+            1,
+            16,
+            32,
+            ParameterList::empty(),
+            SerializedDataFragment::new(data.clone(), 0..16),
+        );
+        let data_frag2 = DataFragSubmessage::new(
+            false,
+            false,
+            false,
+            ENTITYID_UNKNOWN,
+            ENTITYID_UNKNOWN,
+            2,
+            2,
+            1,
+            16,
+            32,
+            ParameterList::empty(),
+            SerializedDataFragment::new(data.clone(), 0..16),
+        );
+
+        proxy.push_data_frag(data_frag1);
+        proxy.push_data_frag(data_frag2);
+
+        proxy.write_message(&GUID_UNKNOWN, &MockMessageWriter);
     }
 }
