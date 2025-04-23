@@ -279,12 +279,11 @@ impl RtpsWriterProxy {
                 let total_fragments_expected = total_fragments_expected(missing_seq_num_frag);
                 let mut missing_fragment_number = Vec::new();
                 for fragment_number in 1..=total_fragments_expected {
-                    if self.frag_buffer.iter().any(|f| {
+                    if !self.frag_buffer.iter().any(|f| {
                         f.writer_sn() == missing_seq_num
-                            && (fragment_number >= f.fragment_starting_num()
-                                && fragment_number
-                                    < f.fragment_starting_num()
-                                        + (f.fragments_in_submessage() as u32))
+                            && (f.fragment_starting_num()
+                                ..f.fragment_starting_num() + f.fragments_in_submessage() as u32)
+                                .contains(&fragment_number)
                     }) {
                         missing_fragment_number.push(fragment_number)
                     }
