@@ -90,12 +90,15 @@ impl RtpsWriterProxy {
 
         if total_fragments == total_fragments_expected {
             let mut data = Vec::new();
-            for frag_number in 1..=total_fragments {
-                let frag = self
+            for frag_number in 0..=total_fragments {
+                let Some(frag) = self
                     .frag_buffer
                     .iter()
                     .find(|f| f.writer_sn() == seq_num && f.fragment_starting_num() == frag_number)
-                    .expect("All fragments should exist");
+                else {
+                    continue;
+                };
+
                 data.extend_from_slice(frag.serialized_payload().as_ref());
             }
 
