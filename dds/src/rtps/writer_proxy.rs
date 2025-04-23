@@ -317,3 +317,68 @@ impl RtpsWriterProxy {
         at_least_one_heartbeat_received && self.missing_changes().count() == 0
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        rtps_messages::submessage_elements::{ParameterList, SerializedDataFragment},
+        transport::types::{ENTITYID_UNKNOWN, GUID_UNKNOWN},
+    };
+
+    use super::*;
+
+    #[test]
+    fn reconstruct_data_from_frag_should_return_data_submessage() {
+        let remote_writer_guid = GUID_UNKNOWN;
+        let unicast_locator_list = &[];
+        let multicast_locator_list = &[];
+        let remote_group_entity_id = ENTITYID_UNKNOWN;
+        let reliability = ReliabilityKind::BestEffort;
+        let mut proxy = RtpsWriterProxy::new(
+            remote_writer_guid,
+            unicast_locator_list,
+            multicast_locator_list,
+            remote_group_entity_id,
+            reliability,
+        );
+
+        let data = Data::new(vec![1; 32].into());
+        let data_frag1 = DataFragSubmessage::new(
+            false,
+            false,
+            false,
+            ENTITYID_UNKNOWN,
+            ENTITYID_UNKNOWN,
+            1,
+            1,
+            1,
+            16,
+            32,
+            ParameterList::empty(),
+            SerializedDataFragment::new(data.clone(), 0..16),
+        );
+        let data_frag2 = DataFragSubmessage::new(
+            false,
+            false,
+            false,
+            ENTITYID_UNKNOWN,
+            ENTITYID_UNKNOWN,
+            1,
+            2,
+            1,
+            16,
+            32,
+            ParameterList::empty(),
+            SerializedDataFragment::new(data.clone(), 16..32),
+        );
+
+        proxy.push_data_frag(data_frag1);
+        proxy.push_data_frag(data_frag2);
+
+        let reconstructed_data = proxy.reconstruct_data_from_frag(1).unwrap();
+        assert_eq!(
+            reconstructed_data.serialized_payload().as_ref(),
+            data.as_ref()
+        );
+    }
+}
