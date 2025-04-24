@@ -2,11 +2,11 @@ FROM ubuntu:24.04 as AndroidBuilder
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y wget unzip openjdk-21-jre-headless
 WORKDIR /android_sdk/cmdline-tools/latest
-RUN wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip \
-    && unzip commandlinetools-linux-11076708_latest.zip \
+RUN wget https://dl.google.com/android/repository/commandlinetools-linux-13114758_latest.zip \
+    && unzip commandlinetools-linux-13114758_latest.zip \
     && mv cmdline-tools/* .
 RUN yes | ./bin/sdkmanager --licenses
-RUN ./bin/sdkmanager --install "build-tools;35.0.0" "ndk;27.0.11902837"
+RUN ./bin/sdkmanager --install "build-tools;36.0.0" "ndk;29.0.13113456 rc1"
 
 FROM cimg/rust:1.85.0
 USER root
