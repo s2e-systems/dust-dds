@@ -1,4 +1,4 @@
-FROM ubuntu:24.04 as AndroidBuilder
+FROM ubuntu:24.04 AS android_builder
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y wget unzip openjdk-21-jre-headless
 WORKDIR /android_sdk/cmdline-tools/latest
@@ -13,7 +13,7 @@ USER root
 RUN apt-get update && apt-get install -y \
     openjdk-19-jre-headless \
     && rm -rf /var/lib/apt/lists/*
-COPY --from=AndroidBuilder --chown=circleci /android_sdk /android_sdk
+COPY --from=android_builder --chown=circleci /android_sdk /android_sdk
 ENV ANDROID_HOME=/android_sdk
 USER circleci
 RUN rustup target add armv7-linux-androideabi aarch64-linux-android i686-linux-android x86_64-linux-android
