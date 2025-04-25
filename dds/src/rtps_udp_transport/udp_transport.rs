@@ -63,11 +63,9 @@ fn get_multicast_socket(
     socket.set_reuse_address(true)?;
     #[cfg(target_family = "unix")]
     socket.set_reuse_port(true)?;
-
     socket.set_nonblocking(false)?;
 
     socket.bind(&socket_addr.into())?;
-    let std_socket = std::net::UdpSocket::from(socket);
     let addr = Ipv4Addr::new(
         multicast_address[12],
         multicast_address[13],
@@ -77,7 +75,7 @@ fn get_multicast_socket(
     for interface_addr in interface_address_list {
         match interface_addr {
             Addr::V4(a) => {
-                let r = std_socket.join_multicast_v4(&addr, &a.ip);
+                let r = socket.join_multicast_v4(&addr, &a.ip);
                 if let Err(e) = r {
                     println!(
                         "Failed to join multicast group on address {} with error {}",
@@ -89,9 +87,9 @@ fn get_multicast_socket(
         }
     }
 
-    std_socket.set_multicast_loop_v4(true)?;
+    socket.set_multicast_loop_v4(true)?;
 
-    Ok(std_socket)
+    Ok(socket.into())
 }
 
 pub struct RtpsUdpTransportParticipantFactoryBuilder {
