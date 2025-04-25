@@ -1,7 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-};
+use std::{collections::HashMap, sync::Arc};
 
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
@@ -152,7 +149,7 @@ pub struct DataReaderEntity {
     matched_publication_list: HashMap<InstanceHandle, PublicationBuiltinTopicData>,
     enabled: bool,
     data_available_status_changed_flag: bool,
-    incompatible_writer_list: HashSet<InstanceHandle>,
+    incompatible_writer_list: Vec<InstanceHandle>,
     status_condition: Actor<StatusConditionActor>,
     listener: Option<Actor<DataReaderListenerActor>>,
     listener_mask: Vec<StatusKind>,
@@ -191,7 +188,7 @@ impl DataReaderEntity {
             matched_publication_list: HashMap::new(),
             enabled: false,
             data_available_status_changed_flag: false,
-            incompatible_writer_list: HashSet::new(),
+            incompatible_writer_list: Vec::new(),
             status_condition,
             listener,
             listener_mask,
@@ -619,11 +616,12 @@ impl DataReaderEntity {
             total_samples == self.qos.resource_limits.max_samples
         };
         let is_max_instances_limit_reached = {
-            let instance_handle_list: HashSet<_> = self
-                .sample_list
-                .iter()
-                .map(|cc| cc.instance_handle)
-                .collect();
+            let mut instance_handle_list = Vec::new();
+            for sample_handle in self.sample_list.iter().map(|x| x.instance_handle) {
+                if !instance_handle_list.contains(&sample_handle) {
+                    instance_handle_list.push(sample_handle);
+                }
+            }
 
             if instance_handle_list.contains(&sample.instance_handle) {
                 false
@@ -814,7 +812,7 @@ impl DataReaderEntity {
         incompatible_qos_policy_list: Vec<QosPolicyId>,
     ) {
         if !self.incompatible_writer_list.contains(&handle) {
-            self.incompatible_writer_list.insert(handle);
+            self.incompatible_writer_list.push(handle);
             self.requested_incompatible_qos_status.total_count += 1;
             self.requested_incompatible_qos_status.total_count_change += 1;
             self.requested_incompatible_qos_status.last_policy_id = incompatible_qos_policy_list[0];

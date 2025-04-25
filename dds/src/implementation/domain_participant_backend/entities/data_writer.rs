@@ -27,7 +27,7 @@ use crate::{
     xtypes::dynamic_type::DynamicType,
 };
 use std::{
-    collections::{HashMap, HashSet, VecDeque},
+    collections::{HashMap, VecDeque},
     sync::Arc,
 };
 
@@ -59,7 +59,7 @@ pub struct DataWriterEntity {
     type_support: Arc<dyn DynamicType + Send + Sync>,
     matched_subscription_list: HashMap<InstanceHandle, SubscriptionBuiltinTopicData>,
     publication_matched_status: PublicationMatchedStatus,
-    incompatible_subscription_list: HashSet<InstanceHandle>,
+    incompatible_subscription_list: Vec<InstanceHandle>,
     offered_incompatible_qos_status: OfferedIncompatibleQosStatus,
     enabled: bool,
     status_condition: Actor<StatusConditionActor>,
@@ -68,7 +68,7 @@ pub struct DataWriterEntity {
     max_seq_num: Option<i64>,
     last_change_sequence_number: i64,
     qos: DataWriterQos,
-    registered_instance_list: HashSet<InstanceHandle>,
+    registered_instance_list: Vec<InstanceHandle>,
     offered_deadline_missed_status: OfferedDeadlineMissedStatus,
     instance_deadline_missed_task: HashMap<InstanceHandle, TaskHandle>,
     instance_samples: HashMap<InstanceHandle, VecDeque<i64>>,
@@ -95,7 +95,7 @@ impl DataWriterEntity {
             type_support,
             matched_subscription_list: HashMap::new(),
             publication_matched_status: PublicationMatchedStatus::default(),
-            incompatible_subscription_list: HashSet::new(),
+            incompatible_subscription_list: Vec::new(),
             offered_incompatible_qos_status: OfferedIncompatibleQosStatus::default(),
             enabled: false,
             status_condition,
@@ -104,7 +104,7 @@ impl DataWriterEntity {
             max_seq_num: None,
             last_change_sequence_number: 0,
             qos,
-            registered_instance_list: HashSet::new(),
+            registered_instance_list: Vec::new(),
             offered_deadline_missed_status: OfferedDeadlineMissedStatus::default(),
             instance_deadline_missed_task: HashMap::new(),
             instance_samples: HashMap::new(),
@@ -172,7 +172,7 @@ impl DataWriterEntity {
 
         if !self.registered_instance_list.contains(&instance_handle) {
             if self.registered_instance_list.len() < self.qos.resource_limits.max_instances {
-                self.registered_instance_list.insert(instance_handle);
+                self.registered_instance_list.push(instance_handle);
             } else {
                 return Err(DdsError::OutOfResources);
             }
@@ -419,7 +419,7 @@ impl DataWriterEntity {
             self.offered_incompatible_qos_status.total_count_change += 1;
             self.offered_incompatible_qos_status.last_policy_id = incompatible_qos_policy_list[0];
 
-            self.incompatible_subscription_list.insert(handle);
+            self.incompatible_subscription_list.push(handle);
             for incompatible_qos_policy in incompatible_qos_policy_list.into_iter() {
                 if let Some(policy_count) = self
                     .offered_incompatible_qos_status
