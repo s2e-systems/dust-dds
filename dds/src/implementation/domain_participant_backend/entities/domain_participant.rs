@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashSet,
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -39,7 +39,7 @@ pub struct DomainParticipantEntity {
     default_subscriber_qos: SubscriberQos,
     user_defined_publisher_list: Vec<PublisherEntity>,
     default_publisher_qos: PublisherQos,
-    topic_list: HashMap<String, TopicEntity>,
+    topic_list: Vec<TopicEntity>,
     default_topic_qos: TopicQos,
     discovered_participant_list: Vec<SpdpDiscoveredParticipantData>,
     discovered_topic_list: Vec<TopicBuiltinTopicData>,
@@ -66,7 +66,7 @@ impl DomainParticipantEntity {
         instance_handle: InstanceHandle,
         builtin_publisher: PublisherEntity,
         builtin_subscriber: SubscriberEntity,
-        topic_list: HashMap<String, TopicEntity>,
+        topic_list: Vec<TopicEntity>,
         domain_tag: String,
     ) -> Self {
         Self {
@@ -360,35 +360,50 @@ impl DomainParticipantEntity {
     }
 
     pub fn get_topic(&self, topic_name: &str) -> Option<&TopicEntity> {
-        self.topic_list.get(topic_name)
+        self.topic_list
+            .iter()
+            .find(|x| x.topic_name() == topic_name)
     }
 
     pub fn get_mut_topic(&mut self, topic_name: &str) -> Option<&mut TopicEntity> {
-        self.topic_list.get_mut(topic_name)
+        self.topic_list
+            .iter_mut()
+            .find(|x| x.topic_name() == topic_name)
     }
 
     pub fn insert_topic(&mut self, topic: TopicEntity) {
-        self.topic_list.insert(topic.topic_name().to_owned(), topic);
+        match self
+            .topic_list
+            .iter_mut()
+            .find(|x| x.topic_name() == topic.topic_name())
+        {
+            Some(x) => *x = topic,
+            None => self.topic_list.push(topic),
+        }
     }
 
     pub fn remove_topic(&mut self, topic_name: &str) -> Option<TopicEntity> {
-        self.topic_list.remove(topic_name)
+        let index = self
+            .topic_list
+            .iter()
+            .position(|x| x.topic_name() == topic_name)?;
+        Some(self.topic_list.remove(index))
     }
 
     pub fn delete_all_topics(&mut self) {
         self.topic_list
-            .retain(|_, x| BUILT_IN_TOPIC_NAME_LIST.contains(&x.topic_name()));
+            .retain(|x| BUILT_IN_TOPIC_NAME_LIST.contains(&x.topic_name()));
     }
 
     pub fn topic_list(&mut self) -> impl Iterator<Item = &TopicEntity> {
-        self.topic_list.values()
+        self.topic_list.iter()
     }
 
     pub fn is_empty(&self) -> bool {
         let no_user_defined_topics = self
             .topic_list
-            .keys()
-            .filter(|t| !BUILT_IN_TOPIC_NAME_LIST.contains(&t.as_ref()))
+            .iter()
+            .filter(|t| !BUILT_IN_TOPIC_NAME_LIST.contains(&t.topic_name()))
             .count()
             == 0;
 
