@@ -1,7 +1,4 @@
-use std::{
-    collections::HashSet,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::{
     builtin_topics::TopicBuiltinTopicData,
@@ -46,10 +43,10 @@ pub struct DomainParticipantEntity {
     discovered_reader_list: Vec<DiscoveredReaderData>,
     discovered_writer_list: Vec<DiscoveredWriterData>,
     enabled: bool,
-    ignored_participants: HashSet<InstanceHandle>,
-    ignored_publications: HashSet<InstanceHandle>,
-    ignored_subcriptions: HashSet<InstanceHandle>,
-    _ignored_topic_list: HashSet<InstanceHandle>,
+    ignored_participants: Vec<InstanceHandle>,
+    ignored_publications: Vec<InstanceHandle>,
+    ignored_subcriptions: Vec<InstanceHandle>,
+    _ignored_topic_list: Vec<InstanceHandle>,
     listener: Option<Actor<DomainParticipantListenerActor>>,
     listener_mask: Vec<StatusKind>,
     status_condition: Actor<StatusConditionActor>,
@@ -86,10 +83,10 @@ impl DomainParticipantEntity {
             discovered_reader_list: Vec::new(),
             discovered_writer_list: Vec::new(),
             enabled: false,
-            ignored_participants: HashSet::new(),
-            ignored_publications: HashSet::new(),
-            ignored_subcriptions: HashSet::new(),
-            _ignored_topic_list: HashSet::new(),
+            ignored_participants: Vec::new(),
+            ignored_publications: Vec::new(),
+            ignored_subcriptions: Vec::new(),
+            _ignored_topic_list: Vec::new(),
             listener,
             listener_mask,
             status_condition,
@@ -158,15 +155,21 @@ impl DomainParticipantEntity {
     }
 
     pub fn ignore_participant(&mut self, handle: InstanceHandle) {
-        self.ignored_participants.insert(handle);
+        if !self.ignored_participants.contains(&handle) {
+            self.ignored_participants.push(handle);
+        }
     }
 
     pub fn ignore_subscription(&mut self, handle: InstanceHandle) {
-        self.ignored_subcriptions.insert(handle);
+        if !self.ignored_subcriptions.contains(&handle) {
+            self.ignored_subcriptions.push(handle);
+        }
     }
 
     pub fn ignore_publication(&mut self, handle: InstanceHandle) {
-        self.ignored_publications.insert(handle);
+        if !self.ignored_publications.contains(&handle) {
+            self.ignored_publications.push(handle);
+        }
     }
 
     pub fn get_default_topic_qos(&self) -> &TopicQos {
