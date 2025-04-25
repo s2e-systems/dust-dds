@@ -121,6 +121,61 @@ impl<'de> XTypesDeserialize<'de> for () {
     }
 }
 
+impl<'de, T> XTypesDeserialize<'de> for (T,)
+where
+    T: XTypesDeserialize<'de>,
+{
+    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
+        let mut seq = deserializer.deserialize_array()?;
+        Ok(seq.deserialize_element()?)
+    }
+}
+
+impl<'de, T, U> XTypesDeserialize<'de> for (T, U)
+where
+    T: XTypesDeserialize<'de>,
+    U: XTypesDeserialize<'de>,
+{
+    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
+        let mut seq = deserializer.deserialize_array()?;
+        Ok((seq.deserialize_element()?, seq.deserialize_element()?))
+    }
+}
+
+impl<'de, T, U, V> XTypesDeserialize<'de> for (T, U, V)
+where
+    T: XTypesDeserialize<'de>,
+    U: XTypesDeserialize<'de>,
+    V: XTypesDeserialize<'de>,
+{
+    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
+        let mut seq = deserializer.deserialize_array()?;
+        Ok((
+            seq.deserialize_element()?,
+            seq.deserialize_element()?,
+            seq.deserialize_element()?,
+        ))
+    }
+}
+
+impl<'de, T, U, V, W> XTypesDeserialize<'de> for (T, U, V, W)
+where
+    T: XTypesDeserialize<'de>,
+    U: XTypesDeserialize<'de>,
+    V: XTypesDeserialize<'de>,
+    W: XTypesDeserialize<'de>,
+{
+    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
+        let mut seq = deserializer.deserialize_array()?;
+        Ok((
+            seq.deserialize_element()?,
+            seq.deserialize_element()?,
+            seq.deserialize_element()?,
+            seq.deserialize_element()?,
+        ))
+    }
+}
+
 impl<'de: 'a, 'a> XTypesDeserialize<'de> for Bytes<'a> {
     fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
         Ok(Self(deserializer.deserialize_byte_sequence()?))
