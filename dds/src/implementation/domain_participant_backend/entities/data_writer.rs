@@ -57,7 +57,7 @@ pub struct DataWriterEntity {
     topic_name: String,
     type_name: String,
     type_support: Arc<dyn DynamicType + Send + Sync>,
-    matched_subscription_list: HashMap<InstanceHandle, SubscriptionBuiltinTopicData>,
+    matched_subscription_list: Vec<SubscriptionBuiltinTopicData>,
     publication_matched_status: PublicationMatchedStatus,
     incompatible_subscription_list: Vec<InstanceHandle>,
     offered_incompatible_qos_status: OfferedIncompatibleQosStatus,
@@ -93,7 +93,7 @@ impl DataWriterEntity {
             topic_name,
             type_name,
             type_support,
-            matched_subscription_list: HashMap::new(),
+            matched_subscription_list: Vec::new(),
             publication_matched_status: PublicationMatchedStatus::default(),
             incompatible_subscription_list: Vec::new(),
             offered_incompatible_qos_status: OfferedIncompatibleQosStatus::default(),
@@ -394,9 +394,16 @@ impl DataWriterEntity {
         &mut self,
         subscription_builtin_topic_data: SubscriptionBuiltinTopicData,
     ) {
-        let handle = InstanceHandle::new(subscription_builtin_topic_data.key().value);
-        self.matched_subscription_list
-            .insert(handle, subscription_builtin_topic_data);
+        match self
+            .matched_subscription_list
+            .iter_mut()
+            .find(|x| x.key() == subscription_builtin_topic_data.key())
+        {
+            Some(x) => *x = subscription_builtin_topic_data,
+            None => self
+                .matched_subscription_list
+                .push(subscription_builtin_topic_data),
+        };
         self.publication_matched_status.current_count = self.matched_subscription_list.len() as i32;
         self.publication_matched_status.current_count_change += 1;
         self.publication_matched_status.total_count += 1;
@@ -404,7 +411,14 @@ impl DataWriterEntity {
     }
 
     pub fn remove_matched_subscription(&mut self, subscription_handle: &InstanceHandle) {
-        self.matched_subscription_list.remove(subscription_handle);
+        let Some(i) = self
+            .matched_subscription_list
+            .iter()
+            .position(|x| &x.key().value == subscription_handle.as_ref())
+        else {
+            return;
+        };
+        self.matched_subscription_list.remove(i);
         self.publication_matched_status.current_count = self.matched_subscription_list.len() as i32;
         self.publication_matched_status.current_count_change -= 1;
     }
@@ -447,14 +461,19 @@ impl DataWriterEntity {
     }
 
     pub fn get_matched_subscriptions(&self) -> Vec<InstanceHandle> {
-        self.matched_subscription_list.keys().cloned().collect()
+        self.matched_subscription_list
+            .iter()
+            .map(|x| InstanceHandle::new(x.key().value))
+            .collect()
     }
 
     pub fn get_matched_subscription_data(
         &self,
         subscription_handle: &InstanceHandle,
     ) -> Option<&SubscriptionBuiltinTopicData> {
-        self.matched_subscription_list.get(subscription_handle)
+        self.matched_subscription_list
+            .iter()
+            .find(|x| subscription_handle.as_ref() == &x.key().value)
     }
 
     pub fn get_offered_deadline_missed_status(&mut self) -> OfferedDeadlineMissedStatus {
