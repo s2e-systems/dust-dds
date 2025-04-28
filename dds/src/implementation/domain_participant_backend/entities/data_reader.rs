@@ -146,7 +146,7 @@ pub struct DataReaderEntity {
     _sample_lost_status: SampleLostStatus,
     sample_rejected_status: SampleRejectedStatus,
     subscription_matched_status: SubscriptionMatchedStatus,
-    matched_publication_list: HashMap<InstanceHandle, PublicationBuiltinTopicData>,
+    matched_publication_list: Vec<PublicationBuiltinTopicData>,
     enabled: bool,
     data_available_status_changed_flag: bool,
     incompatible_writer_list: Vec<InstanceHandle>,
@@ -185,7 +185,7 @@ impl DataReaderEntity {
             _sample_lost_status: SampleLostStatus::default(),
             sample_rejected_status: SampleRejectedStatus::default(),
             subscription_matched_status: SubscriptionMatchedStatus::default(),
-            matched_publication_list: HashMap::new(),
+            matched_publication_list: Vec::new(),
             enabled: false,
             data_available_status_changed_flag: false,
             incompatible_writer_list: Vec::new(),
@@ -555,13 +555,23 @@ impl DataReaderEntity {
             {
                 let instance_owner = InstanceHandle::new(instance_owner_handle);
                 let instance_writer = InstanceHandle::new(sample.writer_guid);
+                let Some(sample_owner) = self
+                    .matched_publication_list
+                    .iter()
+                    .find(|x| &x.key().value == instance_owner.as_ref())
+                else {
+                    return Ok(AddChangeResult::NotAdded);
+                };
+                let Some(sample_writer) = self
+                    .matched_publication_list
+                    .iter()
+                    .find(|x| &x.key().value == instance_writer.as_ref())
+                else {
+                    return Ok(AddChangeResult::NotAdded);
+                };
                 if instance_owner_handle != sample.writer_guid
-                    && self.matched_publication_list[&instance_writer]
-                        .ownership_strength()
-                        .value
-                        <= self.matched_publication_list[&instance_owner]
-                            .ownership_strength()
-                            .value
+                    && sample_writer.ownership_strength().value
+                        <= sample_owner.ownership_strength().value
                 {
                     return Ok(AddChangeResult::NotAdded);
                 }
@@ -769,10 +779,16 @@ impl DataReaderEntity {
         &mut self,
         publication_builtin_topic_data: PublicationBuiltinTopicData,
     ) {
-        self.matched_publication_list.insert(
-            InstanceHandle::new(publication_builtin_topic_data.key.value),
-            publication_builtin_topic_data,
-        );
+        match self
+            .matched_publication_list
+            .iter_mut()
+            .find(|x| x.key() == publication_builtin_topic_data.key())
+        {
+            Some(x) => *x = publication_builtin_topic_data,
+            None => self
+                .matched_publication_list
+                .push(publication_builtin_topic_data),
+        }
         self.subscription_matched_status.current_count +=
             self.matched_publication_list.len() as i32;
         self.subscription_matched_status.current_count_change += 1;
@@ -781,7 +797,14 @@ impl DataReaderEntity {
     }
 
     pub fn remove_matched_publication(&mut self, publication_handle: &InstanceHandle) {
-        self.matched_publication_list.remove(publication_handle);
+        let Some(i) = self
+            .matched_publication_list
+            .iter()
+            .position(|x| &x.key().value == publication_handle.as_ref())
+        else {
+            return;
+        };
+        self.matched_publication_list.remove(i);
         self.subscription_matched_status.current_count = self.matched_publication_list.len() as i32;
         self.subscription_matched_status.current_count_change -= 1;
         self.status_condition
@@ -885,11 +908,16 @@ impl DataReaderEntity {
         &self,
         handle: &InstanceHandle,
     ) -> Option<&PublicationBuiltinTopicData> {
-        self.matched_publication_list.get(handle)
+        self.matched_publication_list
+            .iter()
+            .find(|x| &x.key().value == handle.as_ref())
     }
 
     pub fn get_matched_publications(&self) -> Vec<InstanceHandle> {
-        self.matched_publication_list.keys().cloned().collect()
+        self.matched_publication_list
+            .iter()
+            .map(|x| InstanceHandle::new(x.key().value))
+            .collect()
     }
 
     pub fn insert_instance_deadline_missed_task(
