@@ -26,10 +26,7 @@ use crate::{
     },
     xtypes::dynamic_type::DynamicType,
 };
-use std::{
-    collections::{HashMap, HashSet, VecDeque},
-    sync::Arc,
-};
+use alloc::{collections::VecDeque, sync::Arc};
 
 pub enum TransportWriterKind {
     Stateful(Box<dyn TransportStatefulWriter>),
@@ -51,15 +48,26 @@ impl TransportWriterKind {
         }
     }
 }
+
+pub struct DeadlineMissedTask {
+    instance: InstanceHandle,
+    task: TaskHandle,
+}
+
+pub struct InstanceSamples {
+    instance: InstanceHandle,
+    samples: VecDeque<i64>,
+}
+
 pub struct DataWriterEntity {
     instance_handle: InstanceHandle,
     transport_writer: TransportWriterKind,
     topic_name: String,
     type_name: String,
     type_support: Arc<dyn DynamicType + Send + Sync>,
-    matched_subscription_list: HashMap<InstanceHandle, SubscriptionBuiltinTopicData>,
+    matched_subscription_list: Vec<SubscriptionBuiltinTopicData>,
     publication_matched_status: PublicationMatchedStatus,
-    incompatible_subscription_list: HashSet<InstanceHandle>,
+    incompatible_subscription_list: Vec<InstanceHandle>,
     offered_incompatible_qos_status: OfferedIncompatibleQosStatus,
     enabled: bool,
     status_condition: Actor<StatusConditionActor>,
@@ -68,10 +76,10 @@ pub struct DataWriterEntity {
     max_seq_num: Option<i64>,
     last_change_sequence_number: i64,
     qos: DataWriterQos,
-    registered_instance_list: HashSet<InstanceHandle>,
+    registered_instance_list: Vec<InstanceHandle>,
     offered_deadline_missed_status: OfferedDeadlineMissedStatus,
-    instance_deadline_missed_task: HashMap<InstanceHandle, TaskHandle>,
-    instance_samples: HashMap<InstanceHandle, VecDeque<i64>>,
+    instance_deadline_missed_task: Vec<DeadlineMissedTask>,
+    instance_samples: Vec<InstanceSamples>,
 }
 
 impl DataWriterEntity {
@@ -93,9 +101,9 @@ impl DataWriterEntity {
             topic_name,
             type_name,
             type_support,
-            matched_subscription_list: HashMap::new(),
+            matched_subscription_list: Vec::new(),
             publication_matched_status: PublicationMatchedStatus::default(),
-            incompatible_subscription_list: HashSet::new(),
+            incompatible_subscription_list: Vec::new(),
             offered_incompatible_qos_status: OfferedIncompatibleQosStatus::default(),
             enabled: false,
             status_condition,
@@ -104,10 +112,10 @@ impl DataWriterEntity {
             max_seq_num: None,
             last_change_sequence_number: 0,
             qos,
-            registered_instance_list: HashSet::new(),
+            registered_instance_list: Vec::new(),
             offered_deadline_missed_status: OfferedDeadlineMissedStatus::default(),
-            instance_deadline_missed_task: HashMap::new(),
-            instance_samples: HashMap::new(),
+            instance_deadline_missed_task: Vec::new(),
+            instance_samples: Vec::new(),
         }
     }
 
@@ -172,14 +180,17 @@ impl DataWriterEntity {
 
         if !self.registered_instance_list.contains(&instance_handle) {
             if self.registered_instance_list.len() < self.qos.resource_limits.max_instances {
-                self.registered_instance_list.insert(instance_handle);
+                self.registered_instance_list.push(instance_handle);
             } else {
                 return Err(DdsError::OutOfResources);
             }
         }
 
         if let Length::Limited(max_instances) = self.qos.resource_limits.max_instances {
-            if !self.instance_samples.contains_key(&instance_handle)
+            if !self
+                .instance_samples
+                .iter()
+                .any(|x| x.instance == instance_handle)
                 && self.instance_samples.len() == max_instances as usize
             {
                 return Err(DdsError::OutOfResources);
@@ -194,9 +205,13 @@ impl DataWriterEntity {
             match self.qos.history.kind {
                 HistoryQosPolicyKind::KeepLast(depth) if depth <= max_samples_per_instance => {}
                 _ => {
-                    if let Some(s) = self.instance_samples.get(&instance_handle) {
+                    if let Some(s) = self
+                        .instance_samples
+                        .iter()
+                        .find(|x| x.instance == instance_handle)
+                    {
                         // Only Alive changes count towards the resource limits
-                        if s.len() >= max_samples_per_instance as usize {
+                        if s.samples.len() >= max_samples_per_instance as usize {
                             return Err(DdsError::OutOfResources);
                         }
                     }
@@ -208,7 +223,7 @@ impl DataWriterEntity {
             let total_samples = self
                 .instance_samples
                 .iter()
-                .fold(0, |acc, (_, x)| acc + x.len());
+                .fold(0, |acc, x| acc + x.samples.len());
 
             if total_samples >= max_samples as usize {
                 return Err(DdsError::OutOfResources);
@@ -224,9 +239,13 @@ impl DataWriterEntity {
             data_value: serialized_data.into(),
         };
         if let HistoryQosPolicyKind::KeepLast(depth) = self.qos.history.kind {
-            if let Some(s) = self.instance_samples.get_mut(&instance_handle) {
-                if s.len() == depth as usize {
-                    if let Some(&smallest_seq_num_instance) = s.front() {
+            if let Some(s) = self
+                .instance_samples
+                .iter_mut()
+                .find(|x| x.instance == instance_handle)
+            {
+                if s.samples.len() == depth as usize {
+                    if let Some(&smallest_seq_num_instance) = s.samples.front() {
                         if self.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
                             let start_time = std::time::Instant::now();
                             while let TransportWriterKind::Stateful(w) = &self.transport_writer {
@@ -244,7 +263,7 @@ impl DataWriterEntity {
                             }
                         }
                     }
-                    if let Some(smallest_seq_num_instance) = s.pop_front() {
+                    if let Some(smallest_seq_num_instance) = s.samples.pop_front() {
                         self.transport_writer
                             .history_cache()
                             .remove_change(smallest_seq_num_instance);
@@ -259,18 +278,29 @@ impl DataWriterEntity {
             self.max_seq_num = Some(seq_num)
         }
 
-        if let Some(t) = self.instance_deadline_missed_task.remove(&instance_handle) {
-            t.abort();
+        if let Some(i) = self
+            .instance_deadline_missed_task
+            .iter()
+            .position(|x| x.instance == instance_handle)
+        {
+            let t = self.instance_deadline_missed_task.remove(i);
+            t.task.abort();
         }
 
-        if let Some(t) = self.instance_deadline_missed_task.remove(&instance_handle) {
-            t.abort();
+        match self
+            .instance_samples
+            .iter_mut()
+            .find(|x| x.instance == instance_handle)
+        {
+            Some(s) => s.samples.push_back(change.sequence_number),
+            None => {
+                let s = InstanceSamples {
+                    instance: instance_handle,
+                    samples: VecDeque::from([change.sequence_number]),
+                };
+                self.instance_samples.push(s);
+            }
         }
-
-        self.instance_samples
-            .entry(instance_handle)
-            .or_default()
-            .push_back(change.sequence_number);
         self.transport_writer.history_cache().add_change(change);
         Ok(self.last_change_sequence_number)
     }
@@ -309,8 +339,13 @@ impl DataWriterEntity {
             return Err(DdsError::BadParameter);
         }
 
-        if let Some(t) = self.instance_deadline_missed_task.remove(&instance_handle) {
-            t.abort();
+        if let Some(i) = self
+            .instance_deadline_missed_task
+            .iter()
+            .position(|x| x.instance == instance_handle)
+        {
+            let t = self.instance_deadline_missed_task.remove(i);
+            t.task.abort();
         }
 
         self.last_change_sequence_number += 1;
@@ -364,8 +399,13 @@ impl DataWriterEntity {
             return Err(DdsError::BadParameter);
         }
 
-        if let Some(t) = self.instance_deadline_missed_task.remove(&instance_handle) {
-            t.abort();
+        if let Some(i) = self
+            .instance_deadline_missed_task
+            .iter()
+            .position(|x| x.instance == instance_handle)
+        {
+            let t = self.instance_deadline_missed_task.remove(i);
+            t.task.abort();
         }
 
         self.last_change_sequence_number += 1;
@@ -394,9 +434,16 @@ impl DataWriterEntity {
         &mut self,
         subscription_builtin_topic_data: SubscriptionBuiltinTopicData,
     ) {
-        let handle = InstanceHandle::new(subscription_builtin_topic_data.key().value);
-        self.matched_subscription_list
-            .insert(handle, subscription_builtin_topic_data);
+        match self
+            .matched_subscription_list
+            .iter_mut()
+            .find(|x| x.key() == subscription_builtin_topic_data.key())
+        {
+            Some(x) => *x = subscription_builtin_topic_data,
+            None => self
+                .matched_subscription_list
+                .push(subscription_builtin_topic_data),
+        };
         self.publication_matched_status.current_count = self.matched_subscription_list.len() as i32;
         self.publication_matched_status.current_count_change += 1;
         self.publication_matched_status.total_count += 1;
@@ -404,7 +451,14 @@ impl DataWriterEntity {
     }
 
     pub fn remove_matched_subscription(&mut self, subscription_handle: &InstanceHandle) {
-        self.matched_subscription_list.remove(subscription_handle);
+        let Some(i) = self
+            .matched_subscription_list
+            .iter()
+            .position(|x| &x.key().value == subscription_handle.as_ref())
+        else {
+            return;
+        };
+        self.matched_subscription_list.remove(i);
         self.publication_matched_status.current_count = self.matched_subscription_list.len() as i32;
         self.publication_matched_status.current_count_change -= 1;
     }
@@ -419,7 +473,7 @@ impl DataWriterEntity {
             self.offered_incompatible_qos_status.total_count_change += 1;
             self.offered_incompatible_qos_status.last_policy_id = incompatible_qos_policy_list[0];
 
-            self.incompatible_subscription_list.insert(handle);
+            self.incompatible_subscription_list.push(handle);
             for incompatible_qos_policy in incompatible_qos_policy_list.into_iter() {
                 if let Some(policy_count) = self
                     .offered_incompatible_qos_status
@@ -447,14 +501,19 @@ impl DataWriterEntity {
     }
 
     pub fn get_matched_subscriptions(&self) -> Vec<InstanceHandle> {
-        self.matched_subscription_list.keys().cloned().collect()
+        self.matched_subscription_list
+            .iter()
+            .map(|x| InstanceHandle::new(x.key().value))
+            .collect()
     }
 
     pub fn get_matched_subscription_data(
         &self,
         subscription_handle: &InstanceHandle,
     ) -> Option<&SubscriptionBuiltinTopicData> {
-        self.matched_subscription_list.get(subscription_handle)
+        self.matched_subscription_list
+            .iter()
+            .find(|x| subscription_handle.as_ref() == &x.key().value)
     }
 
     pub fn get_offered_deadline_missed_status(&mut self) -> OfferedDeadlineMissedStatus {
@@ -490,8 +549,20 @@ impl DataWriterEntity {
         instance_handle: InstanceHandle,
         task: TaskHandle,
     ) {
-        self.instance_deadline_missed_task
-            .insert(instance_handle, task);
+        let deadline_missed_task = DeadlineMissedTask {
+            instance: instance_handle,
+            task,
+        };
+        match self
+            .instance_deadline_missed_task
+            .iter_mut()
+            .find(|x| x.instance == instance_handle)
+        {
+            Some(x) => *x = deadline_missed_task,
+            None => self
+                .instance_deadline_missed_task
+                .push(deadline_missed_task),
+        }
     }
 
     pub fn status_condition(&self) -> &Actor<StatusConditionActor> {

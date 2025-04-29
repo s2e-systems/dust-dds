@@ -248,7 +248,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             }
         }
 
-        let mut topic_list = HashMap::new();
+        let mut topic_list = Vec::new();
         let spdp_topic_participant_handle = instance_handle_counter.generate_new_instance_handle();
 
         let mut spdp_topic_participant = TopicEntity::new(
@@ -263,7 +263,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         );
         spdp_topic_participant.enable();
 
-        topic_list.insert(DCPS_PARTICIPANT.to_owned(), spdp_topic_participant);
+        topic_list.push(spdp_topic_participant);
 
         let sedp_topic_topics_handle = instance_handle_counter.generate_new_instance_handle();
         let mut sedp_topic_topics = TopicEntity::new(
@@ -278,7 +278,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         );
         sedp_topic_topics.enable();
 
-        topic_list.insert(DCPS_TOPIC.to_owned(), sedp_topic_topics);
+        topic_list.push(sedp_topic_topics);
 
         let sedp_topic_publications_handle = instance_handle_counter.generate_new_instance_handle();
         let mut sedp_topic_publications = TopicEntity::new(
@@ -292,7 +292,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             Arc::new(DiscoveredWriterData::get_type()),
         );
         sedp_topic_publications.enable();
-        topic_list.insert(DCPS_PUBLICATION.to_owned(), sedp_topic_publications);
+        topic_list.push(sedp_topic_publications);
 
         let sedp_topic_subscriptions_handle =
             instance_handle_counter.generate_new_instance_handle();
@@ -307,7 +307,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             Arc::new(DiscoveredReaderData::get_type()),
         );
         sedp_topic_subscriptions.enable();
-        topic_list.insert(DCPS_SUBSCRIPTION.to_owned(), sedp_topic_subscriptions);
+        topic_list.push(sedp_topic_subscriptions);
 
         let spdp_writer_qos = DataWriterQos {
             durability: DurabilityQosPolicy {
@@ -345,9 +345,9 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         let mut dcps_participant_reader = DataReaderEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             spdp_reader_qos,
-            topic_list[DCPS_PARTICIPANT].topic_name().to_owned(),
-            topic_list[DCPS_PARTICIPANT].type_name().to_owned(),
-            topic_list[DCPS_PARTICIPANT].type_support().clone(),
+            DCPS_PARTICIPANT.to_owned(),
+            "SpdpDiscoveredParticipantData".to_string(),
+            Arc::new(SpdpDiscoveredParticipantData::get_type()),
             Actor::spawn(StatusConditionActor::default(), &listener_executor.handle()),
             None,
             Vec::new(),
@@ -364,9 +364,9 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         let mut dcps_topic_reader = DataReaderEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             sedp_data_reader_qos(),
-            topic_list[DCPS_TOPIC].topic_name().to_owned(),
-            topic_list[DCPS_TOPIC].type_name().to_owned(),
-            topic_list[DCPS_TOPIC].type_support().clone(),
+            DCPS_TOPIC.to_owned(),
+            "DiscoveredTopicData".to_string(),
+            Arc::new(DiscoveredTopicData::get_type()),
             Actor::spawn(StatusConditionActor::default(), &listener_executor.handle()),
             None,
             Vec::new(),
@@ -383,9 +383,9 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         let mut dcps_publication_reader = DataReaderEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             sedp_data_reader_qos(),
-            topic_list[DCPS_PUBLICATION].topic_name().to_owned(),
-            topic_list[DCPS_PUBLICATION].type_name().to_owned(),
-            topic_list[DCPS_PUBLICATION].type_support().clone(),
+            DCPS_PUBLICATION.to_owned(),
+            "DiscoveredWriterData".to_string(),
+            Arc::new(DiscoveredWriterData::get_type()),
             Actor::spawn(StatusConditionActor::default(), &listener_executor.handle()),
             None,
             Vec::new(),
@@ -402,9 +402,9 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         let mut dcps_subscription_reader = DataReaderEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             sedp_data_reader_qos(),
-            topic_list[DCPS_SUBSCRIPTION].topic_name().to_owned(),
-            topic_list[DCPS_SUBSCRIPTION].type_name().to_owned(),
-            topic_list[DCPS_SUBSCRIPTION].type_support().clone(),
+            DCPS_SUBSCRIPTION.to_owned(),
+            "DiscoveredReaderData".to_string(),
+            Arc::new(DiscoveredReaderData::get_type()),
             Actor::spawn(StatusConditionActor::default(), &listener_executor.handle()),
             None,
             Vec::new(),
@@ -433,9 +433,9 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         let mut dcps_participant_writer = DataWriterEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             TransportWriterKind::Stateless(dcps_participant_transport_writer),
-            topic_list[DCPS_PARTICIPANT].topic_name().to_owned(),
-            topic_list[DCPS_PARTICIPANT].type_name().to_owned(),
-            topic_list[DCPS_PARTICIPANT].type_support().clone(),
+            DCPS_PARTICIPANT.to_owned(),
+            "SpdpDiscoveredParticipantData".to_string(),
+            Arc::new(SpdpDiscoveredParticipantData::get_type()),
             Actor::spawn(StatusConditionActor::default(), &listener_executor.handle()),
             None,
             vec![],
@@ -450,9 +450,9 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         let mut dcps_topics_writer = DataWriterEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             TransportWriterKind::Stateful(dcps_topics_transport_writer),
-            topic_list[DCPS_TOPIC].topic_name().to_owned(),
-            topic_list[DCPS_TOPIC].type_name().to_owned(),
-            topic_list[DCPS_TOPIC].type_support().clone(),
+            DCPS_TOPIC.to_owned(),
+            "DiscoveredTopicData".to_string(),
+            Arc::new(DiscoveredTopicData::get_type()),
             Actor::spawn(StatusConditionActor::default(), &listener_executor.handle()),
             None,
             vec![],
@@ -466,9 +466,9 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         let mut dcps_publications_writer = DataWriterEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             TransportWriterKind::Stateful(dcps_publications_transport_writer),
-            topic_list[DCPS_PUBLICATION].topic_name().to_owned(),
-            topic_list[DCPS_PUBLICATION].type_name().to_owned(),
-            topic_list[DCPS_PUBLICATION].type_support().clone(),
+            DCPS_PUBLICATION.to_owned(),
+            "DiscoveredWriterData".to_string(),
+            Arc::new(DiscoveredWriterData::get_type()),
             Actor::spawn(StatusConditionActor::default(), &listener_executor.handle()),
             None,
             vec![],
@@ -483,9 +483,9 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         let mut dcps_subscriptions_writer = DataWriterEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             TransportWriterKind::Stateful(dcps_subscriptions_transport_writer),
-            topic_list[DCPS_SUBSCRIPTION].topic_name().to_owned(),
-            topic_list[DCPS_SUBSCRIPTION].type_name().to_owned(),
-            topic_list[DCPS_SUBSCRIPTION].type_support().clone(),
+            DCPS_SUBSCRIPTION.to_owned(),
+            "DiscoveredReaderData".to_string(),
+            Arc::new(DiscoveredReaderData::get_type()),
             Actor::spawn(StatusConditionActor::default(), &listener_executor.handle()),
             None,
             vec![],

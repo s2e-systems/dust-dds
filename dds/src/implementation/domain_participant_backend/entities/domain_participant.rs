@@ -1,7 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::{
     builtin_topics::TopicBuiltinTopicData,
@@ -39,17 +36,17 @@ pub struct DomainParticipantEntity {
     default_subscriber_qos: SubscriberQos,
     user_defined_publisher_list: Vec<PublisherEntity>,
     default_publisher_qos: PublisherQos,
-    topic_list: HashMap<String, TopicEntity>,
+    topic_list: Vec<TopicEntity>,
     default_topic_qos: TopicQos,
-    discovered_participant_list: HashMap<InstanceHandle, SpdpDiscoveredParticipantData>,
-    discovered_topic_list: HashMap<InstanceHandle, TopicBuiltinTopicData>,
-    discovered_reader_list: HashMap<InstanceHandle, DiscoveredReaderData>,
-    discovered_writer_list: HashMap<InstanceHandle, DiscoveredWriterData>,
+    discovered_participant_list: Vec<SpdpDiscoveredParticipantData>,
+    discovered_topic_list: Vec<TopicBuiltinTopicData>,
+    discovered_reader_list: Vec<DiscoveredReaderData>,
+    discovered_writer_list: Vec<DiscoveredWriterData>,
     enabled: bool,
-    ignored_participants: HashSet<InstanceHandle>,
-    ignored_publications: HashSet<InstanceHandle>,
-    ignored_subcriptions: HashSet<InstanceHandle>,
-    _ignored_topic_list: HashSet<InstanceHandle>,
+    ignored_participants: Vec<InstanceHandle>,
+    ignored_publications: Vec<InstanceHandle>,
+    ignored_subcriptions: Vec<InstanceHandle>,
+    _ignored_topic_list: Vec<InstanceHandle>,
     listener: Option<Actor<DomainParticipantListenerActor>>,
     listener_mask: Vec<StatusKind>,
     status_condition: Actor<StatusConditionActor>,
@@ -66,7 +63,7 @@ impl DomainParticipantEntity {
         instance_handle: InstanceHandle,
         builtin_publisher: PublisherEntity,
         builtin_subscriber: SubscriberEntity,
-        topic_list: HashMap<String, TopicEntity>,
+        topic_list: Vec<TopicEntity>,
         domain_tag: String,
     ) -> Self {
         Self {
@@ -81,15 +78,15 @@ impl DomainParticipantEntity {
             default_publisher_qos: PublisherQos::default(),
             topic_list,
             default_topic_qos: TopicQos::default(),
-            discovered_participant_list: HashMap::new(),
-            discovered_topic_list: HashMap::new(),
-            discovered_reader_list: HashMap::new(),
-            discovered_writer_list: HashMap::new(),
+            discovered_participant_list: Vec::new(),
+            discovered_topic_list: Vec::new(),
+            discovered_reader_list: Vec::new(),
+            discovered_writer_list: Vec::new(),
             enabled: false,
-            ignored_participants: HashSet::new(),
-            ignored_publications: HashSet::new(),
-            ignored_subcriptions: HashSet::new(),
-            _ignored_topic_list: HashSet::new(),
+            ignored_participants: Vec::new(),
+            ignored_publications: Vec::new(),
+            ignored_subcriptions: Vec::new(),
+            _ignored_topic_list: Vec::new(),
             listener,
             listener_mask,
             status_condition,
@@ -122,14 +119,19 @@ impl DomainParticipantEntity {
     }
 
     pub fn add_discovered_topic(&mut self, topic_builtin_topic_data: TopicBuiltinTopicData) {
-        self.discovered_topic_list.insert(
-            InstanceHandle::new(topic_builtin_topic_data.key().value),
-            topic_builtin_topic_data,
-        );
+        match self
+            .discovered_topic_list
+            .iter_mut()
+            .find(|t| t.key() == topic_builtin_topic_data.key())
+        {
+            Some(x) => *x = topic_builtin_topic_data,
+            None => self.discovered_topic_list.push(topic_builtin_topic_data),
+        }
     }
 
     pub fn remove_discovered_writer(&mut self, discovered_writer_handle: &InstanceHandle) {
-        self.discovered_writer_list.remove(discovered_writer_handle);
+        self.discovered_writer_list
+            .retain(|x| &x.dds_publication_data.key().value != discovered_writer_handle.as_ref());
     }
 
     pub fn qos(&self) -> &DomainParticipantQos {
@@ -153,15 +155,21 @@ impl DomainParticipantEntity {
     }
 
     pub fn ignore_participant(&mut self, handle: InstanceHandle) {
-        self.ignored_participants.insert(handle);
+        if !self.ignored_participants.contains(&handle) {
+            self.ignored_participants.push(handle);
+        }
     }
 
     pub fn ignore_subscription(&mut self, handle: InstanceHandle) {
-        self.ignored_subcriptions.insert(handle);
+        if !self.ignored_subcriptions.contains(&handle) {
+            self.ignored_subcriptions.push(handle);
+        }
     }
 
     pub fn ignore_publication(&mut self, handle: InstanceHandle) {
-        self.ignored_publications.insert(handle);
+        if !self.ignored_publications.contains(&handle) {
+            self.ignored_publications.push(handle);
+        }
     }
 
     pub fn get_default_topic_qos(&self) -> &TopicQos {
@@ -175,30 +183,40 @@ impl DomainParticipantEntity {
     }
 
     pub fn get_discovered_participants(&self) -> Vec<InstanceHandle> {
-        self.discovered_participant_list.keys().cloned().collect()
+        self.discovered_participant_list
+            .iter()
+            .map(|p| InstanceHandle::new(p.dds_participant_data.key().value))
+            .collect()
     }
 
     pub fn get_discovered_participant_data(
         &self,
         participant_handle: &InstanceHandle,
     ) -> Option<&SpdpDiscoveredParticipantData> {
-        self.discovered_participant_list.get(participant_handle)
+        self.discovered_participant_list
+            .iter()
+            .find(|p| &p.dds_participant_data.key().value == participant_handle.as_ref())
     }
 
     pub fn get_discovered_topics(&self) -> Vec<InstanceHandle> {
-        self.discovered_topic_list.keys().cloned().collect()
+        self.discovered_topic_list
+            .iter()
+            .map(|x| InstanceHandle::new(x.key().value))
+            .collect()
     }
 
     pub fn get_discovered_topic_data(
         &self,
         topic_handle: &InstanceHandle,
     ) -> Option<&TopicBuiltinTopicData> {
-        self.discovered_topic_list.get(topic_handle)
+        self.discovered_topic_list
+            .iter()
+            .find(|x| &x.key().value == topic_handle.as_ref())
     }
 
     pub fn find_topic(&self, topic_name: &str) -> Option<&TopicBuiltinTopicData> {
         self.discovered_topic_list
-            .values()
+            .iter()
             .find(|&discovered_topic_data| discovered_topic_data.name() == topic_name)
     }
 
@@ -206,46 +224,56 @@ impl DomainParticipantEntity {
         &mut self,
         discovered_participant_data: SpdpDiscoveredParticipantData,
     ) {
-        self.discovered_participant_list.insert(
-            InstanceHandle::new(discovered_participant_data.dds_participant_data.key().value),
-            discovered_participant_data,
-        );
+        match self.discovered_participant_list.iter_mut().find(|p| {
+            p.dds_participant_data.key() == discovered_participant_data.dds_participant_data.key()
+        }) {
+            Some(x) => *x = discovered_participant_data,
+            None => self
+                .discovered_participant_list
+                .push(discovered_participant_data),
+        }
     }
 
     pub fn remove_discovered_participant(
         &mut self,
         discovered_participant_handle: &InstanceHandle,
     ) {
-        self.discovered_participant_list
-            .remove(discovered_participant_handle);
+        self.discovered_participant_list.retain(|p| {
+            &p.dds_participant_data.key().value != discovered_participant_handle.as_ref()
+        });
     }
 
     pub fn add_discovered_reader(&mut self, discovered_reader_data: DiscoveredReaderData) {
-        self.discovered_reader_list.insert(
-            InstanceHandle::new(discovered_reader_data.dds_subscription_data.key().value),
-            discovered_reader_data,
-        );
+        match self.discovered_reader_list.iter_mut().find(|x| {
+            x.dds_subscription_data.key() == discovered_reader_data.dds_subscription_data.key()
+        }) {
+            Some(x) => *x = discovered_reader_data,
+            None => self.discovered_reader_list.push(discovered_reader_data),
+        }
     }
 
     pub fn remove_discovered_reader(&mut self, discovered_reader_handle: &InstanceHandle) {
-        self.discovered_reader_list.remove(discovered_reader_handle);
+        self.discovered_reader_list
+            .retain(|x| &x.dds_subscription_data.key().value != discovered_reader_handle.as_ref());
     }
 
     pub fn discovered_reader_data_list(&self) -> impl Iterator<Item = &DiscoveredReaderData> {
-        self.discovered_reader_list.values()
+        self.discovered_reader_list.iter()
     }
 
     pub fn add_discovered_writer(&mut self, discovered_writer_data: DiscoveredWriterData) {
-        self.discovered_writer_list.insert(
-            InstanceHandle::new(discovered_writer_data.dds_publication_data.key().value),
-            discovered_writer_data,
-        );
+        match self.discovered_writer_list.iter_mut().find(|x| {
+            x.dds_publication_data.key() == discovered_writer_data.dds_publication_data.key()
+        }) {
+            Some(x) => *x = discovered_writer_data,
+            None => self.discovered_writer_list.push(discovered_writer_data),
+        }
     }
 
     pub fn publication_builtin_topic_data_list(
         &self,
     ) -> impl Iterator<Item = &DiscoveredWriterData> {
-        self.discovered_writer_list.values()
+        self.discovered_writer_list.iter()
     }
 
     pub fn default_subscriber_qos(&self) -> &SubscriberQos {
@@ -335,35 +363,50 @@ impl DomainParticipantEntity {
     }
 
     pub fn get_topic(&self, topic_name: &str) -> Option<&TopicEntity> {
-        self.topic_list.get(topic_name)
+        self.topic_list
+            .iter()
+            .find(|x| x.topic_name() == topic_name)
     }
 
     pub fn get_mut_topic(&mut self, topic_name: &str) -> Option<&mut TopicEntity> {
-        self.topic_list.get_mut(topic_name)
+        self.topic_list
+            .iter_mut()
+            .find(|x| x.topic_name() == topic_name)
     }
 
     pub fn insert_topic(&mut self, topic: TopicEntity) {
-        self.topic_list.insert(topic.topic_name().to_owned(), topic);
+        match self
+            .topic_list
+            .iter_mut()
+            .find(|x| x.topic_name() == topic.topic_name())
+        {
+            Some(x) => *x = topic,
+            None => self.topic_list.push(topic),
+        }
     }
 
     pub fn remove_topic(&mut self, topic_name: &str) -> Option<TopicEntity> {
-        self.topic_list.remove(topic_name)
+        let index = self
+            .topic_list
+            .iter()
+            .position(|x| x.topic_name() == topic_name)?;
+        Some(self.topic_list.remove(index))
     }
 
     pub fn delete_all_topics(&mut self) {
         self.topic_list
-            .retain(|_, x| BUILT_IN_TOPIC_NAME_LIST.contains(&x.topic_name()));
+            .retain(|x| BUILT_IN_TOPIC_NAME_LIST.contains(&x.topic_name()));
     }
 
     pub fn topic_list(&mut self) -> impl Iterator<Item = &TopicEntity> {
-        self.topic_list.values()
+        self.topic_list.iter()
     }
 
     pub fn is_empty(&self) -> bool {
         let no_user_defined_topics = self
             .topic_list
-            .keys()
-            .filter(|t| !BUILT_IN_TOPIC_NAME_LIST.contains(&t.as_ref()))
+            .iter()
+            .filter(|t| !BUILT_IN_TOPIC_NAME_LIST.contains(&t.topic_name()))
             .count()
             == 0;
 
@@ -400,6 +443,6 @@ impl DomainParticipantEntity {
     pub fn discovered_participant_list(
         &self,
     ) -> impl Iterator<Item = &SpdpDiscoveredParticipantData> {
-        self.discovered_participant_list.values()
+        self.discovered_participant_list.iter()
     }
 }
