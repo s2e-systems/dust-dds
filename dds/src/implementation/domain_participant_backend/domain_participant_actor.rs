@@ -301,8 +301,6 @@ impl DomainParticipantActor {
             .transport
             .create_stateful_writer(entity_id, reliablity_kind);
 
-        let topic_name = topic_name;
-
         let status_condition = Actor::spawn(
             StatusConditionActor::default(),
             &self.listener_executor.handle(),
