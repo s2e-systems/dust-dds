@@ -336,6 +336,93 @@ impl DomainParticipantActor {
         Ok((data_writer_handle, writer_status_condition_address))
     }
 
+    pub fn delete_data_writer(
+        &mut self,
+        publisher_handle: InstanceHandle,
+        datawriter_handle: InstanceHandle,
+    ) -> DdsResult<()> {
+        let Some(publisher) = self.domain_participant.get_mut_publisher(publisher_handle) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        let Some(data_writer) = publisher.remove_data_writer(datawriter_handle) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        self.announce_deleted_data_writer(data_writer);
+        Ok(())
+    }
+
+    fn get_default_datawriter_qos(
+        &mut self,
+        publisher_handle: InstanceHandle,
+    ) -> DdsResult<DataWriterQos> {
+        let Some(publisher) = self.domain_participant.get_mut_publisher(publisher_handle) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        Ok(publisher.default_datawriter_qos().clone())
+    }
+
+    fn set_default_datawriter_qos(
+        &mut self,
+        publisher_handle: InstanceHandle,
+        qos: QosKind<DataWriterQos>,
+    ) -> DdsResult<()> {
+        let Some(publisher) = self.domain_participant.get_mut_publisher(publisher_handle) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        let qos = match qos {
+            QosKind::Default => DataWriterQos::default(),
+            QosKind::Specific(q) => q,
+        };
+        publisher.set_default_datawriter_qos(qos)
+    }
+
+    fn set_publisher_qos(
+        &mut self,
+        publisher_handle: InstanceHandle,
+        qos: QosKind<PublisherQos>,
+    ) -> DdsResult<()> {
+        let qos = match qos {
+            QosKind::Default => self.domain_participant.default_publisher_qos().clone(),
+            QosKind::Specific(q) => q,
+        };
+        let Some(publisher) = self.domain_participant.get_mut_publisher(publisher_handle) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        publisher.set_qos(qos)
+    }
+
+    fn get_publisher_qos(&mut self, publisher_handle: InstanceHandle) -> DdsResult<PublisherQos> {
+        let Some(publisher) = self.domain_participant.get_mut_publisher(publisher_handle) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        Ok(publisher.qos().clone())
+    }
+
+    fn set_publisher_listener(
+        &mut self,
+        publisher_handle: InstanceHandle,
+        a_listener: Option<Box<dyn PublisherListenerAsync + Send>>,
+        mask: Vec<StatusKind>,
+    ) -> DdsResult<()> {
+        let Some(publisher) = self.domain_participant.get_mut_publisher(publisher_handle) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        publisher.set_listener(
+            a_listener.map(|l| {
+                Actor::spawn(
+                    PublisherListenerActor::new(l),
+                    &self.listener_executor.handle(),
+                )
+            }),
+            mask,
+        );
+        Ok(())
+    }
+
     fn enable_data_writer(
         &mut self,
         publisher_handle: InstanceHandle,
@@ -460,6 +547,20 @@ impl DomainParticipantActor {
         {
             if let Ok(serialized_data) = discovered_writer_data.serialize_data() {
                 dw.write_w_timestamp(serialized_data, timestamp).ok();
+            }
+        }
+    }
+
+    fn announce_deleted_data_writer(&mut self, data_writer: DataWriterEntity) {
+        let timestamp = self.domain_participant.get_current_time();
+        if let Some(dw) = self
+            .domain_participant
+            .builtin_publisher_mut()
+            .lookup_datawriter_mut(DCPS_PUBLICATION)
+        {
+            let key = InstanceHandle::new(data_writer.transport_writer().guid().into());
+            if let Ok(serialized_data) = key.serialize_data() {
+                dw.dispose_w_timestamp(serialized_data, timestamp).ok();
             }
         }
     }
@@ -843,6 +944,7 @@ pub enum DomainParticipantMail {
         reply_sender:
             OneshotSender<DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)>>,
     },
+    // ******** Publisher Service
     CreateDataWriter {
         publisher_handle: InstanceHandle,
         topic_name: String,
@@ -853,6 +955,36 @@ pub enum DomainParticipantMail {
         reply_sender:
             OneshotSender<DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)>>,
     },
+    DeleteDataWriter {
+        publisher_handle: InstanceHandle,
+        datawriter_handle: InstanceHandle,
+        reply_sender: OneshotSender<DdsResult<()>>,
+    },
+    GetDefaultDataWriterQos {
+        publisher_handle: InstanceHandle,
+        reply_sender: OneshotSender<DdsResult<DataWriterQos>>,
+    },
+    SetDefaultDataWriterQos {
+        publisher_handle: InstanceHandle,
+        qos: QosKind<DataWriterQos>,
+        reply_sender: OneshotSender<DdsResult<()>>,
+    },
+    GetPublisherQos {
+        publisher_handle: InstanceHandle,
+        reply_sender: OneshotSender<DdsResult<PublisherQos>>,
+    },
+    SetPublisherQos {
+        publisher_handle: InstanceHandle,
+        qos: QosKind<PublisherQos>,
+        reply_sender: OneshotSender<DdsResult<()>>,
+    },
+    SetPublisherListener {
+        publisher_handle: InstanceHandle,
+        a_listener: Option<Box<dyn PublisherListenerAsync + Send>>,
+        mask: Vec<StatusKind>,
+        reply_sender: OneshotSender<DdsResult<()>>,
+    },
+    // ****** DataWriter Service
     EnableDataWriter {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
@@ -896,6 +1028,57 @@ impl MailHandler<DomainParticipantMail> for DomainParticipantActor {
                     participant_address,
                 ));
             }
+            DomainParticipantMail::DeleteDataWriter {
+                publisher_handle,
+                datawriter_handle,
+                reply_sender,
+            } => {
+                reply_sender.send(self.delete_data_writer(publisher_handle, datawriter_handle));
+            }
+            DomainParticipantMail::GetDefaultDataWriterQos {
+                publisher_handle,
+                reply_sender,
+            } => {
+                reply_sender.send(self.get_default_datawriter_qos(publisher_handle));
+            }
+            DomainParticipantMail::SetDefaultDataWriterQos {
+                publisher_handle,
+                qos,
+                reply_sender,
+            } => {
+                reply_sender.send(self.set_default_datawriter_qos(publisher_handle, qos));
+            }
+            DomainParticipantMail::SetDataWriterQos {
+                publisher_handle,
+                data_writer_handle,
+                qos,
+                reply_sender,
+            } => reply_sender.send(self.set_data_writer_qos(
+                publisher_handle,
+                data_writer_handle,
+                qos,
+            )),
+            DomainParticipantMail::GetPublisherQos {
+                publisher_handle,
+                reply_sender,
+            } => {
+                reply_sender.send(self.get_publisher_qos(publisher_handle));
+            }
+            DomainParticipantMail::SetPublisherQos {
+                publisher_handle,
+                qos,
+                reply_sender,
+            } => {
+                reply_sender.send(self.set_publisher_qos(publisher_handle, qos));
+            }
+            DomainParticipantMail::SetPublisherListener {
+                publisher_handle,
+                a_listener,
+                mask,
+                reply_sender,
+            } => {
+                reply_sender.send(self.set_publisher_listener(publisher_handle, a_listener, mask));
+            }
             DomainParticipantMail::EnableDataWriter {
                 publisher_handle,
                 data_writer_handle,
@@ -908,16 +1091,6 @@ impl MailHandler<DomainParticipantMail> for DomainParticipantActor {
                     participant_address,
                 ));
             }
-            DomainParticipantMail::SetDataWriterQos {
-                publisher_handle,
-                data_writer_handle,
-                qos,
-                reply_sender,
-            } => reply_sender.send(self.set_data_writer_qos(
-                publisher_handle,
-                data_writer_handle,
-                qos,
-            )),
         };
     }
 }
