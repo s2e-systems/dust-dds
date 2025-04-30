@@ -17,7 +17,7 @@ use crate::{
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
-        qos::{DataWriterQos, QosKind},
+        qos::DataWriterQos,
         status::{OfferedDeadlineMissedStatus, PublicationMatchedStatus, StatusKind},
         time::{Duration, DurationKind, Time},
     },
@@ -27,7 +27,7 @@ use crate::{
     },
 };
 
-use super::{discovery_service, event_service, message_service};
+use super::{event_service, message_service};
 
 pub struct UnregisterInstance {
     pub publisher_handle: InstanceHandle,
@@ -419,55 +419,6 @@ impl MailHandler<GetMatchedSubscriptions> for DomainParticipantActor {
     }
 }
 
-pub struct SetDataWriterQos {
-    pub publisher_handle: InstanceHandle,
-    pub data_writer_handle: InstanceHandle,
-    pub qos: QosKind<DataWriterQos>,
-    pub participant_address: ActorAddress<DomainParticipantActor>,
-    pub reply_sender: OneshotSender<DdsResult<()>>,
-}
-impl MailHandler<SetDataWriterQos> for DomainParticipantActor {
-    fn handle(&mut self, message: SetDataWriterQos) {
-        let Some(publisher) = self
-            .domain_participant
-            .get_mut_publisher(message.publisher_handle)
-        else {
-            message.reply_sender.send(Err(DdsError::AlreadyDeleted));
-            return;
-        };
-        let qos = match message.qos {
-            QosKind::Default => publisher.default_datawriter_qos().clone(),
-            QosKind::Specific(q) => q,
-        };
-        let Some(data_writer) = publisher
-            .data_writer_list_mut()
-            .find(|x| x.instance_handle() == message.data_writer_handle)
-        else {
-            message.reply_sender.send(Err(DdsError::AlreadyDeleted));
-            return;
-        };
-
-        match data_writer.set_qos(qos) {
-            Ok(_) => (),
-            Err(e) => {
-                message.reply_sender.send(Err(e));
-                return;
-            }
-        }
-        if data_writer.enabled() {
-            message
-                .participant_address
-                .send_actor_mail(discovery_service::AnnounceDataWriter {
-                    publisher_handle: message.publisher_handle,
-                    data_writer_handle: message.data_writer_handle,
-                })
-                .ok();
-        }
-
-        message.reply_sender.send(Ok(()));
-    }
-}
-
 pub struct GetDataWriterQos {
     pub publisher_handle: InstanceHandle,
     pub data_writer_handle: InstanceHandle,
@@ -491,52 +442,6 @@ impl MailHandler<GetDataWriterQos> for DomainParticipantActor {
         };
 
         message.reply_sender.send(Ok(data_writer.qos().clone()));
-    }
-}
-
-pub struct Enable {
-    pub publisher_handle: InstanceHandle,
-    pub data_writer_handle: InstanceHandle,
-    pub participant_address: ActorAddress<DomainParticipantActor>,
-}
-impl MailHandler<Enable> for DomainParticipantActor {
-    fn handle(&mut self, message: Enable) {
-        let Some(publisher) = self
-            .domain_participant
-            .get_mut_publisher(message.publisher_handle)
-        else {
-            return;
-        };
-        let Some(data_writer) = publisher.get_mut_data_writer(message.data_writer_handle) else {
-            return;
-        };
-        if !data_writer.enabled() {
-            data_writer.enable();
-
-            for discovered_reader_data in self
-                .domain_participant
-                .discovered_reader_data_list()
-                .cloned()
-            {
-                message
-                    .participant_address
-                    .send_actor_mail(discovery_service::AddDiscoveredReader {
-                        discovered_reader_data,
-                        publisher_handle: message.publisher_handle,
-                        data_writer_handle: message.data_writer_handle,
-                        participant_address: message.participant_address.clone(),
-                    })
-                    .ok();
-            }
-
-            message
-                .participant_address
-                .send_actor_mail(discovery_service::AnnounceDataWriter {
-                    publisher_handle: message.publisher_handle,
-                    data_writer_handle: message.data_writer_handle,
-                })
-                .ok();
-        }
     }
 }
 

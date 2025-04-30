@@ -9,7 +9,8 @@ use crate::{
     implementation::{
         any_data_writer_listener::AnyDataWriterListener,
         domain_participant_backend::{
-            domain_participant_actor::DomainParticipantActor, services::data_writer_service,
+            domain_participant_actor::{DomainParticipantActor, DomainParticipantMail},
+            services::data_writer_service,
         },
         status_condition::status_condition_actor::StatusConditionActor,
     },
@@ -352,11 +353,10 @@ impl<Foo> DataWriterAsync<Foo> {
     pub async fn set_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
-            .send_actor_mail(data_writer_service::SetDataWriterQos {
+            .send_actor_mail(DomainParticipantMail::SetDataWriterQos {
                 publisher_handle: self.publisher.get_instance_handle().await,
                 data_writer_handle: self.handle,
                 qos,
-                participant_address: self.participant_address().clone(),
                 reply_sender,
             })?;
         reply_receiver.await?
@@ -390,13 +390,15 @@ impl<Foo> DataWriterAsync<Foo> {
     /// Async version of [`enable`](crate::publication::data_writer::DataWriter::enable).
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
+        let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
-            .send_actor_mail(data_writer_service::Enable {
+            .send_actor_mail(DomainParticipantMail::EnableDataWriter {
                 publisher_handle: self.publisher.get_instance_handle().await,
                 data_writer_handle: self.handle,
                 participant_address: self.participant_address().clone(),
+                reply_sender,
             })?;
-        Ok(())
+        reply_receiver.await?
     }
 
     /// Async version of [`get_instance_handle`](crate::publication::data_writer::DataWriter::get_instance_handle).

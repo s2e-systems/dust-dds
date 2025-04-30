@@ -9,7 +9,7 @@ use crate::{
     implementation::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
-            discovered_writer_data::{DiscoveredWriterData, WriterProxy},
+            discovered_writer_data::DiscoveredWriterData,
             spdp_discovered_participant_data::{
                 BuiltinEndpointQos, BuiltinEndpointSet, ParticipantProxy,
                 SpdpDiscoveredParticipantData,
@@ -128,73 +128,6 @@ impl MailHandler<AnnounceDeletedParticipant> for DomainParticipantActor {
                 if let Ok(serialized_data) = key.serialize_data() {
                     dw.dispose_w_timestamp(serialized_data, timestamp).ok();
                 }
-            }
-        }
-    }
-}
-
-pub struct AnnounceDataWriter {
-    pub publisher_handle: InstanceHandle,
-    pub data_writer_handle: InstanceHandle,
-}
-impl MailHandler<AnnounceDataWriter> for DomainParticipantActor {
-    fn handle(&mut self, message: AnnounceDataWriter) {
-        let Some(publisher) = self
-            .domain_participant
-            .get_publisher(message.publisher_handle)
-        else {
-            return;
-        };
-        let Some(data_writer) = publisher.get_data_writer(message.data_writer_handle) else {
-            return;
-        };
-        let Some(topic) = self.domain_participant.get_topic(data_writer.topic_name()) else {
-            return;
-        };
-
-        let topic_data = topic.qos().topic_data.clone();
-
-        let dds_publication_data = PublicationBuiltinTopicData {
-            key: BuiltInTopicKey {
-                value: data_writer.transport_writer().guid().into(),
-            },
-            participant_key: BuiltInTopicKey { value: [0; 16] },
-            topic_name: data_writer.topic_name().to_owned(),
-            type_name: data_writer.type_name().to_owned(),
-            durability: data_writer.qos().durability.clone(),
-            deadline: data_writer.qos().deadline.clone(),
-            latency_budget: data_writer.qos().latency_budget.clone(),
-            liveliness: data_writer.qos().liveliness.clone(),
-            reliability: data_writer.qos().reliability.clone(),
-            lifespan: data_writer.qos().lifespan.clone(),
-            user_data: data_writer.qos().user_data.clone(),
-            ownership: data_writer.qos().ownership.clone(),
-            ownership_strength: data_writer.qos().ownership_strength.clone(),
-            destination_order: data_writer.qos().destination_order.clone(),
-            presentation: publisher.qos().presentation.clone(),
-            partition: publisher.qos().partition.clone(),
-            topic_data,
-            group_data: publisher.qos().group_data.clone(),
-            representation: data_writer.qos().representation.clone(),
-        };
-        let writer_proxy = WriterProxy {
-            remote_writer_guid: data_writer.transport_writer().guid(),
-            remote_group_entity_id: ENTITYID_UNKNOWN,
-            unicast_locator_list: vec![],
-            multicast_locator_list: vec![],
-        };
-        let discovered_writer_data = DiscoveredWriterData {
-            dds_publication_data,
-            writer_proxy,
-        };
-        let timestamp = self.domain_participant.get_current_time();
-        if let Some(dw) = self
-            .domain_participant
-            .builtin_publisher_mut()
-            .lookup_datawriter_mut(DCPS_PUBLICATION)
-        {
-            if let Ok(serialized_data) = discovered_writer_data.serialize_data() {
-                dw.write_w_timestamp(serialized_data, timestamp).ok();
             }
         }
     }

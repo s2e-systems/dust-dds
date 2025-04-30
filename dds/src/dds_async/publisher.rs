@@ -7,7 +7,8 @@ use crate::{
     implementation::{
         any_data_writer_listener::AnyDataWriterListener,
         domain_participant_backend::{
-            domain_participant_actor::DomainParticipantActor, services::publisher_service,
+            domain_participant_actor::{DomainParticipantActor, DomainParticipantMail},
+            services::publisher_service,
         },
         status_condition::status_condition_actor::StatusConditionActor,
     },
@@ -64,7 +65,7 @@ impl PublisherAsync {
         let listener = a_listener.map::<Box<dyn AnyDataWriterListener + Send>, _>(|b| Box::new(b));
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
-            .send_actor_mail(publisher_service::CreateDataWriter {
+            .send_actor_mail(DomainParticipantMail::CreateDataWriter {
                 publisher_handle: self.handle,
                 topic_name,
                 qos,

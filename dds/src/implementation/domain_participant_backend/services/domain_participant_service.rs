@@ -7,8 +7,7 @@ use crate::{
     },
     dds_async::{
         domain_participant_listener::DomainParticipantListenerAsync,
-        publisher_listener::PublisherListenerAsync, subscriber_listener::SubscriberListenerAsync,
-        topic_listener::TopicListenerAsync,
+        subscriber_listener::SubscriberListenerAsync, topic_listener::TopicListenerAsync,
     },
     implementation::{
         domain_participant_backend::{
@@ -19,7 +18,6 @@ use crate::{
         },
         listeners::{
             domain_participant_listener::DomainParticipantListenerActor,
-            publisher_listener::PublisherListenerActor,
             subscriber_listener::SubscriberListenerActor, topic_listener::TopicListenerActor,
         },
         status_condition::status_condition_actor::StatusConditionActor,
@@ -46,58 +44,6 @@ pub const BUILT_IN_TOPIC_NAME_LIST: [&str; 4] = [
     DCPS_PUBLICATION,
     DCPS_SUBSCRIPTION,
 ];
-
-pub struct CreateUserDefinedPublisher {
-    pub qos: QosKind<PublisherQos>,
-    pub a_listener: Option<Box<dyn PublisherListenerAsync + Send>>,
-    pub mask: Vec<StatusKind>,
-    pub reply_sender:
-        OneshotSender<DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)>>,
-}
-impl MailHandler<CreateUserDefinedPublisher> for DomainParticipantActor {
-    fn handle(&mut self, message: CreateUserDefinedPublisher) {
-        let publisher_qos = match message.qos {
-            QosKind::Default => self.domain_participant.default_publisher_qos().clone(),
-            QosKind::Specific(q) => q,
-        };
-
-        let publisher_handle = self.instance_handle_counter.generate_new_instance_handle();
-        let status_condition = Actor::spawn(
-            StatusConditionActor::default(),
-            &self.listener_executor.handle(),
-        );
-        let publisher_status_condition_address = status_condition.address();
-        let listener = message.a_listener.map(|l| {
-            Actor::spawn(
-                PublisherListenerActor::new(l),
-                &self.listener_executor.handle(),
-            )
-        });
-        let mut publisher = PublisherEntity::new(
-            publisher_qos,
-            publisher_handle,
-            listener,
-            message.mask,
-            status_condition,
-        );
-
-        if self.domain_participant.enabled()
-            && self
-                .domain_participant
-                .qos()
-                .entity_factory
-                .autoenable_created_entities
-        {
-            publisher.enable();
-        }
-
-        self.domain_participant.insert_publisher(publisher);
-
-        message
-            .reply_sender
-            .send(Ok((publisher_handle, publisher_status_condition_address)));
-    }
-}
 
 pub struct DeleteUserDefinedPublisher {
     pub participant_handle: InstanceHandle,
