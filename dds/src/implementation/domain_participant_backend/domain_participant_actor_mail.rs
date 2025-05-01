@@ -11,7 +11,7 @@ use crate::{
         error::DdsResult,
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, QosKind},
-        status::StatusKind,
+        status::{OfferedDeadlineMissedStatus, StatusKind},
         time::{Duration, Time},
     },
     runtime::{
@@ -107,6 +107,11 @@ pub enum WriterServiceMail {
         data_writer_handle: InstanceHandle,
         timeout: Duration,
         reply_sender: OneshotSender<Pin<Box<dyn Future<Output = DdsResult<()>> + Send>>>,
+    },
+    GetOfferedDeadlineMissedStatus {
+        publisher_handle: InstanceHandle,
+        data_writer_handle: InstanceHandle,
+        reply_sender: OneshotSender<DdsResult<OfferedDeadlineMissedStatus>>,
     },
     EnableDataWriter {
         publisher_handle: InstanceHandle,
@@ -300,6 +305,13 @@ impl DomainParticipantActor {
                 data_writer_handle,
                 timeout,
             )),
+            WriterServiceMail::GetOfferedDeadlineMissedStatus {
+                publisher_handle,
+                data_writer_handle,
+                reply_sender,
+            } => reply_sender.send(
+                self.get_offered_deadline_missed_status(publisher_handle, data_writer_handle),
+            ),
             WriterServiceMail::EnableDataWriter {
                 publisher_handle,
                 data_writer_handle,

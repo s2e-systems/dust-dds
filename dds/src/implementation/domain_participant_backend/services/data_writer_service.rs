@@ -10,41 +10,13 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::DataWriterQos,
-        status::{OfferedDeadlineMissedStatus, PublicationMatchedStatus, StatusKind},
+        status::{PublicationMatchedStatus, StatusKind},
     },
     runtime::{
         actor::{Actor, MailHandler},
         oneshot::OneshotSender,
     },
 };
-
-pub struct GetOfferedDeadlineMissedStatus {
-    pub publisher_handle: InstanceHandle,
-    pub data_writer_handle: InstanceHandle,
-    pub reply_sender: OneshotSender<DdsResult<OfferedDeadlineMissedStatus>>,
-}
-impl MailHandler<GetOfferedDeadlineMissedStatus> for DomainParticipantActor {
-    fn handle(&mut self, message: GetOfferedDeadlineMissedStatus) {
-        let Some(publisher) = self
-            .domain_participant
-            .get_mut_publisher(message.publisher_handle)
-        else {
-            message.reply_sender.send(Err(DdsError::AlreadyDeleted));
-            return;
-        };
-        let Some(data_writer) = publisher
-            .data_writer_list_mut()
-            .find(|x| x.instance_handle() == message.data_writer_handle)
-        else {
-            message.reply_sender.send(Err(DdsError::AlreadyDeleted));
-            return;
-        };
-
-        message
-            .reply_sender
-            .send(Ok(data_writer.get_offered_deadline_missed_status()))
-    }
-}
 
 pub struct GetPublicationMatchedStatus {
     pub publisher_handle: InstanceHandle,

@@ -274,13 +274,14 @@ impl<Foo> DataWriterAsync<Foo> {
         &self,
     ) -> DdsResult<OfferedDeadlineMissedStatus> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant_address().send_actor_mail(
-            data_writer_service::GetOfferedDeadlineMissedStatus {
-                publisher_handle: self.publisher.get_instance_handle().await,
-                data_writer_handle: self.handle,
-                reply_sender,
-            },
-        )?;
+        self.participant_address()
+            .send_actor_mail(DomainParticipantMail::WriterService(
+                WriterServiceMail::GetOfferedDeadlineMissedStatus {
+                    publisher_handle: self.publisher.get_instance_handle().await,
+                    data_writer_handle: self.handle,
+                    reply_sender,
+                },
+            ))?;
         reply_receiver.await?
     }
 

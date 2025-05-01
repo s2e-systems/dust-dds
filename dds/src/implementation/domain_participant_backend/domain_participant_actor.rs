@@ -49,7 +49,7 @@ use crate::{
             LIVELINESS_QOS_POLICY_ID, OWNERSHIP_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID,
             RELIABILITY_QOS_POLICY_ID, XCDR_DATA_REPRESENTATION,
         },
-        status::StatusKind,
+        status::{OfferedDeadlineMissedStatus, StatusKind},
         time::{Duration, DurationKind, Time},
     },
     runtime::{
@@ -655,6 +655,24 @@ impl DomainParticipantActor {
                 .await
                 .map_err(|_| DdsError::Timeout)?
         })
+    }
+
+    pub fn get_offered_deadline_missed_status(
+        &mut self,
+        publisher_handle: InstanceHandle,
+        data_writer_handle: InstanceHandle,
+    ) -> DdsResult<OfferedDeadlineMissedStatus> {
+        let Some(publisher) = self.domain_participant.get_mut_publisher(publisher_handle) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        let Some(data_writer) = publisher
+            .data_writer_list_mut()
+            .find(|x| x.instance_handle() == data_writer_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        Ok(data_writer.get_offered_deadline_missed_status())
     }
 
     pub fn enable_data_writer(
