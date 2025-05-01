@@ -445,11 +445,11 @@ impl DomainParticipantActor {
         type_support: Arc<dyn DynamicType + Send + Sync>,
     ) -> DdsResult<Option<(InstanceHandle, ActorAddress<StatusConditionActor>, String)>> {
         if let Some(topic) = self.domain_participant.get_topic(&topic_name) {
-            return Ok(Some((
+            Ok(Some((
                 topic.instance_handle(),
                 topic.status_condition().address(),
                 topic.type_name().to_owned(),
-            )));
+            )))
         } else {
             if let Some(discovered_topic_data) = self.domain_participant.find_topic(&topic_name) {
                 let qos = TopicQos {
@@ -902,7 +902,7 @@ impl DomainParticipantActor {
                     self.backend_executor.handle().spawn(async move {
                         timer_handle.sleep(sleep_duration.into()).await;
                         participant_address
-                            .send_actor_mail(DomainParticipantMail::MessageService(
+                            .send_actor_mail(DomainParticipantMail::Message(
                                 MessageServiceMail::RemoveWriterChange {
                                     publisher_handle,
                                     data_writer_handle,
@@ -929,7 +929,7 @@ impl DomainParticipantActor {
                 loop {
                     timer_handle.sleep(deadline_missed_period.into()).await;
                     participant_address
-                        .send_actor_mail(DomainParticipantMail::EventService(
+                        .send_actor_mail(DomainParticipantMail::Event(
                             EventServiceMail::OfferedDeadlineMissed {
                                 publisher_handle,
                                 data_writer_handle,
@@ -993,7 +993,7 @@ impl DomainParticipantActor {
                         loop {
                             let (reply_sender, reply_receiver) = oneshot();
                             participant_address
-                                .send_actor_mail(DomainParticipantMail::MessageService(
+                                .send_actor_mail(DomainParticipantMail::Message(
                                     MessageServiceMail::AreAllChangesAcknowledged {
                                         publisher_handle,
                                         data_writer_handle,

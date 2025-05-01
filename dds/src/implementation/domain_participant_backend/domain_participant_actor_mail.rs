@@ -243,33 +243,33 @@ pub enum EventServiceMail {
 }
 
 pub enum DomainParticipantMail {
-    ParticipantService(ParticipantServiceMail),
-    TopicService(TopicServiceMail),
-    PublisherService(PublisherServiceMail),
-    WriterService(WriterServiceMail),
-    MessageService(MessageServiceMail),
-    EventService(EventServiceMail),
+    Participant(ParticipantServiceMail),
+    Topic(TopicServiceMail),
+    Publisher(PublisherServiceMail),
+    Writer(WriterServiceMail),
+    Message(MessageServiceMail),
+    Event(EventServiceMail),
 }
 
 impl MailHandler<DomainParticipantMail> for DomainParticipantActor {
     fn handle(&mut self, message: DomainParticipantMail) {
         match message {
-            DomainParticipantMail::ParticipantService(participant_service_mail) => {
+            DomainParticipantMail::Participant(participant_service_mail) => {
                 self.handle_participant_service(participant_service_mail)
             }
-            DomainParticipantMail::TopicService(topic_service_mail) => {
+            DomainParticipantMail::Topic(topic_service_mail) => {
                 self.handle_topic_service(topic_service_mail);
             }
-            DomainParticipantMail::PublisherService(publisher_service_mail) => {
+            DomainParticipantMail::Publisher(publisher_service_mail) => {
                 self.handle_publisher_service(publisher_service_mail)
             }
-            DomainParticipantMail::WriterService(writer_service_mail) => {
+            DomainParticipantMail::Writer(writer_service_mail) => {
                 self.handle_writer_service(writer_service_mail);
             }
-            DomainParticipantMail::MessageService(message_service_mail) => {
+            DomainParticipantMail::Message(message_service_mail) => {
                 self.handle_message_service(message_service_mail)
             }
-            DomainParticipantMail::EventService(event_service_mail) => {
+            DomainParticipantMail::Event(event_service_mail) => {
                 self.handle_event_service(event_service_mail)
             }
         };

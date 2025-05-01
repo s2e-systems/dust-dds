@@ -54,7 +54,7 @@ impl TopicAsync {
     pub async fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant.participant_address().send_actor_mail(
-            DomainParticipantMail::TopicService(TopicServiceMail::GetInconsistentTopicStatus {
+            DomainParticipantMail::Topic(TopicServiceMail::GetInconsistentTopicStatus {
                 topic_name: self.topic_name.clone(),
                 reply_sender,
             }),
@@ -89,7 +89,7 @@ impl TopicAsync {
     pub async fn set_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant.participant_address().send_actor_mail(
-            DomainParticipantMail::TopicService(TopicServiceMail::SetQos {
+            DomainParticipantMail::Topic(TopicServiceMail::SetQos {
                 topic_name: self.topic_name.clone(),
                 topic_qos: qos,
                 reply_sender,
@@ -104,7 +104,7 @@ impl TopicAsync {
     pub async fn get_qos(&self) -> DdsResult<TopicQos> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant.participant_address().send_actor_mail(
-            DomainParticipantMail::TopicService(TopicServiceMail::GetQos {
+            DomainParticipantMail::Topic(TopicServiceMail::GetQos {
                 topic_name: self.topic_name.clone(),
                 reply_sender,
             }),
@@ -130,7 +130,7 @@ impl TopicAsync {
     pub async fn enable(&self) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant.participant_address().send_actor_mail(
-            DomainParticipantMail::TopicService(TopicServiceMail::Enable {
+            DomainParticipantMail::Topic(TopicServiceMail::Enable {
                 topic_name: self.topic_name.clone(),
                 reply_sender,
             }),
@@ -161,7 +161,7 @@ impl TopicAsync {
     pub async fn get_type_support(&self) -> DdsResult<Arc<dyn DynamicType + Send + Sync>> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant.participant_address().send_actor_mail(
-            DomainParticipantMail::TopicService(TopicServiceMail::GetTypeSupport {
+            DomainParticipantMail::Topic(TopicServiceMail::GetTypeSupport {
                 topic_name: self.topic_name.clone(),
                 reply_sender,
             }),

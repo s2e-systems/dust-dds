@@ -74,7 +74,7 @@ impl DomainParticipantAsync {
     ) -> DdsResult<PublisherAsync> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address
-            .send_actor_mail(DomainParticipantMail::ParticipantService(
+            .send_actor_mail(DomainParticipantMail::Participant(
                 ParticipantServiceMail::CreateUserDefinedPublisher {
                     qos,
                     a_listener,
@@ -93,7 +93,7 @@ impl DomainParticipantAsync {
     pub async fn delete_publisher(&self, a_publisher: &PublisherAsync) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address
-            .send_actor_mail(DomainParticipantMail::ParticipantService(
+            .send_actor_mail(DomainParticipantMail::Participant(
                 ParticipantServiceMail::DeleteUserDefinedPublisher {
                     participant_handle: a_publisher.get_participant().handle,
                     publisher_handle: a_publisher.get_instance_handle().await,
@@ -173,7 +173,7 @@ impl DomainParticipantAsync {
     ) -> DdsResult<TopicAsync> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address
-            .send_actor_mail(DomainParticipantMail::ParticipantService(
+            .send_actor_mail(DomainParticipantMail::Participant(
                 ParticipantServiceMail::CreateTopic {
                     topic_name: topic_name.to_string(),
                     type_name: type_name.to_string(),
@@ -200,7 +200,7 @@ impl DomainParticipantAsync {
     pub async fn delete_topic(&self, a_topic: &TopicAsync) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address
-            .send_actor_mail(DomainParticipantMail::ParticipantService(
+            .send_actor_mail(DomainParticipantMail::Participant(
                 ParticipantServiceMail::DeleteUserDefinedTopic {
                     participant_handle: a_topic.get_participant().handle,
                     topic_name: a_topic.get_name(),
@@ -231,7 +231,7 @@ impl DomainParticipantAsync {
                     loop {
                         let (reply_sender, reply_receiver) = oneshot();
                         participant_address.send_actor_mail(
-                            DomainParticipantMail::ParticipantService(
+                            DomainParticipantMail::Participant(
                                 ParticipantServiceMail::FindTopic {
                                     topic_name: topic_name.clone(),
                                     type_support: type_support.clone(),
@@ -262,7 +262,7 @@ impl DomainParticipantAsync {
     pub async fn lookup_topicdescription(&self, topic_name: &str) -> DdsResult<Option<TopicAsync>> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address
-            .send_actor_mail(DomainParticipantMail::ParticipantService(
+            .send_actor_mail(DomainParticipantMail::Participant(
                 ParticipantServiceMail::LookupTopicdescription {
                     topic_name: topic_name.to_owned(),
                     reply_sender,

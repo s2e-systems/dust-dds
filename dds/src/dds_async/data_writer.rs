@@ -134,7 +134,7 @@ where
         let (reply_sender, reply_receiver) = oneshot();
         let serialized_data = instance.serialize_data()?;
         self.participant_address()
-            .send_actor_mail(DomainParticipantMail::WriterService(
+            .send_actor_mail(DomainParticipantMail::Writer(
                 WriterServiceMail::UnregisterInstance {
                     publisher_handle: self.publisher.get_instance_handle().await,
                     data_writer_handle: self.handle,
@@ -162,7 +162,7 @@ where
         let (reply_sender, reply_receiver) = oneshot();
         let serialized_data = instance.serialize_data()?;
         self.participant_address()
-            .send_actor_mail(DomainParticipantMail::WriterService(
+            .send_actor_mail(DomainParticipantMail::Writer(
                 WriterServiceMail::LookupInstance {
                     publisher_handle: self.publisher.get_instance_handle().await,
                     data_writer_handle: self.handle,
@@ -195,7 +195,7 @@ where
         let (reply_sender, reply_receiver) = oneshot();
         let serialized_data = data.serialize_data()?;
         self.participant_address()
-            .send_actor_mail(DomainParticipantMail::WriterService(
+            .send_actor_mail(DomainParticipantMail::Writer(
                 WriterServiceMail::WriteWTimestamp {
                     participant_address: self.participant_address().clone(),
                     publisher_handle: self.publisher.get_instance_handle().await,
@@ -230,7 +230,7 @@ where
         let (reply_sender, reply_receiver) = oneshot();
         let serialized_data = data.serialize_data()?;
         self.participant_address()
-            .send_actor_mail(DomainParticipantMail::WriterService(
+            .send_actor_mail(DomainParticipantMail::Writer(
                 WriterServiceMail::DisposeWTimestamp {
                     publisher_handle: self.publisher.get_instance_handle().await,
                     data_writer_handle: self.handle,
@@ -249,7 +249,7 @@ impl<Foo> DataWriterAsync<Foo> {
     pub async fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
-            .send_actor_mail(DomainParticipantMail::WriterService(
+            .send_actor_mail(DomainParticipantMail::Writer(
                 WriterServiceMail::WaitForAcknowledgments {
                     participant_address: self.participant_address().clone(),
                     publisher_handle: self.publisher.get_instance_handle().await,
@@ -274,7 +274,7 @@ impl<Foo> DataWriterAsync<Foo> {
     ) -> DdsResult<OfferedDeadlineMissedStatus> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
-            .send_actor_mail(DomainParticipantMail::WriterService(
+            .send_actor_mail(DomainParticipantMail::Writer(
                 WriterServiceMail::GetOfferedDeadlineMissedStatus {
                     publisher_handle: self.publisher.get_instance_handle().await,
                     data_writer_handle: self.handle,
@@ -297,7 +297,7 @@ impl<Foo> DataWriterAsync<Foo> {
     pub async fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
-            .send_actor_mail(DomainParticipantMail::WriterService(
+            .send_actor_mail(DomainParticipantMail::Writer(
                 WriterServiceMail::GetPublicationMatchedStatus {
                     publisher_handle: self.publisher.get_instance_handle().await,
                     data_writer_handle: self.handle,
@@ -333,7 +333,7 @@ impl<Foo> DataWriterAsync<Foo> {
     ) -> DdsResult<SubscriptionBuiltinTopicData> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
-            .send_actor_mail(DomainParticipantMail::WriterService(
+            .send_actor_mail(DomainParticipantMail::Writer(
                 WriterServiceMail::GetMatchedSubscriptionData {
                     publisher_handle: self.publisher.get_instance_handle().await,
                     data_writer_handle: self.handle,
@@ -349,7 +349,7 @@ impl<Foo> DataWriterAsync<Foo> {
     pub async fn get_matched_subscriptions(&self) -> DdsResult<Vec<InstanceHandle>> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
-            .send_actor_mail(DomainParticipantMail::WriterService(
+            .send_actor_mail(DomainParticipantMail::Writer(
                 WriterServiceMail::GetMatchedSubscriptions {
                     publisher_handle: self.publisher.get_instance_handle().await,
                     data_writer_handle: self.handle,
@@ -366,7 +366,7 @@ impl<Foo> DataWriterAsync<Foo> {
     pub async fn set_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
-            .send_actor_mail(DomainParticipantMail::WriterService(
+            .send_actor_mail(DomainParticipantMail::Writer(
                 WriterServiceMail::SetDataWriterQos {
                     publisher_handle: self.publisher.get_instance_handle().await,
                     data_writer_handle: self.handle,
@@ -382,7 +382,7 @@ impl<Foo> DataWriterAsync<Foo> {
     pub async fn get_qos(&self) -> DdsResult<DataWriterQos> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
-            .send_actor_mail(DomainParticipantMail::WriterService(
+            .send_actor_mail(DomainParticipantMail::Writer(
                 WriterServiceMail::GetDataWriterQos {
                     publisher_handle: self.publisher.get_instance_handle().await,
                     data_writer_handle: self.handle,
@@ -409,7 +409,7 @@ impl<Foo> DataWriterAsync<Foo> {
     pub async fn enable(&self) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
-            .send_actor_mail(DomainParticipantMail::WriterService(
+            .send_actor_mail(DomainParticipantMail::Writer(
                 WriterServiceMail::EnableDataWriter {
                     publisher_handle: self.publisher.get_instance_handle().await,
                     data_writer_handle: self.handle,
@@ -440,7 +440,7 @@ where
         let (reply_sender, reply_receiver) = oneshot();
         let listener = a_listener.map::<Box<dyn AnyDataWriterListener + Send>, _>(|b| Box::new(b));
         self.participant_address()
-            .send_actor_mail(DomainParticipantMail::WriterService(
+            .send_actor_mail(DomainParticipantMail::Writer(
                 WriterServiceMail::SetListener {
                     publisher_handle: self.publisher.get_instance_handle().await,
                     data_writer_handle: self.handle,
