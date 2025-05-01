@@ -9,7 +9,8 @@ use crate::{
     domain::domain_participant_factory::DomainId,
     implementation::{
         domain_participant_backend::{
-            domain_participant_actor::{DomainParticipantActor, DomainParticipantMail},
+            domain_participant_actor::DomainParticipantActor,
+            domain_participant_actor_mail::{DomainParticipantMail, ParticipantServiceMail},
             services::domain_participant_service,
         },
         status_condition::status_condition_actor::StatusConditionActor,
@@ -72,14 +73,15 @@ impl DomainParticipantAsync {
         mask: &[StatusKind],
     ) -> DdsResult<PublisherAsync> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant_address.send_actor_mail(
-            DomainParticipantMail::CreateUserDefinedPublisher {
-                qos,
-                a_listener,
-                mask: mask.to_vec(),
-                reply_sender,
-            },
-        )?;
+        self.participant_address
+            .send_actor_mail(DomainParticipantMail::ParticipantService(
+                ParticipantServiceMail::CreateUserDefinedPublisher {
+                    qos,
+                    a_listener,
+                    mask: mask.to_vec(),
+                    reply_sender,
+                },
+            ))?;
         let (guid, publisher_status_condition_address) = reply_receiver.await??;
         let publisher = PublisherAsync::new(guid, publisher_status_condition_address, self.clone());
 

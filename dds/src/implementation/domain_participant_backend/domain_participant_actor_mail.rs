@@ -1,0 +1,306 @@
+use super::domain_participant_actor::DomainParticipantActor;
+use crate::{
+    dds_async::publisher_listener::PublisherListenerAsync,
+    implementation::{
+        any_data_writer_listener::AnyDataWriterListener,
+        status_condition::status_condition_actor::StatusConditionActor,
+    },
+    infrastructure::{
+        error::DdsResult,
+        instance::InstanceHandle,
+        qos::{DataWriterQos, PublisherQos, QosKind},
+        status::StatusKind,
+        time::Time,
+    },
+    runtime::{
+        actor::{ActorAddress, MailHandler},
+        oneshot::OneshotSender,
+    },
+};
+
+pub enum ParticipantServiceMail {
+    CreateUserDefinedPublisher {
+        qos: QosKind<PublisherQos>,
+        a_listener: Option<Box<dyn PublisherListenerAsync + Send>>,
+        mask: Vec<StatusKind>,
+        reply_sender:
+            OneshotSender<DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)>>,
+    },
+}
+
+pub enum PublisherServiceMail {
+    CreateDataWriter {
+        publisher_handle: InstanceHandle,
+        topic_name: String,
+        qos: QosKind<DataWriterQos>,
+        a_listener: Option<Box<dyn AnyDataWriterListener + Send>>,
+        mask: Vec<StatusKind>,
+        participant_address: ActorAddress<DomainParticipantActor>,
+        reply_sender:
+            OneshotSender<DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)>>,
+    },
+    DeleteDataWriter {
+        publisher_handle: InstanceHandle,
+        datawriter_handle: InstanceHandle,
+        reply_sender: OneshotSender<DdsResult<()>>,
+    },
+    GetDefaultDataWriterQos {
+        publisher_handle: InstanceHandle,
+        reply_sender: OneshotSender<DdsResult<DataWriterQos>>,
+    },
+    SetDefaultDataWriterQos {
+        publisher_handle: InstanceHandle,
+        qos: QosKind<DataWriterQos>,
+        reply_sender: OneshotSender<DdsResult<()>>,
+    },
+    GetPublisherQos {
+        publisher_handle: InstanceHandle,
+        reply_sender: OneshotSender<DdsResult<PublisherQos>>,
+    },
+    SetPublisherQos {
+        publisher_handle: InstanceHandle,
+        qos: QosKind<PublisherQos>,
+        reply_sender: OneshotSender<DdsResult<()>>,
+    },
+    SetPublisherListener {
+        publisher_handle: InstanceHandle,
+        a_listener: Option<Box<dyn PublisherListenerAsync + Send>>,
+        mask: Vec<StatusKind>,
+        reply_sender: OneshotSender<DdsResult<()>>,
+    },
+}
+
+pub enum WriterServiceMail {
+    UnregisterInstance {
+        publisher_handle: InstanceHandle,
+        data_writer_handle: InstanceHandle,
+        serialized_data: Vec<u8>,
+        timestamp: Time,
+        reply_sender: OneshotSender<DdsResult<()>>,
+    },
+    LookupInstance {
+        publisher_handle: InstanceHandle,
+        data_writer_handle: InstanceHandle,
+        serialized_data: Vec<u8>,
+        reply_sender: OneshotSender<DdsResult<Option<InstanceHandle>>>,
+    },
+    WriteWTimestamp {
+        participant_address: ActorAddress<DomainParticipantActor>,
+        publisher_handle: InstanceHandle,
+        data_writer_handle: InstanceHandle,
+        serialized_data: Vec<u8>,
+        timestamp: Time,
+        reply_sender: OneshotSender<DdsResult<()>>,
+    },
+    EnableDataWriter {
+        publisher_handle: InstanceHandle,
+        data_writer_handle: InstanceHandle,
+        participant_address: ActorAddress<DomainParticipantActor>,
+        reply_sender: OneshotSender<DdsResult<()>>,
+    },
+    SetDataWriterQos {
+        publisher_handle: InstanceHandle,
+        data_writer_handle: InstanceHandle,
+        qos: QosKind<DataWriterQos>,
+        reply_sender: OneshotSender<DdsResult<()>>,
+    },
+}
+
+pub enum MessageServiceMail {
+    RemoveWriterChange {
+        publisher_handle: InstanceHandle,
+        data_writer_handle: InstanceHandle,
+        sequence_number: i64,
+    },
+}
+
+pub enum EventServiceMail {
+    OfferedDeadlineMissed {
+        publisher_handle: InstanceHandle,
+        data_writer_handle: InstanceHandle,
+        change_instance_handle: InstanceHandle,
+        participant_address: ActorAddress<DomainParticipantActor>,
+    },
+}
+
+pub enum DomainParticipantMail {
+    ParticipantService(ParticipantServiceMail),
+    PublisherService(PublisherServiceMail),
+    WriterService(WriterServiceMail),
+    MessageService(MessageServiceMail),
+    EventService(EventServiceMail),
+}
+
+impl MailHandler<DomainParticipantMail> for DomainParticipantActor {
+    fn handle(&mut self, message: DomainParticipantMail) {
+        match message {
+            DomainParticipantMail::ParticipantService(participant_service_mail) => {
+                self.handle_participant_service(participant_service_mail)
+            }
+            DomainParticipantMail::PublisherService(publisher_service_mail) => {
+                self.handle_publisher_service(publisher_service_mail)
+            }
+            DomainParticipantMail::WriterService(writer_service_mail) => {
+                self.handle_writer_service(writer_service_mail);
+            }
+            DomainParticipantMail::MessageService(message_service_mail) => {
+                self.handle_message_service(message_service_mail)
+            }
+            DomainParticipantMail::EventService(event_service_mail) => {
+                self.handle_event_service(event_service_mail)
+            }
+        };
+    }
+}
+
+impl DomainParticipantActor {
+    fn handle_participant_service(&mut self, participant_service_mail: ParticipantServiceMail) {
+        match participant_service_mail {
+            ParticipantServiceMail::CreateUserDefinedPublisher {
+                qos,
+                a_listener,
+                mask,
+                reply_sender,
+            } => reply_sender.send(self.create_user_defined_publisher(qos, a_listener, mask)),
+        }
+    }
+
+    fn handle_publisher_service(&mut self, publisher_service_mail: PublisherServiceMail) {
+        match publisher_service_mail {
+            PublisherServiceMail::CreateDataWriter {
+                publisher_handle,
+                topic_name,
+                qos,
+                a_listener,
+                mask,
+                participant_address,
+                reply_sender,
+            } => {
+                reply_sender.send(self.create_data_writer(
+                    publisher_handle,
+                    topic_name,
+                    qos,
+                    a_listener,
+                    mask,
+                    participant_address,
+                ));
+            }
+            PublisherServiceMail::DeleteDataWriter {
+                publisher_handle,
+                datawriter_handle,
+                reply_sender,
+            } => reply_sender.send(self.delete_data_writer(publisher_handle, datawriter_handle)),
+            PublisherServiceMail::GetDefaultDataWriterQos {
+                publisher_handle,
+                reply_sender,
+            } => reply_sender.send(self.get_default_datawriter_qos(publisher_handle)),
+            PublisherServiceMail::SetDefaultDataWriterQos {
+                publisher_handle,
+                qos,
+                reply_sender,
+            } => reply_sender.send(self.set_default_datawriter_qos(publisher_handle, qos)),
+            PublisherServiceMail::GetPublisherQos {
+                publisher_handle,
+                reply_sender,
+            } => reply_sender.send(self.get_publisher_qos(publisher_handle)),
+            PublisherServiceMail::SetPublisherQos {
+                publisher_handle,
+                qos,
+                reply_sender,
+            } => reply_sender.send(self.set_publisher_qos(publisher_handle, qos)),
+            PublisherServiceMail::SetPublisherListener {
+                publisher_handle,
+                a_listener,
+                mask,
+                reply_sender,
+            } => reply_sender.send(self.set_publisher_listener(publisher_handle, a_listener, mask)),
+        }
+    }
+
+    fn handle_writer_service(&mut self, writer_service_mail: WriterServiceMail) {
+        match writer_service_mail {
+            WriterServiceMail::UnregisterInstance {
+                publisher_handle,
+                data_writer_handle,
+                serialized_data,
+                timestamp,
+                reply_sender,
+            } => reply_sender.send(self.unregister_instance(
+                publisher_handle,
+                data_writer_handle,
+                serialized_data,
+                timestamp,
+            )),
+            WriterServiceMail::LookupInstance {
+                publisher_handle,
+                data_writer_handle,
+                serialized_data,
+                reply_sender,
+            } => reply_sender.send(self.lookup_instance(
+                publisher_handle,
+                data_writer_handle,
+                serialized_data,
+            )),
+            WriterServiceMail::WriteWTimestamp {
+                participant_address,
+                publisher_handle,
+                data_writer_handle,
+                serialized_data,
+                timestamp,
+                reply_sender,
+            } => reply_sender.send(self.write_w_timestamp(
+                participant_address,
+                publisher_handle,
+                data_writer_handle,
+                serialized_data,
+                timestamp,
+            )),
+            WriterServiceMail::EnableDataWriter {
+                publisher_handle,
+                data_writer_handle,
+                participant_address,
+                reply_sender,
+            } => reply_sender.send(self.enable_data_writer(
+                publisher_handle,
+                data_writer_handle,
+                participant_address,
+            )),
+            WriterServiceMail::SetDataWriterQos {
+                publisher_handle,
+                data_writer_handle,
+                qos,
+                reply_sender,
+            } => reply_sender.send(self.set_data_writer_qos(
+                publisher_handle,
+                data_writer_handle,
+                qos,
+            )),
+        }
+    }
+
+    fn handle_message_service(&mut self, message_service_mail: MessageServiceMail) {
+        match message_service_mail {
+            MessageServiceMail::RemoveWriterChange {
+                publisher_handle,
+                data_writer_handle,
+                sequence_number,
+            } => self.remove_writer_change(publisher_handle, data_writer_handle, sequence_number),
+        }
+    }
+
+    fn handle_event_service(&mut self, event_service_mail: EventServiceMail) {
+        match event_service_mail {
+            EventServiceMail::OfferedDeadlineMissed {
+                publisher_handle,
+                data_writer_handle,
+                change_instance_handle,
+                participant_address,
+            } => self.offered_deadline_missed(
+                publisher_handle,
+                data_writer_handle,
+                change_instance_handle,
+                participant_address,
+            ),
+        }
+    }
+}
