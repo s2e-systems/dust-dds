@@ -69,6 +69,21 @@ pub enum ParticipantServiceMail {
             DdsResult<Option<(String, InstanceHandle, ActorAddress<StatusConditionActor>)>>,
         >,
     },
+    IgnoreParticipant {
+        handle: InstanceHandle,
+        reply_sender: OneshotSender<DdsResult<()>>,
+    },
+    IgnoreSubscription {
+        handle: InstanceHandle,
+        reply_sender: OneshotSender<DdsResult<()>>,
+    },
+    IgnorePublication {
+        handle: InstanceHandle,
+        reply_sender: OneshotSender<DdsResult<()>>,
+    },
+    DeleteContainedEntities {
+        reply_sender: OneshotSender<DdsResult<()>>,
+    },
 }
 
 pub enum TopicServiceMail {
@@ -323,6 +338,21 @@ impl DomainParticipantActor {
                 topic_name,
                 reply_sender,
             } => reply_sender.send(self.lookup_topicdescription(topic_name)),
+            ParticipantServiceMail::IgnoreParticipant {
+                handle,
+                reply_sender,
+            } => reply_sender.send(self.ignore_participant(handle)),
+            ParticipantServiceMail::IgnoreSubscription {
+                handle,
+                reply_sender,
+            } => reply_sender.send(self.ignore_subscription(handle)),
+            ParticipantServiceMail::IgnorePublication {
+                handle,
+                reply_sender,
+            } => reply_sender.send(self.ignore_publication(handle)),
+            ParticipantServiceMail::DeleteContainedEntities { reply_sender } => {
+                reply_sender.send(self.delete_participant_contained_entities())
+            }
         }
     }
 

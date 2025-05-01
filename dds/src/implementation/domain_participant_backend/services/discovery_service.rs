@@ -4,7 +4,7 @@ use crate::{
     builtin_topics::{
         BuiltInTopicKey, ParticipantBuiltinTopicData, PublicationBuiltinTopicData,
         SubscriptionBuiltinTopicData, TopicBuiltinTopicData, DCPS_PARTICIPANT, DCPS_PUBLICATION,
-        DCPS_SUBSCRIPTION, DCPS_TOPIC,
+        DCPS_SUBSCRIPTION,
     },
     implementation::{
         data_representation_builtin_endpoints::{
@@ -210,49 +210,6 @@ impl MailHandler<AnnounceDataReader> for DomainParticipantActor {
             .lookup_datawriter_mut(DCPS_SUBSCRIPTION)
         {
             if let Ok(serialized_data) = discovered_reader_data.serialize_data() {
-                dw.write_w_timestamp(serialized_data, timestamp).ok();
-            }
-        }
-    }
-}
-
-pub struct AnnounceTopic {
-    pub topic_name: String,
-}
-impl MailHandler<AnnounceTopic> for DomainParticipantActor {
-    fn handle(&mut self, message: AnnounceTopic) {
-        let Some(topic) = self.domain_participant.get_topic(&message.topic_name) else {
-            return;
-        };
-
-        let topic_builtin_topic_data = TopicBuiltinTopicData {
-            key: BuiltInTopicKey {
-                value: topic.instance_handle().into(),
-            },
-            name: topic.topic_name().to_owned(),
-            type_name: topic.type_name().to_owned(),
-            durability: topic.qos().durability.clone(),
-            deadline: topic.qos().deadline.clone(),
-            latency_budget: topic.qos().latency_budget.clone(),
-            liveliness: topic.qos().liveliness.clone(),
-            reliability: topic.qos().reliability.clone(),
-            transport_priority: topic.qos().transport_priority.clone(),
-            lifespan: topic.qos().lifespan.clone(),
-            destination_order: topic.qos().destination_order.clone(),
-            history: topic.qos().history.clone(),
-            resource_limits: topic.qos().resource_limits.clone(),
-            ownership: topic.qos().ownership.clone(),
-            topic_data: topic.qos().topic_data.clone(),
-            representation: topic.qos().representation.clone(),
-        };
-
-        let timestamp = self.domain_participant.get_current_time();
-        if let Some(dw) = self
-            .domain_participant
-            .builtin_publisher_mut()
-            .lookup_datawriter_mut(DCPS_TOPIC)
-        {
-            if let Ok(serialized_data) = topic_builtin_topic_data.serialize_data() {
                 dw.write_w_timestamp(serialized_data, timestamp).ok();
             }
         }

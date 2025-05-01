@@ -230,15 +230,13 @@ impl DomainParticipantAsync {
                 Box::pin(async move {
                     loop {
                         let (reply_sender, reply_receiver) = oneshot();
-                        participant_address.send_actor_mail(
-                            DomainParticipantMail::Participant(
-                                ParticipantServiceMail::FindTopic {
-                                    topic_name: topic_name.clone(),
-                                    type_support: type_support.clone(),
-                                    reply_sender,
-                                },
-                            ),
-                        )?;
+                        participant_address.send_actor_mail(DomainParticipantMail::Participant(
+                            ParticipantServiceMail::FindTopic {
+                                topic_name: topic_name.clone(),
+                                type_support: type_support.clone(),
+                                reply_sender,
+                            },
+                        ))?;
                         if let Some((guid, topic_status_condition_address, type_name)) =
                             reply_receiver.await??
                         {
@@ -297,12 +295,13 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self))]
     pub async fn ignore_participant(&self, handle: InstanceHandle) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant_address.send_actor_mail(
-            domain_participant_service::IgnoreParticipant {
-                handle,
-                reply_sender,
-            },
-        )?;
+        self.participant_address
+            .send_actor_mail(DomainParticipantMail::Participant(
+                ParticipantServiceMail::IgnoreParticipant {
+                    handle,
+                    reply_sender,
+                },
+            ))?;
         reply_receiver.await?
     }
 
@@ -316,12 +315,13 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self))]
     pub async fn ignore_publication(&self, handle: InstanceHandle) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant_address.send_actor_mail(
-            domain_participant_service::IgnorePublication {
-                handle,
-                reply_sender,
-            },
-        )?;
+        self.participant_address
+            .send_actor_mail(DomainParticipantMail::Participant(
+                ParticipantServiceMail::IgnorePublication {
+                    handle,
+                    reply_sender,
+                },
+            ))?;
         reply_receiver.await?
     }
 
@@ -329,12 +329,13 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self))]
     pub async fn ignore_subscription(&self, handle: InstanceHandle) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant_address.send_actor_mail(
-            domain_participant_service::IgnoreSubscription {
-                handle,
-                reply_sender,
-            },
-        )?;
+        self.participant_address
+            .send_actor_mail(DomainParticipantMail::Participant(
+                ParticipantServiceMail::IgnoreSubscription {
+                    handle,
+                    reply_sender,
+                },
+            ))?;
         reply_receiver.await?
     }
 
@@ -348,12 +349,10 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self))]
     pub async fn delete_contained_entities(&self) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant_address.send_actor_mail(
-            domain_participant_service::DeleteContainedEntities {
-                participant_address: self.participant_address.clone(),
-                reply_sender,
-            },
-        )?;
+        self.participant_address
+            .send_actor_mail(DomainParticipantMail::Participant(
+                ParticipantServiceMail::DeleteContainedEntities { reply_sender },
+            ))?;
         reply_receiver.await?
     }
 

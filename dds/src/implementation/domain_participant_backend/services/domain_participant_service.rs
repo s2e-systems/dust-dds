@@ -10,7 +10,7 @@ use crate::{
     implementation::{
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor,
-            entities::{publisher::PublisherEntity, subscriber::SubscriberEntity},
+            entities::subscriber::SubscriberEntity,
         },
         listeners::{
             domain_participant_listener::DomainParticipantListenerActor,
@@ -128,85 +128,6 @@ impl MailHandler<DeleteUserDefinedSubscriber> for DomainParticipantActor {
             message.reply_sender.send(Err(DdsError::AlreadyDeleted));
             return;
         };
-
-        message.reply_sender.send(Ok(()))
-    }
-}
-
-pub struct IgnoreParticipant {
-    pub handle: InstanceHandle,
-    pub reply_sender: OneshotSender<DdsResult<()>>,
-}
-impl MailHandler<IgnoreParticipant> for DomainParticipantActor {
-    fn handle(&mut self, message: IgnoreParticipant) {
-        if self.domain_participant.enabled() {
-            self.domain_participant.ignore_participant(message.handle);
-            message.reply_sender.send(Ok(()))
-        } else {
-            message.reply_sender.send(Err(DdsError::NotEnabled))
-        }
-    }
-}
-
-pub struct IgnoreSubscription {
-    pub handle: InstanceHandle,
-    pub reply_sender: OneshotSender<DdsResult<()>>,
-}
-impl MailHandler<IgnoreSubscription> for DomainParticipantActor {
-    fn handle(&mut self, message: IgnoreSubscription) {
-        if self.domain_participant.enabled() {
-            self.domain_participant.ignore_subscription(message.handle);
-            message.reply_sender.send(Ok(()))
-        } else {
-            message.reply_sender.send(Err(DdsError::NotEnabled))
-        }
-    }
-}
-
-pub struct IgnorePublication {
-    pub handle: InstanceHandle,
-    pub reply_sender: OneshotSender<DdsResult<()>>,
-}
-impl MailHandler<IgnorePublication> for DomainParticipantActor {
-    fn handle(&mut self, message: IgnorePublication) {
-        if self.domain_participant.enabled() {
-            self.domain_participant.ignore_publication(message.handle);
-            message.reply_sender.send(Ok(()))
-        } else {
-            message.reply_sender.send(Err(DdsError::NotEnabled))
-        }
-    }
-}
-
-pub struct DeleteContainedEntities {
-    pub participant_address: ActorAddress<DomainParticipantActor>,
-    pub reply_sender: OneshotSender<DdsResult<()>>,
-}
-impl MailHandler<DeleteContainedEntities> for DomainParticipantActor {
-    fn handle(&mut self, message: DeleteContainedEntities) {
-        let deleted_publisher_list: Vec<PublisherEntity> =
-            self.domain_participant.drain_publisher_list().collect();
-        for mut publisher in deleted_publisher_list {
-            for data_writer in publisher.drain_data_writer_list() {
-                message
-                    .participant_address
-                    .send_actor_mail(discovery_service::AnnounceDeletedDataWriter { data_writer })
-                    .ok();
-            }
-        }
-
-        let deleted_subscriber_list: Vec<SubscriberEntity> =
-            self.domain_participant.drain_subscriber_list().collect();
-        for mut subscriber in deleted_subscriber_list {
-            for data_reader in subscriber.drain_data_reader_list() {
-                message
-                    .participant_address
-                    .send_actor_mail(discovery_service::AnnounceDeletedDataReader { data_reader })
-                    .ok();
-            }
-        }
-
-        self.domain_participant.delete_all_topics();
 
         message.reply_sender.send(Ok(()))
     }

@@ -6,9 +6,11 @@ use fnmatch_regex::glob_to_regex;
 use super::{
     domain_participant_actor_mail::{DomainParticipantMail, EventServiceMail, MessageServiceMail},
     entities::{
+        data_reader::DataReaderEntity,
         data_writer::{DataWriterEntity, TransportWriterKind},
         domain_participant::DomainParticipantEntity,
         publisher::PublisherEntity,
+        subscriber::SubscriberEntity,
         topic::TopicEntity,
     },
     handle::InstanceHandleCounter,
@@ -27,7 +29,7 @@ use crate::{
     implementation::{
         any_data_writer_listener::AnyDataWriterListener,
         data_representation_builtin_endpoints::{
-            discovered_reader_data::DiscoveredReaderData,
+            discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
             discovered_writer_data::{DiscoveredWriterData, WriterProxy},
         },
         domain_participant_factory::domain_participant_factory_actor::DdsTransportParticipant,
@@ -509,6 +511,54 @@ impl DomainParticipantActor {
         } else {
             Ok(None)
         }
+    }
+
+    pub fn ignore_participant(&mut self, handle: InstanceHandle) -> DdsResult<()> {
+        if self.domain_participant.enabled() {
+            self.domain_participant.ignore_participant(handle);
+            Ok(())
+        } else {
+            Err(DdsError::NotEnabled)
+        }
+    }
+
+    pub fn ignore_subscription(&mut self, handle: InstanceHandle) -> DdsResult<()> {
+        if self.domain_participant.enabled() {
+            self.domain_participant.ignore_subscription(handle);
+            Ok(())
+        } else {
+            Err(DdsError::NotEnabled)
+        }
+    }
+    pub fn ignore_publication(&mut self, handle: InstanceHandle) -> DdsResult<()> {
+        if self.domain_participant.enabled() {
+            self.domain_participant.ignore_publication(handle);
+            Ok(())
+        } else {
+            Err(DdsError::NotEnabled)
+        }
+    }
+
+    pub fn delete_participant_contained_entities(&mut self) -> DdsResult<()> {
+        let deleted_publisher_list: Vec<PublisherEntity> =
+            self.domain_participant.drain_publisher_list().collect();
+        for mut publisher in deleted_publisher_list {
+            for data_writer in publisher.drain_data_writer_list() {
+                self.announce_deleted_data_writer(data_writer);
+            }
+        }
+
+        let deleted_subscriber_list: Vec<SubscriberEntity> =
+            self.domain_participant.drain_subscriber_list().collect();
+        for mut subscriber in deleted_subscriber_list {
+            for data_reader in subscriber.drain_data_reader_list() {
+                self.announce_deleted_data_reader(data_reader);
+            }
+        }
+
+        self.domain_participant.delete_all_topics();
+
+        Ok(())
     }
 
     pub fn create_data_writer(
@@ -1189,6 +1239,80 @@ impl DomainParticipantActor {
             .lookup_datawriter_mut(DCPS_PUBLICATION)
         {
             let key = InstanceHandle::new(data_writer.transport_writer().guid().into());
+            if let Ok(serialized_data) = key.serialize_data() {
+                dw.dispose_w_timestamp(serialized_data, timestamp).ok();
+            }
+        }
+    }
+
+    fn announce_data_reader(
+        &mut self,
+        subscriber_handle: InstanceHandle,
+        data_reader_handle: InstanceHandle,
+    ) {
+        let Some(subscriber) = self.domain_participant.get_subscriber(subscriber_handle) else {
+            return;
+        };
+        let Some(data_reader) = subscriber.get_data_reader(data_reader_handle) else {
+            return;
+        };
+        let Some(topic) = self.domain_participant.get_topic(data_reader.topic_name()) else {
+            return;
+        };
+
+        let guid = data_reader.transport_reader().guid();
+        let dds_subscription_data = SubscriptionBuiltinTopicData {
+            key: BuiltInTopicKey { value: guid.into() },
+            participant_key: BuiltInTopicKey { value: [0; 16] },
+            topic_name: data_reader.topic_name().to_owned(),
+            type_name: data_reader.type_name().to_owned(),
+            durability: data_reader.qos().durability.clone(),
+            deadline: data_reader.qos().deadline.clone(),
+            latency_budget: data_reader.qos().latency_budget.clone(),
+            liveliness: data_reader.qos().liveliness.clone(),
+            reliability: data_reader.qos().reliability.clone(),
+            ownership: data_reader.qos().ownership.clone(),
+            destination_order: data_reader.qos().destination_order.clone(),
+            user_data: data_reader.qos().user_data.clone(),
+            time_based_filter: data_reader.qos().time_based_filter.clone(),
+            presentation: subscriber.qos().presentation.clone(),
+            partition: subscriber.qos().partition.clone(),
+            topic_data: topic.qos().topic_data.clone(),
+            group_data: subscriber.qos().group_data.clone(),
+            representation: data_reader.qos().representation.clone(),
+        };
+        let reader_proxy = ReaderProxy {
+            remote_reader_guid: data_reader.transport_reader().guid(),
+            remote_group_entity_id: ENTITYID_UNKNOWN,
+            unicast_locator_list: vec![],
+            multicast_locator_list: vec![],
+            expects_inline_qos: false,
+        };
+        let discovered_reader_data = DiscoveredReaderData {
+            dds_subscription_data,
+            reader_proxy,
+        };
+        let timestamp = self.domain_participant.get_current_time();
+        if let Some(dw) = self
+            .domain_participant
+            .builtin_publisher_mut()
+            .lookup_datawriter_mut(DCPS_SUBSCRIPTION)
+        {
+            if let Ok(serialized_data) = discovered_reader_data.serialize_data() {
+                dw.write_w_timestamp(serialized_data, timestamp).ok();
+            }
+        }
+    }
+
+    fn announce_deleted_data_reader(&mut self, data_reader: DataReaderEntity) {
+        let timestamp = self.domain_participant.get_current_time();
+        if let Some(dw) = self
+            .domain_participant
+            .builtin_publisher_mut()
+            .lookup_datawriter_mut(DCPS_SUBSCRIPTION)
+        {
+            let guid = data_reader.transport_reader().guid();
+            let key = InstanceHandle::new(guid.into());
             if let Ok(serialized_data) = key.serialize_data() {
                 dw.dispose_w_timestamp(serialized_data, timestamp).ok();
             }
