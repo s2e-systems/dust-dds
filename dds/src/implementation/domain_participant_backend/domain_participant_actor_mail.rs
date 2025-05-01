@@ -280,7 +280,7 @@ impl DomainParticipantActor {
                 listener,
                 listener_mask,
                 reply_sender,
-            } => reply_sender.send(self.data_writer_set_listener(
+            } => reply_sender.send(self.set_listener_data_writer(
                 publisher_handle,
                 data_writer_handle,
                 listener,
@@ -291,20 +291,20 @@ impl DomainParticipantActor {
                 data_writer_handle,
                 reply_sender,
             } => reply_sender
-                .send(self.data_writer_get_data_writer_qos(publisher_handle, data_writer_handle)),
+                .send(self.get_data_writer_qos(publisher_handle, data_writer_handle)),
             WriterServiceMail::GetMatchedSubscriptions {
                 publisher_handle,
                 data_writer_handle,
                 reply_sender,
             } => reply_sender.send(
-                self.data_writer_get_matched_subscriptions(publisher_handle, data_writer_handle),
+                self.get_matched_subscriptions(publisher_handle, data_writer_handle),
             ),
             WriterServiceMail::GetMatchedSubscriptionData {
                 publisher_handle,
                 data_writer_handle,
                 subscription_handle,
                 reply_sender,
-            } => reply_sender.send(self.data_writer_get_matched_subscription_data(
+            } => reply_sender.send(self.get_matched_subscription_data(
                 publisher_handle,
                 data_writer_handle,
                 subscription_handle,
@@ -314,7 +314,7 @@ impl DomainParticipantActor {
                 data_writer_handle,
                 reply_sender,
             } => {
-                reply_sender.send(self.data_writer_get_publication_matched_status(
+                reply_sender.send(self.get_publication_matched_status(
                     publisher_handle,
                     data_writer_handle,
                 ))

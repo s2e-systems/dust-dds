@@ -431,7 +431,7 @@ impl DomainParticipantActor {
         Ok(())
     }
 
-    pub fn data_writer_get_publication_matched_status(
+    pub fn get_publication_matched_status(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
@@ -456,7 +456,7 @@ impl DomainParticipantActor {
         Ok(status)
     }
 
-    pub fn data_writer_set_listener(
+    pub fn set_listener_data_writer(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
@@ -481,7 +481,7 @@ impl DomainParticipantActor {
         Ok(())
     }
 
-    pub fn data_writer_get_data_writer_qos(
+    pub fn get_data_writer_qos(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
@@ -499,7 +499,7 @@ impl DomainParticipantActor {
         Ok(data_writer.qos().clone())
     }
 
-    pub fn data_writer_get_matched_subscriptions(
+    pub fn get_matched_subscriptions(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
@@ -516,7 +516,7 @@ impl DomainParticipantActor {
         Ok(data_writer.get_matched_subscriptions())
     }
 
-    pub fn data_writer_get_matched_subscription_data(
+    pub fn get_matched_subscription_data(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
