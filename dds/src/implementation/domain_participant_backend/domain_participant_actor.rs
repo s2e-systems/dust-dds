@@ -31,6 +31,9 @@ use crate::{
             publisher_listener::{self, PublisherListenerActor},
         },
         status_condition::status_condition_actor::{self, StatusConditionActor},
+        xtypes_glue::key_and_instance_handle::{
+            get_instance_handle_from_serialized_foo, get_serialized_key_from_serialized_foo,
+        },
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -44,6 +47,7 @@ use crate::{
             RELIABILITY_QOS_POLICY_ID, XCDR_DATA_REPRESENTATION,
         },
         status::StatusKind,
+        time::{Duration, DurationKind, Time},
     },
     runtime::{
         actor::{Actor, ActorAddress, MailHandler},
@@ -421,6 +425,156 @@ impl DomainParticipantActor {
         Ok(())
     }
 
+    fn unregister_instance(
+        &mut self,
+        publisher_handle: InstanceHandle,
+        data_writer_handle: InstanceHandle,
+        serialized_data: Vec<u8>,
+        timestamp: Time,
+    ) -> DdsResult<()> {
+        let Some(publisher) = self.domain_participant.get_mut_publisher(publisher_handle) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        let Some(data_writer) = publisher
+            .data_writer_list_mut()
+            .find(|x| x.instance_handle() == data_writer_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        let serialized_key = match get_serialized_key_from_serialized_foo(
+            &serialized_data,
+            data_writer.type_support(),
+        ) {
+            Ok(k) => k,
+            Err(e) => {
+                return Err(e.into());
+            }
+        };
+        data_writer.unregister_w_timestamp(serialized_key, timestamp)
+    }
+
+    fn lookup_instance(
+        &mut self,
+        publisher_handle: InstanceHandle,
+        data_writer_handle: InstanceHandle,
+        serialized_data: Vec<u8>,
+    ) -> DdsResult<Option<InstanceHandle>> {
+        let Some(publisher) = self.domain_participant.get_mut_publisher(publisher_handle) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        let Some(data_writer) = publisher
+            .data_writer_list_mut()
+            .find(|x| x.instance_handle() == data_writer_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        if !data_writer.enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+
+        let instance_handle = match get_instance_handle_from_serialized_foo(
+            &serialized_data,
+            data_writer.type_support(),
+        ) {
+            Ok(k) => k,
+            Err(e) => {
+                return Err(e.into());
+            }
+        };
+
+        Ok(data_writer
+            .contains_instance(&instance_handle)
+            .then_some(instance_handle))
+    }
+
+    fn write_w_timestamp(
+        &mut self,
+        participant_address: ActorAddress<DomainParticipantActor>,
+        publisher_handle: InstanceHandle,
+        data_writer_handle: InstanceHandle,
+        serialized_data: Vec<u8>,
+        timestamp: Time,
+    ) -> DdsResult<()> {
+        let now = self.domain_participant.get_current_time();
+        let Some(publisher) = self.domain_participant.get_mut_publisher(publisher_handle) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        let Some(data_writer) = publisher
+            .data_writer_list_mut()
+            .find(|x| x.instance_handle() == data_writer_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        let instance_handle = match get_instance_handle_from_serialized_foo(
+            &serialized_data,
+            data_writer.type_support(),
+        ) {
+            Ok(k) => k,
+            Err(e) => {
+                return Err(e.into());
+            }
+        };
+
+        match data_writer.qos().lifespan.duration {
+            DurationKind::Finite(lifespan_duration) => {
+                let timer_handle = self.timer_driver.handle();
+                let sleep_duration = timestamp - now + lifespan_duration;
+                if sleep_duration > Duration::new(0, 0) {
+                    let sequence_number =
+                        match data_writer.write_w_timestamp(serialized_data, timestamp) {
+                            Ok(s) => s,
+                            Err(e) => {
+                                return Err(e);
+                            }
+                        };
+
+                    let participant_address = participant_address.clone();
+                    self.backend_executor.handle().spawn(async move {
+                        timer_handle.sleep(sleep_duration.into()).await;
+                        participant_address
+                            .send_actor_mail(DomainParticipantMail::RemoveWriterChange {
+                                publisher_handle,
+                                data_writer_handle,
+                                sequence_number,
+                            })
+                            .ok();
+                    });
+                }
+            }
+            DurationKind::Infinite => {
+                match data_writer.write_w_timestamp(serialized_data, timestamp) {
+                    Ok(_) => (),
+                    Err(e) => {
+                        return Err(e);
+                    }
+                };
+            }
+        }
+
+        if let DurationKind::Finite(deadline_missed_period) = data_writer.qos().deadline.period {
+            let timer_handle = self.timer_driver.handle();
+            let offered_deadline_missed_task = self.backend_executor.handle().spawn(async move {
+                loop {
+                    timer_handle.sleep(deadline_missed_period.into()).await;
+                    participant_address
+                        .send_actor_mail(DomainParticipantMail::OfferedDeadlineMissed {
+                            publisher_handle,
+                            data_writer_handle,
+                            change_instance_handle: instance_handle,
+                            participant_address: participant_address.clone(),
+                        })
+                        .ok();
+                }
+            });
+            data_writer.insert_instance_deadline_missed_task(
+                instance_handle,
+                offered_deadline_missed_task,
+            );
+        }
+
+        Ok(())
+    }
     fn enable_data_writer(
         &mut self,
         publisher_handle: InstanceHandle,
@@ -932,6 +1086,129 @@ impl DomainParticipantActor {
             }
         }
     }
+
+    fn remove_writer_change(
+        &mut self,
+        publisher_handle: InstanceHandle,
+        data_writer_handle: InstanceHandle,
+        sequence_number: i64,
+    ) {
+        if let Some(p) = self.domain_participant.get_mut_publisher(publisher_handle) {
+            if let Some(dw) = p.get_mut_data_writer(data_writer_handle) {
+                dw.remove_change(sequence_number);
+            }
+        }
+    }
+
+    fn offered_deadline_missed(
+        &mut self,
+        publisher_handle: InstanceHandle,
+        data_writer_handle: InstanceHandle,
+        change_instance_handle: InstanceHandle,
+        participant_address: ActorAddress<DomainParticipantActor>,
+    ) {
+        let Some(publisher) = self.domain_participant.get_mut_publisher(publisher_handle) else {
+            return;
+        };
+        let Some(data_writer) = publisher.get_mut_data_writer(data_writer_handle) else {
+            return;
+        };
+
+        data_writer.increment_offered_deadline_missed_status(change_instance_handle);
+
+        if data_writer
+            .listener_mask()
+            .contains(&StatusKind::OfferedDeadlineMissed)
+        {
+            let status = data_writer.get_offered_deadline_missed_status();
+            let Ok(the_writer) = self.get_data_writer_async(
+                participant_address,
+                publisher_handle,
+                data_writer_handle,
+            ) else {
+                return;
+            };
+
+            let Some(publisher) = self.domain_participant.get_mut_publisher(publisher_handle)
+            else {
+                return;
+            };
+            let Some(data_writer) = publisher.get_mut_data_writer(data_writer_handle) else {
+                return;
+            };
+
+            if let Some(l) = data_writer.listener() {
+                l.send_actor_mail(data_writer_listener::TriggerOfferedDeadlineMissed {
+                    the_writer,
+                    status,
+                });
+            }
+        } else if publisher
+            .listener_mask()
+            .contains(&StatusKind::OfferedDeadlineMissed)
+        {
+            let Ok(the_writer) = self.get_data_writer_async(
+                participant_address,
+                publisher_handle,
+                data_writer_handle,
+            ) else {
+                return;
+            };
+            let Some(publisher) = self.domain_participant.get_mut_publisher(publisher_handle)
+            else {
+                return;
+            };
+            let Some(data_writer) = publisher.get_mut_data_writer(data_writer_handle) else {
+                return;
+            };
+            let status = data_writer.get_offered_deadline_missed_status();
+            if let Some(l) = publisher.listener() {
+                l.send_actor_mail(publisher_listener::TriggerOfferedDeadlineMissed {
+                    the_writer,
+                    status,
+                });
+            }
+        } else if self
+            .domain_participant
+            .listener_mask()
+            .contains(&StatusKind::OfferedDeadlineMissed)
+        {
+            let Ok(the_writer) = self.get_data_writer_async(
+                participant_address,
+                publisher_handle,
+                data_writer_handle,
+            ) else {
+                return;
+            };
+
+            let Some(publisher) = self.domain_participant.get_mut_publisher(publisher_handle)
+            else {
+                return;
+            };
+            let Some(data_writer) = publisher.get_mut_data_writer(data_writer_handle) else {
+                return;
+            };
+            let status = data_writer.get_offered_deadline_missed_status();
+            if let Some(l) = self.domain_participant.listener() {
+                l.send_actor_mail(domain_participant_listener::TriggerOfferedDeadlineMissed {
+                    the_writer,
+                    status,
+                });
+            }
+        }
+
+        let Some(publisher) = self.domain_participant.get_mut_publisher(publisher_handle) else {
+            return;
+        };
+        let Some(data_writer) = publisher.get_mut_data_writer(data_writer_handle) else {
+            return;
+        };
+        data_writer.status_condition().send_actor_mail(
+            status_condition_actor::AddCommunicationState {
+                state: StatusKind::OfferedDeadlineMissed,
+            },
+        );
+    }
 }
 
 pub enum DomainParticipantMail {
@@ -983,6 +1260,27 @@ pub enum DomainParticipantMail {
         reply_sender: OneshotSender<DdsResult<()>>,
     },
     // ****** DataWriter Service
+    UnregisterInstance {
+        publisher_handle: InstanceHandle,
+        data_writer_handle: InstanceHandle,
+        serialized_data: Vec<u8>,
+        timestamp: Time,
+        reply_sender: OneshotSender<DdsResult<()>>,
+    },
+    LookupInstance {
+        publisher_handle: InstanceHandle,
+        data_writer_handle: InstanceHandle,
+        serialized_data: Vec<u8>,
+        reply_sender: OneshotSender<DdsResult<Option<InstanceHandle>>>,
+    },
+    WriteWTimestamp {
+        participant_address: ActorAddress<DomainParticipantActor>,
+        publisher_handle: InstanceHandle,
+        data_writer_handle: InstanceHandle,
+        serialized_data: Vec<u8>,
+        timestamp: Time,
+        reply_sender: OneshotSender<DdsResult<()>>,
+    },
     EnableDataWriter {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
@@ -994,6 +1292,19 @@ pub enum DomainParticipantMail {
         data_writer_handle: InstanceHandle,
         qos: QosKind<DataWriterQos>,
         reply_sender: OneshotSender<DdsResult<()>>,
+    },
+    // ********** Mesage Service
+    RemoveWriterChange {
+        publisher_handle: InstanceHandle,
+        data_writer_handle: InstanceHandle,
+        sequence_number: i64,
+    },
+    // ********** Event Service
+    OfferedDeadlineMissed {
+        publisher_handle: InstanceHandle,
+        data_writer_handle: InstanceHandle,
+        change_instance_handle: InstanceHandle,
+        participant_address: ActorAddress<DomainParticipantActor>,
     },
 }
 
@@ -1077,6 +1388,48 @@ impl MailHandler<DomainParticipantMail> for DomainParticipantActor {
             } => {
                 reply_sender.send(self.set_publisher_listener(publisher_handle, a_listener, mask));
             }
+            DomainParticipantMail::UnregisterInstance {
+                publisher_handle,
+                data_writer_handle,
+                serialized_data,
+                timestamp,
+                reply_sender,
+            } => {
+                reply_sender.send(self.unregister_instance(
+                    publisher_handle,
+                    data_writer_handle,
+                    serialized_data,
+                    timestamp,
+                ));
+            }
+            DomainParticipantMail::LookupInstance {
+                publisher_handle,
+                data_writer_handle,
+                serialized_data,
+                reply_sender,
+            } => {
+                reply_sender.send(self.lookup_instance(
+                    publisher_handle,
+                    data_writer_handle,
+                    serialized_data,
+                ));
+            }
+            DomainParticipantMail::WriteWTimestamp {
+                participant_address,
+                publisher_handle,
+                data_writer_handle,
+                serialized_data,
+                timestamp,
+                reply_sender,
+            } => {
+                reply_sender.send(self.write_w_timestamp(
+                    participant_address,
+                    publisher_handle,
+                    data_writer_handle,
+                    serialized_data,
+                    timestamp,
+                ));
+            }
             DomainParticipantMail::EnableDataWriter {
                 publisher_handle,
                 data_writer_handle,
@@ -1089,6 +1442,24 @@ impl MailHandler<DomainParticipantMail> for DomainParticipantActor {
                     participant_address,
                 ));
             }
+            DomainParticipantMail::RemoveWriterChange {
+                publisher_handle,
+                data_writer_handle,
+                sequence_number,
+            } => {
+                self.remove_writer_change(publisher_handle, data_writer_handle, sequence_number);
+            }
+            DomainParticipantMail::OfferedDeadlineMissed {
+                publisher_handle,
+                data_writer_handle,
+                change_instance_handle,
+                participant_address,
+            } => self.offered_deadline_missed(
+                publisher_handle,
+                data_writer_handle,
+                change_instance_handle,
+                participant_address,
+            ),
         };
     }
 }

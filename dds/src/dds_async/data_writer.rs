@@ -134,7 +134,7 @@ where
         let (reply_sender, reply_receiver) = oneshot();
         let serialized_data = instance.serialize_data()?;
         self.participant_address()
-            .send_actor_mail(data_writer_service::UnregisterInstance {
+            .send_actor_mail(DomainParticipantMail::UnregisterInstance {
                 publisher_handle: self.publisher.get_instance_handle().await,
                 data_writer_handle: self.handle,
                 serialized_data,
@@ -160,7 +160,7 @@ where
         let (reply_sender, reply_receiver) = oneshot();
         let serialized_data = instance.serialize_data()?;
         self.participant_address()
-            .send_actor_mail(data_writer_service::LookupInstance {
+            .send_actor_mail(DomainParticipantMail::LookupInstance {
                 publisher_handle: self.publisher.get_instance_handle().await,
                 data_writer_handle: self.handle,
                 serialized_data,
@@ -191,7 +191,7 @@ where
         let (reply_sender, reply_receiver) = oneshot();
         let serialized_data = data.serialize_data()?;
         self.participant_address()
-            .send_actor_mail(data_writer_service::WriteWTimestamp {
+            .send_actor_mail(DomainParticipantMail::WriteWTimestamp {
                 participant_address: self.participant_address().clone(),
                 publisher_handle: self.publisher.get_instance_handle().await,
                 data_writer_handle: self.handle,

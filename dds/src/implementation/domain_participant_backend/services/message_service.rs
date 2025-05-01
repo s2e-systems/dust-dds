@@ -719,21 +719,3 @@ impl MailHandler<IsHistoricalDataReceived> for DomainParticipantActor {
         }
     }
 }
-
-pub struct RemoveWriterChange {
-    pub publisher_handle: InstanceHandle,
-    pub data_writer_handle: InstanceHandle,
-    pub sequence_number: i64,
-}
-impl MailHandler<RemoveWriterChange> for DomainParticipantActor {
-    fn handle(&mut self, message: RemoveWriterChange) {
-        if let Some(p) = self
-            .domain_participant
-            .get_mut_publisher(message.publisher_handle)
-        {
-            if let Some(dw) = p.get_mut_data_writer(message.data_writer_handle) {
-                dw.remove_change(message.sequence_number);
-            }
-        }
-    }
-}
