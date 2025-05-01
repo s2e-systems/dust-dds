@@ -1,4 +1,5 @@
 use core::{future::Future, pin::Pin};
+use std::sync::Arc;
 
 use fnmatch_regex::glob_to_regex;
 
@@ -14,7 +15,7 @@ use super::{
 use crate::{
     builtin_topics::{
         BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
-        DCPS_PUBLICATION,
+        TopicBuiltinTopicData, DCPS_PUBLICATION, DCPS_TOPIC,
     },
     dds_async::{
         data_reader::DataReaderAsync, data_writer::DataWriterAsync,
@@ -41,7 +42,7 @@ use crate::{
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
-        qos::{DataWriterQos, PublisherQos, QosKind},
+        qos::{DataWriterQos, PublisherQos, QosKind, TopicQos},
         qos_policy::{
             DurabilityQosPolicyKind, QosPolicyId, ReliabilityQosPolicyKind,
             DATA_REPRESENTATION_QOS_POLICY_ID, DEADLINE_QOS_POLICY_ID,
@@ -49,7 +50,10 @@ use crate::{
             LIVELINESS_QOS_POLICY_ID, OWNERSHIP_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID,
             RELIABILITY_QOS_POLICY_ID, XCDR_DATA_REPRESENTATION,
         },
-        status::{OfferedDeadlineMissedStatus, PublicationMatchedStatus, StatusKind},
+        status::{
+            InconsistentTopicStatus, OfferedDeadlineMissedStatus, PublicationMatchedStatus,
+            StatusKind,
+        },
         time::{Duration, DurationKind, Time},
     },
     runtime::{
@@ -206,6 +210,63 @@ impl DomainParticipantActor {
             topic_name,
             self.get_participant_async(participant_address),
         ))
+    }
+
+    pub fn get_inconsistent_topic_status(
+        &mut self,
+        topic_name: String,
+    ) -> DdsResult<InconsistentTopicStatus> {
+        let Some(topic) = self.domain_participant.get_mut_topic(&topic_name) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        Ok(topic.get_inconsistent_topic_status())
+    }
+
+    pub fn set_topic_qos(
+        &mut self,
+        topic_name: String,
+        topic_qos: QosKind<TopicQos>,
+    ) -> DdsResult<()> {
+        let qos = match topic_qos {
+            QosKind::Default => self.domain_participant.get_default_topic_qos().clone(),
+            QosKind::Specific(q) => q,
+        };
+        let Some(topic) = self.domain_participant.get_mut_topic(&topic_name) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        topic.set_qos(qos)
+    }
+
+    pub fn get_topic_qos(&mut self, topic_name: String) -> DdsResult<TopicQos> {
+        let Some(topic) = self.domain_participant.get_mut_topic(&topic_name) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        Ok(topic.qos().clone())
+    }
+
+    pub fn enable_topic(&mut self, topic_name: String) -> DdsResult<()> {
+        let Some(topic) = self.domain_participant.get_mut_topic(&topic_name) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        if !topic.enabled() {
+            topic.enable();
+            self.announce_topic(topic_name);
+        }
+
+        Ok(())
+    }
+
+    pub fn get_type_support(
+        &mut self,
+        topic_name: String,
+    ) -> DdsResult<Arc<dyn DynamicType + Send + Sync>> {
+        let Some(topic) = self.domain_participant.get_mut_topic(&topic_name) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        Ok(topic.type_support().clone())
     }
 
     pub fn create_user_defined_publisher(
@@ -934,6 +995,44 @@ impl DomainParticipantActor {
             let key = InstanceHandle::new(data_writer.transport_writer().guid().into());
             if let Ok(serialized_data) = key.serialize_data() {
                 dw.dispose_w_timestamp(serialized_data, timestamp).ok();
+            }
+        }
+    }
+
+    fn announce_topic(&mut self, topic_name: String) {
+        let Some(topic) = self.domain_participant.get_topic(&topic_name) else {
+            return;
+        };
+
+        let topic_builtin_topic_data = TopicBuiltinTopicData {
+            key: BuiltInTopicKey {
+                value: topic.instance_handle().into(),
+            },
+            name: topic.topic_name().to_owned(),
+            type_name: topic.type_name().to_owned(),
+            durability: topic.qos().durability.clone(),
+            deadline: topic.qos().deadline.clone(),
+            latency_budget: topic.qos().latency_budget.clone(),
+            liveliness: topic.qos().liveliness.clone(),
+            reliability: topic.qos().reliability.clone(),
+            transport_priority: topic.qos().transport_priority.clone(),
+            lifespan: topic.qos().lifespan.clone(),
+            destination_order: topic.qos().destination_order.clone(),
+            history: topic.qos().history.clone(),
+            resource_limits: topic.qos().resource_limits.clone(),
+            ownership: topic.qos().ownership.clone(),
+            topic_data: topic.qos().topic_data.clone(),
+            representation: topic.qos().representation.clone(),
+        };
+
+        let timestamp = self.domain_participant.get_current_time();
+        if let Some(dw) = self
+            .domain_participant
+            .builtin_publisher_mut()
+            .lookup_datawriter_mut(DCPS_TOPIC)
+        {
+            if let Ok(serialized_data) = topic_builtin_topic_data.serialize_data() {
+                dw.write_w_timestamp(serialized_data, timestamp).ok();
             }
         }
     }

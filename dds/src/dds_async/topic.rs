@@ -4,7 +4,9 @@ use super::{
 };
 use crate::{
     implementation::{
-        domain_participant_backend::services::topic_service,
+        domain_participant_backend::domain_participant_actor_mail::{
+            DomainParticipantMail, TopicServiceMail,
+        },
         status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
@@ -52,10 +54,10 @@ impl TopicAsync {
     pub async fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant.participant_address().send_actor_mail(
-            topic_service::GetInconsistentTopicStatus {
+            DomainParticipantMail::TopicService(TopicServiceMail::GetInconsistentTopicStatus {
                 topic_name: self.topic_name.clone(),
                 reply_sender,
-            },
+            }),
         )?;
         reply_receiver.await?
     }
@@ -86,13 +88,13 @@ impl TopicAsync {
     #[tracing::instrument(skip(self))]
     pub async fn set_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant
-            .participant_address()
-            .send_actor_mail(topic_service::SetQos {
+        self.participant.participant_address().send_actor_mail(
+            DomainParticipantMail::TopicService(TopicServiceMail::SetQos {
                 topic_name: self.topic_name.clone(),
                 topic_qos: qos,
                 reply_sender,
-            })?;
+            }),
+        )?;
 
         reply_receiver.await?
     }
@@ -101,12 +103,12 @@ impl TopicAsync {
     #[tracing::instrument(skip(self))]
     pub async fn get_qos(&self) -> DdsResult<TopicQos> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant
-            .participant_address()
-            .send_actor_mail(topic_service::GetQos {
+        self.participant.participant_address().send_actor_mail(
+            DomainParticipantMail::TopicService(TopicServiceMail::GetQos {
                 topic_name: self.topic_name.clone(),
                 reply_sender,
-            })?;
+            }),
+        )?;
 
         reply_receiver.await?
     }
@@ -126,13 +128,14 @@ impl TopicAsync {
     /// Async version of [`enable`](crate::topic_definition::topic::Topic::enable).
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
-        self.participant
-            .participant_address()
-            .send_actor_mail(topic_service::Enable {
+        let (reply_sender, reply_receiver) = oneshot();
+        self.participant.participant_address().send_actor_mail(
+            DomainParticipantMail::TopicService(TopicServiceMail::Enable {
                 topic_name: self.topic_name.clone(),
-                participant_address: self.participant.participant_address().clone(),
-            })?;
-        Ok(())
+                reply_sender,
+            }),
+        )?;
+        reply_receiver.await?
     }
 
     /// Async version of [`get_instance_handle`](crate::topic_definition::topic::Topic::get_instance_handle).
@@ -157,12 +160,12 @@ impl TopicAsync {
     #[tracing::instrument(skip(self))]
     pub async fn get_type_support(&self) -> DdsResult<Arc<dyn DynamicType + Send + Sync>> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant
-            .participant_address()
-            .send_actor_mail(topic_service::GetTypeSupport {
+        self.participant.participant_address().send_actor_mail(
+            DomainParticipantMail::TopicService(TopicServiceMail::GetTypeSupport {
                 topic_name: self.topic_name.clone(),
                 reply_sender,
-            })?;
+            }),
+        )?;
 
         reply_receiver.await?
     }

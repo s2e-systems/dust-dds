@@ -1,4 +1,5 @@
 use core::{future::Future, pin::Pin};
+use std::sync::Arc;
 
 use super::domain_participant_actor::DomainParticipantActor;
 use crate::{
@@ -11,14 +12,18 @@ use crate::{
     infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,
-        qos::{DataWriterQos, PublisherQos, QosKind},
-        status::{OfferedDeadlineMissedStatus, PublicationMatchedStatus, StatusKind},
+        qos::{DataWriterQos, PublisherQos, QosKind, TopicQos},
+        status::{
+            InconsistentTopicStatus, OfferedDeadlineMissedStatus, PublicationMatchedStatus,
+            StatusKind,
+        },
         time::{Duration, Time},
     },
     runtime::{
         actor::{ActorAddress, MailHandler},
         oneshot::OneshotSender,
     },
+    xtypes::dynamic_type::DynamicType,
 };
 
 pub enum ParticipantServiceMail {
@@ -28,6 +33,30 @@ pub enum ParticipantServiceMail {
         mask: Vec<StatusKind>,
         reply_sender:
             OneshotSender<DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)>>,
+    },
+}
+
+pub enum TopicServiceMail {
+    GetInconsistentTopicStatus {
+        topic_name: String,
+        reply_sender: OneshotSender<DdsResult<InconsistentTopicStatus>>,
+    },
+    SetQos {
+        topic_name: String,
+        topic_qos: QosKind<TopicQos>,
+        reply_sender: OneshotSender<DdsResult<()>>,
+    },
+    GetQos {
+        topic_name: String,
+        reply_sender: OneshotSender<DdsResult<TopicQos>>,
+    },
+    Enable {
+        topic_name: String,
+        reply_sender: OneshotSender<DdsResult<()>>,
+    },
+    GetTypeSupport {
+        topic_name: String,
+        reply_sender: OneshotSender<DdsResult<Arc<dyn DynamicType + Send + Sync>>>,
     },
 }
 
@@ -180,6 +209,7 @@ pub enum EventServiceMail {
 
 pub enum DomainParticipantMail {
     ParticipantService(ParticipantServiceMail),
+    TopicService(TopicServiceMail),
     PublisherService(PublisherServiceMail),
     WriterService(WriterServiceMail),
     MessageService(MessageServiceMail),
@@ -191,6 +221,9 @@ impl MailHandler<DomainParticipantMail> for DomainParticipantActor {
         match message {
             DomainParticipantMail::ParticipantService(participant_service_mail) => {
                 self.handle_participant_service(participant_service_mail)
+            }
+            DomainParticipantMail::TopicService(topic_service_mail) => {
+                self.handle_topic_service(topic_service_mail);
             }
             DomainParticipantMail::PublisherService(publisher_service_mail) => {
                 self.handle_publisher_service(publisher_service_mail)
@@ -217,6 +250,32 @@ impl DomainParticipantActor {
                 mask,
                 reply_sender,
             } => reply_sender.send(self.create_user_defined_publisher(qos, a_listener, mask)),
+        }
+    }
+
+    fn handle_topic_service(&mut self, topic_service_mail: TopicServiceMail) {
+        match topic_service_mail {
+            TopicServiceMail::GetInconsistentTopicStatus {
+                topic_name,
+                reply_sender,
+            } => reply_sender.send(self.get_inconsistent_topic_status(topic_name)),
+            TopicServiceMail::SetQos {
+                topic_name,
+                topic_qos,
+                reply_sender,
+            } => reply_sender.send(self.set_topic_qos(topic_name, topic_qos)),
+            TopicServiceMail::GetQos {
+                topic_name,
+                reply_sender,
+            } => reply_sender.send(self.get_topic_qos(topic_name)),
+            TopicServiceMail::Enable {
+                topic_name,
+                reply_sender,
+            } => reply_sender.send(self.enable_topic(topic_name)),
+            TopicServiceMail::GetTypeSupport {
+                topic_name,
+                reply_sender,
+            } => reply_sender.send(self.get_type_support(topic_name)),
         }
     }
 
@@ -290,15 +349,13 @@ impl DomainParticipantActor {
                 publisher_handle,
                 data_writer_handle,
                 reply_sender,
-            } => reply_sender
-                .send(self.get_data_writer_qos(publisher_handle, data_writer_handle)),
+            } => reply_sender.send(self.get_data_writer_qos(publisher_handle, data_writer_handle)),
             WriterServiceMail::GetMatchedSubscriptions {
                 publisher_handle,
                 data_writer_handle,
                 reply_sender,
-            } => reply_sender.send(
-                self.get_matched_subscriptions(publisher_handle, data_writer_handle),
-            ),
+            } => reply_sender
+                .send(self.get_matched_subscriptions(publisher_handle, data_writer_handle)),
             WriterServiceMail::GetMatchedSubscriptionData {
                 publisher_handle,
                 data_writer_handle,
@@ -313,12 +370,8 @@ impl DomainParticipantActor {
                 publisher_handle,
                 data_writer_handle,
                 reply_sender,
-            } => {
-                reply_sender.send(self.get_publication_matched_status(
-                    publisher_handle,
-                    data_writer_handle,
-                ))
-            }
+            } => reply_sender
+                .send(self.get_publication_matched_status(publisher_handle, data_writer_handle)),
             WriterServiceMail::UnregisterInstance {
                 publisher_handle,
                 data_writer_handle,

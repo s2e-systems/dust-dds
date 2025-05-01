@@ -12,6 +12,7 @@ use crate::{
     implementation::{
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor,
+            domain_participant_actor_mail::{DomainParticipantMail, TopicServiceMail},
             entities::{
                 publisher::PublisherEntity, subscriber::SubscriberEntity, topic::TopicEntity,
             },
@@ -36,7 +37,7 @@ use crate::{
     xtypes::dynamic_type::DynamicType,
 };
 
-use super::{discovery_service, topic_service};
+use super::discovery_service;
 
 pub const BUILT_IN_TOPIC_NAME_LIST: [&str; 4] = [
     DCPS_PARTICIPANT,
@@ -241,10 +242,12 @@ impl MailHandler<CreateTopic> for DomainParticipantActor {
         {
             message
                 .participant_address
-                .send_actor_mail(topic_service::Enable {
-                    topic_name: message.topic_name.clone(),
-                    participant_address: message.participant_address.clone(),
-                })
+                .send_actor_mail(DomainParticipantMail::TopicService(
+                    TopicServiceMail::Enable {
+                        topic_name: message.topic_name.clone(),
+                        reply_sender: todo!(),
+                    },
+                ))
                 .ok();
         }
 
