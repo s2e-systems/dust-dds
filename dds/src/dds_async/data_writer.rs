@@ -231,13 +231,15 @@ where
         let (reply_sender, reply_receiver) = oneshot();
         let serialized_data = data.serialize_data()?;
         self.participant_address()
-            .send_actor_mail(data_writer_service::DisposeWTimestamp {
-                publisher_handle: self.publisher.get_instance_handle().await,
-                data_writer_handle: self.handle,
-                serialized_data,
-                timestamp,
-                reply_sender,
-            })?;
+            .send_actor_mail(DomainParticipantMail::WriterService(
+                WriterServiceMail::DisposeWTimestamp {
+                    publisher_handle: self.publisher.get_instance_handle().await,
+                    data_writer_handle: self.handle,
+                    serialized_data,
+                    timestamp,
+                    reply_sender,
+                },
+            ))?;
         reply_receiver.await?
     }
 }
@@ -247,15 +249,16 @@ impl<Foo> DataWriterAsync<Foo> {
     #[tracing::instrument(skip(self))]
     pub async fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant_address().send_actor_mail(
-            data_writer_service::WaitForAcknowledgments {
-                participant_address: self.participant_address().clone(),
-                publisher_handle: self.publisher.get_instance_handle().await,
-                data_writer_handle: self.handle,
-                timeout: max_wait,
-                reply_sender,
-            },
-        )?;
+        self.participant_address()
+            .send_actor_mail(DomainParticipantMail::WriterService(
+                WriterServiceMail::WaitForAcknowledgments {
+                    participant_address: self.participant_address().clone(),
+                    publisher_handle: self.publisher.get_instance_handle().await,
+                    data_writer_handle: self.handle,
+                    timeout: max_wait,
+                    reply_sender,
+                },
+            ))?;
         reply_receiver.await?.await
     }
 

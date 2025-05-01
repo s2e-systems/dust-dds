@@ -1,3 +1,5 @@
+use core::{future::Future, pin::Pin};
+
 use fnmatch_regex::glob_to_regex;
 
 use super::{
@@ -53,6 +55,7 @@ use crate::{
     runtime::{
         actor::{Actor, ActorAddress},
         executor::Executor,
+        oneshot::oneshot,
         timer::TimerDriver,
     },
     topic_definition::type_support::DdsSerialize,
@@ -583,6 +586,77 @@ impl DomainParticipantActor {
         Ok(())
     }
 
+    pub fn dispose_w_timestamp(
+        &mut self,
+        publisher_handle: InstanceHandle,
+        data_writer_handle: InstanceHandle,
+        serialized_data: Vec<u8>,
+        timestamp: Time,
+    ) -> DdsResult<()> {
+        let Some(publisher) = self.domain_participant.get_mut_publisher(publisher_handle) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        let Some(data_writer) = publisher
+            .data_writer_list_mut()
+            .find(|x| x.instance_handle() == data_writer_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        let serialized_key = match get_serialized_key_from_serialized_foo(
+            &serialized_data,
+            data_writer.type_support(),
+        ) {
+            Ok(k) => k,
+            Err(e) => {
+                return Err(e.into());
+            }
+        };
+        data_writer.dispose_w_timestamp(serialized_key, timestamp)
+    }
+
+    pub fn wait_for_acknowledgments(
+        &mut self,
+        participant_address: ActorAddress<DomainParticipantActor>,
+        publisher_handle: InstanceHandle,
+        data_writer_handle: InstanceHandle,
+        timeout: Duration,
+    ) -> Pin<Box<dyn Future<Output = DdsResult<()>> + Send>> {
+        let timer_handle = self.timer_driver.handle();
+        Box::pin(async move {
+            timer_handle
+                .timeout(
+                    timeout.into(),
+                    Box::pin(async move {
+                        loop {
+                            let (reply_sender, reply_receiver) = oneshot();
+                            participant_address
+                                .send_actor_mail(DomainParticipantMail::MessageService(
+                                    MessageServiceMail::AreAllChangesAcknowledged {
+                                        publisher_handle,
+                                        data_writer_handle,
+                                        reply_sender,
+                                    },
+                                ))
+                                .ok();
+                            let reply = reply_receiver.await;
+                            match reply {
+                                Ok(are_changes_acknowledged) => match are_changes_acknowledged {
+                                    Ok(true) => return Ok(()),
+                                    Ok(false) => (),
+                                    Err(e) => return Err(e),
+                                },
+                                Err(e) => {
+                                    return Err(DdsError::Error(format!("Channel error: {:?}", e)))
+                                }
+                            }
+                        }
+                    }),
+                )
+                .await
+                .map_err(|_| DdsError::Timeout)?
+        })
+    }
+
     pub fn enable_data_writer(
         &mut self,
         publisher_handle: InstanceHandle,
@@ -647,6 +721,21 @@ impl DomainParticipantActor {
             self.announce_data_writer(publisher_handle, data_writer_handle);
         }
         Ok(())
+    }
+
+    pub fn are_all_changes_acknowledged(
+        &mut self,
+        publisher_handle: InstanceHandle,
+        data_writer_handle: InstanceHandle,
+    ) -> DdsResult<bool> {
+        let Some(publisher) = self.domain_participant.get_publisher(publisher_handle) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        let Some(data_writer) = publisher.get_data_writer(data_writer_handle) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        Ok(data_writer.are_all_changes_acknowledged())
     }
 
     fn announce_data_writer(

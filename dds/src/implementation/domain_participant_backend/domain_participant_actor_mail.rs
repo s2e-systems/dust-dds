@@ -1,3 +1,5 @@
+use core::{future::Future, pin::Pin};
+
 use super::domain_participant_actor::DomainParticipantActor;
 use crate::{
     dds_async::publisher_listener::PublisherListenerAsync,
@@ -10,7 +12,7 @@ use crate::{
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, QosKind},
         status::StatusKind,
-        time::Time,
+        time::{Duration, Time},
     },
     runtime::{
         actor::{ActorAddress, MailHandler},
@@ -92,6 +94,20 @@ pub enum WriterServiceMail {
         timestamp: Time,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
+    DisposeWTimestamp {
+        publisher_handle: InstanceHandle,
+        data_writer_handle: InstanceHandle,
+        serialized_data: Vec<u8>,
+        timestamp: Time,
+        reply_sender: OneshotSender<DdsResult<()>>,
+    },
+    WaitForAcknowledgments {
+        participant_address: ActorAddress<DomainParticipantActor>,
+        publisher_handle: InstanceHandle,
+        data_writer_handle: InstanceHandle,
+        timeout: Duration,
+        reply_sender: OneshotSender<Pin<Box<dyn Future<Output = DdsResult<()>> + Send>>>,
+    },
     EnableDataWriter {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
@@ -111,6 +127,11 @@ pub enum MessageServiceMail {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         sequence_number: i64,
+    },
+    AreAllChangesAcknowledged {
+        publisher_handle: InstanceHandle,
+        data_writer_handle: InstanceHandle,
+        reply_sender: OneshotSender<DdsResult<bool>>,
     },
 }
 
@@ -255,6 +276,30 @@ impl DomainParticipantActor {
                 serialized_data,
                 timestamp,
             )),
+            WriterServiceMail::DisposeWTimestamp {
+                publisher_handle,
+                data_writer_handle,
+                serialized_data,
+                timestamp,
+                reply_sender,
+            } => reply_sender.send(self.dispose_w_timestamp(
+                publisher_handle,
+                data_writer_handle,
+                serialized_data,
+                timestamp,
+            )),
+            WriterServiceMail::WaitForAcknowledgments {
+                participant_address,
+                publisher_handle,
+                data_writer_handle,
+                timeout,
+                reply_sender,
+            } => reply_sender.send(self.wait_for_acknowledgments(
+                participant_address,
+                publisher_handle,
+                data_writer_handle,
+                timeout,
+            )),
             WriterServiceMail::EnableDataWriter {
                 publisher_handle,
                 data_writer_handle,
@@ -285,6 +330,12 @@ impl DomainParticipantActor {
                 data_writer_handle,
                 sequence_number,
             } => self.remove_writer_change(publisher_handle, data_writer_handle, sequence_number),
+            MessageServiceMail::AreAllChangesAcknowledged {
+                publisher_handle,
+                data_writer_handle,
+                reply_sender,
+            } => reply_sender
+                .send(self.are_all_changes_acknowledged(publisher_handle, data_writer_handle)),
         }
     }
 
