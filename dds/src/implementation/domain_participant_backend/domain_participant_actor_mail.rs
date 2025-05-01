@@ -11,7 +11,7 @@ use crate::{
         error::DdsResult,
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, QosKind},
-        status::{OfferedDeadlineMissedStatus, StatusKind},
+        status::{OfferedDeadlineMissedStatus, PublicationMatchedStatus, StatusKind},
         time::{Duration, Time},
     },
     runtime::{
@@ -73,6 +73,11 @@ pub enum PublisherServiceMail {
 }
 
 pub enum WriterServiceMail {
+    GetPublicationMatchedStatus {
+        publisher_handle: InstanceHandle,
+        data_writer_handle: InstanceHandle,
+        reply_sender: OneshotSender<DdsResult<PublicationMatchedStatus>>,
+    },
     UnregisterInstance {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
@@ -245,6 +250,16 @@ impl DomainParticipantActor {
 
     fn handle_writer_service(&mut self, writer_service_mail: WriterServiceMail) {
         match writer_service_mail {
+            WriterServiceMail::GetPublicationMatchedStatus {
+                publisher_handle,
+                data_writer_handle,
+                reply_sender,
+            } => {
+                reply_sender.send(self.data_writer_get_publication_matched_status(
+                    publisher_handle,
+                    data_writer_handle,
+                ))
+            }
             WriterServiceMail::UnregisterInstance {
                 publisher_handle,
                 data_writer_handle,

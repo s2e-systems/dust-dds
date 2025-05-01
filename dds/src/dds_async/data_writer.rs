@@ -297,13 +297,14 @@ impl<Foo> DataWriterAsync<Foo> {
     #[tracing::instrument(skip(self))]
     pub async fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant_address().send_actor_mail(
-            data_writer_service::GetPublicationMatchedStatus {
-                publisher_handle: self.publisher.get_instance_handle().await,
-                data_writer_handle: self.handle,
-                reply_sender,
-            },
-        )?;
+        self.participant_address()
+            .send_actor_mail(DomainParticipantMail::WriterService(
+                WriterServiceMail::GetPublicationMatchedStatus {
+                    publisher_handle: self.publisher.get_instance_handle().await,
+                    data_writer_handle: self.handle,
+                    reply_sender,
+                },
+            ))?;
         reply_receiver.await?
     }
 

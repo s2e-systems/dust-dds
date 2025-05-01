@@ -49,7 +49,7 @@ use crate::{
             LIVELINESS_QOS_POLICY_ID, OWNERSHIP_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID,
             RELIABILITY_QOS_POLICY_ID, XCDR_DATA_REPRESENTATION,
         },
-        status::{OfferedDeadlineMissedStatus, StatusKind},
+        status::{OfferedDeadlineMissedStatus, PublicationMatchedStatus, StatusKind},
         time::{Duration, DurationKind, Time},
     },
     runtime::{
@@ -429,6 +429,31 @@ impl DomainParticipantActor {
             mask,
         );
         Ok(())
+    }
+
+    pub fn data_writer_get_publication_matched_status(
+        &mut self,
+        publisher_handle: InstanceHandle,
+        data_writer_handle: InstanceHandle,
+    ) -> DdsResult<PublicationMatchedStatus> {
+        let Some(publisher) = self.domain_participant.get_mut_publisher(publisher_handle) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        let Some(data_writer) = publisher
+            .data_writer_list_mut()
+            .find(|x| x.instance_handle() == data_writer_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        let status = data_writer.get_publication_matched_status();
+
+        data_writer.status_condition().send_actor_mail(
+            status_condition_actor::RemoveCommunicationState {
+                state: StatusKind::PublicationMatched,
+            },
+        );
+        Ok(status)
     }
 
     pub fn unregister_instance(

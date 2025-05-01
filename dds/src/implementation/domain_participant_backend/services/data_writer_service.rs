@@ -4,52 +4,18 @@ use crate::{
         any_data_writer_listener::AnyDataWriterListener,
         domain_participant_backend::domain_participant_actor::DomainParticipantActor,
         listeners::data_writer_listener::DataWriterListenerActor,
-        status_condition::status_condition_actor,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::DataWriterQos,
-        status::{PublicationMatchedStatus, StatusKind},
+        status::StatusKind,
     },
     runtime::{
         actor::{Actor, MailHandler},
         oneshot::OneshotSender,
     },
 };
-
-pub struct GetPublicationMatchedStatus {
-    pub publisher_handle: InstanceHandle,
-    pub data_writer_handle: InstanceHandle,
-    pub reply_sender: OneshotSender<DdsResult<PublicationMatchedStatus>>,
-}
-impl MailHandler<GetPublicationMatchedStatus> for DomainParticipantActor {
-    fn handle(&mut self, message: GetPublicationMatchedStatus) {
-        let Some(publisher) = self
-            .domain_participant
-            .get_mut_publisher(message.publisher_handle)
-        else {
-            message.reply_sender.send(Err(DdsError::AlreadyDeleted));
-            return;
-        };
-        let Some(data_writer) = publisher
-            .data_writer_list_mut()
-            .find(|x| x.instance_handle() == message.data_writer_handle)
-        else {
-            message.reply_sender.send(Err(DdsError::AlreadyDeleted));
-            return;
-        };
-
-        let status = data_writer.get_publication_matched_status();
-
-        data_writer.status_condition().send_actor_mail(
-            status_condition_actor::RemoveCommunicationState {
-                state: StatusKind::PublicationMatched,
-            },
-        );
-        message.reply_sender.send(Ok(status));
-    }
-}
 
 pub struct GetMatchedSubscriptionData {
     pub publisher_handle: InstanceHandle,
