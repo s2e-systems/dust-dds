@@ -2,6 +2,7 @@ use core::{future::Future, pin::Pin};
 
 use super::domain_participant_actor::DomainParticipantActor;
 use crate::{
+    builtin_topics::SubscriptionBuiltinTopicData,
     dds_async::publisher_listener::PublisherListenerAsync,
     implementation::{
         any_data_writer_listener::AnyDataWriterListener,
@@ -73,6 +74,29 @@ pub enum PublisherServiceMail {
 }
 
 pub enum WriterServiceMail {
+    SetListener {
+        publisher_handle: InstanceHandle,
+        data_writer_handle: InstanceHandle,
+        listener: Option<Box<dyn AnyDataWriterListener + Send>>,
+        listener_mask: Vec<StatusKind>,
+        reply_sender: OneshotSender<DdsResult<()>>,
+    },
+    GetDataWriterQos {
+        publisher_handle: InstanceHandle,
+        data_writer_handle: InstanceHandle,
+        reply_sender: OneshotSender<DdsResult<DataWriterQos>>,
+    },
+    GetMatchedSubscriptions {
+        publisher_handle: InstanceHandle,
+        data_writer_handle: InstanceHandle,
+        reply_sender: OneshotSender<DdsResult<Vec<InstanceHandle>>>,
+    },
+    GetMatchedSubscriptionData {
+        publisher_handle: InstanceHandle,
+        data_writer_handle: InstanceHandle,
+        subscription_handle: InstanceHandle,
+        reply_sender: OneshotSender<DdsResult<SubscriptionBuiltinTopicData>>,
+    },
     GetPublicationMatchedStatus {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
@@ -250,6 +274,41 @@ impl DomainParticipantActor {
 
     fn handle_writer_service(&mut self, writer_service_mail: WriterServiceMail) {
         match writer_service_mail {
+            WriterServiceMail::SetListener {
+                publisher_handle,
+                data_writer_handle,
+                listener,
+                listener_mask,
+                reply_sender,
+            } => reply_sender.send(self.data_writer_set_listener(
+                publisher_handle,
+                data_writer_handle,
+                listener,
+                listener_mask,
+            )),
+            WriterServiceMail::GetDataWriterQos {
+                publisher_handle,
+                data_writer_handle,
+                reply_sender,
+            } => reply_sender
+                .send(self.data_writer_get_data_writer_qos(publisher_handle, data_writer_handle)),
+            WriterServiceMail::GetMatchedSubscriptions {
+                publisher_handle,
+                data_writer_handle,
+                reply_sender,
+            } => reply_sender.send(
+                self.data_writer_get_matched_subscriptions(publisher_handle, data_writer_handle),
+            ),
+            WriterServiceMail::GetMatchedSubscriptionData {
+                publisher_handle,
+                data_writer_handle,
+                subscription_handle,
+                reply_sender,
+            } => reply_sender.send(self.data_writer_get_matched_subscription_data(
+                publisher_handle,
+                data_writer_handle,
+                subscription_handle,
+            )),
             WriterServiceMail::GetPublicationMatchedStatus {
                 publisher_handle,
                 data_writer_handle,

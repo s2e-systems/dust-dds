@@ -456,6 +456,87 @@ impl DomainParticipantActor {
         Ok(status)
     }
 
+    pub fn data_writer_set_listener(
+        &mut self,
+        publisher_handle: InstanceHandle,
+        data_writer_handle: InstanceHandle,
+        listener: Option<Box<dyn AnyDataWriterListener + Send>>,
+        listener_mask: Vec<StatusKind>,
+    ) -> DdsResult<()> {
+        let listener = listener.map(|l| {
+            Actor::spawn(
+                DataWriterListenerActor::new(l),
+                &self.listener_executor.handle(),
+            )
+        });
+        let Some(publisher) = self.domain_participant.get_mut_publisher(publisher_handle) else {
+            return Ok(());
+        };
+        let Some(data_writer) = publisher.get_mut_data_writer(data_writer_handle) else {
+            return Ok(());
+        };
+
+        data_writer.set_listener(listener, listener_mask);
+
+        Ok(())
+    }
+
+    pub fn data_writer_get_data_writer_qos(
+        &mut self,
+        publisher_handle: InstanceHandle,
+        data_writer_handle: InstanceHandle,
+    ) -> DdsResult<DataWriterQos> {
+        let Some(publisher) = self.domain_participant.get_mut_publisher(publisher_handle) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        let Some(data_writer) = publisher
+            .data_writer_list_mut()
+            .find(|x| x.instance_handle() == data_writer_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        Ok(data_writer.qos().clone())
+    }
+
+    pub fn data_writer_get_matched_subscriptions(
+        &mut self,
+        publisher_handle: InstanceHandle,
+        data_writer_handle: InstanceHandle,
+    ) -> DdsResult<Vec<InstanceHandle>> {
+        let Some(publisher) = self.domain_participant.get_mut_publisher(publisher_handle) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        let Some(data_writer) = publisher
+            .data_writer_list_mut()
+            .find(|x| x.instance_handle() == data_writer_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        Ok(data_writer.get_matched_subscriptions())
+    }
+
+    pub fn data_writer_get_matched_subscription_data(
+        &mut self,
+        publisher_handle: InstanceHandle,
+        data_writer_handle: InstanceHandle,
+        subscription_handle: InstanceHandle,
+    ) -> DdsResult<SubscriptionBuiltinTopicData> {
+        let Some(publisher) = self.domain_participant.get_mut_publisher(publisher_handle) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        let Some(data_writer) = publisher
+            .data_writer_list_mut()
+            .find(|x| x.instance_handle() == data_writer_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        data_writer
+            .get_matched_subscription_data(&subscription_handle)
+            .ok_or(DdsError::BadParameter)
+            .cloned()
+    }
+
     pub fn unregister_instance(
         &mut self,
         publisher_handle: InstanceHandle,
