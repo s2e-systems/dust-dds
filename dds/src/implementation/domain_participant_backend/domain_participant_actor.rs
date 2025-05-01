@@ -9,18 +9,20 @@ use super::{
         data_writer::{DataWriterEntity, TransportWriterKind},
         domain_participant::DomainParticipantEntity,
         publisher::PublisherEntity,
+        topic::TopicEntity,
     },
     handle::InstanceHandleCounter,
 };
 use crate::{
     builtin_topics::{
         BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
-        TopicBuiltinTopicData, DCPS_PUBLICATION, DCPS_TOPIC,
+        TopicBuiltinTopicData, DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
     },
     dds_async::{
         data_reader::DataReaderAsync, data_writer::DataWriterAsync,
         domain_participant::DomainParticipantAsync, publisher::PublisherAsync,
         publisher_listener::PublisherListenerAsync, subscriber::SubscriberAsync, topic::TopicAsync,
+        topic_listener::TopicListenerAsync,
     },
     implementation::{
         any_data_writer_listener::AnyDataWriterListener,
@@ -33,6 +35,7 @@ use crate::{
             data_writer_listener::{self, DataWriterListenerActor},
             domain_participant_listener,
             publisher_listener::{self, PublisherListenerActor},
+            topic_listener::TopicListenerActor,
         },
         status_condition::status_condition_actor::{self, StatusConditionActor},
         xtypes_glue::key_and_instance_handle::{
@@ -72,6 +75,13 @@ use crate::{
     },
     xtypes::dynamic_type::DynamicType,
 };
+
+pub const BUILT_IN_TOPIC_NAME_LIST: [&str; 4] = [
+    DCPS_PARTICIPANT,
+    DCPS_TOPIC,
+    DCPS_PUBLICATION,
+    DCPS_SUBSCRIPTION,
+];
 
 pub struct DomainParticipantActor {
     pub transport: DdsTransportParticipant,
@@ -313,6 +323,192 @@ impl DomainParticipantActor {
         self.domain_participant.insert_publisher(publisher);
 
         Ok((publisher_handle, publisher_status_condition_address))
+    }
+
+    pub fn delete_user_defined_publisher(
+        &mut self,
+        participant_handle: InstanceHandle,
+        publisher_handle: InstanceHandle,
+    ) -> DdsResult<()> {
+        if participant_handle != self.domain_participant.instance_handle() {
+            return Err(DdsError::PreconditionNotMet(
+                "Publisher can only be deleted from its parent participant".to_string(),
+            ));
+        }
+        let Some(publisher) = self.domain_participant.get_publisher(publisher_handle) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        if publisher.data_writer_list().count() > 0 {
+            return Err(DdsError::PreconditionNotMet(
+                "Publisher still contains data writers".to_string(),
+            ));
+        }
+        let Some(_) = self.domain_participant.remove_publisher(&publisher_handle) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        Ok(())
+    }
+
+    pub fn create_topic(
+        &mut self,
+        topic_name: String,
+        type_name: String,
+        qos: QosKind<TopicQos>,
+        a_listener: Option<Box<dyn TopicListenerAsync + Send>>,
+        mask: Vec<StatusKind>,
+        type_support: Arc<dyn DynamicType + Send + Sync>,
+    ) -> DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)> {
+        if self.domain_participant.get_topic(&topic_name).is_some() {
+            return Err(DdsError::PreconditionNotMet(format!(
+                "Topic with name {} already exists.
+         To access this topic call the lookup_topicdescription method.",
+                topic_name
+            )));
+        }
+
+        let qos = match qos {
+            QosKind::Default => self.domain_participant.get_default_topic_qos().clone(),
+            QosKind::Specific(q) => q,
+        };
+
+        let topic_handle = self.instance_handle_counter.generate_new_instance_handle();
+        let status_condition = Actor::spawn(
+            StatusConditionActor::default(),
+            &self.listener_executor.handle(),
+        );
+        let topic_status_condition_address = status_condition.address();
+        let topic_listener = a_listener
+            .map(|l| Actor::spawn(TopicListenerActor::new(l), &self.listener_executor.handle()));
+        let topic = TopicEntity::new(
+            qos,
+            type_name,
+            topic_name.clone(),
+            topic_handle,
+            status_condition,
+            topic_listener,
+            mask,
+            type_support,
+        );
+
+        self.domain_participant.insert_topic(topic);
+
+        if self.domain_participant.enabled()
+            && self
+                .domain_participant
+                .qos()
+                .entity_factory
+                .autoenable_created_entities
+        {
+            self.enable_topic(topic_name)?;
+        }
+
+        Ok((topic_handle, topic_status_condition_address))
+    }
+
+    pub fn delete_user_defined_topic(
+        &mut self,
+        participant_handle: InstanceHandle,
+        topic_name: String,
+    ) -> DdsResult<()> {
+        if self.domain_participant.instance_handle() != participant_handle {
+            return Err(DdsError::PreconditionNotMet(
+                "Topic can only be deleted from its parent participant".to_string(),
+            ));
+        }
+
+        if BUILT_IN_TOPIC_NAME_LIST.contains(&topic_name.as_str()) {
+            return Ok(());
+        }
+
+        let Some(topic) = self.domain_participant.get_topic(&topic_name) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        if Arc::strong_count(topic.type_support()) > 1 {
+            return Err(DdsError::PreconditionNotMet(
+                "Topic still attached to some data writer or data reader".to_string(),
+            ));
+        }
+
+        let Some(_) = self.domain_participant.remove_topic(&topic_name) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        Ok(())
+    }
+
+    pub fn find_topic(
+        &mut self,
+        topic_name: String,
+        type_support: Arc<dyn DynamicType + Send + Sync>,
+    ) -> DdsResult<Option<(InstanceHandle, ActorAddress<StatusConditionActor>, String)>> {
+        if let Some(topic) = self.domain_participant.get_topic(&topic_name) {
+            return Ok(Some((
+                topic.instance_handle(),
+                topic.status_condition().address(),
+                topic.type_name().to_owned(),
+            )));
+        } else {
+            if let Some(discovered_topic_data) = self.domain_participant.find_topic(&topic_name) {
+                let qos = TopicQos {
+                    topic_data: discovered_topic_data.topic_data().clone(),
+                    durability: discovered_topic_data.durability().clone(),
+                    deadline: discovered_topic_data.deadline().clone(),
+                    latency_budget: discovered_topic_data.latency_budget().clone(),
+                    liveliness: discovered_topic_data.liveliness().clone(),
+                    reliability: discovered_topic_data.reliability().clone(),
+                    destination_order: discovered_topic_data.destination_order().clone(),
+                    history: discovered_topic_data.history().clone(),
+                    resource_limits: discovered_topic_data.resource_limits().clone(),
+                    transport_priority: discovered_topic_data.transport_priority().clone(),
+                    lifespan: discovered_topic_data.lifespan().clone(),
+                    ownership: discovered_topic_data.ownership().clone(),
+                    representation: discovered_topic_data.representation().clone(),
+                };
+                let type_name = discovered_topic_data.type_name.clone();
+                let topic_handle = self.instance_handle_counter.generate_new_instance_handle();
+                let mut topic = TopicEntity::new(
+                    qos,
+                    type_name.clone(),
+                    topic_name.clone(),
+                    topic_handle,
+                    Actor::spawn(
+                        StatusConditionActor::default(),
+                        &self.listener_executor.handle(),
+                    ),
+                    None,
+                    vec![],
+                    type_support,
+                );
+                topic.enable();
+                let topic_status_condition_address = topic.status_condition().address();
+
+                self.domain_participant.insert_topic(topic);
+                return Ok(Some((
+                    topic_handle,
+                    topic_status_condition_address,
+                    type_name,
+                )));
+            }
+            Ok(None)
+        }
+    }
+
+    pub fn lookup_topicdescription(
+        &mut self,
+        topic_name: String,
+    ) -> DdsResult<Option<(String, InstanceHandle, ActorAddress<StatusConditionActor>)>> {
+        if let Some(topic) = self.domain_participant.get_topic(&topic_name) {
+            Ok(Some((
+                topic.type_name().to_owned(),
+                topic.instance_handle(),
+                topic.status_condition().address(),
+            )))
+        } else {
+            Ok(None)
+        }
     }
 
     pub fn create_data_writer(

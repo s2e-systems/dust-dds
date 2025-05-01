@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::{
     builtin_topics::{
         ParticipantBuiltinTopicData, TopicBuiltinTopicData, DCPS_PARTICIPANT, DCPS_PUBLICATION,
@@ -7,19 +5,16 @@ use crate::{
     },
     dds_async::{
         domain_participant_listener::DomainParticipantListenerAsync,
-        subscriber_listener::SubscriberListenerAsync, topic_listener::TopicListenerAsync,
+        subscriber_listener::SubscriberListenerAsync,
     },
     implementation::{
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor,
-            domain_participant_actor_mail::{DomainParticipantMail, TopicServiceMail},
-            entities::{
-                publisher::PublisherEntity, subscriber::SubscriberEntity, topic::TopicEntity,
-            },
+            entities::{publisher::PublisherEntity, subscriber::SubscriberEntity},
         },
         listeners::{
             domain_participant_listener::DomainParticipantListenerActor,
-            subscriber_listener::SubscriberListenerActor, topic_listener::TopicListenerActor,
+            subscriber_listener::SubscriberListenerActor,
         },
         status_condition::status_condition_actor::StatusConditionActor,
     },
@@ -34,7 +29,6 @@ use crate::{
         actor::{Actor, ActorAddress, MailHandler},
         oneshot::OneshotSender,
     },
-    xtypes::dynamic_type::DynamicType,
 };
 
 use super::discovery_service;
@@ -45,45 +39,6 @@ pub const BUILT_IN_TOPIC_NAME_LIST: [&str; 4] = [
     DCPS_PUBLICATION,
     DCPS_SUBSCRIPTION,
 ];
-
-pub struct DeleteUserDefinedPublisher {
-    pub participant_handle: InstanceHandle,
-    pub publisher_handle: InstanceHandle,
-    pub reply_sender: OneshotSender<DdsResult<()>>,
-}
-impl MailHandler<DeleteUserDefinedPublisher> for DomainParticipantActor {
-    fn handle(&mut self, message: DeleteUserDefinedPublisher) {
-        if message.participant_handle != self.domain_participant.instance_handle() {
-            message.reply_sender.send(Err(DdsError::PreconditionNotMet(
-                "Publisher can only be deleted from its parent participant".to_string(),
-            )));
-            return;
-        }
-        let Some(publisher) = self
-            .domain_participant
-            .get_publisher(message.publisher_handle)
-        else {
-            message.reply_sender.send(Err(DdsError::AlreadyDeleted));
-            return;
-        };
-
-        if publisher.data_writer_list().count() > 0 {
-            message.reply_sender.send(Err(DdsError::PreconditionNotMet(
-                "Publisher still contains data writers".to_string(),
-            )));
-            return;
-        }
-        let Some(_) = self
-            .domain_participant
-            .remove_publisher(&message.publisher_handle)
-        else {
-            message.reply_sender.send(Err(DdsError::AlreadyDeleted));
-            return;
-        };
-
-        message.reply_sender.send(Ok(()));
-    }
-}
 
 pub struct CreateUserDefinedSubscriber {
     pub qos: QosKind<SubscriberQos>,
@@ -175,212 +130,6 @@ impl MailHandler<DeleteUserDefinedSubscriber> for DomainParticipantActor {
         };
 
         message.reply_sender.send(Ok(()))
-    }
-}
-
-pub struct CreateTopic {
-    pub topic_name: String,
-    pub type_name: String,
-    pub qos: QosKind<TopicQos>,
-    pub a_listener: Option<Box<dyn TopicListenerAsync + Send>>,
-    pub mask: Vec<StatusKind>,
-    pub type_support: Arc<dyn DynamicType + Send + Sync>,
-    pub participant_address: ActorAddress<DomainParticipantActor>,
-    pub reply_sender:
-        OneshotSender<DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)>>,
-}
-impl MailHandler<CreateTopic> for DomainParticipantActor {
-    fn handle(&mut self, message: CreateTopic) {
-        if self
-            .domain_participant
-            .get_topic(&message.topic_name)
-            .is_some()
-        {
-            message
-                .reply_sender
-                .send(Err(DdsError::PreconditionNotMet(format!(
-                    "Topic with name {} already exists.
-             To access this topic call the lookup_topicdescription method.",
-                    message.topic_name
-                ))));
-            return;
-        }
-
-        let qos = match message.qos {
-            QosKind::Default => self.domain_participant.get_default_topic_qos().clone(),
-            QosKind::Specific(q) => q,
-        };
-
-        let topic_handle = self.instance_handle_counter.generate_new_instance_handle();
-        let status_condition = Actor::spawn(
-            StatusConditionActor::default(),
-            &self.listener_executor.handle(),
-        );
-        let topic_status_condition_address = status_condition.address();
-        let topic_listener = message
-            .a_listener
-            .map(|l| Actor::spawn(TopicListenerActor::new(l), &self.listener_executor.handle()));
-        let topic = TopicEntity::new(
-            qos,
-            message.type_name,
-            message.topic_name.clone(),
-            topic_handle,
-            status_condition,
-            topic_listener,
-            message.mask,
-            message.type_support,
-        );
-
-        self.domain_participant.insert_topic(topic);
-
-        if self.domain_participant.enabled()
-            && self
-                .domain_participant
-                .qos()
-                .entity_factory
-                .autoenable_created_entities
-        {
-            message
-                .participant_address
-                .send_actor_mail(DomainParticipantMail::TopicService(
-                    TopicServiceMail::Enable {
-                        topic_name: message.topic_name.clone(),
-                        reply_sender: todo!(),
-                    },
-                ))
-                .ok();
-        }
-
-        message
-            .reply_sender
-            .send(Ok((topic_handle, topic_status_condition_address)))
-    }
-}
-
-pub struct DeleteUserDefinedTopic {
-    pub participant_handle: InstanceHandle,
-    pub topic_name: String,
-    pub reply_sender: OneshotSender<DdsResult<()>>,
-}
-impl MailHandler<DeleteUserDefinedTopic> for DomainParticipantActor {
-    fn handle(&mut self, message: DeleteUserDefinedTopic) {
-        if self.domain_participant.instance_handle() != message.participant_handle {
-            message.reply_sender.send(Err(DdsError::PreconditionNotMet(
-                "Topic can only be deleted from its parent participant".to_string(),
-            )));
-            return;
-        }
-
-        if BUILT_IN_TOPIC_NAME_LIST.contains(&message.topic_name.as_str()) {
-            message.reply_sender.send(Ok(()));
-            return;
-        }
-
-        let Some(topic) = self.domain_participant.get_topic(&message.topic_name) else {
-            message.reply_sender.send(Err(DdsError::AlreadyDeleted));
-            return;
-        };
-
-        if Arc::strong_count(topic.type_support()) > 1 {
-            message.reply_sender.send(Err(DdsError::PreconditionNotMet(
-                "Topic still attached to some data writer or data reader".to_string(),
-            )));
-            return;
-        }
-
-        let Some(_) = self.domain_participant.remove_topic(&message.topic_name) else {
-            message.reply_sender.send(Err(DdsError::AlreadyDeleted));
-            return;
-        };
-
-        message.reply_sender.send(Ok(()));
-    }
-}
-
-pub struct FindTopic {
-    pub topic_name: String,
-    pub type_support: Arc<dyn DynamicType + Send + Sync>,
-    #[allow(clippy::type_complexity)]
-    pub reply_sender: OneshotSender<
-        DdsResult<Option<(InstanceHandle, ActorAddress<StatusConditionActor>, String)>>,
-    >,
-}
-impl MailHandler<FindTopic> for DomainParticipantActor {
-    fn handle(&mut self, message: FindTopic) {
-        if let Some(topic) = self.domain_participant.get_topic(&message.topic_name) {
-            message.reply_sender.send(Ok(Some((
-                topic.instance_handle(),
-                topic.status_condition().address(),
-                topic.type_name().to_owned(),
-            ))));
-        } else {
-            if let Some(discovered_topic_data) =
-                self.domain_participant.find_topic(&message.topic_name)
-            {
-                let qos = TopicQos {
-                    topic_data: discovered_topic_data.topic_data().clone(),
-                    durability: discovered_topic_data.durability().clone(),
-                    deadline: discovered_topic_data.deadline().clone(),
-                    latency_budget: discovered_topic_data.latency_budget().clone(),
-                    liveliness: discovered_topic_data.liveliness().clone(),
-                    reliability: discovered_topic_data.reliability().clone(),
-                    destination_order: discovered_topic_data.destination_order().clone(),
-                    history: discovered_topic_data.history().clone(),
-                    resource_limits: discovered_topic_data.resource_limits().clone(),
-                    transport_priority: discovered_topic_data.transport_priority().clone(),
-                    lifespan: discovered_topic_data.lifespan().clone(),
-                    ownership: discovered_topic_data.ownership().clone(),
-                    representation: discovered_topic_data.representation().clone(),
-                };
-                let type_name = discovered_topic_data.type_name.clone();
-                let topic_handle = self.instance_handle_counter.generate_new_instance_handle();
-                let mut topic = TopicEntity::new(
-                    qos,
-                    type_name.clone(),
-                    message.topic_name.clone(),
-                    topic_handle,
-                    Actor::spawn(
-                        StatusConditionActor::default(),
-                        &self.listener_executor.handle(),
-                    ),
-                    None,
-                    vec![],
-                    message.type_support,
-                );
-                topic.enable();
-                let topic_status_condition_address = topic.status_condition().address();
-
-                self.domain_participant.insert_topic(topic);
-                message.reply_sender.send(Ok(Some((
-                    topic_handle,
-                    topic_status_condition_address,
-                    type_name,
-                ))));
-                return;
-            }
-            message.reply_sender.send(Ok(None));
-        }
-    }
-}
-
-pub struct LookupTopicdescription {
-    pub topic_name: String,
-    #[allow(clippy::type_complexity)]
-    pub reply_sender: OneshotSender<
-        DdsResult<Option<(String, InstanceHandle, ActorAddress<StatusConditionActor>)>>,
-    >,
-}
-impl MailHandler<LookupTopicdescription> for DomainParticipantActor {
-    fn handle(&mut self, message: LookupTopicdescription) {
-        if let Some(topic) = self.domain_participant.get_topic(&message.topic_name) {
-            message.reply_sender.send(Ok(Some((
-                topic.type_name().to_owned(),
-                topic.instance_handle(),
-                topic.status_condition().address(),
-            ))))
-        } else {
-            message.reply_sender.send(Ok(None))
-        }
     }
 }
 

@@ -4,7 +4,7 @@ use std::sync::Arc;
 use super::domain_participant_actor::DomainParticipantActor;
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
-    dds_async::publisher_listener::PublisherListenerAsync,
+    dds_async::{publisher_listener::PublisherListenerAsync, topic_listener::TopicListenerAsync},
     implementation::{
         any_data_writer_listener::AnyDataWriterListener,
         status_condition::status_condition_actor::StatusConditionActor,
@@ -33,6 +33,41 @@ pub enum ParticipantServiceMail {
         mask: Vec<StatusKind>,
         reply_sender:
             OneshotSender<DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)>>,
+    },
+    DeleteUserDefinedPublisher {
+        participant_handle: InstanceHandle,
+        publisher_handle: InstanceHandle,
+        reply_sender: OneshotSender<DdsResult<()>>,
+    },
+    CreateTopic {
+        topic_name: String,
+        type_name: String,
+        qos: QosKind<TopicQos>,
+        a_listener: Option<Box<dyn TopicListenerAsync + Send>>,
+        mask: Vec<StatusKind>,
+        type_support: Arc<dyn DynamicType + Send + Sync>,
+        reply_sender:
+            OneshotSender<DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)>>,
+    },
+    DeleteUserDefinedTopic {
+        participant_handle: InstanceHandle,
+        topic_name: String,
+        reply_sender: OneshotSender<DdsResult<()>>,
+    },
+    FindTopic {
+        topic_name: String,
+        type_support: Arc<dyn DynamicType + Send + Sync>,
+        #[allow(clippy::type_complexity)]
+        reply_sender: OneshotSender<
+            DdsResult<Option<(InstanceHandle, ActorAddress<StatusConditionActor>, String)>>,
+        >,
+    },
+    LookupTopicdescription {
+        topic_name: String,
+        #[allow(clippy::type_complexity)]
+        reply_sender: OneshotSender<
+            DdsResult<Option<(String, InstanceHandle, ActorAddress<StatusConditionActor>)>>,
+        >,
     },
 }
 
@@ -250,6 +285,44 @@ impl DomainParticipantActor {
                 mask,
                 reply_sender,
             } => reply_sender.send(self.create_user_defined_publisher(qos, a_listener, mask)),
+            ParticipantServiceMail::DeleteUserDefinedPublisher {
+                participant_handle,
+                publisher_handle,
+                reply_sender,
+            } => {
+                reply_sender
+                    .send(self.delete_user_defined_publisher(participant_handle, publisher_handle));
+            }
+            ParticipantServiceMail::CreateTopic {
+                topic_name,
+                type_name,
+                qos,
+                a_listener,
+                mask,
+                type_support,
+                reply_sender,
+            } => reply_sender.send(self.create_topic(
+                topic_name,
+                type_name,
+                qos,
+                a_listener,
+                mask,
+                type_support,
+            )),
+            ParticipantServiceMail::DeleteUserDefinedTopic {
+                participant_handle,
+                topic_name,
+                reply_sender,
+            } => reply_sender.send(self.delete_user_defined_topic(participant_handle, topic_name)),
+            ParticipantServiceMail::FindTopic {
+                topic_name,
+                type_support,
+                reply_sender,
+            } => reply_sender.send(self.find_topic(topic_name, type_support)),
+            ParticipantServiceMail::LookupTopicdescription {
+                topic_name,
+                reply_sender,
+            } => reply_sender.send(self.lookup_topicdescription(topic_name)),
         }
     }
 

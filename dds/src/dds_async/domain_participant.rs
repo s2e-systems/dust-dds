@@ -92,13 +92,14 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self, a_publisher))]
     pub async fn delete_publisher(&self, a_publisher: &PublisherAsync) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant_address.send_actor_mail(
-            domain_participant_service::DeleteUserDefinedPublisher {
-                participant_handle: a_publisher.get_participant().handle,
-                publisher_handle: a_publisher.get_instance_handle().await,
-                reply_sender,
-            },
-        )?;
+        self.participant_address
+            .send_actor_mail(DomainParticipantMail::ParticipantService(
+                ParticipantServiceMail::DeleteUserDefinedPublisher {
+                    participant_handle: a_publisher.get_participant().handle,
+                    publisher_handle: a_publisher.get_instance_handle().await,
+                    reply_sender,
+                },
+            ))?;
         reply_receiver.await?
     }
 
@@ -172,16 +173,17 @@ impl DomainParticipantAsync {
     ) -> DdsResult<TopicAsync> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address
-            .send_actor_mail(domain_participant_service::CreateTopic {
-                topic_name: topic_name.to_string(),
-                type_name: type_name.to_string(),
-                qos,
-                a_listener,
-                mask: mask.to_vec(),
-                type_support: dynamic_type_representation,
-                participant_address: self.participant_address.clone(),
-                reply_sender,
-            })?;
+            .send_actor_mail(DomainParticipantMail::ParticipantService(
+                ParticipantServiceMail::CreateTopic {
+                    topic_name: topic_name.to_string(),
+                    type_name: type_name.to_string(),
+                    qos,
+                    a_listener,
+                    mask: mask.to_vec(),
+                    type_support: dynamic_type_representation,
+                    reply_sender,
+                },
+            ))?;
         let (guid, topic_status_condition_address) = reply_receiver.await??;
 
         Ok(TopicAsync::new(
@@ -197,13 +199,14 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self, a_topic))]
     pub async fn delete_topic(&self, a_topic: &TopicAsync) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant_address.send_actor_mail(
-            domain_participant_service::DeleteUserDefinedTopic {
-                participant_handle: a_topic.get_participant().handle,
-                topic_name: a_topic.get_name(),
-                reply_sender,
-            },
-        )?;
+        self.participant_address
+            .send_actor_mail(DomainParticipantMail::ParticipantService(
+                ParticipantServiceMail::DeleteUserDefinedTopic {
+                    participant_handle: a_topic.get_participant().handle,
+                    topic_name: a_topic.get_name(),
+                    reply_sender,
+                },
+            ))?;
         reply_receiver.await?
     }
 
@@ -228,11 +231,13 @@ impl DomainParticipantAsync {
                     loop {
                         let (reply_sender, reply_receiver) = oneshot();
                         participant_address.send_actor_mail(
-                            domain_participant_service::FindTopic {
-                                topic_name: topic_name.clone(),
-                                type_support: type_support.clone(),
-                                reply_sender,
-                            },
+                            DomainParticipantMail::ParticipantService(
+                                ParticipantServiceMail::FindTopic {
+                                    topic_name: topic_name.clone(),
+                                    type_support: type_support.clone(),
+                                    reply_sender,
+                                },
+                            ),
                         )?;
                         if let Some((guid, topic_status_condition_address, type_name)) =
                             reply_receiver.await??
@@ -256,12 +261,13 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self))]
     pub async fn lookup_topicdescription(&self, topic_name: &str) -> DdsResult<Option<TopicAsync>> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant_address.send_actor_mail(
-            domain_participant_service::LookupTopicdescription {
-                topic_name: topic_name.to_owned(),
-                reply_sender,
-            },
-        )?;
+        self.participant_address
+            .send_actor_mail(DomainParticipantMail::ParticipantService(
+                ParticipantServiceMail::LookupTopicdescription {
+                    topic_name: topic_name.to_owned(),
+                    reply_sender,
+                },
+            ))?;
         if let Some((type_name, topic_handle, topic_status_condition_address)) =
             reply_receiver.await??
         {
