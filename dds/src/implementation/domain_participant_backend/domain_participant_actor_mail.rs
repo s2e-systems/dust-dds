@@ -4,7 +4,8 @@ use std::sync::Arc;
 use super::domain_participant_actor::DomainParticipantActor;
 use crate::{
     builtin_topics::{
-        ParticipantBuiltinTopicData, SubscriptionBuiltinTopicData, TopicBuiltinTopicData,
+        ParticipantBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
+        TopicBuiltinTopicData,
     },
     dds_async::{
         domain_participant_listener::DomainParticipantListenerAsync,
@@ -390,6 +391,35 @@ pub enum ReaderServiceMail {
         data_reader_handle: InstanceHandle,
         max_wait: Duration,
         reply_sender: OneshotSender<Pin<Box<dyn Future<Output = DdsResult<()>> + Send>>>,
+    },
+    GetMatchedPublicationData {
+        subscriber_handle: InstanceHandle,
+        data_reader_handle: InstanceHandle,
+        publication_handle: InstanceHandle,
+        reply_sender: OneshotSender<DdsResult<PublicationBuiltinTopicData>>,
+    },
+    GetMatchedPublications {
+        subscriber_handle: InstanceHandle,
+        data_reader_handle: InstanceHandle,
+        reply_sender: OneshotSender<DdsResult<Vec<InstanceHandle>>>,
+    },
+    SetQos {
+        subscriber_handle: InstanceHandle,
+        data_reader_handle: InstanceHandle,
+        qos: QosKind<DataReaderQos>,
+        reply_sender: OneshotSender<DdsResult<()>>,
+    },
+    GetQos {
+        subscriber_handle: InstanceHandle,
+        data_reader_handle: InstanceHandle,
+        reply_sender: OneshotSender<DdsResult<DataReaderQos>>,
+    },
+    SetListener {
+        subscriber_handle: InstanceHandle,
+        data_reader_handle: InstanceHandle,
+        listener: Option<Box<dyn AnyDataReaderListener>>,
+        listener_mask: Vec<StatusKind>,
+        reply_sender: OneshotSender<DdsResult<()>>,
     },
 }
 
@@ -922,6 +952,49 @@ impl DomainParticipantActor {
                 subscriber_handle,
                 data_reader_handle,
                 max_wait,
+            )),
+            ReaderServiceMail::GetMatchedPublicationData {
+                subscriber_handle,
+                data_reader_handle,
+                publication_handle,
+                reply_sender,
+            } => reply_sender.send(self.get_matched_publication_data(
+                subscriber_handle,
+                data_reader_handle,
+                publication_handle,
+            )),
+            ReaderServiceMail::GetMatchedPublications {
+                subscriber_handle,
+                data_reader_handle,
+                reply_sender,
+            } => reply_sender
+                .send(self.get_matched_publications(subscriber_handle, data_reader_handle)),
+            ReaderServiceMail::GetQos {
+                subscriber_handle,
+                data_reader_handle,
+                reply_sender,
+            } => reply_sender.send(self.get_data_reader_qos(subscriber_handle, data_reader_handle)),
+            ReaderServiceMail::SetQos {
+                subscriber_handle,
+                data_reader_handle,
+                qos,
+                reply_sender,
+            } => reply_sender.send(self.set_data_reader_qos(
+                subscriber_handle,
+                data_reader_handle,
+                qos,
+            )),
+            ReaderServiceMail::SetListener {
+                subscriber_handle,
+                data_reader_handle,
+                listener,
+                listener_mask,
+                reply_sender,
+            } => reply_sender.send(self.set_data_reader_listener(
+                subscriber_handle,
+                data_reader_handle,
+                listener,
+                listener_mask,
             )),
         }
     }

@@ -1714,6 +1714,127 @@ impl DomainParticipantActor {
         })
     }
 
+    pub fn get_matched_publication_data(
+        &mut self,
+        subscriber_handle: InstanceHandle,
+        data_reader_handle: InstanceHandle,
+        publication_handle: InstanceHandle,
+    ) -> DdsResult<PublicationBuiltinTopicData> {
+        let Some(subscriber) = self
+            .domain_participant
+            .get_mut_subscriber(subscriber_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        let Some(data_reader) = subscriber.get_data_reader(data_reader_handle) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        if !data_reader.enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+
+        data_reader
+            .get_matched_publication_data(&publication_handle)
+            .cloned()
+            .ok_or(DdsError::BadParameter)
+    }
+
+    pub fn get_matched_publications(
+        &mut self,
+        subscriber_handle: InstanceHandle,
+        data_reader_handle: InstanceHandle,
+    ) -> DdsResult<Vec<InstanceHandle>> {
+        let Some(subscriber) = self
+            .domain_participant
+            .get_mut_subscriber(subscriber_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        let Some(data_reader) = subscriber.get_data_reader(data_reader_handle) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        Ok(data_reader.get_matched_publications())
+    }
+
+    pub fn set_data_reader_qos(
+        &mut self,
+        subscriber_handle: InstanceHandle,
+        data_reader_handle: InstanceHandle,
+        qos: QosKind<DataReaderQos>,
+    ) -> DdsResult<()> {
+        let Some(subscriber) = self
+            .domain_participant
+            .get_mut_subscriber(subscriber_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        let qos = match qos {
+            QosKind::Default => subscriber.default_data_reader_qos().clone(),
+            QosKind::Specific(q) => q,
+        };
+        let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        match data_reader.set_qos(qos) {
+            Ok(_) => (),
+            Err(e) => {
+                return Err(e);
+            }
+        };
+
+        if data_reader.enabled() {
+            self.announce_data_reader(subscriber_handle, data_reader_handle);
+        }
+
+        Ok(())
+    }
+
+    pub fn get_data_reader_qos(
+        &mut self,
+        subscriber_handle: InstanceHandle,
+        data_reader_handle: InstanceHandle,
+    ) -> DdsResult<DataReaderQos> {
+        let Some(subscriber) = self
+            .domain_participant
+            .get_mut_subscriber(subscriber_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        Ok(data_reader.qos().clone())
+    }
+
+    pub fn set_data_reader_listener(
+        &mut self,
+        subscriber_handle: InstanceHandle,
+        data_reader_handle: InstanceHandle,
+        listener: Option<Box<dyn AnyDataReaderListener>>,
+        listener_mask: Vec<StatusKind>,
+    ) -> DdsResult<()> {
+        let listener = listener.map(|l| {
+            Actor::spawn(
+                DataReaderListenerActor::new(l),
+                &self.listener_executor.handle(),
+            )
+        });
+        let Some(subscriber) = self
+            .domain_participant
+            .get_mut_subscriber(subscriber_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        data_reader.set_listener(listener, listener_mask);
+        Ok(())
+    }
+
     pub fn is_historical_data_received(
         &mut self,
         subscriber_handle: InstanceHandle,

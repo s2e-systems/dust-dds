@@ -1,4 +1,3 @@
-pub mod data_reader_service;
 pub mod discovery_service;
 pub mod event_service;
 pub mod message_service;
