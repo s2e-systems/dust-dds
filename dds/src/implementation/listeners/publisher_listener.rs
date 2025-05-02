@@ -17,33 +17,32 @@ impl PublisherListenerActor {
 }
 
 pub enum PublisherListenerMail {
-    TriggerOnPublicationMatched {
+    OnPublicationMatched {
         the_writer: DataWriterAsync<()>,
         status: PublicationMatchedStatus,
     },
-    TriggerOfferedIncompatibleQos {
+    OfferedIncompatibleQos {
         the_writer: DataWriterAsync<()>,
         status: OfferedIncompatibleQosStatus,
     },
-    TriggerOfferedDeadlineMissed {
+    OfferedDeadlineMissed {
         the_writer: DataWriterAsync<()>,
         status: OfferedDeadlineMissedStatus,
     },
 }
 
-impl MailHandler<PublisherListenerMail> for PublisherListenerActor {
+impl MailHandler for PublisherListenerActor {
+    type Mail = PublisherListenerMail;
     fn handle(&mut self, message: PublisherListenerMail) {
         match message {
-            PublisherListenerMail::TriggerOnPublicationMatched { the_writer, status } => {
+            PublisherListenerMail::OnPublicationMatched { the_writer, status } => {
                 block_on(self.listener.on_publication_matched(the_writer, status))
             }
-            PublisherListenerMail::TriggerOfferedIncompatibleQos { the_writer, status } => {
-                block_on(
-                    self.listener
-                        .on_offered_incompatible_qos(the_writer, status),
-                )
-            }
-            PublisherListenerMail::TriggerOfferedDeadlineMissed { the_writer, status } => {
+            PublisherListenerMail::OfferedIncompatibleQos { the_writer, status } => block_on(
+                self.listener
+                    .on_offered_incompatible_qos(the_writer, status),
+            ),
+            PublisherListenerMail::OfferedDeadlineMissed { the_writer, status } => {
                 block_on(self.listener.on_offered_deadline_missed(the_writer, status))
             }
         }

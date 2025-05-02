@@ -21,53 +21,50 @@ impl SubscriberListenerActor {
 }
 
 pub enum SubscriberListenerMail {
-    TriggerDataOnReaders {
+    DataOnReaders {
         the_subscriber: SubscriberAsync,
     },
-    TriggerRequestedDeadlineMissed {
+    RequestedDeadlineMissed {
         the_reader: DataReaderAsync<()>,
         status: RequestedDeadlineMissedStatus,
     },
-    TriggerSampleRejected {
+    SampleRejected {
         the_reader: DataReaderAsync<()>,
         status: SampleRejectedStatus,
     },
-    TriggerSubscriptionMatched {
+    SubscriptionMatched {
         the_reader: DataReaderAsync<()>,
         status: SubscriptionMatchedStatus,
     },
-    TriggerRequestedIncompatibleQos {
+    RequestedIncompatibleQos {
         the_reader: DataReaderAsync<()>,
         status: RequestedIncompatibleQosStatus,
     },
 }
 
-impl MailHandler<SubscriberListenerMail> for SubscriberListenerActor {
+impl MailHandler for SubscriberListenerActor {
+    type Mail = SubscriberListenerMail;
     fn handle(&mut self, message: SubscriberListenerMail) {
         match message {
-            SubscriberListenerMail::TriggerDataOnReaders { the_subscriber } => {
+            SubscriberListenerMail::DataOnReaders { the_subscriber } => {
                 block_on(self.listener.on_data_on_readers(the_subscriber))
             }
-            SubscriberListenerMail::TriggerRequestedDeadlineMissed { the_reader, status } => {
-                block_on(
-                    self.listener
-                        .on_requested_deadline_missed(the_reader.change_foo_type(), status),
-                )
-            }
-            SubscriberListenerMail::TriggerSampleRejected { the_reader, status } => block_on(
+            SubscriberListenerMail::RequestedDeadlineMissed { the_reader, status } => block_on(
+                self.listener
+                    .on_requested_deadline_missed(the_reader.change_foo_type(), status),
+            ),
+            SubscriberListenerMail::SampleRejected { the_reader, status } => block_on(
                 self.listener
                     .on_sample_rejected(the_reader.change_foo_type(), status),
             ),
-            SubscriberListenerMail::TriggerSubscriptionMatched { the_reader, status } => block_on(
+            SubscriberListenerMail::SubscriptionMatched { the_reader, status } => block_on(
                 self.listener
                     .on_subscription_matched(the_reader.change_foo_type(), status),
             ),
-            SubscriberListenerMail::TriggerRequestedIncompatibleQos { the_reader, status } => {
-                block_on(
-                    self.listener
-                        .on_requested_incompatible_qos(the_reader.change_foo_type(), status),
-                )
-            }
+            SubscriberListenerMail::RequestedIncompatibleQos { the_reader, status } => block_on(
+                self.listener
+                    .on_requested_incompatible_qos(the_reader.change_foo_type(), status),
+            ),
         }
     }
 }

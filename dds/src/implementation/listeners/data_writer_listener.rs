@@ -18,30 +18,31 @@ impl DataWriterListenerActor {
 }
 
 pub enum DataWriterListenerMail {
-    TriggerPublicationMatched {
+    PublicationMatched {
         the_writer: DataWriterAsync<()>,
         status: PublicationMatchedStatus,
     },
-    TriggerOfferedIncompatibleQos {
+    OfferedIncompatibleQos {
         the_writer: DataWriterAsync<()>,
         status: OfferedIncompatibleQosStatus,
     },
-    TriggerOfferedDeadlineMissed {
+    OfferedDeadlineMissed {
         the_writer: DataWriterAsync<()>,
         status: OfferedDeadlineMissedStatus,
     },
 }
 
-impl MailHandler<DataWriterListenerMail> for DataWriterListenerActor {
+impl MailHandler for DataWriterListenerActor {
+    type Mail = DataWriterListenerMail;
     fn handle(&mut self, message: DataWriterListenerMail) {
         match message {
-            DataWriterListenerMail::TriggerPublicationMatched { the_writer, status } => self
+            DataWriterListenerMail::PublicationMatched { the_writer, status } => self
                 .listener
                 .trigger_on_publication_matched(the_writer, status),
-            DataWriterListenerMail::TriggerOfferedIncompatibleQos { the_writer, status } => self
+            DataWriterListenerMail::OfferedIncompatibleQos { the_writer, status } => self
                 .listener
                 .trigger_on_offered_incompatible_qos(the_writer, status),
-            DataWriterListenerMail::TriggerOfferedDeadlineMissed { the_writer, status } => self
+            DataWriterListenerMail::OfferedDeadlineMissed { the_writer, status } => self
                 .listener
                 .trigger_on_offered_deadline_missed(the_writer, status),
         }

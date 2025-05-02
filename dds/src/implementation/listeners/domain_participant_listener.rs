@@ -22,69 +22,68 @@ impl DomainParticipantListenerActor {
 }
 
 pub enum DomainParticipantListenerMail {
-    TriggerRequestedDeadlineMissed {
+    RequestedDeadlineMissed {
         the_reader: DataReaderAsync<()>,
         status: RequestedDeadlineMissedStatus,
     },
-    TriggerSampleRejected {
+    SampleRejected {
         the_reader: DataReaderAsync<()>,
         status: SampleRejectedStatus,
     },
-    TriggerSubscriptionMatched {
+    SubscriptionMatched {
         the_reader: DataReaderAsync<()>,
         status: SubscriptionMatchedStatus,
     },
-    TriggerRequestedIncompatibleQos {
+    RequestedIncompatibleQos {
         the_reader: DataReaderAsync<()>,
         status: RequestedIncompatibleQosStatus,
     },
-    TriggerPublicationMatched {
+    PublicationMatched {
         the_writer: DataWriterAsync<()>,
         status: PublicationMatchedStatus,
     },
-    TriggerOfferedIncompatibleQos {
+    OfferedIncompatibleQos {
         the_writer: DataWriterAsync<()>,
         status: OfferedIncompatibleQosStatus,
     },
-    TriggerOfferedDeadlineMissed {
+    OfferedDeadlineMissed {
         the_writer: DataWriterAsync<()>,
         status: OfferedDeadlineMissedStatus,
     },
 }
 
-impl MailHandler<DomainParticipantListenerMail> for DomainParticipantListenerActor {
+impl MailHandler for DomainParticipantListenerActor {
+    type Mail = DomainParticipantListenerMail;
     fn handle(&mut self, message: DomainParticipantListenerMail) {
         match message {
-            DomainParticipantListenerMail::TriggerRequestedDeadlineMissed {
-                the_reader,
-                status,
-            } => block_on(
-                self.listener
-                    .on_requested_deadline_missed(the_reader, status),
-            ),
-            DomainParticipantListenerMail::TriggerSampleRejected { the_reader, status } => {
+            DomainParticipantListenerMail::RequestedDeadlineMissed { the_reader, status } => {
+                block_on(
+                    self.listener
+                        .on_requested_deadline_missed(the_reader, status),
+                )
+            }
+            DomainParticipantListenerMail::SampleRejected { the_reader, status } => {
                 block_on(self.listener.on_sample_rejected(the_reader, status))
             }
-            DomainParticipantListenerMail::TriggerSubscriptionMatched { the_reader, status } => {
+            DomainParticipantListenerMail::SubscriptionMatched { the_reader, status } => {
                 block_on(self.listener.on_subscription_matched(the_reader, status))
             }
-            DomainParticipantListenerMail::TriggerRequestedIncompatibleQos {
-                the_reader,
-                status,
-            } => block_on(
-                self.listener
-                    .on_requested_incompatible_qos(the_reader, status),
-            ),
-            DomainParticipantListenerMail::TriggerPublicationMatched { the_writer, status } => {
+            DomainParticipantListenerMail::RequestedIncompatibleQos { the_reader, status } => {
+                block_on(
+                    self.listener
+                        .on_requested_incompatible_qos(the_reader, status),
+                )
+            }
+            DomainParticipantListenerMail::PublicationMatched { the_writer, status } => {
                 block_on(self.listener.on_publication_matched(the_writer, status))
             }
-            DomainParticipantListenerMail::TriggerOfferedIncompatibleQos { the_writer, status } => {
+            DomainParticipantListenerMail::OfferedIncompatibleQos { the_writer, status } => {
                 block_on(
                     self.listener
                         .on_offered_incompatible_qos(the_writer, status),
                 )
             }
-            DomainParticipantListenerMail::TriggerOfferedDeadlineMissed { the_writer, status } => {
+            DomainParticipantListenerMail::OfferedDeadlineMissed { the_writer, status } => {
                 block_on(self.listener.on_offered_deadline_missed(the_writer, status))
             }
         }

@@ -1678,6 +1678,7 @@ impl DomainParticipantActor {
         Ok(data_writer.are_all_changes_acknowledged())
     }
 
+    #[allow(clippy::too_many_arguments, clippy::type_complexity)]
     pub fn read(
         &mut self,
         subscriber_handle: InstanceHandle,
@@ -1712,6 +1713,7 @@ impl DomainParticipantActor {
         )
     }
 
+    #[allow(clippy::too_many_arguments, clippy::type_complexity)]
     pub fn take(
         &mut self,
         subscriber_handle: InstanceHandle,
@@ -1740,6 +1742,7 @@ impl DomainParticipantActor {
         )
     }
 
+    #[allow(clippy::too_many_arguments, clippy::type_complexity)]
     pub fn read_next_instance(
         &mut self,
         subscriber_handle: InstanceHandle,
@@ -1768,6 +1771,7 @@ impl DomainParticipantActor {
         )
     }
 
+    #[allow(clippy::too_many_arguments, clippy::type_complexity)]
     pub fn take_next_instance(
         &mut self,
         subscriber_handle: InstanceHandle,
@@ -1837,8 +1841,8 @@ impl DomainParticipantActor {
                             let (reply_sender, reply_receiver) = oneshot();
                             participant_address.send_actor_mail(DomainParticipantMail::Message(
                                 MessageServiceMail::IsHistoricalDataReceived {
-                                    subscriber_handle: subscriber_handle,
-                                    data_reader_handle: data_reader_handle,
+                                    subscriber_handle,
+                                    data_reader_handle,
                                     reply_sender,
                                 },
                             ))?;
@@ -2488,7 +2492,7 @@ impl DomainParticipantActor {
                             return;
                         };
                         if let Some(l) = data_writer.listener() {
-                            l.send_actor_mail(DataWriterListenerMail::TriggerPublicationMatched {
+                            l.send_actor_mail(DataWriterListenerMail::PublicationMatched {
                                 the_writer,
                                 status,
                             });
@@ -2515,7 +2519,7 @@ impl DomainParticipantActor {
                         };
                         let status = data_writer.get_publication_matched_status();
                         if let Some(l) = publisher.listener() {
-                            l.send_actor_mail(PublisherListenerMail::TriggerOnPublicationMatched {
+                            l.send_actor_mail(PublisherListenerMail::OnPublicationMatched {
                                 the_writer,
                                 status,
                             });
@@ -2543,12 +2547,10 @@ impl DomainParticipantActor {
                         };
                         let status = data_writer.get_publication_matched_status();
                         if let Some(l) = self.domain_participant.listener() {
-                            l.send_actor_mail(
-                                DomainParticipantListenerMail::TriggerPublicationMatched {
-                                    the_writer,
-                                    status,
-                                },
-                            );
+                            l.send_actor_mail(DomainParticipantListenerMail::PublicationMatched {
+                                the_writer,
+                                status,
+                            });
                         }
                     }
 
@@ -2596,12 +2598,10 @@ impl DomainParticipantActor {
                             return;
                         };
                         if let Some(l) = data_writer.listener() {
-                            l.send_actor_mail(
-                                DataWriterListenerMail::TriggerOfferedIncompatibleQos {
-                                    the_writer,
-                                    status,
-                                },
-                            );
+                            l.send_actor_mail(DataWriterListenerMail::OfferedIncompatibleQos {
+                                the_writer,
+                                status,
+                            });
                         }
                     } else if publisher
                         .listener_mask()
@@ -2625,12 +2625,10 @@ impl DomainParticipantActor {
                         };
                         let status = data_writer.get_offered_incompatible_qos_status();
                         if let Some(l) = publisher.listener() {
-                            l.send_actor_mail(
-                                PublisherListenerMail::TriggerOfferedIncompatibleQos {
-                                    the_writer,
-                                    status,
-                                },
-                            );
+                            l.send_actor_mail(PublisherListenerMail::OfferedIncompatibleQos {
+                                the_writer,
+                                status,
+                            });
                         }
                     } else if self
                         .domain_participant
@@ -2656,7 +2654,7 @@ impl DomainParticipantActor {
                         let status = data_writer.get_offered_incompatible_qos_status();
                         if let Some(l) = self.domain_participant.listener() {
                             l.send_actor_mail(
-                                DomainParticipantListenerMail::TriggerOfferedIncompatibleQos {
+                                DomainParticipantListenerMail::OfferedIncompatibleQos {
                                     the_writer,
                                     status,
                                 },
@@ -2878,7 +2876,7 @@ impl DomainParticipantActor {
                         };
                         let status = data_reader.get_subscription_matched_status();
                         if let Some(l) = data_reader.listener() {
-                            l.send_actor_mail(DataReaderListenerMail::TriggerSubscriptionMatched {
+                            l.send_actor_mail(DataReaderListenerMail::SubscriptionMatched {
                                 the_reader,
                                 status,
                             });
@@ -2906,7 +2904,7 @@ impl DomainParticipantActor {
                         };
                         let status = data_reader.get_subscription_matched_status();
                         if let Some(l) = subscriber.listener() {
-                            l.send_actor_mail(SubscriberListenerMail::TriggerSubscriptionMatched {
+                            l.send_actor_mail(SubscriberListenerMail::SubscriptionMatched {
                                 the_reader,
                                 status,
                             });
@@ -2935,12 +2933,10 @@ impl DomainParticipantActor {
                         };
                         let status = data_reader.get_subscription_matched_status();
                         if let Some(l) = self.domain_participant.listener() {
-                            l.send_actor_mail(
-                                DomainParticipantListenerMail::TriggerSubscriptionMatched {
-                                    the_reader,
-                                    status,
-                                },
-                            );
+                            l.send_actor_mail(DomainParticipantListenerMail::SubscriptionMatched {
+                                the_reader,
+                                status,
+                            });
                         }
                     }
 
@@ -2990,12 +2986,10 @@ impl DomainParticipantActor {
                             return;
                         };
                         if let Some(l) = data_reader.listener() {
-                            l.send_actor_mail(
-                                DataReaderListenerMail::TriggerRequestedIncompatibleQos {
-                                    the_reader,
-                                    status,
-                                },
-                            );
+                            l.send_actor_mail(DataReaderListenerMail::RequestedIncompatibleQos {
+                                the_reader,
+                                status,
+                            });
                         }
                     } else if subscriber
                         .listener_mask()
@@ -3020,12 +3014,10 @@ impl DomainParticipantActor {
                         };
                         let status = data_reader.get_requested_incompatible_qos_status();
                         if let Some(l) = subscriber.listener() {
-                            l.send_actor_mail(
-                                SubscriberListenerMail::TriggerRequestedIncompatibleQos {
-                                    the_reader,
-                                    status,
-                                },
-                            );
+                            l.send_actor_mail(SubscriberListenerMail::RequestedIncompatibleQos {
+                                the_reader,
+                                status,
+                            });
                         }
                     } else if self
                         .domain_participant
@@ -3052,7 +3044,7 @@ impl DomainParticipantActor {
                         let status = data_reader.get_requested_incompatible_qos_status();
                         if let Some(l) = self.domain_participant.listener() {
                             l.send_actor_mail(
-                                DomainParticipantListenerMail::TriggerRequestedIncompatibleQos {
+                                DomainParticipantListenerMail::RequestedIncompatibleQos {
                                     the_reader,
                                     status,
                                 },
@@ -3448,8 +3440,8 @@ impl DomainParticipantActor {
                                     participant_address
                                         .send_actor_mail(DomainParticipantMail::Event(
                                             EventServiceMail::RequestedDeadlineMissed {
-                                                subscriber_handle: subscriber_handle,
-                                                data_reader_handle: data_reader_handle,
+                                                subscriber_handle,
+                                                data_reader_handle,
                                                 change_instance_handle,
                                                 participant_address: participant_address.clone(),
                                             },
@@ -3491,7 +3483,7 @@ impl DomainParticipantActor {
                         };
 
                         if let Some(l) = subscriber.listener() {
-                            l.send_actor_mail(SubscriberListenerMail::TriggerDataOnReaders {
+                            l.send_actor_mail(SubscriberListenerMail::DataOnReaders {
                                 the_subscriber,
                             });
                         }
@@ -3515,9 +3507,7 @@ impl DomainParticipantActor {
                             return;
                         };
                         if let Some(l) = data_reader.listener() {
-                            l.send_actor_mail(DataReaderListenerMail::TriggerDataAvailable {
-                                the_reader,
-                            });
+                            l.send_actor_mail(DataReaderListenerMail::DataAvailable { the_reader });
                         }
                     }
 
@@ -3574,7 +3564,7 @@ impl DomainParticipantActor {
                             return;
                         };
                         if let Some(l) = data_reader.listener() {
-                            l.send_actor_mail(DataReaderListenerMail::TriggerSampleRejected {
+                            l.send_actor_mail(DataReaderListenerMail::SampleRejected {
                                 the_reader,
                                 status,
                             });
@@ -3603,7 +3593,7 @@ impl DomainParticipantActor {
                         };
                         let status = data_reader.get_sample_rejected_status();
                         if let Some(l) = subscriber.listener() {
-                            l.send_actor_mail(SubscriberListenerMail::TriggerSampleRejected {
+                            l.send_actor_mail(SubscriberListenerMail::SampleRejected {
                                 status,
                                 the_reader,
                             });
@@ -3633,12 +3623,10 @@ impl DomainParticipantActor {
                         };
                         let status = data_reader.get_sample_rejected_status();
                         if let Some(l) = self.domain_participant.listener() {
-                            l.send_actor_mail(
-                                DomainParticipantListenerMail::TriggerSampleRejected {
-                                    status,
-                                    the_reader,
-                                },
-                            );
+                            l.send_actor_mail(DomainParticipantListenerMail::SampleRejected {
+                                status,
+                                the_reader,
+                            });
                         }
                     }
 
@@ -3715,7 +3703,7 @@ impl DomainParticipantActor {
             };
 
             if let Some(l) = data_writer.listener() {
-                l.send_actor_mail(DataWriterListenerMail::TriggerOfferedDeadlineMissed {
+                l.send_actor_mail(DataWriterListenerMail::OfferedDeadlineMissed {
                     the_writer,
                     status,
                 });
@@ -3740,7 +3728,7 @@ impl DomainParticipantActor {
             };
             let status = data_writer.get_offered_deadline_missed_status();
             if let Some(l) = publisher.listener() {
-                l.send_actor_mail(PublisherListenerMail::TriggerOfferedDeadlineMissed {
+                l.send_actor_mail(PublisherListenerMail::OfferedDeadlineMissed {
                     the_writer,
                     status,
                 });
@@ -3767,12 +3755,10 @@ impl DomainParticipantActor {
             };
             let status = data_writer.get_offered_deadline_missed_status();
             if let Some(l) = self.domain_participant.listener() {
-                l.send_actor_mail(
-                    DomainParticipantListenerMail::TriggerOfferedDeadlineMissed {
-                        the_writer,
-                        status,
-                    },
-                );
+                l.send_actor_mail(DomainParticipantListenerMail::OfferedDeadlineMissed {
+                    the_writer,
+                    status,
+                });
             }
         }
 
@@ -3830,7 +3816,7 @@ impl DomainParticipantActor {
                 return;
             };
             if let Some(l) = data_reader.listener() {
-                l.send_actor_mail(DataReaderListenerMail::TriggerRequestedDeadlineMissed {
+                l.send_actor_mail(DataReaderListenerMail::RequestedDeadlineMissed {
                     the_reader,
                     status,
                 });
@@ -3858,7 +3844,7 @@ impl DomainParticipantActor {
             };
             let status = data_reader.get_requested_deadline_missed_status();
             if let Some(l) = subscriber.listener() {
-                l.send_actor_mail(SubscriberListenerMail::TriggerRequestedDeadlineMissed {
+                l.send_actor_mail(SubscriberListenerMail::RequestedDeadlineMissed {
                     status,
                     the_reader,
                 });
@@ -3887,12 +3873,10 @@ impl DomainParticipantActor {
             };
             let status = data_reader.get_requested_deadline_missed_status();
             if let Some(l) = self.domain_participant.listener() {
-                l.send_actor_mail(
-                    DomainParticipantListenerMail::TriggerRequestedDeadlineMissed {
-                        status,
-                        the_reader,
-                    },
-                );
+                l.send_actor_mail(DomainParticipantListenerMail::RequestedDeadlineMissed {
+                    status,
+                    the_reader,
+                });
             }
         }
         let Some(subscriber) = self

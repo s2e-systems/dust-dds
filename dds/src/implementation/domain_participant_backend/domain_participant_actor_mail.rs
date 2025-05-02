@@ -530,7 +530,8 @@ pub enum DomainParticipantMail {
     Discovery(DiscoveryServiceMail),
 }
 
-impl MailHandler<DomainParticipantMail> for DomainParticipantActor {
+impl MailHandler for DomainParticipantActor {
+    type Mail = DomainParticipantMail;
     fn handle(&mut self, message: DomainParticipantMail) {
         match message {
             DomainParticipantMail::Participant(participant_service_mail) => {
