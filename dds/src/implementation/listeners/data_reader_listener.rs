@@ -17,55 +17,49 @@ impl DataReaderListenerActor {
         Self { listener }
     }
 }
-pub struct TriggerDataAvailable {
-    pub the_reader: DataReaderAsync<()>,
-}
-impl MailHandler<TriggerDataAvailable> for DataReaderListenerActor {
-    fn handle(&mut self, message: TriggerDataAvailable) {
-        self.listener.trigger_on_data_available(message.the_reader);
-    }
+
+pub enum DataReaderListenerMail {
+    TriggerDataAvailable {
+        the_reader: DataReaderAsync<()>,
+    },
+    TriggerRequestedDeadlineMissed {
+        the_reader: DataReaderAsync<()>,
+        status: RequestedDeadlineMissedStatus,
+    },
+    TriggerSampleRejected {
+        the_reader: DataReaderAsync<()>,
+        status: SampleRejectedStatus,
+    },
+    TriggerSubscriptionMatched {
+        the_reader: DataReaderAsync<()>,
+        status: SubscriptionMatchedStatus,
+    },
+    TriggerRequestedIncompatibleQos {
+        the_reader: DataReaderAsync<()>,
+        status: RequestedIncompatibleQosStatus,
+    },
 }
 
-pub struct TriggerRequestedDeadlineMissed {
-    pub the_reader: DataReaderAsync<()>,
-    pub status: RequestedDeadlineMissedStatus,
-}
-impl MailHandler<TriggerRequestedDeadlineMissed> for DataReaderListenerActor {
-    fn handle(&mut self, message: TriggerRequestedDeadlineMissed) {
-        self.listener
-            .trigger_on_requested_deadline_missed(message.the_reader, message.status);
-    }
-}
-
-pub struct TriggerSampleRejected {
-    pub the_reader: DataReaderAsync<()>,
-    pub status: SampleRejectedStatus,
-}
-impl MailHandler<TriggerSampleRejected> for DataReaderListenerActor {
-    fn handle(&mut self, message: TriggerSampleRejected) {
-        self.listener
-            .trigger_on_sample_rejected(message.the_reader, message.status);
-    }
-}
-
-pub struct TriggerSubscriptionMatched {
-    pub the_reader: DataReaderAsync<()>,
-    pub status: SubscriptionMatchedStatus,
-}
-impl MailHandler<TriggerSubscriptionMatched> for DataReaderListenerActor {
-    fn handle(&mut self, message: TriggerSubscriptionMatched) {
-        self.listener
-            .trigger_on_subscription_matched(message.the_reader, message.status);
-    }
-}
-
-pub struct TriggerRequestedIncompatibleQos {
-    pub the_reader: DataReaderAsync<()>,
-    pub status: RequestedIncompatibleQosStatus,
-}
-impl MailHandler<TriggerRequestedIncompatibleQos> for DataReaderListenerActor {
-    fn handle(&mut self, message: TriggerRequestedIncompatibleQos) {
-        self.listener
-            .trigger_on_requested_incompatible_qos(message.the_reader, message.status);
+impl MailHandler<DataReaderListenerMail> for DataReaderListenerActor {
+    fn handle(&mut self, message: DataReaderListenerMail) {
+        match message {
+            DataReaderListenerMail::TriggerDataAvailable { the_reader } => {
+                self.listener.trigger_on_data_available(the_reader)
+            }
+            DataReaderListenerMail::TriggerRequestedDeadlineMissed { the_reader, status } => {
+                self.listener
+                    .trigger_on_requested_deadline_missed(the_reader, status);
+            }
+            DataReaderListenerMail::TriggerSampleRejected { the_reader, status } => {
+                self.listener.trigger_on_sample_rejected(the_reader, status)
+            }
+            DataReaderListenerMail::TriggerSubscriptionMatched { the_reader, status } => self
+                .listener
+                .trigger_on_subscription_matched(the_reader, status),
+            DataReaderListenerMail::TriggerRequestedIncompatibleQos { the_reader, status } => {
+                self.listener
+                    .trigger_on_requested_incompatible_qos(the_reader, status);
+            }
+        }
     }
 }

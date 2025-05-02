@@ -17,35 +17,33 @@ impl DataWriterListenerActor {
     }
 }
 
-pub struct TriggerPublicationMatched {
-    pub the_writer: DataWriterAsync<()>,
-    pub status: PublicationMatchedStatus,
-}
-impl MailHandler<TriggerPublicationMatched> for DataWriterListenerActor {
-    fn handle(&mut self, message: TriggerPublicationMatched) {
-        self.listener
-            .trigger_on_publication_matched(message.the_writer, message.status);
-    }
-}
-
-pub struct TriggerOfferedIncompatibleQos {
-    pub the_writer: DataWriterAsync<()>,
-    pub status: OfferedIncompatibleQosStatus,
-}
-impl MailHandler<TriggerOfferedIncompatibleQos> for DataWriterListenerActor {
-    fn handle(&mut self, message: TriggerOfferedIncompatibleQos) {
-        self.listener
-            .trigger_on_offered_incompatible_qos(message.the_writer, message.status);
-    }
+pub enum DataWriterListenerMail {
+    TriggerPublicationMatched {
+        the_writer: DataWriterAsync<()>,
+        status: PublicationMatchedStatus,
+    },
+    TriggerOfferedIncompatibleQos {
+        the_writer: DataWriterAsync<()>,
+        status: OfferedIncompatibleQosStatus,
+    },
+    TriggerOfferedDeadlineMissed {
+        the_writer: DataWriterAsync<()>,
+        status: OfferedDeadlineMissedStatus,
+    },
 }
 
-pub struct TriggerOfferedDeadlineMissed {
-    pub the_writer: DataWriterAsync<()>,
-    pub status: OfferedDeadlineMissedStatus,
-}
-impl MailHandler<TriggerOfferedDeadlineMissed> for DataWriterListenerActor {
-    fn handle(&mut self, message: TriggerOfferedDeadlineMissed) {
-        self.listener
-            .trigger_on_offered_deadline_missed(message.the_writer, message.status);
+impl MailHandler<DataWriterListenerMail> for DataWriterListenerActor {
+    fn handle(&mut self, message: DataWriterListenerMail) {
+        match message {
+            DataWriterListenerMail::TriggerPublicationMatched { the_writer, status } => self
+                .listener
+                .trigger_on_publication_matched(the_writer, status),
+            DataWriterListenerMail::TriggerOfferedIncompatibleQos { the_writer, status } => self
+                .listener
+                .trigger_on_offered_incompatible_qos(the_writer, status),
+            DataWriterListenerMail::TriggerOfferedDeadlineMissed { the_writer, status } => self
+                .listener
+                .trigger_on_offered_deadline_missed(the_writer, status),
+        }
     }
 }

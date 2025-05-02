@@ -21,93 +21,72 @@ impl DomainParticipantListenerActor {
     }
 }
 
-pub struct TriggerRequestedDeadlineMissed {
-    pub the_reader: DataReaderAsync<()>,
-    pub status: RequestedDeadlineMissedStatus,
-}
-impl MailHandler<TriggerRequestedDeadlineMissed> for DomainParticipantListenerActor {
-    fn handle(&mut self, message: TriggerRequestedDeadlineMissed) {
-        block_on(
-            self.listener
-                .on_requested_deadline_missed(message.the_reader, message.status),
-        );
-    }
-}
-
-pub struct TriggerSampleRejected {
-    pub the_reader: DataReaderAsync<()>,
-    pub status: SampleRejectedStatus,
-}
-impl MailHandler<TriggerSampleRejected> for DomainParticipantListenerActor {
-    fn handle(&mut self, message: TriggerSampleRejected) {
-        block_on(
-            self.listener
-                .on_sample_rejected(message.the_reader, message.status),
-        );
-    }
-}
-
-pub struct TriggerSubscriptionMatched {
-    pub the_reader: DataReaderAsync<()>,
-    pub status: SubscriptionMatchedStatus,
-}
-impl MailHandler<TriggerSubscriptionMatched> for DomainParticipantListenerActor {
-    fn handle(&mut self, message: TriggerSubscriptionMatched) {
-        block_on(
-            self.listener
-                .on_subscription_matched(message.the_reader, message.status),
-        )
-    }
+pub enum DomainParticipantListenerMail {
+    TriggerRequestedDeadlineMissed {
+        the_reader: DataReaderAsync<()>,
+        status: RequestedDeadlineMissedStatus,
+    },
+    TriggerSampleRejected {
+        the_reader: DataReaderAsync<()>,
+        status: SampleRejectedStatus,
+    },
+    TriggerSubscriptionMatched {
+        the_reader: DataReaderAsync<()>,
+        status: SubscriptionMatchedStatus,
+    },
+    TriggerRequestedIncompatibleQos {
+        the_reader: DataReaderAsync<()>,
+        status: RequestedIncompatibleQosStatus,
+    },
+    TriggerPublicationMatched {
+        the_writer: DataWriterAsync<()>,
+        status: PublicationMatchedStatus,
+    },
+    TriggerOfferedIncompatibleQos {
+        the_writer: DataWriterAsync<()>,
+        status: OfferedIncompatibleQosStatus,
+    },
+    TriggerOfferedDeadlineMissed {
+        the_writer: DataWriterAsync<()>,
+        status: OfferedDeadlineMissedStatus,
+    },
 }
 
-pub struct TriggerRequestedIncompatibleQos {
-    pub the_reader: DataReaderAsync<()>,
-    pub status: RequestedIncompatibleQosStatus,
-}
-impl MailHandler<TriggerRequestedIncompatibleQos> for DomainParticipantListenerActor {
-    fn handle(&mut self, message: TriggerRequestedIncompatibleQos) {
-        block_on(
-            self.listener
-                .on_requested_incompatible_qos(message.the_reader, message.status),
-        )
-    }
-}
-
-pub struct TriggerPublicationMatched {
-    pub the_writer: DataWriterAsync<()>,
-    pub status: PublicationMatchedStatus,
-}
-impl MailHandler<TriggerPublicationMatched> for DomainParticipantListenerActor {
-    fn handle(&mut self, message: TriggerPublicationMatched) {
-        block_on(
-            self.listener
-                .on_publication_matched(message.the_writer, message.status),
-        )
-    }
-}
-
-pub struct TriggerOfferedIncompatibleQos {
-    pub the_writer: DataWriterAsync<()>,
-    pub status: OfferedIncompatibleQosStatus,
-}
-impl MailHandler<TriggerOfferedIncompatibleQos> for DomainParticipantListenerActor {
-    fn handle(&mut self, message: TriggerOfferedIncompatibleQos) {
-        block_on(
-            self.listener
-                .on_offered_incompatible_qos(message.the_writer, message.status),
-        )
-    }
-}
-
-pub struct TriggerOfferedDeadlineMissed {
-    pub the_writer: DataWriterAsync<()>,
-    pub status: OfferedDeadlineMissedStatus,
-}
-impl MailHandler<TriggerOfferedDeadlineMissed> for DomainParticipantListenerActor {
-    fn handle(&mut self, message: TriggerOfferedDeadlineMissed) {
-        block_on(
-            self.listener
-                .on_offered_deadline_missed(message.the_writer, message.status),
-        )
+impl MailHandler<DomainParticipantListenerMail> for DomainParticipantListenerActor {
+    fn handle(&mut self, message: DomainParticipantListenerMail) {
+        match message {
+            DomainParticipantListenerMail::TriggerRequestedDeadlineMissed {
+                the_reader,
+                status,
+            } => block_on(
+                self.listener
+                    .on_requested_deadline_missed(the_reader, status),
+            ),
+            DomainParticipantListenerMail::TriggerSampleRejected { the_reader, status } => {
+                block_on(self.listener.on_sample_rejected(the_reader, status))
+            }
+            DomainParticipantListenerMail::TriggerSubscriptionMatched { the_reader, status } => {
+                block_on(self.listener.on_subscription_matched(the_reader, status))
+            }
+            DomainParticipantListenerMail::TriggerRequestedIncompatibleQos {
+                the_reader,
+                status,
+            } => block_on(
+                self.listener
+                    .on_requested_incompatible_qos(the_reader, status),
+            ),
+            DomainParticipantListenerMail::TriggerPublicationMatched { the_writer, status } => {
+                block_on(self.listener.on_publication_matched(the_writer, status))
+            }
+            DomainParticipantListenerMail::TriggerOfferedIncompatibleQos { the_writer, status } => {
+                block_on(
+                    self.listener
+                        .on_offered_incompatible_qos(the_writer, status),
+                )
+            }
+            DomainParticipantListenerMail::TriggerOfferedDeadlineMissed { the_writer, status } => {
+                block_on(self.listener.on_offered_deadline_missed(the_writer, status))
+            }
+        }
     }
 }
