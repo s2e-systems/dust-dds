@@ -8,7 +8,10 @@ use crate::{
     configuration::DustDdsConfiguration,
     domain::domain_participant_factory::DomainId,
     implementation::{
-        domain_participant_backend::services::{discovery_service, domain_participant_service},
+        domain_participant_backend::{
+            domain_participant_actor_mail::{DomainParticipantMail, ParticipantServiceMail},
+            services::discovery_service,
+        },
         domain_participant_factory::domain_participant_factory_actor::{
             self, DdsTransportParticipantFactory, DomainParticipantFactoryActor,
         },
@@ -76,7 +79,9 @@ impl DomainParticipantFactoryAsync {
         let (reply_sender, reply_receiver) = oneshot();
         participant
             .participant_address()
-            .send_actor_mail(domain_participant_service::IsEmpty { reply_sender })?;
+            .send_actor_mail(DomainParticipantMail::Participant(
+                ParticipantServiceMail::IsEmpty { reply_sender },
+            ))?;
         let is_participant_empty = reply_receiver.await?;
         if is_participant_empty {
             let (reply_sender, reply_receiver) = oneshot();

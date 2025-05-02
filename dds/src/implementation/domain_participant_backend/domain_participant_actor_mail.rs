@@ -3,8 +3,11 @@ use std::sync::Arc;
 
 use super::domain_participant_actor::DomainParticipantActor;
 use crate::{
-    builtin_topics::SubscriptionBuiltinTopicData,
+    builtin_topics::{
+        ParticipantBuiltinTopicData, SubscriptionBuiltinTopicData, TopicBuiltinTopicData,
+    },
     dds_async::{
+        domain_participant_listener::DomainParticipantListenerAsync,
         publisher_listener::PublisherListenerAsync, subscriber_listener::SubscriberListenerAsync,
         topic_listener::TopicListenerAsync,
     },
@@ -15,7 +18,9 @@ use crate::{
     infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,
-        qos::{DataWriterQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
+        qos::{
+            DataWriterQos, DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos,
+        },
         status::{
             InconsistentTopicStatus, OfferedDeadlineMissedStatus, PublicationMatchedStatus,
             StatusKind,
@@ -98,6 +103,63 @@ pub enum ParticipantServiceMail {
     },
     DeleteContainedEntities {
         reply_sender: OneshotSender<DdsResult<()>>,
+    },
+    SetDefaultPublisherQos {
+        qos: QosKind<PublisherQos>,
+        reply_sender: OneshotSender<DdsResult<()>>,
+    },
+    GetDefaultPublisherQos {
+        reply_sender: OneshotSender<DdsResult<PublisherQos>>,
+    },
+    SetDefaultSubscriberQos {
+        qos: QosKind<SubscriberQos>,
+        reply_sender: OneshotSender<DdsResult<()>>,
+    },
+    GetDefaultSubscriberQos {
+        reply_sender: OneshotSender<DdsResult<SubscriberQos>>,
+    },
+    SetDefaultTopicQos {
+        qos: QosKind<TopicQos>,
+        reply_sender: OneshotSender<DdsResult<()>>,
+    },
+    GetDefaultTopicQos {
+        reply_sender: OneshotSender<DdsResult<TopicQos>>,
+    },
+    GetDiscoveredParticipants {
+        reply_sender: OneshotSender<DdsResult<Vec<InstanceHandle>>>,
+    },
+    GetDiscoveredParticipantData {
+        participant_handle: InstanceHandle,
+
+        reply_sender: OneshotSender<DdsResult<ParticipantBuiltinTopicData>>,
+    },
+    GetDiscoveredTopics {
+        reply_sender: OneshotSender<DdsResult<Vec<InstanceHandle>>>,
+    },
+    GetDiscoveredTopicData {
+        topic_handle: InstanceHandle,
+        reply_sender: OneshotSender<DdsResult<TopicBuiltinTopicData>>,
+    },
+    GetCurrentTime {
+        reply_sender: OneshotSender<Time>,
+    },
+    SetQos {
+        qos: QosKind<DomainParticipantQos>,
+        reply_sender: OneshotSender<DdsResult<()>>,
+    },
+    GetQos {
+        reply_sender: OneshotSender<DdsResult<DomainParticipantQos>>,
+    },
+    SetListener {
+        listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
+        status_kind: Vec<StatusKind>,
+        reply_sender: OneshotSender<DdsResult<()>>,
+    },
+    Enable {
+        reply_sender: OneshotSender<DdsResult<()>>,
+    },
+    IsEmpty {
+        reply_sender: OneshotSender<bool>,
     },
 }
 
@@ -379,6 +441,58 @@ impl DomainParticipantActor {
             } => reply_sender.send(self.ignore_publication(handle)),
             ParticipantServiceMail::DeleteContainedEntities { reply_sender } => {
                 reply_sender.send(self.delete_participant_contained_entities())
+            }
+            ParticipantServiceMail::SetDefaultPublisherQos { qos, reply_sender } => {
+                reply_sender.send(self.set_default_publisher_qos(qos))
+            }
+            ParticipantServiceMail::GetDefaultPublisherQos { reply_sender } => {
+                reply_sender.send(self.get_default_publisher_qos())
+            }
+            ParticipantServiceMail::SetDefaultSubscriberQos { qos, reply_sender } => {
+                reply_sender.send(self.set_default_subscriber_qos(qos))
+            }
+            ParticipantServiceMail::GetDefaultSubscriberQos { reply_sender } => {
+                reply_sender.send(self.get_default_subscriber_qos())
+            }
+            ParticipantServiceMail::SetDefaultTopicQos { qos, reply_sender } => {
+                reply_sender.send(self.set_default_topic_qos(qos))
+            }
+            ParticipantServiceMail::GetDefaultTopicQos { reply_sender } => {
+                reply_sender.send(self.get_default_topic_qos())
+            }
+            ParticipantServiceMail::GetCurrentTime { reply_sender } => {
+                reply_sender.send(self.get_current_time())
+            }
+            ParticipantServiceMail::GetDiscoveredParticipants { reply_sender } => {
+                reply_sender.send(self.get_discovered_participants())
+            }
+            ParticipantServiceMail::GetDiscoveredParticipantData {
+                participant_handle,
+                reply_sender,
+            } => reply_sender.send(self.get_discovered_participant_data(participant_handle)),
+            ParticipantServiceMail::GetDiscoveredTopics { reply_sender } => {
+                reply_sender.send(self.get_discovered_topics())
+            }
+            ParticipantServiceMail::GetDiscoveredTopicData {
+                topic_handle,
+                reply_sender,
+            } => reply_sender.send(self.get_discovered_topic_data(topic_handle)),
+            ParticipantServiceMail::SetQos { qos, reply_sender } => {
+                reply_sender.send(self.set_domain_participant_qos(qos))
+            }
+            ParticipantServiceMail::GetQos { reply_sender } => {
+                reply_sender.send(self.get_domain_participant_qos())
+            }
+            ParticipantServiceMail::SetListener {
+                listener,
+                status_kind,
+                reply_sender,
+            } => reply_sender.send(self.set_domain_participant_listener(listener, status_kind)),
+            ParticipantServiceMail::Enable { reply_sender } => {
+                reply_sender.send(self.enable_domain_participant())
+            }
+            ParticipantServiceMail::IsEmpty { reply_sender } => {
+                reply_sender.send(self.is_participant_empty())
             }
         }
     }

@@ -11,7 +11,6 @@ use crate::{
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor,
             domain_participant_actor_mail::{DomainParticipantMail, ParticipantServiceMail},
-            services::domain_participant_service,
         },
         status_condition::status_condition_actor::StatusConditionActor,
     },
@@ -368,9 +367,10 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self))]
     pub async fn set_default_publisher_qos(&self, qos: QosKind<PublisherQos>) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant_address.send_actor_mail(
-            domain_participant_service::SetDefaultPublisherQos { qos, reply_sender },
-        )?;
+        self.participant_address
+            .send_actor_mail(DomainParticipantMail::Participant(
+                ParticipantServiceMail::SetDefaultPublisherQos { qos, reply_sender },
+            ))?;
         reply_receiver.await?
     }
 
@@ -379,7 +379,9 @@ impl DomainParticipantAsync {
     pub async fn get_default_publisher_qos(&self) -> DdsResult<PublisherQos> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address
-            .send_actor_mail(domain_participant_service::GetDefaultPublisherQos { reply_sender })?;
+            .send_actor_mail(DomainParticipantMail::Participant(
+                ParticipantServiceMail::GetDefaultPublisherQos { reply_sender },
+            ))?;
         reply_receiver.await?
     }
 
@@ -387,9 +389,10 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self))]
     pub async fn set_default_subscriber_qos(&self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant_address.send_actor_mail(
-            domain_participant_service::SetDefaultSubscriberQos { qos, reply_sender },
-        )?;
+        self.participant_address
+            .send_actor_mail(DomainParticipantMail::Participant(
+                ParticipantServiceMail::SetDefaultSubscriberQos { qos, reply_sender },
+            ))?;
         reply_receiver.await?
     }
 
@@ -397,9 +400,10 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self))]
     pub async fn get_default_subscriber_qos(&self) -> DdsResult<SubscriberQos> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant_address.send_actor_mail(
-            domain_participant_service::GetDefaultSubscriberQos { reply_sender },
-        )?;
+        self.participant_address
+            .send_actor_mail(DomainParticipantMail::Participant(
+                ParticipantServiceMail::GetDefaultSubscriberQos { reply_sender },
+            ))?;
         reply_receiver.await?
     }
 
@@ -407,9 +411,10 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self))]
     pub async fn set_default_topic_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant_address.send_actor_mail(
-            domain_participant_service::SetDefaultTopicQos { qos, reply_sender },
-        )?;
+        self.participant_address
+            .send_actor_mail(DomainParticipantMail::Participant(
+                ParticipantServiceMail::SetDefaultTopicQos { qos, reply_sender },
+            ))?;
         reply_receiver.await?
     }
 
@@ -418,7 +423,9 @@ impl DomainParticipantAsync {
     pub async fn get_default_topic_qos(&self) -> DdsResult<TopicQos> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address
-            .send_actor_mail(domain_participant_service::GetDefaultTopicQos { reply_sender })?;
+            .send_actor_mail(DomainParticipantMail::Participant(
+                ParticipantServiceMail::GetDefaultTopicQos { reply_sender },
+            ))?;
         reply_receiver.await?
     }
 
@@ -426,9 +433,10 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self))]
     pub async fn get_discovered_participants(&self) -> DdsResult<Vec<InstanceHandle>> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant_address.send_actor_mail(
-            domain_participant_service::GetDiscoveredParticipants { reply_sender },
-        )?;
+        self.participant_address
+            .send_actor_mail(DomainParticipantMail::Participant(
+                ParticipantServiceMail::GetDiscoveredParticipants { reply_sender },
+            ))?;
         reply_receiver.await?
     }
 
@@ -439,12 +447,13 @@ impl DomainParticipantAsync {
         participant_handle: InstanceHandle,
     ) -> DdsResult<ParticipantBuiltinTopicData> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant_address.send_actor_mail(
-            domain_participant_service::GetDiscoveredParticipantData {
-                participant_handle,
-                reply_sender,
-            },
-        )?;
+        self.participant_address
+            .send_actor_mail(DomainParticipantMail::Participant(
+                ParticipantServiceMail::GetDiscoveredParticipantData {
+                    participant_handle,
+                    reply_sender,
+                },
+            ))?;
         reply_receiver.await?
     }
 
@@ -453,7 +462,9 @@ impl DomainParticipantAsync {
     pub async fn get_discovered_topics(&self) -> DdsResult<Vec<InstanceHandle>> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address
-            .send_actor_mail(domain_participant_service::GetDiscoveredTopics { reply_sender })?;
+            .send_actor_mail(DomainParticipantMail::Participant(
+                ParticipantServiceMail::GetDiscoveredTopics { reply_sender },
+            ))?;
         reply_receiver.await?
     }
 
@@ -464,12 +475,13 @@ impl DomainParticipantAsync {
         topic_handle: InstanceHandle,
     ) -> DdsResult<TopicBuiltinTopicData> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant_address.send_actor_mail(
-            domain_participant_service::GetDiscoveredTopicData {
-                topic_handle,
-                reply_sender,
-            },
-        )?;
+        self.participant_address
+            .send_actor_mail(DomainParticipantMail::Participant(
+                ParticipantServiceMail::GetDiscoveredTopicData {
+                    topic_handle,
+                    reply_sender,
+                },
+            ))?;
         reply_receiver.await?
     }
 
@@ -484,7 +496,9 @@ impl DomainParticipantAsync {
     pub async fn get_current_time(&self) -> DdsResult<Time> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address
-            .send_actor_mail(domain_participant_service::GetCurrentTime { reply_sender })?;
+            .send_actor_mail(DomainParticipantMail::Participant(
+                ParticipantServiceMail::GetCurrentTime { reply_sender },
+            ))?;
         Ok(reply_receiver.await?)
     }
 }
@@ -494,13 +508,10 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self))]
     pub async fn set_qos(&self, qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant_address.send_actor_mail(
-            domain_participant_service::SetDomainParticipantQos {
-                qos,
-                domain_participant_address: self.participant_address.clone(),
-                reply_sender,
-            },
-        )?;
+        self.participant_address
+            .send_actor_mail(DomainParticipantMail::Participant(
+                ParticipantServiceMail::SetQos { qos, reply_sender },
+            ))?;
         reply_receiver.await?
     }
 
@@ -508,9 +519,10 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self))]
     pub async fn get_qos(&self) -> DdsResult<DomainParticipantQos> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant_address.send_actor_mail(
-            domain_participant_service::GetDomainParticipantQos { reply_sender },
-        )?;
+        self.participant_address
+            .send_actor_mail(DomainParticipantMail::Participant(
+                ParticipantServiceMail::GetQos { reply_sender },
+            ))?;
         reply_receiver.await?
     }
 
@@ -523,11 +535,13 @@ impl DomainParticipantAsync {
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address
-            .send_actor_mail(domain_participant_service::SetListener {
-                listener: a_listener,
-                status_kind: mask.to_vec(),
-                reply_sender,
-            })?;
+            .send_actor_mail(DomainParticipantMail::Participant(
+                ParticipantServiceMail::SetListener {
+                    listener: a_listener,
+                    status_kind: mask.to_vec(),
+                    reply_sender,
+                },
+            ))?;
         reply_receiver.await?
     }
 
@@ -546,11 +560,12 @@ impl DomainParticipantAsync {
     /// Async version of [`enable`](crate::domain::domain_participant::DomainParticipant::enable).
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
+        let (reply_sender, reply_receiver) = oneshot();
         self.participant_address
-            .send_actor_mail(domain_participant_service::Enable {
-                domain_participant_address: self.participant_address.clone(),
-            })?;
-        Ok(())
+            .send_actor_mail(DomainParticipantMail::Participant(
+                ParticipantServiceMail::Enable { reply_sender },
+            ))?;
+        reply_receiver.await?
     }
 
     /// Async version of [`get_instance_handle`](crate::domain::domain_participant::DomainParticipant::get_instance_handle).

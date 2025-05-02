@@ -12,6 +12,7 @@ use crate::{
         },
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor,
+            domain_participant_actor_mail::{DomainParticipantMail, ParticipantServiceMail},
             entities::{
                 data_reader::{DataReaderEntity, TransportReaderKind},
                 data_writer::{DataWriterEntity, TransportWriterKind},
@@ -21,7 +22,7 @@ use crate::{
                 topic::TopicEntity,
             },
             handle::InstanceHandleCounter,
-            services::{discovery_service, domain_participant_service, message_service},
+            services::{discovery_service, message_service},
         },
         listeners::domain_participant_listener::DomainParticipantListenerActor,
         status_condition::status_condition_actor::StatusConditionActor,
@@ -44,7 +45,7 @@ use crate::{
     runtime::{
         actor::{Actor, ActorAddress, ActorBuilder, MailHandler},
         executor::Executor,
-        oneshot::OneshotSender,
+        oneshot::{oneshot, OneshotSender},
         timer::TimerDriver,
     },
     topic_definition::type_support::TypeSupport,
@@ -569,9 +570,10 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         });
 
         if self.qos.entity_factory.autoenable_created_entities {
-            participant_actor.send_actor_mail(domain_participant_service::Enable {
-                domain_participant_address: participant_actor.address(),
-            });
+            let (reply_sender, _reply_receiver) = oneshot();
+            participant_actor.send_actor_mail(DomainParticipantMail::Participant(
+                ParticipantServiceMail::Enable { reply_sender },
+            ));
         }
 
         let participant_address = participant_actor.address();

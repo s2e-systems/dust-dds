@@ -17,12 +17,14 @@ use super::{
 };
 use crate::{
     builtin_topics::{
-        BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
-        TopicBuiltinTopicData, DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
+        BuiltInTopicKey, ParticipantBuiltinTopicData, PublicationBuiltinTopicData,
+        SubscriptionBuiltinTopicData, TopicBuiltinTopicData, DCPS_PARTICIPANT, DCPS_PUBLICATION,
+        DCPS_SUBSCRIPTION, DCPS_TOPIC,
     },
     dds_async::{
         data_reader::DataReaderAsync, data_writer::DataWriterAsync,
-        domain_participant::DomainParticipantAsync, publisher::PublisherAsync,
+        domain_participant::DomainParticipantAsync,
+        domain_participant_listener::DomainParticipantListenerAsync, publisher::PublisherAsync,
         publisher_listener::PublisherListenerAsync, subscriber::SubscriberAsync,
         subscriber_listener::SubscriberListenerAsync, topic::TopicAsync,
         topic_listener::TopicListenerAsync,
@@ -32,11 +34,15 @@ use crate::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
             discovered_writer_data::{DiscoveredWriterData, WriterProxy},
+            spdp_discovered_participant_data::{
+                BuiltinEndpointQos, BuiltinEndpointSet, ParticipantProxy,
+                SpdpDiscoveredParticipantData,
+            },
         },
         domain_participant_factory::domain_participant_factory_actor::DdsTransportParticipant,
         listeners::{
             data_writer_listener::{self, DataWriterListenerActor},
-            domain_participant_listener,
+            domain_participant_listener::{self, DomainParticipantListenerActor},
             publisher_listener::{self, PublisherListenerActor},
             subscriber_listener::SubscriberListenerActor,
             topic_listener::TopicListenerActor,
@@ -49,7 +55,9 @@ use crate::{
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
-        qos::{DataWriterQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
+        qos::{
+            DataWriterQos, DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos,
+        },
         qos_policy::{
             DurabilityQosPolicyKind, QosPolicyId, ReliabilityQosPolicyKind,
             DATA_REPRESENTATION_QOS_POLICY_ID, DEADLINE_QOS_POLICY_ID,
@@ -638,6 +646,145 @@ impl DomainParticipantActor {
         self.domain_participant.delete_all_topics();
 
         Ok(())
+    }
+
+    pub fn set_default_publisher_qos(&mut self, qos: QosKind<PublisherQos>) -> DdsResult<()> {
+        let qos = match qos {
+            QosKind::Default => PublisherQos::default(),
+            QosKind::Specific(q) => q,
+        };
+
+        self.domain_participant.set_default_publisher_qos(qos);
+        Ok(())
+    }
+
+    pub fn get_default_publisher_qos(&mut self) -> DdsResult<PublisherQos> {
+        Ok(self.domain_participant.default_publisher_qos().clone())
+    }
+
+    pub fn set_default_subscriber_qos(&mut self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
+        let qos = match qos {
+            QosKind::Default => SubscriberQos::default(),
+            QosKind::Specific(q) => q,
+        };
+
+        self.domain_participant.set_default_subscriber_qos(qos);
+
+        Ok(())
+    }
+
+    pub fn get_default_subscriber_qos(&mut self) -> DdsResult<SubscriberQos> {
+        Ok(self.domain_participant.default_subscriber_qos().clone())
+    }
+
+    pub fn set_default_topic_qos(&mut self, qos: QosKind<TopicQos>) -> DdsResult<()> {
+        let qos = match qos {
+            QosKind::Default => TopicQos::default(),
+            QosKind::Specific(q) => {
+                if q.is_consistent().is_ok() {
+                    q
+                } else {
+                    return Err(DdsError::InconsistentPolicy);
+                }
+            }
+        };
+
+        self.domain_participant.set_default_topic_qos(qos)
+    }
+
+    pub fn get_default_topic_qos(&self) -> DdsResult<TopicQos> {
+        Ok(self.domain_participant.get_default_topic_qos().clone())
+    }
+
+    pub fn get_discovered_participants(&mut self) -> DdsResult<Vec<InstanceHandle>> {
+        Ok(self.domain_participant.get_discovered_participants())
+    }
+
+    pub fn get_discovered_participant_data(
+        &mut self,
+        participant_handle: InstanceHandle,
+    ) -> DdsResult<ParticipantBuiltinTopicData> {
+        let Some(handle) = self
+            .domain_participant
+            .get_discovered_participant_data(&participant_handle)
+        else {
+            return Err(DdsError::BadParameter);
+        };
+        Ok(handle.dds_participant_data.clone())
+    }
+
+    pub fn get_discovered_topics(&mut self) -> DdsResult<Vec<InstanceHandle>> {
+        Ok(self.domain_participant.get_discovered_topics())
+    }
+
+    pub fn get_discovered_topic_data(
+        &mut self,
+        topic_handle: InstanceHandle,
+    ) -> DdsResult<TopicBuiltinTopicData> {
+        let Some(handle) = self
+            .domain_participant
+            .get_discovered_topic_data(&topic_handle)
+        else {
+            return Err(DdsError::PreconditionNotMet(
+                "Topic with this handle not discovered".to_owned(),
+            ));
+        };
+
+        Ok(handle.clone())
+    }
+
+    pub fn get_current_time(&mut self) -> Time {
+        self.domain_participant.get_current_time()
+    }
+
+    pub fn set_domain_participant_qos(
+        &mut self,
+        qos: QosKind<DomainParticipantQos>,
+    ) -> DdsResult<()> {
+        let qos = match qos {
+            QosKind::Default => DomainParticipantQos::default(),
+            QosKind::Specific(q) => q,
+        };
+
+        self.domain_participant.set_qos(qos);
+        if self.domain_participant.enabled() {
+            self.announce_participant();
+        }
+        Ok(())
+    }
+
+    pub fn get_domain_participant_qos(&mut self) -> DdsResult<DomainParticipantQos> {
+        Ok(self.domain_participant.qos().clone())
+    }
+
+    pub fn set_domain_participant_listener(
+        &mut self,
+        listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
+        status_kind: Vec<StatusKind>,
+    ) -> DdsResult<()> {
+        let participant_listener = listener.map(|l| {
+            Actor::spawn(
+                DomainParticipantListenerActor::new(l),
+                &self.listener_executor.handle(),
+            )
+        });
+        self.domain_participant
+            .set_listener(participant_listener, status_kind);
+        Ok(())
+    }
+
+    pub fn enable_domain_participant(&mut self) -> DdsResult<()> {
+        if !self.domain_participant.enabled() {
+            self.domain_participant.enable();
+
+            self.announce_participant();
+        }
+
+        Ok(())
+    }
+
+    pub fn is_participant_empty(&mut self) -> bool {
+        self.domain_participant.is_empty()
     }
 
     pub fn create_data_writer(
@@ -1246,6 +1393,61 @@ impl DomainParticipantActor {
             return Err(DdsError::AlreadyDeleted);
         };
         Ok(data_writer.are_all_changes_acknowledged())
+    }
+
+    fn announce_participant(&mut self) {
+        if self.domain_participant.enabled() {
+            let participant_builtin_topic_data = ParticipantBuiltinTopicData {
+                key: BuiltInTopicKey {
+                    value: self.transport.guid().into(),
+                },
+                user_data: self.domain_participant.qos().user_data.clone(),
+            };
+            let participant_proxy = ParticipantProxy {
+                domain_id: Some(self.domain_participant.domain_id()),
+                domain_tag: self.domain_participant.domain_tag().to_owned(),
+                protocol_version: self.transport.protocol_version(),
+                guid_prefix: self.transport.guid().prefix(),
+                vendor_id: self.transport.vendor_id(),
+                expects_inline_qos: false,
+                metatraffic_unicast_locator_list: self
+                    .transport
+                    .metatraffic_unicast_locator_list()
+                    .to_vec(),
+                metatraffic_multicast_locator_list: self
+                    .transport
+                    .metatraffic_multicast_locator_list()
+                    .to_vec(),
+                default_unicast_locator_list: self
+                    .transport
+                    .default_unicast_locator_list()
+                    .to_vec(),
+                default_multicast_locator_list: self
+                    .transport
+                    .default_multicast_locator_list()
+                    .to_vec(),
+                available_builtin_endpoints: BuiltinEndpointSet::default(),
+                manual_liveliness_count: 0,
+                builtin_endpoint_qos: BuiltinEndpointQos::default(),
+            };
+            let spdp_discovered_participant_data = SpdpDiscoveredParticipantData {
+                dds_participant_data: participant_builtin_topic_data,
+                participant_proxy,
+                lease_duration: Duration::new(100, 0),
+                discovered_participant_list: self.domain_participant.get_discovered_participants(),
+            };
+            let timestamp = self.domain_participant.get_current_time();
+
+            if let Some(dw) = self
+                .domain_participant
+                .builtin_publisher_mut()
+                .lookup_datawriter_mut(DCPS_PARTICIPANT)
+            {
+                if let Ok(serialized_data) = spdp_discovered_participant_data.serialize_data() {
+                    dw.write_w_timestamp(serialized_data, timestamp).ok();
+                }
+            }
+        }
     }
 
     fn announce_data_writer(
