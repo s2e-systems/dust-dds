@@ -2,7 +2,7 @@ use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     implementation::{
         listeners::data_writer_listener::DataWriterListenerActor,
-        status_condition::status_condition_actor::{self, StatusConditionActor},
+        status_condition::status_condition_actor::{StatusConditionActor, StatusConditionMail},
         xtypes_glue::key_and_instance_handle::{
             get_instance_handle_from_serialized_foo, get_instance_handle_from_serialized_key,
         },
@@ -520,7 +520,7 @@ impl DataWriterEntity {
         let status = self.offered_deadline_missed_status.clone();
         self.offered_deadline_missed_status.total_count_change = 0;
         self.status_condition
-            .send_actor_mail(status_condition_actor::RemoveCommunicationState {
+            .send_actor_mail(StatusConditionMail::RemoveCommunicationState {
                 state: StatusKind::OfferedDeadlineMissed,
             });
         status

@@ -58,7 +58,7 @@ use crate::{
             subscriber_listener::{SubscriberListenerActor, SubscriberListenerMail},
             topic_listener::TopicListenerActor,
         },
-        status_condition::status_condition_actor::{self, StatusConditionActor},
+        status_condition::status_condition_actor::{StatusConditionActor, StatusConditionMail},
         xtypes_glue::key_and_instance_handle::{
             get_instance_handle_from_serialized_foo, get_serialized_key_from_serialized_foo,
         },
@@ -1265,7 +1265,7 @@ impl DomainParticipantActor {
         let status = data_writer.get_publication_matched_status();
 
         data_writer.status_condition().send_actor_mail(
-            status_condition_actor::RemoveCommunicationState {
+            StatusConditionMail::RemoveCommunicationState {
                 state: StatusKind::PublicationMatched,
             },
         );
@@ -1812,7 +1812,7 @@ impl DomainParticipantActor {
         };
         let status = data_reader.get_subscription_matched_status();
         data_reader.status_condition().send_actor_mail(
-            status_condition_actor::RemoveCommunicationState {
+            StatusConditionMail::RemoveCommunicationState {
                 state: StatusKind::SubscriptionMatched,
             },
         );
@@ -2562,7 +2562,7 @@ impl DomainParticipantActor {
                         return;
                     };
                     data_writer.status_condition().send_actor_mail(
-                        status_condition_actor::AddCommunicationState {
+                        StatusConditionMail::AddCommunicationState {
                             state: StatusKind::PublicationMatched,
                         },
                     );
@@ -2674,7 +2674,7 @@ impl DomainParticipantActor {
                         return;
                     };
                     data_writer.status_condition().send_actor_mail(
-                        status_condition_actor::AddCommunicationState {
+                        StatusConditionMail::AddCommunicationState {
                             state: StatusKind::OfferedIncompatibleQos,
                         },
                     );
@@ -2702,7 +2702,7 @@ impl DomainParticipantActor {
             data_writer.remove_matched_subscription(&subscription_handle);
 
             data_writer.status_condition().send_actor_mail(
-                status_condition_actor::AddCommunicationState {
+                StatusConditionMail::AddCommunicationState {
                     state: StatusKind::PublicationMatched,
                 },
             );
@@ -2955,7 +2955,7 @@ impl DomainParticipantActor {
                         return;
                     };
                     data_reader.status_condition().send_actor_mail(
-                        status_condition_actor::AddCommunicationState {
+                        StatusConditionMail::AddCommunicationState {
                             state: StatusKind::SubscriptionMatched,
                         },
                     );
@@ -3071,7 +3071,7 @@ impl DomainParticipantActor {
                         return;
                     };
                     data_reader.status_condition().send_actor_mail(
-                        status_condition_actor::AddCommunicationState {
+                        StatusConditionMail::AddCommunicationState {
                             state: StatusKind::RequestedIncompatibleQos,
                         },
                     );
@@ -3529,7 +3529,7 @@ impl DomainParticipantActor {
                     };
 
                     subscriber.status_condition().send_actor_mail(
-                        status_condition_actor::AddCommunicationState {
+                        StatusConditionMail::AddCommunicationState {
                             state: StatusKind::DataOnReaders,
                         },
                     );
@@ -3538,7 +3538,7 @@ impl DomainParticipantActor {
                         return;
                     };
                     data_reader.status_condition().send_actor_mail(
-                        status_condition_actor::AddCommunicationState {
+                        StatusConditionMail::AddCommunicationState {
                             state: StatusKind::DataAvailable,
                         },
                     );
@@ -3654,7 +3654,7 @@ impl DomainParticipantActor {
                         return;
                     };
                     data_reader.status_condition().send_actor_mail(
-                        status_condition_actor::AddCommunicationState {
+                        StatusConditionMail::AddCommunicationState {
                             state: StatusKind::SampleRejected,
                         },
                     );
@@ -3783,7 +3783,7 @@ impl DomainParticipantActor {
             return;
         };
         data_writer.status_condition().send_actor_mail(
-            status_condition_actor::AddCommunicationState {
+            StatusConditionMail::AddCommunicationState {
                 state: StatusKind::OfferedDeadlineMissed,
             },
         );
@@ -3906,7 +3906,7 @@ impl DomainParticipantActor {
         };
 
         data_reader.status_condition().send_actor_mail(
-            status_condition_actor::AddCommunicationState {
+            StatusConditionMail::AddCommunicationState {
                 state: StatusKind::RequestedDeadlineMissed,
             },
         );

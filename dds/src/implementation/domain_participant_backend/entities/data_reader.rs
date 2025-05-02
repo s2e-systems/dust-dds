@@ -4,7 +4,7 @@ use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     implementation::{
         listeners::data_reader_listener::DataReaderListenerActor,
-        status_condition::status_condition_actor::{self, StatusConditionActor},
+        status_condition::status_condition_actor::{StatusConditionActor, StatusConditionMail},
         xtypes_glue::key_and_instance_handle::{
             get_instance_handle_from_serialized_foo, get_instance_handle_from_serialized_key,
         },
@@ -212,7 +212,7 @@ impl DataReaderEntity {
         }
 
         self.status_condition
-            .send_actor_mail(status_condition_actor::RemoveCommunicationState {
+            .send_actor_mail(StatusConditionMail::RemoveCommunicationState {
                 state: StatusKind::DataAvailable,
             });
 
@@ -260,7 +260,7 @@ impl DataReaderEntity {
         )?;
 
         self.status_condition
-            .send_actor_mail(status_condition_actor::RemoveCommunicationState {
+            .send_actor_mail(StatusConditionMail::RemoveCommunicationState {
                 state: StatusKind::DataAvailable,
             });
 
@@ -808,7 +808,7 @@ impl DataReaderEntity {
         self.subscription_matched_status.current_count = self.matched_publication_list.len() as i32;
         self.subscription_matched_status.current_count_change -= 1;
         self.status_condition
-            .send_actor_mail(status_condition_actor::AddCommunicationState {
+            .send_actor_mail(StatusConditionMail::AddCommunicationState {
                 state: StatusKind::SubscriptionMatched,
             });
     }
