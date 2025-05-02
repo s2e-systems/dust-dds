@@ -73,7 +73,7 @@ use crate::{
         },
         status::{
             InconsistentTopicStatus, OfferedDeadlineMissedStatus, PublicationMatchedStatus,
-            StatusKind,
+            StatusKind, SubscriptionMatchedStatus,
         },
         time::{Duration, DurationKind, Time},
     },
@@ -1646,6 +1646,104 @@ impl DomainParticipantActor {
             view_states,
             instance_states,
         )
+    }
+
+    pub fn get_subscription_matched_status(
+        &mut self,
+        subscriber_handle: InstanceHandle,
+        data_reader_handle: InstanceHandle,
+    ) -> DdsResult<SubscriptionMatchedStatus> {
+        let Some(subscriber) = self
+            .domain_participant
+            .get_mut_subscriber(subscriber_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        let status = data_reader.get_subscription_matched_status();
+        data_reader.status_condition().send_actor_mail(
+            status_condition_actor::RemoveCommunicationState {
+                state: StatusKind::SubscriptionMatched,
+            },
+        );
+        Ok(status)
+    }
+
+    pub fn wait_for_historical_data(
+        &mut self,
+        participant_address: ActorAddress<DomainParticipantActor>,
+        subscriber_handle: InstanceHandle,
+        data_reader_handle: InstanceHandle,
+        max_wait: Duration,
+    ) -> Pin<Box<dyn Future<Output = DdsResult<()>> + Send>> {
+        let timer_handle = self.timer_driver.handle();
+
+        Box::pin(async move {
+            timer_handle
+                .timeout(
+                    max_wait.into(),
+                    Box::pin(async move {
+                        loop {
+                            let (reply_sender, reply_receiver) = oneshot();
+                            participant_address.send_actor_mail(DomainParticipantMail::Message(
+                                MessageServiceMail::IsHistoricalDataReceived {
+                                    subscriber_handle: subscriber_handle,
+                                    data_reader_handle: data_reader_handle,
+                                    reply_sender,
+                                },
+                            ))?;
+
+                            let reply = reply_receiver.await;
+                            match reply {
+                                Ok(historical_data_received) => match historical_data_received {
+                                    Ok(true) => return Ok(()),
+                                    Ok(false) => (),
+                                    Err(e) => return Err(e),
+                                },
+                                Err(e) => {
+                                    return Err(DdsError::Error(format!("Channel error: {:?}", e)))
+                                }
+                            }
+                        }
+                    }),
+                )
+                .await
+                .map_err(|_| DdsError::Timeout)?
+        })
+    }
+
+    pub fn is_historical_data_received(
+        &mut self,
+        subscriber_handle: InstanceHandle,
+        data_reader_handle: InstanceHandle,
+    ) -> DdsResult<bool> {
+        let Some(subscriber) = self.domain_participant.get_subscriber(subscriber_handle) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        let Some(data_reader) = subscriber.get_data_reader(data_reader_handle) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        if !data_reader.enabled() {
+            return Err(DdsError::NotEnabled);
+        };
+
+        match data_reader.qos().durability.kind {
+            DurabilityQosPolicyKind::Volatile => {
+                return Err(DdsError::IllegalOperation);
+            }
+            DurabilityQosPolicyKind::TransientLocal
+            | DurabilityQosPolicyKind::Transient
+            | DurabilityQosPolicyKind::Persistent => (),
+        };
+
+        if let TransportReaderKind::Stateful(r) = data_reader.transport_reader() {
+            Ok(r.is_historical_data_received())
+        } else {
+            Ok(true)
+        }
     }
 
     pub fn enable_data_reader(

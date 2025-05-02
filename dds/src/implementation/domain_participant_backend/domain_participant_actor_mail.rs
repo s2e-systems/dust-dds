@@ -25,7 +25,7 @@ use crate::{
         },
         status::{
             InconsistentTopicStatus, OfferedDeadlineMissedStatus, PublicationMatchedStatus,
-            StatusKind,
+            StatusKind, SubscriptionMatchedStatus,
         },
         time::{Duration, Time},
     },
@@ -379,6 +379,18 @@ pub enum ReaderServiceMail {
         #[allow(clippy::type_complexity)]
         reply_sender: OneshotSender<DdsResult<Vec<(Option<Arc<[u8]>>, SampleInfo)>>>,
     },
+    GetSubscriptionMatchedStatus {
+        subscriber_handle: InstanceHandle,
+        data_reader_handle: InstanceHandle,
+        reply_sender: OneshotSender<DdsResult<SubscriptionMatchedStatus>>,
+    },
+    WaitForHistoricalData {
+        participant_address: ActorAddress<DomainParticipantActor>,
+        subscriber_handle: InstanceHandle,
+        data_reader_handle: InstanceHandle,
+        max_wait: Duration,
+        reply_sender: OneshotSender<Pin<Box<dyn Future<Output = DdsResult<()>> + Send>>>,
+    },
 }
 
 pub enum MessageServiceMail {
@@ -390,6 +402,11 @@ pub enum MessageServiceMail {
     AreAllChangesAcknowledged {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
+        reply_sender: OneshotSender<DdsResult<bool>>,
+    },
+    IsHistoricalDataReceived {
+        subscriber_handle: InstanceHandle,
+        data_reader_handle: InstanceHandle,
         reply_sender: OneshotSender<DdsResult<bool>>,
     },
 }
@@ -888,6 +905,24 @@ impl DomainParticipantActor {
                 data_reader_handle,
                 participant_address,
             )),
+            ReaderServiceMail::GetSubscriptionMatchedStatus {
+                subscriber_handle,
+                data_reader_handle,
+                reply_sender,
+            } => reply_sender
+                .send(self.get_subscription_matched_status(subscriber_handle, data_reader_handle)),
+            ReaderServiceMail::WaitForHistoricalData {
+                participant_address,
+                subscriber_handle,
+                data_reader_handle,
+                max_wait,
+                reply_sender,
+            } => reply_sender.send(self.wait_for_historical_data(
+                participant_address,
+                subscriber_handle,
+                data_reader_handle,
+                max_wait,
+            )),
         }
     }
 
@@ -904,6 +939,12 @@ impl DomainParticipantActor {
                 reply_sender,
             } => reply_sender
                 .send(self.are_all_changes_acknowledged(publisher_handle, data_writer_handle)),
+            MessageServiceMail::IsHistoricalDataReceived {
+                subscriber_handle,
+                data_reader_handle,
+                reply_sender,
+            } => reply_sender
+                .send(self.is_historical_data_received(subscriber_handle, data_reader_handle)),
         }
     }
 

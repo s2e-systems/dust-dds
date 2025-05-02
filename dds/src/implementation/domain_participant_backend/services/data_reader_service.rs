@@ -1,105 +1,23 @@
-use core::{future::Future, pin::Pin};
-
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     implementation::{
         any_data_reader_listener::AnyDataReaderListener,
-        domain_participant_backend::{
-            domain_participant_actor::DomainParticipantActor,
-            services::message_service::IsHistoricalDataReceived,
-        },
+        domain_participant_backend::domain_participant_actor::DomainParticipantActor,
         listeners::data_reader_listener::DataReaderListenerActor,
-        status_condition::status_condition_actor,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataReaderQos, QosKind},
-        status::{StatusKind, SubscriptionMatchedStatus},
-        time::Duration,
+        status::StatusKind,
     },
     runtime::{
         actor::{Actor, ActorAddress, MailHandler},
-        oneshot::{oneshot, OneshotSender},
+        oneshot::OneshotSender,
     },
 };
 
 use super::discovery_service;
-
-pub struct GetSubscriptionMatchedStatus {
-    pub subscriber_handle: InstanceHandle,
-    pub data_reader_handle: InstanceHandle,
-    pub reply_sender: OneshotSender<DdsResult<SubscriptionMatchedStatus>>,
-}
-
-impl MailHandler<GetSubscriptionMatchedStatus> for DomainParticipantActor {
-    fn handle(&mut self, message: GetSubscriptionMatchedStatus) {
-        let Some(subscriber) = self
-            .domain_participant
-            .get_mut_subscriber(message.subscriber_handle)
-        else {
-            message.reply_sender.send(Err(DdsError::AlreadyDeleted));
-            return;
-        };
-        let Some(data_reader) = subscriber.get_mut_data_reader(message.data_reader_handle) else {
-            message.reply_sender.send(Err(DdsError::AlreadyDeleted));
-            return;
-        };
-        let status = data_reader.get_subscription_matched_status();
-        data_reader.status_condition().send_actor_mail(
-            status_condition_actor::RemoveCommunicationState {
-                state: StatusKind::SubscriptionMatched,
-            },
-        );
-        message.reply_sender.send(Ok(status));
-    }
-}
-
-pub struct WaitForHistoricalData {
-    pub participant_address: ActorAddress<DomainParticipantActor>,
-    pub subscriber_handle: InstanceHandle,
-    pub data_reader_handle: InstanceHandle,
-    pub max_wait: Duration,
-    pub reply_sender: OneshotSender<Pin<Box<dyn Future<Output = DdsResult<()>> + Send>>>,
-}
-impl MailHandler<WaitForHistoricalData> for DomainParticipantActor {
-    fn handle(&mut self, message: WaitForHistoricalData) {
-        let timer_handle = self.timer_driver.handle();
-
-        message.reply_sender.send(Box::pin(async move {
-            timer_handle
-                .timeout(
-                    message.max_wait.into(),
-                    Box::pin(async move {
-                        loop {
-                            let (reply_sender, reply_receiver) = oneshot();
-                            message.participant_address.send_actor_mail(
-                                IsHistoricalDataReceived {
-                                    subscriber_handle: message.subscriber_handle,
-                                    data_reader_handle: message.data_reader_handle,
-                                    reply_sender,
-                                },
-                            )?;
-
-                            let reply = reply_receiver.await;
-                            match reply {
-                                Ok(historical_data_received) => match historical_data_received {
-                                    Ok(true) => return Ok(()),
-                                    Ok(false) => (),
-                                    Err(e) => return Err(e),
-                                },
-                                Err(e) => {
-                                    return Err(DdsError::Error(format!("Channel error: {:?}", e)))
-                                }
-                            }
-                        }
-                    }),
-                )
-                .await
-                .map_err(|_| DdsError::Timeout)?
-        }));
-    }
-}
 
 pub struct GetMatchedPublicationData {
     pub subscriber_handle: InstanceHandle,

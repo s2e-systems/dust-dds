@@ -11,26 +11,21 @@ use crate::{
         },
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor,
-            entities::data_reader::{AddChangeResult, TransportReaderKind},
-            services::discovery_service,
+            entities::data_reader::AddChangeResult, services::discovery_service,
         },
         listeners::{data_reader_listener, domain_participant_listener, subscriber_listener},
         status_condition::status_condition_actor,
     },
     infrastructure::{
-        error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos_policy::{
-            DurabilityQosPolicyKind, HistoryQosPolicy, LifespanQosPolicy, ResourceLimitsQosPolicy,
+            HistoryQosPolicy, LifespanQosPolicy, ResourceLimitsQosPolicy,
             TransportPriorityQosPolicy,
         },
         status::StatusKind,
         time::DurationKind,
     },
-    runtime::{
-        actor::{ActorAddress, MailHandler},
-        oneshot::OneshotSender,
-    },
+    runtime::actor::{ActorAddress, MailHandler},
     topic_definition::type_support::DdsDeserialize,
     transport::{
         history_cache::CacheChange,
@@ -648,74 +643,5 @@ pub struct RemoveBuiltinSubscriptionsDetectorCacheChange {
 impl MailHandler<RemoveBuiltinSubscriptionsDetectorCacheChange> for DomainParticipantActor {
     fn handle(&mut self, _message: RemoveBuiltinSubscriptionsDetectorCacheChange) {
         todo!()
-    }
-}
-
-pub struct AreAllChangesAcknowledged {
-    pub publisher_handle: InstanceHandle,
-    pub data_writer_handle: InstanceHandle,
-    pub reply_sender: OneshotSender<DdsResult<bool>>,
-}
-impl MailHandler<AreAllChangesAcknowledged> for DomainParticipantActor {
-    fn handle(&mut self, message: AreAllChangesAcknowledged) {
-        let Some(publisher) = self
-            .domain_participant
-            .get_publisher(message.publisher_handle)
-        else {
-            message.reply_sender.send(Err(DdsError::AlreadyDeleted));
-            return;
-        };
-
-        let Some(data_writer) = publisher.get_data_writer(message.data_writer_handle) else {
-            message.reply_sender.send(Err(DdsError::AlreadyDeleted));
-            return;
-        };
-        message
-            .reply_sender
-            .send(Ok(data_writer.are_all_changes_acknowledged()));
-    }
-}
-
-pub struct IsHistoricalDataReceived {
-    pub subscriber_handle: InstanceHandle,
-    pub data_reader_handle: InstanceHandle,
-    pub reply_sender: OneshotSender<DdsResult<bool>>,
-}
-impl MailHandler<IsHistoricalDataReceived> for DomainParticipantActor {
-    fn handle(&mut self, message: IsHistoricalDataReceived) {
-        let Some(subscriber) = self
-            .domain_participant
-            .get_subscriber(message.subscriber_handle)
-        else {
-            message.reply_sender.send(Err(DdsError::AlreadyDeleted));
-            return;
-        };
-
-        let Some(data_reader) = subscriber.get_data_reader(message.data_reader_handle) else {
-            message.reply_sender.send(Err(DdsError::AlreadyDeleted));
-            return;
-        };
-        if !data_reader.enabled() {
-            message.reply_sender.send(Err(DdsError::NotEnabled));
-            return;
-        };
-
-        match data_reader.qos().durability.kind {
-            DurabilityQosPolicyKind::Volatile => {
-                message.reply_sender.send(Err(DdsError::IllegalOperation));
-                return;
-            }
-            DurabilityQosPolicyKind::TransientLocal
-            | DurabilityQosPolicyKind::Transient
-            | DurabilityQosPolicyKind::Persistent => (),
-        };
-
-        if let TransportReaderKind::Stateful(r) = data_reader.transport_reader() {
-            message
-                .reply_sender
-                .send(Ok(r.is_historical_data_received()))
-        } else {
-            message.reply_sender.send(Ok(true))
-        }
     }
 }

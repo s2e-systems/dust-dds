@@ -363,13 +363,14 @@ impl<Foo> DataReaderAsync<Foo> {
     #[tracing::instrument(skip(self))]
     pub async fn get_subscription_matched_status(&self) -> DdsResult<SubscriptionMatchedStatus> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant_address().send_actor_mail(
-            data_reader_service::GetSubscriptionMatchedStatus {
-                subscriber_handle: self.subscriber.get_instance_handle().await,
-                data_reader_handle: self.handle,
-                reply_sender,
-            },
-        )?;
+        self.participant_address()
+            .send_actor_mail(DomainParticipantMail::Reader(
+                ReaderServiceMail::GetSubscriptionMatchedStatus {
+                    subscriber_handle: self.subscriber.get_instance_handle().await,
+                    data_reader_handle: self.handle,
+                    reply_sender,
+                },
+            ))?;
         reply_receiver.await?
     }
 
@@ -390,13 +391,15 @@ impl<Foo> DataReaderAsync<Foo> {
     pub async fn wait_for_historical_data(&self, max_wait: Duration) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
-            .send_actor_mail(data_reader_service::WaitForHistoricalData {
-                participant_address: self.participant_address().clone(),
-                subscriber_handle: self.subscriber.get_instance_handle().await,
-                data_reader_handle: self.handle,
-                max_wait,
-                reply_sender,
-            })?;
+            .send_actor_mail(DomainParticipantMail::Reader(
+                ReaderServiceMail::WaitForHistoricalData {
+                    participant_address: self.participant_address().clone(),
+                    subscriber_handle: self.subscriber.get_instance_handle().await,
+                    data_reader_handle: self.handle,
+                    max_wait,
+                    reply_sender,
+                },
+            ))?;
         reply_receiver.await?.await
     }
 
