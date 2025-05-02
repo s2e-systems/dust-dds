@@ -374,52 +374,6 @@ impl MailHandler<GetQos> for DomainParticipantActor {
     }
 }
 
-pub struct Enable {
-    pub subscriber_handle: InstanceHandle,
-    pub data_reader_handle: InstanceHandle,
-    pub participant_address: ActorAddress<DomainParticipantActor>,
-}
-impl MailHandler<Enable> for DomainParticipantActor {
-    fn handle(&mut self, message: Enable) {
-        let Some(subscriber) = self
-            .domain_participant
-            .get_mut_subscriber(message.subscriber_handle)
-        else {
-            return;
-        };
-        let Some(data_reader) = subscriber.get_mut_data_reader(message.data_reader_handle) else {
-            return;
-        };
-        if !data_reader.enabled() {
-            data_reader.enable();
-
-            for discovered_writer_data in self
-                .domain_participant
-                .publication_builtin_topic_data_list()
-                .cloned()
-            {
-                message
-                    .participant_address
-                    .send_actor_mail(discovery_service::AddDiscoveredWriter {
-                        discovered_writer_data,
-                        subscriber_handle: message.subscriber_handle,
-                        data_reader_handle: message.data_reader_handle,
-                        participant_address: message.participant_address.clone(),
-                    })
-                    .ok();
-            }
-
-            message
-                .participant_address
-                .send_actor_mail(discovery_service::AnnounceDataReader {
-                    subscriber_handle: message.subscriber_handle,
-                    data_reader_handle: message.data_reader_handle,
-                })
-                .ok();
-        }
-    }
-}
-
 pub struct SetListener {
     pub subscriber_handle: InstanceHandle,
     pub data_reader_handle: InstanceHandle,

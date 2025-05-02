@@ -7,7 +7,9 @@ use crate::{
     implementation::{
         any_data_reader_listener::AnyDataReaderListener,
         domain_participant_backend::{
-            domain_participant_actor::DomainParticipantActor, services::subscriber_service,
+            domain_participant_actor::DomainParticipantActor,
+            domain_participant_actor_mail::{DomainParticipantMail, SubscriberServiceMail},
+            services::subscriber_service,
         },
         status_condition::status_condition_actor::StatusConditionActor,
     },
@@ -62,15 +64,17 @@ impl SubscriberAsync {
         let a_listener = a_listener.map::<Box<dyn AnyDataReaderListener>, _>(|l| Box::new(l));
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
-            .send_actor_mail(subscriber_service::CreateDataReader {
-                subscriber_handle: self.handle,
-                topic_name: a_topic.get_name(),
-                qos,
-                a_listener,
-                mask: mask.to_vec(),
-                domain_participant_address: self.participant_address().clone(),
-                reply_sender,
-            })?;
+            .send_actor_mail(DomainParticipantMail::Subscriber(
+                SubscriberServiceMail::CreateDataReader {
+                    subscriber_handle: self.handle,
+                    topic_name: a_topic.get_name(),
+                    qos,
+                    a_listener,
+                    mask: mask.to_vec(),
+                    domain_participant_address: self.participant_address().clone(),
+                    reply_sender,
+                },
+            ))?;
         let (guid, reader_status_condition_address) = reply_receiver.await??;
 
         Ok(DataReaderAsync::new(

@@ -12,6 +12,7 @@ use crate::{
         topic_listener::TopicListenerAsync,
     },
     implementation::{
+        any_data_reader_listener::AnyDataReaderListener,
         any_data_writer_listener::AnyDataWriterListener,
         status_condition::status_condition_actor::StatusConditionActor,
     },
@@ -19,7 +20,8 @@ use crate::{
         error::DdsResult,
         instance::InstanceHandle,
         qos::{
-            DataWriterQos, DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos,
+            DataReaderQos, DataWriterQos, DomainParticipantQos, PublisherQos, QosKind,
+            SubscriberQos, TopicQos,
         },
         status::{
             InconsistentTopicStatus, OfferedDeadlineMissedStatus, PublicationMatchedStatus,
@@ -229,6 +231,19 @@ pub enum PublisherServiceMail {
     },
 }
 
+pub enum SubscriberServiceMail {
+    CreateDataReader {
+        subscriber_handle: InstanceHandle,
+        topic_name: String,
+        qos: QosKind<DataReaderQos>,
+        a_listener: Option<Box<dyn AnyDataReaderListener>>,
+        mask: Vec<StatusKind>,
+        domain_participant_address: ActorAddress<DomainParticipantActor>,
+        reply_sender:
+            OneshotSender<DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)>>,
+    },
+}
+
 pub enum WriterServiceMail {
     SetListener {
         publisher_handle: InstanceHandle,
@@ -312,6 +327,15 @@ pub enum WriterServiceMail {
     },
 }
 
+pub enum ReaderServiceMail {
+    Enable {
+        subscriber_handle: InstanceHandle,
+        data_reader_handle: InstanceHandle,
+        participant_address: ActorAddress<DomainParticipantActor>,
+        reply_sender: OneshotSender<DdsResult<()>>,
+    },
+}
+
 pub enum MessageServiceMail {
     RemoveWriterChange {
         publisher_handle: InstanceHandle,
@@ -339,6 +363,8 @@ pub enum DomainParticipantMail {
     Topic(TopicServiceMail),
     Publisher(PublisherServiceMail),
     Writer(WriterServiceMail),
+    Subscriber(SubscriberServiceMail),
+    Reader(ReaderServiceMail),
     Message(MessageServiceMail),
     Event(EventServiceMail),
 }
@@ -357,6 +383,12 @@ impl MailHandler<DomainParticipantMail> for DomainParticipantActor {
             }
             DomainParticipantMail::Writer(writer_service_mail) => {
                 self.handle_writer_service(writer_service_mail);
+            }
+            DomainParticipantMail::Subscriber(subscriber_service_mail) => {
+                self.handle_subscriber_service(subscriber_service_mail)
+            }
+            DomainParticipantMail::Reader(reader_service_mail) => {
+                self.handle_reader_service(reader_service_mail)
             }
             DomainParticipantMail::Message(message_service_mail) => {
                 self.handle_message_service(message_service_mail)
@@ -702,6 +734,42 @@ impl DomainParticipantActor {
                 publisher_handle,
                 data_writer_handle,
                 qos,
+            )),
+        }
+    }
+
+    fn handle_subscriber_service(&mut self, subscriber_service_mail: SubscriberServiceMail) {
+        match subscriber_service_mail {
+            SubscriberServiceMail::CreateDataReader {
+                subscriber_handle,
+                topic_name,
+                qos,
+                a_listener,
+                mask,
+                domain_participant_address,
+                reply_sender,
+            } => reply_sender.send(self.crate_data_reader(
+                subscriber_handle,
+                topic_name,
+                qos,
+                a_listener,
+                mask,
+                domain_participant_address,
+            )),
+        }
+    }
+
+    fn handle_reader_service(&mut self, reader_service_mail: ReaderServiceMail) {
+        match reader_service_mail {
+            ReaderServiceMail::Enable {
+                subscriber_handle,
+                data_reader_handle,
+                participant_address,
+                reply_sender,
+            } => reply_sender.send(self.enable_data_reader(
+                subscriber_handle,
+                data_reader_handle,
+                participant_address,
             )),
         }
     }

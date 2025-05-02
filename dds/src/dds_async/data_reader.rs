@@ -9,7 +9,9 @@ use crate::{
     implementation::{
         any_data_reader_listener::AnyDataReaderListener,
         domain_participant_backend::{
-            domain_participant_actor::DomainParticipantActor, services::data_reader_service,
+            domain_participant_actor::DomainParticipantActor,
+            domain_participant_actor_mail::{DomainParticipantMail, ReaderServiceMail},
+            services::data_reader_service,
         },
         status_condition::status_condition_actor::StatusConditionActor,
     },
@@ -471,13 +473,15 @@ impl<Foo> DataReaderAsync<Foo> {
     /// Async version of [`enable`](crate::subscription::data_reader::DataReader::enable).
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
+        let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
-            .send_actor_mail(data_reader_service::Enable {
+            .send_actor_mail(DomainParticipantMail::Reader(ReaderServiceMail::Enable {
                 subscriber_handle: self.subscriber.get_instance_handle().await,
                 data_reader_handle: self.handle,
                 participant_address: self.participant_address().clone(),
-            })?;
-        Ok(())
+                reply_sender,
+            }))?;
+        reply_receiver.await?
     }
 
     /// Async version of [`get_instance_handle`](crate::subscription::data_reader::DataReader::get_instance_handle).
