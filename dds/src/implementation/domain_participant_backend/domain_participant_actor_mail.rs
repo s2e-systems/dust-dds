@@ -35,6 +35,7 @@ use crate::{
         oneshot::OneshotSender,
     },
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
+    transport::history_cache::CacheChange,
     xtypes::dynamic_type::DynamicType,
 };
 
@@ -460,6 +461,12 @@ pub enum ReaderServiceMail {
 }
 
 pub enum MessageServiceMail {
+    AddCacheChange {
+        participant_address: ActorAddress<DomainParticipantActor>,
+        cache_change: CacheChange,
+        subscriber_handle: InstanceHandle,
+        data_reader_handle: InstanceHandle,
+    },
     RemoveWriterChange {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
@@ -475,6 +482,9 @@ pub enum MessageServiceMail {
         data_reader_handle: InstanceHandle,
         reply_sender: OneshotSender<DdsResult<bool>>,
     },
+    AddBuiltinTopicsDetectorCacheChange {
+        cache_change: CacheChange,
+    },
 }
 
 pub enum EventServiceMail {
@@ -484,6 +494,17 @@ pub enum EventServiceMail {
         change_instance_handle: InstanceHandle,
         participant_address: ActorAddress<DomainParticipantActor>,
     },
+    RequestedDeadlineMissed {
+        subscriber_handle: InstanceHandle,
+        data_reader_handle: InstanceHandle,
+        change_instance_handle: InstanceHandle,
+        participant_address: ActorAddress<DomainParticipantActor>,
+    },
+}
+
+pub enum DiscoveryServiceMail {
+    AnnounceParticipant,
+    AnnounceDeletedParticipant,
 }
 
 pub enum DomainParticipantMail {
@@ -495,6 +516,7 @@ pub enum DomainParticipantMail {
     Reader(ReaderServiceMail),
     Message(MessageServiceMail),
     Event(EventServiceMail),
+    Discovery(DiscoveryServiceMail),
 }
 
 impl MailHandler<DomainParticipantMail> for DomainParticipantActor {
@@ -523,6 +545,9 @@ impl MailHandler<DomainParticipantMail> for DomainParticipantActor {
             }
             DomainParticipantMail::Event(event_service_mail) => {
                 self.handle_event_service(event_service_mail)
+            }
+            DomainParticipantMail::Discovery(discovery_service_mail) => {
+                self.handle_discovery_service(discovery_service_mail)
             }
         };
     }
@@ -1073,6 +1098,17 @@ impl DomainParticipantActor {
 
     fn handle_message_service(&mut self, message_service_mail: MessageServiceMail) {
         match message_service_mail {
+            MessageServiceMail::AddCacheChange {
+                participant_address,
+                cache_change,
+                subscriber_handle,
+                data_reader_handle,
+            } => self.add_cache_change(
+                participant_address,
+                cache_change,
+                subscriber_handle,
+                data_reader_handle,
+            ),
             MessageServiceMail::RemoveWriterChange {
                 publisher_handle,
                 data_writer_handle,
@@ -1090,6 +1126,9 @@ impl DomainParticipantActor {
                 reply_sender,
             } => reply_sender
                 .send(self.is_historical_data_received(subscriber_handle, data_reader_handle)),
+            MessageServiceMail::AddBuiltinTopicsDetectorCacheChange { cache_change } => {
+                self.add_builtin_topics_detector_cache_change(cache_change)
+            }
         }
     }
 
@@ -1106,6 +1145,24 @@ impl DomainParticipantActor {
                 change_instance_handle,
                 participant_address,
             ),
+            EventServiceMail::RequestedDeadlineMissed {
+                subscriber_handle,
+                data_reader_handle,
+                change_instance_handle,
+                participant_address,
+            } => self.requested_deadline_missed(
+                subscriber_handle,
+                data_reader_handle,
+                change_instance_handle,
+                participant_address,
+            ),
+        }
+    }
+
+    fn handle_discovery_service(&mut self, discovery_service_mail: DiscoveryServiceMail) {
+        match discovery_service_mail {
+            DiscoveryServiceMail::AnnounceParticipant => self.announce_participant(),
+            DiscoveryServiceMail::AnnounceDeletedParticipant => self.announce_deleted_participant(),
         }
     }
 }

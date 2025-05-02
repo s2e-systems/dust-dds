@@ -6,7 +6,7 @@ use fnmatch_regex::glob_to_regex;
 use super::{
     domain_participant_actor_mail::{DomainParticipantMail, EventServiceMail, MessageServiceMail},
     entities::{
-        data_reader::DataReaderEntity,
+        data_reader::{AddChangeResult, DataReaderEntity},
         data_writer::{DataWriterEntity, TransportWriterKind},
         domain_participant::DomainParticipantEntity,
         publisher::PublisherEntity,
@@ -40,9 +40,7 @@ use crate::{
                 SpdpDiscoveredParticipantData,
             },
         },
-        domain_participant_backend::{
-            entities::data_reader::TransportReaderKind, services::message_service,
-        },
+        domain_participant_backend::entities::data_reader::TransportReaderKind,
         domain_participant_factory::domain_participant_factory_actor::DdsTransportParticipant,
         listeners::{
             data_reader_listener::{self, DataReaderListenerActor},
@@ -84,12 +82,12 @@ use crate::{
         timer::TimerDriver,
     },
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
-    topic_definition::type_support::DdsSerialize,
+    topic_definition::type_support::{DdsDeserialize, DdsSerialize},
     transport::{
         self,
         history_cache::{CacheChange, HistoryCache},
         types::{
-            DurabilityKind, EntityId, ReliabilityKind, TopicKind, ENTITYID_UNKNOWN,
+            ChangeKind, DurabilityKind, EntityId, ReliabilityKind, TopicKind, ENTITYID_UNKNOWN,
             USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_WITH_KEY, USER_DEFINED_WRITER_NO_KEY,
             USER_DEFINED_WRITER_WITH_KEY,
         },
@@ -814,12 +812,14 @@ impl DomainParticipantActor {
         impl HistoryCache for UserDefinedReaderHistoryCache {
             fn add_change(&mut self, cache_change: CacheChange) {
                 self.domain_participant_address
-                    .send_actor_mail(message_service::AddCacheChange {
-                        participant_address: self.domain_participant_address.clone(),
-                        cache_change,
-                        subscriber_handle: self.subscriber_handle,
-                        data_reader_handle: self.data_reader_handle,
-                    })
+                    .send_actor_mail(DomainParticipantMail::Message(
+                        MessageServiceMail::AddCacheChange {
+                            participant_address: self.domain_participant_address.clone(),
+                            cache_change,
+                            subscriber_handle: self.subscriber_handle,
+                            data_reader_handle: self.data_reader_handle,
+                        },
+                    ))
                     .ok();
             }
 
@@ -2043,7 +2043,7 @@ impl DomainParticipantActor {
         Ok(())
     }
 
-    fn announce_participant(&mut self) {
+    pub fn announce_participant(&mut self) {
         if self.domain_participant.enabled() {
             let participant_builtin_topic_data = ParticipantBuiltinTopicData {
                 key: BuiltInTopicKey {
@@ -2093,6 +2093,22 @@ impl DomainParticipantActor {
             {
                 if let Ok(serialized_data) = spdp_discovered_participant_data.serialize_data() {
                     dw.write_w_timestamp(serialized_data, timestamp).ok();
+                }
+            }
+        }
+    }
+
+    pub fn announce_deleted_participant(&mut self) {
+        if self.domain_participant.enabled() {
+            let timestamp = self.domain_participant.get_current_time();
+            if let Some(dw) = self
+                .domain_participant
+                .builtin_publisher_mut()
+                .lookup_datawriter_mut(DCPS_PARTICIPANT)
+            {
+                let key = InstanceHandle::new(self.transport.guid().into());
+                if let Ok(serialized_data) = key.serialize_data() {
+                    dw.dispose_w_timestamp(serialized_data, timestamp).ok();
                 }
             }
         }
@@ -3027,6 +3043,298 @@ impl DomainParticipantActor {
         }
     }
 
+    pub fn add_builtin_topics_detector_cache_change(&mut self, cache_change: CacheChange) {
+        match cache_change.kind {
+            ChangeKind::Alive => {
+                if let Ok(topic_builtin_topic_data) =
+                    TopicBuiltinTopicData::deserialize_data(cache_change.data_value.as_ref())
+                {
+                    self.domain_participant
+                        .add_discovered_topic(topic_builtin_topic_data.clone());
+                    for topic in self.domain_participant.topic_list_mut() {
+                        if topic.topic_name() == topic_builtin_topic_data.name()
+                            && topic.type_name() == topic_builtin_topic_data.get_type_name()
+                            && !is_discovered_topic_consistent(
+                                topic.qos(),
+                                &topic_builtin_topic_data,
+                            )
+                        {
+                            topic.increment_inconsistent_topic_status();
+                        }
+                    }
+                }
+            }
+            ChangeKind::NotAliveDisposed
+            | ChangeKind::AliveFiltered
+            | ChangeKind::NotAliveUnregistered
+            | ChangeKind::NotAliveDisposedUnregistered => (),
+        }
+
+        let reception_timestamp = self.domain_participant.get_current_time();
+        if let Some(reader) = self
+            .domain_participant
+            .builtin_subscriber_mut()
+            .data_reader_list_mut()
+            .find(|dr| dr.topic_name() == DCPS_TOPIC)
+        {
+            reader
+                .add_reader_change(cache_change, reception_timestamp)
+                .ok();
+        }
+    }
+
+    pub fn add_cache_change(
+        &mut self,
+        participant_address: ActorAddress<DomainParticipantActor>,
+        cache_change: CacheChange,
+        subscriber_handle: InstanceHandle,
+        data_reader_handle: InstanceHandle,
+    ) {
+        let reception_timestamp = self.domain_participant.get_current_time();
+        let Some(subscriber) = self
+            .domain_participant
+            .get_mut_subscriber(subscriber_handle)
+        else {
+            return;
+        };
+
+        let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle) else {
+            return;
+        };
+        let writer_instance_handle = InstanceHandle::new(cache_change.writer_guid.into());
+
+        if data_reader
+            .get_matched_publication_data(&writer_instance_handle)
+            .is_some()
+        {
+            match data_reader.add_reader_change(cache_change, reception_timestamp) {
+                Ok(AddChangeResult::Added(change_instance_handle)) => {
+                    if let DurationKind::Finite(deadline_missed_period) =
+                        data_reader.qos().deadline.period
+                    {
+                        let timer_handle = self.timer_driver.handle();
+                        let participant_address = participant_address.clone();
+                        let requested_deadline_missed_task =
+                            self.backend_executor.handle().spawn(async move {
+                                loop {
+                                    timer_handle.sleep(deadline_missed_period.into()).await;
+                                    participant_address
+                                        .send_actor_mail(DomainParticipantMail::Event(
+                                            EventServiceMail::RequestedDeadlineMissed {
+                                                subscriber_handle: subscriber_handle,
+                                                data_reader_handle: data_reader_handle,
+                                                change_instance_handle,
+                                                participant_address: participant_address.clone(),
+                                            },
+                                        ))
+                                        .ok();
+                                }
+                            });
+
+                        data_reader.insert_instance_deadline_missed_task(
+                            change_instance_handle,
+                            requested_deadline_missed_task,
+                        );
+                    }
+                    let deta_reader_on_data_available_active = data_reader
+                        .listener_mask()
+                        .contains(&StatusKind::DataAvailable);
+
+                    let Some(subscriber) = self
+                        .domain_participant
+                        .get_mut_subscriber(subscriber_handle)
+                    else {
+                        return;
+                    };
+
+                    if subscriber
+                        .listener_mask()
+                        .contains(&StatusKind::DataOnReaders)
+                    {
+                        let Ok(the_subscriber) = self
+                            .get_subscriber_async(participant_address.clone(), subscriber_handle)
+                        else {
+                            return;
+                        };
+                        let Some(subscriber) = self
+                            .domain_participant
+                            .get_mut_subscriber(subscriber_handle)
+                        else {
+                            return;
+                        };
+
+                        if let Some(l) = subscriber.listener() {
+                            l.send_actor_mail(subscriber_listener::TriggerDataOnReaders {
+                                the_subscriber,
+                            });
+                        }
+                    } else if deta_reader_on_data_available_active {
+                        let Ok(the_reader) = self.get_data_reader_async(
+                            participant_address,
+                            subscriber_handle,
+                            data_reader_handle,
+                        ) else {
+                            return;
+                        };
+                        let Some(subscriber) = self
+                            .domain_participant
+                            .get_mut_subscriber(subscriber_handle)
+                        else {
+                            return;
+                        };
+
+                        let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle)
+                        else {
+                            return;
+                        };
+                        if let Some(l) = data_reader.listener() {
+                            l.send_actor_mail(data_reader_listener::TriggerDataAvailable {
+                                the_reader,
+                            });
+                        }
+                    }
+
+                    let Some(subscriber) = self
+                        .domain_participant
+                        .get_mut_subscriber(subscriber_handle)
+                    else {
+                        return;
+                    };
+
+                    subscriber.status_condition().send_actor_mail(
+                        status_condition_actor::AddCommunicationState {
+                            state: StatusKind::DataOnReaders,
+                        },
+                    );
+                    let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle)
+                    else {
+                        return;
+                    };
+                    data_reader.status_condition().send_actor_mail(
+                        status_condition_actor::AddCommunicationState {
+                            state: StatusKind::DataAvailable,
+                        },
+                    );
+                }
+                Ok(AddChangeResult::NotAdded) => (), // Do nothing
+                Ok(AddChangeResult::Rejected(instance_handle, sample_rejected_status_kind)) => {
+                    data_reader.increment_sample_rejected_status(
+                        instance_handle,
+                        sample_rejected_status_kind,
+                    );
+
+                    if data_reader
+                        .listener_mask()
+                        .contains(&StatusKind::SampleRejected)
+                    {
+                        let status = data_reader.get_sample_rejected_status();
+                        let Ok(the_reader) = self.get_data_reader_async(
+                            participant_address,
+                            subscriber_handle,
+                            data_reader_handle,
+                        ) else {
+                            return;
+                        };
+                        let Some(subscriber) = self
+                            .domain_participant
+                            .get_mut_subscriber(subscriber_handle)
+                        else {
+                            return;
+                        };
+
+                        let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle)
+                        else {
+                            return;
+                        };
+                        if let Some(l) = data_reader.listener() {
+                            l.send_actor_mail(data_reader_listener::TriggerSampleRejected {
+                                the_reader,
+                                status,
+                            });
+                        }
+                    } else if subscriber
+                        .listener_mask()
+                        .contains(&StatusKind::SampleRejected)
+                    {
+                        let Ok(the_reader) = self.get_data_reader_async(
+                            participant_address,
+                            subscriber_handle,
+                            data_reader_handle,
+                        ) else {
+                            return;
+                        };
+                        let Some(subscriber) = self
+                            .domain_participant
+                            .get_mut_subscriber(subscriber_handle)
+                        else {
+                            return;
+                        };
+
+                        let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle)
+                        else {
+                            return;
+                        };
+                        let status = data_reader.get_sample_rejected_status();
+                        if let Some(l) = subscriber.listener() {
+                            l.send_actor_mail(subscriber_listener::TriggerSampleRejected {
+                                status,
+                                the_reader,
+                            });
+                        }
+                    } else if self
+                        .domain_participant
+                        .listener_mask()
+                        .contains(&StatusKind::SampleRejected)
+                    {
+                        let Ok(the_reader) = self.get_data_reader_async(
+                            participant_address,
+                            subscriber_handle,
+                            data_reader_handle,
+                        ) else {
+                            return;
+                        };
+                        let Some(subscriber) = self
+                            .domain_participant
+                            .get_mut_subscriber(subscriber_handle)
+                        else {
+                            return;
+                        };
+
+                        let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle)
+                        else {
+                            return;
+                        };
+                        let status = data_reader.get_sample_rejected_status();
+                        if let Some(l) = self.domain_participant.listener() {
+                            l.send_actor_mail(domain_participant_listener::TriggerSampleRejected {
+                                status,
+                                the_reader,
+                            });
+                        }
+                    }
+
+                    let Some(subscriber) = self
+                        .domain_participant
+                        .get_mut_subscriber(subscriber_handle)
+                    else {
+                        return;
+                    };
+
+                    let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle)
+                    else {
+                        return;
+                    };
+                    data_reader.status_condition().send_actor_mail(
+                        status_condition_actor::AddCommunicationState {
+                            state: StatusKind::SampleRejected,
+                        },
+                    );
+                }
+                Err(_) => (),
+            }
+        }
+    }
+
     pub fn remove_writer_change(
         &mut self,
         publisher_handle: InstanceHandle,
@@ -3146,6 +3454,129 @@ impl DomainParticipantActor {
         data_writer.status_condition().send_actor_mail(
             status_condition_actor::AddCommunicationState {
                 state: StatusKind::OfferedDeadlineMissed,
+            },
+        );
+    }
+
+    pub fn requested_deadline_missed(
+        &mut self,
+        subscriber_handle: InstanceHandle,
+        data_reader_handle: InstanceHandle,
+        change_instance_handle: InstanceHandle,
+        participant_address: ActorAddress<DomainParticipantActor>,
+    ) {
+        let Some(subscriber) = self
+            .domain_participant
+            .get_mut_subscriber(subscriber_handle)
+        else {
+            return;
+        };
+        let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle) else {
+            return;
+        };
+        data_reader.remove_instance_ownership(&change_instance_handle);
+        data_reader.increment_requested_deadline_missed_status(change_instance_handle);
+
+        if data_reader
+            .listener_mask()
+            .contains(&StatusKind::RequestedDeadlineMissed)
+        {
+            let status = data_reader.get_requested_deadline_missed_status();
+            let Ok(the_reader) = self.get_data_reader_async(
+                participant_address,
+                subscriber_handle,
+                data_reader_handle,
+            ) else {
+                return;
+            };
+            let Some(subscriber) = self
+                .domain_participant
+                .get_mut_subscriber(subscriber_handle)
+            else {
+                return;
+            };
+            let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle) else {
+                return;
+            };
+            if let Some(l) = data_reader.listener() {
+                l.send_actor_mail(data_reader_listener::TriggerRequestedDeadlineMissed {
+                    the_reader,
+                    status,
+                });
+            }
+        } else if subscriber
+            .listener_mask()
+            .contains(&StatusKind::RequestedDeadlineMissed)
+        {
+            let Ok(the_reader) = self.get_data_reader_async(
+                participant_address,
+                subscriber_handle,
+                data_reader_handle,
+            ) else {
+                return;
+            };
+
+            let Some(subscriber) = self
+                .domain_participant
+                .get_mut_subscriber(subscriber_handle)
+            else {
+                return;
+            };
+            let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle) else {
+                return;
+            };
+            let status = data_reader.get_requested_deadline_missed_status();
+            if let Some(l) = subscriber.listener() {
+                l.send_actor_mail(subscriber_listener::TriggerRequestedDeadlineMissed {
+                    status,
+                    the_reader,
+                });
+            }
+        } else if self
+            .domain_participant
+            .listener_mask()
+            .contains(&StatusKind::RequestedDeadlineMissed)
+        {
+            let Ok(the_reader) = self.get_data_reader_async(
+                participant_address,
+                subscriber_handle,
+                data_reader_handle,
+            ) else {
+                return;
+            };
+
+            let Some(subscriber) = self
+                .domain_participant
+                .get_mut_subscriber(subscriber_handle)
+            else {
+                return;
+            };
+            let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle) else {
+                return;
+            };
+            let status = data_reader.get_requested_deadline_missed_status();
+            if let Some(l) = self.domain_participant.listener() {
+                l.send_actor_mail(
+                    domain_participant_listener::TriggerRequestedDeadlineMissed {
+                        status,
+                        the_reader,
+                    },
+                );
+            }
+        }
+        let Some(subscriber) = self
+            .domain_participant
+            .get_mut_subscriber(subscriber_handle)
+        else {
+            return;
+        };
+        let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle) else {
+            return;
+        };
+
+        data_reader.status_condition().send_actor_mail(
+            status_condition_actor::AddCommunicationState {
+                state: StatusKind::RequestedDeadlineMissed,
             },
         );
     }
@@ -3278,4 +3709,22 @@ fn get_discovered_writer_incompatible_qos_policy_list(
     }
 
     incompatible_qos_policy_list
+}
+
+fn is_discovered_topic_consistent(
+    topic_qos: &TopicQos,
+    topic_builtin_topic_data: &TopicBuiltinTopicData,
+) -> bool {
+    &topic_qos.topic_data == topic_builtin_topic_data.topic_data()
+        && &topic_qos.durability == topic_builtin_topic_data.durability()
+        && &topic_qos.deadline == topic_builtin_topic_data.deadline()
+        && &topic_qos.latency_budget == topic_builtin_topic_data.latency_budget()
+        && &topic_qos.liveliness == topic_builtin_topic_data.liveliness()
+        && &topic_qos.reliability == topic_builtin_topic_data.reliability()
+        && &topic_qos.destination_order == topic_builtin_topic_data.destination_order()
+        && &topic_qos.history == topic_builtin_topic_data.history()
+        && &topic_qos.resource_limits == topic_builtin_topic_data.resource_limits()
+        && &topic_qos.transport_priority == topic_builtin_topic_data.transport_priority()
+        && &topic_qos.lifespan == topic_builtin_topic_data.lifespan()
+        && &topic_qos.ownership == topic_builtin_topic_data.ownership()
 }

@@ -1,7 +1,7 @@
 use crate::{
     builtin_topics::{
         BuiltInTopicKey, TopicBuiltinTopicData, DCPS_PARTICIPANT, DCPS_PUBLICATION,
-        DCPS_SUBSCRIPTION, DCPS_TOPIC,
+        DCPS_SUBSCRIPTION,
     },
     implementation::{
         data_representation_builtin_endpoints::{
@@ -10,11 +10,8 @@ use crate::{
             spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         },
         domain_participant_backend::{
-            domain_participant_actor::DomainParticipantActor,
-            entities::data_reader::AddChangeResult, services::discovery_service,
+            domain_participant_actor::DomainParticipantActor, services::discovery_service,
         },
-        listeners::{data_reader_listener, domain_participant_listener, subscriber_listener},
-        status_condition::status_condition_actor,
     },
     infrastructure::{
         instance::InstanceHandle,
@@ -22,277 +19,11 @@ use crate::{
             HistoryQosPolicy, LifespanQosPolicy, ResourceLimitsQosPolicy,
             TransportPriorityQosPolicy,
         },
-        status::StatusKind,
-        time::DurationKind,
     },
     runtime::actor::{ActorAddress, MailHandler},
     topic_definition::type_support::DdsDeserialize,
-    transport::{
-        history_cache::CacheChange,
-        types::{ChangeKind, SequenceNumber},
-    },
+    transport::{history_cache::CacheChange, types::ChangeKind},
 };
-
-use super::event_service;
-
-pub struct AddCacheChange {
-    pub participant_address: ActorAddress<DomainParticipantActor>,
-    pub cache_change: CacheChange,
-    pub subscriber_handle: InstanceHandle,
-    pub data_reader_handle: InstanceHandle,
-}
-impl MailHandler<AddCacheChange> for DomainParticipantActor {
-    fn handle(&mut self, message: AddCacheChange) {
-        let reception_timestamp = self.domain_participant.get_current_time();
-        let Some(subscriber) = self
-            .domain_participant
-            .get_mut_subscriber(message.subscriber_handle)
-        else {
-            return;
-        };
-
-        let Some(data_reader) = subscriber.get_mut_data_reader(message.data_reader_handle) else {
-            return;
-        };
-        let writer_instance_handle = InstanceHandle::new(message.cache_change.writer_guid.into());
-
-        if data_reader
-            .get_matched_publication_data(&writer_instance_handle)
-            .is_some()
-        {
-            match data_reader.add_reader_change(message.cache_change, reception_timestamp) {
-                Ok(AddChangeResult::Added(change_instance_handle)) => {
-                    if let DurationKind::Finite(deadline_missed_period) =
-                        data_reader.qos().deadline.period
-                    {
-                        let timer_handle = self.timer_driver.handle();
-                        let participant_address = message.participant_address.clone();
-                        let requested_deadline_missed_task =
-                            self.backend_executor.handle().spawn(async move {
-                                loop {
-                                    timer_handle.sleep(deadline_missed_period.into()).await;
-                                    participant_address
-                                        .send_actor_mail(event_service::RequestedDeadlineMissed {
-                                            subscriber_handle: message.subscriber_handle,
-                                            data_reader_handle: message.data_reader_handle,
-                                            change_instance_handle,
-                                            participant_address: participant_address.clone(),
-                                        })
-                                        .ok();
-                                }
-                            });
-
-                        data_reader.insert_instance_deadline_missed_task(
-                            change_instance_handle,
-                            requested_deadline_missed_task,
-                        );
-                    }
-                    let deta_reader_on_data_available_active = data_reader
-                        .listener_mask()
-                        .contains(&StatusKind::DataAvailable);
-
-                    let Some(subscriber) = self
-                        .domain_participant
-                        .get_mut_subscriber(message.subscriber_handle)
-                    else {
-                        return;
-                    };
-
-                    if subscriber
-                        .listener_mask()
-                        .contains(&StatusKind::DataOnReaders)
-                    {
-                        let Ok(the_subscriber) = self.get_subscriber_async(
-                            message.participant_address.clone(),
-                            message.subscriber_handle,
-                        ) else {
-                            return;
-                        };
-                        let Some(subscriber) = self
-                            .domain_participant
-                            .get_mut_subscriber(message.subscriber_handle)
-                        else {
-                            return;
-                        };
-
-                        if let Some(l) = subscriber.listener() {
-                            l.send_actor_mail(subscriber_listener::TriggerDataOnReaders {
-                                the_subscriber,
-                            });
-                        }
-                    } else if deta_reader_on_data_available_active {
-                        let Ok(the_reader) = self.get_data_reader_async(
-                            message.participant_address,
-                            message.subscriber_handle,
-                            message.data_reader_handle,
-                        ) else {
-                            return;
-                        };
-                        let Some(subscriber) = self
-                            .domain_participant
-                            .get_mut_subscriber(message.subscriber_handle)
-                        else {
-                            return;
-                        };
-
-                        let Some(data_reader) =
-                            subscriber.get_mut_data_reader(message.data_reader_handle)
-                        else {
-                            return;
-                        };
-                        if let Some(l) = data_reader.listener() {
-                            l.send_actor_mail(data_reader_listener::TriggerDataAvailable {
-                                the_reader,
-                            });
-                        }
-                    }
-
-                    let Some(subscriber) = self
-                        .domain_participant
-                        .get_mut_subscriber(message.subscriber_handle)
-                    else {
-                        return;
-                    };
-
-                    subscriber.status_condition().send_actor_mail(
-                        status_condition_actor::AddCommunicationState {
-                            state: StatusKind::DataOnReaders,
-                        },
-                    );
-                    let Some(data_reader) =
-                        subscriber.get_mut_data_reader(message.data_reader_handle)
-                    else {
-                        return;
-                    };
-                    data_reader.status_condition().send_actor_mail(
-                        status_condition_actor::AddCommunicationState {
-                            state: StatusKind::DataAvailable,
-                        },
-                    );
-                }
-                Ok(AddChangeResult::NotAdded) => (), // Do nothing
-                Ok(AddChangeResult::Rejected(instance_handle, sample_rejected_status_kind)) => {
-                    data_reader.increment_sample_rejected_status(
-                        instance_handle,
-                        sample_rejected_status_kind,
-                    );
-
-                    if data_reader
-                        .listener_mask()
-                        .contains(&StatusKind::SampleRejected)
-                    {
-                        let status = data_reader.get_sample_rejected_status();
-                        let Ok(the_reader) = self.get_data_reader_async(
-                            message.participant_address,
-                            message.subscriber_handle,
-                            message.data_reader_handle,
-                        ) else {
-                            return;
-                        };
-                        let Some(subscriber) = self
-                            .domain_participant
-                            .get_mut_subscriber(message.subscriber_handle)
-                        else {
-                            return;
-                        };
-
-                        let Some(data_reader) =
-                            subscriber.get_mut_data_reader(message.data_reader_handle)
-                        else {
-                            return;
-                        };
-                        if let Some(l) = data_reader.listener() {
-                            l.send_actor_mail(data_reader_listener::TriggerSampleRejected {
-                                the_reader,
-                                status,
-                            });
-                        }
-                    } else if subscriber
-                        .listener_mask()
-                        .contains(&StatusKind::SampleRejected)
-                    {
-                        let Ok(the_reader) = self.get_data_reader_async(
-                            message.participant_address,
-                            message.subscriber_handle,
-                            message.data_reader_handle,
-                        ) else {
-                            return;
-                        };
-                        let Some(subscriber) = self
-                            .domain_participant
-                            .get_mut_subscriber(message.subscriber_handle)
-                        else {
-                            return;
-                        };
-
-                        let Some(data_reader) =
-                            subscriber.get_mut_data_reader(message.data_reader_handle)
-                        else {
-                            return;
-                        };
-                        let status = data_reader.get_sample_rejected_status();
-                        if let Some(l) = subscriber.listener() {
-                            l.send_actor_mail(subscriber_listener::TriggerSampleRejected {
-                                status,
-                                the_reader,
-                            });
-                        }
-                    } else if self
-                        .domain_participant
-                        .listener_mask()
-                        .contains(&StatusKind::SampleRejected)
-                    {
-                        let Ok(the_reader) = self.get_data_reader_async(
-                            message.participant_address,
-                            message.subscriber_handle,
-                            message.data_reader_handle,
-                        ) else {
-                            return;
-                        };
-                        let Some(subscriber) = self
-                            .domain_participant
-                            .get_mut_subscriber(message.subscriber_handle)
-                        else {
-                            return;
-                        };
-
-                        let Some(data_reader) =
-                            subscriber.get_mut_data_reader(message.data_reader_handle)
-                        else {
-                            return;
-                        };
-                        let status = data_reader.get_sample_rejected_status();
-                        if let Some(l) = self.domain_participant.listener() {
-                            l.send_actor_mail(domain_participant_listener::TriggerSampleRejected {
-                                status,
-                                the_reader,
-                            });
-                        }
-                    }
-
-                    let Some(subscriber) = self
-                        .domain_participant
-                        .get_mut_subscriber(message.subscriber_handle)
-                    else {
-                        return;
-                    };
-
-                    let Some(data_reader) =
-                        subscriber.get_mut_data_reader(message.data_reader_handle)
-                    else {
-                        return;
-                    };
-                    data_reader.status_condition().send_actor_mail(
-                        status_condition_actor::AddCommunicationState {
-                            state: StatusKind::SampleRejected,
-                        },
-                    );
-                }
-                Err(_) => (),
-            }
-        }
-    }
-}
 
 pub struct AddBuiltinParticipantsDetectorCacheChange {
     pub participant_address: ActorAddress<DomainParticipantActor>,
@@ -343,68 +74,6 @@ impl MailHandler<AddBuiltinParticipantsDetectorCacheChange> for DomainParticipan
                 .add_reader_change(message.cache_change, reception_timestamp)
                 .ok();
         }
-    }
-}
-
-pub struct RemoveBuiltinParticipantsDetectorCacheChange {
-    pub _sequence_number: SequenceNumber,
-}
-impl MailHandler<RemoveBuiltinParticipantsDetectorCacheChange> for DomainParticipantActor {
-    fn handle(&mut self, _message: RemoveBuiltinParticipantsDetectorCacheChange) {
-        todo!()
-    }
-}
-
-pub struct AddBuiltinTopicsDetectorCacheChange {
-    pub cache_change: CacheChange,
-    pub participant_address: ActorAddress<DomainParticipantActor>,
-}
-impl MailHandler<AddBuiltinTopicsDetectorCacheChange> for DomainParticipantActor {
-    fn handle(&mut self, message: AddBuiltinTopicsDetectorCacheChange) {
-        match message.cache_change.kind {
-            ChangeKind::Alive => {
-                if let Ok(topic_builtin_topic_data) = TopicBuiltinTopicData::deserialize_data(
-                    message.cache_change.data_value.as_ref(),
-                ) {
-                    self.domain_participant
-                        .add_discovered_topic(topic_builtin_topic_data.clone());
-                    for topic in self.domain_participant.topic_list() {
-                        message
-                            .participant_address
-                            .send_actor_mail(discovery_service::AddDiscoveredTopic {
-                                topic_builtin_topic_data: topic_builtin_topic_data.clone(),
-                                topic_name: topic.topic_name().to_owned(),
-                            })
-                            .ok();
-                    }
-                }
-            }
-            ChangeKind::NotAliveDisposed
-            | ChangeKind::AliveFiltered
-            | ChangeKind::NotAliveUnregistered
-            | ChangeKind::NotAliveDisposedUnregistered => (),
-        }
-
-        let reception_timestamp = self.domain_participant.get_current_time();
-        if let Some(reader) = self
-            .domain_participant
-            .builtin_subscriber_mut()
-            .data_reader_list_mut()
-            .find(|dr| dr.topic_name() == DCPS_TOPIC)
-        {
-            reader
-                .add_reader_change(message.cache_change, reception_timestamp)
-                .ok();
-        }
-    }
-}
-
-pub struct RemoveBuiltinTopicsDetectorCacheChange {
-    pub _sequence_number: SequenceNumber,
-}
-impl MailHandler<RemoveBuiltinTopicsDetectorCacheChange> for DomainParticipantActor {
-    fn handle(&mut self, _message: RemoveBuiltinTopicsDetectorCacheChange) {
-        todo!()
     }
 }
 
@@ -500,15 +169,6 @@ impl MailHandler<AddBuiltinPublicationsDetectorCacheChange> for DomainParticipan
                 .add_reader_change(message.cache_change, reception_timestamp)
                 .ok();
         }
-    }
-}
-
-pub struct RemoveBuiltinPublicationsDetectorCacheChange {
-    pub _sequence_number: SequenceNumber,
-}
-impl MailHandler<RemoveBuiltinPublicationsDetectorCacheChange> for DomainParticipantActor {
-    fn handle(&mut self, _message: RemoveBuiltinPublicationsDetectorCacheChange) {
-        todo!()
     }
 }
 
@@ -634,14 +294,5 @@ impl MailHandler<AddBuiltinSubscriptionsDetectorCacheChange> for DomainParticipa
                 .add_reader_change(message.cache_change, reception_timestamp)
                 .ok();
         }
-    }
-}
-
-pub struct RemoveBuiltinSubscriptionsDetectorCacheChange {
-    pub _sequence_number: SequenceNumber,
-}
-impl MailHandler<RemoveBuiltinSubscriptionsDetectorCacheChange> for DomainParticipantActor {
-    fn handle(&mut self, _message: RemoveBuiltinSubscriptionsDetectorCacheChange) {
-        todo!()
     }
 }

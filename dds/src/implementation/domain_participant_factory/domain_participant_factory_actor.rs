@@ -12,7 +12,10 @@ use crate::{
         },
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor,
-            domain_participant_actor_mail::{DomainParticipantMail, ParticipantServiceMail},
+            domain_participant_actor_mail::{
+                DiscoveryServiceMail, DomainParticipantMail, MessageServiceMail,
+                ParticipantServiceMail,
+            },
             entities::{
                 data_reader::{DataReaderEntity, TransportReaderKind},
                 data_writer::{DataWriterEntity, TransportWriterKind},
@@ -22,7 +25,7 @@ use crate::{
                 topic::TopicEntity,
             },
             handle::InstanceHandleCounter,
-            services::{discovery_service, message_service},
+            services::message_service,
         },
         listeners::domain_participant_listener::DomainParticipantListenerActor,
         status_condition::status_condition_actor::StatusConditionActor,
@@ -562,7 +565,9 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
 
         backend_executor_handle.spawn(async move {
             while participant_address
-                .send_actor_mail(discovery_service::AnnounceParticipant)
+                .send_actor_mail(DomainParticipantMail::Discovery(
+                    DiscoveryServiceMail::AnnounceParticipant,
+                ))
                 .is_ok()
             {
                 timer_handle.sleep(participant_announcement_interval).await;
@@ -717,14 +722,8 @@ impl HistoryCache for DcpsParticipantReaderHistoryCache {
             .ok();
     }
 
-    fn remove_change(&mut self, sequence_number: i64) {
-        self.participant_address
-            .send_actor_mail(
-                message_service::RemoveBuiltinParticipantsDetectorCacheChange {
-                    _sequence_number: sequence_number,
-                },
-            )
-            .ok();
+    fn remove_change(&mut self, _sequence_number: i64) {
+        todo!()
     }
 }
 
@@ -735,19 +734,14 @@ struct DcpsTopicsReaderHistoryCache {
 impl HistoryCache for DcpsTopicsReaderHistoryCache {
     fn add_change(&mut self, cache_change: CacheChange) {
         self.participant_address
-            .send_actor_mail(message_service::AddBuiltinTopicsDetectorCacheChange {
-                cache_change,
-                participant_address: self.participant_address.clone(),
-            })
+            .send_actor_mail(DomainParticipantMail::Message(
+                MessageServiceMail::AddBuiltinTopicsDetectorCacheChange { cache_change },
+            ))
             .ok();
     }
 
-    fn remove_change(&mut self, sequence_number: i64) {
-        self.participant_address
-            .send_actor_mail(message_service::RemoveBuiltinTopicsDetectorCacheChange {
-                _sequence_number: sequence_number,
-            })
-            .ok();
+    fn remove_change(&mut self, _sequence_number: i64) {
+        todo!()
     }
 }
 
@@ -767,14 +761,8 @@ impl HistoryCache for DcpsSubscriptionsReaderHistoryCache {
             .ok();
     }
 
-    fn remove_change(&mut self, sequence_number: i64) {
-        self.participant_address
-            .send_actor_mail(
-                message_service::RemoveBuiltinSubscriptionsDetectorCacheChange {
-                    _sequence_number: sequence_number,
-                },
-            )
-            .ok();
+    fn remove_change(&mut self, _sequence_number: i64) {
+        todo!()
     }
 }
 
@@ -792,13 +780,7 @@ impl HistoryCache for DcpsPublicationsReaderHistoryCache {
             .ok();
     }
 
-    fn remove_change(&mut self, sequence_number: i64) {
-        self.participant_address
-            .send_actor_mail(
-                message_service::RemoveBuiltinPublicationsDetectorCacheChange {
-                    _sequence_number: sequence_number,
-                },
-            )
-            .ok();
+    fn remove_change(&mut self, _sequence_number: i64) {
+        todo!()
     }
 }

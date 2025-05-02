@@ -8,9 +8,8 @@ use crate::{
     configuration::DustDdsConfiguration,
     domain::domain_participant_factory::DomainId,
     implementation::{
-        domain_participant_backend::{
-            domain_participant_actor_mail::{DomainParticipantMail, ParticipantServiceMail},
-            services::discovery_service,
+        domain_participant_backend::domain_participant_actor_mail::{
+            DiscoveryServiceMail, DomainParticipantMail, ParticipantServiceMail,
         },
         domain_participant_factory::domain_participant_factory_actor::{
             self, DdsTransportParticipantFactory, DomainParticipantFactoryActor,
@@ -94,7 +93,9 @@ impl DomainParticipantFactoryAsync {
                 },
             );
             let deleted_participant = reply_receiver.await??;
-            deleted_participant.send_actor_mail(discovery_service::AnnounceDeletedParticipant);
+            deleted_participant.send_actor_mail(DomainParticipantMail::Discovery(
+                DiscoveryServiceMail::AnnounceDeletedParticipant,
+            ));
             deleted_participant.stop().await;
             Ok(())
         } else {

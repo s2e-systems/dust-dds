@@ -398,8 +398,8 @@ impl DomainParticipantEntity {
             .retain(|x| BUILT_IN_TOPIC_NAME_LIST.contains(&x.topic_name()));
     }
 
-    pub fn topic_list(&mut self) -> impl Iterator<Item = &TopicEntity> {
-        self.topic_list.iter()
+    pub fn topic_list_mut(&mut self) -> impl Iterator<Item = &mut TopicEntity> {
+        self.topic_list.iter_mut()
     }
 
     pub fn is_empty(&self) -> bool {

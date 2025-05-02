@@ -2,24 +2,19 @@ use fnmatch_regex::glob_to_regex;
 
 use crate::{
     builtin_topics::{
-        BuiltInTopicKey, ParticipantBuiltinTopicData, PublicationBuiltinTopicData,
-        SubscriptionBuiltinTopicData, TopicBuiltinTopicData, DCPS_PARTICIPANT, DCPS_PUBLICATION,
-        DCPS_SUBSCRIPTION,
+        PublicationBuiltinTopicData, SubscriptionBuiltinTopicData, TopicBuiltinTopicData,
     },
     implementation::{
         data_representation_builtin_endpoints::{
-            discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
+            discovered_reader_data::DiscoveredReaderData,
             discovered_writer_data::DiscoveredWriterData,
-            spdp_discovered_participant_data::{
-                BuiltinEndpointQos, BuiltinEndpointSet, ParticipantProxy,
-                SpdpDiscoveredParticipantData,
-            },
+            spdp_discovered_participant_data::{BuiltinEndpointSet, SpdpDiscoveredParticipantData},
         },
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor,
             entities::{
                 data_reader::{DataReaderEntity, TransportReaderKind},
-                data_writer::{DataWriterEntity, TransportWriterKind},
+                data_writer::TransportWriterKind,
             },
         },
         domain_participant_factory::domain_participant_factory_actor::{
@@ -46,195 +41,13 @@ use crate::{
             RELIABILITY_QOS_POLICY_ID, XCDR_DATA_REPRESENTATION,
         },
         status::StatusKind,
-        time::Duration,
     },
     runtime::actor::{ActorAddress, MailHandler},
-    topic_definition::type_support::DdsSerialize,
     transport::{
         self,
         types::{DurabilityKind, Guid, ReliabilityKind, ENTITYID_UNKNOWN},
     },
 };
-
-pub struct AnnounceParticipant;
-impl MailHandler<AnnounceParticipant> for DomainParticipantActor {
-    fn handle(&mut self, _: AnnounceParticipant) {
-        if self.domain_participant.enabled() {
-            let participant_builtin_topic_data = ParticipantBuiltinTopicData {
-                key: BuiltInTopicKey {
-                    value: self.transport.guid().into(),
-                },
-                user_data: self.domain_participant.qos().user_data.clone(),
-            };
-            let participant_proxy = ParticipantProxy {
-                domain_id: Some(self.domain_participant.domain_id()),
-                domain_tag: self.domain_participant.domain_tag().to_owned(),
-                protocol_version: self.transport.protocol_version(),
-                guid_prefix: self.transport.guid().prefix(),
-                vendor_id: self.transport.vendor_id(),
-                expects_inline_qos: false,
-                metatraffic_unicast_locator_list: self
-                    .transport
-                    .metatraffic_unicast_locator_list()
-                    .to_vec(),
-                metatraffic_multicast_locator_list: self
-                    .transport
-                    .metatraffic_multicast_locator_list()
-                    .to_vec(),
-                default_unicast_locator_list: self
-                    .transport
-                    .default_unicast_locator_list()
-                    .to_vec(),
-                default_multicast_locator_list: self
-                    .transport
-                    .default_multicast_locator_list()
-                    .to_vec(),
-                available_builtin_endpoints: BuiltinEndpointSet::default(),
-                manual_liveliness_count: 0,
-                builtin_endpoint_qos: BuiltinEndpointQos::default(),
-            };
-            let spdp_discovered_participant_data = SpdpDiscoveredParticipantData {
-                dds_participant_data: participant_builtin_topic_data,
-                participant_proxy,
-                lease_duration: Duration::new(100, 0),
-                discovered_participant_list: self.domain_participant.get_discovered_participants(),
-            };
-            let timestamp = self.domain_participant.get_current_time();
-
-            if let Some(dw) = self
-                .domain_participant
-                .builtin_publisher_mut()
-                .lookup_datawriter_mut(DCPS_PARTICIPANT)
-            {
-                if let Ok(serialized_data) = spdp_discovered_participant_data.serialize_data() {
-                    dw.write_w_timestamp(serialized_data, timestamp).ok();
-                }
-            }
-        }
-    }
-}
-
-pub struct AnnounceDeletedParticipant;
-impl MailHandler<AnnounceDeletedParticipant> for DomainParticipantActor {
-    fn handle(&mut self, _: AnnounceDeletedParticipant) {
-        if self.domain_participant.enabled() {
-            let timestamp = self.domain_participant.get_current_time();
-            if let Some(dw) = self
-                .domain_participant
-                .builtin_publisher_mut()
-                .lookup_datawriter_mut(DCPS_PARTICIPANT)
-            {
-                let key = InstanceHandle::new(self.transport.guid().into());
-                if let Ok(serialized_data) = key.serialize_data() {
-                    dw.dispose_w_timestamp(serialized_data, timestamp).ok();
-                }
-            }
-        }
-    }
-}
-
-pub struct AnnounceDeletedDataWriter {
-    pub data_writer: DataWriterEntity,
-}
-impl MailHandler<AnnounceDeletedDataWriter> for DomainParticipantActor {
-    fn handle(&mut self, message: AnnounceDeletedDataWriter) {
-        let timestamp = self.domain_participant.get_current_time();
-        if let Some(dw) = self
-            .domain_participant
-            .builtin_publisher_mut()
-            .lookup_datawriter_mut(DCPS_PUBLICATION)
-        {
-            let key = InstanceHandle::new(message.data_writer.transport_writer().guid().into());
-            if let Ok(serialized_data) = key.serialize_data() {
-                dw.dispose_w_timestamp(serialized_data, timestamp).ok();
-            }
-        }
-    }
-}
-
-pub struct AnnounceDataReader {
-    pub subscriber_handle: InstanceHandle,
-    pub data_reader_handle: InstanceHandle,
-}
-impl MailHandler<AnnounceDataReader> for DomainParticipantActor {
-    fn handle(&mut self, message: AnnounceDataReader) {
-        let Some(subscriber) = self
-            .domain_participant
-            .get_subscriber(message.subscriber_handle)
-        else {
-            return;
-        };
-        let Some(data_reader) = subscriber.get_data_reader(message.data_reader_handle) else {
-            return;
-        };
-        let Some(topic) = self.domain_participant.get_topic(data_reader.topic_name()) else {
-            return;
-        };
-
-        let guid = data_reader.transport_reader().guid();
-        let dds_subscription_data = SubscriptionBuiltinTopicData {
-            key: BuiltInTopicKey { value: guid.into() },
-            participant_key: BuiltInTopicKey { value: [0; 16] },
-            topic_name: data_reader.topic_name().to_owned(),
-            type_name: data_reader.type_name().to_owned(),
-            durability: data_reader.qos().durability.clone(),
-            deadline: data_reader.qos().deadline.clone(),
-            latency_budget: data_reader.qos().latency_budget.clone(),
-            liveliness: data_reader.qos().liveliness.clone(),
-            reliability: data_reader.qos().reliability.clone(),
-            ownership: data_reader.qos().ownership.clone(),
-            destination_order: data_reader.qos().destination_order.clone(),
-            user_data: data_reader.qos().user_data.clone(),
-            time_based_filter: data_reader.qos().time_based_filter.clone(),
-            presentation: subscriber.qos().presentation.clone(),
-            partition: subscriber.qos().partition.clone(),
-            topic_data: topic.qos().topic_data.clone(),
-            group_data: subscriber.qos().group_data.clone(),
-            representation: data_reader.qos().representation.clone(),
-        };
-        let reader_proxy = ReaderProxy {
-            remote_reader_guid: data_reader.transport_reader().guid(),
-            remote_group_entity_id: ENTITYID_UNKNOWN,
-            unicast_locator_list: vec![],
-            multicast_locator_list: vec![],
-            expects_inline_qos: false,
-        };
-        let discovered_reader_data = DiscoveredReaderData {
-            dds_subscription_data,
-            reader_proxy,
-        };
-        let timestamp = self.domain_participant.get_current_time();
-        if let Some(dw) = self
-            .domain_participant
-            .builtin_publisher_mut()
-            .lookup_datawriter_mut(DCPS_SUBSCRIPTION)
-        {
-            if let Ok(serialized_data) = discovered_reader_data.serialize_data() {
-                dw.write_w_timestamp(serialized_data, timestamp).ok();
-            }
-        }
-    }
-}
-
-pub struct AnnounceDeletedDataReader {
-    pub data_reader: DataReaderEntity,
-}
-impl MailHandler<AnnounceDeletedDataReader> for DomainParticipantActor {
-    fn handle(&mut self, message: AnnounceDeletedDataReader) {
-        let timestamp = self.domain_participant.get_current_time();
-        if let Some(dw) = self
-            .domain_participant
-            .builtin_publisher_mut()
-            .lookup_datawriter_mut(DCPS_SUBSCRIPTION)
-        {
-            let guid = message.data_reader.transport_reader().guid();
-            let key = InstanceHandle::new(guid.into());
-            if let Ok(serialized_data) = key.serialize_data() {
-                dw.dispose_w_timestamp(serialized_data, timestamp).ok();
-            }
-        }
-    }
-}
 
 pub struct AddDiscoveredTopic {
     pub topic_builtin_topic_data: TopicBuiltinTopicData,
