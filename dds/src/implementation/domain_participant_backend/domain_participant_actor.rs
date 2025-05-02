@@ -83,6 +83,7 @@ use crate::{
         oneshot::oneshot,
         timer::TimerDriver,
     },
+    subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     topic_definition::type_support::DdsSerialize,
     transport::{
         self,
@@ -1527,6 +1528,124 @@ impl DomainParticipantActor {
             return Err(DdsError::AlreadyDeleted);
         };
         Ok(data_writer.are_all_changes_acknowledged())
+    }
+
+    pub fn read(
+        &mut self,
+        subscriber_handle: InstanceHandle,
+        data_reader_handle: InstanceHandle,
+        max_samples: i32,
+        sample_states: Vec<SampleStateKind>,
+        view_states: Vec<ViewStateKind>,
+        instance_states: Vec<InstanceStateKind>,
+        specific_instance_handle: Option<InstanceHandle>,
+    ) -> DdsResult<Vec<(Option<Arc<[u8]>>, SampleInfo)>> {
+        let subscriber = if subscriber_handle == self.domain_participant.instance_handle() {
+            Some(self.domain_participant.builtin_subscriber_mut())
+        } else {
+            self.domain_participant
+                .get_mut_subscriber(subscriber_handle)
+        };
+
+        let Some(subscriber) = subscriber else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        data_reader.read(
+            max_samples,
+            &sample_states,
+            &view_states,
+            &instance_states,
+            specific_instance_handle,
+        )
+    }
+
+    pub fn take(
+        &mut self,
+        subscriber_handle: InstanceHandle,
+        data_reader_handle: InstanceHandle,
+        max_samples: i32,
+        sample_states: Vec<SampleStateKind>,
+        view_states: Vec<ViewStateKind>,
+        instance_states: Vec<InstanceStateKind>,
+        specific_instance_handle: Option<InstanceHandle>,
+    ) -> DdsResult<Vec<(Option<Arc<[u8]>>, SampleInfo)>> {
+        let Some(subscriber) = self
+            .domain_participant
+            .get_mut_subscriber(subscriber_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        data_reader.take(
+            max_samples,
+            sample_states,
+            view_states,
+            instance_states,
+            specific_instance_handle,
+        )
+    }
+
+    pub fn read_next_instance(
+        &mut self,
+        subscriber_handle: InstanceHandle,
+        data_reader_handle: InstanceHandle,
+        max_samples: i32,
+        previous_handle: Option<InstanceHandle>,
+        sample_states: Vec<SampleStateKind>,
+        view_states: Vec<ViewStateKind>,
+        instance_states: Vec<InstanceStateKind>,
+    ) -> DdsResult<Vec<(Option<Arc<[u8]>>, SampleInfo)>> {
+        let Some(subscriber) = self
+            .domain_participant
+            .get_mut_subscriber(subscriber_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        data_reader.read_next_instance(
+            max_samples,
+            previous_handle,
+            &sample_states,
+            &view_states,
+            &instance_states,
+        )
+    }
+
+    pub fn take_next_instance(
+        &mut self,
+        subscriber_handle: InstanceHandle,
+        data_reader_handle: InstanceHandle,
+        max_samples: i32,
+        previous_handle: Option<InstanceHandle>,
+        sample_states: Vec<SampleStateKind>,
+        view_states: Vec<ViewStateKind>,
+        instance_states: Vec<InstanceStateKind>,
+    ) -> DdsResult<Vec<(Option<Arc<[u8]>>, SampleInfo)>> {
+        let Some(subscriber) = self
+            .domain_participant
+            .get_mut_subscriber(subscriber_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        data_reader.take_next_instance(
+            max_samples,
+            previous_handle,
+            sample_states,
+            view_states,
+            instance_states,
+        )
     }
 
     pub fn enable_data_reader(

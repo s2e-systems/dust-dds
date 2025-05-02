@@ -33,6 +33,7 @@ use crate::{
         actor::{ActorAddress, MailHandler},
         oneshot::OneshotSender,
     },
+    subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     xtypes::dynamic_type::DynamicType,
 };
 
@@ -333,6 +334,50 @@ pub enum ReaderServiceMail {
         data_reader_handle: InstanceHandle,
         participant_address: ActorAddress<DomainParticipantActor>,
         reply_sender: OneshotSender<DdsResult<()>>,
+    },
+    Read {
+        subscriber_handle: InstanceHandle,
+        data_reader_handle: InstanceHandle,
+        max_samples: i32,
+        sample_states: Vec<SampleStateKind>,
+        view_states: Vec<ViewStateKind>,
+        instance_states: Vec<InstanceStateKind>,
+        specific_instance_handle: Option<InstanceHandle>,
+        #[allow(clippy::type_complexity)]
+        reply_sender: OneshotSender<DdsResult<Vec<(Option<Arc<[u8]>>, SampleInfo)>>>,
+    },
+    Take {
+        subscriber_handle: InstanceHandle,
+        data_reader_handle: InstanceHandle,
+        max_samples: i32,
+        sample_states: Vec<SampleStateKind>,
+        view_states: Vec<ViewStateKind>,
+        instance_states: Vec<InstanceStateKind>,
+        specific_instance_handle: Option<InstanceHandle>,
+        #[allow(clippy::type_complexity)]
+        reply_sender: OneshotSender<DdsResult<Vec<(Option<Arc<[u8]>>, SampleInfo)>>>,
+    },
+    ReadNextInstance {
+        subscriber_handle: InstanceHandle,
+        data_reader_handle: InstanceHandle,
+        max_samples: i32,
+        previous_handle: Option<InstanceHandle>,
+        sample_states: Vec<SampleStateKind>,
+        view_states: Vec<ViewStateKind>,
+        instance_states: Vec<InstanceStateKind>,
+        #[allow(clippy::type_complexity)]
+        reply_sender: OneshotSender<DdsResult<Vec<(Option<Arc<[u8]>>, SampleInfo)>>>,
+    },
+    TakeNextInstance {
+        subscriber_handle: InstanceHandle,
+        data_reader_handle: InstanceHandle,
+        max_samples: i32,
+        previous_handle: Option<InstanceHandle>,
+        sample_states: Vec<SampleStateKind>,
+        view_states: Vec<ViewStateKind>,
+        instance_states: Vec<InstanceStateKind>,
+        #[allow(clippy::type_complexity)]
+        reply_sender: OneshotSender<DdsResult<Vec<(Option<Arc<[u8]>>, SampleInfo)>>>,
     },
 }
 
@@ -761,6 +806,78 @@ impl DomainParticipantActor {
 
     fn handle_reader_service(&mut self, reader_service_mail: ReaderServiceMail) {
         match reader_service_mail {
+            ReaderServiceMail::Read {
+                subscriber_handle,
+                data_reader_handle,
+                max_samples,
+                sample_states,
+                view_states,
+                instance_states,
+                specific_instance_handle,
+                reply_sender,
+            } => reply_sender.send(self.read(
+                subscriber_handle,
+                data_reader_handle,
+                max_samples,
+                sample_states,
+                view_states,
+                instance_states,
+                specific_instance_handle,
+            )),
+            ReaderServiceMail::Take {
+                subscriber_handle,
+                data_reader_handle,
+                max_samples,
+                sample_states,
+                view_states,
+                instance_states,
+                specific_instance_handle,
+                reply_sender,
+            } => reply_sender.send(self.take(
+                subscriber_handle,
+                data_reader_handle,
+                max_samples,
+                sample_states,
+                view_states,
+                instance_states,
+                specific_instance_handle,
+            )),
+            ReaderServiceMail::ReadNextInstance {
+                subscriber_handle,
+                data_reader_handle,
+                max_samples,
+                previous_handle,
+                sample_states,
+                view_states,
+                instance_states,
+                reply_sender,
+            } => reply_sender.send(self.read_next_instance(
+                subscriber_handle,
+                data_reader_handle,
+                max_samples,
+                previous_handle,
+                sample_states,
+                view_states,
+                instance_states,
+            )),
+            ReaderServiceMail::TakeNextInstance {
+                subscriber_handle,
+                data_reader_handle,
+                max_samples,
+                previous_handle,
+                sample_states,
+                view_states,
+                instance_states,
+                reply_sender,
+            } => reply_sender.send(self.take_next_instance(
+                subscriber_handle,
+                data_reader_handle,
+                max_samples,
+                previous_handle,
+                sample_states,
+                view_states,
+                instance_states,
+            )),
             ReaderServiceMail::Enable {
                 subscriber_handle,
                 data_reader_handle,
