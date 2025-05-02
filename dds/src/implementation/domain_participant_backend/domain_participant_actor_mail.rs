@@ -265,6 +265,21 @@ pub enum SubscriberServiceMail {
         subscriber_handle: InstanceHandle,
         reply_sender: OneshotSender<DdsResult<DataReaderQos>>,
     },
+    SetQos {
+        subscriber_handle: InstanceHandle,
+        qos: QosKind<SubscriberQos>,
+        reply_sender: OneshotSender<DdsResult<()>>,
+    },
+    GetSubscriberQos {
+        subscriber_handle: InstanceHandle,
+        reply_sender: OneshotSender<DdsResult<SubscriberQos>>,
+    },
+    SetListener {
+        subscriber_handle: InstanceHandle,
+        a_listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
+        mask: Vec<StatusKind>,
+        reply_sender: OneshotSender<DdsResult<()>>,
+    },
 }
 
 pub enum WriterServiceMail {
@@ -888,6 +903,23 @@ impl DomainParticipantActor {
                 subscriber_handle,
                 reply_sender,
             } => reply_sender.send(self.get_default_data_reader_qos(subscriber_handle)),
+            SubscriberServiceMail::SetQos {
+                subscriber_handle,
+                qos,
+                reply_sender,
+            } => reply_sender.send(self.set_subscriber_qos(subscriber_handle, qos)),
+            SubscriberServiceMail::GetSubscriberQos {
+                subscriber_handle,
+                reply_sender,
+            } => reply_sender.send(self.get_subscriber_qos(subscriber_handle)),
+            SubscriberServiceMail::SetListener {
+                subscriber_handle,
+                a_listener,
+                mask,
+                reply_sender,
+            } => {
+                reply_sender.send(self.set_subscriber_listener(subscriber_handle, a_listener, mask))
+            }
         }
     }
 

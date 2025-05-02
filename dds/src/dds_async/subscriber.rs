@@ -9,7 +9,6 @@ use crate::{
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor,
             domain_participant_actor_mail::{DomainParticipantMail, SubscriberServiceMail},
-            services::subscriber_service,
         },
         status_condition::status_condition_actor::StatusConditionActor,
     },
@@ -202,11 +201,13 @@ impl SubscriberAsync {
     pub async fn set_qos(&self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
-            .send_actor_mail(subscriber_service::SetQos {
-                subscriber_handle: self.handle,
-                qos,
-                reply_sender,
-            })?;
+            .send_actor_mail(DomainParticipantMail::Subscriber(
+                SubscriberServiceMail::SetQos {
+                    subscriber_handle: self.handle,
+                    qos,
+                    reply_sender,
+                },
+            ))?;
         reply_receiver.await?
     }
 
@@ -215,10 +216,12 @@ impl SubscriberAsync {
     pub async fn get_qos(&self) -> DdsResult<SubscriberQos> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
-            .send_actor_mail(subscriber_service::GetSubscriberQos {
-                subscriber_handle: self.handle,
-                reply_sender,
-            })?;
+            .send_actor_mail(DomainParticipantMail::Subscriber(
+                SubscriberServiceMail::GetSubscriberQos {
+                    subscriber_handle: self.handle,
+                    reply_sender,
+                },
+            ))?;
         reply_receiver.await?
     }
 
@@ -231,12 +234,14 @@ impl SubscriberAsync {
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
-            .send_actor_mail(subscriber_service::SetListener {
-                subscriber_handle: self.handle,
-                a_listener,
-                mask: mask.to_vec(),
-                reply_sender,
-            })?;
+            .send_actor_mail(DomainParticipantMail::Subscriber(
+                SubscriberServiceMail::SetListener {
+                    subscriber_handle: self.handle,
+                    a_listener,
+                    mask: mask.to_vec(),
+                    reply_sender,
+                },
+            ))?;
         reply_receiver.await?
     }
 

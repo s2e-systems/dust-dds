@@ -1004,6 +1004,63 @@ impl DomainParticipantActor {
         Ok(subscriber.default_data_reader_qos().clone())
     }
 
+    pub fn set_subscriber_qos(
+        &mut self,
+        subscriber_handle: InstanceHandle,
+        qos: QosKind<SubscriberQos>,
+    ) -> DdsResult<()> {
+        let qos = match qos {
+            QosKind::Default => self.domain_participant.default_subscriber_qos().clone(),
+            QosKind::Specific(q) => q,
+        };
+
+        let Some(subscriber) = self
+            .domain_participant
+            .get_mut_subscriber(subscriber_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        subscriber.set_qos(qos)
+    }
+
+    pub fn get_subscriber_qos(
+        &mut self,
+        subscriber_handle: InstanceHandle,
+    ) -> DdsResult<SubscriberQos> {
+        let Some(subscriber) = self
+            .domain_participant
+            .get_mut_subscriber(subscriber_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        Ok(subscriber.qos().clone())
+    }
+
+    pub fn set_subscriber_listener(
+        &mut self,
+        subscriber_handle: InstanceHandle,
+        a_listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
+        mask: Vec<StatusKind>,
+    ) -> DdsResult<()> {
+        let listener = a_listener.map(|l| {
+            Actor::spawn(
+                SubscriberListenerActor::new(l),
+                &self.listener_executor.handle(),
+            )
+        });
+        let Some(subscriber) = self
+            .domain_participant
+            .get_mut_subscriber(subscriber_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        subscriber.set_listener(listener, mask);
+        Ok(())
+    }
+
     pub fn create_data_writer(
         &mut self,
         publisher_handle: InstanceHandle,
