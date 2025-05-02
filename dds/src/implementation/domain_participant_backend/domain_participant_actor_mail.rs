@@ -489,6 +489,10 @@ pub enum MessageServiceMail {
         cache_change: CacheChange,
         participant_address: ActorAddress<DomainParticipantActor>,
     },
+    AddBuiltinSubscriptionsDetectorCacheChange {
+        cache_change: CacheChange,
+        participant_address: ActorAddress<DomainParticipantActor>,
+    },
     AddBuiltinTopicsDetectorCacheChange {
         cache_change: CacheChange,
     },
@@ -1145,6 +1149,11 @@ impl DomainParticipantActor {
                     participant_address,
                 );
             }
+            MessageServiceMail::AddBuiltinSubscriptionsDetectorCacheChange {
+                cache_change,
+                participant_address,
+            } => self
+                .add_builtin_subscriptions_detector_cache_change(cache_change, participant_address),
             MessageServiceMail::AddBuiltinTopicsDetectorCacheChange { cache_change } => {
                 self.add_builtin_topics_detector_cache_change(cache_change)
             }

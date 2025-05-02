@@ -25,7 +25,6 @@ use crate::{
                 topic::TopicEntity,
             },
             handle::InstanceHandleCounter,
-            services::message_service,
         },
         listeners::domain_participant_listener::DomainParticipantListenerActor,
         status_condition::status_condition_actor::StatusConditionActor,
@@ -751,12 +750,12 @@ struct DcpsSubscriptionsReaderHistoryCache {
 impl HistoryCache for DcpsSubscriptionsReaderHistoryCache {
     fn add_change(&mut self, cache_change: CacheChange) {
         self.participant_address
-            .send_actor_mail(
-                message_service::AddBuiltinSubscriptionsDetectorCacheChange {
+            .send_actor_mail(DomainParticipantMail::Message(
+                MessageServiceMail::AddBuiltinSubscriptionsDetectorCacheChange {
                     cache_change,
                     participant_address: self.participant_address.clone(),
                 },
-            )
+            ))
             .ok();
     }
 
