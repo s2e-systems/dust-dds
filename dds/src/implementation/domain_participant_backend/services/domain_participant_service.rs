@@ -3,20 +3,10 @@ use crate::{
         ParticipantBuiltinTopicData, TopicBuiltinTopicData, DCPS_PARTICIPANT, DCPS_PUBLICATION,
         DCPS_SUBSCRIPTION, DCPS_TOPIC,
     },
-    dds_async::{
-        domain_participant_listener::DomainParticipantListenerAsync,
-        subscriber_listener::SubscriberListenerAsync,
-    },
+    dds_async::domain_participant_listener::DomainParticipantListenerAsync,
     implementation::{
-        domain_participant_backend::{
-            domain_participant_actor::DomainParticipantActor,
-            entities::subscriber::SubscriberEntity,
-        },
-        listeners::{
-            domain_participant_listener::DomainParticipantListenerActor,
-            subscriber_listener::SubscriberListenerActor,
-        },
-        status_condition::status_condition_actor::StatusConditionActor,
+        domain_participant_backend::domain_participant_actor::DomainParticipantActor,
+        listeners::domain_participant_listener::DomainParticipantListenerActor,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -39,99 +29,6 @@ pub const BUILT_IN_TOPIC_NAME_LIST: [&str; 4] = [
     DCPS_PUBLICATION,
     DCPS_SUBSCRIPTION,
 ];
-
-pub struct CreateUserDefinedSubscriber {
-    pub qos: QosKind<SubscriberQos>,
-    pub a_listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
-    pub mask: Vec<StatusKind>,
-    pub reply_sender:
-        OneshotSender<DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)>>,
-}
-impl MailHandler<CreateUserDefinedSubscriber> for DomainParticipantActor {
-    fn handle(&mut self, message: CreateUserDefinedSubscriber) {
-        let subscriber_qos = match message.qos {
-            QosKind::Default => self.domain_participant.default_subscriber_qos().clone(),
-            QosKind::Specific(q) => q,
-        };
-        let subscriber_handle = self.instance_handle_counter.generate_new_instance_handle();
-        let listener = message.a_listener.map(|l| {
-            Actor::spawn(
-                SubscriberListenerActor::new(l),
-                &self.listener_executor.handle(),
-            )
-        });
-        let listener_mask = message.mask.to_vec();
-
-        let mut subscriber = SubscriberEntity::new(
-            subscriber_handle,
-            subscriber_qos,
-            Actor::spawn(
-                StatusConditionActor::default(),
-                &self.listener_executor.handle(),
-            ),
-            listener,
-            listener_mask,
-        );
-
-        let subscriber_status_condition_address = subscriber.status_condition().address();
-
-        if self.domain_participant.enabled()
-            && self
-                .domain_participant
-                .qos()
-                .entity_factory
-                .autoenable_created_entities
-        {
-            subscriber.enable();
-        }
-
-        self.domain_participant.insert_subscriber(subscriber);
-
-        message
-            .reply_sender
-            .send(Ok((subscriber_handle, subscriber_status_condition_address)))
-    }
-}
-
-pub struct DeleteUserDefinedSubscriber {
-    pub participant_handle: InstanceHandle,
-    pub subscriber_handle: InstanceHandle,
-    pub reply_sender: OneshotSender<DdsResult<()>>,
-}
-impl MailHandler<DeleteUserDefinedSubscriber> for DomainParticipantActor {
-    fn handle(&mut self, message: DeleteUserDefinedSubscriber) {
-        if self.domain_participant.instance_handle() != message.participant_handle {
-            message.reply_sender.send(Err(DdsError::PreconditionNotMet(
-                "Subscriber can only be deleted from its parent participant".to_string(),
-            )));
-            return;
-        }
-
-        let Some(subscriber) = self
-            .domain_participant
-            .get_subscriber(message.subscriber_handle)
-        else {
-            message.reply_sender.send(Err(DdsError::AlreadyDeleted));
-            return;
-        };
-
-        if subscriber.data_reader_list().count() > 0 {
-            message.reply_sender.send(Err(DdsError::PreconditionNotMet(
-                "Subscriber still contains data readers".to_string(),
-            )));
-            return;
-        }
-        let Some(_) = self
-            .domain_participant
-            .remove_subscriber(&message.subscriber_handle)
-        else {
-            message.reply_sender.send(Err(DdsError::AlreadyDeleted));
-            return;
-        };
-
-        message.reply_sender.send(Ok(()))
-    }
-}
 
 pub struct SetDefaultPublisherQos {
     pub qos: QosKind<PublisherQos>,

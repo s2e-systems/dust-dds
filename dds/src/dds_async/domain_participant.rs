@@ -112,14 +112,15 @@ impl DomainParticipantAsync {
         mask: &[StatusKind],
     ) -> DdsResult<SubscriberAsync> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant_address.send_actor_mail(
-            domain_participant_service::CreateUserDefinedSubscriber {
-                qos,
-                a_listener,
-                mask: mask.to_vec(),
-                reply_sender,
-            },
-        )?;
+        self.participant_address
+            .send_actor_mail(DomainParticipantMail::Participant(
+                ParticipantServiceMail::CreateUserDefinedSubscriber {
+                    qos,
+                    a_listener,
+                    mask: mask.to_vec(),
+                    reply_sender,
+                },
+            ))?;
         let (guid, subscriber_status_condition_address) = reply_receiver.await??;
         let subscriber =
             SubscriberAsync::new(guid, subscriber_status_condition_address, self.clone());
@@ -131,13 +132,14 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self, a_subscriber))]
     pub async fn delete_subscriber(&self, a_subscriber: &SubscriberAsync) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant_address.send_actor_mail(
-            domain_participant_service::DeleteUserDefinedSubscriber {
-                participant_handle: a_subscriber.get_participant().handle,
-                subscriber_handle: a_subscriber.get_instance_handle().await,
-                reply_sender,
-            },
-        )?;
+        self.participant_address
+            .send_actor_mail(DomainParticipantMail::Participant(
+                ParticipantServiceMail::DeleteUserDefinedSubscriber {
+                    participant_handle: a_subscriber.get_participant().handle,
+                    subscriber_handle: a_subscriber.get_instance_handle().await,
+                    reply_sender,
+                },
+            ))?;
         reply_receiver.await?
     }
 

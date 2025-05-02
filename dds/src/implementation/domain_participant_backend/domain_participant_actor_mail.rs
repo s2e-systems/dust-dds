@@ -4,7 +4,10 @@ use std::sync::Arc;
 use super::domain_participant_actor::DomainParticipantActor;
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
-    dds_async::{publisher_listener::PublisherListenerAsync, topic_listener::TopicListenerAsync},
+    dds_async::{
+        publisher_listener::PublisherListenerAsync, subscriber_listener::SubscriberListenerAsync,
+        topic_listener::TopicListenerAsync,
+    },
     implementation::{
         any_data_writer_listener::AnyDataWriterListener,
         status_condition::status_condition_actor::StatusConditionActor,
@@ -12,7 +15,7 @@ use crate::{
     infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,
-        qos::{DataWriterQos, PublisherQos, QosKind, TopicQos},
+        qos::{DataWriterQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
         status::{
             InconsistentTopicStatus, OfferedDeadlineMissedStatus, PublicationMatchedStatus,
             StatusKind,
@@ -37,6 +40,18 @@ pub enum ParticipantServiceMail {
     DeleteUserDefinedPublisher {
         participant_handle: InstanceHandle,
         publisher_handle: InstanceHandle,
+        reply_sender: OneshotSender<DdsResult<()>>,
+    },
+    CreateUserDefinedSubscriber {
+        qos: QosKind<SubscriberQos>,
+        a_listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
+        mask: Vec<StatusKind>,
+        reply_sender:
+            OneshotSender<DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)>>,
+    },
+    DeleteUserDefinedSubscriber {
+        participant_handle: InstanceHandle,
+        subscriber_handle: InstanceHandle,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
     CreateTopic {
@@ -308,6 +323,18 @@ impl DomainParticipantActor {
                 reply_sender
                     .send(self.delete_user_defined_publisher(participant_handle, publisher_handle));
             }
+            ParticipantServiceMail::CreateUserDefinedSubscriber {
+                qos,
+                a_listener,
+                mask,
+                reply_sender,
+            } => reply_sender.send(self.create_user_defined_subscriber(qos, a_listener, mask)),
+            ParticipantServiceMail::DeleteUserDefinedSubscriber {
+                participant_handle,
+                subscriber_handle,
+                reply_sender,
+            } => reply_sender
+                .send(self.delete_user_defined_subscriber(participant_handle, subscriber_handle)),
             ParticipantServiceMail::CreateTopic {
                 topic_name,
                 type_name,

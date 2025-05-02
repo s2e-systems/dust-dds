@@ -23,7 +23,8 @@ use crate::{
     dds_async::{
         data_reader::DataReaderAsync, data_writer::DataWriterAsync,
         domain_participant::DomainParticipantAsync, publisher::PublisherAsync,
-        publisher_listener::PublisherListenerAsync, subscriber::SubscriberAsync, topic::TopicAsync,
+        publisher_listener::PublisherListenerAsync, subscriber::SubscriberAsync,
+        subscriber_listener::SubscriberListenerAsync, topic::TopicAsync,
         topic_listener::TopicListenerAsync,
     },
     implementation::{
@@ -37,6 +38,7 @@ use crate::{
             data_writer_listener::{self, DataWriterListenerActor},
             domain_participant_listener,
             publisher_listener::{self, PublisherListenerActor},
+            subscriber_listener::SubscriberListenerActor,
             topic_listener::TopicListenerActor,
         },
         status_condition::status_condition_actor::{self, StatusConditionActor},
@@ -47,7 +49,7 @@ use crate::{
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
-        qos::{DataWriterQos, PublisherQos, QosKind, TopicQos},
+        qos::{DataWriterQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
         qos_policy::{
             DurabilityQosPolicyKind, QosPolicyId, ReliabilityQosPolicyKind,
             DATA_REPRESENTATION_QOS_POLICY_ID, DEADLINE_QOS_POLICY_ID,
@@ -347,6 +349,83 @@ impl DomainParticipantActor {
             ));
         }
         let Some(_) = self.domain_participant.remove_publisher(&publisher_handle) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        Ok(())
+    }
+
+    pub fn create_user_defined_subscriber(
+        &mut self,
+        qos: QosKind<SubscriberQos>,
+        a_listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
+        mask: Vec<StatusKind>,
+    ) -> DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)> {
+        let subscriber_qos = match qos {
+            QosKind::Default => self.domain_participant.default_subscriber_qos().clone(),
+            QosKind::Specific(q) => q,
+        };
+        let subscriber_handle = self.instance_handle_counter.generate_new_instance_handle();
+        let listener = a_listener.map(|l| {
+            Actor::spawn(
+                SubscriberListenerActor::new(l),
+                &self.listener_executor.handle(),
+            )
+        });
+        let listener_mask = mask.to_vec();
+
+        let mut subscriber = SubscriberEntity::new(
+            subscriber_handle,
+            subscriber_qos,
+            Actor::spawn(
+                StatusConditionActor::default(),
+                &self.listener_executor.handle(),
+            ),
+            listener,
+            listener_mask,
+        );
+
+        let subscriber_status_condition_address = subscriber.status_condition().address();
+
+        if self.domain_participant.enabled()
+            && self
+                .domain_participant
+                .qos()
+                .entity_factory
+                .autoenable_created_entities
+        {
+            subscriber.enable();
+        }
+
+        self.domain_participant.insert_subscriber(subscriber);
+
+        Ok((subscriber_handle, subscriber_status_condition_address))
+    }
+
+    pub fn delete_user_defined_subscriber(
+        &mut self,
+        participant_handle: InstanceHandle,
+        subscriber_handle: InstanceHandle,
+    ) -> DdsResult<()> {
+        if self.domain_participant.instance_handle() != participant_handle {
+            return Err(DdsError::PreconditionNotMet(
+                "Subscriber can only be deleted from its parent participant".to_string(),
+            ));
+        }
+
+        let Some(subscriber) = self.domain_participant.get_subscriber(subscriber_handle) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        if subscriber.data_reader_list().count() > 0 {
+            return Err(DdsError::PreconditionNotMet(
+                "Subscriber still contains data readers".to_string(),
+            ));
+        }
+        let Some(_) = self
+            .domain_participant
+            .remove_subscriber(&subscriber_handle)
+        else {
             return Err(DdsError::AlreadyDeleted);
         };
 
