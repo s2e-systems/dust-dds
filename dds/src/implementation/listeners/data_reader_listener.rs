@@ -42,7 +42,7 @@ pub enum DataReaderListenerMail {
 
 impl MailHandler for DataReaderListenerActor {
     type Mail = DataReaderListenerMail;
-    fn handle(&mut self, message: DataReaderListenerMail) {
+    async fn handle(&mut self, message: DataReaderListenerMail) {
         match message {
             DataReaderListenerMail::DataAvailable { the_reader } => {
                 self.listener.trigger_on_data_available(the_reader)

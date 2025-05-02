@@ -34,7 +34,7 @@ pub enum DataWriterListenerMail {
 
 impl MailHandler for DataWriterListenerActor {
     type Mail = DataWriterListenerMail;
-    fn handle(&mut self, message: DataWriterListenerMail) {
+    async fn handle(&mut self, message: DataWriterListenerMail) {
         match message {
             DataWriterListenerMail::PublicationMatched { the_writer, status } => self
                 .listener

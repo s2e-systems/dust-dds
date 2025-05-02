@@ -44,7 +44,7 @@ pub enum SubscriberListenerMail {
 
 impl MailHandler for SubscriberListenerActor {
     type Mail = SubscriberListenerMail;
-    fn handle(&mut self, message: SubscriberListenerMail) {
+    async fn handle(&mut self, message: SubscriberListenerMail) {
         match message {
             SubscriberListenerMail::DataOnReaders { the_subscriber } => {
                 block_on(self.listener.on_data_on_readers(the_subscriber))

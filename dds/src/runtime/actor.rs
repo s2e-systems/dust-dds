@@ -1,3 +1,5 @@
+use core::future::Future;
+
 use super::{
     executor::ExecutorHandle,
     mpsc::{mpsc_channel, MpscReceiver, MpscSender},
@@ -7,7 +9,7 @@ use crate::infrastructure::error::{DdsError, DdsResult};
 pub trait MailHandler {
     type Mail;
 
-    fn handle(&mut self, message: Self::Mail);
+    fn handle(&mut self, message: Self::Mail) -> impl Future<Output = ()> + Send;
 }
 
 pub struct ActorAddress<A>
@@ -62,7 +64,7 @@ where
 
         runtime.spawn(async move {
             while let Some(m) = mailbox_recv.recv().await {
-                actor.handle(m);
+                actor.handle(m).await;
             }
         });
         Actor { mail_sender }
@@ -117,7 +119,7 @@ where
         let mailbox_recv = self.mailbox_recv;
         runtime.spawn(async move {
             while let Some(m) = mailbox_recv.recv().await {
-                actor.handle(m);
+                actor.handle(m).await;
             }
         });
         Actor {
@@ -145,7 +147,7 @@ mod tests {
     }
     impl MailHandler for MyActor {
         type Mail = Increment;
-        fn handle(&mut self, message: Increment) {
+        async fn handle(&mut self, message: Increment) {
             self.data += message.value;
             message.result_sender.send(self.data);
         }

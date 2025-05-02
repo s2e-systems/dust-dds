@@ -17,7 +17,7 @@ pub enum TopicListenerActorMail {}
 impl MailHandler for TopicListenerActor {
     type Mail = TopicListenerActorMail;
 
-    fn handle(&mut self, message: Self::Mail) {
+    async fn handle(&mut self, message: Self::Mail) {
         match message {}
     }
 }

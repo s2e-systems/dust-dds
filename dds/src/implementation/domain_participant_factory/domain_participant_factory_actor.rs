@@ -690,7 +690,7 @@ pub enum DomainParticipantFactoryMail {
 impl MailHandler for DomainParticipantFactoryActor {
     type Mail = DomainParticipantFactoryMail;
 
-    fn handle(&mut self, message: Self::Mail) {
+    async fn handle(&mut self, message: Self::Mail) {
         match message {
             DomainParticipantFactoryMail::CreateParticipant {
                 domain_id,

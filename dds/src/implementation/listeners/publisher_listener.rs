@@ -33,7 +33,7 @@ pub enum PublisherListenerMail {
 
 impl MailHandler for PublisherListenerActor {
     type Mail = PublisherListenerMail;
-    fn handle(&mut self, message: PublisherListenerMail) {
+    async fn handle(&mut self, message: PublisherListenerMail) {
         match message {
             PublisherListenerMail::OnPublicationMatched { the_writer, status } => {
                 block_on(self.listener.on_publication_matched(the_writer, status))

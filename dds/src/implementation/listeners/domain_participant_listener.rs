@@ -54,7 +54,7 @@ pub enum DomainParticipantListenerMail {
 
 impl MailHandler for DomainParticipantListenerActor {
     type Mail = DomainParticipantListenerMail;
-    fn handle(&mut self, message: DomainParticipantListenerMail) {
+    async fn handle(&mut self, message: DomainParticipantListenerMail) {
         match message {
             DomainParticipantListenerMail::RequestedDeadlineMissed { the_reader, status } => {
                 block_on(

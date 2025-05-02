@@ -532,7 +532,7 @@ pub enum DomainParticipantMail {
 
 impl MailHandler for DomainParticipantActor {
     type Mail = DomainParticipantMail;
-    fn handle(&mut self, message: DomainParticipantMail) {
+    async fn handle(&mut self, message: DomainParticipantMail) {
         match message {
             DomainParticipantMail::Participant(participant_service_mail) => {
                 self.handle_participant_service(participant_service_mail)

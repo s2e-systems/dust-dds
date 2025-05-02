@@ -79,7 +79,7 @@ pub enum StatusConditionMail {
 
 impl MailHandler for StatusConditionActor {
     type Mail = StatusConditionMail;
-    fn handle(&mut self, message: StatusConditionMail) {
+    async fn handle(&mut self, message: StatusConditionMail) {
         match message {
             StatusConditionMail::GetStatusConditionEnabledStatuses { reply_sender } => {
                 reply_sender.send(self.get_enabled_statuses())
