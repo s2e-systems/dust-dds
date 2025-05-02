@@ -482,6 +482,13 @@ pub enum MessageServiceMail {
         data_reader_handle: InstanceHandle,
         reply_sender: OneshotSender<DdsResult<bool>>,
     },
+    AddBuiltinParticipantsDetectorCacheChange {
+        cache_change: CacheChange,
+    },
+    AddBuiltinPublicationsDetectorCacheChange {
+        cache_change: CacheChange,
+        participant_address: ActorAddress<DomainParticipantActor>,
+    },
     AddBuiltinTopicsDetectorCacheChange {
         cache_change: CacheChange,
     },
@@ -1126,6 +1133,18 @@ impl DomainParticipantActor {
                 reply_sender,
             } => reply_sender
                 .send(self.is_historical_data_received(subscriber_handle, data_reader_handle)),
+            MessageServiceMail::AddBuiltinParticipantsDetectorCacheChange { cache_change } => {
+                self.add_builtin_participants_detector_cache_change(cache_change)
+            }
+            MessageServiceMail::AddBuiltinPublicationsDetectorCacheChange {
+                cache_change,
+                participant_address,
+            } => {
+                self.add_builtin_publications_detector_cache_change(
+                    cache_change,
+                    participant_address,
+                );
+            }
             MessageServiceMail::AddBuiltinTopicsDetectorCacheChange { cache_change } => {
                 self.add_builtin_topics_detector_cache_change(cache_change)
             }

@@ -715,10 +715,9 @@ struct DcpsParticipantReaderHistoryCache {
 impl HistoryCache for DcpsParticipantReaderHistoryCache {
     fn add_change(&mut self, cache_change: CacheChange) {
         self.participant_address
-            .send_actor_mail(message_service::AddBuiltinParticipantsDetectorCacheChange {
-                participant_address: self.participant_address.clone(),
-                cache_change,
-            })
+            .send_actor_mail(DomainParticipantMail::Message(
+                MessageServiceMail::AddBuiltinParticipantsDetectorCacheChange { cache_change },
+            ))
             .ok();
     }
 
@@ -773,10 +772,12 @@ struct DcpsPublicationsReaderHistoryCache {
 impl HistoryCache for DcpsPublicationsReaderHistoryCache {
     fn add_change(&mut self, cache_change: CacheChange) {
         self.participant_address
-            .send_actor_mail(message_service::AddBuiltinPublicationsDetectorCacheChange {
-                cache_change,
-                participant_address: self.participant_address.clone(),
-            })
+            .send_actor_mail(DomainParticipantMail::Message(
+                MessageServiceMail::AddBuiltinPublicationsDetectorCacheChange {
+                    cache_change,
+                    participant_address: self.participant_address.clone(),
+                },
+            ))
             .ok();
     }
 
