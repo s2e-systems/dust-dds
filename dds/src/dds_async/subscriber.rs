@@ -93,12 +93,13 @@ impl SubscriberAsync {
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
-            .send_actor_mail(subscriber_service::DeleteDataReader {
-                subscriber_handle: self.handle,
-                datareader_handle: a_datareader.get_instance_handle().await,
-                participant_address: self.participant_address().clone(),
-                reply_sender,
-            })?;
+            .send_actor_mail(DomainParticipantMail::Subscriber(
+                SubscriberServiceMail::DeleteDataReader {
+                    subscriber_handle: self.handle,
+                    datareader_handle: a_datareader.get_instance_handle().await,
+                    reply_sender,
+                },
+            ))?;
         reply_receiver.await?
     }
 
@@ -111,11 +112,13 @@ impl SubscriberAsync {
         if let Some(topic) = self.participant.lookup_topicdescription(topic_name).await? {
             let (reply_sender, reply_receiver) = oneshot();
             self.participant_address()
-                .send_actor_mail(subscriber_service::LookupDataReader {
-                    subscriber_handle: self.handle,
-                    topic_name: topic_name.to_string(),
-                    reply_sender,
-                })?;
+                .send_actor_mail(DomainParticipantMail::Subscriber(
+                    SubscriberServiceMail::LookupDataReader {
+                        subscriber_handle: self.handle,
+                        topic_name: topic_name.to_string(),
+                        reply_sender,
+                    },
+                ))?;
             if let Some((reader_handle, reader_status_condition_address)) = reply_receiver.await?? {
                 Ok(Some(DataReaderAsync::new(
                     reader_handle,
@@ -159,13 +162,14 @@ impl SubscriberAsync {
     #[tracing::instrument(skip(self))]
     pub async fn set_default_datareader_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant_address().send_actor_mail(
-            subscriber_service::SetDefaultDataReaderQos {
-                subscriber_handle: self.handle,
-                qos,
-                reply_sender,
-            },
-        )?;
+        self.participant_address()
+            .send_actor_mail(DomainParticipantMail::Subscriber(
+                SubscriberServiceMail::SetDefaultDataReaderQos {
+                    subscriber_handle: self.handle,
+                    qos,
+                    reply_sender,
+                },
+            ))?;
 
         reply_receiver.await?
     }
@@ -174,12 +178,13 @@ impl SubscriberAsync {
     #[tracing::instrument(skip(self))]
     pub async fn get_default_datareader_qos(&self) -> DdsResult<DataReaderQos> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant_address().send_actor_mail(
-            subscriber_service::GetDefaultDataReaderQos {
-                subscriber_handle: self.handle,
-                reply_sender,
-            },
-        )?;
+        self.participant_address()
+            .send_actor_mail(DomainParticipantMail::Subscriber(
+                SubscriberServiceMail::GetDefaultDataReaderQos {
+                    subscriber_handle: self.handle,
+                    reply_sender,
+                },
+            ))?;
         reply_receiver.await?
     }
 

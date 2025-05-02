@@ -796,7 +796,7 @@ impl DomainParticipantActor {
         self.domain_participant.is_empty()
     }
 
-    pub fn crate_data_reader(
+    pub fn create_data_reader(
         &mut self,
         subscriber_handle: InstanceHandle,
         topic_name: String,
@@ -920,6 +920,88 @@ impl DomainParticipantActor {
             )?;
         }
         Ok((data_reader_handle, reader_status_condition_address))
+    }
+
+    pub fn delete_data_reader(
+        &mut self,
+        subscriber_handle: InstanceHandle,
+        datareader_handle: InstanceHandle,
+    ) -> DdsResult<()> {
+        let Some(subscriber) = self
+            .domain_participant
+            .get_mut_subscriber(subscriber_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        let Some(data_reader) = subscriber.remove_data_reader(datareader_handle) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        self.announce_deleted_data_reader(data_reader);
+        Ok(())
+    }
+
+    pub fn lookup_data_reader(
+        &mut self,
+        subscriber_handle: InstanceHandle,
+        topic_name: String,
+    ) -> DdsResult<Option<(InstanceHandle, ActorAddress<StatusConditionActor>)>> {
+        if self.domain_participant.get_topic(&topic_name).is_none() {
+            return Err(DdsError::BadParameter);
+        }
+
+        // Built-in subscriber is identified by the handle of the participant itself
+        if self.domain_participant.instance_handle() == subscriber_handle {
+            Ok(self
+                .domain_participant
+                .builtin_subscriber_mut()
+                .data_reader_list_mut()
+                .find(|dr| dr.topic_name() == topic_name)
+                .map(|x: &mut DataReaderEntity| {
+                    (x.instance_handle(), x.status_condition().address())
+                }))
+        } else {
+            let Some(s) = self
+                .domain_participant
+                .get_mut_subscriber(subscriber_handle)
+            else {
+                return Err(DdsError::AlreadyDeleted);
+            };
+            Ok(s.data_reader_list_mut()
+                .find(|dr| dr.topic_name() == topic_name)
+                .map(|x| (x.instance_handle(), x.status_condition().address())))
+        }
+    }
+
+    pub fn set_default_data_reader_qos(
+        &mut self,
+        subscriber_handle: InstanceHandle,
+        qos: QosKind<DataReaderQos>,
+    ) -> DdsResult<()> {
+        let Some(subscriber) = self
+            .domain_participant
+            .get_mut_subscriber(subscriber_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        let qos = match qos {
+            QosKind::Default => DataReaderQos::default(),
+            QosKind::Specific(q) => q,
+        };
+        subscriber.set_default_data_reader_qos(qos)
+    }
+
+    pub fn get_default_data_reader_qos(
+        &mut self,
+        subscriber_handle: InstanceHandle,
+    ) -> DdsResult<DataReaderQos> {
+        let Some(subscriber) = self
+            .domain_participant
+            .get_mut_subscriber(subscriber_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        Ok(subscriber.default_data_reader_qos().clone())
     }
 
     pub fn create_data_writer(

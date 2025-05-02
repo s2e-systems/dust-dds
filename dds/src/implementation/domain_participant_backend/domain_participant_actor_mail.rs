@@ -244,6 +244,27 @@ pub enum SubscriberServiceMail {
         reply_sender:
             OneshotSender<DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)>>,
     },
+    DeleteDataReader {
+        subscriber_handle: InstanceHandle,
+        datareader_handle: InstanceHandle,
+        reply_sender: OneshotSender<DdsResult<()>>,
+    },
+    LookupDataReader {
+        subscriber_handle: InstanceHandle,
+        topic_name: String,
+        #[allow(clippy::type_complexity)]
+        reply_sender:
+            OneshotSender<DdsResult<Option<(InstanceHandle, ActorAddress<StatusConditionActor>)>>>,
+    },
+    SetDefaultDataReaderQos {
+        subscriber_handle: InstanceHandle,
+        qos: QosKind<DataReaderQos>,
+        reply_sender: OneshotSender<DdsResult<()>>,
+    },
+    GetDefaultDataReaderQos {
+        subscriber_handle: InstanceHandle,
+        reply_sender: OneshotSender<DdsResult<DataReaderQos>>,
+    },
 }
 
 pub enum WriterServiceMail {
@@ -840,7 +861,7 @@ impl DomainParticipantActor {
                 mask,
                 domain_participant_address,
                 reply_sender,
-            } => reply_sender.send(self.crate_data_reader(
+            } => reply_sender.send(self.create_data_reader(
                 subscriber_handle,
                 topic_name,
                 qos,
@@ -848,6 +869,25 @@ impl DomainParticipantActor {
                 mask,
                 domain_participant_address,
             )),
+            SubscriberServiceMail::DeleteDataReader {
+                subscriber_handle,
+                datareader_handle,
+                reply_sender,
+            } => reply_sender.send(self.delete_data_reader(subscriber_handle, datareader_handle)),
+            SubscriberServiceMail::LookupDataReader {
+                subscriber_handle,
+                topic_name,
+                reply_sender,
+            } => reply_sender.send(self.lookup_data_reader(subscriber_handle, topic_name)),
+            SubscriberServiceMail::SetDefaultDataReaderQos {
+                subscriber_handle,
+                qos,
+                reply_sender,
+            } => reply_sender.send(self.set_default_data_reader_qos(subscriber_handle, qos)),
+            SubscriberServiceMail::GetDefaultDataReaderQos {
+                subscriber_handle,
+                reply_sender,
+            } => reply_sender.send(self.get_default_data_reader_qos(subscriber_handle)),
         }
     }
 
