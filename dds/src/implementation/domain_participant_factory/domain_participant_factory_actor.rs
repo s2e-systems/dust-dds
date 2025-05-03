@@ -12,6 +12,10 @@ use crate::{
         },
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor,
+            domain_participant_actor_mail::{
+                DiscoveryServiceMail, DomainParticipantMail, MessageServiceMail,
+                ParticipantServiceMail,
+            },
             entities::{
                 data_reader::{DataReaderEntity, TransportReaderKind},
                 data_writer::{DataWriterEntity, TransportWriterKind},
@@ -21,7 +25,6 @@ use crate::{
                 topic::TopicEntity,
             },
             handle::InstanceHandleCounter,
-            services::{discovery_service, domain_participant_service, message_service},
         },
         listeners::domain_participant_listener::DomainParticipantListenerActor,
         status_condition::status_condition_actor::StatusConditionActor,
@@ -44,7 +47,7 @@ use crate::{
     runtime::{
         actor::{Actor, ActorAddress, ActorBuilder, MailHandler},
         executor::Executor,
-        oneshot::OneshotSender,
+        oneshot::{oneshot, OneshotSender},
         timer::TimerDriver,
     },
     topic_definition::type_support::TypeSupport,
@@ -176,25 +179,20 @@ impl DomainParticipantFactoryActor {
             instance_id[3], // Instance ID
         ]
     }
-}
 
-pub struct CreateParticipant {
-    pub domain_id: DomainId,
-    pub qos: QosKind<DomainParticipantQos>,
-    pub listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
-    pub status_kind: Vec<StatusKind>,
     #[allow(clippy::type_complexity)]
-    pub reply_sender: OneshotSender<
-        DdsResult<(
-            ActorAddress<DomainParticipantActor>,
-            InstanceHandle,
-            ActorAddress<StatusConditionActor>,
-            ActorAddress<StatusConditionActor>,
-        )>,
-    >,
-}
-impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
-    fn handle(&mut self, message: CreateParticipant) {
+    pub fn create_participant(
+        &mut self,
+        domain_id: DomainId,
+        qos: QosKind<DomainParticipantQos>,
+        listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
+        status_kind: Vec<StatusKind>,
+    ) -> DdsResult<(
+        ActorAddress<DomainParticipantActor>,
+        InstanceHandle,
+        ActorAddress<StatusConditionActor>,
+        ActorAddress<StatusConditionActor>,
+    )> {
         let backend_executor = Executor::new();
         let backend_executor_handle = backend_executor.handle();
 
@@ -203,7 +201,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         let timer_driver = TimerDriver::new();
         let timer_handle = timer_driver.handle();
 
-        let domain_participant_qos = match message.qos {
+        let domain_participant_qos = match qos {
             QosKind::Default => self.default_participant_qos.clone(),
             QosKind::Specific(q) => q,
         };
@@ -211,9 +209,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         let guid_prefix = self.create_new_guid_prefix();
         let participant_actor_builder = ActorBuilder::new();
 
-        let mut transport = self
-            .transport
-            .create_participant(guid_prefix, message.domain_id);
+        let mut transport = self.transport.create_participant(guid_prefix, domain_id);
 
         let mut instance_handle_counter = InstanceHandleCounter::default();
         fn sedp_data_reader_qos() -> DataReaderQos {
@@ -508,17 +504,17 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
 
         let status_condition =
             Actor::spawn(StatusConditionActor::default(), &listener_executor.handle());
-        let listener = message.listener.map(|l| {
+        let listener = listener.map(|l| {
             Actor::spawn(
                 DomainParticipantListenerActor::new(l),
                 &listener_executor.handle(),
             )
         });
         let domain_participant = DomainParticipantEntity::new(
-            message.domain_id,
+            domain_id,
             domain_participant_qos,
             listener,
-            message.status_kind,
+            status_kind,
             status_condition,
             instance_handle,
             builtin_publisher,
@@ -561,7 +557,9 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
 
         backend_executor_handle.spawn(async move {
             while participant_address
-                .send_actor_mail(discovery_service::AnnounceParticipant)
+                .send_actor_mail(DomainParticipantMail::Discovery(
+                    DiscoveryServiceMail::AnnounceParticipant,
+                ))
                 .is_ok()
             {
                 timer_handle.sleep(participant_announcement_interval).await;
@@ -569,135 +567,164 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         });
 
         if self.qos.entity_factory.autoenable_created_entities {
-            participant_actor.send_actor_mail(domain_participant_service::Enable {
-                domain_participant_address: participant_actor.address(),
-            });
+            let (reply_sender, _reply_receiver) = oneshot();
+            participant_actor.send_actor_mail(DomainParticipantMail::Participant(
+                ParticipantServiceMail::Enable { reply_sender },
+            ));
         }
 
         let participant_address = participant_actor.address();
         self.domain_participant_list
             .insert(participant_handle, participant_actor);
 
-        message.reply_sender.send(Ok((
+        Ok((
             participant_address,
             participant_handle,
             participant_status_condition_address,
             builtin_subscriber_status_condition_address,
-        )));
+        ))
     }
-}
 
-pub struct DeleteParticipant {
-    pub handle: InstanceHandle,
-    pub reply_sender: OneshotSender<DdsResult<Actor<DomainParticipantActor>>>,
-}
-impl MailHandler<DeleteParticipant> for DomainParticipantFactoryActor {
-    fn handle(&mut self, message: DeleteParticipant) {
-        let result = self.domain_participant_list.remove(&message.handle).ok_or(
-            DdsError::PreconditionNotMet(
+    pub fn delete_participant(
+        &mut self,
+        handle: InstanceHandle,
+    ) -> DdsResult<Actor<DomainParticipantActor>> {
+        self.domain_participant_list
+            .remove(&handle)
+            .ok_or(DdsError::PreconditionNotMet(
                 "Participant can only be deleted from its parent domain participant factory"
                     .to_string(),
-            ),
-        );
-        message.reply_sender.send(result);
+            ))
     }
-}
 
-pub struct GetParticipantList {
-    pub reply_sender: OneshotSender<Vec<ActorAddress<DomainParticipantActor>>>,
-}
-
-impl MailHandler<GetParticipantList> for DomainParticipantFactoryActor {
-    fn handle(&mut self, message: GetParticipantList) {
-        let participant_list = self
-            .domain_participant_list
-            .values()
-            .map(|a| a.address())
-            .collect();
-        message.reply_sender.send(participant_list);
-    }
-}
-
-pub struct SetDefaultParticipantQos {
-    pub qos: QosKind<DomainParticipantQos>,
-    pub reply_sender: OneshotSender<DdsResult<()>>,
-}
-impl MailHandler<SetDefaultParticipantQos> for DomainParticipantFactoryActor {
-    fn handle(&mut self, message: SetDefaultParticipantQos) {
-        let qos = match message.qos {
+    pub fn set_default_participant_qos(
+        &mut self,
+        qos: QosKind<DomainParticipantQos>,
+    ) -> DdsResult<()> {
+        let qos = match qos {
             QosKind::Default => DomainParticipantQos::default(),
             QosKind::Specific(q) => q,
         };
 
         self.default_participant_qos = qos;
 
-        message.reply_sender.send(Ok(()))
+        Ok(())
     }
-}
 
-pub struct GetDefaultParticipantQos {
-    pub reply_sender: OneshotSender<DomainParticipantQos>,
-}
-
-impl MailHandler<GetDefaultParticipantQos> for DomainParticipantFactoryActor {
-    fn handle(&mut self, message: GetDefaultParticipantQos) {
-        let q = self.default_participant_qos.clone();
-        message.reply_sender.send(q);
+    pub fn get_default_participant_qos(&mut self) -> DomainParticipantQos {
+        self.default_participant_qos.clone()
     }
-}
 
-pub struct SetQos {
-    pub qos: QosKind<DomainParticipantFactoryQos>,
-    pub reply_sender: OneshotSender<DdsResult<()>>,
-}
-
-impl MailHandler<SetQos> for DomainParticipantFactoryActor {
-    fn handle(&mut self, message: SetQos) {
-        let qos = match message.qos {
+    pub fn set_qos(&mut self, qos: QosKind<DomainParticipantFactoryQos>) -> DdsResult<()> {
+        let qos = match qos {
             QosKind::Default => DomainParticipantFactoryQos::default(),
             QosKind::Specific(q) => q,
         };
 
         self.qos = qos;
-        message.reply_sender.send(Ok(()));
+        Ok(())
+    }
+
+    pub fn get_qos(&mut self) -> DomainParticipantFactoryQos {
+        self.qos.clone()
+    }
+
+    pub fn set_configuration(&mut self, configuration: DustDdsConfiguration) {
+        self.configuration = configuration;
+    }
+
+    pub fn get_configuration(&mut self) -> DustDdsConfiguration {
+        self.configuration.clone()
+    }
+
+    pub fn set_transport(&mut self, transport: DdsTransportParticipantFactory) {
+        self.transport = transport;
     }
 }
 
-pub struct GetQos {
-    pub reply_sender: OneshotSender<DomainParticipantFactoryQos>,
-}
-impl MailHandler<GetQos> for DomainParticipantFactoryActor {
-    fn handle(&mut self, message: GetQos) {
-        let q = self.qos.clone();
-        message.reply_sender.send(q);
-    }
+pub enum DomainParticipantFactoryMail {
+    CreateParticipant {
+        domain_id: DomainId,
+        qos: QosKind<DomainParticipantQos>,
+        listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
+        status_kind: Vec<StatusKind>,
+        #[allow(clippy::type_complexity)]
+        reply_sender: OneshotSender<
+            DdsResult<(
+                ActorAddress<DomainParticipantActor>,
+                InstanceHandle,
+                ActorAddress<StatusConditionActor>,
+                ActorAddress<StatusConditionActor>,
+            )>,
+        >,
+    },
+    DeleteParticipant {
+        handle: InstanceHandle,
+        reply_sender: OneshotSender<DdsResult<Actor<DomainParticipantActor>>>,
+    },
+    SetDefaultParticipantQos {
+        qos: QosKind<DomainParticipantQos>,
+        reply_sender: OneshotSender<DdsResult<()>>,
+    },
+    GetDefaultParticipantQos {
+        reply_sender: OneshotSender<DomainParticipantQos>,
+    },
+    SetQos {
+        qos: QosKind<DomainParticipantFactoryQos>,
+        reply_sender: OneshotSender<DdsResult<()>>,
+    },
+    GetQos {
+        reply_sender: OneshotSender<DomainParticipantFactoryQos>,
+    },
+    SetConfiguration {
+        configuration: DustDdsConfiguration,
+    },
+    GetConfiguration {
+        reply_sender: OneshotSender<DustDdsConfiguration>,
+    },
+    SetTransport {
+        transport: DdsTransportParticipantFactory,
+    },
 }
 
-pub struct SetConfiguration {
-    pub configuration: DustDdsConfiguration,
-}
-impl MailHandler<SetConfiguration> for DomainParticipantFactoryActor {
-    fn handle(&mut self, message: SetConfiguration) {
-        self.configuration = message.configuration;
-    }
-}
+impl MailHandler for DomainParticipantFactoryActor {
+    type Mail = DomainParticipantFactoryMail;
 
-pub struct GetConfiguration {
-    pub reply_sender: OneshotSender<DustDdsConfiguration>,
-}
-impl MailHandler<GetConfiguration> for DomainParticipantFactoryActor {
-    fn handle(&mut self, message: GetConfiguration) {
-        let c = self.configuration.clone();
-        message.reply_sender.send(c);
-    }
-}
-
-pub struct SetTransport {
-    pub transport: DdsTransportParticipantFactory,
-}
-impl MailHandler<SetTransport> for DomainParticipantFactoryActor {
-    fn handle(&mut self, message: SetTransport) {
-        self.transport = message.transport;
+    async fn handle(&mut self, message: Self::Mail) {
+        match message {
+            DomainParticipantFactoryMail::CreateParticipant {
+                domain_id,
+                qos,
+                listener,
+                status_kind,
+                reply_sender,
+            } => reply_sender.send(self.create_participant(domain_id, qos, listener, status_kind)),
+            DomainParticipantFactoryMail::DeleteParticipant {
+                handle,
+                reply_sender,
+            } => reply_sender.send(self.delete_participant(handle)),
+            DomainParticipantFactoryMail::SetDefaultParticipantQos { qos, reply_sender } => {
+                reply_sender.send(self.set_default_participant_qos(qos))
+            }
+            DomainParticipantFactoryMail::GetDefaultParticipantQos { reply_sender } => {
+                reply_sender.send(self.get_default_participant_qos())
+            }
+            DomainParticipantFactoryMail::SetQos { qos, reply_sender } => {
+                reply_sender.send(self.set_qos(qos))
+            }
+            DomainParticipantFactoryMail::GetQos { reply_sender } => {
+                reply_sender.send(self.get_qos())
+            }
+            DomainParticipantFactoryMail::SetConfiguration { configuration } => {
+                self.set_configuration(configuration)
+            }
+            DomainParticipantFactoryMail::GetConfiguration { reply_sender } => {
+                reply_sender.send(self.get_configuration())
+            }
+            DomainParticipantFactoryMail::SetTransport { transport } => {
+                self.set_transport(transport)
+            }
+        }
     }
 }
 
@@ -708,21 +735,14 @@ struct DcpsParticipantReaderHistoryCache {
 impl HistoryCache for DcpsParticipantReaderHistoryCache {
     fn add_change(&mut self, cache_change: CacheChange) {
         self.participant_address
-            .send_actor_mail(message_service::AddBuiltinParticipantsDetectorCacheChange {
-                participant_address: self.participant_address.clone(),
-                cache_change,
-            })
+            .send_actor_mail(DomainParticipantMail::Message(
+                MessageServiceMail::AddBuiltinParticipantsDetectorCacheChange { cache_change },
+            ))
             .ok();
     }
 
-    fn remove_change(&mut self, sequence_number: i64) {
-        self.participant_address
-            .send_actor_mail(
-                message_service::RemoveBuiltinParticipantsDetectorCacheChange {
-                    _sequence_number: sequence_number,
-                },
-            )
-            .ok();
+    fn remove_change(&mut self, _sequence_number: i64) {
+        todo!()
     }
 }
 
@@ -733,19 +753,14 @@ struct DcpsTopicsReaderHistoryCache {
 impl HistoryCache for DcpsTopicsReaderHistoryCache {
     fn add_change(&mut self, cache_change: CacheChange) {
         self.participant_address
-            .send_actor_mail(message_service::AddBuiltinTopicsDetectorCacheChange {
-                cache_change,
-                participant_address: self.participant_address.clone(),
-            })
+            .send_actor_mail(DomainParticipantMail::Message(
+                MessageServiceMail::AddBuiltinTopicsDetectorCacheChange { cache_change },
+            ))
             .ok();
     }
 
-    fn remove_change(&mut self, sequence_number: i64) {
-        self.participant_address
-            .send_actor_mail(message_service::RemoveBuiltinTopicsDetectorCacheChange {
-                _sequence_number: sequence_number,
-            })
-            .ok();
+    fn remove_change(&mut self, _sequence_number: i64) {
+        todo!()
     }
 }
 
@@ -756,23 +771,17 @@ struct DcpsSubscriptionsReaderHistoryCache {
 impl HistoryCache for DcpsSubscriptionsReaderHistoryCache {
     fn add_change(&mut self, cache_change: CacheChange) {
         self.participant_address
-            .send_actor_mail(
-                message_service::AddBuiltinSubscriptionsDetectorCacheChange {
+            .send_actor_mail(DomainParticipantMail::Message(
+                MessageServiceMail::AddBuiltinSubscriptionsDetectorCacheChange {
                     cache_change,
                     participant_address: self.participant_address.clone(),
                 },
-            )
+            ))
             .ok();
     }
 
-    fn remove_change(&mut self, sequence_number: i64) {
-        self.participant_address
-            .send_actor_mail(
-                message_service::RemoveBuiltinSubscriptionsDetectorCacheChange {
-                    _sequence_number: sequence_number,
-                },
-            )
-            .ok();
+    fn remove_change(&mut self, _sequence_number: i64) {
+        todo!()
     }
 }
 
@@ -783,20 +792,16 @@ struct DcpsPublicationsReaderHistoryCache {
 impl HistoryCache for DcpsPublicationsReaderHistoryCache {
     fn add_change(&mut self, cache_change: CacheChange) {
         self.participant_address
-            .send_actor_mail(message_service::AddBuiltinPublicationsDetectorCacheChange {
-                cache_change,
-                participant_address: self.participant_address.clone(),
-            })
+            .send_actor_mail(DomainParticipantMail::Message(
+                MessageServiceMail::AddBuiltinPublicationsDetectorCacheChange {
+                    cache_change,
+                    participant_address: self.participant_address.clone(),
+                },
+            ))
             .ok();
     }
 
-    fn remove_change(&mut self, sequence_number: i64) {
-        self.participant_address
-            .send_actor_mail(
-                message_service::RemoveBuiltinPublicationsDetectorCacheChange {
-                    _sequence_number: sequence_number,
-                },
-            )
-            .ok();
+    fn remove_change(&mut self, _sequence_number: i64) {
+        todo!()
     }
 }

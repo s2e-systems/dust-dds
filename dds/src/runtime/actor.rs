@@ -1,36 +1,28 @@
+use core::future::Future;
+
 use super::{
     executor::ExecutorHandle,
     mpsc::{mpsc_channel, MpscReceiver, MpscSender},
 };
 use crate::infrastructure::error::{DdsError, DdsResult};
 
-pub trait MailHandler<M> {
-    fn handle(&mut self, message: M);
+pub trait MailHandler {
+    type Mail;
+
+    fn handle(&mut self, message: Self::Mail) -> impl Future<Output = ()> + Send;
 }
 
-struct ReplyMail<M> {
-    mail: Option<M>,
-}
-
-pub trait GenericHandler<A> {
-    fn handle(&mut self, actor: &mut A);
-}
-
-impl<A, M> GenericHandler<A> for ReplyMail<M>
+pub struct ActorAddress<A>
 where
-    A: MailHandler<M> + Send,
-    M: Send,
+    A: MailHandler,
 {
-    fn handle(&mut self, actor: &mut A) {
-        <A as MailHandler<M>>::handle(actor, self.mail.take().expect("Must have a message"));
-    }
+    mail_sender: MpscSender<<A as MailHandler>::Mail>,
 }
 
-pub struct ActorAddress<A> {
-    mail_sender: MpscSender<Box<dyn GenericHandler<A> + Send>>,
-}
-
-impl<A> Clone for ActorAddress<A> {
+impl<A> Clone for ActorAddress<A>
+where
+    A: MailHandler,
+{
     fn clone(&self) -> Self {
         Self {
             mail_sender: self.mail_sender.clone(),
@@ -38,33 +30,41 @@ impl<A> Clone for ActorAddress<A> {
     }
 }
 
-impl<A> ActorAddress<A> {
-    pub fn send_actor_mail<M>(&self, mail: M) -> DdsResult<()>
+impl<A> ActorAddress<A>
+where
+    A: MailHandler,
+    A::Mail: Send,
+{
+    pub fn send_actor_mail(&self, mail: A::Mail) -> DdsResult<()>
     where
-        A: MailHandler<M> + Send,
-        M: Send + 'static,
+        A: MailHandler,
+        A::Mail: Send + 'static,
     {
         self.mail_sender
-            .send(Box::new(ReplyMail { mail: Some(mail) }))
+            .send(mail)
             .map_err(|_| DdsError::AlreadyDeleted)
     }
 }
 
-pub struct Actor<A> {
-    mail_sender: MpscSender<Box<dyn GenericHandler<A> + Send>>,
+pub struct Actor<A>
+where
+    A: MailHandler,
+{
+    mail_sender: MpscSender<<A as MailHandler>::Mail>,
     // join_handle: tokio::task::JoinHandle<()>,
 }
 
 impl<A> Actor<A>
 where
-    A: Send + 'static,
+    A: MailHandler + Send + 'static,
+    A::Mail: Send,
 {
     pub fn spawn(mut actor: A, runtime: &ExecutorHandle) -> Self {
-        let (mail_sender, mailbox_recv) = mpsc_channel::<Box<dyn GenericHandler<A> + Send>>();
+        let (mail_sender, mailbox_recv) = mpsc_channel::<A::Mail>();
 
         runtime.spawn(async move {
-            while let Some(mut m) = mailbox_recv.recv().await {
-                m.handle(&mut actor);
+            while let Some(m) = mailbox_recv.recv().await {
+                actor.handle(m).await;
             }
         });
         Actor { mail_sender }
@@ -80,28 +80,28 @@ where
         self.mail_sender.close();
     }
 
-    pub fn send_actor_mail<M>(&self, mail: M)
-    where
-        A: MailHandler<M>,
-        M: Send + 'static,
-    {
+    pub fn send_actor_mail(&self, mail: A::Mail) {
         self.mail_sender
-            .send(Box::new(ReplyMail { mail: Some(mail) }))
+            .send(mail)
             .expect("Message will always be sent when actor exists");
     }
 }
 
-pub struct ActorBuilder<A> {
-    mail_sender: MpscSender<Box<dyn GenericHandler<A> + Send>>,
-    mailbox_recv: MpscReceiver<Box<dyn GenericHandler<A> + Send>>,
+pub struct ActorBuilder<A>
+where
+    A: MailHandler,
+{
+    mail_sender: MpscSender<A::Mail>,
+    mailbox_recv: MpscReceiver<A::Mail>,
 }
 
 impl<A> ActorBuilder<A>
 where
-    A: Send + 'static,
+    A: MailHandler + Send + 'static,
+    A::Mail: Send,
 {
     pub fn new() -> Self {
-        let (mail_sender, mailbox_recv) = mpsc_channel::<Box<dyn GenericHandler<A> + Send>>();
+        let (mail_sender, mailbox_recv) = mpsc_channel::<A::Mail>();
 
         Self {
             mail_sender,
@@ -118,8 +118,8 @@ where
     pub fn build(self, mut actor: A, runtime: &ExecutorHandle) -> Actor<A> {
         let mailbox_recv = self.mailbox_recv;
         runtime.spawn(async move {
-            while let Some(mut m) = mailbox_recv.recv().await {
-                m.handle(&mut actor);
+            while let Some(m) = mailbox_recv.recv().await {
+                actor.handle(m).await;
             }
         });
         Actor {
@@ -145,8 +145,9 @@ mod tests {
         value: u8,
         result_sender: OneshotSender<u8>,
     }
-    impl MailHandler<Increment> for MyActor {
-        fn handle(&mut self, message: Increment) {
+    impl MailHandler for MyActor {
+        type Mail = Increment;
+        async fn handle(&mut self, message: Increment) {
             self.data += message.value;
             message.result_sender.send(self.data);
         }

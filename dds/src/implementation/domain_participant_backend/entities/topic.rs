@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::{
     implementation::{
         listeners::topic_listener::TopicListenerActor,
-        status_condition::status_condition_actor::{self, StatusConditionActor},
+        status_condition::status_condition_actor::{StatusConditionActor, StatusConditionMail},
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -89,12 +89,15 @@ impl TopicEntity {
     pub fn set_qos(&mut self, qos: TopicQos) -> DdsResult<()> {
         qos.is_consistent()?;
 
-        if self.enabled && (self.qos.durability != qos.durability
+        if self.enabled
+            && (self.qos.durability != qos.durability
                 || self.qos.liveliness != qos.liveliness
                 || self.qos.reliability != qos.reliability
                 || self.qos.destination_order != qos.destination_order
                 || self.qos.history != qos.history
-                || self.qos.resource_limits != qos.resource_limits || self.qos.ownership != qos.ownership) {
+                || self.qos.resource_limits != qos.resource_limits
+                || self.qos.ownership != qos.ownership)
+        {
             return Err(DdsError::ImmutablePolicy);
         }
 
@@ -106,7 +109,7 @@ impl TopicEntity {
         let status = self.inconsistent_topic_status.clone();
         self.inconsistent_topic_status.total_count_change = 0;
         self.status_condition
-            .send_actor_mail(status_condition_actor::RemoveCommunicationState {
+            .send_actor_mail(StatusConditionMail::RemoveCommunicationState {
                 state: StatusKind::InconsistentTopic,
             });
         status
@@ -116,7 +119,7 @@ impl TopicEntity {
         self.inconsistent_topic_status.total_count += 1;
         self.inconsistent_topic_status.total_count_change += 1;
         self.status_condition
-            .send_actor_mail(status_condition_actor::AddCommunicationState {
+            .send_actor_mail(StatusConditionMail::AddCommunicationState {
                 state: StatusKind::InconsistentTopic,
             });
     }

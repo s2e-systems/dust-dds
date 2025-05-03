@@ -59,49 +59,43 @@ impl StatusConditionActor {
     }
 }
 
-pub struct GetStatusConditionEnabledStatuses {
-    pub reply_sender: OneshotSender<Vec<StatusKind>>,
-}
-impl MailHandler<GetStatusConditionEnabledStatuses> for StatusConditionActor {
-    fn handle(&mut self, message: GetStatusConditionEnabledStatuses) {
-        let status = self.get_enabled_statuses();
-        message.reply_sender.send(status);
-    }
-}
-
-pub struct SetStatusConditionEnabledStatuses {
-    pub status_mask: Vec<StatusKind>,
-}
-impl MailHandler<SetStatusConditionEnabledStatuses> for StatusConditionActor {
-    fn handle(&mut self, message: SetStatusConditionEnabledStatuses) {
-        self.set_enabled_statuses(message.status_mask);
-    }
-}
-
-pub struct GetStatusConditionTriggerValue {
-    pub reply_sender: OneshotSender<bool>,
-}
-impl MailHandler<GetStatusConditionTriggerValue> for StatusConditionActor {
-    fn handle(&mut self, message: GetStatusConditionTriggerValue) {
-        let value = self.get_trigger_value();
-        message.reply_sender.send(value);
-    }
+pub enum StatusConditionMail {
+    GetStatusConditionEnabledStatuses {
+        reply_sender: OneshotSender<Vec<StatusKind>>,
+    },
+    SetStatusConditionEnabledStatuses {
+        status_mask: Vec<StatusKind>,
+    },
+    GetStatusConditionTriggerValue {
+        reply_sender: OneshotSender<bool>,
+    },
+    AddCommunicationState {
+        state: StatusKind,
+    },
+    RemoveCommunicationState {
+        state: StatusKind,
+    },
 }
 
-pub struct AddCommunicationState {
-    pub state: StatusKind,
-}
-impl MailHandler<AddCommunicationState> for StatusConditionActor {
-    fn handle(&mut self, message: AddCommunicationState) {
-        self.add_communication_state(message.state);
-    }
-}
-
-pub struct RemoveCommunicationState {
-    pub state: StatusKind,
-}
-impl MailHandler<RemoveCommunicationState> for StatusConditionActor {
-    fn handle(&mut self, message: RemoveCommunicationState) {
-        self.remove_communication_state(message.state);
+impl MailHandler for StatusConditionActor {
+    type Mail = StatusConditionMail;
+    async fn handle(&mut self, message: StatusConditionMail) {
+        match message {
+            StatusConditionMail::GetStatusConditionEnabledStatuses { reply_sender } => {
+                reply_sender.send(self.get_enabled_statuses())
+            }
+            StatusConditionMail::SetStatusConditionEnabledStatuses { status_mask } => {
+                self.set_enabled_statuses(status_mask)
+            }
+            StatusConditionMail::GetStatusConditionTriggerValue { reply_sender } => {
+                reply_sender.send(self.get_trigger_value())
+            }
+            StatusConditionMail::AddCommunicationState { state } => {
+                self.add_communication_state(state)
+            }
+            StatusConditionMail::RemoveCommunicationState { state } => {
+                self.remove_communication_state(state)
+            }
+        }
     }
 }

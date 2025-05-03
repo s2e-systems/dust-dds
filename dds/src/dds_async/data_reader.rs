@@ -9,7 +9,8 @@ use crate::{
     implementation::{
         any_data_reader_listener::AnyDataReaderListener,
         domain_participant_backend::{
-            domain_participant_actor::DomainParticipantActor, services::data_reader_service,
+            domain_participant_actor::DomainParticipantActor,
+            domain_participant_actor_mail::{DomainParticipantMail, ReaderServiceMail},
         },
         status_condition::status_condition_actor::StatusConditionActor,
     },
@@ -97,7 +98,7 @@ impl<Foo> DataReaderAsync<Foo> {
     ) -> DdsResult<Vec<Sample<Foo>>> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
-            .send_actor_mail(data_reader_service::Read {
+            .send_actor_mail(DomainParticipantMail::Reader(ReaderServiceMail::Read {
                 subscriber_handle: self.subscriber.get_instance_handle().await,
                 data_reader_handle: self.handle,
                 max_samples,
@@ -106,7 +107,7 @@ impl<Foo> DataReaderAsync<Foo> {
                 instance_states: instance_states.to_vec(),
                 specific_instance_handle: None,
                 reply_sender,
-            })?;
+            }))?;
         let samples = reply_receiver.await??;
 
         Ok(samples
@@ -126,7 +127,7 @@ impl<Foo> DataReaderAsync<Foo> {
     ) -> DdsResult<Vec<Sample<Foo>>> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
-            .send_actor_mail(data_reader_service::Take {
+            .send_actor_mail(DomainParticipantMail::Reader(ReaderServiceMail::Take {
                 subscriber_handle: self.subscriber.get_instance_handle().await,
                 data_reader_handle: self.handle,
                 max_samples,
@@ -135,7 +136,7 @@ impl<Foo> DataReaderAsync<Foo> {
                 instance_states: instance_states.to_vec(),
                 specific_instance_handle: None,
                 reply_sender,
-            })?;
+            }))?;
         let samples = reply_receiver.await??;
 
         Ok(samples
@@ -149,7 +150,7 @@ impl<Foo> DataReaderAsync<Foo> {
     pub async fn read_next_sample(&self) -> DdsResult<Sample<Foo>> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
-            .send_actor_mail(data_reader_service::Read {
+            .send_actor_mail(DomainParticipantMail::Reader(ReaderServiceMail::Read {
                 subscriber_handle: self.subscriber.get_instance_handle().await,
                 data_reader_handle: self.handle,
                 max_samples: 1,
@@ -158,7 +159,7 @@ impl<Foo> DataReaderAsync<Foo> {
                 instance_states: ANY_INSTANCE_STATE.to_vec(),
                 specific_instance_handle: None,
                 reply_sender,
-            })?;
+            }))?;
         let mut samples = reply_receiver.await??;
         let (data, sample_info) = samples.pop().expect("Would return NoData if empty");
         Ok(Sample::new(data, sample_info))
@@ -169,7 +170,7 @@ impl<Foo> DataReaderAsync<Foo> {
     pub async fn take_next_sample(&self) -> DdsResult<Sample<Foo>> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
-            .send_actor_mail(data_reader_service::Take {
+            .send_actor_mail(DomainParticipantMail::Reader(ReaderServiceMail::Take {
                 subscriber_handle: self.subscriber.get_instance_handle().await,
                 data_reader_handle: self.handle,
                 max_samples: 1,
@@ -178,7 +179,7 @@ impl<Foo> DataReaderAsync<Foo> {
                 instance_states: ANY_INSTANCE_STATE.to_vec(),
                 specific_instance_handle: None,
                 reply_sender,
-            })?;
+            }))?;
         let mut samples = reply_receiver.await??;
         let (data, sample_info) = samples.pop().expect("Would return NoData if empty");
         Ok(Sample::new(data, sample_info))
@@ -196,7 +197,7 @@ impl<Foo> DataReaderAsync<Foo> {
     ) -> DdsResult<Vec<Sample<Foo>>> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
-            .send_actor_mail(data_reader_service::Read {
+            .send_actor_mail(DomainParticipantMail::Reader(ReaderServiceMail::Read {
                 subscriber_handle: self.subscriber.get_instance_handle().await,
                 data_reader_handle: self.handle,
                 max_samples,
@@ -205,7 +206,7 @@ impl<Foo> DataReaderAsync<Foo> {
                 instance_states: instance_states.to_vec(),
                 specific_instance_handle: Some(a_handle),
                 reply_sender,
-            })?;
+            }))?;
         let samples = reply_receiver.await??;
         Ok(samples
             .into_iter()
@@ -225,7 +226,7 @@ impl<Foo> DataReaderAsync<Foo> {
     ) -> DdsResult<Vec<Sample<Foo>>> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
-            .send_actor_mail(data_reader_service::Take {
+            .send_actor_mail(DomainParticipantMail::Reader(ReaderServiceMail::Take {
                 subscriber_handle: self.subscriber.get_instance_handle().await,
                 data_reader_handle: self.handle,
                 max_samples,
@@ -234,7 +235,7 @@ impl<Foo> DataReaderAsync<Foo> {
                 instance_states: instance_states.to_vec(),
                 specific_instance_handle: Some(a_handle),
                 reply_sender,
-            })?;
+            }))?;
         let samples = reply_receiver.await??;
 
         Ok(samples
@@ -255,16 +256,18 @@ impl<Foo> DataReaderAsync<Foo> {
     ) -> DdsResult<Vec<Sample<Foo>>> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
-            .send_actor_mail(data_reader_service::ReadNextInstance {
-                subscriber_handle: self.subscriber.get_instance_handle().await,
-                data_reader_handle: self.handle,
-                max_samples,
-                previous_handle,
-                sample_states: sample_states.to_vec(),
-                view_states: view_states.to_vec(),
-                instance_states: instance_states.to_vec(),
-                reply_sender,
-            })?;
+            .send_actor_mail(DomainParticipantMail::Reader(
+                ReaderServiceMail::ReadNextInstance {
+                    subscriber_handle: self.subscriber.get_instance_handle().await,
+                    data_reader_handle: self.handle,
+                    max_samples,
+                    previous_handle,
+                    sample_states: sample_states.to_vec(),
+                    view_states: view_states.to_vec(),
+                    instance_states: instance_states.to_vec(),
+                    reply_sender,
+                },
+            ))?;
         let samples = reply_receiver.await??;
         Ok(samples
             .into_iter()
@@ -284,16 +287,18 @@ impl<Foo> DataReaderAsync<Foo> {
     ) -> DdsResult<Vec<Sample<Foo>>> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
-            .send_actor_mail(data_reader_service::TakeNextInstance {
-                subscriber_handle: self.subscriber.get_instance_handle().await,
-                data_reader_handle: self.handle,
-                max_samples,
-                previous_handle,
-                sample_states: sample_states.to_vec(),
-                view_states: view_states.to_vec(),
-                instance_states: instance_states.to_vec(),
-                reply_sender,
-            })?;
+            .send_actor_mail(DomainParticipantMail::Reader(
+                ReaderServiceMail::TakeNextInstance {
+                    subscriber_handle: self.subscriber.get_instance_handle().await,
+                    data_reader_handle: self.handle,
+                    max_samples,
+                    previous_handle,
+                    sample_states: sample_states.to_vec(),
+                    view_states: view_states.to_vec(),
+                    instance_states: instance_states.to_vec(),
+                    reply_sender,
+                },
+            ))?;
         let samples = reply_receiver.await??;
         Ok(samples
             .into_iter()
@@ -357,13 +362,14 @@ impl<Foo> DataReaderAsync<Foo> {
     #[tracing::instrument(skip(self))]
     pub async fn get_subscription_matched_status(&self) -> DdsResult<SubscriptionMatchedStatus> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant_address().send_actor_mail(
-            data_reader_service::GetSubscriptionMatchedStatus {
-                subscriber_handle: self.subscriber.get_instance_handle().await,
-                data_reader_handle: self.handle,
-                reply_sender,
-            },
-        )?;
+        self.participant_address()
+            .send_actor_mail(DomainParticipantMail::Reader(
+                ReaderServiceMail::GetSubscriptionMatchedStatus {
+                    subscriber_handle: self.subscriber.get_instance_handle().await,
+                    data_reader_handle: self.handle,
+                    reply_sender,
+                },
+            ))?;
         reply_receiver.await?
     }
 
@@ -384,13 +390,15 @@ impl<Foo> DataReaderAsync<Foo> {
     pub async fn wait_for_historical_data(&self, max_wait: Duration) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
-            .send_actor_mail(data_reader_service::WaitForHistoricalData {
-                participant_address: self.participant_address().clone(),
-                subscriber_handle: self.subscriber.get_instance_handle().await,
-                data_reader_handle: self.handle,
-                max_wait,
-                reply_sender,
-            })?;
+            .send_actor_mail(DomainParticipantMail::Reader(
+                ReaderServiceMail::WaitForHistoricalData {
+                    participant_address: self.participant_address().clone(),
+                    subscriber_handle: self.subscriber.get_instance_handle().await,
+                    data_reader_handle: self.handle,
+                    max_wait,
+                    reply_sender,
+                },
+            ))?;
         reply_receiver.await?.await
     }
 
@@ -401,14 +409,15 @@ impl<Foo> DataReaderAsync<Foo> {
         publication_handle: InstanceHandle,
     ) -> DdsResult<PublicationBuiltinTopicData> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant_address().send_actor_mail(
-            data_reader_service::GetMatchedPublicationData {
-                subscriber_handle: self.subscriber.get_instance_handle().await,
-                data_reader_handle: self.handle,
-                publication_handle,
-                reply_sender,
-            },
-        )?;
+        self.participant_address()
+            .send_actor_mail(DomainParticipantMail::Reader(
+                ReaderServiceMail::GetMatchedPublicationData {
+                    subscriber_handle: self.subscriber.get_instance_handle().await,
+                    data_reader_handle: self.handle,
+                    publication_handle,
+                    reply_sender,
+                },
+            ))?;
 
         reply_receiver.await?
     }
@@ -417,13 +426,14 @@ impl<Foo> DataReaderAsync<Foo> {
     #[tracing::instrument(skip(self))]
     pub async fn get_matched_publications(&self) -> DdsResult<Vec<InstanceHandle>> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant_address().send_actor_mail(
-            data_reader_service::GetMatchedPublications {
-                subscriber_handle: self.subscriber.get_instance_handle().await,
-                data_reader_handle: self.handle,
-                reply_sender,
-            },
-        )?;
+        self.participant_address()
+            .send_actor_mail(DomainParticipantMail::Reader(
+                ReaderServiceMail::GetMatchedPublications {
+                    subscriber_handle: self.subscriber.get_instance_handle().await,
+                    data_reader_handle: self.handle,
+                    reply_sender,
+                },
+            ))?;
         reply_receiver.await?
     }
 }
@@ -433,13 +443,12 @@ impl<Foo> DataReaderAsync<Foo> {
     pub async fn set_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
-            .send_actor_mail(data_reader_service::SetQos {
+            .send_actor_mail(DomainParticipantMail::Reader(ReaderServiceMail::SetQos {
                 subscriber_handle: self.subscriber.get_instance_handle().await,
                 data_reader_handle: self.handle,
                 qos,
-                participant_address: self.participant_address().clone(),
                 reply_sender,
-            })?;
+            }))?;
         reply_receiver.await?
     }
 
@@ -448,11 +457,11 @@ impl<Foo> DataReaderAsync<Foo> {
     pub async fn get_qos(&self) -> DdsResult<DataReaderQos> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
-            .send_actor_mail(data_reader_service::GetQos {
+            .send_actor_mail(DomainParticipantMail::Reader(ReaderServiceMail::GetQos {
                 subscriber_handle: self.subscriber.get_instance_handle().await,
                 data_reader_handle: self.handle,
                 reply_sender,
-            })?;
+            }))?;
         reply_receiver.await?
     }
 
@@ -471,13 +480,15 @@ impl<Foo> DataReaderAsync<Foo> {
     /// Async version of [`enable`](crate::subscription::data_reader::DataReader::enable).
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
+        let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
-            .send_actor_mail(data_reader_service::Enable {
+            .send_actor_mail(DomainParticipantMail::Reader(ReaderServiceMail::Enable {
                 subscriber_handle: self.subscriber.get_instance_handle().await,
                 data_reader_handle: self.handle,
                 participant_address: self.participant_address().clone(),
-            })?;
-        Ok(())
+                reply_sender,
+            }))?;
+        reply_receiver.await?
     }
 
     /// Async version of [`get_instance_handle`](crate::subscription::data_reader::DataReader::get_instance_handle).
@@ -501,13 +512,15 @@ where
         let (reply_sender, reply_receiver) = oneshot();
         let listener = a_listener.map::<Box<dyn AnyDataReaderListener>, _>(|l| Box::new(l));
         self.participant_address()
-            .send_actor_mail(data_reader_service::SetListener {
-                subscriber_handle: self.subscriber.get_instance_handle().await,
-                data_reader_handle: self.handle,
-                listener,
-                listener_mask: mask.to_vec(),
-                reply_sender,
-            })?;
+            .send_actor_mail(DomainParticipantMail::Reader(
+                ReaderServiceMail::SetListener {
+                    subscriber_handle: self.subscriber.get_instance_handle().await,
+                    data_reader_handle: self.handle,
+                    listener,
+                    listener_mask: mask.to_vec(),
+                    reply_sender,
+                },
+            ))?;
         reply_receiver.await?
     }
 }

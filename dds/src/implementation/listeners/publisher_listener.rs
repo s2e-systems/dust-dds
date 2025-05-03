@@ -16,40 +16,35 @@ impl PublisherListenerActor {
     }
 }
 
-pub struct TriggerOnPublicationMatched {
-    pub the_writer: DataWriterAsync<()>,
-    pub status: PublicationMatchedStatus,
-}
-impl MailHandler<TriggerOnPublicationMatched> for PublisherListenerActor {
-    fn handle(&mut self, message: TriggerOnPublicationMatched) {
-        block_on(
-            self.listener
-                .on_publication_matched(message.the_writer, message.status),
-        )
-    }
+pub enum PublisherListenerMail {
+    OnPublicationMatched {
+        the_writer: DataWriterAsync<()>,
+        status: PublicationMatchedStatus,
+    },
+    OfferedIncompatibleQos {
+        the_writer: DataWriterAsync<()>,
+        status: OfferedIncompatibleQosStatus,
+    },
+    OfferedDeadlineMissed {
+        the_writer: DataWriterAsync<()>,
+        status: OfferedDeadlineMissedStatus,
+    },
 }
 
-pub struct TriggerOfferedIncompatibleQos {
-    pub the_writer: DataWriterAsync<()>,
-    pub status: OfferedIncompatibleQosStatus,
-}
-impl MailHandler<TriggerOfferedIncompatibleQos> for PublisherListenerActor {
-    fn handle(&mut self, message: TriggerOfferedIncompatibleQos) {
-        block_on(
-            self.listener
-                .on_offered_incompatible_qos(message.the_writer, message.status),
-        )
-    }
-}
-pub struct TriggerOfferedDeadlineMissed {
-    pub the_writer: DataWriterAsync<()>,
-    pub status: OfferedDeadlineMissedStatus,
-}
-impl MailHandler<TriggerOfferedDeadlineMissed> for PublisherListenerActor {
-    fn handle(&mut self, message: TriggerOfferedDeadlineMissed) {
-        block_on(
-            self.listener
-                .on_offered_deadline_missed(message.the_writer, message.status),
-        )
+impl MailHandler for PublisherListenerActor {
+    type Mail = PublisherListenerMail;
+    async fn handle(&mut self, message: PublisherListenerMail) {
+        match message {
+            PublisherListenerMail::OnPublicationMatched { the_writer, status } => {
+                block_on(self.listener.on_publication_matched(the_writer, status))
+            }
+            PublisherListenerMail::OfferedIncompatibleQos { the_writer, status } => block_on(
+                self.listener
+                    .on_offered_incompatible_qos(the_writer, status),
+            ),
+            PublisherListenerMail::OfferedDeadlineMissed { the_writer, status } => {
+                block_on(self.listener.on_offered_deadline_missed(the_writer, status))
+            }
+        }
     }
 }

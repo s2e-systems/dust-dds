@@ -7,7 +7,8 @@ use crate::{
     implementation::{
         any_data_writer_listener::AnyDataWriterListener,
         domain_participant_backend::{
-            domain_participant_actor::DomainParticipantActor, services::publisher_service,
+            domain_participant_actor::DomainParticipantActor,
+            domain_participant_actor_mail::{DomainParticipantMail, PublisherServiceMail},
         },
         status_condition::status_condition_actor::StatusConditionActor,
     },
@@ -64,15 +65,17 @@ impl PublisherAsync {
         let listener = a_listener.map::<Box<dyn AnyDataWriterListener + Send>, _>(|b| Box::new(b));
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
-            .send_actor_mail(publisher_service::CreateDataWriter {
-                publisher_handle: self.handle,
-                topic_name,
-                qos,
-                a_listener: listener,
-                mask: mask.to_vec(),
-                participant_address: self.participant_address().clone(),
-                reply_sender,
-            })?;
+            .send_actor_mail(DomainParticipantMail::Publisher(
+                PublisherServiceMail::CreateDataWriter {
+                    publisher_handle: self.handle,
+                    topic_name,
+                    qos,
+                    a_listener: listener,
+                    mask: mask.to_vec(),
+                    participant_address: self.participant_address().clone(),
+                    reply_sender,
+                },
+            ))?;
         let (guid, writer_status_condition_address) = reply_receiver.await??;
 
         Ok(DataWriterAsync::new(
@@ -91,12 +94,13 @@ impl PublisherAsync {
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
-            .send_actor_mail(publisher_service::DeleteDataWriter {
-                publisher_handle: self.handle,
-                datawriter_handle: a_datawriter.get_instance_handle().await,
-                participant_address: self.participant_address().clone(),
-                reply_sender,
-            })?;
+            .send_actor_mail(DomainParticipantMail::Publisher(
+                PublisherServiceMail::DeleteDataWriter {
+                    publisher_handle: self.handle,
+                    datawriter_handle: a_datawriter.get_instance_handle().await,
+                    reply_sender,
+                },
+            ))?;
         reply_receiver.await?
     }
 
@@ -156,11 +160,13 @@ impl PublisherAsync {
     pub async fn set_default_datawriter_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
-            .send_actor_mail(publisher_service::SetDefaultDataWriterQos {
-                publisher_handle: self.handle,
-                qos,
-                reply_sender,
-            })?;
+            .send_actor_mail(DomainParticipantMail::Publisher(
+                PublisherServiceMail::SetDefaultDataWriterQos {
+                    publisher_handle: self.handle,
+                    qos,
+                    reply_sender,
+                },
+            ))?;
         reply_receiver.await?
     }
 
@@ -169,10 +175,12 @@ impl PublisherAsync {
     pub async fn get_default_datawriter_qos(&self) -> DdsResult<DataWriterQos> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
-            .send_actor_mail(publisher_service::GetDefaultDataWriterQos {
-                publisher_handle: self.handle,
-                reply_sender,
-            })?;
+            .send_actor_mail(DomainParticipantMail::Publisher(
+                PublisherServiceMail::GetDefaultDataWriterQos {
+                    publisher_handle: self.handle,
+                    reply_sender,
+                },
+            ))?;
         reply_receiver.await?
     }
 
@@ -193,11 +201,13 @@ impl PublisherAsync {
     pub async fn set_qos(&self, qos: QosKind<PublisherQos>) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
-            .send_actor_mail(publisher_service::SetQos {
-                publisher_handle: self.handle,
-                qos,
-                reply_sender,
-            })?;
+            .send_actor_mail(DomainParticipantMail::Publisher(
+                PublisherServiceMail::SetPublisherQos {
+                    publisher_handle: self.handle,
+                    qos,
+                    reply_sender,
+                },
+            ))?;
         reply_receiver.await?
     }
 
@@ -206,10 +216,12 @@ impl PublisherAsync {
     pub async fn get_qos(&self) -> DdsResult<PublisherQos> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
-            .send_actor_mail(publisher_service::GetQos {
-                publisher_handle: self.handle,
-                reply_sender,
-            })?;
+            .send_actor_mail(DomainParticipantMail::Publisher(
+                PublisherServiceMail::GetPublisherQos {
+                    publisher_handle: self.handle,
+                    reply_sender,
+                },
+            ))?;
         reply_receiver.await?
     }
 
@@ -222,12 +234,14 @@ impl PublisherAsync {
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
-            .send_actor_mail(publisher_service::SetListener {
-                publisher_handle: self.handle,
-                a_listener,
-                mask: mask.to_vec(),
-                reply_sender,
-            })?;
+            .send_actor_mail(DomainParticipantMail::Publisher(
+                PublisherServiceMail::SetPublisherListener {
+                    publisher_handle: self.handle,
+                    a_listener,
+                    mask: mask.to_vec(),
+                    reply_sender,
+                },
+            ))?;
         reply_receiver.await?
     }
 
