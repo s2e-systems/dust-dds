@@ -30,7 +30,6 @@ use crate::{
         topic_listener::TopicListenerAsync,
     },
     implementation::{
-        any_data_writer_listener::AnyDataWriterListener,
         data_representation_builtin_endpoints::{
             discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
             discovered_writer_data::{DiscoveredWriterData, WriterProxy},
@@ -49,7 +48,7 @@ use crate::{
         },
         listeners::{
             data_reader_listener::DataReaderListenerMail,
-            data_writer_listener::{DataWriterListenerActor, DataWriterListenerMail},
+            data_writer_listener::DataWriterListenerMail,
             domain_participant_listener::{
                 DomainParticipantListenerActor, DomainParticipantListenerMail,
             },
@@ -1059,7 +1058,7 @@ impl DomainParticipantActor {
         topic_name: String,
         qos: QosKind<DataWriterQos>,
         status_condition: Actor<StatusConditionActor>,
-        a_listener: Option<Box<dyn AnyDataWriterListener + Send>>,
+        listener_sender: Option<MpscSender<DataWriterListenerMail>>,
         mask: Vec<StatusKind>,
         participant_address: ActorAddress<DomainParticipantActor>,
     ) -> DdsResult<InstanceHandle> {
@@ -1108,12 +1107,6 @@ impl DomainParticipantActor {
             .transport
             .create_stateful_writer(entity_id, reliablity_kind);
 
-        let listener = a_listener.map(|l| {
-            Actor::spawn(
-                DataWriterListenerActor::new(l),
-                &self.listener_executor.handle(),
-            )
-        });
         let data_writer = DataWriterEntity::new(
             writer_handle,
             TransportWriterKind::Stateful(transport_writer),
@@ -1121,7 +1114,7 @@ impl DomainParticipantActor {
             type_name,
             type_support,
             status_condition,
-            listener,
+            listener_sender,
             mask,
             qos,
         );
@@ -1255,15 +1248,9 @@ impl DomainParticipantActor {
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        listener: Option<Box<dyn AnyDataWriterListener + Send>>,
+        listener_sender: Option<MpscSender<DataWriterListenerMail>>,
         listener_mask: Vec<StatusKind>,
     ) -> DdsResult<()> {
-        let listener = listener.map(|l| {
-            Actor::spawn(
-                DataWriterListenerActor::new(l),
-                &self.listener_executor.handle(),
-            )
-        });
         let Some(publisher) = self.domain_participant.get_mut_publisher(publisher_handle) else {
             return Ok(());
         };
@@ -1271,7 +1258,7 @@ impl DomainParticipantActor {
             return Ok(());
         };
 
-        data_writer.set_listener(listener, listener_mask);
+        data_writer.set_listener(listener_sender, listener_mask);
 
         Ok(())
     }
@@ -2465,10 +2452,11 @@ impl DomainParticipantActor {
                             return;
                         };
                         if let Some(l) = data_writer.listener() {
-                            l.send_actor_mail(DataWriterListenerMail::PublicationMatched {
+                            l.send(DataWriterListenerMail::PublicationMatched {
                                 the_writer,
                                 status,
-                            });
+                            })
+                            .ok();
                         }
                     } else if publisher
                         .listener_mask()
@@ -2571,10 +2559,11 @@ impl DomainParticipantActor {
                             return;
                         };
                         if let Some(l) = data_writer.listener() {
-                            l.send_actor_mail(DataWriterListenerMail::OfferedIncompatibleQos {
+                            l.send(DataWriterListenerMail::OfferedIncompatibleQos {
                                 the_writer,
                                 status,
-                            });
+                            })
+                            .ok();
                         }
                     } else if publisher
                         .listener_mask()
@@ -3677,10 +3666,8 @@ impl DomainParticipantActor {
             };
 
             if let Some(l) = data_writer.listener() {
-                l.send_actor_mail(DataWriterListenerMail::OfferedDeadlineMissed {
-                    the_writer,
-                    status,
-                });
+                l.send(DataWriterListenerMail::OfferedDeadlineMissed { the_writer, status })
+                    .ok();
             }
         } else if publisher
             .listener_mask()

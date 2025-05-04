@@ -13,8 +13,10 @@ use crate::{
         topic_listener::TopicListenerAsync,
     },
     implementation::{
-        any_data_writer_listener::AnyDataWriterListener,
-        listeners::data_reader_listener::DataReaderListenerMail,
+        listeners::{
+            data_reader_listener::DataReaderListenerMail,
+            data_writer_listener::DataWriterListenerMail,
+        },
         status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
@@ -199,7 +201,7 @@ pub enum PublisherServiceMail {
         topic_name: String,
         qos: QosKind<DataWriterQos>,
         status_condition: Actor<StatusConditionActor>,
-        a_listener: Option<Box<dyn AnyDataWriterListener + Send>>,
+        listener_sender: Option<MpscSender<DataWriterListenerMail>>,
         mask: Vec<StatusKind>,
         participant_address: ActorAddress<DomainParticipantActor>,
         reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
@@ -288,7 +290,7 @@ pub enum WriterServiceMail {
     SetListener {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        listener: Option<Box<dyn AnyDataWriterListener + Send>>,
+        listener_sender: Option<MpscSender<DataWriterListenerMail>>,
         listener_mask: Vec<StatusKind>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
@@ -742,7 +744,7 @@ impl DomainParticipantActor {
                 topic_name,
                 qos,
                 status_condition,
-                a_listener,
+                listener_sender,
                 mask,
                 participant_address,
                 reply_sender,
@@ -752,7 +754,7 @@ impl DomainParticipantActor {
                     topic_name,
                     qos,
                     status_condition,
-                    a_listener,
+                    listener_sender,
                     mask,
                     participant_address,
                 ));
@@ -794,13 +796,13 @@ impl DomainParticipantActor {
             WriterServiceMail::SetListener {
                 publisher_handle,
                 data_writer_handle,
-                listener,
+                listener_sender,
                 listener_mask,
                 reply_sender,
             } => reply_sender.send(self.set_listener_data_writer(
                 publisher_handle,
                 data_writer_handle,
-                listener,
+                listener_sender,
                 listener_mask,
             )),
             WriterServiceMail::GetDataWriterQos {

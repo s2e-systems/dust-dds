@@ -5,11 +5,11 @@ use super::{
 };
 use crate::{
     implementation::{
-        any_data_writer_listener::AnyDataWriterListener,
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor,
             domain_participant_actor_mail::{DomainParticipantMail, PublisherServiceMail},
         },
+        listeners::data_writer_listener::DataWriterListenerActor,
         status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
@@ -70,7 +70,8 @@ impl PublisherAsync {
             &self.participant.executor_handle(),
         );
         let writer_status_condition_address = status_condition.address();
-        let listener = a_listener.map::<Box<dyn AnyDataWriterListener + Send>, _>(|b| Box::new(b));
+        let listener_sender = a_listener
+            .map(|l| DataWriterListenerActor::spawn(l, self.participant.executor_handle()));
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
             .send_actor_mail(DomainParticipantMail::Publisher(
@@ -79,7 +80,7 @@ impl PublisherAsync {
                     topic_name,
                     qos,
                     status_condition,
-                    a_listener: listener,
+                    listener_sender,
                     mask: mask.to_vec(),
                     participant_address: self.participant_address().clone(),
                     reply_sender,
