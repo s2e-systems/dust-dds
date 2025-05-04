@@ -9,13 +9,13 @@ use crate::{
     },
     dds_async::{
         domain_participant_listener::DomainParticipantListenerAsync,
-        publisher_listener::PublisherListenerAsync, subscriber_listener::SubscriberListenerAsync,
-        topic_listener::TopicListenerAsync,
+        subscriber_listener::SubscriberListenerAsync, topic_listener::TopicListenerAsync,
     },
     implementation::{
         listeners::{
             data_reader_listener::DataReaderListenerMail,
             data_writer_listener::DataWriterListenerMail,
+            publisher_listener::PublisherListenerMail,
         },
         status_condition::status_condition_actor::StatusConditionActor,
     },
@@ -46,7 +46,7 @@ pub enum ParticipantServiceMail {
     CreateUserDefinedPublisher {
         qos: QosKind<PublisherQos>,
         status_condition: Actor<StatusConditionActor>,
-        a_listener: Option<Box<dyn PublisherListenerAsync + Send>>,
+        listener_sender: Option<MpscSender<PublisherListenerMail>>,
         mask: Vec<StatusKind>,
         reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
     },
@@ -231,7 +231,7 @@ pub enum PublisherServiceMail {
     },
     SetPublisherListener {
         publisher_handle: InstanceHandle,
-        a_listener: Option<Box<dyn PublisherListenerAsync + Send>>,
+        listener_sender: Option<MpscSender<PublisherListenerMail>>,
         mask: Vec<StatusKind>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
@@ -574,13 +574,13 @@ impl DomainParticipantActor {
             ParticipantServiceMail::CreateUserDefinedPublisher {
                 qos,
                 status_condition,
-                a_listener,
+                listener_sender,
                 mask,
                 reply_sender,
             } => reply_sender.send(self.create_user_defined_publisher(
                 qos,
                 status_condition,
-                a_listener,
+                listener_sender,
                 mask,
             )),
             ParticipantServiceMail::DeleteUserDefinedPublisher {
@@ -784,10 +784,14 @@ impl DomainParticipantActor {
             } => reply_sender.send(self.set_publisher_qos(publisher_handle, qos)),
             PublisherServiceMail::SetPublisherListener {
                 publisher_handle,
-                a_listener,
+                listener_sender,
                 mask,
                 reply_sender,
-            } => reply_sender.send(self.set_publisher_listener(publisher_handle, a_listener, mask)),
+            } => reply_sender.send(self.set_publisher_listener(
+                publisher_handle,
+                listener_sender,
+                mask,
+            )),
         }
     }
 

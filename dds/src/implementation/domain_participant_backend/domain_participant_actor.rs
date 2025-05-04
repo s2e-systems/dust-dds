@@ -25,9 +25,8 @@ use crate::{
         data_reader::DataReaderAsync, data_writer::DataWriterAsync,
         domain_participant::DomainParticipantAsync,
         domain_participant_listener::DomainParticipantListenerAsync, publisher::PublisherAsync,
-        publisher_listener::PublisherListenerAsync, subscriber::SubscriberAsync,
-        subscriber_listener::SubscriberListenerAsync, topic::TopicAsync,
-        topic_listener::TopicListenerAsync,
+        subscriber::SubscriberAsync, subscriber_listener::SubscriberListenerAsync,
+        topic::TopicAsync, topic_listener::TopicListenerAsync,
     },
     implementation::{
         data_representation_builtin_endpoints::{
@@ -52,7 +51,7 @@ use crate::{
             domain_participant_listener::{
                 DomainParticipantListenerActor, DomainParticipantListenerMail,
             },
-            publisher_listener::{PublisherListenerActor, PublisherListenerMail},
+            publisher_listener::PublisherListenerMail,
             subscriber_listener::{SubscriberListenerActor, SubscriberListenerMail},
             topic_listener::TopicListenerActor,
         },
@@ -314,7 +313,7 @@ impl DomainParticipantActor {
         &mut self,
         qos: QosKind<PublisherQos>,
         status_condition: Actor<StatusConditionActor>,
-        a_listener: Option<Box<dyn PublisherListenerAsync + Send>>,
+        listener_sender: Option<MpscSender<PublisherListenerMail>>,
         mask: Vec<StatusKind>,
     ) -> DdsResult<InstanceHandle> {
         let publisher_qos = match qos {
@@ -324,16 +323,10 @@ impl DomainParticipantActor {
 
         let publisher_handle = self.instance_handle_counter.generate_new_instance_handle();
 
-        let listener = a_listener.map(|l| {
-            Actor::spawn(
-                PublisherListenerActor::new(l),
-                &self.listener_executor.handle(),
-            )
-        });
         let mut publisher = PublisherEntity::new(
             publisher_qos,
             publisher_handle,
-            listener,
+            listener_sender,
             mask,
             status_condition,
         );
@@ -1201,21 +1194,13 @@ impl DomainParticipantActor {
     pub fn set_publisher_listener(
         &mut self,
         publisher_handle: InstanceHandle,
-        a_listener: Option<Box<dyn PublisherListenerAsync + Send>>,
+        listener_sender: Option<MpscSender<PublisherListenerMail>>,
         mask: Vec<StatusKind>,
     ) -> DdsResult<()> {
         let Some(publisher) = self.domain_participant.get_mut_publisher(publisher_handle) else {
             return Err(DdsError::AlreadyDeleted);
         };
-        publisher.set_listener(
-            a_listener.map(|l| {
-                Actor::spawn(
-                    PublisherListenerActor::new(l),
-                    &self.listener_executor.handle(),
-                )
-            }),
-            mask,
-        );
+        publisher.set_listener(listener_sender, mask);
         Ok(())
     }
 
@@ -2480,10 +2465,11 @@ impl DomainParticipantActor {
                         };
                         let status = data_writer.get_publication_matched_status();
                         if let Some(l) = publisher.listener() {
-                            l.send_actor_mail(PublisherListenerMail::OnPublicationMatched {
+                            l.send(PublisherListenerMail::OnPublicationMatched {
                                 the_writer,
                                 status,
-                            });
+                            })
+                            .ok();
                         }
                     } else if self
                         .domain_participant
@@ -2587,10 +2573,11 @@ impl DomainParticipantActor {
                         };
                         let status = data_writer.get_offered_incompatible_qos_status();
                         if let Some(l) = publisher.listener() {
-                            l.send_actor_mail(PublisherListenerMail::OfferedIncompatibleQos {
+                            l.send(PublisherListenerMail::OfferedIncompatibleQos {
                                 the_writer,
                                 status,
-                            });
+                            })
+                            .ok();
                         }
                     } else if self
                         .domain_participant
@@ -3689,10 +3676,8 @@ impl DomainParticipantActor {
             };
             let status = data_writer.get_offered_deadline_missed_status();
             if let Some(l) = publisher.listener() {
-                l.send_actor_mail(PublisherListenerMail::OfferedDeadlineMissed {
-                    the_writer,
-                    status,
-                });
+                l.send(PublisherListenerMail::OfferedDeadlineMissed { the_writer, status })
+                    .ok();
             }
         } else if self
             .domain_participant
