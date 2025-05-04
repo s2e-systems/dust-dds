@@ -30,8 +30,7 @@ use crate::{
 /// a constructor by passing a handle to a [`Tokio`](https://crates.io/crates/tokio) runtime. This allows the factory
 /// to spin tasks on an existing runtime which can be shared with other things outside Dust DDS.
 pub struct DomainParticipantFactoryAsync {
-    executor: Executor,
-    timer_driver: TimerDriver,
+    _executor: Executor,
     domain_participant_factory_actor: Actor<DomainParticipantFactoryActor>,
 }
 
@@ -44,9 +43,13 @@ impl DomainParticipantFactoryAsync {
         a_listener: Option<Box<dyn DomainParticipantListenerAsync + Send + 'static>>,
         mask: &[StatusKind],
     ) -> DdsResult<DomainParticipantAsync> {
+        let executor = Executor::new();
+        let timer_driver = TimerDriver::new();
+        let timer_handle = timer_driver.handle();
+        let executor_handle = executor.handle();
         let status_kind = mask.to_vec();
         let listener_sender =
-            a_listener.map(|l| DomainParticipantListenerActor::spawn(l, &self.executor.handle()));
+            a_listener.map(|l| DomainParticipantListenerActor::spawn(l, &executor.handle()));
         let (reply_sender, reply_receiver) = oneshot();
         self.domain_participant_factory_actor.send_actor_mail(
             DomainParticipantFactoryMail::CreateParticipant {
@@ -54,8 +57,9 @@ impl DomainParticipantFactoryAsync {
                 qos,
                 listener_sender,
                 status_kind,
-                executor_handle: self.executor.handle(),
                 reply_sender,
+                executor,
+                timer_driver,
             },
         );
 
@@ -72,8 +76,8 @@ impl DomainParticipantFactoryAsync {
             builtin_subscriber_status_condition_address,
             domain_id,
             participant_handle,
-            self.timer_driver.handle(),
-            self.executor.handle(),
+            timer_handle,
+            executor_handle,
         );
 
         Ok(domain_participant)
@@ -118,13 +122,11 @@ impl DomainParticipantFactoryAsync {
         static PARTICIPANT_FACTORY_ASYNC: OnceLock<DomainParticipantFactoryAsync> = OnceLock::new();
         PARTICIPANT_FACTORY_ASYNC.get_or_init(|| {
             let executor = Executor::new();
-            let timer_driver = TimerDriver::new();
             let domain_participant_factory_actor =
                 Actor::spawn(DomainParticipantFactoryActor::new(), &executor.handle());
             Self {
-                executor,
+                _executor: executor,
                 domain_participant_factory_actor,
-                timer_driver,
             }
         })
     }

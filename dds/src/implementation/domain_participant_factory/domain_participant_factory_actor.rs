@@ -45,7 +45,7 @@ use crate::{
     rtps_udp_transport::udp_transport::RtpsUdpTransportParticipantFactory,
     runtime::{
         actor::{Actor, ActorAddress, ActorBuilder, MailHandler},
-        executor::{Executor, ExecutorHandle},
+        executor::Executor,
         mpsc::MpscSender,
         oneshot::{oneshot, OneshotSender},
         timer::TimerDriver,
@@ -187,17 +187,15 @@ impl DomainParticipantFactoryActor {
         qos: QosKind<DomainParticipantQos>,
         listener_sender: Option<MpscSender<DomainParticipantListenerMail>>,
         status_kind: Vec<StatusKind>,
-        executor_handle: ExecutorHandle,
+        executor: Executor,
+        timer_driver: TimerDriver,
     ) -> DdsResult<(
         ActorAddress<DomainParticipantActor>,
         InstanceHandle,
         ActorAddress<StatusConditionActor>,
         ActorAddress<StatusConditionActor>,
     )> {
-        let backend_executor = Executor::new();
-        let backend_executor_handle = backend_executor.handle();
-
-        let timer_driver = TimerDriver::new();
+        let executor_handle = executor.handle();
         let timer_handle = timer_driver.handle();
 
         let domain_participant_qos = match qos {
@@ -519,7 +517,7 @@ impl DomainParticipantFactoryActor {
         let domain_participant_actor = DomainParticipantActor::new(
             domain_participant,
             transport,
-            backend_executor,
+            executor,
             timer_driver,
             instance_handle_counter,
         );
@@ -538,7 +536,7 @@ impl DomainParticipantFactoryActor {
             .address();
 
         let participant_actor =
-            participant_actor_builder.build(domain_participant_actor, &backend_executor_handle);
+            participant_actor_builder.build(domain_participant_actor, &executor_handle);
 
         //****** Spawn the participant actor and tasks **********//
 
@@ -547,7 +545,7 @@ impl DomainParticipantFactoryActor {
         let participant_announcement_interval =
             self.configuration.participant_announcement_interval();
 
-        backend_executor_handle.spawn(async move {
+        executor_handle.spawn(async move {
             while participant_address
                 .send_actor_mail(DomainParticipantMail::Discovery(
                     DiscoveryServiceMail::AnnounceParticipant,
@@ -640,7 +638,8 @@ pub enum DomainParticipantFactoryMail {
         qos: QosKind<DomainParticipantQos>,
         listener_sender: Option<MpscSender<DomainParticipantListenerMail>>,
         status_kind: Vec<StatusKind>,
-        executor_handle: ExecutorHandle,
+        executor: Executor,
+        timer_driver: TimerDriver,
         #[allow(clippy::type_complexity)]
         reply_sender: OneshotSender<
             DdsResult<(
@@ -690,14 +689,16 @@ impl MailHandler for DomainParticipantFactoryActor {
                 qos,
                 listener_sender,
                 status_kind,
-                executor_handle,
+                executor,
+                timer_driver,
                 reply_sender,
             } => reply_sender.send(self.create_participant(
                 domain_id,
                 qos,
                 listener_sender,
                 status_kind,
-                executor_handle,
+                executor,
+                timer_driver,
             )),
             DomainParticipantFactoryMail::DeleteParticipant {
                 handle,
