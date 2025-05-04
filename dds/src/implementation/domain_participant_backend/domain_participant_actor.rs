@@ -25,8 +25,7 @@ use crate::{
         data_reader::DataReaderAsync, data_writer::DataWriterAsync,
         domain_participant::DomainParticipantAsync,
         domain_participant_listener::DomainParticipantListenerAsync, publisher::PublisherAsync,
-        subscriber::SubscriberAsync, subscriber_listener::SubscriberListenerAsync,
-        topic::TopicAsync, topic_listener::TopicListenerAsync,
+        subscriber::SubscriberAsync, topic::TopicAsync, topic_listener::TopicListenerAsync,
     },
     implementation::{
         data_representation_builtin_endpoints::{
@@ -52,7 +51,7 @@ use crate::{
                 DomainParticipantListenerActor, DomainParticipantListenerMail,
             },
             publisher_listener::PublisherListenerMail,
-            subscriber_listener::{SubscriberListenerActor, SubscriberListenerMail},
+            subscriber_listener::SubscriberListenerMail,
             topic_listener::TopicListenerActor,
         },
         status_condition::status_condition_actor::{StatusConditionActor, StatusConditionMail},
@@ -376,7 +375,7 @@ impl DomainParticipantActor {
         &mut self,
         qos: QosKind<SubscriberQos>,
         status_condition: Actor<StatusConditionActor>,
-        a_listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
+        listener_sender: Option<MpscSender<SubscriberListenerMail>>,
         mask: Vec<StatusKind>,
     ) -> DdsResult<InstanceHandle> {
         let subscriber_qos = match qos {
@@ -384,19 +383,14 @@ impl DomainParticipantActor {
             QosKind::Specific(q) => q,
         };
         let subscriber_handle = self.instance_handle_counter.generate_new_instance_handle();
-        let listener = a_listener.map(|l| {
-            Actor::spawn(
-                SubscriberListenerActor::new(l),
-                &self.listener_executor.handle(),
-            )
-        });
+
         let listener_mask = mask.to_vec();
 
         let mut subscriber = SubscriberEntity::new(
             subscriber_handle,
             subscriber_qos,
             status_condition,
-            listener,
+            listener_sender,
             listener_mask,
         );
 
@@ -1025,15 +1019,9 @@ impl DomainParticipantActor {
     pub fn set_subscriber_listener(
         &mut self,
         subscriber_handle: InstanceHandle,
-        a_listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
+        listener_sender: Option<MpscSender<SubscriberListenerMail>>,
         mask: Vec<StatusKind>,
     ) -> DdsResult<()> {
-        let listener = a_listener.map(|l| {
-            Actor::spawn(
-                SubscriberListenerActor::new(l),
-                &self.listener_executor.handle(),
-            )
-        });
         let Some(subscriber) = self
             .domain_participant
             .get_mut_subscriber(subscriber_handle)
@@ -1041,7 +1029,7 @@ impl DomainParticipantActor {
             return Err(DdsError::AlreadyDeleted);
         };
 
-        subscriber.set_listener(listener, mask);
+        subscriber.set_listener(listener_sender, mask);
         Ok(())
     }
 
@@ -2854,10 +2842,11 @@ impl DomainParticipantActor {
                         };
                         let status = data_reader.get_subscription_matched_status();
                         if let Some(l) = subscriber.listener() {
-                            l.send_actor_mail(SubscriberListenerMail::SubscriptionMatched {
+                            l.send(SubscriberListenerMail::SubscriptionMatched {
                                 the_reader,
                                 status,
-                            });
+                            })
+                            .ok();
                         }
                     } else if self
                         .domain_participant
@@ -2965,10 +2954,11 @@ impl DomainParticipantActor {
                         };
                         let status = data_reader.get_requested_incompatible_qos_status();
                         if let Some(l) = subscriber.listener() {
-                            l.send_actor_mail(SubscriberListenerMail::RequestedIncompatibleQos {
+                            l.send(SubscriberListenerMail::RequestedIncompatibleQos {
                                 the_reader,
                                 status,
-                            });
+                            })
+                            .ok();
                         }
                     } else if self
                         .domain_participant
@@ -3434,9 +3424,8 @@ impl DomainParticipantActor {
                         };
 
                         if let Some(l) = subscriber.listener() {
-                            l.send_actor_mail(SubscriberListenerMail::DataOnReaders {
-                                the_subscriber,
-                            });
+                            l.send(SubscriberListenerMail::DataOnReaders { the_subscriber })
+                                .ok();
                         }
                     } else if deta_reader_on_data_available_active {
                         let Ok(the_reader) = self.get_data_reader_async(
@@ -3543,10 +3532,8 @@ impl DomainParticipantActor {
                         };
                         let status = data_reader.get_sample_rejected_status();
                         if let Some(l) = subscriber.listener() {
-                            l.send_actor_mail(SubscriberListenerMail::SampleRejected {
-                                status,
-                                the_reader,
-                            });
+                            l.send(SubscriberListenerMail::SampleRejected { status, the_reader })
+                                .ok();
                         }
                     } else if self
                         .domain_participant
@@ -3788,10 +3775,8 @@ impl DomainParticipantActor {
             };
             let status = data_reader.get_requested_deadline_missed_status();
             if let Some(l) = subscriber.listener() {
-                l.send_actor_mail(SubscriberListenerMail::RequestedDeadlineMissed {
-                    status,
-                    the_reader,
-                });
+                l.send(SubscriberListenerMail::RequestedDeadlineMissed { status, the_reader })
+                    .ok();
             }
         } else if self
             .domain_participant

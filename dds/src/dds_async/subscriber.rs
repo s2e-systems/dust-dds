@@ -9,7 +9,10 @@ use crate::{
             domain_participant_actor::DomainParticipantActor,
             domain_participant_actor_mail::{DomainParticipantMail, SubscriberServiceMail},
         },
-        listeners::data_reader_listener::DataReaderListenerActor,
+        listeners::{
+            data_reader_listener::DataReaderListenerActor,
+            subscriber_listener::SubscriberListenerActor,
+        },
         status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
@@ -243,11 +246,13 @@ impl SubscriberAsync {
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
+        let listener_sender = a_listener
+            .map(|l| SubscriberListenerActor::spawn(l, self.participant.executor_handle()));
         self.participant_address()
             .send_actor_mail(DomainParticipantMail::Subscriber(
                 SubscriberServiceMail::SetListener {
                     subscriber_handle: self.handle,
-                    a_listener,
+                    listener_sender,
                     mask: mask.to_vec(),
                     reply_sender,
                 },

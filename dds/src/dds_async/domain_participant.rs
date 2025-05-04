@@ -12,7 +12,10 @@ use crate::{
             domain_participant_actor::DomainParticipantActor,
             domain_participant_actor_mail::{DomainParticipantMail, ParticipantServiceMail},
         },
-        listeners::publisher_listener::PublisherListenerActor,
+        listeners::{
+            publisher_listener::PublisherListenerActor,
+            subscriber_listener::SubscriberListenerActor,
+        },
         status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
@@ -131,12 +134,14 @@ impl DomainParticipantAsync {
         let (reply_sender, reply_receiver) = oneshot();
         let status_condition = Actor::spawn(StatusConditionActor::default(), &self.executor_handle);
         let subscriber_status_condition_address = status_condition.address();
+        let listener_sender =
+            a_listener.map(|l| SubscriberListenerActor::spawn(l, self.executor_handle()));
         self.participant_address
             .send_actor_mail(DomainParticipantMail::Participant(
                 ParticipantServiceMail::CreateUserDefinedSubscriber {
                     qos,
                     status_condition,
-                    a_listener,
+                    listener_sender,
                     mask: mask.to_vec(),
                     reply_sender,
                 },

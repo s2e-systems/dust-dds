@@ -1,6 +1,6 @@
 use crate::{
     implementation::{
-        listeners::subscriber_listener::SubscriberListenerActor,
+        listeners::subscriber_listener::SubscriberListenerMail,
         status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
@@ -9,7 +9,7 @@ use crate::{
         qos::{DataReaderQos, SubscriberQos},
         status::StatusKind,
     },
-    runtime::actor::Actor,
+    runtime::{actor::Actor, mpsc::MpscSender},
 };
 
 use super::data_reader::DataReaderEntity;
@@ -21,7 +21,7 @@ pub struct SubscriberEntity {
     enabled: bool,
     default_data_reader_qos: DataReaderQos,
     status_condition: Actor<StatusConditionActor>,
-    listener: Option<Actor<SubscriberListenerActor>>,
+    listener_sender: Option<MpscSender<SubscriberListenerMail>>,
     listener_mask: Vec<StatusKind>,
 }
 
@@ -30,7 +30,7 @@ impl SubscriberEntity {
         instance_handle: InstanceHandle,
         qos: SubscriberQos,
         status_condition: Actor<StatusConditionActor>,
-        listener: Option<Actor<SubscriberListenerActor>>,
+        listener_sender: Option<MpscSender<SubscriberListenerMail>>,
         listener_mask: Vec<StatusKind>,
     ) -> Self {
         Self {
@@ -40,7 +40,7 @@ impl SubscriberEntity {
             enabled: false,
             default_data_reader_qos: DataReaderQos::default(),
             status_condition,
-            listener,
+            listener_sender,
             listener_mask,
         }
     }
@@ -120,10 +120,10 @@ impl SubscriberEntity {
 
     pub fn set_listener(
         &mut self,
-        a_listener: Option<Actor<SubscriberListenerActor>>,
+        listener_sender: Option<MpscSender<SubscriberListenerMail>>,
         listener_mask: Vec<StatusKind>,
     ) {
-        self.listener = a_listener;
+        self.listener_sender = listener_sender;
         self.listener_mask = listener_mask;
     }
 
@@ -131,8 +131,8 @@ impl SubscriberEntity {
         &self.status_condition
     }
 
-    pub fn listener(&self) -> Option<&Actor<SubscriberListenerActor>> {
-        self.listener.as_ref()
+    pub fn listener(&self) -> Option<MpscSender<SubscriberListenerMail>> {
+        self.listener_sender.clone()
     }
 
     pub fn listener_mask(&self) -> &[StatusKind] {

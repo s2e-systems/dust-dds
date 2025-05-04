@@ -9,13 +9,13 @@ use crate::{
     },
     dds_async::{
         domain_participant_listener::DomainParticipantListenerAsync,
-        subscriber_listener::SubscriberListenerAsync, topic_listener::TopicListenerAsync,
+        topic_listener::TopicListenerAsync,
     },
     implementation::{
         listeners::{
             data_reader_listener::DataReaderListenerMail,
             data_writer_listener::DataWriterListenerMail,
-            publisher_listener::PublisherListenerMail,
+            publisher_listener::PublisherListenerMail, subscriber_listener::SubscriberListenerMail,
         },
         status_condition::status_condition_actor::StatusConditionActor,
     },
@@ -58,7 +58,7 @@ pub enum ParticipantServiceMail {
     CreateUserDefinedSubscriber {
         qos: QosKind<SubscriberQos>,
         status_condition: Actor<StatusConditionActor>,
-        a_listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
+        listener_sender: Option<MpscSender<SubscriberListenerMail>>,
         mask: Vec<StatusKind>,
         reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
     },
@@ -280,7 +280,7 @@ pub enum SubscriberServiceMail {
     },
     SetListener {
         subscriber_handle: InstanceHandle,
-        a_listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
+        listener_sender: Option<MpscSender<SubscriberListenerMail>>,
         mask: Vec<StatusKind>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
@@ -594,13 +594,13 @@ impl DomainParticipantActor {
             ParticipantServiceMail::CreateUserDefinedSubscriber {
                 qos,
                 status_condition,
-                a_listener,
+                listener_sender,
                 mask,
                 reply_sender,
             } => reply_sender.send(self.create_user_defined_subscriber(
                 qos,
                 status_condition,
-                a_listener,
+                listener_sender,
                 mask,
             )),
             ParticipantServiceMail::DeleteUserDefinedSubscriber {
@@ -976,12 +976,14 @@ impl DomainParticipantActor {
             } => reply_sender.send(self.get_subscriber_qos(subscriber_handle)),
             SubscriberServiceMail::SetListener {
                 subscriber_handle,
-                a_listener,
+                listener_sender,
                 mask,
                 reply_sender,
-            } => {
-                reply_sender.send(self.set_subscriber_listener(subscriber_handle, a_listener, mask))
-            }
+            } => reply_sender.send(self.set_subscriber_listener(
+                subscriber_handle,
+                listener_sender,
+                mask,
+            )),
         }
     }
 
