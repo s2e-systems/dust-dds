@@ -68,7 +68,7 @@ impl SubscriberAsync {
     {
         let status_condition = Actor::spawn(
             StatusConditionActor::default(),
-            &self.participant.executor_handle(),
+            self.participant.executor_handle(),
         );
         let reader_status_condition_address = status_condition.address();
         let listener_sender = a_listener

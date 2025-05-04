@@ -429,6 +429,7 @@ impl DomainParticipantActor {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn create_topic(
         &mut self,
         topic_name: String,
@@ -763,6 +764,7 @@ impl DomainParticipantActor {
         self.domain_participant.is_empty()
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn create_data_reader(
         &mut self,
         subscriber_handle: InstanceHandle,
@@ -1014,6 +1016,7 @@ impl DomainParticipantActor {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn create_data_writer(
         &mut self,
         publisher_handle: InstanceHandle,

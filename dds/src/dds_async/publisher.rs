@@ -70,7 +70,7 @@ impl PublisherAsync {
         let topic_name = a_topic.get_name();
         let status_condition = Actor::spawn(
             StatusConditionActor::default(),
-            &self.participant.executor_handle(),
+            self.participant.executor_handle(),
         );
         let writer_status_condition_address = status_condition.address();
         let listener_sender = a_listener

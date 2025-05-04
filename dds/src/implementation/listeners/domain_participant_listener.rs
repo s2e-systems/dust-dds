@@ -17,7 +17,7 @@ use crate::{
 pub struct DomainParticipantListenerActor;
 
 impl DomainParticipantListenerActor {
-    pub fn spawn<'a>(
+    pub fn spawn(
         mut listener: Box<dyn DomainParticipantListenerAsync + Send>,
         executor_handle: &ExecutorHandle,
     ) -> MpscSender<DomainParticipantListenerMail> {

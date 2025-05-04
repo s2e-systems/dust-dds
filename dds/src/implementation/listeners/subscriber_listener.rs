@@ -16,7 +16,7 @@ use crate::{
 pub struct SubscriberListenerActor;
 
 impl SubscriberListenerActor {
-    pub fn spawn<'a>(
+    pub fn spawn(
         mut listener: Box<dyn SubscriberListenerAsync + Send>,
         executor_handle: &ExecutorHandle,
     ) -> MpscSender<SubscriberListenerMail> {

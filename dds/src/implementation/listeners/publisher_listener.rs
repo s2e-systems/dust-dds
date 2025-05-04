@@ -12,7 +12,7 @@ use crate::{
 pub struct PublisherListenerActor;
 
 impl PublisherListenerActor {
-    pub fn spawn<'a>(
+    pub fn spawn(
         mut listener: Box<dyn PublisherListenerAsync + Send>,
         executor_handle: &ExecutorHandle,
     ) -> MpscSender<PublisherListenerMail> {

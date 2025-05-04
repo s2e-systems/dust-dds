@@ -11,7 +11,7 @@ pub struct TopicListenerActor {
 }
 
 impl TopicListenerActor {
-    pub fn spawn<'a>(
+    pub fn spawn(
         _listener: Box<dyn TopicListenerAsync + Send>,
         executor_handle: &ExecutorHandle,
     ) -> MpscSender<TopicListenerActorMail> {
