@@ -7,11 +7,11 @@ use super::{
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     implementation::{
-        any_data_reader_listener::AnyDataReaderListener,
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor,
             domain_participant_actor_mail::{DomainParticipantMail, ReaderServiceMail},
         },
+        listeners::data_reader_listener::DataReaderListenerActor,
         status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
@@ -510,13 +510,18 @@ where
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
-        let listener = a_listener.map::<Box<dyn AnyDataReaderListener>, _>(|l| Box::new(l));
+        let listener_sender = a_listener.map(|l| {
+            DataReaderListenerActor::spawn(
+                l,
+                self.get_subscriber().get_participant().executor_handle(),
+            )
+        });
         self.participant_address()
             .send_actor_mail(DomainParticipantMail::Reader(
                 ReaderServiceMail::SetListener {
                     subscriber_handle: self.subscriber.get_instance_handle().await,
                     data_reader_handle: self.handle,
-                    listener,
+                    listener_sender,
                     listener_mask: mask.to_vec(),
                     reply_sender,
                 },

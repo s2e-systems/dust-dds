@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     implementation::{
-        listeners::data_reader_listener::DataReaderListenerActor,
+        listeners::data_reader_listener::DataReaderListenerMail,
         status_condition::status_condition_actor::{StatusConditionActor, StatusConditionMail},
         xtypes_glue::key_and_instance_handle::{
             get_instance_handle_from_serialized_foo, get_instance_handle_from_serialized_key,
@@ -24,7 +24,7 @@ use crate::{
         },
         time::{DurationKind, Time},
     },
-    runtime::{actor::Actor, executor::TaskHandle},
+    runtime::{actor::Actor, executor::TaskHandle, mpsc::MpscSender},
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     transport::{
         history_cache::CacheChange,
@@ -151,7 +151,7 @@ pub struct DataReaderEntity {
     data_available_status_changed_flag: bool,
     incompatible_writer_list: Vec<InstanceHandle>,
     status_condition: Actor<StatusConditionActor>,
-    listener: Option<Actor<DataReaderListenerActor>>,
+    listener_sender: Option<MpscSender<DataReaderListenerMail>>,
     listener_mask: Vec<StatusKind>,
     instances: HashMap<InstanceHandle, InstanceState>,
     instance_deadline_missed_task: HashMap<InstanceHandle, TaskHandle>,
@@ -168,7 +168,7 @@ impl DataReaderEntity {
         type_name: String,
         type_support: Arc<dyn DynamicType + Send + Sync>,
         status_condition: Actor<StatusConditionActor>,
-        listener: Option<Actor<DataReaderListenerActor>>,
+        listener_sender: Option<MpscSender<DataReaderListenerMail>>,
         listener_mask: Vec<StatusKind>,
         transport_reader: TransportReaderKind,
     ) -> Self {
@@ -190,7 +190,7 @@ impl DataReaderEntity {
             data_available_status_changed_flag: false,
             incompatible_writer_list: Vec::new(),
             status_condition,
-            listener,
+            listener_sender,
             listener_mask,
             instances: HashMap::new(),
             instance_deadline_missed_task: HashMap::new(),
@@ -929,8 +929,8 @@ impl DataReaderEntity {
             .insert(instance_handle, task);
     }
 
-    pub fn listener(&self) -> Option<&Actor<DataReaderListenerActor>> {
-        self.listener.as_ref()
+    pub fn listener(&self) -> Option<MpscSender<DataReaderListenerMail>> {
+        self.listener_sender.clone()
     }
 
     pub fn listener_mask(&self) -> &[StatusKind] {
@@ -939,10 +939,10 @@ impl DataReaderEntity {
 
     pub fn set_listener(
         &mut self,
-        listener: Option<Actor<DataReaderListenerActor>>,
+        listener_sender: Option<MpscSender<DataReaderListenerMail>>,
         listener_mask: Vec<StatusKind>,
     ) {
-        self.listener = listener;
+        self.listener_sender = listener_sender;
         self.listener_mask = listener_mask;
     }
 }

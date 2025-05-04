@@ -13,8 +13,8 @@ use crate::{
         topic_listener::TopicListenerAsync,
     },
     implementation::{
-        any_data_reader_listener::AnyDataReaderListener,
         any_data_writer_listener::AnyDataWriterListener,
+        listeners::data_reader_listener::DataReaderListenerMail,
         status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
@@ -32,6 +32,7 @@ use crate::{
     },
     runtime::{
         actor::{Actor, ActorAddress, MailHandler},
+        mpsc::MpscSender,
         oneshot::OneshotSender,
     },
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
@@ -240,7 +241,7 @@ pub enum SubscriberServiceMail {
         topic_name: String,
         qos: QosKind<DataReaderQos>,
         status_condition: Actor<StatusConditionActor>,
-        a_listener: Option<Box<dyn AnyDataReaderListener>>,
+        listener_sender: Option<MpscSender<DataReaderListenerMail>>,
         mask: Vec<StatusKind>,
         domain_participant_address: ActorAddress<DomainParticipantActor>,
         reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
@@ -454,7 +455,7 @@ pub enum ReaderServiceMail {
     SetListener {
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
-        listener: Option<Box<dyn AnyDataReaderListener>>,
+        listener_sender: Option<MpscSender<DataReaderListenerMail>>,
         listener_mask: Vec<StatusKind>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
@@ -926,7 +927,7 @@ impl DomainParticipantActor {
                 topic_name,
                 qos,
                 status_condition,
-                a_listener,
+                listener_sender,
                 mask,
                 domain_participant_address,
                 reply_sender,
@@ -935,7 +936,7 @@ impl DomainParticipantActor {
                 topic_name,
                 qos,
                 status_condition,
-                a_listener,
+                listener_sender,
                 mask,
                 domain_participant_address,
             )),
@@ -1114,13 +1115,13 @@ impl DomainParticipantActor {
             ReaderServiceMail::SetListener {
                 subscriber_handle,
                 data_reader_handle,
-                listener,
+                listener_sender,
                 listener_mask,
                 reply_sender,
             } => reply_sender.send(self.set_data_reader_listener(
                 subscriber_handle,
                 data_reader_handle,
-                listener,
+                listener_sender,
                 listener_mask,
             )),
         }

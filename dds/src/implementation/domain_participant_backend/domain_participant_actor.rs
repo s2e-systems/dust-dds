@@ -30,7 +30,6 @@ use crate::{
         topic_listener::TopicListenerAsync,
     },
     implementation::{
-        any_data_reader_listener::AnyDataReaderListener,
         any_data_writer_listener::AnyDataWriterListener,
         data_representation_builtin_endpoints::{
             discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
@@ -49,7 +48,7 @@ use crate::{
             ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
         },
         listeners::{
-            data_reader_listener::{DataReaderListenerActor, DataReaderListenerMail},
+            data_reader_listener::DataReaderListenerMail,
             data_writer_listener::{DataWriterListenerActor, DataWriterListenerMail},
             domain_participant_listener::{
                 DomainParticipantListenerActor, DomainParticipantListenerMail,
@@ -87,6 +86,7 @@ use crate::{
     runtime::{
         actor::{Actor, ActorAddress},
         executor::{Executor, ExecutorHandle},
+        mpsc::MpscSender,
         oneshot::oneshot,
         timer::TimerDriver,
     },
@@ -802,7 +802,7 @@ impl DomainParticipantActor {
         topic_name: String,
         qos: QosKind<DataReaderQos>,
         status_condition: Actor<StatusConditionActor>,
-        a_listener: Option<Box<dyn AnyDataReaderListener>>,
+        listener_sender: Option<MpscSender<DataReaderListenerMail>>,
         mask: Vec<StatusKind>,
         domain_participant_address: ActorAddress<DomainParticipantActor>,
     ) -> DdsResult<InstanceHandle> {
@@ -888,12 +888,6 @@ impl DomainParticipantActor {
             ));
 
         let listener_mask = mask.to_vec();
-        let listener = a_listener.map(|l| {
-            Actor::spawn(
-                DataReaderListenerActor::new(l),
-                &self.listener_executor.handle(),
-            )
-        });
         let data_reader = DataReaderEntity::new(
             reader_handle,
             qos,
@@ -901,7 +895,7 @@ impl DomainParticipantActor {
             type_name,
             type_support,
             status_condition,
-            listener,
+            listener_sender,
             listener_mask,
             transport_reader,
         );
@@ -1950,15 +1944,9 @@ impl DomainParticipantActor {
         &mut self,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
-        listener: Option<Box<dyn AnyDataReaderListener>>,
+        listener_sender: Option<MpscSender<DataReaderListenerMail>>,
         listener_mask: Vec<StatusKind>,
     ) -> DdsResult<()> {
-        let listener = listener.map(|l| {
-            Actor::spawn(
-                DataReaderListenerActor::new(l),
-                &self.listener_executor.handle(),
-            )
-        });
         let Some(subscriber) = self
             .domain_participant
             .get_mut_subscriber(subscriber_handle)
@@ -1968,7 +1956,7 @@ impl DomainParticipantActor {
         let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle) else {
             return Err(DdsError::AlreadyDeleted);
         };
-        data_reader.set_listener(listener, listener_mask);
+        data_reader.set_listener(listener_sender, listener_mask);
         Ok(())
     }
 
@@ -2861,10 +2849,11 @@ impl DomainParticipantActor {
                         };
                         let status = data_reader.get_subscription_matched_status();
                         if let Some(l) = data_reader.listener() {
-                            l.send_actor_mail(DataReaderListenerMail::SubscriptionMatched {
+                            l.send(DataReaderListenerMail::SubscriptionMatched {
                                 the_reader,
                                 status,
-                            });
+                            })
+                            .ok();
                         }
                     } else if subscriber
                         .listener_mask()
@@ -2971,10 +2960,11 @@ impl DomainParticipantActor {
                             return;
                         };
                         if let Some(l) = data_reader.listener() {
-                            l.send_actor_mail(DataReaderListenerMail::RequestedIncompatibleQos {
+                            l.send(DataReaderListenerMail::RequestedIncompatibleQos {
                                 the_reader,
                                 status,
-                            });
+                            })
+                            .ok();
                         }
                     } else if subscriber
                         .listener_mask()
@@ -3492,7 +3482,8 @@ impl DomainParticipantActor {
                             return;
                         };
                         if let Some(l) = data_reader.listener() {
-                            l.send_actor_mail(DataReaderListenerMail::DataAvailable { the_reader });
+                            l.send(DataReaderListenerMail::DataAvailable { the_reader })
+                                .ok();
                         }
                     }
 
@@ -3549,10 +3540,8 @@ impl DomainParticipantActor {
                             return;
                         };
                         if let Some(l) = data_reader.listener() {
-                            l.send_actor_mail(DataReaderListenerMail::SampleRejected {
-                                the_reader,
-                                status,
-                            });
+                            l.send(DataReaderListenerMail::SampleRejected { the_reader, status })
+                                .ok();
                         }
                     } else if subscriber
                         .listener_mask()
@@ -3801,10 +3790,8 @@ impl DomainParticipantActor {
                 return;
             };
             if let Some(l) = data_reader.listener() {
-                l.send_actor_mail(DataReaderListenerMail::RequestedDeadlineMissed {
-                    the_reader,
-                    status,
-                });
+                l.send(DataReaderListenerMail::RequestedDeadlineMissed { the_reader, status })
+                    .ok();
             }
         } else if subscriber
             .listener_mask()
