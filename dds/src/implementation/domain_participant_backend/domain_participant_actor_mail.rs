@@ -31,7 +31,7 @@ use crate::{
         time::{Duration, Time},
     },
     runtime::{
-        actor::{ActorAddress, MailHandler},
+        actor::{Actor, ActorAddress, MailHandler},
         oneshot::OneshotSender,
     },
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
@@ -42,10 +42,10 @@ use crate::{
 pub enum ParticipantServiceMail {
     CreateUserDefinedPublisher {
         qos: QosKind<PublisherQos>,
+        status_condition: Actor<StatusConditionActor>,
         a_listener: Option<Box<dyn PublisherListenerAsync + Send>>,
         mask: Vec<StatusKind>,
-        reply_sender:
-            OneshotSender<DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)>>,
+        reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
     },
     DeleteUserDefinedPublisher {
         participant_handle: InstanceHandle,
@@ -570,10 +570,16 @@ impl DomainParticipantActor {
         match participant_service_mail {
             ParticipantServiceMail::CreateUserDefinedPublisher {
                 qos,
+                status_condition,
                 a_listener,
                 mask,
                 reply_sender,
-            } => reply_sender.send(self.create_user_defined_publisher(qos, a_listener, mask)),
+            } => reply_sender.send(self.create_user_defined_publisher(
+                qos,
+                status_condition,
+                a_listener,
+                mask,
+            )),
             ParticipantServiceMail::DeleteUserDefinedPublisher {
                 participant_handle,
                 publisher_handle,

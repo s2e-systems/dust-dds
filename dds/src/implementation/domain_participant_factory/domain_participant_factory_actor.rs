@@ -46,7 +46,7 @@ use crate::{
     rtps_udp_transport::udp_transport::RtpsUdpTransportParticipantFactory,
     runtime::{
         actor::{Actor, ActorAddress, ActorBuilder, MailHandler},
-        executor::Executor,
+        executor::{Executor, ExecutorHandle},
         oneshot::{oneshot, OneshotSender},
         timer::TimerDriver,
     },
@@ -187,6 +187,7 @@ impl DomainParticipantFactoryActor {
         qos: QosKind<DomainParticipantQos>,
         listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
         status_kind: Vec<StatusKind>,
+        executor_handle: ExecutorHandle,
     ) -> DdsResult<(
         ActorAddress<DomainParticipantActor>,
         InstanceHandle,
@@ -530,6 +531,7 @@ impl DomainParticipantFactoryActor {
             listener_executor,
             timer_driver,
             instance_handle_counter,
+            executor_handle,
         );
         let participant_handle = domain_participant_actor
             .domain_participant
@@ -648,6 +650,7 @@ pub enum DomainParticipantFactoryMail {
         qos: QosKind<DomainParticipantQos>,
         listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
         status_kind: Vec<StatusKind>,
+        executor_handle: ExecutorHandle,
         #[allow(clippy::type_complexity)]
         reply_sender: OneshotSender<
             DdsResult<(
@@ -697,8 +700,15 @@ impl MailHandler for DomainParticipantFactoryActor {
                 qos,
                 listener,
                 status_kind,
+                executor_handle,
                 reply_sender,
-            } => reply_sender.send(self.create_participant(domain_id, qos, listener, status_kind)),
+            } => reply_sender.send(self.create_participant(
+                domain_id,
+                qos,
+                listener,
+                status_kind,
+                executor_handle,
+            )),
             DomainParticipantFactoryMail::DeleteParticipant {
                 handle,
                 reply_sender,

@@ -86,7 +86,7 @@ use crate::{
     },
     runtime::{
         actor::{Actor, ActorAddress},
-        executor::Executor,
+        executor::{Executor, ExecutorHandle},
         oneshot::oneshot,
         timer::TimerDriver,
     },
@@ -119,6 +119,7 @@ pub struct DomainParticipantActor {
     pub backend_executor: Executor,
     pub listener_executor: Executor,
     pub timer_driver: TimerDriver,
+    pub executor_handle: ExecutorHandle,
 }
 
 impl DomainParticipantActor {
@@ -129,6 +130,7 @@ impl DomainParticipantActor {
         listener_executor: Executor,
         timer_driver: TimerDriver,
         instance_handle_counter: InstanceHandleCounter,
+        executor_handle: ExecutorHandle,
     ) -> Self {
         Self {
             transport,
@@ -138,6 +140,7 @@ impl DomainParticipantActor {
             backend_executor,
             listener_executor,
             timer_driver,
+            executor_handle,
         }
     }
 
@@ -155,6 +158,7 @@ impl DomainParticipantActor {
             self.domain_participant.domain_id(),
             self.domain_participant.instance_handle(),
             self.timer_driver.handle(),
+            self.executor_handle.clone(),
         )
     }
 
@@ -310,20 +314,17 @@ impl DomainParticipantActor {
     pub fn create_user_defined_publisher(
         &mut self,
         qos: QosKind<PublisherQos>,
+        status_condition: Actor<StatusConditionActor>,
         a_listener: Option<Box<dyn PublisherListenerAsync + Send>>,
         mask: Vec<StatusKind>,
-    ) -> DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)> {
+    ) -> DdsResult<InstanceHandle> {
         let publisher_qos = match qos {
             QosKind::Default => self.domain_participant.default_publisher_qos().clone(),
             QosKind::Specific(q) => q,
         };
 
         let publisher_handle = self.instance_handle_counter.generate_new_instance_handle();
-        let status_condition = Actor::spawn(
-            StatusConditionActor::default(),
-            &self.listener_executor.handle(),
-        );
-        let publisher_status_condition_address = status_condition.address();
+
         let listener = a_listener.map(|l| {
             Actor::spawn(
                 PublisherListenerActor::new(l),
@@ -350,7 +351,7 @@ impl DomainParticipantActor {
 
         self.domain_participant.insert_publisher(publisher);
 
-        Ok((publisher_handle, publisher_status_condition_address))
+        Ok(publisher_handle)
     }
 
     pub fn delete_user_defined_publisher(

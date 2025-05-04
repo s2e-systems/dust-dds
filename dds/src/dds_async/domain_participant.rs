@@ -21,7 +21,12 @@ use crate::{
         status::StatusKind,
         time::{Duration, Time},
     },
-    runtime::{actor::ActorAddress, oneshot::oneshot, timer::TimerHandle},
+    runtime::{
+        actor::{Actor, ActorAddress},
+        executor::ExecutorHandle,
+        oneshot::oneshot,
+        timer::TimerHandle,
+    },
     topic_definition::type_support::TypeSupport,
     xtypes::dynamic_type::DynamicType,
 };
@@ -36,6 +41,7 @@ pub struct DomainParticipantAsync {
     domain_id: DomainId,
     handle: InstanceHandle,
     timer_handle: TimerHandle,
+    executor_handle: ExecutorHandle,
 }
 
 impl DomainParticipantAsync {
@@ -46,6 +52,7 @@ impl DomainParticipantAsync {
         domain_id: DomainId,
         handle: InstanceHandle,
         timer_handle: TimerHandle,
+        executor_handle: ExecutorHandle,
     ) -> Self {
         Self {
             participant_address,
@@ -54,6 +61,7 @@ impl DomainParticipantAsync {
             domain_id,
             handle,
             timer_handle,
+            executor_handle,
         }
     }
 
@@ -72,16 +80,19 @@ impl DomainParticipantAsync {
         mask: &[StatusKind],
     ) -> DdsResult<PublisherAsync> {
         let (reply_sender, reply_receiver) = oneshot();
+        let status_condition = Actor::spawn(StatusConditionActor::default(), &self.executor_handle);
+        let publisher_status_condition_address = status_condition.address();
         self.participant_address
             .send_actor_mail(DomainParticipantMail::Participant(
                 ParticipantServiceMail::CreateUserDefinedPublisher {
                     qos,
+                    status_condition,
                     a_listener,
                     mask: mask.to_vec(),
                     reply_sender,
                 },
             ))?;
-        let (guid, publisher_status_condition_address) = reply_receiver.await??;
+        let guid = reply_receiver.await??;
         let publisher = PublisherAsync::new(guid, publisher_status_condition_address, self.clone());
 
         Ok(publisher)

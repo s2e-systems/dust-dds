@@ -29,7 +29,7 @@ use crate::{
 /// a constructor by passing a handle to a [`Tokio`](https://crates.io/crates/tokio) runtime. This allows the factory
 /// to spin tasks on an existing runtime which can be shared with other things outside Dust DDS.
 pub struct DomainParticipantFactoryAsync {
-    _executor: Executor,
+    executor: Executor,
     timer_driver: TimerDriver,
     domain_participant_factory_actor: Actor<DomainParticipantFactoryActor>,
 }
@@ -51,6 +51,7 @@ impl DomainParticipantFactoryAsync {
                 qos,
                 listener: a_listener,
                 status_kind,
+                executor_handle: self.executor.handle(),
                 reply_sender,
             },
         );
@@ -69,6 +70,7 @@ impl DomainParticipantFactoryAsync {
             domain_id,
             participant_handle,
             self.timer_driver.handle(),
+            self.executor.handle(),
         );
 
         Ok(domain_participant)
@@ -117,7 +119,7 @@ impl DomainParticipantFactoryAsync {
             let domain_participant_factory_actor =
                 Actor::spawn(DomainParticipantFactoryActor::new(), &executor.handle());
             Self {
-                _executor: executor,
+                executor,
                 domain_participant_factory_actor,
                 timer_driver,
             }
