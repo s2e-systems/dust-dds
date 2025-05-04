@@ -10,7 +10,7 @@ use crate::{
             spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         },
         domain_participant_backend::domain_participant_actor::BUILT_IN_TOPIC_NAME_LIST,
-        listeners::domain_participant_listener::DomainParticipantListenerActor,
+        listeners::domain_participant_listener::DomainParticipantListenerMail,
         status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
@@ -20,7 +20,7 @@ use crate::{
         status::StatusKind,
         time::Time,
     },
-    runtime::actor::Actor,
+    runtime::{actor::Actor, mpsc::MpscSender},
 };
 
 use super::{publisher::PublisherEntity, subscriber::SubscriberEntity, topic::TopicEntity};
@@ -47,7 +47,7 @@ pub struct DomainParticipantEntity {
     ignored_publications: Vec<InstanceHandle>,
     ignored_subcriptions: Vec<InstanceHandle>,
     _ignored_topic_list: Vec<InstanceHandle>,
-    listener: Option<Actor<DomainParticipantListenerActor>>,
+    listener_sender: Option<MpscSender<DomainParticipantListenerMail>>,
     listener_mask: Vec<StatusKind>,
     status_condition: Actor<StatusConditionActor>,
 }
@@ -57,7 +57,7 @@ impl DomainParticipantEntity {
     pub fn new(
         domain_id: DomainId,
         domain_participant_qos: DomainParticipantQos,
-        listener: Option<Actor<DomainParticipantListenerActor>>,
+        listener_sender: Option<MpscSender<DomainParticipantListenerMail>>,
         listener_mask: Vec<StatusKind>,
         status_condition: Actor<StatusConditionActor>,
         instance_handle: InstanceHandle,
@@ -87,7 +87,7 @@ impl DomainParticipantEntity {
             ignored_publications: Vec::new(),
             ignored_subcriptions: Vec::new(),
             _ignored_topic_list: Vec::new(),
-            listener,
+            listener_sender,
             listener_mask,
             status_condition,
             domain_tag,
@@ -419,16 +419,16 @@ impl DomainParticipantEntity {
         &self.listener_mask
     }
 
-    pub fn listener(&self) -> Option<&Actor<DomainParticipantListenerActor>> {
-        self.listener.as_ref()
+    pub fn listener(&self) -> Option<MpscSender<DomainParticipantListenerMail>> {
+        self.listener_sender.clone()
     }
 
     pub fn set_listener(
         &mut self,
-        listener: Option<Actor<DomainParticipantListenerActor>>,
+        listener_sender: Option<MpscSender<DomainParticipantListenerMail>>,
         status_kind: Vec<StatusKind>,
     ) {
-        self.listener = listener;
+        self.listener_sender = listener_sender;
         self.listener_mask = status_kind;
     }
 

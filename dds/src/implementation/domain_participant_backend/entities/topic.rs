@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{
     implementation::{
-        listeners::topic_listener::TopicListenerActor,
+        listeners::topic_listener::TopicListenerActorMail,
         status_condition::status_condition_actor::{StatusConditionActor, StatusConditionMail},
     },
     infrastructure::{
@@ -11,7 +11,7 @@ use crate::{
         qos::TopicQos,
         status::{InconsistentTopicStatus, StatusKind},
     },
-    runtime::actor::Actor,
+    runtime::{actor::Actor, mpsc::MpscSender},
     xtypes::dynamic_type::DynamicType,
 };
 
@@ -23,7 +23,7 @@ pub struct TopicEntity {
     enabled: bool,
     inconsistent_topic_status: InconsistentTopicStatus,
     status_condition: Actor<StatusConditionActor>,
-    _listener: Option<Actor<TopicListenerActor>>,
+    _listener_sender: Option<MpscSender<TopicListenerActorMail>>,
     _status_kind: Vec<StatusKind>,
     type_support: Arc<dyn DynamicType + Send + Sync>,
 }
@@ -36,7 +36,7 @@ impl TopicEntity {
         topic_name: String,
         instance_handle: InstanceHandle,
         status_condition: Actor<StatusConditionActor>,
-        listener: Option<Actor<TopicListenerActor>>,
+        listener_sender: Option<MpscSender<TopicListenerActorMail>>,
         status_kind: Vec<StatusKind>,
         type_support: Arc<dyn DynamicType + Send + Sync>,
     ) -> Self {
@@ -48,7 +48,7 @@ impl TopicEntity {
             enabled: false,
             inconsistent_topic_status: InconsistentTopicStatus::default(),
             status_condition,
-            _listener: listener,
+            _listener_sender: listener_sender,
             _status_kind: status_kind,
             type_support,
         }

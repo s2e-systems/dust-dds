@@ -1,7 +1,6 @@
 use crate::{
     builtin_topics::{DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC},
     configuration::DustDdsConfiguration,
-    dds_async::domain_participant_listener::DomainParticipantListenerAsync,
     domain::domain_participant_factory::DomainId,
     implementation::{
         data_representation_builtin_endpoints::{
@@ -26,7 +25,7 @@ use crate::{
             },
             handle::InstanceHandleCounter,
         },
-        listeners::domain_participant_listener::DomainParticipantListenerActor,
+        listeners::domain_participant_listener::DomainParticipantListenerMail,
         status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
@@ -47,6 +46,7 @@ use crate::{
     runtime::{
         actor::{Actor, ActorAddress, ActorBuilder, MailHandler},
         executor::{Executor, ExecutorHandle},
+        mpsc::MpscSender,
         oneshot::{oneshot, OneshotSender},
         timer::TimerDriver,
     },
@@ -185,7 +185,7 @@ impl DomainParticipantFactoryActor {
         &mut self,
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
-        listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
+        listener_sender: Option<MpscSender<DomainParticipantListenerMail>>,
         status_kind: Vec<StatusKind>,
         executor_handle: ExecutorHandle,
     ) -> DdsResult<(
@@ -196,8 +196,6 @@ impl DomainParticipantFactoryActor {
     )> {
         let backend_executor = Executor::new();
         let backend_executor_handle = backend_executor.handle();
-
-        let listener_executor = Executor::new();
 
         let timer_driver = TimerDriver::new();
         let timer_handle = timer_driver.handle();
@@ -253,7 +251,7 @@ impl DomainParticipantFactoryActor {
             "SpdpDiscoveredParticipantData".to_string(),
             DCPS_PARTICIPANT.to_owned(),
             spdp_topic_participant_handle,
-            Actor::spawn(StatusConditionActor::default(), &listener_executor.handle()),
+            Actor::spawn(StatusConditionActor::default(), &executor_handle),
             None,
             vec![],
             Arc::new(SpdpDiscoveredParticipantData::get_type()),
@@ -268,7 +266,7 @@ impl DomainParticipantFactoryActor {
             "DiscoveredTopicData".to_string(),
             DCPS_TOPIC.to_owned(),
             sedp_topic_topics_handle,
-            Actor::spawn(StatusConditionActor::default(), &listener_executor.handle()),
+            Actor::spawn(StatusConditionActor::default(), &executor_handle),
             None,
             vec![],
             Arc::new(DiscoveredTopicData::get_type()),
@@ -283,7 +281,7 @@ impl DomainParticipantFactoryActor {
             "DiscoveredWriterData".to_string(),
             DCPS_PUBLICATION.to_owned(),
             sedp_topic_publications_handle,
-            Actor::spawn(StatusConditionActor::default(), &listener_executor.handle()),
+            Actor::spawn(StatusConditionActor::default(), &executor_handle),
             None,
             vec![],
             Arc::new(DiscoveredWriterData::get_type()),
@@ -298,7 +296,7 @@ impl DomainParticipantFactoryActor {
             "DiscoveredReaderData".to_string(),
             DCPS_SUBSCRIPTION.to_owned(),
             sedp_topic_subscriptions_handle,
-            Actor::spawn(StatusConditionActor::default(), &listener_executor.handle()),
+            Actor::spawn(StatusConditionActor::default(), &executor_handle),
             None,
             vec![],
             Arc::new(DiscoveredReaderData::get_type()),
@@ -345,7 +343,7 @@ impl DomainParticipantFactoryActor {
             DCPS_PARTICIPANT.to_owned(),
             "SpdpDiscoveredParticipantData".to_string(),
             Arc::new(SpdpDiscoveredParticipantData::get_type()),
-            Actor::spawn(StatusConditionActor::default(), &listener_executor.handle()),
+            Actor::spawn(StatusConditionActor::default(), &executor_handle),
             None,
             Vec::new(),
             TransportReaderKind::Stateless(dcps_participant_transport_reader),
@@ -364,7 +362,7 @@ impl DomainParticipantFactoryActor {
             DCPS_TOPIC.to_owned(),
             "DiscoveredTopicData".to_string(),
             Arc::new(DiscoveredTopicData::get_type()),
-            Actor::spawn(StatusConditionActor::default(), &listener_executor.handle()),
+            Actor::spawn(StatusConditionActor::default(), &executor_handle),
             None,
             Vec::new(),
             TransportReaderKind::Stateful(dcps_topic_transport_reader),
@@ -383,7 +381,7 @@ impl DomainParticipantFactoryActor {
             DCPS_PUBLICATION.to_owned(),
             "DiscoveredWriterData".to_string(),
             Arc::new(DiscoveredWriterData::get_type()),
-            Actor::spawn(StatusConditionActor::default(), &listener_executor.handle()),
+            Actor::spawn(StatusConditionActor::default(), &executor_handle),
             None,
             Vec::new(),
             TransportReaderKind::Stateful(dcps_publication_transport_reader),
@@ -402,7 +400,7 @@ impl DomainParticipantFactoryActor {
             DCPS_SUBSCRIPTION.to_owned(),
             "DiscoveredReaderData".to_string(),
             Arc::new(DiscoveredReaderData::get_type()),
-            Actor::spawn(StatusConditionActor::default(), &listener_executor.handle()),
+            Actor::spawn(StatusConditionActor::default(), &executor_handle),
             None,
             Vec::new(),
             TransportReaderKind::Stateful(dcps_subscription_transport_reader),
@@ -412,7 +410,7 @@ impl DomainParticipantFactoryActor {
         let mut builtin_subscriber = SubscriberEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             SubscriberQos::default(),
-            Actor::spawn(StatusConditionActor::default(), &listener_executor.handle()),
+            Actor::spawn(StatusConditionActor::default(), &executor_handle),
             None,
             vec![],
         );
@@ -433,7 +431,7 @@ impl DomainParticipantFactoryActor {
             DCPS_PARTICIPANT.to_owned(),
             "SpdpDiscoveredParticipantData".to_string(),
             Arc::new(SpdpDiscoveredParticipantData::get_type()),
-            Actor::spawn(StatusConditionActor::default(), &listener_executor.handle()),
+            Actor::spawn(StatusConditionActor::default(), &executor_handle),
             None,
             vec![],
             spdp_writer_qos,
@@ -450,7 +448,7 @@ impl DomainParticipantFactoryActor {
             DCPS_TOPIC.to_owned(),
             "DiscoveredTopicData".to_string(),
             Arc::new(DiscoveredTopicData::get_type()),
-            Actor::spawn(StatusConditionActor::default(), &listener_executor.handle()),
+            Actor::spawn(StatusConditionActor::default(), &executor_handle),
             None,
             vec![],
             sedp_data_writer_qos(),
@@ -466,7 +464,7 @@ impl DomainParticipantFactoryActor {
             DCPS_PUBLICATION.to_owned(),
             "DiscoveredWriterData".to_string(),
             Arc::new(DiscoveredWriterData::get_type()),
-            Actor::spawn(StatusConditionActor::default(), &listener_executor.handle()),
+            Actor::spawn(StatusConditionActor::default(), &executor_handle),
             None,
             vec![],
             sedp_data_writer_qos(),
@@ -483,7 +481,7 @@ impl DomainParticipantFactoryActor {
             DCPS_SUBSCRIPTION.to_owned(),
             "DiscoveredReaderData".to_string(),
             Arc::new(DiscoveredReaderData::get_type()),
-            Actor::spawn(StatusConditionActor::default(), &listener_executor.handle()),
+            Actor::spawn(StatusConditionActor::default(), &executor_handle),
             None,
             vec![],
             sedp_data_writer_qos(),
@@ -494,7 +492,7 @@ impl DomainParticipantFactoryActor {
             instance_handle_counter.generate_new_instance_handle(),
             None,
             vec![],
-            Actor::spawn(StatusConditionActor::default(), &listener_executor.handle()),
+            Actor::spawn(StatusConditionActor::default(), &executor_handle),
         );
         builtin_publisher.enable();
         builtin_publisher.insert_data_writer(dcps_participant_writer);
@@ -503,18 +501,12 @@ impl DomainParticipantFactoryActor {
         builtin_publisher.insert_data_writer(dcps_subscriptions_writer);
         let instance_handle = InstanceHandle::new(transport.guid().into());
 
-        let status_condition =
-            Actor::spawn(StatusConditionActor::default(), &listener_executor.handle());
-        let listener = listener.map(|l| {
-            Actor::spawn(
-                DomainParticipantListenerActor::new(l),
-                &listener_executor.handle(),
-            )
-        });
+        let status_condition = Actor::spawn(StatusConditionActor::default(), &executor_handle);
+
         let domain_participant = DomainParticipantEntity::new(
             domain_id,
             domain_participant_qos,
-            listener,
+            listener_sender,
             status_kind,
             status_condition,
             instance_handle,
@@ -528,7 +520,6 @@ impl DomainParticipantFactoryActor {
             domain_participant,
             transport,
             backend_executor,
-            listener_executor,
             timer_driver,
             instance_handle_counter,
             executor_handle,
@@ -648,7 +639,7 @@ pub enum DomainParticipantFactoryMail {
     CreateParticipant {
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
-        listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
+        listener_sender: Option<MpscSender<DomainParticipantListenerMail>>,
         status_kind: Vec<StatusKind>,
         executor_handle: ExecutorHandle,
         #[allow(clippy::type_complexity)]
@@ -698,14 +689,14 @@ impl MailHandler for DomainParticipantFactoryActor {
             DomainParticipantFactoryMail::CreateParticipant {
                 domain_id,
                 qos,
-                listener,
+                listener_sender,
                 status_kind,
                 executor_handle,
                 reply_sender,
             } => reply_sender.send(self.create_participant(
                 domain_id,
                 qos,
-                listener,
+                listener_sender,
                 status_kind,
                 executor_handle,
             )),

@@ -7,15 +7,13 @@ use crate::{
         ParticipantBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
         TopicBuiltinTopicData,
     },
-    dds_async::{
-        domain_participant_listener::DomainParticipantListenerAsync,
-        topic_listener::TopicListenerAsync,
-    },
     implementation::{
         listeners::{
             data_reader_listener::DataReaderListenerMail,
             data_writer_listener::DataWriterListenerMail,
+            domain_participant_listener::DomainParticipantListenerMail,
             publisher_listener::PublisherListenerMail, subscriber_listener::SubscriberListenerMail,
+            topic_listener::TopicListenerActorMail,
         },
         status_condition::status_condition_actor::StatusConditionActor,
     },
@@ -72,7 +70,7 @@ pub enum ParticipantServiceMail {
         type_name: String,
         qos: QosKind<TopicQos>,
         status_condition: Actor<StatusConditionActor>,
-        a_listener: Option<Box<dyn TopicListenerAsync + Send>>,
+        listener_sender: Option<MpscSender<TopicListenerActorMail>>,
         mask: Vec<StatusKind>,
         type_support: Arc<dyn DynamicType + Send + Sync>,
         reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
@@ -85,6 +83,7 @@ pub enum ParticipantServiceMail {
     FindTopic {
         topic_name: String,
         type_support: Arc<dyn DynamicType + Send + Sync>,
+        status_condition: Actor<StatusConditionActor>,
         #[allow(clippy::type_complexity)]
         reply_sender: OneshotSender<
             DdsResult<Option<(InstanceHandle, ActorAddress<StatusConditionActor>, String)>>,
@@ -159,7 +158,7 @@ pub enum ParticipantServiceMail {
         reply_sender: OneshotSender<DdsResult<DomainParticipantQos>>,
     },
     SetListener {
-        listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
+        listener_sender: Option<MpscSender<DomainParticipantListenerMail>>,
         status_kind: Vec<StatusKind>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
@@ -614,7 +613,7 @@ impl DomainParticipantActor {
                 type_name,
                 qos,
                 status_condition,
-                a_listener,
+                listener_sender,
                 mask,
                 type_support,
                 reply_sender,
@@ -623,7 +622,7 @@ impl DomainParticipantActor {
                 type_name,
                 qos,
                 status_condition,
-                a_listener,
+                listener_sender,
                 mask,
                 type_support,
             )),
@@ -635,8 +634,9 @@ impl DomainParticipantActor {
             ParticipantServiceMail::FindTopic {
                 topic_name,
                 type_support,
+                status_condition,
                 reply_sender,
-            } => reply_sender.send(self.find_topic(topic_name, type_support)),
+            } => reply_sender.send(self.find_topic(topic_name, type_support, status_condition)),
             ParticipantServiceMail::LookupTopicdescription {
                 topic_name,
                 reply_sender,
@@ -698,10 +698,11 @@ impl DomainParticipantActor {
                 reply_sender.send(self.get_domain_participant_qos())
             }
             ParticipantServiceMail::SetListener {
-                listener,
+                listener_sender,
                 status_kind,
                 reply_sender,
-            } => reply_sender.send(self.set_domain_participant_listener(listener, status_kind)),
+            } => reply_sender
+                .send(self.set_domain_participant_listener(listener_sender, status_kind)),
             ParticipantServiceMail::Enable { reply_sender } => {
                 reply_sender.send(self.enable_domain_participant())
             }

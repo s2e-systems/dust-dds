@@ -15,6 +15,7 @@ use crate::{
             DdsTransportParticipantFactory, DomainParticipantFactoryActor,
             DomainParticipantFactoryMail,
         },
+        listeners::domain_participant_listener::DomainParticipantListenerActor,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -44,12 +45,14 @@ impl DomainParticipantFactoryAsync {
         mask: &[StatusKind],
     ) -> DdsResult<DomainParticipantAsync> {
         let status_kind = mask.to_vec();
+        let listener_sender =
+            a_listener.map(|l| DomainParticipantListenerActor::spawn(l, &self.executor.handle()));
         let (reply_sender, reply_receiver) = oneshot();
         self.domain_participant_factory_actor.send_actor_mail(
             DomainParticipantFactoryMail::CreateParticipant {
                 domain_id,
                 qos,
-                listener: a_listener,
+                listener_sender,
                 status_kind,
                 executor_handle: self.executor.handle(),
                 reply_sender,

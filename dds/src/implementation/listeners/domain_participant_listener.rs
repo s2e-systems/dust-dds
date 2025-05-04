@@ -8,16 +8,65 @@ use crate::{
         RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleRejectedStatus,
         SubscriptionMatchedStatus,
     },
-    runtime::{actor::MailHandler, executor::block_on},
+    runtime::{
+        executor::ExecutorHandle,
+        mpsc::{mpsc_channel, MpscSender},
+    },
 };
 
-pub struct DomainParticipantListenerActor {
-    listener: Box<dyn DomainParticipantListenerAsync + Send>,
-}
+pub struct DomainParticipantListenerActor;
 
 impl DomainParticipantListenerActor {
-    pub fn new(listener: Box<dyn DomainParticipantListenerAsync + Send>) -> Self {
-        Self { listener }
+    pub fn spawn<'a>(
+        mut listener: Box<dyn DomainParticipantListenerAsync + Send>,
+        executor_handle: &ExecutorHandle,
+    ) -> MpscSender<DomainParticipantListenerMail> {
+        let (listener_sender, listener_receiver) = mpsc_channel();
+        executor_handle.spawn(async move {
+            while let Some(m) = listener_receiver.recv().await {
+                match m {
+                    DomainParticipantListenerMail::RequestedDeadlineMissed {
+                        the_reader,
+                        status,
+                    } => {
+                        listener
+                            .on_requested_deadline_missed(the_reader, status)
+                            .await;
+                    }
+                    DomainParticipantListenerMail::SampleRejected { the_reader, status } => {
+                        listener.on_sample_rejected(the_reader, status).await;
+                    }
+                    DomainParticipantListenerMail::SubscriptionMatched { the_reader, status } => {
+                        listener.on_subscription_matched(the_reader, status).await;
+                    }
+                    DomainParticipantListenerMail::RequestedIncompatibleQos {
+                        the_reader,
+                        status,
+                    } => {
+                        listener
+                            .on_requested_incompatible_qos(the_reader, status)
+                            .await;
+                    }
+                    DomainParticipantListenerMail::PublicationMatched { the_writer, status } => {
+                        listener.on_publication_matched(the_writer, status).await;
+                    }
+                    DomainParticipantListenerMail::OfferedIncompatibleQos {
+                        the_writer,
+                        status,
+                    } => {
+                        listener
+                            .on_offered_incompatible_qos(the_writer, status)
+                            .await;
+                    }
+                    DomainParticipantListenerMail::OfferedDeadlineMissed { the_writer, status } => {
+                        listener
+                            .on_offered_deadline_missed(the_writer, status)
+                            .await;
+                    }
+                }
+            }
+        });
+        listener_sender
     }
 }
 
@@ -50,42 +99,4 @@ pub enum DomainParticipantListenerMail {
         the_writer: DataWriterAsync<()>,
         status: OfferedDeadlineMissedStatus,
     },
-}
-
-impl MailHandler for DomainParticipantListenerActor {
-    type Mail = DomainParticipantListenerMail;
-    async fn handle(&mut self, message: DomainParticipantListenerMail) {
-        match message {
-            DomainParticipantListenerMail::RequestedDeadlineMissed { the_reader, status } => {
-                block_on(
-                    self.listener
-                        .on_requested_deadline_missed(the_reader, status),
-                )
-            }
-            DomainParticipantListenerMail::SampleRejected { the_reader, status } => {
-                block_on(self.listener.on_sample_rejected(the_reader, status))
-            }
-            DomainParticipantListenerMail::SubscriptionMatched { the_reader, status } => {
-                block_on(self.listener.on_subscription_matched(the_reader, status))
-            }
-            DomainParticipantListenerMail::RequestedIncompatibleQos { the_reader, status } => {
-                block_on(
-                    self.listener
-                        .on_requested_incompatible_qos(the_reader, status),
-                )
-            }
-            DomainParticipantListenerMail::PublicationMatched { the_writer, status } => {
-                block_on(self.listener.on_publication_matched(the_writer, status))
-            }
-            DomainParticipantListenerMail::OfferedIncompatibleQos { the_writer, status } => {
-                block_on(
-                    self.listener
-                        .on_offered_incompatible_qos(the_writer, status),
-                )
-            }
-            DomainParticipantListenerMail::OfferedDeadlineMissed { the_writer, status } => {
-                block_on(self.listener.on_offered_deadline_missed(the_writer, status))
-            }
-        }
-    }
 }

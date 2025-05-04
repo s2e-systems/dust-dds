@@ -23,9 +23,8 @@ use crate::{
     },
     dds_async::{
         data_reader::DataReaderAsync, data_writer::DataWriterAsync,
-        domain_participant::DomainParticipantAsync,
-        domain_participant_listener::DomainParticipantListenerAsync, publisher::PublisherAsync,
-        subscriber::SubscriberAsync, topic::TopicAsync, topic_listener::TopicListenerAsync,
+        domain_participant::DomainParticipantAsync, publisher::PublisherAsync,
+        subscriber::SubscriberAsync, topic::TopicAsync,
     },
     implementation::{
         data_representation_builtin_endpoints::{
@@ -47,12 +46,9 @@ use crate::{
         listeners::{
             data_reader_listener::DataReaderListenerMail,
             data_writer_listener::DataWriterListenerMail,
-            domain_participant_listener::{
-                DomainParticipantListenerActor, DomainParticipantListenerMail,
-            },
-            publisher_listener::PublisherListenerMail,
-            subscriber_listener::SubscriberListenerMail,
-            topic_listener::TopicListenerActor,
+            domain_participant_listener::DomainParticipantListenerMail,
+            publisher_listener::PublisherListenerMail, subscriber_listener::SubscriberListenerMail,
+            topic_listener::TopicListenerActorMail,
         },
         status_condition::status_condition_actor::{StatusConditionActor, StatusConditionMail},
         xtypes_glue::key_and_instance_handle::{
@@ -114,7 +110,6 @@ pub struct DomainParticipantActor {
     pub entity_counter: u16,
     pub domain_participant: DomainParticipantEntity,
     pub backend_executor: Executor,
-    pub listener_executor: Executor,
     pub timer_driver: TimerDriver,
     pub executor_handle: ExecutorHandle,
 }
@@ -124,7 +119,6 @@ impl DomainParticipantActor {
         domain_participant: DomainParticipantEntity,
         transport: DdsTransportParticipant,
         backend_executor: Executor,
-        listener_executor: Executor,
         timer_driver: TimerDriver,
         instance_handle_counter: InstanceHandleCounter,
         executor_handle: ExecutorHandle,
@@ -135,7 +129,6 @@ impl DomainParticipantActor {
             entity_counter: 0,
             domain_participant,
             backend_executor,
-            listener_executor,
             timer_driver,
             executor_handle,
         }
@@ -445,7 +438,7 @@ impl DomainParticipantActor {
         type_name: String,
         qos: QosKind<TopicQos>,
         status_condition: Actor<StatusConditionActor>,
-        a_listener: Option<Box<dyn TopicListenerAsync + Send>>,
+        listener_sender: Option<MpscSender<TopicListenerActorMail>>,
         mask: Vec<StatusKind>,
         type_support: Arc<dyn DynamicType + Send + Sync>,
     ) -> DdsResult<InstanceHandle> {
@@ -463,15 +456,14 @@ impl DomainParticipantActor {
         };
 
         let topic_handle = self.instance_handle_counter.generate_new_instance_handle();
-        let topic_listener = a_listener
-            .map(|l| Actor::spawn(TopicListenerActor::new(l), &self.listener_executor.handle()));
+
         let topic = TopicEntity::new(
             qos,
             type_name,
             topic_name.clone(),
             topic_handle,
             status_condition,
-            topic_listener,
+            listener_sender,
             mask,
             type_support,
         );
@@ -527,6 +519,7 @@ impl DomainParticipantActor {
         &mut self,
         topic_name: String,
         type_support: Arc<dyn DynamicType + Send + Sync>,
+        status_condition: Actor<StatusConditionActor>,
     ) -> DdsResult<Option<(InstanceHandle, ActorAddress<StatusConditionActor>, String)>> {
         if let Some(topic) = self.domain_participant.get_topic(&topic_name) {
             Ok(Some((
@@ -558,10 +551,7 @@ impl DomainParticipantActor {
                     type_name.clone(),
                     topic_name.clone(),
                     topic_handle,
-                    Actor::spawn(
-                        StatusConditionActor::default(),
-                        &self.listener_executor.handle(),
-                    ),
+                    status_condition,
                     None,
                     vec![],
                     type_support,
@@ -754,17 +744,11 @@ impl DomainParticipantActor {
 
     pub fn set_domain_participant_listener(
         &mut self,
-        listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
+        listener_sender: Option<MpscSender<DomainParticipantListenerMail>>,
         status_kind: Vec<StatusKind>,
     ) -> DdsResult<()> {
-        let participant_listener = listener.map(|l| {
-            Actor::spawn(
-                DomainParticipantListenerActor::new(l),
-                &self.listener_executor.handle(),
-            )
-        });
         self.domain_participant
-            .set_listener(participant_listener, status_kind);
+            .set_listener(listener_sender, status_kind);
         Ok(())
     }
 
@@ -2482,10 +2466,11 @@ impl DomainParticipantActor {
                         };
                         let status = data_writer.get_publication_matched_status();
                         if let Some(l) = self.domain_participant.listener() {
-                            l.send_actor_mail(DomainParticipantListenerMail::PublicationMatched {
+                            l.send(DomainParticipantListenerMail::PublicationMatched {
                                 the_writer,
                                 status,
-                            });
+                            })
+                            .ok();
                         }
                     }
 
@@ -2590,12 +2575,11 @@ impl DomainParticipantActor {
                         };
                         let status = data_writer.get_offered_incompatible_qos_status();
                         if let Some(l) = self.domain_participant.listener() {
-                            l.send_actor_mail(
-                                DomainParticipantListenerMail::OfferedIncompatibleQos {
-                                    the_writer,
-                                    status,
-                                },
-                            );
+                            l.send(DomainParticipantListenerMail::OfferedIncompatibleQos {
+                                the_writer,
+                                status,
+                            })
+                            .ok();
                         }
                     }
 
@@ -2872,10 +2856,11 @@ impl DomainParticipantActor {
                         };
                         let status = data_reader.get_subscription_matched_status();
                         if let Some(l) = self.domain_participant.listener() {
-                            l.send_actor_mail(DomainParticipantListenerMail::SubscriptionMatched {
+                            l.send(DomainParticipantListenerMail::SubscriptionMatched {
                                 the_reader,
                                 status,
-                            });
+                            })
+                            .ok();
                         }
                     }
 
@@ -2984,12 +2969,11 @@ impl DomainParticipantActor {
                         };
                         let status = data_reader.get_requested_incompatible_qos_status();
                         if let Some(l) = self.domain_participant.listener() {
-                            l.send_actor_mail(
-                                DomainParticipantListenerMail::RequestedIncompatibleQos {
-                                    the_reader,
-                                    status,
-                                },
-                            );
+                            l.send(DomainParticipantListenerMail::RequestedIncompatibleQos {
+                                the_reader,
+                                status,
+                            })
+                            .ok();
                         }
                     }
 
@@ -3560,10 +3544,11 @@ impl DomainParticipantActor {
                         };
                         let status = data_reader.get_sample_rejected_status();
                         if let Some(l) = self.domain_participant.listener() {
-                            l.send_actor_mail(DomainParticipantListenerMail::SampleRejected {
+                            l.send(DomainParticipantListenerMail::SampleRejected {
                                 status,
                                 the_reader,
-                            });
+                            })
+                            .ok();
                         }
                     }
 
@@ -3688,10 +3673,8 @@ impl DomainParticipantActor {
             };
             let status = data_writer.get_offered_deadline_missed_status();
             if let Some(l) = self.domain_participant.listener() {
-                l.send_actor_mail(DomainParticipantListenerMail::OfferedDeadlineMissed {
-                    the_writer,
-                    status,
-                });
+                l.send(DomainParticipantListenerMail::OfferedDeadlineMissed { the_writer, status })
+                    .ok();
             }
         }
 
@@ -3802,10 +3785,11 @@ impl DomainParticipantActor {
             };
             let status = data_reader.get_requested_deadline_missed_status();
             if let Some(l) = self.domain_participant.listener() {
-                l.send_actor_mail(DomainParticipantListenerMail::RequestedDeadlineMissed {
+                l.send(DomainParticipantListenerMail::RequestedDeadlineMissed {
                     status,
                     the_reader,
-                });
+                })
+                .ok();
             }
         }
         let Some(subscriber) = self
