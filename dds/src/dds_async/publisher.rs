@@ -19,7 +19,10 @@ use crate::{
         status::StatusKind,
         time::Duration,
     },
-    runtime::{actor::ActorAddress, oneshot::oneshot},
+    runtime::{
+        actor::{Actor, ActorAddress},
+        oneshot::oneshot,
+    },
 };
 
 /// Async version of [`Publisher`](crate::publication::publisher::Publisher).
@@ -62,6 +65,11 @@ impl PublisherAsync {
         Foo: 'b,
     {
         let topic_name = a_topic.get_name();
+        let status_condition = Actor::spawn(
+            StatusConditionActor::default(),
+            &self.participant.executor_handle(),
+        );
+        let writer_status_condition_address = status_condition.address();
         let listener = a_listener.map::<Box<dyn AnyDataWriterListener + Send>, _>(|b| Box::new(b));
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
@@ -70,13 +78,14 @@ impl PublisherAsync {
                     publisher_handle: self.handle,
                     topic_name,
                     qos,
+                    status_condition,
                     a_listener: listener,
                     mask: mask.to_vec(),
                     participant_address: self.participant_address().clone(),
                     reply_sender,
                 },
             ))?;
-        let (guid, writer_status_condition_address) = reply_receiver.await??;
+        let guid = reply_receiver.await??;
 
         Ok(DataWriterAsync::new(
             guid,

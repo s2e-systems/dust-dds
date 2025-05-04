@@ -18,7 +18,10 @@ use crate::{
         qos::{DataReaderQos, QosKind, SubscriberQos, TopicQos},
         status::{SampleLostStatus, StatusKind},
     },
-    runtime::{actor::ActorAddress, oneshot::oneshot},
+    runtime::{
+        actor::{Actor, ActorAddress},
+        oneshot::oneshot,
+    },
 };
 
 /// Async version of [`Subscriber`](crate::subscription::subscriber::Subscriber).
@@ -60,6 +63,11 @@ impl SubscriberAsync {
     where
         Foo: 'b,
     {
+        let status_condition = Actor::spawn(
+            StatusConditionActor::default(),
+            &self.participant.executor_handle(),
+        );
+        let reader_status_condition_address = status_condition.address();
         let a_listener = a_listener.map::<Box<dyn AnyDataReaderListener>, _>(|l| Box::new(l));
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
@@ -68,13 +76,14 @@ impl SubscriberAsync {
                     subscriber_handle: self.handle,
                     topic_name: a_topic.get_name(),
                     qos,
+                    status_condition,
                     a_listener,
                     mask: mask.to_vec(),
                     domain_participant_address: self.participant_address().clone(),
                     reply_sender,
                 },
             ))?;
-        let (guid, reader_status_condition_address) = reply_receiver.await??;
+        let guid = reply_receiver.await??;
 
         Ok(DataReaderAsync::new(
             guid,

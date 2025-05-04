@@ -383,9 +383,10 @@ impl DomainParticipantActor {
     pub fn create_user_defined_subscriber(
         &mut self,
         qos: QosKind<SubscriberQos>,
+        status_condition: Actor<StatusConditionActor>,
         a_listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
         mask: Vec<StatusKind>,
-    ) -> DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)> {
+    ) -> DdsResult<InstanceHandle> {
         let subscriber_qos = match qos {
             QosKind::Default => self.domain_participant.default_subscriber_qos().clone(),
             QosKind::Specific(q) => q,
@@ -402,15 +403,10 @@ impl DomainParticipantActor {
         let mut subscriber = SubscriberEntity::new(
             subscriber_handle,
             subscriber_qos,
-            Actor::spawn(
-                StatusConditionActor::default(),
-                &self.listener_executor.handle(),
-            ),
+            status_condition,
             listener,
             listener_mask,
         );
-
-        let subscriber_status_condition_address = subscriber.status_condition().address();
 
         if self.domain_participant.enabled()
             && self
@@ -424,7 +420,7 @@ impl DomainParticipantActor {
 
         self.domain_participant.insert_subscriber(subscriber);
 
-        Ok((subscriber_handle, subscriber_status_condition_address))
+        Ok(subscriber_handle)
     }
 
     pub fn delete_user_defined_subscriber(
@@ -462,10 +458,11 @@ impl DomainParticipantActor {
         topic_name: String,
         type_name: String,
         qos: QosKind<TopicQos>,
+        status_condition: Actor<StatusConditionActor>,
         a_listener: Option<Box<dyn TopicListenerAsync + Send>>,
         mask: Vec<StatusKind>,
         type_support: Arc<dyn DynamicType + Send + Sync>,
-    ) -> DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)> {
+    ) -> DdsResult<InstanceHandle> {
         if self.domain_participant.get_topic(&topic_name).is_some() {
             return Err(DdsError::PreconditionNotMet(format!(
                 "Topic with name {} already exists.
@@ -480,11 +477,6 @@ impl DomainParticipantActor {
         };
 
         let topic_handle = self.instance_handle_counter.generate_new_instance_handle();
-        let status_condition = Actor::spawn(
-            StatusConditionActor::default(),
-            &self.listener_executor.handle(),
-        );
-        let topic_status_condition_address = status_condition.address();
         let topic_listener = a_listener
             .map(|l| Actor::spawn(TopicListenerActor::new(l), &self.listener_executor.handle()));
         let topic = TopicEntity::new(
@@ -510,7 +502,7 @@ impl DomainParticipantActor {
             self.enable_topic(topic_name)?;
         }
 
-        Ok((topic_handle, topic_status_condition_address))
+        Ok(topic_handle)
     }
 
     pub fn delete_user_defined_topic(
@@ -809,10 +801,11 @@ impl DomainParticipantActor {
         subscriber_handle: InstanceHandle,
         topic_name: String,
         qos: QosKind<DataReaderQos>,
+        status_condition: Actor<StatusConditionActor>,
         a_listener: Option<Box<dyn AnyDataReaderListener>>,
         mask: Vec<StatusKind>,
         domain_participant_address: ActorAddress<DomainParticipantActor>,
-    ) -> DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)> {
+    ) -> DdsResult<InstanceHandle> {
         struct UserDefinedReaderHistoryCache {
             pub domain_participant_address: ActorAddress<DomainParticipantActor>,
             pub subscriber_handle: InstanceHandle,
@@ -895,10 +888,6 @@ impl DomainParticipantActor {
             ));
 
         let listener_mask = mask.to_vec();
-        let status_condition = Actor::spawn(
-            StatusConditionActor::default(),
-            &self.listener_executor.handle(),
-        );
         let listener = a_listener.map(|l| {
             Actor::spawn(
                 DataReaderListenerActor::new(l),
@@ -918,7 +907,6 @@ impl DomainParticipantActor {
         );
 
         let data_reader_handle = data_reader.instance_handle();
-        let reader_status_condition_address = data_reader.status_condition().address();
 
         subscriber.insert_data_reader(data_reader);
 
@@ -929,7 +917,7 @@ impl DomainParticipantActor {
                 domain_participant_address,
             )?;
         }
-        Ok((data_reader_handle, reader_status_condition_address))
+        Ok(data_reader_handle)
     }
 
     pub fn delete_data_reader(
@@ -1076,10 +1064,11 @@ impl DomainParticipantActor {
         publisher_handle: InstanceHandle,
         topic_name: String,
         qos: QosKind<DataWriterQos>,
+        status_condition: Actor<StatusConditionActor>,
         a_listener: Option<Box<dyn AnyDataWriterListener + Send>>,
         mask: Vec<StatusKind>,
         participant_address: ActorAddress<DomainParticipantActor>,
-    ) -> DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)> {
+    ) -> DdsResult<InstanceHandle> {
         let Some(topic) = self.domain_participant.get_topic(&topic_name) else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -1125,11 +1114,6 @@ impl DomainParticipantActor {
             .transport
             .create_stateful_writer(entity_id, reliablity_kind);
 
-        let status_condition = Actor::spawn(
-            StatusConditionActor::default(),
-            &self.listener_executor.handle(),
-        );
-        let writer_status_condition_address = status_condition.address();
         let listener = a_listener.map(|l| {
             Actor::spawn(
                 DataWriterListenerActor::new(l),
@@ -1155,7 +1139,7 @@ impl DomainParticipantActor {
             self.enable_data_writer(publisher_handle, writer_handle, participant_address)?;
         }
 
-        Ok((data_writer_handle, writer_status_condition_address))
+        Ok(data_writer_handle)
     }
 
     pub fn delete_data_writer(

@@ -54,10 +54,10 @@ pub enum ParticipantServiceMail {
     },
     CreateUserDefinedSubscriber {
         qos: QosKind<SubscriberQos>,
+        status_condition: Actor<StatusConditionActor>,
         a_listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
         mask: Vec<StatusKind>,
-        reply_sender:
-            OneshotSender<DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)>>,
+        reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
     },
     DeleteUserDefinedSubscriber {
         participant_handle: InstanceHandle,
@@ -68,11 +68,11 @@ pub enum ParticipantServiceMail {
         topic_name: String,
         type_name: String,
         qos: QosKind<TopicQos>,
+        status_condition: Actor<StatusConditionActor>,
         a_listener: Option<Box<dyn TopicListenerAsync + Send>>,
         mask: Vec<StatusKind>,
         type_support: Arc<dyn DynamicType + Send + Sync>,
-        reply_sender:
-            OneshotSender<DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)>>,
+        reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
     },
     DeleteUserDefinedTopic {
         participant_handle: InstanceHandle,
@@ -197,11 +197,11 @@ pub enum PublisherServiceMail {
         publisher_handle: InstanceHandle,
         topic_name: String,
         qos: QosKind<DataWriterQos>,
+        status_condition: Actor<StatusConditionActor>,
         a_listener: Option<Box<dyn AnyDataWriterListener + Send>>,
         mask: Vec<StatusKind>,
         participant_address: ActorAddress<DomainParticipantActor>,
-        reply_sender:
-            OneshotSender<DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)>>,
+        reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
     },
     DeleteDataWriter {
         publisher_handle: InstanceHandle,
@@ -239,11 +239,11 @@ pub enum SubscriberServiceMail {
         subscriber_handle: InstanceHandle,
         topic_name: String,
         qos: QosKind<DataReaderQos>,
+        status_condition: Actor<StatusConditionActor>,
         a_listener: Option<Box<dyn AnyDataReaderListener>>,
         mask: Vec<StatusKind>,
         domain_participant_address: ActorAddress<DomainParticipantActor>,
-        reply_sender:
-            OneshotSender<DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)>>,
+        reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
     },
     DeleteDataReader {
         subscriber_handle: InstanceHandle,
@@ -590,10 +590,16 @@ impl DomainParticipantActor {
             }
             ParticipantServiceMail::CreateUserDefinedSubscriber {
                 qos,
+                status_condition,
                 a_listener,
                 mask,
                 reply_sender,
-            } => reply_sender.send(self.create_user_defined_subscriber(qos, a_listener, mask)),
+            } => reply_sender.send(self.create_user_defined_subscriber(
+                qos,
+                status_condition,
+                a_listener,
+                mask,
+            )),
             ParticipantServiceMail::DeleteUserDefinedSubscriber {
                 participant_handle,
                 subscriber_handle,
@@ -604,6 +610,7 @@ impl DomainParticipantActor {
                 topic_name,
                 type_name,
                 qos,
+                status_condition,
                 a_listener,
                 mask,
                 type_support,
@@ -612,6 +619,7 @@ impl DomainParticipantActor {
                 topic_name,
                 type_name,
                 qos,
+                status_condition,
                 a_listener,
                 mask,
                 type_support,
@@ -732,6 +740,7 @@ impl DomainParticipantActor {
                 publisher_handle,
                 topic_name,
                 qos,
+                status_condition,
                 a_listener,
                 mask,
                 participant_address,
@@ -741,6 +750,7 @@ impl DomainParticipantActor {
                     publisher_handle,
                     topic_name,
                     qos,
+                    status_condition,
                     a_listener,
                     mask,
                     participant_address,
@@ -915,6 +925,7 @@ impl DomainParticipantActor {
                 subscriber_handle,
                 topic_name,
                 qos,
+                status_condition,
                 a_listener,
                 mask,
                 domain_participant_address,
@@ -923,6 +934,7 @@ impl DomainParticipantActor {
                 subscriber_handle,
                 topic_name,
                 qos,
+                status_condition,
                 a_listener,
                 mask,
                 domain_participant_address,

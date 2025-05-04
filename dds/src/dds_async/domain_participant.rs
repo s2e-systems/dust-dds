@@ -68,6 +68,10 @@ impl DomainParticipantAsync {
     pub(crate) fn participant_address(&self) -> &ActorAddress<DomainParticipantActor> {
         &self.participant_address
     }
+
+    pub(crate) fn executor_handle(&self) -> &ExecutorHandle {
+        &self.executor_handle
+    }
 }
 
 impl DomainParticipantAsync {
@@ -122,16 +126,19 @@ impl DomainParticipantAsync {
         mask: &[StatusKind],
     ) -> DdsResult<SubscriberAsync> {
         let (reply_sender, reply_receiver) = oneshot();
+        let status_condition = Actor::spawn(StatusConditionActor::default(), &self.executor_handle);
+        let subscriber_status_condition_address = status_condition.address();
         self.participant_address
             .send_actor_mail(DomainParticipantMail::Participant(
                 ParticipantServiceMail::CreateUserDefinedSubscriber {
                     qos,
+                    status_condition,
                     a_listener,
                     mask: mask.to_vec(),
                     reply_sender,
                 },
             ))?;
-        let (guid, subscriber_status_condition_address) = reply_receiver.await??;
+        let guid = reply_receiver.await??;
         let subscriber =
             SubscriberAsync::new(guid, subscriber_status_condition_address, self.clone());
 
@@ -184,19 +191,22 @@ impl DomainParticipantAsync {
         dynamic_type_representation: Arc<dyn DynamicType + Send + Sync>,
     ) -> DdsResult<TopicAsync> {
         let (reply_sender, reply_receiver) = oneshot();
+        let status_condition = Actor::spawn(StatusConditionActor::default(), &self.executor_handle);
+        let topic_status_condition_address = status_condition.address();
         self.participant_address
             .send_actor_mail(DomainParticipantMail::Participant(
                 ParticipantServiceMail::CreateTopic {
                     topic_name: topic_name.to_string(),
                     type_name: type_name.to_string(),
                     qos,
+                    status_condition,
                     a_listener,
                     mask: mask.to_vec(),
                     type_support: dynamic_type_representation,
                     reply_sender,
                 },
             ))?;
-        let (guid, topic_status_condition_address) = reply_receiver.await??;
+        let guid = reply_receiver.await??;
 
         Ok(TopicAsync::new(
             guid,
