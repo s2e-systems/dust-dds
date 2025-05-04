@@ -522,7 +522,6 @@ impl DomainParticipantFactoryActor {
             backend_executor,
             timer_driver,
             instance_handle_counter,
-            executor_handle,
         );
         let participant_handle = domain_participant_actor
             .domain_participant

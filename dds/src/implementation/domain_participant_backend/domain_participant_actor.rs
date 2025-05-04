@@ -78,7 +78,7 @@ use crate::{
     },
     runtime::{
         actor::{Actor, ActorAddress},
-        executor::{Executor, ExecutorHandle},
+        executor::Executor,
         mpsc::MpscSender,
         oneshot::oneshot,
         timer::TimerDriver,
@@ -111,7 +111,6 @@ pub struct DomainParticipantActor {
     pub domain_participant: DomainParticipantEntity,
     pub backend_executor: Executor,
     pub timer_driver: TimerDriver,
-    pub executor_handle: ExecutorHandle,
 }
 
 impl DomainParticipantActor {
@@ -121,7 +120,6 @@ impl DomainParticipantActor {
         backend_executor: Executor,
         timer_driver: TimerDriver,
         instance_handle_counter: InstanceHandleCounter,
-        executor_handle: ExecutorHandle,
     ) -> Self {
         Self {
             transport,
@@ -130,7 +128,6 @@ impl DomainParticipantActor {
             domain_participant,
             backend_executor,
             timer_driver,
-            executor_handle,
         }
     }
 
@@ -148,7 +145,7 @@ impl DomainParticipantActor {
             self.domain_participant.domain_id(),
             self.domain_participant.instance_handle(),
             self.timer_driver.handle(),
-            self.executor_handle.clone(),
+            self.backend_executor.handle(),
         )
     }
 
