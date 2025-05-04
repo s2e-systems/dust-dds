@@ -78,7 +78,7 @@ use crate::{
     },
     runtime::{
         actor::{Actor, ActorAddress},
-        executor::{Executor, ExecutorHandle},
+        executor::ExecutorHandle,
         mpsc::MpscSender,
         oneshot::oneshot,
         timer::TimerDriver,
@@ -109,7 +109,6 @@ pub struct DomainParticipantActor {
     pub instance_handle_counter: InstanceHandleCounter,
     pub entity_counter: u16,
     pub domain_participant: DomainParticipantEntity,
-    pub backend_executor: Executor,
     pub timer_driver: TimerDriver,
     pub executor_handle: ExecutorHandle,
 }
@@ -118,7 +117,6 @@ impl DomainParticipantActor {
     pub fn new(
         domain_participant: DomainParticipantEntity,
         transport: DdsTransportParticipant,
-        backend_executor: Executor,
         timer_driver: TimerDriver,
         instance_handle_counter: InstanceHandleCounter,
         executor_handle: ExecutorHandle,
@@ -128,7 +126,6 @@ impl DomainParticipantActor {
             instance_handle_counter,
             entity_counter: 0,
             domain_participant,
-            backend_executor,
             timer_driver,
             executor_handle,
         }
@@ -1381,7 +1378,7 @@ impl DomainParticipantActor {
                         };
 
                     let participant_address = participant_address.clone();
-                    self.backend_executor.handle().spawn(async move {
+                    self.executor_handle.spawn(async move {
                         timer_handle.sleep(sleep_duration.into()).await;
                         participant_address
                             .send_actor_mail(DomainParticipantMail::Message(
@@ -1407,7 +1404,7 @@ impl DomainParticipantActor {
 
         if let DurationKind::Finite(deadline_missed_period) = data_writer.qos().deadline.period {
             let timer_handle = self.timer_driver.handle();
-            let offered_deadline_missed_task = self.backend_executor.handle().spawn(async move {
+            let offered_deadline_missed_task = self.executor_handle.spawn(async move {
                 loop {
                     timer_handle.sleep(deadline_missed_period.into()).await;
                     participant_address
@@ -3359,7 +3356,7 @@ impl DomainParticipantActor {
                         let timer_handle = self.timer_driver.handle();
                         let participant_address = participant_address.clone();
                         let requested_deadline_missed_task =
-                            self.backend_executor.handle().spawn(async move {
+                            self.executor_handle.spawn(async move {
                                 loop {
                                     timer_handle.sleep(deadline_missed_period.into()).await;
                                     participant_address
