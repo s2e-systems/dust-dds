@@ -45,7 +45,7 @@ use crate::{
     rtps_udp_transport::udp_transport::RtpsUdpTransportParticipantFactory,
     runtime::{
         actor::{Actor, ActorAddress, ActorBuilder, MailHandler},
-        executor::ExecutorHandle,
+        executor::{Executor, ExecutorHandle},
         mpsc::MpscSender,
         oneshot::{oneshot, OneshotSender},
         timer::TimerDriver,
@@ -194,6 +194,9 @@ impl DomainParticipantFactoryActor {
         ActorAddress<StatusConditionActor>,
         ActorAddress<StatusConditionActor>,
     )> {
+        let backend_executor = Executor::new();
+        let backend_executor_handle = backend_executor.handle();
+
         let timer_driver = TimerDriver::new();
         let timer_handle = timer_driver.handle();
 
@@ -516,9 +519,10 @@ impl DomainParticipantFactoryActor {
         let domain_participant_actor = DomainParticipantActor::new(
             domain_participant,
             transport,
+            backend_executor,
             timer_driver,
             instance_handle_counter,
-            executor_handle.clone(),
+            executor_handle,
         );
         let participant_handle = domain_participant_actor
             .domain_participant
@@ -535,7 +539,7 @@ impl DomainParticipantFactoryActor {
             .address();
 
         let participant_actor =
-            participant_actor_builder.build(domain_participant_actor, &executor_handle);
+            participant_actor_builder.build(domain_participant_actor, &backend_executor_handle);
 
         //****** Spawn the participant actor and tasks **********//
 
@@ -544,7 +548,7 @@ impl DomainParticipantFactoryActor {
         let participant_announcement_interval =
             self.configuration.participant_announcement_interval();
 
-        executor_handle.spawn(async move {
+        backend_executor_handle.spawn(async move {
             while participant_address
                 .send_actor_mail(DomainParticipantMail::Discovery(
                     DiscoveryServiceMail::AnnounceParticipant,
