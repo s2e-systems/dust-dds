@@ -1,4 +1,7 @@
+use std::{future::Future, pin::Pin};
+
 use dust_dds::{
+    dds_async::data_reader::DataReaderAsync,
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         qos::{DataReaderQos, DataWriterQos, QosKind},
@@ -9,7 +12,7 @@ use dust_dds::{
         time::{Duration, DurationKind},
         wait_set::{Condition, WaitSet},
     },
-    subscription::{data_reader::DataReader, data_reader_listener::DataReaderListener},
+    subscription::data_reader_listener::DataReaderListener,
     topic_definition::type_support::DdsType,
 };
 
@@ -33,12 +36,14 @@ fn reader_subscription_matched_listener_and_wait_set_should_both_trigger() {
         type Foo = MyData;
         fn on_subscription_matched(
             &mut self,
-            _the_reader: DataReader<MyData>,
+            _the_reader: DataReaderAsync<MyData>,
             status: SubscriptionMatchedStatus,
-        ) {
-            if let Some(s) = self.sender.take() {
-                s.send(status).unwrap()
-            };
+        ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+            Box::pin(async move {
+                if let Some(s) = self.sender.take() {
+                    s.send(status).unwrap()
+                };
+            })
         }
     }
 

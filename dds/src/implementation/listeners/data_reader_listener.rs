@@ -1,5 +1,5 @@
 use crate::{
-    dds_async::{data_reader::DataReaderAsync, data_reader_listener::DataReaderListenerAsync},
+    dds_async::data_reader::DataReaderAsync,
     infrastructure::status::{
         RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleRejectedStatus,
         SubscriptionMatchedStatus,
@@ -8,13 +8,14 @@ use crate::{
         executor::ExecutorHandle,
         mpsc::{mpsc_channel, MpscSender},
     },
+    subscription::data_reader_listener::DataReaderListener,
 };
 
 pub struct DataReaderListenerActor;
 
 impl DataReaderListenerActor {
     pub fn spawn<'a, Foo>(
-        mut listener: Box<(dyn DataReaderListenerAsync<'a, Foo = Foo> + Send + 'a)>,
+        mut listener: Box<(dyn DataReaderListener<'a, Foo = Foo> + Send + 'a)>,
         executor_handle: &ExecutorHandle,
     ) -> MpscSender<DataReaderListenerMail>
     where

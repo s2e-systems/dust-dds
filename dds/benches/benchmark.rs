@@ -1,5 +1,8 @@
+use std::{future::Future, pin::Pin};
+
 use criterion::{criterion_group, criterion_main, Criterion};
 use dust_dds::{
+    dds_async::data_reader::DataReaderAsync,
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         qos::{DataWriterQos, QosKind},
@@ -9,7 +12,6 @@ use dust_dds::{
         wait_set::{Condition, WaitSet},
     },
     subscription::{
-        data_reader::DataReader,
         data_reader_listener::DataReaderListener,
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     },
@@ -117,11 +119,17 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
     }
     impl DataReaderListener<'_> for Listener {
         type Foo = KeyedData;
-        fn on_data_available(&mut self, the_reader: DataReader<KeyedData>) {
-            the_reader
-                .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-                .ok();
-            self.sender.send(()).unwrap();
+        fn on_data_available(
+            &mut self,
+            the_reader: DataReaderAsync<KeyedData>,
+        ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+            Box::pin(async move {
+                the_reader
+                    .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+                    .await
+                    .ok();
+                self.sender.send(()).unwrap();
+            })
         }
     }
 
@@ -198,11 +206,17 @@ fn best_effort_write_and_receive_frag(c: &mut Criterion) {
     }
     impl DataReaderListener<'_> for Listener {
         type Foo = LargeKeyedData;
-        fn on_data_available(&mut self, the_reader: DataReader<LargeKeyedData>) {
-            the_reader
-                .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-                .ok();
-            self.sender.send(()).unwrap();
+        fn on_data_available(
+            &mut self,
+            the_reader: DataReaderAsync<LargeKeyedData>,
+        ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+            Box::pin(async move {
+                the_reader
+                    .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+                    .await
+                    .ok();
+                self.sender.send(()).unwrap();
+            })
         }
     }
 

@@ -1,7 +1,7 @@
 use super::{
     condition::StatusConditionAsync, data_reader::DataReaderAsync,
-    data_reader_listener::DataReaderListenerAsync, domain_participant::DomainParticipantAsync,
-    subscriber_listener::SubscriberListenerAsync, topic::TopicAsync,
+    domain_participant::DomainParticipantAsync, subscriber_listener::SubscriberListenerAsync,
+    topic::TopicAsync,
 };
 use crate::{
     implementation::{
@@ -25,6 +25,7 @@ use crate::{
         actor::{Actor, ActorAddress},
         oneshot::oneshot,
     },
+    subscription::data_reader_listener::DataReaderListener,
 };
 
 /// Async version of [`Subscriber`](crate::subscription::subscriber::Subscriber).
@@ -60,7 +61,7 @@ impl SubscriberAsync {
         &'a self,
         a_topic: &'a TopicAsync,
         qos: QosKind<DataReaderQos>,
-        a_listener: Option<Box<(dyn DataReaderListenerAsync<'b, Foo = Foo> + Send + 'b)>>,
+        a_listener: Option<Box<(dyn DataReaderListener<'b, Foo = Foo> + Send + 'b)>>,
         mask: &'a [StatusKind],
     ) -> DdsResult<DataReaderAsync<Foo>>
     where

@@ -1,9 +1,6 @@
 use tracing::warn;
 
-use super::{
-    condition::StatusConditionAsync, data_reader_listener::DataReaderListenerAsync,
-    subscriber::SubscriberAsync, topic::TopicAsync,
-};
+use super::{condition::StatusConditionAsync, subscriber::SubscriberAsync, topic::TopicAsync};
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     implementation::{
@@ -27,6 +24,7 @@ use crate::{
     runtime::{actor::ActorAddress, oneshot::oneshot},
     subscription::{
         data_reader::Sample,
+        data_reader_listener::DataReaderListener,
         sample_info::{
             InstanceStateKind, SampleStateKind, ViewStateKind, ANY_INSTANCE_STATE, ANY_VIEW_STATE,
         },
@@ -506,7 +504,7 @@ where
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn set_listener(
         &self,
-        a_listener: Option<Box<dyn DataReaderListenerAsync<'a, Foo = Foo> + Send + 'a>>,
+        a_listener: Option<Box<dyn DataReaderListener<'a, Foo = Foo> + Send + 'a>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();

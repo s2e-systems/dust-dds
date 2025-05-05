@@ -1,6 +1,6 @@
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
-    dds_async::{data_reader::DataReaderAsync, data_reader_listener::DataReaderListenerAsync},
+    dds_async::data_reader::DataReaderAsync,
     infrastructure::{
         condition::StatusCondition,
         error::{DdsError, DdsResult},
@@ -512,12 +512,6 @@ where
         a_listener: Option<Box<dyn DataReaderListener<'a, Foo = Foo> + Send + 'a>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        block_on(
-            self.reader_async.set_listener(
-                a_listener
-                    .map::<Box<dyn DataReaderListenerAsync<Foo = Foo> + Send>, _>(|b| Box::new(b)),
-                mask,
-            ),
-        )
+        block_on(self.reader_async.set_listener(a_listener, mask))
     }
 }

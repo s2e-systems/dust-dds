@@ -1,8 +1,5 @@
 use crate::{
-    dds_async::{
-        data_reader_listener::DataReaderListenerAsync, subscriber::SubscriberAsync,
-        subscriber_listener::SubscriberListenerAsync,
-    },
+    dds_async::{subscriber::SubscriberAsync, subscriber_listener::SubscriberListenerAsync},
     domain::domain_participant::DomainParticipant,
     infrastructure::{
         condition::StatusCondition,
@@ -67,16 +64,12 @@ impl Subscriber {
     where
         Foo: 'a,
     {
-        block_on(
-            self.subscriber_async.create_datareader::<Foo>(
-                a_topic.topic_async(),
-                qos,
-                a_listener.map::<Box<dyn DataReaderListenerAsync<Foo = Foo> + Send + 'a>, _>(|b| {
-                    Box::new(b)
-                }),
-                mask,
-            ),
-        )
+        block_on(self.subscriber_async.create_datareader::<Foo>(
+            a_topic.topic_async(),
+            qos,
+            a_listener,
+            mask,
+        ))
         .map(DataReader::new)
     }
 
