@@ -1,6 +1,6 @@
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
-    dds_async::{data_writer::DataWriterAsync, data_writer_listener::DataWriterListenerAsync},
+    dds_async::data_writer::DataWriterAsync,
     infrastructure::{
         condition::StatusCondition,
         error::DdsResult,
@@ -23,6 +23,14 @@ pub struct DataWriter<Foo> {
     writer_async: DataWriterAsync<Foo>,
 }
 
+impl<Foo> From<DataWriterAsync<Foo>> for DataWriter<Foo> {
+    fn from(value: DataWriterAsync<Foo>) -> Self {
+        Self {
+            writer_async: value,
+        }
+    }
+}
+
 impl<Foo> Clone for DataWriter<Foo> {
     fn clone(&self) -> Self {
         Self {
@@ -32,10 +40,6 @@ impl<Foo> Clone for DataWriter<Foo> {
 }
 
 impl<Foo> DataWriter<Foo> {
-    pub(crate) fn new(writer_async: DataWriterAsync<Foo>) -> Self {
-        Self { writer_async }
-    }
-
     pub(crate) fn writer_async(&self) -> &DataWriterAsync<Foo> {
         &self.writer_async
     }
@@ -283,13 +287,13 @@ impl<Foo> DataWriter<Foo> {
     /// This operation returns the [`Topic`] associated with the [`DataWriter`]. This is the same [`Topic`] that was used to create the [`DataWriter`].
     #[tracing::instrument(skip(self))]
     pub fn get_topic(&self) -> Topic {
-        Topic::new(self.writer_async.get_topic())
+        Topic::from(self.writer_async.get_topic())
     }
 
     /// This operation returns the [`Publisher`] to which the [`DataWriter`] object belongs.
     #[tracing::instrument(skip(self))]
     pub fn get_publisher(&self) -> Publisher {
-        Publisher::new(self.writer_async.get_publisher())
+        Publisher::from(self.writer_async.get_publisher())
     }
 
     /// This operation manually asserts the liveliness of the [`DataWriter`]. This is used in combination with the
@@ -426,12 +430,6 @@ where
         a_listener: Option<Box<dyn DataWriterListener<'a, Foo = Foo> + Send + 'a>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        block_on(
-            self.writer_async.set_listener(
-                a_listener
-                    .map::<Box<dyn DataWriterListenerAsync<Foo = Foo> + Send>, _>(|b| Box::new(b)),
-                mask,
-            ),
-        )
+        block_on(self.writer_async.set_listener(a_listener, mask))
     }
 }

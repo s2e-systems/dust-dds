@@ -1,7 +1,7 @@
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     implementation::{
-        listeners::data_writer_listener::DataWriterListenerActor,
+        listeners::data_writer_listener::DataWriterListenerMail,
         status_condition::status_condition_actor::{StatusConditionActor, StatusConditionMail},
         xtypes_glue::key_and_instance_handle::{
             get_instance_handle_from_serialized_foo, get_instance_handle_from_serialized_key,
@@ -18,7 +18,7 @@ use crate::{
         },
         time::{DurationKind, Time},
     },
-    runtime::{actor::Actor, executor::TaskHandle},
+    runtime::{actor::Actor, executor::TaskHandle, mpsc::MpscSender},
     transport::{
         history_cache::{CacheChange, HistoryCache},
         types::{ChangeKind, Guid},
@@ -71,7 +71,7 @@ pub struct DataWriterEntity {
     offered_incompatible_qos_status: OfferedIncompatibleQosStatus,
     enabled: bool,
     status_condition: Actor<StatusConditionActor>,
-    listener: Option<Actor<DataWriterListenerActor>>,
+    listener_sender: Option<MpscSender<DataWriterListenerMail>>,
     listener_mask: Vec<StatusKind>,
     max_seq_num: Option<i64>,
     last_change_sequence_number: i64,
@@ -91,7 +91,7 @@ impl DataWriterEntity {
         type_name: String,
         type_support: Arc<dyn DynamicType + Send + Sync>,
         status_condition: Actor<StatusConditionActor>,
-        listener: Option<Actor<DataWriterListenerActor>>,
+        listener_sender: Option<MpscSender<DataWriterListenerMail>>,
         listener_mask: Vec<StatusKind>,
         qos: DataWriterQos,
     ) -> Self {
@@ -107,7 +107,7 @@ impl DataWriterEntity {
             offered_incompatible_qos_status: OfferedIncompatibleQosStatus::default(),
             enabled: false,
             status_condition,
-            listener,
+            listener_sender,
             listener_mask,
             max_seq_num: None,
             last_change_sequence_number: 0,
@@ -571,15 +571,15 @@ impl DataWriterEntity {
 
     pub fn set_listener(
         &mut self,
-        listener: Option<Actor<DataWriterListenerActor>>,
+        listener_sender: Option<MpscSender<DataWriterListenerMail>>,
         listener_mask: Vec<StatusKind>,
     ) {
-        self.listener = listener;
+        self.listener_sender = listener_sender;
         self.listener_mask = listener_mask;
     }
 
-    pub fn listener(&self) -> Option<&Actor<DataWriterListenerActor>> {
-        self.listener.as_ref()
+    pub fn listener(&self) -> Option<MpscSender<DataWriterListenerMail>> {
+        self.listener_sender.clone()
     }
 
     pub fn listener_mask(&self) -> &[StatusKind] {

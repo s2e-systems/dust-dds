@@ -1,17 +1,14 @@
 use tracing::warn;
 
-use super::{
-    condition::StatusConditionAsync, data_reader_listener::DataReaderListenerAsync,
-    subscriber::SubscriberAsync, topic::TopicAsync,
-};
+use super::{condition::StatusConditionAsync, subscriber::SubscriberAsync, topic::TopicAsync};
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     implementation::{
-        any_data_reader_listener::AnyDataReaderListener,
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor,
             domain_participant_actor_mail::{DomainParticipantMail, ReaderServiceMail},
         },
+        listeners::data_reader_listener::DataReaderListenerActor,
         status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
@@ -27,6 +24,7 @@ use crate::{
     runtime::{actor::ActorAddress, oneshot::oneshot},
     subscription::{
         data_reader::Sample,
+        data_reader_listener::DataReaderListener,
         sample_info::{
             InstanceStateKind, SampleStateKind, ViewStateKind, ANY_INSTANCE_STATE, ANY_VIEW_STATE,
         },
@@ -506,17 +504,22 @@ where
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn set_listener(
         &self,
-        a_listener: Option<Box<dyn DataReaderListenerAsync<'a, Foo = Foo> + Send + 'a>>,
+        a_listener: Option<Box<dyn DataReaderListener<'a, Foo = Foo> + Send + 'a>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
-        let listener = a_listener.map::<Box<dyn AnyDataReaderListener>, _>(|l| Box::new(l));
+        let listener_sender = a_listener.map(|l| {
+            DataReaderListenerActor::spawn(
+                l,
+                self.get_subscriber().get_participant().executor_handle(),
+            )
+        });
         self.participant_address()
             .send_actor_mail(DomainParticipantMail::Reader(
                 ReaderServiceMail::SetListener {
                     subscriber_handle: self.subscriber.get_instance_handle().await,
                     data_reader_handle: self.handle,
-                    listener,
+                    listener_sender,
                     listener_mask: mask.to_vec(),
                     reply_sender,
                 },

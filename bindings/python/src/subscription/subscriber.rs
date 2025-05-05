@@ -26,6 +26,12 @@ impl From<dust_dds::subscription::subscriber::Subscriber> for Subscriber {
     }
 }
 
+impl From<dust_dds::dds_async::subscriber::SubscriberAsync> for Subscriber {
+    fn from(value: dust_dds::dds_async::subscriber::SubscriberAsync) -> Self {
+        Self(dust_dds::subscription::subscriber::Subscriber::from(value))
+    }
+}
+
 impl AsRef<dust_dds::subscription::subscriber::Subscriber> for Subscriber {
     fn as_ref(&self) -> &dust_dds::subscription::subscriber::Subscriber {
         &self.0

@@ -1,18 +1,43 @@
 use crate::{
-    dds_async::{data_writer::DataWriterAsync, publisher_listener::PublisherListenerAsync},
+    dds_async::data_writer::DataWriterAsync,
     infrastructure::status::{
         OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
     },
-    runtime::{actor::MailHandler, executor::block_on},
+    publication::publisher_listener::PublisherListener,
+    runtime::{
+        executor::ExecutorHandle,
+        mpsc::{mpsc_channel, MpscSender},
+    },
 };
 
-pub struct PublisherListenerActor {
-    listener: Box<dyn PublisherListenerAsync + Send>,
-}
+pub struct PublisherListenerActor;
 
 impl PublisherListenerActor {
-    pub fn new(listener: Box<dyn PublisherListenerAsync + Send>) -> Self {
-        Self { listener }
+    pub fn spawn(
+        mut listener: Box<dyn PublisherListener + Send>,
+        executor_handle: &ExecutorHandle,
+    ) -> MpscSender<PublisherListenerMail> {
+        let (listener_sender, listener_receiver) = mpsc_channel();
+        executor_handle.spawn(async move {
+            while let Some(m) = listener_receiver.recv().await {
+                match m {
+                    PublisherListenerMail::OnPublicationMatched { the_writer, status } => {
+                        listener.on_publication_matched(the_writer, status).await;
+                    }
+                    PublisherListenerMail::OfferedIncompatibleQos { the_writer, status } => {
+                        listener
+                            .on_offered_incompatible_qos(the_writer, status)
+                            .await;
+                    }
+                    PublisherListenerMail::OfferedDeadlineMissed { the_writer, status } => {
+                        listener
+                            .on_offered_deadline_missed(the_writer, status)
+                            .await;
+                    }
+                }
+            }
+        });
+        listener_sender
     }
 }
 
@@ -29,22 +54,4 @@ pub enum PublisherListenerMail {
         the_writer: DataWriterAsync<()>,
         status: OfferedDeadlineMissedStatus,
     },
-}
-
-impl MailHandler for PublisherListenerActor {
-    type Mail = PublisherListenerMail;
-    async fn handle(&mut self, message: PublisherListenerMail) {
-        match message {
-            PublisherListenerMail::OnPublicationMatched { the_writer, status } => {
-                block_on(self.listener.on_publication_matched(the_writer, status))
-            }
-            PublisherListenerMail::OfferedIncompatibleQos { the_writer, status } => block_on(
-                self.listener
-                    .on_offered_incompatible_qos(the_writer, status),
-            ),
-            PublisherListenerMail::OfferedDeadlineMissed { the_writer, status } => {
-                block_on(self.listener.on_offered_deadline_missed(the_writer, status))
-            }
-        }
-    }
 }

@@ -27,6 +27,12 @@ impl From<dust_dds::publication::data_writer::DataWriter<PythonDdsData>> for Dat
     }
 }
 
+impl From<dust_dds::dds_async::data_writer::DataWriterAsync<PythonDdsData>> for DataWriter {
+    fn from(value: dust_dds::dds_async::data_writer::DataWriterAsync<PythonDdsData>) -> Self {
+        Self(dust_dds::publication::data_writer::DataWriter::from(value))
+    }
+}
+
 impl AsRef<dust_dds::publication::data_writer::DataWriter<PythonDdsData>> for DataWriter {
     fn as_ref(&self) -> &dust_dds::publication::data_writer::DataWriter<PythonDdsData> {
         &self.0

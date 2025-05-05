@@ -1,6 +1,6 @@
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
-    dds_async::{data_reader::DataReaderAsync, data_reader_listener::DataReaderListenerAsync},
+    dds_async::data_reader::DataReaderAsync,
     infrastructure::{
         condition::StatusCondition,
         error::{DdsError, DdsResult},
@@ -74,12 +74,16 @@ pub struct DataReader<Foo> {
 }
 
 impl<Foo> DataReader<Foo> {
-    pub(crate) fn new(reader_async: DataReaderAsync<Foo>) -> Self {
-        Self { reader_async }
-    }
-
     pub(crate) fn reader_async(&self) -> &DataReaderAsync<Foo> {
         &self.reader_async
+    }
+}
+
+impl<Foo> From<DataReaderAsync<Foo>> for DataReader<Foo> {
+    fn from(value: DataReaderAsync<Foo>) -> Self {
+        Self {
+            reader_async: value,
+        }
     }
 }
 
@@ -365,13 +369,13 @@ impl<Foo> DataReader<Foo> {
     /// that was used to create the [`DataReader`].
     #[tracing::instrument(skip(self))]
     pub fn get_topicdescription(&self) -> Topic {
-        Topic::new(self.reader_async.get_topicdescription())
+        Topic::from(self.reader_async.get_topicdescription())
     }
 
     /// This operation returns the [`Subscriber`] to which the [`DataReader`] belongs.
     #[tracing::instrument(skip(self))]
     pub fn get_subscriber(&self) -> Subscriber {
-        Subscriber::new(self.reader_async.get_subscriber())
+        Subscriber::from(self.reader_async.get_subscriber())
     }
 
     /// This operation blocks the calling thread until either all *historical* data is received, or else the
@@ -512,12 +516,6 @@ where
         a_listener: Option<Box<dyn DataReaderListener<'a, Foo = Foo> + Send + 'a>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        block_on(
-            self.reader_async.set_listener(
-                a_listener
-                    .map::<Box<dyn DataReaderListenerAsync<Foo = Foo> + Send>, _>(|b| Box::new(b)),
-                mask,
-            ),
-        )
+        block_on(self.reader_async.set_listener(a_listener, mask))
     }
 }

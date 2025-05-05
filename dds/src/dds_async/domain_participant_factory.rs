@@ -1,12 +1,12 @@
 use std::sync::OnceLock;
 
-use super::{
-    domain_participant::DomainParticipantAsync,
-    domain_participant_listener::DomainParticipantListenerAsync,
-};
+use super::domain_participant::DomainParticipantAsync;
 use crate::{
     configuration::DustDdsConfiguration,
-    domain::domain_participant_factory::DomainId,
+    domain::{
+        domain_participant_factory::DomainId,
+        domain_participant_listener::DomainParticipantListener,
+    },
     implementation::{
         domain_participant_backend::domain_participant_actor_mail::{
             DiscoveryServiceMail, DomainParticipantMail, ParticipantServiceMail,
@@ -15,6 +15,7 @@ use crate::{
             DdsTransportParticipantFactory, DomainParticipantFactoryActor,
             DomainParticipantFactoryMail,
         },
+        listeners::domain_participant_listener::DomainParticipantListenerActor,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -30,7 +31,6 @@ use crate::{
 /// to spin tasks on an existing runtime which can be shared with other things outside Dust DDS.
 pub struct DomainParticipantFactoryAsync {
     _executor: Executor,
-    timer_driver: TimerDriver,
     domain_participant_factory_actor: Actor<DomainParticipantFactoryActor>,
 }
 
@@ -40,18 +40,26 @@ impl DomainParticipantFactoryAsync {
         &self,
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
-        a_listener: Option<Box<dyn DomainParticipantListenerAsync + Send + 'static>>,
+        a_listener: Option<Box<dyn DomainParticipantListener + Send + 'static>>,
         mask: &[StatusKind],
     ) -> DdsResult<DomainParticipantAsync> {
+        let executor = Executor::new();
+        let timer_driver = TimerDriver::new();
+        let timer_handle = timer_driver.handle();
+        let executor_handle = executor.handle();
         let status_kind = mask.to_vec();
+        let listener_sender =
+            a_listener.map(|l| DomainParticipantListenerActor::spawn(l, &executor.handle()));
         let (reply_sender, reply_receiver) = oneshot();
         self.domain_participant_factory_actor.send_actor_mail(
             DomainParticipantFactoryMail::CreateParticipant {
                 domain_id,
                 qos,
-                listener: a_listener,
+                listener_sender,
                 status_kind,
                 reply_sender,
+                executor,
+                timer_driver,
             },
         );
 
@@ -68,7 +76,8 @@ impl DomainParticipantFactoryAsync {
             builtin_subscriber_status_condition_address,
             domain_id,
             participant_handle,
-            self.timer_driver.handle(),
+            timer_handle,
+            executor_handle,
         );
 
         Ok(domain_participant)
@@ -113,13 +122,11 @@ impl DomainParticipantFactoryAsync {
         static PARTICIPANT_FACTORY_ASYNC: OnceLock<DomainParticipantFactoryAsync> = OnceLock::new();
         PARTICIPANT_FACTORY_ASYNC.get_or_init(|| {
             let executor = Executor::new();
-            let timer_driver = TimerDriver::new();
             let domain_participant_factory_actor =
                 Actor::spawn(DomainParticipantFactoryActor::new(), &executor.handle());
             Self {
                 _executor: executor,
                 domain_participant_factory_actor,
-                timer_driver,
             }
         })
     }

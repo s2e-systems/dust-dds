@@ -28,6 +28,12 @@ impl From<dust_dds::topic_definition::topic::Topic> for Topic {
     }
 }
 
+impl From<dust_dds::dds_async::topic::TopicAsync> for Topic {
+    fn from(value: dust_dds::dds_async::topic::TopicAsync) -> Self {
+        Self(dust_dds::topic_definition::topic::Topic::from(value))
+    }
+}
+
 #[pymethods]
 impl Topic {
     pub fn get_inconsistent_topic_status(&self) -> PyResult<InconsistentTopicStatus> {

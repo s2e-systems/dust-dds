@@ -1,17 +1,14 @@
 use tracing::warn;
 
-use super::{
-    condition::StatusConditionAsync, data_writer_listener::DataWriterListenerAsync,
-    publisher::PublisherAsync, topic::TopicAsync,
-};
+use super::{condition::StatusConditionAsync, publisher::PublisherAsync, topic::TopicAsync};
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     implementation::{
-        any_data_writer_listener::AnyDataWriterListener,
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor,
             domain_participant_actor_mail::{DomainParticipantMail, WriterServiceMail},
         },
+        listeners::data_writer_listener::DataWriterListenerActor,
         status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
@@ -24,6 +21,7 @@ use crate::{
         },
         time::{Duration, Time},
     },
+    publication::data_writer_listener::DataWriterListener,
     runtime::{actor::ActorAddress, oneshot::oneshot},
     topic_definition::type_support::DdsSerialize,
 };
@@ -434,17 +432,22 @@ where
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn set_listener(
         &self,
-        a_listener: Option<Box<dyn DataWriterListenerAsync<'a, Foo = Foo> + Send + 'a>>,
+        a_listener: Option<Box<dyn DataWriterListener<'a, Foo = Foo> + Send + 'a>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
-        let listener = a_listener.map::<Box<dyn AnyDataWriterListener + Send>, _>(|b| Box::new(b));
+        let listener_sender = a_listener.map(|l| {
+            DataWriterListenerActor::spawn(
+                l,
+                self.get_publisher().get_participant().executor_handle(),
+            )
+        });
         self.participant_address()
             .send_actor_mail(DomainParticipantMail::Writer(
                 WriterServiceMail::SetListener {
                     publisher_handle: self.publisher.get_instance_handle().await,
                     data_writer_handle: self.handle,
-                    listener,
+                    listener_sender,
                     listener_mask: mask.to_vec(),
                     reply_sender,
                 },

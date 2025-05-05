@@ -1,14 +1,16 @@
 use super::{
     condition::StatusConditionAsync, data_reader::DataReaderAsync,
-    data_reader_listener::DataReaderListenerAsync, domain_participant::DomainParticipantAsync,
-    subscriber_listener::SubscriberListenerAsync, topic::TopicAsync,
+    domain_participant::DomainParticipantAsync, topic::TopicAsync,
 };
 use crate::{
     implementation::{
-        any_data_reader_listener::AnyDataReaderListener,
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor,
             domain_participant_actor_mail::{DomainParticipantMail, SubscriberServiceMail},
+        },
+        listeners::{
+            data_reader_listener::DataReaderListenerActor,
+            subscriber_listener::SubscriberListenerActor,
         },
         status_condition::status_condition_actor::StatusConditionActor,
     },
@@ -18,7 +20,13 @@ use crate::{
         qos::{DataReaderQos, QosKind, SubscriberQos, TopicQos},
         status::{SampleLostStatus, StatusKind},
     },
-    runtime::{actor::ActorAddress, oneshot::oneshot},
+    runtime::{
+        actor::{Actor, ActorAddress},
+        oneshot::oneshot,
+    },
+    subscription::{
+        data_reader_listener::DataReaderListener, subscriber_listener::SubscriberListener,
+    },
 };
 
 /// Async version of [`Subscriber`](crate::subscription::subscriber::Subscriber).
@@ -54,13 +62,19 @@ impl SubscriberAsync {
         &'a self,
         a_topic: &'a TopicAsync,
         qos: QosKind<DataReaderQos>,
-        a_listener: Option<Box<(dyn DataReaderListenerAsync<'b, Foo = Foo> + Send + 'b)>>,
+        a_listener: Option<Box<(dyn DataReaderListener<'b, Foo = Foo> + Send + 'b)>>,
         mask: &'a [StatusKind],
     ) -> DdsResult<DataReaderAsync<Foo>>
     where
         Foo: 'b,
     {
-        let a_listener = a_listener.map::<Box<dyn AnyDataReaderListener>, _>(|l| Box::new(l));
+        let status_condition = Actor::spawn(
+            StatusConditionActor::default(),
+            self.participant.executor_handle(),
+        );
+        let reader_status_condition_address = status_condition.address();
+        let listener_sender = a_listener
+            .map(|l| DataReaderListenerActor::spawn(l, self.participant.executor_handle()));
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
             .send_actor_mail(DomainParticipantMail::Subscriber(
@@ -68,13 +82,14 @@ impl SubscriberAsync {
                     subscriber_handle: self.handle,
                     topic_name: a_topic.get_name(),
                     qos,
-                    a_listener,
+                    status_condition,
+                    listener_sender,
                     mask: mask.to_vec(),
                     domain_participant_address: self.participant_address().clone(),
                     reply_sender,
                 },
             ))?;
-        let (guid, reader_status_condition_address) = reply_receiver.await??;
+        let guid = reply_receiver.await??;
 
         Ok(DataReaderAsync::new(
             guid,
@@ -229,15 +244,17 @@ impl SubscriberAsync {
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn set_listener(
         &self,
-        a_listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
+        a_listener: Option<Box<dyn SubscriberListener + Send>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
+        let listener_sender = a_listener
+            .map(|l| SubscriberListenerActor::spawn(l, self.participant.executor_handle()));
         self.participant_address()
             .send_actor_mail(DomainParticipantMail::Subscriber(
                 SubscriberServiceMail::SetListener {
                     subscriber_handle: self.handle,
-                    a_listener,
+                    listener_sender,
                     mask: mask.to_vec(),
                     reply_sender,
                 },

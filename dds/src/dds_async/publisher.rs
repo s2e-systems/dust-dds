@@ -1,14 +1,16 @@
 use super::{
     condition::StatusConditionAsync, data_writer::DataWriterAsync,
-    data_writer_listener::DataWriterListenerAsync, domain_participant::DomainParticipantAsync,
-    publisher_listener::PublisherListenerAsync, topic::TopicAsync,
+    domain_participant::DomainParticipantAsync, topic::TopicAsync,
 };
 use crate::{
     implementation::{
-        any_data_writer_listener::AnyDataWriterListener,
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor,
             domain_participant_actor_mail::{DomainParticipantMail, PublisherServiceMail},
+        },
+        listeners::{
+            data_writer_listener::DataWriterListenerActor,
+            publisher_listener::PublisherListenerActor,
         },
         status_condition::status_condition_actor::StatusConditionActor,
     },
@@ -19,7 +21,13 @@ use crate::{
         status::StatusKind,
         time::Duration,
     },
-    runtime::{actor::ActorAddress, oneshot::oneshot},
+    publication::{
+        data_writer_listener::DataWriterListener, publisher_listener::PublisherListener,
+    },
+    runtime::{
+        actor::{Actor, ActorAddress},
+        oneshot::oneshot,
+    },
 };
 
 /// Async version of [`Publisher`](crate::publication::publisher::Publisher).
@@ -55,14 +63,20 @@ impl PublisherAsync {
         &'a self,
         a_topic: &'a TopicAsync,
         qos: QosKind<DataWriterQos>,
-        a_listener: Option<Box<dyn DataWriterListenerAsync<'b, Foo = Foo> + Send + 'b>>,
+        a_listener: Option<Box<dyn DataWriterListener<'b, Foo = Foo> + Send + 'b>>,
         mask: &'a [StatusKind],
     ) -> DdsResult<DataWriterAsync<Foo>>
     where
         Foo: 'b,
     {
         let topic_name = a_topic.get_name();
-        let listener = a_listener.map::<Box<dyn AnyDataWriterListener + Send>, _>(|b| Box::new(b));
+        let status_condition = Actor::spawn(
+            StatusConditionActor::default(),
+            self.participant.executor_handle(),
+        );
+        let writer_status_condition_address = status_condition.address();
+        let listener_sender = a_listener
+            .map(|l| DataWriterListenerActor::spawn(l, self.participant.executor_handle()));
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
             .send_actor_mail(DomainParticipantMail::Publisher(
@@ -70,13 +84,14 @@ impl PublisherAsync {
                     publisher_handle: self.handle,
                     topic_name,
                     qos,
-                    a_listener: listener,
+                    status_condition,
+                    listener_sender,
                     mask: mask.to_vec(),
                     participant_address: self.participant_address().clone(),
                     reply_sender,
                 },
             ))?;
-        let (guid, writer_status_condition_address) = reply_receiver.await??;
+        let guid = reply_receiver.await??;
 
         Ok(DataWriterAsync::new(
             guid,
@@ -229,15 +244,17 @@ impl PublisherAsync {
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn set_listener(
         &self,
-        a_listener: Option<Box<dyn PublisherListenerAsync + Send>>,
+        a_listener: Option<Box<dyn PublisherListener + Send>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
+        let listener_sender = a_listener
+            .map(|l| PublisherListenerActor::spawn(l, self.participant.executor_handle()));
         self.participant_address()
             .send_actor_mail(DomainParticipantMail::Publisher(
                 PublisherServiceMail::SetPublisherListener {
                     publisher_handle: self.handle,
-                    a_listener,
+                    listener_sender,
                     mask: mask.to_vec(),
                     reply_sender,
                 },

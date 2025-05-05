@@ -1,4 +1,9 @@
+use std::{future::Future, pin::Pin};
+
 use dust_dds::{
+    dds_async::{
+        data_reader::DataReaderAsync, data_writer::DataWriterAsync, subscriber::SubscriberAsync,
+    },
     domain::{
         domain_participant_factory::DomainParticipantFactory,
         domain_participant_listener::DomainParticipantListener,
@@ -18,12 +23,10 @@ use dust_dds::{
         wait_set::{Condition, WaitSet},
     },
     publication::{
-        data_writer::DataWriter, data_writer_listener::DataWriterListener,
-        publisher_listener::PublisherListener,
+        data_writer_listener::DataWriterListener, publisher_listener::PublisherListener,
     },
     subscription::{
-        data_reader::DataReader, data_reader_listener::DataReaderListener, subscriber::Subscriber,
-        subscriber_listener::SubscriberListener,
+        data_reader_listener::DataReaderListener, subscriber_listener::SubscriberListener,
     },
     topic_definition::{topic_listener::TopicListener, type_support::DdsType},
 };
@@ -47,10 +50,12 @@ fn requested_deadline_missed_listener() {
     impl DomainParticipantListener for DeadlineMissedListener {
         fn on_requested_deadline_missed(
             &mut self,
-            _the_reader: DataReader<()>,
+            _the_reader: DataReaderAsync<()>,
             status: RequestedDeadlineMissedStatus,
-        ) {
-            self.sender.send(status).unwrap();
+        ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+            Box::pin(async move {
+                self.sender.send(status).unwrap();
+            })
         }
     }
 
@@ -141,10 +146,12 @@ fn sample_rejected_listener() {
     impl DomainParticipantListener for SampleRejectedListener {
         fn on_sample_rejected(
             &mut self,
-            _the_reader: DataReader<()>,
+            _the_reader: DataReaderAsync<()>,
             status: SampleRejectedStatus,
-        ) {
-            self.sender.send(status).unwrap();
+        ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+            Box::pin(async move {
+                self.sender.send(status).unwrap();
+            })
         }
     }
 
@@ -248,10 +255,12 @@ fn subscription_matched_listener() {
     impl DomainParticipantListener for SubscriptionMatchedListener {
         fn on_subscription_matched(
             &mut self,
-            _the_reader: DataReader<()>,
+            _the_reader: DataReaderAsync<()>,
             status: SubscriptionMatchedStatus,
-        ) {
-            self.sender.send(status).unwrap();
+        ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+            Box::pin(async move {
+                self.sender.send(status).unwrap();
+            })
         }
     }
 
@@ -333,10 +342,12 @@ fn requested_incompatible_qos_listener() {
     impl DomainParticipantListener for RequestedIncompatibleQosListener {
         fn on_requested_incompatible_qos(
             &mut self,
-            _the_reader: DataReader<()>,
+            _the_reader: DataReaderAsync<()>,
             status: RequestedIncompatibleQosStatus,
-        ) {
-            self.sender.send(status).unwrap();
+        ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+            Box::pin(async move {
+                self.sender.send(status).unwrap();
+            })
         }
     }
 
@@ -418,10 +429,12 @@ fn publication_matched_listener() {
     impl DomainParticipantListener for PublicationMatchedListener {
         fn on_publication_matched(
             &mut self,
-            _the_writer: DataWriter<()>,
+            _the_writer: DataWriterAsync<()>,
             status: PublicationMatchedStatus,
-        ) {
-            self.sender.send(status).unwrap();
+        ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+            Box::pin(async move {
+                self.sender.send(status).unwrap();
+            })
         }
     }
 
@@ -504,10 +517,12 @@ fn offered_incompatible_qos_listener() {
     impl DomainParticipantListener for OfferedIncompatibleQosListener {
         fn on_offered_incompatible_qos(
             &mut self,
-            _the_writer: DataWriter<()>,
+            _the_writer: DataWriterAsync<()>,
             status: OfferedIncompatibleQosStatus,
-        ) {
-            self.sender.send(status).unwrap();
+        ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+            Box::pin(async move {
+                self.sender.send(status).unwrap();
+            })
         }
     }
 
@@ -589,8 +604,13 @@ fn on_data_available_listener() {
 
     impl DataReaderListener<'_> for DataAvailableListener {
         type Foo = MyData;
-        fn on_data_available(&mut self, _the_reader: DataReader<MyData>) {
-            self.sender.send(()).unwrap();
+        fn on_data_available(
+            &mut self,
+            _the_reader: DataReaderAsync<MyData>,
+        ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+            Box::pin(async move {
+                self.sender.send(()).unwrap();
+            })
         }
     }
 
@@ -666,8 +686,13 @@ fn data_on_readers_listener() {
     }
 
     impl SubscriberListener for DataOnReadersListener {
-        fn on_data_on_readers(&mut self, _the_subscriber: Subscriber) {
-            self.sender.send(()).unwrap();
+        fn on_data_on_readers(
+            &mut self,
+            _the_subscriber: SubscriberAsync,
+        ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+            Box::pin(async move {
+                self.sender.send(()).unwrap();
+            })
         }
     }
 
@@ -743,8 +768,13 @@ fn data_available_listener_not_called_when_data_on_readers_listener() {
     }
 
     impl SubscriberListener for DataOnReadersListener {
-        fn on_data_on_readers(&mut self, _the_subscriber: Subscriber) {
-            self.sender.send(()).unwrap();
+        fn on_data_on_readers(
+            &mut self,
+            _the_subscriber: SubscriberAsync,
+        ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+            Box::pin(async move {
+                self.sender.send(()).unwrap();
+            })
         }
     }
 
@@ -754,8 +784,13 @@ fn data_available_listener_not_called_when_data_on_readers_listener() {
 
     impl DataReaderListener<'_> for DataAvailableListener {
         type Foo = MyData;
-        fn on_data_available(&mut self, _the_reader: DataReader<MyData>) {
-            self.sender.send(()).unwrap();
+        fn on_data_available(
+            &mut self,
+            _the_reader: DataReaderAsync<MyData>,
+        ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+            Box::pin(async move {
+                self.sender.send(()).unwrap();
+            })
         }
     }
 
@@ -845,10 +880,12 @@ fn participant_requested_deadline_missed_listener() {
         type Foo = MyData;
         fn on_requested_deadline_missed(
             &mut self,
-            _the_reader: DataReader<MyData>,
+            _the_reader: DataReaderAsync<MyData>,
             status: RequestedDeadlineMissedStatus,
-        ) {
-            self.sender.send(status).unwrap();
+        ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+            Box::pin(async move {
+                self.sender.send(status).unwrap();
+            })
         }
     }
 
@@ -938,10 +975,12 @@ fn data_reader_sample_rejected_listener() {
         type Foo = MyData;
         fn on_sample_rejected(
             &mut self,
-            _the_reader: DataReader<MyData>,
+            _the_reader: DataReaderAsync<MyData>,
             status: SampleRejectedStatus,
-        ) {
-            self.sender.send(status).unwrap();
+        ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+            Box::pin(async move {
+                self.sender.send(status).unwrap();
+            })
         }
     }
 
@@ -1046,10 +1085,12 @@ fn data_reader_subscription_matched_listener() {
         type Foo = MyData;
         fn on_subscription_matched(
             &mut self,
-            _the_reader: DataReader<MyData>,
+            _the_reader: DataReaderAsync<MyData>,
             status: SubscriptionMatchedStatus,
-        ) {
-            self.sender.send(status).unwrap();
+        ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+            Box::pin(async move {
+                self.sender.send(status).unwrap();
+            })
         }
     }
 
@@ -1132,10 +1173,12 @@ fn data_reader_requested_incompatible_qos_listener() {
         type Foo = MyData;
         fn on_requested_incompatible_qos(
             &mut self,
-            _the_reader: DataReader<MyData>,
+            _the_reader: DataReaderAsync<MyData>,
             status: RequestedIncompatibleQosStatus,
-        ) {
-            self.sender.send(status).unwrap();
+        ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+            Box::pin(async move {
+                self.sender.send(status).unwrap();
+            })
         }
     }
 
@@ -1217,10 +1260,12 @@ fn publisher_publication_matched_listener() {
     impl PublisherListener for PublicationMatchedListener {
         fn on_publication_matched(
             &mut self,
-            _the_writer: DataWriter<()>,
+            _the_writer: DataWriterAsync<()>,
             status: PublicationMatchedStatus,
-        ) {
-            self.sender.send(status).unwrap();
+        ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+            Box::pin(async move {
+                self.sender.send(status).unwrap();
+            })
         }
     }
 
@@ -1301,10 +1346,12 @@ fn publisher_offered_incompatible_qos_listener() {
     impl PublisherListener for OfferedIncompatibleQosListener {
         fn on_offered_incompatible_qos(
             &mut self,
-            _the_writer: DataWriter<()>,
+            _the_writer: DataWriterAsync<()>,
             status: OfferedIncompatibleQosStatus,
-        ) {
-            self.sender.send(status).unwrap();
+        ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+            Box::pin(async move {
+                self.sender.send(status).unwrap();
+            })
         }
     }
 
@@ -1386,10 +1433,12 @@ fn subscriber_requested_deadline_missed_listener() {
     impl SubscriberListener for DeadlineMissedListener {
         fn on_requested_deadline_missed(
             &mut self,
-            _the_reader: DataReader<()>,
+            _the_reader: DataReaderAsync<()>,
             status: RequestedDeadlineMissedStatus,
-        ) {
-            self.sender.send(status).unwrap();
+        ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+            Box::pin(async move {
+                self.sender.send(status).unwrap();
+            })
         }
     }
 
@@ -1476,10 +1525,12 @@ fn subscriber_sample_rejected_listener() {
     impl SubscriberListener for SampleRejectedListener {
         fn on_sample_rejected(
             &mut self,
-            _the_reader: DataReader<()>,
+            _the_reader: DataReaderAsync<()>,
             status: SampleRejectedStatus,
-        ) {
-            self.sender.send(status).unwrap();
+        ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+            Box::pin(async move {
+                self.sender.send(status).unwrap();
+            })
         }
     }
 
@@ -1581,10 +1632,12 @@ fn subscriber_subscription_matched_listener() {
     impl SubscriberListener for SubscriptionMatchedListener {
         fn on_subscription_matched(
             &mut self,
-            _the_reader: DataReader<()>,
+            _the_reader: DataReaderAsync<()>,
             status: SubscriptionMatchedStatus,
-        ) {
-            self.sender.send(status).unwrap();
+        ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+            Box::pin(async move {
+                self.sender.send(status).unwrap();
+            })
         }
     }
 
@@ -1665,10 +1718,12 @@ fn subscriber_requested_incompatible_qos_listener() {
     impl SubscriberListener for RequestedIncompatibleQosListener {
         fn on_requested_incompatible_qos(
             &mut self,
-            _the_reader: DataReader<()>,
+            _the_reader: DataReaderAsync<()>,
             status: RequestedIncompatibleQosStatus,
-        ) {
-            self.sender.send(status).unwrap();
+        ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+            Box::pin(async move {
+                self.sender.send(status).unwrap();
+            })
         }
     }
 
@@ -1750,10 +1805,12 @@ fn data_writer_publication_matched_listener() {
         type Foo = MyData;
         fn on_publication_matched(
             &mut self,
-            _the_reader: DataWriter<MyData>,
+            _the_reader: DataWriterAsync<MyData>,
             status: PublicationMatchedStatus,
-        ) {
-            self.sender.send(status).unwrap();
+        ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+            Box::pin(async move {
+                self.sender.send(status).unwrap();
+            })
         }
     }
 
@@ -1838,10 +1895,12 @@ fn data_writer_offered_incompatible_qos_listener() {
 
         fn on_offered_incompatible_qos(
             &mut self,
-            _the_reader: DataWriter<MyData>,
+            _the_reader: DataWriterAsync<MyData>,
             status: OfferedIncompatibleQosStatus,
-        ) {
-            self.sender.send(status).unwrap();
+        ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+            Box::pin(async move {
+                self.sender.send(status).unwrap();
+            })
         }
     }
 
@@ -2000,10 +2059,12 @@ fn writer_offered_deadline_missed_listener() {
         type Foo = MyData;
         fn on_offered_deadline_missed(
             &mut self,
-            _the_writer: DataWriter<Self::Foo>,
+            _the_writer: DataWriterAsync<Self::Foo>,
             status: OfferedDeadlineMissedStatus,
-        ) {
-            self.sender.send(status).unwrap();
+        ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+            Box::pin(async move {
+                self.sender.send(status).unwrap();
+            })
         }
     }
 
@@ -2091,10 +2152,12 @@ fn publisher_offered_deadline_missed_listener() {
     impl PublisherListener for DeadlineMissedListener {
         fn on_offered_deadline_missed(
             &mut self,
-            _the_writer: DataWriter<()>,
+            _the_writer: DataWriterAsync<()>,
             status: OfferedDeadlineMissedStatus,
-        ) {
-            self.sender.send(status).unwrap();
+        ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+            Box::pin(async move {
+                self.sender.send(status).unwrap();
+            })
         }
     }
 
@@ -2182,10 +2245,12 @@ fn participant_offered_deadline_missed_listener() {
     impl DomainParticipantListener for DeadlineMissedListener {
         fn on_offered_deadline_missed(
             &mut self,
-            _the_writer: DataWriter<()>,
+            _the_writer: DataWriterAsync<()>,
             status: OfferedDeadlineMissedStatus,
-        ) {
-            self.sender.send(status).unwrap();
+        ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+            Box::pin(async move {
+                self.sender.send(status).unwrap();
+            })
         }
     }
 

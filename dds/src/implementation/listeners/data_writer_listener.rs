@@ -1,19 +1,48 @@
 use crate::{
     dds_async::data_writer::DataWriterAsync,
-    implementation::any_data_writer_listener::AnyDataWriterListener,
     infrastructure::status::{
         OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
     },
-    runtime::actor::MailHandler,
+    publication::data_writer_listener::DataWriterListener,
+    runtime::{
+        executor::ExecutorHandle,
+        mpsc::{mpsc_channel, MpscSender},
+    },
 };
 
-pub struct DataWriterListenerActor {
-    listener: Box<dyn AnyDataWriterListener>,
-}
+pub struct DataWriterListenerActor;
 
 impl DataWriterListenerActor {
-    pub fn new(listener: Box<dyn AnyDataWriterListener>) -> Self {
-        Self { listener }
+    pub fn spawn<'a, Foo>(
+        mut listener: Box<(dyn DataWriterListener<'a, Foo = Foo> + Send + 'a)>,
+        executor_handle: &ExecutorHandle,
+    ) -> MpscSender<DataWriterListenerMail>
+    where
+        Foo: 'a,
+    {
+        let (listener_sender, listener_receiver) = mpsc_channel();
+        executor_handle.spawn(async move {
+            while let Some(m) = listener_receiver.recv().await {
+                match m {
+                    DataWriterListenerMail::PublicationMatched { the_writer, status } => {
+                        listener
+                            .on_publication_matched(the_writer.change_foo_type(), status)
+                            .await;
+                    }
+                    DataWriterListenerMail::OfferedIncompatibleQos { the_writer, status } => {
+                        listener
+                            .on_offered_incompatible_qos(the_writer.change_foo_type(), status)
+                            .await;
+                    }
+                    DataWriterListenerMail::OfferedDeadlineMissed { the_writer, status } => {
+                        listener
+                            .on_offered_deadline_missed(the_writer.change_foo_type(), status)
+                            .await;
+                    }
+                }
+            }
+        });
+        listener_sender
     }
 }
 
@@ -30,21 +59,4 @@ pub enum DataWriterListenerMail {
         the_writer: DataWriterAsync<()>,
         status: OfferedDeadlineMissedStatus,
     },
-}
-
-impl MailHandler for DataWriterListenerActor {
-    type Mail = DataWriterListenerMail;
-    async fn handle(&mut self, message: DataWriterListenerMail) {
-        match message {
-            DataWriterListenerMail::PublicationMatched { the_writer, status } => self
-                .listener
-                .trigger_on_publication_matched(the_writer, status),
-            DataWriterListenerMail::OfferedIncompatibleQos { the_writer, status } => self
-                .listener
-                .trigger_on_offered_incompatible_qos(the_writer, status),
-            DataWriterListenerMail::OfferedDeadlineMissed { the_writer, status } => self
-                .listener
-                .trigger_on_offered_deadline_missed(the_writer, status),
-        }
-    }
 }

@@ -1,16 +1,22 @@
 use super::{
-    condition::StatusConditionAsync, domain_participant_listener::DomainParticipantListenerAsync,
-    publisher::PublisherAsync, publisher_listener::PublisherListenerAsync,
-    subscriber::SubscriberAsync, subscriber_listener::SubscriberListenerAsync, topic::TopicAsync,
-    topic_listener::TopicListenerAsync,
+    condition::StatusConditionAsync, publisher::PublisherAsync, subscriber::SubscriberAsync,
+    topic::TopicAsync,
 };
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
-    domain::domain_participant_factory::DomainId,
+    domain::{
+        domain_participant_factory::DomainId,
+        domain_participant_listener::DomainParticipantListener,
+    },
     implementation::{
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor,
             domain_participant_actor_mail::{DomainParticipantMail, ParticipantServiceMail},
+        },
+        listeners::{
+            domain_participant_listener::DomainParticipantListenerActor,
+            publisher_listener::PublisherListenerActor,
+            subscriber_listener::SubscriberListenerActor, topic_listener::TopicListenerActor,
         },
         status_condition::status_condition_actor::StatusConditionActor,
     },
@@ -21,8 +27,15 @@ use crate::{
         status::StatusKind,
         time::{Duration, Time},
     },
-    runtime::{actor::ActorAddress, oneshot::oneshot, timer::TimerHandle},
-    topic_definition::type_support::TypeSupport,
+    publication::publisher_listener::PublisherListener,
+    runtime::{
+        actor::{Actor, ActorAddress},
+        executor::ExecutorHandle,
+        oneshot::oneshot,
+        timer::TimerHandle,
+    },
+    subscription::subscriber_listener::SubscriberListener,
+    topic_definition::{topic_listener::TopicListener, type_support::TypeSupport},
     xtypes::dynamic_type::DynamicType,
 };
 use std::sync::Arc;
@@ -36,6 +49,7 @@ pub struct DomainParticipantAsync {
     domain_id: DomainId,
     handle: InstanceHandle,
     timer_handle: TimerHandle,
+    executor_handle: ExecutorHandle,
 }
 
 impl DomainParticipantAsync {
@@ -46,6 +60,7 @@ impl DomainParticipantAsync {
         domain_id: DomainId,
         handle: InstanceHandle,
         timer_handle: TimerHandle,
+        executor_handle: ExecutorHandle,
     ) -> Self {
         Self {
             participant_address,
@@ -54,11 +69,16 @@ impl DomainParticipantAsync {
             domain_id,
             handle,
             timer_handle,
+            executor_handle,
         }
     }
 
     pub(crate) fn participant_address(&self) -> &ActorAddress<DomainParticipantActor> {
         &self.participant_address
+    }
+
+    pub(crate) fn executor_handle(&self) -> &ExecutorHandle {
+        &self.executor_handle
     }
 }
 
@@ -68,20 +88,25 @@ impl DomainParticipantAsync {
     pub async fn create_publisher(
         &self,
         qos: QosKind<PublisherQos>,
-        a_listener: Option<Box<dyn PublisherListenerAsync + Send>>,
+        a_listener: Option<Box<dyn PublisherListener + Send>>,
         mask: &[StatusKind],
     ) -> DdsResult<PublisherAsync> {
         let (reply_sender, reply_receiver) = oneshot();
+        let status_condition = Actor::spawn(StatusConditionActor::default(), &self.executor_handle);
+        let publisher_status_condition_address = status_condition.address();
+        let listener_sender =
+            a_listener.map(|l| PublisherListenerActor::spawn(l, self.executor_handle()));
         self.participant_address
             .send_actor_mail(DomainParticipantMail::Participant(
                 ParticipantServiceMail::CreateUserDefinedPublisher {
                     qos,
-                    a_listener,
+                    status_condition,
+                    listener_sender,
                     mask: mask.to_vec(),
                     reply_sender,
                 },
             ))?;
-        let (guid, publisher_status_condition_address) = reply_receiver.await??;
+        let guid = reply_receiver.await??;
         let publisher = PublisherAsync::new(guid, publisher_status_condition_address, self.clone());
 
         Ok(publisher)
@@ -107,20 +132,25 @@ impl DomainParticipantAsync {
     pub async fn create_subscriber(
         &self,
         qos: QosKind<SubscriberQos>,
-        a_listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
+        a_listener: Option<Box<dyn SubscriberListener + Send>>,
         mask: &[StatusKind],
     ) -> DdsResult<SubscriberAsync> {
         let (reply_sender, reply_receiver) = oneshot();
+        let status_condition = Actor::spawn(StatusConditionActor::default(), &self.executor_handle);
+        let subscriber_status_condition_address = status_condition.address();
+        let listener_sender =
+            a_listener.map(|l| SubscriberListenerActor::spawn(l, self.executor_handle()));
         self.participant_address
             .send_actor_mail(DomainParticipantMail::Participant(
                 ParticipantServiceMail::CreateUserDefinedSubscriber {
                     qos,
-                    a_listener,
+                    status_condition,
+                    listener_sender,
                     mask: mask.to_vec(),
                     reply_sender,
                 },
             ))?;
-        let (guid, subscriber_status_condition_address) = reply_receiver.await??;
+        let guid = reply_receiver.await??;
         let subscriber =
             SubscriberAsync::new(guid, subscriber_status_condition_address, self.clone());
 
@@ -149,7 +179,7 @@ impl DomainParticipantAsync {
         topic_name: &str,
         type_name: &str,
         qos: QosKind<TopicQos>,
-        a_listener: Option<Box<dyn TopicListenerAsync + Send>>,
+        a_listener: Option<Box<dyn TopicListener + Send>>,
         mask: &[StatusKind],
     ) -> DdsResult<TopicAsync>
     where
@@ -168,24 +198,29 @@ impl DomainParticipantAsync {
         topic_name: &str,
         type_name: &str,
         qos: QosKind<TopicQos>,
-        a_listener: Option<Box<dyn TopicListenerAsync + Send>>,
+        a_listener: Option<Box<dyn TopicListener + Send>>,
         mask: &[StatusKind],
         dynamic_type_representation: Arc<dyn DynamicType + Send + Sync>,
     ) -> DdsResult<TopicAsync> {
         let (reply_sender, reply_receiver) = oneshot();
+        let status_condition = Actor::spawn(StatusConditionActor::default(), &self.executor_handle);
+        let topic_status_condition_address = status_condition.address();
+        let listener_sender =
+            a_listener.map(|l| TopicListenerActor::spawn(l, self.executor_handle()));
         self.participant_address
             .send_actor_mail(DomainParticipantMail::Participant(
                 ParticipantServiceMail::CreateTopic {
                     topic_name: topic_name.to_string(),
                     type_name: type_name.to_string(),
                     qos,
-                    a_listener,
+                    status_condition,
+                    listener_sender,
                     mask: mask.to_vec(),
                     type_support: dynamic_type_representation,
                     reply_sender,
                 },
             ))?;
-        let (guid, topic_status_condition_address) = reply_receiver.await??;
+        let guid = reply_receiver.await??;
 
         Ok(TopicAsync::new(
             guid,
@@ -225,16 +260,21 @@ impl DomainParticipantAsync {
         let topic_name = topic_name.to_owned();
         let participant_address = self.participant_address.clone();
         let participant_async = self.clone();
+        let executor_handle = self.executor_handle.clone();
         self.timer_handle
             .timeout(
                 timeout.into(),
                 Box::pin(async move {
                     loop {
                         let (reply_sender, reply_receiver) = oneshot();
+                        let status_condition =
+                            Actor::spawn(StatusConditionActor::default(), &executor_handle);
+
                         participant_address.send_actor_mail(DomainParticipantMail::Participant(
                             ParticipantServiceMail::FindTopic {
                                 topic_name: topic_name.clone(),
                                 type_support: type_support.clone(),
+                                status_condition,
                                 reply_sender,
                             },
                         ))?;
@@ -530,14 +570,16 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn set_listener(
         &self,
-        a_listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
+        a_listener: Option<Box<dyn DomainParticipantListener + Send>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
+        let listener_sender =
+            a_listener.map(|l| DomainParticipantListenerActor::spawn(l, self.executor_handle()));
         self.participant_address
             .send_actor_mail(DomainParticipantMail::Participant(
                 ParticipantServiceMail::SetListener {
-                    listener: a_listener,
+                    listener_sender,
                     status_kind: mask.to_vec(),
                     reply_sender,
                 },

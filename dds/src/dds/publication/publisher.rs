@@ -1,8 +1,5 @@
 use crate::{
-    dds_async::{
-        data_writer_listener::DataWriterListenerAsync, publisher::PublisherAsync,
-        publisher_listener::PublisherListenerAsync,
-    },
+    dds_async::publisher::PublisherAsync,
     domain::domain_participant::DomainParticipant,
     infrastructure::{
         condition::StatusCondition,
@@ -28,12 +25,16 @@ pub struct Publisher {
 }
 
 impl Publisher {
-    pub(crate) fn new(publisher_async: PublisherAsync) -> Self {
-        Self { publisher_async }
-    }
-
     pub(crate) fn publisher_async(&self) -> &PublisherAsync {
         &self.publisher_async
+    }
+}
+
+impl From<PublisherAsync> for Publisher {
+    fn from(value: PublisherAsync) -> Self {
+        Self {
+            publisher_async: value,
+        }
     }
 }
 
@@ -65,16 +66,13 @@ impl Publisher {
     where
         Foo: 'a,
     {
-        block_on(
-            self.publisher_async.create_datawriter::<Foo>(
-                a_topic.topic_async(),
-                qos,
-                a_listener
-                    .map::<Box<dyn DataWriterListenerAsync<Foo = Foo> + Send>, _>(|b| Box::new(b)),
-                mask,
-            ),
-        )
-        .map(DataWriter::new)
+        block_on(self.publisher_async.create_datawriter::<Foo>(
+            a_topic.topic_async(),
+            qos,
+            a_listener,
+            mask,
+        ))
+        .map(DataWriter::from)
     }
 
     /// This operation deletes a [`DataWriter`] that belongs to the [`Publisher`]. This operation must be called on the
@@ -99,7 +97,7 @@ impl Publisher {
     pub fn lookup_datawriter<Foo>(&self, topic_name: &str) -> DdsResult<Option<DataWriter<Foo>>> {
         Ok(
             block_on(self.publisher_async.lookup_datawriter::<Foo>(topic_name))?
-                .map(DataWriter::new),
+                .map(DataWriter::from),
         )
     }
 
@@ -252,10 +250,7 @@ impl Publisher {
         a_listener: Option<Box<dyn PublisherListener + Send>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        block_on(self.publisher_async.set_listener(
-            a_listener.map::<Box<dyn PublisherListenerAsync + Send>, _>(|b| Box::new(b)),
-            mask,
-        ))
+        block_on(self.publisher_async.set_listener(a_listener, mask))
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned

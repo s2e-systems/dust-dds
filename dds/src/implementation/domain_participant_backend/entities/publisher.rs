@@ -1,6 +1,6 @@
 use crate::{
     implementation::{
-        listeners::publisher_listener::PublisherListenerActor,
+        listeners::publisher_listener::PublisherListenerMail,
         status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
@@ -9,7 +9,7 @@ use crate::{
         qos::{DataWriterQos, PublisherQos},
         status::StatusKind,
     },
-    runtime::actor::Actor,
+    runtime::{actor::Actor, mpsc::MpscSender},
 };
 
 use super::data_writer::DataWriterEntity;
@@ -20,7 +20,7 @@ pub struct PublisherEntity {
     data_writer_list: Vec<DataWriterEntity>,
     enabled: bool,
     default_datawriter_qos: DataWriterQos,
-    listener: Option<Actor<PublisherListenerActor>>,
+    listener_sender: Option<MpscSender<PublisherListenerMail>>,
     listener_mask: Vec<StatusKind>,
     status_condition: Actor<StatusConditionActor>,
 }
@@ -29,7 +29,7 @@ impl PublisherEntity {
     pub fn new(
         qos: PublisherQos,
         instance_handle: InstanceHandle,
-        listener: Option<Actor<PublisherListenerActor>>,
+        listener_sender: Option<MpscSender<PublisherListenerMail>>,
         listener_mask: Vec<StatusKind>,
         status_condition: Actor<StatusConditionActor>,
     ) -> Self {
@@ -39,7 +39,7 @@ impl PublisherEntity {
             data_writer_list: Vec::new(),
             enabled: false,
             default_datawriter_qos: DataWriterQos::default(),
-            listener,
+            listener_sender,
             listener_mask,
             status_condition,
         }
@@ -117,17 +117,16 @@ impl PublisherEntity {
     }
 
     pub fn set_qos(&mut self, qos: PublisherQos) -> DdsResult<()> {
-        
         self.qos = qos;
         Ok(())
     }
 
     pub fn set_listener(
         &mut self,
-        a_listener: Option<Actor<PublisherListenerActor>>,
+        listener_sender: Option<MpscSender<PublisherListenerMail>>,
         mask: Vec<StatusKind>,
     ) {
-        self.listener = a_listener;
+        self.listener_sender = listener_sender;
         self.listener_mask = mask;
     }
 
@@ -139,7 +138,7 @@ impl PublisherEntity {
         &self.listener_mask
     }
 
-    pub fn listener(&self) -> Option<&Actor<PublisherListenerActor>> {
-        self.listener.as_ref()
+    pub fn listener(&self) -> Option<MpscSender<PublisherListenerMail>> {
+        self.listener_sender.clone()
     }
 }
