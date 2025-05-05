@@ -74,10 +74,6 @@ pub struct DataReader<Foo> {
 }
 
 impl<Foo> DataReader<Foo> {
-    pub(crate) fn new(reader_async: DataReaderAsync<Foo>) -> Self {
-        Self { reader_async }
-    }
-
     pub(crate) fn reader_async(&self) -> &DataReaderAsync<Foo> {
         &self.reader_async
     }

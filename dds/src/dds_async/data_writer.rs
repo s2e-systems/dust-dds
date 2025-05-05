@@ -1,9 +1,6 @@
 use tracing::warn;
 
-use super::{
-    condition::StatusConditionAsync, data_writer_listener::DataWriterListenerAsync,
-    publisher::PublisherAsync, topic::TopicAsync,
-};
+use super::{condition::StatusConditionAsync, publisher::PublisherAsync, topic::TopicAsync};
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     implementation::{
@@ -24,6 +21,7 @@ use crate::{
         },
         time::{Duration, Time},
     },
+    publication::data_writer_listener::DataWriterListener,
     runtime::{actor::ActorAddress, oneshot::oneshot},
     topic_definition::type_support::DdsSerialize,
 };
@@ -434,7 +432,7 @@ where
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn set_listener(
         &self,
-        a_listener: Option<Box<dyn DataWriterListenerAsync<'a, Foo = Foo> + Send + 'a>>,
+        a_listener: Option<Box<dyn DataWriterListener<'a, Foo = Foo> + Send + 'a>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();

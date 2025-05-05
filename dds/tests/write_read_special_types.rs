@@ -1,10 +1,7 @@
 mod utils;
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 use dust_dds::{
-    dds_async::{
-        data_writer_listener::DataWriterListenerAsync,
-        domain_participant_factory::DomainParticipantFactoryAsync,
-    },
+    dds_async::domain_participant_factory::DomainParticipantFactoryAsync,
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         qos::{DataReaderQos, DataWriterQos, QosKind},
@@ -175,7 +172,7 @@ async fn async_foo_with_lifetime_with_listener_should_compile() {
         type Foo = BorrowedData<'a>;
     }
     struct WriterListener;
-    impl<'a> DataWriterListenerAsync<'a> for WriterListener {
+    impl<'a> DataWriterListener<'a> for WriterListener {
         type Foo = BorrowedData<'a>;
     }
 

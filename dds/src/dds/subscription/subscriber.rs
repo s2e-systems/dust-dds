@@ -70,7 +70,7 @@ impl Subscriber {
             a_listener,
             mask,
         ))
-        .map(DataReader::new)
+        .map(DataReader::from)
     }
 
     /// This operation deletes a [`DataReader`] that belongs to the [`Subscriber`]. This operation must be called on the
@@ -93,7 +93,7 @@ impl Subscriber {
     pub fn lookup_datareader<Foo>(&self, topic_name: &str) -> DdsResult<Option<DataReader<Foo>>> {
         Ok(
             block_on(self.subscriber_async.lookup_datareader::<Foo>(topic_name))?
-                .map(DataReader::new),
+                .map(DataReader::from),
         )
     }
 

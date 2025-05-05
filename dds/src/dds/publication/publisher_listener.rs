@@ -46,7 +46,7 @@ impl PublisherListenerAsync for Box<dyn PublisherListener + Send> {
         the_writer: DataWriterAsync<()>,
         status: LivelinessLostStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        PublisherListener::on_liveliness_lost(self.as_mut(), DataWriter::new(the_writer), status);
+        PublisherListener::on_liveliness_lost(self.as_mut(), DataWriter::from(the_writer), status);
         Box::pin(std::future::ready(()))
     }
 
@@ -57,7 +57,7 @@ impl PublisherListenerAsync for Box<dyn PublisherListener + Send> {
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         PublisherListener::on_offered_deadline_missed(
             self.as_mut(),
-            DataWriter::new(the_writer),
+            DataWriter::from(the_writer),
             status,
         );
         Box::pin(std::future::ready(()))
@@ -70,7 +70,7 @@ impl PublisherListenerAsync for Box<dyn PublisherListener + Send> {
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         PublisherListener::on_offered_incompatible_qos(
             self.as_mut(),
-            DataWriter::new(the_writer),
+            DataWriter::from(the_writer),
             status,
         );
         Box::pin(std::future::ready(()))
@@ -83,7 +83,7 @@ impl PublisherListenerAsync for Box<dyn PublisherListener + Send> {
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         PublisherListener::on_publication_matched(
             self.as_mut(),
-            DataWriter::new(the_writer),
+            DataWriter::from(the_writer),
             status,
         );
         Box::pin(std::future::ready(()))

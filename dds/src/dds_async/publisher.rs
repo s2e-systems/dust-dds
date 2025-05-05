@@ -1,7 +1,7 @@
 use super::{
     condition::StatusConditionAsync, data_writer::DataWriterAsync,
-    data_writer_listener::DataWriterListenerAsync, domain_participant::DomainParticipantAsync,
-    publisher_listener::PublisherListenerAsync, topic::TopicAsync,
+    domain_participant::DomainParticipantAsync, publisher_listener::PublisherListenerAsync,
+    topic::TopicAsync,
 };
 use crate::{
     implementation::{
@@ -22,6 +22,7 @@ use crate::{
         status::StatusKind,
         time::Duration,
     },
+    publication::data_writer_listener::DataWriterListener,
     runtime::{
         actor::{Actor, ActorAddress},
         oneshot::oneshot,
@@ -61,7 +62,7 @@ impl PublisherAsync {
         &'a self,
         a_topic: &'a TopicAsync,
         qos: QosKind<DataWriterQos>,
-        a_listener: Option<Box<dyn DataWriterListenerAsync<'b, Foo = Foo> + Send + 'b>>,
+        a_listener: Option<Box<dyn DataWriterListener<'b, Foo = Foo> + Send + 'b>>,
         mask: &'a [StatusKind],
     ) -> DdsResult<DataWriterAsync<Foo>>
     where

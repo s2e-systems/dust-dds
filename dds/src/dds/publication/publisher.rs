@@ -1,8 +1,5 @@
 use crate::{
-    dds_async::{
-        data_writer_listener::DataWriterListenerAsync, publisher::PublisherAsync,
-        publisher_listener::PublisherListenerAsync,
-    },
+    dds_async::{publisher::PublisherAsync, publisher_listener::PublisherListenerAsync},
     domain::domain_participant::DomainParticipant,
     infrastructure::{
         condition::StatusCondition,
@@ -65,16 +62,13 @@ impl Publisher {
     where
         Foo: 'a,
     {
-        block_on(
-            self.publisher_async.create_datawriter::<Foo>(
-                a_topic.topic_async(),
-                qos,
-                a_listener
-                    .map::<Box<dyn DataWriterListenerAsync<Foo = Foo> + Send>, _>(|b| Box::new(b)),
-                mask,
-            ),
-        )
-        .map(DataWriter::new)
+        block_on(self.publisher_async.create_datawriter::<Foo>(
+            a_topic.topic_async(),
+            qos,
+            a_listener,
+            mask,
+        ))
+        .map(DataWriter::from)
     }
 
     /// This operation deletes a [`DataWriter`] that belongs to the [`Publisher`]. This operation must be called on the
@@ -99,7 +93,7 @@ impl Publisher {
     pub fn lookup_datawriter<Foo>(&self, topic_name: &str) -> DdsResult<Option<DataWriter<Foo>>> {
         Ok(
             block_on(self.publisher_async.lookup_datawriter::<Foo>(topic_name))?
-                .map(DataWriter::new),
+                .map(DataWriter::from),
         )
     }
 

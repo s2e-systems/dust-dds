@@ -73,7 +73,7 @@ impl SubscriberListenerAsync for Box<dyn SubscriberListener + Send> {
         &mut self,
         the_reader: DataReaderAsync<()>,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        SubscriberListener::on_data_available(self.as_mut(), DataReader::new(the_reader));
+        SubscriberListener::on_data_available(self.as_mut(), DataReader::from(the_reader));
         Box::pin(std::future::ready(()))
     }
 
@@ -82,7 +82,7 @@ impl SubscriberListenerAsync for Box<dyn SubscriberListener + Send> {
         the_reader: DataReaderAsync<()>,
         status: SampleRejectedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        SubscriberListener::on_sample_rejected(self.as_mut(), DataReader::new(the_reader), status);
+        SubscriberListener::on_sample_rejected(self.as_mut(), DataReader::from(the_reader), status);
         Box::pin(std::future::ready(()))
     }
 
@@ -93,7 +93,7 @@ impl SubscriberListenerAsync for Box<dyn SubscriberListener + Send> {
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         SubscriberListener::on_liveliness_changed(
             self.as_mut(),
-            DataReader::new(the_reader),
+            DataReader::from(the_reader),
             status,
         );
         Box::pin(std::future::ready(()))
@@ -106,7 +106,7 @@ impl SubscriberListenerAsync for Box<dyn SubscriberListener + Send> {
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         SubscriberListener::on_requested_deadline_missed(
             self.as_mut(),
-            DataReader::new(the_reader),
+            DataReader::from(the_reader),
             status,
         );
         Box::pin(std::future::ready(()))
@@ -119,7 +119,7 @@ impl SubscriberListenerAsync for Box<dyn SubscriberListener + Send> {
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         SubscriberListener::on_requested_incompatible_qos(
             self.as_mut(),
-            DataReader::new(the_reader),
+            DataReader::from(the_reader),
             status,
         );
         Box::pin(std::future::ready(()))
@@ -132,7 +132,7 @@ impl SubscriberListenerAsync for Box<dyn SubscriberListener + Send> {
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         SubscriberListener::on_subscription_matched(
             self.as_mut(),
-            DataReader::new(the_reader),
+            DataReader::from(the_reader),
             status,
         );
         Box::pin(std::future::ready(()))
@@ -143,7 +143,7 @@ impl SubscriberListenerAsync for Box<dyn SubscriberListener + Send> {
         the_reader: DataReaderAsync<()>,
         status: SampleLostStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        SubscriberListener::on_sample_lost(self.as_mut(), DataReader::new(the_reader), status);
+        SubscriberListener::on_sample_lost(self.as_mut(), DataReader::from(the_reader), status);
         Box::pin(std::future::ready(()))
     }
 }

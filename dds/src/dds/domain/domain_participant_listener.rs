@@ -114,7 +114,7 @@ impl DomainParticipantListenerAsync for Box<dyn DomainParticipantListener + Send
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         DomainParticipantListener::on_liveliness_lost(
             self.as_mut(),
-            DataWriter::new(the_writer),
+            DataWriter::from(the_writer),
             status,
         );
         Box::pin(std::future::ready(()))
@@ -127,7 +127,7 @@ impl DomainParticipantListenerAsync for Box<dyn DomainParticipantListener + Send
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         DomainParticipantListener::on_offered_deadline_missed(
             self.as_mut(),
-            DataWriter::new(the_writer),
+            DataWriter::from(the_writer),
             status,
         );
         Box::pin(std::future::ready(()))
@@ -140,7 +140,7 @@ impl DomainParticipantListenerAsync for Box<dyn DomainParticipantListener + Send
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         DomainParticipantListener::on_offered_incompatible_qos(
             self.as_mut(),
-            DataWriter::new(the_writer),
+            DataWriter::from(the_writer),
             status,
         );
         Box::pin(std::future::ready(()))
@@ -153,7 +153,7 @@ impl DomainParticipantListenerAsync for Box<dyn DomainParticipantListener + Send
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         DomainParticipantListener::on_sample_lost(
             self.as_mut(),
-            DataReader::new(the_reader),
+            DataReader::from(the_reader),
             status,
         );
         Box::pin(std::future::ready(()))
@@ -163,7 +163,7 @@ impl DomainParticipantListenerAsync for Box<dyn DomainParticipantListener + Send
         &mut self,
         the_reader: DataReaderAsync<()>,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        DomainParticipantListener::on_data_available(self.as_mut(), DataReader::new(the_reader));
+        DomainParticipantListener::on_data_available(self.as_mut(), DataReader::from(the_reader));
         Box::pin(std::future::ready(()))
     }
 
@@ -174,7 +174,7 @@ impl DomainParticipantListenerAsync for Box<dyn DomainParticipantListener + Send
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         DomainParticipantListener::on_sample_rejected(
             self.as_mut(),
-            DataReader::new(the_reader),
+            DataReader::from(the_reader),
             status,
         );
         Box::pin(std::future::ready(()))
@@ -187,7 +187,7 @@ impl DomainParticipantListenerAsync for Box<dyn DomainParticipantListener + Send
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         DomainParticipantListener::on_liveliness_changed(
             self.as_mut(),
-            DataReader::new(the_reader),
+            DataReader::from(the_reader),
             status,
         );
         Box::pin(std::future::ready(()))
@@ -200,7 +200,7 @@ impl DomainParticipantListenerAsync for Box<dyn DomainParticipantListener + Send
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         DomainParticipantListener::on_requested_deadline_missed(
             self.as_mut(),
-            DataReader::new(the_reader),
+            DataReader::from(the_reader),
             status,
         );
         Box::pin(std::future::ready(()))
@@ -213,7 +213,7 @@ impl DomainParticipantListenerAsync for Box<dyn DomainParticipantListener + Send
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         DomainParticipantListener::on_requested_incompatible_qos(
             self.as_mut(),
-            DataReader::new(the_reader),
+            DataReader::from(the_reader),
             status,
         );
         Box::pin(std::future::ready(()))
@@ -226,7 +226,7 @@ impl DomainParticipantListenerAsync for Box<dyn DomainParticipantListener + Send
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         DomainParticipantListener::on_publication_matched(
             self.as_mut(),
-            DataWriter::new(the_writer),
+            DataWriter::from(the_writer),
             status,
         );
         Box::pin(std::future::ready(()))
@@ -239,7 +239,7 @@ impl DomainParticipantListenerAsync for Box<dyn DomainParticipantListener + Send
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         DomainParticipantListener::on_subscription_matched(
             self.as_mut(),
-            DataReader::new(the_reader),
+            DataReader::from(the_reader),
             status,
         );
         Box::pin(std::future::ready(()))

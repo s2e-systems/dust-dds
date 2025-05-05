@@ -1,7 +1,7 @@
 use std::{future::Future, pin::Pin};
 
 use dust_dds::{
-    dds_async::data_reader::DataReaderAsync,
+    dds_async::{data_reader::DataReaderAsync, data_writer::DataWriterAsync},
     domain::{
         domain_participant_factory::DomainParticipantFactory,
         domain_participant_listener::DomainParticipantListener,
@@ -1771,10 +1771,12 @@ fn data_writer_publication_matched_listener() {
         type Foo = MyData;
         fn on_publication_matched(
             &mut self,
-            _the_reader: DataWriter<MyData>,
+            _the_reader: DataWriterAsync<MyData>,
             status: PublicationMatchedStatus,
-        ) {
-            self.sender.send(status).unwrap();
+        ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+            Box::pin(async move {
+                self.sender.send(status).unwrap();
+            })
         }
     }
 
@@ -1859,10 +1861,12 @@ fn data_writer_offered_incompatible_qos_listener() {
 
         fn on_offered_incompatible_qos(
             &mut self,
-            _the_reader: DataWriter<MyData>,
+            _the_reader: DataWriterAsync<MyData>,
             status: OfferedIncompatibleQosStatus,
-        ) {
-            self.sender.send(status).unwrap();
+        ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+            Box::pin(async move {
+                self.sender.send(status).unwrap();
+            })
         }
     }
 
@@ -2021,10 +2025,12 @@ fn writer_offered_deadline_missed_listener() {
         type Foo = MyData;
         fn on_offered_deadline_missed(
             &mut self,
-            _the_writer: DataWriter<Self::Foo>,
+            _the_writer: DataWriterAsync<Self::Foo>,
             status: OfferedDeadlineMissedStatus,
-        ) {
-            self.sender.send(status).unwrap();
+        ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+            Box::pin(async move {
+                self.sender.send(status).unwrap();
+            })
         }
     }
 

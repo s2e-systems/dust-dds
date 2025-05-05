@@ -1,8 +1,9 @@
 use crate::{
-    dds_async::{data_writer::DataWriterAsync, data_writer_listener::DataWriterListenerAsync},
+    dds_async::data_writer::DataWriterAsync,
     infrastructure::status::{
         OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
     },
+    publication::data_writer_listener::DataWriterListener,
     runtime::{
         executor::ExecutorHandle,
         mpsc::{mpsc_channel, MpscSender},
@@ -13,11 +14,11 @@ pub struct DataWriterListenerActor;
 
 impl DataWriterListenerActor {
     pub fn spawn<'a, Foo>(
-        mut listener: Box<(dyn DataWriterListenerAsync<'a, Foo = Foo> + Send + 'a)>,
+        mut listener: Box<(dyn DataWriterListener<'a, Foo = Foo> + Send + 'a)>,
         executor_handle: &ExecutorHandle,
     ) -> MpscSender<DataWriterListenerMail>
     where
-        Foo: 'static,
+        Foo: 'a,
     {
         let (listener_sender, listener_receiver) = mpsc_channel();
         executor_handle.spawn(async move {

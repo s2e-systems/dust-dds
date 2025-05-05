@@ -19,7 +19,7 @@ impl DataReaderListenerActor {
         executor_handle: &ExecutorHandle,
     ) -> MpscSender<DataReaderListenerMail>
     where
-        Foo: 'static,
+        Foo: 'a,
     {
         let (listener_sender, listener_receiver) = mpsc_channel();
         executor_handle.spawn(async move {
