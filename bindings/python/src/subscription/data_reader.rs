@@ -31,6 +31,12 @@ impl From<dust_dds::subscription::data_reader::DataReader<PythonDdsData>> for Da
     }
 }
 
+impl From<dust_dds::dds_async::data_reader::DataReaderAsync<PythonDdsData>> for DataReader {
+    fn from(value: dust_dds::dds_async::data_reader::DataReaderAsync<PythonDdsData>) -> Self {
+        Self(dust_dds::subscription::data_reader::DataReader::from(value))
+    }
+}
+
 impl AsRef<dust_dds::subscription::data_reader::DataReader<PythonDdsData>> for DataReader {
     fn as_ref(&self) -> &dust_dds::subscription::data_reader::DataReader<PythonDdsData> {
         &self.0

@@ -83,6 +83,14 @@ impl<Foo> DataReader<Foo> {
     }
 }
 
+impl<Foo> From<DataReaderAsync<Foo>> for DataReader<Foo> {
+    fn from(value: DataReaderAsync<Foo>) -> Self {
+        Self {
+            reader_async: value,
+        }
+    }
+}
+
 impl<Foo> Clone for DataReader<Foo> {
     fn clone(&self) -> Self {
         Self {
