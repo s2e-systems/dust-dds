@@ -1,8 +1,6 @@
 use crate::{
-    dds_async::{
-        data_reader::DataReaderAsync, data_writer::DataWriterAsync,
-        domain_participant_listener::DomainParticipantListenerAsync,
-    },
+    dds_async::{data_reader::DataReaderAsync, data_writer::DataWriterAsync},
+    domain::domain_participant_listener::DomainParticipantListener,
     infrastructure::status::{
         OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
         RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleRejectedStatus,
@@ -18,7 +16,7 @@ pub struct DomainParticipantListenerActor;
 
 impl DomainParticipantListenerActor {
     pub fn spawn(
-        mut listener: Box<dyn DomainParticipantListenerAsync + Send>,
+        mut listener: Box<dyn DomainParticipantListener + Send>,
         executor_handle: &ExecutorHandle,
     ) -> MpscSender<DomainParticipantListenerMail> {
         let (listener_sender, listener_receiver) = mpsc_channel();

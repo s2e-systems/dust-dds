@@ -1,11 +1,13 @@
 use super::{
-    condition::StatusConditionAsync, domain_participant_listener::DomainParticipantListenerAsync,
-    publisher::PublisherAsync, publisher_listener::PublisherListenerAsync,
-    subscriber::SubscriberAsync, subscriber_listener::SubscriberListenerAsync, topic::TopicAsync,
+    condition::StatusConditionAsync, publisher::PublisherAsync, subscriber::SubscriberAsync,
+    topic::TopicAsync,
 };
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
-    domain::domain_participant_factory::DomainId,
+    domain::{
+        domain_participant_factory::DomainId,
+        domain_participant_listener::DomainParticipantListener,
+    },
     implementation::{
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor,
@@ -25,12 +27,14 @@ use crate::{
         status::StatusKind,
         time::{Duration, Time},
     },
+    publication::publisher_listener::PublisherListener,
     runtime::{
         actor::{Actor, ActorAddress},
         executor::ExecutorHandle,
         oneshot::oneshot,
         timer::TimerHandle,
     },
+    subscription::subscriber_listener::SubscriberListener,
     topic_definition::{topic_listener::TopicListener, type_support::TypeSupport},
     xtypes::dynamic_type::DynamicType,
 };
@@ -84,7 +88,7 @@ impl DomainParticipantAsync {
     pub async fn create_publisher(
         &self,
         qos: QosKind<PublisherQos>,
-        a_listener: Option<Box<dyn PublisherListenerAsync + Send>>,
+        a_listener: Option<Box<dyn PublisherListener + Send>>,
         mask: &[StatusKind],
     ) -> DdsResult<PublisherAsync> {
         let (reply_sender, reply_receiver) = oneshot();
@@ -128,7 +132,7 @@ impl DomainParticipantAsync {
     pub async fn create_subscriber(
         &self,
         qos: QosKind<SubscriberQos>,
-        a_listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
+        a_listener: Option<Box<dyn SubscriberListener + Send>>,
         mask: &[StatusKind],
     ) -> DdsResult<SubscriberAsync> {
         let (reply_sender, reply_receiver) = oneshot();
@@ -566,7 +570,7 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn set_listener(
         &self,
-        a_listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
+        a_listener: Option<Box<dyn DomainParticipantListener + Send>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();

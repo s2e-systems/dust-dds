@@ -293,7 +293,7 @@ impl<Foo> DataWriter<Foo> {
     /// This operation returns the [`Publisher`] to which the [`DataWriter`] object belongs.
     #[tracing::instrument(skip(self))]
     pub fn get_publisher(&self) -> Publisher {
-        Publisher::new(self.writer_async.get_publisher())
+        Publisher::from(self.writer_async.get_publisher())
     }
 
     /// This operation manually asserts the liveliness of the [`DataWriter`]. This is used in combination with the

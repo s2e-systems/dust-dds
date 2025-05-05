@@ -1,7 +1,6 @@
 use super::{
     condition::StatusConditionAsync, data_writer::DataWriterAsync,
-    domain_participant::DomainParticipantAsync, publisher_listener::PublisherListenerAsync,
-    topic::TopicAsync,
+    domain_participant::DomainParticipantAsync, topic::TopicAsync,
 };
 use crate::{
     implementation::{
@@ -22,7 +21,9 @@ use crate::{
         status::StatusKind,
         time::Duration,
     },
-    publication::data_writer_listener::DataWriterListener,
+    publication::{
+        data_writer_listener::DataWriterListener, publisher_listener::PublisherListener,
+    },
     runtime::{
         actor::{Actor, ActorAddress},
         oneshot::oneshot,
@@ -243,7 +244,7 @@ impl PublisherAsync {
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn set_listener(
         &self,
-        a_listener: Option<Box<dyn PublisherListenerAsync + Send>>,
+        a_listener: Option<Box<dyn PublisherListener + Send>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();

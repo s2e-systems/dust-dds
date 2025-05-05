@@ -1,5 +1,5 @@
 use crate::{
-    dds_async::{subscriber::SubscriberAsync, subscriber_listener::SubscriberListenerAsync},
+    dds_async::subscriber::SubscriberAsync,
     domain::domain_participant::DomainParticipant,
     infrastructure::{
         condition::StatusCondition,
@@ -27,12 +27,16 @@ pub struct Subscriber {
 }
 
 impl Subscriber {
-    pub(crate) fn new(subscriber_async: SubscriberAsync) -> Self {
-        Self { subscriber_async }
-    }
-
     pub(crate) fn subscriber_async(&self) -> &SubscriberAsync {
         &self.subscriber_async
+    }
+}
+
+impl From<SubscriberAsync> for Subscriber {
+    fn from(value: SubscriberAsync) -> Self {
+        Self {
+            subscriber_async: value,
+        }
     }
 }
 
@@ -198,10 +202,7 @@ impl Subscriber {
         a_listener: Option<Box<dyn SubscriberListener + Send>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        block_on(self.subscriber_async.set_listener(
-            a_listener.map::<Box<dyn SubscriberListenerAsync + Send>, _>(|b| Box::new(b)),
-            mask,
-        ))
+        block_on(self.subscriber_async.set_listener(a_listener, mask))
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned

@@ -1,6 +1,7 @@
 use clap::Parser;
 use ctrlc;
 use dust_dds::{
+    dds_async::topic::TopicAsync,
     domain::{
         domain_participant::DomainParticipant,
         domain_participant_factory::DomainParticipantFactory,
@@ -23,12 +24,13 @@ use dust_dds::{
         data_reader::DataReader,
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     },
-    topic_definition::topic::Topic,
 };
 use rand::{random, thread_rng, Rng};
 use std::{
     fmt::Debug,
+    future::Future,
     io::Write,
+    pin::Pin,
     process::{ExitCode, Termination},
     sync::mpsc::Receiver,
 };
@@ -251,134 +253,156 @@ impl Options {
 
 struct Listener;
 impl DomainParticipantListener for Listener {
-    fn on_inconsistent_topic(&mut self, the_topic: Topic, _status: InconsistentTopicStatus) {
-        println!(
-            "on_inconsistent_topic() topic: '{}'  type: '{}'",
-            the_topic.get_name(),
-            the_topic.get_type_name(),
-        );
+    fn on_inconsistent_topic(
+        &mut self,
+        the_topic: TopicAsync,
+        _status: InconsistentTopicStatus,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        Box::pin(async move {
+            println!(
+                "on_inconsistent_topic() topic: '{}'  type: '{}'",
+                the_topic.get_name(),
+                the_topic.get_type_name(),
+            );
+        })
     }
 
     fn on_offered_incompatible_qos(
         &mut self,
-        the_writer: dust_dds::publication::data_writer::DataWriter<()>,
+        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<()>,
         status: dust_dds::infrastructure::status::OfferedIncompatibleQosStatus,
-    ) {
-        let policy_name = qos_policy_name(status.last_policy_id);
-        println!(
-            "on_offered_incompatible_qos() topic: '{}'  type: '{}' : {:?} ({})",
-            the_writer.get_topic().get_name(),
-            the_writer.get_topic().get_type_name(),
-            status.last_policy_id,
-            policy_name
-        );
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        Box::pin(async move {
+            let policy_name = qos_policy_name(status.last_policy_id);
+            println!(
+                "on_offered_incompatible_qos() topic: '{}'  type: '{}' : {:?} ({})",
+                the_writer.get_topic().get_name(),
+                the_writer.get_topic().get_type_name(),
+                status.last_policy_id,
+                policy_name
+            );
+        })
     }
 
     fn on_publication_matched(
         &mut self,
-        the_writer: dust_dds::publication::data_writer::DataWriter<()>,
+        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<()>,
         status: dust_dds::infrastructure::status::PublicationMatchedStatus,
-    ) {
-        if !the_writer.get_topic().get_name().starts_with("DCPS") {
-            println!(
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        Box::pin(async move {
+            if !the_writer.get_topic().get_name().starts_with("DCPS") {
+                println!(
             "on_publication_matched() topic: '{}'  type: '{}' : matched readers {} (change = {})",
             the_writer.get_topic().get_name(),
             the_writer.get_topic().get_type_name(),
             status.current_count,
             status.current_count_change
         );
-        }
+            }
+        })
     }
 
     fn on_offered_deadline_missed(
         &mut self,
-        the_writer: dust_dds::publication::data_writer::DataWriter<()>,
+        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<()>,
         status: dust_dds::infrastructure::status::OfferedDeadlineMissedStatus,
-    ) {
-        println!(
-            "on_offered_deadline_missed() topic: '{}'  type: '{}' : (total = {}, change = {})",
-            the_writer.get_topic().get_name(),
-            the_writer.get_topic().get_type_name(),
-            status.total_count,
-            status.total_count_change
-        );
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        Box::pin(async move {
+            println!(
+                "on_offered_deadline_missed() topic: '{}'  type: '{}' : (total = {}, change = {})",
+                the_writer.get_topic().get_name(),
+                the_writer.get_topic().get_type_name(),
+                status.total_count,
+                status.total_count_change
+            );
+        })
     }
 
     fn on_liveliness_lost(
         &mut self,
-        the_writer: dust_dds::publication::data_writer::DataWriter<()>,
+        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<()>,
         status: dust_dds::infrastructure::status::LivelinessLostStatus,
-    ) {
-        println!(
-            "on_liveliness_lost() topic: '{}'  type: '{}' : (total = {}, change = {})",
-            the_writer.get_topic().get_name(),
-            the_writer.get_topic().get_type_name(),
-            status.total_count,
-            status.total_count_change
-        );
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        Box::pin(async move {
+            println!(
+                "on_liveliness_lost() topic: '{}'  type: '{}' : (total = {}, change = {})",
+                the_writer.get_topic().get_name(),
+                the_writer.get_topic().get_type_name(),
+                status.total_count,
+                status.total_count_change
+            );
+        })
     }
 
     fn on_requested_incompatible_qos(
         &mut self,
-        the_reader: DataReader<()>,
+        the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<()>,
         status: dust_dds::infrastructure::status::RequestedIncompatibleQosStatus,
-    ) {
-        let policy_name = qos_policy_name(status.last_policy_id);
-        println!(
-            "on_requested_incompatible_qos() topic: '{}'  type: '{}' : {} ({})\n",
-            the_reader.get_topicdescription().get_name(),
-            the_reader.get_topicdescription().get_type_name(),
-            status.last_policy_id,
-            policy_name
-        );
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        Box::pin(async move {
+            let policy_name = qos_policy_name(status.last_policy_id);
+            println!(
+                "on_requested_incompatible_qos() topic: '{}'  type: '{}' : {} ({})\n",
+                the_reader.get_topicdescription().get_name(),
+                the_reader.get_topicdescription().get_type_name(),
+                status.last_policy_id,
+                policy_name
+            );
+        })
     }
 
     fn on_subscription_matched(
         &mut self,
-        the_reader: DataReader<()>,
+        the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<()>,
         status: dust_dds::infrastructure::status::SubscriptionMatchedStatus,
-    ) {
-        if !the_reader
-            .get_topicdescription()
-            .get_name()
-            .starts_with("DCPS")
-        {
-            println!(
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        Box::pin(async move {
+            if !the_reader
+                .get_topicdescription()
+                .get_name()
+                .starts_with("DCPS")
+            {
+                println!(
             "on_subscription_matched() topic: '{}'  type: '{}' : matched writers {} (change = {})",
             the_reader.get_topicdescription().get_name(),
             the_reader.get_topicdescription().get_type_name(),
             status.current_count,
             status.current_count_change
         );
-        }
+            }
+        })
     }
 
     fn on_requested_deadline_missed(
         &mut self,
-        the_reader: DataReader<()>,
+        the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<()>,
         status: dust_dds::infrastructure::status::RequestedDeadlineMissedStatus,
-    ) {
-        println!(
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        Box::pin(async move {
+            println!(
             "on_requested_deadline_missed() topic: '{}'  type: '{}' : (total = {}, change = {})\n",
             the_reader.get_topicdescription().get_name(),
             the_reader.get_topicdescription().get_type_name(),
             status.total_count,
             status.total_count_change
         );
+        })
     }
 
     fn on_liveliness_changed(
         &mut self,
-        the_reader: DataReader<()>,
+        the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<()>,
         status: dust_dds::infrastructure::status::LivelinessChangedStatus,
-    ) {
-        println!(
-            "on_liveliness_changed() topic: '{}'  type: '{}' : (alive = {}, not_alive = {})",
-            the_reader.get_topicdescription().get_name(),
-            the_reader.get_topicdescription().get_type_name(),
-            status.alive_count,
-            status.not_alive_count,
-        );
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        Box::pin(async move {
+            println!(
+                "on_liveliness_changed() topic: '{}'  type: '{}' : (alive = {}, not_alive = {})",
+                the_reader.get_topicdescription().get_name(),
+                the_reader.get_topicdescription().get_type_name(),
+                status.alive_count,
+                status.not_alive_count,
+            );
+        })
     }
 }
 

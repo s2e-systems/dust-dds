@@ -1,10 +1,6 @@
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
-    dds_async::{
-        domain_participant::DomainParticipantAsync,
-        domain_participant_listener::DomainParticipantListenerAsync,
-        publisher_listener::PublisherListenerAsync, subscriber_listener::SubscriberListenerAsync,
-    },
+    dds_async::domain_participant::DomainParticipantAsync,
     infrastructure::{
         condition::StatusCondition,
         error::DdsResult,
@@ -71,12 +67,11 @@ impl DomainParticipant {
         a_listener: Option<Box<dyn PublisherListener + Send>>,
         mask: &[StatusKind],
     ) -> DdsResult<Publisher> {
-        block_on(self.participant_async.create_publisher(
-            qos,
-            a_listener.map::<Box<dyn PublisherListenerAsync + Send>, _>(|b| Box::new(b)),
-            mask,
-        ))
-        .map(Publisher::new)
+        block_on(
+            self.participant_async
+                .create_publisher(qos, a_listener, mask),
+        )
+        .map(Publisher::from)
     }
 
     /// This operation deletes an existing [`Publisher`].
@@ -109,12 +104,11 @@ impl DomainParticipant {
         a_listener: Option<Box<dyn SubscriberListener + Send>>,
         mask: &[StatusKind],
     ) -> DdsResult<Subscriber> {
-        block_on(self.participant_async.create_subscriber(
-            qos,
-            a_listener.map::<Box<dyn SubscriberListenerAsync + Send>, _>(|b| Box::new(b)),
-            mask,
-        ))
-        .map(Subscriber::new)
+        block_on(
+            self.participant_async
+                .create_subscriber(qos, a_listener, mask),
+        )
+        .map(Subscriber::from)
     }
 
     /// This operation deletes an existing [`Subscriber`].
@@ -234,7 +228,7 @@ impl DomainParticipant {
     /// objects.
     #[tracing::instrument(skip(self))]
     pub fn get_builtin_subscriber(&self) -> Subscriber {
-        Subscriber::new(self.participant_async.get_builtin_subscriber())
+        Subscriber::from(self.participant_async.get_builtin_subscriber())
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a remote domain participant. From that point
@@ -484,10 +478,7 @@ impl DomainParticipant {
         a_listener: Option<Box<dyn DomainParticipantListener + Send + 'static>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        block_on(self.participant_async.set_listener(
-            a_listener.map::<Box<dyn DomainParticipantListenerAsync + Send>, _>(|b| Box::new(b)),
-            mask,
-        ))
+        block_on(self.participant_async.set_listener(a_listener, mask))
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned

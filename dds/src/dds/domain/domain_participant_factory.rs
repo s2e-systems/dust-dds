@@ -1,10 +1,7 @@
 use super::domain_participant::DomainParticipant;
 use crate::{
     configuration::DustDdsConfiguration,
-    dds_async::{
-        domain_participant_factory::DomainParticipantFactoryAsync,
-        domain_participant_listener::DomainParticipantListenerAsync,
-    },
+    dds_async::domain_participant_factory::DomainParticipantFactoryAsync,
     domain::domain_participant_listener::DomainParticipantListener,
     implementation::domain_participant_factory::domain_participant_factory_actor::DdsTransportParticipantFactory,
     infrastructure::{
@@ -44,12 +41,10 @@ impl DomainParticipantFactory {
         a_listener: Option<Box<dyn DomainParticipantListener + Send>>,
         mask: &[StatusKind],
     ) -> DdsResult<DomainParticipant> {
-        block_on(self.participant_factory_async.create_participant(
-            domain_id,
-            qos,
-            a_listener.map::<Box<dyn DomainParticipantListenerAsync + Send>, _>(|b| Box::new(b)),
-            mask,
-        ))
+        block_on(
+            self.participant_factory_async
+                .create_participant(domain_id, qos, a_listener, mask),
+        )
         .map(DomainParticipant::new)
     }
 

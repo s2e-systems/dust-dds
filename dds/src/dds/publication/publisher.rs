@@ -1,5 +1,5 @@
 use crate::{
-    dds_async::{publisher::PublisherAsync, publisher_listener::PublisherListenerAsync},
+    dds_async::publisher::PublisherAsync,
     domain::domain_participant::DomainParticipant,
     infrastructure::{
         condition::StatusCondition,
@@ -25,12 +25,16 @@ pub struct Publisher {
 }
 
 impl Publisher {
-    pub(crate) fn new(publisher_async: PublisherAsync) -> Self {
-        Self { publisher_async }
-    }
-
     pub(crate) fn publisher_async(&self) -> &PublisherAsync {
         &self.publisher_async
+    }
+}
+
+impl From<PublisherAsync> for Publisher {
+    fn from(value: PublisherAsync) -> Self {
+        Self {
+            publisher_async: value,
+        }
     }
 }
 
@@ -246,10 +250,7 @@ impl Publisher {
         a_listener: Option<Box<dyn PublisherListener + Send>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        block_on(self.publisher_async.set_listener(
-            a_listener.map::<Box<dyn PublisherListenerAsync + Send>, _>(|b| Box::new(b)),
-            mask,
-        ))
+        block_on(self.publisher_async.set_listener(a_listener, mask))
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned

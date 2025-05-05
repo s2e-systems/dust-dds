@@ -1,8 +1,5 @@
 use crate::{
-    dds_async::{
-        data_reader::DataReaderAsync, subscriber::SubscriberAsync,
-        subscriber_listener::SubscriberListenerAsync,
-    },
+    dds_async::{data_reader::DataReaderAsync, subscriber::SubscriberAsync},
     infrastructure::status::{
         RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleRejectedStatus,
         SubscriptionMatchedStatus,
@@ -11,13 +8,14 @@ use crate::{
         executor::ExecutorHandle,
         mpsc::{mpsc_channel, MpscSender},
     },
+    subscription::subscriber_listener::SubscriberListener,
 };
 
 pub struct SubscriberListenerActor;
 
 impl SubscriberListenerActor {
     pub fn spawn(
-        mut listener: Box<dyn SubscriberListenerAsync + Send>,
+        mut listener: Box<dyn SubscriberListener + Send>,
         executor_handle: &ExecutorHandle,
     ) -> MpscSender<SubscriberListenerMail> {
         let (listener_sender, listener_receiver) = mpsc_channel();

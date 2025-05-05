@@ -1,12 +1,12 @@
 use std::sync::OnceLock;
 
-use super::{
-    domain_participant::DomainParticipantAsync,
-    domain_participant_listener::DomainParticipantListenerAsync,
-};
+use super::domain_participant::DomainParticipantAsync;
 use crate::{
     configuration::DustDdsConfiguration,
-    domain::domain_participant_factory::DomainId,
+    domain::{
+        domain_participant_factory::DomainId,
+        domain_participant_listener::DomainParticipantListener,
+    },
     implementation::{
         domain_participant_backend::domain_participant_actor_mail::{
             DiscoveryServiceMail, DomainParticipantMail, ParticipantServiceMail,
@@ -40,7 +40,7 @@ impl DomainParticipantFactoryAsync {
         &self,
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
-        a_listener: Option<Box<dyn DomainParticipantListenerAsync + Send + 'static>>,
+        a_listener: Option<Box<dyn DomainParticipantListener + Send + 'static>>,
         mask: &[StatusKind],
     ) -> DdsResult<DomainParticipantAsync> {
         let executor = Executor::new();

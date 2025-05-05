@@ -1,8 +1,9 @@
 use crate::{
-    dds_async::{data_writer::DataWriterAsync, publisher_listener::PublisherListenerAsync},
+    dds_async::data_writer::DataWriterAsync,
     infrastructure::status::{
         OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
     },
+    publication::publisher_listener::PublisherListener,
     runtime::{
         executor::ExecutorHandle,
         mpsc::{mpsc_channel, MpscSender},
@@ -13,7 +14,7 @@ pub struct PublisherListenerActor;
 
 impl PublisherListenerActor {
     pub fn spawn(
-        mut listener: Box<dyn PublisherListenerAsync + Send>,
+        mut listener: Box<dyn PublisherListener + Send>,
         executor_handle: &ExecutorHandle,
     ) -> MpscSender<PublisherListenerMail> {
         let (listener_sender, listener_receiver) = mpsc_channel();

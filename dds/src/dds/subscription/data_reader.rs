@@ -375,7 +375,7 @@ impl<Foo> DataReader<Foo> {
     /// This operation returns the [`Subscriber`] to which the [`DataReader`] belongs.
     #[tracing::instrument(skip(self))]
     pub fn get_subscriber(&self) -> Subscriber {
-        Subscriber::new(self.reader_async.get_subscriber())
+        Subscriber::from(self.reader_async.get_subscriber())
     }
 
     /// This operation blocks the calling thread until either all *historical* data is received, or else the
