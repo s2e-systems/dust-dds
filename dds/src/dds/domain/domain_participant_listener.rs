@@ -101,7 +101,7 @@ impl DomainParticipantListenerAsync for Box<dyn DomainParticipantListener + Send
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         DomainParticipantListener::on_inconsistent_topic(
             self.as_mut(),
-            Topic::new(the_topic),
+            Topic::from(the_topic),
             status,
         );
         Box::pin(std::future::ready(()))

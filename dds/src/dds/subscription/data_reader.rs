@@ -369,7 +369,7 @@ impl<Foo> DataReader<Foo> {
     /// that was used to create the [`DataReader`].
     #[tracing::instrument(skip(self))]
     pub fn get_topicdescription(&self) -> Topic {
-        Topic::new(self.reader_async.get_topicdescription())
+        Topic::from(self.reader_async.get_topicdescription())
     }
 
     /// This operation returns the [`Subscriber`] to which the [`DataReader`] belongs.

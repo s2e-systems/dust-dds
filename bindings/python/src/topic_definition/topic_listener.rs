@@ -1,3 +1,5 @@
+use std::{future::Future, pin::Pin};
+
 use pyo3::prelude::*;
 
 use crate::{infrastructure::status::InconsistentTopicStatus, topic_definition::topic::Topic};
@@ -13,18 +15,20 @@ impl From<Py<PyAny>> for TopicListener {
 impl dust_dds::topic_definition::topic_listener::TopicListener for TopicListener {
     fn on_inconsistent_topic(
         &mut self,
-        the_topic: dust_dds::topic_definition::topic::Topic,
+        the_topic: dust_dds::dds_async::topic::TopicAsync,
         status: dust_dds::infrastructure::status::InconsistentTopicStatus,
-    ) {
-        let args = (
-            Topic::from(the_topic),
-            InconsistentTopicStatus::from(status),
-        );
-        Python::with_gil(|py| {
-            self.0
-                .bind(py)
-                .call_method("on_inconsistent_topic", args, None)
-                .unwrap();
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        Box::pin(async move {
+            let args = (
+                Topic::from(the_topic),
+                InconsistentTopicStatus::from(status),
+            );
+            Python::with_gil(|py| {
+                self.0
+                    .bind(py)
+                    .call_method("on_inconsistent_topic", args, None)
+                    .unwrap();
+            })
         })
     }
 }

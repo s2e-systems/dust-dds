@@ -4,7 +4,6 @@ use crate::{
         domain_participant::DomainParticipantAsync,
         domain_participant_listener::DomainParticipantListenerAsync,
         publisher_listener::PublisherListenerAsync, subscriber_listener::SubscriberListenerAsync,
-        topic_listener::TopicListenerAsync,
     },
     infrastructure::{
         condition::StatusCondition,
@@ -151,14 +150,11 @@ impl DomainParticipant {
     where
         Foo: TypeSupport,
     {
-        block_on(self.participant_async.create_topic::<Foo>(
-            topic_name,
-            type_name,
-            qos,
-            a_listener.map::<Box<dyn TopicListenerAsync + Send>, _>(|b| Box::new(b)),
-            mask,
-        ))
-        .map(Topic::new)
+        block_on(
+            self.participant_async
+                .create_topic::<Foo>(topic_name, type_name, qos, a_listener, mask),
+        )
+        .map(Topic::from)
     }
 
     #[doc(hidden)]
@@ -176,11 +172,11 @@ impl DomainParticipant {
             topic_name,
             type_name,
             qos,
-            a_listener.map::<Box<dyn TopicListenerAsync + Send>, _>(|b| Box::new(b)),
+            a_listener,
             mask,
             dynamic_type_representation,
         ))
-        .map(Topic::new)
+        .map(Topic::from)
     }
 
     /// This operation deletes a [`Topic`].
@@ -214,7 +210,7 @@ impl DomainParticipant {
             self.participant_async
                 .find_topic::<Foo>(topic_name, timeout),
         )
-        .map(Topic::new)
+        .map(Topic::from)
     }
 
     /// This operation gives access to an existing locally-created [`Topic`], based on its name and type. The
@@ -229,7 +225,7 @@ impl DomainParticipant {
     /// If the operation fails to locate a [`Topic`], the operation succeeds and a [`None`] value is returned.
     #[tracing::instrument(skip(self))]
     pub fn lookup_topicdescription(&self, topic_name: &str) -> DdsResult<Option<Topic>> {
-        Ok(block_on(self.participant_async.lookup_topicdescription(topic_name))?.map(Topic::new))
+        Ok(block_on(self.participant_async.lookup_topicdescription(topic_name))?.map(Topic::from))
     }
 
     /// This operation allows access to the built-in [`Subscriber`]. Each [`DomainParticipant`] contains several built-in [`Topic`] objects as

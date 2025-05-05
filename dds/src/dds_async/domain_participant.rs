@@ -2,7 +2,6 @@ use super::{
     condition::StatusConditionAsync, domain_participant_listener::DomainParticipantListenerAsync,
     publisher::PublisherAsync, publisher_listener::PublisherListenerAsync,
     subscriber::SubscriberAsync, subscriber_listener::SubscriberListenerAsync, topic::TopicAsync,
-    topic_listener::TopicListenerAsync,
 };
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
@@ -32,7 +31,7 @@ use crate::{
         oneshot::oneshot,
         timer::TimerHandle,
     },
-    topic_definition::type_support::TypeSupport,
+    topic_definition::{topic_listener::TopicListener, type_support::TypeSupport},
     xtypes::dynamic_type::DynamicType,
 };
 use std::sync::Arc;
@@ -176,7 +175,7 @@ impl DomainParticipantAsync {
         topic_name: &str,
         type_name: &str,
         qos: QosKind<TopicQos>,
-        a_listener: Option<Box<dyn TopicListenerAsync + Send>>,
+        a_listener: Option<Box<dyn TopicListener + Send>>,
         mask: &[StatusKind],
     ) -> DdsResult<TopicAsync>
     where
@@ -195,7 +194,7 @@ impl DomainParticipantAsync {
         topic_name: &str,
         type_name: &str,
         qos: QosKind<TopicQos>,
-        a_listener: Option<Box<dyn TopicListenerAsync + Send>>,
+        a_listener: Option<Box<dyn TopicListener + Send>>,
         mask: &[StatusKind],
         dynamic_type_representation: Arc<dyn DynamicType + Send + Sync>,
     ) -> DdsResult<TopicAsync> {

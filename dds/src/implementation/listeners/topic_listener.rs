@@ -1,18 +1,18 @@
 use crate::{
-    dds_async::topic_listener::TopicListenerAsync,
     runtime::{
         executor::ExecutorHandle,
         mpsc::{mpsc_channel, MpscSender},
     },
+    topic_definition::topic_listener::TopicListener,
 };
 
 pub struct TopicListenerActor {
-    _listener: Box<dyn TopicListenerAsync + Send>,
+    _listener: Box<dyn TopicListener + Send>,
 }
 
 impl TopicListenerActor {
     pub fn spawn(
-        _listener: Box<dyn TopicListenerAsync + Send>,
+        _listener: Box<dyn TopicListener + Send>,
         executor_handle: &ExecutorHandle,
     ) -> MpscSender<TopicListenerActorMail> {
         let (listener_sender, listener_receiver) = mpsc_channel();

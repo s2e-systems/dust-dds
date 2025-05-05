@@ -20,7 +20,5 @@ pub mod subscriber;
 pub mod subscriber_listener;
 /// Classes related to the async topic.
 pub mod topic;
-/// Classes related to the async topic listener.
-pub mod topic_listener;
 /// Classes related to the async wait set.
 pub mod wait_set;

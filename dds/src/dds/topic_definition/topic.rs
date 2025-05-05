@@ -24,12 +24,14 @@ pub struct Topic {
 }
 
 impl Topic {
-    pub(crate) fn new(topic_async: TopicAsync) -> Self {
-        Self { topic_async }
-    }
-
     pub(crate) fn topic_async(&self) -> &TopicAsync {
         &self.topic_async
+    }
+}
+
+impl From<TopicAsync> for Topic {
+    fn from(value: TopicAsync) -> Self {
+        Self { topic_async: value }
     }
 }
 
@@ -149,13 +151,7 @@ impl Topic {
         a_listener: Option<Box<dyn TopicListener + Send>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        block_on(self.topic_async.set_listener(
-            match a_listener {
-                Some(l) => Some(Box::new(l)),
-                None => None,
-            },
-            mask,
-        ))
+        block_on(self.topic_async.set_listener(a_listener, mask))
     }
 }
 
