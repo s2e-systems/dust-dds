@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use alloc::sync::Arc;
 
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
@@ -311,7 +311,7 @@ impl DataReaderEntity {
 
         let mut indexed_samples = Vec::new();
 
-        let mut instances_in_collection = HashMap::new();
+        let mut instances_in_collection = Vec::<InstanceState>::new();
         for (index, cache_change) in self.sample_list.iter().enumerate() {
             if let Some(h) = specific_instance_handle {
                 if cache_change.instance_handle != h {
@@ -334,24 +334,26 @@ impl DataReaderEntity {
                 continue;
             }
 
-            instances_in_collection
-                .entry(cache_change.instance_handle)
-                .or_insert_with(|| InstanceState::new(cache_change.instance_handle));
+            if !instances_in_collection
+                .iter()
+                .any(|x| x.handle() == cache_change.instance_handle)
+            {
+                instances_in_collection.push(InstanceState::new(cache_change.instance_handle));
+            }
 
-            instances_in_collection
-                .get_mut(&cache_change.instance_handle)
-                .unwrap()
-                .update_state(cache_change.kind);
+            let instance_from_collection = instances_in_collection
+                .iter_mut()
+                .find(|x| x.handle() == cache_change.instance_handle)
+                .expect("Instance must exist");
+            instance_from_collection.update_state(cache_change.kind);
             let sample_state = cache_change.sample_state;
             let view_state = instance.view_state;
             let instance_state = instance.instance_state;
 
             let absolute_generation_rank = (instance.most_recent_disposed_generation_count
                 + instance.most_recent_no_writers_generation_count)
-                - (instances_in_collection[&cache_change.instance_handle]
-                    .most_recent_disposed_generation_count
-                    + instances_in_collection[&cache_change.instance_handle]
-                        .most_recent_no_writers_generation_count);
+                - (instance_from_collection.most_recent_disposed_generation_count
+                    + instance_from_collection.most_recent_no_writers_generation_count);
 
             let (data, valid_data) = match cache_change.kind {
                 ChangeKind::Alive | ChangeKind::AliveFiltered => {
@@ -387,7 +389,7 @@ impl DataReaderEntity {
         }
 
         // After the collection is created, update the relative generation rank values and mark the read instances as viewed
-        for handle in instances_in_collection.into_keys() {
+        for handle in instances_in_collection.iter().map(|x| x.handle()) {
             let most_recent_sample_absolute_generation_rank = indexed_samples
                 .iter()
                 .filter(
