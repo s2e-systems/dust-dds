@@ -70,15 +70,7 @@ use crate::{
         writer::{TransportStatefulWriter, TransportStatelessWriter},
     },
 };
-use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
-use std::{
-    net::IpAddr,
-    sync::{
-        atomic::{AtomicU32, Ordering},
-        Arc, OnceLock,
-    },
-};
-use tracing::warn;
+use alloc::sync::Arc;
 
 pub type DdsTransportParticipantFactory =
     Box<dyn TransportParticipantFactory<TransportParticipant = DdsTransportParticipant>>;
@@ -122,63 +114,43 @@ pub struct DomainParticipantFactoryActor {
     default_participant_qos: DomainParticipantQos,
     configuration: DustDdsConfiguration,
     transport: DdsTransportParticipantFactory,
+    entity_counter: u32,
+    app_id: [u8; 4],
+    host_id: [u8; 4],
 }
 
-impl Default for DomainParticipantFactoryActor {
-    fn default() -> Self {
+impl DomainParticipantFactoryActor {
+    pub fn new(app_id: [u8; 4], host_id: [u8; 4]) -> Self {
         Self {
             domain_participant_list: Default::default(),
             qos: Default::default(),
             default_participant_qos: Default::default(),
             configuration: Default::default(),
             transport: Box::new(RtpsUdpTransportParticipantFactory::default()),
+            entity_counter: 0,
+            app_id,
+            host_id,
         }
-    }
-}
-
-impl DomainParticipantFactoryActor {
-    pub fn new() -> Self {
-        Default::default()
     }
 
     fn get_unique_participant_id(&mut self) -> u32 {
-        static COUNTER: OnceLock<AtomicU32> = OnceLock::new();
-        let c = COUNTER.get_or_init(|| AtomicU32::new(0));
-        c.fetch_add(1, Ordering::Acquire)
+        let id = self.entity_counter;
+        self.entity_counter += 1;
+        id
     }
 
     fn create_new_guid_prefix(&mut self) -> GuidPrefix {
-        let interface_address = NetworkInterface::show()
-            .expect("Could not scan interfaces")
-            .into_iter()
-            .flat_map(|i| {
-                i.addr
-                    .into_iter()
-                    .filter(|a| matches!(a, Addr::V4(v4) if !v4.ip.is_loopback()))
-            })
-            .next();
-        let host_id = if let Some(interface) = interface_address {
-            match interface.ip() {
-                IpAddr::V4(a) => a.octets(),
-                IpAddr::V6(_) => unimplemented!("IPv6 not yet implemented"),
-            }
-        } else {
-            warn!("Failed to get Host ID from IP address, use 0 instead");
-            [0; 4]
-        };
-
-        let app_id = std::process::id().to_ne_bytes();
         let instance_id = self.get_unique_participant_id().to_ne_bytes();
 
         [
-            host_id[0],
-            host_id[1],
-            host_id[2],
-            host_id[3], // Host ID
-            app_id[0],
-            app_id[1],
-            app_id[2],
-            app_id[3], // App ID
+            self.host_id[0],
+            self.host_id[1],
+            self.host_id[2],
+            self.host_id[3], // Host ID
+            self.app_id[0],
+            self.app_id[1],
+            self.app_id[2],
+            self.app_id[3], // App ID
             instance_id[0],
             instance_id[1],
             instance_id[2],

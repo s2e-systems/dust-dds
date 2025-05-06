@@ -1,4 +1,8 @@
+use core::net::IpAddr;
 use std::sync::OnceLock;
+
+use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
+use tracing::warn;
 
 use super::domain_participant::DomainParticipantAsync;
 use crate::{
@@ -120,9 +124,31 @@ impl DomainParticipantFactoryAsync {
     pub fn get_instance() -> &'static Self {
         static PARTICIPANT_FACTORY_ASYNC: OnceLock<DomainParticipantFactoryAsync> = OnceLock::new();
         PARTICIPANT_FACTORY_ASYNC.get_or_init(|| {
+            let interface_address = NetworkInterface::show()
+                .expect("Could not scan interfaces")
+                .into_iter()
+                .flat_map(|i| {
+                    i.addr
+                        .into_iter()
+                        .filter(|a| matches!(a, Addr::V4(v4) if !v4.ip.is_loopback()))
+                })
+                .next();
+            let host_id = if let Some(interface) = interface_address {
+                match interface.ip() {
+                    IpAddr::V4(a) => a.octets(),
+                    IpAddr::V6(_) => unimplemented!("IPv6 not yet implemented"),
+                }
+            } else {
+                warn!("Failed to get Host ID from IP address, use 0 instead");
+                [0; 4]
+            };
+
+            let app_id = std::process::id().to_ne_bytes();
             let executor = Executor::new();
-            let domain_participant_factory_actor =
-                Actor::spawn(DomainParticipantFactoryActor::new(), &executor.handle());
+            let domain_participant_factory_actor = Actor::spawn(
+                DomainParticipantFactoryActor::new(app_id, host_id),
+                &executor.handle(),
+            );
             Self {
                 _executor: executor,
                 domain_participant_factory_actor,
