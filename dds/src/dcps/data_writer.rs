@@ -1,9 +1,6 @@
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
-    implementation::{
-        listeners::data_writer_listener::DataWriterListenerMail,
-        status_condition::status_condition_actor::{StatusConditionActor, StatusConditionMail},
-    },
+    implementation::listeners::data_writer_listener::DataWriterListenerMail,
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
@@ -15,7 +12,7 @@ use crate::{
         },
         time::{DurationKind, Time},
     },
-    runtime::{actor::Actor, mpsc::MpscSender},
+    runtime::mpsc::MpscSender,
     transport::{
         history_cache::{CacheChange, HistoryCache},
         types::{ChangeKind, Guid},
@@ -27,6 +24,7 @@ use alloc::{boxed::Box, collections::VecDeque, string::String, sync::Arc, vec::V
 
 use super::{
     clock::Clock,
+    status_condition::StatusCondition,
     xtypes_glue::key_and_instance_handle::{
         get_instance_handle_from_serialized_foo, get_instance_handle_from_serialized_key,
     },
@@ -63,7 +61,7 @@ pub struct InstanceSamples {
     samples: VecDeque<i64>,
 }
 
-pub struct DataWriterEntity {
+pub struct DataWriterEntity<S> {
     instance_handle: InstanceHandle,
     transport_writer: TransportWriterKind,
     topic_name: String,
@@ -74,7 +72,7 @@ pub struct DataWriterEntity {
     incompatible_subscription_list: Vec<InstanceHandle>,
     offered_incompatible_qos_status: OfferedIncompatibleQosStatus,
     enabled: bool,
-    status_condition: Actor<StatusConditionActor>,
+    status_condition: S,
     listener_sender: MpscSender<DataWriterListenerMail>,
     listener_mask: Vec<StatusKind>,
     max_seq_num: Option<i64>,
@@ -86,7 +84,7 @@ pub struct DataWriterEntity {
     instance_samples: Vec<InstanceSamples>,
 }
 
-impl DataWriterEntity {
+impl<S> DataWriterEntity<S> {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         instance_handle: InstanceHandle,
@@ -94,7 +92,7 @@ impl DataWriterEntity {
         topic_name: String,
         type_name: String,
         type_support: Arc<dyn DynamicType + Send + Sync>,
-        status_condition: Actor<StatusConditionActor>,
+        status_condition: S,
         listener_sender: MpscSender<DataWriterListenerMail>,
         listener_mask: Vec<StatusKind>,
         qos: DataWriterQos,
@@ -528,16 +526,6 @@ impl DataWriterEntity {
             .find(|x| subscription_handle.as_ref() == &x.key().value)
     }
 
-    pub fn get_offered_deadline_missed_status(&mut self) -> OfferedDeadlineMissedStatus {
-        let status = self.offered_deadline_missed_status.clone();
-        self.offered_deadline_missed_status.total_count_change = 0;
-        self.status_condition
-            .send_actor_mail(StatusConditionMail::RemoveCommunicationState {
-                state: StatusKind::OfferedDeadlineMissed,
-            });
-        status
-    }
-
     pub fn get_publication_matched_status(&mut self) -> PublicationMatchedStatus {
         let status = self.publication_matched_status.clone();
         self.publication_matched_status.current_count_change = 0;
@@ -556,7 +544,7 @@ impl DataWriterEntity {
         self.type_support.as_ref()
     }
 
-    pub fn status_condition(&self) -> &Actor<StatusConditionActor> {
+    pub fn status_condition(&self) -> &S {
         &self.status_condition
     }
 
@@ -591,5 +579,19 @@ impl DataWriterEntity {
             }
             TransportWriterKind::Stateless(_) => true,
         }
+    }
+}
+
+impl<S> DataWriterEntity<S>
+where
+    S: StatusCondition,
+{
+    pub fn get_offered_deadline_missed_status(&mut self) -> OfferedDeadlineMissedStatus {
+        let status = self.offered_deadline_missed_status.clone();
+        self.offered_deadline_missed_status.total_count_change = 0;
+        self.status_condition
+            .remove_state(StatusKind::OfferedDeadlineMissed);
+
+        status
     }
 }

@@ -1,6 +1,9 @@
 use crate::{
     infrastructure::status::StatusKind,
-    runtime::{actor::MailHandler, oneshot::OneshotSender},
+    runtime::{
+        actor::{Actor, MailHandler},
+        oneshot::OneshotSender,
+    },
 };
 
 #[derive(Debug)]
@@ -97,5 +100,15 @@ impl MailHandler for StatusConditionActor {
                 self.remove_communication_state(state)
             }
         }
+    }
+}
+
+impl crate::dcps::status_condition::StatusCondition for Actor<StatusConditionActor> {
+    fn add_state(&mut self, state: StatusKind) {
+        self.send_actor_mail(StatusConditionMail::AddCommunicationState { state })
+    }
+
+    fn remove_state(&mut self, state: StatusKind) {
+        self.send_actor_mail(StatusConditionMail::RemoveCommunicationState { state });
     }
 }
