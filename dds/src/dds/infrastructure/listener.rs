@@ -21,6 +21,6 @@ impl SubscriberListener for NoOpListener {}
 
 impl TopicListener for NoOpListener {}
 
-impl<'a, Foo> DataWriterListener<'a, Foo> for NoOpListener {}
+impl<Foo> DataWriterListener<'_, Foo> for NoOpListener {}
 
-impl<'a, Foo> DataReaderListener<'a, Foo> for NoOpListener {}
+impl<Foo> DataReaderListener<'_, Foo> for NoOpListener {}
