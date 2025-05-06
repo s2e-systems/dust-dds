@@ -32,7 +32,8 @@ criterion = { version = "0.3", features = ["html_reports"] }
 tracing-subscriber = "0.3"
 
 [features]
-default = ["rtps", "rtps_udp_transport", "std"]
+default = ["dcps", "rtps", "rtps_udp_transport", "std"]
+dcps = []
 rtps_udp_transport = ["rtps", "dep:socket2", "dep:network-interface"]
 rtps = ["rtps_messages"]
 rtps_messages = ["transport"]

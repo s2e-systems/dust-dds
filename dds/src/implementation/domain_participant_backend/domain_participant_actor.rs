@@ -7,7 +7,6 @@ use super::{
     domain_participant_actor_mail::{DomainParticipantMail, EventServiceMail, MessageServiceMail},
     entities::{
         data_reader::{AddChangeResult, DataReaderEntity},
-        data_writer::{DataWriterEntity, TransportWriterKind},
         domain_participant::DomainParticipantEntity,
         publisher::PublisherEntity,
         subscriber::SubscriberEntity,
@@ -21,6 +20,7 @@ use crate::{
         SubscriptionBuiltinTopicData, TopicBuiltinTopicData, DCPS_PARTICIPANT, DCPS_PUBLICATION,
         DCPS_SUBSCRIPTION, DCPS_TOPIC,
     },
+    dcps::data_writer::{DataWriterEntity, TransportWriterKind},
     dds_async::{
         data_reader::DataReaderAsync, data_writer::DataWriterAsync,
         domain_participant::DomainParticipantAsync, publisher::PublisherAsync,

@@ -12,7 +12,7 @@ use crate::{
     runtime::{actor::Actor, mpsc::MpscSender},
 };
 
-use super::data_writer::DataWriterEntity;
+use crate::dcps::data_writer::DataWriterEntity;
 
 pub struct PublisherEntity {
     qos: PublisherQos,

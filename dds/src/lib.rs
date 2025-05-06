@@ -13,6 +13,14 @@ pub use dds::*;
 #[cfg(feature = "std")]
 pub mod dds_async;
 
+/// Contains the DCPS logic which provides the behavior to the DDS API
+#[doc(hidden)]
+#[cfg(feature = "dcps")]
+pub mod dcps;
+
+#[cfg(feature = "std")]
+mod implementation;
+
 #[doc(hidden)]
 #[cfg(feature = "rtps")]
 pub mod rtps;
@@ -24,9 +32,6 @@ pub mod rtps_messages;
 #[cfg(feature = "rtps_udp_transport")]
 #[doc(hidden)]
 pub mod rtps_udp_transport;
-
-#[cfg(feature = "std")]
-mod implementation;
 
 #[cfg(feature = "transport")]
 #[doc(hidden)]

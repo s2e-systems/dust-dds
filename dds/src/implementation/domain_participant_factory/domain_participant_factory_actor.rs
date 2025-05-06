@@ -1,6 +1,7 @@
 use crate::{
     builtin_topics::{DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC},
     configuration::DustDdsConfiguration,
+    dcps::data_writer::{DataWriterEntity, TransportWriterKind},
     domain::domain_participant_factory::DomainId,
     implementation::{
         data_representation_builtin_endpoints::{
@@ -17,7 +18,6 @@ use crate::{
             },
             entities::{
                 data_reader::{DataReaderEntity, TransportReaderKind},
-                data_writer::{DataWriterEntity, TransportWriterKind},
                 domain_participant::DomainParticipantEntity,
                 publisher::PublisherEntity,
                 subscriber::SubscriberEntity,
