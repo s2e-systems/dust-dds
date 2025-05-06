@@ -139,6 +139,11 @@ impl TransportReaderKind {
     }
 }
 
+struct InstanceDeadlineMissed {
+    instance_handle: InstanceHandle,
+    task_handle: TaskHandle,
+}
+
 pub struct DataReaderEntity {
     instance_handle: InstanceHandle,
     sample_list: Vec<ReaderSample>,
@@ -160,7 +165,7 @@ pub struct DataReaderEntity {
     listener_sender: MpscSender<DataReaderListenerMail>,
     listener_mask: Vec<StatusKind>,
     instances: Vec<InstanceState>,
-    instance_deadline_missed_task: HashMap<InstanceHandle, TaskHandle>,
+    instance_deadline_missed_task: Vec<InstanceDeadlineMissed>,
     instance_ownership: HashMap<InstanceHandle, [u8; 16]>,
     transport_reader: TransportReaderKind,
 }
@@ -199,7 +204,7 @@ impl DataReaderEntity {
             listener_sender,
             listener_mask,
             instances: Vec::new(),
-            instance_deadline_missed_task: HashMap::new(),
+            instance_deadline_missed_task: Vec::new(),
             instance_ownership: HashMap::new(),
             transport_reader,
         }
@@ -775,11 +780,15 @@ impl DataReaderEntity {
                 .sort_by(|a, b| a.reception_timestamp.cmp(&b.reception_timestamp)),
         }
 
-        if let Some(t) = self
+        if let Some(i) = self
             .instance_deadline_missed_task
-            .remove(&change_instance_handle)
+            .iter()
+            .position(|x| x.instance_handle == change_instance_handle)
         {
-            t.abort();
+            self.instance_deadline_missed_task
+                .remove(i)
+                .task_handle
+                .abort();
         }
 
         Ok(AddChangeResult::Added(change_instance_handle))
@@ -968,10 +977,22 @@ impl DataReaderEntity {
     pub fn insert_instance_deadline_missed_task(
         &mut self,
         instance_handle: InstanceHandle,
-        task: TaskHandle,
+        task_handle: TaskHandle,
     ) {
-        self.instance_deadline_missed_task
-            .insert(instance_handle, task);
+        match self
+            .instance_deadline_missed_task
+            .iter_mut()
+            .find(|x| x.instance_handle == instance_handle)
+        {
+            Some(x) => x.task_handle = task_handle,
+            None => {
+                self.instance_deadline_missed_task
+                    .push(InstanceDeadlineMissed {
+                        instance_handle,
+                        task_handle,
+                    });
+            }
+        };
     }
 
     pub fn listener(&self) -> MpscSender<DataReaderListenerMail> {
