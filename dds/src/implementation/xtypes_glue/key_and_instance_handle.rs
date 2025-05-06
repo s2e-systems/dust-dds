@@ -13,7 +13,6 @@ use crate::{
         xcdr_serializer::{Xcdr1LeSerializer, Xcdr2BeSerializer},
     },
 };
-use std::io::BufRead;
 
 struct Md5 {
     key: [u8; 16],
@@ -330,7 +329,7 @@ pub fn get_instance_handle_from_serialized_key(
     };
     {
         let representation_identifier = [data[0], data[1]];
-        data.consume(4);
+        data = &data[4..];
         let mut serializer = Xcdr2BeSerializer::new(&mut md5_collection);
         let mut s = serializer.serialize_final_struct()?;
         match representation_identifier {
@@ -363,7 +362,7 @@ pub fn get_instance_handle_from_serialized_foo(
     };
     {
         let representation_identifier = [data[0], data[1]];
-        data.consume(4);
+        data = &data[4..];
         let mut serializer = Xcdr2BeSerializer::new(&mut md5_collection);
         let mut s = serializer.serialize_final_struct()?;
         match representation_identifier {
@@ -388,7 +387,7 @@ pub fn get_serialized_key_from_serialized_foo(
         let representation_identifier = [data[0], data[1]];
         collection.extend_from_slice(&CDR_LE);
         collection.extend_from_slice(&[0, 0]);
-        data.consume(4);
+        data = &data[4..];
 
         let mut serializer = Xcdr1LeSerializer::new(&mut collection);
         let mut s = serializer.serialize_final_struct()?;
