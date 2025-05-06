@@ -18,6 +18,7 @@ pub mod dds_async;
 #[cfg(feature = "dcps")]
 pub mod dcps;
 
+#[cfg(feature = "dcps")]
 pub use dcps::{builtin_topics, infrastructure};
 
 #[cfg(feature = "std")]

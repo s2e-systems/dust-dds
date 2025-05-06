@@ -9,9 +9,9 @@ use dust_dds::{
         },
         status::{StatusKind, NO_STATUS},
         time::{Duration, DurationKind},
-        wait_set::{Condition, WaitSet},
     },
     topic_definition::type_support::DdsType,
+    wait_set::{Condition, WaitSet},
 };
 
 #[derive(DdsType)]
