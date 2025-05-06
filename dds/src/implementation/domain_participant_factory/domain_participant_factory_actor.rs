@@ -72,7 +72,6 @@ use crate::{
 };
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use std::{
-    collections::HashMap,
     net::IpAddr,
     sync::{
         atomic::{AtomicU32, Ordering},
@@ -118,7 +117,7 @@ pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR: EntityId =
     EntityId::new([0, 0, 0x04], BUILT_IN_READER_WITH_KEY);
 
 pub struct DomainParticipantFactoryActor {
-    domain_participant_list: HashMap<InstanceHandle, Actor<DomainParticipantActor>>,
+    domain_participant_list: Vec<(InstanceHandle, Actor<DomainParticipantActor>)>,
     qos: DomainParticipantFactoryQos,
     default_participant_qos: DomainParticipantQos,
     configuration: DustDdsConfiguration,
@@ -583,7 +582,7 @@ impl DomainParticipantFactoryActor {
 
         let participant_address = participant_actor.address();
         self.domain_participant_list
-            .insert(participant_handle, participant_actor);
+            .push((participant_handle, participant_actor));
 
         Ok((
             participant_address,
@@ -597,12 +596,17 @@ impl DomainParticipantFactoryActor {
         &mut self,
         handle: InstanceHandle,
     ) -> DdsResult<Actor<DomainParticipantActor>> {
-        self.domain_participant_list
-            .remove(&handle)
+        let index = self
+            .domain_participant_list
+            .iter()
+            .position(|(h, _)| h == &handle)
             .ok_or(DdsError::PreconditionNotMet(
                 "Participant can only be deleted from its parent domain participant factory"
                     .to_string(),
-            ))
+            ))?;
+
+        let (_, participant) = self.domain_participant_list.remove(index);
+        Ok(participant)
     }
 
     pub fn set_default_participant_qos(
