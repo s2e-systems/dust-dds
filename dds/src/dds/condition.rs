@@ -1,9 +1,8 @@
 use crate::{
-    dds_async::condition::StatusConditionAsync, infrastructure::error::DdsResult,
+    dds_async::condition::StatusConditionAsync,
+    infrastructure::{error::DdsResult, status::StatusKind},
     runtime::executor::block_on,
 };
-
-use super::status::StatusKind;
 
 /// A [`StatusCondition`] object is a specific Condition that is associated with each Entity.
 /// The *trigger_value* of the [`StatusCondition`] depends on the communication status of that entity (e.g., arrival of data, loss of

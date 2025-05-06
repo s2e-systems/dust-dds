@@ -10,8 +10,8 @@ use dust_dds::{
         },
         status::{StatusKind, NO_STATUS},
         time::{Duration, DurationKind},
-        wait_set::{Condition, WaitSet},
     },
+    wait_set::{Condition, WaitSet},
 };
 mod big_data {
     include!("target/idl/big_data.rs");

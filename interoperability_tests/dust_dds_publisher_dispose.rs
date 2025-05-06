@@ -9,8 +9,8 @@ use dust_dds::{
         },
         status::{StatusKind, NO_STATUS},
         time::{Duration, DurationKind},
-        wait_set::{Condition, WaitSet},
     },
+    wait_set::{Condition, WaitSet},
 };
 
 mod dispose_data {

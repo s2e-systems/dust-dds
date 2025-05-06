@@ -1,6 +1,6 @@
-use crate::infrastructure::{
-    error::{DdsError, DdsResult},
-    time::Duration,
+use crate::{
+    dcps::infrastructure::error::{DdsError, DdsResult},
+    infrastructure::time::Duration,
 };
 
 use super::{
@@ -362,7 +362,6 @@ impl TopicQos {
             HistoryQosPolicyKind::KeepAll => Ok(()),
         }
     }
-
 }
 
 #[cfg(test)]

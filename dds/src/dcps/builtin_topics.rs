@@ -1,4 +1,5 @@
 use crate::{
+    dds::topic_definition::type_support::DdsSerialize,
     implementation::data_representation_builtin_endpoints::{
         parameter_id_values::{
             PID_DATA_REPRESENTATION, PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY,
@@ -16,21 +17,13 @@ use crate::{
         LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy,
         PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy, ResourceLimitsQosPolicy,
         TimeBasedFilterQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy,
-        UserDataQosPolicy,
+        UserDataQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+        DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
     },
     xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize},
 };
 
-use super::{
-    infrastructure::{
-        error::DdsResult,
-        qos_policy::{
-            DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-            DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
-        },
-    },
-    topic_definition::type_support::DdsSerialize,
-};
+use super::infrastructure::error::DdsResult;
 
 /// Topic name of the built-in publication discovery topic
 pub const DCPS_PUBLICATION: &str = "DCPSPublication";

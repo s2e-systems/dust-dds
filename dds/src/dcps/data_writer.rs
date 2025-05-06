@@ -8,7 +8,6 @@ use crate::{
         },
     },
     infrastructure::{
-        error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::DataWriterQos,
         qos_policy::{HistoryQosPolicyKind, Length, QosPolicyId, ReliabilityQosPolicyKind},
@@ -28,7 +27,10 @@ use crate::{
 };
 use alloc::{boxed::Box, collections::VecDeque, string::String, sync::Arc, vec::Vec};
 
-use super::clock::Clock;
+use super::{
+    clock::Clock,
+    infrastructure::error::{DdsError, DdsResult},
+};
 
 pub enum TransportWriterKind {
     Stateful(Box<dyn TransportStatefulWriter>),

@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use crate::{
+    condition::StatusCondition,
     dds_async::topic::TopicAsync,
     domain::domain_participant::DomainParticipant,
     infrastructure::{
-        condition::StatusCondition,
         error::DdsResult,
         instance::InstanceHandle,
         qos::{QosKind, TopicQos},

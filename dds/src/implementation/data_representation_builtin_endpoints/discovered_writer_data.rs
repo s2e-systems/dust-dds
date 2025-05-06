@@ -13,7 +13,8 @@ use super::{
 };
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
-    infrastructure::{error::DdsResult, qos_policy::DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER},
+    infrastructure::error::DdsResult,
+    infrastructure::qos_policy::DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
     topic_definition::type_support::{DdsDeserialize, DdsSerialize, TypeSupport},
     transport::types::{EntityId, Guid, Locator},
 };

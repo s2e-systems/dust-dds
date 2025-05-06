@@ -11,10 +11,10 @@ use dust_dds::{
         },
         status::{StatusKind, SubscriptionMatchedStatus, NO_STATUS},
         time::{Duration, DurationKind},
-        wait_set::{Condition, WaitSet},
     },
     subscription::data_reader_listener::DataReaderListener,
     topic_definition::type_support::DdsType,
+    wait_set::{Condition, WaitSet},
 };
 
 mod utils;

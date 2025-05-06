@@ -1,8 +1,8 @@
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
+    condition::StatusCondition,
     dds_async::data_writer::DataWriterAsync,
     infrastructure::{
-        condition::StatusCondition,
         error::DdsResult,
         instance::InstanceHandle,
         qos::{DataWriterQos, QosKind},

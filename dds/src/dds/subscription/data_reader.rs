@@ -1,8 +1,8 @@
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
+    condition::StatusCondition,
     dds_async::data_reader::DataReaderAsync,
     infrastructure::{
-        condition::StatusCondition,
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataReaderQos, QosKind},

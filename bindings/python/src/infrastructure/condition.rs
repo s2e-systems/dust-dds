@@ -4,15 +4,15 @@ use super::{error::into_pyerr, status::StatusKind};
 
 #[pyclass]
 #[derive(Clone)]
-pub struct StatusCondition(dust_dds::infrastructure::condition::StatusCondition);
+pub struct StatusCondition(dust_dds::condition::StatusCondition);
 
-impl From<dust_dds::infrastructure::condition::StatusCondition> for StatusCondition {
-    fn from(value: dust_dds::infrastructure::condition::StatusCondition) -> Self {
+impl From<dust_dds::condition::StatusCondition> for StatusCondition {
+    fn from(value: dust_dds::condition::StatusCondition) -> Self {
         Self(value)
     }
 }
 
-impl From<StatusCondition> for dust_dds::infrastructure::condition::StatusCondition {
+impl From<StatusCondition> for dust_dds::condition::StatusCondition {
     fn from(value: StatusCondition) -> Self {
         value.0
     }

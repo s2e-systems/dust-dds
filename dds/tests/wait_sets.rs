@@ -7,9 +7,9 @@ use dust_dds::{
         qos_policy::{DeadlineQosPolicy, ReliabilityQosPolicy, ReliabilityQosPolicyKind},
         status::{StatusKind, NO_STATUS},
         time::{Duration, DurationKind},
-        wait_set::{Condition, WaitSet},
     },
     topic_definition::type_support::DdsType,
+    wait_set::{Condition, WaitSet},
 };
 
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;

@@ -9,7 +9,6 @@ use dust_dds::{
         qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
         status::{StatusKind, NO_STATUS},
         time::{Duration, DurationKind},
-        wait_set::{Condition, WaitSet},
     },
     publication::data_writer_listener::DataWriterListener,
     subscription::{
@@ -17,6 +16,7 @@ use dust_dds::{
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     },
     topic_definition::type_support::DdsType,
+    wait_set::{Condition, WaitSet},
 };
 
 #[derive(DdsType)]

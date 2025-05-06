@@ -1,8 +1,8 @@
 use crate::{
+    condition::StatusCondition,
     dds_async::subscriber::SubscriberAsync,
     domain::domain_participant::DomainParticipant,
     infrastructure::{
-        condition::StatusCondition,
         error::DdsResult,
         instance::InstanceHandle,
         qos::{DataReaderQos, QosKind, SubscriberQos, TopicQos},

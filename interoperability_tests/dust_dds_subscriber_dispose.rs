@@ -9,11 +9,11 @@ use dust_dds::{
         },
         status::{StatusKind, NO_STATUS},
         time::{Duration, DurationKind},
-        wait_set::{Condition, WaitSet},
     },
     subscription::sample_info::{
         InstanceStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE,
     },
+    wait_set::{Condition, WaitSet},
 };
 
 mod dispose_data {

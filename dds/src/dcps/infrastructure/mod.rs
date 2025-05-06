@@ -1,6 +1,3 @@
-/// Classes related to the status conditions.
-pub mod condition;
-
 /// Classes related to the error and return codes.
 pub mod error;
 
@@ -21,6 +18,3 @@ pub mod status;
 
 /// Classes related to time and duration.
 pub mod time;
-
-/// Classes related to WaitSet.
-pub mod wait_set;

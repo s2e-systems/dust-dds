@@ -21,7 +21,6 @@ use dust_dds::{
             SampleRejectedStatusKind, StatusKind, SubscriptionMatchedStatus, NO_STATUS,
         },
         time::{Duration, DurationKind},
-        wait_set::{Condition, WaitSet},
     },
     publication::{
         data_writer_listener::DataWriterListener, publisher_listener::PublisherListener,
@@ -30,6 +29,7 @@ use dust_dds::{
         data_reader_listener::DataReaderListener, subscriber_listener::SubscriberListener,
     },
     topic_definition::{topic_listener::TopicListener, type_support::DdsType},
+    wait_set::{Condition, WaitSet},
 };
 
 mod utils;

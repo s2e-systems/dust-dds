@@ -5,9 +5,9 @@ use dust_dds::{
         qos::QosKind,
         status::{StatusKind, NO_STATUS},
         time::Duration,
-        wait_set::{Condition, WaitSet},
     },
     topic_definition::type_support::DdsType,
+    wait_set::{Condition, WaitSet},
 };
 
 #[derive(DdsType, Debug)]

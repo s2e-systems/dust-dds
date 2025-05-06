@@ -1,6 +1,7 @@
 use crate::{
     dds_async::wait_set::{ConditionAsync, WaitSetAsync},
-    infrastructure::{error::DdsResult, time::Duration},
+    infrastructure::error::DdsResult,
+    infrastructure::time::Duration,
     runtime::executor::block_on,
 };
 

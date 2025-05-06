@@ -11,7 +11,6 @@ use dust_dds::{
         },
         status::{StatusKind, NO_STATUS},
         time::{Duration, DurationKind},
-        wait_set::{Condition, WaitSet},
     },
     rtps::types::{PROTOCOLVERSION, VENDOR_ID_S2E},
     rtps_messages::{
@@ -26,6 +25,7 @@ use dust_dds::{
     transport::types::{
         EntityId, BUILT_IN_READER_WITH_KEY, BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_WITH_KEY,
     },
+    wait_set::{Condition, WaitSet},
 };
 use std::io::Read;
 

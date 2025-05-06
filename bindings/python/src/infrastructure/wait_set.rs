@@ -8,23 +8,21 @@ pub enum Condition {
     StatusCondition { condition: StatusCondition },
 }
 
-impl From<dust_dds::infrastructure::wait_set::Condition> for Condition {
-    fn from(value: dust_dds::infrastructure::wait_set::Condition) -> Self {
+impl From<dust_dds::wait_set::Condition> for Condition {
+    fn from(value: dust_dds::wait_set::Condition) -> Self {
         match value {
-            dust_dds::infrastructure::wait_set::Condition::StatusCondition(c) => {
-                Condition::StatusCondition {
-                    condition: c.into(),
-                }
-            }
+            dust_dds::wait_set::Condition::StatusCondition(c) => Condition::StatusCondition {
+                condition: c.into(),
+            },
         }
     }
 }
 
-impl From<Condition> for dust_dds::infrastructure::wait_set::Condition {
+impl From<Condition> for dust_dds::wait_set::Condition {
     fn from(value: Condition) -> Self {
         match value {
             Condition::StatusCondition { condition } => {
-                dust_dds::infrastructure::wait_set::Condition::StatusCondition(condition.into())
+                dust_dds::wait_set::Condition::StatusCondition(condition.into())
             }
         }
     }
@@ -32,13 +30,13 @@ impl From<Condition> for dust_dds::infrastructure::wait_set::Condition {
 
 #[pyclass]
 #[derive(Default)]
-pub struct WaitSet(dust_dds::infrastructure::wait_set::WaitSet);
+pub struct WaitSet(dust_dds::wait_set::WaitSet);
 
 #[pymethods]
 impl WaitSet {
     #[new]
     pub fn new() -> Self {
-        Self(dust_dds::infrastructure::wait_set::WaitSet::new())
+        Self(dust_dds::wait_set::WaitSet::new())
     }
 
     pub fn wait(&self, timeout: Duration) -> PyResult<Vec<Condition>> {
