@@ -144,6 +144,11 @@ struct InstanceDeadlineMissed {
     task_handle: TaskHandle,
 }
 
+struct InstanceOwnership {
+    instance_handle: InstanceHandle,
+    owner_handle: [u8; 16],
+}
+
 pub struct DataReaderEntity {
     instance_handle: InstanceHandle,
     sample_list: Vec<ReaderSample>,
@@ -166,7 +171,7 @@ pub struct DataReaderEntity {
     listener_mask: Vec<StatusKind>,
     instances: Vec<InstanceState>,
     instance_deadline_missed_task: Vec<InstanceDeadlineMissed>,
-    instance_ownership: HashMap<InstanceHandle, [u8; 16]>,
+    instance_ownership: Vec<InstanceOwnership>,
     transport_reader: TransportReaderKind,
 }
 
@@ -205,7 +210,7 @@ impl DataReaderEntity {
             listener_mask,
             instances: Vec::new(),
             instance_deadline_missed_task: Vec::new(),
-            instance_ownership: HashMap::new(),
+            instance_ownership: Vec::new(),
             transport_reader,
         }
     }
@@ -588,15 +593,16 @@ impl DataReaderEntity {
         // data_reader exclusive access if the writer is not the allowed to write the sample do an early return
         if self.qos.ownership.kind == OwnershipQosPolicyKind::Exclusive {
             // Get the InstanceHandle of the data writer owning this instance
-            if let Some(&instance_owner_handle) =
-                self.instance_ownership.get(&sample.instance_handle)
+            if let Some(instance_owner) = self
+                .instance_ownership
+                .iter()
+                .find(|x| x.instance_handle == sample.instance_handle)
             {
-                let instance_owner = InstanceHandle::new(instance_owner_handle);
                 let instance_writer = InstanceHandle::new(sample.writer_guid);
                 let Some(sample_owner) = self
                     .matched_publication_list
                     .iter()
-                    .find(|x| &x.key().value == instance_owner.as_ref())
+                    .find(|x| &x.key().value == instance_owner.owner_handle.as_ref())
                 else {
                     return Ok(AddChangeResult::NotAdded);
                 };
@@ -607,7 +613,7 @@ impl DataReaderEntity {
                 else {
                     return Ok(AddChangeResult::NotAdded);
                 };
-                if instance_owner_handle != sample.writer_guid
+                if instance_owner.owner_handle != sample.writer_guid
                     && sample_writer.ownership_strength().value
                         <= sample_owner.ownership_strength().value
                 {
@@ -615,8 +621,17 @@ impl DataReaderEntity {
                 }
             }
 
-            self.instance_ownership
-                .insert(sample.instance_handle, sample.writer_guid);
+            match self
+                .instance_ownership
+                .iter_mut()
+                .find(|x| x.instance_handle == sample.instance_handle)
+            {
+                Some(x) => x.owner_handle = sample.writer_guid,
+                None => self.instance_ownership.push(InstanceOwnership {
+                    instance_handle: sample.instance_handle,
+                    owner_handle: sample.writer_guid,
+                }),
+            }
         }
 
         if matches!(
@@ -625,7 +640,13 @@ impl DataReaderEntity {
                 | ChangeKind::NotAliveUnregistered
                 | ChangeKind::NotAliveDisposedUnregistered
         ) {
-            self.instance_ownership.remove(&sample.instance_handle);
+            if let Some(i) = self
+                .instance_ownership
+                .iter()
+                .position(|x| x.instance_handle == sample.instance_handle)
+            {
+                self.instance_ownership.remove(i);
+            }
         }
 
         let is_sample_of_interest_based_on_time = {
@@ -880,7 +901,13 @@ impl DataReaderEntity {
     }
 
     pub fn remove_instance_ownership(&mut self, instance_handle: &InstanceHandle) {
-        self.instance_ownership.remove(instance_handle);
+        if let Some(i) = self
+            .instance_ownership
+            .iter()
+            .position(|x| &x.instance_handle == instance_handle)
+        {
+            self.instance_ownership.remove(i);
+        }
     }
 
     pub fn add_requested_incompatible_qos(
