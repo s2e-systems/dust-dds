@@ -2,6 +2,7 @@
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
+        listener::NoOpListener,
         qos::{DataReaderQos, DataWriterQos, QosKind},
         qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
         status::{StatusKind, NO_STATUS},
@@ -35,15 +36,21 @@ fn main() {
     let domain_id = 0;
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
         .unwrap();
 
     let topic = participant
-        .create_topic::<Data>("DataTopic", "Data", QosKind::Default, None, NO_STATUS)
+        .create_topic::<Data>(
+            "DataTopic",
+            "Data",
+            QosKind::Default,
+            NoOpListener,
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -53,11 +60,16 @@ fn main() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NoOpListener,
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -67,7 +79,12 @@ fn main() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<Data>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .create_datareader::<Data>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NoOpListener,
+            NO_STATUS,
+        )
         .unwrap();
 
     let cond = writer.get_statuscondition();

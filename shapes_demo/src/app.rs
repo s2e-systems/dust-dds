@@ -9,6 +9,7 @@ use dust_dds::{
         domain_participant::DomainParticipant, domain_participant_factory::DomainParticipantFactory,
     },
     infrastructure::{
+        listener::NoOpListener,
         qos::{DataReaderQos, DataWriterQos, QosKind},
         qos_policy::{
             DestinationOrderQosPolicy, DestinationOrderQosPolicyKind, HistoryQosPolicy,
@@ -129,13 +130,13 @@ impl Default for ShapesDemoApp {
         let domain_id = 0;
         let participant_factory = DomainParticipantFactory::get_instance();
         let participant = participant_factory
-            .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+            .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
             .unwrap();
         let publisher = participant
-            .create_publisher(QosKind::Default, None, NO_STATUS)
+            .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
             .unwrap();
         let subscriber = participant
-            .create_subscriber(QosKind::Default, None, NO_STATUS)
+            .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
             .unwrap();
 
         let writer_list = Arc::new(Mutex::new(Vec::new()));
@@ -171,7 +172,7 @@ impl ShapesDemoApp {
                     topic_name,
                     "ShapeType",
                     QosKind::Default,
-                    None,
+                    NoOpListener,
                     NO_STATUS,
                 )
                 .unwrap()
@@ -203,7 +204,7 @@ impl ShapesDemoApp {
         };
         let writer = self
             .publisher
-            .create_datawriter(&topic, QosKind::Specific(qos), None, NO_STATUS)
+            .create_datawriter(&topic, QosKind::Specific(qos), NoOpListener, NO_STATUS)
             .unwrap();
 
         let velocity = vec2(30.0, 20.0);
@@ -236,7 +237,7 @@ impl ShapesDemoApp {
                     topic_name,
                     "ShapeType",
                     QosKind::Default,
-                    None,
+                    NoOpListener,
                     NO_STATUS,
                 )
                 .unwrap()
@@ -266,7 +267,7 @@ impl ShapesDemoApp {
         };
         let reader = self
             .subscriber
-            .create_datareader(&topic, QosKind::Specific(qos), None, NO_STATUS)
+            .create_datareader(&topic, QosKind::Specific(qos), NoOpListener, NO_STATUS)
             .unwrap();
         self.reader_list.push(reader);
     }
@@ -343,7 +344,8 @@ impl eframe::App for ShapesDemoApp {
                 .min_height(100.0)
                 .show(ctx, |ui| {
                     egui::Grid::new("reader_writer_list_grid")
-                        .num_columns(6).min_col_width(15.0)
+                        .num_columns(6)
+                        .min_col_width(15.0)
                         .striped(true)
                         .show(ui, |ui| {
                             ui.label("");
@@ -398,7 +400,8 @@ impl eframe::App for ShapesDemoApp {
 
                             ui.end_row();
                             self.reader_list.retain(|reader| {
-                                let delete_button = ui.button("D").on_hover_text("Delete data reader");
+                                let delete_button =
+                                    ui.button("D").on_hover_text("Delete data reader");
                                 ui.label("");
                                 ui.label("reader");
                                 ui.label(reader.get_topicdescription().get_name());
@@ -438,7 +441,12 @@ impl eframe::App for ShapesDemoApp {
                     for sample in samples.iter() {
                         previous_handle = Some(sample.sample_info().instance_handle);
                         if let Ok(shape_type) = sample.data() {
-                            let shape = GuiShape::from_shape_type(kind.clone(), &shape_type, alpha, sample.sample_info().instance_state);
+                            let shape = GuiShape::from_shape_type(
+                                kind.clone(),
+                                &shape_type,
+                                alpha,
+                                sample.sample_info().instance_state,
+                            );
                             shape_list.push(shape);
                         }
                         alpha += alpha_step;

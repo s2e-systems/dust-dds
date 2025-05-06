@@ -47,7 +47,7 @@ pub struct DomainParticipantEntity {
     ignored_publications: Vec<InstanceHandle>,
     ignored_subcriptions: Vec<InstanceHandle>,
     _ignored_topic_list: Vec<InstanceHandle>,
-    listener_sender: Option<MpscSender<DomainParticipantListenerMail>>,
+    listener_sender: MpscSender<DomainParticipantListenerMail>,
     listener_mask: Vec<StatusKind>,
     status_condition: Actor<StatusConditionActor>,
 }
@@ -57,7 +57,7 @@ impl DomainParticipantEntity {
     pub fn new(
         domain_id: DomainId,
         domain_participant_qos: DomainParticipantQos,
-        listener_sender: Option<MpscSender<DomainParticipantListenerMail>>,
+        listener_sender: MpscSender<DomainParticipantListenerMail>,
         listener_mask: Vec<StatusKind>,
         status_condition: Actor<StatusConditionActor>,
         instance_handle: InstanceHandle,
@@ -419,13 +419,13 @@ impl DomainParticipantEntity {
         &self.listener_mask
     }
 
-    pub fn listener(&self) -> Option<MpscSender<DomainParticipantListenerMail>> {
+    pub fn listener(&self) -> MpscSender<DomainParticipantListenerMail> {
         self.listener_sender.clone()
     }
 
     pub fn set_listener(
         &mut self,
-        listener_sender: Option<MpscSender<DomainParticipantListenerMail>>,
+        listener_sender: MpscSender<DomainParticipantListenerMail>,
         status_kind: Vec<StatusKind>,
     ) {
         self.listener_sender = listener_sender;

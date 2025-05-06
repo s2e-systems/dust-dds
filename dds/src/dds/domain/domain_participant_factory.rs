@@ -38,7 +38,7 @@ impl DomainParticipantFactory {
         &self,
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
-        a_listener: Option<Box<dyn DomainParticipantListener + Send>>,
+        a_listener: impl DomainParticipantListener + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<DomainParticipant> {
         block_on(

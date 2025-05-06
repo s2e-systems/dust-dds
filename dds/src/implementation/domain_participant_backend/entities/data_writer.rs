@@ -71,7 +71,7 @@ pub struct DataWriterEntity {
     offered_incompatible_qos_status: OfferedIncompatibleQosStatus,
     enabled: bool,
     status_condition: Actor<StatusConditionActor>,
-    listener_sender: Option<MpscSender<DataWriterListenerMail>>,
+    listener_sender: MpscSender<DataWriterListenerMail>,
     listener_mask: Vec<StatusKind>,
     max_seq_num: Option<i64>,
     last_change_sequence_number: i64,
@@ -91,7 +91,7 @@ impl DataWriterEntity {
         type_name: String,
         type_support: Arc<dyn DynamicType + Send + Sync>,
         status_condition: Actor<StatusConditionActor>,
-        listener_sender: Option<MpscSender<DataWriterListenerMail>>,
+        listener_sender: MpscSender<DataWriterListenerMail>,
         listener_mask: Vec<StatusKind>,
         qos: DataWriterQos,
     ) -> Self {
@@ -571,14 +571,14 @@ impl DataWriterEntity {
 
     pub fn set_listener(
         &mut self,
-        listener_sender: Option<MpscSender<DataWriterListenerMail>>,
+        listener_sender: MpscSender<DataWriterListenerMail>,
         listener_mask: Vec<StatusKind>,
     ) {
         self.listener_sender = listener_sender;
         self.listener_mask = listener_mask;
     }
 
-    pub fn listener(&self) -> Option<MpscSender<DataWriterListenerMail>> {
+    pub fn listener(&self) -> MpscSender<DataWriterListenerMail> {
         self.listener_sender.clone()
     }
 

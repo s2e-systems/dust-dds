@@ -2,6 +2,7 @@ use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         error::DdsError,
+        listener::NoOpListener,
         qos::{DataWriterQos, QosKind},
         qos_policy::{HistoryQosPolicy, HistoryQosPolicyKind, Length, ResourceLimitsQosPolicy},
         status::NO_STATUS,
@@ -24,14 +25,20 @@ fn data_writer_write_more_than_max_instances_should_fail() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
-        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
         .unwrap();
 
     let topic = participant
-        .create_topic::<KeyedData>("MyTopic", "KeyedData", QosKind::Default, None, NO_STATUS)
+        .create_topic::<KeyedData>(
+            "MyTopic",
+            "KeyedData",
+            QosKind::Default,
+            NoOpListener,
+            NO_STATUS,
+        )
         .unwrap();
     let publisher = participant
-        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
         .unwrap();
 
     let data_writer_qos = DataWriterQos {
@@ -43,7 +50,12 @@ fn data_writer_write_more_than_max_instances_should_fail() {
         ..Default::default()
     };
     let data_writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(data_writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(data_writer_qos),
+            NoOpListener,
+            NO_STATUS,
+        )
         .unwrap();
     let data_instance1 = KeyedData { id: 1, value: 0 };
     let data_instance2 = KeyedData { id: 2, value: 0 };
@@ -58,14 +70,20 @@ fn data_writer_write_more_than_max_samples_per_instances_should_fail() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
-        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
         .unwrap();
 
     let topic = participant
-        .create_topic::<KeyedData>("MyTopic", "KeyedData", QosKind::Default, None, NO_STATUS)
+        .create_topic::<KeyedData>(
+            "MyTopic",
+            "KeyedData",
+            QosKind::Default,
+            NoOpListener,
+            NO_STATUS,
+        )
         .unwrap();
     let publisher = participant
-        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
         .unwrap();
 
     let data_writer_qos = DataWriterQos {
@@ -80,7 +98,12 @@ fn data_writer_write_more_than_max_samples_per_instances_should_fail() {
         ..Default::default()
     };
     let data_writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(data_writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(data_writer_qos),
+            NoOpListener,
+            NO_STATUS,
+        )
         .unwrap();
     let data1_instance1 = KeyedData { id: 1, value: 0 };
     let data2_instance1 = KeyedData { id: 1, value: 1 };
@@ -95,14 +118,20 @@ fn data_writer_write_more_than_max_samples_should_fail() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
-        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
         .unwrap();
 
     let topic = participant
-        .create_topic::<KeyedData>("MyTopic", "KeyedData", QosKind::Default, None, NO_STATUS)
+        .create_topic::<KeyedData>(
+            "MyTopic",
+            "KeyedData",
+            QosKind::Default,
+            NoOpListener,
+            NO_STATUS,
+        )
         .unwrap();
     let publisher = participant
-        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
         .unwrap();
 
     let data_writer_qos = DataWriterQos {
@@ -114,7 +143,12 @@ fn data_writer_write_more_than_max_samples_should_fail() {
         ..Default::default()
     };
     let data_writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(data_writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(data_writer_qos),
+            NoOpListener,
+            NO_STATUS,
+        )
         .unwrap();
     let data_instance1 = KeyedData { id: 1, value: 0 };
     let data_instance2 = KeyedData { id: 2, value: 0 };

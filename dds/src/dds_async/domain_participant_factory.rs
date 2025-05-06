@@ -40,7 +40,7 @@ impl DomainParticipantFactoryAsync {
         &self,
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
-        a_listener: Option<Box<dyn DomainParticipantListener + Send + 'static>>,
+        a_listener: impl DomainParticipantListener + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<DomainParticipantAsync> {
         let executor = Executor::new();
@@ -48,8 +48,7 @@ impl DomainParticipantFactoryAsync {
         let timer_handle = timer_driver.handle();
         let executor_handle = executor.handle();
         let status_kind = mask.to_vec();
-        let listener_sender =
-            a_listener.map(|l| DomainParticipantListenerActor::spawn(l, &executor.handle()));
+        let listener_sender = DomainParticipantListenerActor::spawn(a_listener, &executor.handle());
         let (reply_sender, reply_receiver) = oneshot();
         self.domain_participant_factory_actor.send_actor_mail(
             DomainParticipantFactoryMail::CreateParticipant {

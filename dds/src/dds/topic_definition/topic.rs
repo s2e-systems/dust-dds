@@ -148,7 +148,7 @@ impl Topic {
     #[tracing::instrument(skip(self, a_listener))]
     pub fn set_listener(
         &self,
-        a_listener: Option<Box<dyn TopicListener + Send>>,
+        a_listener: impl TopicListener + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         block_on(self.topic_async.set_listener(a_listener, mask))

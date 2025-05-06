@@ -504,16 +504,14 @@ where
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn set_listener(
         &self,
-        a_listener: Option<Box<dyn DataReaderListener<'a, Foo = Foo> + Send + 'a>>,
+        a_listener: impl DataReaderListener<'a, Foo> + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
-        let listener_sender = a_listener.map(|l| {
-            DataReaderListenerActor::spawn(
-                l,
-                self.get_subscriber().get_participant().executor_handle(),
-            )
-        });
+        let listener_sender = DataReaderListenerActor::spawn(
+            a_listener,
+            self.get_subscriber().get_participant().executor_handle(),
+        );
         self.participant_address()
             .send_actor_mail(DomainParticipantMail::Reader(
                 ReaderServiceMail::SetListener {

@@ -6,13 +6,11 @@ use crate::{
     topic_definition::topic_listener::TopicListener,
 };
 
-pub struct TopicListenerActor {
-    _listener: Box<dyn TopicListener + Send>,
-}
+pub struct TopicListenerActor;
 
 impl TopicListenerActor {
     pub fn spawn(
-        _listener: Box<dyn TopicListener + Send>,
+        _listener: impl TopicListener + Send + 'static,
         executor_handle: &ExecutorHandle,
     ) -> MpscSender<TopicListenerActorMail> {
         let (listener_sender, listener_receiver) = mpsc_channel();

@@ -9,6 +9,7 @@ use dust_dds::{
     dds_async::data_reader::DataReaderAsync,
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
+        listener::NoOpListener,
         qos::QosKind,
         status::{StatusKind, NO_STATUS},
     },
@@ -28,8 +29,7 @@ struct Listener {
     sender: SyncSender<()>,
 }
 
-impl DataReaderListener<'_> for Listener {
-    type Foo = BestEffortExampleType;
+impl DataReaderListener<'_, BestEffortExampleType> for Listener {
     fn on_data_available(
         &mut self,
         the_reader: DataReaderAsync<BestEffortExampleType>,
@@ -62,7 +62,7 @@ fn main() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -70,13 +70,13 @@ fn main() {
             "BestEffortExampleTopic",
             "BestEffortExampleType",
             QosKind::Default,
-            None,
+            NoOpListener,
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
         .unwrap();
 
     let (sender, receiver) = sync_channel(0);
@@ -86,7 +86,7 @@ fn main() {
         .create_datareader(
             &topic,
             QosKind::Default,
-            Some(Box::new(listener)),
+            listener,
             &[StatusKind::DataAvailable, StatusKind::SubscriptionMatched],
         )
         .unwrap();

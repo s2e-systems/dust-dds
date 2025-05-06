@@ -20,12 +20,12 @@ impl From<Py<PyAny>> for DataWriterListener {
     }
 }
 
-impl dust_dds::publication::data_writer_listener::DataWriterListener<'_> for DataWriterListener {
-    type Foo = PythonDdsData;
-
+impl dust_dds::publication::data_writer_listener::DataWriterListener<'_, PythonDdsData>
+    for DataWriterListener
+{
     fn on_liveliness_lost(
         &mut self,
-        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<Self::Foo>,
+        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<PythonDdsData>,
         status: dust_dds::infrastructure::status::LivelinessLostStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(async move {
@@ -44,7 +44,7 @@ impl dust_dds::publication::data_writer_listener::DataWriterListener<'_> for Dat
 
     fn on_offered_deadline_missed(
         &mut self,
-        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<Self::Foo>,
+        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<PythonDdsData>,
         status: dust_dds::infrastructure::status::OfferedDeadlineMissedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(async move {
@@ -63,7 +63,7 @@ impl dust_dds::publication::data_writer_listener::DataWriterListener<'_> for Dat
 
     fn on_offered_incompatible_qos(
         &mut self,
-        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<Self::Foo>,
+        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<PythonDdsData>,
         status: dust_dds::infrastructure::status::OfferedIncompatibleQosStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(async move {
@@ -82,7 +82,7 @@ impl dust_dds::publication::data_writer_listener::DataWriterListener<'_> for Dat
 
     fn on_publication_matched(
         &mut self,
-        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<Self::Foo>,
+        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<PythonDdsData>,
         status: dust_dds::infrastructure::status::PublicationMatchedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(async move {

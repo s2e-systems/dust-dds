@@ -4,6 +4,7 @@ use dust_dds::{
     dds_async::data_reader::DataReaderAsync,
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
+        listener::NoOpListener,
         qos::{DataReaderQos, DataWriterQos, QosKind},
         qos_policy::{
             HistoryQosPolicy, HistoryQosPolicyKind, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
@@ -32,8 +33,7 @@ fn reader_subscription_matched_listener_and_wait_set_should_both_trigger() {
         sender: Option<std::sync::mpsc::SyncSender<SubscriptionMatchedStatus>>,
     }
 
-    impl DataReaderListener<'_> for SubscriptionMatchedListener {
-        type Foo = MyData;
+    impl DataReaderListener<'_, MyData> for SubscriptionMatchedListener {
         fn on_subscription_matched(
             &mut self,
             _the_reader: DataReaderAsync<MyData>,
@@ -51,20 +51,20 @@ fn reader_subscription_matched_listener_and_wait_set_should_both_trigger() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<MyData>(
             "SubscriptionMatchedListenerTopic",
             "MyData",
             QosKind::Default,
-            None,
+            NoOpListener,
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
         .unwrap();
     let data_writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -78,11 +78,16 @@ fn reader_subscription_matched_listener_and_wait_set_should_both_trigger() {
         ..Default::default()
     };
     let _writer = publisher
-        .create_datawriter::<MyData>(&topic, QosKind::Specific(data_writer_qos), None, NO_STATUS)
+        .create_datawriter::<MyData>(
+            &topic,
+            QosKind::Specific(data_writer_qos),
+            NoOpListener,
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -106,7 +111,7 @@ fn reader_subscription_matched_listener_and_wait_set_should_both_trigger() {
         .create_datareader(
             &topic,
             QosKind::Specific(reader_qos),
-            Some(Box::new(reader_listener)),
+            reader_listener,
             &[StatusKind::SubscriptionMatched],
         )
         .unwrap();

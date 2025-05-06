@@ -15,7 +15,7 @@ pub struct SubscriberListenerActor;
 
 impl SubscriberListenerActor {
     pub fn spawn(
-        mut listener: Box<dyn SubscriberListener + Send>,
+        mut listener: impl SubscriberListener + Send + 'static,
         executor_handle: &ExecutorHandle,
     ) -> MpscSender<SubscriberListenerMail> {
         let (listener_sender, listener_receiver) = mpsc_channel();

@@ -2,6 +2,7 @@ mod utils;
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
+        listener::NoOpListener,
         qos::{DataReaderQos, DataWriterQos, QosKind},
         qos_policy::{DeadlineQosPolicy, ReliabilityQosPolicy, ReliabilityQosPolicyKind},
         status::{StatusKind, NO_STATUS},
@@ -25,14 +26,20 @@ fn writer_offered_deadline_missed_waitset() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
         .unwrap();
     let topic = participant
-        .create_topic::<MyData>("MyTopic", "MyData", QosKind::Default, None, NO_STATUS)
+        .create_topic::<MyData>(
+            "MyTopic",
+            "MyData",
+            QosKind::Default,
+            NoOpListener,
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -45,11 +52,16 @@ fn writer_offered_deadline_missed_waitset() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NoOpListener,
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -63,7 +75,12 @@ fn writer_offered_deadline_missed_waitset() {
     };
 
     let _reader = subscriber
-        .create_datareader::<MyData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .create_datareader::<MyData>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NoOpListener,
+            NO_STATUS,
+        )
         .unwrap();
 
     let cond = writer.get_statuscondition();

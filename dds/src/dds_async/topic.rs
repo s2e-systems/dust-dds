@@ -148,7 +148,7 @@ impl TopicAsync {
     #[tracing::instrument(skip(self, _a_listener))]
     pub async fn set_listener(
         &self,
-        _a_listener: Option<Box<dyn TopicListener + Send>>,
+        _a_listener: impl TopicListener + Send + 'static,
         _mask: &[StatusKind],
     ) -> DdsResult<()> {
         todo!()

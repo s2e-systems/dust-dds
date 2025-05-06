@@ -4,6 +4,7 @@ use dust_dds::{
     dds_async::domain_participant_factory::DomainParticipantFactoryAsync,
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
+        listener::NoOpListener,
         qos::{DataReaderQos, DataWriterQos, QosKind},
         qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
         status::{StatusKind, NO_STATUS},
@@ -46,15 +47,21 @@ fn foo_with_lifetime_should_read_and_write() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
         .unwrap();
 
     let topic = participant
-        .create_topic::<BorrowedData>("MyTopic", "BorrowedData", QosKind::Default, None, NO_STATUS)
+        .create_topic::<BorrowedData>(
+            "MyTopic",
+            "BorrowedData",
+            QosKind::Default,
+            NoOpListener,
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -64,11 +71,16 @@ fn foo_with_lifetime_should_read_and_write() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NoOpListener,
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -78,7 +90,12 @@ fn foo_with_lifetime_should_read_and_write() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<BorrowedData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .create_datareader::<BorrowedData>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NoOpListener,
+            NO_STATUS,
+        )
         .unwrap();
 
     let cond = writer.get_statuscondition();
@@ -120,42 +137,34 @@ fn foo_with_lifetime_with_listener_should_compile() {
         value: &'a [u8],
     }
     struct ReaderListener;
-    impl<'a> DataReaderListener<'a> for ReaderListener {
-        type Foo = BorrowedData<'a>;
-    }
+    impl<'a> DataReaderListener<'a, BorrowedData<'a>> for ReaderListener {}
     struct WriterListener;
-    impl<'a> DataWriterListener<'a> for WriterListener {
-        type Foo = BorrowedData<'a>;
-    }
+    impl<'a> DataWriterListener<'a, BorrowedData<'a>> for WriterListener {}
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
         .unwrap();
     let topic = participant
-        .create_topic::<BorrowedData>("MyTopic", "BorrowedData", QosKind::Default, None, NO_STATUS)
+        .create_topic::<BorrowedData>(
+            "MyTopic",
+            "BorrowedData",
+            QosKind::Default,
+            NoOpListener,
+            NO_STATUS,
+        )
         .unwrap();
     let publisher = participant
-        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
         .unwrap();
     let _writer = publisher
-        .create_datawriter::<BorrowedData>(
-            &topic,
-            QosKind::Default,
-            Some(Box::new(WriterListener)),
-            NO_STATUS,
-        )
+        .create_datawriter::<BorrowedData>(&topic, QosKind::Default, WriterListener, NO_STATUS)
         .unwrap();
     let subscriber = participant
-        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
         .unwrap();
     let _reader = subscriber
-        .create_datareader::<BorrowedData>(
-            &topic,
-            QosKind::Default,
-            Some(Box::new(ReaderListener)),
-            NO_STATUS,
-        )
+        .create_datareader::<BorrowedData>(&topic, QosKind::Default, ReaderListener, NO_STATUS)
         .unwrap();
 }
 
@@ -168,18 +177,14 @@ async fn async_foo_with_lifetime_with_listener_should_compile() {
         value: &'a [u8],
     }
     struct ReaderListener;
-    impl<'a> DataReaderListener<'a> for ReaderListener {
-        type Foo = BorrowedData<'a>;
-    }
+    impl<'a> DataReaderListener<'a, BorrowedData<'a>> for ReaderListener {}
     struct WriterListener;
-    impl<'a> DataWriterListener<'a> for WriterListener {
-        type Foo = BorrowedData<'a>;
-    }
+    impl<'a> DataWriterListener<'a, BorrowedData<'a>> for WriterListener {}
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let participant_factory = DomainParticipantFactoryAsync::get_instance();
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
         .await
         .unwrap();
     let topic = participant
@@ -187,35 +192,25 @@ async fn async_foo_with_lifetime_with_listener_should_compile() {
             "BorrowedDataTopic",
             "BorrowedData",
             QosKind::Default,
-            None,
+            NoOpListener,
             NO_STATUS,
         )
         .await
         .unwrap();
     let publisher = participant
-        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
         .await
         .unwrap();
     let _writer = publisher
-        .create_datawriter::<BorrowedData>(
-            &topic,
-            QosKind::Default,
-            Some(Box::new(WriterListener)),
-            NO_STATUS,
-        )
+        .create_datawriter::<BorrowedData>(&topic, QosKind::Default, WriterListener, NO_STATUS)
         .await
         .unwrap();
     let subscriber = participant
-        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
         .await
         .unwrap();
     let _reader = subscriber
-        .create_datareader::<BorrowedData>(
-            &topic,
-            QosKind::Default,
-            Some(Box::new(ReaderListener)),
-            NO_STATUS,
-        )
+        .create_datareader::<BorrowedData>(&topic, QosKind::Default, ReaderListener, NO_STATUS)
         .await
         .unwrap();
 }
@@ -234,7 +229,7 @@ fn foo_with_non_consecutive_key_should_read_and_write() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -242,13 +237,13 @@ fn foo_with_non_consecutive_key_should_read_and_write() {
             "MyTopic",
             "NonConsecutiveKey",
             QosKind::Default,
-            None,
+            NoOpListener,
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -258,11 +253,16 @@ fn foo_with_non_consecutive_key_should_read_and_write() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NoOpListener,
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -275,7 +275,7 @@ fn foo_with_non_consecutive_key_should_read_and_write() {
         .create_datareader::<NonConsecutiveKey>(
             &topic,
             QosKind::Specific(reader_qos),
-            None,
+            NoOpListener,
             NO_STATUS,
         )
         .unwrap();
@@ -322,15 +322,21 @@ fn foo_enumerator_should_read_and_write() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
         .unwrap();
 
     let topic = participant
-        .create_topic::<MyEnum>("MyEnumTopic", "MyEnum", QosKind::Default, None, NO_STATUS)
+        .create_topic::<MyEnum>(
+            "MyEnumTopic",
+            "MyEnum",
+            QosKind::Default,
+            NoOpListener,
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -340,11 +346,16 @@ fn foo_enumerator_should_read_and_write() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NoOpListener,
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -354,7 +365,12 @@ fn foo_enumerator_should_read_and_write() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<MyEnum>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .create_datareader::<MyEnum>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NoOpListener,
+            NO_STATUS,
+        )
         .unwrap();
 
     let cond = writer.get_statuscondition();
@@ -400,15 +416,21 @@ fn nested_types_should_read_and_write() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
         .unwrap();
 
     let topic = participant
-        .create_topic::<OuterType>("MyEnumTopic", "MyEnum", QosKind::Default, None, NO_STATUS)
+        .create_topic::<OuterType>(
+            "MyEnumTopic",
+            "MyEnum",
+            QosKind::Default,
+            NoOpListener,
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -418,11 +440,16 @@ fn nested_types_should_read_and_write() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NoOpListener,
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -432,7 +459,12 @@ fn nested_types_should_read_and_write() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<OuterType>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .create_datareader::<OuterType>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NoOpListener,
+            NO_STATUS,
+        )
         .unwrap();
 
     let cond = writer.get_statuscondition();
@@ -480,15 +512,21 @@ fn foo_xtypes_union_should_read_and_write() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
         .unwrap();
 
     let topic = participant
-        .create_topic::<MyEnum>("MyEnumTopic", "MyEnum", QosKind::Default, None, NO_STATUS)
+        .create_topic::<MyEnum>(
+            "MyEnumTopic",
+            "MyEnum",
+            QosKind::Default,
+            NoOpListener,
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -498,11 +536,16 @@ fn foo_xtypes_union_should_read_and_write() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NoOpListener,
+            NO_STATUS,
+        )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -512,7 +555,12 @@ fn foo_xtypes_union_should_read_and_write() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<MyEnum>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .create_datareader::<MyEnum>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NoOpListener,
+            NO_STATUS,
+        )
         .unwrap();
 
     let cond = writer.get_statuscondition();

@@ -1,4 +1,4 @@
-use dust_dds::infrastructure::qos::QosKind;
+use dust_dds::infrastructure::{listener::NoOpListener, qos::QosKind};
 use pyo3::prelude::*;
 
 use crate::infrastructure::{
@@ -41,16 +41,16 @@ impl DomainParticipantFactory {
             .map(dust_dds::infrastructure::status::StatusKind::from)
             .collect();
 
-        let listener: Option<
-            Box<
-                dyn dust_dds::domain::domain_participant_listener::DomainParticipantListener + Send,
-            >,
-        > = match a_listener {
-            Some(l) => Some(Box::new(DomainParticipantListener::from(l))),
-            None => None,
+        let r = match a_listener {
+            Some(l) => {
+                self.0
+                    .create_participant(domain_id, qos, DomainParticipantListener::from(l), &mask)
+            }
+            None => self
+                .0
+                .create_participant(domain_id, qos, NoOpListener, &mask),
         };
-
-        match self.0.create_participant(domain_id, qos, listener, &mask) {
+        match r {
             Ok(dp) => Ok(dp.into()),
             Err(e) => Err(into_pyerr(e)),
         }

@@ -4,6 +4,7 @@ use dust_dds::{
         wait_set::{ConditionAsync, WaitSetAsync},
     },
     infrastructure::{
+        listener::NoOpListener,
         qos::QosKind,
         status::{StatusKind, NO_STATUS},
         time::Duration,
@@ -25,7 +26,7 @@ async fn main() {
 
     let participant_factory = DomainParticipantFactoryAsync::get_instance();
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
         .await
         .unwrap();
     let topic = participant
@@ -33,28 +34,28 @@ async fn main() {
             "LargeDataTopic",
             "UserData",
             QosKind::Default,
-            None,
+            NoOpListener,
             NO_STATUS,
         )
         .await
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
         .await
         .unwrap();
 
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Default, None, NO_STATUS)
+        .create_datawriter(&topic, QosKind::Default, NoOpListener, NO_STATUS)
         .await
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
         .await
         .unwrap();
     let reader = subscriber
-        .create_datareader::<UserData>(&topic, QosKind::Default, None, NO_STATUS)
+        .create_datareader::<UserData>(&topic, QosKind::Default, NoOpListener, NO_STATUS)
         .await
         .unwrap();
 

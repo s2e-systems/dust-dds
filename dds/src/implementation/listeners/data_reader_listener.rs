@@ -15,7 +15,7 @@ pub struct DataReaderListenerActor;
 
 impl DataReaderListenerActor {
     pub fn spawn<'a, Foo>(
-        mut listener: Box<(dyn DataReaderListener<'a, Foo = Foo> + Send + 'a)>,
+        mut listener: impl DataReaderListener<'a, Foo> + Send + 'static,
         executor_handle: &ExecutorHandle,
     ) -> MpscSender<DataReaderListenerMail>
     where

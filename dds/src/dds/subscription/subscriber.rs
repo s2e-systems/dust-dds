@@ -62,7 +62,7 @@ impl Subscriber {
         &self,
         a_topic: &Topic,
         qos: QosKind<DataReaderQos>,
-        a_listener: Option<Box<dyn DataReaderListener<'a, Foo = Foo> + Send + 'a>>,
+        a_listener: impl DataReaderListener<'a, Foo> + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<DataReader<Foo>>
     where
@@ -199,7 +199,7 @@ impl Subscriber {
     #[tracing::instrument(skip(self, a_listener))]
     pub fn set_listener(
         &self,
-        a_listener: Option<Box<dyn SubscriberListener + Send>>,
+        a_listener: impl SubscriberListener + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         block_on(self.subscriber_async.set_listener(a_listener, mask))

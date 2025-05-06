@@ -302,7 +302,7 @@ impl DomainParticipantActor {
         &mut self,
         qos: QosKind<PublisherQos>,
         status_condition: Actor<StatusConditionActor>,
-        listener_sender: Option<MpscSender<PublisherListenerMail>>,
+        listener_sender: MpscSender<PublisherListenerMail>,
         mask: Vec<StatusKind>,
     ) -> DdsResult<InstanceHandle> {
         let publisher_qos = match qos {
@@ -365,7 +365,7 @@ impl DomainParticipantActor {
         &mut self,
         qos: QosKind<SubscriberQos>,
         status_condition: Actor<StatusConditionActor>,
-        listener_sender: Option<MpscSender<SubscriberListenerMail>>,
+        listener_sender: MpscSender<SubscriberListenerMail>,
         mask: Vec<StatusKind>,
     ) -> DdsResult<InstanceHandle> {
         let subscriber_qos = match qos {
@@ -436,7 +436,7 @@ impl DomainParticipantActor {
         type_name: String,
         qos: QosKind<TopicQos>,
         status_condition: Actor<StatusConditionActor>,
-        listener_sender: Option<MpscSender<TopicListenerActorMail>>,
+        listener_sender: MpscSender<TopicListenerActorMail>,
         mask: Vec<StatusKind>,
         type_support: Arc<dyn DynamicType + Send + Sync>,
     ) -> DdsResult<InstanceHandle> {
@@ -518,6 +518,7 @@ impl DomainParticipantActor {
         topic_name: String,
         type_support: Arc<dyn DynamicType + Send + Sync>,
         status_condition: Actor<StatusConditionActor>,
+        listener_sender: MpscSender<TopicListenerActorMail>,
     ) -> DdsResult<Option<(InstanceHandle, ActorAddress<StatusConditionActor>, String)>> {
         if let Some(topic) = self.domain_participant.get_topic(&topic_name) {
             Ok(Some((
@@ -550,7 +551,7 @@ impl DomainParticipantActor {
                     topic_name.clone(),
                     topic_handle,
                     status_condition,
-                    None,
+                    listener_sender,
                     vec![],
                     type_support,
                 );
@@ -742,7 +743,7 @@ impl DomainParticipantActor {
 
     pub fn set_domain_participant_listener(
         &mut self,
-        listener_sender: Option<MpscSender<DomainParticipantListenerMail>>,
+        listener_sender: MpscSender<DomainParticipantListenerMail>,
         status_kind: Vec<StatusKind>,
     ) -> DdsResult<()> {
         self.domain_participant
@@ -771,7 +772,7 @@ impl DomainParticipantActor {
         topic_name: String,
         qos: QosKind<DataReaderQos>,
         status_condition: Actor<StatusConditionActor>,
-        listener_sender: Option<MpscSender<DataReaderListenerMail>>,
+        listener_sender: MpscSender<DataReaderListenerMail>,
         mask: Vec<StatusKind>,
         domain_participant_address: ActorAddress<DomainParticipantActor>,
     ) -> DdsResult<InstanceHandle> {
@@ -1002,7 +1003,7 @@ impl DomainParticipantActor {
     pub fn set_subscriber_listener(
         &mut self,
         subscriber_handle: InstanceHandle,
-        listener_sender: Option<MpscSender<SubscriberListenerMail>>,
+        listener_sender: MpscSender<SubscriberListenerMail>,
         mask: Vec<StatusKind>,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
@@ -1023,7 +1024,7 @@ impl DomainParticipantActor {
         topic_name: String,
         qos: QosKind<DataWriterQos>,
         status_condition: Actor<StatusConditionActor>,
-        listener_sender: Option<MpscSender<DataWriterListenerMail>>,
+        listener_sender: MpscSender<DataWriterListenerMail>,
         mask: Vec<StatusKind>,
         participant_address: ActorAddress<DomainParticipantActor>,
     ) -> DdsResult<InstanceHandle> {
@@ -1166,7 +1167,7 @@ impl DomainParticipantActor {
     pub fn set_publisher_listener(
         &mut self,
         publisher_handle: InstanceHandle,
-        listener_sender: Option<MpscSender<PublisherListenerMail>>,
+        listener_sender: MpscSender<PublisherListenerMail>,
         mask: Vec<StatusKind>,
     ) -> DdsResult<()> {
         let Some(publisher) = self.domain_participant.get_mut_publisher(publisher_handle) else {
@@ -1205,7 +1206,7 @@ impl DomainParticipantActor {
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        listener_sender: Option<MpscSender<DataWriterListenerMail>>,
+        listener_sender: MpscSender<DataWriterListenerMail>,
         listener_mask: Vec<StatusKind>,
     ) -> DdsResult<()> {
         let Some(publisher) = self.domain_participant.get_mut_publisher(publisher_handle) else {
@@ -1888,7 +1889,7 @@ impl DomainParticipantActor {
         &mut self,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
-        listener_sender: Option<MpscSender<DataReaderListenerMail>>,
+        listener_sender: MpscSender<DataReaderListenerMail>,
         listener_mask: Vec<StatusKind>,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
@@ -2408,13 +2409,10 @@ impl DomainParticipantActor {
                         else {
                             return;
                         };
-                        if let Some(l) = data_writer.listener() {
-                            l.send(DataWriterListenerMail::PublicationMatched {
-                                the_writer,
-                                status,
-                            })
+                        data_writer
+                            .listener()
+                            .send(DataWriterListenerMail::PublicationMatched { the_writer, status })
                             .ok();
-                        }
                     } else if publisher
                         .listener_mask()
                         .contains(&StatusKind::PublicationMatched)
@@ -2436,13 +2434,13 @@ impl DomainParticipantActor {
                             return;
                         };
                         let status = data_writer.get_publication_matched_status();
-                        if let Some(l) = publisher.listener() {
-                            l.send(PublisherListenerMail::OnPublicationMatched {
+                        publisher
+                            .listener()
+                            .send(PublisherListenerMail::OnPublicationMatched {
                                 the_writer,
                                 status,
                             })
                             .ok();
-                        }
                     } else if self
                         .domain_participant
                         .listener_mask()
@@ -2465,13 +2463,13 @@ impl DomainParticipantActor {
                             return;
                         };
                         let status = data_writer.get_publication_matched_status();
-                        if let Some(l) = self.domain_participant.listener() {
-                            l.send(DomainParticipantListenerMail::PublicationMatched {
+                        self.domain_participant
+                            .listener()
+                            .send(DomainParticipantListenerMail::PublicationMatched {
                                 the_writer,
                                 status,
                             })
                             .ok();
-                        }
                     }
 
                     let Some(publisher) =
@@ -2517,13 +2515,13 @@ impl DomainParticipantActor {
                         else {
                             return;
                         };
-                        if let Some(l) = data_writer.listener() {
-                            l.send(DataWriterListenerMail::OfferedIncompatibleQos {
+                        data_writer
+                            .listener()
+                            .send(DataWriterListenerMail::OfferedIncompatibleQos {
                                 the_writer,
                                 status,
                             })
                             .ok();
-                        }
                     } else if publisher
                         .listener_mask()
                         .contains(&StatusKind::OfferedIncompatibleQos)
@@ -2545,13 +2543,13 @@ impl DomainParticipantActor {
                             return;
                         };
                         let status = data_writer.get_offered_incompatible_qos_status();
-                        if let Some(l) = publisher.listener() {
-                            l.send(PublisherListenerMail::OfferedIncompatibleQos {
+                        publisher
+                            .listener()
+                            .send(PublisherListenerMail::OfferedIncompatibleQos {
                                 the_writer,
                                 status,
                             })
                             .ok();
-                        }
                     } else if self
                         .domain_participant
                         .listener_mask()
@@ -2574,13 +2572,13 @@ impl DomainParticipantActor {
                             return;
                         };
                         let status = data_writer.get_offered_incompatible_qos_status();
-                        if let Some(l) = self.domain_participant.listener() {
-                            l.send(DomainParticipantListenerMail::OfferedIncompatibleQos {
+                        self.domain_participant
+                            .listener()
+                            .send(DomainParticipantListenerMail::OfferedIncompatibleQos {
                                 the_writer,
                                 status,
                             })
                             .ok();
-                        }
                     }
 
                     let Some(publisher) =
@@ -2796,13 +2794,13 @@ impl DomainParticipantActor {
                             return;
                         };
                         let status = data_reader.get_subscription_matched_status();
-                        if let Some(l) = data_reader.listener() {
-                            l.send(DataReaderListenerMail::SubscriptionMatched {
+                        data_reader
+                            .listener()
+                            .send(DataReaderListenerMail::SubscriptionMatched {
                                 the_reader,
                                 status,
                             })
                             .ok();
-                        }
                     } else if subscriber
                         .listener_mask()
                         .contains(&StatusKind::SubscriptionMatched)
@@ -2825,13 +2823,13 @@ impl DomainParticipantActor {
                             return;
                         };
                         let status = data_reader.get_subscription_matched_status();
-                        if let Some(l) = subscriber.listener() {
-                            l.send(SubscriberListenerMail::SubscriptionMatched {
+                        subscriber
+                            .listener()
+                            .send(SubscriberListenerMail::SubscriptionMatched {
                                 the_reader,
                                 status,
                             })
                             .ok();
-                        }
                     } else if self
                         .domain_participant
                         .listener_mask()
@@ -2855,13 +2853,13 @@ impl DomainParticipantActor {
                             return;
                         };
                         let status = data_reader.get_subscription_matched_status();
-                        if let Some(l) = self.domain_participant.listener() {
-                            l.send(DomainParticipantListenerMail::SubscriptionMatched {
+                        self.domain_participant
+                            .listener()
+                            .send(DomainParticipantListenerMail::SubscriptionMatched {
                                 the_reader,
                                 status,
                             })
                             .ok();
-                        }
                     }
 
                     let Some(subscriber) = self
@@ -2909,13 +2907,13 @@ impl DomainParticipantActor {
                         else {
                             return;
                         };
-                        if let Some(l) = data_reader.listener() {
-                            l.send(DataReaderListenerMail::RequestedIncompatibleQos {
+                        data_reader
+                            .listener()
+                            .send(DataReaderListenerMail::RequestedIncompatibleQos {
                                 the_reader,
                                 status,
                             })
                             .ok();
-                        }
                     } else if subscriber
                         .listener_mask()
                         .contains(&StatusKind::RequestedIncompatibleQos)
@@ -2938,13 +2936,13 @@ impl DomainParticipantActor {
                             return;
                         };
                         let status = data_reader.get_requested_incompatible_qos_status();
-                        if let Some(l) = subscriber.listener() {
-                            l.send(SubscriberListenerMail::RequestedIncompatibleQos {
+                        subscriber
+                            .listener()
+                            .send(SubscriberListenerMail::RequestedIncompatibleQos {
                                 the_reader,
                                 status,
                             })
                             .ok();
-                        }
                     } else if self
                         .domain_participant
                         .listener_mask()
@@ -2968,13 +2966,13 @@ impl DomainParticipantActor {
                             return;
                         };
                         let status = data_reader.get_requested_incompatible_qos_status();
-                        if let Some(l) = self.domain_participant.listener() {
-                            l.send(DomainParticipantListenerMail::RequestedIncompatibleQos {
+                        self.domain_participant
+                            .listener()
+                            .send(DomainParticipantListenerMail::RequestedIncompatibleQos {
                                 the_reader,
                                 status,
                             })
                             .ok();
-                        }
                     }
 
                     let Some(subscriber) = self
@@ -3407,10 +3405,10 @@ impl DomainParticipantActor {
                             return;
                         };
 
-                        if let Some(l) = subscriber.listener() {
-                            l.send(SubscriberListenerMail::DataOnReaders { the_subscriber })
-                                .ok();
-                        }
+                        subscriber
+                            .listener()
+                            .send(SubscriberListenerMail::DataOnReaders { the_subscriber })
+                            .ok();
                     } else if deta_reader_on_data_available_active {
                         let Ok(the_reader) = self.get_data_reader_async(
                             participant_address,
@@ -3430,10 +3428,10 @@ impl DomainParticipantActor {
                         else {
                             return;
                         };
-                        if let Some(l) = data_reader.listener() {
-                            l.send(DataReaderListenerMail::DataAvailable { the_reader })
-                                .ok();
-                        }
+                        data_reader
+                            .listener()
+                            .send(DataReaderListenerMail::DataAvailable { the_reader })
+                            .ok();
                     }
 
                     let Some(subscriber) = self
@@ -3488,10 +3486,10 @@ impl DomainParticipantActor {
                         else {
                             return;
                         };
-                        if let Some(l) = data_reader.listener() {
-                            l.send(DataReaderListenerMail::SampleRejected { the_reader, status })
-                                .ok();
-                        }
+                        data_reader
+                            .listener()
+                            .send(DataReaderListenerMail::SampleRejected { the_reader, status })
+                            .ok();
                     } else if subscriber
                         .listener_mask()
                         .contains(&StatusKind::SampleRejected)
@@ -3515,10 +3513,10 @@ impl DomainParticipantActor {
                             return;
                         };
                         let status = data_reader.get_sample_rejected_status();
-                        if let Some(l) = subscriber.listener() {
-                            l.send(SubscriberListenerMail::SampleRejected { status, the_reader })
-                                .ok();
-                        }
+                        subscriber
+                            .listener()
+                            .send(SubscriberListenerMail::SampleRejected { status, the_reader })
+                            .ok();
                     } else if self
                         .domain_participant
                         .listener_mask()
@@ -3543,13 +3541,13 @@ impl DomainParticipantActor {
                             return;
                         };
                         let status = data_reader.get_sample_rejected_status();
-                        if let Some(l) = self.domain_participant.listener() {
-                            l.send(DomainParticipantListenerMail::SampleRejected {
+                        self.domain_participant
+                            .listener()
+                            .send(DomainParticipantListenerMail::SampleRejected {
                                 status,
                                 the_reader,
                             })
                             .ok();
-                        }
                     }
 
                     let Some(subscriber) = self
@@ -3624,10 +3622,10 @@ impl DomainParticipantActor {
                 return;
             };
 
-            if let Some(l) = data_writer.listener() {
-                l.send(DataWriterListenerMail::OfferedDeadlineMissed { the_writer, status })
-                    .ok();
-            }
+            data_writer
+                .listener()
+                .send(DataWriterListenerMail::OfferedDeadlineMissed { the_writer, status })
+                .ok();
         } else if publisher
             .listener_mask()
             .contains(&StatusKind::OfferedDeadlineMissed)
@@ -3647,10 +3645,10 @@ impl DomainParticipantActor {
                 return;
             };
             let status = data_writer.get_offered_deadline_missed_status();
-            if let Some(l) = publisher.listener() {
-                l.send(PublisherListenerMail::OfferedDeadlineMissed { the_writer, status })
-                    .ok();
-            }
+            publisher
+                .listener()
+                .send(PublisherListenerMail::OfferedDeadlineMissed { the_writer, status })
+                .ok();
         } else if self
             .domain_participant
             .listener_mask()
@@ -3672,10 +3670,10 @@ impl DomainParticipantActor {
                 return;
             };
             let status = data_writer.get_offered_deadline_missed_status();
-            if let Some(l) = self.domain_participant.listener() {
-                l.send(DomainParticipantListenerMail::OfferedDeadlineMissed { the_writer, status })
-                    .ok();
-            }
+            self.domain_participant
+                .listener()
+                .send(DomainParticipantListenerMail::OfferedDeadlineMissed { the_writer, status })
+                .ok();
         }
 
         let Some(publisher) = self.domain_participant.get_mut_publisher(publisher_handle) else {
@@ -3731,10 +3729,10 @@ impl DomainParticipantActor {
             let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle) else {
                 return;
             };
-            if let Some(l) = data_reader.listener() {
-                l.send(DataReaderListenerMail::RequestedDeadlineMissed { the_reader, status })
-                    .ok();
-            }
+            data_reader
+                .listener()
+                .send(DataReaderListenerMail::RequestedDeadlineMissed { the_reader, status })
+                .ok();
         } else if subscriber
             .listener_mask()
             .contains(&StatusKind::RequestedDeadlineMissed)
@@ -3757,10 +3755,10 @@ impl DomainParticipantActor {
                 return;
             };
             let status = data_reader.get_requested_deadline_missed_status();
-            if let Some(l) = subscriber.listener() {
-                l.send(SubscriberListenerMail::RequestedDeadlineMissed { status, the_reader })
-                    .ok();
-            }
+            subscriber
+                .listener()
+                .send(SubscriberListenerMail::RequestedDeadlineMissed { status, the_reader })
+                .ok();
         } else if self
             .domain_participant
             .listener_mask()
@@ -3784,13 +3782,10 @@ impl DomainParticipantActor {
                 return;
             };
             let status = data_reader.get_requested_deadline_missed_status();
-            if let Some(l) = self.domain_participant.listener() {
-                l.send(DomainParticipantListenerMail::RequestedDeadlineMissed {
-                    status,
-                    the_reader,
-                })
+            self.domain_participant
+                .listener()
+                .send(DomainParticipantListenerMail::RequestedDeadlineMissed { status, the_reader })
                 .ok();
-            }
         }
         let Some(subscriber) = self
             .domain_participant

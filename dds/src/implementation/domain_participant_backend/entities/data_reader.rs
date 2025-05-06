@@ -151,7 +151,7 @@ pub struct DataReaderEntity {
     data_available_status_changed_flag: bool,
     incompatible_writer_list: Vec<InstanceHandle>,
     status_condition: Actor<StatusConditionActor>,
-    listener_sender: Option<MpscSender<DataReaderListenerMail>>,
+    listener_sender: MpscSender<DataReaderListenerMail>,
     listener_mask: Vec<StatusKind>,
     instances: HashMap<InstanceHandle, InstanceState>,
     instance_deadline_missed_task: HashMap<InstanceHandle, TaskHandle>,
@@ -168,7 +168,7 @@ impl DataReaderEntity {
         type_name: String,
         type_support: Arc<dyn DynamicType + Send + Sync>,
         status_condition: Actor<StatusConditionActor>,
-        listener_sender: Option<MpscSender<DataReaderListenerMail>>,
+        listener_sender: MpscSender<DataReaderListenerMail>,
         listener_mask: Vec<StatusKind>,
         transport_reader: TransportReaderKind,
     ) -> Self {
@@ -929,7 +929,7 @@ impl DataReaderEntity {
             .insert(instance_handle, task);
     }
 
-    pub fn listener(&self) -> Option<MpscSender<DataReaderListenerMail>> {
+    pub fn listener(&self) -> MpscSender<DataReaderListenerMail> {
         self.listener_sender.clone()
     }
 
@@ -939,7 +939,7 @@ impl DataReaderEntity {
 
     pub fn set_listener(
         &mut self,
-        listener_sender: Option<MpscSender<DataReaderListenerMail>>,
+        listener_sender: MpscSender<DataReaderListenerMail>,
         listener_mask: Vec<StatusKind>,
     ) {
         self.listener_sender = listener_sender;
