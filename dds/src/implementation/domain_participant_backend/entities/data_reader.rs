@@ -43,6 +43,7 @@ pub enum AddChangeResult {
 }
 
 struct InstanceState {
+    handle: InstanceHandle,
     view_state: ViewStateKind,
     instance_state: InstanceStateKind,
     most_recent_disposed_generation_count: i32,
@@ -50,8 +51,9 @@ struct InstanceState {
 }
 
 impl InstanceState {
-    fn new() -> Self {
+    fn new(handle: InstanceHandle) -> Self {
         Self {
+            handle,
             view_state: ViewStateKind::New,
             instance_state: InstanceStateKind::Alive,
             most_recent_disposed_generation_count: 0,
@@ -98,6 +100,10 @@ impl InstanceState {
 
     fn mark_viewed(&mut self) {
         self.view_state = ViewStateKind::NotNew;
+    }
+
+    fn handle(&self) -> InstanceHandle {
+        self.handle
     }
 }
 
@@ -153,7 +159,7 @@ pub struct DataReaderEntity {
     status_condition: Actor<StatusConditionActor>,
     listener_sender: MpscSender<DataReaderListenerMail>,
     listener_mask: Vec<StatusKind>,
-    instances: HashMap<InstanceHandle, InstanceState>,
+    instances: Vec<InstanceState>,
     instance_deadline_missed_task: HashMap<InstanceHandle, TaskHandle>,
     instance_ownership: HashMap<InstanceHandle, [u8; 16]>,
     transport_reader: TransportReaderKind,
@@ -192,7 +198,7 @@ impl DataReaderEntity {
             status_condition,
             listener_sender,
             listener_mask,
-            instances: HashMap::new(),
+            instances: Vec::new(),
             instance_deadline_missed_task: HashMap::new(),
             instance_ownership: HashMap::new(),
             transport_reader,
@@ -288,47 +294,50 @@ impl DataReaderEntity {
         specific_instance_handle: Option<InstanceHandle>,
     ) -> DdsResult<Vec<IndexedSample>> {
         if let Some(h) = specific_instance_handle {
-            if !self.instances.contains_key(&h) {
+            if !self.instances.iter().any(|x| x.handle() == h) {
                 return Err(DdsError::BadParameter);
             }
         };
 
         let mut indexed_samples = Vec::new();
 
-        let instances = &self.instances;
         let mut instances_in_collection = HashMap::new();
-        for (index, cache_change) in self
-            .sample_list
-            .iter()
-            .enumerate()
-            .filter(|(_, cc)| {
-                sample_states.contains(&cc.sample_state)
-                    && view_states.contains(&instances[&cc.instance_handle].view_state)
-                    && instance_states.contains(&instances[&cc.instance_handle].instance_state)
-                    && if let Some(h) = specific_instance_handle {
-                        h == cc.instance_handle
-                    } else {
-                        true
-                    }
-            })
-            .take(max_samples as usize)
-        {
+        for (index, cache_change) in self.sample_list.iter().enumerate() {
+            if let Some(h) = specific_instance_handle {
+                if cache_change.instance_handle != h {
+                    continue;
+                }
+            };
+
+            let Some(instance) = self
+                .instances
+                .iter()
+                .find(|x| x.handle == cache_change.instance_handle)
+            else {
+                continue;
+            };
+
+            if !(sample_states.contains(&cache_change.sample_state)
+                && view_states.contains(&instance.view_state)
+                && instance_states.contains(&instance.instance_state))
+            {
+                continue;
+            }
+
             instances_in_collection
                 .entry(cache_change.instance_handle)
-                .or_insert_with(InstanceState::new);
+                .or_insert_with(|| InstanceState::new(cache_change.instance_handle));
 
             instances_in_collection
                 .get_mut(&cache_change.instance_handle)
                 .unwrap()
                 .update_state(cache_change.kind);
             let sample_state = cache_change.sample_state;
-            let view_state = self.instances[&cache_change.instance_handle].view_state;
-            let instance_state = self.instances[&cache_change.instance_handle].instance_state;
+            let view_state = instance.view_state;
+            let instance_state = instance.instance_state;
 
-            let absolute_generation_rank = (self.instances[&cache_change.instance_handle]
-                .most_recent_disposed_generation_count
-                + self.instances[&cache_change.instance_handle]
-                    .most_recent_no_writers_generation_count)
+            let absolute_generation_rank = (instance.most_recent_disposed_generation_count
+                + instance.most_recent_no_writers_generation_count)
                 - (instances_in_collection[&cache_change.instance_handle]
                     .most_recent_disposed_generation_count
                     + instances_in_collection[&cache_change.instance_handle]
@@ -360,7 +369,11 @@ impl DataReaderEntity {
 
             let sample = (data, sample_info);
 
-            indexed_samples.push(IndexedSample { index, sample })
+            indexed_samples.push(IndexedSample { index, sample });
+
+            if indexed_samples.len() as i32 == max_samples {
+                break;
+            }
         }
 
         // After the collection is created, update the relative generation rank values and mark the read instances as viewed
@@ -409,7 +422,8 @@ impl DataReaderEntity {
             }
 
             self.instances
-                .get_mut(&handle)
+                .iter_mut()
+                .find(|x| x.handle() == handle)
                 .expect("Sample must exist on hash map")
                 .mark_viewed()
         }
@@ -423,8 +437,13 @@ impl DataReaderEntity {
 
     fn next_instance(&mut self, previous_handle: Option<InstanceHandle>) -> Option<InstanceHandle> {
         match previous_handle {
-            Some(p) => self.instances.keys().filter(|&h| h > &p).min().cloned(),
-            None => self.instances.keys().min().cloned(),
+            Some(p) => self
+                .instances
+                .iter()
+                .map(|x| x.handle())
+                .filter(|&h| h > p)
+                .min(),
+            None => self.instances.iter().map(|x| x.handle()).min(),
         }
     }
 
@@ -504,16 +523,28 @@ impl DataReaderEntity {
         // the information that is store on the sample
         match cache_change.kind {
             ChangeKind::Alive | ChangeKind::AliveFiltered => {
-                self.instances
-                    .entry(instance_handle)
-                    .or_insert_with(InstanceState::new)
-                    .update_state(cache_change.kind);
+                match self
+                    .instances
+                    .iter_mut()
+                    .find(|x| x.handle() == instance_handle)
+                {
+                    Some(x) => x.update_state(cache_change.kind),
+                    None => {
+                        let mut s = InstanceState::new(instance_handle);
+                        s.update_state(cache_change.kind);
+                        self.instances.push(s);
+                    }
+                }
                 Ok(())
             }
             ChangeKind::NotAliveDisposed
             | ChangeKind::NotAliveUnregistered
             | ChangeKind::NotAliveDisposedUnregistered => {
-                match self.instances.get_mut(&instance_handle) {
+                match self
+                    .instances
+                    .iter_mut()
+                    .find(|x| x.handle() == instance_handle)
+                {
                     Some(instance) => {
                         instance.update_state(cache_change.kind);
                         Ok(())
@@ -524,7 +555,11 @@ impl DataReaderEntity {
                 }
             }
         }?;
-
+        let instance = self
+            .instances
+            .iter()
+            .find(|x| x.handle() == instance_handle)
+            .expect("Sample with handle must exist");
         Ok(ReaderSample {
             kind: cache_change.kind,
             writer_guid: cache_change.writer_guid.into(),
@@ -532,10 +567,8 @@ impl DataReaderEntity {
             source_timestamp: cache_change.source_timestamp.map(Into::into),
             data_value: cache_change.data_value.clone(),
             sample_state: SampleStateKind::NotRead,
-            disposed_generation_count: self.instances[&instance_handle]
-                .most_recent_disposed_generation_count,
-            no_writers_generation_count: self.instances[&instance_handle]
-                .most_recent_no_writers_generation_count,
+            disposed_generation_count: instance.most_recent_disposed_generation_count,
+            no_writers_generation_count: instance.most_recent_no_writers_generation_count,
             reception_timestamp,
         })
     }
@@ -687,16 +720,28 @@ impl DataReaderEntity {
 
         match sample.kind {
             ChangeKind::Alive | ChangeKind::AliveFiltered => {
-                self.instances
-                    .entry(sample.instance_handle)
-                    .or_insert_with(InstanceState::new)
-                    .update_state(sample.kind);
+                match self
+                    .instances
+                    .iter_mut()
+                    .find(|x| x.handle() == sample.instance_handle)
+                {
+                    Some(x) => x.update_state(sample.kind),
+                    None => {
+                        let mut s = InstanceState::new(sample.instance_handle);
+                        s.update_state(sample.kind);
+                        self.instances.push(s);
+                    }
+                }
                 Ok(())
             }
             ChangeKind::NotAliveDisposed
             | ChangeKind::NotAliveUnregistered
             | ChangeKind::NotAliveDisposedUnregistered => {
-                match self.instances.get_mut(&sample.instance_handle) {
+                match self
+                    .instances
+                    .iter_mut()
+                    .find(|x| x.handle() == sample.instance_handle)
+                {
                     Some(instance) => {
                         instance.update_state(sample.kind);
                         Ok(())
