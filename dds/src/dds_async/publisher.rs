@@ -63,7 +63,7 @@ impl PublisherAsync {
         &'a self,
         a_topic: &'a TopicAsync,
         qos: QosKind<DataWriterQos>,
-        a_listener: Option<Box<dyn DataWriterListener<'b, Foo = Foo> + Send + 'b>>,
+        a_listener: impl DataWriterListener<'b, Foo> + Send + 'static,
         mask: &'a [StatusKind],
     ) -> DdsResult<DataWriterAsync<Foo>>
     where
@@ -75,8 +75,8 @@ impl PublisherAsync {
             self.participant.executor_handle(),
         );
         let writer_status_condition_address = status_condition.address();
-        let listener_sender = a_listener
-            .map(|l| DataWriterListenerActor::spawn(l, self.participant.executor_handle()));
+        let listener_sender =
+            DataWriterListenerActor::spawn(a_listener, self.participant.executor_handle());
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
             .send_actor_mail(DomainParticipantMail::Publisher(
@@ -244,12 +244,12 @@ impl PublisherAsync {
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn set_listener(
         &self,
-        a_listener: Option<Box<dyn PublisherListener + Send>>,
+        a_listener: impl PublisherListener + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
-        let listener_sender = a_listener
-            .map(|l| PublisherListenerActor::spawn(l, self.participant.executor_handle()));
+        let listener_sender =
+            PublisherListenerActor::spawn(a_listener, self.participant.executor_handle());
         self.participant_address()
             .send_actor_mail(DomainParticipantMail::Publisher(
                 PublisherServiceMail::SetPublisherListener {

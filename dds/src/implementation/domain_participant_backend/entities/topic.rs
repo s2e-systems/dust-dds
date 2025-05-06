@@ -23,7 +23,7 @@ pub struct TopicEntity {
     enabled: bool,
     inconsistent_topic_status: InconsistentTopicStatus,
     status_condition: Actor<StatusConditionActor>,
-    _listener_sender: Option<MpscSender<TopicListenerActorMail>>,
+    _listener_sender: MpscSender<TopicListenerActorMail>,
     _status_kind: Vec<StatusKind>,
     type_support: Arc<dyn DynamicType + Send + Sync>,
 }
@@ -36,7 +36,7 @@ impl TopicEntity {
         topic_name: String,
         instance_handle: InstanceHandle,
         status_condition: Actor<StatusConditionActor>,
-        listener_sender: Option<MpscSender<TopicListenerActorMail>>,
+        listener_sender: MpscSender<TopicListenerActorMail>,
         status_kind: Vec<StatusKind>,
         type_support: Arc<dyn DynamicType + Send + Sync>,
     ) -> Self {

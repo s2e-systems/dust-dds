@@ -21,7 +21,7 @@ pub struct SubscriberEntity {
     enabled: bool,
     default_data_reader_qos: DataReaderQos,
     status_condition: Actor<StatusConditionActor>,
-    listener_sender: Option<MpscSender<SubscriberListenerMail>>,
+    listener_sender: MpscSender<SubscriberListenerMail>,
     listener_mask: Vec<StatusKind>,
 }
 
@@ -30,7 +30,7 @@ impl SubscriberEntity {
         instance_handle: InstanceHandle,
         qos: SubscriberQos,
         status_condition: Actor<StatusConditionActor>,
-        listener_sender: Option<MpscSender<SubscriberListenerMail>>,
+        listener_sender: MpscSender<SubscriberListenerMail>,
         listener_mask: Vec<StatusKind>,
     ) -> Self {
         Self {
@@ -120,7 +120,7 @@ impl SubscriberEntity {
 
     pub fn set_listener(
         &mut self,
-        listener_sender: Option<MpscSender<SubscriberListenerMail>>,
+        listener_sender: MpscSender<SubscriberListenerMail>,
         listener_mask: Vec<StatusKind>,
     ) {
         self.listener_sender = listener_sender;
@@ -131,7 +131,7 @@ impl SubscriberEntity {
         &self.status_condition
     }
 
-    pub fn listener(&self) -> Option<MpscSender<SubscriberListenerMail>> {
+    pub fn listener(&self) -> MpscSender<SubscriberListenerMail> {
         self.listener_sender.clone()
     }
 

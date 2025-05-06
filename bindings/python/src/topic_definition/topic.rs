@@ -1,3 +1,4 @@
+use dust_dds::infrastructure::listener::NoOpListener;
 use pyo3::prelude::*;
 
 use crate::{
@@ -77,17 +78,15 @@ impl Topic {
         a_listener: Option<Py<PyAny>>,
         mask: Vec<StatusKind>,
     ) -> PyResult<()> {
-        let listener: Option<
-            Box<dyn dust_dds::topic_definition::topic_listener::TopicListener + Send>,
-        > = match a_listener {
-            Some(l) => Some(Box::new(TopicListener::from(l))),
-            None => None,
-        };
         let mask: Vec<dust_dds::infrastructure::status::StatusKind> = mask
             .into_iter()
             .map(dust_dds::infrastructure::status::StatusKind::from)
             .collect();
-        self.0.set_listener(listener, &mask).map_err(into_pyerr)
+        match a_listener {
+            Some(l) => self.0.set_listener(TopicListener::from(l), &mask),
+            None => self.0.set_listener(NoOpListener, &mask),
+        }
+        .map_err(into_pyerr)
     }
 
     pub fn get_statuscondition(&self) -> StatusCondition {

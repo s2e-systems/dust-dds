@@ -21,12 +21,12 @@ impl From<Py<PyAny>> for DataReaderListener {
     }
 }
 
-impl dust_dds::subscription::data_reader_listener::DataReaderListener<'_> for DataReaderListener {
-    type Foo = PythonDdsData;
-
+impl dust_dds::subscription::data_reader_listener::DataReaderListener<'_, PythonDdsData>
+    for DataReaderListener
+{
     fn on_data_available(
         &mut self,
-        the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<Self::Foo>,
+        the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<PythonDdsData>,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(async {
             let reader = DataReader::from(the_reader);
@@ -42,7 +42,7 @@ impl dust_dds::subscription::data_reader_listener::DataReaderListener<'_> for Da
 
     fn on_sample_rejected(
         &mut self,
-        the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<Self::Foo>,
+        the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<PythonDdsData>,
         status: dust_dds::infrastructure::status::SampleRejectedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(async {
@@ -61,7 +61,7 @@ impl dust_dds::subscription::data_reader_listener::DataReaderListener<'_> for Da
 
     fn on_liveliness_changed(
         &mut self,
-        the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<Self::Foo>,
+        the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<PythonDdsData>,
         status: dust_dds::infrastructure::status::LivelinessChangedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(async {
@@ -80,7 +80,7 @@ impl dust_dds::subscription::data_reader_listener::DataReaderListener<'_> for Da
 
     fn on_requested_deadline_missed(
         &mut self,
-        the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<Self::Foo>,
+        the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<PythonDdsData>,
         status: dust_dds::infrastructure::status::RequestedDeadlineMissedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(async {
@@ -99,7 +99,7 @@ impl dust_dds::subscription::data_reader_listener::DataReaderListener<'_> for Da
 
     fn on_requested_incompatible_qos(
         &mut self,
-        the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<Self::Foo>,
+        the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<PythonDdsData>,
         status: dust_dds::infrastructure::status::RequestedIncompatibleQosStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(async {
@@ -118,7 +118,7 @@ impl dust_dds::subscription::data_reader_listener::DataReaderListener<'_> for Da
 
     fn on_subscription_matched(
         &mut self,
-        the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<Self::Foo>,
+        the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<PythonDdsData>,
         status: dust_dds::infrastructure::status::SubscriptionMatchedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(async {
@@ -137,7 +137,7 @@ impl dust_dds::subscription::data_reader_listener::DataReaderListener<'_> for Da
 
     fn on_sample_lost(
         &mut self,
-        the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<Self::Foo>,
+        the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<PythonDdsData>,
         status: dust_dds::infrastructure::status::SampleLostStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(async {

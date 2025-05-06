@@ -60,7 +60,7 @@ impl Publisher {
         &self,
         a_topic: &Topic,
         qos: QosKind<DataWriterQos>,
-        a_listener: Option<Box<dyn DataWriterListener<'a, Foo = Foo> + Send + 'a>>,
+        a_listener: impl DataWriterListener<'a, Foo> + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<DataWriter<Foo>>
     where
@@ -247,7 +247,7 @@ impl Publisher {
     #[tracing::instrument(skip(self, a_listener))]
     pub fn set_listener(
         &self,
-        a_listener: Option<Box<dyn PublisherListener + Send>>,
+        a_listener: impl PublisherListener + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         block_on(self.publisher_async.set_listener(a_listener, mask))

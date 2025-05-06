@@ -16,7 +16,7 @@ pub struct DomainParticipantListenerActor;
 
 impl DomainParticipantListenerActor {
     pub fn spawn(
-        mut listener: Box<dyn DomainParticipantListener + Send>,
+        mut listener: impl DomainParticipantListener + Send + 'static,
         executor_handle: &ExecutorHandle,
     ) -> MpscSender<DomainParticipantListenerMail> {
         let (listener_sender, listener_receiver) = mpsc_channel();

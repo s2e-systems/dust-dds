@@ -25,12 +25,19 @@ use crate::{
             },
             handle::InstanceHandleCounter,
         },
-        listeners::domain_participant_listener::DomainParticipantListenerMail,
+        listeners::{
+            data_reader_listener::DataReaderListenerActor,
+            data_writer_listener::DataWriterListenerActor,
+            domain_participant_listener::DomainParticipantListenerMail,
+            publisher_listener::PublisherListenerActor,
+            subscriber_listener::SubscriberListenerActor, topic_listener::TopicListenerActor,
+        },
         status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
+        listener::NoOpListener,
         qos::{
             DataReaderQos, DataWriterQos, DomainParticipantFactoryQos, DomainParticipantQos,
             PublisherQos, QosKind, SubscriberQos, TopicQos,
@@ -185,7 +192,7 @@ impl DomainParticipantFactoryActor {
         &mut self,
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
-        listener_sender: Option<MpscSender<DomainParticipantListenerMail>>,
+        listener_sender: MpscSender<DomainParticipantListenerMail>,
         status_kind: Vec<StatusKind>,
         executor: Executor,
         timer_driver: TimerDriver,
@@ -207,6 +214,17 @@ impl DomainParticipantFactoryActor {
         let participant_actor_builder = ActorBuilder::new();
 
         let mut transport = self.transport.create_participant(guid_prefix, domain_id);
+
+        let noop_topic_listener_sender =
+            TopicListenerActor::spawn(NoOpListener, &executor.handle());
+        let noop_publisher_listener_sender =
+            PublisherListenerActor::spawn(NoOpListener, &executor.handle());
+        let noop_writer_listener_sender =
+            DataWriterListenerActor::spawn::<()>(NoOpListener, &executor.handle());
+        let noop_subscriber_listener_sender =
+            SubscriberListenerActor::spawn(NoOpListener, &executor.handle());
+        let noop_reader_listener_sender =
+            DataReaderListenerActor::spawn::<()>(NoOpListener, &executor.handle());
 
         let mut instance_handle_counter = InstanceHandleCounter::default();
         fn sedp_data_reader_qos() -> DataReaderQos {
@@ -250,7 +268,7 @@ impl DomainParticipantFactoryActor {
             DCPS_PARTICIPANT.to_owned(),
             spdp_topic_participant_handle,
             Actor::spawn(StatusConditionActor::default(), &executor_handle),
-            None,
+            noop_topic_listener_sender.clone(),
             vec![],
             Arc::new(SpdpDiscoveredParticipantData::get_type()),
         );
@@ -265,7 +283,7 @@ impl DomainParticipantFactoryActor {
             DCPS_TOPIC.to_owned(),
             sedp_topic_topics_handle,
             Actor::spawn(StatusConditionActor::default(), &executor_handle),
-            None,
+            noop_topic_listener_sender.clone(),
             vec![],
             Arc::new(DiscoveredTopicData::get_type()),
         );
@@ -280,7 +298,7 @@ impl DomainParticipantFactoryActor {
             DCPS_PUBLICATION.to_owned(),
             sedp_topic_publications_handle,
             Actor::spawn(StatusConditionActor::default(), &executor_handle),
-            None,
+            noop_topic_listener_sender.clone(),
             vec![],
             Arc::new(DiscoveredWriterData::get_type()),
         );
@@ -295,7 +313,7 @@ impl DomainParticipantFactoryActor {
             DCPS_SUBSCRIPTION.to_owned(),
             sedp_topic_subscriptions_handle,
             Actor::spawn(StatusConditionActor::default(), &executor_handle),
-            None,
+            noop_topic_listener_sender,
             vec![],
             Arc::new(DiscoveredReaderData::get_type()),
         );
@@ -342,7 +360,7 @@ impl DomainParticipantFactoryActor {
             "SpdpDiscoveredParticipantData".to_string(),
             Arc::new(SpdpDiscoveredParticipantData::get_type()),
             Actor::spawn(StatusConditionActor::default(), &executor_handle),
-            None,
+            noop_reader_listener_sender.clone(),
             Vec::new(),
             TransportReaderKind::Stateless(dcps_participant_transport_reader),
         );
@@ -361,7 +379,7 @@ impl DomainParticipantFactoryActor {
             "DiscoveredTopicData".to_string(),
             Arc::new(DiscoveredTopicData::get_type()),
             Actor::spawn(StatusConditionActor::default(), &executor_handle),
-            None,
+            noop_reader_listener_sender.clone(),
             Vec::new(),
             TransportReaderKind::Stateful(dcps_topic_transport_reader),
         );
@@ -380,7 +398,7 @@ impl DomainParticipantFactoryActor {
             "DiscoveredWriterData".to_string(),
             Arc::new(DiscoveredWriterData::get_type()),
             Actor::spawn(StatusConditionActor::default(), &executor_handle),
-            None,
+            noop_reader_listener_sender.clone(),
             Vec::new(),
             TransportReaderKind::Stateful(dcps_publication_transport_reader),
         );
@@ -399,7 +417,7 @@ impl DomainParticipantFactoryActor {
             "DiscoveredReaderData".to_string(),
             Arc::new(DiscoveredReaderData::get_type()),
             Actor::spawn(StatusConditionActor::default(), &executor_handle),
-            None,
+            noop_reader_listener_sender,
             Vec::new(),
             TransportReaderKind::Stateful(dcps_subscription_transport_reader),
         );
@@ -409,7 +427,7 @@ impl DomainParticipantFactoryActor {
             instance_handle_counter.generate_new_instance_handle(),
             SubscriberQos::default(),
             Actor::spawn(StatusConditionActor::default(), &executor_handle),
-            None,
+            noop_subscriber_listener_sender,
             vec![],
         );
         builtin_subscriber.enable();
@@ -430,7 +448,7 @@ impl DomainParticipantFactoryActor {
             "SpdpDiscoveredParticipantData".to_string(),
             Arc::new(SpdpDiscoveredParticipantData::get_type()),
             Actor::spawn(StatusConditionActor::default(), &executor_handle),
-            None,
+            noop_writer_listener_sender.clone(),
             vec![],
             spdp_writer_qos,
         );
@@ -447,7 +465,7 @@ impl DomainParticipantFactoryActor {
             "DiscoveredTopicData".to_string(),
             Arc::new(DiscoveredTopicData::get_type()),
             Actor::spawn(StatusConditionActor::default(), &executor_handle),
-            None,
+            noop_writer_listener_sender.clone(),
             vec![],
             sedp_data_writer_qos(),
         );
@@ -463,7 +481,7 @@ impl DomainParticipantFactoryActor {
             "DiscoveredWriterData".to_string(),
             Arc::new(DiscoveredWriterData::get_type()),
             Actor::spawn(StatusConditionActor::default(), &executor_handle),
-            None,
+            noop_writer_listener_sender.clone(),
             vec![],
             sedp_data_writer_qos(),
         );
@@ -480,7 +498,7 @@ impl DomainParticipantFactoryActor {
             "DiscoveredReaderData".to_string(),
             Arc::new(DiscoveredReaderData::get_type()),
             Actor::spawn(StatusConditionActor::default(), &executor_handle),
-            None,
+            noop_writer_listener_sender,
             vec![],
             sedp_data_writer_qos(),
         );
@@ -488,7 +506,7 @@ impl DomainParticipantFactoryActor {
         let mut builtin_publisher = PublisherEntity::new(
             PublisherQos::default(),
             instance_handle_counter.generate_new_instance_handle(),
-            None,
+            noop_publisher_listener_sender,
             vec![],
             Actor::spawn(StatusConditionActor::default(), &executor_handle),
         );
@@ -636,7 +654,7 @@ pub enum DomainParticipantFactoryMail {
     CreateParticipant {
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
-        listener_sender: Option<MpscSender<DomainParticipantListenerMail>>,
+        listener_sender: MpscSender<DomainParticipantListenerMail>,
         status_kind: Vec<StatusKind>,
         executor: Executor,
         timer_driver: TimerDriver,

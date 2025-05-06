@@ -62,7 +62,7 @@ impl SubscriberAsync {
         &'a self,
         a_topic: &'a TopicAsync,
         qos: QosKind<DataReaderQos>,
-        a_listener: Option<Box<(dyn DataReaderListener<'b, Foo = Foo> + Send + 'b)>>,
+        a_listener: impl DataReaderListener<'b, Foo> + Send + 'static,
         mask: &'a [StatusKind],
     ) -> DdsResult<DataReaderAsync<Foo>>
     where
@@ -73,8 +73,8 @@ impl SubscriberAsync {
             self.participant.executor_handle(),
         );
         let reader_status_condition_address = status_condition.address();
-        let listener_sender = a_listener
-            .map(|l| DataReaderListenerActor::spawn(l, self.participant.executor_handle()));
+        let listener_sender =
+            DataReaderListenerActor::spawn(a_listener, self.participant.executor_handle());
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
             .send_actor_mail(DomainParticipantMail::Subscriber(
@@ -244,12 +244,12 @@ impl SubscriberAsync {
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn set_listener(
         &self,
-        a_listener: Option<Box<dyn SubscriberListener + Send>>,
+        a_listener: impl SubscriberListener + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
-        let listener_sender = a_listener
-            .map(|l| SubscriberListenerActor::spawn(l, self.participant.executor_handle()));
+        let listener_sender =
+            SubscriberListenerActor::spawn(a_listener, self.participant.executor_handle());
         self.participant_address()
             .send_actor_mail(DomainParticipantMail::Subscriber(
                 SubscriberServiceMail::SetListener {

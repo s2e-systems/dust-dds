@@ -44,7 +44,7 @@ pub enum ParticipantServiceMail {
     CreateUserDefinedPublisher {
         qos: QosKind<PublisherQos>,
         status_condition: Actor<StatusConditionActor>,
-        listener_sender: Option<MpscSender<PublisherListenerMail>>,
+        listener_sender: MpscSender<PublisherListenerMail>,
         mask: Vec<StatusKind>,
         reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
     },
@@ -56,7 +56,7 @@ pub enum ParticipantServiceMail {
     CreateUserDefinedSubscriber {
         qos: QosKind<SubscriberQos>,
         status_condition: Actor<StatusConditionActor>,
-        listener_sender: Option<MpscSender<SubscriberListenerMail>>,
+        listener_sender: MpscSender<SubscriberListenerMail>,
         mask: Vec<StatusKind>,
         reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
     },
@@ -70,7 +70,7 @@ pub enum ParticipantServiceMail {
         type_name: String,
         qos: QosKind<TopicQos>,
         status_condition: Actor<StatusConditionActor>,
-        listener_sender: Option<MpscSender<TopicListenerActorMail>>,
+        listener_sender: MpscSender<TopicListenerActorMail>,
         mask: Vec<StatusKind>,
         type_support: Arc<dyn DynamicType + Send + Sync>,
         reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
@@ -84,6 +84,7 @@ pub enum ParticipantServiceMail {
         topic_name: String,
         type_support: Arc<dyn DynamicType + Send + Sync>,
         status_condition: Actor<StatusConditionActor>,
+        listener_sender: MpscSender<TopicListenerActorMail>,
         #[allow(clippy::type_complexity)]
         reply_sender: OneshotSender<
             DdsResult<Option<(InstanceHandle, ActorAddress<StatusConditionActor>, String)>>,
@@ -158,7 +159,7 @@ pub enum ParticipantServiceMail {
         reply_sender: OneshotSender<DdsResult<DomainParticipantQos>>,
     },
     SetListener {
-        listener_sender: Option<MpscSender<DomainParticipantListenerMail>>,
+        listener_sender: MpscSender<DomainParticipantListenerMail>,
         status_kind: Vec<StatusKind>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
@@ -200,7 +201,7 @@ pub enum PublisherServiceMail {
         topic_name: String,
         qos: QosKind<DataWriterQos>,
         status_condition: Actor<StatusConditionActor>,
-        listener_sender: Option<MpscSender<DataWriterListenerMail>>,
+        listener_sender: MpscSender<DataWriterListenerMail>,
         mask: Vec<StatusKind>,
         participant_address: ActorAddress<DomainParticipantActor>,
         reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
@@ -230,7 +231,7 @@ pub enum PublisherServiceMail {
     },
     SetPublisherListener {
         publisher_handle: InstanceHandle,
-        listener_sender: Option<MpscSender<PublisherListenerMail>>,
+        listener_sender: MpscSender<PublisherListenerMail>,
         mask: Vec<StatusKind>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
@@ -242,7 +243,7 @@ pub enum SubscriberServiceMail {
         topic_name: String,
         qos: QosKind<DataReaderQos>,
         status_condition: Actor<StatusConditionActor>,
-        listener_sender: Option<MpscSender<DataReaderListenerMail>>,
+        listener_sender: MpscSender<DataReaderListenerMail>,
         mask: Vec<StatusKind>,
         domain_participant_address: ActorAddress<DomainParticipantActor>,
         reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
@@ -279,7 +280,7 @@ pub enum SubscriberServiceMail {
     },
     SetListener {
         subscriber_handle: InstanceHandle,
-        listener_sender: Option<MpscSender<SubscriberListenerMail>>,
+        listener_sender: MpscSender<SubscriberListenerMail>,
         mask: Vec<StatusKind>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
@@ -289,7 +290,7 @@ pub enum WriterServiceMail {
     SetListener {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        listener_sender: Option<MpscSender<DataWriterListenerMail>>,
+        listener_sender: MpscSender<DataWriterListenerMail>,
         listener_mask: Vec<StatusKind>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
@@ -456,7 +457,7 @@ pub enum ReaderServiceMail {
     SetListener {
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
-        listener_sender: Option<MpscSender<DataReaderListenerMail>>,
+        listener_sender: MpscSender<DataReaderListenerMail>,
         listener_mask: Vec<StatusKind>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
@@ -635,8 +636,14 @@ impl DomainParticipantActor {
                 topic_name,
                 type_support,
                 status_condition,
+                listener_sender,
                 reply_sender,
-            } => reply_sender.send(self.find_topic(topic_name, type_support, status_condition)),
+            } => reply_sender.send(self.find_topic(
+                topic_name,
+                type_support,
+                status_condition,
+                listener_sender,
+            )),
             ParticipantServiceMail::LookupTopicdescription {
                 topic_name,
                 reply_sender,

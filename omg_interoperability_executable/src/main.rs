@@ -9,6 +9,7 @@ use dust_dds::{
     },
     infrastructure::{
         error::DdsError,
+        listener::NoOpListener,
         qos::{DataReaderQos, DataWriterQos, PublisherQos, QosKind, SubscriberQos},
         qos_policy::{
             self, DataRepresentationQosPolicy, DurabilityQosPolicy, HistoryQosPolicy,
@@ -445,7 +446,7 @@ fn init_publisher(
         partition: options.partition_qos_policy(),
         ..Default::default()
     });
-    let publisher = participant.create_publisher(publisher_qos, None, NO_STATUS)?;
+    let publisher = participant.create_publisher(publisher_qos, NoOpListener, NO_STATUS)?;
     println!(
         "Create writer for topic: {} color: {}",
         options.topic_name,
@@ -471,7 +472,7 @@ fn init_publisher(
     let data_writer = publisher.create_datawriter::<ShapeType>(
         &topic,
         QosKind::Specific(data_writer_qos),
-        None,
+        NoOpListener,
         NO_STATUS,
     )?;
 
@@ -542,7 +543,7 @@ fn init_subscriber(
         partition: options.partition_qos_policy(),
         ..Default::default()
     });
-    let subscriber = participant.create_subscriber(subscriber_qos, None, NO_STATUS)?;
+    let subscriber = participant.create_subscriber(subscriber_qos, NoOpListener, NO_STATUS)?;
 
     let mut data_reader_qos = DataReaderQos {
         durability: options.durability_qos_policy(),
@@ -571,7 +572,7 @@ fn init_subscriber(
             subscriber.create_datareader::<ShapeType>(
                 &topic,
                 QosKind::Specific(data_reader_qos),
-                None,
+                NoOpListener,
                 NO_STATUS,
             )?
         }
@@ -581,7 +582,7 @@ fn init_subscriber(
             subscriber.create_datareader::<ShapeType>(
                 &topic,
                 QosKind::Specific(data_reader_qos),
-                None,
+                NoOpListener,
                 NO_STATUS,
             )?
         }
@@ -650,7 +651,7 @@ fn initialize(options: &Options) -> Result<DomainParticipant, InitializeError> {
     let participant = participant_factory.create_participant(
         options.domain_id,
         QosKind::Default,
-        Some(Box::new(Listener)),
+        Listener,
         &[
             StatusKind::InconsistentTopic,
             StatusKind::OfferedIncompatibleQos,
@@ -668,7 +669,7 @@ fn initialize(options: &Options) -> Result<DomainParticipant, InitializeError> {
         &options.topic_name,
         "ShapeType",
         QosKind::Default,
-        None,
+        NoOpListener,
         NO_STATUS,
     )?;
 

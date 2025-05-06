@@ -1,6 +1,6 @@
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
-    infrastructure::{qos::QosKind, status::NO_STATUS},
+    infrastructure::{listener::NoOpListener, qos::QosKind, status::NO_STATUS},
     rtps_udp_transport::udp_transport::RtpsUdpTransportParticipantFactoryBuilder,
     topic_definition::type_support::DdsType,
 };
@@ -25,7 +25,7 @@ fn main() {
     participant_factory.set_transport(transport).unwrap();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -33,17 +33,17 @@ fn main() {
             "HelloWorld",
             "HelloWorldType",
             QosKind::Default,
-            None,
+            NoOpListener,
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
         .unwrap();
 
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Default, None, NO_STATUS)
+        .create_datawriter(&topic, QosKind::Default, NoOpListener, NO_STATUS)
         .unwrap();
 
     let hello_world = HelloWorldType {
