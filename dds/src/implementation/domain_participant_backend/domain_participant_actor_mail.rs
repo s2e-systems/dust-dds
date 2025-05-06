@@ -1,5 +1,5 @@
 use core::{future::Future, pin::Pin};
-use std::sync::Arc;
+use alloc::sync::Arc;
 
 use super::domain_participant_actor::DomainParticipantActor;
 use crate::{

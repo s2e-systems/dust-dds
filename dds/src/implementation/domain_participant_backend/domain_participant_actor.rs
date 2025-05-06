@@ -1,5 +1,5 @@
+use alloc::sync::Arc;
 use core::{future::Future, pin::Pin};
-use std::sync::Arc;
 
 use fnmatch_regex::glob_to_regex;
 
