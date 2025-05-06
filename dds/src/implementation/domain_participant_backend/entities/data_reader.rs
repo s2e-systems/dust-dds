@@ -2,12 +2,12 @@ use alloc::sync::Arc;
 
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
+    dcps::xtypes_glue::key_and_instance_handle::{
+        get_instance_handle_from_serialized_foo, get_instance_handle_from_serialized_key,
+    },
     implementation::{
         listeners::data_reader_listener::DataReaderListenerMail,
         status_condition::status_condition_actor::{StatusConditionActor, StatusConditionMail},
-        xtypes_glue::key_and_instance_handle::{
-            get_instance_handle_from_serialized_foo, get_instance_handle_from_serialized_key,
-        },
     },
     infrastructure::{
         error::{DdsError, DdsResult},

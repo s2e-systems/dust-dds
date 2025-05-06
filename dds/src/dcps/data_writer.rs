@@ -3,11 +3,9 @@ use crate::{
     implementation::{
         listeners::data_writer_listener::DataWriterListenerMail,
         status_condition::status_condition_actor::{StatusConditionActor, StatusConditionMail},
-        xtypes_glue::key_and_instance_handle::{
-            get_instance_handle_from_serialized_foo, get_instance_handle_from_serialized_key,
-        },
     },
     infrastructure::{
+        error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::DataWriterQos,
         qos_policy::{HistoryQosPolicyKind, Length, QosPolicyId, ReliabilityQosPolicyKind},
@@ -29,7 +27,9 @@ use alloc::{boxed::Box, collections::VecDeque, string::String, sync::Arc, vec::V
 
 use super::{
     clock::Clock,
-    infrastructure::error::{DdsError, DdsResult},
+    xtypes_glue::key_and_instance_handle::{
+        get_instance_handle_from_serialized_foo, get_instance_handle_from_serialized_key,
+    },
 };
 
 pub enum TransportWriterKind {

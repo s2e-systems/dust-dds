@@ -21,6 +21,9 @@ use crate::{
         SubscriptionBuiltinTopicData, TopicBuiltinTopicData, DCPS_PARTICIPANT, DCPS_PUBLICATION,
         DCPS_SUBSCRIPTION, DCPS_TOPIC,
     },
+    dcps::xtypes_glue::key_and_instance_handle::{
+        get_instance_handle_from_serialized_foo, get_serialized_key_from_serialized_foo,
+    },
     dcps::{
         clock::Clock,
         data_writer::{DataWriterEntity, TransportWriterKind},
@@ -55,9 +58,6 @@ use crate::{
             topic_listener::TopicListenerActorMail,
         },
         status_condition::status_condition_actor::{StatusConditionActor, StatusConditionMail},
-        xtypes_glue::key_and_instance_handle::{
-            get_instance_handle_from_serialized_foo, get_serialized_key_from_serialized_foo,
-        },
     },
     infrastructure::{
         error::{DdsError, DdsResult},
