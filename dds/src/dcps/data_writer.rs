@@ -28,6 +28,8 @@ use crate::{
 };
 use alloc::{boxed::Box, collections::VecDeque, string::String, sync::Arc, vec::Vec};
 
+use super::clock::Clock;
+
 pub enum TransportWriterKind {
     Stateful(Box<dyn TransportStatefulWriter>),
     Stateless(Box<dyn TransportStatelessWriter>),
@@ -168,6 +170,7 @@ impl DataWriterEntity {
         &mut self,
         serialized_data: Vec<u8>,
         timestamp: Time,
+        clock: impl Clock,
     ) -> DdsResult<i64> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
@@ -247,7 +250,7 @@ impl DataWriterEntity {
                 if s.samples.len() == depth as usize {
                     if let Some(&smallest_seq_num_instance) = s.samples.front() {
                         if self.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
-                            let start_time = std::time::Instant::now();
+                            let start_time = clock.now();
                             while let TransportWriterKind::Stateful(w) = &self.transport_writer {
                                 if w.is_change_acknowledged(smallest_seq_num_instance) {
                                     break;
@@ -256,7 +259,7 @@ impl DataWriterEntity {
                                 if let DurationKind::Finite(t) =
                                     self.qos.reliability.max_blocking_time
                                 {
-                                    if start_time.elapsed() > t.into() {
+                                    if (clock.now() - start_time) > t.into() {
                                         return Err(DdsError::Timeout);
                                     }
                                 }

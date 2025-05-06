@@ -1,5 +1,6 @@
 use alloc::sync::Arc;
 use core::{future::Future, pin::Pin};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use fnmatch_regex::glob_to_regex;
 
@@ -20,7 +21,10 @@ use crate::{
         SubscriptionBuiltinTopicData, TopicBuiltinTopicData, DCPS_PARTICIPANT, DCPS_PUBLICATION,
         DCPS_SUBSCRIPTION, DCPS_TOPIC,
     },
-    dcps::data_writer::{DataWriterEntity, TransportWriterKind},
+    dcps::{
+        clock::Clock,
+        data_writer::{DataWriterEntity, TransportWriterKind},
+    },
     dds_async::{
         data_reader::DataReaderAsync, data_writer::DataWriterAsync,
         domain_participant::DomainParticipantAsync, publisher::PublisherAsync,
@@ -96,6 +100,16 @@ use crate::{
     },
     xtypes::dynamic_type::DynamicType,
 };
+
+struct StdClock;
+
+impl Clock for StdClock {
+    fn now(&self) -> core::time::Duration {
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("Clock time is before Unix epoch start")
+    }
+}
 
 pub const BUILT_IN_TOPIC_NAME_LIST: [&str; 4] = [
     DCPS_PARTICIPANT,
@@ -1374,7 +1388,7 @@ impl DomainParticipantActor {
                 let sleep_duration = timestamp - now + lifespan_duration;
                 if sleep_duration > Duration::new(0, 0) {
                     let sequence_number =
-                        match data_writer.write_w_timestamp(serialized_data, timestamp) {
+                        match data_writer.write_w_timestamp(serialized_data, timestamp, StdClock) {
                             Ok(s) => s,
                             Err(e) => {
                                 return Err(e);
@@ -1397,7 +1411,7 @@ impl DomainParticipantActor {
                 }
             }
             DurationKind::Infinite => {
-                match data_writer.write_w_timestamp(serialized_data, timestamp) {
+                match data_writer.write_w_timestamp(serialized_data, timestamp, StdClock) {
                     Ok(_) => (),
                     Err(e) => {
                         return Err(e);
@@ -2023,7 +2037,8 @@ impl DomainParticipantActor {
                 .lookup_datawriter_mut(DCPS_PARTICIPANT)
             {
                 if let Ok(serialized_data) = spdp_discovered_participant_data.serialize_data() {
-                    dw.write_w_timestamp(serialized_data, timestamp).ok();
+                    dw.write_w_timestamp(serialized_data, timestamp, StdClock)
+                        .ok();
                 }
             }
         }
@@ -2102,7 +2117,8 @@ impl DomainParticipantActor {
             .lookup_datawriter_mut(DCPS_PUBLICATION)
         {
             if let Ok(serialized_data) = discovered_writer_data.serialize_data() {
-                dw.write_w_timestamp(serialized_data, timestamp).ok();
+                dw.write_w_timestamp(serialized_data, timestamp, StdClock)
+                    .ok();
             }
         }
     }
@@ -2175,7 +2191,8 @@ impl DomainParticipantActor {
             .lookup_datawriter_mut(DCPS_SUBSCRIPTION)
         {
             if let Ok(serialized_data) = discovered_reader_data.serialize_data() {
-                dw.write_w_timestamp(serialized_data, timestamp).ok();
+                dw.write_w_timestamp(serialized_data, timestamp, StdClock)
+                    .ok();
             }
         }
     }
@@ -2228,7 +2245,8 @@ impl DomainParticipantActor {
             .lookup_datawriter_mut(DCPS_TOPIC)
         {
             if let Ok(serialized_data) = topic_builtin_topic_data.serialize_data() {
-                dw.write_w_timestamp(serialized_data, timestamp).ok();
+                dw.write_w_timestamp(serialized_data, timestamp, StdClock)
+                    .ok();
             }
         }
     }
