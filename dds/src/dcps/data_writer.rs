@@ -26,7 +26,7 @@ use crate::{
     },
     xtypes::dynamic_type::DynamicType,
 };
-use alloc::{collections::VecDeque, sync::Arc};
+use alloc::{boxed::Box, collections::VecDeque, string::String, sync::Arc, vec::Vec};
 
 pub enum TransportWriterKind {
     Stateful(Box<dyn TransportStatefulWriter>),
