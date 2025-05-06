@@ -33,7 +33,7 @@ tracing-subscriber = "0.3"
 
 [features]
 default = ["dcps", "rtps", "rtps_udp_transport", "std"]
-dcps = []
+dcps = ["xtypes", "transport"]
 rtps_udp_transport = ["rtps", "dep:socket2", "dep:network-interface"]
 rtps = ["rtps_messages"]
 rtps_messages = ["transport"]
