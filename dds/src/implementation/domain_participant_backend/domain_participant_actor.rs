@@ -1422,7 +1422,7 @@ impl DomainParticipantActor {
 
         if let DurationKind::Finite(deadline_missed_period) = data_writer.qos().deadline.period {
             let timer_handle = self.timer_driver.handle();
-            let offered_deadline_missed_task = self.backend_executor.handle().spawn(async move {
+            self.backend_executor.handle().spawn(async move {
                 loop {
                     timer_handle.sleep(deadline_missed_period.into()).await;
                     participant_address
@@ -1437,10 +1437,6 @@ impl DomainParticipantActor {
                         .ok();
                 }
             });
-            data_writer.insert_instance_deadline_missed_task(
-                instance_handle,
-                offered_deadline_missed_task,
-            );
         }
 
         Ok(())
@@ -3610,12 +3606,26 @@ impl DomainParticipantActor {
         change_instance_handle: InstanceHandle,
         participant_address: ActorAddress<DomainParticipantActor>,
     ) {
+        let current_time = self.get_current_time();
         let Some(publisher) = self.domain_participant.get_mut_publisher(publisher_handle) else {
             return;
         };
         let Some(data_writer) = publisher.get_mut_data_writer(data_writer_handle) else {
             return;
         };
+
+        if let DurationKind::Finite(deadline) = data_writer.qos().deadline.period {
+            match data_writer.get_instance_write_time(change_instance_handle) {
+                Some(t) => {
+                    if current_time - t < deadline {
+                        return;
+                    }
+                }
+                None => return,
+            }
+        } else {
+            return;
+        }
 
         data_writer.increment_offered_deadline_missed_status(change_instance_handle);
 

@@ -15,7 +15,7 @@ use crate::{
         },
         time::{DurationKind, Time},
     },
-    runtime::{actor::Actor, executor::TaskHandle, mpsc::MpscSender},
+    runtime::{actor::Actor, mpsc::MpscSender},
     transport::{
         history_cache::{CacheChange, HistoryCache},
         types::{ChangeKind, Guid},
@@ -53,9 +53,9 @@ impl TransportWriterKind {
     }
 }
 
-pub struct DeadlineMissedTask {
+pub struct InstancePublicationTime {
     instance: InstanceHandle,
-    task: TaskHandle,
+    last_write_time: Time,
 }
 
 pub struct InstanceSamples {
@@ -82,7 +82,7 @@ pub struct DataWriterEntity {
     qos: DataWriterQos,
     registered_instance_list: Vec<InstanceHandle>,
     offered_deadline_missed_status: OfferedDeadlineMissedStatus,
-    instance_deadline_missed_task: Vec<DeadlineMissedTask>,
+    instance_publication_time: Vec<InstancePublicationTime>,
     instance_samples: Vec<InstanceSamples>,
 }
 
@@ -118,7 +118,7 @@ impl DataWriterEntity {
             qos,
             registered_instance_list: Vec::new(),
             offered_deadline_missed_status: OfferedDeadlineMissedStatus::default(),
-            instance_deadline_missed_task: Vec::new(),
+            instance_publication_time: Vec::new(),
             instance_samples: Vec::new(),
         }
     }
@@ -283,13 +283,22 @@ impl DataWriterEntity {
             self.max_seq_num = Some(seq_num)
         }
 
-        if let Some(i) = self
-            .instance_deadline_missed_task
-            .iter()
-            .position(|x| x.instance == instance_handle)
+        match self
+            .instance_publication_time
+            .iter_mut()
+            .find(|x| x.instance == instance_handle)
         {
-            let t = self.instance_deadline_missed_task.remove(i);
-            t.task.abort();
+            Some(x) => {
+                if x.last_write_time < timestamp {
+                    x.last_write_time = timestamp;
+                }
+            }
+            None => self
+                .instance_publication_time
+                .push(InstancePublicationTime {
+                    instance: instance_handle,
+                    last_write_time: timestamp,
+                }),
         }
 
         match self
@@ -345,12 +354,11 @@ impl DataWriterEntity {
         }
 
         if let Some(i) = self
-            .instance_deadline_missed_task
+            .instance_publication_time
             .iter()
             .position(|x| x.instance == instance_handle)
         {
-            let t = self.instance_deadline_missed_task.remove(i);
-            t.task.abort();
+            self.instance_publication_time.remove(i);
         }
 
         self.last_change_sequence_number += 1;
@@ -405,12 +413,11 @@ impl DataWriterEntity {
         }
 
         if let Some(i) = self
-            .instance_deadline_missed_task
+            .instance_publication_time
             .iter()
             .position(|x| x.instance == instance_handle)
         {
-            let t = self.instance_deadline_missed_task.remove(i);
-            t.task.abort();
+            self.instance_publication_time.remove(i);
         }
 
         self.last_change_sequence_number += 1;
@@ -549,29 +556,15 @@ impl DataWriterEntity {
         self.type_support.as_ref()
     }
 
-    pub fn insert_instance_deadline_missed_task(
-        &mut self,
-        instance_handle: InstanceHandle,
-        task: TaskHandle,
-    ) {
-        let deadline_missed_task = DeadlineMissedTask {
-            instance: instance_handle,
-            task,
-        };
-        match self
-            .instance_deadline_missed_task
-            .iter_mut()
-            .find(|x| x.instance == instance_handle)
-        {
-            Some(x) => *x = deadline_missed_task,
-            None => self
-                .instance_deadline_missed_task
-                .push(deadline_missed_task),
-        }
-    }
-
     pub fn status_condition(&self) -> &Actor<StatusConditionActor> {
         &self.status_condition
+    }
+
+    pub fn get_instance_write_time(&self, instance_handle: InstanceHandle) -> Option<Time> {
+        self.instance_publication_time
+            .iter()
+            .find(|x| x.instance == instance_handle)
+            .map(|x| x.last_write_time)
     }
 
     pub fn set_listener(
