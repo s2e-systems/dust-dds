@@ -2121,7 +2121,10 @@ impl DomainParticipantActor {
 
     fn announce_deleted_data_writer(
         &mut self,
-        data_writer: DataWriterEntity<Actor<StatusConditionActor>>,
+        data_writer: DataWriterEntity<
+            Actor<StatusConditionActor>,
+            MpscSender<DataWriterListenerMail>,
+        >,
     ) {
         let timestamp = self.domain_participant.get_current_time();
         if let Some(dw) = self

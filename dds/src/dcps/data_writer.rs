@@ -1,6 +1,6 @@
-use crate::{
+use super::{
     builtin_topics::SubscriptionBuiltinTopicData,
-    implementation::listeners::data_writer_listener::DataWriterListenerMail,
+    clock::Clock,
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
@@ -12,7 +12,12 @@ use crate::{
         },
         time::{DurationKind, Time},
     },
-    runtime::mpsc::MpscSender,
+    status_condition::StatusCondition,
+    xtypes_glue::key_and_instance_handle::{
+        get_instance_handle_from_serialized_foo, get_instance_handle_from_serialized_key,
+    },
+};
+use crate::{
     transport::{
         history_cache::{CacheChange, HistoryCache},
         types::{ChangeKind, Guid},
@@ -21,14 +26,6 @@ use crate::{
     xtypes::dynamic_type::DynamicType,
 };
 use alloc::{boxed::Box, collections::VecDeque, string::String, sync::Arc, vec::Vec};
-
-use super::{
-    clock::Clock,
-    status_condition::StatusCondition,
-    xtypes_glue::key_and_instance_handle::{
-        get_instance_handle_from_serialized_foo, get_instance_handle_from_serialized_key,
-    },
-};
 
 pub enum TransportWriterKind {
     Stateful(Box<dyn TransportStatefulWriter>),
@@ -61,7 +58,7 @@ pub struct InstanceSamples {
     samples: VecDeque<i64>,
 }
 
-pub struct DataWriterEntity<S> {
+pub struct DataWriterEntity<S, L> {
     instance_handle: InstanceHandle,
     transport_writer: TransportWriterKind,
     topic_name: String,
@@ -73,7 +70,7 @@ pub struct DataWriterEntity<S> {
     offered_incompatible_qos_status: OfferedIncompatibleQosStatus,
     enabled: bool,
     status_condition: S,
-    listener_sender: MpscSender<DataWriterListenerMail>,
+    listener_sender: L,
     listener_mask: Vec<StatusKind>,
     max_seq_num: Option<i64>,
     last_change_sequence_number: i64,
@@ -84,7 +81,7 @@ pub struct DataWriterEntity<S> {
     instance_samples: Vec<InstanceSamples>,
 }
 
-impl<S> DataWriterEntity<S> {
+impl<S, L> DataWriterEntity<S, L> {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         instance_handle: InstanceHandle,
@@ -93,7 +90,7 @@ impl<S> DataWriterEntity<S> {
         type_name: String,
         type_support: Arc<dyn DynamicType + Send + Sync>,
         status_condition: S,
-        listener_sender: MpscSender<DataWriterListenerMail>,
+        listener_sender: L,
         listener_mask: Vec<StatusKind>,
         qos: DataWriterQos,
     ) -> Self {
@@ -555,17 +552,13 @@ impl<S> DataWriterEntity<S> {
             .map(|x| x.last_write_time)
     }
 
-    pub fn set_listener(
-        &mut self,
-        listener_sender: MpscSender<DataWriterListenerMail>,
-        listener_mask: Vec<StatusKind>,
-    ) {
+    pub fn set_listener(&mut self, listener_sender: L, listener_mask: Vec<StatusKind>) {
         self.listener_sender = listener_sender;
         self.listener_mask = listener_mask;
     }
 
-    pub fn listener(&self) -> MpscSender<DataWriterListenerMail> {
-        self.listener_sender.clone()
+    pub fn listener(&self) -> &L {
+        &self.listener_sender
     }
 
     pub fn listener_mask(&self) -> &[StatusKind] {
@@ -582,7 +575,7 @@ impl<S> DataWriterEntity<S> {
     }
 }
 
-impl<S> DataWriterEntity<S>
+impl<S, L> DataWriterEntity<S, L>
 where
     S: StatusCondition,
 {
