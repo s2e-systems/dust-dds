@@ -4,6 +4,7 @@ use super::infrastructure::{
     qos::{DataWriterQos, PublisherQos},
     status::StatusKind,
 };
+use alloc::vec::Vec;
 
 use crate::dcps::data_writer::DataWriterEntity;
 
