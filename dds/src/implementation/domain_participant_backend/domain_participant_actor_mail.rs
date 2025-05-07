@@ -9,7 +9,6 @@ use crate::{
     },
     implementation::{
         listeners::{
-            data_reader_listener::DataReaderListenerMail,
             domain_participant_listener::ListenerMail, subscriber_listener::SubscriberListenerMail,
             topic_listener::TopicListenerActorMail,
         },
@@ -241,7 +240,7 @@ pub enum SubscriberServiceMail {
         topic_name: String,
         qos: QosKind<DataReaderQos>,
         status_condition: Actor<StatusConditionActor>,
-        listener_sender: MpscSender<DataReaderListenerMail>,
+        listener_sender: MpscSender<ListenerMail>,
         mask: Vec<StatusKind>,
         domain_participant_address: ActorAddress<DomainParticipantActor>,
         reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
@@ -455,7 +454,7 @@ pub enum ReaderServiceMail {
     SetListener {
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
-        listener_sender: MpscSender<DataReaderListenerMail>,
+        listener_sender: MpscSender<ListenerMail>,
         listener_mask: Vec<StatusKind>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },

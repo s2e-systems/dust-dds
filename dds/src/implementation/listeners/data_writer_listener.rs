@@ -37,6 +37,9 @@ impl DataWriterListenerActor {
                             .on_offered_deadline_missed(the_writer.change_foo_type(), status)
                             .await;
                     }
+                    ListenerMail::DataAvailable { the_reader: _ } => {
+                        panic!("Not valid for writer")
+                    }
                     ListenerMail::RequestedDeadlineMissed {
                         the_reader: _,
                         status: _,

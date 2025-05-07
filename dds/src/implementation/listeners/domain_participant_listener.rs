@@ -23,6 +23,9 @@ impl DomainParticipantListenerActor {
         executor_handle.spawn(async move {
             while let Some(m) = listener_receiver.recv().await {
                 match m {
+                    ListenerMail::DataAvailable { the_reader } => {
+                        listener.on_data_available(the_reader).await;
+                    }
                     ListenerMail::RequestedDeadlineMissed { the_reader, status } => {
                         listener
                             .on_requested_deadline_missed(the_reader, status)
@@ -60,6 +63,9 @@ impl DomainParticipantListenerActor {
 }
 
 pub enum ListenerMail {
+    DataAvailable {
+        the_reader: DataReaderAsync<()>,
+    },
     RequestedDeadlineMissed {
         the_reader: DataReaderAsync<()>,
         status: RequestedDeadlineMissedStatus,

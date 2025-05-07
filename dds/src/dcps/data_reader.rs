@@ -5,7 +5,6 @@ use crate::{
     dcps::xtypes_glue::key_and_instance_handle::{
         get_instance_handle_from_serialized_foo, get_instance_handle_from_serialized_key,
     },
-    implementation::listeners::data_reader_listener::DataReaderListenerMail,
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
@@ -21,7 +20,7 @@ use crate::{
         },
         time::{DurationKind, Time},
     },
-    runtime::{executor::TaskHandle, mpsc::MpscSender},
+    runtime::executor::TaskHandle,
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     transport::{
         history_cache::CacheChange,
@@ -148,7 +147,7 @@ struct InstanceOwnership {
     owner_handle: [u8; 16],
 }
 
-pub struct DataReaderEntity<S> {
+pub struct DataReaderEntity<S, L> {
     instance_handle: InstanceHandle,
     sample_list: Vec<ReaderSample>,
     qos: DataReaderQos,
@@ -166,7 +165,7 @@ pub struct DataReaderEntity<S> {
     data_available_status_changed_flag: bool,
     incompatible_writer_list: Vec<InstanceHandle>,
     status_condition: S,
-    listener_sender: MpscSender<DataReaderListenerMail>,
+    listener_sender: L,
     listener_mask: Vec<StatusKind>,
     instances: Vec<InstanceState>,
     instance_deadline_missed_task: Vec<InstanceDeadlineMissed>,
@@ -174,7 +173,7 @@ pub struct DataReaderEntity<S> {
     transport_reader: TransportReaderKind,
 }
 
-impl<S> DataReaderEntity<S>
+impl<S, L> DataReaderEntity<S, L>
 where
     S: StatusCondition,
 {
@@ -186,7 +185,7 @@ where
         type_name: String,
         type_support: Arc<dyn DynamicType + Send + Sync>,
         status_condition: S,
-        listener_sender: MpscSender<DataReaderListenerMail>,
+        listener_sender: L,
         listener_mask: Vec<StatusKind>,
         transport_reader: TransportReaderKind,
     ) -> Self {
@@ -1020,19 +1019,15 @@ where
         };
     }
 
-    pub fn listener(&self) -> MpscSender<DataReaderListenerMail> {
-        self.listener_sender.clone()
+    pub fn listener(&self) -> &L {
+        &self.listener_sender
     }
 
     pub fn listener_mask(&self) -> &[StatusKind] {
         &self.listener_mask
     }
 
-    pub fn set_listener(
-        &mut self,
-        listener_sender: MpscSender<DataReaderListenerMail>,
-        listener_mask: Vec<StatusKind>,
-    ) {
+    pub fn set_listener(&mut self, listener_sender: L, listener_mask: Vec<StatusKind>) {
         self.listener_sender = listener_sender;
         self.listener_mask = listener_mask;
     }

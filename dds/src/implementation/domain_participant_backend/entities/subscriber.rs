@@ -1,7 +1,9 @@
 use crate::{
     dcps::data_reader::DataReaderEntity,
     implementation::{
-        listeners::subscriber_listener::SubscriberListenerMail,
+        listeners::{
+            domain_participant_listener::ListenerMail, subscriber_listener::SubscriberListenerMail,
+        },
         status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
@@ -16,7 +18,7 @@ use crate::{
 pub struct SubscriberEntity {
     instance_handle: InstanceHandle,
     qos: SubscriberQos,
-    data_reader_list: Vec<DataReaderEntity<Actor<StatusConditionActor>>>,
+    data_reader_list: Vec<DataReaderEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>>,
     enabled: bool,
     default_data_reader_qos: DataReaderQos,
     status_condition: Actor<StatusConditionActor>,
@@ -46,25 +48,28 @@ impl SubscriberEntity {
 
     pub fn data_reader_list(
         &self,
-    ) -> impl Iterator<Item = &DataReaderEntity<Actor<StatusConditionActor>>> {
+    ) -> impl Iterator<Item = &DataReaderEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>>
+    {
         self.data_reader_list.iter()
     }
 
     pub fn data_reader_list_mut(
         &mut self,
-    ) -> impl Iterator<Item = &mut DataReaderEntity<Actor<StatusConditionActor>>> {
+    ) -> impl Iterator<Item = &mut DataReaderEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>>
+    {
         self.data_reader_list.iter_mut()
     }
 
     pub fn drain_data_reader_list(
         &mut self,
-    ) -> impl Iterator<Item = DataReaderEntity<Actor<StatusConditionActor>>> + '_ {
+    ) -> impl Iterator<Item = DataReaderEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>> + '_
+    {
         self.data_reader_list.drain(..)
     }
 
     pub fn insert_data_reader(
         &mut self,
-        data_reader: DataReaderEntity<Actor<StatusConditionActor>>,
+        data_reader: DataReaderEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>,
     ) {
         self.data_reader_list.push(data_reader);
     }
@@ -72,7 +77,7 @@ impl SubscriberEntity {
     pub fn remove_data_reader(
         &mut self,
         handle: InstanceHandle,
-    ) -> Option<DataReaderEntity<Actor<StatusConditionActor>>> {
+    ) -> Option<DataReaderEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>> {
         let index = self
             .data_reader_list
             .iter()
@@ -83,7 +88,7 @@ impl SubscriberEntity {
     pub fn get_data_reader(
         &self,
         handle: InstanceHandle,
-    ) -> Option<&DataReaderEntity<Actor<StatusConditionActor>>> {
+    ) -> Option<&DataReaderEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>> {
         self.data_reader_list
             .iter()
             .find(|x| x.instance_handle() == handle)
@@ -92,7 +97,7 @@ impl SubscriberEntity {
     pub fn get_mut_data_reader(
         &mut self,
         handle: InstanceHandle,
-    ) -> Option<&mut DataReaderEntity<Actor<StatusConditionActor>>> {
+    ) -> Option<&mut DataReaderEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>> {
         self.data_reader_list
             .iter_mut()
             .find(|x| x.instance_handle() == handle)

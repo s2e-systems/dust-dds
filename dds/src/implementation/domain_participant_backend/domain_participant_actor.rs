@@ -49,7 +49,6 @@ use crate::{
             ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
         },
         listeners::{
-            data_reader_listener::DataReaderListenerMail,
             domain_participant_listener::ListenerMail, subscriber_listener::SubscriberListenerMail,
             topic_listener::TopicListenerActorMail,
         },
@@ -783,7 +782,7 @@ impl DomainParticipantActor {
         topic_name: String,
         qos: QosKind<DataReaderQos>,
         status_condition: Actor<StatusConditionActor>,
-        listener_sender: MpscSender<DataReaderListenerMail>,
+        listener_sender: MpscSender<ListenerMail>,
         mask: Vec<StatusKind>,
         domain_participant_address: ActorAddress<DomainParticipantActor>,
     ) -> DdsResult<InstanceHandle> {
@@ -1894,7 +1893,7 @@ impl DomainParticipantActor {
         &mut self,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
-        listener_sender: MpscSender<DataReaderListenerMail>,
+        listener_sender: MpscSender<ListenerMail>,
         listener_mask: Vec<StatusKind>,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
@@ -2193,7 +2192,7 @@ impl DomainParticipantActor {
 
     fn announce_deleted_data_reader(
         &mut self,
-        data_reader: DataReaderEntity<Actor<StatusConditionActor>>,
+        data_reader: DataReaderEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>,
     ) {
         let timestamp = self.domain_participant.get_current_time();
         if let Some(dw) = self
@@ -2796,10 +2795,7 @@ impl DomainParticipantActor {
                         let status = data_reader.get_subscription_matched_status();
                         data_reader
                             .listener()
-                            .send(DataReaderListenerMail::SubscriptionMatched {
-                                the_reader,
-                                status,
-                            })
+                            .send(ListenerMail::SubscriptionMatched { the_reader, status })
                             .ok();
                     } else if subscriber
                         .listener_mask()
@@ -2906,10 +2902,7 @@ impl DomainParticipantActor {
                         };
                         data_reader
                             .listener()
-                            .send(DataReaderListenerMail::RequestedIncompatibleQos {
-                                the_reader,
-                                status,
-                            })
+                            .send(ListenerMail::RequestedIncompatibleQos { the_reader, status })
                             .ok();
                     } else if subscriber
                         .listener_mask()
@@ -3424,7 +3417,7 @@ impl DomainParticipantActor {
                         };
                         data_reader
                             .listener()
-                            .send(DataReaderListenerMail::DataAvailable { the_reader })
+                            .send(ListenerMail::DataAvailable { the_reader })
                             .ok();
                     }
 
@@ -3482,7 +3475,7 @@ impl DomainParticipantActor {
                         };
                         data_reader
                             .listener()
-                            .send(DataReaderListenerMail::SampleRejected { the_reader, status })
+                            .send(ListenerMail::SampleRejected { the_reader, status })
                             .ok();
                     } else if subscriber
                         .listener_mask()
@@ -3736,7 +3729,7 @@ impl DomainParticipantActor {
             };
             data_reader
                 .listener()
-                .send(DataReaderListenerMail::RequestedDeadlineMissed { the_reader, status })
+                .send(ListenerMail::RequestedDeadlineMissed { the_reader, status })
                 .ok();
         } else if subscriber
             .listener_mask()
@@ -3927,7 +3920,7 @@ fn get_discovered_reader_incompatible_qos_policy_list(
 }
 
 fn get_discovered_writer_incompatible_qos_policy_list(
-    data_reader: &DataReaderEntity<Actor<StatusConditionActor>>,
+    data_reader: &DataReaderEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>,
     publication_builtin_topic_data: &PublicationBuiltinTopicData,
     subscriber_qos: &SubscriberQos,
 ) -> Vec<QosPolicyId> {
