@@ -153,15 +153,15 @@ impl From<Duration> for crate::rtps_messages::types::Time {
     }
 }
 
-impl From<std::time::Duration> for Duration {
-    fn from(x: std::time::Duration) -> Self {
+impl From<core::time::Duration> for Duration {
+    fn from(x: core::time::Duration) -> Self {
         Self::new(x.as_secs() as i32, x.subsec_nanos())
     }
 }
 
-impl From<Duration> for std::time::Duration {
+impl From<Duration> for core::time::Duration {
     fn from(x: Duration) -> Self {
-        std::time::Duration::new(x.sec as u64, x.nanosec)
+        core::time::Duration::new(x.sec as u64, x.nanosec)
     }
 }
 

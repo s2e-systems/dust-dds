@@ -13,6 +13,7 @@ use crate::xtypes::{
         TK_UINT32, TK_UINT64, TK_UINT8, TK_UNION,
     },
 };
+use alloc::string::String;
 
 impl DynamicType for TypeIdentifier {
     fn get_descriptor(&self) -> Result<TypeDescriptor, XTypesError> {

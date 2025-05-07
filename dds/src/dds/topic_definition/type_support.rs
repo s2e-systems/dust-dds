@@ -1,5 +1,5 @@
 use crate::{
-    infrastructure::error::DdsResult,
+    infrastructure::error::{DdsError, DdsResult},
     xtypes::{
         dynamic_type::DynamicType,
         xcdr_deserializer::{Xcdr2BeDeserializer, Xcdr2LeDeserializer},
@@ -84,6 +84,12 @@ use crate::xtypes::{
 /// ```
 ///
 pub use dust_dds_derive::DdsType;
+
+impl From<std::io::Error> for DdsError {
+    fn from(value: std::io::Error) -> Self {
+        DdsError::Error(value.to_string())
+    }
+}
 
 type RepresentationIdentifier = [u8; 2];
 type RepresentationOptions = [u8; 2];
