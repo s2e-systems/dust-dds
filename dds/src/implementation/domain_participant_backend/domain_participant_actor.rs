@@ -146,7 +146,6 @@ impl DomainParticipantActor {
                 .address(),
             self.domain_participant.domain_id(),
             self.domain_participant.instance_handle(),
-            self.timer_driver.handle(),
             self.backend_executor.handle(),
         )
     }

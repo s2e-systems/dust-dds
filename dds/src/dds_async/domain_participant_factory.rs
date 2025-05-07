@@ -47,7 +47,6 @@ impl DomainParticipantFactoryAsync {
     ) -> DdsResult<DomainParticipantAsync> {
         let executor = Executor::new();
         let timer_driver = TimerDriver::new();
-        let timer_handle = timer_driver.handle();
         let executor_handle = executor.handle();
         let status_kind = mask.to_vec();
         let listener_sender = DomainParticipantListenerActor::spawn(a_listener, &executor.handle());
@@ -77,7 +76,6 @@ impl DomainParticipantFactoryAsync {
             builtin_subscriber_status_condition_address,
             domain_id,
             participant_handle,
-            timer_handle,
             executor_handle,
         );
 

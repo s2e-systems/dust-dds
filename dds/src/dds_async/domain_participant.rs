@@ -19,20 +19,18 @@ use crate::{
     },
     infrastructure::{
         domain::DomainId,
-        error::{DdsError, DdsResult},
+        error::DdsResult,
         instance::InstanceHandle,
         qos::{DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
         status::StatusKind,
         time::{Duration, Time},
         type_support::TypeSupport,
     },
-    listener::NoOpListener,
     publication::publisher_listener::PublisherListener,
     runtime::{
         actor::{Actor, ActorAddress},
         executor::ExecutorHandle,
         oneshot::oneshot,
-        timer::TimerHandle,
     },
     subscription::subscriber_listener::SubscriberListener,
     topic_definition::topic_listener::TopicListener,
@@ -48,7 +46,6 @@ pub struct DomainParticipantAsync {
     builtin_subscriber_status_condition_address: ActorAddress<StatusConditionActor>,
     domain_id: DomainId,
     handle: InstanceHandle,
-    timer_handle: TimerHandle,
     executor_handle: ExecutorHandle,
 }
 
@@ -59,7 +56,6 @@ impl DomainParticipantAsync {
         builtin_subscriber_status_condition_address: ActorAddress<StatusConditionActor>,
         domain_id: DomainId,
         handle: InstanceHandle,
-        timer_handle: TimerHandle,
         executor_handle: ExecutorHandle,
     ) -> Self {
         Self {
@@ -68,7 +64,6 @@ impl DomainParticipantAsync {
             builtin_subscriber_status_condition_address,
             domain_id,
             handle,
-            timer_handle,
             executor_handle,
         }
     }
@@ -253,46 +248,47 @@ impl DomainParticipantAsync {
     where
         Foo: TypeSupport,
     {
-        let type_support = Arc::new(Foo::get_type());
-        let topic_name = topic_name.to_owned();
-        let participant_address = self.participant_address.clone();
-        let participant_async = self.clone();
-        let listener_sender = TopicListenerActor::spawn(NoOpListener, &self.executor_handle);
-        let executor_handle = self.executor_handle.clone();
-        self.timer_handle
-            .timeout(
-                timeout.into(),
-                Box::pin(async move {
-                    loop {
-                        let (reply_sender, reply_receiver) = oneshot();
-                        let status_condition =
-                            Actor::spawn(StatusConditionActor::default(), &executor_handle);
+        todo!()
+        // let type_support = Arc::new(Foo::get_type());
+        // let topic_name = topic_name.to_owned();
+        // let participant_address = self.participant_address.clone();
+        // let participant_async = self.clone();
+        // let listener_sender = TopicListenerActor::spawn(NoOpListener, &self.executor_handle);
+        // let executor_handle = self.executor_handle.clone();
+        // self.timer_handle
+        //     .timeout(
+        //         timeout.into(),
+        //         Box::pin(async move {
+        //             loop {
+        //                 let (reply_sender, reply_receiver) = oneshot();
+        //                 let status_condition =
+        //                     Actor::spawn(StatusConditionActor::default(), &executor_handle);
 
-                        participant_address.send_actor_mail(DomainParticipantMail::Participant(
-                            ParticipantServiceMail::FindTopic {
-                                topic_name: topic_name.clone(),
-                                type_support: type_support.clone(),
-                                status_condition,
-                                listener_sender: listener_sender.clone(),
-                                reply_sender,
-                            },
-                        ))?;
-                        if let Some((guid, topic_status_condition_address, type_name)) =
-                            reply_receiver.await??
-                        {
-                            return Ok(TopicAsync::new(
-                                guid,
-                                topic_status_condition_address,
-                                type_name.to_string(),
-                                topic_name.to_string(),
-                                participant_async,
-                            ));
-                        }
-                    }
-                }),
-            )
-            .await
-            .map_err(|_| DdsError::Timeout)?
+        //                 participant_address.send_actor_mail(DomainParticipantMail::Participant(
+        //                     ParticipantServiceMail::FindTopic {
+        //                         topic_name: topic_name.clone(),
+        //                         type_support: type_support.clone(),
+        //                         status_condition,
+        //                         listener_sender: listener_sender.clone(),
+        //                         reply_sender,
+        //                     },
+        //                 ))?;
+        //                 if let Some((guid, topic_status_condition_address, type_name)) =
+        //                     reply_receiver.await??
+        //                 {
+        //                     return Ok(TopicAsync::new(
+        //                         guid,
+        //                         topic_status_condition_address,
+        //                         type_name.to_string(),
+        //                         topic_name.to_string(),
+        //                         participant_async,
+        //                     ));
+        //                 }
+        //             }
+        //         }),
+        //     )
+        //     .await
+        //     .map_err(|_| DdsError::Timeout)?
     }
 
     /// Async version of [`lookup_topicdescription`](crate::domain::domain_participant::DomainParticipant::lookup_topicdescription).

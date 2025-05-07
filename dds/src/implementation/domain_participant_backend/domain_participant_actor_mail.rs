@@ -74,7 +74,7 @@ pub enum ParticipantServiceMail {
         topic_name: String,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
-    FindTopic {
+    _FindTopic {
         topic_name: String,
         type_support: Arc<dyn DynamicType + Send + Sync>,
         status_condition: Actor<StatusConditionActor>,
@@ -626,7 +626,7 @@ impl DomainParticipantActor {
                 topic_name,
                 reply_sender,
             } => reply_sender.send(self.delete_user_defined_topic(participant_handle, topic_name)),
-            ParticipantServiceMail::FindTopic {
+            ParticipantServiceMail::_FindTopic {
                 topic_name,
                 type_support,
                 status_condition,
