@@ -5,7 +5,6 @@ use dust_dds::{
     dds_async::data_reader::DataReaderAsync,
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
-        listener::NoOpListener,
         qos::{DataWriterQos, QosKind},
         qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
@@ -13,6 +12,7 @@ use dust_dds::{
         time::{Duration, DurationKind},
         type_support::DdsType,
     },
+    listener::NoOpListener,
     subscription::data_reader_listener::DataReaderListener,
     wait_set::{Condition, WaitSet},
     xtypes::bytes::ByteBuf,

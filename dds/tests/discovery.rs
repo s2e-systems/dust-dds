@@ -3,7 +3,6 @@ use std::time::Instant;
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
-        listener::NoOpListener,
         qos::{DataReaderQos, DataWriterQos, PublisherQos, QosKind, SubscriberQos},
         qos_policy::{
             DataRepresentationQosPolicy, OwnershipQosPolicy, OwnershipQosPolicyKind,
@@ -14,6 +13,7 @@ use dust_dds::{
         time::Duration,
         type_support::DdsType,
     },
+    listener::NoOpListener,
     wait_set::{Condition, WaitSet},
 };
 

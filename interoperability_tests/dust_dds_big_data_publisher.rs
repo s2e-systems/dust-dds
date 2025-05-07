@@ -2,7 +2,6 @@ use big_data::BigDataType;
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
-        listener::NoOpListener,
         qos::{DataWriterQos, QosKind},
         qos_policy::{
             DurabilityQosPolicy, DurabilityQosPolicyKind, ReliabilityQosPolicy,
@@ -11,6 +10,7 @@ use dust_dds::{
         status::{StatusKind, NO_STATUS},
         time::{Duration, DurationKind},
     },
+    listener::NoOpListener,
     wait_set::{Condition, WaitSet},
 };
 mod big_data {

@@ -2,13 +2,13 @@ mod utils;
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
-        listener::NoOpListener,
         qos::{DataReaderQos, DataWriterQos, QosKind},
         qos_policy::{DeadlineQosPolicy, ReliabilityQosPolicy, ReliabilityQosPolicyKind},
         status::{StatusKind, NO_STATUS},
         time::{Duration, DurationKind},
         type_support::DdsType,
     },
+    listener::NoOpListener,
     wait_set::{Condition, WaitSet},
 };
 

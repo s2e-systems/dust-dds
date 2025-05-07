@@ -1,8 +1,7 @@
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
-    infrastructure::{
-        listener::NoOpListener, qos::QosKind, status::NO_STATUS, type_support::DdsType,
-    },
+    infrastructure::{qos::QosKind, status::NO_STATUS, type_support::DdsType},
+    listener::NoOpListener,
     rtps_udp_transport::udp_transport::RtpsUdpTransportParticipantFactoryBuilder,
 };
 

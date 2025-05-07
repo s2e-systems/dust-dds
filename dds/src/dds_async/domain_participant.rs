@@ -23,12 +23,12 @@ use crate::{
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
-        listener::NoOpListener,
         qos::{DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
         status::StatusKind,
         time::{Duration, Time},
         type_support::TypeSupport,
     },
+    listener::NoOpListener,
     publication::publisher_listener::PublisherListener,
     runtime::{
         actor::{Actor, ActorAddress},

@@ -20,7 +20,7 @@ use crate::{
     subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     topic_definition::{topic::Topic, type_support::PythonDdsData},
 };
-use dust_dds::infrastructure::listener::NoOpListener;
+use dust_dds::listener::NoOpListener;
 use pyo3::{exceptions::PyTypeError, prelude::*};
 
 #[pyclass]

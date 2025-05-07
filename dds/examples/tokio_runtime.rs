@@ -4,13 +4,13 @@ use dust_dds::{
         wait_set::{ConditionAsync, WaitSetAsync},
     },
     infrastructure::{
-        listener::NoOpListener,
         qos::QosKind,
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         status::{StatusKind, NO_STATUS},
         time::Duration,
         type_support::DdsType,
     },
+    listener::NoOpListener,
 };
 
 #[derive(Debug, PartialEq, DdsType)]

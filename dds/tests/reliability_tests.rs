@@ -3,7 +3,6 @@ use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         error::DdsError,
-        listener::NoOpListener,
         qos::{DataWriterQos, QosKind},
         qos_policy::{
             DurabilityQosPolicy, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
@@ -14,6 +13,7 @@ use dust_dds::{
         time::{Duration, DurationKind},
         type_support::{DdsDeserialize, DdsType},
     },
+    listener::NoOpListener,
     rtps::types::{PROTOCOLVERSION, VENDOR_ID_S2E},
     rtps_messages::{
         overall_structure::{

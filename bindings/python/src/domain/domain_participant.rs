@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, Mutex, OnceLock},
 };
 
-use dust_dds::infrastructure::listener::NoOpListener;
+use dust_dds::listener::NoOpListener;
 use pyo3::prelude::*;
 
 use crate::{

@@ -9,7 +9,6 @@ use dust_dds::{
     },
     infrastructure::{
         error::DdsError,
-        listener::NoOpListener,
         qos::{DataReaderQos, DataWriterQos, PublisherQos, QosKind, SubscriberQos},
         qos_policy::{
             self, DataRepresentationQosPolicy, DurabilityQosPolicy, HistoryQosPolicy,
@@ -21,6 +20,7 @@ use dust_dds::{
         status::{InconsistentTopicStatus, StatusKind, NO_STATUS},
         time::{Duration, DurationKind},
     },
+    listener::NoOpListener,
     publication::data_writer::DataWriter,
     subscription::data_reader::DataReader,
 };

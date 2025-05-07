@@ -2,7 +2,6 @@
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
-        listener::NoOpListener,
         qos::{DataReaderQos, DataWriterQos, QosKind},
         qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
@@ -10,6 +9,7 @@ use dust_dds::{
         time::{Duration, DurationKind},
         type_support::DdsType,
     },
+    listener::NoOpListener,
     wait_set::{Condition, WaitSet},
 };
 use tracing::Level;

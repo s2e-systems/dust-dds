@@ -37,7 +37,6 @@ use crate::{
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
-        listener::NoOpListener,
         qos::{
             DataReaderQos, DataWriterQos, DomainParticipantFactoryQos, DomainParticipantQos,
             PublisherQos, QosKind, SubscriberQos, TopicQos,
@@ -50,6 +49,7 @@ use crate::{
         time::{Duration, DurationKind},
         type_support::TypeSupport,
     },
+    listener::NoOpListener,
     rtps_udp_transport::udp_transport::RtpsUdpTransportParticipantFactory,
     runtime::{
         actor::{Actor, ActorAddress, ActorBuilder, MailHandler},

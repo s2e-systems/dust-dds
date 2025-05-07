@@ -6,7 +6,6 @@ use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         error::DdsError,
-        listener::NoOpListener,
         qos::{
             DataReaderQos, DataWriterQos, DomainParticipantQos, PublisherQos, QosKind,
             SubscriberQos, TopicQos,
@@ -20,6 +19,7 @@ use dust_dds::{
         time::{Duration, DurationKind},
         type_support::DdsType,
     },
+    listener::NoOpListener,
     wait_set::{Condition, WaitSet},
 };
 

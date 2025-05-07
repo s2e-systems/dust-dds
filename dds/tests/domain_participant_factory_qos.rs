@@ -3,11 +3,11 @@ use dust_dds::{
     infrastructure::{
         error::DdsError,
         instance::HANDLE_NIL,
-        listener::NoOpListener,
         qos::{DomainParticipantFactoryQos, QosKind},
         qos_policy::EntityFactoryQosPolicy,
         status::NO_STATUS,
     },
+    listener::NoOpListener,
 };
 
 mod utils;

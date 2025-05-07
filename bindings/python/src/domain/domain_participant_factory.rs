@@ -1,4 +1,4 @@
-use dust_dds::infrastructure::{listener::NoOpListener, qos::QosKind};
+use dust_dds::{infrastructure::qos::QosKind, listener::NoOpListener};
 use pyo3::prelude::*;
 
 use crate::infrastructure::{

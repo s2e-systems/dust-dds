@@ -9,12 +9,12 @@ use dust_dds::{
     dds_async::data_reader::DataReaderAsync,
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
-        listener::NoOpListener,
         qos::QosKind,
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         status::{StatusKind, NO_STATUS},
         type_support::DdsType,
     },
+    listener::NoOpListener,
     subscription::data_reader_listener::DataReaderListener,
 };
 

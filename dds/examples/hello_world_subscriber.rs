@@ -1,7 +1,6 @@
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
-        listener::NoOpListener,
         qos::{DataReaderQos, QosKind},
         qos_policy::{
             DurabilityQosPolicy, DurabilityQosPolicyKind, ReliabilityQosPolicy,
@@ -12,6 +11,7 @@ use dust_dds::{
         time::{Duration, DurationKind},
         type_support::DdsType,
     },
+    listener::NoOpListener,
     wait_set::{Condition, WaitSet},
 };
 

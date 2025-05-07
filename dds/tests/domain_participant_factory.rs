@@ -1,12 +1,12 @@
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
-        listener::NoOpListener,
         qos::{DomainParticipantQos, QosKind},
         qos_policy::UserDataQosPolicy,
         status::NO_STATUS,
         type_support::DdsType,
     },
+    listener::NoOpListener,
 };
 
 mod utils;

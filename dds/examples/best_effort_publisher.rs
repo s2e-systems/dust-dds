@@ -1,7 +1,7 @@
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
+    listener::NoOpListener,
     infrastructure::{
-        listener::NoOpListener,
         qos::QosKind,
         status::{StatusKind, NO_STATUS},
         time::Duration,
