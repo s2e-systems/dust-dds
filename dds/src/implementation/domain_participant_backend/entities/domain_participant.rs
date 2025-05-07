@@ -41,7 +41,7 @@ pub struct DomainParticipantEntity {
     user_defined_publisher_list:
         Vec<PublisherEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>>,
     default_publisher_qos: PublisherQos,
-    topic_list: Vec<TopicEntity>,
+    topic_list: Vec<TopicEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>>,
     default_topic_qos: TopicQos,
     discovered_participant_list: Vec<SpdpDiscoveredParticipantData>,
     discovered_topic_list: Vec<TopicBuiltinTopicData>,
@@ -68,7 +68,7 @@ impl DomainParticipantEntity {
         instance_handle: InstanceHandle,
         builtin_publisher: PublisherEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>,
         builtin_subscriber: SubscriberEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>,
-        topic_list: Vec<TopicEntity>,
+        topic_list: Vec<TopicEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>>,
         domain_tag: String,
     ) -> Self {
         Self {
@@ -412,19 +412,28 @@ impl DomainParticipantEntity {
         self.user_defined_publisher_list.iter_mut()
     }
 
-    pub fn get_topic(&self, topic_name: &str) -> Option<&TopicEntity> {
+    pub fn get_topic(
+        &self,
+        topic_name: &str,
+    ) -> Option<&TopicEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>> {
         self.topic_list
             .iter()
             .find(|x| x.topic_name() == topic_name)
     }
 
-    pub fn get_mut_topic(&mut self, topic_name: &str) -> Option<&mut TopicEntity> {
+    pub fn get_mut_topic(
+        &mut self,
+        topic_name: &str,
+    ) -> Option<&mut TopicEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>> {
         self.topic_list
             .iter_mut()
             .find(|x| x.topic_name() == topic_name)
     }
 
-    pub fn insert_topic(&mut self, topic: TopicEntity) {
+    pub fn insert_topic(
+        &mut self,
+        topic: TopicEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>,
+    ) {
         match self
             .topic_list
             .iter_mut()
@@ -435,7 +444,10 @@ impl DomainParticipantEntity {
         }
     }
 
-    pub fn remove_topic(&mut self, topic_name: &str) -> Option<TopicEntity> {
+    pub fn remove_topic(
+        &mut self,
+        topic_name: &str,
+    ) -> Option<TopicEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>> {
         let index = self
             .topic_list
             .iter()
@@ -448,7 +460,10 @@ impl DomainParticipantEntity {
             .retain(|x| BUILT_IN_TOPIC_NAME_LIST.contains(&x.topic_name()));
     }
 
-    pub fn topic_list_mut(&mut self) -> impl Iterator<Item = &mut TopicEntity> {
+    pub fn topic_list_mut(
+        &mut self,
+    ) -> impl Iterator<Item = &mut TopicEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>>
+    {
         self.topic_list.iter_mut()
     }
 

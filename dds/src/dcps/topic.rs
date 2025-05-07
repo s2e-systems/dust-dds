@@ -1,42 +1,39 @@
 use alloc::sync::Arc;
 
 use crate::{
-    implementation::{
-        listeners::domain_participant_listener::ListenerMail,
-        status_condition::status_condition_actor::{StatusConditionActor, StatusConditionMail},
-    },
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::TopicQos,
         status::{InconsistentTopicStatus, StatusKind},
     },
-    runtime::{actor::Actor, mpsc::MpscSender},
     xtypes::dynamic_type::DynamicType,
 };
 
-pub struct TopicEntity {
+use super::status_condition::StatusCondition;
+
+pub struct TopicEntity<S, L> {
     qos: TopicQos,
     type_name: String,
     topic_name: String,
     instance_handle: InstanceHandle,
     enabled: bool,
     inconsistent_topic_status: InconsistentTopicStatus,
-    status_condition: Actor<StatusConditionActor>,
-    _listener_sender: MpscSender<ListenerMail>,
+    status_condition: S,
+    _listener_sender: L,
     _status_kind: Vec<StatusKind>,
     type_support: Arc<dyn DynamicType + Send + Sync>,
 }
 
-impl TopicEntity {
+impl<S, L> TopicEntity<S, L> {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         qos: TopicQos,
         type_name: String,
         topic_name: String,
         instance_handle: InstanceHandle,
-        status_condition: Actor<StatusConditionActor>,
-        listener_sender: MpscSender<ListenerMail>,
+        status_condition: S,
+        listener_sender: L,
         status_kind: Vec<StatusKind>,
         type_support: Arc<dyn DynamicType + Send + Sync>,
     ) -> Self {
@@ -78,7 +75,7 @@ impl TopicEntity {
         &self.type_support
     }
 
-    pub fn status_condition(&self) -> &Actor<StatusConditionActor> {
+    pub fn status_condition(&self) -> &S {
         &self.status_condition
     }
 
@@ -104,14 +101,17 @@ impl TopicEntity {
         self.qos = qos;
         Ok(())
     }
+}
 
+impl<S, L> TopicEntity<S, L>
+where
+    S: StatusCondition,
+{
     pub fn get_inconsistent_topic_status(&mut self) -> InconsistentTopicStatus {
         let status = self.inconsistent_topic_status.clone();
         self.inconsistent_topic_status.total_count_change = 0;
         self.status_condition
-            .send_actor_mail(StatusConditionMail::RemoveCommunicationState {
-                state: StatusKind::InconsistentTopic,
-            });
+            .remove_state(StatusKind::InconsistentTopic);
         status
     }
 
@@ -119,8 +119,6 @@ impl TopicEntity {
         self.inconsistent_topic_status.total_count += 1;
         self.inconsistent_topic_status.total_count_change += 1;
         self.status_condition
-            .send_actor_mail(StatusConditionMail::AddCommunicationState {
-                state: StatusKind::InconsistentTopic,
-            });
+            .add_state(StatusKind::InconsistentTopic);
     }
 }
