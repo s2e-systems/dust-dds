@@ -1,3 +1,4 @@
+use super::infrastructure::error::DdsResult;
 use crate::{
     dds::topic_definition::type_support::DdsSerialize,
     implementation::data_representation_builtin_endpoints::{
@@ -22,8 +23,7 @@ use crate::{
     },
     xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize},
 };
-
-use super::infrastructure::error::DdsResult;
+use alloc::{string::String, vec::Vec};
 
 /// Topic name of the built-in publication discovery topic
 pub const DCPS_PUBLICATION: &str = "DCPSPublication";

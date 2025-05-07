@@ -11,6 +11,7 @@ use crate::{
         serializer::SerializeFinalStruct,
     },
 };
+use alloc::{string::String, vec::Vec};
 use core::cmp::Ordering;
 
 /// QosPolicyId type alias

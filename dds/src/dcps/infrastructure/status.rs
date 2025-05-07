@@ -1,4 +1,5 @@
 use super::{instance::InstanceHandle, qos_policy::QosPolicyId};
+use alloc::vec::Vec;
 
 /// Enumeration of the different types of communication status
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

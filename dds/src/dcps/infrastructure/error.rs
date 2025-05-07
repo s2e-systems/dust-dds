@@ -1,6 +1,6 @@
-use core::any::Any;
-
 use crate::{rtps::error::RtpsError, xtypes::error::XTypesError};
+use alloc::{format, string::String};
+use core::any::Any;
 
 /// Result type returned by the different operations of the service
 pub type DdsResult<T> = Result<T, DdsError>;

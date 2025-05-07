@@ -1,9 +1,9 @@
 use crate::infrastructure::error::DdsResult;
 use crate::topic_definition::type_support::{DdsDeserialize, DdsSerialize};
-
 use crate::xtypes::{
     deserialize::XTypesDeserialize, serialize::XTypesSerialize, xcdr_serializer::Xcdr1BeSerializer,
 };
+use alloc::vec::Vec;
 
 /// Type for the instance handle representing an Entity
 #[derive(
