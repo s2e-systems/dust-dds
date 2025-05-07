@@ -40,10 +40,6 @@ pub struct Task {
 }
 
 impl Task {
-    fn abort(&self) {
-        self.abort.store(true, atomic::Ordering::Release);
-    }
-
     fn is_aborted(&self) -> bool {
         self.abort.load(atomic::Ordering::Acquire)
     }
@@ -62,16 +58,6 @@ impl Wake for Task {
     }
 }
 
-pub struct TaskHandle {
-    task: Arc<Task>,
-}
-
-impl TaskHandle {
-    pub fn abort(&self) {
-        self.task.abort()
-    }
-}
-
 #[derive(Clone)]
 pub struct ExecutorHandle {
     task_sender: Sender<Arc<Task>>,
@@ -79,7 +65,7 @@ pub struct ExecutorHandle {
 }
 
 impl ExecutorHandle {
-    pub fn spawn(&self, f: impl Future<Output = ()> + Send + 'static) -> TaskHandle {
+    pub fn spawn(&self, f: impl Future<Output = ()> + Send + 'static) {
         let future = Box::pin(f);
         let task = Arc::new(Task {
             future: Mutex::new(future),
@@ -91,7 +77,6 @@ impl ExecutorHandle {
             .send(task.clone())
             .expect("Should never fail to send");
         self.thread_handle.unpark();
-        TaskHandle { task }
     }
 }
 

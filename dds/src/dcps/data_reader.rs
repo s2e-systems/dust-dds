@@ -20,7 +20,6 @@ use crate::{
         },
         time::{DurationKind, Time},
     },
-    runtime::executor::TaskHandle,
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     transport::{
         history_cache::CacheChange,
@@ -137,9 +136,9 @@ impl TransportReaderKind {
     }
 }
 
-struct InstanceDeadlineMissed {
+struct InstanceReceivedTime {
     instance_handle: InstanceHandle,
-    task_handle: TaskHandle,
+    last_received_time: Time,
 }
 
 struct InstanceOwnership {
@@ -168,7 +167,7 @@ pub struct DataReaderEntity<S, L> {
     listener_sender: L,
     listener_mask: Vec<StatusKind>,
     instances: Vec<InstanceState>,
-    instance_deadline_missed_task: Vec<InstanceDeadlineMissed>,
+    instance_received_time: Vec<InstanceReceivedTime>,
     instance_ownership: Vec<InstanceOwnership>,
     transport_reader: TransportReaderKind,
 }
@@ -210,7 +209,7 @@ where
             listener_sender,
             listener_mask,
             instances: Vec::new(),
-            instance_deadline_missed_task: Vec::new(),
+            instance_received_time: Vec::new(),
             instance_ownership: Vec::new(),
             transport_reader,
         }
@@ -800,15 +799,20 @@ where
                 .sort_by(|a, b| a.reception_timestamp.cmp(&b.reception_timestamp)),
         }
 
-        if let Some(i) = self
-            .instance_deadline_missed_task
-            .iter()
-            .position(|x| x.instance_handle == change_instance_handle)
+        match self
+            .instance_received_time
+            .iter_mut()
+            .find(|x| x.instance_handle == change_instance_handle)
         {
-            self.instance_deadline_missed_task
-                .remove(i)
-                .task_handle
-                .abort();
+            Some(x) => {
+                if x.last_received_time < reception_timestamp {
+                    x.last_received_time = reception_timestamp;
+                }
+            }
+            None => self.instance_received_time.push(InstanceReceivedTime {
+                instance_handle: change_instance_handle,
+                last_received_time: reception_timestamp,
+            }),
         }
 
         Ok(AddChangeResult::Added(change_instance_handle))
@@ -998,27 +1002,6 @@ where
             .collect()
     }
 
-    pub fn insert_instance_deadline_missed_task(
-        &mut self,
-        instance_handle: InstanceHandle,
-        task_handle: TaskHandle,
-    ) {
-        match self
-            .instance_deadline_missed_task
-            .iter_mut()
-            .find(|x| x.instance_handle == instance_handle)
-        {
-            Some(x) => x.task_handle = task_handle,
-            None => {
-                self.instance_deadline_missed_task
-                    .push(InstanceDeadlineMissed {
-                        instance_handle,
-                        task_handle,
-                    });
-            }
-        };
-    }
-
     pub fn listener(&self) -> &L {
         &self.listener_sender
     }
@@ -1030,5 +1013,12 @@ where
     pub fn set_listener(&mut self, listener_sender: L, listener_mask: Vec<StatusKind>) {
         self.listener_sender = listener_sender;
         self.listener_mask = listener_mask;
+    }
+
+    pub fn get_instance_received_time(&self, instance_handle: &InstanceHandle) -> Option<Time> {
+        self.instance_received_time
+            .iter()
+            .find(|x| &x.instance_handle == instance_handle)
+            .map(|x| x.last_received_time)
     }
 }

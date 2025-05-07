@@ -3343,27 +3343,22 @@ impl DomainParticipantActor {
                     {
                         let timer_handle = self.timer_driver.handle();
                         let participant_address = participant_address.clone();
-                        let requested_deadline_missed_task =
-                            self.backend_executor.handle().spawn(async move {
-                                loop {
-                                    timer_handle.sleep(deadline_missed_period.into()).await;
-                                    participant_address
-                                        .send_actor_mail(DomainParticipantMail::Event(
-                                            EventServiceMail::RequestedDeadlineMissed {
-                                                subscriber_handle,
-                                                data_reader_handle,
-                                                change_instance_handle,
-                                                participant_address: participant_address.clone(),
-                                            },
-                                        ))
-                                        .ok();
-                                }
-                            });
 
-                        data_reader.insert_instance_deadline_missed_task(
-                            change_instance_handle,
-                            requested_deadline_missed_task,
-                        );
+                        self.backend_executor.handle().spawn(async move {
+                            loop {
+                                timer_handle.sleep(deadline_missed_period.into()).await;
+                                participant_address
+                                    .send_actor_mail(DomainParticipantMail::Event(
+                                        EventServiceMail::RequestedDeadlineMissed {
+                                            subscriber_handle,
+                                            data_reader_handle,
+                                            change_instance_handle,
+                                            participant_address: participant_address.clone(),
+                                        },
+                                    ))
+                                    .ok();
+                            }
+                        });
                     }
                     let deta_reader_on_data_available_active = data_reader
                         .listener_mask()
@@ -3694,6 +3689,7 @@ impl DomainParticipantActor {
         change_instance_handle: InstanceHandle,
         participant_address: ActorAddress<DomainParticipantActor>,
     ) {
+        let current_time = self.get_current_time();
         let Some(subscriber) = self
             .domain_participant
             .get_mut_subscriber(subscriber_handle)
@@ -3703,6 +3699,17 @@ impl DomainParticipantActor {
         let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle) else {
             return;
         };
+
+        if let DurationKind::Finite(deadline) = data_reader.qos().deadline.period {
+            if let Some(t) = data_reader.get_instance_received_time(&change_instance_handle) {
+                if current_time - t < deadline {
+                    return;
+                }
+            } else {
+                return;
+            }
+        }
+
         data_reader.remove_instance_ownership(&change_instance_handle);
         data_reader.increment_requested_deadline_missed_status(change_instance_handle);
 
