@@ -6,6 +6,8 @@ use std::{
     task::{Context, Poll, Waker},
 };
 
+use crate::infrastructure::error::DdsError;
+
 pub fn mpsc_channel<T>() -> (MpscSender<T>, MpscReceiver<T>) {
     let inner = Arc::new(Mutex::new(MpscInner {
         data: VecDeque::with_capacity(64),
@@ -26,15 +28,6 @@ struct MpscInner<T> {
     is_closed: bool,
 }
 
-impl<T> MpscInner<T> {
-    pub fn close(&mut self) {
-        self.is_closed = true;
-        if let Some(w) = self.waker.take() {
-            w.wake();
-        }
-    }
-}
-
 impl<T> std::fmt::Debug for MpscInner<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("MpscInner")
@@ -47,6 +40,12 @@ impl<T> std::fmt::Debug for MpscInner<T> {
 #[derive(Debug)]
 pub enum MpscSenderError {
     Closed,
+}
+
+impl From<MpscSenderError> for DdsError {
+    fn from(_value: MpscSenderError) -> Self {
+        DdsError::AlreadyDeleted
+    }
 }
 
 pub struct MpscSender<T> {
@@ -81,13 +80,6 @@ impl<T> MpscSender<T> {
             }
             Ok(())
         }
-    }
-
-    pub fn close(&self) {
-        self.inner
-            .lock()
-            .expect("Mutex shouldn't be poisoned")
-            .close();
     }
 }
 

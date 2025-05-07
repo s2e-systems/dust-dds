@@ -87,7 +87,7 @@ impl DomainParticipantFactoryAsync {
         let (reply_sender, reply_receiver) = oneshot();
         participant
             .participant_address()
-            .send_actor_mail(DomainParticipantMail::Participant(
+            .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::IsEmpty { reply_sender },
             ))?;
         let is_participant_empty = reply_receiver.await?;
@@ -102,10 +102,11 @@ impl DomainParticipantFactoryAsync {
                 },
             );
             let deleted_participant = reply_receiver.await??;
-            deleted_participant.send_actor_mail(DomainParticipantMail::Discovery(
-                DiscoveryServiceMail::AnnounceDeletedParticipant,
-            ));
-            deleted_participant.stop().await;
+            deleted_participant
+                .send(DomainParticipantMail::Discovery(
+                    DiscoveryServiceMail::AnnounceDeletedParticipant,
+                ))
+                .ok();
             Ok(())
         } else {
             Err(DdsError::PreconditionNotMet(

@@ -135,7 +135,7 @@ impl DomainParticipantActor {
 
     pub fn get_participant_async(
         &self,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        participant_address: MpscSender<DomainParticipantMail>,
     ) -> DomainParticipantAsync {
         DomainParticipantAsync::new(
             participant_address,
@@ -152,7 +152,7 @@ impl DomainParticipantActor {
 
     pub fn get_subscriber_async(
         &self,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        participant_address: MpscSender<DomainParticipantMail>,
         subscriber_handle: InstanceHandle,
     ) -> DdsResult<SubscriberAsync> {
         Ok(SubscriberAsync::new(
@@ -168,7 +168,7 @@ impl DomainParticipantActor {
 
     pub fn get_data_reader_async<Foo>(
         &self,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        participant_address: MpscSender<DomainParticipantMail>,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
     ) -> DdsResult<DataReaderAsync<Foo>> {
@@ -189,7 +189,7 @@ impl DomainParticipantActor {
 
     pub fn get_publisher_async(
         &self,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        participant_address: MpscSender<DomainParticipantMail>,
         publisher_handle: InstanceHandle,
     ) -> DdsResult<PublisherAsync> {
         Ok(PublisherAsync::new(
@@ -205,7 +205,7 @@ impl DomainParticipantActor {
 
     pub fn get_data_writer_async<Foo>(
         &self,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        participant_address: MpscSender<DomainParticipantMail>,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
     ) -> DdsResult<DataWriterAsync<Foo>> {
@@ -226,7 +226,7 @@ impl DomainParticipantActor {
 
     pub fn get_topic_async(
         &self,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        participant_address: MpscSender<DomainParticipantMail>,
         topic_name: String,
     ) -> DdsResult<TopicAsync> {
         let topic = self
@@ -782,10 +782,10 @@ impl DomainParticipantActor {
         status_condition: Actor<StatusConditionActor>,
         listener_sender: MpscSender<ListenerMail>,
         mask: Vec<StatusKind>,
-        domain_participant_address: ActorAddress<DomainParticipantActor>,
+        domain_participant_address: MpscSender<DomainParticipantMail>,
     ) -> DdsResult<InstanceHandle> {
         struct UserDefinedReaderHistoryCache {
-            pub domain_participant_address: ActorAddress<DomainParticipantActor>,
+            pub domain_participant_address: MpscSender<DomainParticipantMail>,
             pub subscriber_handle: InstanceHandle,
             pub data_reader_handle: InstanceHandle,
         }
@@ -793,7 +793,7 @@ impl DomainParticipantActor {
         impl HistoryCache for UserDefinedReaderHistoryCache {
             fn add_change(&mut self, cache_change: CacheChange) {
                 self.domain_participant_address
-                    .send_actor_mail(DomainParticipantMail::Message(
+                    .send(DomainParticipantMail::Message(
                         MessageServiceMail::AddCacheChange {
                             participant_address: self.domain_participant_address.clone(),
                             cache_change,
@@ -1032,7 +1032,7 @@ impl DomainParticipantActor {
         status_condition: Actor<StatusConditionActor>,
         listener_sender: MpscSender<ListenerMail>,
         mask: Vec<StatusKind>,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        participant_address: MpscSender<DomainParticipantMail>,
     ) -> DdsResult<InstanceHandle> {
         let Some(topic) = self.domain_participant.get_topic(&topic_name) else {
             return Err(DdsError::AlreadyDeleted);
@@ -1348,7 +1348,7 @@ impl DomainParticipantActor {
 
     pub fn write_w_timestamp(
         &mut self,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        participant_address: MpscSender<DomainParticipantMail>,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         serialized_data: Vec<u8>,
@@ -1391,7 +1391,7 @@ impl DomainParticipantActor {
                     self.backend_executor.handle().spawn(async move {
                         timer_handle.sleep(sleep_duration.into()).await;
                         participant_address
-                            .send_actor_mail(DomainParticipantMail::Message(
+                            .send(DomainParticipantMail::Message(
                                 MessageServiceMail::RemoveWriterChange {
                                     publisher_handle,
                                     data_writer_handle,
@@ -1418,7 +1418,7 @@ impl DomainParticipantActor {
                 loop {
                     timer_handle.sleep(deadline_missed_period.into()).await;
                     participant_address
-                        .send_actor_mail(DomainParticipantMail::Event(
+                        .send(DomainParticipantMail::Event(
                             EventServiceMail::OfferedDeadlineMissed {
                                 publisher_handle,
                                 data_writer_handle,
@@ -1464,7 +1464,7 @@ impl DomainParticipantActor {
 
     pub fn wait_for_acknowledgments(
         &mut self,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        participant_address: MpscSender<DomainParticipantMail>,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         timeout: Duration,
@@ -1478,7 +1478,7 @@ impl DomainParticipantActor {
                         loop {
                             let (reply_sender, reply_receiver) = oneshot();
                             participant_address
-                                .send_actor_mail(DomainParticipantMail::Message(
+                                .send(DomainParticipantMail::Message(
                                     MessageServiceMail::AreAllChangesAcknowledged {
                                         publisher_handle,
                                         data_writer_handle,
@@ -1527,7 +1527,7 @@ impl DomainParticipantActor {
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        participant_address: MpscSender<DomainParticipantMail>,
     ) -> DdsResult<()> {
         let Some(publisher) = self.domain_participant.get_mut_publisher(publisher_handle) else {
             return Err(DdsError::AlreadyDeleted);
@@ -1751,7 +1751,7 @@ impl DomainParticipantActor {
 
     pub fn wait_for_historical_data(
         &mut self,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        participant_address: MpscSender<DomainParticipantMail>,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         max_wait: Duration,
@@ -1765,7 +1765,7 @@ impl DomainParticipantActor {
                     Box::pin(async move {
                         loop {
                             let (reply_sender, reply_receiver) = oneshot();
-                            participant_address.send_actor_mail(DomainParticipantMail::Message(
+                            participant_address.send(DomainParticipantMail::Message(
                                 MessageServiceMail::IsHistoricalDataReceived {
                                     subscriber_handle,
                                     data_reader_handle,
@@ -1943,7 +1943,7 @@ impl DomainParticipantActor {
         &mut self,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        participant_address: MpscSender<DomainParticipantMail>,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
             .domain_participant
@@ -2250,7 +2250,7 @@ impl DomainParticipantActor {
         discovered_reader_data: DiscoveredReaderData,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        participant_address: MpscSender<DomainParticipantMail>,
     ) {
         let default_unicast_locator_list = if let Some(p) = self
             .domain_participant
@@ -2628,7 +2628,7 @@ impl DomainParticipantActor {
         discovered_writer_data: DiscoveredWriterData,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        participant_address: MpscSender<DomainParticipantMail>,
     ) {
         let default_unicast_locator_list = if let Some(p) = self
             .domain_participant
@@ -3036,7 +3036,7 @@ impl DomainParticipantActor {
     pub fn add_builtin_publications_detector_cache_change(
         &mut self,
         cache_change: CacheChange,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        participant_address: MpscSender<DomainParticipantMail>,
     ) {
         match cache_change.kind {
             ChangeKind::Alive => {
@@ -3138,7 +3138,7 @@ impl DomainParticipantActor {
     pub fn add_builtin_subscriptions_detector_cache_change(
         &mut self,
         cache_change: CacheChange,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        participant_address: MpscSender<DomainParticipantMail>,
     ) {
         match cache_change.kind {
             ChangeKind::Alive => {
@@ -3306,7 +3306,7 @@ impl DomainParticipantActor {
 
     pub fn add_cache_change(
         &mut self,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        participant_address: MpscSender<DomainParticipantMail>,
         cache_change: CacheChange,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
@@ -3340,7 +3340,7 @@ impl DomainParticipantActor {
                             loop {
                                 timer_handle.sleep(deadline_missed_period.into()).await;
                                 participant_address
-                                    .send_actor_mail(DomainParticipantMail::Event(
+                                    .send(DomainParticipantMail::Event(
                                         EventServiceMail::RequestedDeadlineMissed {
                                             subscriber_handle,
                                             data_reader_handle,
@@ -3561,7 +3561,7 @@ impl DomainParticipantActor {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         change_instance_handle: InstanceHandle,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        participant_address: MpscSender<DomainParticipantMail>,
     ) {
         let current_time = self.get_current_time();
         let Some(publisher) = self.domain_participant.get_mut_publisher(publisher_handle) else {
@@ -3679,7 +3679,7 @@ impl DomainParticipantActor {
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         change_instance_handle: InstanceHandle,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        participant_address: MpscSender<DomainParticipantMail>,
     ) {
         let current_time = self.get_current_time();
         let Some(subscriber) = self

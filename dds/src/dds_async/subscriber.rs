@@ -4,9 +4,8 @@ use super::{
 };
 use crate::{
     implementation::{
-        domain_participant_backend::{
-            domain_participant_actor::DomainParticipantActor,
-            domain_participant_actor_mail::{DomainParticipantMail, SubscriberServiceMail},
+        domain_participant_backend::domain_participant_actor_mail::{
+            DomainParticipantMail, SubscriberServiceMail,
         },
         listeners::{
             data_reader_listener::DataReaderListenerActor,
@@ -22,6 +21,7 @@ use crate::{
     },
     runtime::{
         actor::{Actor, ActorAddress},
+        mpsc::MpscSender,
         oneshot::oneshot,
     },
     subscription::{
@@ -50,7 +50,7 @@ impl SubscriberAsync {
         }
     }
 
-    pub(crate) fn participant_address(&self) -> &ActorAddress<DomainParticipantActor> {
+    pub(crate) fn participant_address(&self) -> &MpscSender<DomainParticipantMail> {
         self.participant.participant_address()
     }
 }
@@ -77,7 +77,7 @@ impl SubscriberAsync {
             DataReaderListenerActor::spawn(a_listener, self.participant.executor_handle());
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
-            .send_actor_mail(DomainParticipantMail::Subscriber(
+            .send(DomainParticipantMail::Subscriber(
                 SubscriberServiceMail::CreateDataReader {
                     subscriber_handle: self.handle,
                     topic_name: a_topic.get_name(),
@@ -107,7 +107,7 @@ impl SubscriberAsync {
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
-            .send_actor_mail(DomainParticipantMail::Subscriber(
+            .send(DomainParticipantMail::Subscriber(
                 SubscriberServiceMail::DeleteDataReader {
                     subscriber_handle: self.handle,
                     datareader_handle: a_datareader.get_instance_handle().await,
@@ -126,7 +126,7 @@ impl SubscriberAsync {
         if let Some(topic) = self.participant.lookup_topicdescription(topic_name).await? {
             let (reply_sender, reply_receiver) = oneshot();
             self.participant_address()
-                .send_actor_mail(DomainParticipantMail::Subscriber(
+                .send(DomainParticipantMail::Subscriber(
                     SubscriberServiceMail::LookupDataReader {
                         subscriber_handle: self.handle,
                         topic_name: topic_name.to_string(),
@@ -177,7 +177,7 @@ impl SubscriberAsync {
     pub async fn set_default_datareader_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
-            .send_actor_mail(DomainParticipantMail::Subscriber(
+            .send(DomainParticipantMail::Subscriber(
                 SubscriberServiceMail::SetDefaultDataReaderQos {
                     subscriber_handle: self.handle,
                     qos,
@@ -193,7 +193,7 @@ impl SubscriberAsync {
     pub async fn get_default_datareader_qos(&self) -> DdsResult<DataReaderQos> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
-            .send_actor_mail(DomainParticipantMail::Subscriber(
+            .send(DomainParticipantMail::Subscriber(
                 SubscriberServiceMail::GetDefaultDataReaderQos {
                     subscriber_handle: self.handle,
                     reply_sender,
@@ -216,7 +216,7 @@ impl SubscriberAsync {
     pub async fn set_qos(&self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
-            .send_actor_mail(DomainParticipantMail::Subscriber(
+            .send(DomainParticipantMail::Subscriber(
                 SubscriberServiceMail::SetQos {
                     subscriber_handle: self.handle,
                     qos,
@@ -231,7 +231,7 @@ impl SubscriberAsync {
     pub async fn get_qos(&self) -> DdsResult<SubscriberQos> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
-            .send_actor_mail(DomainParticipantMail::Subscriber(
+            .send(DomainParticipantMail::Subscriber(
                 SubscriberServiceMail::GetSubscriberQos {
                     subscriber_handle: self.handle,
                     reply_sender,
@@ -251,7 +251,7 @@ impl SubscriberAsync {
         let listener_sender =
             SubscriberListenerActor::spawn(a_listener, self.participant.executor_handle());
         self.participant_address()
-            .send_actor_mail(DomainParticipantMail::Subscriber(
+            .send(DomainParticipantMail::Subscriber(
                 SubscriberServiceMail::SetListener {
                     subscriber_handle: self.handle,
                     listener_sender,

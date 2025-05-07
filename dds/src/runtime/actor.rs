@@ -2,7 +2,7 @@ use core::future::Future;
 
 use super::{
     executor::ExecutorHandle,
-    mpsc::{mpsc_channel, MpscReceiver, MpscSender},
+    mpsc::{mpsc_channel, MpscSender},
 };
 use crate::infrastructure::error::{DdsError, DdsResult};
 
@@ -76,55 +76,10 @@ where
         }
     }
 
-    pub async fn stop(self) {
-        self.mail_sender.close();
-    }
-
     pub fn send_actor_mail(&self, mail: A::Mail) {
         self.mail_sender
             .send(mail)
             .expect("Message will always be sent when actor exists");
-    }
-}
-
-pub struct ActorBuilder<A>
-where
-    A: MailHandler,
-{
-    mail_sender: MpscSender<A::Mail>,
-    mailbox_recv: MpscReceiver<A::Mail>,
-}
-
-impl<A> ActorBuilder<A>
-where
-    A: MailHandler + Send + 'static,
-    A::Mail: Send,
-{
-    pub fn new() -> Self {
-        let (mail_sender, mailbox_recv) = mpsc_channel::<A::Mail>();
-
-        Self {
-            mail_sender,
-            mailbox_recv,
-        }
-    }
-
-    pub fn address(&self) -> ActorAddress<A> {
-        ActorAddress {
-            mail_sender: self.mail_sender.clone(),
-        }
-    }
-
-    pub fn build(self, mut actor: A, runtime: &ExecutorHandle) -> Actor<A> {
-        let mailbox_recv = self.mailbox_recv;
-        runtime.spawn(async move {
-            while let Some(m) = mailbox_recv.recv().await {
-                actor.handle(m).await;
-            }
-        });
-        Actor {
-            mail_sender: self.mail_sender,
-        }
     }
 }
 
@@ -170,57 +125,5 @@ mod tests {
             }),
             10
         )
-    }
-
-    #[test]
-    fn actor_stop_should_not_block() {
-        let executor = Executor::new();
-        let my_data = MyActor { data: 0 };
-        let actor = Actor::spawn(my_data, &executor.handle());
-
-        let (result_sender, result_receiver) = oneshot();
-
-        assert_eq!(
-            block_on(async {
-                actor.send_actor_mail(Increment {
-                    value: 10,
-                    result_sender,
-                });
-                result_receiver.await.unwrap()
-            }),
-            10
-        );
-
-        block_on(actor.stop());
-    }
-
-    #[test]
-    fn actor_send_message_after_stop_should_return_error() {
-        let executor = Executor::new();
-        let my_data = MyActor { data: 0 };
-        let actor = Actor::spawn(my_data, &executor.handle());
-        let actor_address = actor.address();
-
-        let (result_sender, result_receiver) = oneshot();
-        assert_eq!(
-            block_on(async {
-                actor.send_actor_mail(Increment {
-                    value: 10,
-                    result_sender,
-                });
-                result_receiver.await.unwrap()
-            }),
-            10
-        );
-
-        block_on(actor.stop());
-        let (result_sender, _) = oneshot();
-
-        assert!(actor_address
-            .send_actor_mail(Increment {
-                value: 10,
-                result_sender
-            })
-            .is_err());
     }
 }
