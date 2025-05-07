@@ -1,6 +1,6 @@
 use super::infrastructure::error::DdsResult;
-use crate::{
-    implementation::data_representation_builtin_endpoints::{
+use super::{
+    data_representation_builtin_endpoints::{
         parameter_id_values::{
             PID_DATA_REPRESENTATION, PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY,
             PID_ENDPOINT_GUID, PID_GROUP_DATA, PID_HISTORY, PID_LATENCY_BUDGET, PID_LIFESPAN,
@@ -24,8 +24,8 @@ use crate::{
         },
         type_support::DdsSerialize,
     },
-    xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize},
 };
+use crate::xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize};
 use alloc::{string::String, vec::Vec};
 
 /// Topic name of the built-in publication discovery topic

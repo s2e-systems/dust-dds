@@ -24,6 +24,14 @@ use crate::{
     dcps::{
         clock::Clock,
         data_reader::{AddChangeResult, DataReaderEntity, TransportReaderKind},
+        data_representation_builtin_endpoints::{
+            discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
+            discovered_writer_data::{DiscoveredWriterData, WriterProxy},
+            spdp_discovered_participant_data::{
+                BuiltinEndpointQos, BuiltinEndpointSet, ParticipantProxy,
+                SpdpDiscoveredParticipantData,
+            },
+        },
         data_writer::{DataWriterEntity, TransportWriterKind},
         publisher::PublisherEntity,
     },
@@ -33,14 +41,6 @@ use crate::{
         subscriber::SubscriberAsync, topic::TopicAsync,
     },
     implementation::{
-        data_representation_builtin_endpoints::{
-            discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
-            discovered_writer_data::{DiscoveredWriterData, WriterProxy},
-            spdp_discovered_participant_data::{
-                BuiltinEndpointQos, BuiltinEndpointSet, ParticipantProxy,
-                SpdpDiscoveredParticipantData,
-            },
-        },
         domain_participant_factory::domain_participant_factory_actor::{
             DdsTransportParticipant, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
             ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,

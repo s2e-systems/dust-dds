@@ -1,5 +1,5 @@
 use crate::{
-    implementation::data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
+    dcps::data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
     rtps::error::RtpsError,
     rtps_messages::{
         overall_structure::{BufRead, Read},

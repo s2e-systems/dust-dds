@@ -3,17 +3,17 @@ use crate::{
     configuration::DustDdsConfiguration,
     dcps::{
         data_reader::{DataReaderEntity, TransportReaderKind},
-        data_writer::{DataWriterEntity, TransportWriterKind},
-        publisher::PublisherEntity,
-    },
-    domain::domain_participant_factory::DomainId,
-    implementation::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,
             discovered_topic_data::DiscoveredTopicData,
             discovered_writer_data::DiscoveredWriterData,
             spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         },
+        data_writer::{DataWriterEntity, TransportWriterKind},
+        publisher::PublisherEntity,
+    },
+    domain::domain_participant_factory::DomainId,
+    implementation::{
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor,
             domain_participant_actor_mail::{

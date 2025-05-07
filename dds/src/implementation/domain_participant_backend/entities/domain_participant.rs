@@ -2,14 +2,16 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::{
     builtin_topics::TopicBuiltinTopicData,
-    dcps::publisher::PublisherEntity,
-    domain::domain_participant_factory::DomainId,
-    implementation::{
+    dcps::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,
             discovered_writer_data::DiscoveredWriterData,
             spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         },
+        publisher::PublisherEntity,
+    },
+    domain::domain_participant_factory::DomainId,
+    implementation::{
         domain_participant_backend::domain_participant_actor::BUILT_IN_TOPIC_NAME_LIST,
         listeners::domain_participant_listener::ListenerMail,
         status_condition::status_condition_actor::StatusConditionActor,
