@@ -12,11 +12,6 @@ use crate::{
         subscriber::SubscriberEntity,
         topic::TopicEntity,
     },
-    implementation::{
-        domain_participant_backend::domain_participant_actor::BUILT_IN_TOPIC_NAME_LIST,
-        listeners::domain_participant_listener::ListenerMail,
-        status_condition::status_condition_actor::StatusConditionActor,
-    },
     infrastructure::{
         domain::DomainId,
         error::DdsResult,
@@ -25,23 +20,30 @@ use crate::{
         status::StatusKind,
         time::Time,
     },
-    runtime::{actor::Actor, mpsc::MpscSender},
 };
+use alloc::vec::Vec;
 
-pub struct DomainParticipantEntity {
+use super::builtin_topics::{DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC};
+
+pub const BUILT_IN_TOPIC_NAME_LIST: [&str; 4] = [
+    DCPS_PARTICIPANT,
+    DCPS_TOPIC,
+    DCPS_PUBLICATION,
+    DCPS_SUBSCRIPTION,
+];
+
+pub struct DomainParticipantEntity<S, L> {
     domain_id: DomainId,
     domain_tag: String,
     instance_handle: InstanceHandle,
     qos: DomainParticipantQos,
-    builtin_subscriber: SubscriberEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>,
-    builtin_publisher: PublisherEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>,
-    user_defined_subscriber_list:
-        Vec<SubscriberEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>>,
+    builtin_subscriber: SubscriberEntity<S, L>,
+    builtin_publisher: PublisherEntity<S, L>,
+    user_defined_subscriber_list: Vec<SubscriberEntity<S, L>>,
     default_subscriber_qos: SubscriberQos,
-    user_defined_publisher_list:
-        Vec<PublisherEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>>,
+    user_defined_publisher_list: Vec<PublisherEntity<S, L>>,
     default_publisher_qos: PublisherQos,
-    topic_list: Vec<TopicEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>>,
+    topic_list: Vec<TopicEntity<S, L>>,
     default_topic_qos: TopicQos,
     discovered_participant_list: Vec<SpdpDiscoveredParticipantData>,
     discovered_topic_list: Vec<TopicBuiltinTopicData>,
@@ -52,23 +54,23 @@ pub struct DomainParticipantEntity {
     ignored_publications: Vec<InstanceHandle>,
     ignored_subcriptions: Vec<InstanceHandle>,
     _ignored_topic_list: Vec<InstanceHandle>,
-    listener_sender: MpscSender<ListenerMail>,
+    listener_sender: L,
     listener_mask: Vec<StatusKind>,
-    status_condition: Actor<StatusConditionActor>,
+    status_condition: S,
 }
 
-impl DomainParticipantEntity {
+impl<S, L> DomainParticipantEntity<S, L> {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         domain_id: DomainId,
         domain_participant_qos: DomainParticipantQos,
-        listener_sender: MpscSender<ListenerMail>,
+        listener_sender: L,
         listener_mask: Vec<StatusKind>,
-        status_condition: Actor<StatusConditionActor>,
+        status_condition: S,
         instance_handle: InstanceHandle,
-        builtin_publisher: PublisherEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>,
-        builtin_subscriber: SubscriberEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>,
-        topic_list: Vec<TopicEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>>,
+        builtin_publisher: PublisherEntity<S, L>,
+        builtin_subscriber: SubscriberEntity<S, L>,
+        topic_list: Vec<TopicEntity<S, L>>,
         domain_tag: String,
     ) -> Self {
         Self {
@@ -115,13 +117,11 @@ impl DomainParticipantEntity {
         self.instance_handle
     }
 
-    pub fn status_condition(&self) -> &Actor<StatusConditionActor> {
+    pub fn status_condition(&self) -> &S {
         &self.status_condition
     }
 
-    pub fn builtin_subscriber(
-        &self,
-    ) -> &SubscriberEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>> {
+    pub fn builtin_subscriber(&self) -> &SubscriberEntity<S, L> {
         &self.builtin_subscriber
     }
 
@@ -153,15 +153,11 @@ impl DomainParticipantEntity {
         self.enabled
     }
 
-    pub fn builtin_subscriber_mut(
-        &mut self,
-    ) -> &mut SubscriberEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>> {
+    pub fn builtin_subscriber_mut(&mut self) -> &mut SubscriberEntity<S, L> {
         &mut self.builtin_subscriber
     }
 
-    pub fn builtin_publisher_mut(
-        &mut self,
-    ) -> &mut PublisherEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>> {
+    pub fn builtin_publisher_mut(&mut self) -> &mut PublisherEntity<S, L> {
         &mut self.builtin_publisher
     }
 
@@ -303,10 +299,7 @@ impl DomainParticipantEntity {
         self.default_publisher_qos = default_publisher_qos;
     }
 
-    pub fn get_subscriber(
-        &self,
-        handle: InstanceHandle,
-    ) -> Option<&SubscriberEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>> {
+    pub fn get_subscriber(&self, handle: InstanceHandle) -> Option<&SubscriberEntity<S, L>> {
         self.user_defined_subscriber_list
             .iter()
             .find(|x| x.instance_handle() == handle)
@@ -315,23 +308,17 @@ impl DomainParticipantEntity {
     pub fn get_mut_subscriber(
         &mut self,
         handle: InstanceHandle,
-    ) -> Option<&mut SubscriberEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>> {
+    ) -> Option<&mut SubscriberEntity<S, L>> {
         self.user_defined_subscriber_list
             .iter_mut()
             .find(|x| x.instance_handle() == handle)
     }
 
-    pub fn insert_subscriber(
-        &mut self,
-        subscriber: SubscriberEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>,
-    ) {
+    pub fn insert_subscriber(&mut self, subscriber: SubscriberEntity<S, L>) {
         self.user_defined_subscriber_list.push(subscriber);
     }
 
-    pub fn remove_subscriber(
-        &mut self,
-        handle: &InstanceHandle,
-    ) -> Option<SubscriberEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>> {
+    pub fn remove_subscriber(&mut self, handle: &InstanceHandle) -> Option<SubscriberEntity<S, L>> {
         let i = self
             .user_defined_subscriber_list
             .iter()
@@ -340,24 +327,15 @@ impl DomainParticipantEntity {
         Some(self.user_defined_subscriber_list.remove(i))
     }
 
-    pub fn subscriber_list(
-        &mut self,
-    ) -> impl Iterator<Item = &SubscriberEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>>
-    {
+    pub fn subscriber_list(&mut self) -> impl Iterator<Item = &SubscriberEntity<S, L>> {
         self.user_defined_subscriber_list.iter()
     }
 
-    pub fn drain_subscriber_list(
-        &mut self,
-    ) -> impl Iterator<Item = SubscriberEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>> + '_
-    {
+    pub fn drain_subscriber_list(&mut self) -> impl Iterator<Item = SubscriberEntity<S, L>> + '_ {
         self.user_defined_subscriber_list.drain(..)
     }
 
-    pub fn get_publisher(
-        &self,
-        handle: InstanceHandle,
-    ) -> Option<&PublisherEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>> {
+    pub fn get_publisher(&self, handle: InstanceHandle) -> Option<&PublisherEntity<S, L>> {
         self.user_defined_publisher_list
             .iter()
             .find(|x| x.instance_handle() == handle)
@@ -366,23 +344,17 @@ impl DomainParticipantEntity {
     pub fn get_mut_publisher(
         &mut self,
         handle: InstanceHandle,
-    ) -> Option<&mut PublisherEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>> {
+    ) -> Option<&mut PublisherEntity<S, L>> {
         self.user_defined_publisher_list
             .iter_mut()
             .find(|x| x.instance_handle() == handle)
     }
 
-    pub fn insert_publisher(
-        &mut self,
-        publisher: PublisherEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>,
-    ) {
+    pub fn insert_publisher(&mut self, publisher: PublisherEntity<S, L>) {
         self.user_defined_publisher_list.push(publisher);
     }
 
-    pub fn remove_publisher(
-        &mut self,
-        handle: &InstanceHandle,
-    ) -> Option<PublisherEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>> {
+    pub fn remove_publisher(&mut self, handle: &InstanceHandle) -> Option<PublisherEntity<S, L>> {
         let i = self
             .user_defined_publisher_list
             .iter()
@@ -391,49 +363,31 @@ impl DomainParticipantEntity {
         Some(self.user_defined_publisher_list.remove(i))
     }
 
-    pub fn drain_publisher_list(
-        &mut self,
-    ) -> impl Iterator<Item = PublisherEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>> + '_
-    {
+    pub fn drain_publisher_list(&mut self) -> impl Iterator<Item = PublisherEntity<S, L>> + '_ {
         self.user_defined_publisher_list.drain(..)
     }
 
-    pub fn publisher_list(
-        &mut self,
-    ) -> impl Iterator<Item = &PublisherEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>>
-    {
+    pub fn publisher_list(&mut self) -> impl Iterator<Item = &PublisherEntity<S, L>> {
         self.user_defined_publisher_list.iter()
     }
 
-    pub fn publisher_list_mut(
-        &mut self,
-    ) -> impl Iterator<Item = &mut PublisherEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>>
-    {
+    pub fn publisher_list_mut(&mut self) -> impl Iterator<Item = &mut PublisherEntity<S, L>> {
         self.user_defined_publisher_list.iter_mut()
     }
 
-    pub fn get_topic(
-        &self,
-        topic_name: &str,
-    ) -> Option<&TopicEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>> {
+    pub fn get_topic(&self, topic_name: &str) -> Option<&TopicEntity<S, L>> {
         self.topic_list
             .iter()
             .find(|x| x.topic_name() == topic_name)
     }
 
-    pub fn get_mut_topic(
-        &mut self,
-        topic_name: &str,
-    ) -> Option<&mut TopicEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>> {
+    pub fn get_mut_topic(&mut self, topic_name: &str) -> Option<&mut TopicEntity<S, L>> {
         self.topic_list
             .iter_mut()
             .find(|x| x.topic_name() == topic_name)
     }
 
-    pub fn insert_topic(
-        &mut self,
-        topic: TopicEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>,
-    ) {
+    pub fn insert_topic(&mut self, topic: TopicEntity<S, L>) {
         match self
             .topic_list
             .iter_mut()
@@ -444,10 +398,7 @@ impl DomainParticipantEntity {
         }
     }
 
-    pub fn remove_topic(
-        &mut self,
-        topic_name: &str,
-    ) -> Option<TopicEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>> {
+    pub fn remove_topic(&mut self, topic_name: &str) -> Option<TopicEntity<S, L>> {
         let index = self
             .topic_list
             .iter()
@@ -460,10 +411,7 @@ impl DomainParticipantEntity {
             .retain(|x| BUILT_IN_TOPIC_NAME_LIST.contains(&x.topic_name()));
     }
 
-    pub fn topic_list_mut(
-        &mut self,
-    ) -> impl Iterator<Item = &mut TopicEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>>
-    {
+    pub fn topic_list_mut(&mut self) -> impl Iterator<Item = &mut TopicEntity<S, L>> {
         self.topic_list.iter_mut()
     }
 
@@ -484,15 +432,11 @@ impl DomainParticipantEntity {
         &self.listener_mask
     }
 
-    pub fn listener(&self) -> MpscSender<ListenerMail> {
-        self.listener_sender.clone()
+    pub fn listener(&self) -> &L {
+        &self.listener_sender
     }
 
-    pub fn set_listener(
-        &mut self,
-        listener_sender: MpscSender<ListenerMail>,
-        status_kind: Vec<StatusKind>,
-    ) {
+    pub fn set_listener(&mut self, listener_sender: L, status_kind: Vec<StatusKind>) {
         self.listener_sender = listener_sender;
         self.listener_mask = status_kind;
     }

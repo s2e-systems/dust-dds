@@ -26,7 +26,7 @@ use crate::{
             },
         },
         data_writer::{DataWriterEntity, TransportWriterKind},
-        domain_participant::DomainParticipantEntity,
+        domain_participant::{DomainParticipantEntity, BUILT_IN_TOPIC_NAME_LIST},
         publisher::PublisherEntity,
         subscriber::SubscriberEntity,
         topic::TopicEntity,
@@ -102,25 +102,22 @@ impl Clock for StdClock {
     }
 }
 
-pub const BUILT_IN_TOPIC_NAME_LIST: [&str; 4] = [
-    DCPS_PARTICIPANT,
-    DCPS_TOPIC,
-    DCPS_PUBLICATION,
-    DCPS_SUBSCRIPTION,
-];
-
 pub struct DomainParticipantActor {
     pub transport: DdsTransportParticipant,
     pub instance_handle_counter: InstanceHandleCounter,
     pub entity_counter: u16,
-    pub domain_participant: DomainParticipantEntity,
+    pub domain_participant:
+        DomainParticipantEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>,
     pub backend_executor: Executor,
     pub timer_driver: TimerDriver,
 }
 
 impl DomainParticipantActor {
     pub fn new(
-        domain_participant: DomainParticipantEntity,
+        domain_participant: DomainParticipantEntity<
+            Actor<StatusConditionActor>,
+            MpscSender<ListenerMail>,
+        >,
         transport: DdsTransportParticipant,
         backend_executor: Executor,
         timer_driver: TimerDriver,
