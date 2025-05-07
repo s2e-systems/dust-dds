@@ -7,10 +7,10 @@ use dust_dds::{
             DurabilityQosPolicy, DurabilityQosPolicyKind, ReliabilityQosPolicy,
             ReliabilityQosPolicyKind,
         },
+        sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         status::{StatusKind, NO_STATUS},
         time::{Duration, DurationKind},
     },
-    subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     topic_definition::type_support::DdsType,
     wait_set::{Condition, WaitSet},
 };

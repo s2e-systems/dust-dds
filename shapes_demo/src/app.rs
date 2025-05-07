@@ -16,15 +16,12 @@ use dust_dds::{
             HistoryQosPolicyKind, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
             WriterDataLifecycleQosPolicy,
         },
+        sample_info::{InstanceStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         status::NO_STATUS,
         time::DurationKind,
     },
     publication::{data_writer::DataWriter, publisher::Publisher},
-    subscription::{
-        data_reader::DataReader,
-        sample_info::{InstanceStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-        subscriber::Subscriber,
-    },
+    subscription::{data_reader::DataReader, subscriber::Subscriber},
 };
 use eframe::{
     egui::{self},

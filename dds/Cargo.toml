@@ -33,14 +33,14 @@ tracing-subscriber = "0.3"
 
 [features]
 default = ["dcps", "rtps", "rtps_udp_transport", "std"]
-dcps = ["xtypes", "transport"]
+dcps = ["xtypes", "transport", "dep:md5"]
 rtps_udp_transport = ["rtps", "dep:socket2", "dep:network-interface"]
 rtps = ["rtps_messages"]
 rtps_messages = ["transport"]
 transport = ["xtypes"]
 xtypes = []
 
-std = ["dep:md5", "dep:fnmatch-regex", "dep:tracing"]
+std = ["dep:fnmatch-regex", "dep:tracing"]
 
 
 [[bench]]

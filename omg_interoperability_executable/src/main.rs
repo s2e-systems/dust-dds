@@ -17,14 +17,12 @@ use dust_dds::{
             OwnershipStrengthQosPolicy, PartitionQosPolicy, ReliabilityQosPolicy,
             XCDR2_DATA_REPRESENTATION, XCDR_DATA_REPRESENTATION,
         },
+        sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         status::{InconsistentTopicStatus, StatusKind, NO_STATUS},
         time::{Duration, DurationKind},
     },
     publication::data_writer::DataWriter,
-    subscription::{
-        data_reader::DataReader,
-        sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-    },
+    subscription::data_reader::DataReader,
 };
 use rand::{random, thread_rng, Rng};
 use std::{
