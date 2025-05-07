@@ -10,6 +10,7 @@ use crate::{
         },
         publisher::PublisherEntity,
         subscriber::SubscriberEntity,
+        topic::TopicEntity,
     },
     implementation::{
         domain_participant_backend::domain_participant_actor::BUILT_IN_TOPIC_NAME_LIST,
@@ -26,8 +27,6 @@ use crate::{
     },
     runtime::{actor::Actor, mpsc::MpscSender},
 };
-
-use super::topic::TopicEntity;
 
 pub struct DomainParticipantEntity {
     domain_id: DomainId,

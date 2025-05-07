@@ -6,7 +6,7 @@ use fnmatch_regex::glob_to_regex;
 
 use super::{
     domain_participant_actor_mail::{DomainParticipantMail, EventServiceMail, MessageServiceMail},
-    entities::{domain_participant::DomainParticipantEntity, topic::TopicEntity},
+    entities::domain_participant::DomainParticipantEntity,
     handle::InstanceHandleCounter,
 };
 use crate::{
@@ -29,6 +29,7 @@ use crate::{
         data_writer::{DataWriterEntity, TransportWriterKind},
         publisher::PublisherEntity,
         subscriber::SubscriberEntity,
+        topic::TopicEntity,
         xtypes_glue::key_and_instance_handle::{
             get_instance_handle_from_serialized_foo, get_serialized_key_from_serialized_foo,
         },
