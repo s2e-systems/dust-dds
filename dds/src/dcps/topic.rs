@@ -1,5 +1,6 @@
 use alloc::sync::Arc;
 
+use super::status_condition::StatusCondition;
 use crate::{
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -9,8 +10,7 @@ use crate::{
     },
     xtypes::dynamic_type::DynamicType,
 };
-
-use super::status_condition::StatusCondition;
+use alloc::{string::String, vec::Vec};
 
 pub struct TopicEntity<S, L> {
     qos: TopicQos,
