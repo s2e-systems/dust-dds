@@ -479,7 +479,7 @@ impl<S, L> DataReaderEntity<S, L> {
                 let Some(sample_owner) = self
                     .matched_publication_list
                     .iter()
-                    .find(|x| &x.key().value == instance_owner.owner_handle.as_ref())
+                    .find(|x| x.key().value == instance_owner.owner_handle.as_ref())
                 else {
                     return Ok(AddChangeResult::NotAdded);
                 };
