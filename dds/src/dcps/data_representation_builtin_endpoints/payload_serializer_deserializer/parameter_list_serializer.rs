@@ -3,6 +3,7 @@ use crate::{
     rtps_messages::{overall_structure::Write, types::ParameterId},
     xtypes::{serialize::XTypesSerialize, xcdr_serializer::Xcdr1LeSerializer},
 };
+use alloc::vec::Vec;
 
 const PL_CDR_LE: [u8; 2] = [0x00, 0x03];
 const REPRESENTATION_OPTIONS: [u8; 2] = [0x00, 0x00];

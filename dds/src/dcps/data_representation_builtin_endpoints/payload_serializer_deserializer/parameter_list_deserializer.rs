@@ -10,6 +10,7 @@ use crate::{
         xcdr_deserializer::{Xcdr1BeDeserializer, Xcdr1LeDeserializer},
     },
 };
+use alloc::vec::Vec;
 
 #[derive(Clone, Copy)]
 enum CdrEndianness {

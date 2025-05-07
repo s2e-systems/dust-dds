@@ -16,7 +16,7 @@ fn get_type_identifier(type_: &Type) -> Result<TokenStream> {
             Ok(quote! {
                     { if #len < 256 {
                         dust_dds::xtypes::type_object::TypeIdentifier::TiPlainArraySmall {
-                            array_sdefn: Box::new(dust_dds::xtypes::type_object::PlainArraySElemDefn {
+                            array_sdefn: alloc::boxed::Box::new(dust_dds::xtypes::type_object::PlainArraySElemDefn {
                                 header: dust_dds::xtypes::type_object::PlainCollectionHeader {
                                     equiv_kind: dust_dds::xtypes::type_object::EK_COMPLETE,
                                     element_flags: dust_dds::xtypes::type_object::CollectionElementFlag {
@@ -30,7 +30,7 @@ fn get_type_identifier(type_: &Type) -> Result<TokenStream> {
                         }
                     } else {
                         dust_dds::xtypes::type_object::TypeIdentifier::TiPlainArrayLarge {
-                            array_ldefn: Box::new(dust_dds::xtypes::type_object::PlainArrayLElemDefn {
+                            array_ldefn: alloc::boxed::Box::new(dust_dds::xtypes::type_object::PlainArrayLElemDefn {
                                 header: dust_dds::xtypes::type_object::PlainCollectionHeader {
                                     equiv_kind: dust_dds::xtypes::type_object::EK_COMPLETE,
                                     element_flags: dust_dds::xtypes::type_object::CollectionElementFlag {
@@ -93,7 +93,7 @@ fn get_type_identifier(type_: &Type) -> Result<TokenStream> {
                 )),
                 _ => Ok(quote!(
                     dust_dds::xtypes::type_object::TypeIdentifier::EkComplete {
-                        complete: Box::new(<#i as dust_dds::infrastructure::type_support::TypeSupport>::get_type())
+                        complete: alloc::boxed::Box::new(<#i as dust_dds::infrastructure::type_support::TypeSupport>::get_type())
                     }
                 )),
             },
@@ -115,7 +115,7 @@ fn get_type_identifier(type_: &Type) -> Result<TokenStream> {
                     }?;
                     Ok(quote! {
                         dust_dds::xtypes::type_object::TypeIdentifier::TiPlainSequenceSmall {
-                            seq_sdefn: Box::new(dust_dds::xtypes::type_object::PlainSequenceSElemDefn {
+                            seq_sdefn: alloc::boxed::Box::new(dust_dds::xtypes::type_object::PlainSequenceSElemDefn {
                                 header: dust_dds::xtypes::type_object::PlainCollectionHeader {
                                     equiv_kind: dust_dds::xtypes::type_object::EK_COMPLETE,
                                     element_flags: dust_dds::xtypes::type_object::CollectionElementFlag {
@@ -153,7 +153,7 @@ fn get_type_identifier(type_: &Type) -> Result<TokenStream> {
             let element_identifier = get_type_identifier(&slice_type.elem)?;
             Ok(quote! {
                 dust_dds::xtypes::type_object::TypeIdentifier::TiPlainSequenceSmall {
-                    seq_sdefn: Box::new(dust_dds::xtypes::type_object::PlainSequenceSElemDefn {
+                    seq_sdefn: alloc::boxed::Box::new(dust_dds::xtypes::type_object::PlainSequenceSElemDefn {
                         header: dust_dds::xtypes::type_object::PlainCollectionHeader {
                             equiv_kind: dust_dds::xtypes::type_object::EK_COMPLETE,
                             element_flags: dust_dds::xtypes::type_object::CollectionElementFlag {

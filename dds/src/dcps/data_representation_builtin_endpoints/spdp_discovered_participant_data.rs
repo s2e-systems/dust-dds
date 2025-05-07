@@ -30,7 +30,9 @@ use crate::{
     xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize},
 };
 use alloc::{
-    string::{String, ToString}, vec,
+    boxed::Box,
+    string::{String, ToString},
+    vec,
     vec::Vec,
 };
 

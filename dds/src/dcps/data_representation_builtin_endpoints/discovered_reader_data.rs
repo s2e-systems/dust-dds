@@ -21,7 +21,7 @@ use crate::{
     },
     transport::types::{EntityId, Guid, Locator},
 };
-use alloc::{string::ToString, vec, vec::Vec};
+use alloc::{boxed::Box, string::ToString, vec, vec::Vec};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ReaderProxy {
