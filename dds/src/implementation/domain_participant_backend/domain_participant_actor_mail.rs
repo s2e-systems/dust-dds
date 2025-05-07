@@ -10,8 +10,8 @@ use crate::{
     implementation::{
         listeners::{
             data_reader_listener::DataReaderListenerMail,
-            domain_participant_listener::ListenerMail, publisher_listener::PublisherListenerMail,
-            subscriber_listener::SubscriberListenerMail, topic_listener::TopicListenerActorMail,
+            domain_participant_listener::ListenerMail, subscriber_listener::SubscriberListenerMail,
+            topic_listener::TopicListenerActorMail,
         },
         status_condition::status_condition_actor::StatusConditionActor,
     },
@@ -42,7 +42,7 @@ pub enum ParticipantServiceMail {
     CreateUserDefinedPublisher {
         qos: QosKind<PublisherQos>,
         status_condition: Actor<StatusConditionActor>,
-        listener_sender: MpscSender<PublisherListenerMail>,
+        listener_sender: MpscSender<ListenerMail>,
         mask: Vec<StatusKind>,
         reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
     },
@@ -229,7 +229,7 @@ pub enum PublisherServiceMail {
     },
     SetPublisherListener {
         publisher_handle: InstanceHandle,
-        listener_sender: MpscSender<PublisherListenerMail>,
+        listener_sender: MpscSender<ListenerMail>,
         mask: Vec<StatusKind>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },

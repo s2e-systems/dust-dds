@@ -52,8 +52,8 @@ use crate::{
         },
         listeners::{
             data_reader_listener::DataReaderListenerMail,
-            domain_participant_listener::ListenerMail, publisher_listener::PublisherListenerMail,
-            subscriber_listener::SubscriberListenerMail, topic_listener::TopicListenerActorMail,
+            domain_participant_listener::ListenerMail, subscriber_listener::SubscriberListenerMail,
+            topic_listener::TopicListenerActorMail,
         },
         status_condition::status_condition_actor::{StatusConditionActor, StatusConditionMail},
     },
@@ -314,7 +314,7 @@ impl DomainParticipantActor {
         &mut self,
         qos: QosKind<PublisherQos>,
         status_condition: Actor<StatusConditionActor>,
-        listener_sender: MpscSender<PublisherListenerMail>,
+        listener_sender: MpscSender<ListenerMail>,
         mask: Vec<StatusKind>,
     ) -> DdsResult<InstanceHandle> {
         let publisher_qos = match qos {
@@ -1179,7 +1179,7 @@ impl DomainParticipantActor {
     pub fn set_publisher_listener(
         &mut self,
         publisher_handle: InstanceHandle,
-        listener_sender: MpscSender<PublisherListenerMail>,
+        listener_sender: MpscSender<ListenerMail>,
         mask: Vec<StatusKind>,
     ) -> DdsResult<()> {
         let Some(publisher) = self.domain_participant.get_mut_publisher(publisher_handle) else {
@@ -2451,10 +2451,7 @@ impl DomainParticipantActor {
                         let status = data_writer.get_publication_matched_status();
                         publisher
                             .listener()
-                            .send(PublisherListenerMail::OnPublicationMatched {
-                                the_writer,
-                                status,
-                            })
+                            .send(ListenerMail::PublicationMatched { the_writer, status })
                             .ok();
                     } else if self
                         .domain_participant
@@ -2554,10 +2551,7 @@ impl DomainParticipantActor {
                         let status = data_writer.get_offered_incompatible_qos_status();
                         publisher
                             .listener()
-                            .send(PublisherListenerMail::OfferedIncompatibleQos {
-                                the_writer,
-                                status,
-                            })
+                            .send(ListenerMail::OfferedIncompatibleQos { the_writer, status })
                             .ok();
                     } else if self
                         .domain_participant
@@ -3658,7 +3652,7 @@ impl DomainParticipantActor {
             let status = data_writer.get_offered_deadline_missed_status();
             publisher
                 .listener()
-                .send(PublisherListenerMail::OfferedDeadlineMissed { the_writer, status })
+                .send(ListenerMail::OfferedDeadlineMissed { the_writer, status })
                 .ok();
         } else if self
             .domain_participant

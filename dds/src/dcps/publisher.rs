@@ -1,7 +1,5 @@
 use crate::{
-    implementation::listeners::{
-        domain_participant_listener::ListenerMail, publisher_listener::PublisherListenerMail,
-    },
+    implementation::listeners::domain_participant_listener::ListenerMail,
     infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,
@@ -19,7 +17,7 @@ pub struct PublisherEntity<S> {
     data_writer_list: Vec<DataWriterEntity<S, MpscSender<ListenerMail>>>,
     enabled: bool,
     default_datawriter_qos: DataWriterQos,
-    listener_sender: MpscSender<PublisherListenerMail>,
+    listener_sender: MpscSender<ListenerMail>,
     listener_mask: Vec<StatusKind>,
     status_condition: S,
 }
@@ -28,7 +26,7 @@ impl<S> PublisherEntity<S> {
     pub fn new(
         qos: PublisherQos,
         instance_handle: InstanceHandle,
-        listener_sender: MpscSender<PublisherListenerMail>,
+        listener_sender: MpscSender<ListenerMail>,
         listener_mask: Vec<StatusKind>,
         status_condition: S,
     ) -> Self {
@@ -143,7 +141,7 @@ impl<S> PublisherEntity<S> {
 
     pub fn set_listener(
         &mut self,
-        listener_sender: MpscSender<PublisherListenerMail>,
+        listener_sender: MpscSender<ListenerMail>,
         mask: Vec<StatusKind>,
     ) {
         self.listener_sender = listener_sender;
@@ -158,7 +156,7 @@ impl<S> PublisherEntity<S> {
         &self.listener_mask
     }
 
-    pub fn listener(&self) -> MpscSender<PublisherListenerMail> {
+    pub fn listener(&self) -> MpscSender<ListenerMail> {
         self.listener_sender.clone()
     }
 }

@@ -1,8 +1,4 @@
 use crate::{
-    dds_async::data_writer::DataWriterAsync,
-    infrastructure::status::{
-        OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
-    },
     publication::publisher_listener::PublisherListener,
     runtime::{
         executor::ExecutorHandle,
@@ -10,48 +6,59 @@ use crate::{
     },
 };
 
+use super::domain_participant_listener::ListenerMail;
+
 pub struct PublisherListenerActor;
 
 impl PublisherListenerActor {
     pub fn spawn(
         mut listener: impl PublisherListener + Send + 'static,
         executor_handle: &ExecutorHandle,
-    ) -> MpscSender<PublisherListenerMail> {
+    ) -> MpscSender<ListenerMail> {
         let (listener_sender, listener_receiver) = mpsc_channel();
         executor_handle.spawn(async move {
             while let Some(m) = listener_receiver.recv().await {
                 match m {
-                    PublisherListenerMail::OnPublicationMatched { the_writer, status } => {
+                    ListenerMail::PublicationMatched { the_writer, status } => {
                         listener.on_publication_matched(the_writer, status).await;
                     }
-                    PublisherListenerMail::OfferedIncompatibleQos { the_writer, status } => {
+                    ListenerMail::OfferedIncompatibleQos { the_writer, status } => {
                         listener
                             .on_offered_incompatible_qos(the_writer, status)
                             .await;
                     }
-                    PublisherListenerMail::OfferedDeadlineMissed { the_writer, status } => {
+                    ListenerMail::OfferedDeadlineMissed { the_writer, status } => {
                         listener
                             .on_offered_deadline_missed(the_writer, status)
                             .await;
+                    }
+                    ListenerMail::RequestedDeadlineMissed {
+                        the_reader: _,
+                        status: _,
+                    } => {
+                        panic!("Not valid for publisher")
+                    }
+                    ListenerMail::SampleRejected {
+                        the_reader: _,
+                        status: _,
+                    } => {
+                        panic!("Not valid for publisher")
+                    }
+                    ListenerMail::SubscriptionMatched {
+                        the_reader: _,
+                        status: _,
+                    } => {
+                        panic!("Not valid for publisher")
+                    }
+                    ListenerMail::RequestedIncompatibleQos {
+                        the_reader: _,
+                        status: _,
+                    } => {
+                        panic!("Not valid for publisher")
                     }
                 }
             }
         });
         listener_sender
     }
-}
-
-pub enum PublisherListenerMail {
-    OnPublicationMatched {
-        the_writer: DataWriterAsync<()>,
-        status: PublicationMatchedStatus,
-    },
-    OfferedIncompatibleQos {
-        the_writer: DataWriterAsync<()>,
-        status: OfferedIncompatibleQosStatus,
-    },
-    OfferedDeadlineMissed {
-        the_writer: DataWriterAsync<()>,
-        status: OfferedDeadlineMissedStatus,
-    },
 }
