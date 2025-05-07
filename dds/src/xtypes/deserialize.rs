@@ -130,7 +130,7 @@ impl<'de: 'a, 'a> XTypesDeserialize<'de> for Bytes<'a> {
 
 impl<'de> XTypesDeserialize<'de> for super::bytes::ByteBuf {
     fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
-        Ok(Self(deserializer.deserialize_byte_sequence()?.to_owned()))
+        Ok(Self(Vec::from(deserializer.deserialize_byte_sequence()?)))
     }
 }
 
@@ -150,6 +150,6 @@ where
 
 impl<'de> XTypesDeserialize<'de> for String {
     fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
-        Ok(deserializer.deserialize_string()?.to_string())
+        Ok(String::from(deserializer.deserialize_string()?))
     }
 }
