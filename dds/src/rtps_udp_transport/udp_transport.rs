@@ -1,7 +1,6 @@
 use crate::{rtps::message_sender::Clock, transport::types::LOCATOR_KIND_UDP_V6};
 use core::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4};
 use dust_dds::{
-    domain::domain_participant_factory::DomainId,
     rtps::{
         message_sender::WriteMessage,
         stateful_reader::RtpsStatefulReader,
@@ -43,7 +42,7 @@ const PB: i32 = 7400;
 const DG: i32 = 250;
 #[allow(non_upper_case_globals)]
 const d0: i32 = 0;
-fn port_builtin_multicast(domain_id: DomainId) -> u16 {
+fn port_builtin_multicast(domain_id: i32) -> u16 {
     (PB + DG * domain_id + d0) as u16
 }
 

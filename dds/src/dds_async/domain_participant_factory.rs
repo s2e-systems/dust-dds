@@ -7,10 +7,7 @@ use tracing::warn;
 use super::domain_participant::DomainParticipantAsync;
 use crate::{
     configuration::DustDdsConfiguration,
-    domain::{
-        domain_participant_factory::DomainId,
-        domain_participant_listener::DomainParticipantListener,
-    },
+    domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
         domain_participant_backend::domain_participant_actor_mail::{
             DiscoveryServiceMail, DomainParticipantMail, ParticipantServiceMail,
@@ -22,6 +19,7 @@ use crate::{
         listeners::domain_participant_listener::DomainParticipantListenerActor,
     },
     infrastructure::{
+        domain::DomainId,
         error::{DdsError, DdsResult},
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
         status::StatusKind,

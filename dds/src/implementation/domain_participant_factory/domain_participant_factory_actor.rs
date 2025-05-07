@@ -12,7 +12,6 @@ use crate::{
         data_writer::{DataWriterEntity, TransportWriterKind},
         publisher::PublisherEntity,
     },
-    domain::domain_participant_factory::DomainId,
     implementation::{
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor,
@@ -35,6 +34,7 @@ use crate::{
         status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
+        domain::DomainId,
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{

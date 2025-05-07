@@ -3,6 +3,7 @@ use crate::{
     condition::StatusCondition,
     dds_async::domain_participant::DomainParticipantAsync,
     infrastructure::{
+        domain::DomainId,
         error::DdsResult,
         instance::InstanceHandle,
         qos::{DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
@@ -17,9 +18,7 @@ use crate::{
     xtypes::dynamic_type::DynamicType,
 };
 
-use super::{
-    domain_participant_factory::DomainId, domain_participant_listener::DomainParticipantListener,
-};
+use super::domain_participant_listener::DomainParticipantListener;
 
 /// The [`DomainParticipant`] represents the participation of the application on a communication plane that isolates applications running on the
 /// same set of physical computers from each other. A domain establishes a *virtual network* linking all applications that

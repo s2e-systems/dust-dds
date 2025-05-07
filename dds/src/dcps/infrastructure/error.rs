@@ -47,7 +47,7 @@ impl From<RtpsError> for DdsError {
 
 impl From<Box<dyn Any + Send + 'static>> for DdsError {
     fn from(_: Box<dyn Any + Send + 'static>) -> Self {
-        DdsError::Error("Generic std error".to_string())
+        DdsError::Error(String::from("Generic std error"))
     }
 }
 

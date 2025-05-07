@@ -10,13 +10,13 @@ use crate::{
         },
         publisher::PublisherEntity,
     },
-    domain::domain_participant_factory::DomainId,
     implementation::{
         domain_participant_backend::domain_participant_actor::BUILT_IN_TOPIC_NAME_LIST,
         listeners::domain_participant_listener::ListenerMail,
         status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
+        domain::DomainId,
         error::DdsResult,
         instance::InstanceHandle,
         qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},

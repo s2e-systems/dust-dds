@@ -18,9 +18,9 @@ use super::{
 };
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
-    domain::domain_participant_factory::DomainId,
-    infrastructure::error::DdsResult,
     infrastructure::{
+        domain::DomainId,
+        error::DdsResult,
         instance::InstanceHandle,
         qos_policy::DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
         time::Duration,

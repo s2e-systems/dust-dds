@@ -4,10 +4,7 @@ use super::{
 };
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
-    domain::{
-        domain_participant_factory::DomainId,
-        domain_participant_listener::DomainParticipantListener,
-    },
+    domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor,
@@ -21,6 +18,7 @@ use crate::{
         status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
+        domain::DomainId,
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos},

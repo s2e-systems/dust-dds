@@ -5,6 +5,7 @@ use crate::{
     domain::domain_participant_listener::DomainParticipantListener,
     implementation::domain_participant_factory::domain_participant_factory_actor::DdsTransportParticipantFactory,
     infrastructure::{
+        domain::DomainId,
         error::DdsResult,
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
         status::StatusKind,
@@ -14,9 +15,6 @@ use crate::{
 
 use std::sync::OnceLock;
 use tracing::warn;
-
-/// DomainId type alias
-pub type DomainId = i32;
 
 /// The sole purpose of this class is to allow the creation and destruction of [`DomainParticipant`] objects.
 /// [`DomainParticipantFactory`] itself has no factory. It is a pre-existing singleton object that can be accessed by means of the

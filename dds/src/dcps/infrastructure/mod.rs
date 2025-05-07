@@ -1,3 +1,6 @@
+/// Classes related to the domain definition.
+pub mod domain;
+
 /// Classes related to the error and return codes.
 pub mod error;
 

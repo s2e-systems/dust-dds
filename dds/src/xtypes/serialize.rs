@@ -2,6 +2,7 @@ use super::bytes::Bytes;
 pub use super::{
     error::XTypesError, serializer::SerializeCollection, serializer::XTypesSerializer,
 };
+use alloc::{string::String, vec::Vec};
 pub use dust_dds_derive::XTypesSerialize;
 
 /// A trait to Write bytes into a potentially growing buffer
@@ -143,14 +144,12 @@ impl XTypesSerialize for Bytes<'_> {
     }
 }
 
-#[cfg(feature = "std")]
 impl XTypesSerialize for super::bytes::ByteBuf {
     fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
         serializer.serialize_byte_sequence(self.0.as_slice())
     }
 }
 
-#[cfg(feature = "std")]
 impl<T> XTypesSerialize for Vec<T>
 where
     T: XTypesSerialize,
@@ -164,15 +163,13 @@ where
     }
 }
 
-#[cfg(feature = "std")]
 impl XTypesSerialize for String {
     fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
         serializer.serialize_string(self.as_str())
     }
 }
 
-#[cfg(feature = "std")]
-impl Write for std::vec::Vec<u8> {
+impl Write for Vec<u8> {
     fn write(&mut self, buf: &[u8]) {
         self.extend_from_slice(buf)
     }

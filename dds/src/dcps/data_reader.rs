@@ -1,14 +1,3 @@
-use alloc::{boxed::Box, string::String, sync::Arc, vec::Vec};
-
-use crate::{
-    transport::{
-        history_cache::CacheChange,
-        reader::{TransportStatefulReader, TransportStatelessReader},
-        types::{ChangeKind, Guid},
-    },
-    xtypes::dynamic_type::DynamicType,
-};
-
 use super::{
     builtin_topics::PublicationBuiltinTopicData,
     infrastructure::{
@@ -31,6 +20,20 @@ use super::{
     xtypes_glue::key_and_instance_handle::{
         get_instance_handle_from_serialized_foo, get_instance_handle_from_serialized_key,
     },
+};
+use crate::{
+    transport::{
+        history_cache::CacheChange,
+        reader::{TransportStatefulReader, TransportStatelessReader},
+        types::{ChangeKind, Guid},
+    },
+    xtypes::dynamic_type::DynamicType,
+};
+use alloc::{
+    boxed::Box,
+    string::{String, ToString},
+    sync::Arc,
+    vec::Vec,
 };
 
 type SampleList = Vec<(Option<Arc<[u8]>>, SampleInfo)>;

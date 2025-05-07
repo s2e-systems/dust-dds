@@ -1,6 +1,6 @@
 use std::sync::atomic::AtomicI32;
 
-use dust_dds::domain::domain_participant_factory::DomainId;
+use dust_dds::infrastructure::domain::DomainId;
 
 pub static TEST_DOMAIN_ID_GENERATOR: DomainIdGenerator = DomainIdGenerator::new();
 
