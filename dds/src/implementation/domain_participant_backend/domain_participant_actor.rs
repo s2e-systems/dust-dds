@@ -52,10 +52,8 @@ use crate::{
         },
         listeners::{
             data_reader_listener::DataReaderListenerMail,
-            data_writer_listener::DataWriterListenerMail,
-            domain_participant_listener::ListenerMail,
-            publisher_listener::PublisherListenerMail, subscriber_listener::SubscriberListenerMail,
-            topic_listener::TopicListenerActorMail,
+            domain_participant_listener::ListenerMail, publisher_listener::PublisherListenerMail,
+            subscriber_listener::SubscriberListenerMail, topic_listener::TopicListenerActorMail,
         },
         status_condition::status_condition_actor::{StatusConditionActor, StatusConditionMail},
     },
@@ -1038,7 +1036,7 @@ impl DomainParticipantActor {
         topic_name: String,
         qos: QosKind<DataWriterQos>,
         status_condition: Actor<StatusConditionActor>,
-        listener_sender: MpscSender<DataWriterListenerMail>,
+        listener_sender: MpscSender<ListenerMail>,
         mask: Vec<StatusKind>,
         participant_address: ActorAddress<DomainParticipantActor>,
     ) -> DdsResult<InstanceHandle> {
@@ -1220,7 +1218,7 @@ impl DomainParticipantActor {
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        listener_sender: MpscSender<DataWriterListenerMail>,
+        listener_sender: MpscSender<ListenerMail>,
         listener_mask: Vec<StatusKind>,
     ) -> DdsResult<()> {
         let Some(publisher) = self.domain_participant.get_mut_publisher(publisher_handle) else {
@@ -2121,10 +2119,7 @@ impl DomainParticipantActor {
 
     fn announce_deleted_data_writer(
         &mut self,
-        data_writer: DataWriterEntity<
-            Actor<StatusConditionActor>,
-            MpscSender<DataWriterListenerMail>,
-        >,
+        data_writer: DataWriterEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>,
     ) {
         let timestamp = self.domain_participant.get_current_time();
         if let Some(dw) = self
@@ -2431,7 +2426,7 @@ impl DomainParticipantActor {
                         };
                         data_writer
                             .listener()
-                            .send(DataWriterListenerMail::PublicationMatched { the_writer, status })
+                            .send(ListenerMail::PublicationMatched { the_writer, status })
                             .ok();
                     } else if publisher
                         .listener_mask()
@@ -2485,10 +2480,7 @@ impl DomainParticipantActor {
                         let status = data_writer.get_publication_matched_status();
                         self.domain_participant
                             .listener()
-                            .send(ListenerMail::PublicationMatched {
-                                the_writer,
-                                status,
-                            })
+                            .send(ListenerMail::PublicationMatched { the_writer, status })
                             .ok();
                     }
 
@@ -2537,10 +2529,7 @@ impl DomainParticipantActor {
                         };
                         data_writer
                             .listener()
-                            .send(DataWriterListenerMail::OfferedIncompatibleQos {
-                                the_writer,
-                                status,
-                            })
+                            .send(ListenerMail::OfferedIncompatibleQos { the_writer, status })
                             .ok();
                     } else if publisher
                         .listener_mask()
@@ -2594,10 +2583,7 @@ impl DomainParticipantActor {
                         let status = data_writer.get_offered_incompatible_qos_status();
                         self.domain_participant
                             .listener()
-                            .send(ListenerMail::OfferedIncompatibleQos {
-                                the_writer,
-                                status,
-                            })
+                            .send(ListenerMail::OfferedIncompatibleQos { the_writer, status })
                             .ok();
                     }
 
@@ -2875,10 +2861,7 @@ impl DomainParticipantActor {
                         let status = data_reader.get_subscription_matched_status();
                         self.domain_participant
                             .listener()
-                            .send(ListenerMail::SubscriptionMatched {
-                                the_reader,
-                                status,
-                            })
+                            .send(ListenerMail::SubscriptionMatched { the_reader, status })
                             .ok();
                     }
 
@@ -2988,10 +2971,7 @@ impl DomainParticipantActor {
                         let status = data_reader.get_requested_incompatible_qos_status();
                         self.domain_participant
                             .listener()
-                            .send(ListenerMail::RequestedIncompatibleQos {
-                                the_reader,
-                                status,
-                            })
+                            .send(ListenerMail::RequestedIncompatibleQos { the_reader, status })
                             .ok();
                     }
 
@@ -3563,10 +3543,7 @@ impl DomainParticipantActor {
                         let status = data_reader.get_sample_rejected_status();
                         self.domain_participant
                             .listener()
-                            .send(ListenerMail::SampleRejected {
-                                status,
-                                the_reader,
-                            })
+                            .send(ListenerMail::SampleRejected { status, the_reader })
                             .ok();
                     }
 
@@ -3658,7 +3635,7 @@ impl DomainParticipantActor {
 
             data_writer
                 .listener()
-                .send(DataWriterListenerMail::OfferedDeadlineMissed { the_writer, status })
+                .send(ListenerMail::OfferedDeadlineMissed { the_writer, status })
                 .ok();
         } else if publisher
             .listener_mask()

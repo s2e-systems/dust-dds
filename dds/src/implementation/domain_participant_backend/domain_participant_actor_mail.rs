@@ -1,5 +1,5 @@
-use core::{future::Future, pin::Pin};
 use alloc::sync::Arc;
+use core::{future::Future, pin::Pin};
 
 use super::domain_participant_actor::DomainParticipantActor;
 use crate::{
@@ -10,10 +10,8 @@ use crate::{
     implementation::{
         listeners::{
             data_reader_listener::DataReaderListenerMail,
-            data_writer_listener::DataWriterListenerMail,
-            domain_participant_listener::ListenerMail,
-            publisher_listener::PublisherListenerMail, subscriber_listener::SubscriberListenerMail,
-            topic_listener::TopicListenerActorMail,
+            domain_participant_listener::ListenerMail, publisher_listener::PublisherListenerMail,
+            subscriber_listener::SubscriberListenerMail, topic_listener::TopicListenerActorMail,
         },
         status_condition::status_condition_actor::StatusConditionActor,
     },
@@ -201,7 +199,7 @@ pub enum PublisherServiceMail {
         topic_name: String,
         qos: QosKind<DataWriterQos>,
         status_condition: Actor<StatusConditionActor>,
-        listener_sender: MpscSender<DataWriterListenerMail>,
+        listener_sender: MpscSender<ListenerMail>,
         mask: Vec<StatusKind>,
         participant_address: ActorAddress<DomainParticipantActor>,
         reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
@@ -290,7 +288,7 @@ pub enum WriterServiceMail {
     SetListener {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        listener_sender: MpscSender<DataWriterListenerMail>,
+        listener_sender: MpscSender<ListenerMail>,
         listener_mask: Vec<StatusKind>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
