@@ -10,6 +10,7 @@ use crate::{
             spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         },
         data_writer::{DataWriterEntity, TransportWriterKind},
+        domain_participant::DomainParticipantEntity,
         publisher::PublisherEntity,
         subscriber::SubscriberEntity,
         topic::TopicEntity,
@@ -21,7 +22,6 @@ use crate::{
                 DiscoveryServiceMail, DomainParticipantMail, MessageServiceMail,
                 ParticipantServiceMail,
             },
-            entities::domain_participant::DomainParticipantEntity,
             handle::InstanceHandleCounter,
         },
         listeners::{

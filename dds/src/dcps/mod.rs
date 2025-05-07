@@ -5,6 +5,8 @@ pub mod data_writer;
 pub mod publisher;
 pub mod subscriber;
 pub mod topic;
+pub mod domain_participant;
+
 
 /// Contains the built-in topics used by the service to propagate information needed for discovery and other data.
 pub mod builtin_topics;

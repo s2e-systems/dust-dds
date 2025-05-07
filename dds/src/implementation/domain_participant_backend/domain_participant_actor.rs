@@ -6,7 +6,6 @@ use fnmatch_regex::glob_to_regex;
 
 use super::{
     domain_participant_actor_mail::{DomainParticipantMail, EventServiceMail, MessageServiceMail},
-    entities::domain_participant::DomainParticipantEntity,
     handle::InstanceHandleCounter,
 };
 use crate::{
@@ -27,6 +26,7 @@ use crate::{
             },
         },
         data_writer::{DataWriterEntity, TransportWriterKind},
+        domain_participant::DomainParticipantEntity,
         publisher::PublisherEntity,
         subscriber::SubscriberEntity,
         topic::TopicEntity,
