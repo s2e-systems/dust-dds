@@ -177,10 +177,7 @@ pub struct DataReaderEntity<S, L> {
     transport_reader: TransportReaderKind,
 }
 
-impl<S, L> DataReaderEntity<S, L>
-where
-    S: StatusCondition,
-{
+impl<S, L> DataReaderEntity<S, L> {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         instance_handle: InstanceHandle,
@@ -218,82 +215,6 @@ where
             instance_ownership: Vec::new(),
             transport_reader,
         }
-    }
-
-    pub fn read(
-        &mut self,
-        max_samples: i32,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
-        specific_instance_handle: Option<InstanceHandle>,
-    ) -> DdsResult<SampleList> {
-        if !self.enabled {
-            return Err(DdsError::NotEnabled);
-        }
-
-        self.status_condition
-            .remove_state(StatusKind::DataAvailable);
-
-        let indexed_sample_list = self.create_indexed_sample_collection(
-            max_samples,
-            sample_states,
-            view_states,
-            instance_states,
-            specific_instance_handle,
-        )?;
-
-        let change_index_list: Vec<usize>;
-        let samples;
-
-        (change_index_list, samples) = indexed_sample_list
-            .into_iter()
-            .map(|IndexedSample { index, sample }| (index, sample))
-            .unzip();
-
-        for index in change_index_list {
-            self.sample_list[index].sample_state = SampleStateKind::Read;
-        }
-
-        Ok(samples)
-    }
-
-    pub fn take(
-        &mut self,
-        max_samples: i32,
-        sample_states: Vec<SampleStateKind>,
-        view_states: Vec<ViewStateKind>,
-        instance_states: Vec<InstanceStateKind>,
-        specific_instance_handle: Option<InstanceHandle>,
-    ) -> DdsResult<SampleList> {
-        if !self.enabled {
-            return Err(DdsError::NotEnabled);
-        }
-
-        let indexed_sample_list = self.create_indexed_sample_collection(
-            max_samples,
-            &sample_states,
-            &view_states,
-            &instance_states,
-            specific_instance_handle,
-        )?;
-
-        self.status_condition
-            .remove_state(StatusKind::DataAvailable);
-
-        let mut change_index_list: Vec<usize>;
-        let samples;
-
-        (change_index_list, samples) = indexed_sample_list
-            .into_iter()
-            .map(|IndexedSample { index, sample }| (index, sample))
-            .unzip();
-
-        while let Some(index) = change_index_list.pop() {
-            self.sample_list.remove(index);
-        }
-
-        Ok(samples)
     }
 
     fn create_indexed_sample_collection(
@@ -460,53 +381,6 @@ where
         }
     }
 
-    pub fn take_next_instance(
-        &mut self,
-        max_samples: i32,
-        previous_handle: Option<InstanceHandle>,
-        sample_states: Vec<SampleStateKind>,
-        view_states: Vec<ViewStateKind>,
-        instance_states: Vec<InstanceStateKind>,
-    ) -> DdsResult<SampleList> {
-        if !self.enabled {
-            return Err(DdsError::NotEnabled);
-        }
-
-        match self.next_instance(previous_handle) {
-            Some(next_handle) => self.take(
-                max_samples,
-                sample_states,
-                view_states,
-                instance_states,
-                Some(next_handle),
-            ),
-            None => Err(DdsError::NoData),
-        }
-    }
-
-    pub fn read_next_instance(
-        &mut self,
-        max_samples: i32,
-        previous_handle: Option<InstanceHandle>,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
-    ) -> DdsResult<SampleList> {
-        if !self.enabled {
-            return Err(DdsError::NotEnabled);
-        }
-
-        match self.next_instance(previous_handle) {
-            Some(next_handle) => self.read(
-                max_samples,
-                sample_states,
-                view_states,
-                instance_states,
-                Some(next_handle),
-            ),
-            None => Err(DdsError::NoData),
-        }
-    }
     fn convert_cache_change_to_sample(
         &mut self,
         cache_change: CacheChange,
@@ -879,21 +753,6 @@ where
         self.subscription_matched_status.total_count_change += 1;
     }
 
-    pub fn remove_matched_publication(&mut self, publication_handle: &InstanceHandle) {
-        let Some(i) = self
-            .matched_publication_list
-            .iter()
-            .position(|x| &x.key().value == publication_handle.as_ref())
-        else {
-            return;
-        };
-        self.matched_publication_list.remove(i);
-        self.subscription_matched_status.current_count = self.matched_publication_list.len() as i32;
-        self.subscription_matched_status.current_count_change -= 1;
-        self.status_condition
-            .add_state(StatusKind::SubscriptionMatched);
-    }
-
     pub fn increment_requested_deadline_missed_status(&mut self, instance_handle: InstanceHandle) {
         self.requested_deadline_missed_status.total_count += 1;
         self.requested_deadline_missed_status.total_count_change += 1;
@@ -1025,5 +884,149 @@ where
             .iter()
             .find(|x| &x.instance_handle == instance_handle)
             .map(|x| x.last_received_time)
+    }
+}
+
+impl<S, L> DataReaderEntity<S, L>
+where
+    S: StatusCondition,
+{
+    pub fn remove_matched_publication(&mut self, publication_handle: &InstanceHandle) {
+        let Some(i) = self
+            .matched_publication_list
+            .iter()
+            .position(|x| &x.key().value == publication_handle.as_ref())
+        else {
+            return;
+        };
+        self.matched_publication_list.remove(i);
+        self.subscription_matched_status.current_count = self.matched_publication_list.len() as i32;
+        self.subscription_matched_status.current_count_change -= 1;
+        self.status_condition
+            .add_state(StatusKind::SubscriptionMatched);
+    }
+
+    pub fn read(
+        &mut self,
+        max_samples: i32,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
+        specific_instance_handle: Option<InstanceHandle>,
+    ) -> DdsResult<SampleList> {
+        if !self.enabled {
+            return Err(DdsError::NotEnabled);
+        }
+
+        self.status_condition
+            .remove_state(StatusKind::DataAvailable);
+
+        let indexed_sample_list = self.create_indexed_sample_collection(
+            max_samples,
+            sample_states,
+            view_states,
+            instance_states,
+            specific_instance_handle,
+        )?;
+
+        let change_index_list: Vec<usize>;
+        let samples;
+
+        (change_index_list, samples) = indexed_sample_list
+            .into_iter()
+            .map(|IndexedSample { index, sample }| (index, sample))
+            .unzip();
+
+        for index in change_index_list {
+            self.sample_list[index].sample_state = SampleStateKind::Read;
+        }
+
+        Ok(samples)
+    }
+
+    pub fn take(
+        &mut self,
+        max_samples: i32,
+        sample_states: Vec<SampleStateKind>,
+        view_states: Vec<ViewStateKind>,
+        instance_states: Vec<InstanceStateKind>,
+        specific_instance_handle: Option<InstanceHandle>,
+    ) -> DdsResult<SampleList> {
+        if !self.enabled {
+            return Err(DdsError::NotEnabled);
+        }
+
+        let indexed_sample_list = self.create_indexed_sample_collection(
+            max_samples,
+            &sample_states,
+            &view_states,
+            &instance_states,
+            specific_instance_handle,
+        )?;
+
+        self.status_condition
+            .remove_state(StatusKind::DataAvailable);
+
+        let mut change_index_list: Vec<usize>;
+        let samples;
+
+        (change_index_list, samples) = indexed_sample_list
+            .into_iter()
+            .map(|IndexedSample { index, sample }| (index, sample))
+            .unzip();
+
+        while let Some(index) = change_index_list.pop() {
+            self.sample_list.remove(index);
+        }
+
+        Ok(samples)
+    }
+
+    pub fn take_next_instance(
+        &mut self,
+        max_samples: i32,
+        previous_handle: Option<InstanceHandle>,
+        sample_states: Vec<SampleStateKind>,
+        view_states: Vec<ViewStateKind>,
+        instance_states: Vec<InstanceStateKind>,
+    ) -> DdsResult<SampleList> {
+        if !self.enabled {
+            return Err(DdsError::NotEnabled);
+        }
+
+        match self.next_instance(previous_handle) {
+            Some(next_handle) => self.take(
+                max_samples,
+                sample_states,
+                view_states,
+                instance_states,
+                Some(next_handle),
+            ),
+            None => Err(DdsError::NoData),
+        }
+    }
+
+    pub fn read_next_instance(
+        &mut self,
+        max_samples: i32,
+        previous_handle: Option<InstanceHandle>,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
+    ) -> DdsResult<SampleList> {
+        if !self.enabled {
+            return Err(DdsError::NotEnabled);
+        }
+
+        match self.next_instance(previous_handle) {
+            Some(next_handle) => self.read(
+                max_samples,
+                sample_states,
+                view_states,
+                instance_states,
+                Some(next_handle),
+            ),
+            None => Err(DdsError::NoData),
+        }
     }
 }

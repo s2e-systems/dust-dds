@@ -34,9 +34,9 @@ pub struct DomainParticipantEntity {
     domain_tag: String,
     instance_handle: InstanceHandle,
     qos: DomainParticipantQos,
-    builtin_subscriber: SubscriberEntity,
+    builtin_subscriber: SubscriberEntity<Actor<StatusConditionActor>>,
     builtin_publisher: PublisherEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>,
-    user_defined_subscriber_list: Vec<SubscriberEntity>,
+    user_defined_subscriber_list: Vec<SubscriberEntity<Actor<StatusConditionActor>>>,
     default_subscriber_qos: SubscriberQos,
     user_defined_publisher_list:
         Vec<PublisherEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>>,
@@ -67,7 +67,7 @@ impl DomainParticipantEntity {
         status_condition: Actor<StatusConditionActor>,
         instance_handle: InstanceHandle,
         builtin_publisher: PublisherEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>,
-        builtin_subscriber: SubscriberEntity,
+        builtin_subscriber: SubscriberEntity<Actor<StatusConditionActor>>,
         topic_list: Vec<TopicEntity>,
         domain_tag: String,
     ) -> Self {
@@ -119,7 +119,7 @@ impl DomainParticipantEntity {
         &self.status_condition
     }
 
-    pub fn builtin_subscriber(&self) -> &SubscriberEntity {
+    pub fn builtin_subscriber(&self) -> &SubscriberEntity<Actor<StatusConditionActor>> {
         &self.builtin_subscriber
     }
 
@@ -151,7 +151,7 @@ impl DomainParticipantEntity {
         self.enabled
     }
 
-    pub fn builtin_subscriber_mut(&mut self) -> &mut SubscriberEntity {
+    pub fn builtin_subscriber_mut(&mut self) -> &mut SubscriberEntity<Actor<StatusConditionActor>> {
         &mut self.builtin_subscriber
     }
 
@@ -299,23 +299,32 @@ impl DomainParticipantEntity {
         self.default_publisher_qos = default_publisher_qos;
     }
 
-    pub fn get_subscriber(&self, handle: InstanceHandle) -> Option<&SubscriberEntity> {
+    pub fn get_subscriber(
+        &self,
+        handle: InstanceHandle,
+    ) -> Option<&SubscriberEntity<Actor<StatusConditionActor>>> {
         self.user_defined_subscriber_list
             .iter()
             .find(|x| x.instance_handle() == handle)
     }
 
-    pub fn get_mut_subscriber(&mut self, handle: InstanceHandle) -> Option<&mut SubscriberEntity> {
+    pub fn get_mut_subscriber(
+        &mut self,
+        handle: InstanceHandle,
+    ) -> Option<&mut SubscriberEntity<Actor<StatusConditionActor>>> {
         self.user_defined_subscriber_list
             .iter_mut()
             .find(|x| x.instance_handle() == handle)
     }
 
-    pub fn insert_subscriber(&mut self, subscriber: SubscriberEntity) {
+    pub fn insert_subscriber(&mut self, subscriber: SubscriberEntity<Actor<StatusConditionActor>>) {
         self.user_defined_subscriber_list.push(subscriber);
     }
 
-    pub fn remove_subscriber(&mut self, handle: &InstanceHandle) -> Option<SubscriberEntity> {
+    pub fn remove_subscriber(
+        &mut self,
+        handle: &InstanceHandle,
+    ) -> Option<SubscriberEntity<Actor<StatusConditionActor>>> {
         let i = self
             .user_defined_subscriber_list
             .iter()
@@ -324,11 +333,15 @@ impl DomainParticipantEntity {
         Some(self.user_defined_subscriber_list.remove(i))
     }
 
-    pub fn subscriber_list(&mut self) -> impl Iterator<Item = &SubscriberEntity> {
+    pub fn subscriber_list(
+        &mut self,
+    ) -> impl Iterator<Item = &SubscriberEntity<Actor<StatusConditionActor>>> {
         self.user_defined_subscriber_list.iter()
     }
 
-    pub fn drain_subscriber_list(&mut self) -> impl Iterator<Item = SubscriberEntity> + '_ {
+    pub fn drain_subscriber_list(
+        &mut self,
+    ) -> impl Iterator<Item = SubscriberEntity<Actor<StatusConditionActor>>> + '_ {
         self.user_defined_subscriber_list.drain(..)
     }
 

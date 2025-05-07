@@ -627,7 +627,7 @@ impl DomainParticipantActor {
             }
         }
 
-        let deleted_subscriber_list: Vec<SubscriberEntity> =
+        let deleted_subscriber_list: Vec<SubscriberEntity<Actor<StatusConditionActor>>> =
             self.domain_participant.drain_subscriber_list().collect();
         for mut subscriber in deleted_subscriber_list {
             for data_reader in subscriber.drain_data_reader_list() {

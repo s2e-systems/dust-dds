@@ -1,10 +1,7 @@
 use crate::{
     dcps::data_reader::DataReaderEntity,
-    implementation::{
-        listeners::{
-            domain_participant_listener::ListenerMail, subscriber_listener::SubscriberListenerMail,
-        },
-        status_condition::status_condition_actor::StatusConditionActor,
+    implementation::listeners::{
+        domain_participant_listener::ListenerMail, subscriber_listener::SubscriberListenerMail,
     },
     infrastructure::{
         error::DdsResult,
@@ -12,25 +9,25 @@ use crate::{
         qos::{DataReaderQos, SubscriberQos},
         status::StatusKind,
     },
-    runtime::{actor::Actor, mpsc::MpscSender},
+    runtime::mpsc::MpscSender,
 };
 
-pub struct SubscriberEntity {
+pub struct SubscriberEntity<S> {
     instance_handle: InstanceHandle,
     qos: SubscriberQos,
-    data_reader_list: Vec<DataReaderEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>>,
+    data_reader_list: Vec<DataReaderEntity<S, MpscSender<ListenerMail>>>,
     enabled: bool,
     default_data_reader_qos: DataReaderQos,
-    status_condition: Actor<StatusConditionActor>,
+    status_condition: S,
     listener_sender: MpscSender<SubscriberListenerMail>,
     listener_mask: Vec<StatusKind>,
 }
 
-impl SubscriberEntity {
+impl<S> SubscriberEntity<S> {
     pub fn new(
         instance_handle: InstanceHandle,
         qos: SubscriberQos,
-        status_condition: Actor<StatusConditionActor>,
+        status_condition: S,
         listener_sender: MpscSender<SubscriberListenerMail>,
         listener_mask: Vec<StatusKind>,
     ) -> Self {
@@ -48,28 +45,25 @@ impl SubscriberEntity {
 
     pub fn data_reader_list(
         &self,
-    ) -> impl Iterator<Item = &DataReaderEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>>
-    {
+    ) -> impl Iterator<Item = &DataReaderEntity<S, MpscSender<ListenerMail>>> {
         self.data_reader_list.iter()
     }
 
     pub fn data_reader_list_mut(
         &mut self,
-    ) -> impl Iterator<Item = &mut DataReaderEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>>
-    {
+    ) -> impl Iterator<Item = &mut DataReaderEntity<S, MpscSender<ListenerMail>>> {
         self.data_reader_list.iter_mut()
     }
 
     pub fn drain_data_reader_list(
         &mut self,
-    ) -> impl Iterator<Item = DataReaderEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>> + '_
-    {
+    ) -> impl Iterator<Item = DataReaderEntity<S, MpscSender<ListenerMail>>> + '_ {
         self.data_reader_list.drain(..)
     }
 
     pub fn insert_data_reader(
         &mut self,
-        data_reader: DataReaderEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>,
+        data_reader: DataReaderEntity<S, MpscSender<ListenerMail>>,
     ) {
         self.data_reader_list.push(data_reader);
     }
@@ -77,7 +71,7 @@ impl SubscriberEntity {
     pub fn remove_data_reader(
         &mut self,
         handle: InstanceHandle,
-    ) -> Option<DataReaderEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>> {
+    ) -> Option<DataReaderEntity<S, MpscSender<ListenerMail>>> {
         let index = self
             .data_reader_list
             .iter()
@@ -88,7 +82,7 @@ impl SubscriberEntity {
     pub fn get_data_reader(
         &self,
         handle: InstanceHandle,
-    ) -> Option<&DataReaderEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>> {
+    ) -> Option<&DataReaderEntity<S, MpscSender<ListenerMail>>> {
         self.data_reader_list
             .iter()
             .find(|x| x.instance_handle() == handle)
@@ -97,7 +91,7 @@ impl SubscriberEntity {
     pub fn get_mut_data_reader(
         &mut self,
         handle: InstanceHandle,
-    ) -> Option<&mut DataReaderEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>> {
+    ) -> Option<&mut DataReaderEntity<S, MpscSender<ListenerMail>>> {
         self.data_reader_list
             .iter_mut()
             .find(|x| x.instance_handle() == handle)
@@ -149,7 +143,7 @@ impl SubscriberEntity {
         self.listener_mask = listener_mask;
     }
 
-    pub fn status_condition(&self) -> &Actor<StatusConditionActor> {
+    pub fn status_condition(&self) -> &S {
         &self.status_condition
     }
 
