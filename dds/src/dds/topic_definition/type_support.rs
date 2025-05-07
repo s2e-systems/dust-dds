@@ -1,12 +1,11 @@
 use crate::{
-    infrastructure::error::{DdsError, DdsResult},
+    infrastructure::error::DdsResult,
     xtypes::{
         dynamic_type::DynamicType,
         xcdr_deserializer::{Xcdr2BeDeserializer, Xcdr2LeDeserializer},
     },
 };
 pub use dust_dds_derive::{DdsDeserialize, DdsSerialize};
-use std::io::{Read, Write};
 
 /// The TypeSupport trait represents a type that can be transmitted by DDS.
 pub trait TypeSupport {
@@ -85,12 +84,6 @@ use crate::xtypes::{
 ///
 pub use dust_dds_derive::DdsType;
 
-impl From<std::io::Error> for DdsError {
-    fn from(value: std::io::Error) -> Self {
-        DdsError::Error(value.to_string())
-    }
-}
-
 type RepresentationIdentifier = [u8; 2];
 type RepresentationOptions = [u8; 2];
 
@@ -108,11 +101,11 @@ const REPRESENTATION_OPTIONS: RepresentationOptions = [0x00, 0x00];
 pub fn serialize_rtps_xtypes_xcdr1_le(value: &impl XTypesSerialize) -> DdsResult<Vec<u8>> {
     let padded_length = (Xcdr1LeSerializer::bytes_len(value)? + 3) & !3;
     let mut writer = Vec::with_capacity(padded_length + 4);
-    writer.write_all(&CDR_LE)?;
-    writer.write_all(&REPRESENTATION_OPTIONS)?;
+    writer.extend_from_slice(&CDR_LE);
+    writer.extend_from_slice(&REPRESENTATION_OPTIONS);
     let mut serializer = Xcdr1LeSerializer::new(&mut writer);
     XTypesSerialize::serialize(value, &mut serializer)?;
-    pad(&mut writer)?;
+    pad(&mut writer);
     Ok(writer)
 }
 
@@ -120,24 +113,23 @@ pub fn serialize_rtps_xtypes_xcdr1_le(value: &impl XTypesSerialize) -> DdsResult
 pub fn serialize_rtps_xtypes_xcdr1_be(value: &impl XTypesSerialize) -> DdsResult<Vec<u8>> {
     let padded_length = (Xcdr1BeSerializer::bytes_len(value)? + 3) & !3;
     let mut writer = Vec::with_capacity(padded_length + 4);
-    writer.write_all(&CDR_BE)?;
-    writer.write_all(&REPRESENTATION_OPTIONS)?;
+    writer.extend_from_slice(&CDR_BE);
+    writer.extend_from_slice(&REPRESENTATION_OPTIONS);
     let mut serializer = Xcdr1BeSerializer::new(&mut writer);
     XTypesSerialize::serialize(value, &mut serializer)?;
-    pad(&mut writer)?;
+    pad(&mut writer);
     Ok(writer)
 }
 
-fn pad(writer: &mut Vec<u8>) -> std::io::Result<()> {
+fn pad(writer: &mut Vec<u8>) {
     let padding = match writer.len() % 4 {
         1 => &[0, 0, 0][..],
         2 => &[0, 0][..],
         3 => &[0][..],
         _ => &[][..],
     };
-    writer.write_all(padding)?;
+    writer.extend_from_slice(padding);
     writer[3] = padding.len() as u8;
-    Ok(())
 }
 
 /// This is a helper function to deserialize a type implementing [`CdrDeserialize`] using the RTPS classic CDR representation.
@@ -146,10 +138,12 @@ pub fn deserialize_rtps_encapsulated_data<'de, T>(serialized_data: &mut &'de [u8
 where
     T: XTypesDeserialize<'de>,
 {
-    let mut representation_identifier = [0u8, 0];
-    serialized_data.read_exact(&mut representation_identifier)?;
-    let mut representation_option = [0u8, 0];
-    serialized_data.read_exact(&mut representation_option)?;
+    if serialized_data.len() < 4 {
+        Err(XTypesError::InvalidData)?;
+    }
+    let representation_identifier = [serialized_data[0], serialized_data[1]];
+    let _representation_option = [serialized_data[2], serialized_data[3]];
+    *serialized_data = &serialized_data[4..];
 
     let value = match representation_identifier {
         CDR_BE => XTypesDeserialize::deserialize(&mut Xcdr1BeDeserializer::new(serialized_data)),
