@@ -1,8 +1,9 @@
 use dust_dds::{
     configuration::DustDdsConfigurationBuilder,
     domain::domain_participant_factory::DomainParticipantFactory,
-    infrastructure::{listener::NoOpListener, qos::QosKind, status::NO_STATUS},
-    topic_definition::type_support::DdsType,
+    infrastructure::{
+        listener::NoOpListener, qos::QosKind, status::NO_STATUS, type_support::DdsType,
+    },
 };
 
 #[derive(DdsType, Debug)]

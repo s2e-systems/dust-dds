@@ -1,6 +1,5 @@
 use super::infrastructure::error::DdsResult;
 use crate::{
-    dds::topic_definition::type_support::DdsSerialize,
     implementation::data_representation_builtin_endpoints::{
         parameter_id_values::{
             PID_DATA_REPRESENTATION, PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY,
@@ -12,14 +11,18 @@ use crate::{
         },
         payload_serializer_deserializer::parameter_list_serializer::ParameterListCdrSerializer,
     },
-    infrastructure::qos_policy::{
-        DataRepresentationQosPolicy, DeadlineQosPolicy, DestinationOrderQosPolicy,
-        DurabilityQosPolicy, GroupDataQosPolicy, HistoryQosPolicy, LatencyBudgetQosPolicy,
-        LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy,
-        PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy, ResourceLimitsQosPolicy,
-        TimeBasedFilterQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy,
-        UserDataQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-        DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
+    infrastructure::{
+        qos_policy::{
+            DataRepresentationQosPolicy, DeadlineQosPolicy, DestinationOrderQosPolicy,
+            DurabilityQosPolicy, GroupDataQosPolicy, HistoryQosPolicy, LatencyBudgetQosPolicy,
+            LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy,
+            PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy,
+            ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy,
+            TransportPriorityQosPolicy, UserDataQosPolicy,
+            DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+            DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
+        },
+        type_support::DdsSerialize,
     },
     xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize},
 };

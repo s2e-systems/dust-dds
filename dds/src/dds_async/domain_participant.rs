@@ -27,6 +27,7 @@ use crate::{
         qos::{DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
         status::StatusKind,
         time::{Duration, Time},
+        type_support::TypeSupport,
     },
     publication::publisher_listener::PublisherListener,
     runtime::{
@@ -36,7 +37,7 @@ use crate::{
         timer::TimerHandle,
     },
     subscription::subscriber_listener::SubscriberListener,
-    topic_definition::{topic_listener::TopicListener, type_support::TypeSupport},
+    topic_definition::topic_listener::TopicListener,
     xtypes::dynamic_type::DynamicType,
 };
 use std::sync::Arc;

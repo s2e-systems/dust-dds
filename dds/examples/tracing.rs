@@ -8,8 +8,8 @@ use dust_dds::{
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         status::{StatusKind, NO_STATUS},
         time::{Duration, DurationKind},
+        type_support::DdsType,
     },
-    topic_definition::type_support::DdsType,
     wait_set::{Condition, WaitSet},
 };
 use tracing::Level;

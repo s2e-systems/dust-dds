@@ -413,7 +413,7 @@ pub fn get_serialized_key_from_serialized_foo(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::topic_definition::type_support::TypeSupport;
+    use crate::infrastructure::type_support::TypeSupport;
     use dust_dds_derive::TypeSupport;
 
     #[derive(TypeSupport)]

@@ -10,9 +10,10 @@ use super::{
 use crate::{
     builtin_topics::TopicBuiltinTopicData,
     infrastructure::{
-        error::DdsResult, qos_policy::DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+        error::DdsResult,
+        qos_policy::DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+        type_support::{DdsDeserialize, DdsSerialize, TypeSupport},
     },
-    topic_definition::type_support::{DdsDeserialize, DdsSerialize, TypeSupport},
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]

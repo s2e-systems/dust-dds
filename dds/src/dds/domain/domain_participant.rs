@@ -8,11 +8,12 @@ use crate::{
         qos::{DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
         status::StatusKind,
         time::{Duration, Time},
+        type_support::TypeSupport,
     },
     publication::{publisher::Publisher, publisher_listener::PublisherListener},
     runtime::executor::block_on,
     subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener},
-    topic_definition::{topic::Topic, topic_listener::TopicListener, type_support::TypeSupport},
+    topic_definition::{topic::Topic, topic_listener::TopicListener},
     xtypes::dynamic_type::DynamicType,
 };
 

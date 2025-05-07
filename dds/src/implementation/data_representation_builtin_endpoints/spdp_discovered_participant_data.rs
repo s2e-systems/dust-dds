@@ -22,9 +22,10 @@ use crate::{
     infrastructure::error::DdsResult,
     infrastructure::{
         instance::InstanceHandle,
-        qos_policy::DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS, time::Duration,
+        qos_policy::DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+        time::Duration,
+        type_support::{DdsDeserialize, DdsSerialize, TypeSupport},
     },
-    topic_definition::type_support::{DdsDeserialize, DdsSerialize, TypeSupport},
     transport::types::{GuidPrefix, Locator, Long, ProtocolVersion, VendorId},
     xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize},
 };

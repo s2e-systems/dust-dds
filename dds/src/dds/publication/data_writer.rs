@@ -11,10 +11,11 @@ use crate::{
             PublicationMatchedStatus, StatusKind,
         },
         time::{Duration, Time},
+        type_support::DdsSerialize,
     },
     publication::{data_writer_listener::DataWriterListener, publisher::Publisher},
     runtime::executor::block_on,
-    topic_definition::{topic::Topic, type_support::DdsSerialize},
+    topic_definition::topic::Topic,
 };
 
 /// The [`DataWriter`] allows the application to set the value of the

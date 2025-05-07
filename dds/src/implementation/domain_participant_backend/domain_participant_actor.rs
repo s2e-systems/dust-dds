@@ -75,6 +75,7 @@ use crate::{
             StatusKind, SubscriptionMatchedStatus,
         },
         time::{Duration, DurationKind, Time},
+        type_support::{DdsDeserialize, DdsSerialize},
     },
     runtime::{
         actor::{Actor, ActorAddress},
@@ -83,7 +84,6 @@ use crate::{
         oneshot::oneshot,
         timer::TimerDriver,
     },
-    topic_definition::type_support::{DdsDeserialize, DdsSerialize},
     transport::{
         self,
         history_cache::{CacheChange, HistoryCache},

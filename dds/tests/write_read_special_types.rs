@@ -10,10 +10,10 @@ use dust_dds::{
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         status::{StatusKind, NO_STATUS},
         time::{Duration, DurationKind},
+        type_support::DdsType,
     },
     publication::data_writer_listener::DataWriterListener,
     subscription::data_reader_listener::DataReaderListener,
-    topic_definition::type_support::DdsType,
     wait_set::{Condition, WaitSet},
 };
 

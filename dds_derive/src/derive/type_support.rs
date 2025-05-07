@@ -93,7 +93,7 @@ fn get_type_identifier(type_: &Type) -> Result<TokenStream> {
                 )),
                 _ => Ok(quote!(
                     dust_dds::xtypes::type_object::TypeIdentifier::EkComplete {
-                        complete: Box::new(<#i as dust_dds::topic_definition::type_support::TypeSupport>::get_type())
+                        complete: Box::new(<#i as dust_dds::infrastructure::type_support::TypeSupport>::get_type())
                     }
                 )),
             },
@@ -274,7 +274,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
     }?;
 
     Ok(quote! {
-        impl #impl_generics dust_dds::topic_definition::type_support::TypeSupport for #ident #type_generics #where_clause {
+        impl #impl_generics dust_dds::infrastructure::type_support::TypeSupport for #ident #type_generics #where_clause {
             fn get_type_name() -> &'static str {
                 #ident_str
             }

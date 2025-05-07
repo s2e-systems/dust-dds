@@ -59,7 +59,7 @@ use crate::xtypes::{
 /// An example of a typical usage of derive is the following:
 ///
 /// ```rust
-///     use dust_dds::topic_definition::type_support::DdsType;
+///     use dust_dds::infrastructure::type_support::DdsType;
 ///
 ///     #[derive(DdsType)]
 ///     struct KeyedData {
@@ -72,7 +72,7 @@ use crate::xtypes::{
 /// It is also possible to derive structs with a lifetime:
 ///
 /// ```rust
-///     use dust_dds::topic_definition::type_support::DdsType;
+///     use dust_dds::infrastructure::type_support::DdsType;
 ///
 ///     #[derive(DdsType)]
 ///     struct BorrowedData<'a> {

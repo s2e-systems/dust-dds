@@ -5,8 +5,8 @@ use dust_dds::{
         qos::QosKind,
         status::{StatusKind, NO_STATUS},
         time::Duration,
+        type_support::DdsType,
     },
-    topic_definition::type_support::DdsType,
     wait_set::{Condition, WaitSet},
 };
 

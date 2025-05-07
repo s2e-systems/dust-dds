@@ -117,7 +117,7 @@ If using only Rust, you can make use of the procedural macros to enable a type t
 using Dust DDS. The key fields can also be defined as part of the macro.
 
 ```rust
-use dust_dds::topic_definition::type_support::DdsType;
+use dust_dds::infrastructure::type_support::DdsType;
 
 #[derive(DdsType)]
 struct HelloWorldType {

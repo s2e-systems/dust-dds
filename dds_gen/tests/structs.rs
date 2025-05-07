@@ -8,27 +8,27 @@ fn structs_generation() {
 
     let expected = syn::parse2::<File>(
         r#"
-            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
+            #[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]
             pub struct Point {
                 pub x: f64,
                 pub y: f64,
             }
-            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
+            #[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]
             pub struct ChessSquare {
                 #[dust_dds(key)] pub column: char,
                 #[dust_dds(key)] pub line: u16,
             }
-            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
+            #[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]
             pub struct HelloWorld {
                 pub message: String,
                 pub id: u32,
             }
-            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
+            #[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]
             pub struct Sentence {
                 pub words: Vec<String>,
                 pub dependencies: Vec<Vec<u32>>,
             }
-            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
+            #[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]
             pub struct User {
                 pub name: String,
                 pub active: bool,
@@ -67,7 +67,7 @@ fn module_generation() {
                     Queen,
                     King,
                 }
-                #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
+                #[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]
                 pub struct ChessSquare {
                     pub column: char,
                     pub line: u16,
@@ -83,7 +83,7 @@ fn module_generation() {
                 }
             }
         }
-        #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
+        #[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]
         pub struct Point {
             pub x: f64,
             pub y: f64,
@@ -116,14 +116,14 @@ fn nested_types() {
                 Present,
                 NotPresent,
             }
-            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
+            #[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]
             pub struct Color {
                 pub red: u8,
                 pub green: u8,
                 pub blue: u8,
             }
 
-            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
+            #[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]
             pub struct ColorSensor {
                 pub state: Presence,
                 pub value: Color,

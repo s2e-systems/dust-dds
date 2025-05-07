@@ -5,8 +5,8 @@ use dust_dds::{
         qos::{DomainParticipantQos, QosKind},
         qos_policy::UserDataQosPolicy,
         status::NO_STATUS,
+        type_support::DdsType,
     },
-    topic_definition::type_support::DdsType,
 };
 
 mod utils;

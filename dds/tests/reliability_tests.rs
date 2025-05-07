@@ -12,6 +12,7 @@ use dust_dds::{
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         status::{StatusKind, NO_STATUS},
         time::{Duration, DurationKind},
+        type_support::{DdsDeserialize, DdsType},
     },
     rtps::types::{PROTOCOLVERSION, VENDOR_ID_S2E},
     rtps_messages::{
@@ -21,7 +22,6 @@ use dust_dds::{
         submessage_elements::{Data, ParameterList, SequenceNumberSet},
         submessages::{ack_nack::AckNackSubmessage, data::DataSubmessage},
     },
-    topic_definition::type_support::{DdsDeserialize, DdsType},
     transport::types::{
         EntityId, BUILT_IN_READER_WITH_KEY, BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_WITH_KEY,
     },

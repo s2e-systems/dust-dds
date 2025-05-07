@@ -13,9 +13,9 @@ use dust_dds::{
         qos::QosKind,
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         status::{StatusKind, NO_STATUS},
+        type_support::DdsType,
     },
     subscription::data_reader_listener::DataReaderListener,
-    topic_definition::type_support::DdsType,
 };
 
 #[derive(DdsType, Debug)]

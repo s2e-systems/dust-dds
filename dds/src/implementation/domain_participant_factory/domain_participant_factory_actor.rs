@@ -48,6 +48,7 @@ use crate::{
         },
         status::StatusKind,
         time::{Duration, DurationKind},
+        type_support::TypeSupport,
     },
     rtps_udp_transport::udp_transport::RtpsUdpTransportParticipantFactory,
     runtime::{
@@ -57,7 +58,6 @@ use crate::{
         oneshot::{oneshot, OneshotSender},
         timer::TimerDriver,
     },
-    topic_definition::type_support::TypeSupport,
     transport::{
         factory::TransportParticipantFactory,
         history_cache::{CacheChange, HistoryCache},

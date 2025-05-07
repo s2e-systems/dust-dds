@@ -12,10 +12,11 @@ use crate::{
             SampleLostStatus, SampleRejectedStatus, StatusKind, SubscriptionMatchedStatus,
         },
         time::Duration,
+        type_support::DdsDeserialize,
     },
     runtime::executor::block_on,
     subscription::data_reader_listener::DataReaderListener,
-    topic_definition::{topic::Topic, type_support::DdsDeserialize},
+    topic_definition::topic::Topic,
 };
 
 use std::{marker::PhantomData, sync::Arc};

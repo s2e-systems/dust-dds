@@ -6,7 +6,7 @@ pub fn expand_dds_serialize_data(input: &DeriveInput) -> Result<TokenStream> {
     match &input.data {
         syn::Data::Struct(_) | syn::Data::Enum(_) => {
             let serialize_function = quote! {
-                dust_dds::topic_definition::type_support::serialize_rtps_xtypes_xcdr1_le(
+                dust_dds::infrastructure::type_support::serialize_rtps_xtypes_xcdr1_le(
                     self,
             )};
 
@@ -14,7 +14,7 @@ pub fn expand_dds_serialize_data(input: &DeriveInput) -> Result<TokenStream> {
             let ident = &input.ident;
 
             Ok(quote! {
-                impl #impl_generics dust_dds::topic_definition::type_support::DdsSerialize for #ident #type_generics #where_clause {
+                impl #impl_generics dust_dds::infrastructure::type_support::DdsSerialize for #ident #type_generics #where_clause {
                     fn serialize_data(&self) -> dust_dds::infrastructure::error::DdsResult<Vec<u8>> {
                         #serialize_function
                     }
@@ -50,11 +50,11 @@ pub fn expand_dds_deserialize_data(input: &DeriveInput) -> Result<TokenStream> {
             let ident = &input.ident;
 
             let deserialize_function = quote! {
-                dust_dds::topic_definition::type_support::deserialize_rtps_encapsulated_data(&mut serialized_data)
+                dust_dds::infrastructure::type_support::deserialize_rtps_encapsulated_data(&mut serialized_data)
             };
 
             Ok(quote! {
-                impl #generics dust_dds::topic_definition::type_support::DdsDeserialize<'__de> for #ident #type_generics #where_clause {
+                impl #generics dust_dds::infrastructure::type_support::DdsDeserialize<'__de> for #ident #type_generics #where_clause {
                     fn deserialize_data(mut serialized_data: &'__de [u8]) -> dust_dds::infrastructure::error::DdsResult<Self> {
                         #deserialize_function
                     }

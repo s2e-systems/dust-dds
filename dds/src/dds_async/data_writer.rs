@@ -20,10 +20,10 @@ use crate::{
             PublicationMatchedStatus, StatusKind,
         },
         time::{Duration, Time},
+        type_support::DdsSerialize,
     },
     publication::data_writer_listener::DataWriterListener,
     runtime::{actor::ActorAddress, oneshot::oneshot},
-    topic_definition::type_support::DdsSerialize,
 };
 use std::marker::PhantomData;
 
