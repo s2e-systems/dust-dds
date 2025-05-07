@@ -2,6 +2,7 @@ use crate::{
     builtin_topics::{DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC},
     configuration::DustDdsConfiguration,
     dcps::{
+        data_reader::{DataReaderEntity, TransportReaderKind},
         data_writer::{DataWriterEntity, TransportWriterKind},
         publisher::PublisherEntity,
     },
@@ -20,9 +21,7 @@ use crate::{
                 ParticipantServiceMail,
             },
             entities::{
-                data_reader::{DataReaderEntity, TransportReaderKind},
-                domain_participant::DomainParticipantEntity,
-                subscriber::SubscriberEntity,
+                domain_participant::DomainParticipantEntity, subscriber::SubscriberEntity,
                 topic::TopicEntity,
             },
             handle::InstanceHandleCounter,
@@ -30,8 +29,7 @@ use crate::{
         listeners::{
             data_reader_listener::DataReaderListenerActor,
             data_writer_listener::DataWriterListenerActor,
-            domain_participant_listener::ListenerMail,
-            publisher_listener::PublisherListenerActor,
+            domain_participant_listener::ListenerMail, publisher_listener::PublisherListenerActor,
             subscriber_listener::SubscriberListenerActor, topic_listener::TopicListenerActor,
         },
         status_condition::status_condition_actor::StatusConditionActor,

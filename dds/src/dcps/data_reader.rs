@@ -436,7 +436,7 @@ impl DataReaderEntity {
             self.instances
                 .iter_mut()
                 .find(|x| x.handle() == handle)
-                .expect("Sample must exist on hash map")
+                .expect("Sample must exist")
                 .mark_viewed()
         }
 

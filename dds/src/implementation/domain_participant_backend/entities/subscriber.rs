@@ -1,4 +1,5 @@
 use crate::{
+    dcps::data_reader::DataReaderEntity,
     implementation::{
         listeners::subscriber_listener::SubscriberListenerMail,
         status_condition::status_condition_actor::StatusConditionActor,
@@ -11,8 +12,6 @@ use crate::{
     },
     runtime::{actor::Actor, mpsc::MpscSender},
 };
-
-use super::data_reader::DataReaderEntity;
 
 pub struct SubscriberEntity {
     instance_handle: InstanceHandle,

@@ -7,9 +7,7 @@ use fnmatch_regex::glob_to_regex;
 use super::{
     domain_participant_actor_mail::{DomainParticipantMail, EventServiceMail, MessageServiceMail},
     entities::{
-        data_reader::{AddChangeResult, DataReaderEntity},
-        domain_participant::DomainParticipantEntity,
-        subscriber::SubscriberEntity,
+        domain_participant::DomainParticipantEntity, subscriber::SubscriberEntity,
         topic::TopicEntity,
     },
     handle::InstanceHandleCounter,
@@ -25,6 +23,7 @@ use crate::{
     },
     dcps::{
         clock::Clock,
+        data_reader::{AddChangeResult, DataReaderEntity, TransportReaderKind},
         data_writer::{DataWriterEntity, TransportWriterKind},
         publisher::PublisherEntity,
     },
@@ -42,7 +41,6 @@ use crate::{
                 SpdpDiscoveredParticipantData,
             },
         },
-        domain_participant_backend::entities::data_reader::TransportReaderKind,
         domain_participant_factory::domain_participant_factory_actor::{
             DdsTransportParticipant, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
             ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
