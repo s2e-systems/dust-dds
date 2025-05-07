@@ -722,7 +722,12 @@ impl DomainParticipantActor {
     }
 
     pub fn get_current_time(&mut self) -> Time {
-        self.domain_participant.get_current_time()
+        todo!()
+        // let now_system_time = SystemTime::now();
+        // let unix_time = now_system_time
+        //     .duration_since(UNIX_EPOCH)
+        //     .expect("Clock time is before Unix epoch start");
+        // Time::new(unix_time.as_secs() as i32, unix_time.subsec_nanos())
     }
 
     pub fn set_domain_participant_qos(
@@ -1350,7 +1355,7 @@ impl DomainParticipantActor {
         serialized_data: Vec<u8>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        let now = self.domain_participant.get_current_time();
+        let now = self.get_current_time();
         let Some(publisher) = self.domain_participant.get_mut_publisher(publisher_handle) else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -2013,7 +2018,7 @@ impl DomainParticipantActor {
                 lease_duration: Duration::new(100, 0),
                 discovered_participant_list: self.domain_participant.get_discovered_participants(),
             };
-            let timestamp = self.domain_participant.get_current_time();
+            let timestamp = self.get_current_time();
 
             if let Some(dw) = self
                 .domain_participant
@@ -2030,7 +2035,7 @@ impl DomainParticipantActor {
 
     pub fn announce_deleted_participant(&mut self) {
         if self.domain_participant.enabled() {
-            let timestamp = self.domain_participant.get_current_time();
+            let timestamp = self.get_current_time();
             if let Some(dw) = self
                 .domain_participant
                 .builtin_publisher_mut()
@@ -2094,7 +2099,7 @@ impl DomainParticipantActor {
             dds_publication_data,
             writer_proxy,
         };
-        let timestamp = self.domain_participant.get_current_time();
+        let timestamp = self.get_current_time();
         if let Some(dw) = self
             .domain_participant
             .builtin_publisher_mut()
@@ -2111,7 +2116,7 @@ impl DomainParticipantActor {
         &mut self,
         data_writer: DataWriterEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>,
     ) {
-        let timestamp = self.domain_participant.get_current_time();
+        let timestamp = self.get_current_time();
         if let Some(dw) = self
             .domain_participant
             .builtin_publisher_mut()
@@ -2171,7 +2176,7 @@ impl DomainParticipantActor {
             dds_subscription_data,
             reader_proxy,
         };
-        let timestamp = self.domain_participant.get_current_time();
+        let timestamp = self.get_current_time();
         if let Some(dw) = self
             .domain_participant
             .builtin_publisher_mut()
@@ -2188,7 +2193,7 @@ impl DomainParticipantActor {
         &mut self,
         data_reader: DataReaderEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>,
     ) {
-        let timestamp = self.domain_participant.get_current_time();
+        let timestamp = self.get_current_time();
         if let Some(dw) = self
             .domain_participant
             .builtin_publisher_mut()
@@ -2228,7 +2233,7 @@ impl DomainParticipantActor {
             representation: topic.qos().representation.clone(),
         };
 
-        let timestamp = self.domain_participant.get_current_time();
+        let timestamp = self.get_current_time();
         if let Some(dw) = self
             .domain_participant
             .builtin_publisher_mut()
@@ -3016,7 +3021,7 @@ impl DomainParticipantActor {
             | ChangeKind::NotAliveDisposedUnregistered => (), // Do nothing,
         }
 
-        let reception_timestamp = self.domain_participant.get_current_time();
+        let reception_timestamp = self.get_current_time();
         if let Some(reader) = self
             .domain_participant
             .builtin_subscriber_mut()
@@ -3118,7 +3123,7 @@ impl DomainParticipantActor {
             ChangeKind::AliveFiltered | ChangeKind::NotAliveUnregistered => (),
         }
 
-        let reception_timestamp = self.domain_participant.get_current_time();
+        let reception_timestamp = self.get_current_time();
         if let Some(reader) = self
             .domain_participant
             .builtin_subscriber_mut()
@@ -3247,7 +3252,7 @@ impl DomainParticipantActor {
             ChangeKind::AliveFiltered | ChangeKind::NotAliveUnregistered => (),
         }
 
-        let reception_timestamp = self.domain_participant.get_current_time();
+        let reception_timestamp = self.get_current_time();
         if let Some(reader) = self
             .domain_participant
             .builtin_subscriber_mut()
@@ -3287,7 +3292,7 @@ impl DomainParticipantActor {
             | ChangeKind::NotAliveDisposedUnregistered => (),
         }
 
-        let reception_timestamp = self.domain_participant.get_current_time();
+        let reception_timestamp = self.get_current_time();
         if let Some(reader) = self
             .domain_participant
             .builtin_subscriber_mut()
@@ -3307,7 +3312,7 @@ impl DomainParticipantActor {
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
     ) {
-        let reception_timestamp = self.domain_participant.get_current_time();
+        let reception_timestamp = self.get_current_time();
         let Some(subscriber) = self
             .domain_participant
             .get_mut_subscriber(subscriber_handle)

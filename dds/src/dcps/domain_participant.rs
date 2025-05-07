@@ -16,7 +16,6 @@ use crate::{
         instance::InstanceHandle,
         qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
         status::StatusKind,
-        time::Time,
     },
 };
 use alloc::{string::String, vec::Vec};
@@ -97,15 +96,6 @@ impl<S, L> DomainParticipantEntity<S, L> {
             status_condition,
             domain_tag,
         }
-    }
-
-    pub fn get_current_time(&self) -> Time {
-        todo!()
-        // let now_system_time = SystemTime::now();
-        // let unix_time = now_system_time
-        //     .duration_since(UNIX_EPOCH)
-        //     .expect("Clock time is before Unix epoch start");
-        // Time::new(unix_time.as_secs() as i32, unix_time.subsec_nanos())
     }
 
     pub fn enable(&mut self) {
