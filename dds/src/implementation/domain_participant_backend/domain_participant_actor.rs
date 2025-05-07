@@ -6,10 +6,7 @@ use fnmatch_regex::glob_to_regex;
 
 use super::{
     domain_participant_actor_mail::{DomainParticipantMail, EventServiceMail, MessageServiceMail},
-    entities::{
-        domain_participant::DomainParticipantEntity, subscriber::SubscriberEntity,
-        topic::TopicEntity,
-    },
+    entities::{domain_participant::DomainParticipantEntity, topic::TopicEntity},
     handle::InstanceHandleCounter,
 };
 use crate::{
@@ -17,9 +14,6 @@ use crate::{
         BuiltInTopicKey, ParticipantBuiltinTopicData, PublicationBuiltinTopicData,
         SubscriptionBuiltinTopicData, TopicBuiltinTopicData, DCPS_PARTICIPANT, DCPS_PUBLICATION,
         DCPS_SUBSCRIPTION, DCPS_TOPIC,
-    },
-    dcps::xtypes_glue::key_and_instance_handle::{
-        get_instance_handle_from_serialized_foo, get_serialized_key_from_serialized_foo,
     },
     dcps::{
         clock::Clock,
@@ -34,6 +28,10 @@ use crate::{
         },
         data_writer::{DataWriterEntity, TransportWriterKind},
         publisher::PublisherEntity,
+        subscriber::SubscriberEntity,
+        xtypes_glue::key_and_instance_handle::{
+            get_instance_handle_from_serialized_foo, get_serialized_key_from_serialized_foo,
+        },
     },
     dds_async::{
         data_reader::DataReaderAsync, data_writer::DataWriterAsync,

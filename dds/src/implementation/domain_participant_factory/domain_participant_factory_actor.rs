@@ -11,6 +11,7 @@ use crate::{
         },
         data_writer::{DataWriterEntity, TransportWriterKind},
         publisher::PublisherEntity,
+        subscriber::SubscriberEntity,
     },
     implementation::{
         domain_participant_backend::{
@@ -19,10 +20,7 @@ use crate::{
                 DiscoveryServiceMail, DomainParticipantMail, MessageServiceMail,
                 ParticipantServiceMail,
             },
-            entities::{
-                domain_participant::DomainParticipantEntity, subscriber::SubscriberEntity,
-                topic::TopicEntity,
-            },
+            entities::{domain_participant::DomainParticipantEntity, topic::TopicEntity},
             handle::InstanceHandleCounter,
         },
         listeners::{
