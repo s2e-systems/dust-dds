@@ -56,6 +56,7 @@ use crate::{
         mpsc::{mpsc_channel, MpscSender},
         oneshot::{oneshot, OneshotSender},
         timer::TimerDriver,
+        StdRuntime,
     },
     transport::{
         factory::TransportParticipantFactory,
@@ -174,6 +175,7 @@ impl DomainParticipantFactoryActor {
     )> {
         let executor_handle = executor.handle();
         let timer_handle = timer_driver.handle();
+        let runtime = StdRuntime::new(timer_driver);
 
         let domain_participant_qos = match qos {
             QosKind::Default => self.default_participant_qos.clone(),
@@ -506,8 +508,8 @@ impl DomainParticipantFactoryActor {
             domain_participant,
             transport,
             executor,
-            timer_driver,
             instance_handle_counter,
+            runtime,
         );
         let participant_handle = domain_participant_actor
             .domain_participant

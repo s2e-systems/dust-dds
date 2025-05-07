@@ -8,6 +8,8 @@ use std::{
     time::{Duration, Instant},
 };
 
+use crate::implementation::domain_participant_backend::domain_participant_actor::Timer;
+
 pub struct TimerWake {
     id: usize,
     deadline: Instant,
@@ -171,6 +173,13 @@ impl TimerHandle {
             Poll::Pending
         })
     }
+}
+
+impl Timer for TimerHandle {
+    fn delay(&mut self, duration: core::time::Duration) -> impl Future<Output = ()> + Send {
+        self.sleep(duration)
+    }
+
 }
 
 pub struct TimerDriver {

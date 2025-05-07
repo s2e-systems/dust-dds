@@ -1,7 +1,7 @@
 use alloc::sync::Arc;
 use core::{future::Future, pin::Pin};
 
-use super::domain_participant_actor::DomainParticipantActor;
+use super::domain_participant_actor::{DdsRuntime, DomainParticipantActor};
 use crate::{
     builtin_topics::{
         ParticipantBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
@@ -527,7 +527,10 @@ pub enum DomainParticipantMail {
     Discovery(DiscoveryServiceMail),
 }
 
-impl MailHandler for DomainParticipantActor {
+impl<R> MailHandler for DomainParticipantActor<R>
+where
+    R: DdsRuntime + Send,
+{
     type Mail = DomainParticipantMail;
     async fn handle(&mut self, message: DomainParticipantMail) {
         match message {
@@ -562,7 +565,10 @@ impl MailHandler for DomainParticipantActor {
     }
 }
 
-impl DomainParticipantActor {
+impl<R> DomainParticipantActor<R>
+where
+    R: DdsRuntime,
+{
     fn handle_participant_service(&mut self, participant_service_mail: ParticipantServiceMail) {
         match participant_service_mail {
             ParticipantServiceMail::CreateUserDefinedPublisher {
