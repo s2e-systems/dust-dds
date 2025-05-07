@@ -21,6 +21,7 @@ use crate::{
             DataReaderQos, DataWriterQos, DomainParticipantQos, PublisherQos, QosKind,
             SubscriberQos, TopicQos,
         },
+        sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
         status::{
             InconsistentTopicStatus, OfferedDeadlineMissedStatus, PublicationMatchedStatus,
             StatusKind, SubscriptionMatchedStatus,
@@ -32,7 +33,6 @@ use crate::{
         mpsc::MpscSender,
         oneshot::OneshotSender,
     },
-    subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     transport::history_cache::CacheChange,
     xtypes::dynamic_type::DynamicType,
 };

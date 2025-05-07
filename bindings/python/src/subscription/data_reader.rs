@@ -63,15 +63,15 @@ impl DataReader {
             .ok_or(PyTypeError::new_err("Type information not found"))?;
         let sample_states: Vec<_> = sample_states
             .into_iter()
-            .map(dust_dds::subscription::sample_info::SampleStateKind::from)
+            .map(dust_dds::infrastructure::sample_info::SampleStateKind::from)
             .collect();
         let view_states: Vec<_> = view_states
             .into_iter()
-            .map(dust_dds::subscription::sample_info::ViewStateKind::from)
+            .map(dust_dds::infrastructure::sample_info::ViewStateKind::from)
             .collect();
         let instance_states: Vec<_> = instance_states
             .into_iter()
-            .map(dust_dds::subscription::sample_info::InstanceStateKind::from)
+            .map(dust_dds::infrastructure::sample_info::InstanceStateKind::from)
             .collect();
         match self
             .0
@@ -106,15 +106,15 @@ impl DataReader {
             .ok_or(PyTypeError::new_err("Type information not found"))?;
         let sample_states: Vec<_> = sample_states
             .into_iter()
-            .map(dust_dds::subscription::sample_info::SampleStateKind::from)
+            .map(dust_dds::infrastructure::sample_info::SampleStateKind::from)
             .collect();
         let view_states: Vec<_> = view_states
             .into_iter()
-            .map(dust_dds::subscription::sample_info::ViewStateKind::from)
+            .map(dust_dds::infrastructure::sample_info::ViewStateKind::from)
             .collect();
         let instance_states: Vec<_> = instance_states
             .into_iter()
-            .map(dust_dds::subscription::sample_info::InstanceStateKind::from)
+            .map(dust_dds::infrastructure::sample_info::InstanceStateKind::from)
             .collect();
         match self
             .0
@@ -175,15 +175,15 @@ impl DataReader {
             .ok_or(PyTypeError::new_err("Type information not found"))?;
         let sample_states: Vec<_> = sample_states
             .into_iter()
-            .map(dust_dds::subscription::sample_info::SampleStateKind::from)
+            .map(dust_dds::infrastructure::sample_info::SampleStateKind::from)
             .collect();
         let view_states: Vec<_> = view_states
             .into_iter()
-            .map(dust_dds::subscription::sample_info::ViewStateKind::from)
+            .map(dust_dds::infrastructure::sample_info::ViewStateKind::from)
             .collect();
         let instance_states: Vec<_> = instance_states
             .into_iter()
-            .map(dust_dds::subscription::sample_info::InstanceStateKind::from)
+            .map(dust_dds::infrastructure::sample_info::InstanceStateKind::from)
             .collect();
         match self.0.read_instance(
             max_samples,
@@ -223,15 +223,15 @@ impl DataReader {
             .ok_or(PyTypeError::new_err("Type information not found"))?;
         let sample_states: Vec<_> = sample_states
             .into_iter()
-            .map(dust_dds::subscription::sample_info::SampleStateKind::from)
+            .map(dust_dds::infrastructure::sample_info::SampleStateKind::from)
             .collect();
         let view_states: Vec<_> = view_states
             .into_iter()
-            .map(dust_dds::subscription::sample_info::ViewStateKind::from)
+            .map(dust_dds::infrastructure::sample_info::ViewStateKind::from)
             .collect();
         let instance_states: Vec<_> = instance_states
             .into_iter()
-            .map(dust_dds::subscription::sample_info::InstanceStateKind::from)
+            .map(dust_dds::infrastructure::sample_info::InstanceStateKind::from)
             .collect();
         match self.0.take_instance(
             max_samples,
@@ -271,15 +271,15 @@ impl DataReader {
             .ok_or(PyTypeError::new_err("Type information not found"))?;
         let sample_states: Vec<_> = sample_states
             .into_iter()
-            .map(dust_dds::subscription::sample_info::SampleStateKind::from)
+            .map(dust_dds::infrastructure::sample_info::SampleStateKind::from)
             .collect();
         let view_states: Vec<_> = view_states
             .into_iter()
-            .map(dust_dds::subscription::sample_info::ViewStateKind::from)
+            .map(dust_dds::infrastructure::sample_info::ViewStateKind::from)
             .collect();
         let instance_states: Vec<_> = instance_states
             .into_iter()
-            .map(dust_dds::subscription::sample_info::InstanceStateKind::from)
+            .map(dust_dds::infrastructure::sample_info::InstanceStateKind::from)
             .collect();
         match self.0.read_next_instance(
             max_samples,
@@ -319,15 +319,15 @@ impl DataReader {
             .ok_or(PyTypeError::new_err("Type information not found"))?;
         let sample_states: Vec<_> = sample_states
             .into_iter()
-            .map(dust_dds::subscription::sample_info::SampleStateKind::from)
+            .map(dust_dds::infrastructure::sample_info::SampleStateKind::from)
             .collect();
         let view_states: Vec<_> = view_states
             .into_iter()
-            .map(dust_dds::subscription::sample_info::ViewStateKind::from)
+            .map(dust_dds::infrastructure::sample_info::ViewStateKind::from)
             .collect();
         let instance_states: Vec<_> = instance_states
             .into_iter()
-            .map(dust_dds::subscription::sample_info::InstanceStateKind::from)
+            .map(dust_dds::infrastructure::sample_info::InstanceStateKind::from)
             .collect();
         match self.0.take_next_instance(
             max_samples,

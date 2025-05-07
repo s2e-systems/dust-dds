@@ -69,6 +69,7 @@ use crate::{
             LIVELINESS_QOS_POLICY_ID, OWNERSHIP_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID,
             RELIABILITY_QOS_POLICY_ID, XCDR_DATA_REPRESENTATION,
         },
+        sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
         status::{
             InconsistentTopicStatus, OfferedDeadlineMissedStatus, PublicationMatchedStatus,
             StatusKind, SubscriptionMatchedStatus,
@@ -82,7 +83,6 @@ use crate::{
         oneshot::oneshot,
         timer::TimerDriver,
     },
-    subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     topic_definition::type_support::{DdsDeserialize, DdsSerialize},
     transport::{
         self,

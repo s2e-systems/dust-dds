@@ -6,10 +6,10 @@ use dust_dds::{
     infrastructure::{
         listener::NoOpListener,
         qos::QosKind,
+        sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         status::{StatusKind, NO_STATUS},
         time::Duration,
     },
-    subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     topic_definition::type_support::DdsType,
 };
 

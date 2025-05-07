@@ -73,8 +73,7 @@ The subscriber side can be implemented as:
 ```rust
     use dust_dds::{
         domain::domain_participant_factory::DomainParticipantFactory,
-        infrastructure::{listener::NoOpListener, qos::QosKind, status::NO_STATUS},
-        subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
+        infrastructure::{listener::NoOpListener, qos::QosKind, sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE}, status::NO_STATUS},
         topic_definition::type_support::DdsType,
     };
 

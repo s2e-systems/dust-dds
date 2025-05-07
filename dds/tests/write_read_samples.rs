@@ -12,12 +12,12 @@ use dust_dds::{
             OwnershipStrengthQosPolicy, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
             ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy, WriterDataLifecycleQosPolicy,
         },
+        sample_info::{
+            InstanceStateKind, SampleStateKind, ViewStateKind, ANY_INSTANCE_STATE,
+            ANY_SAMPLE_STATE, ANY_VIEW_STATE,
+        },
         status::{StatusKind, NO_STATUS},
         time::{Duration, DurationKind, Time},
-    },
-    subscription::sample_info::{
-        InstanceStateKind, SampleStateKind, ViewStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE,
-        ANY_VIEW_STATE,
     },
     topic_definition::type_support::DdsType,
     wait_set::{Condition, WaitSet},

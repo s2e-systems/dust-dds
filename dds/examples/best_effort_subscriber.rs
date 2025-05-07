@@ -11,12 +11,10 @@ use dust_dds::{
     infrastructure::{
         listener::NoOpListener,
         qos::QosKind,
+        sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         status::{StatusKind, NO_STATUS},
     },
-    subscription::{
-        data_reader_listener::DataReaderListener,
-        sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-    },
+    subscription::data_reader_listener::DataReaderListener,
     topic_definition::type_support::DdsType,
 };
 

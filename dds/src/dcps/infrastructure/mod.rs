@@ -13,6 +13,9 @@ pub mod qos;
 /// Classes related to the qos policies.
 pub mod qos_policy;
 
+/// Contains the [`SampleInfo`](crate::subscription::sample_info::SampleInfo) and any related objects.
+pub mod sample_info;
+
 /// Classes related to communication statuses.
 pub mod status;
 

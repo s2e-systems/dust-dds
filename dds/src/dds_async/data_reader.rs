@@ -15,6 +15,9 @@ use crate::{
         error::DdsResult,
         instance::InstanceHandle,
         qos::{DataReaderQos, QosKind},
+        sample_info::{
+            InstanceStateKind, SampleStateKind, ViewStateKind, ANY_INSTANCE_STATE, ANY_VIEW_STATE,
+        },
         status::{
             LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
             SampleLostStatus, SampleRejectedStatus, StatusKind, SubscriptionMatchedStatus,
@@ -22,13 +25,7 @@ use crate::{
         time::Duration,
     },
     runtime::{actor::ActorAddress, oneshot::oneshot},
-    subscription::{
-        data_reader::Sample,
-        data_reader_listener::DataReaderListener,
-        sample_info::{
-            InstanceStateKind, SampleStateKind, ViewStateKind, ANY_INSTANCE_STATE, ANY_VIEW_STATE,
-        },
-    },
+    subscription::{data_reader::Sample, data_reader_listener::DataReaderListener},
 };
 use std::marker::PhantomData;
 

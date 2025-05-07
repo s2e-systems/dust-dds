@@ -6,6 +6,7 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataReaderQos, QosKind},
+        sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
         status::{
             LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
             SampleLostStatus, SampleRejectedStatus, StatusKind, SubscriptionMatchedStatus,
@@ -19,10 +20,7 @@ use crate::{
 
 use std::{marker::PhantomData, sync::Arc};
 
-use super::{
-    sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
-    subscriber::Subscriber,
-};
+use super::subscriber::Subscriber;
 
 /// A [`Sample`] contains the data and [`SampleInfo`] read by the [`DataReader`].
 #[derive(Debug, PartialEq, Eq)]

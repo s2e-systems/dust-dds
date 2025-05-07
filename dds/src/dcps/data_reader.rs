@@ -1,26 +1,6 @@
 use alloc::sync::Arc;
 
 use crate::{
-    builtin_topics::PublicationBuiltinTopicData,
-    dcps::xtypes_glue::key_and_instance_handle::{
-        get_instance_handle_from_serialized_foo, get_instance_handle_from_serialized_key,
-    },
-    infrastructure::{
-        error::{DdsError, DdsResult},
-        instance::InstanceHandle,
-        qos::DataReaderQos,
-        qos_policy::{
-            DestinationOrderQosPolicyKind, HistoryQosPolicyKind, OwnershipQosPolicyKind,
-            QosPolicyId,
-        },
-        status::{
-            LivelinessChangedStatus, QosPolicyCount, RequestedDeadlineMissedStatus,
-            RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus,
-            SampleRejectedStatusKind, StatusKind, SubscriptionMatchedStatus,
-        },
-        time::{DurationKind, Time},
-    },
-    subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     transport::{
         history_cache::CacheChange,
         reader::{TransportStatefulReader, TransportStatelessReader},
@@ -29,7 +9,29 @@ use crate::{
     xtypes::dynamic_type::DynamicType,
 };
 
-use super::status_condition::StatusCondition;
+use super::{
+    builtin_topics::PublicationBuiltinTopicData,
+    infrastructure::{
+        error::{DdsError, DdsResult},
+        instance::InstanceHandle,
+        qos::DataReaderQos,
+        qos_policy::{
+            DestinationOrderQosPolicyKind, HistoryQosPolicyKind, OwnershipQosPolicyKind,
+            QosPolicyId,
+        },
+        sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
+        status::{
+            LivelinessChangedStatus, QosPolicyCount, RequestedDeadlineMissedStatus,
+            RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus,
+            SampleRejectedStatusKind, StatusKind, SubscriptionMatchedStatus,
+        },
+        time::{DurationKind, Time},
+    },
+    status_condition::StatusCondition,
+    xtypes_glue::key_and_instance_handle::{
+        get_instance_handle_from_serialized_foo, get_instance_handle_from_serialized_key,
+    },
+};
 
 type SampleList = Vec<(Option<Arc<[u8]>>, SampleInfo)>;
 
