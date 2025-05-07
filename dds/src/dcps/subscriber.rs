@@ -7,6 +7,7 @@ use crate::{
         status::StatusKind,
     },
 };
+use alloc::vec::Vec;
 
 pub struct SubscriberEntity<S, L> {
     instance_handle: InstanceHandle,
