@@ -15,7 +15,7 @@ use crate::{
         type_support::{DdsDeserialize, DdsSerialize, TypeSupport},
     },
 };
-use alloc::{string::ToString, vec::Vec};
+use alloc::{string::ToString, vec, vec::Vec};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DiscoveredTopicData {

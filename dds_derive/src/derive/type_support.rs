@@ -24,7 +24,7 @@ fn get_type_identifier(type_: &Type) -> Result<TokenStream> {
                                         is_external: false,
                                     }
                                 },
-                                array_bound_seq: vec![#len as dust_dds::xtypes::type_object::SBound],
+                                array_bound_seq: alloc::vec![#len as dust_dds::xtypes::type_object::SBound],
                                 element_identifier: #element_identifier,
                             })
                         }
@@ -38,7 +38,7 @@ fn get_type_identifier(type_: &Type) -> Result<TokenStream> {
                                         is_external: false,
                                     }
                                 },
-                                array_bound_seq: vec![#len as dust_dds::xtypes::type_object::LBound],
+                                array_bound_seq: alloc::vec![#len as dust_dds::xtypes::type_object::LBound],
                                 element_identifier: #element_identifier,
                             })
                         }
@@ -260,7 +260,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                         struct_type: dust_dds::xtypes::type_object::CompleteStructType {
                             struct_flags: #struct_flags,
                             header: #struct_header,
-                            member_seq: vec![#member_seq],
+                            member_seq: alloc::vec![#member_seq],
                         },
                     }
             })
