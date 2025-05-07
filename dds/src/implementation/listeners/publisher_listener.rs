@@ -32,6 +32,9 @@ impl PublisherListenerActor {
                             .on_offered_deadline_missed(the_writer, status)
                             .await;
                     }
+                    ListenerMail::DataOnReaders { the_subscriber: _ } => {
+                        panic!("Not valid for publisher")
+                    }
                     ListenerMail::DataAvailable { the_reader: _ } => {
                         panic!("Not valid for publisher")
                     }

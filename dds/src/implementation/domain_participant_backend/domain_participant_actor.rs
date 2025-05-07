@@ -47,8 +47,7 @@ use crate::{
             ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
         },
         listeners::{
-            domain_participant_listener::ListenerMail, subscriber_listener::SubscriberListenerMail,
-            topic_listener::TopicListenerActorMail,
+            domain_participant_listener::ListenerMail, topic_listener::TopicListenerActorMail,
         },
         status_condition::status_condition_actor::{StatusConditionActor, StatusConditionMail},
     },
@@ -372,7 +371,7 @@ impl DomainParticipantActor {
         &mut self,
         qos: QosKind<SubscriberQos>,
         status_condition: Actor<StatusConditionActor>,
-        listener_sender: MpscSender<SubscriberListenerMail>,
+        listener_sender: MpscSender<ListenerMail>,
         mask: Vec<StatusKind>,
     ) -> DdsResult<InstanceHandle> {
         let subscriber_qos = match qos {
@@ -627,8 +626,9 @@ impl DomainParticipantActor {
             }
         }
 
-        let deleted_subscriber_list: Vec<SubscriberEntity<Actor<StatusConditionActor>>> =
-            self.domain_participant.drain_subscriber_list().collect();
+        let deleted_subscriber_list: Vec<
+            SubscriberEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>,
+        > = self.domain_participant.drain_subscriber_list().collect();
         for mut subscriber in deleted_subscriber_list {
             for data_reader in subscriber.drain_data_reader_list() {
                 self.announce_deleted_data_reader(data_reader);
@@ -1009,7 +1009,7 @@ impl DomainParticipantActor {
     pub fn set_subscriber_listener(
         &mut self,
         subscriber_handle: InstanceHandle,
-        listener_sender: MpscSender<SubscriberListenerMail>,
+        listener_sender: MpscSender<ListenerMail>,
         mask: Vec<StatusKind>,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
@@ -2819,10 +2819,7 @@ impl DomainParticipantActor {
                         let status = data_reader.get_subscription_matched_status();
                         subscriber
                             .listener()
-                            .send(SubscriberListenerMail::SubscriptionMatched {
-                                the_reader,
-                                status,
-                            })
+                            .send(ListenerMail::SubscriptionMatched { the_reader, status })
                             .ok();
                     } else if self
                         .domain_participant
@@ -2926,10 +2923,7 @@ impl DomainParticipantActor {
                         let status = data_reader.get_requested_incompatible_qos_status();
                         subscriber
                             .listener()
-                            .send(SubscriberListenerMail::RequestedIncompatibleQos {
-                                the_reader,
-                                status,
-                            })
+                            .send(ListenerMail::RequestedIncompatibleQos { the_reader, status })
                             .ok();
                     } else if self
                         .domain_participant
@@ -3387,7 +3381,7 @@ impl DomainParticipantActor {
 
                         subscriber
                             .listener()
-                            .send(SubscriberListenerMail::DataOnReaders { the_subscriber })
+                            .send(ListenerMail::DataOnReaders { the_subscriber })
                             .ok();
                     } else if deta_reader_on_data_available_active {
                         let Ok(the_reader) = self.get_data_reader_async(
@@ -3495,7 +3489,7 @@ impl DomainParticipantActor {
                         let status = data_reader.get_sample_rejected_status();
                         subscriber
                             .listener()
-                            .send(SubscriberListenerMail::SampleRejected { status, the_reader })
+                            .send(ListenerMail::SampleRejected { status, the_reader })
                             .ok();
                     } else if self
                         .domain_participant
@@ -3760,7 +3754,7 @@ impl DomainParticipantActor {
             let status = data_reader.get_requested_deadline_missed_status();
             subscriber
                 .listener()
-                .send(SubscriberListenerMail::RequestedDeadlineMissed { status, the_reader })
+                .send(ListenerMail::RequestedDeadlineMissed { status, the_reader })
                 .ok();
         } else if self
             .domain_participant

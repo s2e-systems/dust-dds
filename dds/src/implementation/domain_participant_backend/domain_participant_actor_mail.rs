@@ -9,8 +9,7 @@ use crate::{
     },
     implementation::{
         listeners::{
-            domain_participant_listener::ListenerMail, subscriber_listener::SubscriberListenerMail,
-            topic_listener::TopicListenerActorMail,
+            domain_participant_listener::ListenerMail, topic_listener::TopicListenerActorMail,
         },
         status_condition::status_condition_actor::StatusConditionActor,
     },
@@ -53,7 +52,7 @@ pub enum ParticipantServiceMail {
     CreateUserDefinedSubscriber {
         qos: QosKind<SubscriberQos>,
         status_condition: Actor<StatusConditionActor>,
-        listener_sender: MpscSender<SubscriberListenerMail>,
+        listener_sender: MpscSender<ListenerMail>,
         mask: Vec<StatusKind>,
         reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
     },
@@ -277,7 +276,7 @@ pub enum SubscriberServiceMail {
     },
     SetListener {
         subscriber_handle: InstanceHandle,
-        listener_sender: MpscSender<SubscriberListenerMail>,
+        listener_sender: MpscSender<ListenerMail>,
         mask: Vec<StatusKind>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },

@@ -40,6 +40,9 @@ impl DataWriterListenerActor {
                     ListenerMail::DataAvailable { the_reader: _ } => {
                         panic!("Not valid for writer")
                     }
+                    ListenerMail::DataOnReaders { the_subscriber: _ } => {
+                        panic!("Not valid for writer")
+                    }
                     ListenerMail::RequestedDeadlineMissed {
                         the_reader: _,
                         status: _,

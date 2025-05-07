@@ -47,6 +47,9 @@ impl DataReaderListenerActor {
                             .on_requested_incompatible_qos(the_reader.change_foo_type(), status)
                             .await;
                     }
+                    ListenerMail::DataOnReaders { the_subscriber: _ } => {
+                        panic!("Not valid for reader")
+                    }
                     ListenerMail::PublicationMatched {
                         the_writer: _,
                         status: _,

@@ -1,34 +1,30 @@
 use crate::{
     dcps::data_reader::DataReaderEntity,
-    implementation::listeners::{
-        domain_participant_listener::ListenerMail, subscriber_listener::SubscriberListenerMail,
-    },
     infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,
         qos::{DataReaderQos, SubscriberQos},
         status::StatusKind,
     },
-    runtime::mpsc::MpscSender,
 };
 
-pub struct SubscriberEntity<S> {
+pub struct SubscriberEntity<S, L> {
     instance_handle: InstanceHandle,
     qos: SubscriberQos,
-    data_reader_list: Vec<DataReaderEntity<S, MpscSender<ListenerMail>>>,
+    data_reader_list: Vec<DataReaderEntity<S, L>>,
     enabled: bool,
     default_data_reader_qos: DataReaderQos,
     status_condition: S,
-    listener_sender: MpscSender<SubscriberListenerMail>,
+    listener_sender: L,
     listener_mask: Vec<StatusKind>,
 }
 
-impl<S> SubscriberEntity<S> {
+impl<S, L> SubscriberEntity<S, L> {
     pub fn new(
         instance_handle: InstanceHandle,
         qos: SubscriberQos,
         status_condition: S,
-        listener_sender: MpscSender<SubscriberListenerMail>,
+        listener_sender: L,
         listener_mask: Vec<StatusKind>,
     ) -> Self {
         Self {
@@ -43,35 +39,23 @@ impl<S> SubscriberEntity<S> {
         }
     }
 
-    pub fn data_reader_list(
-        &self,
-    ) -> impl Iterator<Item = &DataReaderEntity<S, MpscSender<ListenerMail>>> {
+    pub fn data_reader_list(&self) -> impl Iterator<Item = &DataReaderEntity<S, L>> {
         self.data_reader_list.iter()
     }
 
-    pub fn data_reader_list_mut(
-        &mut self,
-    ) -> impl Iterator<Item = &mut DataReaderEntity<S, MpscSender<ListenerMail>>> {
+    pub fn data_reader_list_mut(&mut self) -> impl Iterator<Item = &mut DataReaderEntity<S, L>> {
         self.data_reader_list.iter_mut()
     }
 
-    pub fn drain_data_reader_list(
-        &mut self,
-    ) -> impl Iterator<Item = DataReaderEntity<S, MpscSender<ListenerMail>>> + '_ {
+    pub fn drain_data_reader_list(&mut self) -> impl Iterator<Item = DataReaderEntity<S, L>> + '_ {
         self.data_reader_list.drain(..)
     }
 
-    pub fn insert_data_reader(
-        &mut self,
-        data_reader: DataReaderEntity<S, MpscSender<ListenerMail>>,
-    ) {
+    pub fn insert_data_reader(&mut self, data_reader: DataReaderEntity<S, L>) {
         self.data_reader_list.push(data_reader);
     }
 
-    pub fn remove_data_reader(
-        &mut self,
-        handle: InstanceHandle,
-    ) -> Option<DataReaderEntity<S, MpscSender<ListenerMail>>> {
+    pub fn remove_data_reader(&mut self, handle: InstanceHandle) -> Option<DataReaderEntity<S, L>> {
         let index = self
             .data_reader_list
             .iter()
@@ -79,10 +63,7 @@ impl<S> SubscriberEntity<S> {
         Some(self.data_reader_list.remove(index))
     }
 
-    pub fn get_data_reader(
-        &self,
-        handle: InstanceHandle,
-    ) -> Option<&DataReaderEntity<S, MpscSender<ListenerMail>>> {
+    pub fn get_data_reader(&self, handle: InstanceHandle) -> Option<&DataReaderEntity<S, L>> {
         self.data_reader_list
             .iter()
             .find(|x| x.instance_handle() == handle)
@@ -91,7 +72,7 @@ impl<S> SubscriberEntity<S> {
     pub fn get_mut_data_reader(
         &mut self,
         handle: InstanceHandle,
-    ) -> Option<&mut DataReaderEntity<S, MpscSender<ListenerMail>>> {
+    ) -> Option<&mut DataReaderEntity<S, L>> {
         self.data_reader_list
             .iter_mut()
             .find(|x| x.instance_handle() == handle)
@@ -134,11 +115,7 @@ impl<S> SubscriberEntity<S> {
         Ok(())
     }
 
-    pub fn set_listener(
-        &mut self,
-        listener_sender: MpscSender<SubscriberListenerMail>,
-        listener_mask: Vec<StatusKind>,
-    ) {
+    pub fn set_listener(&mut self, listener_sender: L, listener_mask: Vec<StatusKind>) {
         self.listener_sender = listener_sender;
         self.listener_mask = listener_mask;
     }
@@ -147,8 +124,8 @@ impl<S> SubscriberEntity<S> {
         &self.status_condition
     }
 
-    pub fn listener(&self) -> MpscSender<SubscriberListenerMail> {
-        self.listener_sender.clone()
+    pub fn listener(&self) -> &L {
+        &self.listener_sender
     }
 
     pub fn listener_mask(&self) -> &[StatusKind] {

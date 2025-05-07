@@ -1,5 +1,7 @@
 use crate::{
-    dds_async::{data_reader::DataReaderAsync, data_writer::DataWriterAsync},
+    dds_async::{
+        data_reader::DataReaderAsync, data_writer::DataWriterAsync, subscriber::SubscriberAsync,
+    },
     domain::domain_participant_listener::DomainParticipantListener,
     infrastructure::status::{
         OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
@@ -55,6 +57,9 @@ impl DomainParticipantListenerActor {
                             .on_offered_deadline_missed(the_writer, status)
                             .await;
                     }
+                    ListenerMail::DataOnReaders { the_subscriber: _ } => {
+                        panic!("Not valid for domain participant")
+                    }
                 }
             }
         });
@@ -65,6 +70,9 @@ impl DomainParticipantListenerActor {
 pub enum ListenerMail {
     DataAvailable {
         the_reader: DataReaderAsync<()>,
+    },
+    DataOnReaders {
+        the_subscriber: SubscriberAsync,
     },
     RequestedDeadlineMissed {
         the_reader: DataReaderAsync<()>,

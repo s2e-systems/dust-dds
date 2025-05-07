@@ -34,9 +34,10 @@ pub struct DomainParticipantEntity {
     domain_tag: String,
     instance_handle: InstanceHandle,
     qos: DomainParticipantQos,
-    builtin_subscriber: SubscriberEntity<Actor<StatusConditionActor>>,
+    builtin_subscriber: SubscriberEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>,
     builtin_publisher: PublisherEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>,
-    user_defined_subscriber_list: Vec<SubscriberEntity<Actor<StatusConditionActor>>>,
+    user_defined_subscriber_list:
+        Vec<SubscriberEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>>,
     default_subscriber_qos: SubscriberQos,
     user_defined_publisher_list:
         Vec<PublisherEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>>,
@@ -67,7 +68,7 @@ impl DomainParticipantEntity {
         status_condition: Actor<StatusConditionActor>,
         instance_handle: InstanceHandle,
         builtin_publisher: PublisherEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>,
-        builtin_subscriber: SubscriberEntity<Actor<StatusConditionActor>>,
+        builtin_subscriber: SubscriberEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>,
         topic_list: Vec<TopicEntity>,
         domain_tag: String,
     ) -> Self {
@@ -119,7 +120,9 @@ impl DomainParticipantEntity {
         &self.status_condition
     }
 
-    pub fn builtin_subscriber(&self) -> &SubscriberEntity<Actor<StatusConditionActor>> {
+    pub fn builtin_subscriber(
+        &self,
+    ) -> &SubscriberEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>> {
         &self.builtin_subscriber
     }
 
@@ -151,7 +154,9 @@ impl DomainParticipantEntity {
         self.enabled
     }
 
-    pub fn builtin_subscriber_mut(&mut self) -> &mut SubscriberEntity<Actor<StatusConditionActor>> {
+    pub fn builtin_subscriber_mut(
+        &mut self,
+    ) -> &mut SubscriberEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>> {
         &mut self.builtin_subscriber
     }
 
@@ -302,7 +307,7 @@ impl DomainParticipantEntity {
     pub fn get_subscriber(
         &self,
         handle: InstanceHandle,
-    ) -> Option<&SubscriberEntity<Actor<StatusConditionActor>>> {
+    ) -> Option<&SubscriberEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>> {
         self.user_defined_subscriber_list
             .iter()
             .find(|x| x.instance_handle() == handle)
@@ -311,20 +316,23 @@ impl DomainParticipantEntity {
     pub fn get_mut_subscriber(
         &mut self,
         handle: InstanceHandle,
-    ) -> Option<&mut SubscriberEntity<Actor<StatusConditionActor>>> {
+    ) -> Option<&mut SubscriberEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>> {
         self.user_defined_subscriber_list
             .iter_mut()
             .find(|x| x.instance_handle() == handle)
     }
 
-    pub fn insert_subscriber(&mut self, subscriber: SubscriberEntity<Actor<StatusConditionActor>>) {
+    pub fn insert_subscriber(
+        &mut self,
+        subscriber: SubscriberEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>,
+    ) {
         self.user_defined_subscriber_list.push(subscriber);
     }
 
     pub fn remove_subscriber(
         &mut self,
         handle: &InstanceHandle,
-    ) -> Option<SubscriberEntity<Actor<StatusConditionActor>>> {
+    ) -> Option<SubscriberEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>> {
         let i = self
             .user_defined_subscriber_list
             .iter()
@@ -335,13 +343,15 @@ impl DomainParticipantEntity {
 
     pub fn subscriber_list(
         &mut self,
-    ) -> impl Iterator<Item = &SubscriberEntity<Actor<StatusConditionActor>>> {
+    ) -> impl Iterator<Item = &SubscriberEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>>
+    {
         self.user_defined_subscriber_list.iter()
     }
 
     pub fn drain_subscriber_list(
         &mut self,
-    ) -> impl Iterator<Item = SubscriberEntity<Actor<StatusConditionActor>>> + '_ {
+    ) -> impl Iterator<Item = SubscriberEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail>>> + '_
+    {
         self.user_defined_subscriber_list.drain(..)
     }
 
