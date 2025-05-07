@@ -1,9 +1,6 @@
 use crate::{
-    implementation::{
-        listeners::{
-            data_writer_listener::DataWriterListenerMail, publisher_listener::PublisherListenerMail,
-        },
-        status_condition::status_condition_actor::StatusConditionActor,
+    implementation::listeners::{
+        data_writer_listener::DataWriterListenerMail, publisher_listener::PublisherListenerMail,
     },
     infrastructure::{
         error::DdsResult,
@@ -11,30 +8,29 @@ use crate::{
         qos::{DataWriterQos, PublisherQos},
         status::StatusKind,
     },
-    runtime::{actor::Actor, mpsc::MpscSender},
+    runtime::mpsc::MpscSender,
 };
 
 use crate::dcps::data_writer::DataWriterEntity;
 
-pub struct PublisherEntity {
+pub struct PublisherEntity<S> {
     qos: PublisherQos,
     instance_handle: InstanceHandle,
-    data_writer_list:
-        Vec<DataWriterEntity<Actor<StatusConditionActor>, MpscSender<DataWriterListenerMail>>>,
+    data_writer_list: Vec<DataWriterEntity<S, MpscSender<DataWriterListenerMail>>>,
     enabled: bool,
     default_datawriter_qos: DataWriterQos,
     listener_sender: MpscSender<PublisherListenerMail>,
     listener_mask: Vec<StatusKind>,
-    status_condition: Actor<StatusConditionActor>,
+    status_condition: S,
 }
 
-impl PublisherEntity {
+impl<S> PublisherEntity<S> {
     pub fn new(
         qos: PublisherQos,
         instance_handle: InstanceHandle,
         listener_sender: MpscSender<PublisherListenerMail>,
         listener_mask: Vec<StatusKind>,
-        status_condition: Actor<StatusConditionActor>,
+        status_condition: S,
     ) -> Self {
         Self {
             qos,
@@ -50,37 +46,25 @@ impl PublisherEntity {
 
     pub fn data_writer_list(
         &self,
-    ) -> impl Iterator<
-        Item = &DataWriterEntity<Actor<StatusConditionActor>, MpscSender<DataWriterListenerMail>>,
-    > {
+    ) -> impl Iterator<Item = &DataWriterEntity<S, MpscSender<DataWriterListenerMail>>> {
         self.data_writer_list.iter()
     }
 
     pub fn data_writer_list_mut(
         &mut self,
-    ) -> impl Iterator<
-        Item = &mut DataWriterEntity<
-            Actor<StatusConditionActor>,
-            MpscSender<DataWriterListenerMail>,
-        >,
-    > {
+    ) -> impl Iterator<Item = &mut DataWriterEntity<S, MpscSender<DataWriterListenerMail>>> {
         self.data_writer_list.iter_mut()
     }
 
     pub fn drain_data_writer_list(
         &mut self,
-    ) -> impl Iterator<
-        Item = DataWriterEntity<Actor<StatusConditionActor>, MpscSender<DataWriterListenerMail>>,
-    > + '_ {
+    ) -> impl Iterator<Item = DataWriterEntity<S, MpscSender<DataWriterListenerMail>>> + '_ {
         self.data_writer_list.drain(..)
     }
 
     pub fn insert_data_writer(
         &mut self,
-        data_writer: DataWriterEntity<
-            Actor<StatusConditionActor>,
-            MpscSender<DataWriterListenerMail>,
-        >,
+        data_writer: DataWriterEntity<S, MpscSender<DataWriterListenerMail>>,
     ) {
         self.data_writer_list.push(data_writer);
     }
@@ -88,8 +72,7 @@ impl PublisherEntity {
     pub fn remove_data_writer(
         &mut self,
         handle: InstanceHandle,
-    ) -> Option<DataWriterEntity<Actor<StatusConditionActor>, MpscSender<DataWriterListenerMail>>>
-    {
+    ) -> Option<DataWriterEntity<S, MpscSender<DataWriterListenerMail>>> {
         let index = self
             .data_writer_list
             .iter()
@@ -100,8 +83,7 @@ impl PublisherEntity {
     pub fn get_data_writer(
         &self,
         handle: InstanceHandle,
-    ) -> Option<&DataWriterEntity<Actor<StatusConditionActor>, MpscSender<DataWriterListenerMail>>>
-    {
+    ) -> Option<&DataWriterEntity<S, MpscSender<DataWriterListenerMail>>> {
         self.data_writer_list
             .iter()
             .find(|x| x.instance_handle() == handle)
@@ -110,9 +92,7 @@ impl PublisherEntity {
     pub fn get_mut_data_writer(
         &mut self,
         handle: InstanceHandle,
-    ) -> Option<
-        &mut DataWriterEntity<Actor<StatusConditionActor>, MpscSender<DataWriterListenerMail>>,
-    > {
+    ) -> Option<&mut DataWriterEntity<S, MpscSender<DataWriterListenerMail>>> {
         self.data_writer_list
             .iter_mut()
             .find(|x| x.instance_handle() == handle)
@@ -121,9 +101,7 @@ impl PublisherEntity {
     pub fn lookup_datawriter_mut(
         &mut self,
         topic_name: &str,
-    ) -> Option<
-        &mut DataWriterEntity<Actor<StatusConditionActor>, MpscSender<DataWriterListenerMail>>,
-    > {
+    ) -> Option<&mut DataWriterEntity<S, MpscSender<DataWriterListenerMail>>> {
         self.data_writer_list
             .iter_mut()
             .find(|x| x.topic_name() == topic_name)
@@ -172,7 +150,7 @@ impl PublisherEntity {
         self.listener_mask = mask;
     }
 
-    pub fn status_condition(&self) -> &Actor<StatusConditionActor> {
+    pub fn status_condition(&self) -> &S {
         &self.status_condition
     }
 

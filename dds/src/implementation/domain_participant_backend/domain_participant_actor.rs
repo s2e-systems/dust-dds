@@ -625,7 +625,7 @@ impl DomainParticipantActor {
     }
 
     pub fn delete_participant_contained_entities(&mut self) -> DdsResult<()> {
-        let deleted_publisher_list: Vec<PublisherEntity> =
+        let deleted_publisher_list: Vec<PublisherEntity<Actor<StatusConditionActor>>> =
             self.domain_participant.drain_publisher_list().collect();
         for mut publisher in deleted_publisher_list {
             for data_writer in publisher.drain_data_writer_list() {

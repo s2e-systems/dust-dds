@@ -32,10 +32,10 @@ pub struct DomainParticipantEntity {
     instance_handle: InstanceHandle,
     qos: DomainParticipantQos,
     builtin_subscriber: SubscriberEntity,
-    builtin_publisher: PublisherEntity,
+    builtin_publisher: PublisherEntity<Actor<StatusConditionActor>>,
     user_defined_subscriber_list: Vec<SubscriberEntity>,
     default_subscriber_qos: SubscriberQos,
-    user_defined_publisher_list: Vec<PublisherEntity>,
+    user_defined_publisher_list: Vec<PublisherEntity<Actor<StatusConditionActor>>>,
     default_publisher_qos: PublisherQos,
     topic_list: Vec<TopicEntity>,
     default_topic_qos: TopicQos,
@@ -62,7 +62,7 @@ impl DomainParticipantEntity {
         listener_mask: Vec<StatusKind>,
         status_condition: Actor<StatusConditionActor>,
         instance_handle: InstanceHandle,
-        builtin_publisher: PublisherEntity,
+        builtin_publisher: PublisherEntity<Actor<StatusConditionActor>>,
         builtin_subscriber: SubscriberEntity,
         topic_list: Vec<TopicEntity>,
         domain_tag: String,
@@ -151,7 +151,7 @@ impl DomainParticipantEntity {
         &mut self.builtin_subscriber
     }
 
-    pub fn builtin_publisher_mut(&mut self) -> &mut PublisherEntity {
+    pub fn builtin_publisher_mut(&mut self) -> &mut PublisherEntity<Actor<StatusConditionActor>> {
         &mut self.builtin_publisher
     }
 
@@ -326,23 +326,32 @@ impl DomainParticipantEntity {
         self.user_defined_subscriber_list.drain(..)
     }
 
-    pub fn get_publisher(&self, handle: InstanceHandle) -> Option<&PublisherEntity> {
+    pub fn get_publisher(
+        &self,
+        handle: InstanceHandle,
+    ) -> Option<&PublisherEntity<Actor<StatusConditionActor>>> {
         self.user_defined_publisher_list
             .iter()
             .find(|x| x.instance_handle() == handle)
     }
 
-    pub fn get_mut_publisher(&mut self, handle: InstanceHandle) -> Option<&mut PublisherEntity> {
+    pub fn get_mut_publisher(
+        &mut self,
+        handle: InstanceHandle,
+    ) -> Option<&mut PublisherEntity<Actor<StatusConditionActor>>> {
         self.user_defined_publisher_list
             .iter_mut()
             .find(|x| x.instance_handle() == handle)
     }
 
-    pub fn insert_publisher(&mut self, publisher: PublisherEntity) {
+    pub fn insert_publisher(&mut self, publisher: PublisherEntity<Actor<StatusConditionActor>>) {
         self.user_defined_publisher_list.push(publisher);
     }
 
-    pub fn remove_publisher(&mut self, handle: &InstanceHandle) -> Option<PublisherEntity> {
+    pub fn remove_publisher(
+        &mut self,
+        handle: &InstanceHandle,
+    ) -> Option<PublisherEntity<Actor<StatusConditionActor>>> {
         let i = self
             .user_defined_publisher_list
             .iter()
@@ -351,15 +360,21 @@ impl DomainParticipantEntity {
         Some(self.user_defined_publisher_list.remove(i))
     }
 
-    pub fn drain_publisher_list(&mut self) -> impl Iterator<Item = PublisherEntity> + '_ {
+    pub fn drain_publisher_list(
+        &mut self,
+    ) -> impl Iterator<Item = PublisherEntity<Actor<StatusConditionActor>>> + '_ {
         self.user_defined_publisher_list.drain(..)
     }
 
-    pub fn publisher_list(&mut self) -> impl Iterator<Item = &PublisherEntity> {
+    pub fn publisher_list(
+        &mut self,
+    ) -> impl Iterator<Item = &PublisherEntity<Actor<StatusConditionActor>>> {
         self.user_defined_publisher_list.iter()
     }
 
-    pub fn publisher_list_mut(&mut self) -> impl Iterator<Item = &mut PublisherEntity> {
+    pub fn publisher_list_mut(
+        &mut self,
+    ) -> impl Iterator<Item = &mut PublisherEntity<Actor<StatusConditionActor>>> {
         self.user_defined_publisher_list.iter_mut()
     }
 
