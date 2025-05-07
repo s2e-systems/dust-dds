@@ -9,7 +9,6 @@ use super::{
     entities::{
         data_reader::{AddChangeResult, DataReaderEntity},
         domain_participant::DomainParticipantEntity,
-        publisher::PublisherEntity,
         subscriber::SubscriberEntity,
         topic::TopicEntity,
     },
@@ -27,6 +26,7 @@ use crate::{
     dcps::{
         clock::Clock,
         data_writer::{DataWriterEntity, TransportWriterKind},
+        publisher::PublisherEntity,
     },
     dds_async::{
         data_reader::DataReaderAsync, data_writer::DataWriterAsync,

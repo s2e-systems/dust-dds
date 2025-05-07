@@ -1,5 +1,6 @@
 pub mod clock;
 pub mod data_writer;
+pub mod publisher;
 
 /// Contains the built-in topics used by the service to propagate information needed for discovery and other data.
 pub mod builtin_topics;

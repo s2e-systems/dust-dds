@@ -2,6 +2,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::{
     builtin_topics::TopicBuiltinTopicData,
+    dcps::publisher::PublisherEntity,
     domain::domain_participant_factory::DomainId,
     implementation::{
         data_representation_builtin_endpoints::{
@@ -23,7 +24,7 @@ use crate::{
     runtime::{actor::Actor, mpsc::MpscSender},
 };
 
-use super::{publisher::PublisherEntity, subscriber::SubscriberEntity, topic::TopicEntity};
+use super::{subscriber::SubscriberEntity, topic::TopicEntity};
 
 pub struct DomainParticipantEntity {
     domain_id: DomainId,
