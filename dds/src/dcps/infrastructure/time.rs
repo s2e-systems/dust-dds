@@ -4,7 +4,7 @@ use crate::xtypes::{
     error::XTypesError,
     serialize::{XTypesSerialize, XTypesSerializer},
 };
-use std::ops::Sub;
+use core::ops::Sub;
 
 /// Enumeration representing whether a duration is finite or infinite
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
@@ -43,15 +43,15 @@ const DURATION_INFINITE: Duration = Duration {
 };
 
 impl PartialOrd<DurationKind> for DurationKind {
-    fn partial_cmp(&self, other: &DurationKind) -> Option<std::cmp::Ordering> {
+    fn partial_cmp(&self, other: &DurationKind) -> Option<core::cmp::Ordering> {
         match self {
             DurationKind::Finite(this) => match other {
                 DurationKind::Finite(v) => Duration::partial_cmp(this, v),
-                DurationKind::Infinite => Some(std::cmp::Ordering::Less),
+                DurationKind::Infinite => Some(core::cmp::Ordering::Less),
             },
             DurationKind::Infinite => match other {
-                DurationKind::Finite(_) => Some(std::cmp::Ordering::Greater),
-                DurationKind::Infinite => Some(std::cmp::Ordering::Equal),
+                DurationKind::Finite(_) => Some(core::cmp::Ordering::Greater),
+                DurationKind::Infinite => Some(core::cmp::Ordering::Equal),
             },
         }
     }
