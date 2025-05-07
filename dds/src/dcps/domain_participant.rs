@@ -1,5 +1,3 @@
-use std::time::{SystemTime, UNIX_EPOCH};
-
 use crate::{
     builtin_topics::TopicBuiltinTopicData,
     dcps::{
@@ -21,7 +19,7 @@ use crate::{
         time::Time,
     },
 };
-use alloc::vec::Vec;
+use alloc::{string::String, vec::Vec};
 
 use super::builtin_topics::{DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC};
 
@@ -102,11 +100,12 @@ impl<S, L> DomainParticipantEntity<S, L> {
     }
 
     pub fn get_current_time(&self) -> Time {
-        let now_system_time = SystemTime::now();
-        let unix_time = now_system_time
-            .duration_since(UNIX_EPOCH)
-            .expect("Clock time is before Unix epoch start");
-        Time::new(unix_time.as_secs() as i32, unix_time.subsec_nanos())
+        todo!()
+        // let now_system_time = SystemTime::now();
+        // let unix_time = now_system_time
+        //     .duration_since(UNIX_EPOCH)
+        //     .expect("Clock time is before Unix epoch start");
+        // Time::new(unix_time.as_secs() as i32, unix_time.subsec_nanos())
     }
 
     pub fn enable(&mut self) {
