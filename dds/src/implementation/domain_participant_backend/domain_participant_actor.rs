@@ -53,7 +53,7 @@ use crate::{
         listeners::{
             data_reader_listener::DataReaderListenerMail,
             data_writer_listener::DataWriterListenerMail,
-            domain_participant_listener::DomainParticipantListenerMail,
+            domain_participant_listener::ListenerMail,
             publisher_listener::PublisherListenerMail, subscriber_listener::SubscriberListenerMail,
             topic_listener::TopicListenerActorMail,
         },
@@ -757,7 +757,7 @@ impl DomainParticipantActor {
 
     pub fn set_domain_participant_listener(
         &mut self,
-        listener_sender: MpscSender<DomainParticipantListenerMail>,
+        listener_sender: MpscSender<ListenerMail>,
         status_kind: Vec<StatusKind>,
     ) -> DdsResult<()> {
         self.domain_participant
@@ -2485,7 +2485,7 @@ impl DomainParticipantActor {
                         let status = data_writer.get_publication_matched_status();
                         self.domain_participant
                             .listener()
-                            .send(DomainParticipantListenerMail::PublicationMatched {
+                            .send(ListenerMail::PublicationMatched {
                                 the_writer,
                                 status,
                             })
@@ -2594,7 +2594,7 @@ impl DomainParticipantActor {
                         let status = data_writer.get_offered_incompatible_qos_status();
                         self.domain_participant
                             .listener()
-                            .send(DomainParticipantListenerMail::OfferedIncompatibleQos {
+                            .send(ListenerMail::OfferedIncompatibleQos {
                                 the_writer,
                                 status,
                             })
@@ -2875,7 +2875,7 @@ impl DomainParticipantActor {
                         let status = data_reader.get_subscription_matched_status();
                         self.domain_participant
                             .listener()
-                            .send(DomainParticipantListenerMail::SubscriptionMatched {
+                            .send(ListenerMail::SubscriptionMatched {
                                 the_reader,
                                 status,
                             })
@@ -2988,7 +2988,7 @@ impl DomainParticipantActor {
                         let status = data_reader.get_requested_incompatible_qos_status();
                         self.domain_participant
                             .listener()
-                            .send(DomainParticipantListenerMail::RequestedIncompatibleQos {
+                            .send(ListenerMail::RequestedIncompatibleQos {
                                 the_reader,
                                 status,
                             })
@@ -3563,7 +3563,7 @@ impl DomainParticipantActor {
                         let status = data_reader.get_sample_rejected_status();
                         self.domain_participant
                             .listener()
-                            .send(DomainParticipantListenerMail::SampleRejected {
+                            .send(ListenerMail::SampleRejected {
                                 status,
                                 the_reader,
                             })
@@ -3706,7 +3706,7 @@ impl DomainParticipantActor {
             let status = data_writer.get_offered_deadline_missed_status();
             self.domain_participant
                 .listener()
-                .send(DomainParticipantListenerMail::OfferedDeadlineMissed { the_writer, status })
+                .send(ListenerMail::OfferedDeadlineMissed { the_writer, status })
                 .ok();
         }
 
@@ -3818,7 +3818,7 @@ impl DomainParticipantActor {
             let status = data_reader.get_requested_deadline_missed_status();
             self.domain_participant
                 .listener()
-                .send(DomainParticipantListenerMail::RequestedDeadlineMissed { status, the_reader })
+                .send(ListenerMail::RequestedDeadlineMissed { status, the_reader })
                 .ok();
         }
         let Some(subscriber) = self

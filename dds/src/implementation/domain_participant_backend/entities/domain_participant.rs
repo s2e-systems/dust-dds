@@ -11,7 +11,7 @@ use crate::{
             spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         },
         domain_participant_backend::domain_participant_actor::BUILT_IN_TOPIC_NAME_LIST,
-        listeners::domain_participant_listener::DomainParticipantListenerMail,
+        listeners::domain_participant_listener::ListenerMail,
         status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
@@ -48,7 +48,7 @@ pub struct DomainParticipantEntity {
     ignored_publications: Vec<InstanceHandle>,
     ignored_subcriptions: Vec<InstanceHandle>,
     _ignored_topic_list: Vec<InstanceHandle>,
-    listener_sender: MpscSender<DomainParticipantListenerMail>,
+    listener_sender: MpscSender<ListenerMail>,
     listener_mask: Vec<StatusKind>,
     status_condition: Actor<StatusConditionActor>,
 }
@@ -58,7 +58,7 @@ impl DomainParticipantEntity {
     pub fn new(
         domain_id: DomainId,
         domain_participant_qos: DomainParticipantQos,
-        listener_sender: MpscSender<DomainParticipantListenerMail>,
+        listener_sender: MpscSender<ListenerMail>,
         listener_mask: Vec<StatusKind>,
         status_condition: Actor<StatusConditionActor>,
         instance_handle: InstanceHandle,
@@ -435,13 +435,13 @@ impl DomainParticipantEntity {
         &self.listener_mask
     }
 
-    pub fn listener(&self) -> MpscSender<DomainParticipantListenerMail> {
+    pub fn listener(&self) -> MpscSender<ListenerMail> {
         self.listener_sender.clone()
     }
 
     pub fn set_listener(
         &mut self,
-        listener_sender: MpscSender<DomainParticipantListenerMail>,
+        listener_sender: MpscSender<ListenerMail>,
         status_kind: Vec<StatusKind>,
     ) {
         self.listener_sender = listener_sender;

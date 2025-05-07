@@ -30,7 +30,7 @@ use crate::{
         listeners::{
             data_reader_listener::DataReaderListenerActor,
             data_writer_listener::DataWriterListenerActor,
-            domain_participant_listener::DomainParticipantListenerMail,
+            domain_participant_listener::ListenerMail,
             publisher_listener::PublisherListenerActor,
             subscriber_listener::SubscriberListenerActor, topic_listener::TopicListenerActor,
         },
@@ -165,7 +165,7 @@ impl DomainParticipantFactoryActor {
         &mut self,
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
-        listener_sender: MpscSender<DomainParticipantListenerMail>,
+        listener_sender: MpscSender<ListenerMail>,
         status_kind: Vec<StatusKind>,
         executor: Executor,
         timer_driver: TimerDriver,
@@ -632,7 +632,7 @@ pub enum DomainParticipantFactoryMail {
     CreateParticipant {
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
-        listener_sender: MpscSender<DomainParticipantListenerMail>,
+        listener_sender: MpscSender<ListenerMail>,
         status_kind: Vec<StatusKind>,
         executor: Executor,
         timer_driver: TimerDriver,

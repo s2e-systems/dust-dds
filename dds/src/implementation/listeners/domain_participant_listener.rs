@@ -18,45 +18,36 @@ impl DomainParticipantListenerActor {
     pub fn spawn(
         mut listener: impl DomainParticipantListener + Send + 'static,
         executor_handle: &ExecutorHandle,
-    ) -> MpscSender<DomainParticipantListenerMail> {
+    ) -> MpscSender<ListenerMail> {
         let (listener_sender, listener_receiver) = mpsc_channel();
         executor_handle.spawn(async move {
             while let Some(m) = listener_receiver.recv().await {
                 match m {
-                    DomainParticipantListenerMail::RequestedDeadlineMissed {
-                        the_reader,
-                        status,
-                    } => {
+                    ListenerMail::RequestedDeadlineMissed { the_reader, status } => {
                         listener
                             .on_requested_deadline_missed(the_reader, status)
                             .await;
                     }
-                    DomainParticipantListenerMail::SampleRejected { the_reader, status } => {
+                    ListenerMail::SampleRejected { the_reader, status } => {
                         listener.on_sample_rejected(the_reader, status).await;
                     }
-                    DomainParticipantListenerMail::SubscriptionMatched { the_reader, status } => {
+                    ListenerMail::SubscriptionMatched { the_reader, status } => {
                         listener.on_subscription_matched(the_reader, status).await;
                     }
-                    DomainParticipantListenerMail::RequestedIncompatibleQos {
-                        the_reader,
-                        status,
-                    } => {
+                    ListenerMail::RequestedIncompatibleQos { the_reader, status } => {
                         listener
                             .on_requested_incompatible_qos(the_reader, status)
                             .await;
                     }
-                    DomainParticipantListenerMail::PublicationMatched { the_writer, status } => {
+                    ListenerMail::PublicationMatched { the_writer, status } => {
                         listener.on_publication_matched(the_writer, status).await;
                     }
-                    DomainParticipantListenerMail::OfferedIncompatibleQos {
-                        the_writer,
-                        status,
-                    } => {
+                    ListenerMail::OfferedIncompatibleQos { the_writer, status } => {
                         listener
                             .on_offered_incompatible_qos(the_writer, status)
                             .await;
                     }
-                    DomainParticipantListenerMail::OfferedDeadlineMissed { the_writer, status } => {
+                    ListenerMail::OfferedDeadlineMissed { the_writer, status } => {
                         listener
                             .on_offered_deadline_missed(the_writer, status)
                             .await;
@@ -68,7 +59,7 @@ impl DomainParticipantListenerActor {
     }
 }
 
-pub enum DomainParticipantListenerMail {
+pub enum ListenerMail {
     RequestedDeadlineMissed {
         the_reader: DataReaderAsync<()>,
         status: RequestedDeadlineMissedStatus,

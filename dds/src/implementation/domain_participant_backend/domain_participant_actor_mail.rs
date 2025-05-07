@@ -11,7 +11,7 @@ use crate::{
         listeners::{
             data_reader_listener::DataReaderListenerMail,
             data_writer_listener::DataWriterListenerMail,
-            domain_participant_listener::DomainParticipantListenerMail,
+            domain_participant_listener::ListenerMail,
             publisher_listener::PublisherListenerMail, subscriber_listener::SubscriberListenerMail,
             topic_listener::TopicListenerActorMail,
         },
@@ -159,7 +159,7 @@ pub enum ParticipantServiceMail {
         reply_sender: OneshotSender<DdsResult<DomainParticipantQos>>,
     },
     SetListener {
-        listener_sender: MpscSender<DomainParticipantListenerMail>,
+        listener_sender: MpscSender<ListenerMail>,
         status_kind: Vec<StatusKind>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
