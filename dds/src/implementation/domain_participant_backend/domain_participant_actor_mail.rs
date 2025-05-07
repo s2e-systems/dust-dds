@@ -8,9 +8,7 @@ use crate::{
         TopicBuiltinTopicData,
     },
     implementation::{
-        listeners::{
-            domain_participant_listener::ListenerMail, topic_listener::TopicListenerActorMail,
-        },
+        listeners::domain_participant_listener::ListenerMail,
         status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
@@ -66,7 +64,7 @@ pub enum ParticipantServiceMail {
         type_name: String,
         qos: QosKind<TopicQos>,
         status_condition: Actor<StatusConditionActor>,
-        listener_sender: MpscSender<TopicListenerActorMail>,
+        listener_sender: MpscSender<ListenerMail>,
         mask: Vec<StatusKind>,
         type_support: Arc<dyn DynamicType + Send + Sync>,
         reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
@@ -80,7 +78,7 @@ pub enum ParticipantServiceMail {
         topic_name: String,
         type_support: Arc<dyn DynamicType + Send + Sync>,
         status_condition: Actor<StatusConditionActor>,
-        listener_sender: MpscSender<TopicListenerActorMail>,
+        listener_sender: MpscSender<ListenerMail>,
         #[allow(clippy::type_complexity)]
         reply_sender: OneshotSender<
             DdsResult<Option<(InstanceHandle, ActorAddress<StatusConditionActor>, String)>>,

@@ -46,9 +46,7 @@ use crate::{
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
             ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
         },
-        listeners::{
-            domain_participant_listener::ListenerMail, topic_listener::TopicListenerActorMail,
-        },
+        listeners::domain_participant_listener::ListenerMail,
         status_condition::status_condition_actor::{StatusConditionActor, StatusConditionMail},
     },
     infrastructure::{
@@ -442,7 +440,7 @@ impl DomainParticipantActor {
         type_name: String,
         qos: QosKind<TopicQos>,
         status_condition: Actor<StatusConditionActor>,
-        listener_sender: MpscSender<TopicListenerActorMail>,
+        listener_sender: MpscSender<ListenerMail>,
         mask: Vec<StatusKind>,
         type_support: Arc<dyn DynamicType + Send + Sync>,
     ) -> DdsResult<InstanceHandle> {
@@ -524,7 +522,7 @@ impl DomainParticipantActor {
         topic_name: String,
         type_support: Arc<dyn DynamicType + Send + Sync>,
         status_condition: Actor<StatusConditionActor>,
-        listener_sender: MpscSender<TopicListenerActorMail>,
+        listener_sender: MpscSender<ListenerMail>,
     ) -> DdsResult<Option<(InstanceHandle, ActorAddress<StatusConditionActor>, String)>> {
         if let Some(topic) = self.domain_participant.get_topic(&topic_name) {
             Ok(Some((

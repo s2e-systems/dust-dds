@@ -2,7 +2,7 @@ use alloc::sync::Arc;
 
 use crate::{
     implementation::{
-        listeners::topic_listener::TopicListenerActorMail,
+        listeners::domain_participant_listener::ListenerMail,
         status_condition::status_condition_actor::{StatusConditionActor, StatusConditionMail},
     },
     infrastructure::{
@@ -23,7 +23,7 @@ pub struct TopicEntity {
     enabled: bool,
     inconsistent_topic_status: InconsistentTopicStatus,
     status_condition: Actor<StatusConditionActor>,
-    _listener_sender: MpscSender<TopicListenerActorMail>,
+    _listener_sender: MpscSender<ListenerMail>,
     _status_kind: Vec<StatusKind>,
     type_support: Arc<dyn DynamicType + Send + Sync>,
 }
@@ -36,7 +36,7 @@ impl TopicEntity {
         topic_name: String,
         instance_handle: InstanceHandle,
         status_condition: Actor<StatusConditionActor>,
-        listener_sender: MpscSender<TopicListenerActorMail>,
+        listener_sender: MpscSender<ListenerMail>,
         status_kind: Vec<StatusKind>,
         type_support: Arc<dyn DynamicType + Send + Sync>,
     ) -> Self {
