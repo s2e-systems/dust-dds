@@ -929,9 +929,7 @@ impl DomainParticipantActor {
                 .builtin_subscriber_mut()
                 .data_reader_list_mut()
                 .find(|dr| dr.topic_name() == topic_name)
-                .map(|x: &mut DataReaderEntity| {
-                    (x.instance_handle(), x.status_condition().address())
-                }))
+                .map(|x| (x.instance_handle(), x.status_condition().address())))
         } else {
             let Some(s) = self
                 .domain_participant
@@ -2193,7 +2191,10 @@ impl DomainParticipantActor {
         }
     }
 
-    fn announce_deleted_data_reader(&mut self, data_reader: DataReaderEntity) {
+    fn announce_deleted_data_reader(
+        &mut self,
+        data_reader: DataReaderEntity<Actor<StatusConditionActor>>,
+    ) {
         let timestamp = self.domain_participant.get_current_time();
         if let Some(dw) = self
             .domain_participant
@@ -3926,7 +3927,7 @@ fn get_discovered_reader_incompatible_qos_policy_list(
 }
 
 fn get_discovered_writer_incompatible_qos_policy_list(
-    data_reader: &DataReaderEntity,
+    data_reader: &DataReaderEntity<Actor<StatusConditionActor>>,
     publication_builtin_topic_data: &PublicationBuiltinTopicData,
     subscriber_qos: &SubscriberQos,
 ) -> Vec<QosPolicyId> {

@@ -16,7 +16,7 @@ use crate::{
 pub struct SubscriberEntity {
     instance_handle: InstanceHandle,
     qos: SubscriberQos,
-    data_reader_list: Vec<DataReaderEntity>,
+    data_reader_list: Vec<DataReaderEntity<Actor<StatusConditionActor>>>,
     enabled: bool,
     default_data_reader_qos: DataReaderQos,
     status_condition: Actor<StatusConditionActor>,
@@ -44,23 +44,35 @@ impl SubscriberEntity {
         }
     }
 
-    pub fn data_reader_list(&self) -> impl Iterator<Item = &DataReaderEntity> {
+    pub fn data_reader_list(
+        &self,
+    ) -> impl Iterator<Item = &DataReaderEntity<Actor<StatusConditionActor>>> {
         self.data_reader_list.iter()
     }
 
-    pub fn data_reader_list_mut(&mut self) -> impl Iterator<Item = &mut DataReaderEntity> {
+    pub fn data_reader_list_mut(
+        &mut self,
+    ) -> impl Iterator<Item = &mut DataReaderEntity<Actor<StatusConditionActor>>> {
         self.data_reader_list.iter_mut()
     }
 
-    pub fn drain_data_reader_list(&mut self) -> impl Iterator<Item = DataReaderEntity> + '_ {
+    pub fn drain_data_reader_list(
+        &mut self,
+    ) -> impl Iterator<Item = DataReaderEntity<Actor<StatusConditionActor>>> + '_ {
         self.data_reader_list.drain(..)
     }
 
-    pub fn insert_data_reader(&mut self, data_reader: DataReaderEntity) {
+    pub fn insert_data_reader(
+        &mut self,
+        data_reader: DataReaderEntity<Actor<StatusConditionActor>>,
+    ) {
         self.data_reader_list.push(data_reader);
     }
 
-    pub fn remove_data_reader(&mut self, handle: InstanceHandle) -> Option<DataReaderEntity> {
+    pub fn remove_data_reader(
+        &mut self,
+        handle: InstanceHandle,
+    ) -> Option<DataReaderEntity<Actor<StatusConditionActor>>> {
         let index = self
             .data_reader_list
             .iter()
@@ -68,13 +80,19 @@ impl SubscriberEntity {
         Some(self.data_reader_list.remove(index))
     }
 
-    pub fn get_data_reader(&self, handle: InstanceHandle) -> Option<&DataReaderEntity> {
+    pub fn get_data_reader(
+        &self,
+        handle: InstanceHandle,
+    ) -> Option<&DataReaderEntity<Actor<StatusConditionActor>>> {
         self.data_reader_list
             .iter()
             .find(|x| x.instance_handle() == handle)
     }
 
-    pub fn get_mut_data_reader(&mut self, handle: InstanceHandle) -> Option<&mut DataReaderEntity> {
+    pub fn get_mut_data_reader(
+        &mut self,
+        handle: InstanceHandle,
+    ) -> Option<&mut DataReaderEntity<Actor<StatusConditionActor>>> {
         self.data_reader_list
             .iter_mut()
             .find(|x| x.instance_handle() == handle)

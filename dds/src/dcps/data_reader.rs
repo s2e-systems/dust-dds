@@ -5,10 +5,7 @@ use crate::{
     dcps::xtypes_glue::key_and_instance_handle::{
         get_instance_handle_from_serialized_foo, get_instance_handle_from_serialized_key,
     },
-    implementation::{
-        listeners::data_reader_listener::DataReaderListenerMail,
-        status_condition::status_condition_actor::{StatusConditionActor, StatusConditionMail},
-    },
+    implementation::listeners::data_reader_listener::DataReaderListenerMail,
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
@@ -24,7 +21,7 @@ use crate::{
         },
         time::{DurationKind, Time},
     },
-    runtime::{actor::Actor, executor::TaskHandle, mpsc::MpscSender},
+    runtime::{executor::TaskHandle, mpsc::MpscSender},
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     transport::{
         history_cache::CacheChange,
@@ -33,6 +30,8 @@ use crate::{
     },
     xtypes::dynamic_type::DynamicType,
 };
+
+use super::status_condition::StatusCondition;
 
 type SampleList = Vec<(Option<Arc<[u8]>>, SampleInfo)>;
 
@@ -149,7 +148,7 @@ struct InstanceOwnership {
     owner_handle: [u8; 16],
 }
 
-pub struct DataReaderEntity {
+pub struct DataReaderEntity<S> {
     instance_handle: InstanceHandle,
     sample_list: Vec<ReaderSample>,
     qos: DataReaderQos,
@@ -166,7 +165,7 @@ pub struct DataReaderEntity {
     enabled: bool,
     data_available_status_changed_flag: bool,
     incompatible_writer_list: Vec<InstanceHandle>,
-    status_condition: Actor<StatusConditionActor>,
+    status_condition: S,
     listener_sender: MpscSender<DataReaderListenerMail>,
     listener_mask: Vec<StatusKind>,
     instances: Vec<InstanceState>,
@@ -175,7 +174,10 @@ pub struct DataReaderEntity {
     transport_reader: TransportReaderKind,
 }
 
-impl DataReaderEntity {
+impl<S> DataReaderEntity<S>
+where
+    S: StatusCondition,
+{
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         instance_handle: InstanceHandle,
@@ -183,7 +185,7 @@ impl DataReaderEntity {
         topic_name: String,
         type_name: String,
         type_support: Arc<dyn DynamicType + Send + Sync>,
-        status_condition: Actor<StatusConditionActor>,
+        status_condition: S,
         listener_sender: MpscSender<DataReaderListenerMail>,
         listener_mask: Vec<StatusKind>,
         transport_reader: TransportReaderKind,
@@ -228,9 +230,7 @@ impl DataReaderEntity {
         }
 
         self.status_condition
-            .send_actor_mail(StatusConditionMail::RemoveCommunicationState {
-                state: StatusKind::DataAvailable,
-            });
+            .remove_state(StatusKind::DataAvailable);
 
         let indexed_sample_list = self.create_indexed_sample_collection(
             max_samples,
@@ -276,9 +276,7 @@ impl DataReaderEntity {
         )?;
 
         self.status_condition
-            .send_actor_mail(StatusConditionMail::RemoveCommunicationState {
-                state: StatusKind::DataAvailable,
-            });
+            .remove_state(StatusKind::DataAvailable);
 
         let mut change_index_list: Vec<usize>;
         let samples;
@@ -885,9 +883,7 @@ impl DataReaderEntity {
         self.subscription_matched_status.current_count = self.matched_publication_list.len() as i32;
         self.subscription_matched_status.current_count_change -= 1;
         self.status_condition
-            .send_actor_mail(StatusConditionMail::AddCommunicationState {
-                state: StatusKind::SubscriptionMatched,
-            });
+            .add_state(StatusKind::SubscriptionMatched);
     }
 
     pub fn increment_requested_deadline_missed_status(&mut self, instance_handle: InstanceHandle) {
@@ -948,7 +944,7 @@ impl DataReaderEntity {
         status
     }
 
-    pub fn status_condition(&self) -> &Actor<StatusConditionActor> {
+    pub fn status_condition(&self) -> &S {
         &self.status_condition
     }
 
