@@ -5,6 +5,7 @@ use crate::{
         xcdr_deserializer::{Xcdr2BeDeserializer, Xcdr2LeDeserializer},
     },
 };
+use alloc::vec::Vec;
 pub use dust_dds_derive::{DdsDeserialize, DdsSerialize};
 
 /// The TypeSupport trait represents a type that can be transmitted by DDS.

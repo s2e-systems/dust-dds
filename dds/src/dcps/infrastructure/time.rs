@@ -4,7 +4,7 @@ use crate::xtypes::{
     error::XTypesError,
     serialize::{XTypesSerialize, XTypesSerializer},
 };
-use core::ops::Sub;
+use core::ops::{Add, Sub};
 
 /// Enumeration representing whether a duration is finite or infinite
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
@@ -83,7 +83,7 @@ impl Duration {
     }
 }
 
-impl std::ops::Add<Duration> for Duration {
+impl Add<Duration> for Duration {
     type Output = Duration;
 
     fn add(self, rhs: Duration) -> Self::Output {
@@ -99,7 +99,7 @@ impl std::ops::Add<Duration> for Duration {
     }
 }
 
-impl std::ops::Sub<Duration> for Duration {
+impl Sub<Duration> for Duration {
     type Output = Duration;
 
     fn sub(self, rhs: Duration) -> Self::Output {

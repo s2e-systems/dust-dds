@@ -206,7 +206,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     detail: dust_dds::xtypes::type_object::CompleteTypeDetail {
                         ann_builtin: None,
                         ann_custom: None,
-                        type_name: #type_name.to_string(),
+                        type_name: alloc::string::String::from(#type_name),
                     },
                 }
             };
@@ -247,7 +247,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                                 #member_type_id,
                         },
                         detail: dust_dds::xtypes::type_object::CompleteMemberDetail {
-                            name: #field_name.to_string(),
+                            name: alloc::string::String::from(#field_name),
                             ann_builtin: None,
                             ann_custom: None,
                         },
@@ -255,6 +255,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 );
             }
             Ok(quote! {
+                    extern crate alloc;
                     dust_dds::xtypes::type_object::CompleteTypeObject::TkStructure {
                         struct_type: dust_dds::xtypes::type_object::CompleteStructType {
                             struct_flags: #struct_flags,

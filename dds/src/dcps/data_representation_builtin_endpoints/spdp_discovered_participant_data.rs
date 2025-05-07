@@ -29,6 +29,10 @@ use crate::{
     transport::types::{GuidPrefix, Locator, Long, ProtocolVersion, VendorId},
     xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize},
 };
+use alloc::{
+    string::{String, ToString},
+    vec::Vec,
+};
 
 pub type Count = Long;
 
