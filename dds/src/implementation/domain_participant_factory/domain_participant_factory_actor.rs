@@ -741,13 +741,13 @@ struct DcpsParticipantReaderHistoryCache<R: DdsRuntime> {
 
 impl<R: DdsRuntime> HistoryCache for DcpsParticipantReaderHistoryCache<R> {
     fn add_change(&mut self, cache_change: CacheChange) {
-        todo!()
-        // self.participant_address
-        //     .send(DomainParticipantMail::Message(
-        //         MessageServiceMail::AddBuiltinParticipantsDetectorCacheChange { cache_change },
-        //     ))
-        //     .await
-        //     .ok();
+        R::block_on(
+            self.participant_address
+                .send(DomainParticipantMail::Message(
+                    MessageServiceMail::AddBuiltinParticipantsDetectorCacheChange { cache_change },
+                )),
+        )
+        .ok();
     }
 
     fn remove_change(&mut self, _sequence_number: i64) {
@@ -761,13 +761,13 @@ struct DcpsTopicsReaderHistoryCache<R: DdsRuntime> {
 
 impl<R: DdsRuntime> HistoryCache for DcpsTopicsReaderHistoryCache<R> {
     fn add_change(&mut self, cache_change: CacheChange) {
-        todo!()
-        // self.participant_address
-        //     .send(DomainParticipantMail::Message(
-        //         MessageServiceMail::AddBuiltinTopicsDetectorCacheChange { cache_change },
-        //     ))
-        //     .await
-        //     .ok();
+        R::block_on(
+            self.participant_address
+                .send(DomainParticipantMail::Message(
+                    MessageServiceMail::AddBuiltinTopicsDetectorCacheChange { cache_change },
+                )),
+        )
+        .ok();
     }
 
     fn remove_change(&mut self, _sequence_number: i64) {
@@ -781,16 +781,16 @@ struct DcpsSubscriptionsReaderHistoryCache<R: DdsRuntime> {
 
 impl<R: DdsRuntime> HistoryCache for DcpsSubscriptionsReaderHistoryCache<R> {
     fn add_change(&mut self, cache_change: CacheChange) {
-        todo!()
-        // self.participant_address
-        //     .send(DomainParticipantMail::Message(
-        //         MessageServiceMail::AddBuiltinSubscriptionsDetectorCacheChange {
-        //             cache_change,
-        //             participant_address: self.participant_address.clone(),
-        //         },
-        //     ))
-        //     .await
-        //     .ok();
+        R::block_on(
+            self.participant_address
+                .send(DomainParticipantMail::Message(
+                    MessageServiceMail::AddBuiltinSubscriptionsDetectorCacheChange {
+                        cache_change,
+                        participant_address: self.participant_address.clone(),
+                    },
+                )),
+        )
+        .ok();
     }
 
     fn remove_change(&mut self, _sequence_number: i64) {
@@ -804,16 +804,16 @@ struct DcpsPublicationsReaderHistoryCache<R: DdsRuntime> {
 
 impl<R: DdsRuntime> HistoryCache for DcpsPublicationsReaderHistoryCache<R> {
     fn add_change(&mut self, cache_change: CacheChange) {
-        todo!()
-        // self.participant_address
-        //     .send(DomainParticipantMail::Message(
-        //         MessageServiceMail::AddBuiltinPublicationsDetectorCacheChange {
-        //             cache_change,
-        //             participant_address: self.participant_address.clone(),
-        //         },
-        //     ))
-        //     .await
-        //     .ok();
+        R::block_on(
+            self.participant_address
+                .send(DomainParticipantMail::Message(
+                    MessageServiceMail::AddBuiltinPublicationsDetectorCacheChange {
+                        cache_change,
+                        participant_address: self.participant_address.clone(),
+                    },
+                )),
+        )
+        .ok();
     }
 
     fn remove_change(&mut self, _sequence_number: i64) {

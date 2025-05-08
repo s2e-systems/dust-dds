@@ -44,5 +44,5 @@ pub trait DdsRuntime: Send + 'static {
     fn spawner(&self) -> Self::SpawnerHandle;
     fn oneshot<T: Send>() -> (Self::OneshotSender<T>, Self::OneshotReceiver<T>);
     fn channel<T: Send>() -> (Self::ChannelSender<T>, Self::ChannelReceiver<T>);
-    fn block_on(f: impl Future<Output = ()> + Send + 'static);
+    fn block_on<T>(f: impl Future<Output = T>) -> T;
 }

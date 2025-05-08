@@ -891,7 +891,7 @@ impl<S, L> DataReaderEntity<S, L>
 where
     S: StatusCondition,
 {
-    pub fn remove_matched_publication(&mut self, publication_handle: &InstanceHandle) {
+    pub async fn remove_matched_publication(&mut self, publication_handle: &InstanceHandle) {
         let Some(i) = self
             .matched_publication_list
             .iter()
@@ -903,10 +903,11 @@ where
         self.subscription_matched_status.current_count = self.matched_publication_list.len() as i32;
         self.subscription_matched_status.current_count_change -= 1;
         self.status_condition
-            .add_state(StatusKind::SubscriptionMatched);
+            .add_state(StatusKind::SubscriptionMatched)
+            .await;
     }
 
-    pub fn read(
+    pub async fn read(
         &mut self,
         max_samples: i32,
         sample_states: &[SampleStateKind],
@@ -919,7 +920,8 @@ where
         }
 
         self.status_condition
-            .remove_state(StatusKind::DataAvailable);
+            .remove_state(StatusKind::DataAvailable)
+            .await;
 
         let indexed_sample_list = self.create_indexed_sample_collection(
             max_samples,
@@ -944,7 +946,7 @@ where
         Ok(samples)
     }
 
-    pub fn take(
+    pub async fn take(
         &mut self,
         max_samples: i32,
         sample_states: Vec<SampleStateKind>,
@@ -965,7 +967,8 @@ where
         )?;
 
         self.status_condition
-            .remove_state(StatusKind::DataAvailable);
+            .remove_state(StatusKind::DataAvailable)
+            .await;
 
         let mut change_index_list: Vec<usize>;
         let samples;
@@ -982,7 +985,7 @@ where
         Ok(samples)
     }
 
-    pub fn take_next_instance(
+    pub async fn take_next_instance(
         &mut self,
         max_samples: i32,
         previous_handle: Option<InstanceHandle>,
@@ -995,18 +998,21 @@ where
         }
 
         match self.next_instance(previous_handle) {
-            Some(next_handle) => self.take(
-                max_samples,
-                sample_states,
-                view_states,
-                instance_states,
-                Some(next_handle),
-            ),
+            Some(next_handle) => {
+                self.take(
+                    max_samples,
+                    sample_states,
+                    view_states,
+                    instance_states,
+                    Some(next_handle),
+                )
+                .await
+            }
             None => Err(DdsError::NoData),
         }
     }
 
-    pub fn read_next_instance(
+    pub async fn read_next_instance(
         &mut self,
         max_samples: i32,
         previous_handle: Option<InstanceHandle>,
@@ -1019,13 +1025,16 @@ where
         }
 
         match self.next_instance(previous_handle) {
-            Some(next_handle) => self.read(
-                max_samples,
-                sample_states,
-                view_states,
-                instance_states,
-                Some(next_handle),
-            ),
+            Some(next_handle) => {
+                self.read(
+                    max_samples,
+                    sample_states,
+                    view_states,
+                    instance_states,
+                    Some(next_handle),
+                )
+                .await
+            }
             None => Err(DdsError::NoData),
         }
     }

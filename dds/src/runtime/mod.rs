@@ -71,7 +71,7 @@ impl DdsRuntime for StdRuntime {
         mpsc_channel()
     }
 
-    fn block_on(f: impl core::future::Future<Output = ()> + Send + 'static) {
+    fn block_on<T>(f: impl core::future::Future<Output = T>) -> T {
         executor::block_on(f)
     }
 }

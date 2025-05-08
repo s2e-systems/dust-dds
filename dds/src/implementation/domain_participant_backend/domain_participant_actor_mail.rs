@@ -816,7 +816,7 @@ where
                 reply_sender,
             } => {
                 reply_sender
-                    .send(self.get_inconsistent_topic_status(topic_name))
+                    .send(self.get_inconsistent_topic_status(topic_name).await)
                     .await
             }
             TopicServiceMail::SetQos {
@@ -982,7 +982,10 @@ where
                 reply_sender,
             } => {
                 reply_sender
-                    .send(self.get_publication_matched_status(publisher_handle, data_writer_handle))
+                    .send(
+                        self.get_publication_matched_status(publisher_handle, data_writer_handle)
+                            .await,
+                    )
                     .await
             }
             WriterServiceMail::UnregisterInstance {
@@ -1081,7 +1084,8 @@ where
                         self.get_offered_deadline_missed_status(
                             publisher_handle,
                             data_writer_handle,
-                        ),
+                        )
+                        .await,
                     )
                     .await
             }
@@ -1223,15 +1227,18 @@ where
                 reply_sender,
             } => {
                 reply_sender
-                    .send(self.read(
-                        subscriber_handle,
-                        data_reader_handle,
-                        max_samples,
-                        sample_states,
-                        view_states,
-                        instance_states,
-                        specific_instance_handle,
-                    ))
+                    .send(
+                        self.read(
+                            subscriber_handle,
+                            data_reader_handle,
+                            max_samples,
+                            sample_states,
+                            view_states,
+                            instance_states,
+                            specific_instance_handle,
+                        )
+                        .await,
+                    )
                     .await
             }
             ReaderServiceMail::Take {
@@ -1245,15 +1252,18 @@ where
                 reply_sender,
             } => {
                 reply_sender
-                    .send(self.take(
-                        subscriber_handle,
-                        data_reader_handle,
-                        max_samples,
-                        sample_states,
-                        view_states,
-                        instance_states,
-                        specific_instance_handle,
-                    ))
+                    .send(
+                        self.take(
+                            subscriber_handle,
+                            data_reader_handle,
+                            max_samples,
+                            sample_states,
+                            view_states,
+                            instance_states,
+                            specific_instance_handle,
+                        )
+                        .await,
+                    )
                     .await
             }
             ReaderServiceMail::ReadNextInstance {
@@ -1267,15 +1277,18 @@ where
                 reply_sender,
             } => {
                 reply_sender
-                    .send(self.read_next_instance(
-                        subscriber_handle,
-                        data_reader_handle,
-                        max_samples,
-                        previous_handle,
-                        sample_states,
-                        view_states,
-                        instance_states,
-                    ))
+                    .send(
+                        self.read_next_instance(
+                            subscriber_handle,
+                            data_reader_handle,
+                            max_samples,
+                            previous_handle,
+                            sample_states,
+                            view_states,
+                            instance_states,
+                        )
+                        .await,
+                    )
                     .await
             }
             ReaderServiceMail::TakeNextInstance {
@@ -1289,15 +1302,18 @@ where
                 reply_sender,
             } => {
                 reply_sender
-                    .send(self.take_next_instance(
-                        subscriber_handle,
-                        data_reader_handle,
-                        max_samples,
-                        previous_handle,
-                        sample_states,
-                        view_states,
-                        instance_states,
-                    ))
+                    .send(
+                        self.take_next_instance(
+                            subscriber_handle,
+                            data_reader_handle,
+                            max_samples,
+                            previous_handle,
+                            sample_states,
+                            view_states,
+                            instance_states,
+                        )
+                        .await,
+                    )
                     .await
             }
             ReaderServiceMail::Enable {
@@ -1324,7 +1340,8 @@ where
             } => {
                 reply_sender
                     .send(
-                        self.get_subscription_matched_status(subscriber_handle, data_reader_handle),
+                        self.get_subscription_matched_status(subscriber_handle, data_reader_handle)
+                            .await,
                     )
                     .await
             }
@@ -1469,6 +1486,7 @@ where
             }
             MessageServiceMail::AddBuiltinTopicsDetectorCacheChange { cache_change } => {
                 self.add_builtin_topics_detector_cache_change(cache_change)
+                    .await
             }
         }
     }

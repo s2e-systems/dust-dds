@@ -579,11 +579,12 @@ impl<S, L> DataWriterEntity<S, L>
 where
     S: StatusCondition,
 {
-    pub fn get_offered_deadline_missed_status(&mut self) -> OfferedDeadlineMissedStatus {
+    pub async fn get_offered_deadline_missed_status(&mut self) -> OfferedDeadlineMissedStatus {
         let status = self.offered_deadline_missed_status.clone();
         self.offered_deadline_missed_status.total_count_change = 0;
         self.status_condition
-            .remove_state(StatusKind::OfferedDeadlineMissed);
+            .remove_state(StatusKind::OfferedDeadlineMissed)
+            .await;
 
         status
     }

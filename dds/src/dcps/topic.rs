@@ -107,18 +107,20 @@ impl<S, L> TopicEntity<S, L>
 where
     S: StatusCondition,
 {
-    pub fn get_inconsistent_topic_status(&mut self) -> InconsistentTopicStatus {
+    pub async fn get_inconsistent_topic_status(&mut self) -> InconsistentTopicStatus {
         let status = self.inconsistent_topic_status.clone();
         self.inconsistent_topic_status.total_count_change = 0;
         self.status_condition
-            .remove_state(StatusKind::InconsistentTopic);
+            .remove_state(StatusKind::InconsistentTopic)
+            .await;
         status
     }
 
-    pub fn increment_inconsistent_topic_status(&mut self) {
+    pub async fn increment_inconsistent_topic_status(&mut self) {
         self.inconsistent_topic_status.total_count += 1;
         self.inconsistent_topic_status.total_count_change += 1;
         self.status_condition
-            .add_state(StatusKind::InconsistentTopic);
+            .add_state(StatusKind::InconsistentTopic)
+            .await;
     }
 }

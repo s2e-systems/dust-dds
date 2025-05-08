@@ -251,14 +251,14 @@ where
         ))
     }
 
-    pub fn get_inconsistent_topic_status(
+    pub async fn get_inconsistent_topic_status(
         &mut self,
         topic_name: String,
     ) -> DdsResult<InconsistentTopicStatus> {
         let Some(topic) = self.domain_participant.get_mut_topic(&topic_name) else {
             return Err(DdsError::AlreadyDeleted);
         };
-        Ok(topic.get_inconsistent_topic_status())
+        Ok(topic.get_inconsistent_topic_status().await)
     }
 
     pub fn set_topic_qos(
@@ -814,18 +814,16 @@ where
             R: DdsRuntime,
         {
             fn add_change(&mut self, cache_change: CacheChange) {
-                todo!()
-                // self.domain_participant_address
-                //     .send(DomainParticipantMail::Message(
-                //         MessageServiceMail::AddCacheChange {
-                //             participant_address: self.domain_participant_address.clone(),
-                //             cache_change,
-                //             subscriber_handle: self.subscriber_handle,
-                //             data_reader_handle: self.data_reader_handle,
-                //         },
-                //     ))
-                //     .await
-                //     .ok();
+                let participant_address = self.domain_participant_address.clone();
+                R::block_on(participant_address.send(DomainParticipantMail::Message(
+                    MessageServiceMail::AddCacheChange {
+                        participant_address: self.domain_participant_address.clone(),
+                        cache_change,
+                        subscriber_handle: self.subscriber_handle,
+                        data_reader_handle: self.data_reader_handle,
+                    },
+                )))
+                .ok();
             }
 
             fn remove_change(&mut self, _sequence_number: i64) {
@@ -1209,7 +1207,7 @@ where
         Ok(())
     }
 
-    pub fn get_publication_matched_status(
+    pub async fn get_publication_matched_status(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
@@ -1226,11 +1224,12 @@ where
 
         let status = data_writer.get_publication_matched_status();
 
-        data_writer.status_condition().send_actor_mail(
-            StatusConditionMail::RemoveCommunicationState {
+        data_writer
+            .status_condition()
+            .send_actor_mail(StatusConditionMail::RemoveCommunicationState {
                 state: StatusKind::PublicationMatched,
-            },
-        );
+            })
+            .await;
         Ok(status)
     }
 
@@ -1535,7 +1534,7 @@ where
         })
     }
 
-    pub fn get_offered_deadline_missed_status(
+    pub async fn get_offered_deadline_missed_status(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
@@ -1550,7 +1549,7 @@ where
             return Err(DdsError::AlreadyDeleted);
         };
 
-        Ok(data_writer.get_offered_deadline_missed_status())
+        Ok(data_writer.get_offered_deadline_missed_status().await)
     }
 
     pub async fn enable_data_writer(
@@ -1636,7 +1635,7 @@ where
     }
 
     #[allow(clippy::too_many_arguments, clippy::type_complexity)]
-    pub fn read(
+    pub async fn read(
         &mut self,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
@@ -1661,17 +1660,19 @@ where
             return Err(DdsError::AlreadyDeleted);
         };
 
-        data_reader.read(
-            max_samples,
-            &sample_states,
-            &view_states,
-            &instance_states,
-            specific_instance_handle,
-        )
+        data_reader
+            .read(
+                max_samples,
+                &sample_states,
+                &view_states,
+                &instance_states,
+                specific_instance_handle,
+            )
+            .await
     }
 
     #[allow(clippy::too_many_arguments, clippy::type_complexity)]
-    pub fn take(
+    pub async fn take(
         &mut self,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
@@ -1690,17 +1691,19 @@ where
         let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle) else {
             return Err(DdsError::AlreadyDeleted);
         };
-        data_reader.take(
-            max_samples,
-            sample_states,
-            view_states,
-            instance_states,
-            specific_instance_handle,
-        )
+        data_reader
+            .take(
+                max_samples,
+                sample_states,
+                view_states,
+                instance_states,
+                specific_instance_handle,
+            )
+            .await
     }
 
     #[allow(clippy::too_many_arguments, clippy::type_complexity)]
-    pub fn read_next_instance(
+    pub async fn read_next_instance(
         &mut self,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
@@ -1719,17 +1722,19 @@ where
         let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle) else {
             return Err(DdsError::AlreadyDeleted);
         };
-        data_reader.read_next_instance(
-            max_samples,
-            previous_handle,
-            &sample_states,
-            &view_states,
-            &instance_states,
-        )
+        data_reader
+            .read_next_instance(
+                max_samples,
+                previous_handle,
+                &sample_states,
+                &view_states,
+                &instance_states,
+            )
+            .await
     }
 
     #[allow(clippy::too_many_arguments, clippy::type_complexity)]
-    pub fn take_next_instance(
+    pub async fn take_next_instance(
         &mut self,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
@@ -1748,16 +1753,18 @@ where
         let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle) else {
             return Err(DdsError::AlreadyDeleted);
         };
-        data_reader.take_next_instance(
-            max_samples,
-            previous_handle,
-            sample_states,
-            view_states,
-            instance_states,
-        )
+        data_reader
+            .take_next_instance(
+                max_samples,
+                previous_handle,
+                sample_states,
+                view_states,
+                instance_states,
+            )
+            .await
     }
 
-    pub fn get_subscription_matched_status(
+    pub async fn get_subscription_matched_status(
         &mut self,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
@@ -1772,11 +1779,12 @@ where
             return Err(DdsError::AlreadyDeleted);
         };
         let status = data_reader.get_subscription_matched_status();
-        data_reader.status_condition().send_actor_mail(
-            StatusConditionMail::RemoveCommunicationState {
+        data_reader
+            .status_condition()
+            .send_actor_mail(StatusConditionMail::RemoveCommunicationState {
                 state: StatusKind::SubscriptionMatched,
-            },
-        );
+            })
+            .await;
         Ok(status)
     }
 
@@ -2526,11 +2534,12 @@ where
                     else {
                         return;
                     };
-                    data_writer.status_condition().send_actor_mail(
-                        StatusConditionMail::AddCommunicationState {
+                    data_writer
+                        .status_condition()
+                        .send_actor_mail(StatusConditionMail::AddCommunicationState {
                             state: StatusKind::PublicationMatched,
-                        },
-                    );
+                        })
+                        .await;
                 } else {
                     data_writer.add_incompatible_subscription(
                         InstanceHandle::new(
@@ -2629,17 +2638,18 @@ where
                     else {
                         return;
                     };
-                    data_writer.status_condition().send_actor_mail(
-                        StatusConditionMail::AddCommunicationState {
+                    data_writer
+                        .status_condition()
+                        .send_actor_mail(StatusConditionMail::AddCommunicationState {
                             state: StatusKind::OfferedIncompatibleQos,
-                        },
-                    );
+                        })
+                        .await;
                 }
             }
         }
     }
 
-    fn remove_discovered_reader(
+    async fn remove_discovered_reader(
         &mut self,
         subscription_handle: InstanceHandle,
         publisher_handle: InstanceHandle,
@@ -2657,11 +2667,12 @@ where
         {
             data_writer.remove_matched_subscription(&subscription_handle);
 
-            data_writer.status_condition().send_actor_mail(
-                StatusConditionMail::AddCommunicationState {
+            data_writer
+                .status_condition()
+                .send_actor_mail(StatusConditionMail::AddCommunicationState {
                     state: StatusKind::PublicationMatched,
-                },
-            );
+                })
+                .await;
         }
     }
 
@@ -2905,11 +2916,12 @@ where
                     else {
                         return;
                     };
-                    data_reader.status_condition().send_actor_mail(
-                        StatusConditionMail::AddCommunicationState {
+                    data_reader
+                        .status_condition()
+                        .send_actor_mail(StatusConditionMail::AddCommunicationState {
                             state: StatusKind::SubscriptionMatched,
-                        },
-                    );
+                        })
+                        .await;
                 } else {
                     data_reader.add_requested_incompatible_qos(
                         InstanceHandle::new(
@@ -3012,17 +3024,18 @@ where
                     else {
                         return;
                     };
-                    data_reader.status_condition().send_actor_mail(
-                        StatusConditionMail::AddCommunicationState {
+                    data_reader
+                        .status_condition()
+                        .send_actor_mail(StatusConditionMail::AddCommunicationState {
                             state: StatusKind::RequestedIncompatibleQos,
-                        },
-                    );
+                        })
+                        .await;
                 }
             }
         }
     }
 
-    fn remove_discovered_writer(
+    async fn remove_discovered_writer(
         &mut self,
         publication_handle: InstanceHandle,
         subscriber_handle: InstanceHandle,
@@ -3041,7 +3054,9 @@ where
             .get_matched_publication_data(&publication_handle)
             .is_some()
         {
-            data_reader.remove_matched_publication(&publication_handle);
+            data_reader
+                .remove_matched_publication(&publication_handle)
+                .await;
         }
     }
 
@@ -3164,7 +3179,8 @@ where
                             discovered_writer_handle,
                             subscriber_handle,
                             data_reader_handle,
-                        );
+                        )
+                        .await;
                     }
                 }
             }
@@ -3294,7 +3310,8 @@ where
                             discovered_reader_handle,
                             publisher_handle,
                             data_writer_handle,
-                        );
+                        )
+                        .await;
                     }
                 }
             }
@@ -3314,7 +3331,7 @@ where
         }
     }
 
-    pub fn add_builtin_topics_detector_cache_change(&mut self, cache_change: CacheChange) {
+    pub async fn add_builtin_topics_detector_cache_change(&mut self, cache_change: CacheChange) {
         match cache_change.kind {
             ChangeKind::Alive => {
                 if let Ok(topic_builtin_topic_data) =
@@ -3330,7 +3347,7 @@ where
                                 &topic_builtin_topic_data,
                             )
                         {
-                            topic.increment_inconsistent_topic_status();
+                            topic.increment_inconsistent_topic_status().await;
                         }
                     }
                 }
@@ -3468,20 +3485,22 @@ where
                         return;
                     };
 
-                    subscriber.status_condition().send_actor_mail(
-                        StatusConditionMail::AddCommunicationState {
+                    subscriber
+                        .status_condition()
+                        .send_actor_mail(StatusConditionMail::AddCommunicationState {
                             state: StatusKind::DataOnReaders,
-                        },
-                    );
+                        })
+                        .await;
                     let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle)
                     else {
                         return;
                     };
-                    data_reader.status_condition().send_actor_mail(
-                        StatusConditionMail::AddCommunicationState {
+                    data_reader
+                        .status_condition()
+                        .send_actor_mail(StatusConditionMail::AddCommunicationState {
                             state: StatusKind::DataAvailable,
-                        },
-                    );
+                        })
+                        .await;
                 }
                 Ok(AddChangeResult::NotAdded) => (), // Do nothing
                 Ok(AddChangeResult::Rejected(instance_handle, sample_rejected_status_kind)) => {
@@ -3588,11 +3607,12 @@ where
                     else {
                         return;
                     };
-                    data_reader.status_condition().send_actor_mail(
-                        StatusConditionMail::AddCommunicationState {
+                    data_reader
+                        .status_condition()
+                        .send_actor_mail(StatusConditionMail::AddCommunicationState {
                             state: StatusKind::SampleRejected,
-                        },
-                    );
+                        })
+                        .await;
                 }
                 Err(_) => (),
             }
@@ -3646,7 +3666,7 @@ where
             .listener_mask()
             .contains(&StatusKind::OfferedDeadlineMissed)
         {
-            let status = data_writer.get_offered_deadline_missed_status();
+            let status = data_writer.get_offered_deadline_missed_status().await;
             let Ok(the_writer) = self.get_data_writer_async(
                 participant_address,
                 publisher_handle,
@@ -3686,7 +3706,7 @@ where
             let Some(data_writer) = publisher.get_mut_data_writer(data_writer_handle) else {
                 return;
             };
-            let status = data_writer.get_offered_deadline_missed_status();
+            let status = data_writer.get_offered_deadline_missed_status().await;
             publisher
                 .listener()
                 .send(ListenerMail::OfferedDeadlineMissed { the_writer, status })
@@ -3712,7 +3732,7 @@ where
             let Some(data_writer) = publisher.get_mut_data_writer(data_writer_handle) else {
                 return;
             };
-            let status = data_writer.get_offered_deadline_missed_status();
+            let status = data_writer.get_offered_deadline_missed_status().await;
             self.domain_participant
                 .listener()
                 .send(ListenerMail::OfferedDeadlineMissed { the_writer, status })
@@ -3726,11 +3746,12 @@ where
         let Some(data_writer) = publisher.get_mut_data_writer(data_writer_handle) else {
             return;
         };
-        data_writer.status_condition().send_actor_mail(
-            StatusConditionMail::AddCommunicationState {
+        data_writer
+            .status_condition()
+            .send_actor_mail(StatusConditionMail::AddCommunicationState {
                 state: StatusKind::OfferedDeadlineMissed,
-            },
-        );
+            })
+            .await;
     }
 
     pub async fn requested_deadline_missed(
@@ -3856,11 +3877,12 @@ where
             return;
         };
 
-        data_reader.status_condition().send_actor_mail(
-            StatusConditionMail::AddCommunicationState {
+        data_reader
+            .status_condition()
+            .send_actor_mail(StatusConditionMail::AddCommunicationState {
                 state: StatusKind::RequestedDeadlineMissed,
-            },
-        );
+            })
+            .await;
     }
 
     fn add_discovered_participant(
