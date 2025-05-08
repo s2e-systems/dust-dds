@@ -107,8 +107,10 @@ pub struct DomainParticipantActor<R: DdsRuntime> {
     pub transport: DdsTransportParticipant,
     pub instance_handle_counter: InstanceHandleCounter,
     pub entity_counter: u16,
-    pub domain_participant:
-        DomainParticipantEntity<Actor<R, StatusConditionActor>, R::ChannelSender<ListenerMail<R>>>,
+    pub domain_participant: DomainParticipantEntity<
+        Actor<R, StatusConditionActor<R>>,
+        R::ChannelSender<ListenerMail<R>>,
+    >,
     pub clock_handle: R::ClockHandle,
     pub timer_handle: R::TimerHandle,
     pub spawner_handle: R::SpawnerHandle,
@@ -120,7 +122,7 @@ where
 {
     pub fn new(
         domain_participant: DomainParticipantEntity<
-            Actor<R, StatusConditionActor>,
+            Actor<R, StatusConditionActor<R>>,
             R::ChannelSender<ListenerMail<R>>,
         >,
         transport: DdsTransportParticipant,
@@ -309,7 +311,7 @@ where
     pub fn create_user_defined_publisher(
         &mut self,
         qos: QosKind<PublisherQos>,
-        status_condition: Actor<R, StatusConditionActor>,
+        status_condition: Actor<R, StatusConditionActor<R>>,
         listener_sender: R::ChannelSender<ListenerMail<R>>,
         mask: Vec<StatusKind>,
     ) -> DdsResult<InstanceHandle> {
@@ -372,7 +374,7 @@ where
     pub fn create_user_defined_subscriber(
         &mut self,
         qos: QosKind<SubscriberQos>,
-        status_condition: Actor<R, StatusConditionActor>,
+        status_condition: Actor<R, StatusConditionActor<R>>,
         listener_sender: R::ChannelSender<ListenerMail<R>>,
         mask: Vec<StatusKind>,
     ) -> DdsResult<InstanceHandle> {
@@ -443,7 +445,7 @@ where
         topic_name: String,
         type_name: String,
         qos: QosKind<TopicQos>,
-        status_condition: Actor<R, StatusConditionActor>,
+        status_condition: Actor<R, StatusConditionActor<R>>,
         listener_sender: R::ChannelSender<ListenerMail<R>>,
         mask: Vec<StatusKind>,
         type_support: Arc<dyn DynamicType + Send + Sync>,
@@ -525,12 +527,12 @@ where
         &mut self,
         topic_name: String,
         type_support: Arc<dyn DynamicType + Send + Sync>,
-        status_condition: Actor<R, StatusConditionActor>,
+        status_condition: Actor<R, StatusConditionActor<R>>,
         listener_sender: R::ChannelSender<ListenerMail<R>>,
     ) -> DdsResult<
         Option<(
             InstanceHandle,
-            ActorAddress<R, StatusConditionActor>,
+            ActorAddress<R, StatusConditionActor<R>>,
             String,
         )>,
     > {
@@ -590,7 +592,7 @@ where
         Option<(
             String,
             InstanceHandle,
-            ActorAddress<R, StatusConditionActor>,
+            ActorAddress<R, StatusConditionActor<R>>,
         )>,
     > {
         if let Some(topic) = self.domain_participant.get_topic(&topic_name) {
@@ -632,7 +634,7 @@ where
 
     pub fn delete_participant_contained_entities(&mut self) -> DdsResult<()> {
         let deleted_publisher_list: Vec<
-            PublisherEntity<Actor<R, StatusConditionActor>, R::ChannelSender<ListenerMail<R>>>,
+            PublisherEntity<Actor<R, StatusConditionActor<R>>, R::ChannelSender<ListenerMail<R>>>,
         > = self.domain_participant.drain_publisher_list().collect();
         for mut publisher in deleted_publisher_list {
             for data_writer in publisher.drain_data_writer_list() {
@@ -641,7 +643,7 @@ where
         }
 
         let deleted_subscriber_list: Vec<
-            SubscriberEntity<Actor<R, StatusConditionActor>, R::ChannelSender<ListenerMail<R>>>,
+            SubscriberEntity<Actor<R, StatusConditionActor<R>>, R::ChannelSender<ListenerMail<R>>>,
         > = self.domain_participant.drain_subscriber_list().collect();
         for mut subscriber in deleted_subscriber_list {
             for data_reader in subscriber.drain_data_reader_list() {
@@ -793,7 +795,7 @@ where
         subscriber_handle: InstanceHandle,
         topic_name: String,
         qos: QosKind<DataReaderQos>,
-        status_condition: Actor<R, StatusConditionActor>,
+        status_condition: Actor<R, StatusConditionActor<R>>,
         listener_sender: R::ChannelSender<ListenerMail<R>>,
         mask: Vec<StatusKind>,
         domain_participant_address: R::ChannelSender<DomainParticipantMail<R>>,
@@ -935,7 +937,7 @@ where
         &mut self,
         subscriber_handle: InstanceHandle,
         topic_name: String,
-    ) -> DdsResult<Option<(InstanceHandle, ActorAddress<R, StatusConditionActor>)>> {
+    ) -> DdsResult<Option<(InstanceHandle, ActorAddress<R, StatusConditionActor<R>>)>> {
         if self.domain_participant.get_topic(&topic_name).is_none() {
             return Err(DdsError::BadParameter);
         }
@@ -1050,7 +1052,7 @@ where
         publisher_handle: InstanceHandle,
         topic_name: String,
         qos: QosKind<DataWriterQos>,
-        status_condition: Actor<R, StatusConditionActor>,
+        status_condition: Actor<R, StatusConditionActor<R>>,
         listener_sender: R::ChannelSender<ListenerMail<R>>,
         mask: Vec<StatusKind>,
         participant_address: R::ChannelSender<DomainParticipantMail<R>>,
@@ -2150,7 +2152,7 @@ where
     fn announce_deleted_data_writer(
         &mut self,
         data_writer: DataWriterEntity<
-            Actor<R, StatusConditionActor>,
+            Actor<R, StatusConditionActor<R>>,
             R::ChannelSender<ListenerMail<R>>,
         >,
     ) {
@@ -2230,7 +2232,7 @@ where
     fn announce_deleted_data_reader(
         &mut self,
         data_reader: DataReaderEntity<
-            Actor<R, StatusConditionActor>,
+            Actor<R, StatusConditionActor<R>>,
             R::ChannelSender<ListenerMail<R>>,
         >,
     ) {
@@ -4281,7 +4283,7 @@ fn get_discovered_reader_incompatible_qos_policy_list(
 
 fn get_discovered_writer_incompatible_qos_policy_list<R: DdsRuntime>(
     data_reader: &DataReaderEntity<
-        Actor<R, StatusConditionActor>,
+        Actor<R, StatusConditionActor<R>>,
         R::ChannelSender<ListenerMail<R>>,
     >,
     publication_builtin_topic_data: &PublicationBuiltinTopicData,

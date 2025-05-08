@@ -162,8 +162,8 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
     ) -> DdsResult<(
         R::ChannelSender<DomainParticipantMail<R>>,
         InstanceHandle,
-        ActorAddress<R, StatusConditionActor>,
-        ActorAddress<R, StatusConditionActor>,
+        ActorAddress<R, StatusConditionActor<R>>,
+        ActorAddress<R, StatusConditionActor<R>>,
     )> {
         let domain_participant_qos = match qos {
             QosKind::Default => self.default_participant_qos.clone(),
@@ -637,8 +637,8 @@ pub enum DomainParticipantFactoryMail<R: DdsRuntime> {
             DdsResult<(
                 R::ChannelSender<DomainParticipantMail<R>>,
                 InstanceHandle,
-                ActorAddress<R, StatusConditionActor>,
-                ActorAddress<R, StatusConditionActor>,
+                ActorAddress<R, StatusConditionActor<R>>,
+                ActorAddress<R, StatusConditionActor<R>>,
             )>,
         >,
     },

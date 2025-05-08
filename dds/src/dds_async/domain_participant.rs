@@ -35,8 +35,8 @@ use std::sync::Arc;
 /// Async version of [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant).
 pub struct DomainParticipantAsync<R: DdsRuntime> {
     participant_address: R::ChannelSender<DomainParticipantMail<R>>,
-    status_condition_address: ActorAddress<R, StatusConditionActor>,
-    builtin_subscriber_status_condition_address: ActorAddress<R, StatusConditionActor>,
+    status_condition_address: ActorAddress<R, StatusConditionActor<R>>,
+    builtin_subscriber_status_condition_address: ActorAddress<R, StatusConditionActor<R>>,
     domain_id: DomainId,
     handle: InstanceHandle,
     spawner_handle: R::SpawnerHandle,
@@ -60,8 +60,8 @@ impl<R: DdsRuntime> Clone for DomainParticipantAsync<R> {
 impl<R: DdsRuntime> DomainParticipantAsync<R> {
     pub(crate) fn new(
         participant_address: R::ChannelSender<DomainParticipantMail<R>>,
-        status_condition_address: ActorAddress<R, StatusConditionActor>,
-        builtin_subscriber_status_condition_address: ActorAddress<R, StatusConditionActor>,
+        status_condition_address: ActorAddress<R, StatusConditionActor<R>>,
+        builtin_subscriber_status_condition_address: ActorAddress<R, StatusConditionActor<R>>,
         domain_id: DomainId,
         handle: InstanceHandle,
         spawner_handle: R::SpawnerHandle,

@@ -1,16 +1,15 @@
 use crate::{
     dcps::{
         actor::ActorAddress,
-        runtime::DdsRuntime,
+        runtime::{DdsRuntime, OneshotReceive},
         status_condition_actor::{StatusConditionActor, StatusConditionMail},
     },
     infrastructure::{error::DdsResult, status::StatusKind},
-    runtime::oneshot::oneshot,
 };
 
 /// Async version of [`StatusCondition`](crate::infrastructure::condition::StatusCondition).
 pub struct StatusConditionAsync<R: DdsRuntime> {
-    address: ActorAddress<R, StatusConditionActor>,
+    address: ActorAddress<R, StatusConditionActor<R>>,
 }
 
 impl<R: DdsRuntime> Clone for StatusConditionAsync<R> {
@@ -22,7 +21,7 @@ impl<R: DdsRuntime> Clone for StatusConditionAsync<R> {
 }
 
 impl<R: DdsRuntime> StatusConditionAsync<R> {
-    pub(crate) fn new(address: ActorAddress<R, StatusConditionActor>) -> Self {
+    pub(crate) fn new(address: ActorAddress<R, StatusConditionActor<R>>) -> Self {
         Self { address }
     }
 }
@@ -31,13 +30,13 @@ impl<R: DdsRuntime> StatusConditionAsync<R> {
     /// Async version of [`get_enabled_statuses`](crate::infrastructure::condition::StatusCondition::get_enabled_statuses).
     #[tracing::instrument(skip(self))]
     pub async fn get_enabled_statuses(&self) -> DdsResult<Vec<StatusKind>> {
-        let (reply_sender, reply_receiver) = oneshot();
+        let (reply_sender, mut reply_receiver) = R::oneshot();
         self.address
             .send_actor_mail(StatusConditionMail::GetStatusConditionEnabledStatuses {
                 reply_sender,
             })
             .await?;
-        Ok(reply_receiver.await?)
+        Ok(reply_receiver.receive().await?)
     }
 
     /// Async version of [`set_enabled_statuses`](crate::infrastructure::condition::StatusCondition::set_enabled_statuses).
@@ -62,10 +61,10 @@ impl<R: DdsRuntime> StatusConditionAsync<R> {
     /// Async version of [`get_trigger_value`](crate::infrastructure::condition::StatusCondition::get_trigger_value).
     #[tracing::instrument(skip(self))]
     pub async fn get_trigger_value(&self) -> DdsResult<bool> {
-        let (reply_sender, reply_receiver) = oneshot();
+        let (reply_sender, mut reply_receiver) = R::oneshot();
         self.address
             .send_actor_mail(StatusConditionMail::GetStatusConditionTriggerValue { reply_sender })
             .await?;
-        Ok(reply_receiver.await?)
+        Ok(reply_receiver.receive().await?)
     }
 }

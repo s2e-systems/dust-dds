@@ -28,7 +28,7 @@ use crate::{
 /// Async version of [`Publisher`](crate::publication::publisher::Publisher).
 pub struct PublisherAsync<R: DdsRuntime> {
     handle: InstanceHandle,
-    status_condition_address: ActorAddress<R, StatusConditionActor>,
+    status_condition_address: ActorAddress<R, StatusConditionActor<R>>,
     participant: DomainParticipantAsync<R>,
 }
 
@@ -45,7 +45,7 @@ impl<R: DdsRuntime> Clone for PublisherAsync<R> {
 impl<R: DdsRuntime> PublisherAsync<R> {
     pub(crate) fn new(
         handle: InstanceHandle,
-        status_condition_address: ActorAddress<R, StatusConditionActor>,
+        status_condition_address: ActorAddress<R, StatusConditionActor<R>>,
         participant: DomainParticipantAsync<R>,
     ) -> Self {
         Self {

@@ -1,20 +1,24 @@
+use core::marker::PhantomData;
+
 use crate::{
     dcps::{
         actor::{Actor, MailHandler},
         runtime::DdsRuntime,
     },
     infrastructure::status::StatusKind,
-    runtime::oneshot::OneshotSender,
 };
 use alloc::vec::Vec;
 
+use super::runtime::OneshotSend;
+
 #[derive(Debug)]
-pub struct StatusConditionActor {
+pub struct StatusConditionActor<R: DdsRuntime> {
     enabled_statuses: Vec<StatusKind>,
     status_changes: Vec<StatusKind>,
+    phantom: PhantomData<R>,
 }
 
-impl Default for StatusConditionActor {
+impl<R: DdsRuntime> Default for StatusConditionActor<R> {
     fn default() -> Self {
         Self {
             enabled_statuses: vec![
@@ -33,11 +37,12 @@ impl Default for StatusConditionActor {
                 StatusKind::SubscriptionMatched,
             ],
             status_changes: Vec::new(),
+            phantom: PhantomData,
         }
     }
 }
 
-impl StatusConditionActor {
+impl<R: DdsRuntime> StatusConditionActor<R> {
     pub fn add_communication_state(&mut self, state: StatusKind) {
         self.status_changes.push(state);
     }
@@ -64,15 +69,15 @@ impl StatusConditionActor {
     }
 }
 
-pub enum StatusConditionMail {
+pub enum StatusConditionMail<R: DdsRuntime> {
     GetStatusConditionEnabledStatuses {
-        reply_sender: OneshotSender<Vec<StatusKind>>,
+        reply_sender: R::OneshotSender<Vec<StatusKind>>,
     },
     SetStatusConditionEnabledStatuses {
         status_mask: Vec<StatusKind>,
     },
     GetStatusConditionTriggerValue {
-        reply_sender: OneshotSender<bool>,
+        reply_sender: R::OneshotSender<bool>,
     },
     AddCommunicationState {
         state: StatusKind,
@@ -82,18 +87,18 @@ pub enum StatusConditionMail {
     },
 }
 
-impl MailHandler for StatusConditionActor {
-    type Mail = StatusConditionMail;
-    async fn handle(&mut self, message: StatusConditionMail) {
+impl<R: DdsRuntime> MailHandler for StatusConditionActor<R> {
+    type Mail = StatusConditionMail<R>;
+    async fn handle(&mut self, message: StatusConditionMail<R>) {
         match message {
             StatusConditionMail::GetStatusConditionEnabledStatuses { reply_sender } => {
-                reply_sender.send(self.get_enabled_statuses())
+                reply_sender.send(self.get_enabled_statuses()).await
             }
             StatusConditionMail::SetStatusConditionEnabledStatuses { status_mask } => {
                 self.set_enabled_statuses(status_mask)
             }
             StatusConditionMail::GetStatusConditionTriggerValue { reply_sender } => {
-                reply_sender.send(self.get_trigger_value())
+                reply_sender.send(self.get_trigger_value()).await
             }
             StatusConditionMail::AddCommunicationState { state } => {
                 self.add_communication_state(state)
@@ -106,7 +111,7 @@ impl MailHandler for StatusConditionActor {
 }
 
 impl<R: DdsRuntime> crate::dcps::status_condition::StatusCondition
-    for Actor<R, StatusConditionActor>
+    for Actor<R, StatusConditionActor<R>>
 {
     async fn add_state(&mut self, state: StatusKind) {
         self.send_actor_mail(StatusConditionMail::AddCommunicationState { state })
