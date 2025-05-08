@@ -255,8 +255,8 @@ impl DomainParticipantAsync {
         // let participant_async = self.clone();
         // let listener_sender = TopicListenerActor::spawn(NoOpListener, &self.executor_handle);
         // let executor_handle = self.executor_handle.clone();
-        // self.timer_handle
-        //     .timeout(
+        // poll_timeout(
+
         //         timeout.into(),
         //         Box::pin(async move {
         //             loop {

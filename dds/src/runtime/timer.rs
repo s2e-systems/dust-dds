@@ -1,7 +1,7 @@
 use std::{
     collections::BinaryHeap,
-    future::{poll_fn, Future},
-    pin::{pin, Pin},
+    future::Future,
+    pin::Pin,
     sync::{mpsc::RecvTimeoutError, Arc, Mutex},
     task::{Context, Poll, Waker},
     thread::JoinHandle,
@@ -87,11 +87,6 @@ impl Future for Sleep {
     }
 }
 
-#[derive(Debug)]
-pub enum TimeoutError {
-    Timeout,
-}
-
 struct TimerHeap {
     heap: BinaryHeap<TimerWake>,
 }
@@ -154,32 +149,12 @@ impl TimerHandle {
             periodic_task_sender: inner_lock.periodic_task_sender.clone(),
         }
     }
-
-    pub fn timeout<T>(
-        &self,
-        duration: Duration,
-        mut future: Pin<Box<dyn Future<Output = T> + Send>>,
-    ) -> impl Future<Output = Result<T, TimeoutError>> {
-        let mut timeout = self.sleep(duration);
-
-        poll_fn(move |cx| {
-            if let Poll::Ready(t) = pin!(&mut future).poll(cx) {
-                return Poll::Ready(Ok(t));
-            }
-            if pin!(&mut timeout).poll(cx).is_ready() {
-                return Poll::Ready(Err(TimeoutError::Timeout));
-            }
-
-            Poll::Pending
-        })
-    }
 }
 
 impl Timer for TimerHandle {
     fn delay(&mut self, duration: core::time::Duration) -> impl Future<Output = ()> + Send {
         self.sleep(duration)
     }
-
 }
 
 pub struct TimerDriver {

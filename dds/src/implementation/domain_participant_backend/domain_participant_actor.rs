@@ -85,7 +85,11 @@ use crate::{
     xtypes::dynamic_type::DynamicType,
 };
 use alloc::sync::Arc;
-use core::{future::Future, pin::Pin};
+use core::{
+    future::{poll_fn, Future},
+    pin::{pin, Pin},
+    task::Poll,
+};
 use fnmatch_regex::glob_to_regex;
 
 pub trait Timer {
@@ -98,6 +102,24 @@ pub trait DdsRuntime {
 
     fn timer(&mut self) -> Self::TimerHandle;
     fn clock(&mut self) -> Self::ClockHandle;
+}
+
+fn poll_timeout<T>(
+    mut timer_handle: impl Timer,
+    duration: core::time::Duration,
+    mut future: Pin<Box<dyn Future<Output = T> + Send>>,
+) -> impl Future<Output = DdsResult<T>> {
+    poll_fn(move |cx| {
+        let mut timeout = timer_handle.delay(duration);
+        if let Poll::Ready(t) = pin!(&mut future).poll(cx) {
+            return Poll::Ready(Ok(t));
+        }
+        if pin!(timeout).poll(cx).is_ready() {
+            return Poll::Ready(Err(DdsError::Timeout));
+        }
+
+        Poll::Pending
+    })
 }
 
 pub struct DomainParticipantActor<R> {
@@ -1472,41 +1494,39 @@ where
         data_writer_handle: InstanceHandle,
         timeout: Duration,
     ) -> Pin<Box<dyn Future<Output = DdsResult<()>> + Send>> {
-        todo!()
-        // let timer_handle = self.runtime.timer();
-        // Box::pin(async move {
-        //     timer_handle
-        //         .timeout(
-        //             timeout.into(),
-        //             Box::pin(async move {
-        //                 loop {
-        //                     let (reply_sender, reply_receiver) = oneshot();
-        //                     participant_address
-        //                         .send(DomainParticipantMail::Message(
-        //                             MessageServiceMail::AreAllChangesAcknowledged {
-        //                                 publisher_handle,
-        //                                 data_writer_handle,
-        //                                 reply_sender,
-        //                             },
-        //                         ))
-        //                         .ok();
-        //                     let reply = reply_receiver.await;
-        //                     match reply {
-        //                         Ok(are_changes_acknowledged) => match are_changes_acknowledged {
-        //                             Ok(true) => return Ok(()),
-        //                             Ok(false) => (),
-        //                             Err(e) => return Err(e),
-        //                         },
-        //                         Err(e) => {
-        //                             return Err(DdsError::Error(format!("Channel error: {:?}", e)))
-        //                         }
-        //                     }
-        //                 }
-        //             }),
-        //         )
-        //         .await
-        //         .map_err(|_| DdsError::Timeout)?
-        // })
+        let timer_handle = self.runtime.timer();
+        Box::pin(async move {
+            poll_timeout(
+                timer_handle,
+                timeout.into(),
+                Box::pin(async move {
+                    loop {
+                        let (reply_sender, reply_receiver) = oneshot();
+                        participant_address
+                            .send(DomainParticipantMail::Message(
+                                MessageServiceMail::AreAllChangesAcknowledged {
+                                    publisher_handle,
+                                    data_writer_handle,
+                                    reply_sender,
+                                },
+                            ))
+                            .ok();
+                        let reply = reply_receiver.await;
+                        match reply {
+                            Ok(are_changes_acknowledged) => match are_changes_acknowledged {
+                                Ok(true) => return Ok(()),
+                                Ok(false) => (),
+                                Err(e) => return Err(e),
+                            },
+                            Err(e) => {
+                                return Err(DdsError::Error(format!("Channel error: {:?}", e)))
+                            }
+                        }
+                    }
+                }),
+            )
+            .await?
+        })
     }
 
     pub fn get_offered_deadline_missed_status(
@@ -1761,39 +1781,37 @@ where
         max_wait: Duration,
     ) -> Pin<Box<dyn Future<Output = DdsResult<()>> + Send>> {
         let timer_handle = self.runtime.timer();
-        todo!()
-        // Box::pin(async move {
-        //     timer_handle
-        //         .timeout(
-        //             max_wait.into(),
-        //             Box::pin(async move {
-        //                 loop {
-        //                     let (reply_sender, reply_receiver) = oneshot();
-        //                     participant_address.send(DomainParticipantMail::Message(
-        //                         MessageServiceMail::IsHistoricalDataReceived {
-        //                             subscriber_handle,
-        //                             data_reader_handle,
-        //                             reply_sender,
-        //                         },
-        //                     ))?;
+        Box::pin(async move {
+            poll_timeout(
+                timer_handle,
+                max_wait.into(),
+                Box::pin(async move {
+                    loop {
+                        let (reply_sender, reply_receiver) = oneshot();
+                        participant_address.send(DomainParticipantMail::Message(
+                            MessageServiceMail::IsHistoricalDataReceived {
+                                subscriber_handle,
+                                data_reader_handle,
+                                reply_sender,
+                            },
+                        ))?;
 
-        //                     let reply = reply_receiver.await;
-        //                     match reply {
-        //                         Ok(historical_data_received) => match historical_data_received {
-        //                             Ok(true) => return Ok(()),
-        //                             Ok(false) => (),
-        //                             Err(e) => return Err(e),
-        //                         },
-        //                         Err(e) => {
-        //                             return Err(DdsError::Error(format!("Channel error: {:?}", e)))
-        //                         }
-        //                     }
-        //                 }
-        //             }),
-        //         )
-        //         .await
-        //         .map_err(|_| DdsError::Timeout)?
-        // })
+                        let reply = reply_receiver.await;
+                        match reply {
+                            Ok(historical_data_received) => match historical_data_received {
+                                Ok(true) => return Ok(()),
+                                Ok(false) => (),
+                                Err(e) => return Err(e),
+                            },
+                            Err(e) => {
+                                return Err(DdsError::Error(format!("Channel error: {:?}", e)))
+                            }
+                        }
+                    }
+                }),
+            )
+            .await?
+        })
     }
 
     pub fn get_matched_publication_data(
