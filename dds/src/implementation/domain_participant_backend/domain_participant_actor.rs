@@ -1,9 +1,3 @@
-use alloc::sync::Arc;
-use core::{future::Future, pin::Pin};
-use std::time::{SystemTime, UNIX_EPOCH};
-
-use fnmatch_regex::glob_to_regex;
-
 use super::{
     domain_participant_actor_mail::{DomainParticipantMail, EventServiceMail, MessageServiceMail},
     handle::InstanceHandleCounter,
@@ -90,25 +84,20 @@ use crate::{
     },
     xtypes::dynamic_type::DynamicType,
 };
-
-struct StdClock;
-
-impl Clock for StdClock {
-    fn now(&self) -> core::time::Duration {
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("Clock time is before Unix epoch start")
-    }
-}
+use alloc::sync::Arc;
+use core::{future::Future, pin::Pin};
+use fnmatch_regex::glob_to_regex;
 
 pub trait Timer {
     fn delay(&mut self, duration: core::time::Duration) -> impl Future<Output = ()> + Send;
 }
 
 pub trait DdsRuntime {
+    type ClockHandle: Clock;
     type TimerHandle: Timer + Send + 'static;
 
     fn timer(&mut self) -> Self::TimerHandle;
+    fn clock(&mut self) -> Self::ClockHandle;
 }
 
 pub struct DomainParticipantActor<R> {
@@ -733,12 +722,7 @@ where
     }
 
     pub fn get_current_time(&mut self) -> Time {
-        todo!()
-        // let now_system_time = SystemTime::now();
-        // let unix_time = now_system_time
-        //     .duration_since(UNIX_EPOCH)
-        //     .expect("Clock time is before Unix epoch start");
-        // Time::new(unix_time.as_secs() as i32, unix_time.subsec_nanos())
+        self.runtime.clock().now()
     }
 
     pub fn set_domain_participant_qos(
@@ -1391,13 +1375,16 @@ where
                 let mut timer_handle = self.runtime.timer();
                 let sleep_duration = timestamp - now + lifespan_duration;
                 if sleep_duration > Duration::new(0, 0) {
-                    let sequence_number =
-                        match data_writer.write_w_timestamp(serialized_data, timestamp, StdClock) {
-                            Ok(s) => s,
-                            Err(e) => {
-                                return Err(e);
-                            }
-                        };
+                    let sequence_number = match data_writer.write_w_timestamp(
+                        serialized_data,
+                        timestamp,
+                        self.runtime.clock(),
+                    ) {
+                        Ok(s) => s,
+                        Err(e) => {
+                            return Err(e);
+                        }
+                    };
 
                     let participant_address = participant_address.clone();
                     self.backend_executor.handle().spawn(async move {
@@ -1415,7 +1402,11 @@ where
                 }
             }
             DurationKind::Infinite => {
-                match data_writer.write_w_timestamp(serialized_data, timestamp, StdClock) {
+                match data_writer.write_w_timestamp(
+                    serialized_data,
+                    timestamp,
+                    self.runtime.clock(),
+                ) {
                     Ok(_) => (),
                     Err(e) => {
                         return Err(e);
@@ -2038,7 +2029,7 @@ where
                 .lookup_datawriter_mut(DCPS_PARTICIPANT)
             {
                 if let Ok(serialized_data) = spdp_discovered_participant_data.serialize_data() {
-                    dw.write_w_timestamp(serialized_data, timestamp, StdClock)
+                    dw.write_w_timestamp(serialized_data, timestamp, self.runtime.clock())
                         .ok();
                 }
             }
@@ -2118,7 +2109,7 @@ where
             .lookup_datawriter_mut(DCPS_PUBLICATION)
         {
             if let Ok(serialized_data) = discovered_writer_data.serialize_data() {
-                dw.write_w_timestamp(serialized_data, timestamp, StdClock)
+                dw.write_w_timestamp(serialized_data, timestamp, self.runtime.clock())
                     .ok();
             }
         }
@@ -2195,7 +2186,7 @@ where
             .lookup_datawriter_mut(DCPS_SUBSCRIPTION)
         {
             if let Ok(serialized_data) = discovered_reader_data.serialize_data() {
-                dw.write_w_timestamp(serialized_data, timestamp, StdClock)
+                dw.write_w_timestamp(serialized_data, timestamp, self.runtime.clock())
                     .ok();
             }
         }
@@ -2252,7 +2243,7 @@ where
             .lookup_datawriter_mut(DCPS_TOPIC)
         {
             if let Ok(serialized_data) = topic_builtin_topic_data.serialize_data() {
-                dw.write_w_timestamp(serialized_data, timestamp, StdClock)
+                dw.write_w_timestamp(serialized_data, timestamp, self.runtime.clock())
                     .ok();
             }
         }
