@@ -1,5 +1,5 @@
-use core::time::Duration;
+use super::infrastructure::time::Time;
 
 pub trait Clock {
-    fn now(&self) -> Duration;
+    fn now(&self) -> Time;
 }

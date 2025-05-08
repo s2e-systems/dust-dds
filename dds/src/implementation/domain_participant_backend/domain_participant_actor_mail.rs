@@ -1,7 +1,7 @@
 use alloc::sync::Arc;
 use core::{future::Future, pin::Pin};
 
-use super::domain_participant_actor::DomainParticipantActor;
+use super::domain_participant_actor::{DdsRuntime, DomainParticipantActor};
 use crate::{
     builtin_topics::{
         ParticipantBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
@@ -74,7 +74,7 @@ pub enum ParticipantServiceMail {
         topic_name: String,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
-    FindTopic {
+    _FindTopic {
         topic_name: String,
         type_support: Arc<dyn DynamicType + Send + Sync>,
         status_condition: Actor<StatusConditionActor>,
@@ -197,7 +197,7 @@ pub enum PublisherServiceMail {
         status_condition: Actor<StatusConditionActor>,
         listener_sender: MpscSender<ListenerMail>,
         mask: Vec<StatusKind>,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        participant_address: MpscSender<DomainParticipantMail>,
         reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
     },
     DeleteDataWriter {
@@ -239,7 +239,7 @@ pub enum SubscriberServiceMail {
         status_condition: Actor<StatusConditionActor>,
         listener_sender: MpscSender<ListenerMail>,
         mask: Vec<StatusKind>,
-        domain_participant_address: ActorAddress<DomainParticipantActor>,
+        domain_participant_address: MpscSender<DomainParticipantMail>,
         reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
     },
     DeleteDataReader {
@@ -323,7 +323,7 @@ pub enum WriterServiceMail {
         reply_sender: OneshotSender<DdsResult<Option<InstanceHandle>>>,
     },
     WriteWTimestamp {
-        participant_address: ActorAddress<DomainParticipantActor>,
+        participant_address: MpscSender<DomainParticipantMail>,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         serialized_data: Vec<u8>,
@@ -338,7 +338,7 @@ pub enum WriterServiceMail {
         reply_sender: OneshotSender<DdsResult<()>>,
     },
     WaitForAcknowledgments {
-        participant_address: ActorAddress<DomainParticipantActor>,
+        participant_address: MpscSender<DomainParticipantMail>,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         timeout: Duration,
@@ -352,7 +352,7 @@ pub enum WriterServiceMail {
     EnableDataWriter {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        participant_address: MpscSender<DomainParticipantMail>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
     SetDataWriterQos {
@@ -367,7 +367,7 @@ pub enum ReaderServiceMail {
     Enable {
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        participant_address: MpscSender<DomainParticipantMail>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
     Read {
@@ -420,7 +420,7 @@ pub enum ReaderServiceMail {
         reply_sender: OneshotSender<DdsResult<SubscriptionMatchedStatus>>,
     },
     WaitForHistoricalData {
-        participant_address: ActorAddress<DomainParticipantActor>,
+        participant_address: MpscSender<DomainParticipantMail>,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         max_wait: Duration,
@@ -459,7 +459,7 @@ pub enum ReaderServiceMail {
 
 pub enum MessageServiceMail {
     AddCacheChange {
-        participant_address: ActorAddress<DomainParticipantActor>,
+        participant_address: MpscSender<DomainParticipantMail>,
         cache_change: CacheChange,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
@@ -484,11 +484,11 @@ pub enum MessageServiceMail {
     },
     AddBuiltinPublicationsDetectorCacheChange {
         cache_change: CacheChange,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        participant_address: MpscSender<DomainParticipantMail>,
     },
     AddBuiltinSubscriptionsDetectorCacheChange {
         cache_change: CacheChange,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        participant_address: MpscSender<DomainParticipantMail>,
     },
     AddBuiltinTopicsDetectorCacheChange {
         cache_change: CacheChange,
@@ -500,13 +500,13 @@ pub enum EventServiceMail {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         change_instance_handle: InstanceHandle,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        participant_address: MpscSender<DomainParticipantMail>,
     },
     RequestedDeadlineMissed {
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         change_instance_handle: InstanceHandle,
-        participant_address: ActorAddress<DomainParticipantActor>,
+        participant_address: MpscSender<DomainParticipantMail>,
     },
 }
 
@@ -527,7 +527,10 @@ pub enum DomainParticipantMail {
     Discovery(DiscoveryServiceMail),
 }
 
-impl MailHandler for DomainParticipantActor {
+impl<R> MailHandler for DomainParticipantActor<R>
+where
+    R: DdsRuntime + Send,
+{
     type Mail = DomainParticipantMail;
     async fn handle(&mut self, message: DomainParticipantMail) {
         match message {
@@ -562,7 +565,10 @@ impl MailHandler for DomainParticipantActor {
     }
 }
 
-impl DomainParticipantActor {
+impl<R> DomainParticipantActor<R>
+where
+    R: DdsRuntime,
+{
     fn handle_participant_service(&mut self, participant_service_mail: ParticipantServiceMail) {
         match participant_service_mail {
             ParticipantServiceMail::CreateUserDefinedPublisher {
@@ -626,7 +632,7 @@ impl DomainParticipantActor {
                 topic_name,
                 reply_sender,
             } => reply_sender.send(self.delete_user_defined_topic(participant_handle, topic_name)),
-            ParticipantServiceMail::FindTopic {
+            ParticipantServiceMail::_FindTopic {
                 topic_name,
                 type_support,
                 status_condition,

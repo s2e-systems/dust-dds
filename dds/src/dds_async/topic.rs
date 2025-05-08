@@ -53,7 +53,7 @@ impl TopicAsync {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant
             .participant_address()
-            .send_actor_mail(DomainParticipantMail::Topic(
+            .send(DomainParticipantMail::Topic(
                 TopicServiceMail::GetInconsistentTopicStatus {
                     topic_name: self.topic_name.clone(),
                     reply_sender,
@@ -90,7 +90,7 @@ impl TopicAsync {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant
             .participant_address()
-            .send_actor_mail(DomainParticipantMail::Topic(TopicServiceMail::SetQos {
+            .send(DomainParticipantMail::Topic(TopicServiceMail::SetQos {
                 topic_name: self.topic_name.clone(),
                 topic_qos: qos,
                 reply_sender,
@@ -105,7 +105,7 @@ impl TopicAsync {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant
             .participant_address()
-            .send_actor_mail(DomainParticipantMail::Topic(TopicServiceMail::GetQos {
+            .send(DomainParticipantMail::Topic(TopicServiceMail::GetQos {
                 topic_name: self.topic_name.clone(),
                 reply_sender,
             }))?;
@@ -131,7 +131,7 @@ impl TopicAsync {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant
             .participant_address()
-            .send_actor_mail(DomainParticipantMail::Topic(TopicServiceMail::Enable {
+            .send(DomainParticipantMail::Topic(TopicServiceMail::Enable {
                 topic_name: self.topic_name.clone(),
                 reply_sender,
             }))?;
@@ -162,7 +162,7 @@ impl TopicAsync {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant
             .participant_address()
-            .send_actor_mail(DomainParticipantMail::Topic(
+            .send(DomainParticipantMail::Topic(
                 TopicServiceMail::GetTypeSupport {
                     topic_name: self.topic_name.clone(),
                     reply_sender,

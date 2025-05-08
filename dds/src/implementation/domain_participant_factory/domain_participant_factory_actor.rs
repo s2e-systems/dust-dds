@@ -51,11 +51,12 @@ use crate::{
     listener::NoOpListener,
     rtps_udp_transport::udp_transport::RtpsUdpTransportParticipantFactory,
     runtime::{
-        actor::{Actor, ActorAddress, ActorBuilder, MailHandler},
+        actor::{Actor, ActorAddress, MailHandler},
         executor::Executor,
-        mpsc::MpscSender,
+        mpsc::{mpsc_channel, MpscSender},
         oneshot::{oneshot, OneshotSender},
         timer::TimerDriver,
+        StdRuntime,
     },
     transport::{
         factory::TransportParticipantFactory,
@@ -108,7 +109,7 @@ pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR: EntityId =
     EntityId::new([0, 0, 0x04], BUILT_IN_READER_WITH_KEY);
 
 pub struct DomainParticipantFactoryActor {
-    domain_participant_list: Vec<(InstanceHandle, Actor<DomainParticipantActor>)>,
+    domain_participant_list: Vec<(InstanceHandle, MpscSender<DomainParticipantMail>)>,
     qos: DomainParticipantFactoryQos,
     default_participant_qos: DomainParticipantQos,
     configuration: DustDdsConfiguration,
@@ -167,13 +168,14 @@ impl DomainParticipantFactoryActor {
         executor: Executor,
         timer_driver: TimerDriver,
     ) -> DdsResult<(
-        ActorAddress<DomainParticipantActor>,
+        MpscSender<DomainParticipantMail>,
         InstanceHandle,
         ActorAddress<StatusConditionActor>,
         ActorAddress<StatusConditionActor>,
     )> {
         let executor_handle = executor.handle();
         let timer_handle = timer_driver.handle();
+        let runtime = StdRuntime::new(timer_driver);
 
         let domain_participant_qos = match qos {
             QosKind::Default => self.default_participant_qos.clone(),
@@ -181,7 +183,7 @@ impl DomainParticipantFactoryActor {
         };
 
         let guid_prefix = self.create_new_guid_prefix();
-        let participant_actor_builder = ActorBuilder::new();
+        let (participant_sender, participant_receiver) = mpsc_channel();
 
         let mut transport = self.transport.create_participant(guid_prefix, domain_id);
 
@@ -320,7 +322,7 @@ impl DomainParticipantFactoryActor {
         let dcps_participant_transport_reader = transport.create_stateless_reader(
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
             Box::new(DcpsParticipantReaderHistoryCache {
-                participant_address: participant_actor_builder.address(),
+                participant_address: participant_sender.clone(),
             }),
         );
         let mut dcps_participant_reader = DataReaderEntity::new(
@@ -339,7 +341,7 @@ impl DomainParticipantFactoryActor {
             ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
             ReliabilityKind::Reliable,
             Box::new(DcpsTopicsReaderHistoryCache {
-                participant_address: participant_actor_builder.address(),
+                participant_address: participant_sender.clone(),
             }),
         );
         let mut dcps_topic_reader = DataReaderEntity::new(
@@ -358,7 +360,7 @@ impl DomainParticipantFactoryActor {
             ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
             ReliabilityKind::Reliable,
             Box::new(DcpsPublicationsReaderHistoryCache {
-                participant_address: participant_actor_builder.address(),
+                participant_address: participant_sender.clone(),
             }),
         );
         let mut dcps_publication_reader = DataReaderEntity::new(
@@ -377,7 +379,7 @@ impl DomainParticipantFactoryActor {
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
             ReliabilityKind::Reliable,
             Box::new(DcpsSubscriptionsReaderHistoryCache {
-                participant_address: participant_actor_builder.address(),
+                participant_address: participant_sender.clone(),
             }),
         );
         let mut dcps_subscription_reader = DataReaderEntity::new(
@@ -502,12 +504,12 @@ impl DomainParticipantFactoryActor {
             self.configuration.domain_tag().to_owned(),
         );
 
-        let domain_participant_actor = DomainParticipantActor::new(
+        let mut domain_participant_actor = DomainParticipantActor::new(
             domain_participant,
             transport,
             executor,
-            timer_driver,
             instance_handle_counter,
+            runtime,
         );
         let participant_handle = domain_participant_actor
             .domain_participant
@@ -523,19 +525,22 @@ impl DomainParticipantFactoryActor {
             .status_condition()
             .address();
 
-        let participant_actor =
-            participant_actor_builder.build(domain_participant_actor, &executor_handle);
+        executor_handle.spawn(async move {
+            while let Some(m) = participant_receiver.recv().await {
+                domain_participant_actor.handle(m).await;
+            }
+        });
 
         //****** Spawn the participant actor and tasks **********//
 
         // Start the regular participant announcement task
-        let participant_address = participant_actor.address();
+        let participant_address = participant_sender.clone();
         let participant_announcement_interval =
             self.configuration.participant_announcement_interval();
 
         executor_handle.spawn(async move {
             while participant_address
-                .send_actor_mail(DomainParticipantMail::Discovery(
+                .send(DomainParticipantMail::Discovery(
                     DiscoveryServiceMail::AnnounceParticipant,
                 ))
                 .is_ok()
@@ -546,14 +551,16 @@ impl DomainParticipantFactoryActor {
 
         if self.qos.entity_factory.autoenable_created_entities {
             let (reply_sender, _reply_receiver) = oneshot();
-            participant_actor.send_actor_mail(DomainParticipantMail::Participant(
-                ParticipantServiceMail::Enable { reply_sender },
-            ));
+            participant_sender
+                .send(DomainParticipantMail::Participant(
+                    ParticipantServiceMail::Enable { reply_sender },
+                ))
+                .ok();
         }
 
-        let participant_address = participant_actor.address();
+        let participant_address = participant_sender.clone();
         self.domain_participant_list
-            .push((participant_handle, participant_actor));
+            .push((participant_handle, participant_sender));
 
         Ok((
             participant_address,
@@ -566,7 +573,7 @@ impl DomainParticipantFactoryActor {
     pub fn delete_participant(
         &mut self,
         handle: InstanceHandle,
-    ) -> DdsResult<Actor<DomainParticipantActor>> {
+    ) -> DdsResult<MpscSender<DomainParticipantMail>> {
         let index = self
             .domain_participant_list
             .iter()
@@ -636,7 +643,7 @@ pub enum DomainParticipantFactoryMail {
         #[allow(clippy::type_complexity)]
         reply_sender: OneshotSender<
             DdsResult<(
-                ActorAddress<DomainParticipantActor>,
+                MpscSender<DomainParticipantMail>,
                 InstanceHandle,
                 ActorAddress<StatusConditionActor>,
                 ActorAddress<StatusConditionActor>,
@@ -645,7 +652,7 @@ pub enum DomainParticipantFactoryMail {
     },
     DeleteParticipant {
         handle: InstanceHandle,
-        reply_sender: OneshotSender<DdsResult<Actor<DomainParticipantActor>>>,
+        reply_sender: OneshotSender<DdsResult<MpscSender<DomainParticipantMail>>>,
     },
     SetDefaultParticipantQos {
         qos: QosKind<DomainParticipantQos>,
@@ -723,13 +730,13 @@ impl MailHandler for DomainParticipantFactoryActor {
 }
 
 struct DcpsParticipantReaderHistoryCache {
-    participant_address: ActorAddress<DomainParticipantActor>,
+    participant_address: MpscSender<DomainParticipantMail>,
 }
 
 impl HistoryCache for DcpsParticipantReaderHistoryCache {
     fn add_change(&mut self, cache_change: CacheChange) {
         self.participant_address
-            .send_actor_mail(DomainParticipantMail::Message(
+            .send(DomainParticipantMail::Message(
                 MessageServiceMail::AddBuiltinParticipantsDetectorCacheChange { cache_change },
             ))
             .ok();
@@ -741,13 +748,13 @@ impl HistoryCache for DcpsParticipantReaderHistoryCache {
 }
 
 struct DcpsTopicsReaderHistoryCache {
-    pub participant_address: ActorAddress<DomainParticipantActor>,
+    pub participant_address: MpscSender<DomainParticipantMail>,
 }
 
 impl HistoryCache for DcpsTopicsReaderHistoryCache {
     fn add_change(&mut self, cache_change: CacheChange) {
         self.participant_address
-            .send_actor_mail(DomainParticipantMail::Message(
+            .send(DomainParticipantMail::Message(
                 MessageServiceMail::AddBuiltinTopicsDetectorCacheChange { cache_change },
             ))
             .ok();
@@ -759,13 +766,13 @@ impl HistoryCache for DcpsTopicsReaderHistoryCache {
 }
 
 struct DcpsSubscriptionsReaderHistoryCache {
-    pub participant_address: ActorAddress<DomainParticipantActor>,
+    pub participant_address: MpscSender<DomainParticipantMail>,
 }
 
 impl HistoryCache for DcpsSubscriptionsReaderHistoryCache {
     fn add_change(&mut self, cache_change: CacheChange) {
         self.participant_address
-            .send_actor_mail(DomainParticipantMail::Message(
+            .send(DomainParticipantMail::Message(
                 MessageServiceMail::AddBuiltinSubscriptionsDetectorCacheChange {
                     cache_change,
                     participant_address: self.participant_address.clone(),
@@ -780,13 +787,13 @@ impl HistoryCache for DcpsSubscriptionsReaderHistoryCache {
 }
 
 struct DcpsPublicationsReaderHistoryCache {
-    pub participant_address: ActorAddress<DomainParticipantActor>,
+    pub participant_address: MpscSender<DomainParticipantMail>,
 }
 
 impl HistoryCache for DcpsPublicationsReaderHistoryCache {
     fn add_change(&mut self, cache_change: CacheChange) {
         self.participant_address
-            .send_actor_mail(DomainParticipantMail::Message(
+            .send(DomainParticipantMail::Message(
                 MessageServiceMail::AddBuiltinPublicationsDetectorCacheChange {
                     cache_change,
                     participant_address: self.participant_address.clone(),

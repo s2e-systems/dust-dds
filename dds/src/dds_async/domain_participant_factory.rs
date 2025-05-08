@@ -47,7 +47,6 @@ impl DomainParticipantFactoryAsync {
     ) -> DdsResult<DomainParticipantAsync> {
         let executor = Executor::new();
         let timer_driver = TimerDriver::new();
-        let timer_handle = timer_driver.handle();
         let executor_handle = executor.handle();
         let status_kind = mask.to_vec();
         let listener_sender = DomainParticipantListenerActor::spawn(a_listener, &executor.handle());
@@ -77,7 +76,6 @@ impl DomainParticipantFactoryAsync {
             builtin_subscriber_status_condition_address,
             domain_id,
             participant_handle,
-            timer_handle,
             executor_handle,
         );
 
@@ -89,7 +87,7 @@ impl DomainParticipantFactoryAsync {
         let (reply_sender, reply_receiver) = oneshot();
         participant
             .participant_address()
-            .send_actor_mail(DomainParticipantMail::Participant(
+            .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::IsEmpty { reply_sender },
             ))?;
         let is_participant_empty = reply_receiver.await?;
@@ -104,10 +102,11 @@ impl DomainParticipantFactoryAsync {
                 },
             );
             let deleted_participant = reply_receiver.await??;
-            deleted_participant.send_actor_mail(DomainParticipantMail::Discovery(
-                DiscoveryServiceMail::AnnounceDeletedParticipant,
-            ));
-            deleted_participant.stop().await;
+            deleted_participant
+                .send(DomainParticipantMail::Discovery(
+                    DiscoveryServiceMail::AnnounceDeletedParticipant,
+                ))
+                .ok();
             Ok(())
         } else {
             Err(DdsError::PreconditionNotMet(
