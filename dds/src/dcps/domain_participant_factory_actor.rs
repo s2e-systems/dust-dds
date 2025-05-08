@@ -225,7 +225,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
         let mut spdp_topic_participant = TopicEntity::new(
             TopicQos::default(),
             "SpdpDiscoveredParticipantData".to_string(),
-            DCPS_PARTICIPANT.to_owned(),
+            String::from(DCPS_PARTICIPANT),
             spdp_topic_participant_handle,
             Actor::spawn(StatusConditionActor::default(), &spawner_handle),
             noop_topic_listener_sender.clone(),
@@ -240,7 +240,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
         let mut sedp_topic_topics = TopicEntity::new(
             TopicQos::default(),
             "DiscoveredTopicData".to_string(),
-            DCPS_TOPIC.to_owned(),
+            String::from(DCPS_TOPIC),
             sedp_topic_topics_handle,
             Actor::spawn(StatusConditionActor::default(), &spawner_handle),
             noop_topic_listener_sender.clone(),
@@ -255,7 +255,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
         let mut sedp_topic_publications = TopicEntity::new(
             TopicQos::default(),
             "DiscoveredWriterData".to_string(),
-            DCPS_PUBLICATION.to_owned(),
+            String::from(DCPS_PUBLICATION),
             sedp_topic_publications_handle,
             Actor::spawn(StatusConditionActor::default(), &spawner_handle),
             noop_topic_listener_sender.clone(),
@@ -270,7 +270,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
         let mut sedp_topic_subscriptions = TopicEntity::new(
             TopicQos::default(),
             "DiscoveredReaderData".to_string(),
-            DCPS_SUBSCRIPTION.to_owned(),
+            String::from(DCPS_SUBSCRIPTION),
             sedp_topic_subscriptions_handle,
             Actor::spawn(StatusConditionActor::default(), &spawner_handle),
             noop_topic_listener_sender,
@@ -316,7 +316,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
         let mut dcps_participant_reader = DataReaderEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             spdp_reader_qos,
-            DCPS_PARTICIPANT.to_owned(),
+            String::from(DCPS_PARTICIPANT),
             "SpdpDiscoveredParticipantData".to_string(),
             Arc::new(SpdpDiscoveredParticipantData::get_type()),
             Actor::spawn(StatusConditionActor::default(), &spawner_handle),
@@ -335,7 +335,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
         let mut dcps_topic_reader = DataReaderEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             sedp_data_reader_qos(),
-            DCPS_TOPIC.to_owned(),
+            String::from(DCPS_TOPIC),
             "DiscoveredTopicData".to_string(),
             Arc::new(DiscoveredTopicData::get_type()),
             Actor::spawn(StatusConditionActor::default(), &spawner_handle),
@@ -354,7 +354,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
         let mut dcps_publication_reader = DataReaderEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             sedp_data_reader_qos(),
-            DCPS_PUBLICATION.to_owned(),
+            String::from(DCPS_PUBLICATION),
             "DiscoveredWriterData".to_string(),
             Arc::new(DiscoveredWriterData::get_type()),
             Actor::spawn(StatusConditionActor::default(), &spawner_handle),
@@ -373,7 +373,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
         let mut dcps_subscription_reader = DataReaderEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             sedp_data_reader_qos(),
-            DCPS_SUBSCRIPTION.to_owned(),
+            String::from(DCPS_SUBSCRIPTION),
             "DiscoveredReaderData".to_string(),
             Arc::new(DiscoveredReaderData::get_type()),
             Actor::spawn(StatusConditionActor::default(), &spawner_handle),
@@ -404,7 +404,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
         let mut dcps_participant_writer = DataWriterEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             TransportWriterKind::Stateless(dcps_participant_transport_writer),
-            DCPS_PARTICIPANT.to_owned(),
+            String::from(DCPS_PARTICIPANT),
             "SpdpDiscoveredParticipantData".to_string(),
             Arc::new(SpdpDiscoveredParticipantData::get_type()),
             Actor::spawn(StatusConditionActor::default(), &spawner_handle),
@@ -421,7 +421,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
         let mut dcps_topics_writer = DataWriterEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             TransportWriterKind::Stateful(dcps_topics_transport_writer),
-            DCPS_TOPIC.to_owned(),
+            String::from(DCPS_TOPIC),
             "DiscoveredTopicData".to_string(),
             Arc::new(DiscoveredTopicData::get_type()),
             Actor::spawn(StatusConditionActor::default(), &spawner_handle),
@@ -437,7 +437,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
         let mut dcps_publications_writer = DataWriterEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             TransportWriterKind::Stateful(dcps_publications_transport_writer),
-            DCPS_PUBLICATION.to_owned(),
+            String::from(DCPS_PUBLICATION),
             "DiscoveredWriterData".to_string(),
             Arc::new(DiscoveredWriterData::get_type()),
             Actor::spawn(StatusConditionActor::default(), &spawner_handle),
@@ -454,7 +454,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
         let mut dcps_subscriptions_writer = DataWriterEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             TransportWriterKind::Stateful(dcps_subscriptions_transport_writer),
-            DCPS_SUBSCRIPTION.to_owned(),
+            String::from(DCPS_SUBSCRIPTION),
             "DiscoveredReaderData".to_string(),
             Arc::new(DiscoveredReaderData::get_type()),
             Actor::spawn(StatusConditionActor::default(), &spawner_handle),
@@ -489,7 +489,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
             builtin_publisher,
             builtin_subscriber,
             topic_list,
-            self.configuration.domain_tag().to_owned(),
+            String::from(self.configuration.domain_tag()),
         );
 
         let mut domain_participant_actor = DomainParticipantActor::new(

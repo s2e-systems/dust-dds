@@ -77,7 +77,12 @@ use crate::{
     },
     xtypes::dynamic_type::DynamicType,
 };
-use alloc::sync::Arc;
+use alloc::{
+    string::{String, ToString},
+    sync::Arc,
+    vec,
+    vec::Vec,
+};
 use core::{
     future::{poll_fn, Future},
     pin::{pin, Pin},
@@ -186,7 +191,7 @@ where
             data_reader_handle,
             data_reader.status_condition().address(),
             self.get_subscriber_async(participant_address.clone(), subscriber_handle)?,
-            self.get_topic_async(participant_address, data_reader.topic_name().to_owned())?,
+            self.get_topic_async(participant_address, String::from(data_reader.topic_name()))?,
         ))
     }
 
@@ -223,7 +228,7 @@ where
             data_writer_handle,
             data_writer.status_condition().address(),
             self.get_publisher_async(participant_address.clone(), publisher_handle)?,
-            self.get_topic_async(participant_address, data_writer.topic_name().to_owned())?,
+            self.get_topic_async(participant_address, String::from(data_writer.topic_name()))?,
         ))
     }
 
@@ -239,7 +244,7 @@ where
         Ok(TopicAsync::new(
             topic.instance_handle(),
             topic.status_condition().address(),
-            topic.type_name().to_owned(),
+            String::from(topic.type_name()),
             topic_name,
             self.get_participant_async(participant_address),
         ))
@@ -534,7 +539,7 @@ where
             Ok(Some((
                 topic.instance_handle(),
                 topic.status_condition().address(),
-                topic.type_name().to_owned(),
+                String::from(topic.type_name()),
             )))
         } else {
             if let Some(discovered_topic_data) = self.domain_participant.find_topic(&topic_name) {
@@ -591,7 +596,7 @@ where
     > {
         if let Some(topic) = self.domain_participant.get_topic(&topic_name) {
             Ok(Some((
-                topic.type_name().to_owned(),
+                String::from(topic.type_name()),
                 topic.instance_handle(),
                 topic.status_condition().address(),
             )))
@@ -726,7 +731,7 @@ where
             .get_discovered_topic_data(&topic_handle)
         else {
             return Err(DdsError::PreconditionNotMet(
-                "Topic with this handle not discovered".to_owned(),
+                String::from("Topic with this handle not discovered"),
             ));
         };
 
@@ -828,8 +833,8 @@ where
         };
 
         let topic_kind = get_topic_kind(topic.type_support().as_ref());
-        let topic_name = topic.topic_name().to_owned();
-        let type_name = topic.type_name().to_owned();
+        let topic_name = String::from(topic.topic_name());
+        let type_name = String::from(topic.type_name());
         let reader_handle = self.instance_handle_counter.generate_new_instance_handle();
 
         let type_support = topic.type_support().clone();
@@ -1055,7 +1060,7 @@ where
 
         let topic_kind = get_topic_kind(topic.type_support().as_ref());
         let type_support = topic.type_support().clone();
-        let type_name = topic.type_name().to_owned();
+        let type_name = String::from(topic.type_name());
         let entity_kind = match topic_kind {
             TopicKind::WithKey => USER_DEFINED_WRITER_WITH_KEY,
             TopicKind::NoKey => USER_DEFINED_WRITER_NO_KEY,
@@ -2016,7 +2021,7 @@ where
             };
             let participant_proxy = ParticipantProxy {
                 domain_id: Some(self.domain_participant.domain_id()),
-                domain_tag: self.domain_participant.domain_tag().to_owned(),
+                domain_tag: String::from(self.domain_participant.domain_tag()),
                 protocol_version: self.transport.protocol_version(),
                 guid_prefix: self.transport.guid().prefix(),
                 vendor_id: self.transport.vendor_id(),
@@ -2100,8 +2105,8 @@ where
                 value: data_writer.transport_writer().guid().into(),
             },
             participant_key: BuiltInTopicKey { value: [0; 16] },
-            topic_name: data_writer.topic_name().to_owned(),
-            type_name: data_writer.type_name().to_owned(),
+            topic_name: String::from(data_writer.topic_name()),
+            type_name: String::from(data_writer.type_name()),
             durability: data_writer.qos().durability.clone(),
             deadline: data_writer.qos().deadline.clone(),
             latency_budget: data_writer.qos().latency_budget.clone(),
@@ -2174,8 +2179,8 @@ where
         let dds_subscription_data = SubscriptionBuiltinTopicData {
             key: BuiltInTopicKey { value: guid.into() },
             participant_key: BuiltInTopicKey { value: [0; 16] },
-            topic_name: data_reader.topic_name().to_owned(),
-            type_name: data_reader.type_name().to_owned(),
+            topic_name: String::from(data_reader.topic_name()),
+            type_name: String::from(data_reader.type_name()),
             durability: data_reader.qos().durability.clone(),
             deadline: data_reader.qos().deadline.clone(),
             latency_budget: data_reader.qos().latency_budget.clone(),
@@ -2239,8 +2244,8 @@ where
             key: BuiltInTopicKey {
                 value: topic.instance_handle().into(),
             },
-            name: topic.topic_name().to_owned(),
-            type_name: topic.type_name().to_owned(),
+            name: String::from(topic.topic_name()),
+            type_name: String::from(topic.type_name()),
             durability: topic.qos().durability.clone(),
             deadline: topic.qos().deadline.clone(),
             latency_budget: topic.qos().latency_budget.clone(),
@@ -3095,8 +3100,8 @@ where
                     {
                         let writer_topic = TopicBuiltinTopicData {
                             key: BuiltInTopicKey::default(),
-                            name: publication_builtin_topic_data.topic_name().to_owned(),
-                            type_name: publication_builtin_topic_data.get_type_name().to_owned(),
+                            name: String::from(publication_builtin_topic_data.topic_name()),
+                            type_name: String::from(publication_builtin_topic_data.get_type_name()),
                             durability: publication_builtin_topic_data.durability().clone(),
                             deadline: publication_builtin_topic_data.deadline().clone(),
                             latency_budget: publication_builtin_topic_data.latency_budget().clone(),
