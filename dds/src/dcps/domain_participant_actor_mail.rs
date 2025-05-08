@@ -1,6 +1,4 @@
-use alloc::sync::Arc;
-use core::{future::Future, pin::Pin};
-
+use super::domain_participant_actor::DomainParticipantActor;
 use crate::{
     builtin_topics::{
         ParticipantBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
@@ -29,8 +27,8 @@ use crate::{
     transport::history_cache::CacheChange,
     xtypes::dynamic_type::DynamicType,
 };
-
-use super::domain_participant_actor::DomainParticipantActor;
+use alloc::{boxed::Box, string::String, sync::Arc, vec::Vec};
+use core::{future::Future, pin::Pin};
 
 pub enum ParticipantServiceMail<R>
 where

@@ -1,3 +1,4 @@
+use super::actor::MailHandler;
 use crate::{
     builtin_topics::{DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC},
     configuration::DustDdsConfiguration,
@@ -59,9 +60,7 @@ use crate::{
         writer::{TransportStatefulWriter, TransportStatelessWriter},
     },
 };
-use alloc::sync::Arc;
-
-use super::actor::MailHandler;
+use alloc::{sync::Arc, vec::Vec};
 
 pub type DdsTransportParticipantFactory =
     Box<dyn TransportParticipantFactory<TransportParticipant = DdsTransportParticipant>>;

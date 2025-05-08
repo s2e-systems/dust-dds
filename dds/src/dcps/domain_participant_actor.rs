@@ -78,6 +78,7 @@ use crate::{
     xtypes::dynamic_type::DynamicType,
 };
 use alloc::{
+    boxed::Box,
     string::{String, ToString},
     sync::Arc,
     vec,
@@ -730,9 +731,9 @@ where
             .domain_participant
             .get_discovered_topic_data(&topic_handle)
         else {
-            return Err(DdsError::PreconditionNotMet(
-                String::from("Topic with this handle not discovered"),
-            ));
+            return Err(DdsError::PreconditionNotMet(String::from(
+                "Topic with this handle not discovered",
+            )));
         };
 
         Ok(handle.clone())
