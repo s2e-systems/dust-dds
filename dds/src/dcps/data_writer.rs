@@ -167,7 +167,7 @@ impl<S, L> DataWriterEntity<S, L> {
         &mut self,
         serialized_data: Vec<u8>,
         timestamp: Time,
-        clock: impl Clock,
+        clock: &impl Clock,
     ) -> DdsResult<i64> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);

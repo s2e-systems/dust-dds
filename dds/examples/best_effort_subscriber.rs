@@ -6,6 +6,7 @@ use std::{
 };
 
 use dust_dds::{
+    dcps::runtime::DdsRuntime,
     dds_async::data_reader::DataReaderAsync,
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
@@ -27,10 +28,10 @@ struct Listener {
     sender: SyncSender<()>,
 }
 
-impl DataReaderListener<'_, BestEffortExampleType> for Listener {
+impl<R: DdsRuntime> DataReaderListener<'_, R, BestEffortExampleType> for Listener {
     fn on_data_available(
         &mut self,
-        the_reader: DataReaderAsync<BestEffortExampleType>,
+        the_reader: DataReaderAsync<R, BestEffortExampleType>,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(async move {
             if let Ok(samples) = the_reader
@@ -44,7 +45,7 @@ impl DataReaderListener<'_, BestEffortExampleType> for Listener {
     }
     fn on_subscription_matched(
         &mut self,
-        _the_reader: DataReaderAsync<BestEffortExampleType>,
+        _the_reader: DataReaderAsync<R, BestEffortExampleType>,
         status: dust_dds::infrastructure::status::SubscriptionMatchedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(async move {

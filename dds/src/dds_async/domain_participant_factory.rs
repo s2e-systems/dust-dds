@@ -24,16 +24,16 @@ use crate::{
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
         status::StatusKind,
     },
-    runtime::{actor::Actor, executor::Executor, timer::TimerDriver},
+    runtime::{actor::Actor, executor::Executor, timer::TimerDriver, StdRuntime},
 };
 use tracing::warn;
 
 /// Async version of [`DomainParticipantFactory`](crate::domain::domain_participant_factory::DomainParticipantFactory).
 /// Unlike the sync version, the [`DomainParticipantFactoryAsync`] is not a singleton and can be created by means of
-/// a constructor by passing a handle to a [`Tokio`](https://crates.io/crates/tokio) runtime. This allows the factory
+/// a constructor by passing a DDS runtime. This allows the factory
 /// to spin tasks on an existing runtime which can be shared with other things outside Dust DDS.
 pub struct DomainParticipantFactoryAsync<R: DdsRuntime> {
-    _executor: Executor,
+    runtime: R,
     domain_participant_factory_actor: Actor<DomainParticipantFactoryActor<R>>,
 }
 
@@ -47,7 +47,8 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
         mask: &[StatusKind],
     ) -> DdsResult<DomainParticipantAsync<R>> {
         let executor = Executor::new();
-        let timer_driver = TimerDriver::new();
+        let clock_handle = self.runtime.clock();
+        let timer_handle = self.runtime.timer();
         let executor_handle = executor.handle();
         let status_kind = mask.to_vec();
         let listener_sender = DomainParticipantListenerActor::spawn(a_listener, &executor.handle());
@@ -59,8 +60,9 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
                 listener_sender,
                 status_kind,
                 reply_sender,
+                clock_handle,
+                timer_handle,
                 executor,
-                timer_driver,
             },
         );
 
@@ -117,46 +119,6 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
                 "Domain participant still contains other entities".to_string(),
             ))
         }
-    }
-
-    /// This operation returns the [`DomainParticipantFactoryAsync`] singleton. The operation is idempotent, that is, it can be called multiple
-    /// times without side-effects and it will return the same [`DomainParticipantFactoryAsync`] instance.
-    #[tracing::instrument]
-    pub fn get_instance() -> &'static Self {
-        todo!()
-        // static PARTICIPANT_FACTORY_ASYNC: OnceLock<DomainParticipantFactoryAsync<R>> =
-        //     OnceLock::new();
-        // PARTICIPANT_FACTORY_ASYNC.get_or_init(|| {
-        //     let interface_address = NetworkInterface::show()
-        //         .expect("Could not scan interfaces")
-        //         .into_iter()
-        //         .flat_map(|i| {
-        //             i.addr
-        //                 .into_iter()
-        //                 .filter(|a| matches!(a, Addr::V4(v4) if !v4.ip.is_loopback()))
-        //         })
-        //         .next();
-        //     let host_id = if let Some(interface) = interface_address {
-        //         match interface.ip() {
-        //             IpAddr::V4(a) => a.octets(),
-        //             IpAddr::V6(_) => unimplemented!("IPv6 not yet implemented"),
-        //         }
-        //     } else {
-        //         warn!("Failed to get Host ID from IP address, use 0 instead");
-        //         [0; 4]
-        //     };
-
-        //     let app_id = std::process::id().to_ne_bytes();
-        //     let executor = Executor::new();
-        //     let domain_participant_factory_actor = Actor::spawn(
-        //         DomainParticipantFactoryActor::new(app_id, host_id),
-        //         &executor.handle(),
-        //     );
-        //     Self {
-        //         _executor: executor,
-        //         domain_participant_factory_actor,
-        //     }
-        // })
     }
 
     /// Async version of [`lookup_participant`](crate::domain::domain_participant_factory::DomainParticipantFactory::lookup_participant).
@@ -224,5 +186,55 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
         self.domain_participant_factory_actor
             .send_actor_mail(DomainParticipantFactoryMail::SetTransport { transport });
         Ok(())
+    }
+}
+
+impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
+    #[doc(hidden)]
+    pub fn new(runtime: R, app_id: [u8; 4], host_id: [u8; 4]) -> DomainParticipantFactoryAsync<R> {
+        let executor = Executor::new();
+        let domain_participant_factory_actor = Actor::spawn(
+            DomainParticipantFactoryActor::new(app_id, host_id),
+            &executor.handle(),
+        );
+        DomainParticipantFactoryAsync {
+            runtime,
+            domain_participant_factory_actor,
+        }
+    }
+}
+
+impl DomainParticipantFactoryAsync<StdRuntime> {
+    /// This operation returns the [`DomainParticipantFactoryAsync`] singleton. The operation is idempotent, that is, it can be called multiple
+    /// times without side-effects and it will return the same [`DomainParticipantFactoryAsync`] instance.
+    #[tracing::instrument]
+    pub fn get_instance() -> &'static DomainParticipantFactoryAsync<StdRuntime> {
+        static PARTICIPANT_FACTORY_ASYNC: OnceLock<DomainParticipantFactoryAsync<StdRuntime>> =
+            OnceLock::new();
+        PARTICIPANT_FACTORY_ASYNC.get_or_init(|| {
+            let timer_driver = TimerDriver::new();
+            let runtime = StdRuntime::new(timer_driver);
+            let interface_address = NetworkInterface::show()
+                .expect("Could not scan interfaces")
+                .into_iter()
+                .flat_map(|i| {
+                    i.addr
+                        .into_iter()
+                        .filter(|a| matches!(a, Addr::V4(v4) if !v4.ip.is_loopback()))
+                })
+                .next();
+            let host_id = if let Some(interface) = interface_address {
+                match interface.ip() {
+                    IpAddr::V4(a) => a.octets(),
+                    IpAddr::V6(_) => unimplemented!("IPv6 not yet implemented"),
+                }
+            } else {
+                warn!("Failed to get Host ID from IP address, use 0 instead");
+                [0; 4]
+            };
+
+            let app_id = std::process::id().to_ne_bytes();
+            DomainParticipantFactoryAsync::new(runtime, app_id, host_id)
+        })
     }
 }

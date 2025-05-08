@@ -1,3 +1,5 @@
+use std::sync::OnceLock;
+
 use super::domain_participant::DomainParticipant;
 use crate::{
     configuration::DustDdsConfiguration,
@@ -11,7 +13,7 @@ use crate::{
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
         status::StatusKind,
     },
-    runtime::executor::block_on,
+    runtime::{executor::block_on, StdRuntime},
 };
 
 use tracing::warn;
@@ -55,17 +57,6 @@ impl<R: DdsRuntime> DomainParticipantFactory<R> {
             self.participant_factory_async
                 .delete_participant(participant.participant_async()),
         )
-    }
-
-    /// This operation returns the [`DomainParticipantFactory`] singleton. The operation is idempotent, that is, it can be called multiple
-    /// times without side-effects and it will return the same [`DomainParticipantFactory`] instance.
-    #[tracing::instrument]
-    pub fn get_instance() -> &'static Self {
-        todo!()
-        // static PARTICIPANT_FACTORY: OnceLock<DomainParticipantFactory> = OnceLock::new();
-        // PARTICIPANT_FACTORY.get_or_init(|| Self {
-        //     participant_factory_async: DomainParticipantFactoryAsync::get_instance(),
-        // })
     }
 
     /// This operation retrieves a previously created [`DomainParticipant`] belonging to the specified domain_id. If no such
@@ -140,5 +131,18 @@ impl<R: DdsRuntime> DomainParticipantFactory<R> {
     /// created by the [`DomainParticipantFactory`] singleton
     pub fn set_transport(&self, transport: DdsTransportParticipantFactory) -> DdsResult<()> {
         block_on(self.participant_factory_async.set_transport(transport))
+    }
+}
+
+impl DomainParticipantFactory<StdRuntime> {
+    /// This operation returns the [`DomainParticipantFactory`] singleton. The operation is idempotent, that is, it can be called multiple
+    /// times without side-effects and it will return the same [`DomainParticipantFactory`] instance.
+    #[tracing::instrument]
+    pub fn get_instance() -> &'static Self {
+        static PARTICIPANT_FACTORY: OnceLock<DomainParticipantFactory<StdRuntime>> =
+            OnceLock::new();
+        PARTICIPANT_FACTORY.get_or_init(|| DomainParticipantFactory {
+            participant_factory_async: DomainParticipantFactoryAsync::<StdRuntime>::get_instance(),
+        })
     }
 }

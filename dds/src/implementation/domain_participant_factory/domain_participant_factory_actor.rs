@@ -12,7 +12,7 @@ use crate::{
         data_writer::{DataWriterEntity, TransportWriterKind},
         domain_participant::DomainParticipantEntity,
         publisher::PublisherEntity,
-        runtime::{DdsRuntime, OneshotSend},
+        runtime::{DdsRuntime, OneshotSend, Timer},
         subscriber::SubscriberEntity,
         topic::TopicEntity,
     },
@@ -55,7 +55,6 @@ use crate::{
         actor::{Actor, ActorAddress, MailHandler},
         executor::Executor,
         mpsc::{mpsc_channel, MpscSender},
-        timer::TimerDriver,
     },
     transport::{
         factory::TransportParticipantFactory,
@@ -165,8 +164,8 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
         listener_sender: MpscSender<ListenerMail<R>>,
         status_kind: Vec<StatusKind>,
         executor: Executor,
-        timer_driver: TimerDriver,
-        runtime: R,
+        clock_handle: R::ClockHandle,
+        mut timer_handle: R::TimerHandle,
     ) -> DdsResult<(
         MpscSender<DomainParticipantMail<R>>,
         InstanceHandle,
@@ -174,7 +173,6 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
         ActorAddress<StatusConditionActor>,
     )> {
         let executor_handle = executor.handle();
-        let timer_handle = timer_driver.handle();
 
         let domain_participant_qos = match qos {
             QosKind::Default => self.default_participant_qos.clone(),
@@ -508,7 +506,8 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
             transport,
             executor,
             instance_handle_counter,
-            runtime,
+            clock_handle,
+            timer_handle.clone(),
         );
         let participant_handle = domain_participant_actor
             .domain_participant
@@ -544,7 +543,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
                 ))
                 .is_ok()
             {
-                timer_handle.sleep(participant_announcement_interval).await;
+                timer_handle.delay(participant_announcement_interval).await;
             }
         });
 
@@ -638,7 +637,8 @@ pub enum DomainParticipantFactoryMail<R: DdsRuntime> {
         listener_sender: MpscSender<ListenerMail<R>>,
         status_kind: Vec<StatusKind>,
         executor: Executor,
-        timer_driver: TimerDriver,
+        clock_handle: R::ClockHandle,
+        timer_handle: R::TimerHandle,
         #[allow(clippy::type_complexity)]
         reply_sender: R::OneshotSender<
             DdsResult<(
@@ -689,7 +689,8 @@ impl<R: DdsRuntime> MailHandler for DomainParticipantFactoryActor<R> {
                 listener_sender,
                 status_kind,
                 executor,
-                timer_driver,
+                clock_handle,
+                timer_handle,
                 reply_sender,
             } => {
                 reply_sender
@@ -699,7 +700,8 @@ impl<R: DdsRuntime> MailHandler for DomainParticipantFactoryActor<R> {
                         listener_sender,
                         status_kind,
                         executor,
-                        timer_driver,
+                        clock_handle,
+                        timer_handle,
                     ))
                     .await
             }
@@ -725,7 +727,7 @@ impl<R: DdsRuntime> MailHandler for DomainParticipantFactoryActor<R> {
                 self.set_configuration(configuration)
             }
             DomainParticipantFactoryMail::GetConfiguration { reply_sender } => {
-                reply_sender.send(self.get_configuration())
+                reply_sender.send(self.get_configuration()).await
             }
             DomainParticipantFactoryMail::SetTransport { transport } => {
                 self.set_transport(transport)

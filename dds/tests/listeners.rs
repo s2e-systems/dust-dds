@@ -1,6 +1,7 @@
 use std::{future::Future, pin::Pin};
 
 use dust_dds::{
+    dcps::runtime::DdsRuntime,
     dds_async::{
         data_reader::DataReaderAsync, data_writer::DataWriterAsync, subscriber::SubscriberAsync,
     },
@@ -49,10 +50,10 @@ fn requested_deadline_missed_listener() {
         sender: std::sync::mpsc::SyncSender<RequestedDeadlineMissedStatus>,
     }
 
-    impl DomainParticipantListener for DeadlineMissedListener {
+    impl<R: DdsRuntime> DomainParticipantListener<R> for DeadlineMissedListener {
         fn on_requested_deadline_missed(
             &mut self,
-            _the_reader: DataReaderAsync<()>,
+            _the_reader: DataReaderAsync<R, ()>,
             status: RequestedDeadlineMissedStatus,
         ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
             Box::pin(async move {
@@ -161,10 +162,10 @@ fn sample_rejected_listener() {
         sender: std::sync::mpsc::SyncSender<SampleRejectedStatus>,
     }
 
-    impl DomainParticipantListener for SampleRejectedListener {
+    impl<R: DdsRuntime> DomainParticipantListener<R> for SampleRejectedListener {
         fn on_sample_rejected(
             &mut self,
-            _the_reader: DataReaderAsync<()>,
+            _the_reader: DataReaderAsync<R, ()>,
             status: SampleRejectedStatus,
         ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
             Box::pin(async move {
@@ -280,10 +281,10 @@ fn subscription_matched_listener() {
         sender: std::sync::mpsc::SyncSender<SubscriptionMatchedStatus>,
     }
 
-    impl DomainParticipantListener for SubscriptionMatchedListener {
+    impl<R: DdsRuntime> DomainParticipantListener<R> for SubscriptionMatchedListener {
         fn on_subscription_matched(
             &mut self,
-            _the_reader: DataReaderAsync<()>,
+            _the_reader: DataReaderAsync<R, ()>,
             status: SubscriptionMatchedStatus,
         ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
             Box::pin(async move {
@@ -377,10 +378,10 @@ fn requested_incompatible_qos_listener() {
         sender: std::sync::mpsc::SyncSender<RequestedIncompatibleQosStatus>,
     }
 
-    impl DomainParticipantListener for RequestedIncompatibleQosListener {
+    impl<R: DdsRuntime> DomainParticipantListener<R> for RequestedIncompatibleQosListener {
         fn on_requested_incompatible_qos(
             &mut self,
-            _the_reader: DataReaderAsync<()>,
+            _the_reader: DataReaderAsync<R, ()>,
             status: RequestedIncompatibleQosStatus,
         ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
             Box::pin(async move {
@@ -474,10 +475,10 @@ fn publication_matched_listener() {
         sender: std::sync::mpsc::SyncSender<PublicationMatchedStatus>,
     }
 
-    impl DomainParticipantListener for PublicationMatchedListener {
+    impl<R: DdsRuntime> DomainParticipantListener<R> for PublicationMatchedListener {
         fn on_publication_matched(
             &mut self,
-            _the_writer: DataWriterAsync<()>,
+            _the_writer: DataWriterAsync<R, ()>,
             status: PublicationMatchedStatus,
         ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
             Box::pin(async move {
@@ -572,10 +573,10 @@ fn offered_incompatible_qos_listener() {
         sender: std::sync::mpsc::SyncSender<OfferedIncompatibleQosStatus>,
     }
 
-    impl DomainParticipantListener for OfferedIncompatibleQosListener {
+    impl<R: DdsRuntime> DomainParticipantListener<R> for OfferedIncompatibleQosListener {
         fn on_offered_incompatible_qos(
             &mut self,
-            _the_writer: DataWriterAsync<()>,
+            _the_writer: DataWriterAsync<R, ()>,
             status: OfferedIncompatibleQosStatus,
         ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
             Box::pin(async move {
@@ -670,10 +671,10 @@ fn on_data_available_listener() {
         sender: std::sync::mpsc::SyncSender<()>,
     }
 
-    impl DataReaderListener<'_, MyData> for DataAvailableListener {
+    impl<R: DdsRuntime> DataReaderListener<'_, R, MyData> for DataAvailableListener {
         fn on_data_available(
             &mut self,
-            _the_reader: DataReaderAsync<MyData>,
+            _the_reader: DataReaderAsync<R, MyData>,
         ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
             Box::pin(async move {
                 self.sender.send(()).unwrap();
@@ -763,10 +764,10 @@ fn data_on_readers_listener() {
         sender: std::sync::mpsc::SyncSender<()>,
     }
 
-    impl SubscriberListener for DataOnReadersListener {
+    impl<R: DdsRuntime> SubscriberListener<R> for DataOnReadersListener {
         fn on_data_on_readers(
             &mut self,
-            _the_subscriber: SubscriberAsync,
+            _the_subscriber: SubscriberAsync<R>,
         ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
             Box::pin(async move {
                 self.sender.send(()).unwrap();
@@ -861,10 +862,10 @@ fn data_available_listener_not_called_when_data_on_readers_listener() {
         sender: std::sync::mpsc::SyncSender<()>,
     }
 
-    impl SubscriberListener for DataOnReadersListener {
+    impl<R: DdsRuntime> SubscriberListener<R> for DataOnReadersListener {
         fn on_data_on_readers(
             &mut self,
-            _the_subscriber: SubscriberAsync,
+            _the_subscriber: SubscriberAsync<R>,
         ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
             Box::pin(async move {
                 self.sender.send(()).unwrap();
@@ -876,10 +877,10 @@ fn data_available_listener_not_called_when_data_on_readers_listener() {
         sender: std::sync::mpsc::SyncSender<()>,
     }
 
-    impl DataReaderListener<'_, MyData> for DataAvailableListener {
+    impl<R: DdsRuntime> DataReaderListener<'_, R, MyData> for DataAvailableListener {
         fn on_data_available(
             &mut self,
-            _the_reader: DataReaderAsync<MyData>,
+            _the_reader: DataReaderAsync<R, MyData>,
         ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
             Box::pin(async move {
                 self.sender.send(()).unwrap();
@@ -980,10 +981,10 @@ fn participant_requested_deadline_missed_listener() {
         sender: std::sync::mpsc::SyncSender<RequestedDeadlineMissedStatus>,
     }
 
-    impl DataReaderListener<'_, MyData> for DeadlineMissedListener {
+    impl<R: DdsRuntime> DataReaderListener<'_, R, MyData> for DeadlineMissedListener {
         fn on_requested_deadline_missed(
             &mut self,
-            _the_reader: DataReaderAsync<MyData>,
+            _the_reader: DataReaderAsync<R, MyData>,
             status: RequestedDeadlineMissedStatus,
         ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
             Box::pin(async move {
@@ -1085,10 +1086,10 @@ fn data_reader_sample_rejected_listener() {
         sender: std::sync::mpsc::SyncSender<SampleRejectedStatus>,
     }
 
-    impl DataReaderListener<'_, MyData> for SampleRejectedListener {
+    impl<R: DdsRuntime> DataReaderListener<'_, R, MyData> for SampleRejectedListener {
         fn on_sample_rejected(
             &mut self,
-            _the_reader: DataReaderAsync<MyData>,
+            _the_reader: DataReaderAsync<R, MyData>,
             status: SampleRejectedStatus,
         ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
             Box::pin(async move {
@@ -1199,10 +1200,10 @@ fn data_reader_subscription_matched_listener() {
         sender: std::sync::mpsc::SyncSender<SubscriptionMatchedStatus>,
     }
 
-    impl DataReaderListener<'_, MyData> for SubscriptionMatchedListener {
+    impl<R: DdsRuntime> DataReaderListener<'_, R, MyData> for SubscriptionMatchedListener {
         fn on_subscription_matched(
             &mut self,
-            _the_reader: DataReaderAsync<MyData>,
+            _the_reader: DataReaderAsync<R, MyData>,
             status: SubscriptionMatchedStatus,
         ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
             Box::pin(async move {
@@ -1291,10 +1292,10 @@ fn data_reader_requested_incompatible_qos_listener() {
         sender: std::sync::mpsc::SyncSender<RequestedIncompatibleQosStatus>,
     }
 
-    impl DataReaderListener<'_, MyData> for RequestedIncompatibleQosListener {
+    impl<R: DdsRuntime> DataReaderListener<'_, R, MyData> for RequestedIncompatibleQosListener {
         fn on_requested_incompatible_qos(
             &mut self,
-            _the_reader: DataReaderAsync<MyData>,
+            _the_reader: DataReaderAsync<R, MyData>,
             status: RequestedIncompatibleQosStatus,
         ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
             Box::pin(async move {
@@ -1383,10 +1384,10 @@ fn publisher_publication_matched_listener() {
         sender: std::sync::mpsc::SyncSender<PublicationMatchedStatus>,
     }
 
-    impl PublisherListener for PublicationMatchedListener {
+    impl<R: DdsRuntime> PublisherListener<R> for PublicationMatchedListener {
         fn on_publication_matched(
             &mut self,
-            _the_writer: DataWriterAsync<()>,
+            _the_writer: DataWriterAsync<R, ()>,
             status: PublicationMatchedStatus,
         ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
             Box::pin(async move {
@@ -1479,10 +1480,10 @@ fn publisher_offered_incompatible_qos_listener() {
         sender: std::sync::mpsc::SyncSender<OfferedIncompatibleQosStatus>,
     }
 
-    impl PublisherListener for OfferedIncompatibleQosListener {
+    impl<R: DdsRuntime> PublisherListener<R> for OfferedIncompatibleQosListener {
         fn on_offered_incompatible_qos(
             &mut self,
-            _the_writer: DataWriterAsync<()>,
+            _the_writer: DataWriterAsync<R, ()>,
             status: OfferedIncompatibleQosStatus,
         ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
             Box::pin(async move {
@@ -1576,10 +1577,10 @@ fn subscriber_requested_deadline_missed_listener() {
         sender: std::sync::mpsc::SyncSender<RequestedDeadlineMissedStatus>,
     }
 
-    impl SubscriberListener for DeadlineMissedListener {
+    impl<R: DdsRuntime> SubscriberListener<R> for DeadlineMissedListener {
         fn on_requested_deadline_missed(
             &mut self,
-            _the_reader: DataReaderAsync<()>,
+            _the_reader: DataReaderAsync<R, ()>,
             status: RequestedDeadlineMissedStatus,
         ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
             Box::pin(async move {
@@ -1684,10 +1685,10 @@ fn subscriber_sample_rejected_listener() {
         sender: std::sync::mpsc::SyncSender<SampleRejectedStatus>,
     }
 
-    impl SubscriberListener for SampleRejectedListener {
+    impl<R: DdsRuntime> SubscriberListener<R> for SampleRejectedListener {
         fn on_sample_rejected(
             &mut self,
-            _the_reader: DataReaderAsync<()>,
+            _the_reader: DataReaderAsync<R, ()>,
             status: SampleRejectedStatus,
         ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
             Box::pin(async move {
@@ -1801,10 +1802,10 @@ fn subscriber_subscription_matched_listener() {
         sender: std::sync::mpsc::SyncSender<SubscriptionMatchedStatus>,
     }
 
-    impl SubscriberListener for SubscriptionMatchedListener {
+    impl<R: DdsRuntime> SubscriberListener<R> for SubscriptionMatchedListener {
         fn on_subscription_matched(
             &mut self,
-            _the_reader: DataReaderAsync<()>,
+            _the_reader: DataReaderAsync<R, ()>,
             status: SubscriptionMatchedStatus,
         ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
             Box::pin(async move {
@@ -1897,10 +1898,10 @@ fn subscriber_requested_incompatible_qos_listener() {
         sender: std::sync::mpsc::SyncSender<RequestedIncompatibleQosStatus>,
     }
 
-    impl SubscriberListener for RequestedIncompatibleQosListener {
+    impl<R: DdsRuntime> SubscriberListener<R> for RequestedIncompatibleQosListener {
         fn on_requested_incompatible_qos(
             &mut self,
-            _the_reader: DataReaderAsync<()>,
+            _the_reader: DataReaderAsync<R, ()>,
             status: RequestedIncompatibleQosStatus,
         ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
             Box::pin(async move {
@@ -1993,10 +1994,10 @@ fn data_writer_publication_matched_listener() {
         sender: std::sync::mpsc::SyncSender<PublicationMatchedStatus>,
     }
 
-    impl DataWriterListener<'_, MyData> for PublicationMatchedListener {
+    impl<R: DdsRuntime> DataWriterListener<'_, R, MyData> for PublicationMatchedListener {
         fn on_publication_matched(
             &mut self,
-            _the_reader: DataWriterAsync<MyData>,
+            _the_reader: DataWriterAsync<R, MyData>,
             status: PublicationMatchedStatus,
         ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
             Box::pin(async move {
@@ -2086,10 +2087,10 @@ fn data_writer_offered_incompatible_qos_listener() {
         sender: std::sync::mpsc::SyncSender<OfferedIncompatibleQosStatus>,
     }
 
-    impl DataWriterListener<'_, MyData> for OfferedIncompatibleQosListener {
+    impl<R: DdsRuntime> DataWriterListener<'_, R, MyData> for OfferedIncompatibleQosListener {
         fn on_offered_incompatible_qos(
             &mut self,
-            _the_reader: DataWriterAsync<MyData>,
+            _the_reader: DataWriterAsync<R, MyData>,
             status: OfferedIncompatibleQosStatus,
         ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
             Box::pin(async move {
@@ -2184,12 +2185,12 @@ fn non_sync_listener_should_be_accepted() {
         }
     }
 
-    impl DomainParticipantListener for NonSyncListener {}
-    impl PublisherListener for NonSyncListener {}
-    impl SubscriberListener for NonSyncListener {}
-    impl TopicListener for NonSyncListener {}
-    impl DataWriterListener<'_, MyData> for NonSyncListener {}
-    impl DataReaderListener<'_, MyData> for NonSyncListener {}
+    impl<R: DdsRuntime> DomainParticipantListener<R> for NonSyncListener {}
+    impl<R: DdsRuntime> PublisherListener<R> for NonSyncListener {}
+    impl<R: DdsRuntime> SubscriberListener<R> for NonSyncListener {}
+    impl<R: DdsRuntime> TopicListener<R> for NonSyncListener {}
+    impl<R: DdsRuntime> DataWriterListener<'_, R, MyData> for NonSyncListener {}
+    impl<R: DdsRuntime> DataReaderListener<'_, R, MyData> for NonSyncListener {}
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let participant_factory = DomainParticipantFactory::get_instance();
@@ -2232,10 +2233,10 @@ fn writer_offered_deadline_missed_listener() {
         sender: std::sync::mpsc::SyncSender<OfferedDeadlineMissedStatus>,
     }
 
-    impl DataWriterListener<'_, MyData> for DeadlineMissedListener {
+    impl<R: DdsRuntime> DataWriterListener<'_, R, MyData> for DeadlineMissedListener {
         fn on_offered_deadline_missed(
             &mut self,
-            _the_writer: DataWriterAsync<MyData>,
+            _the_writer: DataWriterAsync<R, MyData>,
             status: OfferedDeadlineMissedStatus,
         ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
             Box::pin(async move {
@@ -2336,10 +2337,10 @@ fn publisher_offered_deadline_missed_listener() {
         sender: std::sync::mpsc::SyncSender<OfferedDeadlineMissedStatus>,
     }
 
-    impl PublisherListener for DeadlineMissedListener {
+    impl<R: DdsRuntime> PublisherListener<R> for DeadlineMissedListener {
         fn on_offered_deadline_missed(
             &mut self,
-            _the_writer: DataWriterAsync<()>,
+            _the_writer: DataWriterAsync<R, ()>,
             status: OfferedDeadlineMissedStatus,
         ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
             Box::pin(async move {
@@ -2445,10 +2446,10 @@ fn participant_offered_deadline_missed_listener() {
         sender: std::sync::mpsc::SyncSender<OfferedDeadlineMissedStatus>,
     }
 
-    impl DomainParticipantListener for DeadlineMissedListener {
+    impl<R: DdsRuntime> DomainParticipantListener<R> for DeadlineMissedListener {
         fn on_offered_deadline_missed(
             &mut self,
-            _the_writer: DataWriterAsync<()>,
+            _the_writer: DataWriterAsync<R, ()>,
             status: OfferedDeadlineMissedStatus,
         ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
             Box::pin(async move {

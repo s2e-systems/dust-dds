@@ -1,6 +1,7 @@
 use std::{future::Future, pin::Pin};
 
 use dust_dds::{
+    dcps::runtime::DdsRuntime,
     dds_async::data_reader::DataReaderAsync,
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
@@ -33,10 +34,10 @@ fn reader_subscription_matched_listener_and_wait_set_should_both_trigger() {
         sender: Option<std::sync::mpsc::SyncSender<SubscriptionMatchedStatus>>,
     }
 
-    impl DataReaderListener<'_, MyData> for SubscriptionMatchedListener {
+    impl<R: DdsRuntime> DataReaderListener<'_, R, MyData> for SubscriptionMatchedListener {
         fn on_subscription_matched(
             &mut self,
-            _the_reader: DataReaderAsync<MyData>,
+            _the_reader: DataReaderAsync<R, MyData>,
             status: SubscriptionMatchedStatus,
         ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
             Box::pin(async move {

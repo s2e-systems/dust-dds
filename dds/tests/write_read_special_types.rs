@@ -1,6 +1,7 @@
 mod utils;
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 use dust_dds::{
+    dcps::runtime::DdsRuntime,
     dds_async::domain_participant_factory::DomainParticipantFactoryAsync,
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
@@ -135,9 +136,9 @@ fn foo_with_lifetime_with_listener_should_compile() {
         value: &'a [u8],
     }
     struct ReaderListener;
-    impl<'a> DataReaderListener<'a, BorrowedData<'a>> for ReaderListener {}
+    impl<'a, R: DdsRuntime> DataReaderListener<'a, R, BorrowedData<'a>> for ReaderListener {}
     struct WriterListener;
-    impl<'a> DataWriterListener<'a, BorrowedData<'a>> for WriterListener {}
+    impl<'a, R: DdsRuntime> DataWriterListener<'a, R, BorrowedData<'a>> for WriterListener {}
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let participant = DomainParticipantFactory::get_instance()
@@ -175,9 +176,9 @@ async fn async_foo_with_lifetime_with_listener_should_compile() {
         value: &'a [u8],
     }
     struct ReaderListener;
-    impl<'a> DataReaderListener<'a, BorrowedData<'a>> for ReaderListener {}
+    impl<'a, R: DdsRuntime> DataReaderListener<'a, R, BorrowedData<'a>> for ReaderListener {}
     struct WriterListener;
-    impl<'a> DataWriterListener<'a, BorrowedData<'a>> for WriterListener {}
+    impl<'a, R: DdsRuntime> DataWriterListener<'a, R, BorrowedData<'a>> for WriterListener {}
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let participant_factory = DomainParticipantFactoryAsync::get_instance();

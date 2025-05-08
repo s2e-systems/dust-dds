@@ -846,15 +846,17 @@ where
                 participant_address,
                 reply_sender,
             } => {
-                reply_sender.send(self.create_data_writer(
-                    publisher_handle,
-                    topic_name,
-                    qos,
-                    status_condition,
-                    listener_sender,
-                    mask,
-                    participant_address,
-                ));
+                reply_sender
+                    .send(self.create_data_writer(
+                        publisher_handle,
+                        topic_name,
+                        qos,
+                        status_condition,
+                        listener_sender,
+                        mask,
+                        participant_address,
+                    ))
+                    .await
             }
             PublisherServiceMail::DeleteDataWriter {
                 publisher_handle,

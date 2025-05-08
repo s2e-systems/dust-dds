@@ -2,6 +2,7 @@ use std::{future::Future, pin::Pin};
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use dust_dds::{
+    dcps::runtime::DdsRuntime,
     dds_async::data_reader::DataReaderAsync,
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
@@ -133,10 +134,10 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
     struct Listener {
         sender: std::sync::mpsc::SyncSender<()>,
     }
-    impl DataReaderListener<'_, KeyedData> for Listener {
+    impl<R: DdsRuntime> DataReaderListener<'_, R, KeyedData> for Listener {
         fn on_data_available(
             &mut self,
-            the_reader: DataReaderAsync<KeyedData>,
+            the_reader: DataReaderAsync<R, KeyedData>,
         ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
             Box::pin(async move {
                 the_reader
@@ -225,10 +226,10 @@ fn best_effort_write_and_receive_frag(c: &mut Criterion) {
     struct Listener {
         sender: std::sync::mpsc::SyncSender<()>,
     }
-    impl DataReaderListener<'_, LargeKeyedData> for Listener {
+    impl<R: DdsRuntime> DataReaderListener<'_, R, LargeKeyedData> for Listener {
         fn on_data_available(
             &mut self,
-            the_reader: DataReaderAsync<LargeKeyedData>,
+            the_reader: DataReaderAsync<R, LargeKeyedData>,
         ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
             Box::pin(async move {
                 the_reader

@@ -116,7 +116,8 @@ pub struct DomainParticipantActor<R: DdsRuntime> {
     pub domain_participant:
         DomainParticipantEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail<R>>>,
     pub backend_executor: Executor,
-    pub runtime: R,
+    pub clock_handle: R::ClockHandle,
+    pub timer_handle: R::TimerHandle,
 }
 
 impl<R> DomainParticipantActor<R>
@@ -131,7 +132,8 @@ where
         transport: DdsTransportParticipant,
         backend_executor: Executor,
         instance_handle_counter: InstanceHandleCounter,
-        runtime: R,
+        clock_handle: R::ClockHandle,
+        timer_handle: R::TimerHandle,
     ) -> Self {
         Self {
             transport,
@@ -139,7 +141,8 @@ where
             entity_counter: 0,
             domain_participant,
             backend_executor,
-            runtime,
+            clock_handle,
+            timer_handle,
         }
     }
 
@@ -731,7 +734,7 @@ where
     }
 
     pub fn get_current_time(&mut self) -> Time {
-        self.runtime.clock().now()
+        self.clock_handle.now()
     }
 
     pub fn set_domain_participant_qos(
@@ -1387,13 +1390,13 @@ where
 
         match data_writer.qos().lifespan.duration {
             DurationKind::Finite(lifespan_duration) => {
-                let mut timer_handle = self.runtime.timer();
+                let mut timer_handle = self.timer_handle.clone();
                 let sleep_duration = timestamp - now + lifespan_duration;
                 if sleep_duration > Duration::new(0, 0) {
                     let sequence_number = match data_writer.write_w_timestamp(
                         serialized_data,
                         timestamp,
-                        self.runtime.clock(),
+                        &self.clock_handle,
                     ) {
                         Ok(s) => s,
                         Err(e) => {
@@ -1417,11 +1420,8 @@ where
                 }
             }
             DurationKind::Infinite => {
-                match data_writer.write_w_timestamp(
-                    serialized_data,
-                    timestamp,
-                    self.runtime.clock(),
-                ) {
+                match data_writer.write_w_timestamp(serialized_data, timestamp, &self.clock_handle)
+                {
                     Ok(_) => (),
                     Err(e) => {
                         return Err(e);
@@ -1431,7 +1431,7 @@ where
         }
 
         if let DurationKind::Finite(deadline_missed_period) = data_writer.qos().deadline.period {
-            let mut timer_handle = self.runtime.timer();
+            let mut timer_handle = self.timer_handle.clone();
             self.backend_executor.handle().spawn(async move {
                 loop {
                     timer_handle.delay(deadline_missed_period.into()).await;
@@ -1487,7 +1487,7 @@ where
         data_writer_handle: InstanceHandle,
         timeout: Duration,
     ) -> Pin<Box<dyn Future<Output = DdsResult<()>> + Send>> {
-        let timer_handle = self.runtime.timer();
+        let timer_handle = self.timer_handle.clone();
         Box::pin(async move {
             poll_timeout(
                 timer_handle,
@@ -1771,7 +1771,7 @@ where
         data_reader_handle: InstanceHandle,
         max_wait: Duration,
     ) -> Pin<Box<dyn Future<Output = DdsResult<()>> + Send>> {
-        let timer_handle = self.runtime.timer();
+        let timer_handle = self.timer_handle.clone();
         Box::pin(async move {
             poll_timeout(
                 timer_handle,
@@ -2036,7 +2036,7 @@ where
                 .lookup_datawriter_mut(DCPS_PARTICIPANT)
             {
                 if let Ok(serialized_data) = spdp_discovered_participant_data.serialize_data() {
-                    dw.write_w_timestamp(serialized_data, timestamp, self.runtime.clock())
+                    dw.write_w_timestamp(serialized_data, timestamp, &self.clock_handle)
                         .ok();
                 }
             }
@@ -2116,7 +2116,7 @@ where
             .lookup_datawriter_mut(DCPS_PUBLICATION)
         {
             if let Ok(serialized_data) = discovered_writer_data.serialize_data() {
-                dw.write_w_timestamp(serialized_data, timestamp, self.runtime.clock())
+                dw.write_w_timestamp(serialized_data, timestamp, &self.clock_handle)
                     .ok();
             }
         }
@@ -2193,7 +2193,7 @@ where
             .lookup_datawriter_mut(DCPS_SUBSCRIPTION)
         {
             if let Ok(serialized_data) = discovered_reader_data.serialize_data() {
-                dw.write_w_timestamp(serialized_data, timestamp, self.runtime.clock())
+                dw.write_w_timestamp(serialized_data, timestamp, &self.clock_handle)
                     .ok();
             }
         }
@@ -2250,7 +2250,7 @@ where
             .lookup_datawriter_mut(DCPS_TOPIC)
         {
             if let Ok(serialized_data) = topic_builtin_topic_data.serialize_data() {
-                dw.write_w_timestamp(serialized_data, timestamp, self.runtime.clock())
+                dw.write_w_timestamp(serialized_data, timestamp, &self.clock_handle)
                     .ok();
             }
         }
@@ -3344,7 +3344,7 @@ where
                     if let DurationKind::Finite(deadline_missed_period) =
                         data_reader.qos().deadline.period
                     {
-                        let mut timer_handle = self.runtime.timer();
+                        let mut timer_handle = self.timer_handle.clone();
                         let participant_address = participant_address.clone();
 
                         self.backend_executor.handle().spawn(async move {

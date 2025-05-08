@@ -48,11 +48,11 @@ impl DdsRuntime for StdRuntime {
     where
         T: Send;
 
-    fn timer(&mut self) -> Self::TimerHandle {
+    fn timer(&self) -> Self::TimerHandle {
         self.timer_driver.handle()
     }
 
-    fn clock(&mut self) -> Self::ClockHandle {
+    fn clock(&self) -> Self::ClockHandle {
         StdClock
     }
 
