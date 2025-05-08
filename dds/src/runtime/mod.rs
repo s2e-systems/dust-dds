@@ -1,5 +1,6 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use executor::{Executor, ExecutorHandle};
 use oneshot::{oneshot, OneshotReceiver, OneshotSender};
 use timer::{TimerDriver, TimerHandle};
 
@@ -28,17 +29,22 @@ impl Clock for StdClock {
 
 pub struct StdRuntime {
     timer_driver: TimerDriver,
+    executor: Executor,
 }
 
 impl StdRuntime {
-    pub fn new(timer_driver: TimerDriver) -> Self {
-        Self { timer_driver }
+    pub fn new(executor: Executor, timer_driver: TimerDriver) -> Self {
+        Self {
+            executor,
+            timer_driver,
+        }
     }
 }
 
 impl DdsRuntime for StdRuntime {
     type ClockHandle = StdClock;
     type TimerHandle = TimerHandle;
+    type SpawnerHandle = ExecutorHandle;
     type OneshotSender<T>
         = OneshotSender<T>
     where
@@ -54,6 +60,10 @@ impl DdsRuntime for StdRuntime {
 
     fn clock(&self) -> Self::ClockHandle {
         StdClock
+    }
+
+    fn spawner(&self) -> Self::SpawnerHandle {
+        self.executor.handle()
     }
 
     fn oneshot<T>() -> (Self::OneshotSender<T>, Self::OneshotReceiver<T>)

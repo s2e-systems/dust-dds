@@ -46,12 +46,12 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
         a_listener: impl DomainParticipantListener<R> + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<DomainParticipantAsync<R>> {
-        let executor = Executor::new();
         let clock_handle = self.runtime.clock();
         let timer_handle = self.runtime.timer();
-        let executor_handle = executor.handle();
+        let spawner_handle = self.runtime.spawner();
         let status_kind = mask.to_vec();
-        let listener_sender = DomainParticipantListenerActor::spawn(a_listener, &executor.handle());
+        let listener_sender =
+            DomainParticipantListenerActor::spawn::<R>(a_listener, &spawner_handle);
         let (reply_sender, mut reply_receiver) = R::oneshot();
         self.domain_participant_factory_actor.send_actor_mail(
             DomainParticipantFactoryMail::CreateParticipant {
@@ -62,7 +62,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
                 reply_sender,
                 clock_handle,
                 timer_handle,
-                executor,
+                spawner_handle: spawner_handle.clone(),
             },
         );
 
@@ -79,7 +79,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
             builtin_subscriber_status_condition_address,
             domain_id,
             participant_handle,
-            executor_handle,
+            spawner_handle,
         );
 
         Ok(domain_participant)
@@ -192,10 +192,9 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
 impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
     #[doc(hidden)]
     pub fn new(runtime: R, app_id: [u8; 4], host_id: [u8; 4]) -> DomainParticipantFactoryAsync<R> {
-        let executor = Executor::new();
-        let domain_participant_factory_actor = Actor::spawn(
+        let domain_participant_factory_actor = Actor::spawn::<R>(
             DomainParticipantFactoryActor::new(app_id, host_id),
-            &executor.handle(),
+            &runtime.spawner(),
         );
         DomainParticipantFactoryAsync {
             runtime,
@@ -212,8 +211,9 @@ impl DomainParticipantFactoryAsync<StdRuntime> {
         static PARTICIPANT_FACTORY_ASYNC: OnceLock<DomainParticipantFactoryAsync<StdRuntime>> =
             OnceLock::new();
         PARTICIPANT_FACTORY_ASYNC.get_or_init(|| {
+            let executor = Executor::new();
             let timer_driver = TimerDriver::new();
-            let runtime = StdRuntime::new(timer_driver);
+            let runtime = StdRuntime::new(executor, timer_driver);
             let interface_address = NetworkInterface::show()
                 .expect("Could not scan interfaces")
                 .into_iter()

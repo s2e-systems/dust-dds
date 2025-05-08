@@ -21,7 +21,7 @@ use crate::{
         data_writer::{DataWriterEntity, TransportWriterKind},
         domain_participant::{DomainParticipantEntity, BUILT_IN_TOPIC_NAME_LIST},
         publisher::PublisherEntity,
-        runtime::{Clock, DdsRuntime, OneshotReceive, Timer},
+        runtime::{Clock, DdsRuntime, OneshotReceive, Spawner, Timer},
         subscriber::SubscriberEntity,
         topic::TopicEntity,
         xtypes_glue::key_and_instance_handle::{
@@ -69,7 +69,6 @@ use crate::{
     },
     runtime::{
         actor::{Actor, ActorAddress},
-        executor::Executor,
         mpsc::MpscSender,
     },
     transport::{
@@ -115,9 +114,9 @@ pub struct DomainParticipantActor<R: DdsRuntime> {
     pub entity_counter: u16,
     pub domain_participant:
         DomainParticipantEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail<R>>>,
-    pub backend_executor: Executor,
     pub clock_handle: R::ClockHandle,
     pub timer_handle: R::TimerHandle,
+    pub spawner_handle: R::SpawnerHandle,
 }
 
 impl<R> DomainParticipantActor<R>
@@ -130,19 +129,19 @@ where
             MpscSender<ListenerMail<R>>,
         >,
         transport: DdsTransportParticipant,
-        backend_executor: Executor,
         instance_handle_counter: InstanceHandleCounter,
         clock_handle: R::ClockHandle,
         timer_handle: R::TimerHandle,
+        spawner_handle: R::SpawnerHandle,
     ) -> Self {
         Self {
             transport,
             instance_handle_counter,
             entity_counter: 0,
             domain_participant,
-            backend_executor,
             clock_handle,
             timer_handle,
+            spawner_handle,
         }
     }
 
@@ -159,7 +158,7 @@ where
                 .address(),
             self.domain_participant.domain_id(),
             self.domain_participant.instance_handle(),
-            self.backend_executor.handle(),
+            self.spawner_handle.clone(),
         )
     }
 
@@ -1405,7 +1404,7 @@ where
                     };
 
                     let participant_address = participant_address.clone();
-                    self.backend_executor.handle().spawn(async move {
+                    self.spawner_handle.spawn(async move {
                         timer_handle.delay(sleep_duration.into()).await;
                         participant_address
                             .send(DomainParticipantMail::Message(
@@ -1432,7 +1431,7 @@ where
 
         if let DurationKind::Finite(deadline_missed_period) = data_writer.qos().deadline.period {
             let mut timer_handle = self.timer_handle.clone();
-            self.backend_executor.handle().spawn(async move {
+            self.spawner_handle.spawn(async move {
                 loop {
                     timer_handle.delay(deadline_missed_period.into()).await;
                     participant_address
@@ -3347,7 +3346,7 @@ where
                         let mut timer_handle = self.timer_handle.clone();
                         let participant_address = participant_address.clone();
 
-                        self.backend_executor.handle().spawn(async move {
+                        self.spawner_handle.spawn(async move {
                             loop {
                                 timer_handle.delay(deadline_missed_period.into()).await;
                                 participant_address

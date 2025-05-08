@@ -438,7 +438,7 @@ where
         let (reply_sender, mut reply_receiver) = R::oneshot();
         let listener_sender = DataWriterListenerActor::spawn(
             a_listener,
-            self.get_publisher().get_participant().executor_handle(),
+            self.get_publisher().get_participant().spawner_handle(),
         );
         self.participant_address()
             .send(DomainParticipantMail::Writer(

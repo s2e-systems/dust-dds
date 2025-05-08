@@ -507,7 +507,7 @@ where
         let (reply_sender, mut reply_receiver) = R::oneshot();
         let listener_sender = DataReaderListenerActor::spawn(
             a_listener,
-            self.get_subscriber().get_participant().executor_handle(),
+            self.get_subscriber().get_participant().spawner_handle(),
         );
         self.participant_address()
             .send(DomainParticipantMail::Reader(

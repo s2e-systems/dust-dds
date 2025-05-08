@@ -79,13 +79,13 @@ impl<R: DdsRuntime> PublisherAsync<R> {
         Foo: 'b,
     {
         let topic_name = a_topic.get_name();
-        let status_condition = Actor::spawn(
+        let status_condition = Actor::spawn::<R>(
             StatusConditionActor::default(),
-            self.participant.executor_handle(),
+            self.participant.spawner_handle(),
         );
         let writer_status_condition_address = status_condition.address();
         let listener_sender =
-            DataWriterListenerActor::spawn(a_listener, self.participant.executor_handle());
+            DataWriterListenerActor::spawn(a_listener, self.participant.spawner_handle());
         let (reply_sender, mut reply_receiver) = R::oneshot();
         self.participant_address()
             .send(DomainParticipantMail::Publisher(
@@ -258,7 +258,7 @@ impl<R: DdsRuntime> PublisherAsync<R> {
     ) -> DdsResult<()> {
         let (reply_sender, mut reply_receiver) = R::oneshot();
         let listener_sender =
-            PublisherListenerActor::spawn(a_listener, self.participant.executor_handle());
+            PublisherListenerActor::spawn(a_listener, self.participant.spawner_handle());
         self.participant_address()
             .send(DomainParticipantMail::Publisher(
                 PublisherServiceMail::SetPublisherListener {

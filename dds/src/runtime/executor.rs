@@ -10,6 +10,8 @@ use std::{
     thread::{self, JoinHandle, Thread},
 };
 
+use crate::dcps::runtime::Spawner;
+
 pub fn block_on<T>(f: impl Future<Output = T>) -> T {
     struct ThreadWake(Thread);
     impl Wake for ThreadWake {
@@ -77,6 +79,12 @@ impl ExecutorHandle {
             .send(task.clone())
             .expect("Should never fail to send");
         self.thread_handle.unpark();
+    }
+}
+
+impl Spawner for ExecutorHandle {
+    fn spawn(&self, f: impl Future<Output = ()> + Send + 'static) {
+        self.spawn(f);
     }
 }
 

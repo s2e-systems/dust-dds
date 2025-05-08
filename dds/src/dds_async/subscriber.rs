@@ -77,13 +77,13 @@ impl<R: DdsRuntime> SubscriberAsync<R> {
     where
         Foo: 'b,
     {
-        let status_condition = Actor::spawn(
+        let status_condition = Actor::spawn::<R>(
             StatusConditionActor::default(),
-            self.participant.executor_handle(),
+            self.participant.spawner_handle(),
         );
         let reader_status_condition_address = status_condition.address();
         let listener_sender =
-            DataReaderListenerActor::spawn(a_listener, self.participant.executor_handle());
+            DataReaderListenerActor::spawn(a_listener, self.participant.spawner_handle());
         let (reply_sender, mut reply_receiver) = R::oneshot();
         self.participant_address()
             .send(DomainParticipantMail::Subscriber(
@@ -260,7 +260,7 @@ impl<R: DdsRuntime> SubscriberAsync<R> {
     ) -> DdsResult<()> {
         let (reply_sender, mut reply_receiver) = R::oneshot();
         let listener_sender =
-            SubscriberListenerActor::spawn(a_listener, self.participant.executor_handle());
+            SubscriberListenerActor::spawn(a_listener, self.participant.spawner_handle());
         self.participant_address()
             .send(DomainParticipantMail::Subscriber(
                 SubscriberServiceMail::SetListener {

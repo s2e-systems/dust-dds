@@ -1,9 +1,6 @@
 use crate::{
-    dcps::runtime::DdsRuntime,
-    runtime::{
-        executor::ExecutorHandle,
-        mpsc::{mpsc_channel, MpscSender},
-    },
+    dcps::runtime::{DdsRuntime, Spawner},
+    runtime::mpsc::{mpsc_channel, MpscSender},
     subscription::data_reader_listener::DataReaderListener,
 };
 
@@ -14,13 +11,13 @@ pub struct DataReaderListenerActor;
 impl DataReaderListenerActor {
     pub fn spawn<'a, R: DdsRuntime, Foo>(
         mut listener: impl DataReaderListener<'a, R, Foo> + Send + 'static,
-        executor_handle: &ExecutorHandle,
+        spawner_handle: &R::SpawnerHandle,
     ) -> MpscSender<ListenerMail<R>>
     where
         Foo: 'a,
     {
         let (listener_sender, listener_receiver) = mpsc_channel();
-        executor_handle.spawn(async move {
+        spawner_handle.spawn(async move {
             while let Some(m) = listener_receiver.recv().await {
                 match m {
                     ListenerMail::DataAvailable { the_reader } => {

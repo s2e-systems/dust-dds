@@ -10,6 +10,10 @@ pub trait Timer {
     fn delay(&mut self, duration: core::time::Duration) -> impl Future<Output = ()> + Send;
 }
 
+pub trait Spawner {
+    fn spawn(&self, f: impl Future<Output = ()> + Send + 'static);
+}
+
 pub trait OneshotSend<T> {
     fn send(self, value: T) -> impl Future<Output = ()> + Send;
 }
@@ -21,6 +25,7 @@ pub trait OneshotReceive<T> {
 pub trait DdsRuntime: Send + 'static {
     type ClockHandle: Clock + Send + 'static;
     type TimerHandle: Timer + Clone + Send + 'static;
+    type SpawnerHandle: Spawner + Clone + Send + Sync + 'static;
     type OneshotSender<T>: OneshotSend<T> + Send
     where
         T: Send;
@@ -30,6 +35,7 @@ pub trait DdsRuntime: Send + 'static {
 
     fn timer(&self) -> Self::TimerHandle;
     fn clock(&self) -> Self::ClockHandle;
+    fn spawner(&self) -> Self::SpawnerHandle;
     fn oneshot<T>() -> (Self::OneshotSender<T>, Self::OneshotReceiver<T>)
     where
         T: Send;
