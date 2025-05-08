@@ -8,9 +8,14 @@ use crate::{
 /// A [`StatusCondition`] object is a specific Condition that is associated with each Entity.
 /// The *trigger_value* of the [`StatusCondition`] depends on the communication status of that entity (e.g., arrival of data, loss of
 /// information, etc.), 'filtered' by the set of *enabled_statuses* on the [`StatusCondition`].
-#[derive(Clone)]
 pub struct StatusCondition<R: DdsRuntime> {
     condition_async: StatusConditionAsync<R>,
+}
+
+impl<R: DdsRuntime> Clone for StatusCondition<R> {
+    fn clone(&self) -> Self {
+        Self { condition_async: self.condition_async.clone() }
+    }
 }
 
 impl<R: DdsRuntime> StatusCondition<R> {
