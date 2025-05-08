@@ -1,6 +1,7 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use executor::{Executor, ExecutorHandle};
+use mpsc::{mpsc_channel, MpscReceiver, MpscSender};
 use oneshot::{oneshot, OneshotReceiver, OneshotSender};
 use timer::{TimerDriver, TimerHandle};
 
@@ -43,14 +44,27 @@ impl StdRuntime {
 
 impl DdsRuntime for StdRuntime {
     type ClockHandle = StdClock;
+
     type TimerHandle = TimerHandle;
+
     type SpawnerHandle = ExecutorHandle;
+
     type OneshotSender<T>
         = OneshotSender<T>
     where
         T: Send;
     type OneshotReceiver<T>
         = OneshotReceiver<T>
+    where
+        T: Send;
+
+    type ChannelSender<T>
+        = MpscSender<T>
+    where
+        T: Send;
+
+    type ChannelReceiver<T>
+        = MpscReceiver<T>
     where
         T: Send;
 
@@ -71,5 +85,12 @@ impl DdsRuntime for StdRuntime {
         T: Send,
     {
         oneshot()
+    }
+
+    fn channel<T>() -> (Self::ChannelSender<T>, Self::ChannelReceiver<T>)
+    where
+        T: Send,
+    {
+        mpsc_channel()
     }
 }

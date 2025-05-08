@@ -6,7 +6,10 @@ use std::{
     task::{Context, Poll, Waker},
 };
 
-use crate::infrastructure::error::DdsError;
+use crate::{
+    dcps::runtime::{ChannelReceive, ChannelSend},
+    infrastructure::error::{DdsError, DdsResult},
+};
 
 pub fn mpsc_channel<T>() -> (MpscSender<T>, MpscReceiver<T>) {
     let inner = Arc::new(Mutex::new(MpscInner {
@@ -60,6 +63,15 @@ impl<T> Clone for MpscSender<T> {
     }
 }
 
+impl<T> ChannelSend<T> for MpscSender<T>
+where
+    T: Send,
+{
+    async fn send(&mut self, value: T) -> DdsResult<()> {
+        MpscSender::send(self, value).map_err(|_| DdsError::AlreadyDeleted)
+    }
+}
+
 impl<T> std::fmt::Debug for MpscSender<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("MpscSender")
@@ -93,6 +105,15 @@ impl<T> MpscReceiver<T> {
             inner: self.inner.clone(),
         }
         .await
+    }
+}
+
+impl<T> ChannelReceive<T> for MpscReceiver<T>
+where
+    T: Send,
+{
+    async fn receive(&mut self) -> Option<T> {
+        self.recv().await
     }
 }
 
