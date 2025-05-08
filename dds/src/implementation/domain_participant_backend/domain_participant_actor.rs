@@ -21,7 +21,7 @@ use crate::{
         data_writer::{DataWriterEntity, TransportWriterKind},
         domain_participant::{DomainParticipantEntity, BUILT_IN_TOPIC_NAME_LIST},
         publisher::PublisherEntity,
-        runtime::{Clock, DdsRuntime, OneshotReceive, Spawner, Timer},
+        runtime::{ChannelSend, Clock, DdsRuntime, OneshotReceive, Spawner, Timer},
         subscriber::SubscriberEntity,
         topic::TopicEntity,
         xtypes_glue::key_and_instance_handle::{
@@ -67,10 +67,7 @@ use crate::{
         time::{Duration, DurationKind, Time},
         type_support::{DdsDeserialize, DdsSerialize},
     },
-    runtime::{
-        actor::{Actor, ActorAddress},
-        mpsc::MpscSender,
-    },
+    runtime::actor::{Actor, ActorAddress},
     transport::{
         self,
         history_cache::{CacheChange, HistoryCache},
@@ -113,7 +110,7 @@ pub struct DomainParticipantActor<R: DdsRuntime> {
     pub instance_handle_counter: InstanceHandleCounter,
     pub entity_counter: u16,
     pub domain_participant:
-        DomainParticipantEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail<R>>>,
+        DomainParticipantEntity<Actor<StatusConditionActor>, R::ChannelSender<ListenerMail<R>>>,
     pub clock_handle: R::ClockHandle,
     pub timer_handle: R::TimerHandle,
     pub spawner_handle: R::SpawnerHandle,
@@ -126,7 +123,7 @@ where
     pub fn new(
         domain_participant: DomainParticipantEntity<
             Actor<StatusConditionActor>,
-            MpscSender<ListenerMail<R>>,
+            R::ChannelSender<ListenerMail<R>>,
         >,
         transport: DdsTransportParticipant,
         instance_handle_counter: InstanceHandleCounter,
@@ -147,7 +144,7 @@ where
 
     pub fn get_participant_async(
         &self,
-        participant_address: MpscSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
     ) -> DomainParticipantAsync<R> {
         DomainParticipantAsync::new(
             participant_address,
@@ -164,7 +161,7 @@ where
 
     pub fn get_subscriber_async(
         &self,
-        participant_address: MpscSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
         subscriber_handle: InstanceHandle,
     ) -> DdsResult<SubscriberAsync<R>> {
         Ok(SubscriberAsync::new(
@@ -180,7 +177,7 @@ where
 
     pub fn get_data_reader_async<Foo>(
         &self,
-        participant_address: MpscSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
     ) -> DdsResult<DataReaderAsync<R, Foo>> {
@@ -201,7 +198,7 @@ where
 
     pub fn get_publisher_async(
         &self,
-        participant_address: MpscSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
         publisher_handle: InstanceHandle,
     ) -> DdsResult<PublisherAsync<R>> {
         Ok(PublisherAsync::new(
@@ -217,7 +214,7 @@ where
 
     pub fn get_data_writer_async<Foo>(
         &self,
-        participant_address: MpscSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
     ) -> DdsResult<DataWriterAsync<R, Foo>> {
@@ -238,7 +235,7 @@ where
 
     pub fn get_topic_async(
         &self,
-        participant_address: MpscSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
         topic_name: String,
     ) -> DdsResult<TopicAsync<R>> {
         let topic = self
@@ -315,7 +312,7 @@ where
         &mut self,
         qos: QosKind<PublisherQos>,
         status_condition: Actor<StatusConditionActor>,
-        listener_sender: MpscSender<ListenerMail<R>>,
+        listener_sender: R::ChannelSender<ListenerMail<R>>,
         mask: Vec<StatusKind>,
     ) -> DdsResult<InstanceHandle> {
         let publisher_qos = match qos {
@@ -378,7 +375,7 @@ where
         &mut self,
         qos: QosKind<SubscriberQos>,
         status_condition: Actor<StatusConditionActor>,
-        listener_sender: MpscSender<ListenerMail<R>>,
+        listener_sender: R::ChannelSender<ListenerMail<R>>,
         mask: Vec<StatusKind>,
     ) -> DdsResult<InstanceHandle> {
         let subscriber_qos = match qos {
@@ -449,7 +446,7 @@ where
         type_name: String,
         qos: QosKind<TopicQos>,
         status_condition: Actor<StatusConditionActor>,
-        listener_sender: MpscSender<ListenerMail<R>>,
+        listener_sender: R::ChannelSender<ListenerMail<R>>,
         mask: Vec<StatusKind>,
         type_support: Arc<dyn DynamicType + Send + Sync>,
     ) -> DdsResult<InstanceHandle> {
@@ -531,7 +528,7 @@ where
         topic_name: String,
         type_support: Arc<dyn DynamicType + Send + Sync>,
         status_condition: Actor<StatusConditionActor>,
-        listener_sender: MpscSender<ListenerMail<R>>,
+        listener_sender: R::ChannelSender<ListenerMail<R>>,
     ) -> DdsResult<Option<(InstanceHandle, ActorAddress<StatusConditionActor>, String)>> {
         if let Some(topic) = self.domain_participant.get_topic(&topic_name) {
             Ok(Some((
@@ -625,7 +622,7 @@ where
 
     pub fn delete_participant_contained_entities(&mut self) -> DdsResult<()> {
         let deleted_publisher_list: Vec<
-            PublisherEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail<R>>>,
+            PublisherEntity<Actor<StatusConditionActor>, R::ChannelSender<ListenerMail<R>>>,
         > = self.domain_participant.drain_publisher_list().collect();
         for mut publisher in deleted_publisher_list {
             for data_writer in publisher.drain_data_writer_list() {
@@ -634,7 +631,7 @@ where
         }
 
         let deleted_subscriber_list: Vec<
-            SubscriberEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail<R>>>,
+            SubscriberEntity<Actor<StatusConditionActor>, R::ChannelSender<ListenerMail<R>>>,
         > = self.domain_participant.drain_subscriber_list().collect();
         for mut subscriber in deleted_subscriber_list {
             for data_reader in subscriber.drain_data_reader_list() {
@@ -758,7 +755,7 @@ where
 
     pub fn set_domain_participant_listener(
         &mut self,
-        listener_sender: MpscSender<ListenerMail<R>>,
+        listener_sender: R::ChannelSender<ListenerMail<R>>,
         status_kind: Vec<StatusKind>,
     ) -> DdsResult<()> {
         self.domain_participant
@@ -781,21 +778,21 @@ where
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn create_data_reader(
+    pub async fn create_data_reader(
         &mut self,
         subscriber_handle: InstanceHandle,
         topic_name: String,
         qos: QosKind<DataReaderQos>,
         status_condition: Actor<StatusConditionActor>,
-        listener_sender: MpscSender<ListenerMail<R>>,
+        listener_sender: R::ChannelSender<ListenerMail<R>>,
         mask: Vec<StatusKind>,
-        domain_participant_address: MpscSender<DomainParticipantMail<R>>,
+        domain_participant_address: R::ChannelSender<DomainParticipantMail<R>>,
     ) -> DdsResult<InstanceHandle> {
         struct UserDefinedReaderHistoryCache<R>
         where
             R: DdsRuntime,
         {
-            pub domain_participant_address: MpscSender<DomainParticipantMail<R>>,
+            pub domain_participant_address: R::ChannelSender<DomainParticipantMail<R>>,
             pub subscriber_handle: InstanceHandle,
             pub data_reader_handle: InstanceHandle,
         }
@@ -805,16 +802,18 @@ where
             R: DdsRuntime,
         {
             fn add_change(&mut self, cache_change: CacheChange) {
-                self.domain_participant_address
-                    .send(DomainParticipantMail::Message(
-                        MessageServiceMail::AddCacheChange {
-                            participant_address: self.domain_participant_address.clone(),
-                            cache_change,
-                            subscriber_handle: self.subscriber_handle,
-                            data_reader_handle: self.data_reader_handle,
-                        },
-                    ))
-                    .ok();
+                todo!()
+                // self.domain_participant_address
+                //     .send(DomainParticipantMail::Message(
+                //         MessageServiceMail::AddCacheChange {
+                //             participant_address: self.domain_participant_address.clone(),
+                //             cache_change,
+                //             subscriber_handle: self.subscriber_handle,
+                //             data_reader_handle: self.data_reader_handle,
+                //         },
+                //     ))
+                //     .await
+                //     .ok();
             }
 
             fn remove_change(&mut self, _sequence_number: i64) {
@@ -871,7 +870,7 @@ where
             TransportReaderKind::Stateful(self.transport.create_stateful_reader(
                 entity_id,
                 reliablity_kind,
-                Box::new(UserDefinedReaderHistoryCache {
+                Box::new(UserDefinedReaderHistoryCache::<R> {
                     domain_participant_address: domain_participant_address.clone(),
                     subscriber_handle: subscriber.instance_handle(),
                     data_reader_handle: reader_handle,
@@ -900,7 +899,8 @@ where
                 subscriber_handle,
                 data_reader_handle,
                 domain_participant_address,
-            )?;
+            )
+            .await?;
         }
         Ok(data_reader_handle)
     }
@@ -1022,7 +1022,7 @@ where
     pub fn set_subscriber_listener(
         &mut self,
         subscriber_handle: InstanceHandle,
-        listener_sender: MpscSender<ListenerMail<R>>,
+        listener_sender: R::ChannelSender<ListenerMail<R>>,
         mask: Vec<StatusKind>,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
@@ -1037,15 +1037,15 @@ where
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn create_data_writer(
+    pub async fn create_data_writer(
         &mut self,
         publisher_handle: InstanceHandle,
         topic_name: String,
         qos: QosKind<DataWriterQos>,
         status_condition: Actor<StatusConditionActor>,
-        listener_sender: MpscSender<ListenerMail<R>>,
+        listener_sender: R::ChannelSender<ListenerMail<R>>,
         mask: Vec<StatusKind>,
-        participant_address: MpscSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
     ) -> DdsResult<InstanceHandle> {
         let Some(topic) = self.domain_participant.get_topic(&topic_name) else {
             return Err(DdsError::AlreadyDeleted);
@@ -1108,7 +1108,8 @@ where
         publisher.insert_data_writer(data_writer);
 
         if publisher.enabled() && publisher.qos().entity_factory.autoenable_created_entities {
-            self.enable_data_writer(publisher_handle, writer_handle, participant_address)?;
+            self.enable_data_writer(publisher_handle, writer_handle, participant_address)
+                .await?;
         }
 
         Ok(data_writer_handle)
@@ -1186,7 +1187,7 @@ where
     pub fn set_publisher_listener(
         &mut self,
         publisher_handle: InstanceHandle,
-        listener_sender: MpscSender<ListenerMail<R>>,
+        listener_sender: R::ChannelSender<ListenerMail<R>>,
         mask: Vec<StatusKind>,
     ) -> DdsResult<()> {
         let Some(publisher) = self.domain_participant.get_mut_publisher(publisher_handle) else {
@@ -1225,7 +1226,7 @@ where
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        listener_sender: MpscSender<ListenerMail<R>>,
+        listener_sender: R::ChannelSender<ListenerMail<R>>,
         listener_mask: Vec<StatusKind>,
     ) -> DdsResult<()> {
         let Some(publisher) = self.domain_participant.get_mut_publisher(publisher_handle) else {
@@ -1359,9 +1360,9 @@ where
             .then_some(instance_handle))
     }
 
-    pub fn write_w_timestamp(
+    pub async fn write_w_timestamp(
         &mut self,
-        participant_address: MpscSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         serialized_data: Vec<u8>,
@@ -1414,6 +1415,7 @@ where
                                     sequence_number,
                                 },
                             ))
+                            .await
                             .ok();
                     });
                 }
@@ -1443,6 +1445,7 @@ where
                                 participant_address: participant_address.clone(),
                             },
                         ))
+                        .await
                         .ok();
                 }
             });
@@ -1479,9 +1482,9 @@ where
         data_writer.dispose_w_timestamp(serialized_key, timestamp)
     }
 
-    pub fn wait_for_acknowledgments(
+    pub async fn wait_for_acknowledgments(
         &mut self,
-        participant_address: MpscSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         timeout: Duration,
@@ -1502,6 +1505,7 @@ where
                                     reply_sender,
                                 },
                             ))
+                            .await
                             .ok();
                         let reply = reply_receiver.receive().await;
                         match reply {
@@ -1537,11 +1541,11 @@ where
         Ok(data_writer.get_offered_deadline_missed_status())
     }
 
-    pub fn enable_data_writer(
+    pub async fn enable_data_writer(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        participant_address: MpscSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
     ) -> DdsResult<()> {
         let Some(publisher) = self.domain_participant.get_mut_publisher(publisher_handle) else {
             return Err(DdsError::AlreadyDeleted);
@@ -1563,7 +1567,8 @@ where
                     publisher_handle,
                     data_writer_handle,
                     participant_address.clone(),
-                );
+                )
+                .await;
             }
 
             self.announce_data_writer(publisher_handle, data_writer_handle);
@@ -1765,7 +1770,7 @@ where
 
     pub fn wait_for_historical_data(
         &mut self,
-        participant_address: MpscSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         max_wait: Duration,
@@ -1778,13 +1783,15 @@ where
                 Box::pin(async move {
                     loop {
                         let (reply_sender, mut reply_receiver) = R::oneshot();
-                        participant_address.send(DomainParticipantMail::Message(
-                            MessageServiceMail::IsHistoricalDataReceived {
-                                subscriber_handle,
-                                data_reader_handle,
-                                reply_sender,
-                            },
-                        ))?;
+                        participant_address
+                            .send(DomainParticipantMail::Message(
+                                MessageServiceMail::IsHistoricalDataReceived {
+                                    subscriber_handle,
+                                    data_reader_handle,
+                                    reply_sender,
+                                },
+                            ))
+                            .await?;
 
                         let reply = reply_receiver.receive().await;
                         match reply {
@@ -1901,7 +1908,7 @@ where
         &mut self,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
-        listener_sender: MpscSender<ListenerMail<R>>,
+        listener_sender: R::ChannelSender<ListenerMail<R>>,
         listener_mask: Vec<StatusKind>,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
@@ -1949,11 +1956,11 @@ where
         }
     }
 
-    pub fn enable_data_reader(
+    pub async fn enable_data_reader(
         &mut self,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
-        participant_address: MpscSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
             .domain_participant
@@ -1978,7 +1985,8 @@ where
                     subscriber_handle,
                     data_reader_handle,
                     participant_address.clone(),
-                );
+                )
+                .await;
             }
 
             self.announce_data_reader(subscriber_handle, data_reader_handle);
@@ -2123,7 +2131,10 @@ where
 
     fn announce_deleted_data_writer(
         &mut self,
-        data_writer: DataWriterEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail<R>>>,
+        data_writer: DataWriterEntity<
+            Actor<StatusConditionActor>,
+            R::ChannelSender<ListenerMail<R>>,
+        >,
     ) {
         let timestamp = self.get_current_time();
         if let Some(dw) = self
@@ -2200,7 +2211,10 @@ where
 
     fn announce_deleted_data_reader(
         &mut self,
-        data_reader: DataReaderEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail<R>>>,
+        data_reader: DataReaderEntity<
+            Actor<StatusConditionActor>,
+            R::ChannelSender<ListenerMail<R>>,
+        >,
     ) {
         let timestamp = self.get_current_time();
         if let Some(dw) = self
@@ -2255,12 +2269,12 @@ where
         }
     }
 
-    fn add_discovered_reader(
+    async fn add_discovered_reader(
         &mut self,
         discovered_reader_data: DiscoveredReaderData,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        participant_address: MpscSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
     ) {
         let default_unicast_locator_list = if let Some(p) = self
             .domain_participant
@@ -2434,6 +2448,7 @@ where
                         data_writer
                             .listener()
                             .send(ListenerMail::PublicationMatched { the_writer, status })
+                            .await
                             .ok();
                     } else if publisher
                         .listener_mask()
@@ -2459,6 +2474,7 @@ where
                         publisher
                             .listener()
                             .send(ListenerMail::PublicationMatched { the_writer, status })
+                            .await
                             .ok();
                     } else if self
                         .domain_participant
@@ -2485,6 +2501,7 @@ where
                         self.domain_participant
                             .listener()
                             .send(ListenerMail::PublicationMatched { the_writer, status })
+                            .await
                             .ok();
                     }
 
@@ -2534,6 +2551,7 @@ where
                         data_writer
                             .listener()
                             .send(ListenerMail::OfferedIncompatibleQos { the_writer, status })
+                            .await
                             .ok();
                     } else if publisher
                         .listener_mask()
@@ -2559,6 +2577,7 @@ where
                         publisher
                             .listener()
                             .send(ListenerMail::OfferedIncompatibleQos { the_writer, status })
+                            .await
                             .ok();
                     } else if self
                         .domain_participant
@@ -2585,6 +2604,7 @@ where
                         self.domain_participant
                             .listener()
                             .send(ListenerMail::OfferedIncompatibleQos { the_writer, status })
+                            .await
                             .ok();
                     }
 
@@ -2633,12 +2653,12 @@ where
         }
     }
 
-    fn add_discovered_writer(
+    async fn add_discovered_writer(
         &mut self,
         discovered_writer_data: DiscoveredWriterData,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
-        participant_address: MpscSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
     ) {
         let default_unicast_locator_list = if let Some(p) = self
             .domain_participant
@@ -2728,7 +2748,7 @@ where
 
             if is_matched_topic_name && is_matched_type_name {
                 let incompatible_qos_policy_list =
-                    get_discovered_writer_incompatible_qos_policy_list(
+                    get_discovered_writer_incompatible_qos_policy_list::<R>(
                         data_reader,
                         &discovered_writer_data.dds_publication_data,
                         &subscriber_qos,
@@ -2804,6 +2824,7 @@ where
                         data_reader
                             .listener()
                             .send(ListenerMail::SubscriptionMatched { the_reader, status })
+                            .await
                             .ok();
                     } else if subscriber
                         .listener_mask()
@@ -2830,6 +2851,7 @@ where
                         subscriber
                             .listener()
                             .send(ListenerMail::SubscriptionMatched { the_reader, status })
+                            .await
                             .ok();
                     } else if self
                         .domain_participant
@@ -2857,6 +2879,7 @@ where
                         self.domain_participant
                             .listener()
                             .send(ListenerMail::SubscriptionMatched { the_reader, status })
+                            .await
                             .ok();
                     }
 
@@ -2908,6 +2931,7 @@ where
                         data_reader
                             .listener()
                             .send(ListenerMail::RequestedIncompatibleQos { the_reader, status })
+                            .await
                             .ok();
                     } else if subscriber
                         .listener_mask()
@@ -2934,6 +2958,7 @@ where
                         subscriber
                             .listener()
                             .send(ListenerMail::RequestedIncompatibleQos { the_reader, status })
+                            .await
                             .ok();
                     } else if self
                         .domain_participant
@@ -2961,6 +2986,7 @@ where
                         self.domain_participant
                             .listener()
                             .send(ListenerMail::RequestedIncompatibleQos { the_reader, status })
+                            .await
                             .ok();
                     }
 
@@ -3043,10 +3069,10 @@ where
         }
     }
 
-    pub fn add_builtin_publications_detector_cache_change(
+    pub async fn add_builtin_publications_detector_cache_change(
         &mut self,
         cache_change: CacheChange,
-        participant_address: MpscSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
     ) {
         match cache_change.kind {
             ChangeKind::Alive => {
@@ -3100,7 +3126,8 @@ where
                             subscriber_handle,
                             data_reader_handle,
                             participant_address.clone(),
-                        );
+                        )
+                        .await;
                     }
                 }
             }
@@ -3145,10 +3172,10 @@ where
         }
     }
 
-    pub fn add_builtin_subscriptions_detector_cache_change(
+    pub async fn add_builtin_subscriptions_detector_cache_change(
         &mut self,
         cache_change: CacheChange,
-        participant_address: MpscSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
     ) {
         match cache_change.kind {
             ChangeKind::Alive => {
@@ -3230,7 +3257,8 @@ where
                             publisher_handle,
                             data_writer_handle,
                             participant_address.clone(),
-                        );
+                        )
+                        .await;
                     }
                 }
             }
@@ -3314,9 +3342,9 @@ where
         }
     }
 
-    pub fn add_cache_change(
+    pub async fn add_cache_change(
         &mut self,
-        participant_address: MpscSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
         cache_change: CacheChange,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
@@ -3358,6 +3386,7 @@ where
                                             participant_address: participant_address.clone(),
                                         },
                                     ))
+                                    .await
                                     .ok();
                             }
                         });
@@ -3392,6 +3421,7 @@ where
                         subscriber
                             .listener()
                             .send(ListenerMail::DataOnReaders { the_subscriber })
+                            .await
                             .ok();
                     } else if deta_reader_on_data_available_active {
                         let Ok(the_reader) = self.get_data_reader_async(
@@ -3415,6 +3445,7 @@ where
                         data_reader
                             .listener()
                             .send(ListenerMail::DataAvailable { the_reader })
+                            .await
                             .ok();
                     }
 
@@ -3473,6 +3504,7 @@ where
                         data_reader
                             .listener()
                             .send(ListenerMail::SampleRejected { the_reader, status })
+                            .await
                             .ok();
                     } else if subscriber
                         .listener_mask()
@@ -3500,6 +3532,7 @@ where
                         subscriber
                             .listener()
                             .send(ListenerMail::SampleRejected { status, the_reader })
+                            .await
                             .ok();
                     } else if self
                         .domain_participant
@@ -3528,6 +3561,7 @@ where
                         self.domain_participant
                             .listener()
                             .send(ListenerMail::SampleRejected { status, the_reader })
+                            .await
                             .ok();
                     }
 
@@ -3566,12 +3600,12 @@ where
         }
     }
 
-    pub fn offered_deadline_missed(
+    pub async fn offered_deadline_missed(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         change_instance_handle: InstanceHandle,
-        participant_address: MpscSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
     ) {
         let current_time = self.get_current_time();
         let Some(publisher) = self.domain_participant.get_mut_publisher(publisher_handle) else {
@@ -3620,6 +3654,7 @@ where
             data_writer
                 .listener()
                 .send(ListenerMail::OfferedDeadlineMissed { the_writer, status })
+                .await
                 .ok();
         } else if publisher
             .listener_mask()
@@ -3643,6 +3678,7 @@ where
             publisher
                 .listener()
                 .send(ListenerMail::OfferedDeadlineMissed { the_writer, status })
+                .await
                 .ok();
         } else if self
             .domain_participant
@@ -3668,6 +3704,7 @@ where
             self.domain_participant
                 .listener()
                 .send(ListenerMail::OfferedDeadlineMissed { the_writer, status })
+                .await
                 .ok();
         }
 
@@ -3684,12 +3721,12 @@ where
         );
     }
 
-    pub fn requested_deadline_missed(
+    pub async fn requested_deadline_missed(
         &mut self,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         change_instance_handle: InstanceHandle,
-        participant_address: MpscSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
     ) {
         let current_time = self.get_current_time();
         let Some(subscriber) = self
@@ -3739,6 +3776,7 @@ where
             data_reader
                 .listener()
                 .send(ListenerMail::RequestedDeadlineMissed { the_reader, status })
+                .await
                 .ok();
         } else if subscriber
             .listener_mask()
@@ -3765,6 +3803,7 @@ where
             subscriber
                 .listener()
                 .send(ListenerMail::RequestedDeadlineMissed { status, the_reader })
+                .await
                 .ok();
         } else if self
             .domain_participant
@@ -3792,6 +3831,7 @@ where
             self.domain_participant
                 .listener()
                 .send(ListenerMail::RequestedDeadlineMissed { status, the_reader })
+                .await
                 .ok();
         }
         let Some(subscriber) = self
@@ -4208,7 +4248,7 @@ fn get_discovered_reader_incompatible_qos_policy_list(
 }
 
 fn get_discovered_writer_incompatible_qos_policy_list<R: DdsRuntime>(
-    data_reader: &DataReaderEntity<Actor<StatusConditionActor>, MpscSender<ListenerMail<R>>>,
+    data_reader: &DataReaderEntity<Actor<StatusConditionActor>, R::ChannelSender<ListenerMail<R>>>,
     publication_builtin_topic_data: &PublicationBuiltinTopicData,
     subscriber_qos: &SubscriberQos,
 ) -> Vec<QosPolicyId> {

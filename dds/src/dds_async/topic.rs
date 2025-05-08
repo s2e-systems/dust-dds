@@ -1,6 +1,6 @@
 use super::{condition::StatusConditionAsync, domain_participant::DomainParticipantAsync};
 use crate::{
-    dcps::runtime::{DdsRuntime, OneshotReceive},
+    dcps::runtime::{ChannelSend, DdsRuntime, OneshotReceive},
     implementation::{
         domain_participant_backend::domain_participant_actor_mail::{
             DomainParticipantMail, TopicServiceMail,
@@ -70,7 +70,8 @@ impl<R: DdsRuntime> TopicAsync<R> {
                     topic_name: self.topic_name.clone(),
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 }
@@ -106,7 +107,8 @@ impl<R: DdsRuntime> TopicAsync<R> {
                 topic_name: self.topic_name.clone(),
                 topic_qos: qos,
                 reply_sender,
-            }))?;
+            }))
+            .await?;
 
         reply_receiver.receive().await?
     }
@@ -120,7 +122,8 @@ impl<R: DdsRuntime> TopicAsync<R> {
             .send(DomainParticipantMail::Topic(TopicServiceMail::GetQos {
                 topic_name: self.topic_name.clone(),
                 reply_sender,
-            }))?;
+            }))
+            .await?;
 
         reply_receiver.receive().await?
     }
@@ -146,7 +149,8 @@ impl<R: DdsRuntime> TopicAsync<R> {
             .send(DomainParticipantMail::Topic(TopicServiceMail::Enable {
                 topic_name: self.topic_name.clone(),
                 reply_sender,
-            }))?;
+            }))
+            .await?;
         reply_receiver.receive().await?
     }
 
@@ -179,7 +183,8 @@ impl<R: DdsRuntime> TopicAsync<R> {
                     topic_name: self.topic_name.clone(),
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
 
         reply_receiver.receive().await?
     }

@@ -67,7 +67,7 @@ impl<T> ChannelSend<T> for MpscSender<T>
 where
     T: Send,
 {
-    async fn send(&mut self, value: T) -> DdsResult<()> {
+    async fn send(&self, value: T) -> DdsResult<()> {
         MpscSender::send(self, value).map_err(|_| DdsError::AlreadyDeleted)
     }
 }

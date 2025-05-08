@@ -1,7 +1,6 @@
 use crate::{
-    dcps::runtime::{DdsRuntime, Spawner},
+    dcps::runtime::{ChannelReceive, DdsRuntime, Spawner},
     publication::data_writer_listener::DataWriterListener,
-    runtime::mpsc::{mpsc_channel, MpscSender},
 };
 
 use super::domain_participant_listener::ListenerMail;
@@ -12,13 +11,13 @@ impl DataWriterListenerActor {
     pub fn spawn<'a, R: DdsRuntime, Foo>(
         mut listener: impl DataWriterListener<'a, R, Foo> + Send + 'static,
         spawner_handle: &R::SpawnerHandle,
-    ) -> MpscSender<ListenerMail<R>>
+    ) -> R::ChannelSender<ListenerMail<R>>
     where
         Foo: 'a,
     {
-        let (listener_sender, listener_receiver) = mpsc_channel();
+        let (listener_sender, mut listener_receiver) = R::channel();
         spawner_handle.spawn(async move {
-            while let Some(m) = listener_receiver.recv().await {
+            while let Some(m) = listener_receiver.receive().await {
                 match m {
                     ListenerMail::PublicationMatched { the_writer, status } => {
                         listener

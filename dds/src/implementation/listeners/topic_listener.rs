@@ -1,6 +1,5 @@
 use crate::{
-    dcps::runtime::{DdsRuntime, Spawner},
-    runtime::mpsc::{mpsc_channel, MpscSender},
+    dcps::runtime::{ChannelReceive, DdsRuntime, Spawner},
     topic_definition::topic_listener::TopicListener,
 };
 
@@ -12,9 +11,10 @@ impl TopicListenerActor {
     pub fn spawn<R: DdsRuntime>(
         _listener: impl TopicListener<R> + Send + 'static,
         spawner_handle: &R::SpawnerHandle,
-    ) -> MpscSender<ListenerMail<R>> {
-        let (listener_sender, listener_receiver) = mpsc_channel();
-        spawner_handle.spawn(async move { while let Some(_m) = listener_receiver.recv().await {} });
+    ) -> R::ChannelSender<ListenerMail<R>> {
+        let (listener_sender, mut listener_receiver) = R::channel();
+        spawner_handle
+            .spawn(async move { while let Some(_m) = listener_receiver.receive().await {} });
         listener_sender
     }
 }

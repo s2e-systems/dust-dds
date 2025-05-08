@@ -3,7 +3,7 @@ use super::{
     domain_participant::DomainParticipantAsync, topic::TopicAsync,
 };
 use crate::{
-    dcps::runtime::{DdsRuntime, OneshotReceive},
+    dcps::runtime::{ChannelSend, DdsRuntime, OneshotReceive},
     implementation::{
         domain_participant_backend::domain_participant_actor_mail::{
             DomainParticipantMail, SubscriberServiceMail,
@@ -20,10 +20,7 @@ use crate::{
         qos::{DataReaderQos, QosKind, SubscriberQos, TopicQos},
         status::{SampleLostStatus, StatusKind},
     },
-    runtime::{
-        actor::{Actor, ActorAddress},
-        mpsc::MpscSender,
-    },
+    runtime::actor::{Actor, ActorAddress},
     subscription::{
         data_reader_listener::DataReaderListener, subscriber_listener::SubscriberListener,
     },
@@ -59,7 +56,7 @@ impl<R: DdsRuntime> SubscriberAsync<R> {
         }
     }
 
-    pub(crate) fn participant_address(&self) -> &MpscSender<DomainParticipantMail<R>> {
+    pub(crate) fn participant_address(&self) -> &R::ChannelSender<DomainParticipantMail<R>> {
         self.participant.participant_address()
     }
 }
@@ -97,7 +94,8 @@ impl<R: DdsRuntime> SubscriberAsync<R> {
                     domain_participant_address: self.participant_address().clone(),
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         let guid = reply_receiver.receive().await??;
 
         Ok(DataReaderAsync::new(
@@ -122,7 +120,8 @@ impl<R: DdsRuntime> SubscriberAsync<R> {
                     datareader_handle: a_datareader.get_instance_handle().await,
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 
@@ -141,7 +140,8 @@ impl<R: DdsRuntime> SubscriberAsync<R> {
                         topic_name: topic_name.to_string(),
                         reply_sender,
                     },
-                ))?;
+                ))
+                .await?;
             if let Some((reader_handle, reader_status_condition_address)) =
                 reply_receiver.receive().await??
             {
@@ -194,7 +194,8 @@ impl<R: DdsRuntime> SubscriberAsync<R> {
                     qos,
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
 
         reply_receiver.receive().await?
     }
@@ -209,7 +210,8 @@ impl<R: DdsRuntime> SubscriberAsync<R> {
                     subscriber_handle: self.handle,
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 
@@ -233,7 +235,8 @@ impl<R: DdsRuntime> SubscriberAsync<R> {
                     qos,
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 
@@ -247,7 +250,8 @@ impl<R: DdsRuntime> SubscriberAsync<R> {
                     subscriber_handle: self.handle,
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 
@@ -269,7 +273,8 @@ impl<R: DdsRuntime> SubscriberAsync<R> {
                     mask: mask.to_vec(),
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 

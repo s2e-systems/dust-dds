@@ -3,7 +3,7 @@ use super::{
     domain_participant::DomainParticipantAsync, topic::TopicAsync,
 };
 use crate::{
-    dcps::runtime::{DdsRuntime, OneshotReceive},
+    dcps::runtime::{ChannelSend, DdsRuntime, OneshotReceive},
     implementation::{
         domain_participant_backend::domain_participant_actor_mail::{
             DomainParticipantMail, PublisherServiceMail,
@@ -24,10 +24,7 @@ use crate::{
     publication::{
         data_writer_listener::DataWriterListener, publisher_listener::PublisherListener,
     },
-    runtime::{
-        actor::{Actor, ActorAddress},
-        mpsc::MpscSender,
-    },
+    runtime::actor::{Actor, ActorAddress},
 };
 
 /// Async version of [`Publisher`](crate::publication::publisher::Publisher).
@@ -60,7 +57,7 @@ impl<R: DdsRuntime> PublisherAsync<R> {
         }
     }
 
-    pub(crate) fn participant_address(&self) -> &MpscSender<DomainParticipantMail<R>> {
+    pub(crate) fn participant_address(&self) -> &R::ChannelSender<DomainParticipantMail<R>> {
         self.participant.participant_address()
     }
 }
@@ -99,7 +96,8 @@ impl<R: DdsRuntime> PublisherAsync<R> {
                     participant_address: self.participant_address().clone(),
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         let guid = reply_receiver.receive().await??;
 
         Ok(DataWriterAsync::new(
@@ -124,7 +122,8 @@ impl<R: DdsRuntime> PublisherAsync<R> {
                     datawriter_handle: a_datawriter.get_instance_handle().await,
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 
@@ -190,7 +189,8 @@ impl<R: DdsRuntime> PublisherAsync<R> {
                     qos,
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 
@@ -204,7 +204,8 @@ impl<R: DdsRuntime> PublisherAsync<R> {
                     publisher_handle: self.handle,
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 
@@ -231,7 +232,8 @@ impl<R: DdsRuntime> PublisherAsync<R> {
                     qos,
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 
@@ -245,7 +247,8 @@ impl<R: DdsRuntime> PublisherAsync<R> {
                     publisher_handle: self.handle,
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 
@@ -267,7 +270,8 @@ impl<R: DdsRuntime> PublisherAsync<R> {
                     mask: mask.to_vec(),
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 

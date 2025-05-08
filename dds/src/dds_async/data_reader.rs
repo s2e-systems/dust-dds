@@ -3,7 +3,7 @@ use tracing::warn;
 use super::{condition::StatusConditionAsync, subscriber::SubscriberAsync, topic::TopicAsync};
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
-    dcps::runtime::{DdsRuntime, OneshotReceive},
+    dcps::runtime::{ChannelSend, DdsRuntime, OneshotReceive},
     implementation::{
         domain_participant_backend::domain_participant_actor_mail::{
             DomainParticipantMail, ReaderServiceMail,
@@ -24,7 +24,7 @@ use crate::{
         },
         time::Duration,
     },
-    runtime::{actor::ActorAddress, mpsc::MpscSender},
+    runtime::actor::ActorAddress,
     subscription::{data_reader::Sample, data_reader_listener::DataReaderListener},
 };
 use std::marker::PhantomData;
@@ -54,7 +54,7 @@ impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
         }
     }
 
-    pub(crate) fn participant_address(&self) -> &MpscSender<DomainParticipantMail<R>> {
+    pub(crate) fn participant_address(&self) -> &R::ChannelSender<DomainParticipantMail<R>> {
         self.subscriber.participant_address()
     }
 
@@ -102,7 +102,8 @@ impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
                 instance_states: instance_states.to_vec(),
                 specific_instance_handle: None,
                 reply_sender,
-            }))?;
+            }))
+            .await?;
         let samples = reply_receiver.receive().await??;
 
         Ok(samples
@@ -131,7 +132,8 @@ impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
                 instance_states: instance_states.to_vec(),
                 specific_instance_handle: None,
                 reply_sender,
-            }))?;
+            }))
+            .await?;
         let samples = reply_receiver.receive().await??;
 
         Ok(samples
@@ -154,7 +156,8 @@ impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
                 instance_states: ANY_INSTANCE_STATE.to_vec(),
                 specific_instance_handle: None,
                 reply_sender,
-            }))?;
+            }))
+            .await?;
         let mut samples = reply_receiver.receive().await??;
         let (data, sample_info) = samples.pop().expect("Would return NoData if empty");
         Ok(Sample::new(data, sample_info))
@@ -174,7 +177,8 @@ impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
                 instance_states: ANY_INSTANCE_STATE.to_vec(),
                 specific_instance_handle: None,
                 reply_sender,
-            }))?;
+            }))
+            .await?;
         let mut samples = reply_receiver.receive().await??;
         let (data, sample_info) = samples.pop().expect("Would return NoData if empty");
         Ok(Sample::new(data, sample_info))
@@ -201,7 +205,8 @@ impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
                 instance_states: instance_states.to_vec(),
                 specific_instance_handle: Some(a_handle),
                 reply_sender,
-            }))?;
+            }))
+            .await?;
         let samples = reply_receiver.receive().await??;
         Ok(samples
             .into_iter()
@@ -230,7 +235,8 @@ impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
                 instance_states: instance_states.to_vec(),
                 specific_instance_handle: Some(a_handle),
                 reply_sender,
-            }))?;
+            }))
+            .await?;
         let samples = reply_receiver.receive().await??;
 
         Ok(samples
@@ -262,7 +268,8 @@ impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
                     instance_states: instance_states.to_vec(),
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         let samples = reply_receiver.receive().await??;
         Ok(samples
             .into_iter()
@@ -293,7 +300,8 @@ impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
                     instance_states: instance_states.to_vec(),
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         let samples = reply_receiver.receive().await??;
         Ok(samples
             .into_iter()
@@ -364,7 +372,8 @@ impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
                     data_reader_handle: self.handle,
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 
@@ -393,7 +402,8 @@ impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
                     max_wait,
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?.await
     }
 
@@ -412,7 +422,8 @@ impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
                     publication_handle,
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
 
         reply_receiver.receive().await?
     }
@@ -428,7 +439,8 @@ impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
                     data_reader_handle: self.handle,
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 }
@@ -443,7 +455,8 @@ impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
                 data_reader_handle: self.handle,
                 qos,
                 reply_sender,
-            }))?;
+            }))
+            .await?;
         reply_receiver.receive().await?
     }
 
@@ -456,7 +469,8 @@ impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
                 subscriber_handle: self.subscriber.get_instance_handle().await,
                 data_reader_handle: self.handle,
                 reply_sender,
-            }))?;
+            }))
+            .await?;
         reply_receiver.receive().await?
     }
 
@@ -482,7 +496,8 @@ impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
                 data_reader_handle: self.handle,
                 participant_address: self.participant_address().clone(),
                 reply_sender,
-            }))?;
+            }))
+            .await?;
         reply_receiver.receive().await?
     }
 
@@ -518,7 +533,8 @@ where
                     listener_mask: mask.to_vec(),
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 }

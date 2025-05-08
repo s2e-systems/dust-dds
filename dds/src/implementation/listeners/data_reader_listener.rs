@@ -1,6 +1,5 @@
 use crate::{
-    dcps::runtime::{DdsRuntime, Spawner},
-    runtime::mpsc::{mpsc_channel, MpscSender},
+    dcps::runtime::{ChannelReceive, DdsRuntime, Spawner},
     subscription::data_reader_listener::DataReaderListener,
 };
 
@@ -12,13 +11,13 @@ impl DataReaderListenerActor {
     pub fn spawn<'a, R: DdsRuntime, Foo>(
         mut listener: impl DataReaderListener<'a, R, Foo> + Send + 'static,
         spawner_handle: &R::SpawnerHandle,
-    ) -> MpscSender<ListenerMail<R>>
+    ) -> R::ChannelSender<ListenerMail<R>>
     where
         Foo: 'a,
     {
-        let (listener_sender, listener_receiver) = mpsc_channel();
+        let (listener_sender, mut listener_receiver) = R::channel();
         spawner_handle.spawn(async move {
-            while let Some(m) = listener_receiver.recv().await {
+            while let Some(m) = listener_receiver.receive().await {
                 match m {
                     ListenerMail::DataAvailable { the_reader } => {
                         listener

@@ -6,7 +6,7 @@ use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use super::domain_participant::DomainParticipantAsync;
 use crate::{
     configuration::DustDdsConfiguration,
-    dcps::runtime::{DdsRuntime, OneshotReceive},
+    dcps::runtime::{ChannelSend, DdsRuntime, OneshotReceive},
     domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
         domain_participant_backend::domain_participant_actor_mail::{
@@ -95,7 +95,8 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
             .participant_address()
             .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::IsEmpty { reply_sender },
-            ))?;
+            ))
+            .await?;
         let is_participant_empty = reply_receiver.receive().await?;
         if is_participant_empty {
             let (reply_sender, mut reply_receiver) = R::oneshot();
@@ -112,6 +113,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
                 .send(DomainParticipantMail::Discovery(
                     DiscoveryServiceMail::AnnounceDeletedParticipant,
                 ))
+                .await
                 .ok();
             Ok(())
         } else {

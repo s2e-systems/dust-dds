@@ -1,5 +1,5 @@
 use crate::{
-    dcps::runtime::{DdsRuntime, Spawner},
+    dcps::runtime::{ChannelReceive, DdsRuntime, Spawner},
     dds_async::{
         data_reader::DataReaderAsync, data_writer::DataWriterAsync, subscriber::SubscriberAsync,
     },
@@ -9,7 +9,6 @@ use crate::{
         RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleRejectedStatus,
         SubscriptionMatchedStatus,
     },
-    runtime::mpsc::{mpsc_channel, MpscSender},
 };
 
 pub struct DomainParticipantListenerActor;
@@ -18,10 +17,10 @@ impl DomainParticipantListenerActor {
     pub fn spawn<R: DdsRuntime>(
         mut listener: impl DomainParticipantListener<R> + Send + 'static,
         spawner_handle: &R::SpawnerHandle,
-    ) -> MpscSender<ListenerMail<R>> {
-        let (listener_sender, listener_receiver) = mpsc_channel();
+    ) -> R::ChannelSender<ListenerMail<R>> {
+        let (listener_sender, mut listener_receiver) = R::channel();
         spawner_handle.spawn(async move {
-            while let Some(m) = listener_receiver.recv().await {
+            while let Some(m) = listener_receiver.receive().await {
                 match m {
                     ListenerMail::DataAvailable { the_reader } => {
                         listener.on_data_available(the_reader).await;

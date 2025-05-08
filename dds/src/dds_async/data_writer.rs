@@ -3,7 +3,7 @@ use tracing::warn;
 use super::{condition::StatusConditionAsync, publisher::PublisherAsync, topic::TopicAsync};
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
-    dcps::runtime::{DdsRuntime, OneshotReceive},
+    dcps::runtime::{ChannelSend, DdsRuntime, OneshotReceive},
     implementation::{
         domain_participant_backend::domain_participant_actor_mail::{
             DomainParticipantMail, WriterServiceMail,
@@ -23,7 +23,7 @@ use crate::{
         type_support::DdsSerialize,
     },
     publication::data_writer_listener::DataWriterListener,
-    runtime::{actor::ActorAddress, mpsc::MpscSender},
+    runtime::actor::ActorAddress,
 };
 use std::marker::PhantomData;
 
@@ -64,7 +64,7 @@ impl<R: DdsRuntime, Foo> DataWriterAsync<R, Foo> {
         }
     }
 
-    pub(crate) fn participant_address(&self) -> &MpscSender<DomainParticipantMail<R>> {
+    pub(crate) fn participant_address(&self) -> &R::ChannelSender<DomainParticipantMail<R>> {
         self.publisher.participant_address()
     }
 
@@ -140,7 +140,8 @@ where
                     timestamp,
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 
@@ -167,7 +168,8 @@ where
                     serialized_data,
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 
@@ -202,7 +204,8 @@ where
                     timestamp,
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 
@@ -236,7 +239,8 @@ where
                     timestamp,
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 }
@@ -255,7 +259,8 @@ impl<R: DdsRuntime, Foo> DataWriterAsync<R, Foo> {
                     timeout: max_wait,
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?.await
     }
 
@@ -278,7 +283,8 @@ impl<R: DdsRuntime, Foo> DataWriterAsync<R, Foo> {
                     data_writer_handle: self.handle,
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 
@@ -301,7 +307,8 @@ impl<R: DdsRuntime, Foo> DataWriterAsync<R, Foo> {
                     data_writer_handle: self.handle,
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 
@@ -338,7 +345,8 @@ impl<R: DdsRuntime, Foo> DataWriterAsync<R, Foo> {
                     subscription_handle,
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 
@@ -353,7 +361,8 @@ impl<R: DdsRuntime, Foo> DataWriterAsync<R, Foo> {
                     data_writer_handle: self.handle,
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 }
@@ -371,7 +380,8 @@ impl<R: DdsRuntime, Foo> DataWriterAsync<R, Foo> {
                     qos,
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 
@@ -386,7 +396,8 @@ impl<R: DdsRuntime, Foo> DataWriterAsync<R, Foo> {
                     data_writer_handle: self.handle,
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 
@@ -414,7 +425,8 @@ impl<R: DdsRuntime, Foo> DataWriterAsync<R, Foo> {
                     participant_address: self.participant_address().clone(),
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 
@@ -449,7 +461,8 @@ where
                     listener_mask: mask.to_vec(),
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 }

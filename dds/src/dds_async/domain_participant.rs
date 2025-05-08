@@ -4,7 +4,7 @@ use super::{
 };
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
-    dcps::runtime::{DdsRuntime, OneshotReceive},
+    dcps::runtime::{ChannelSend, DdsRuntime, OneshotReceive},
     domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
         domain_participant_backend::domain_participant_actor_mail::{
@@ -27,10 +27,7 @@ use crate::{
         type_support::TypeSupport,
     },
     publication::publisher_listener::PublisherListener,
-    runtime::{
-        actor::{Actor, ActorAddress},
-        mpsc::MpscSender,
-    },
+    runtime::actor::{Actor, ActorAddress},
     subscription::subscriber_listener::SubscriberListener,
     topic_definition::topic_listener::TopicListener,
     xtypes::dynamic_type::DynamicType,
@@ -39,7 +36,7 @@ use std::sync::Arc;
 
 /// Async version of [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant).
 pub struct DomainParticipantAsync<R: DdsRuntime> {
-    participant_address: MpscSender<DomainParticipantMail<R>>,
+    participant_address: R::ChannelSender<DomainParticipantMail<R>>,
     status_condition_address: ActorAddress<StatusConditionActor>,
     builtin_subscriber_status_condition_address: ActorAddress<StatusConditionActor>,
     domain_id: DomainId,
@@ -64,7 +61,7 @@ impl<R: DdsRuntime> Clone for DomainParticipantAsync<R> {
 
 impl<R: DdsRuntime> DomainParticipantAsync<R> {
     pub(crate) fn new(
-        participant_address: MpscSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
         status_condition_address: ActorAddress<StatusConditionActor>,
         builtin_subscriber_status_condition_address: ActorAddress<StatusConditionActor>,
         domain_id: DomainId,
@@ -81,7 +78,7 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         }
     }
 
-    pub(crate) fn participant_address(&self) -> &MpscSender<DomainParticipantMail<R>> {
+    pub(crate) fn participant_address(&self) -> &R::ChannelSender<DomainParticipantMail<R>> {
         &self.participant_address
     }
 
@@ -113,7 +110,8 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
                     mask: mask.to_vec(),
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         let guid = reply_receiver.receive().await??;
         let publisher = PublisherAsync::new(guid, publisher_status_condition_address, self.clone());
 
@@ -131,7 +129,8 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
                     publisher_handle: a_publisher.get_instance_handle().await,
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 
@@ -157,7 +156,8 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
                     mask: mask.to_vec(),
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         let guid = reply_receiver.receive().await??;
         let subscriber =
             SubscriberAsync::new(guid, subscriber_status_condition_address, self.clone());
@@ -176,7 +176,8 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
                     subscriber_handle: a_subscriber.get_instance_handle().await,
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 
@@ -227,7 +228,8 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
                     type_support: dynamic_type_representation,
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         let guid = reply_receiver.receive().await??;
 
         Ok(TopicAsync::new(
@@ -250,7 +252,8 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
                     topic_name: a_topic.get_name(),
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 
@@ -320,7 +323,8 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
                     topic_name: topic_name.to_owned(),
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         if let Some((type_name, topic_handle, topic_status_condition_address)) =
             reply_receiver.receive().await??
         {
@@ -356,7 +360,8 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
                     handle,
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 
@@ -376,7 +381,8 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
                     handle,
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 
@@ -390,7 +396,8 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
                     handle,
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 
@@ -407,7 +414,8 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         self.participant_address
             .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::DeleteContainedEntities { reply_sender },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 
@@ -424,7 +432,8 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         self.participant_address
             .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::SetDefaultPublisherQos { qos, reply_sender },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 
@@ -435,7 +444,8 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         self.participant_address
             .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::GetDefaultPublisherQos { reply_sender },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 
@@ -446,7 +456,8 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         self.participant_address
             .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::SetDefaultSubscriberQos { qos, reply_sender },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 
@@ -457,7 +468,8 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         self.participant_address
             .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::GetDefaultSubscriberQos { reply_sender },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 
@@ -468,7 +480,8 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         self.participant_address
             .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::SetDefaultTopicQos { qos, reply_sender },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 
@@ -479,7 +492,8 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         self.participant_address
             .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::GetDefaultTopicQos { reply_sender },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 
@@ -490,7 +504,8 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         self.participant_address
             .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::GetDiscoveredParticipants { reply_sender },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 
@@ -507,7 +522,8 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
                     participant_handle,
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 
@@ -518,7 +534,8 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         self.participant_address
             .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::GetDiscoveredTopics { reply_sender },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 
@@ -535,7 +552,8 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
                     topic_handle,
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 
@@ -552,7 +570,8 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         self.participant_address
             .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::GetCurrentTime { reply_sender },
-            ))?;
+            ))
+            .await?;
         Ok(reply_receiver.receive().await?)
     }
 }
@@ -565,7 +584,8 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         self.participant_address
             .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::SetQos { qos, reply_sender },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 
@@ -576,7 +596,8 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         self.participant_address
             .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::GetQos { reply_sender },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 
@@ -597,7 +618,8 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
                     status_kind: mask.to_vec(),
                     reply_sender,
                 },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 
@@ -620,7 +642,8 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         self.participant_address
             .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::Enable { reply_sender },
-            ))?;
+            ))
+            .await?;
         reply_receiver.receive().await?
     }
 

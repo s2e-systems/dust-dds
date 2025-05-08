@@ -25,10 +25,7 @@ use crate::{
         },
         time::{Duration, Time},
     },
-    runtime::{
-        actor::{Actor, ActorAddress, MailHandler},
-        mpsc::MpscSender,
-    },
+    runtime::actor::{Actor, ActorAddress, MailHandler},
     transport::history_cache::CacheChange,
     xtypes::dynamic_type::DynamicType,
 };
@@ -42,7 +39,7 @@ where
     CreateUserDefinedPublisher {
         qos: QosKind<PublisherQos>,
         status_condition: Actor<StatusConditionActor>,
-        listener_sender: MpscSender<ListenerMail<R>>,
+        listener_sender: R::ChannelSender<ListenerMail<R>>,
         mask: Vec<StatusKind>,
         reply_sender: R::OneshotSender<DdsResult<InstanceHandle>>,
     },
@@ -54,7 +51,7 @@ where
     CreateUserDefinedSubscriber {
         qos: QosKind<SubscriberQos>,
         status_condition: Actor<StatusConditionActor>,
-        listener_sender: MpscSender<ListenerMail<R>>,
+        listener_sender: R::ChannelSender<ListenerMail<R>>,
         mask: Vec<StatusKind>,
         reply_sender: R::OneshotSender<DdsResult<InstanceHandle>>,
     },
@@ -68,7 +65,7 @@ where
         type_name: String,
         qos: QosKind<TopicQos>,
         status_condition: Actor<StatusConditionActor>,
-        listener_sender: MpscSender<ListenerMail<R>>,
+        listener_sender: R::ChannelSender<ListenerMail<R>>,
         mask: Vec<StatusKind>,
         type_support: Arc<dyn DynamicType + Send + Sync>,
         reply_sender: R::OneshotSender<DdsResult<InstanceHandle>>,
@@ -82,7 +79,7 @@ where
         topic_name: String,
         type_support: Arc<dyn DynamicType + Send + Sync>,
         status_condition: Actor<StatusConditionActor>,
-        listener_sender: MpscSender<ListenerMail<R>>,
+        listener_sender: R::ChannelSender<ListenerMail<R>>,
         #[allow(clippy::type_complexity)]
         reply_sender: R::OneshotSender<
             DdsResult<Option<(InstanceHandle, ActorAddress<StatusConditionActor>, String)>>,
@@ -157,7 +154,7 @@ where
         reply_sender: R::OneshotSender<DdsResult<DomainParticipantQos>>,
     },
     SetListener {
-        listener_sender: MpscSender<ListenerMail<R>>,
+        listener_sender: R::ChannelSender<ListenerMail<R>>,
         status_kind: Vec<StatusKind>,
         reply_sender: R::OneshotSender<DdsResult<()>>,
     },
@@ -205,9 +202,9 @@ where
         topic_name: String,
         qos: QosKind<DataWriterQos>,
         status_condition: Actor<StatusConditionActor>,
-        listener_sender: MpscSender<ListenerMail<R>>,
+        listener_sender: R::ChannelSender<ListenerMail<R>>,
         mask: Vec<StatusKind>,
-        participant_address: MpscSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
         reply_sender: R::OneshotSender<DdsResult<InstanceHandle>>,
     },
     DeleteDataWriter {
@@ -235,7 +232,7 @@ where
     },
     SetPublisherListener {
         publisher_handle: InstanceHandle,
-        listener_sender: MpscSender<ListenerMail<R>>,
+        listener_sender: R::ChannelSender<ListenerMail<R>>,
         mask: Vec<StatusKind>,
         reply_sender: R::OneshotSender<DdsResult<()>>,
     },
@@ -250,9 +247,9 @@ where
         topic_name: String,
         qos: QosKind<DataReaderQos>,
         status_condition: Actor<StatusConditionActor>,
-        listener_sender: MpscSender<ListenerMail<R>>,
+        listener_sender: R::ChannelSender<ListenerMail<R>>,
         mask: Vec<StatusKind>,
-        domain_participant_address: MpscSender<DomainParticipantMail<R>>,
+        domain_participant_address: R::ChannelSender<DomainParticipantMail<R>>,
         reply_sender: R::OneshotSender<DdsResult<InstanceHandle>>,
     },
     DeleteDataReader {
@@ -288,7 +285,7 @@ where
     },
     SetListener {
         subscriber_handle: InstanceHandle,
-        listener_sender: MpscSender<ListenerMail<R>>,
+        listener_sender: R::ChannelSender<ListenerMail<R>>,
         mask: Vec<StatusKind>,
         reply_sender: R::OneshotSender<DdsResult<()>>,
     },
@@ -301,7 +298,7 @@ where
     SetListener {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        listener_sender: MpscSender<ListenerMail<R>>,
+        listener_sender: R::ChannelSender<ListenerMail<R>>,
         listener_mask: Vec<StatusKind>,
         reply_sender: R::OneshotSender<DdsResult<()>>,
     },
@@ -340,7 +337,7 @@ where
         reply_sender: R::OneshotSender<DdsResult<Option<InstanceHandle>>>,
     },
     WriteWTimestamp {
-        participant_address: MpscSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         serialized_data: Vec<u8>,
@@ -355,7 +352,7 @@ where
         reply_sender: R::OneshotSender<DdsResult<()>>,
     },
     WaitForAcknowledgments {
-        participant_address: MpscSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         timeout: Duration,
@@ -369,7 +366,7 @@ where
     EnableDataWriter {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        participant_address: MpscSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
         reply_sender: R::OneshotSender<DdsResult<()>>,
     },
     SetDataWriterQos {
@@ -387,7 +384,7 @@ where
     Enable {
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
-        participant_address: MpscSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
         reply_sender: R::OneshotSender<DdsResult<()>>,
     },
     Read {
@@ -440,7 +437,7 @@ where
         reply_sender: R::OneshotSender<DdsResult<SubscriptionMatchedStatus>>,
     },
     WaitForHistoricalData {
-        participant_address: MpscSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         max_wait: Duration,
@@ -471,7 +468,7 @@ where
     SetListener {
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
-        listener_sender: MpscSender<ListenerMail<R>>,
+        listener_sender: R::ChannelSender<ListenerMail<R>>,
         listener_mask: Vec<StatusKind>,
         reply_sender: R::OneshotSender<DdsResult<()>>,
     },
@@ -482,7 +479,7 @@ where
     R: DdsRuntime,
 {
     AddCacheChange {
-        participant_address: MpscSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
         cache_change: CacheChange,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
@@ -507,11 +504,11 @@ where
     },
     AddBuiltinPublicationsDetectorCacheChange {
         cache_change: CacheChange,
-        participant_address: MpscSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
     },
     AddBuiltinSubscriptionsDetectorCacheChange {
         cache_change: CacheChange,
-        participant_address: MpscSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
     },
     AddBuiltinTopicsDetectorCacheChange {
         cache_change: CacheChange,
@@ -526,13 +523,13 @@ where
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         change_instance_handle: InstanceHandle,
-        participant_address: MpscSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
     },
     RequestedDeadlineMissed {
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         change_instance_handle: InstanceHandle,
-        participant_address: MpscSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
     },
 }
 
@@ -587,7 +584,7 @@ where
                 self.handle_message_service(message_service_mail).await
             }
             DomainParticipantMail::Event(event_service_mail) => {
-                self.handle_event_service(event_service_mail)
+                self.handle_event_service(event_service_mail).await
             }
             DomainParticipantMail::Discovery(discovery_service_mail) => {
                 self.handle_discovery_service(discovery_service_mail)
@@ -847,15 +844,18 @@ where
                 reply_sender,
             } => {
                 reply_sender
-                    .send(self.create_data_writer(
-                        publisher_handle,
-                        topic_name,
-                        qos,
-                        status_condition,
-                        listener_sender,
-                        mask,
-                        participant_address,
-                    ))
+                    .send(
+                        self.create_data_writer(
+                            publisher_handle,
+                            topic_name,
+                            qos,
+                            status_condition,
+                            listener_sender,
+                            mask,
+                            participant_address,
+                        )
+                        .await,
+                    )
                     .await
             }
             PublisherServiceMail::DeleteDataWriter {
@@ -1012,13 +1012,16 @@ where
                 reply_sender,
             } => {
                 reply_sender
-                    .send(self.write_w_timestamp(
-                        participant_address,
-                        publisher_handle,
-                        data_writer_handle,
-                        serialized_data,
-                        timestamp,
-                    ))
+                    .send(
+                        self.write_w_timestamp(
+                            participant_address,
+                            publisher_handle,
+                            data_writer_handle,
+                            serialized_data,
+                            timestamp,
+                        )
+                        .await,
+                    )
                     .await
             }
             WriterServiceMail::DisposeWTimestamp {
@@ -1045,12 +1048,15 @@ where
                 reply_sender,
             } => {
                 reply_sender
-                    .send(self.wait_for_acknowledgments(
-                        participant_address,
-                        publisher_handle,
-                        data_writer_handle,
-                        timeout,
-                    ))
+                    .send(
+                        self.wait_for_acknowledgments(
+                            participant_address,
+                            publisher_handle,
+                            data_writer_handle,
+                            timeout,
+                        )
+                        .await,
+                    )
                     .await
             }
             WriterServiceMail::GetOfferedDeadlineMissedStatus {
@@ -1074,11 +1080,14 @@ where
                 reply_sender,
             } => {
                 reply_sender
-                    .send(self.enable_data_writer(
-                        publisher_handle,
-                        data_writer_handle,
-                        participant_address,
-                    ))
+                    .send(
+                        self.enable_data_writer(
+                            publisher_handle,
+                            data_writer_handle,
+                            participant_address,
+                        )
+                        .await,
+                    )
                     .await
             }
             WriterServiceMail::SetDataWriterQos {
@@ -1110,15 +1119,18 @@ where
                 reply_sender,
             } => {
                 reply_sender
-                    .send(self.create_data_reader(
-                        subscriber_handle,
-                        topic_name,
-                        qos,
-                        status_condition,
-                        listener_sender,
-                        mask,
-                        domain_participant_address,
-                    ))
+                    .send(
+                        self.create_data_reader(
+                            subscriber_handle,
+                            topic_name,
+                            qos,
+                            status_condition,
+                            listener_sender,
+                            mask,
+                            domain_participant_address,
+                        )
+                        .await,
+                    )
                     .await
             }
             SubscriberServiceMail::DeleteDataReader {
@@ -1283,11 +1295,14 @@ where
                 reply_sender,
             } => {
                 reply_sender
-                    .send(self.enable_data_reader(
-                        subscriber_handle,
-                        data_reader_handle,
-                        participant_address,
-                    ))
+                    .send(
+                        self.enable_data_reader(
+                            subscriber_handle,
+                            data_reader_handle,
+                            participant_address,
+                        )
+                        .await,
+                    )
                     .await
             }
             ReaderServiceMail::GetSubscriptionMatchedStatus {
@@ -1385,12 +1400,15 @@ where
                 cache_change,
                 subscriber_handle,
                 data_reader_handle,
-            } => self.add_cache_change(
-                participant_address,
-                cache_change,
-                subscriber_handle,
-                data_reader_handle,
-            ),
+            } => {
+                self.add_cache_change(
+                    participant_address,
+                    cache_change,
+                    subscriber_handle,
+                    data_reader_handle,
+                )
+                .await
+            }
             MessageServiceMail::RemoveWriterChange {
                 publisher_handle,
                 data_writer_handle,
@@ -1424,43 +1442,55 @@ where
                 self.add_builtin_publications_detector_cache_change(
                     cache_change,
                     participant_address,
-                );
+                )
+                .await;
             }
             MessageServiceMail::AddBuiltinSubscriptionsDetectorCacheChange {
                 cache_change,
                 participant_address,
-            } => self
-                .add_builtin_subscriptions_detector_cache_change(cache_change, participant_address),
+            } => {
+                self.add_builtin_subscriptions_detector_cache_change(
+                    cache_change,
+                    participant_address,
+                )
+                .await
+            }
             MessageServiceMail::AddBuiltinTopicsDetectorCacheChange { cache_change } => {
                 self.add_builtin_topics_detector_cache_change(cache_change)
             }
         }
     }
 
-    fn handle_event_service(&mut self, event_service_mail: EventServiceMail<R>) {
+    async fn handle_event_service(&mut self, event_service_mail: EventServiceMail<R>) {
         match event_service_mail {
             EventServiceMail::OfferedDeadlineMissed {
                 publisher_handle,
                 data_writer_handle,
                 change_instance_handle,
                 participant_address,
-            } => self.offered_deadline_missed(
-                publisher_handle,
-                data_writer_handle,
-                change_instance_handle,
-                participant_address,
-            ),
+            } => {
+                self.offered_deadline_missed(
+                    publisher_handle,
+                    data_writer_handle,
+                    change_instance_handle,
+                    participant_address,
+                )
+                .await
+            }
             EventServiceMail::RequestedDeadlineMissed {
                 subscriber_handle,
                 data_reader_handle,
                 change_instance_handle,
                 participant_address,
-            } => self.requested_deadline_missed(
-                subscriber_handle,
-                data_reader_handle,
-                change_instance_handle,
-                participant_address,
-            ),
+            } => {
+                self.requested_deadline_missed(
+                    subscriber_handle,
+                    data_reader_handle,
+                    change_instance_handle,
+                    participant_address,
+                )
+                .await
+            }
         }
     }
 

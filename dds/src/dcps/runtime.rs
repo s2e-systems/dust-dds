@@ -23,7 +23,7 @@ pub trait OneshotReceive<T> {
 }
 
 pub trait ChannelSend<T> {
-    fn send(&mut self, value: T) -> impl Future<Output = DdsResult<()>> + Send;
+    fn send(&self, value: T) -> impl Future<Output = DdsResult<()>> + Send;
 }
 
 pub trait ChannelReceive<T> {
@@ -40,7 +40,7 @@ pub trait DdsRuntime: Send + 'static {
     type OneshotReceiver<T>: OneshotReceive<T> + Send
     where
         T: Send;
-    type ChannelSender<T>: ChannelSend<T> + Send
+    type ChannelSender<T>: ChannelSend<T> + Clone + Send + Sync
     where
         T: Send;
     type ChannelReceiver<T>: ChannelReceive<T> + Send
