@@ -40,6 +40,7 @@ pub struct DomainParticipantAsync<R: DdsRuntime> {
     domain_id: DomainId,
     handle: InstanceHandle,
     spawner_handle: R::SpawnerHandle,
+    clock_handle: R::ClockHandle,
 }
 
 impl<R: DdsRuntime> Clone for DomainParticipantAsync<R> {
@@ -53,6 +54,7 @@ impl<R: DdsRuntime> Clone for DomainParticipantAsync<R> {
             domain_id: self.domain_id.clone(),
             handle: self.handle.clone(),
             spawner_handle: self.spawner_handle.clone(),
+            clock_handle: self.clock_handle.clone(),
         }
     }
 }
@@ -65,6 +67,7 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         domain_id: DomainId,
         handle: InstanceHandle,
         spawner_handle: R::SpawnerHandle,
+        clock_handle: R::ClockHandle,
     ) -> Self {
         Self {
             participant_address,
@@ -73,6 +76,7 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
             domain_id,
             handle,
             spawner_handle,
+            clock_handle,
         }
     }
 
@@ -82,6 +86,10 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
 
     pub(crate) fn spawner_handle(&self) -> &R::SpawnerHandle {
         &self.spawner_handle
+    }
+
+    pub(crate) fn clock_handle(&self) -> &R::ClockHandle {
+        &self.clock_handle
     }
 }
 
@@ -315,7 +323,7 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         self.participant_address
             .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::LookupTopicdescription {
-                    topic_name: topic_name.to_owned(),
+                    topic_name: String::from(topic_name),
                     reply_sender,
                 },
             ))
@@ -327,7 +335,7 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
                 topic_handle,
                 topic_status_condition_address,
                 type_name,
-                topic_name.to_owned(),
+                String::from(topic_name),
                 self.clone(),
             )))
         } else {
@@ -621,7 +629,10 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
     /// Async version of [`get_statuscondition`](crate::domain::domain_participant::DomainParticipant::get_statuscondition).
     #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> StatusConditionAsync<R> {
-        StatusConditionAsync::new(self.status_condition_address.clone())
+        StatusConditionAsync::new(
+            self.status_condition_address.clone(),
+            self.clock_handle.clone(),
+        )
     }
 
     /// Async version of [`get_status_changes`](crate::domain::domain_participant::DomainParticipant::get_status_changes).

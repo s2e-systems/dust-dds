@@ -1,5 +1,4 @@
-use std::sync::Arc;
-
+use super::topic_listener::TopicListener;
 use crate::{
     condition::StatusCondition,
     dcps::runtime::DdsRuntime,
@@ -13,8 +12,7 @@ use crate::{
     },
     xtypes::dynamic_type::DynamicType,
 };
-
-use super::topic_listener::TopicListener;
+use alloc::{string::String, sync::Arc, vec::Vec};
 
 /// The [`Topic`] represents the fact that both publications and subscriptions are tied to a single data-type. Its attributes
 /// `type_name` defines a unique resulting type for the publication or the subscription. It has also a `name` that allows it to

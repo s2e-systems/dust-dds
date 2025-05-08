@@ -3,6 +3,7 @@ use crate::{
     dds_async::condition::StatusConditionAsync,
     infrastructure::{error::DdsResult, status::StatusKind},
 };
+use alloc::vec::Vec;
 
 /// A [`StatusCondition`] object is a specific Condition that is associated with each Entity.
 /// The *trigger_value* of the [`StatusCondition`] depends on the communication status of that entity (e.g., arrival of data, loss of

@@ -1,5 +1,3 @@
-use std::sync::OnceLock;
-
 use super::domain_participant::DomainParticipant;
 use crate::{
     configuration::DustDdsConfiguration,
@@ -13,7 +11,6 @@ use crate::{
         status::StatusKind,
     },
 };
-
 use tracing::warn;
 
 /// The sole purpose of this class is to allow the creation and destruction of [`DomainParticipant`] objects.
@@ -138,8 +135,9 @@ impl DomainParticipantFactory<crate::runtime::StdRuntime> {
     /// times without side-effects and it will return the same [`DomainParticipantFactory`] instance.
     #[tracing::instrument]
     pub fn get_instance() -> &'static Self {
-        static PARTICIPANT_FACTORY: OnceLock<DomainParticipantFactory<crate::runtime::StdRuntime>> =
-            OnceLock::new();
+        static PARTICIPANT_FACTORY: std::sync::OnceLock<
+            DomainParticipantFactory<crate::runtime::StdRuntime>,
+        > = std::sync::OnceLock::new();
         PARTICIPANT_FACTORY.get_or_init(|| DomainParticipantFactory {
             participant_factory_async:
                 DomainParticipantFactoryAsync::<crate::runtime::StdRuntime>::get_instance(),

@@ -1,5 +1,5 @@
 use crate::infrastructure::error::DdsResult;
-use alloc::string::String;
+use alloc::string::{String, ToString};
 use core::time::Duration;
 
 #[derive(Debug, PartialEq, Eq, Clone)]

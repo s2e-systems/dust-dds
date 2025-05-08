@@ -15,6 +15,7 @@ pub mod mpsc;
 pub mod oneshot;
 pub mod timer;
 
+#[derive(Clone)]
 pub struct StdClock;
 
 impl Clock for StdClock {

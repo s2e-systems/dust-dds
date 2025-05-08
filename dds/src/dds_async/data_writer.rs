@@ -403,7 +403,10 @@ impl<R: DdsRuntime, Foo> DataWriterAsync<R, Foo> {
     /// Async version of [`get_statuscondition`](crate::publication::data_writer::DataWriter::get_statuscondition).
     #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> StatusConditionAsync<R> {
-        StatusConditionAsync::new(self.status_condition_address.clone())
+        StatusConditionAsync::new(
+            self.status_condition_address.clone(),
+            self.publisher.get_participant().clock_handle().clone(),
+        )
     }
 
     /// Async version of [`get_status_changes`](crate::publication::data_writer::DataWriter::get_status_changes).

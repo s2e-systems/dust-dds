@@ -277,7 +277,10 @@ impl<R: DdsRuntime> PublisherAsync<R> {
     /// Async version of [`get_statuscondition`](crate::publication::publisher::Publisher::get_statuscondition).
     #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> StatusConditionAsync<R> {
-        StatusConditionAsync::new(self.status_condition_address.clone())
+        StatusConditionAsync::new(
+            self.status_condition_address.clone(),
+            self.participant.clock_handle().clone(),
+        )
     }
 
     /// Async version of [`get_status_changes`](crate::publication::publisher::Publisher::get_status_changes).

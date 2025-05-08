@@ -1,3 +1,7 @@
+use super::{
+    data_reader::DataReader, data_reader_listener::DataReaderListener,
+    subscriber_listener::SubscriberListener,
+};
 use crate::{
     condition::StatusCondition,
     dcps::runtime::DdsRuntime,
@@ -11,11 +15,7 @@ use crate::{
     },
     topic_definition::topic::Topic,
 };
-
-use super::{
-    data_reader::DataReader, data_reader_listener::DataReaderListener,
-    subscriber_listener::SubscriberListener,
-};
+use alloc::vec::Vec;
 
 /// A [`Subscriber`] is the object responsible for the actual reception of the data resulting from its subscriptions.
 ///

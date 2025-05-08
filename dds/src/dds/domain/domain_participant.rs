@@ -1,3 +1,4 @@
+use super::domain_participant_listener::DomainParticipantListener;
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     condition::StatusCondition,
@@ -17,8 +18,7 @@ use crate::{
     topic_definition::{topic::Topic, topic_listener::TopicListener},
     xtypes::dynamic_type::DynamicType,
 };
-
-use super::domain_participant_listener::DomainParticipantListener;
+use alloc::{sync::Arc, vec::Vec};
 
 /// The [`DomainParticipant`] represents the participation of the application on a communication plane that isolates applications running on the
 /// same set of physical computers from each other. A domain establishes a *virtual network* linking all applications that
@@ -160,7 +160,7 @@ impl<R: DdsRuntime> DomainParticipant<R> {
         qos: QosKind<TopicQos>,
         a_listener: impl TopicListener<R> + Send + 'static,
         mask: &[StatusKind],
-        dynamic_type_representation: std::sync::Arc<dyn DynamicType + Send + Sync>,
+        dynamic_type_representation: Arc<dyn DynamicType + Send + Sync>,
     ) -> DdsResult<Topic<R>> {
         R::block_on(self.participant_async.create_dynamic_topic(
             topic_name,

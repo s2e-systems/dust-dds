@@ -31,7 +31,7 @@ pub trait ChannelReceive<T> {
 }
 
 pub trait DdsRuntime: Send + 'static {
-    type ClockHandle: Clock + Send + 'static;
+    type ClockHandle: Clock + Clone + Send + Sync + 'static;
     type TimerHandle: Timer + Clone + Send + 'static;
     type SpawnerHandle: Spawner + Clone + Send + Sync + 'static;
     type OneshotSender<T: Send>: OneshotSend<T> + Send;

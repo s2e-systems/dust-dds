@@ -477,7 +477,10 @@ impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
     /// Async version of [`get_statuscondition`](crate::subscription::data_reader::DataReader::get_statuscondition).
     #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> StatusConditionAsync<R> {
-        StatusConditionAsync::new(self.status_condition_address.clone())
+        StatusConditionAsync::new(
+            self.status_condition_address.clone(),
+            self.subscriber.get_participant().clock_handle().clone(),
+        )
     }
 
     /// Async version of [`get_status_changes`](crate::subscription::data_reader::DataReader::get_status_changes).

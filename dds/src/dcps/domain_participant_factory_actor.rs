@@ -59,7 +59,13 @@ use crate::{
         writer::{TransportStatefulWriter, TransportStatelessWriter},
     },
 };
-use alloc::{boxed::Box, string::String, sync::Arc, vec, vec::Vec};
+use alloc::{
+    boxed::Box,
+    string::{String, ToString},
+    sync::Arc,
+    vec,
+    vec::Vec,
+};
 
 pub type DdsTransportParticipantFactory =
     Box<dyn TransportParticipantFactory<TransportParticipant = DdsTransportParticipant>>;

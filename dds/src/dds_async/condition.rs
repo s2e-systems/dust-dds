@@ -11,19 +11,31 @@ use alloc::vec::Vec;
 /// Async version of [`StatusCondition`](crate::infrastructure::condition::StatusCondition).
 pub struct StatusConditionAsync<R: DdsRuntime> {
     address: ActorAddress<R, StatusConditionActor<R>>,
+    clock_handle: R::ClockHandle,
 }
 
 impl<R: DdsRuntime> Clone for StatusConditionAsync<R> {
     fn clone(&self) -> Self {
         Self {
             address: self.address.clone(),
+            clock_handle: self.clock_handle.clone(),
         }
     }
 }
 
 impl<R: DdsRuntime> StatusConditionAsync<R> {
-    pub(crate) fn new(address: ActorAddress<R, StatusConditionActor<R>>) -> Self {
-        Self { address }
+    pub(crate) fn new(
+        address: ActorAddress<R, StatusConditionActor<R>>,
+        clock_handle: R::ClockHandle,
+    ) -> Self {
+        Self {
+            address,
+            clock_handle,
+        }
+    }
+
+    pub(crate) fn clock_handle(&self) -> &R::ClockHandle {
+        &self.clock_handle
     }
 }
 

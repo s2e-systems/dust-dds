@@ -1,6 +1,6 @@
 use super::condition::StatusConditionAsync;
 use crate::{
-    dcps::runtime::DdsRuntime,
+    dcps::runtime::{Clock, DdsRuntime},
     infrastructure::{
         error::{DdsError, DdsResult},
         time::Duration,
@@ -61,9 +61,11 @@ impl<R: DdsRuntime> WaitSetAsync<R> {
             )));
         };
 
-        // let timer_handle = self.conditions[0].timer_handle().clone();
-        let start = std::time::Instant::now();
-        while std::time::Instant::now().duration_since(start) < timeout.into() {
+        let clock_handle = match &self.conditions[0] {
+            ConditionAsync::StatusCondition(c) => c.clock_handle().clone(),
+        };
+        let start = clock_handle.now();
+        while clock_handle.now() - start < timeout.into() {
             let mut finished = false;
             let mut trigger_conditions = Vec::new();
             for condition in &self.conditions {

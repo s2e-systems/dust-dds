@@ -1,9 +1,9 @@
-use std::{future::Future, pin::Pin};
-
 use crate::{
     dcps::runtime::DdsRuntime, dds_async::topic::TopicAsync,
     infrastructure::status::InconsistentTopicStatus,
 };
+use alloc::boxed::Box;
+use core::{future::Future, pin::Pin};
 
 /// Listener associated with the [`Topic`] entity.
 pub trait TopicListener<R: DdsRuntime> {
@@ -13,6 +13,6 @@ pub trait TopicListener<R: DdsRuntime> {
         _the_topic: TopicAsync<R>,
         _status: InconsistentTopicStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(std::future::ready(()))
+        Box::pin(core::future::ready(()))
     }
 }

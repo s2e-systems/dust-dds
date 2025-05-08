@@ -1,3 +1,4 @@
+use super::subscriber::Subscriber;
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     condition::StatusCondition,
@@ -17,8 +18,7 @@ use crate::{
     subscription::data_reader_listener::DataReaderListener,
     topic_definition::topic::Topic,
 };
-
-use super::subscriber::Subscriber;
+use alloc::vec::Vec;
 
 /// A [`DataReader`] allows the application (1) to declare the data it wishes to receive (i.e., make a subscription) and (2) to access the
 /// data received by the attached [`Subscriber`].

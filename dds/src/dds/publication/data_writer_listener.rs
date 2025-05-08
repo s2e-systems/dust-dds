@@ -1,5 +1,5 @@
-use std::{future::Future, pin::Pin};
-
+use core::{future::Future, pin::Pin};
+use alloc::boxed::Box;
 use crate::{
     dcps::runtime::DdsRuntime,
     dds_async::data_writer::DataWriterAsync,
@@ -17,7 +17,7 @@ pub trait DataWriterListener<'a, R: DdsRuntime, Foo>: 'static {
         _the_writer: DataWriterAsync<R, Foo>,
         _status: LivelinessLostStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(std::future::ready(()))
+        Box::pin(core::future::ready(()))
     }
 
     /// Method that is called when this writer reports an offered deadline missed status.
@@ -26,7 +26,7 @@ pub trait DataWriterListener<'a, R: DdsRuntime, Foo>: 'static {
         _the_writer: DataWriterAsync<R, Foo>,
         _status: OfferedDeadlineMissedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(std::future::ready(()))
+        Box::pin(core::future::ready(()))
     }
 
     /// Method that is called when this writer reports an offered incompatible qos status.
@@ -35,7 +35,7 @@ pub trait DataWriterListener<'a, R: DdsRuntime, Foo>: 'static {
         _the_writer: DataWriterAsync<R, Foo>,
         _status: OfferedIncompatibleQosStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(std::future::ready(()))
+        Box::pin(core::future::ready(()))
     }
 
     /// Method that is called when this writer reports a publication matched status.
@@ -44,6 +44,6 @@ pub trait DataWriterListener<'a, R: DdsRuntime, Foo>: 'static {
         _the_writer: DataWriterAsync<R, Foo>,
         _status: PublicationMatchedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(std::future::ready(()))
+        Box::pin(core::future::ready(()))
     }
 }

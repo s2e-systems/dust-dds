@@ -1,5 +1,3 @@
-use std::{future::Future, pin::Pin};
-
 use crate::{
     dcps::runtime::DdsRuntime,
     dds_async::{data_reader::DataReaderAsync, data_writer::DataWriterAsync, topic::TopicAsync},
@@ -10,6 +8,8 @@ use crate::{
         SampleRejectedStatus, SubscriptionMatchedStatus,
     },
 };
+use alloc::boxed::Box;
+use core::{future::Future, pin::Pin};
 
 /// The purpose of the DomainParticipantListener is to be the listener of last resort that is notified of all status changes not
 /// captured by more specific listeners attached to the DomainEntity objects. When a relevant status change occurs, the DCPS
@@ -22,7 +22,7 @@ pub trait DomainParticipantListener<R: DdsRuntime> {
         _the_topic: TopicAsync<R>,
         _status: InconsistentTopicStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(std::future::ready(()))
+        Box::pin(core::future::ready(()))
     }
 
     /// Method that is called when any writer in the domain participant reports a liveliness lost status.
@@ -31,7 +31,7 @@ pub trait DomainParticipantListener<R: DdsRuntime> {
         _the_writer: DataWriterAsync<R, ()>,
         _status: LivelinessLostStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(std::future::ready(()))
+        Box::pin(core::future::ready(()))
     }
 
     /// Method that is called when any data writer in the domain participant reports a deadline missed status.
@@ -40,7 +40,7 @@ pub trait DomainParticipantListener<R: DdsRuntime> {
         _the_writer: DataWriterAsync<R, ()>,
         _status: OfferedDeadlineMissedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(std::future::ready(()))
+        Box::pin(core::future::ready(()))
     }
 
     /// Method that is called when any data writer in the domain participant reports an offered incompatible QoS status.
@@ -49,7 +49,7 @@ pub trait DomainParticipantListener<R: DdsRuntime> {
         _the_writer: DataWriterAsync<R, ()>,
         _status: OfferedIncompatibleQosStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(std::future::ready(()))
+        Box::pin(core::future::ready(()))
     }
 
     /// Method that is called when any data reader in the domain participant reports a sample lost status.
@@ -58,7 +58,7 @@ pub trait DomainParticipantListener<R: DdsRuntime> {
         _the_reader: DataReaderAsync<R, ()>,
         _status: SampleLostStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(std::future::ready(()))
+        Box::pin(core::future::ready(()))
     }
 
     /// Method that is called when any data reader in the domain participant reports a data available status.
@@ -66,7 +66,7 @@ pub trait DomainParticipantListener<R: DdsRuntime> {
         &mut self,
         _the_reader: DataReaderAsync<R, ()>,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(std::future::ready(()))
+        Box::pin(core::future::ready(()))
     }
 
     /// Method that is called when any data reader in the domain participant reports a sample rejected status.
@@ -75,7 +75,7 @@ pub trait DomainParticipantListener<R: DdsRuntime> {
         _the_reader: DataReaderAsync<R, ()>,
         _status: SampleRejectedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(std::future::ready(()))
+        Box::pin(core::future::ready(()))
     }
 
     /// Method that is called when any data reader in the domain participant reports a liveliness changed status.
@@ -84,7 +84,7 @@ pub trait DomainParticipantListener<R: DdsRuntime> {
         _the_reader: DataReaderAsync<R, ()>,
         _status: LivelinessChangedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(std::future::ready(()))
+        Box::pin(core::future::ready(()))
     }
 
     /// Method that is called when any data reader in the domain participant reports a requested deadline missed status.
@@ -93,7 +93,7 @@ pub trait DomainParticipantListener<R: DdsRuntime> {
         _the_reader: DataReaderAsync<R, ()>,
         _status: RequestedDeadlineMissedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(std::future::ready(()))
+        Box::pin(core::future::ready(()))
     }
 
     /// Method that is called when any data reader in the domain participant reports a requested incompatible QoS status.
@@ -102,7 +102,7 @@ pub trait DomainParticipantListener<R: DdsRuntime> {
         _the_reader: DataReaderAsync<R, ()>,
         _status: RequestedIncompatibleQosStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(std::future::ready(()))
+        Box::pin(core::future::ready(()))
     }
 
     /// Method that is called when any data writer in the domain participant reports a publication matched status.
@@ -111,7 +111,7 @@ pub trait DomainParticipantListener<R: DdsRuntime> {
         _the_writer: DataWriterAsync<R, ()>,
         _status: PublicationMatchedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(std::future::ready(()))
+        Box::pin(core::future::ready(()))
     }
 
     /// Method that is called when any data reader in the domain participant reports a subscription matched status.
@@ -120,6 +120,6 @@ pub trait DomainParticipantListener<R: DdsRuntime> {
         _the_reader: DataReaderAsync<R, ()>,
         _status: SubscriptionMatchedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(std::future::ready(()))
+        Box::pin(core::future::ready(()))
     }
 }

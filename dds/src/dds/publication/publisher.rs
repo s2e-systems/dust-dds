@@ -1,3 +1,4 @@
+use super::{data_writer_listener::DataWriterListener, publisher_listener::PublisherListener};
 use crate::{
     condition::StatusCondition,
     dcps::runtime::DdsRuntime,
@@ -13,8 +14,7 @@ use crate::{
     publication::data_writer::DataWriter,
     topic_definition::topic::Topic,
 };
-
-use super::{data_writer_listener::DataWriterListener, publisher_listener::PublisherListener};
+use alloc::vec::Vec;
 
 /// The [`Publisher`] acts on the behalf of one or several [`DataWriter`] objects that belong to it. When it is informed of a change to the
 /// data associated with one of its [`DataWriter`] objects, it decides when it is appropriate to actually send the data-update message.

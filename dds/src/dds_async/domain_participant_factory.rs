@@ -22,8 +22,6 @@ use crate::{
     },
 };
 use alloc::string::String;
-use core::net::IpAddr;
-use tracing::warn;
 
 /// Async version of [`DomainParticipantFactory`](crate::domain::domain_participant_factory::DomainParticipantFactory).
 /// Unlike the sync version, the [`DomainParticipantFactoryAsync`] is not a singleton and can be created by means of
@@ -57,7 +55,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
                 listener_sender,
                 status_kind,
                 reply_sender,
-                clock_handle,
+                clock_handle: clock_handle.clone(),
                 timer_handle,
                 spawner_handle: spawner_handle.clone(),
             })
@@ -77,6 +75,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
             domain_id,
             participant_handle,
             spawner_handle,
+            clock_handle,
         );
 
         Ok(domain_participant)
@@ -223,8 +222,10 @@ impl DomainParticipantFactoryAsync<crate::runtime::StdRuntime> {
     /// times without side-effects and it will return the same [`DomainParticipantFactoryAsync`] instance.
     #[tracing::instrument]
     pub fn get_instance() -> &'static DomainParticipantFactoryAsync<crate::runtime::StdRuntime> {
+        use core::net::IpAddr;
         use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
         use std::sync::OnceLock;
+        use tracing::warn;
 
         static PARTICIPANT_FACTORY_ASYNC: OnceLock<
             DomainParticipantFactoryAsync<crate::runtime::StdRuntime>,
