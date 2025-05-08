@@ -1,3 +1,4 @@
+use super::condition::StatusConditionAsync;
 use crate::{
     dcps::runtime::DdsRuntime,
     infrastructure::{
@@ -5,8 +6,7 @@ use crate::{
         time::Duration,
     },
 };
-
-use super::condition::StatusConditionAsync;
+use alloc::string::String;
 
 /// Async version of [`Condition`](crate::infrastructure::wait_set::Condition).
 pub enum ConditionAsync<R: DdsRuntime> {
@@ -56,9 +56,9 @@ impl<R: DdsRuntime> WaitSetAsync<R> {
     #[tracing::instrument(skip(self))]
     pub async fn wait(&self, timeout: Duration) -> DdsResult<Vec<ConditionAsync<R>>> {
         if self.conditions.is_empty() {
-            return Err(DdsError::PreconditionNotMet(
-                "WaitSet has no attached conditions".to_string(),
-            ));
+            return Err(DdsError::PreconditionNotMet(String::from(
+                "WaitSet has no attached conditions",
+            )));
         };
 
         // let timer_handle = self.conditions[0].timer_handle().clone();

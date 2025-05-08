@@ -30,7 +30,7 @@ use crate::{
     topic_definition::topic_listener::TopicListener,
     xtypes::dynamic_type::DynamicType,
 };
-use std::sync::Arc;
+use alloc::{string::String, sync::Arc};
 
 /// Async version of [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant).
 pub struct DomainParticipantAsync<R: DdsRuntime> {
@@ -214,8 +214,8 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         self.participant_address
             .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::CreateTopic {
-                    topic_name: topic_name.to_string(),
-                    type_name: type_name.to_string(),
+                    topic_name: String::from(topic_name),
+                    type_name: String::from(type_name),
                     qos,
                     status_condition,
                     listener_sender,
@@ -230,8 +230,8 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         Ok(TopicAsync::new(
             guid,
             topic_status_condition_address,
-            type_name.to_string(),
-            topic_name.to_string(),
+            String::from(type_name),
+            String::from(topic_name),
             self.clone(),
         ))
     }

@@ -1,8 +1,3 @@
-use core::net::IpAddr;
-use std::sync::OnceLock;
-
-use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
-
 use super::domain_participant::DomainParticipantAsync;
 use crate::{
     configuration::DustDdsConfiguration,
@@ -26,6 +21,8 @@ use crate::{
         status::StatusKind,
     },
 };
+use alloc::string::String;
+use core::net::IpAddr;
 use tracing::warn;
 
 /// Async version of [`DomainParticipantFactory`](crate::domain::domain_participant_factory::DomainParticipantFactory).
@@ -117,9 +114,9 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
                 .ok();
             Ok(())
         } else {
-            Err(DdsError::PreconditionNotMet(
-                "Domain participant still contains other entities".to_string(),
-            ))
+            Err(DdsError::PreconditionNotMet(String::from(
+                "Domain participant still contains other entities",
+            )))
         }
     }
 
@@ -221,6 +218,9 @@ impl DomainParticipantFactoryAsync<crate::runtime::StdRuntime> {
     /// times without side-effects and it will return the same [`DomainParticipantFactoryAsync`] instance.
     #[tracing::instrument]
     pub fn get_instance() -> &'static DomainParticipantFactoryAsync<crate::runtime::StdRuntime> {
+        use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
+        use std::sync::OnceLock;
+
         static PARTICIPANT_FACTORY_ASYNC: OnceLock<
             DomainParticipantFactoryAsync<crate::runtime::StdRuntime>,
         > = OnceLock::new();

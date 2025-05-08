@@ -23,6 +23,7 @@ use crate::{
         data_reader_listener::DataReaderListener, subscriber_listener::SubscriberListener,
     },
 };
+use alloc::string::String;
 
 /// Async version of [`Subscriber`](crate::subscription::subscriber::Subscriber).
 pub struct SubscriberAsync<R: DdsRuntime> {
@@ -135,7 +136,7 @@ impl<R: DdsRuntime> SubscriberAsync<R> {
                 .send(DomainParticipantMail::Subscriber(
                     SubscriberServiceMail::LookupDataReader {
                         subscriber_handle: self.handle,
-                        topic_name: topic_name.to_string(),
+                        topic_name: String::from(topic_name),
                         reply_sender,
                     },
                 ))
