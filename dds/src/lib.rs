@@ -9,8 +9,9 @@ mod dds;
 
 #[cfg(feature = "std")]
 pub use dds::*;
+
 /// Contains the async version of the DDS API.
-#[cfg(feature = "std")]
+#[cfg(feature = "dcps")]
 pub mod dds_async;
 
 /// Contains the DCPS logic which provides the behavior to the DDS API
