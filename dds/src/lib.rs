@@ -4,10 +4,10 @@
 #![doc = include_str!("../README.md")]
 
 extern crate alloc;
-#[cfg(feature = "std")]
+#[cfg(feature = "dcps")]
 mod dds;
 
-#[cfg(feature = "std")]
+#[cfg(feature = "dcps")]
 pub use dds::*;
 
 /// Contains the async version of the DDS API.

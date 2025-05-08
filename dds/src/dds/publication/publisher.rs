@@ -11,7 +11,6 @@ use crate::{
         time::Duration,
     },
     publication::data_writer::DataWriter,
-    runtime::executor::block_on,
     topic_definition::topic::Topic,
 };
 
@@ -67,7 +66,7 @@ impl<R: DdsRuntime> Publisher<R> {
     where
         Foo: 'a,
     {
-        block_on(self.publisher_async.create_datawriter::<Foo>(
+        R::block_on(self.publisher_async.create_datawriter::<Foo>(
             a_topic.topic_async(),
             qos,
             a_listener,
@@ -84,7 +83,7 @@ impl<R: DdsRuntime> Publisher<R> {
     /// [`DataWriter`].
     #[tracing::instrument(skip(self, a_datawriter))]
     pub fn delete_datawriter<Foo>(&self, a_datawriter: &DataWriter<R, Foo>) -> DdsResult<()> {
-        block_on(
+        R::block_on(
             self.publisher_async
                 .delete_datawriter::<Foo>(a_datawriter.writer_async()),
         )
@@ -100,7 +99,7 @@ impl<R: DdsRuntime> Publisher<R> {
         topic_name: &str,
     ) -> DdsResult<Option<DataWriter<R, Foo>>> {
         Ok(
-            block_on(self.publisher_async.lookup_datawriter::<Foo>(topic_name))?
+            R::block_on(self.publisher_async.lookup_datawriter::<Foo>(topic_name))?
                 .map(DataWriter::from),
         )
     }
@@ -113,7 +112,7 @@ impl<R: DdsRuntime> Publisher<R> {
     /// be published will be discarded.
     #[tracing::instrument(skip(self))]
     pub fn suspend_publications(&self) -> DdsResult<()> {
-        block_on(self.publisher_async.suspend_publications())
+        R::block_on(self.publisher_async.suspend_publications())
     }
 
     /// This operation indicates to the Service that the application has completed the multiple changes initiated by the previous
@@ -123,7 +122,7 @@ impl<R: DdsRuntime> Publisher<R> {
     /// the operation will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     #[tracing::instrument(skip(self))]
     pub fn resume_publications(&self) -> DdsResult<()> {
-        block_on(self.publisher_async.resume_publications())
+        R::block_on(self.publisher_async.resume_publications())
     }
 
     /// This operation requests that the application will begin a *coherent set* of modifications using [`DataWriter`] objects attached to
@@ -144,14 +143,14 @@ impl<R: DdsRuntime> Publisher<R> {
     /// otherwise, it may e.g., erroneously interpret that the aircraft is on a collision course).
     #[tracing::instrument(skip(self))]
     pub fn begin_coherent_changes(&self) -> DdsResult<()> {
-        block_on(self.publisher_async.begin_coherent_changes())
+        R::block_on(self.publisher_async.begin_coherent_changes())
     }
 
     /// This operation terminates the *coherent set* initiated by the matching call to [`Publisher::begin_coherent_changes`]. If there is no matching
     /// call to [`Publisher::begin_coherent_changes`], the operation will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     #[tracing::instrument(skip(self))]
     pub fn end_coherent_changes(&self) -> DdsResult<()> {
-        block_on(self.publisher_async.end_coherent_changes())
+        R::block_on(self.publisher_async.end_coherent_changes())
     }
 
     /// This operation blocks the calling thread until either all data written by the reliable [`DataWriter`] entities is acknowledged by all
@@ -161,7 +160,7 @@ impl<R: DdsRuntime> Publisher<R> {
     /// indicates that `max_wait` elapsed before all the data was acknowledged.
     #[tracing::instrument(skip(self))]
     pub fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
-        block_on(self.publisher_async.wait_for_acknowledgments(max_wait))
+        R::block_on(self.publisher_async.wait_for_acknowledgments(max_wait))
     }
 
     /// This operation returns the [`DomainParticipant`] to which the [`Publisher`] belongs.
@@ -178,7 +177,7 @@ impl<R: DdsRuntime> Publisher<R> {
     /// contained [`DataWriter`] objects
     #[tracing::instrument(skip(self))]
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
-        block_on(self.publisher_async.delete_contained_entities())
+        R::block_on(self.publisher_async.delete_contained_entities())
     }
 
     /// This operation sets the default value of the [`DataWriterQos`] which will be used for newly created [`DataWriter`] entities in
@@ -189,7 +188,7 @@ impl<R: DdsRuntime> Publisher<R> {
     /// reset back to the initial values the factory would use, that is the default value of [`DataWriterQos`].
     #[tracing::instrument(skip(self))]
     pub fn set_default_datawriter_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
-        block_on(self.publisher_async.set_default_datawriter_qos(qos))
+        R::block_on(self.publisher_async.set_default_datawriter_qos(qos))
     }
 
     /// This operation retrieves the default factory value of the [`DataWriterQos`], that is, the qos policies which will be used for newly created
@@ -198,7 +197,7 @@ impl<R: DdsRuntime> Publisher<R> {
     /// [`Publisher::set_default_datawriter_qos`], or else, if the call was never made, the default values of [`DataWriterQos`].
     #[tracing::instrument(skip(self))]
     pub fn get_default_datawriter_qos(&self) -> DdsResult<DataWriterQos> {
-        block_on(self.publisher_async.get_default_datawriter_qos())
+        R::block_on(self.publisher_async.get_default_datawriter_qos())
     }
 
     /// This operation copies the policies in the `a_topic_qos` to the corresponding policies in the `a_datawriter_qos`.
@@ -233,13 +232,13 @@ impl<R: DdsRuntime> Publisher<R> {
     /// modified to match the current default for the Entity's factory.
     #[tracing::instrument(skip(self))]
     pub fn set_qos(&self, qos: QosKind<PublisherQos>) -> DdsResult<()> {
-        block_on(self.publisher_async.set_qos(qos))
+        R::block_on(self.publisher_async.set_qos(qos))
     }
 
     /// This operation allows access to the existing set of [`PublisherQos`] policies.
     #[tracing::instrument(skip(self))]
     pub fn get_qos(&self) -> DdsResult<PublisherQos> {
-        block_on(self.publisher_async.get_qos())
+        R::block_on(self.publisher_async.get_qos())
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
@@ -254,7 +253,7 @@ impl<R: DdsRuntime> Publisher<R> {
         a_listener: impl PublisherListener<R> + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        block_on(self.publisher_async.set_listener(a_listener, mask))
+        R::block_on(self.publisher_async.set_listener(a_listener, mask))
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
@@ -273,7 +272,7 @@ impl<R: DdsRuntime> Publisher<R> {
     /// and does not include statuses that apply to contained entities.
     #[tracing::instrument(skip(self))]
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
-        block_on(self.publisher_async.get_status_changes())
+        R::block_on(self.publisher_async.get_status_changes())
     }
 
     /// This operation enables the Entity. Entity objects can be created either enabled or disabled. This is controlled by the value of
@@ -298,12 +297,12 @@ impl<R: DdsRuntime> Publisher<R> {
     /// enabled are *inactive*, that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     #[tracing::instrument(skip(self))]
     pub fn enable(&self) -> DdsResult<()> {
-        block_on(self.publisher_async.enable())
+        R::block_on(self.publisher_async.enable())
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     #[tracing::instrument(skip(self))]
     pub fn get_instance_handle(&self) -> InstanceHandle {
-        block_on(self.publisher_async.get_instance_handle())
+        R::block_on(self.publisher_async.get_instance_handle())
     }
 }

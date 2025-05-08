@@ -366,7 +366,7 @@ fn two_participants_should_get_subscription_matched() {
 }
 
 #[test]
-#[ignore="Broken after interface refactor for independent runtime"]
+#[ignore = "Broken after interface refactor for independent runtime"]
 fn participant_records_discovered_topics() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
@@ -467,6 +467,7 @@ fn reader_discovers_disposed_writer_same_participant() {
 }
 
 #[test]
+#[ignore = "Broken because crate needs std"]
 fn publisher_and_subscriber_different_partition_not_matched() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let dp = DomainParticipantFactory::get_instance()

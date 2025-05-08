@@ -1,11 +1,10 @@
+use super::condition::StatusCondition;
 use crate::{
     dcps::runtime::DdsRuntime,
     dds_async::wait_set::{ConditionAsync, WaitSetAsync},
     infrastructure::{error::DdsResult, time::Duration},
-    runtime::executor::block_on,
 };
-
-use super::condition::StatusCondition;
+use alloc::vec::Vec;
 
 /// Enumeration of the different Condition objects that can be associated with a [`WaitSet`].
 #[derive(Clone)]
@@ -56,7 +55,7 @@ impl<R: DdsRuntime> WaitSet<R> {
     /// [`WaitSet`] that already has a thread blocking on it, the operation will return immediately with the value [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError::PreconditionNotMet).
     #[tracing::instrument(skip(self))]
     pub fn wait(&self, timeout: Duration) -> DdsResult<Vec<Condition<R>>> {
-        Ok(block_on(self.waitset_async.wait(timeout))?
+        Ok(R::block_on(self.waitset_async.wait(timeout))?
             .into_iter()
             .map(|c| match c {
                 ConditionAsync::StatusCondition(sc) => {
@@ -73,7 +72,7 @@ impl<R: DdsRuntime> WaitSet<R> {
     #[tracing::instrument(skip(self, cond))]
     pub fn attach_condition(&mut self, cond: Condition<R>) -> DdsResult<()> {
         match cond {
-            Condition::StatusCondition(sc) => block_on(self.waitset_async.attach_condition(
+            Condition::StatusCondition(sc) => R::block_on(self.waitset_async.attach_condition(
                 ConditionAsync::StatusCondition(sc.condition_async().clone()),
             )),
         }
@@ -89,7 +88,7 @@ impl<R: DdsRuntime> WaitSet<R> {
     /// This operation retrieves the list of attached conditions.
     #[tracing::instrument(skip(self))]
     pub fn get_conditions(&self) -> DdsResult<Vec<Condition<R>>> {
-        Ok(block_on(self.waitset_async.get_conditions())?
+        Ok(R::block_on(self.waitset_async.get_conditions())?
             .into_iter()
             .map(|c| match c {
                 ConditionAsync::StatusCondition(sc) => {

@@ -12,7 +12,6 @@ use crate::{
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
         status::StatusKind,
     },
-    runtime::{executor::block_on, StdRuntime},
 };
 
 use tracing::warn;
@@ -40,7 +39,7 @@ impl<R: DdsRuntime> DomainParticipantFactory<R> {
         a_listener: impl DomainParticipantListener<R> + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<DomainParticipant<R>> {
-        block_on(
+        R::block_on(
             self.participant_factory_async
                 .create_participant(domain_id, qos, a_listener, mask),
         )
@@ -52,7 +51,7 @@ impl<R: DdsRuntime> DomainParticipantFactory<R> {
     /// participant has been previously deleted this operation returns the error [`DdsError::AlreadyDeleted`](crate::infrastructure::error::DdsError::AlreadyDeleted).
     #[tracing::instrument(skip(self, participant))]
     pub fn delete_participant(&self, participant: &DomainParticipant<R>) -> DdsResult<()> {
-        block_on(
+        R::block_on(
             self.participant_factory_async
                 .delete_participant(participant.participant_async()),
         )
@@ -68,7 +67,7 @@ impl<R: DdsRuntime> DomainParticipantFactory<R> {
         domain_id: DomainId,
     ) -> DdsResult<Option<DomainParticipant<R>>> {
         Ok(
-            block_on(self.participant_factory_async.lookup_participant(domain_id))?
+            R::block_on(self.participant_factory_async.lookup_participant(domain_id))?
                 .map(DomainParticipant::new),
         )
     }
@@ -79,7 +78,7 @@ impl<R: DdsRuntime> DomainParticipantFactory<R> {
     /// return a [`DdsError::InconsistentPolicy`](crate::infrastructure::error::DdsError::InconsistentPolicy).
     #[tracing::instrument(skip(self))]
     pub fn set_default_participant_qos(&self, qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {
-        block_on(
+        R::block_on(
             self.participant_factory_async
                 .set_default_participant_qos(qos),
         )
@@ -92,7 +91,7 @@ impl<R: DdsRuntime> DomainParticipantFactory<R> {
     /// [`DomainParticipantFactory::set_default_participant_qos`], or else, if the call was never made, the default value of [`DomainParticipantQos`].
     #[tracing::instrument(skip(self))]
     pub fn get_default_participant_qos(&self) -> DdsResult<DomainParticipantQos> {
-        block_on(self.participant_factory_async.get_default_participant_qos())
+        R::block_on(self.participant_factory_async.get_default_participant_qos())
     }
 
     /// This operation sets the value of the [`DomainParticipantFactoryQos`] policies. These policies control the behavior of the object
@@ -102,20 +101,20 @@ impl<R: DdsRuntime> DomainParticipantFactory<R> {
     /// return a [`DdsError::InconsistentPolicy`](crate::infrastructure::error::DdsError::InconsistentPolicy).
     #[tracing::instrument(skip(self))]
     pub fn set_qos(&self, qos: QosKind<DomainParticipantFactoryQos>) -> DdsResult<()> {
-        block_on(self.participant_factory_async.set_qos(qos))
+        R::block_on(self.participant_factory_async.set_qos(qos))
     }
 
     /// This operation returns the value of the [`DomainParticipantFactoryQos`] policies.
     #[tracing::instrument(skip(self))]
     pub fn get_qos(&self) -> DdsResult<DomainParticipantFactoryQos> {
-        block_on(self.participant_factory_async.get_qos())
+        R::block_on(self.participant_factory_async.get_qos())
     }
 }
 
 impl<R: DdsRuntime> DomainParticipantFactory<R> {
     /// Set the configuration of the [`DomainParticipantFactory`] singleton
     pub fn set_configuration(&self, configuration: DustDdsConfiguration) -> DdsResult<()> {
-        block_on(
+        R::block_on(
             self.participant_factory_async
                 .set_configuration(configuration),
         )
@@ -123,25 +122,27 @@ impl<R: DdsRuntime> DomainParticipantFactory<R> {
 
     /// Get the current configuration of the [`DomainParticipantFactory`] singleton
     pub fn get_configuration(&self) -> DdsResult<DustDdsConfiguration> {
-        block_on(self.participant_factory_async.get_configuration())
+        R::block_on(self.participant_factory_async.get_configuration())
     }
 
     /// Set the transport to be used by the [`DomainParticipants`] entities
     /// created by the [`DomainParticipantFactory`] singleton
     pub fn set_transport(&self, transport: DdsTransportParticipantFactory) -> DdsResult<()> {
-        block_on(self.participant_factory_async.set_transport(transport))
+        R::block_on(self.participant_factory_async.set_transport(transport))
     }
 }
 
-impl DomainParticipantFactory<StdRuntime> {
+#[cfg(feature = "std")]
+impl DomainParticipantFactory<crate::runtime::StdRuntime> {
     /// This operation returns the [`DomainParticipantFactory`] singleton. The operation is idempotent, that is, it can be called multiple
     /// times without side-effects and it will return the same [`DomainParticipantFactory`] instance.
     #[tracing::instrument]
     pub fn get_instance() -> &'static Self {
-        static PARTICIPANT_FACTORY: OnceLock<DomainParticipantFactory<StdRuntime>> =
+        static PARTICIPANT_FACTORY: OnceLock<DomainParticipantFactory<crate::runtime::StdRuntime>> =
             OnceLock::new();
         PARTICIPANT_FACTORY.get_or_init(|| DomainParticipantFactory {
-            participant_factory_async: DomainParticipantFactoryAsync::<StdRuntime>::get_instance(),
+            participant_factory_async:
+                DomainParticipantFactoryAsync::<crate::runtime::StdRuntime>::get_instance(),
         })
     }
 }

@@ -2,7 +2,6 @@ use crate::{
     dcps::runtime::DdsRuntime,
     dds_async::condition::StatusConditionAsync,
     infrastructure::{error::DdsResult, status::StatusKind},
-    runtime::executor::block_on,
 };
 
 /// A [`StatusCondition`] object is a specific Condition that is associated with each Entity.
@@ -35,7 +34,7 @@ impl<R: DdsRuntime> StatusCondition<R> {
     /// [`StatusCondition`]. This operation returns the statuses that were explicitly set on the last call to [`StatusCondition::set_enabled_statuses`] or, if
     /// it was never called, the default list of enabled statuses which includes all the statuses.
     pub fn get_enabled_statuses(&self) -> DdsResult<Vec<StatusKind>> {
-        block_on(self.condition_async.get_enabled_statuses())
+        R::block_on(self.condition_async.get_enabled_statuses())
     }
 
     /// This operation defines the list of communication statuses that are taken into account to determine the *trigger_value* of the
@@ -44,13 +43,13 @@ impl<R: DdsRuntime> StatusCondition<R> {
     /// attached conditions. Therefore, any [`WaitSet`](crate::infrastructure::wait_set::WaitSet) to which the [`StatusCondition`] is attached is potentially affected by this operation.
     /// If this function is not invoked, the default list of enabled statuses includes all the statuses.
     pub fn set_enabled_statuses(&self, mask: &[StatusKind]) -> DdsResult<()> {
-        block_on(self.condition_async.set_enabled_statuses(mask))
+        R::block_on(self.condition_async.set_enabled_statuses(mask))
     }
 
     /// This operation returns the Entity associated with the [`StatusCondition`]. Note that there is exactly one Entity associated with
     /// each [`StatusCondition`].
     pub fn get_entity(&self) {
-        block_on(self.condition_async.get_entity())
+        R::block_on(self.condition_async.get_entity())
     }
 }
 
@@ -58,6 +57,6 @@ impl<R: DdsRuntime> StatusCondition<R> {
 impl<R: DdsRuntime> StatusCondition<R> {
     /// This operation retrieves the *trigger_value* of the [`StatusCondition`].
     pub fn get_trigger_value(&self) -> DdsResult<bool> {
-        block_on(self.condition_async.get_trigger_value())
+        R::block_on(self.condition_async.get_trigger_value())
     }
 }
