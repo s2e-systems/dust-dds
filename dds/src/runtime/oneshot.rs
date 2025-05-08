@@ -5,7 +5,10 @@ use std::{
     task::{Context, Poll, Waker},
 };
 
-use crate::infrastructure::error::DdsError;
+use crate::{
+    dcps::runtime::{OneshotReceive, OneshotSend},
+    infrastructure::error::{DdsError, DdsResult},
+};
 
 #[derive(Debug)]
 pub enum OneshotRecvError {
@@ -54,6 +57,15 @@ impl<T> OneshotSender<T> {
     }
 }
 
+impl<T> OneshotSend<T> for OneshotSender<T>
+where
+    T: Send,
+{
+    async fn send(self, value: T) {
+        self.send(value);
+    }
+}
+
 impl<T> Drop for OneshotSender<T> {
     fn drop(&mut self) {
         let mut inner_lock = self.inner.lock().expect("Mutex shouldn't be poisoned");
@@ -83,5 +95,15 @@ impl<T> Future for OneshotReceiver<T> {
             inner_lock.waker.replace(cx.waker().clone());
             Poll::Pending
         }
+    }
+}
+
+impl<T> OneshotReceive<T> for OneshotReceiver<T>
+where
+    T: Send,
+{
+    async fn receive(&mut self) -> DdsResult<T> {
+        self.await
+            .map_err(|_| DdsError::Error(String::from("Receive error")))
     }
 }

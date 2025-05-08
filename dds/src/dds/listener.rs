@@ -1,4 +1,5 @@
 use crate::{
+    dcps::runtime::DdsRuntime,
     domain::domain_participant_listener::DomainParticipantListener,
     publication::{
         data_writer_listener::DataWriterListener, publisher_listener::PublisherListener,
@@ -13,14 +14,14 @@ use crate::{
 /// This object implements all the listener trait and can be used on any DDS entity.
 pub struct NoOpListener;
 
-impl DomainParticipantListener for NoOpListener {}
+impl<R: DdsRuntime> DomainParticipantListener<R> for NoOpListener {}
 
-impl PublisherListener for NoOpListener {}
+impl<R: DdsRuntime> PublisherListener<R> for NoOpListener {}
 
-impl SubscriberListener for NoOpListener {}
+impl<R: DdsRuntime> SubscriberListener<R> for NoOpListener {}
 
-impl TopicListener for NoOpListener {}
+impl<R: DdsRuntime> TopicListener<R> for NoOpListener {}
 
-impl<Foo> DataWriterListener<'_, Foo> for NoOpListener {}
+impl<R: DdsRuntime, Foo> DataWriterListener<'_, R, Foo> for NoOpListener {}
 
-impl<Foo> DataReaderListener<'_, Foo> for NoOpListener {}
+impl<R: DdsRuntime, Foo> DataReaderListener<'_, R, Foo> for NoOpListener {}

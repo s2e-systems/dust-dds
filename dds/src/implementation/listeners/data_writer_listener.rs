@@ -1,4 +1,5 @@
 use crate::{
+    dcps::runtime::DdsRuntime,
     publication::data_writer_listener::DataWriterListener,
     runtime::{
         executor::ExecutorHandle,
@@ -11,10 +12,10 @@ use super::domain_participant_listener::ListenerMail;
 pub struct DataWriterListenerActor;
 
 impl DataWriterListenerActor {
-    pub fn spawn<'a, Foo>(
-        mut listener: impl DataWriterListener<'a, Foo> + Send + 'static,
+    pub fn spawn<'a, R: DdsRuntime, Foo>(
+        mut listener: impl DataWriterListener<'a, R, Foo> + Send + 'static,
         executor_handle: &ExecutorHandle,
-    ) -> MpscSender<ListenerMail>
+    ) -> MpscSender<ListenerMail<R>>
     where
         Foo: 'a,
     {

@@ -1,6 +1,7 @@
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     condition::StatusCondition,
+    dcps::runtime::DdsRuntime,
     dds_async::domain_participant::DomainParticipantAsync,
     infrastructure::{
         domain::DomainId,
@@ -38,21 +39,21 @@ use super::domain_participant_listener::DomainParticipantListener;
 /// - Factory methods: [`DomainParticipant::create_topic()`], [`DomainParticipant::create_publisher()`], [`DomainParticipant::create_subscriber()`], [`DomainParticipant::delete_topic()`], [`DomainParticipant::delete_publisher()`],
 ///   [`DomainParticipant::delete_subscriber()`]
 /// - Operations that access the status: [`DomainParticipant::get_statuscondition()`]
-pub struct DomainParticipant {
-    participant_async: DomainParticipantAsync,
+pub struct DomainParticipant<R: DdsRuntime> {
+    participant_async: DomainParticipantAsync<R>,
 }
 
-impl DomainParticipant {
-    pub(crate) fn new(participant_async: DomainParticipantAsync) -> Self {
+impl<R: DdsRuntime> DomainParticipant<R> {
+    pub(crate) fn new(participant_async: DomainParticipantAsync<R>) -> Self {
         Self { participant_async }
     }
 
-    pub(crate) fn participant_async(&self) -> &DomainParticipantAsync {
+    pub(crate) fn participant_async(&self) -> &DomainParticipantAsync<R> {
         &self.participant_async
     }
 }
 
-impl DomainParticipant {
+impl<R: DdsRuntime> DomainParticipant<R> {
     /// This operation creates a [`Publisher`] with the desired QoS policies and attaches to it the specified [`PublisherListener`].
     /// If the specified QoS policies are not consistent, the operation will fail and no [`Publisher`] will be created.
     /// The value [`QosKind::Default`] can be used to indicate that the Publisher should be created with the default
@@ -64,9 +65,9 @@ impl DomainParticipant {
     pub fn create_publisher(
         &self,
         qos: QosKind<PublisherQos>,
-        a_listener: impl PublisherListener + Send + 'static,
+        a_listener: impl PublisherListener<R> + Send + 'static,
         mask: &[StatusKind],
-    ) -> DdsResult<Publisher> {
+    ) -> DdsResult<Publisher<R>> {
         block_on(
             self.participant_async
                 .create_publisher(qos, a_listener, mask),
@@ -82,7 +83,7 @@ impl DomainParticipant {
     /// If [`DomainParticipant::delete_publisher()`] is called on a different [`DomainParticipant`], the operation will have no effect and it will return
     /// a PreconditionNotMet error.
     #[tracing::instrument(skip(self, a_publisher))]
-    pub fn delete_publisher(&self, a_publisher: &Publisher) -> DdsResult<()> {
+    pub fn delete_publisher(&self, a_publisher: &Publisher<R>) -> DdsResult<()> {
         block_on(
             self.participant_async
                 .delete_publisher(a_publisher.publisher_async()),
@@ -101,9 +102,9 @@ impl DomainParticipant {
     pub fn create_subscriber(
         &self,
         qos: QosKind<SubscriberQos>,
-        a_listener: impl SubscriberListener + Send + 'static,
+        a_listener: impl SubscriberListener<R> + Send + 'static,
         mask: &[StatusKind],
-    ) -> DdsResult<Subscriber> {
+    ) -> DdsResult<Subscriber<R>> {
         block_on(
             self.participant_async
                 .create_subscriber(qos, a_listener, mask),
@@ -118,7 +119,7 @@ impl DomainParticipant {
     /// it is called on a different [`DomainParticipant`], the operation will have no effect and it will return
     /// [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     #[tracing::instrument(skip(self, a_subscriber))]
-    pub fn delete_subscriber(&self, a_subscriber: &Subscriber) -> DdsResult<()> {
+    pub fn delete_subscriber(&self, a_subscriber: &Subscriber<R>) -> DdsResult<()> {
         block_on(
             self.participant_async
                 .delete_subscriber(a_subscriber.subscriber_async()),
@@ -138,9 +139,9 @@ impl DomainParticipant {
         topic_name: &str,
         type_name: &str,
         qos: QosKind<TopicQos>,
-        a_listener: impl TopicListener + Send + 'static,
+        a_listener: impl TopicListener<R> + Send + 'static,
         mask: &[StatusKind],
-    ) -> DdsResult<Topic>
+    ) -> DdsResult<Topic<R>>
     where
         Foo: TypeSupport,
     {
@@ -158,10 +159,10 @@ impl DomainParticipant {
         topic_name: &str,
         type_name: &str,
         qos: QosKind<TopicQos>,
-        a_listener: impl TopicListener + Send + 'static,
+        a_listener: impl TopicListener<R> + Send + 'static,
         mask: &[StatusKind],
         dynamic_type_representation: std::sync::Arc<dyn DynamicType + Send + Sync>,
-    ) -> DdsResult<Topic> {
+    ) -> DdsResult<Topic<R>> {
         block_on(self.participant_async.create_dynamic_topic(
             topic_name,
             type_name,
@@ -180,7 +181,7 @@ impl DomainParticipant {
     /// The [`DomainParticipant::delete_topic()`] operation must be called on the same [`DomainParticipant`] object used to create the [`Topic`]. If [`DomainParticipant::delete_topic()`] is
     /// called on a different [`DomainParticipant`], the operation will have no effect and it will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     #[tracing::instrument(skip(self, a_topic))]
-    pub fn delete_topic(&self, a_topic: &Topic) -> DdsResult<()> {
+    pub fn delete_topic(&self, a_topic: &Topic<R>) -> DdsResult<()> {
         block_on(self.participant_async.delete_topic(a_topic.topic_async()))
     }
 
@@ -196,7 +197,7 @@ impl DomainParticipant {
     /// Regardless of whether the middleware chooses to propagate topics, the [`DomainParticipant::delete_topic()`] operation deletes only the local proxy.
     /// If the operation times-out, a [`DdsError::Timeout`](crate::infrastructure::error::DdsError) error is returned.
     #[tracing::instrument(skip(self))]
-    pub fn find_topic<Foo>(&self, topic_name: &str, timeout: Duration) -> DdsResult<Topic>
+    pub fn find_topic<Foo>(&self, topic_name: &str, timeout: Duration) -> DdsResult<Topic<R>>
     where
         Foo: TypeSupport,
     {
@@ -218,7 +219,7 @@ impl DomainParticipant {
     /// writers, but then it is really deleted and subsequent lookups will fail.
     /// If the operation fails to locate a [`Topic`], the operation succeeds and a [`None`] value is returned.
     #[tracing::instrument(skip(self))]
-    pub fn lookup_topicdescription(&self, topic_name: &str) -> DdsResult<Option<Topic>> {
+    pub fn lookup_topicdescription(&self, topic_name: &str) -> DdsResult<Option<Topic<R>>> {
         Ok(block_on(self.participant_async.lookup_topicdescription(topic_name))?.map(Topic::from))
     }
 
@@ -227,7 +228,7 @@ impl DomainParticipant {
     /// The built-in topics are used to communicate information about other [`DomainParticipant`], [`Topic`], [`DataReader`](crate::subscription::data_reader::DataReader), and [`DataWriter`](crate::publication::data_writer::DataWriter)
     /// objects.
     #[tracing::instrument(skip(self))]
-    pub fn get_builtin_subscriber(&self) -> Subscriber {
+    pub fn get_builtin_subscriber(&self) -> Subscriber<R> {
         Subscriber::from(self.participant_async.get_builtin_subscriber())
     }
 
@@ -442,7 +443,7 @@ impl DomainParticipant {
 }
 
 /// This implementation block contains the Entity operations for the [`DomainParticipant`].
-impl DomainParticipant {
+impl<R: DdsRuntime> DomainParticipant<R> {
     /// This operation is used to set the QoS policies of the Entity and replacing the values of any policies previously set.
     /// Certain policies are *immutable;* they can only be set at Entity creation time, or before the entity is made enabled.
     /// If [`Self::set_qos()`] is invoked after the Entity is enabled and it attempts to change the value of an *immutable* policy, the operation will
@@ -475,7 +476,7 @@ impl DomainParticipant {
     #[tracing::instrument(skip(self, a_listener))]
     pub fn set_listener(
         &self,
-        a_listener: impl DomainParticipantListener + Send + 'static,
+        a_listener: impl DomainParticipantListener<R> + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         block_on(self.participant_async.set_listener(a_listener, mask))

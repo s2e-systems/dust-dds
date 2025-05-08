@@ -1,6 +1,5 @@
 use super::{
     builtin_topics::SubscriptionBuiltinTopicData,
-    clock::Clock,
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
@@ -12,6 +11,7 @@ use super::{
         },
         time::{DurationKind, Time},
     },
+    runtime::Clock,
     status_condition::StatusCondition,
     xtypes_glue::key_and_instance_handle::{
         get_instance_handle_from_serialized_foo, get_instance_handle_from_serialized_key,

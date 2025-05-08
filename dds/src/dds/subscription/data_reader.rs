@@ -1,6 +1,7 @@
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     condition::StatusCondition,
+    dcps::runtime::DdsRuntime,
     dds_async::data_reader::DataReaderAsync,
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -68,25 +69,25 @@ impl<Foo> Sample<Foo> {
 ///
 /// A DataReader refers to exactly one [`Topic`] that identifies the data to be read. The subscription has a unique resulting type.
 /// The data-reader may give access to several instances of the resulting type, which can be distinguished from each other by their key.
-pub struct DataReader<Foo> {
-    reader_async: DataReaderAsync<Foo>,
+pub struct DataReader<R: DdsRuntime, Foo> {
+    reader_async: DataReaderAsync<R, Foo>,
 }
 
-impl<Foo> DataReader<Foo> {
-    pub(crate) fn reader_async(&self) -> &DataReaderAsync<Foo> {
+impl<R: DdsRuntime, Foo> DataReader<R, Foo> {
+    pub(crate) fn reader_async(&self) -> &DataReaderAsync<R, Foo> {
         &self.reader_async
     }
 }
 
-impl<Foo> From<DataReaderAsync<Foo>> for DataReader<Foo> {
-    fn from(value: DataReaderAsync<Foo>) -> Self {
+impl<R: DdsRuntime, Foo> From<DataReaderAsync<R, Foo>> for DataReader<R, Foo> {
+    fn from(value: DataReaderAsync<R, Foo>) -> Self {
         Self {
             reader_async: value,
         }
     }
 }
 
-impl<Foo> Clone for DataReader<Foo> {
+impl<R: DdsRuntime, Foo> Clone for DataReader<R, Foo> {
     fn clone(&self) -> Self {
         Self {
             reader_async: self.reader_async.clone(),
@@ -94,7 +95,7 @@ impl<Foo> Clone for DataReader<Foo> {
     }
 }
 
-impl<Foo> DataReader<Foo> {
+impl<R: DdsRuntime, Foo> DataReader<R, Foo> {
     /// This operation accesses a collection of [`Sample`] from the [`DataReader`]. The size of the returned collection will
     /// be limited to the specified `max_samples`. The properties of the data values collection and the setting of the
     /// [`PresentationQosPolicy`](crate::infrastructure::qos_policy::PresentationQosPolicy) may impose further limits
@@ -325,7 +326,7 @@ impl<Foo> DataReader<Foo> {
     }
 }
 
-impl<Foo> DataReader<Foo> {
+impl<R: DdsRuntime, Foo> DataReader<R, Foo> {
     /// This operation allows access to the [`LivelinessChangedStatus`].
     #[tracing::instrument(skip(self))]
     pub fn get_liveliness_changed_status(&self) -> DdsResult<LivelinessChangedStatus> {
@@ -367,13 +368,13 @@ impl<Foo> DataReader<Foo> {
     /// This operation returns the [`Topic`] associated with the [`DataReader`]. This is the same [`Topic`]
     /// that was used to create the [`DataReader`].
     #[tracing::instrument(skip(self))]
-    pub fn get_topicdescription(&self) -> Topic {
+    pub fn get_topicdescription(&self) -> Topic<R> {
         Topic::from(self.reader_async.get_topicdescription())
     }
 
     /// This operation returns the [`Subscriber`] to which the [`DataReader`] belongs.
     #[tracing::instrument(skip(self))]
-    pub fn get_subscriber(&self) -> Subscriber {
+    pub fn get_subscriber(&self) -> Subscriber<R> {
         Subscriber::from(self.reader_async.get_subscriber())
     }
 
@@ -424,7 +425,7 @@ impl<Foo> DataReader<Foo> {
     }
 }
 
-impl<Foo> DataReader<Foo> {
+impl<R: DdsRuntime, Foo> DataReader<R, Foo> {
     /// This operation is used to set the QoS policies of the Entity and replacing the values of any policies previously set.
     /// Certain policies are *immutable;* they can only be set at Entity creation time, or before the entity is made enabled.
     /// If [`Self::set_qos()`] is invoked after the Entity is enabled and it attempts to change the value of an *immutable* policy, the operation will
@@ -499,7 +500,7 @@ impl<Foo> DataReader<Foo> {
     }
 }
 
-impl<'a, Foo> DataReader<Foo>
+impl<'a, R: DdsRuntime, Foo> DataReader<R, Foo>
 where
     Foo: 'a,
 {
@@ -512,7 +513,7 @@ where
     #[tracing::instrument(skip(self, a_listener))]
     pub fn set_listener(
         &self,
-        a_listener: impl DataReaderListener<'a, Foo> + Send + 'static,
+        a_listener: impl DataReaderListener<'a, R, Foo> + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         block_on(self.reader_async.set_listener(a_listener, mask))

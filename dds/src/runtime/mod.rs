@@ -1,10 +1,10 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use oneshot::{oneshot, OneshotReceiver, OneshotSender};
 use timer::{TimerDriver, TimerHandle};
 
 use crate::{
-    dcps::clock::Clock,
-    implementation::domain_participant_backend::domain_participant_actor::DdsRuntime,
+    dcps::runtime::{Clock, DdsRuntime},
     infrastructure::time::Time,
 };
 
@@ -39,6 +39,14 @@ impl StdRuntime {
 impl DdsRuntime for StdRuntime {
     type ClockHandle = StdClock;
     type TimerHandle = TimerHandle;
+    type OneshotSender<T>
+        = OneshotSender<T>
+    where
+        T: Send;
+    type OneshotReceiver<T>
+        = OneshotReceiver<T>
+    where
+        T: Send;
 
     fn timer(&mut self) -> Self::TimerHandle {
         self.timer_driver.handle()
@@ -46,5 +54,12 @@ impl DdsRuntime for StdRuntime {
 
     fn clock(&mut self) -> Self::ClockHandle {
         StdClock
+    }
+
+    fn oneshot<T>() -> (Self::OneshotSender<T>, Self::OneshotReceiver<T>)
+    where
+        T: Send,
+    {
+        oneshot()
     }
 }

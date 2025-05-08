@@ -1,4 +1,5 @@
 use crate::{
+    dcps::runtime::DdsRuntime,
     runtime::{
         executor::ExecutorHandle,
         mpsc::{mpsc_channel, MpscSender},
@@ -11,10 +12,10 @@ use super::domain_participant_listener::ListenerMail;
 pub struct SubscriberListenerActor;
 
 impl SubscriberListenerActor {
-    pub fn spawn(
-        mut listener: impl SubscriberListener + Send + 'static,
+    pub fn spawn<R: DdsRuntime>(
+        mut listener: impl SubscriberListener<R> + Send + 'static,
         executor_handle: &ExecutorHandle,
-    ) -> MpscSender<ListenerMail> {
+    ) -> MpscSender<ListenerMail<R>> {
         let (listener_sender, listener_receiver) = mpsc_channel();
         executor_handle.spawn(async move {
             while let Some(m) = listener_receiver.recv().await {

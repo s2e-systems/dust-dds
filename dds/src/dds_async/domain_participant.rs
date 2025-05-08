@@ -4,6 +4,7 @@ use super::{
 };
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
+    dcps::runtime::{DdsRuntime, OneshotReceive},
     domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
         domain_participant_backend::domain_participant_actor_mail::{
@@ -30,7 +31,6 @@ use crate::{
         actor::{Actor, ActorAddress},
         executor::ExecutorHandle,
         mpsc::MpscSender,
-        oneshot::oneshot,
     },
     subscription::subscriber_listener::SubscriberListener,
     topic_definition::topic_listener::TopicListener,
@@ -39,9 +39,8 @@ use crate::{
 use std::sync::Arc;
 
 /// Async version of [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant).
-#[derive(Clone)]
-pub struct DomainParticipantAsync {
-    participant_address: MpscSender<DomainParticipantMail>,
+pub struct DomainParticipantAsync<R: DdsRuntime> {
+    participant_address: MpscSender<DomainParticipantMail<R>>,
     status_condition_address: ActorAddress<StatusConditionActor>,
     builtin_subscriber_status_condition_address: ActorAddress<StatusConditionActor>,
     domain_id: DomainId,
@@ -49,9 +48,24 @@ pub struct DomainParticipantAsync {
     executor_handle: ExecutorHandle,
 }
 
-impl DomainParticipantAsync {
+impl<R: DdsRuntime> Clone for DomainParticipantAsync<R> {
+    fn clone(&self) -> Self {
+        Self {
+            participant_address: self.participant_address.clone(),
+            status_condition_address: self.status_condition_address.clone(),
+            builtin_subscriber_status_condition_address: self
+                .builtin_subscriber_status_condition_address
+                .clone(),
+            domain_id: self.domain_id.clone(),
+            handle: self.handle.clone(),
+            executor_handle: self.executor_handle.clone(),
+        }
+    }
+}
+
+impl<R: DdsRuntime> DomainParticipantAsync<R> {
     pub(crate) fn new(
-        participant_address: MpscSender<DomainParticipantMail>,
+        participant_address: MpscSender<DomainParticipantMail<R>>,
         status_condition_address: ActorAddress<StatusConditionActor>,
         builtin_subscriber_status_condition_address: ActorAddress<StatusConditionActor>,
         domain_id: DomainId,
@@ -68,7 +82,7 @@ impl DomainParticipantAsync {
         }
     }
 
-    pub(crate) fn participant_address(&self) -> &MpscSender<DomainParticipantMail> {
+    pub(crate) fn participant_address(&self) -> &MpscSender<DomainParticipantMail<R>> {
         &self.participant_address
     }
 
@@ -77,16 +91,16 @@ impl DomainParticipantAsync {
     }
 }
 
-impl DomainParticipantAsync {
+impl<R: DdsRuntime> DomainParticipantAsync<R> {
     /// Async version of [`create_publisher`](crate::domain::domain_participant::DomainParticipant::create_publisher).
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn create_publisher(
         &self,
         qos: QosKind<PublisherQos>,
-        a_listener: impl PublisherListener + Send + 'static,
+        a_listener: impl PublisherListener<R> + Send + 'static,
         mask: &[StatusKind],
-    ) -> DdsResult<PublisherAsync> {
-        let (reply_sender, reply_receiver) = oneshot();
+    ) -> DdsResult<PublisherAsync<R>> {
+        let (reply_sender, mut reply_receiver) = R::oneshot();
         let status_condition = Actor::spawn(StatusConditionActor::default(), &self.executor_handle);
         let publisher_status_condition_address = status_condition.address();
         let listener_sender = PublisherListenerActor::spawn(a_listener, self.executor_handle());
@@ -100,7 +114,7 @@ impl DomainParticipantAsync {
                     reply_sender,
                 },
             ))?;
-        let guid = reply_receiver.await??;
+        let guid = reply_receiver.receive().await??;
         let publisher = PublisherAsync::new(guid, publisher_status_condition_address, self.clone());
 
         Ok(publisher)
@@ -108,8 +122,8 @@ impl DomainParticipantAsync {
 
     /// Async version of [`delete_publisher`](crate::domain::domain_participant::DomainParticipant::delete_publisher).
     #[tracing::instrument(skip(self, a_publisher))]
-    pub async fn delete_publisher(&self, a_publisher: &PublisherAsync) -> DdsResult<()> {
-        let (reply_sender, reply_receiver) = oneshot();
+    pub async fn delete_publisher(&self, a_publisher: &PublisherAsync<R>) -> DdsResult<()> {
+        let (reply_sender, mut reply_receiver) = R::oneshot();
         self.participant_address
             .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::DeleteUserDefinedPublisher {
@@ -118,7 +132,7 @@ impl DomainParticipantAsync {
                     reply_sender,
                 },
             ))?;
-        reply_receiver.await?
+        reply_receiver.receive().await?
     }
 
     /// Async version of [`create_subscriber`](crate::domain::domain_participant::DomainParticipant::create_subscriber).
@@ -126,10 +140,10 @@ impl DomainParticipantAsync {
     pub async fn create_subscriber(
         &self,
         qos: QosKind<SubscriberQos>,
-        a_listener: impl SubscriberListener + Send + 'static,
+        a_listener: impl SubscriberListener<R> + Send + 'static,
         mask: &[StatusKind],
-    ) -> DdsResult<SubscriberAsync> {
-        let (reply_sender, reply_receiver) = oneshot();
+    ) -> DdsResult<SubscriberAsync<R>> {
+        let (reply_sender, mut reply_receiver) = R::oneshot();
         let status_condition = Actor::spawn(StatusConditionActor::default(), &self.executor_handle);
         let subscriber_status_condition_address = status_condition.address();
         let listener_sender = SubscriberListenerActor::spawn(a_listener, self.executor_handle());
@@ -143,7 +157,7 @@ impl DomainParticipantAsync {
                     reply_sender,
                 },
             ))?;
-        let guid = reply_receiver.await??;
+        let guid = reply_receiver.receive().await??;
         let subscriber =
             SubscriberAsync::new(guid, subscriber_status_condition_address, self.clone());
 
@@ -152,8 +166,8 @@ impl DomainParticipantAsync {
 
     /// Async version of [`delete_subscriber`](crate::domain::domain_participant::DomainParticipant::delete_subscriber).
     #[tracing::instrument(skip(self, a_subscriber))]
-    pub async fn delete_subscriber(&self, a_subscriber: &SubscriberAsync) -> DdsResult<()> {
-        let (reply_sender, reply_receiver) = oneshot();
+    pub async fn delete_subscriber(&self, a_subscriber: &SubscriberAsync<R>) -> DdsResult<()> {
+        let (reply_sender, mut reply_receiver) = R::oneshot();
         self.participant_address
             .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::DeleteUserDefinedSubscriber {
@@ -162,7 +176,7 @@ impl DomainParticipantAsync {
                     reply_sender,
                 },
             ))?;
-        reply_receiver.await?
+        reply_receiver.receive().await?
     }
 
     /// Async version of [`create_topic`](crate::domain::domain_participant::DomainParticipant::create_topic).
@@ -172,9 +186,9 @@ impl DomainParticipantAsync {
         topic_name: &str,
         type_name: &str,
         qos: QosKind<TopicQos>,
-        a_listener: impl TopicListener + Send + 'static,
+        a_listener: impl TopicListener<R> + Send + 'static,
         mask: &[StatusKind],
-    ) -> DdsResult<TopicAsync>
+    ) -> DdsResult<TopicAsync<R>>
     where
         Foo: TypeSupport,
     {
@@ -191,11 +205,11 @@ impl DomainParticipantAsync {
         topic_name: &str,
         type_name: &str,
         qos: QosKind<TopicQos>,
-        a_listener: impl TopicListener + Send + 'static,
+        a_listener: impl TopicListener<R> + Send + 'static,
         mask: &[StatusKind],
         dynamic_type_representation: Arc<dyn DynamicType + Send + Sync>,
-    ) -> DdsResult<TopicAsync> {
-        let (reply_sender, reply_receiver) = oneshot();
+    ) -> DdsResult<TopicAsync<R>> {
+        let (reply_sender, mut reply_receiver) = R::oneshot();
         let status_condition = Actor::spawn(StatusConditionActor::default(), &self.executor_handle);
         let topic_status_condition_address = status_condition.address();
         let listener_sender = TopicListenerActor::spawn(a_listener, self.executor_handle());
@@ -212,7 +226,7 @@ impl DomainParticipantAsync {
                     reply_sender,
                 },
             ))?;
-        let guid = reply_receiver.await??;
+        let guid = reply_receiver.receive().await??;
 
         Ok(TopicAsync::new(
             guid,
@@ -225,8 +239,8 @@ impl DomainParticipantAsync {
 
     /// Async version of [`delete_topic`](crate::domain::domain_participant::DomainParticipant::delete_topic).
     #[tracing::instrument(skip(self, a_topic))]
-    pub async fn delete_topic(&self, a_topic: &TopicAsync) -> DdsResult<()> {
-        let (reply_sender, reply_receiver) = oneshot();
+    pub async fn delete_topic(&self, a_topic: &TopicAsync<R>) -> DdsResult<()> {
+        let (reply_sender, mut reply_receiver) = R::oneshot();
         self.participant_address
             .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::DeleteUserDefinedTopic {
@@ -235,7 +249,7 @@ impl DomainParticipantAsync {
                     reply_sender,
                 },
             ))?;
-        reply_receiver.await?
+        reply_receiver.receive().await?
     }
 
     /// Async version of [`find_topic`](crate::domain::domain_participant::DomainParticipant::find_topic).
@@ -244,7 +258,7 @@ impl DomainParticipantAsync {
         &self,
         topic_name: &str,
         timeout: Duration,
-    ) -> DdsResult<TopicAsync>
+    ) -> DdsResult<TopicAsync<R>>
     where
         Foo: TypeSupport,
     {
@@ -260,7 +274,7 @@ impl DomainParticipantAsync {
         //         timeout.into(),
         //         Box::pin(async move {
         //             loop {
-        //                 let (reply_sender, reply_receiver) = oneshot();
+        //                 let (reply_sender, mut reply_receiver) = R::oneshot();
         //                 let status_condition =
         //                     Actor::spawn(StatusConditionActor::default(), &executor_handle);
 
@@ -274,7 +288,7 @@ impl DomainParticipantAsync {
         //                     },
         //                 ))?;
         //                 if let Some((guid, topic_status_condition_address, type_name)) =
-        //                     reply_receiver.await??
+        //                     reply_receiver.receive().await??
         //                 {
         //                     return Ok(TopicAsync::new(
         //                         guid,
@@ -293,8 +307,11 @@ impl DomainParticipantAsync {
 
     /// Async version of [`lookup_topicdescription`](crate::domain::domain_participant::DomainParticipant::lookup_topicdescription).
     #[tracing::instrument(skip(self))]
-    pub async fn lookup_topicdescription(&self, topic_name: &str) -> DdsResult<Option<TopicAsync>> {
-        let (reply_sender, reply_receiver) = oneshot();
+    pub async fn lookup_topicdescription(
+        &self,
+        topic_name: &str,
+    ) -> DdsResult<Option<TopicAsync<R>>> {
+        let (reply_sender, mut reply_receiver) = R::oneshot();
         self.participant_address
             .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::LookupTopicdescription {
@@ -303,7 +320,7 @@ impl DomainParticipantAsync {
                 },
             ))?;
         if let Some((type_name, topic_handle, topic_status_condition_address)) =
-            reply_receiver.await??
+            reply_receiver.receive().await??
         {
             Ok(Some(TopicAsync::new(
                 topic_handle,
@@ -319,7 +336,7 @@ impl DomainParticipantAsync {
 
     /// Async version of [`get_builtin_subscriber`](crate::domain::domain_participant::DomainParticipant::get_builtin_subscriber).
     #[tracing::instrument(skip(self))]
-    pub fn get_builtin_subscriber(&self) -> SubscriberAsync {
+    pub fn get_builtin_subscriber(&self) -> SubscriberAsync<R> {
         SubscriberAsync::new(
             self.handle,
             self.builtin_subscriber_status_condition_address.clone(),
@@ -330,7 +347,7 @@ impl DomainParticipantAsync {
     /// Async version of [`ignore_participant`](crate::domain::domain_participant::DomainParticipant::ignore_participant).
     #[tracing::instrument(skip(self))]
     pub async fn ignore_participant(&self, handle: InstanceHandle) -> DdsResult<()> {
-        let (reply_sender, reply_receiver) = oneshot();
+        let (reply_sender, mut reply_receiver) = R::oneshot();
         self.participant_address
             .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::IgnoreParticipant {
@@ -338,7 +355,7 @@ impl DomainParticipantAsync {
                     reply_sender,
                 },
             ))?;
-        reply_receiver.await?
+        reply_receiver.receive().await?
     }
 
     /// Async version of [`ignore_topic`](crate::domain::domain_participant::DomainParticipant::ignore_topic).
@@ -350,7 +367,7 @@ impl DomainParticipantAsync {
     /// Async version of [`ignore_publication`](crate::domain::domain_participant::DomainParticipant::ignore_publication).
     #[tracing::instrument(skip(self))]
     pub async fn ignore_publication(&self, handle: InstanceHandle) -> DdsResult<()> {
-        let (reply_sender, reply_receiver) = oneshot();
+        let (reply_sender, mut reply_receiver) = R::oneshot();
         self.participant_address
             .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::IgnorePublication {
@@ -358,13 +375,13 @@ impl DomainParticipantAsync {
                     reply_sender,
                 },
             ))?;
-        reply_receiver.await?
+        reply_receiver.receive().await?
     }
 
     /// Async version of [`ignore_subscription`](crate::domain::domain_participant::DomainParticipant::ignore_subscription).
     #[tracing::instrument(skip(self))]
     pub async fn ignore_subscription(&self, handle: InstanceHandle) -> DdsResult<()> {
-        let (reply_sender, reply_receiver) = oneshot();
+        let (reply_sender, mut reply_receiver) = R::oneshot();
         self.participant_address
             .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::IgnoreSubscription {
@@ -372,7 +389,7 @@ impl DomainParticipantAsync {
                     reply_sender,
                 },
             ))?;
-        reply_receiver.await?
+        reply_receiver.receive().await?
     }
 
     /// Async version of [`get_domain_id`](crate::domain::domain_participant::DomainParticipant::get_domain_id).
@@ -384,12 +401,12 @@ impl DomainParticipantAsync {
     /// Async version of [`delete_contained_entities`](crate::domain::domain_participant::DomainParticipant::delete_contained_entities).
     #[tracing::instrument(skip(self))]
     pub async fn delete_contained_entities(&self) -> DdsResult<()> {
-        let (reply_sender, reply_receiver) = oneshot();
+        let (reply_sender, mut reply_receiver) = R::oneshot();
         self.participant_address
             .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::DeleteContainedEntities { reply_sender },
             ))?;
-        reply_receiver.await?
+        reply_receiver.receive().await?
     }
 
     /// Async version of [`assert_liveliness`](crate::domain::domain_participant::DomainParticipant::assert_liveliness).
@@ -401,78 +418,78 @@ impl DomainParticipantAsync {
     /// Async version of [`set_default_publisher_qos`](crate::domain::domain_participant::DomainParticipant::set_default_publisher_qos).
     #[tracing::instrument(skip(self))]
     pub async fn set_default_publisher_qos(&self, qos: QosKind<PublisherQos>) -> DdsResult<()> {
-        let (reply_sender, reply_receiver) = oneshot();
+        let (reply_sender, mut reply_receiver) = R::oneshot();
         self.participant_address
             .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::SetDefaultPublisherQos { qos, reply_sender },
             ))?;
-        reply_receiver.await?
+        reply_receiver.receive().await?
     }
 
     /// Async version of [`get_default_publisher_qos`](crate::domain::domain_participant::DomainParticipant::get_default_publisher_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_default_publisher_qos(&self) -> DdsResult<PublisherQos> {
-        let (reply_sender, reply_receiver) = oneshot();
+        let (reply_sender, mut reply_receiver) = R::oneshot();
         self.participant_address
             .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::GetDefaultPublisherQos { reply_sender },
             ))?;
-        reply_receiver.await?
+        reply_receiver.receive().await?
     }
 
     /// Async version of [`set_default_subscriber_qos`](crate::domain::domain_participant::DomainParticipant::set_default_subscriber_qos).
     #[tracing::instrument(skip(self))]
     pub async fn set_default_subscriber_qos(&self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
-        let (reply_sender, reply_receiver) = oneshot();
+        let (reply_sender, mut reply_receiver) = R::oneshot();
         self.participant_address
             .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::SetDefaultSubscriberQos { qos, reply_sender },
             ))?;
-        reply_receiver.await?
+        reply_receiver.receive().await?
     }
 
     /// Async version of [`get_default_subscriber_qos`](crate::domain::domain_participant::DomainParticipant::get_default_subscriber_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_default_subscriber_qos(&self) -> DdsResult<SubscriberQos> {
-        let (reply_sender, reply_receiver) = oneshot();
+        let (reply_sender, mut reply_receiver) = R::oneshot();
         self.participant_address
             .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::GetDefaultSubscriberQos { reply_sender },
             ))?;
-        reply_receiver.await?
+        reply_receiver.receive().await?
     }
 
     /// Async version of [`set_default_topic_qos`](crate::domain::domain_participant::DomainParticipant::set_default_topic_qos).
     #[tracing::instrument(skip(self))]
     pub async fn set_default_topic_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
-        let (reply_sender, reply_receiver) = oneshot();
+        let (reply_sender, mut reply_receiver) = R::oneshot();
         self.participant_address
             .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::SetDefaultTopicQos { qos, reply_sender },
             ))?;
-        reply_receiver.await?
+        reply_receiver.receive().await?
     }
 
     /// Async version of [`get_default_topic_qos`](crate::domain::domain_participant::DomainParticipant::get_default_topic_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_default_topic_qos(&self) -> DdsResult<TopicQos> {
-        let (reply_sender, reply_receiver) = oneshot();
+        let (reply_sender, mut reply_receiver) = R::oneshot();
         self.participant_address
             .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::GetDefaultTopicQos { reply_sender },
             ))?;
-        reply_receiver.await?
+        reply_receiver.receive().await?
     }
 
     /// Async version of [`get_discovered_participants`](crate::domain::domain_participant::DomainParticipant::get_discovered_participants).
     #[tracing::instrument(skip(self))]
     pub async fn get_discovered_participants(&self) -> DdsResult<Vec<InstanceHandle>> {
-        let (reply_sender, reply_receiver) = oneshot();
+        let (reply_sender, mut reply_receiver) = R::oneshot();
         self.participant_address
             .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::GetDiscoveredParticipants { reply_sender },
             ))?;
-        reply_receiver.await?
+        reply_receiver.receive().await?
     }
 
     /// Async version of [`get_discovered_participant_data`](crate::domain::domain_participant::DomainParticipant::get_discovered_participant_data).
@@ -481,7 +498,7 @@ impl DomainParticipantAsync {
         &self,
         participant_handle: InstanceHandle,
     ) -> DdsResult<ParticipantBuiltinTopicData> {
-        let (reply_sender, reply_receiver) = oneshot();
+        let (reply_sender, mut reply_receiver) = R::oneshot();
         self.participant_address
             .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::GetDiscoveredParticipantData {
@@ -489,18 +506,18 @@ impl DomainParticipantAsync {
                     reply_sender,
                 },
             ))?;
-        reply_receiver.await?
+        reply_receiver.receive().await?
     }
 
     /// Async version of [`get_discovered_topics`](crate::domain::domain_participant::DomainParticipant::get_discovered_topics).
     #[tracing::instrument(skip(self))]
     pub async fn get_discovered_topics(&self) -> DdsResult<Vec<InstanceHandle>> {
-        let (reply_sender, reply_receiver) = oneshot();
+        let (reply_sender, mut reply_receiver) = R::oneshot();
         self.participant_address
             .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::GetDiscoveredTopics { reply_sender },
             ))?;
-        reply_receiver.await?
+        reply_receiver.receive().await?
     }
 
     /// Async version of [`get_discovered_topic_data`](crate::domain::domain_participant::DomainParticipant::get_discovered_topic_data).
@@ -509,7 +526,7 @@ impl DomainParticipantAsync {
         &self,
         topic_handle: InstanceHandle,
     ) -> DdsResult<TopicBuiltinTopicData> {
-        let (reply_sender, reply_receiver) = oneshot();
+        let (reply_sender, mut reply_receiver) = R::oneshot();
         self.participant_address
             .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::GetDiscoveredTopicData {
@@ -517,7 +534,7 @@ impl DomainParticipantAsync {
                     reply_sender,
                 },
             ))?;
-        reply_receiver.await?
+        reply_receiver.receive().await?
     }
 
     /// Async version of [`contains_entity`](crate::domain::domain_participant::DomainParticipant::contains_entity).
@@ -529,46 +546,46 @@ impl DomainParticipantAsync {
     /// Async version of [`get_current_time`](crate::domain::domain_participant::DomainParticipant::get_current_time).
     #[tracing::instrument(skip(self))]
     pub async fn get_current_time(&self) -> DdsResult<Time> {
-        let (reply_sender, reply_receiver) = oneshot();
+        let (reply_sender, mut reply_receiver) = R::oneshot();
         self.participant_address
             .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::GetCurrentTime { reply_sender },
             ))?;
-        Ok(reply_receiver.await?)
+        Ok(reply_receiver.receive().await?)
     }
 }
 
-impl DomainParticipantAsync {
+impl<R: DdsRuntime> DomainParticipantAsync<R> {
     /// Async version of [`set_qos`](crate::domain::domain_participant::DomainParticipant::set_qos).
     #[tracing::instrument(skip(self))]
     pub async fn set_qos(&self, qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {
-        let (reply_sender, reply_receiver) = oneshot();
+        let (reply_sender, mut reply_receiver) = R::oneshot();
         self.participant_address
             .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::SetQos { qos, reply_sender },
             ))?;
-        reply_receiver.await?
+        reply_receiver.receive().await?
     }
 
     /// Async version of [`get_qos`](crate::domain::domain_participant::DomainParticipant::get_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_qos(&self) -> DdsResult<DomainParticipantQos> {
-        let (reply_sender, reply_receiver) = oneshot();
+        let (reply_sender, mut reply_receiver) = R::oneshot();
         self.participant_address
             .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::GetQos { reply_sender },
             ))?;
-        reply_receiver.await?
+        reply_receiver.receive().await?
     }
 
     /// Async version of [`set_listener`](crate::domain::domain_participant::DomainParticipant::set_listener).
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn set_listener(
         &self,
-        a_listener: impl DomainParticipantListener + Send + 'static,
+        a_listener: impl DomainParticipantListener<R> + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        let (reply_sender, reply_receiver) = oneshot();
+        let (reply_sender, mut reply_receiver) = R::oneshot();
         let listener_sender =
             DomainParticipantListenerActor::spawn(a_listener, self.executor_handle());
         self.participant_address
@@ -579,7 +596,7 @@ impl DomainParticipantAsync {
                     reply_sender,
                 },
             ))?;
-        reply_receiver.await?
+        reply_receiver.receive().await?
     }
 
     /// Async version of [`get_statuscondition`](crate::domain::domain_participant::DomainParticipant::get_statuscondition).
@@ -597,12 +614,12 @@ impl DomainParticipantAsync {
     /// Async version of [`enable`](crate::domain::domain_participant::DomainParticipant::enable).
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
-        let (reply_sender, reply_receiver) = oneshot();
+        let (reply_sender, mut reply_receiver) = R::oneshot();
         self.participant_address
             .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::Enable { reply_sender },
             ))?;
-        reply_receiver.await?
+        reply_receiver.receive().await?
     }
 
     /// Async version of [`get_instance_handle`](crate::domain::domain_participant::DomainParticipant::get_instance_handle).

@@ -8,7 +8,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::implementation::domain_participant_backend::domain_participant_actor::Timer;
+use crate::dcps::runtime::Timer;
 
 pub struct TimerWake {
     id: usize,

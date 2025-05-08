@@ -3,6 +3,7 @@ use super::{
     domain_participant::DomainParticipantAsync, topic::TopicAsync,
 };
 use crate::{
+    dcps::runtime::{DdsRuntime, OneshotReceive},
     implementation::{
         domain_participant_backend::domain_participant_actor_mail::{
             DomainParticipantMail, SubscriberServiceMail,
@@ -22,7 +23,6 @@ use crate::{
     runtime::{
         actor::{Actor, ActorAddress},
         mpsc::MpscSender,
-        oneshot::oneshot,
     },
     subscription::{
         data_reader_listener::DataReaderListener, subscriber_listener::SubscriberListener,
@@ -30,18 +30,27 @@ use crate::{
 };
 
 /// Async version of [`Subscriber`](crate::subscription::subscriber::Subscriber).
-#[derive(Clone)]
-pub struct SubscriberAsync {
+pub struct SubscriberAsync<R: DdsRuntime> {
     handle: InstanceHandle,
     status_condition_address: ActorAddress<StatusConditionActor>,
-    participant: DomainParticipantAsync,
+    participant: DomainParticipantAsync<R>,
 }
 
-impl SubscriberAsync {
+impl<R: DdsRuntime> Clone for SubscriberAsync<R> {
+    fn clone(&self) -> Self {
+        Self {
+            handle: self.handle.clone(),
+            status_condition_address: self.status_condition_address.clone(),
+            participant: self.participant.clone(),
+        }
+    }
+}
+
+impl<R: DdsRuntime> SubscriberAsync<R> {
     pub(crate) fn new(
         handle: InstanceHandle,
         status_condition_address: ActorAddress<StatusConditionActor>,
-        participant: DomainParticipantAsync,
+        participant: DomainParticipantAsync<R>,
     ) -> Self {
         Self {
             handle,
@@ -50,21 +59,21 @@ impl SubscriberAsync {
         }
     }
 
-    pub(crate) fn participant_address(&self) -> &MpscSender<DomainParticipantMail> {
+    pub(crate) fn participant_address(&self) -> &MpscSender<DomainParticipantMail<R>> {
         self.participant.participant_address()
     }
 }
 
-impl SubscriberAsync {
+impl<R: DdsRuntime> SubscriberAsync<R> {
     /// Async version of [`create_datareader`](crate::subscription::subscriber::Subscriber::create_datareader).
     #[tracing::instrument(skip(self, a_topic, a_listener))]
     pub async fn create_datareader<'a, 'b, Foo>(
         &'a self,
-        a_topic: &'a TopicAsync,
+        a_topic: &'a TopicAsync<R>,
         qos: QosKind<DataReaderQos>,
-        a_listener: impl DataReaderListener<'b, Foo> + Send + 'static,
+        a_listener: impl DataReaderListener<'b, R, Foo> + Send + 'static,
         mask: &'a [StatusKind],
-    ) -> DdsResult<DataReaderAsync<Foo>>
+    ) -> DdsResult<DataReaderAsync<R, Foo>>
     where
         Foo: 'b,
     {
@@ -75,7 +84,7 @@ impl SubscriberAsync {
         let reader_status_condition_address = status_condition.address();
         let listener_sender =
             DataReaderListenerActor::spawn(a_listener, self.participant.executor_handle());
-        let (reply_sender, reply_receiver) = oneshot();
+        let (reply_sender, mut reply_receiver) = R::oneshot();
         self.participant_address()
             .send(DomainParticipantMail::Subscriber(
                 SubscriberServiceMail::CreateDataReader {
@@ -89,7 +98,7 @@ impl SubscriberAsync {
                     reply_sender,
                 },
             ))?;
-        let guid = reply_receiver.await??;
+        let guid = reply_receiver.receive().await??;
 
         Ok(DataReaderAsync::new(
             guid,
@@ -103,9 +112,9 @@ impl SubscriberAsync {
     #[tracing::instrument(skip(self, a_datareader))]
     pub async fn delete_datareader<Foo>(
         &self,
-        a_datareader: &DataReaderAsync<Foo>,
+        a_datareader: &DataReaderAsync<R, Foo>,
     ) -> DdsResult<()> {
-        let (reply_sender, reply_receiver) = oneshot();
+        let (reply_sender, mut reply_receiver) = R::oneshot();
         self.participant_address()
             .send(DomainParticipantMail::Subscriber(
                 SubscriberServiceMail::DeleteDataReader {
@@ -114,7 +123,7 @@ impl SubscriberAsync {
                     reply_sender,
                 },
             ))?;
-        reply_receiver.await?
+        reply_receiver.receive().await?
     }
 
     /// Async version of [`lookup_datareader`](crate::subscription::subscriber::Subscriber::lookup_datareader).
@@ -122,9 +131,9 @@ impl SubscriberAsync {
     pub async fn lookup_datareader<Foo>(
         &self,
         topic_name: &str,
-    ) -> DdsResult<Option<DataReaderAsync<Foo>>> {
+    ) -> DdsResult<Option<DataReaderAsync<R, Foo>>> {
         if let Some(topic) = self.participant.lookup_topicdescription(topic_name).await? {
-            let (reply_sender, reply_receiver) = oneshot();
+            let (reply_sender, mut reply_receiver) = R::oneshot();
             self.participant_address()
                 .send(DomainParticipantMail::Subscriber(
                     SubscriberServiceMail::LookupDataReader {
@@ -133,7 +142,9 @@ impl SubscriberAsync {
                         reply_sender,
                     },
                 ))?;
-            if let Some((reader_handle, reader_status_condition_address)) = reply_receiver.await?? {
+            if let Some((reader_handle, reader_status_condition_address)) =
+                reply_receiver.receive().await??
+            {
                 Ok(Some(DataReaderAsync::new(
                     reader_handle,
                     reader_status_condition_address,
@@ -156,7 +167,7 @@ impl SubscriberAsync {
 
     /// Async version of [`get_participant`](crate::subscription::subscriber::Subscriber::get_participant).
     #[tracing::instrument(skip(self))]
-    pub fn get_participant(&self) -> DomainParticipantAsync {
+    pub fn get_participant(&self) -> DomainParticipantAsync<R> {
         self.participant.clone()
     }
 
@@ -175,7 +186,7 @@ impl SubscriberAsync {
     /// Async version of [`set_default_datareader_qos`](crate::subscription::subscriber::Subscriber::set_default_datareader_qos).
     #[tracing::instrument(skip(self))]
     pub async fn set_default_datareader_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
-        let (reply_sender, reply_receiver) = oneshot();
+        let (reply_sender, mut reply_receiver) = R::oneshot();
         self.participant_address()
             .send(DomainParticipantMail::Subscriber(
                 SubscriberServiceMail::SetDefaultDataReaderQos {
@@ -185,13 +196,13 @@ impl SubscriberAsync {
                 },
             ))?;
 
-        reply_receiver.await?
+        reply_receiver.receive().await?
     }
 
     /// Async version of [`get_default_datareader_qos`](crate::subscription::subscriber::Subscriber::get_default_datareader_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_default_datareader_qos(&self) -> DdsResult<DataReaderQos> {
-        let (reply_sender, reply_receiver) = oneshot();
+        let (reply_sender, mut reply_receiver) = R::oneshot();
         self.participant_address()
             .send(DomainParticipantMail::Subscriber(
                 SubscriberServiceMail::GetDefaultDataReaderQos {
@@ -199,7 +210,7 @@ impl SubscriberAsync {
                     reply_sender,
                 },
             ))?;
-        reply_receiver.await?
+        reply_receiver.receive().await?
     }
 
     /// Async version of [`copy_from_topic_qos`](crate::subscription::subscriber::Subscriber::copy_from_topic_qos).
@@ -214,7 +225,7 @@ impl SubscriberAsync {
     /// Async version of [`set_qos`](crate::subscription::subscriber::Subscriber::set_qos).
     #[tracing::instrument(skip(self))]
     pub async fn set_qos(&self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
-        let (reply_sender, reply_receiver) = oneshot();
+        let (reply_sender, mut reply_receiver) = R::oneshot();
         self.participant_address()
             .send(DomainParticipantMail::Subscriber(
                 SubscriberServiceMail::SetQos {
@@ -223,13 +234,13 @@ impl SubscriberAsync {
                     reply_sender,
                 },
             ))?;
-        reply_receiver.await?
+        reply_receiver.receive().await?
     }
 
     /// Async version of [`get_qos`](crate::subscription::subscriber::Subscriber::get_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_qos(&self) -> DdsResult<SubscriberQos> {
-        let (reply_sender, reply_receiver) = oneshot();
+        let (reply_sender, mut reply_receiver) = R::oneshot();
         self.participant_address()
             .send(DomainParticipantMail::Subscriber(
                 SubscriberServiceMail::GetSubscriberQos {
@@ -237,17 +248,17 @@ impl SubscriberAsync {
                     reply_sender,
                 },
             ))?;
-        reply_receiver.await?
+        reply_receiver.receive().await?
     }
 
     /// Async version of [`set_listener`](crate::subscription::subscriber::Subscriber::set_listener).
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn set_listener(
         &self,
-        a_listener: impl SubscriberListener + Send + 'static,
+        a_listener: impl SubscriberListener<R> + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        let (reply_sender, reply_receiver) = oneshot();
+        let (reply_sender, mut reply_receiver) = R::oneshot();
         let listener_sender =
             SubscriberListenerActor::spawn(a_listener, self.participant.executor_handle());
         self.participant_address()
@@ -259,7 +270,7 @@ impl SubscriberAsync {
                     reply_sender,
                 },
             ))?;
-        reply_receiver.await?
+        reply_receiver.receive().await?
     }
 
     /// Async version of [`get_statuscondition`](crate::subscription::subscriber::Subscriber::get_statuscondition).

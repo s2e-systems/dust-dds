@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use crate::{
     condition::StatusCondition,
+    dcps::runtime::DdsRuntime,
     dds_async::topic::TopicAsync,
     domain::domain_participant::DomainParticipant,
     infrastructure::{
@@ -19,23 +20,23 @@ use super::topic_listener::TopicListener;
 /// The [`Topic`] represents the fact that both publications and subscriptions are tied to a single data-type. Its attributes
 /// `type_name` defines a unique resulting type for the publication or the subscription. It has also a `name` that allows it to
 /// be retrieved locally.
-pub struct Topic {
-    topic_async: TopicAsync,
+pub struct Topic<R: DdsRuntime> {
+    topic_async: TopicAsync<R>,
 }
 
-impl Topic {
-    pub(crate) fn topic_async(&self) -> &TopicAsync {
+impl<R: DdsRuntime> Topic<R> {
+    pub(crate) fn topic_async(&self) -> &TopicAsync<R> {
         &self.topic_async
     }
 }
 
-impl From<TopicAsync> for Topic {
-    fn from(value: TopicAsync) -> Self {
+impl<R: DdsRuntime> From<TopicAsync<R>> for Topic<R> {
+    fn from(value: TopicAsync<R>) -> Self {
         Self { topic_async: value }
     }
 }
 
-impl Topic {
+impl<R: DdsRuntime> Topic<R> {
     /// This method allows the application to retrieve the [`InconsistentTopicStatus`] of the [`Topic`].
     #[tracing::instrument(skip(self))]
     pub fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
@@ -44,10 +45,10 @@ impl Topic {
 }
 
 /// This implementation block represents the TopicDescription operations for the [`Topic`].
-impl Topic {
+impl<R: DdsRuntime> Topic<R> {
     /// This operation returns the [`DomainParticipant`] to which the [`Topic`] belongs.
     #[tracing::instrument(skip(self))]
-    pub fn get_participant(&self) -> DomainParticipant {
+    pub fn get_participant(&self) -> DomainParticipant<R> {
         DomainParticipant::new(self.topic_async.get_participant())
     }
 
@@ -65,7 +66,7 @@ impl Topic {
 }
 
 /// This implementation block contains the Entity operations for the [`Topic`].
-impl Topic {
+impl<R: DdsRuntime> Topic<R> {
     /// This operation is used to set the QoS policies of the Entity and replacing the values of any policies previously set.
     /// Certain policies are *immutable;* they can only be set at Entity creation time, or before the entity is made enabled.
     /// If [`Self::set_qos()`] is invoked after the Entity is enabled and it attempts to change the value of an *immutable* policy, the operation will
@@ -148,14 +149,14 @@ impl Topic {
     #[tracing::instrument(skip(self, a_listener))]
     pub fn set_listener(
         &self,
-        a_listener: impl TopicListener + Send + 'static,
+        a_listener: impl TopicListener<R> + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         block_on(self.topic_async.set_listener(a_listener, mask))
     }
 }
 
-impl Topic {
+impl<R: DdsRuntime> Topic<R> {
     #[doc(hidden)]
     #[tracing::instrument(skip(self))]
     pub fn get_type_support(&self) -> DdsResult<Arc<dyn DynamicType + Send + Sync>> {

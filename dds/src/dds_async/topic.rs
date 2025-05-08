@@ -1,5 +1,6 @@
 use super::{condition::StatusConditionAsync, domain_participant::DomainParticipantAsync};
 use crate::{
+    dcps::runtime::{DdsRuntime, OneshotReceive},
     implementation::{
         domain_participant_backend::domain_participant_actor_mail::{
             DomainParticipantMail, TopicServiceMail,
@@ -12,29 +13,40 @@ use crate::{
         qos::{QosKind, TopicQos},
         status::{InconsistentTopicStatus, StatusKind},
     },
-    runtime::{actor::ActorAddress, oneshot::oneshot},
+    runtime::actor::ActorAddress,
     topic_definition::topic_listener::TopicListener,
     xtypes::dynamic_type::DynamicType,
 };
 use std::sync::Arc;
 
 /// Async version of [`Topic`](crate::topic_definition::topic::Topic).
-#[derive(Clone)]
-pub struct TopicAsync {
+pub struct TopicAsync<R: DdsRuntime> {
     handle: InstanceHandle,
     status_condition_address: ActorAddress<StatusConditionActor>,
     type_name: String,
     topic_name: String,
-    participant: DomainParticipantAsync,
+    participant: DomainParticipantAsync<R>,
 }
 
-impl TopicAsync {
+impl<R: DdsRuntime> Clone for TopicAsync<R> {
+    fn clone(&self) -> Self {
+        Self {
+            handle: self.handle.clone(),
+            status_condition_address: self.status_condition_address.clone(),
+            type_name: self.type_name.clone(),
+            topic_name: self.topic_name.clone(),
+            participant: self.participant.clone(),
+        }
+    }
+}
+
+impl<R: DdsRuntime> TopicAsync<R> {
     pub(crate) fn new(
         handle: InstanceHandle,
         status_condition_address: ActorAddress<StatusConditionActor>,
         type_name: String,
         topic_name: String,
-        participant: DomainParticipantAsync,
+        participant: DomainParticipantAsync<R>,
     ) -> Self {
         Self {
             handle,
@@ -46,11 +58,11 @@ impl TopicAsync {
     }
 }
 
-impl TopicAsync {
+impl<R: DdsRuntime> TopicAsync<R> {
     /// Async version of [`get_inconsistent_topic_status`](crate::topic_definition::topic::Topic::get_inconsistent_topic_status).
     #[tracing::instrument(skip(self))]
     pub async fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
-        let (reply_sender, reply_receiver) = oneshot();
+        let (reply_sender, mut reply_receiver) = R::oneshot();
         self.participant
             .participant_address()
             .send(DomainParticipantMail::Topic(
@@ -59,14 +71,14 @@ impl TopicAsync {
                     reply_sender,
                 },
             ))?;
-        reply_receiver.await?
+        reply_receiver.receive().await?
     }
 }
 
-impl TopicAsync {
+impl<R: DdsRuntime> TopicAsync<R> {
     /// Async version of [`get_participant`](crate::topic_definition::topic::Topic::get_participant).
     #[tracing::instrument(skip(self))]
-    pub fn get_participant(&self) -> DomainParticipantAsync {
+    pub fn get_participant(&self) -> DomainParticipantAsync<R> {
         self.participant.clone()
     }
 
@@ -83,11 +95,11 @@ impl TopicAsync {
     }
 }
 
-impl TopicAsync {
+impl<R: DdsRuntime> TopicAsync<R> {
     /// Async version of [`set_qos`](crate::topic_definition::topic::Topic::set_qos).
     #[tracing::instrument(skip(self))]
     pub async fn set_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
-        let (reply_sender, reply_receiver) = oneshot();
+        let (reply_sender, mut reply_receiver) = R::oneshot();
         self.participant
             .participant_address()
             .send(DomainParticipantMail::Topic(TopicServiceMail::SetQos {
@@ -96,13 +108,13 @@ impl TopicAsync {
                 reply_sender,
             }))?;
 
-        reply_receiver.await?
+        reply_receiver.receive().await?
     }
 
     /// Async version of [`get_qos`](crate::topic_definition::topic::Topic::get_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_qos(&self) -> DdsResult<TopicQos> {
-        let (reply_sender, reply_receiver) = oneshot();
+        let (reply_sender, mut reply_receiver) = R::oneshot();
         self.participant
             .participant_address()
             .send(DomainParticipantMail::Topic(TopicServiceMail::GetQos {
@@ -110,7 +122,7 @@ impl TopicAsync {
                 reply_sender,
             }))?;
 
-        reply_receiver.await?
+        reply_receiver.receive().await?
     }
 
     /// Async version of [`get_statuscondition`](crate::topic_definition::topic::Topic::get_statuscondition).
@@ -128,14 +140,14 @@ impl TopicAsync {
     /// Async version of [`enable`](crate::topic_definition::topic::Topic::enable).
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
-        let (reply_sender, reply_receiver) = oneshot();
+        let (reply_sender, mut reply_receiver) = R::oneshot();
         self.participant
             .participant_address()
             .send(DomainParticipantMail::Topic(TopicServiceMail::Enable {
                 topic_name: self.topic_name.clone(),
                 reply_sender,
             }))?;
-        reply_receiver.await?
+        reply_receiver.receive().await?
     }
 
     /// Async version of [`get_instance_handle`](crate::topic_definition::topic::Topic::get_instance_handle).
@@ -148,18 +160,18 @@ impl TopicAsync {
     #[tracing::instrument(skip(self, _a_listener))]
     pub async fn set_listener(
         &self,
-        _a_listener: impl TopicListener + Send + 'static,
+        _a_listener: impl TopicListener<R> + Send + 'static,
         _mask: &[StatusKind],
     ) -> DdsResult<()> {
         todo!()
     }
 }
 
-impl TopicAsync {
+impl<R: DdsRuntime> TopicAsync<R> {
     #[doc(hidden)]
     #[tracing::instrument(skip(self))]
     pub async fn get_type_support(&self) -> DdsResult<Arc<dyn DynamicType + Send + Sync>> {
-        let (reply_sender, reply_receiver) = oneshot();
+        let (reply_sender, mut reply_receiver) = R::oneshot();
         self.participant
             .participant_address()
             .send(DomainParticipantMail::Topic(
@@ -169,6 +181,6 @@ impl TopicAsync {
                 },
             ))?;
 
-        reply_receiver.await?
+        reply_receiver.receive().await?
     }
 }

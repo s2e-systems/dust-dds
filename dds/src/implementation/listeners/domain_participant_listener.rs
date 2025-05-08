@@ -1,4 +1,5 @@
 use crate::{
+    dcps::runtime::DdsRuntime,
     dds_async::{
         data_reader::DataReaderAsync, data_writer::DataWriterAsync, subscriber::SubscriberAsync,
     },
@@ -17,10 +18,10 @@ use crate::{
 pub struct DomainParticipantListenerActor;
 
 impl DomainParticipantListenerActor {
-    pub fn spawn(
-        mut listener: impl DomainParticipantListener + Send + 'static,
+    pub fn spawn<R: DdsRuntime>(
+        mut listener: impl DomainParticipantListener<R> + Send + 'static,
         executor_handle: &ExecutorHandle,
-    ) -> MpscSender<ListenerMail> {
+    ) -> MpscSender<ListenerMail<R>> {
         let (listener_sender, listener_receiver) = mpsc_channel();
         executor_handle.spawn(async move {
             while let Some(m) = listener_receiver.recv().await {
@@ -67,39 +68,39 @@ impl DomainParticipantListenerActor {
     }
 }
 
-pub enum ListenerMail {
+pub enum ListenerMail<R: DdsRuntime> {
     DataAvailable {
-        the_reader: DataReaderAsync<()>,
+        the_reader: DataReaderAsync<R, ()>,
     },
     DataOnReaders {
-        the_subscriber: SubscriberAsync,
+        the_subscriber: SubscriberAsync<R>,
     },
     RequestedDeadlineMissed {
-        the_reader: DataReaderAsync<()>,
+        the_reader: DataReaderAsync<R, ()>,
         status: RequestedDeadlineMissedStatus,
     },
     SampleRejected {
-        the_reader: DataReaderAsync<()>,
+        the_reader: DataReaderAsync<R, ()>,
         status: SampleRejectedStatus,
     },
     SubscriptionMatched {
-        the_reader: DataReaderAsync<()>,
+        the_reader: DataReaderAsync<R, ()>,
         status: SubscriptionMatchedStatus,
     },
     RequestedIncompatibleQos {
-        the_reader: DataReaderAsync<()>,
+        the_reader: DataReaderAsync<R, ()>,
         status: RequestedIncompatibleQosStatus,
     },
     PublicationMatched {
-        the_writer: DataWriterAsync<()>,
+        the_writer: DataWriterAsync<R, ()>,
         status: PublicationMatchedStatus,
     },
     OfferedIncompatibleQos {
-        the_writer: DataWriterAsync<()>,
+        the_writer: DataWriterAsync<R, ()>,
         status: OfferedIncompatibleQosStatus,
     },
     OfferedDeadlineMissed {
-        the_writer: DataWriterAsync<()>,
+        the_writer: DataWriterAsync<R, ()>,
         status: OfferedDeadlineMissedStatus,
     },
 }

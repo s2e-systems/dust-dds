@@ -1,4 +1,5 @@
 use crate::{
+    dcps::runtime::DdsRuntime,
     runtime::{
         executor::ExecutorHandle,
         mpsc::{mpsc_channel, MpscSender},
@@ -11,10 +12,10 @@ use super::domain_participant_listener::ListenerMail;
 pub struct DataReaderListenerActor;
 
 impl DataReaderListenerActor {
-    pub fn spawn<'a, Foo>(
-        mut listener: impl DataReaderListener<'a, Foo> + Send + 'static,
+    pub fn spawn<'a, R: DdsRuntime, Foo>(
+        mut listener: impl DataReaderListener<'a, R, Foo> + Send + 'static,
         executor_handle: &ExecutorHandle,
-    ) -> MpscSender<ListenerMail>
+    ) -> MpscSender<ListenerMail<R>>
     where
         Foo: 'a,
     {
