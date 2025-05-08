@@ -1,6 +1,7 @@
 use clap::Parser;
 use ctrlc;
 use dust_dds::{
+    dcps::runtime::DdsRuntime,
     dds_async::topic::TopicAsync,
     domain::{
         domain_participant::DomainParticipant,
@@ -22,6 +23,7 @@ use dust_dds::{
     },
     listener::NoOpListener,
     publication::data_writer::DataWriter,
+    runtime::StdRuntime,
     subscription::data_reader::DataReader,
 };
 use rand::{random, thread_rng, Rng};
@@ -251,10 +253,10 @@ impl Options {
 }
 
 struct Listener;
-impl DomainParticipantListener for Listener {
+impl<R: DdsRuntime> DomainParticipantListener<R> for Listener {
     fn on_inconsistent_topic(
         &mut self,
-        the_topic: TopicAsync,
+        the_topic: TopicAsync<R>,
         _status: InconsistentTopicStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(async move {
@@ -268,7 +270,7 @@ impl DomainParticipantListener for Listener {
 
     fn on_offered_incompatible_qos(
         &mut self,
-        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<()>,
+        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<R, ()>,
         status: dust_dds::infrastructure::status::OfferedIncompatibleQosStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(async move {
@@ -285,7 +287,7 @@ impl DomainParticipantListener for Listener {
 
     fn on_publication_matched(
         &mut self,
-        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<()>,
+        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<R, ()>,
         status: dust_dds::infrastructure::status::PublicationMatchedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(async move {
@@ -303,7 +305,7 @@ impl DomainParticipantListener for Listener {
 
     fn on_offered_deadline_missed(
         &mut self,
-        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<()>,
+        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<R, ()>,
         status: dust_dds::infrastructure::status::OfferedDeadlineMissedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(async move {
@@ -319,7 +321,7 @@ impl DomainParticipantListener for Listener {
 
     fn on_liveliness_lost(
         &mut self,
-        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<()>,
+        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<R, ()>,
         status: dust_dds::infrastructure::status::LivelinessLostStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(async move {
@@ -335,7 +337,7 @@ impl DomainParticipantListener for Listener {
 
     fn on_requested_incompatible_qos(
         &mut self,
-        the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<()>,
+        the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<R, ()>,
         status: dust_dds::infrastructure::status::RequestedIncompatibleQosStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(async move {
@@ -352,7 +354,7 @@ impl DomainParticipantListener for Listener {
 
     fn on_subscription_matched(
         &mut self,
-        the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<()>,
+        the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<R, ()>,
         status: dust_dds::infrastructure::status::SubscriptionMatchedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(async move {
@@ -374,7 +376,7 @@ impl DomainParticipantListener for Listener {
 
     fn on_requested_deadline_missed(
         &mut self,
-        the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<()>,
+        the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<R, ()>,
         status: dust_dds::infrastructure::status::RequestedDeadlineMissedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(async move {
@@ -390,7 +392,7 @@ impl DomainParticipantListener for Listener {
 
     fn on_liveliness_changed(
         &mut self,
-        the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<()>,
+        the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<R, ()>,
         status: dust_dds::infrastructure::status::LivelinessChangedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(async move {
@@ -433,9 +435,9 @@ fn move_shape(
 }
 
 fn init_publisher(
-    participant: &DomainParticipant,
+    participant: &DomainParticipant<StdRuntime>,
     options: Options,
-) -> Result<DataWriter<ShapeType>, InitializeError> {
+) -> Result<DataWriter<StdRuntime, ShapeType>, InitializeError> {
     let topic = participant
         .lookup_topicdescription(&options.topic_name)
         .expect("lookup_topicdescription succeeds")
@@ -478,7 +480,7 @@ fn init_publisher(
 }
 
 fn run_publisher(
-    data_writer: &DataWriter<ShapeType>,
+    data_writer: &DataWriter<StdRuntime, ShapeType>,
     options: Options,
     all_done: Receiver<()>,
 ) -> Result<(), RunningError> {
@@ -530,9 +532,9 @@ fn run_publisher(
 }
 
 fn init_subscriber(
-    participant: &DomainParticipant,
+    participant: &DomainParticipant<StdRuntime>,
     options: Options,
-) -> Result<DataReader<ShapeType>, InitializeError> {
+) -> Result<DataReader<StdRuntime, ShapeType>, InitializeError> {
     let topic = participant
         .lookup_topicdescription(&options.topic_name)
         .expect("lookup_topicdescription succeeds")
@@ -590,7 +592,7 @@ fn init_subscriber(
 }
 
 fn run_subscriber(
-    data_reader: &DataReader<ShapeType>,
+    data_reader: &DataReader<StdRuntime, ShapeType>,
     options: Options,
     all_done: Receiver<()>,
 ) -> Result<(), RunningError> {
@@ -644,7 +646,7 @@ fn run_subscriber(
     Ok(())
 }
 
-fn initialize(options: &Options) -> Result<DomainParticipant, InitializeError> {
+fn initialize(options: &Options) -> Result<DomainParticipant<StdRuntime>, InitializeError> {
     let participant_factory = DomainParticipantFactory::get_instance();
     let participant = participant_factory.create_participant(
         options.domain_id,

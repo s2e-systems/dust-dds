@@ -24,22 +24,60 @@ use dust_dds::listener::NoOpListener;
 use pyo3::{exceptions::PyTypeError, prelude::*};
 
 #[pyclass]
-pub struct DataReader(dust_dds::subscription::data_reader::DataReader<PythonDdsData>);
+pub struct DataReader(
+    dust_dds::subscription::data_reader::DataReader<dust_dds::runtime::StdRuntime, PythonDdsData>,
+);
 
-impl From<dust_dds::subscription::data_reader::DataReader<PythonDdsData>> for DataReader {
-    fn from(value: dust_dds::subscription::data_reader::DataReader<PythonDdsData>) -> Self {
+impl
+    From<
+        dust_dds::subscription::data_reader::DataReader<
+            dust_dds::runtime::StdRuntime,
+            PythonDdsData,
+        >,
+    > for DataReader
+{
+    fn from(
+        value: dust_dds::subscription::data_reader::DataReader<
+            dust_dds::runtime::StdRuntime,
+            PythonDdsData,
+        >,
+    ) -> Self {
         Self(value)
     }
 }
 
-impl From<dust_dds::dds_async::data_reader::DataReaderAsync<PythonDdsData>> for DataReader {
-    fn from(value: dust_dds::dds_async::data_reader::DataReaderAsync<PythonDdsData>) -> Self {
+impl
+    From<
+        dust_dds::dds_async::data_reader::DataReaderAsync<
+            dust_dds::runtime::StdRuntime,
+            PythonDdsData,
+        >,
+    > for DataReader
+{
+    fn from(
+        value: dust_dds::dds_async::data_reader::DataReaderAsync<
+            dust_dds::runtime::StdRuntime,
+            PythonDdsData,
+        >,
+    ) -> Self {
         Self(dust_dds::subscription::data_reader::DataReader::from(value))
     }
 }
 
-impl AsRef<dust_dds::subscription::data_reader::DataReader<PythonDdsData>> for DataReader {
-    fn as_ref(&self) -> &dust_dds::subscription::data_reader::DataReader<PythonDdsData> {
+impl
+    AsRef<
+        dust_dds::subscription::data_reader::DataReader<
+            dust_dds::runtime::StdRuntime,
+            PythonDdsData,
+        >,
+    > for DataReader
+{
+    fn as_ref(
+        &self,
+    ) -> &dust_dds::subscription::data_reader::DataReader<
+        dust_dds::runtime::StdRuntime,
+        PythonDdsData,
+    > {
         &self.0
     }
 }

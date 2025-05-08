@@ -39,7 +39,8 @@ pub mod rtps_udp_transport;
 pub mod transport;
 
 #[cfg(feature = "std")]
-mod runtime;
+#[doc(hidden)]
+pub mod runtime;
 
 /// Contains the XTypes serializer and deserializer
 #[cfg(feature = "xtypes")]

@@ -12,10 +12,12 @@ impl From<Py<PyAny>> for TopicListener {
     }
 }
 
-impl dust_dds::topic_definition::topic_listener::TopicListener for TopicListener {
+impl dust_dds::topic_definition::topic_listener::TopicListener<dust_dds::runtime::StdRuntime>
+    for TopicListener
+{
     fn on_inconsistent_topic(
         &mut self,
-        the_topic: dust_dds::dds_async::topic::TopicAsync,
+        the_topic: dust_dds::dds_async::topic::TopicAsync<dust_dds::runtime::StdRuntime>,
         status: dust_dds::infrastructure::status::InconsistentTopicStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(async move {

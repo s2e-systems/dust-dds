@@ -8,8 +8,8 @@ pub enum Condition {
     StatusCondition { condition: StatusCondition },
 }
 
-impl From<dust_dds::wait_set::Condition> for Condition {
-    fn from(value: dust_dds::wait_set::Condition) -> Self {
+impl From<dust_dds::wait_set::Condition<dust_dds::runtime::StdRuntime>> for Condition {
+    fn from(value: dust_dds::wait_set::Condition<dust_dds::runtime::StdRuntime>) -> Self {
         match value {
             dust_dds::wait_set::Condition::StatusCondition(c) => Condition::StatusCondition {
                 condition: c.into(),
@@ -18,7 +18,7 @@ impl From<dust_dds::wait_set::Condition> for Condition {
     }
 }
 
-impl From<Condition> for dust_dds::wait_set::Condition {
+impl From<Condition> for dust_dds::wait_set::Condition<dust_dds::runtime::StdRuntime> {
     fn from(value: Condition) -> Self {
         match value {
             Condition::StatusCondition { condition } => {
@@ -30,7 +30,7 @@ impl From<Condition> for dust_dds::wait_set::Condition {
 
 #[pyclass]
 #[derive(Default)]
-pub struct WaitSet(dust_dds::wait_set::WaitSet);
+pub struct WaitSet(dust_dds::wait_set::WaitSet<dust_dds::runtime::StdRuntime>);
 
 #[pymethods]
 impl WaitSet {

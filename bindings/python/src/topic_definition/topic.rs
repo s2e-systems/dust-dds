@@ -15,22 +15,24 @@ use crate::{
 use super::topic_listener::TopicListener;
 
 #[pyclass]
-pub struct Topic(dust_dds::topic_definition::topic::Topic);
+pub struct Topic(dust_dds::topic_definition::topic::Topic<dust_dds::runtime::StdRuntime>);
 
-impl AsRef<dust_dds::topic_definition::topic::Topic> for Topic {
-    fn as_ref(&self) -> &dust_dds::topic_definition::topic::Topic {
+impl AsRef<dust_dds::topic_definition::topic::Topic<dust_dds::runtime::StdRuntime>> for Topic {
+    fn as_ref(&self) -> &dust_dds::topic_definition::topic::Topic<dust_dds::runtime::StdRuntime> {
         &self.0
     }
 }
 
-impl From<dust_dds::topic_definition::topic::Topic> for Topic {
-    fn from(value: dust_dds::topic_definition::topic::Topic) -> Self {
+impl From<dust_dds::topic_definition::topic::Topic<dust_dds::runtime::StdRuntime>> for Topic {
+    fn from(
+        value: dust_dds::topic_definition::topic::Topic<dust_dds::runtime::StdRuntime>,
+    ) -> Self {
         Self(value)
     }
 }
 
-impl From<dust_dds::dds_async::topic::TopicAsync> for Topic {
-    fn from(value: dust_dds::dds_async::topic::TopicAsync) -> Self {
+impl From<dust_dds::dds_async::topic::TopicAsync<dust_dds::runtime::StdRuntime>> for Topic {
+    fn from(value: dust_dds::dds_async::topic::TopicAsync<dust_dds::runtime::StdRuntime>) -> Self {
         Self(dust_dds::topic_definition::topic::Topic::from(value))
     }
 }

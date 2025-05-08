@@ -20,22 +20,58 @@ use crate::{
 use super::{data_writer_listener::DataWriterListener, publisher::Publisher};
 
 #[pyclass]
-pub struct DataWriter(dust_dds::publication::data_writer::DataWriter<PythonDdsData>);
+pub struct DataWriter(
+    dust_dds::publication::data_writer::DataWriter<dust_dds::runtime::StdRuntime, PythonDdsData>,
+);
 
-impl From<dust_dds::publication::data_writer::DataWriter<PythonDdsData>> for DataWriter {
-    fn from(value: dust_dds::publication::data_writer::DataWriter<PythonDdsData>) -> Self {
+impl
+    From<
+        dust_dds::publication::data_writer::DataWriter<
+            dust_dds::runtime::StdRuntime,
+            PythonDdsData,
+        >,
+    > for DataWriter
+{
+    fn from(
+        value: dust_dds::publication::data_writer::DataWriter<
+            dust_dds::runtime::StdRuntime,
+            PythonDdsData,
+        >,
+    ) -> Self {
         Self(value)
     }
 }
 
-impl From<dust_dds::dds_async::data_writer::DataWriterAsync<PythonDdsData>> for DataWriter {
-    fn from(value: dust_dds::dds_async::data_writer::DataWriterAsync<PythonDdsData>) -> Self {
+impl
+    From<
+        dust_dds::dds_async::data_writer::DataWriterAsync<
+            dust_dds::runtime::StdRuntime,
+            PythonDdsData,
+        >,
+    > for DataWriter
+{
+    fn from(
+        value: dust_dds::dds_async::data_writer::DataWriterAsync<
+            dust_dds::runtime::StdRuntime,
+            PythonDdsData,
+        >,
+    ) -> Self {
         Self(dust_dds::publication::data_writer::DataWriter::from(value))
     }
 }
 
-impl AsRef<dust_dds::publication::data_writer::DataWriter<PythonDdsData>> for DataWriter {
-    fn as_ref(&self) -> &dust_dds::publication::data_writer::DataWriter<PythonDdsData> {
+impl
+    AsRef<
+        dust_dds::publication::data_writer::DataWriter<
+            dust_dds::runtime::StdRuntime,
+            PythonDdsData,
+        >,
+    > for DataWriter
+{
+    fn as_ref(
+        &self,
+    ) -> &dust_dds::publication::data_writer::DataWriter<dust_dds::runtime::StdRuntime, PythonDdsData>
+    {
         &self.0
     }
 }

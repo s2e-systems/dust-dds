@@ -15,10 +15,15 @@ impl From<Py<PyAny>> for PublisherListener {
     }
 }
 
-impl dust_dds::publication::publisher_listener::PublisherListener for PublisherListener {
+impl dust_dds::publication::publisher_listener::PublisherListener<dust_dds::runtime::StdRuntime>
+    for PublisherListener
+{
     fn on_liveliness_lost(
         &mut self,
-        _the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<()>,
+        _the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<
+            dust_dds::runtime::StdRuntime,
+            (),
+        >,
         status: dust_dds::infrastructure::status::LivelinessLostStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(async move {
@@ -34,7 +39,10 @@ impl dust_dds::publication::publisher_listener::PublisherListener for PublisherL
 
     fn on_offered_deadline_missed(
         &mut self,
-        _the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<()>,
+        _the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<
+            dust_dds::runtime::StdRuntime,
+            (),
+        >,
         status: dust_dds::infrastructure::status::OfferedDeadlineMissedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(async move {
@@ -50,7 +58,10 @@ impl dust_dds::publication::publisher_listener::PublisherListener for PublisherL
 
     fn on_offered_incompatible_qos(
         &mut self,
-        _the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<()>,
+        _the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<
+            dust_dds::runtime::StdRuntime,
+            (),
+        >,
         status: dust_dds::infrastructure::status::OfferedIncompatibleQosStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(async move {
@@ -66,7 +77,10 @@ impl dust_dds::publication::publisher_listener::PublisherListener for PublisherL
 
     fn on_publication_matched(
         &mut self,
-        _the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<()>,
+        _the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<
+            dust_dds::runtime::StdRuntime,
+            (),
+        >,
         status: dust_dds::infrastructure::status::PublicationMatchedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(async move {

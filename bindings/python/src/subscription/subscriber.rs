@@ -19,22 +19,36 @@ use super::{
 };
 
 #[pyclass]
-pub struct Subscriber(dust_dds::subscription::subscriber::Subscriber);
+pub struct Subscriber(
+    dust_dds::subscription::subscriber::Subscriber<dust_dds::runtime::StdRuntime>,
+);
 
-impl From<dust_dds::subscription::subscriber::Subscriber> for Subscriber {
-    fn from(value: dust_dds::subscription::subscriber::Subscriber) -> Self {
+impl From<dust_dds::subscription::subscriber::Subscriber<dust_dds::runtime::StdRuntime>>
+    for Subscriber
+{
+    fn from(
+        value: dust_dds::subscription::subscriber::Subscriber<dust_dds::runtime::StdRuntime>,
+    ) -> Self {
         Self(value)
     }
 }
 
-impl From<dust_dds::dds_async::subscriber::SubscriberAsync> for Subscriber {
-    fn from(value: dust_dds::dds_async::subscriber::SubscriberAsync) -> Self {
+impl From<dust_dds::dds_async::subscriber::SubscriberAsync<dust_dds::runtime::StdRuntime>>
+    for Subscriber
+{
+    fn from(
+        value: dust_dds::dds_async::subscriber::SubscriberAsync<dust_dds::runtime::StdRuntime>,
+    ) -> Self {
         Self(dust_dds::subscription::subscriber::Subscriber::from(value))
     }
 }
 
-impl AsRef<dust_dds::subscription::subscriber::Subscriber> for Subscriber {
-    fn as_ref(&self) -> &dust_dds::subscription::subscriber::Subscriber {
+impl AsRef<dust_dds::subscription::subscriber::Subscriber<dust_dds::runtime::StdRuntime>>
+    for Subscriber
+{
+    fn as_ref(
+        &self,
+    ) -> &dust_dds::subscription::subscriber::Subscriber<dust_dds::runtime::StdRuntime> {
         &self.0
     }
 }

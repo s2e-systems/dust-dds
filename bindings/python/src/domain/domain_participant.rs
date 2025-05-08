@@ -28,16 +28,29 @@ use super::domain_participant_listener::DomainParticipantListener;
 static TYPE_REGISTRY: OnceLock<Mutex<HashMap<String, Py<PyAny>>>> = OnceLock::new();
 
 #[pyclass]
-pub struct DomainParticipant(dust_dds::domain::domain_participant::DomainParticipant);
+pub struct DomainParticipant(
+    dust_dds::domain::domain_participant::DomainParticipant<dust_dds::runtime::StdRuntime>,
+);
 
-impl From<dust_dds::domain::domain_participant::DomainParticipant> for DomainParticipant {
-    fn from(value: dust_dds::domain::domain_participant::DomainParticipant) -> Self {
+impl From<dust_dds::domain::domain_participant::DomainParticipant<dust_dds::runtime::StdRuntime>>
+    for DomainParticipant
+{
+    fn from(
+        value: dust_dds::domain::domain_participant::DomainParticipant<
+            dust_dds::runtime::StdRuntime,
+        >,
+    ) -> Self {
         Self(value)
     }
 }
 
-impl AsRef<dust_dds::domain::domain_participant::DomainParticipant> for DomainParticipant {
-    fn as_ref(&self) -> &dust_dds::domain::domain_participant::DomainParticipant {
+impl AsRef<dust_dds::domain::domain_participant::DomainParticipant<dust_dds::runtime::StdRuntime>>
+    for DomainParticipant
+{
+    fn as_ref(
+        &self,
+    ) -> &dust_dds::domain::domain_participant::DomainParticipant<dust_dds::runtime::StdRuntime>
+    {
         &self.0
     }
 }
