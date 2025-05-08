@@ -3,10 +3,9 @@ use std::sync::OnceLock;
 use super::domain_participant::DomainParticipant;
 use crate::{
     configuration::DustDdsConfiguration,
-    dcps::runtime::DdsRuntime,
+    dcps::{domain_participant_factory_actor::DdsTransportParticipantFactory, runtime::DdsRuntime},
     dds_async::domain_participant_factory::DomainParticipantFactoryAsync,
     domain::domain_participant_listener::DomainParticipantListener,
-    implementation::domain_participant_factory::domain_participant_factory_actor::DdsTransportParticipantFactory,
     infrastructure::{
         domain::DomainId,
         error::DdsResult,

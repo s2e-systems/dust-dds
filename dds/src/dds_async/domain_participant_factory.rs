@@ -10,16 +10,14 @@ use crate::{
         domain_participant_actor_mail::{
             DiscoveryServiceMail, DomainParticipantMail, ParticipantServiceMail,
         },
-        runtime::{ChannelSend, DdsRuntime, OneshotReceive},
-    },
-    domain::domain_participant_listener::DomainParticipantListener,
-    implementation::{
-        domain_participant_factory::domain_participant_factory_actor::{
+        domain_participant_factory_actor::{
             DdsTransportParticipantFactory, DomainParticipantFactoryActor,
             DomainParticipantFactoryMail,
         },
         listeners::domain_participant_listener::DomainParticipantListenerActor,
+        runtime::{ChannelSend, DdsRuntime, OneshotReceive},
     },
+    domain::domain_participant_listener::DomainParticipantListener,
     infrastructure::{
         domain::DomainId,
         error::{DdsError, DdsResult},

@@ -21,9 +21,6 @@ pub mod dcps;
 #[cfg(feature = "dcps")]
 pub use dcps::{builtin_topics, infrastructure};
 
-#[cfg(feature = "std")]
-mod implementation;
-
 #[doc(hidden)]
 #[cfg(feature = "rtps")]
 pub mod rtps;

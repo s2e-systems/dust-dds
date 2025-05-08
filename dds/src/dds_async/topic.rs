@@ -3,8 +3,8 @@ use crate::{
     dcps::{
         domain_participant_actor_mail::{DomainParticipantMail, TopicServiceMail},
         runtime::{ChannelSend, DdsRuntime, OneshotReceive},
+        status_condition_actor::StatusConditionActor,
     },
-    implementation::status_condition::status_condition_actor::StatusConditionActor,
     infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,

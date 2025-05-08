@@ -5,11 +5,9 @@ use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     dcps::{
         domain_participant_actor_mail::{DomainParticipantMail, WriterServiceMail},
-        runtime::{ChannelSend, DdsRuntime, OneshotReceive},
-    },
-    implementation::{
         listeners::data_writer_listener::DataWriterListenerActor,
-        status_condition::status_condition_actor::StatusConditionActor,
+        runtime::{ChannelSend, DdsRuntime, OneshotReceive},
+        status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
         error::DdsResult,

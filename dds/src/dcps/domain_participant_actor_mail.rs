@@ -6,10 +6,10 @@ use crate::{
         ParticipantBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
         TopicBuiltinTopicData,
     },
-    dcps::runtime::{DdsRuntime, OneshotSend},
-    implementation::{
+    dcps::{
         listeners::domain_participant_listener::ListenerMail,
-        status_condition::status_condition_actor::StatusConditionActor,
+        runtime::{DdsRuntime, OneshotSend},
+        status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
         error::DdsResult,

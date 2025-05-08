@@ -1,6 +1,6 @@
-use std::time::Duration;
-
 use crate::infrastructure::error::DdsResult;
+use alloc::string::String;
+use core::time::Duration;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 /// This struct specifies the high-level configuration for the DustDDS library. The configuration can be set for use by the
