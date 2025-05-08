@@ -1,12 +1,10 @@
 use super::{condition::StatusConditionAsync, domain_participant::DomainParticipantAsync};
 use crate::{
-    dcps::runtime::{ChannelSend, DdsRuntime, OneshotReceive},
-    implementation::{
-        domain_participant_backend::domain_participant_actor_mail::{
-            DomainParticipantMail, TopicServiceMail,
-        },
-        status_condition::status_condition_actor::StatusConditionActor,
+    dcps::{
+        domain_participant_actor_mail::{DomainParticipantMail, TopicServiceMail},
+        runtime::{ChannelSend, DdsRuntime, OneshotReceive},
     },
+    implementation::status_condition::status_condition_actor::StatusConditionActor,
     infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,

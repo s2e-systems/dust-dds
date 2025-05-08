@@ -3,11 +3,11 @@ use super::{
     domain_participant::DomainParticipantAsync, topic::TopicAsync,
 };
 use crate::{
-    dcps::runtime::{ChannelSend, DdsRuntime, OneshotReceive},
+    dcps::{
+        domain_participant_actor_mail::{DomainParticipantMail, PublisherServiceMail},
+        runtime::{ChannelSend, DdsRuntime, OneshotReceive},
+    },
     implementation::{
-        domain_participant_backend::domain_participant_actor_mail::{
-            DomainParticipantMail, PublisherServiceMail,
-        },
         listeners::{
             data_writer_listener::DataWriterListenerActor,
             publisher_listener::PublisherListenerActor,

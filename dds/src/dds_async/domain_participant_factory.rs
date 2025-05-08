@@ -6,12 +6,14 @@ use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use super::domain_participant::DomainParticipantAsync;
 use crate::{
     configuration::DustDdsConfiguration,
-    dcps::runtime::{ChannelSend, DdsRuntime, OneshotReceive},
-    domain::domain_participant_listener::DomainParticipantListener,
-    implementation::{
-        domain_participant_backend::domain_participant_actor_mail::{
+    dcps::{
+        domain_participant_actor_mail::{
             DiscoveryServiceMail, DomainParticipantMail, ParticipantServiceMail,
         },
+        runtime::{ChannelSend, DdsRuntime, OneshotReceive},
+    },
+    domain::domain_participant_listener::DomainParticipantListener,
+    implementation::{
         domain_participant_factory::domain_participant_factory_actor::{
             DdsTransportParticipantFactory, DomainParticipantFactoryActor,
             DomainParticipantFactoryMail,

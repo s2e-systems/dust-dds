@@ -11,20 +11,17 @@ use crate::{
         },
         data_writer::{DataWriterEntity, TransportWriterKind},
         domain_participant::DomainParticipantEntity,
+        domain_participant_actor::DomainParticipantActor,
+        domain_participant_actor_mail::{
+            DiscoveryServiceMail, DomainParticipantMail, MessageServiceMail, ParticipantServiceMail,
+        },
+        handle::InstanceHandleCounter,
         publisher::PublisherEntity,
         runtime::{ChannelReceive, ChannelSend, DdsRuntime, OneshotSend, Spawner, Timer},
         subscriber::SubscriberEntity,
         topic::TopicEntity,
     },
     implementation::{
-        domain_participant_backend::{
-            domain_participant_actor::DomainParticipantActor,
-            domain_participant_actor_mail::{
-                DiscoveryServiceMail, DomainParticipantMail, MessageServiceMail,
-                ParticipantServiceMail,
-            },
-            handle::InstanceHandleCounter,
-        },
         listeners::{
             data_reader_listener::DataReaderListenerActor,
             data_writer_listener::DataWriterListenerActor,

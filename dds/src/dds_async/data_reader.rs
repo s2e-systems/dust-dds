@@ -3,11 +3,11 @@ use tracing::warn;
 use super::{condition::StatusConditionAsync, subscriber::SubscriberAsync, topic::TopicAsync};
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
-    dcps::runtime::{ChannelSend, DdsRuntime, OneshotReceive},
+    dcps::{
+        domain_participant_actor_mail::{DomainParticipantMail, ReaderServiceMail},
+        runtime::{ChannelSend, DdsRuntime, OneshotReceive},
+    },
     implementation::{
-        domain_participant_backend::domain_participant_actor_mail::{
-            DomainParticipantMail, ReaderServiceMail,
-        },
         listeners::data_reader_listener::DataReaderListenerActor,
         status_condition::status_condition_actor::StatusConditionActor,
     },

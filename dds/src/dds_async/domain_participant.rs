@@ -4,12 +4,12 @@ use super::{
 };
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
-    dcps::runtime::{ChannelSend, DdsRuntime, OneshotReceive},
+    dcps::{
+        domain_participant_actor_mail::{DomainParticipantMail, ParticipantServiceMail},
+        runtime::{ChannelSend, DdsRuntime, OneshotReceive},
+    },
     domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
-        domain_participant_backend::domain_participant_actor_mail::{
-            DomainParticipantMail, ParticipantServiceMail,
-        },
         listeners::{
             domain_participant_listener::DomainParticipantListenerActor,
             publisher_listener::PublisherListenerActor,
