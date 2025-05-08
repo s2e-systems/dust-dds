@@ -47,7 +47,6 @@ use crate::{
         type_support::TypeSupport,
     },
     listener::NoOpListener,
-    rtps_udp_transport::udp_transport::RtpsUdpTransportParticipantFactory,
     transport::{
         factory::TransportParticipantFactory,
         history_cache::{CacheChange, HistoryCache},
@@ -60,7 +59,7 @@ use crate::{
         writer::{TransportStatefulWriter, TransportStatelessWriter},
     },
 };
-use alloc::{sync::Arc, vec::Vec};
+use alloc::{boxed::Box, string::String, sync::Arc, vec, vec::Vec};
 
 pub type DdsTransportParticipantFactory =
     Box<dyn TransportParticipantFactory<TransportParticipant = DdsTransportParticipant>>;
@@ -110,13 +109,17 @@ pub struct DomainParticipantFactoryActor<R: DdsRuntime> {
 }
 
 impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
-    pub fn new(app_id: [u8; 4], host_id: [u8; 4]) -> Self {
+    pub fn new(
+        app_id: [u8; 4],
+        host_id: [u8; 4],
+        transport: DdsTransportParticipantFactory,
+    ) -> Self {
         Self {
             domain_participant_list: Default::default(),
             qos: Default::default(),
             default_participant_qos: Default::default(),
             configuration: Default::default(),
-            transport: Box::new(RtpsUdpTransportParticipantFactory::default()),
+            transport,
             entity_counter: 0,
             app_id,
             host_id,

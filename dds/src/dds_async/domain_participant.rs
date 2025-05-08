@@ -30,7 +30,7 @@ use crate::{
     topic_definition::topic_listener::TopicListener,
     xtypes::dynamic_type::DynamicType,
 };
-use alloc::{string::String, sync::Arc};
+use alloc::{string::String, sync::Arc, vec::Vec};
 
 /// Async version of [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant).
 pub struct DomainParticipantAsync<R: DdsRuntime> {

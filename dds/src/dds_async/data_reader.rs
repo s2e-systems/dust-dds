@@ -25,7 +25,8 @@ use crate::{
     },
     subscription::{data_reader::Sample, data_reader_listener::DataReaderListener},
 };
-use std::marker::PhantomData;
+use alloc::{vec, vec::Vec};
+use core::marker::PhantomData;
 
 /// Async version of [`DataReader`](crate::subscription::data_reader::DataReader).
 pub struct DataReaderAsync<R: DdsRuntime, Foo> {

@@ -200,9 +200,14 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
 
 impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
     #[doc(hidden)]
-    pub fn new(runtime: R, app_id: [u8; 4], host_id: [u8; 4]) -> DomainParticipantFactoryAsync<R> {
+    pub fn new(
+        runtime: R,
+        app_id: [u8; 4],
+        host_id: [u8; 4],
+        transport: DdsTransportParticipantFactory,
+    ) -> DomainParticipantFactoryAsync<R> {
         let domain_participant_factory_actor = Actor::spawn(
-            DomainParticipantFactoryActor::new(app_id, host_id),
+            DomainParticipantFactoryActor::new(app_id, host_id, transport),
             &runtime.spawner(),
         );
         DomainParticipantFactoryAsync {
@@ -248,7 +253,13 @@ impl DomainParticipantFactoryAsync<crate::runtime::StdRuntime> {
             };
 
             let app_id = std::process::id().to_ne_bytes();
-            DomainParticipantFactoryAsync::new(runtime, app_id, host_id)
+            let transport = crate::rtps_udp_transport::udp_transport::RtpsUdpTransportParticipantFactory::default();
+            DomainParticipantFactoryAsync::new(
+                runtime,
+                app_id,
+                host_id,
+                Box::new(transport),
+            )
         })
     }
 }

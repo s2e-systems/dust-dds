@@ -23,7 +23,8 @@ use crate::{
     },
     publication::data_writer_listener::DataWriterListener,
 };
-use std::marker::PhantomData;
+use alloc::vec::Vec;
+use core::marker::PhantomData;
 
 /// Async version of [`DataWriter`](crate::publication::data_writer::DataWriter).
 pub struct DataWriterAsync<R: DdsRuntime, Foo> {

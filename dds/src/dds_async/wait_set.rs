@@ -6,7 +6,7 @@ use crate::{
         time::Duration,
     },
 };
-use alloc::string::String;
+use alloc::{string::String, vec::Vec};
 
 /// Async version of [`Condition`](crate::infrastructure::wait_set::Condition).
 pub enum ConditionAsync<R: DdsRuntime> {

@@ -6,6 +6,7 @@ use crate::{
     },
     infrastructure::{error::DdsResult, status::StatusKind},
 };
+use alloc::vec::Vec;
 
 /// Async version of [`StatusCondition`](crate::infrastructure::condition::StatusCondition).
 pub struct StatusConditionAsync<R: DdsRuntime> {

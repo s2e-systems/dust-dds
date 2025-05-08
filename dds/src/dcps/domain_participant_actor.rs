@@ -79,6 +79,7 @@ use crate::{
 };
 use alloc::{
     boxed::Box,
+    format,
     string::{String, ToString},
     sync::Arc,
     vec,
@@ -89,7 +90,6 @@ use core::{
     pin::{pin, Pin},
     task::Poll,
 };
-use fnmatch_regex::glob_to_regex;
 
 fn poll_timeout<T>(
     mut timer_handle: impl Timer,
@@ -2321,35 +2321,37 @@ where
             .iter()
             .any(|n| publisher.qos().partition.name.contains(n));
 
-        let is_any_received_regex_matched_with_partition_qos = discovered_reader_data
-            .dds_subscription_data
-            .partition
-            .name
-            .iter()
-            .filter_map(|n| glob_to_regex(n).ok())
-            .any(|regex| {
-                publisher
-                    .qos()
-                    .partition
-                    .name
-                    .iter()
-                    .any(|n| regex.is_match(n))
-            });
+        let is_any_received_regex_matched_with_partition_qos = true;
+        // discovered_reader_data
+        //     .dds_subscription_data
+        //     .partition
+        //     .name
+        //     .iter()
+        //     // .filter_map(|n| glob_to_regex(n).ok())
+        //     .any(|regex| {
+        //         publisher
+        //             .qos()
+        //             .partition
+        //             .name
+        //             .iter()
+        //             .any(|n| regex.is_match(n))
+        //     });
 
-        let is_any_local_regex_matched_with_received_partition_qos = publisher
-            .qos()
-            .partition
-            .name
-            .iter()
-            .filter_map(|n| glob_to_regex(n).ok())
-            .any(|regex| {
-                discovered_reader_data
-                    .dds_subscription_data
-                    .partition
-                    .name
-                    .iter()
-                    .any(|n| regex.is_match(n))
-            });
+        let is_any_local_regex_matched_with_received_partition_qos = true;
+        // publisher
+        //     .qos()
+        //     .partition
+        //     .name
+        //     .iter()
+        //     .filter_map(|n| glob_to_regex(n).ok())
+        //     .any(|regex| {
+        //         discovered_reader_data
+        //             .dds_subscription_data
+        //             .partition
+        //             .name
+        //             .iter()
+        //             .any(|n| regex.is_match(n))
+        //     });
 
         let is_partition_matched = discovered_reader_data.dds_subscription_data.partition
             == publisher.qos().partition
@@ -2710,35 +2712,37 @@ where
             .iter()
             .any(|n| subscriber.qos().partition.name.contains(n));
 
-        let is_any_received_regex_matched_with_partition_qos = discovered_writer_data
-            .dds_publication_data
-            .partition
-            .name
-            .iter()
-            .filter_map(|n| glob_to_regex(n).ok())
-            .any(|regex| {
-                subscriber
-                    .qos()
-                    .partition
-                    .name
-                    .iter()
-                    .any(|n| regex.is_match(n))
-            });
+        let is_any_received_regex_matched_with_partition_qos = true;
+        // discovered_writer_data
+        //     .dds_publication_data
+        //     .partition
+        //     .name
+        //     .iter()
+        //     .filter_map(|n| glob_to_regex(n).ok())
+        //     .any(|regex| {
+        //         subscriber
+        //             .qos()
+        //             .partition
+        //             .name
+        //             .iter()
+        //             .any(|n| regex.is_match(n))
+        //     });
 
-        let is_any_local_regex_matched_with_received_partition_qos = subscriber
-            .qos()
-            .partition
-            .name
-            .iter()
-            .filter_map(|n| glob_to_regex(n).ok())
-            .any(|regex| {
-                discovered_writer_data
-                    .dds_publication_data
-                    .partition
-                    .name
-                    .iter()
-                    .any(|n| regex.is_match(n))
-            });
+        let is_any_local_regex_matched_with_received_partition_qos = true;
+        // subscriber
+        //     .qos()
+        //     .partition
+        //     .name
+        //     .iter()
+        //     .filter_map(|n| glob_to_regex(n).ok())
+        //     .any(|regex| {
+        //         discovered_writer_data
+        //             .dds_publication_data
+        //             .partition
+        //             .name
+        //             .iter()
+        //             .any(|n| regex.is_match(n))
+        //     });
 
         let is_partition_matched = discovered_writer_data.dds_publication_data.partition
             == subscriber.qos().partition

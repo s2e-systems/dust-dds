@@ -15,7 +15,7 @@ use crate::{
     topic_definition::topic_listener::TopicListener,
     xtypes::dynamic_type::DynamicType,
 };
-use std::sync::Arc;
+use alloc::{string::String, sync::Arc, vec::Vec};
 
 /// Async version of [`Topic`](crate::topic_definition::topic::Topic).
 pub struct TopicAsync<R: DdsRuntime> {

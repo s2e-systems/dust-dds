@@ -24,6 +24,7 @@ use crate::{
         data_writer_listener::DataWriterListener, publisher_listener::PublisherListener,
     },
 };
+use alloc::vec::Vec;
 
 /// Async version of [`Publisher`](crate::publication::publisher::Publisher).
 pub struct PublisherAsync<R: DdsRuntime> {
