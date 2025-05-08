@@ -1,4 +1,5 @@
 use super::{
+    actor::Actor,
     builtin_topics::PublicationBuiltinTopicData,
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -16,7 +17,10 @@ use super::{
         },
         time::{DurationKind, Time},
     },
+    listeners::domain_participant_listener::ListenerMail,
+    runtime::DdsRuntime,
     status_condition::StatusCondition,
+    status_condition_actor::StatusConditionActor,
     xtypes_glue::key_and_instance_handle::{
         get_instance_handle_from_serialized_foo, get_instance_handle_from_serialized_key,
     },
@@ -151,7 +155,7 @@ struct InstanceOwnership {
     owner_handle: [u8; 16],
 }
 
-pub struct DataReaderEntity<S, L> {
+pub struct DataReaderEntity<R: DdsRuntime> {
     instance_handle: InstanceHandle,
     sample_list: Vec<ReaderSample>,
     qos: DataReaderQos,
@@ -168,8 +172,8 @@ pub struct DataReaderEntity<S, L> {
     enabled: bool,
     data_available_status_changed_flag: bool,
     incompatible_writer_list: Vec<InstanceHandle>,
-    status_condition: S,
-    listener_sender: L,
+    status_condition: Actor<R, StatusConditionActor<R>>,
+    listener_sender: R::ChannelSender<ListenerMail<R>>,
     listener_mask: Vec<StatusKind>,
     instances: Vec<InstanceState>,
     instance_received_time: Vec<InstanceReceivedTime>,
@@ -177,7 +181,7 @@ pub struct DataReaderEntity<S, L> {
     transport_reader: TransportReaderKind,
 }
 
-impl<S, L> DataReaderEntity<S, L> {
+impl<R: DdsRuntime> DataReaderEntity<R> {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         instance_handle: InstanceHandle,
@@ -185,8 +189,8 @@ impl<S, L> DataReaderEntity<S, L> {
         topic_name: String,
         type_name: String,
         type_support: Arc<dyn DynamicType + Send + Sync>,
-        status_condition: S,
-        listener_sender: L,
+        status_condition: Actor<R, StatusConditionActor<R>>,
+        listener_sender: R::ChannelSender<ListenerMail<R>>,
         listener_mask: Vec<StatusKind>,
         transport_reader: TransportReaderKind,
     ) -> Self {
@@ -811,7 +815,7 @@ impl<S, L> DataReaderEntity<S, L> {
         status
     }
 
-    pub fn status_condition(&self) -> &S {
+    pub fn status_condition(&self) -> &Actor<R, StatusConditionActor<R>> {
         &self.status_condition
     }
 
@@ -866,7 +870,7 @@ impl<S, L> DataReaderEntity<S, L> {
             .collect()
     }
 
-    pub fn listener(&self) -> &L {
+    pub fn listener(&self) -> &R::ChannelSender<ListenerMail<R>> {
         &self.listener_sender
     }
 
@@ -874,7 +878,11 @@ impl<S, L> DataReaderEntity<S, L> {
         &self.listener_mask
     }
 
-    pub fn set_listener(&mut self, listener_sender: L, listener_mask: Vec<StatusKind>) {
+    pub fn set_listener(
+        &mut self,
+        listener_sender: R::ChannelSender<ListenerMail<R>>,
+        listener_mask: Vec<StatusKind>,
+    ) {
         self.listener_sender = listener_sender;
         self.listener_mask = listener_mask;
     }
@@ -885,12 +893,7 @@ impl<S, L> DataReaderEntity<S, L> {
             .find(|x| &x.instance_handle == instance_handle)
             .map(|x| x.last_received_time)
     }
-}
 
-impl<S, L> DataReaderEntity<S, L>
-where
-    S: StatusCondition,
-{
     pub async fn remove_matched_publication(&mut self, publication_handle: &InstanceHandle) {
         let Some(i) = self
             .matched_publication_list

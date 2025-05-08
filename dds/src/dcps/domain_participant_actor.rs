@@ -107,10 +107,7 @@ pub struct DomainParticipantActor<R: DdsRuntime> {
     pub transport: DdsTransportParticipant,
     pub instance_handle_counter: InstanceHandleCounter,
     pub entity_counter: u16,
-    pub domain_participant: DomainParticipantEntity<
-        Actor<R, StatusConditionActor<R>>,
-        R::ChannelSender<ListenerMail<R>>,
-    >,
+    pub domain_participant: DomainParticipantEntity<R>,
     pub clock_handle: R::ClockHandle,
     pub timer_handle: R::TimerHandle,
     pub spawner_handle: R::SpawnerHandle,
@@ -121,10 +118,7 @@ where
     R: DdsRuntime,
 {
     pub fn new(
-        domain_participant: DomainParticipantEntity<
-            Actor<R, StatusConditionActor<R>>,
-            R::ChannelSender<ListenerMail<R>>,
-        >,
+        domain_participant: DomainParticipantEntity<R>,
         transport: DdsTransportParticipant,
         instance_handle_counter: InstanceHandleCounter,
         clock_handle: R::ClockHandle,
@@ -633,18 +627,16 @@ where
     }
 
     pub fn delete_participant_contained_entities(&mut self) -> DdsResult<()> {
-        let deleted_publisher_list: Vec<
-            PublisherEntity<Actor<R, StatusConditionActor<R>>, R::ChannelSender<ListenerMail<R>>>,
-        > = self.domain_participant.drain_publisher_list().collect();
+        let deleted_publisher_list: Vec<PublisherEntity<R>> =
+            self.domain_participant.drain_publisher_list().collect();
         for mut publisher in deleted_publisher_list {
             for data_writer in publisher.drain_data_writer_list() {
                 self.announce_deleted_data_writer(data_writer);
             }
         }
 
-        let deleted_subscriber_list: Vec<
-            SubscriberEntity<Actor<R, StatusConditionActor<R>>, R::ChannelSender<ListenerMail<R>>>,
-        > = self.domain_participant.drain_subscriber_list().collect();
+        let deleted_subscriber_list: Vec<SubscriberEntity<R>> =
+            self.domain_participant.drain_subscriber_list().collect();
         for mut subscriber in deleted_subscriber_list {
             for data_reader in subscriber.drain_data_reader_list() {
                 self.announce_deleted_data_reader(data_reader);
@@ -2149,13 +2141,7 @@ where
         }
     }
 
-    fn announce_deleted_data_writer(
-        &mut self,
-        data_writer: DataWriterEntity<
-            Actor<R, StatusConditionActor<R>>,
-            R::ChannelSender<ListenerMail<R>>,
-        >,
-    ) {
+    fn announce_deleted_data_writer(&mut self, data_writer: DataWriterEntity<R>) {
         let timestamp = self.get_current_time();
         if let Some(dw) = self
             .domain_participant
@@ -2229,13 +2215,7 @@ where
         }
     }
 
-    fn announce_deleted_data_reader(
-        &mut self,
-        data_reader: DataReaderEntity<
-            Actor<R, StatusConditionActor<R>>,
-            R::ChannelSender<ListenerMail<R>>,
-        >,
-    ) {
+    fn announce_deleted_data_reader(&mut self, data_reader: DataReaderEntity<R>) {
         let timestamp = self.get_current_time();
         if let Some(dw) = self
             .domain_participant
@@ -4282,10 +4262,7 @@ fn get_discovered_reader_incompatible_qos_policy_list(
 }
 
 fn get_discovered_writer_incompatible_qos_policy_list<R: DdsRuntime>(
-    data_reader: &DataReaderEntity<
-        Actor<R, StatusConditionActor<R>>,
-        R::ChannelSender<ListenerMail<R>>,
-    >,
+    data_reader: &DataReaderEntity<R>,
     publication_builtin_topic_data: &PublicationBuiltinTopicData,
     subscriber_qos: &SubscriberQos,
 ) -> Vec<QosPolicyId> {

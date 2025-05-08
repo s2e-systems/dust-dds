@@ -1,4 +1,5 @@
 use super::{
+    actor::Actor,
     builtin_topics::SubscriptionBuiltinTopicData,
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -11,8 +12,10 @@ use super::{
         },
         time::{DurationKind, Time},
     },
-    runtime::Clock,
+    listeners::domain_participant_listener::ListenerMail,
+    runtime::{Clock, DdsRuntime},
     status_condition::StatusCondition,
+    status_condition_actor::StatusConditionActor,
     xtypes_glue::key_and_instance_handle::{
         get_instance_handle_from_serialized_foo, get_instance_handle_from_serialized_key,
     },
@@ -58,7 +61,7 @@ pub struct InstanceSamples {
     samples: VecDeque<i64>,
 }
 
-pub struct DataWriterEntity<S, L> {
+pub struct DataWriterEntity<R: DdsRuntime> {
     instance_handle: InstanceHandle,
     transport_writer: TransportWriterKind,
     topic_name: String,
@@ -69,8 +72,8 @@ pub struct DataWriterEntity<S, L> {
     incompatible_subscription_list: Vec<InstanceHandle>,
     offered_incompatible_qos_status: OfferedIncompatibleQosStatus,
     enabled: bool,
-    status_condition: S,
-    listener_sender: L,
+    status_condition: Actor<R, StatusConditionActor<R>>,
+    listener_sender: R::ChannelSender<ListenerMail<R>>,
     listener_mask: Vec<StatusKind>,
     max_seq_num: Option<i64>,
     last_change_sequence_number: i64,
@@ -81,7 +84,7 @@ pub struct DataWriterEntity<S, L> {
     instance_samples: Vec<InstanceSamples>,
 }
 
-impl<S, L> DataWriterEntity<S, L> {
+impl<R: DdsRuntime> DataWriterEntity<R> {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         instance_handle: InstanceHandle,
@@ -89,8 +92,8 @@ impl<S, L> DataWriterEntity<S, L> {
         topic_name: String,
         type_name: String,
         type_support: Arc<dyn DynamicType + Send + Sync>,
-        status_condition: S,
-        listener_sender: L,
+        status_condition: Actor<R, StatusConditionActor<R>>,
+        listener_sender: R::ChannelSender<ListenerMail<R>>,
         listener_mask: Vec<StatusKind>,
         qos: DataWriterQos,
     ) -> Self {
@@ -541,7 +544,7 @@ impl<S, L> DataWriterEntity<S, L> {
         self.type_support.as_ref()
     }
 
-    pub fn status_condition(&self) -> &S {
+    pub fn status_condition(&self) -> &Actor<R, StatusConditionActor<R>> {
         &self.status_condition
     }
 
@@ -552,12 +555,16 @@ impl<S, L> DataWriterEntity<S, L> {
             .map(|x| x.last_write_time)
     }
 
-    pub fn set_listener(&mut self, listener_sender: L, listener_mask: Vec<StatusKind>) {
+    pub fn set_listener(
+        &mut self,
+        listener_sender: R::ChannelSender<ListenerMail<R>>,
+        listener_mask: Vec<StatusKind>,
+    ) {
         self.listener_sender = listener_sender;
         self.listener_mask = listener_mask;
     }
 
-    pub fn listener(&self) -> &L {
+    pub fn listener(&self) -> &R::ChannelSender<ListenerMail<R>> {
         &self.listener_sender
     }
 
@@ -573,12 +580,7 @@ impl<S, L> DataWriterEntity<S, L> {
             TransportWriterKind::Stateless(_) => true,
         }
     }
-}
 
-impl<S, L> DataWriterEntity<S, L>
-where
-    S: StatusCondition,
-{
     pub async fn get_offered_deadline_missed_status(&mut self) -> OfferedDeadlineMissedStatus {
         let status = self.offered_deadline_missed_status.clone();
         self.offered_deadline_missed_status.total_count_change = 0;

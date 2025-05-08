@@ -9,23 +9,28 @@ use crate::{
 };
 use alloc::vec::Vec;
 
-pub struct SubscriberEntity<S, L> {
+use super::{
+    actor::Actor, listeners::domain_participant_listener::ListenerMail, runtime::DdsRuntime,
+    status_condition_actor::StatusConditionActor,
+};
+
+pub struct SubscriberEntity<R: DdsRuntime> {
     instance_handle: InstanceHandle,
     qos: SubscriberQos,
-    data_reader_list: Vec<DataReaderEntity<S, L>>,
+    data_reader_list: Vec<DataReaderEntity<R>>,
     enabled: bool,
     default_data_reader_qos: DataReaderQos,
-    status_condition: S,
-    listener_sender: L,
+    status_condition: Actor<R, StatusConditionActor<R>>,
+    listener_sender: R::ChannelSender<ListenerMail<R>>,
     listener_mask: Vec<StatusKind>,
 }
 
-impl<S, L> SubscriberEntity<S, L> {
+impl<R: DdsRuntime> SubscriberEntity<R> {
     pub fn new(
         instance_handle: InstanceHandle,
         qos: SubscriberQos,
-        status_condition: S,
-        listener_sender: L,
+        status_condition: Actor<R, StatusConditionActor<R>>,
+        listener_sender: R::ChannelSender<ListenerMail<R>>,
         listener_mask: Vec<StatusKind>,
     ) -> Self {
         Self {
@@ -40,23 +45,23 @@ impl<S, L> SubscriberEntity<S, L> {
         }
     }
 
-    pub fn data_reader_list(&self) -> impl Iterator<Item = &DataReaderEntity<S, L>> {
+    pub fn data_reader_list(&self) -> impl Iterator<Item = &DataReaderEntity<R>> {
         self.data_reader_list.iter()
     }
 
-    pub fn data_reader_list_mut(&mut self) -> impl Iterator<Item = &mut DataReaderEntity<S, L>> {
+    pub fn data_reader_list_mut(&mut self) -> impl Iterator<Item = &mut DataReaderEntity<R>> {
         self.data_reader_list.iter_mut()
     }
 
-    pub fn drain_data_reader_list(&mut self) -> impl Iterator<Item = DataReaderEntity<S, L>> + '_ {
+    pub fn drain_data_reader_list(&mut self) -> impl Iterator<Item = DataReaderEntity<R>> + '_ {
         self.data_reader_list.drain(..)
     }
 
-    pub fn insert_data_reader(&mut self, data_reader: DataReaderEntity<S, L>) {
+    pub fn insert_data_reader(&mut self, data_reader: DataReaderEntity<R>) {
         self.data_reader_list.push(data_reader);
     }
 
-    pub fn remove_data_reader(&mut self, handle: InstanceHandle) -> Option<DataReaderEntity<S, L>> {
+    pub fn remove_data_reader(&mut self, handle: InstanceHandle) -> Option<DataReaderEntity<R>> {
         let index = self
             .data_reader_list
             .iter()
@@ -64,7 +69,7 @@ impl<S, L> SubscriberEntity<S, L> {
         Some(self.data_reader_list.remove(index))
     }
 
-    pub fn get_data_reader(&self, handle: InstanceHandle) -> Option<&DataReaderEntity<S, L>> {
+    pub fn get_data_reader(&self, handle: InstanceHandle) -> Option<&DataReaderEntity<R>> {
         self.data_reader_list
             .iter()
             .find(|x| x.instance_handle() == handle)
@@ -73,7 +78,7 @@ impl<S, L> SubscriberEntity<S, L> {
     pub fn get_mut_data_reader(
         &mut self,
         handle: InstanceHandle,
-    ) -> Option<&mut DataReaderEntity<S, L>> {
+    ) -> Option<&mut DataReaderEntity<R>> {
         self.data_reader_list
             .iter_mut()
             .find(|x| x.instance_handle() == handle)
@@ -116,16 +121,20 @@ impl<S, L> SubscriberEntity<S, L> {
         Ok(())
     }
 
-    pub fn set_listener(&mut self, listener_sender: L, listener_mask: Vec<StatusKind>) {
+    pub fn set_listener(
+        &mut self,
+        listener_sender: R::ChannelSender<ListenerMail<R>>,
+        listener_mask: Vec<StatusKind>,
+    ) {
         self.listener_sender = listener_sender;
         self.listener_mask = listener_mask;
     }
 
-    pub fn status_condition(&self) -> &S {
+    pub fn status_condition(&self) -> &Actor<R, StatusConditionActor<R>> {
         &self.status_condition
     }
 
-    pub fn listener(&self) -> &L {
+    pub fn listener(&self) -> &R::ChannelSender<ListenerMail<R>> {
         &self.listener_sender
     }
 

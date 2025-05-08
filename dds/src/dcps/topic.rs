@@ -1,6 +1,9 @@
 use alloc::sync::Arc;
 
-use super::status_condition::StatusCondition;
+use super::{
+    actor::Actor, listeners::domain_participant_listener::ListenerMail, runtime::DdsRuntime,
+    status_condition::StatusCondition, status_condition_actor::StatusConditionActor,
+};
 use crate::{
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -12,28 +15,28 @@ use crate::{
 };
 use alloc::{string::String, vec::Vec};
 
-pub struct TopicEntity<S, L> {
+pub struct TopicEntity<R: DdsRuntime> {
     qos: TopicQos,
     type_name: String,
     topic_name: String,
     instance_handle: InstanceHandle,
     enabled: bool,
     inconsistent_topic_status: InconsistentTopicStatus,
-    status_condition: S,
-    _listener_sender: L,
+    status_condition: Actor<R, StatusConditionActor<R>>,
+    _listener_sender: R::ChannelSender<ListenerMail<R>>,
     _status_kind: Vec<StatusKind>,
     type_support: Arc<dyn DynamicType + Send + Sync>,
 }
 
-impl<S, L> TopicEntity<S, L> {
+impl<R: DdsRuntime> TopicEntity<R> {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         qos: TopicQos,
         type_name: String,
         topic_name: String,
         instance_handle: InstanceHandle,
-        status_condition: S,
-        listener_sender: L,
+        status_condition: Actor<R, StatusConditionActor<R>>,
+        listener_sender: R::ChannelSender<ListenerMail<R>>,
         status_kind: Vec<StatusKind>,
         type_support: Arc<dyn DynamicType + Send + Sync>,
     ) -> Self {
@@ -75,7 +78,7 @@ impl<S, L> TopicEntity<S, L> {
         &self.type_support
     }
 
-    pub fn status_condition(&self) -> &S {
+    pub fn status_condition(&self) -> &Actor<R, StatusConditionActor<R>> {
         &self.status_condition
     }
 
@@ -101,12 +104,7 @@ impl<S, L> TopicEntity<S, L> {
         self.qos = qos;
         Ok(())
     }
-}
 
-impl<S, L> TopicEntity<S, L>
-where
-    S: StatusCondition,
-{
     pub async fn get_inconsistent_topic_status(&mut self) -> InconsistentTopicStatus {
         let status = self.inconsistent_topic_status.clone();
         self.inconsistent_topic_status.total_count_change = 0;

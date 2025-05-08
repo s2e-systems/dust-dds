@@ -1,31 +1,37 @@
-use super::infrastructure::{
-    error::DdsResult,
-    instance::InstanceHandle,
-    qos::{DataWriterQos, PublisherQos},
-    status::StatusKind,
+use super::{
+    actor::Actor,
+    infrastructure::{
+        error::DdsResult,
+        instance::InstanceHandle,
+        qos::{DataWriterQos, PublisherQos},
+        status::StatusKind,
+    },
+    listeners::domain_participant_listener::ListenerMail,
+    runtime::DdsRuntime,
+    status_condition_actor::StatusConditionActor,
 };
 use alloc::vec::Vec;
 
 use crate::dcps::data_writer::DataWriterEntity;
 
-pub struct PublisherEntity<S, L> {
+pub struct PublisherEntity<R: DdsRuntime> {
     qos: PublisherQos,
     instance_handle: InstanceHandle,
-    data_writer_list: Vec<DataWriterEntity<S, L>>,
+    data_writer_list: Vec<DataWriterEntity<R>>,
     enabled: bool,
     default_datawriter_qos: DataWriterQos,
-    listener_sender: L,
+    listener_sender: R::ChannelSender<ListenerMail<R>>,
     listener_mask: Vec<StatusKind>,
-    status_condition: S,
+    status_condition: Actor<R, StatusConditionActor<R>>,
 }
 
-impl<S, L> PublisherEntity<S, L> {
+impl<R: DdsRuntime> PublisherEntity<R> {
     pub fn new(
         qos: PublisherQos,
         instance_handle: InstanceHandle,
-        listener_sender: L,
+        listener_sender: R::ChannelSender<ListenerMail<R>>,
         listener_mask: Vec<StatusKind>,
-        status_condition: S,
+        status_condition: Actor<R, StatusConditionActor<R>>,
     ) -> Self {
         Self {
             qos,
@@ -39,23 +45,23 @@ impl<S, L> PublisherEntity<S, L> {
         }
     }
 
-    pub fn data_writer_list(&self) -> impl Iterator<Item = &DataWriterEntity<S, L>> {
+    pub fn data_writer_list(&self) -> impl Iterator<Item = &DataWriterEntity<R>> {
         self.data_writer_list.iter()
     }
 
-    pub fn data_writer_list_mut(&mut self) -> impl Iterator<Item = &mut DataWriterEntity<S, L>> {
+    pub fn data_writer_list_mut(&mut self) -> impl Iterator<Item = &mut DataWriterEntity<R>> {
         self.data_writer_list.iter_mut()
     }
 
-    pub fn drain_data_writer_list(&mut self) -> impl Iterator<Item = DataWriterEntity<S, L>> + '_ {
+    pub fn drain_data_writer_list(&mut self) -> impl Iterator<Item = DataWriterEntity<R>> + '_ {
         self.data_writer_list.drain(..)
     }
 
-    pub fn insert_data_writer(&mut self, data_writer: DataWriterEntity<S, L>) {
+    pub fn insert_data_writer(&mut self, data_writer: DataWriterEntity<R>) {
         self.data_writer_list.push(data_writer);
     }
 
-    pub fn remove_data_writer(&mut self, handle: InstanceHandle) -> Option<DataWriterEntity<S, L>> {
+    pub fn remove_data_writer(&mut self, handle: InstanceHandle) -> Option<DataWriterEntity<R>> {
         let index = self
             .data_writer_list
             .iter()
@@ -63,7 +69,7 @@ impl<S, L> PublisherEntity<S, L> {
         Some(self.data_writer_list.remove(index))
     }
 
-    pub fn get_data_writer(&self, handle: InstanceHandle) -> Option<&DataWriterEntity<S, L>> {
+    pub fn get_data_writer(&self, handle: InstanceHandle) -> Option<&DataWriterEntity<R>> {
         self.data_writer_list
             .iter()
             .find(|x| x.instance_handle() == handle)
@@ -72,16 +78,13 @@ impl<S, L> PublisherEntity<S, L> {
     pub fn get_mut_data_writer(
         &mut self,
         handle: InstanceHandle,
-    ) -> Option<&mut DataWriterEntity<S, L>> {
+    ) -> Option<&mut DataWriterEntity<R>> {
         self.data_writer_list
             .iter_mut()
             .find(|x| x.instance_handle() == handle)
     }
 
-    pub fn lookup_datawriter_mut(
-        &mut self,
-        topic_name: &str,
-    ) -> Option<&mut DataWriterEntity<S, L>> {
+    pub fn lookup_datawriter_mut(&mut self, topic_name: &str) -> Option<&mut DataWriterEntity<R>> {
         self.data_writer_list
             .iter_mut()
             .find(|x| x.topic_name() == topic_name)
@@ -121,12 +124,16 @@ impl<S, L> PublisherEntity<S, L> {
         Ok(())
     }
 
-    pub fn set_listener(&mut self, listener_sender: L, mask: Vec<StatusKind>) {
+    pub fn set_listener(
+        &mut self,
+        listener_sender: R::ChannelSender<ListenerMail<R>>,
+        mask: Vec<StatusKind>,
+    ) {
         self.listener_sender = listener_sender;
         self.listener_mask = mask;
     }
 
-    pub fn status_condition(&self) -> &S {
+    pub fn status_condition(&self) -> &Actor<R, StatusConditionActor<R>> {
         &self.status_condition
     }
 
@@ -134,7 +141,7 @@ impl<S, L> PublisherEntity<S, L> {
         &self.listener_mask
     }
 
-    pub fn listener(&self) -> &L {
+    pub fn listener(&self) -> &R::ChannelSender<ListenerMail<R>> {
         &self.listener_sender
     }
 }
