@@ -25,7 +25,6 @@ use crate::{
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
         status::StatusKind,
     },
-    runtime::{executor::Executor, timer::TimerDriver, StdRuntime},
 };
 use tracing::warn;
 
@@ -216,17 +215,19 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
     }
 }
 
-impl DomainParticipantFactoryAsync<StdRuntime> {
+#[cfg(feature = "std")]
+impl DomainParticipantFactoryAsync<crate::runtime::StdRuntime> {
     /// This operation returns the [`DomainParticipantFactoryAsync`] singleton. The operation is idempotent, that is, it can be called multiple
     /// times without side-effects and it will return the same [`DomainParticipantFactoryAsync`] instance.
     #[tracing::instrument]
-    pub fn get_instance() -> &'static DomainParticipantFactoryAsync<StdRuntime> {
-        static PARTICIPANT_FACTORY_ASYNC: OnceLock<DomainParticipantFactoryAsync<StdRuntime>> =
-            OnceLock::new();
+    pub fn get_instance() -> &'static DomainParticipantFactoryAsync<crate::runtime::StdRuntime> {
+        static PARTICIPANT_FACTORY_ASYNC: OnceLock<
+            DomainParticipantFactoryAsync<crate::runtime::StdRuntime>,
+        > = OnceLock::new();
         PARTICIPANT_FACTORY_ASYNC.get_or_init(|| {
-            let executor = Executor::new();
-            let timer_driver = TimerDriver::new();
-            let runtime = StdRuntime::new(executor, timer_driver);
+            let executor = crate::runtime::executor::Executor::new();
+            let timer_driver = crate::runtime::timer::TimerDriver::new();
+            let runtime = crate::runtime::StdRuntime::new(executor, timer_driver);
             let interface_address = NetworkInterface::show()
                 .expect("Could not scan interfaces")
                 .into_iter()
