@@ -70,4 +70,8 @@ impl DdsRuntime for StdRuntime {
     fn channel<T: Send + 'static>() -> (Self::ChannelSender<T>, Self::ChannelReceiver<T>) {
         mpsc_channel()
     }
+
+    fn block_on(f: impl core::future::Future<Output = ()> + Send + 'static) {
+        executor::block_on(f)
+    }
 }
