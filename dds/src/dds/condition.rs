@@ -14,7 +14,9 @@ pub struct StatusCondition<R: DdsRuntime> {
 
 impl<R: DdsRuntime> Clone for StatusCondition<R> {
     fn clone(&self) -> Self {
-        Self { condition_async: self.condition_async.clone() }
+        Self {
+            condition_async: self.condition_async.clone(),
+        }
     }
 }
 
