@@ -4,65 +4,22 @@ use crate::{
     dcps::runtime::DdsRuntime,
     dds_async::data_reader::DataReaderAsync,
     infrastructure::{
-        error::{DdsError, DdsResult},
+        error::DdsResult,
         instance::InstanceHandle,
         qos::{DataReaderQos, QosKind},
-        sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
+        sample_info::{InstanceStateKind, Sample, SampleStateKind, ViewStateKind},
         status::{
             LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
             SampleLostStatus, SampleRejectedStatus, StatusKind, SubscriptionMatchedStatus,
         },
         time::Duration,
-        type_support::DdsDeserialize,
     },
     runtime::executor::block_on,
     subscription::data_reader_listener::DataReaderListener,
     topic_definition::topic::Topic,
 };
 
-use std::{marker::PhantomData, sync::Arc};
-
 use super::subscriber::Subscriber;
-
-/// A [`Sample`] contains the data and [`SampleInfo`] read by the [`DataReader`].
-#[derive(Debug, PartialEq, Eq)]
-pub struct Sample<Foo> {
-    /// Data received by the [`DataReader`]. A sample might contain no valid data in which case this field is [`None`].
-    data: Option<Arc<[u8]>>,
-    /// Information of the sample received by the [`DataReader`].
-    sample_info: SampleInfo,
-    phantom: PhantomData<Foo>,
-}
-
-impl<Foo> Sample<Foo> {
-    pub(crate) fn new(data: Option<Arc<[u8]>>, sample_info: SampleInfo) -> Self {
-        Self {
-            data,
-            sample_info,
-            phantom: PhantomData,
-        }
-    }
-}
-
-impl<'de, Foo> Sample<Foo>
-where
-    Foo: DdsDeserialize<'de>,
-{
-    /// Get the Foo value associated with this sample.
-    pub fn data(&'de self) -> DdsResult<Foo> {
-        match self.data.as_ref() {
-            Some(data) => Ok(Foo::deserialize_data(data.as_ref())?),
-            None => Err(DdsError::NoData),
-        }
-    }
-}
-
-impl<Foo> Sample<Foo> {
-    /// Get the sample info associated with this sample.
-    pub fn sample_info(&self) -> SampleInfo {
-        self.sample_info.clone()
-    }
-}
 
 /// A [`DataReader`] allows the application (1) to declare the data it wishes to receive (i.e., make a subscription) and (2) to access the
 /// data received by the attached [`Subscriber`].

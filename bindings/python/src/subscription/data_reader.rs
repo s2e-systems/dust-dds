@@ -532,7 +532,7 @@ impl DataReader {
 
 #[pyclass]
 pub struct Sample {
-    sample: dust_dds::subscription::data_reader::Sample<PythonDdsData>,
+    sample: dust_dds::infrastructure::sample_info::Sample<PythonDdsData>,
     type_: Py<PyAny>,
 }
 

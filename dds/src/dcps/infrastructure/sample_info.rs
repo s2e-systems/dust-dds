@@ -1,4 +1,50 @@
+use super::{
+    error::{DdsError, DdsResult},
+    type_support::DdsDeserialize,
+};
 use crate::infrastructure::{instance::InstanceHandle, time::Time};
+use alloc::sync::Arc;
+use core::marker::PhantomData;
+
+/// A [`Sample`] contains the data and [`SampleInfo`] read by the [`DataReader`].
+#[derive(Debug, PartialEq, Eq)]
+pub struct Sample<Foo> {
+    /// Data received by the [`DataReader`]. A sample might contain no valid data in which case this field is [`None`].
+    data: Option<Arc<[u8]>>,
+    /// Information of the sample received by the [`DataReader`].
+    sample_info: SampleInfo,
+    phantom: PhantomData<Foo>,
+}
+
+impl<Foo> Sample<Foo> {
+    pub(crate) fn new(data: Option<Arc<[u8]>>, sample_info: SampleInfo) -> Self {
+        Self {
+            data,
+            sample_info,
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<'de, Foo> Sample<Foo>
+where
+    Foo: DdsDeserialize<'de>,
+{
+    /// Get the Foo value associated with this sample.
+    pub fn data(&'de self) -> DdsResult<Foo> {
+        match self.data.as_ref() {
+            Some(data) => Ok(Foo::deserialize_data(data.as_ref())?),
+            None => Err(DdsError::NoData),
+        }
+    }
+}
+
+impl<Foo> Sample<Foo> {
+    /// Get the sample info associated with this sample.
+    pub fn sample_info(&self) -> SampleInfo {
+        self.sample_info.clone()
+    }
+}
 
 /// Enumeration of the possible sample states
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

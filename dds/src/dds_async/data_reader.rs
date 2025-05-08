@@ -15,7 +15,8 @@ use crate::{
         instance::InstanceHandle,
         qos::{DataReaderQos, QosKind},
         sample_info::{
-            InstanceStateKind, SampleStateKind, ViewStateKind, ANY_INSTANCE_STATE, ANY_VIEW_STATE,
+            InstanceStateKind, Sample, SampleStateKind, ViewStateKind, ANY_INSTANCE_STATE,
+            ANY_VIEW_STATE,
         },
         status::{
             LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
@@ -23,7 +24,7 @@ use crate::{
         },
         time::Duration,
     },
-    subscription::{data_reader::Sample, data_reader_listener::DataReaderListener},
+    subscription::data_reader_listener::DataReaderListener,
 };
 use alloc::{vec, vec::Vec};
 use core::marker::PhantomData;
