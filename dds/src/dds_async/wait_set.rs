@@ -1,18 +1,28 @@
-use crate::infrastructure::{
-    error::{DdsError, DdsResult},
-    time::Duration,
+use crate::{
+    dcps::runtime::DdsRuntime,
+    infrastructure::{
+        error::{DdsError, DdsResult},
+        time::Duration,
+    },
 };
 
 use super::condition::StatusConditionAsync;
 
 /// Async version of [`Condition`](crate::infrastructure::wait_set::Condition).
-#[derive(Clone)]
-pub enum ConditionAsync {
+pub enum ConditionAsync<R: DdsRuntime> {
     /// Status condition variant
-    StatusCondition(StatusConditionAsync),
+    StatusCondition(StatusConditionAsync<R>),
 }
 
-impl ConditionAsync {
+impl<R: DdsRuntime> Clone for ConditionAsync<R> {
+    fn clone(&self) -> Self {
+        match self {
+            Self::StatusCondition(arg0) => Self::StatusCondition(arg0.clone()),
+        }
+    }
+}
+
+impl<R: DdsRuntime> ConditionAsync<R> {
     /// Async version of [`get_trigger_value`](crate::infrastructure::wait_set::Condition::get_trigger_value).
     #[tracing::instrument(skip(self))]
     pub async fn get_trigger_value(&self) -> DdsResult<bool> {
@@ -23,12 +33,19 @@ impl ConditionAsync {
 }
 
 /// Async version of [`WaitSet`](crate::infrastructure::wait_set::WaitSet).
-#[derive(Default)]
-pub struct WaitSetAsync {
-    conditions: Vec<ConditionAsync>,
+pub struct WaitSetAsync<R: DdsRuntime> {
+    conditions: Vec<ConditionAsync<R>>,
 }
 
-impl WaitSetAsync {
+impl<R: DdsRuntime> Default for WaitSetAsync<R> {
+    fn default() -> Self {
+        Self {
+            conditions: Default::default(),
+        }
+    }
+}
+
+impl<R: DdsRuntime> WaitSetAsync<R> {
     /// Create a new [`WaitSetAsync`]
     #[tracing::instrument]
     pub fn new() -> Self {
@@ -37,7 +54,7 @@ impl WaitSetAsync {
 
     /// Async version of [`wait`](crate::infrastructure::wait_set::WaitSet::wait).
     #[tracing::instrument(skip(self))]
-    pub async fn wait(&self, timeout: Duration) -> DdsResult<Vec<ConditionAsync>> {
+    pub async fn wait(&self, timeout: Duration) -> DdsResult<Vec<ConditionAsync<R>>> {
         if self.conditions.is_empty() {
             return Err(DdsError::PreconditionNotMet(
                 "WaitSet has no attached conditions".to_string(),
@@ -69,20 +86,20 @@ impl WaitSetAsync {
 
     /// Async version of [`attach_condition`](crate::infrastructure::wait_set::WaitSet::attach_condition).
     #[tracing::instrument(skip(self, cond))]
-    pub async fn attach_condition(&mut self, cond: ConditionAsync) -> DdsResult<()> {
+    pub async fn attach_condition(&mut self, cond: ConditionAsync<R>) -> DdsResult<()> {
         self.conditions.push(cond);
         Ok(())
     }
 
     /// Async version of [`detach_condition`](crate::infrastructure::wait_set::WaitSet::detach_condition).
     #[tracing::instrument(skip(self, _cond))]
-    pub async fn detach_condition(&self, _cond: ConditionAsync) -> DdsResult<()> {
+    pub async fn detach_condition(&self, _cond: ConditionAsync<R>) -> DdsResult<()> {
         todo!()
     }
 
     /// Async version of [`get_conditions`](crate::infrastructure::wait_set::WaitSet::get_conditions).
     #[tracing::instrument(skip(self))]
-    pub async fn get_conditions(&self) -> DdsResult<Vec<ConditionAsync>> {
+    pub async fn get_conditions(&self) -> DdsResult<Vec<ConditionAsync<R>>> {
         Ok(self.conditions.clone())
     }
 }

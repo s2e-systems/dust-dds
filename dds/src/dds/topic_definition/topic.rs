@@ -94,7 +94,7 @@ impl<R: DdsRuntime> Topic<R> {
     /// condition can then be added to a [`WaitSet`](crate::infrastructure::wait_set::WaitSet) so that the application can wait for specific status changes
     /// that affect the Entity.
     #[tracing::instrument(skip(self))]
-    pub fn get_statuscondition(&self) -> StatusCondition {
+    pub fn get_statuscondition(&self) -> StatusCondition<R> {
         StatusCondition::new(self.topic_async.get_statuscondition())
     }
 

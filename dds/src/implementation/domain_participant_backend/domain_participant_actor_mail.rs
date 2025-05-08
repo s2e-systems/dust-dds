@@ -38,7 +38,7 @@ where
 {
     CreateUserDefinedPublisher {
         qos: QosKind<PublisherQos>,
-        status_condition: Actor<StatusConditionActor>,
+        status_condition: Actor<R, StatusConditionActor>,
         listener_sender: R::ChannelSender<ListenerMail<R>>,
         mask: Vec<StatusKind>,
         reply_sender: R::OneshotSender<DdsResult<InstanceHandle>>,
@@ -50,7 +50,7 @@ where
     },
     CreateUserDefinedSubscriber {
         qos: QosKind<SubscriberQos>,
-        status_condition: Actor<StatusConditionActor>,
+        status_condition: Actor<R, StatusConditionActor>,
         listener_sender: R::ChannelSender<ListenerMail<R>>,
         mask: Vec<StatusKind>,
         reply_sender: R::OneshotSender<DdsResult<InstanceHandle>>,
@@ -64,7 +64,7 @@ where
         topic_name: String,
         type_name: String,
         qos: QosKind<TopicQos>,
-        status_condition: Actor<StatusConditionActor>,
+        status_condition: Actor<R, StatusConditionActor>,
         listener_sender: R::ChannelSender<ListenerMail<R>>,
         mask: Vec<StatusKind>,
         type_support: Arc<dyn DynamicType + Send + Sync>,
@@ -78,18 +78,30 @@ where
     _FindTopic {
         topic_name: String,
         type_support: Arc<dyn DynamicType + Send + Sync>,
-        status_condition: Actor<StatusConditionActor>,
+        status_condition: Actor<R, StatusConditionActor>,
         listener_sender: R::ChannelSender<ListenerMail<R>>,
         #[allow(clippy::type_complexity)]
         reply_sender: R::OneshotSender<
-            DdsResult<Option<(InstanceHandle, ActorAddress<StatusConditionActor>, String)>>,
+            DdsResult<
+                Option<(
+                    InstanceHandle,
+                    ActorAddress<R, StatusConditionActor>,
+                    String,
+                )>,
+            >,
         >,
     },
     LookupTopicdescription {
         topic_name: String,
         #[allow(clippy::type_complexity)]
         reply_sender: R::OneshotSender<
-            DdsResult<Option<(String, InstanceHandle, ActorAddress<StatusConditionActor>)>>,
+            DdsResult<
+                Option<(
+                    String,
+                    InstanceHandle,
+                    ActorAddress<R, StatusConditionActor>,
+                )>,
+            >,
         >,
     },
     IgnoreParticipant {
@@ -201,7 +213,7 @@ where
         publisher_handle: InstanceHandle,
         topic_name: String,
         qos: QosKind<DataWriterQos>,
-        status_condition: Actor<StatusConditionActor>,
+        status_condition: Actor<R, StatusConditionActor>,
         listener_sender: R::ChannelSender<ListenerMail<R>>,
         mask: Vec<StatusKind>,
         participant_address: R::ChannelSender<DomainParticipantMail<R>>,
@@ -246,7 +258,7 @@ where
         subscriber_handle: InstanceHandle,
         topic_name: String,
         qos: QosKind<DataReaderQos>,
-        status_condition: Actor<StatusConditionActor>,
+        status_condition: Actor<R, StatusConditionActor>,
         listener_sender: R::ChannelSender<ListenerMail<R>>,
         mask: Vec<StatusKind>,
         domain_participant_address: R::ChannelSender<DomainParticipantMail<R>>,
@@ -262,7 +274,7 @@ where
         topic_name: String,
         #[allow(clippy::type_complexity)]
         reply_sender: R::OneshotSender<
-            DdsResult<Option<(InstanceHandle, ActorAddress<StatusConditionActor>)>>,
+            DdsResult<Option<(InstanceHandle, ActorAddress<R, StatusConditionActor>)>>,
         >,
     },
     SetDefaultDataReaderQos {

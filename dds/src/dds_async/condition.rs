@@ -1,4 +1,5 @@
 use crate::{
+    dcps::runtime::DdsRuntime,
     implementation::status_condition::status_condition_actor::{
         StatusConditionActor, StatusConditionMail,
     },
@@ -7,18 +8,25 @@ use crate::{
 };
 
 /// Async version of [`StatusCondition`](crate::infrastructure::condition::StatusCondition).
-#[derive(Clone)]
-pub struct StatusConditionAsync {
-    address: ActorAddress<StatusConditionActor>,
+pub struct StatusConditionAsync<R: DdsRuntime> {
+    address: ActorAddress<R, StatusConditionActor>,
 }
 
-impl StatusConditionAsync {
-    pub(crate) fn new(address: ActorAddress<StatusConditionActor>) -> Self {
+impl<R: DdsRuntime> Clone for StatusConditionAsync<R> {
+    fn clone(&self) -> Self {
+        Self {
+            address: self.address.clone(),
+        }
+    }
+}
+
+impl<R: DdsRuntime> StatusConditionAsync<R> {
+    pub(crate) fn new(address: ActorAddress<R, StatusConditionActor>) -> Self {
         Self { address }
     }
 }
 
-impl StatusConditionAsync {
+impl<R: DdsRuntime> StatusConditionAsync<R> {
     /// Async version of [`get_enabled_statuses`](crate::infrastructure::condition::StatusCondition::get_enabled_statuses).
     #[tracing::instrument(skip(self))]
     pub async fn get_enabled_statuses(&self) -> DdsResult<Vec<StatusKind>> {
@@ -26,7 +34,8 @@ impl StatusConditionAsync {
         self.address
             .send_actor_mail(StatusConditionMail::GetStatusConditionEnabledStatuses {
                 reply_sender,
-            })?;
+            })
+            .await?;
         Ok(reply_receiver.await?)
     }
 
@@ -36,7 +45,8 @@ impl StatusConditionAsync {
         self.address
             .send_actor_mail(StatusConditionMail::SetStatusConditionEnabledStatuses {
                 status_mask: mask.to_vec(),
-            })?;
+            })
+            .await?;
         Ok(())
     }
 
@@ -47,15 +57,14 @@ impl StatusConditionAsync {
     }
 }
 
-impl StatusConditionAsync {
+impl<R: DdsRuntime> StatusConditionAsync<R> {
     /// Async version of [`get_trigger_value`](crate::infrastructure::condition::StatusCondition::get_trigger_value).
     #[tracing::instrument(skip(self))]
     pub async fn get_trigger_value(&self) -> DdsResult<bool> {
         let (reply_sender, reply_receiver) = oneshot();
         self.address
-            .send_actor_mail(StatusConditionMail::GetStatusConditionTriggerValue {
-                reply_sender,
-            })?;
+            .send_actor_mail(StatusConditionMail::GetStatusConditionTriggerValue { reply_sender })
+            .await?;
         Ok(reply_receiver.await?)
     }
 }

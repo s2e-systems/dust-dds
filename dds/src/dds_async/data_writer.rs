@@ -30,7 +30,7 @@ use std::marker::PhantomData;
 /// Async version of [`DataWriter`](crate::publication::data_writer::DataWriter).
 pub struct DataWriterAsync<R: DdsRuntime, Foo> {
     handle: InstanceHandle,
-    status_condition_address: ActorAddress<StatusConditionActor>,
+    status_condition_address: ActorAddress<R, StatusConditionActor>,
     publisher: PublisherAsync<R>,
     topic: TopicAsync<R>,
     phantom: PhantomData<Foo>,
@@ -51,7 +51,7 @@ impl<R: DdsRuntime, Foo> Clone for DataWriterAsync<R, Foo> {
 impl<R: DdsRuntime, Foo> DataWriterAsync<R, Foo> {
     pub(crate) fn new(
         handle: InstanceHandle,
-        status_condition_address: ActorAddress<StatusConditionActor>,
+        status_condition_address: ActorAddress<R, StatusConditionActor>,
         publisher: PublisherAsync<R>,
         topic: TopicAsync<R>,
     ) -> Self {
@@ -403,7 +403,7 @@ impl<R: DdsRuntime, Foo> DataWriterAsync<R, Foo> {
 
     /// Async version of [`get_statuscondition`](crate::publication::data_writer::DataWriter::get_statuscondition).
     #[tracing::instrument(skip(self))]
-    pub fn get_statuscondition(&self) -> StatusConditionAsync {
+    pub fn get_statuscondition(&self) -> StatusConditionAsync<R> {
         StatusConditionAsync::new(self.status_condition_address.clone())
     }
 

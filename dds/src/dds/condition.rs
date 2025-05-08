@@ -1,4 +1,5 @@
 use crate::{
+    dcps::runtime::DdsRuntime,
     dds_async::condition::StatusConditionAsync,
     infrastructure::{error::DdsResult, status::StatusKind},
     runtime::executor::block_on,
@@ -8,21 +9,21 @@ use crate::{
 /// The *trigger_value* of the [`StatusCondition`] depends on the communication status of that entity (e.g., arrival of data, loss of
 /// information, etc.), 'filtered' by the set of *enabled_statuses* on the [`StatusCondition`].
 #[derive(Clone)]
-pub struct StatusCondition {
-    condition_async: StatusConditionAsync,
+pub struct StatusCondition<R: DdsRuntime> {
+    condition_async: StatusConditionAsync<R>,
 }
 
-impl StatusCondition {
-    pub(crate) fn new(condition_async: StatusConditionAsync) -> Self {
+impl<R: DdsRuntime> StatusCondition<R> {
+    pub(crate) fn new(condition_async: StatusConditionAsync<R>) -> Self {
         Self { condition_async }
     }
 
-    pub(crate) fn condition_async(&self) -> &StatusConditionAsync {
+    pub(crate) fn condition_async(&self) -> &StatusConditionAsync<R> {
         &self.condition_async
     }
 }
 
-impl StatusCondition {
+impl<R: DdsRuntime> StatusCondition<R> {
     /// This operation retrieves the list of communication statuses that are taken into account to determine the *trigger_value* of the
     /// [`StatusCondition`]. This operation returns the statuses that were explicitly set on the last call to [`StatusCondition::set_enabled_statuses`] or, if
     /// it was never called, the default list of enabled statuses which includes all the statuses.
@@ -47,7 +48,7 @@ impl StatusCondition {
 }
 
 /// This implementation block contains the Condition operations for the [`StatusCondition`].
-impl StatusCondition {
+impl<R: DdsRuntime> StatusCondition<R> {
     /// This operation retrieves the *trigger_value* of the [`StatusCondition`].
     pub fn get_trigger_value(&self) -> DdsResult<bool> {
         block_on(self.condition_async.get_trigger_value())

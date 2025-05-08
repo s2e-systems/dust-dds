@@ -165,8 +165,8 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
     ) -> DdsResult<(
         R::ChannelSender<DomainParticipantMail<R>>,
         InstanceHandle,
-        ActorAddress<StatusConditionActor>,
-        ActorAddress<StatusConditionActor>,
+        ActorAddress<R, StatusConditionActor>,
+        ActorAddress<R, StatusConditionActor>,
     )> {
         let domain_participant_qos = match qos {
             QosKind::Default => self.default_participant_qos.clone(),
@@ -230,7 +230,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
             "SpdpDiscoveredParticipantData".to_string(),
             DCPS_PARTICIPANT.to_owned(),
             spdp_topic_participant_handle,
-            Actor::spawn::<R>(StatusConditionActor::default(), &spawner_handle),
+            Actor::spawn(StatusConditionActor::default(), &spawner_handle),
             noop_topic_listener_sender.clone(),
             vec![],
             Arc::new(SpdpDiscoveredParticipantData::get_type()),
@@ -245,7 +245,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
             "DiscoveredTopicData".to_string(),
             DCPS_TOPIC.to_owned(),
             sedp_topic_topics_handle,
-            Actor::spawn::<R>(StatusConditionActor::default(), &spawner_handle),
+            Actor::spawn(StatusConditionActor::default(), &spawner_handle),
             noop_topic_listener_sender.clone(),
             vec![],
             Arc::new(DiscoveredTopicData::get_type()),
@@ -260,7 +260,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
             "DiscoveredWriterData".to_string(),
             DCPS_PUBLICATION.to_owned(),
             sedp_topic_publications_handle,
-            Actor::spawn::<R>(StatusConditionActor::default(), &spawner_handle),
+            Actor::spawn(StatusConditionActor::default(), &spawner_handle),
             noop_topic_listener_sender.clone(),
             vec![],
             Arc::new(DiscoveredWriterData::get_type()),
@@ -275,7 +275,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
             "DiscoveredReaderData".to_string(),
             DCPS_SUBSCRIPTION.to_owned(),
             sedp_topic_subscriptions_handle,
-            Actor::spawn::<R>(StatusConditionActor::default(), &spawner_handle),
+            Actor::spawn(StatusConditionActor::default(), &spawner_handle),
             noop_topic_listener_sender,
             vec![],
             Arc::new(DiscoveredReaderData::get_type()),
@@ -322,7 +322,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
             DCPS_PARTICIPANT.to_owned(),
             "SpdpDiscoveredParticipantData".to_string(),
             Arc::new(SpdpDiscoveredParticipantData::get_type()),
-            Actor::spawn::<R>(StatusConditionActor::default(), &spawner_handle),
+            Actor::spawn(StatusConditionActor::default(), &spawner_handle),
             noop_reader_listener_sender.clone(),
             Vec::new(),
             TransportReaderKind::Stateless(dcps_participant_transport_reader),
@@ -341,7 +341,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
             DCPS_TOPIC.to_owned(),
             "DiscoveredTopicData".to_string(),
             Arc::new(DiscoveredTopicData::get_type()),
-            Actor::spawn::<R>(StatusConditionActor::default(), &spawner_handle),
+            Actor::spawn(StatusConditionActor::default(), &spawner_handle),
             noop_reader_listener_sender.clone(),
             Vec::new(),
             TransportReaderKind::Stateful(dcps_topic_transport_reader),
@@ -360,7 +360,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
             DCPS_PUBLICATION.to_owned(),
             "DiscoveredWriterData".to_string(),
             Arc::new(DiscoveredWriterData::get_type()),
-            Actor::spawn::<R>(StatusConditionActor::default(), &spawner_handle),
+            Actor::spawn(StatusConditionActor::default(), &spawner_handle),
             noop_reader_listener_sender.clone(),
             Vec::new(),
             TransportReaderKind::Stateful(dcps_publication_transport_reader),
@@ -379,7 +379,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
             DCPS_SUBSCRIPTION.to_owned(),
             "DiscoveredReaderData".to_string(),
             Arc::new(DiscoveredReaderData::get_type()),
-            Actor::spawn::<R>(StatusConditionActor::default(), &spawner_handle),
+            Actor::spawn(StatusConditionActor::default(), &spawner_handle),
             noop_reader_listener_sender,
             Vec::new(),
             TransportReaderKind::Stateful(dcps_subscription_transport_reader),
@@ -389,7 +389,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
         let mut builtin_subscriber = SubscriberEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             SubscriberQos::default(),
-            Actor::spawn::<R>(StatusConditionActor::default(), &spawner_handle),
+            Actor::spawn(StatusConditionActor::default(), &spawner_handle),
             noop_subscriber_listener_sender,
             vec![],
         );
@@ -410,7 +410,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
             DCPS_PARTICIPANT.to_owned(),
             "SpdpDiscoveredParticipantData".to_string(),
             Arc::new(SpdpDiscoveredParticipantData::get_type()),
-            Actor::spawn::<R>(StatusConditionActor::default(), &spawner_handle),
+            Actor::spawn(StatusConditionActor::default(), &spawner_handle),
             noop_writer_listener_sender.clone(),
             vec![],
             spdp_writer_qos,
@@ -427,7 +427,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
             DCPS_TOPIC.to_owned(),
             "DiscoveredTopicData".to_string(),
             Arc::new(DiscoveredTopicData::get_type()),
-            Actor::spawn::<R>(StatusConditionActor::default(), &spawner_handle),
+            Actor::spawn(StatusConditionActor::default(), &spawner_handle),
             noop_writer_listener_sender.clone(),
             vec![],
             sedp_data_writer_qos(),
@@ -443,7 +443,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
             DCPS_PUBLICATION.to_owned(),
             "DiscoveredWriterData".to_string(),
             Arc::new(DiscoveredWriterData::get_type()),
-            Actor::spawn::<R>(StatusConditionActor::default(), &spawner_handle),
+            Actor::spawn(StatusConditionActor::default(), &spawner_handle),
             noop_writer_listener_sender.clone(),
             vec![],
             sedp_data_writer_qos(),
@@ -460,7 +460,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
             DCPS_SUBSCRIPTION.to_owned(),
             "DiscoveredReaderData".to_string(),
             Arc::new(DiscoveredReaderData::get_type()),
-            Actor::spawn::<R>(StatusConditionActor::default(), &spawner_handle),
+            Actor::spawn(StatusConditionActor::default(), &spawner_handle),
             noop_writer_listener_sender,
             vec![],
             sedp_data_writer_qos(),
@@ -471,7 +471,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
             instance_handle_counter.generate_new_instance_handle(),
             noop_publisher_listener_sender,
             vec![],
-            Actor::spawn::<R>(StatusConditionActor::default(), &spawner_handle),
+            Actor::spawn(StatusConditionActor::default(), &spawner_handle),
         );
         builtin_publisher.enable();
         builtin_publisher.insert_data_writer(dcps_participant_writer);
@@ -480,7 +480,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
         builtin_publisher.insert_data_writer(dcps_subscriptions_writer);
         let instance_handle = InstanceHandle::new(transport.guid().into());
 
-        let status_condition = Actor::spawn::<R>(StatusConditionActor::default(), &spawner_handle);
+        let status_condition = Actor::spawn(StatusConditionActor::default(), &spawner_handle);
 
         let domain_participant = DomainParticipantEntity::new(
             domain_id,
@@ -640,8 +640,8 @@ pub enum DomainParticipantFactoryMail<R: DdsRuntime> {
             DdsResult<(
                 R::ChannelSender<DomainParticipantMail<R>>,
                 InstanceHandle,
-                ActorAddress<StatusConditionActor>,
-                ActorAddress<StatusConditionActor>,
+                ActorAddress<R, StatusConditionActor>,
+                ActorAddress<R, StatusConditionActor>,
             )>,
         >,
     },

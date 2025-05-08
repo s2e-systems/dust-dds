@@ -30,7 +30,7 @@ use crate::{
 /// Async version of [`Publisher`](crate::publication::publisher::Publisher).
 pub struct PublisherAsync<R: DdsRuntime> {
     handle: InstanceHandle,
-    status_condition_address: ActorAddress<StatusConditionActor>,
+    status_condition_address: ActorAddress<R, StatusConditionActor>,
     participant: DomainParticipantAsync<R>,
 }
 
@@ -47,7 +47,7 @@ impl<R: DdsRuntime> Clone for PublisherAsync<R> {
 impl<R: DdsRuntime> PublisherAsync<R> {
     pub(crate) fn new(
         handle: InstanceHandle,
-        status_condition_address: ActorAddress<StatusConditionActor>,
+        status_condition_address: ActorAddress<R, StatusConditionActor>,
         participant: DomainParticipantAsync<R>,
     ) -> Self {
         Self {
@@ -76,7 +76,7 @@ impl<R: DdsRuntime> PublisherAsync<R> {
         Foo: 'b,
     {
         let topic_name = a_topic.get_name();
-        let status_condition = Actor::spawn::<R>(
+        let status_condition = Actor::spawn(
             StatusConditionActor::default(),
             self.participant.spawner_handle(),
         );
@@ -277,7 +277,7 @@ impl<R: DdsRuntime> PublisherAsync<R> {
 
     /// Async version of [`get_statuscondition`](crate::publication::publisher::Publisher::get_statuscondition).
     #[tracing::instrument(skip(self))]
-    pub fn get_statuscondition(&self) -> StatusConditionAsync {
+    pub fn get_statuscondition(&self) -> StatusConditionAsync<R> {
         StatusConditionAsync::new(self.status_condition_address.clone())
     }
 

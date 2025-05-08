@@ -1,4 +1,5 @@
 use crate::{
+    dcps::runtime::DdsRuntime,
     infrastructure::status::StatusKind,
     runtime::{
         actor::{Actor, MailHandler},
@@ -103,12 +104,16 @@ impl MailHandler for StatusConditionActor {
     }
 }
 
-impl crate::dcps::status_condition::StatusCondition for Actor<StatusConditionActor> {
-    fn add_state(&mut self, state: StatusKind) {
+impl<R: DdsRuntime> crate::dcps::status_condition::StatusCondition
+    for Actor<R, StatusConditionActor>
+{
+    async fn add_state(&mut self, state: StatusKind) {
         self.send_actor_mail(StatusConditionMail::AddCommunicationState { state })
+            .await;
     }
 
-    fn remove_state(&mut self, state: StatusKind) {
-        self.send_actor_mail(StatusConditionMail::RemoveCommunicationState { state });
+    async fn remove_state(&mut self, state: StatusKind) {
+        self.send_actor_mail(StatusConditionMail::RemoveCommunicationState { state })
+            .await;
     }
 }

@@ -1,8 +1,7 @@
 use core::future::Future;
 
-use super::mpsc::{mpsc_channel, MpscSender};
 use crate::{
-    dcps::runtime::{DdsRuntime, Spawner},
+    dcps::runtime::{ChannelReceive, ChannelSend, DdsRuntime, Spawner},
     infrastructure::error::{DdsError, DdsResult},
 };
 
@@ -12,16 +11,20 @@ pub trait MailHandler {
     fn handle(&mut self, message: Self::Mail) -> impl Future<Output = ()> + Send;
 }
 
-pub struct ActorAddress<A>
+pub struct ActorAddress<R, A>
 where
+    R: DdsRuntime,
     A: MailHandler,
+    <A as MailHandler>::Mail: Send,
 {
-    mail_sender: MpscSender<<A as MailHandler>::Mail>,
+    mail_sender: R::ChannelSender<<A as MailHandler>::Mail>,
 }
 
-impl<A> Clone for ActorAddress<A>
+impl<R, A> Clone for ActorAddress<R, A>
 where
+    R: DdsRuntime,
     A: MailHandler,
+    <A as MailHandler>::Mail: Send,
 {
     fn clone(&self) -> Self {
         Self {
@@ -30,55 +33,61 @@ where
     }
 }
 
-impl<A> ActorAddress<A>
+impl<R, A> ActorAddress<R, A>
 where
+    R: DdsRuntime,
     A: MailHandler,
-    A::Mail: Send,
+    <A as MailHandler>::Mail: Send,
 {
-    pub fn send_actor_mail(&self, mail: A::Mail) -> DdsResult<()>
+    pub async fn send_actor_mail(&self, mail: A::Mail) -> DdsResult<()>
     where
         A: MailHandler,
         A::Mail: Send + 'static,
     {
         self.mail_sender
             .send(mail)
+            .await
             .map_err(|_| DdsError::AlreadyDeleted)
     }
 }
 
-pub struct Actor<A>
+pub struct Actor<R, A>
 where
+    R: DdsRuntime,
     A: MailHandler,
+    A::Mail: Send,
 {
-    mail_sender: MpscSender<<A as MailHandler>::Mail>,
+    mail_sender: R::ChannelSender<<A as MailHandler>::Mail>,
     // join_handle: tokio::task::JoinHandle<()>,
 }
 
-impl<A> Actor<A>
+impl<R, A> Actor<R, A>
 where
+    R: DdsRuntime,
     A: MailHandler + Send + 'static,
-    A::Mail: Send,
+    A::Mail: Send + 'static,
 {
-    pub fn spawn<R: DdsRuntime>(mut actor: A, spawner_handle: &R::SpawnerHandle) -> Self {
-        let (mail_sender, mailbox_recv) = mpsc_channel::<A::Mail>();
+    pub fn spawn(mut actor: A, spawner_handle: &R::SpawnerHandle) -> Self {
+        let (mail_sender, mut mailbox_recv) = R::channel::<A::Mail>();
 
         spawner_handle.spawn(async move {
-            while let Some(m) = mailbox_recv.recv().await {
+            while let Some(m) = mailbox_recv.receive().await {
                 actor.handle(m).await;
             }
         });
         Actor { mail_sender }
     }
 
-    pub fn address(&self) -> ActorAddress<A> {
+    pub fn address(&self) -> ActorAddress<R, A> {
         ActorAddress {
             mail_sender: self.mail_sender.clone(),
         }
     }
 
-    pub fn send_actor_mail(&self, mail: A::Mail) {
+    pub async fn send_actor_mail(&self, mail: A::Mail) {
         self.mail_sender
             .send(mail)
+            .await
             .expect("Message will always be sent when actor exists");
     }
 }

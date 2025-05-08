@@ -32,7 +32,7 @@ use std::marker::PhantomData;
 /// Async version of [`DataReader`](crate::subscription::data_reader::DataReader).
 pub struct DataReaderAsync<R: DdsRuntime, Foo> {
     handle: InstanceHandle,
-    status_condition_address: ActorAddress<StatusConditionActor>,
+    status_condition_address: ActorAddress<R, StatusConditionActor>,
     subscriber: SubscriberAsync<R>,
     topic: TopicAsync<R>,
     phantom: PhantomData<Foo>,
@@ -41,7 +41,7 @@ pub struct DataReaderAsync<R: DdsRuntime, Foo> {
 impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
     pub(crate) fn new(
         handle: InstanceHandle,
-        status_condition_address: ActorAddress<StatusConditionActor>,
+        status_condition_address: ActorAddress<R, StatusConditionActor>,
         subscriber: SubscriberAsync<R>,
         topic: TopicAsync<R>,
     ) -> Self {
@@ -476,7 +476,7 @@ impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
 
     /// Async version of [`get_statuscondition`](crate::subscription::data_reader::DataReader::get_statuscondition).
     #[tracing::instrument(skip(self))]
-    pub fn get_statuscondition(&self) -> StatusConditionAsync {
+    pub fn get_statuscondition(&self) -> StatusConditionAsync<R> {
         StatusConditionAsync::new(self.status_condition_address.clone())
     }
 

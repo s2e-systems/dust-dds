@@ -37,8 +37,8 @@ use std::sync::Arc;
 /// Async version of [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant).
 pub struct DomainParticipantAsync<R: DdsRuntime> {
     participant_address: R::ChannelSender<DomainParticipantMail<R>>,
-    status_condition_address: ActorAddress<StatusConditionActor>,
-    builtin_subscriber_status_condition_address: ActorAddress<StatusConditionActor>,
+    status_condition_address: ActorAddress<R, StatusConditionActor>,
+    builtin_subscriber_status_condition_address: ActorAddress<R, StatusConditionActor>,
     domain_id: DomainId,
     handle: InstanceHandle,
     spawner_handle: R::SpawnerHandle,
@@ -62,8 +62,8 @@ impl<R: DdsRuntime> Clone for DomainParticipantAsync<R> {
 impl<R: DdsRuntime> DomainParticipantAsync<R> {
     pub(crate) fn new(
         participant_address: R::ChannelSender<DomainParticipantMail<R>>,
-        status_condition_address: ActorAddress<StatusConditionActor>,
-        builtin_subscriber_status_condition_address: ActorAddress<StatusConditionActor>,
+        status_condition_address: ActorAddress<R, StatusConditionActor>,
+        builtin_subscriber_status_condition_address: ActorAddress<R, StatusConditionActor>,
         domain_id: DomainId,
         handle: InstanceHandle,
         spawner_handle: R::SpawnerHandle,
@@ -97,8 +97,7 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         mask: &[StatusKind],
     ) -> DdsResult<PublisherAsync<R>> {
         let (reply_sender, mut reply_receiver) = R::oneshot();
-        let status_condition =
-            Actor::spawn::<R>(StatusConditionActor::default(), &self.spawner_handle);
+        let status_condition = Actor::spawn(StatusConditionActor::default(), &self.spawner_handle);
         let publisher_status_condition_address = status_condition.address();
         let listener_sender = PublisherListenerActor::spawn(a_listener, self.spawner_handle());
         self.participant_address
@@ -143,8 +142,7 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         mask: &[StatusKind],
     ) -> DdsResult<SubscriberAsync<R>> {
         let (reply_sender, mut reply_receiver) = R::oneshot();
-        let status_condition =
-            Actor::spawn::<R>(StatusConditionActor::default(), &self.spawner_handle);
+        let status_condition = Actor::spawn(StatusConditionActor::default(), &self.spawner_handle);
         let subscriber_status_condition_address = status_condition.address();
         let listener_sender = SubscriberListenerActor::spawn(a_listener, self.spawner_handle());
         self.participant_address
@@ -212,8 +210,7 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         dynamic_type_representation: Arc<dyn DynamicType + Send + Sync>,
     ) -> DdsResult<TopicAsync<R>> {
         let (reply_sender, mut reply_receiver) = R::oneshot();
-        let status_condition =
-            Actor::spawn::<R>(StatusConditionActor::default(), &self.spawner_handle);
+        let status_condition = Actor::spawn(StatusConditionActor::default(), &self.spawner_handle);
         let topic_status_condition_address = status_condition.address();
         let listener_sender = TopicListenerActor::spawn(a_listener, self.spawner_handle());
         self.participant_address
@@ -625,7 +622,7 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
 
     /// Async version of [`get_statuscondition`](crate::domain::domain_participant::DomainParticipant::get_statuscondition).
     #[tracing::instrument(skip(self))]
-    pub fn get_statuscondition(&self) -> StatusConditionAsync {
+    pub fn get_statuscondition(&self) -> StatusConditionAsync<R> {
         StatusConditionAsync::new(self.status_condition_address.clone())
     }
 

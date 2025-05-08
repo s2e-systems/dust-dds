@@ -22,7 +22,7 @@ use std::sync::Arc;
 /// Async version of [`Topic`](crate::topic_definition::topic::Topic).
 pub struct TopicAsync<R: DdsRuntime> {
     handle: InstanceHandle,
-    status_condition_address: ActorAddress<StatusConditionActor>,
+    status_condition_address: ActorAddress<R, StatusConditionActor>,
     type_name: String,
     topic_name: String,
     participant: DomainParticipantAsync<R>,
@@ -43,7 +43,7 @@ impl<R: DdsRuntime> Clone for TopicAsync<R> {
 impl<R: DdsRuntime> TopicAsync<R> {
     pub(crate) fn new(
         handle: InstanceHandle,
-        status_condition_address: ActorAddress<StatusConditionActor>,
+        status_condition_address: ActorAddress<R, StatusConditionActor>,
         type_name: String,
         topic_name: String,
         participant: DomainParticipantAsync<R>,
@@ -130,7 +130,7 @@ impl<R: DdsRuntime> TopicAsync<R> {
 
     /// Async version of [`get_statuscondition`](crate::topic_definition::topic::Topic::get_statuscondition).
     #[tracing::instrument(skip(self))]
-    pub fn get_statuscondition(&self) -> StatusConditionAsync {
+    pub fn get_statuscondition(&self) -> StatusConditionAsync<R> {
         StatusConditionAsync::new(self.status_condition_address.clone())
     }
 

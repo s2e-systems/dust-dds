@@ -34,26 +34,14 @@ pub trait DdsRuntime: Send + 'static {
     type ClockHandle: Clock + Send + 'static;
     type TimerHandle: Timer + Clone + Send + 'static;
     type SpawnerHandle: Spawner + Clone + Send + Sync + 'static;
-    type OneshotSender<T>: OneshotSend<T> + Send
-    where
-        T: Send;
-    type OneshotReceiver<T>: OneshotReceive<T> + Send
-    where
-        T: Send;
-    type ChannelSender<T>: ChannelSend<T> + Clone + Send + Sync
-    where
-        T: Send;
-    type ChannelReceiver<T>: ChannelReceive<T> + Send
-    where
-        T: Send;
+    type OneshotSender<T: Send>: OneshotSend<T> + Send;
+    type OneshotReceiver<T: Send>: OneshotReceive<T> + Send;
+    type ChannelSender<T: Send>: ChannelSend<T> + Clone + Send + Sync;
+    type ChannelReceiver<T: Send + 'static>: ChannelReceive<T> + Send + 'static;
 
     fn timer(&self) -> Self::TimerHandle;
     fn clock(&self) -> Self::ClockHandle;
     fn spawner(&self) -> Self::SpawnerHandle;
-    fn oneshot<T>() -> (Self::OneshotSender<T>, Self::OneshotReceiver<T>)
-    where
-        T: Send;
-    fn channel<T>() -> (Self::ChannelSender<T>, Self::ChannelReceiver<T>)
-    where
-        T: Send;
+    fn oneshot<T: Send>() -> (Self::OneshotSender<T>, Self::OneshotReceiver<T>);
+    fn channel<T: Send>() -> (Self::ChannelSender<T>, Self::ChannelReceiver<T>);
 }

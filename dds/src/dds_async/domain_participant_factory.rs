@@ -34,7 +34,7 @@ use tracing::warn;
 /// to spin tasks on an existing runtime which can be shared with other things outside Dust DDS.
 pub struct DomainParticipantFactoryAsync<R: DdsRuntime> {
     runtime: R,
-    domain_participant_factory_actor: Actor<DomainParticipantFactoryActor<R>>,
+    domain_participant_factory_actor: Actor<R, DomainParticipantFactoryActor<R>>,
 }
 
 impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
@@ -194,7 +194,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
 impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
     #[doc(hidden)]
     pub fn new(runtime: R, app_id: [u8; 4], host_id: [u8; 4]) -> DomainParticipantFactoryAsync<R> {
-        let domain_participant_factory_actor = Actor::spawn::<R>(
+        let domain_participant_factory_actor = Actor::spawn(
             DomainParticipantFactoryActor::new(app_id, host_id),
             &runtime.spawner(),
         );

@@ -29,7 +29,7 @@ use crate::{
 /// Async version of [`Subscriber`](crate::subscription::subscriber::Subscriber).
 pub struct SubscriberAsync<R: DdsRuntime> {
     handle: InstanceHandle,
-    status_condition_address: ActorAddress<StatusConditionActor>,
+    status_condition_address: ActorAddress<R, StatusConditionActor>,
     participant: DomainParticipantAsync<R>,
 }
 
@@ -46,7 +46,7 @@ impl<R: DdsRuntime> Clone for SubscriberAsync<R> {
 impl<R: DdsRuntime> SubscriberAsync<R> {
     pub(crate) fn new(
         handle: InstanceHandle,
-        status_condition_address: ActorAddress<StatusConditionActor>,
+        status_condition_address: ActorAddress<R, StatusConditionActor>,
         participant: DomainParticipantAsync<R>,
     ) -> Self {
         Self {
@@ -74,7 +74,7 @@ impl<R: DdsRuntime> SubscriberAsync<R> {
     where
         Foo: 'b,
     {
-        let status_condition = Actor::spawn::<R>(
+        let status_condition = Actor::spawn(
             StatusConditionActor::default(),
             self.participant.spawner_handle(),
         );
@@ -280,7 +280,7 @@ impl<R: DdsRuntime> SubscriberAsync<R> {
 
     /// Async version of [`get_statuscondition`](crate::subscription::subscriber::Subscriber::get_statuscondition).
     #[tracing::instrument(skip(self))]
-    pub fn get_statuscondition(&self) -> StatusConditionAsync {
+    pub fn get_statuscondition(&self) -> StatusConditionAsync<R> {
         StatusConditionAsync::new(self.status_condition_address.clone())
     }
 

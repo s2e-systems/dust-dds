@@ -44,29 +44,12 @@ impl StdRuntime {
 
 impl DdsRuntime for StdRuntime {
     type ClockHandle = StdClock;
-
     type TimerHandle = TimerHandle;
-
     type SpawnerHandle = ExecutorHandle;
-
-    type OneshotSender<T>
-        = OneshotSender<T>
-    where
-        T: Send;
-    type OneshotReceiver<T>
-        = OneshotReceiver<T>
-    where
-        T: Send;
-
-    type ChannelSender<T>
-        = MpscSender<T>
-    where
-        T: Send;
-
-    type ChannelReceiver<T>
-        = MpscReceiver<T>
-    where
-        T: Send;
+    type OneshotSender<T: Send> = OneshotSender<T>;
+    type OneshotReceiver<T: Send> = OneshotReceiver<T>;
+    type ChannelSender<T: Send> = MpscSender<T>;
+    type ChannelReceiver<T: Send + 'static> = MpscReceiver<T>;
 
     fn timer(&self) -> Self::TimerHandle {
         self.timer_driver.handle()
@@ -80,17 +63,11 @@ impl DdsRuntime for StdRuntime {
         self.executor.handle()
     }
 
-    fn oneshot<T>() -> (Self::OneshotSender<T>, Self::OneshotReceiver<T>)
-    where
-        T: Send,
-    {
+    fn oneshot<T: Send>() -> (Self::OneshotSender<T>, Self::OneshotReceiver<T>) {
         oneshot()
     }
 
-    fn channel<T>() -> (Self::ChannelSender<T>, Self::ChannelReceiver<T>)
-    where
-        T: Send,
-    {
+    fn channel<T: Send + 'static>() -> (Self::ChannelSender<T>, Self::ChannelReceiver<T>) {
         mpsc_channel()
     }
 }
