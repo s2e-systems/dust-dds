@@ -1,6 +1,7 @@
 use super::{condition::StatusConditionAsync, domain_participant::DomainParticipantAsync};
 use crate::{
     dcps::{
+        actor::ActorAddress,
         domain_participant_actor_mail::{DomainParticipantMail, TopicServiceMail},
         runtime::{ChannelSend, DdsRuntime, OneshotReceive},
         status_condition_actor::StatusConditionActor,
@@ -11,7 +12,6 @@ use crate::{
         qos::{QosKind, TopicQos},
         status::{InconsistentTopicStatus, StatusKind},
     },
-    runtime::actor::ActorAddress,
     topic_definition::topic_listener::TopicListener,
     xtypes::dynamic_type::DynamicType,
 };

@@ -1,10 +1,10 @@
 use crate::{
-    dcps::runtime::DdsRuntime,
-    infrastructure::status::StatusKind,
-    runtime::{
+    dcps::{
         actor::{Actor, MailHandler},
-        oneshot::OneshotSender,
+        runtime::DdsRuntime,
     },
+    infrastructure::status::StatusKind,
+    runtime::oneshot::OneshotSender,
 };
 use alloc::vec::Vec;
 

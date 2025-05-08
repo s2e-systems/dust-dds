@@ -1,10 +1,11 @@
 use crate::{
     dcps::{
+        actor::ActorAddress,
         runtime::DdsRuntime,
         status_condition_actor::{StatusConditionActor, StatusConditionMail},
     },
     infrastructure::{error::DdsResult, status::StatusKind},
-    runtime::{actor::ActorAddress, oneshot::oneshot},
+    runtime::oneshot::oneshot,
 };
 
 /// Async version of [`StatusCondition`](crate::infrastructure::condition::StatusCondition).

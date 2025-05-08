@@ -1,3 +1,4 @@
+pub mod actor;
 pub mod data_reader;
 pub mod data_representation_builtin_endpoints;
 pub mod data_writer;

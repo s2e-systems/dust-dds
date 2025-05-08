@@ -2,6 +2,7 @@ use crate::{
     builtin_topics::{DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC},
     configuration::DustDdsConfiguration,
     dcps::{
+        actor::{Actor, ActorAddress},
         data_reader::{DataReaderEntity, TransportReaderKind},
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,
@@ -46,7 +47,6 @@ use crate::{
     },
     listener::NoOpListener,
     rtps_udp_transport::udp_transport::RtpsUdpTransportParticipantFactory,
-    runtime::actor::{Actor, ActorAddress, MailHandler},
     transport::{
         factory::TransportParticipantFactory,
         history_cache::{CacheChange, HistoryCache},
@@ -60,6 +60,8 @@ use crate::{
     },
 };
 use alloc::sync::Arc;
+
+use super::actor::MailHandler;
 
 pub type DdsTransportParticipantFactory =
     Box<dyn TransportParticipantFactory<TransportParticipant = DdsTransportParticipant>>;

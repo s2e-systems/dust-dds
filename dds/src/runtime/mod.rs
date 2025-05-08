@@ -10,7 +10,6 @@ use crate::{
     infrastructure::time::Time,
 };
 
-pub mod actor;
 pub mod executor;
 pub mod mpsc;
 pub mod oneshot;

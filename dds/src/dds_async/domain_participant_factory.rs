@@ -7,6 +7,7 @@ use super::domain_participant::DomainParticipantAsync;
 use crate::{
     configuration::DustDdsConfiguration,
     dcps::{
+        actor::Actor,
         domain_participant_actor_mail::{
             DiscoveryServiceMail, DomainParticipantMail, ParticipantServiceMail,
         },
@@ -24,7 +25,7 @@ use crate::{
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
         status::StatusKind,
     },
-    runtime::{actor::Actor, executor::Executor, timer::TimerDriver, StdRuntime},
+    runtime::{executor::Executor, timer::TimerDriver, StdRuntime},
 };
 use tracing::warn;
 

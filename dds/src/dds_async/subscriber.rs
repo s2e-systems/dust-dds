@@ -4,6 +4,7 @@ use super::{
 };
 use crate::{
     dcps::{
+        actor::{Actor, ActorAddress},
         domain_participant_actor_mail::{DomainParticipantMail, SubscriberServiceMail},
         listeners::{
             data_reader_listener::DataReaderListenerActor,
@@ -18,7 +19,6 @@ use crate::{
         qos::{DataReaderQos, QosKind, SubscriberQos, TopicQos},
         status::{SampleLostStatus, StatusKind},
     },
-    runtime::actor::{Actor, ActorAddress},
     subscription::{
         data_reader_listener::DataReaderListener, subscriber_listener::SubscriberListener,
     },

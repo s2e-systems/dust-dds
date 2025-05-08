@@ -9,6 +9,7 @@ use crate::{
         DCPS_SUBSCRIPTION, DCPS_TOPIC,
     },
     dcps::{
+        actor::{Actor, ActorAddress},
         data_reader::{AddChangeResult, DataReaderEntity, TransportReaderKind},
         data_representation_builtin_endpoints::{
             discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
@@ -65,7 +66,6 @@ use crate::{
         time::{Duration, DurationKind, Time},
         type_support::{DdsDeserialize, DdsSerialize},
     },
-    runtime::actor::{Actor, ActorAddress},
     transport::{
         self,
         history_cache::{CacheChange, HistoryCache},

@@ -4,6 +4,7 @@ use super::{
 };
 use crate::{
     dcps::{
+        actor::{Actor, ActorAddress},
         domain_participant_actor_mail::{DomainParticipantMail, PublisherServiceMail},
         listeners::{
             data_writer_listener::DataWriterListenerActor,
@@ -22,7 +23,6 @@ use crate::{
     publication::{
         data_writer_listener::DataWriterListener, publisher_listener::PublisherListener,
     },
-    runtime::actor::{Actor, ActorAddress},
 };
 
 /// Async version of [`Publisher`](crate::publication::publisher::Publisher).

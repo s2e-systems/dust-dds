@@ -5,6 +5,7 @@ use super::{
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     dcps::{
+        actor::{Actor, ActorAddress},
         domain_participant_actor_mail::{DomainParticipantMail, ParticipantServiceMail},
         listeners::{
             domain_participant_listener::DomainParticipantListenerActor,
@@ -25,7 +26,6 @@ use crate::{
         type_support::TypeSupport,
     },
     publication::publisher_listener::PublisherListener,
-    runtime::actor::{Actor, ActorAddress},
     subscription::subscriber_listener::SubscriberListener,
     topic_definition::topic_listener::TopicListener,
     xtypes::dynamic_type::DynamicType,

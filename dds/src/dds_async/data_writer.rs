@@ -4,6 +4,7 @@ use super::{condition::StatusConditionAsync, publisher::PublisherAsync, topic::T
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     dcps::{
+        actor::ActorAddress,
         domain_participant_actor_mail::{DomainParticipantMail, WriterServiceMail},
         listeners::data_writer_listener::DataWriterListenerActor,
         runtime::{ChannelSend, DdsRuntime, OneshotReceive},
@@ -21,7 +22,6 @@ use crate::{
         type_support::DdsSerialize,
     },
     publication::data_writer_listener::DataWriterListener,
-    runtime::actor::ActorAddress,
 };
 use std::marker::PhantomData;
 
