@@ -1,7 +1,4 @@
-use super::{
-    condition::StatusConditionAsync, publisher::PublisherAsync, subscriber::SubscriberAsync,
-    topic::TopicAsync,
-};
+use super::{publisher::PublisherAsync, subscriber::SubscriberAsync, topic::TopicAsync};
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     dcps::{
@@ -35,7 +32,6 @@ use alloc::{string::String, sync::Arc, vec::Vec};
 /// Async version of [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant).
 pub struct DomainParticipantAsync<R: DdsRuntime> {
     participant_address: R::ChannelSender<DomainParticipantMail<R>>,
-    status_condition_address: ActorAddress<R, StatusConditionActor<R>>,
     builtin_subscriber_status_condition_address: ActorAddress<R, StatusConditionActor<R>>,
     domain_id: DomainId,
     handle: InstanceHandle,
@@ -47,7 +43,6 @@ impl<R: DdsRuntime> Clone for DomainParticipantAsync<R> {
     fn clone(&self) -> Self {
         Self {
             participant_address: self.participant_address.clone(),
-            status_condition_address: self.status_condition_address.clone(),
             builtin_subscriber_status_condition_address: self
                 .builtin_subscriber_status_condition_address
                 .clone(),
@@ -62,7 +57,6 @@ impl<R: DdsRuntime> Clone for DomainParticipantAsync<R> {
 impl<R: DdsRuntime> DomainParticipantAsync<R> {
     pub(crate) fn new(
         participant_address: R::ChannelSender<DomainParticipantMail<R>>,
-        status_condition_address: ActorAddress<R, StatusConditionActor<R>>,
         builtin_subscriber_status_condition_address: ActorAddress<R, StatusConditionActor<R>>,
         domain_id: DomainId,
         handle: InstanceHandle,
@@ -71,7 +65,6 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
     ) -> Self {
         Self {
             participant_address,
-            status_condition_address,
             builtin_subscriber_status_condition_address,
             domain_id,
             handle,
@@ -627,15 +620,6 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
             ))
             .await?;
         reply_receiver.receive().await?
-    }
-
-    /// Async version of [`get_statuscondition`](crate::domain::domain_participant::DomainParticipant::get_statuscondition).
-    #[tracing::instrument(skip(self))]
-    pub fn get_statuscondition(&self) -> StatusConditionAsync<R> {
-        StatusConditionAsync::new(
-            self.status_condition_address.clone(),
-            self.clock_handle.clone(),
-        )
     }
 
     /// Async version of [`get_status_changes`](crate::domain::domain_participant::DomainParticipant::get_status_changes).

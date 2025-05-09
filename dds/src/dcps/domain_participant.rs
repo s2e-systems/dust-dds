@@ -21,11 +21,9 @@ use crate::{
 use alloc::{string::String, vec::Vec};
 
 use super::{
-    actor::Actor,
     builtin_topics::{DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC},
     listeners::domain_participant_listener::ListenerMail,
     runtime::DdsRuntime,
-    status_condition_actor::StatusConditionActor,
 };
 
 pub const BUILT_IN_TOPIC_NAME_LIST: [&str; 4] = [
@@ -59,7 +57,6 @@ pub struct DomainParticipantEntity<R: DdsRuntime> {
     _ignored_topic_list: Vec<InstanceHandle>,
     listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
     listener_mask: Vec<StatusKind>,
-    status_condition: Actor<R, StatusConditionActor<R>>,
 }
 
 impl<R: DdsRuntime> DomainParticipantEntity<R> {
@@ -69,7 +66,6 @@ impl<R: DdsRuntime> DomainParticipantEntity<R> {
         domain_participant_qos: DomainParticipantQos,
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         listener_mask: Vec<StatusKind>,
-        status_condition: Actor<R, StatusConditionActor<R>>,
         instance_handle: InstanceHandle,
         builtin_publisher: PublisherEntity<R>,
         builtin_subscriber: SubscriberEntity<R>,
@@ -99,7 +95,6 @@ impl<R: DdsRuntime> DomainParticipantEntity<R> {
             _ignored_topic_list: Vec::new(),
             listener_sender,
             listener_mask,
-            status_condition,
             domain_tag,
         }
     }
@@ -110,10 +105,6 @@ impl<R: DdsRuntime> DomainParticipantEntity<R> {
 
     pub fn instance_handle(&self) -> InstanceHandle {
         self.instance_handle
-    }
-
-    pub fn status_condition(&self) -> &Actor<R, StatusConditionActor<R>> {
-        &self.status_condition
     }
 
     pub fn builtin_subscriber(&self) -> &SubscriberEntity<R> {

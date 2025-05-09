@@ -1,7 +1,6 @@
 use super::domain_participant_listener::DomainParticipantListener;
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
-    condition::StatusCondition,
     dcps::runtime::DdsRuntime,
     dds_async::domain_participant::DomainParticipantAsync,
     infrastructure::{
@@ -482,14 +481,6 @@ impl<R: DdsRuntime> DomainParticipant<R> {
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         R::block_on(self.participant_async.set_listener(a_listener, mask))
-    }
-
-    /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
-    /// condition can then be added to a [`WaitSet`](crate::infrastructure::wait_set::WaitSet) so that the application can wait for specific status changes
-    /// that affect the Entity.
-    #[tracing::instrument(skip(self))]
-    pub fn get_statuscondition(&self) -> StatusCondition<R> {
-        StatusCondition::new(self.participant_async.get_statuscondition())
     }
 
     /// This operation retrieves the list of communication statuses in the Entity that are 'triggered.' That is, the list of statuses whose

@@ -165,7 +165,6 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
         R::ChannelSender<DomainParticipantMail<R>>,
         InstanceHandle,
         ActorAddress<R, StatusConditionActor<R>>,
-        ActorAddress<R, StatusConditionActor<R>>,
     )> {
         let domain_participant_qos = match qos {
             QosKind::Default => self.default_participant_qos.clone(),
@@ -468,14 +467,11 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
         builtin_publisher.insert_data_writer(dcps_subscriptions_writer);
         let instance_handle = InstanceHandle::new(transport.guid().into());
 
-        let status_condition = Actor::spawn(StatusConditionActor::default(), &spawner_handle);
-
         let domain_participant = DomainParticipantEntity::new(
             domain_id,
             domain_participant_qos,
             listener_sender,
             status_kind,
-            status_condition,
             instance_handle,
             builtin_publisher,
             builtin_subscriber,
@@ -495,10 +491,6 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
             .domain_participant
             .instance_handle();
 
-        let participant_status_condition_address = domain_participant_actor
-            .domain_participant
-            .status_condition()
-            .address();
         let builtin_subscriber_status_condition_address = domain_participant_actor
             .domain_participant
             .builtin_subscriber()
@@ -547,7 +539,6 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
         Ok((
             participant_address,
             participant_handle,
-            participant_status_condition_address,
             builtin_subscriber_status_condition_address,
         ))
     }
@@ -628,7 +619,6 @@ pub enum DomainParticipantFactoryMail<R: DdsRuntime> {
             DdsResult<(
                 R::ChannelSender<DomainParticipantMail<R>>,
                 InstanceHandle,
-                ActorAddress<R, StatusConditionActor<R>>,
                 ActorAddress<R, StatusConditionActor<R>>,
             )>,
         >,

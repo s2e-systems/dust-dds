@@ -8,7 +8,6 @@ use pyo3::prelude::*;
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     infrastructure::{
-        condition::StatusCondition,
         error::into_pyerr,
         instance::InstanceHandle,
         qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
@@ -341,10 +340,6 @@ impl DomainParticipant {
             .map(dust_dds::infrastructure::status::StatusKind::from)
             .collect();
         self.0.set_listener(listener, &mask).map_err(into_pyerr)
-    }
-
-    pub fn get_statuscondition(&self) -> StatusCondition {
-        self.0.get_statuscondition().into()
     }
 
     pub fn get_status_changes(&self) -> PyResult<Vec<StatusKind>> {

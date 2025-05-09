@@ -61,16 +61,11 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
             })
             .await;
 
-        let (
-            participant_address,
-            participant_handle,
-            participant_status_condition_address,
-            builtin_subscriber_status_condition_address,
-        ) = reply_receiver.receive().await??;
+        let (participant_address, participant_handle, builtin_subscriber_status_condition_address) =
+            reply_receiver.receive().await??;
 
         let domain_participant = DomainParticipantAsync::new(
             participant_address.clone(),
-            participant_status_condition_address,
             builtin_subscriber_status_condition_address,
             domain_id,
             participant_handle,

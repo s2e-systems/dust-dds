@@ -148,7 +148,6 @@ where
     ) -> DomainParticipantAsync<R> {
         DomainParticipantAsync::new(
             participant_address,
-            self.domain_participant.status_condition().address(),
             self.domain_participant
                 .builtin_subscriber()
                 .status_condition()
