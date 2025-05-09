@@ -1,4 +1,3 @@
-use dust_dds::listener::NoOpListener;
 use pyo3::prelude::*;
 
 use crate::{
@@ -284,15 +283,12 @@ impl DataWriter {
         a_listener: Option<Py<PyAny>>,
         mask: Vec<StatusKind>,
     ) -> PyResult<()> {
+        let listener = a_listener.map(DataWriterListener::from);
         let mask: Vec<dust_dds::infrastructure::status::StatusKind> = mask
             .into_iter()
             .map(dust_dds::infrastructure::status::StatusKind::from)
             .collect();
-        match a_listener {
-            Some(l) => self.0.set_listener(DataWriterListener::from(l), &mask),
-            None => self.0.set_listener(NoOpListener, &mask),
-        }
-        .map_err(into_pyerr)
+        self.0.set_listener(listener, &mask).map_err(into_pyerr)
     }
 
     pub fn get_statuscondition(&self) -> StatusCondition {

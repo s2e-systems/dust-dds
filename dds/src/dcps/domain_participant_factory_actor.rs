@@ -18,12 +18,7 @@ use crate::{
             DiscoveryServiceMail, DomainParticipantMail, MessageServiceMail, ParticipantServiceMail,
         },
         handle::InstanceHandleCounter,
-        listeners::{
-            data_reader_listener::DataReaderListenerActor,
-            data_writer_listener::DataWriterListenerActor,
-            domain_participant_listener::ListenerMail, publisher_listener::PublisherListenerActor,
-            subscriber_listener::SubscriberListenerActor, topic_listener::TopicListenerActor,
-        },
+        listeners::domain_participant_listener::ListenerMail,
         publisher::PublisherEntity,
         runtime::{ChannelReceive, ChannelSend, DdsRuntime, OneshotSend, Spawner, Timer},
         status_condition_actor::StatusConditionActor,
@@ -46,7 +41,6 @@ use crate::{
         time::{Duration, DurationKind},
         type_support::TypeSupport,
     },
-    listener::NoOpListener,
     transport::{
         factory::TransportParticipantFactory,
         history_cache::{CacheChange, HistoryCache},
@@ -162,7 +156,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
         &mut self,
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
-        listener_sender: R::ChannelSender<ListenerMail<R>>,
+        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         status_kind: Vec<StatusKind>,
         clock_handle: R::ClockHandle,
         mut timer_handle: R::TimerHandle,
@@ -182,17 +176,6 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
         let (participant_sender, mut participant_receiver) = R::channel();
 
         let mut transport = self.transport.create_participant(guid_prefix, domain_id);
-
-        let noop_topic_listener_sender =
-            TopicListenerActor::spawn::<R>(NoOpListener, &spawner_handle);
-        let noop_publisher_listener_sender =
-            PublisherListenerActor::spawn::<R>(NoOpListener, &spawner_handle);
-        let noop_writer_listener_sender =
-            DataWriterListenerActor::spawn::<R, ()>(NoOpListener, &spawner_handle);
-        let noop_subscriber_listener_sender =
-            SubscriberListenerActor::spawn::<R>(NoOpListener, &spawner_handle);
-        let noop_reader_listener_sender =
-            DataReaderListenerActor::spawn::<R, ()>(NoOpListener, &spawner_handle);
 
         let mut instance_handle_counter = InstanceHandleCounter::default();
         fn sedp_data_reader_qos() -> DataReaderQos {
@@ -236,7 +219,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
             String::from(DCPS_PARTICIPANT),
             spdp_topic_participant_handle,
             Actor::spawn(StatusConditionActor::default(), &spawner_handle),
-            noop_topic_listener_sender.clone(),
+            None,
             vec![],
             Arc::new(SpdpDiscoveredParticipantData::get_type()),
         );
@@ -251,7 +234,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
             String::from(DCPS_TOPIC),
             sedp_topic_topics_handle,
             Actor::spawn(StatusConditionActor::default(), &spawner_handle),
-            noop_topic_listener_sender.clone(),
+            None,
             vec![],
             Arc::new(DiscoveredTopicData::get_type()),
         );
@@ -266,7 +249,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
             String::from(DCPS_PUBLICATION),
             sedp_topic_publications_handle,
             Actor::spawn(StatusConditionActor::default(), &spawner_handle),
-            noop_topic_listener_sender.clone(),
+            None,
             vec![],
             Arc::new(DiscoveredWriterData::get_type()),
         );
@@ -281,7 +264,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
             String::from(DCPS_SUBSCRIPTION),
             sedp_topic_subscriptions_handle,
             Actor::spawn(StatusConditionActor::default(), &spawner_handle),
-            noop_topic_listener_sender,
+            None,
             vec![],
             Arc::new(DiscoveredReaderData::get_type()),
         );
@@ -328,7 +311,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
             "SpdpDiscoveredParticipantData".to_string(),
             Arc::new(SpdpDiscoveredParticipantData::get_type()),
             Actor::spawn(StatusConditionActor::default(), &spawner_handle),
-            noop_reader_listener_sender.clone(),
+            None,
             Vec::new(),
             TransportReaderKind::Stateless(dcps_participant_transport_reader),
         );
@@ -347,7 +330,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
             "DiscoveredTopicData".to_string(),
             Arc::new(DiscoveredTopicData::get_type()),
             Actor::spawn(StatusConditionActor::default(), &spawner_handle),
-            noop_reader_listener_sender.clone(),
+            None,
             Vec::new(),
             TransportReaderKind::Stateful(dcps_topic_transport_reader),
         );
@@ -366,7 +349,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
             "DiscoveredWriterData".to_string(),
             Arc::new(DiscoveredWriterData::get_type()),
             Actor::spawn(StatusConditionActor::default(), &spawner_handle),
-            noop_reader_listener_sender.clone(),
+            None,
             Vec::new(),
             TransportReaderKind::Stateful(dcps_publication_transport_reader),
         );
@@ -385,7 +368,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
             "DiscoveredReaderData".to_string(),
             Arc::new(DiscoveredReaderData::get_type()),
             Actor::spawn(StatusConditionActor::default(), &spawner_handle),
-            noop_reader_listener_sender,
+            None,
             Vec::new(),
             TransportReaderKind::Stateful(dcps_subscription_transport_reader),
         );
@@ -395,7 +378,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
             instance_handle_counter.generate_new_instance_handle(),
             SubscriberQos::default(),
             Actor::spawn(StatusConditionActor::default(), &spawner_handle),
-            noop_subscriber_listener_sender,
+            None,
             vec![],
         );
         builtin_subscriber.enable();
@@ -416,7 +399,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
             "SpdpDiscoveredParticipantData".to_string(),
             Arc::new(SpdpDiscoveredParticipantData::get_type()),
             Actor::spawn(StatusConditionActor::default(), &spawner_handle),
-            noop_writer_listener_sender.clone(),
+            None,
             vec![],
             spdp_writer_qos,
         );
@@ -433,7 +416,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
             "DiscoveredTopicData".to_string(),
             Arc::new(DiscoveredTopicData::get_type()),
             Actor::spawn(StatusConditionActor::default(), &spawner_handle),
-            noop_writer_listener_sender.clone(),
+            None,
             vec![],
             sedp_data_writer_qos(),
         );
@@ -449,7 +432,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
             "DiscoveredWriterData".to_string(),
             Arc::new(DiscoveredWriterData::get_type()),
             Actor::spawn(StatusConditionActor::default(), &spawner_handle),
-            noop_writer_listener_sender.clone(),
+            None,
             vec![],
             sedp_data_writer_qos(),
         );
@@ -466,7 +449,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
             "DiscoveredReaderData".to_string(),
             Arc::new(DiscoveredReaderData::get_type()),
             Actor::spawn(StatusConditionActor::default(), &spawner_handle),
-            noop_writer_listener_sender,
+            None,
             vec![],
             sedp_data_writer_qos(),
         );
@@ -474,7 +457,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
         let mut builtin_publisher = PublisherEntity::new(
             PublisherQos::default(),
             instance_handle_counter.generate_new_instance_handle(),
-            noop_publisher_listener_sender,
+            None,
             vec![],
             Actor::spawn(StatusConditionActor::default(), &spawner_handle),
         );
@@ -635,7 +618,7 @@ pub enum DomainParticipantFactoryMail<R: DdsRuntime> {
     CreateParticipant {
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
-        listener_sender: R::ChannelSender<ListenerMail<R>>,
+        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         status_kind: Vec<StatusKind>,
         clock_handle: R::ClockHandle,
         timer_handle: R::TimerHandle,

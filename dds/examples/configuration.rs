@@ -2,7 +2,7 @@ use dust_dds::{
     configuration::DustDdsConfigurationBuilder,
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{qos::QosKind, status::NO_STATUS, type_support::DdsType},
-    listener::NoOpListener,
+    listener::NO_LISTENER,
 };
 
 #[derive(DdsType, Debug)]
@@ -25,7 +25,7 @@ fn main() {
         .unwrap();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -33,17 +33,17 @@ fn main() {
             "HelloWorld",
             "HelloWorldType",
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_datawriter(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
     let hello_world = HelloWorldType {

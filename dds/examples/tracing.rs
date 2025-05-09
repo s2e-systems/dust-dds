@@ -9,7 +9,7 @@ use dust_dds::{
         time::{Duration, DurationKind},
         type_support::DdsType,
     },
-    listener::NoOpListener,
+    listener::NO_LISTENER,
     wait_set::{Condition, WaitSet},
 };
 use tracing::Level;
@@ -36,7 +36,7 @@ fn main() {
     let domain_id = 0;
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -44,13 +44,13 @@ fn main() {
             "DataTopic",
             "Data",
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -63,13 +63,13 @@ fn main() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -82,7 +82,7 @@ fn main() {
         .create_datareader::<Data>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();

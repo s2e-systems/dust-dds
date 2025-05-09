@@ -57,7 +57,7 @@ pub struct DomainParticipantEntity<R: DdsRuntime> {
     ignored_publications: Vec<InstanceHandle>,
     ignored_subcriptions: Vec<InstanceHandle>,
     _ignored_topic_list: Vec<InstanceHandle>,
-    listener_sender: R::ChannelSender<ListenerMail<R>>,
+    listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
     listener_mask: Vec<StatusKind>,
     status_condition: Actor<R, StatusConditionActor<R>>,
 }
@@ -67,7 +67,7 @@ impl<R: DdsRuntime> DomainParticipantEntity<R> {
     pub fn new(
         domain_id: DomainId,
         domain_participant_qos: DomainParticipantQos,
-        listener_sender: R::ChannelSender<ListenerMail<R>>,
+        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         listener_mask: Vec<StatusKind>,
         status_condition: Actor<R, StatusConditionActor<R>>,
         instance_handle: InstanceHandle,
@@ -424,13 +424,13 @@ impl<R: DdsRuntime> DomainParticipantEntity<R> {
         &self.listener_mask
     }
 
-    pub fn listener(&self) -> &R::ChannelSender<ListenerMail<R>> {
+    pub fn listener(&self) -> &Option<R::ChannelSender<ListenerMail<R>>> {
         &self.listener_sender
     }
 
     pub fn set_listener(
         &mut self,
-        listener_sender: R::ChannelSender<ListenerMail<R>>,
+        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         status_kind: Vec<StatusKind>,
     ) {
         self.listener_sender = listener_sender;

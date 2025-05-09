@@ -11,7 +11,7 @@ use dust_dds::{
         time::{Duration, DurationKind},
         type_support::DdsType,
     },
-    listener::NoOpListener,
+    listener::NO_LISTENER,
     wait_set::{Condition, WaitSet},
 };
 
@@ -27,7 +27,7 @@ fn main() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -35,13 +35,13 @@ fn main() {
             "HelloWorld",
             "HelloWorldType",
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
     let reader_qos = DataReaderQos {
@@ -58,7 +58,7 @@ fn main() {
         .create_datareader::<HelloWorldType>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();

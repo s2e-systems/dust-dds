@@ -20,7 +20,7 @@ pub struct PublisherEntity<R: DdsRuntime> {
     data_writer_list: Vec<DataWriterEntity<R>>,
     enabled: bool,
     default_datawriter_qos: DataWriterQos,
-    listener_sender: R::ChannelSender<ListenerMail<R>>,
+    listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
     listener_mask: Vec<StatusKind>,
     status_condition: Actor<R, StatusConditionActor<R>>,
 }
@@ -29,7 +29,7 @@ impl<R: DdsRuntime> PublisherEntity<R> {
     pub fn new(
         qos: PublisherQos,
         instance_handle: InstanceHandle,
-        listener_sender: R::ChannelSender<ListenerMail<R>>,
+        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         listener_mask: Vec<StatusKind>,
         status_condition: Actor<R, StatusConditionActor<R>>,
     ) -> Self {
@@ -126,7 +126,7 @@ impl<R: DdsRuntime> PublisherEntity<R> {
 
     pub fn set_listener(
         &mut self,
-        listener_sender: R::ChannelSender<ListenerMail<R>>,
+        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         mask: Vec<StatusKind>,
     ) {
         self.listener_sender = listener_sender;
@@ -141,7 +141,7 @@ impl<R: DdsRuntime> PublisherEntity<R> {
         &self.listener_mask
     }
 
-    pub fn listener(&self) -> &R::ChannelSender<ListenerMail<R>> {
+    pub fn listener(&self) -> &Option<R::ChannelSender<ListenerMail<R>>> {
         &self.listener_sender
     }
 }

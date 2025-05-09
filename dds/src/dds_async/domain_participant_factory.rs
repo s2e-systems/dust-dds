@@ -38,7 +38,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
         &self,
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
-        a_listener: impl DomainParticipantListener<R> + Send + 'static,
+        a_listener: Option<impl DomainParticipantListener<R> + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<DomainParticipantAsync<R>> {
         let clock_handle = self.runtime.clock();
@@ -46,7 +46,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
         let spawner_handle = self.runtime.spawner();
         let status_kind = mask.to_vec();
         let listener_sender =
-            DomainParticipantListenerActor::spawn::<R>(a_listener, &spawner_handle);
+            a_listener.map(|l| DomainParticipantListenerActor::spawn::<R>(l, &spawner_handle));
         let (reply_sender, mut reply_receiver) = R::oneshot();
         self.domain_participant_factory_actor
             .send_actor_mail(DomainParticipantFactoryMail::CreateParticipant {

@@ -473,7 +473,7 @@ where
     #[tracing::instrument(skip(self, a_listener))]
     pub fn set_listener(
         &self,
-        a_listener: impl DataReaderListener<'a, R, Foo> + Send + 'static,
+        a_listener: Option<impl DataReaderListener<'a, R, Foo> + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         R::block_on(self.reader_async.set_listener(a_listener, mask))

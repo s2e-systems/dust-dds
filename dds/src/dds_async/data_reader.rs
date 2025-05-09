@@ -519,14 +519,16 @@ where
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn set_listener(
         &self,
-        a_listener: impl DataReaderListener<'a, R, Foo> + Send + 'static,
+        a_listener: Option<impl DataReaderListener<'a, R, Foo> + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         let (reply_sender, mut reply_receiver) = R::oneshot();
-        let listener_sender = DataReaderListenerActor::spawn(
-            a_listener,
-            self.get_subscriber().get_participant().spawner_handle(),
-        );
+        let listener_sender = a_listener.map(|l| {
+            DataReaderListenerActor::spawn(
+                l,
+                self.get_subscriber().get_participant().spawner_handle(),
+            )
+        });
         self.participant_address()
             .send(DomainParticipantMail::Reader(
                 ReaderServiceMail::SetListener {

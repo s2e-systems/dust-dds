@@ -23,7 +23,7 @@ use dust_dds::{
         time::{Duration, DurationKind},
         type_support::DdsType,
     },
-    listener::NoOpListener,
+    listener::NO_LISTENER,
     publication::{
         data_writer_listener::DataWriterListener, publisher_listener::PublisherListener,
     },
@@ -72,7 +72,7 @@ fn requested_deadline_missed_listener() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            participant_listener,
+            Some(participant_listener),
             &[StatusKind::RequestedDeadlineMissed],
         )
         .unwrap();
@@ -82,13 +82,13 @@ fn requested_deadline_missed_listener() {
             "MyTopic",
             "MyData",
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -104,13 +104,13 @@ fn requested_deadline_missed_listener() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -127,7 +127,7 @@ fn requested_deadline_missed_listener() {
         .create_datareader::<MyData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
@@ -184,7 +184,7 @@ fn sample_rejected_listener() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            participant_listener,
+            Some(participant_listener),
             &[StatusKind::SampleRejected],
         )
         .unwrap();
@@ -193,13 +193,13 @@ fn sample_rejected_listener() {
             "SampleRejectedListenerTopic",
             "MyData",
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let data_writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -216,13 +216,13 @@ fn sample_rejected_listener() {
         .create_datawriter(
             &topic,
             QosKind::Specific(data_writer_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -245,7 +245,7 @@ fn sample_rejected_listener() {
         .create_datareader::<MyData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
@@ -303,7 +303,7 @@ fn subscription_matched_listener() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            participant_listener,
+            Some(participant_listener),
             &[StatusKind::SubscriptionMatched],
         )
         .unwrap();
@@ -312,13 +312,13 @@ fn subscription_matched_listener() {
             "SampleRejectedListenerTopic",
             "MyData",
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let data_writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -335,13 +335,13 @@ fn subscription_matched_listener() {
         .create_datawriter::<MyData>(
             &topic,
             QosKind::Specific(data_writer_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -360,7 +360,7 @@ fn subscription_matched_listener() {
         .create_datareader::<MyData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
@@ -400,7 +400,7 @@ fn requested_incompatible_qos_listener() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            participant_listener,
+            Some(participant_listener),
             &[StatusKind::RequestedIncompatibleQos],
         )
         .unwrap();
@@ -409,13 +409,13 @@ fn requested_incompatible_qos_listener() {
             "SampleRejectedListenerTopic",
             "MyData",
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let data_writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -432,13 +432,13 @@ fn requested_incompatible_qos_listener() {
         .create_datawriter::<MyData>(
             &topic,
             QosKind::Specific(data_writer_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -457,7 +457,7 @@ fn requested_incompatible_qos_listener() {
         .create_datareader::<MyData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
@@ -497,7 +497,7 @@ fn publication_matched_listener() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            participant_listener,
+            Some(participant_listener),
             &[StatusKind::PublicationMatched],
         )
         .unwrap();
@@ -506,13 +506,13 @@ fn publication_matched_listener() {
             "SampleRejectedListenerTopic",
             "MyData",
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -531,13 +531,13 @@ fn publication_matched_listener() {
         .create_datareader::<MyData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let data_writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -555,7 +555,7 @@ fn publication_matched_listener() {
         .create_datawriter::<MyData>(
             &topic,
             QosKind::Specific(data_writer_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
@@ -595,7 +595,7 @@ fn offered_incompatible_qos_listener() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            participant_listener,
+            Some(participant_listener),
             &[StatusKind::OfferedIncompatibleQos],
         )
         .unwrap();
@@ -604,13 +604,13 @@ fn offered_incompatible_qos_listener() {
             "SampleRejectedListenerTopic",
             "MyData",
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -629,13 +629,13 @@ fn offered_incompatible_qos_listener() {
         .create_datareader::<MyData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let data_writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -653,7 +653,7 @@ fn offered_incompatible_qos_listener() {
         .create_datawriter::<MyData>(
             &topic,
             QosKind::Specific(data_writer_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
@@ -686,20 +686,20 @@ fn on_data_available_listener() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<MyData>(
             "MyTopic",
             "MyData",
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
     let writer_qos = DataWriterQos {
@@ -713,13 +713,13 @@ fn on_data_available_listener() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -735,7 +735,7 @@ fn on_data_available_listener() {
         .create_datareader(
             &topic,
             QosKind::Specific(reader_qos),
-            reader_listener,
+            Some(reader_listener),
             &[StatusKind::DataAvailable],
         )
         .unwrap();
@@ -779,20 +779,20 @@ fn data_on_readers_listener() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<MyData>(
             "MyTopic",
             "MyData",
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
     let writer_qos = DataWriterQos {
@@ -806,7 +806,7 @@ fn data_on_readers_listener() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
@@ -817,7 +817,7 @@ fn data_on_readers_listener() {
     let subscriber = participant
         .create_subscriber(
             QosKind::Default,
-            subscriber_listener,
+            Some(subscriber_listener),
             &[StatusKind::DataOnReaders],
         )
         .unwrap();
@@ -833,7 +833,7 @@ fn data_on_readers_listener() {
         .create_datareader::<MyData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
@@ -892,20 +892,20 @@ fn data_available_listener_not_called_when_data_on_readers_listener() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<MyData>(
             "MyTopic",
             "MyData",
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
     let writer_qos = DataWriterQos {
@@ -919,7 +919,7 @@ fn data_available_listener_not_called_when_data_on_readers_listener() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
@@ -930,7 +930,7 @@ fn data_available_listener_not_called_when_data_on_readers_listener() {
     let subscriber = participant
         .create_subscriber(
             QosKind::Default,
-            subscriber_listener,
+            Some(subscriber_listener),
             &[StatusKind::DataOnReaders],
         )
         .unwrap();
@@ -949,7 +949,7 @@ fn data_available_listener_not_called_when_data_on_readers_listener() {
         .create_datareader(
             &topic,
             QosKind::Specific(reader_qos),
-            reader_listener,
+            Some(reader_listener),
             &[StatusKind::DataAvailable],
         )
         .unwrap();
@@ -996,20 +996,20 @@ fn participant_requested_deadline_missed_listener() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<MyData>(
             "MyTopic",
             "MyData",
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -1025,13 +1025,13 @@ fn participant_requested_deadline_missed_listener() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -1051,7 +1051,7 @@ fn participant_requested_deadline_missed_listener() {
         .create_datareader(
             &topic,
             QosKind::Specific(reader_qos),
-            reader_listener,
+            Some(reader_listener),
             &[StatusKind::RequestedDeadlineMissed],
         )
         .unwrap();
@@ -1102,20 +1102,20 @@ fn data_reader_sample_rejected_listener() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<MyData>(
             "SampleRejectedListenerTopic",
             "MyData",
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let data_writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -1132,13 +1132,13 @@ fn data_reader_sample_rejected_listener() {
         .create_datawriter(
             &topic,
             QosKind::Specific(data_writer_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -1164,7 +1164,7 @@ fn data_reader_sample_rejected_listener() {
         .create_datareader(
             &topic,
             QosKind::Specific(reader_qos),
-            reader_listener,
+            Some(reader_listener),
             &[StatusKind::SampleRejected],
         )
         .unwrap();
@@ -1216,20 +1216,20 @@ fn data_reader_subscription_matched_listener() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<MyData>(
             "SampleRejectedListenerTopic",
             "MyData",
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let data_writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -1246,13 +1246,13 @@ fn data_reader_subscription_matched_listener() {
         .create_datawriter::<MyData>(
             &topic,
             QosKind::Specific(data_writer_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -1274,7 +1274,7 @@ fn data_reader_subscription_matched_listener() {
         .create_datareader(
             &topic,
             QosKind::Specific(reader_qos),
-            reader_listener,
+            Some(reader_listener),
             &[StatusKind::SubscriptionMatched],
         )
         .unwrap();
@@ -1308,20 +1308,20 @@ fn data_reader_requested_incompatible_qos_listener() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<MyData>(
             "SampleRejectedListenerTopic",
             "MyData",
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let data_writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -1338,13 +1338,13 @@ fn data_reader_requested_incompatible_qos_listener() {
         .create_datawriter::<MyData>(
             &topic,
             QosKind::Specific(data_writer_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -1366,7 +1366,7 @@ fn data_reader_requested_incompatible_qos_listener() {
         .create_datareader(
             &topic,
             QosKind::Specific(reader_qos),
-            reader_listener,
+            Some(reader_listener),
             &[StatusKind::RequestedIncompatibleQos],
         )
         .unwrap();
@@ -1400,20 +1400,20 @@ fn publisher_publication_matched_listener() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<MyData>(
             "SampleRejectedListenerTopic",
             "MyData",
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -1432,7 +1432,7 @@ fn publisher_publication_matched_listener() {
         .create_datareader::<MyData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
@@ -1442,7 +1442,7 @@ fn publisher_publication_matched_listener() {
     let publisher = participant
         .create_publisher(
             QosKind::Default,
-            publisher_listener,
+            Some(publisher_listener),
             &[StatusKind::PublicationMatched],
         )
         .unwrap();
@@ -1462,7 +1462,7 @@ fn publisher_publication_matched_listener() {
         .create_datawriter::<MyData>(
             &topic,
             QosKind::Specific(data_writer_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
@@ -1496,20 +1496,20 @@ fn publisher_offered_incompatible_qos_listener() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<MyData>(
             "SampleRejectedListenerTopic",
             "MyData",
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -1528,7 +1528,7 @@ fn publisher_offered_incompatible_qos_listener() {
         .create_datareader::<MyData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
@@ -1539,7 +1539,7 @@ fn publisher_offered_incompatible_qos_listener() {
     let publisher = participant
         .create_publisher(
             QosKind::Default,
-            publisher_listener,
+            Some(publisher_listener),
             &[StatusKind::OfferedIncompatibleQos],
         )
         .unwrap();
@@ -1559,7 +1559,7 @@ fn publisher_offered_incompatible_qos_listener() {
         .create_datawriter::<MyData>(
             &topic,
             QosKind::Specific(data_writer_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
@@ -1592,20 +1592,20 @@ fn subscriber_requested_deadline_missed_listener() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<MyData>(
             "MyTopic",
             "MyData",
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -1621,7 +1621,7 @@ fn subscriber_requested_deadline_missed_listener() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
@@ -1632,7 +1632,7 @@ fn subscriber_requested_deadline_missed_listener() {
     let subscriber = participant
         .create_subscriber(
             QosKind::Default,
-            subscriber_listener,
+            Some(subscriber_listener),
             &[StatusKind::RequestedDeadlineMissed],
         )
         .unwrap();
@@ -1651,7 +1651,7 @@ fn subscriber_requested_deadline_missed_listener() {
         .create_datareader::<MyData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
@@ -1701,20 +1701,20 @@ fn subscriber_sample_rejected_listener() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<MyData>(
             "SampleRejectedListenerTopic",
             "MyData",
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let data_writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -1731,7 +1731,7 @@ fn subscriber_sample_rejected_listener() {
         .create_datawriter(
             &topic,
             QosKind::Specific(data_writer_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
@@ -1742,7 +1742,7 @@ fn subscriber_sample_rejected_listener() {
     let subscriber = participant
         .create_subscriber(
             QosKind::Default,
-            subscriber_listener,
+            Some(subscriber_listener),
             &[StatusKind::SampleRejected],
         )
         .unwrap();
@@ -1767,7 +1767,7 @@ fn subscriber_sample_rejected_listener() {
         .create_datareader::<MyData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
@@ -1818,20 +1818,20 @@ fn subscriber_subscription_matched_listener() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<MyData>(
             "SampleRejectedListenerTopic",
             "MyData",
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let data_writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -1848,7 +1848,7 @@ fn subscriber_subscription_matched_listener() {
         .create_datawriter::<MyData>(
             &topic,
             QosKind::Specific(data_writer_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
@@ -1859,7 +1859,7 @@ fn subscriber_subscription_matched_listener() {
     let subscriber = participant
         .create_subscriber(
             QosKind::Default,
-            subscriber_listener,
+            Some(subscriber_listener),
             &[StatusKind::SubscriptionMatched],
         )
         .unwrap();
@@ -1880,7 +1880,7 @@ fn subscriber_subscription_matched_listener() {
         .create_datareader::<MyData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
@@ -1914,20 +1914,20 @@ fn subscriber_requested_incompatible_qos_listener() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<MyData>(
             "SampleRejectedListenerTopic",
             "MyData",
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let data_writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -1944,7 +1944,7 @@ fn subscriber_requested_incompatible_qos_listener() {
         .create_datawriter::<MyData>(
             &topic,
             QosKind::Specific(data_writer_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
@@ -1955,7 +1955,7 @@ fn subscriber_requested_incompatible_qos_listener() {
     let subscriber = participant
         .create_subscriber(
             QosKind::Default,
-            subscriber_listener,
+            Some(subscriber_listener),
             &[StatusKind::RequestedIncompatibleQos],
         )
         .unwrap();
@@ -1976,7 +1976,7 @@ fn subscriber_requested_incompatible_qos_listener() {
         .create_datareader::<MyData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
@@ -2010,20 +2010,20 @@ fn data_writer_publication_matched_listener() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<MyData>(
             "SampleRejectedListenerTopic",
             "MyData",
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -2042,13 +2042,13 @@ fn data_writer_publication_matched_listener() {
         .create_datareader::<MyData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let data_writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -2069,7 +2069,7 @@ fn data_writer_publication_matched_listener() {
         .create_datawriter(
             &topic,
             QosKind::Specific(data_writer_qos),
-            writer_listener,
+            Some(writer_listener),
             &[StatusKind::PublicationMatched],
         )
         .unwrap();
@@ -2103,20 +2103,20 @@ fn data_writer_offered_incompatible_qos_listener() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<MyData>(
             "SampleRejectedListenerTopic",
             "MyData",
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -2135,13 +2135,13 @@ fn data_writer_offered_incompatible_qos_listener() {
         .create_datareader::<MyData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let data_writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -2162,7 +2162,7 @@ fn data_writer_offered_incompatible_qos_listener() {
         .create_datawriter(
             &topic,
             QosKind::Specific(data_writer_qos),
-            writer_listener,
+            Some(writer_listener),
             &[StatusKind::OfferedIncompatibleQos],
         )
         .unwrap();
@@ -2198,7 +2198,7 @@ fn non_sync_listener_should_be_accepted() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NonSyncListener::new(),
+            Some(NonSyncListener::new()),
             NO_STATUS,
         )
         .unwrap();
@@ -2207,21 +2207,31 @@ fn non_sync_listener_should_be_accepted() {
             "NonSync",
             "MyData",
             QosKind::Default,
-            NonSyncListener::new(),
+            Some(NonSyncListener::new()),
             NO_STATUS,
         )
         .unwrap();
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NonSyncListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, Some(NonSyncListener::new()), NO_STATUS)
         .unwrap();
     let _data_reader = subscriber
-        .create_datareader::<MyData>(&topic, QosKind::Default, NonSyncListener::new(), NO_STATUS)
+        .create_datareader::<MyData>(
+            &topic,
+            QosKind::Default,
+            Some(NonSyncListener::new()),
+            NO_STATUS,
+        )
         .unwrap();
     let publisher = participant
-        .create_publisher(QosKind::Default, NonSyncListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, Some(NonSyncListener::new()), NO_STATUS)
         .unwrap();
     let _data_writer = publisher
-        .create_datawriter::<MyData>(&topic, QosKind::Default, NonSyncListener::new(), NO_STATUS)
+        .create_datawriter::<MyData>(
+            &topic,
+            QosKind::Default,
+            Some(NonSyncListener::new()),
+            NO_STATUS,
+        )
         .unwrap();
 
     // This test doesn't assert. If trait bounds are not correct compilation will fail.
@@ -2248,20 +2258,20 @@ fn writer_offered_deadline_missed_listener() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<MyData>(
             "MyTopic",
             "MyData",
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -2279,13 +2289,13 @@ fn writer_offered_deadline_missed_listener() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            writer_listener,
+            Some(writer_listener),
             &[StatusKind::OfferedDeadlineMissed],
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -2302,7 +2312,7 @@ fn writer_offered_deadline_missed_listener() {
         .create_datareader::<MyData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
@@ -2352,14 +2362,14 @@ fn publisher_offered_deadline_missed_listener() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<MyData>(
             "MyTopic",
             "MyData",
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
@@ -2369,7 +2379,7 @@ fn publisher_offered_deadline_missed_listener() {
     let publisher = participant
         .create_publisher(
             QosKind::Default,
-            publisher_listener,
+            Some(publisher_listener),
             &[StatusKind::OfferedDeadlineMissed],
         )
         .unwrap();
@@ -2388,13 +2398,13 @@ fn publisher_offered_deadline_missed_listener() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -2411,7 +2421,7 @@ fn publisher_offered_deadline_missed_listener() {
         .create_datareader::<MyData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
@@ -2466,7 +2476,7 @@ fn participant_offered_deadline_missed_listener() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            participant_listener,
+            Some(participant_listener),
             &[StatusKind::OfferedDeadlineMissed],
         )
         .unwrap();
@@ -2475,13 +2485,13 @@ fn participant_offered_deadline_missed_listener() {
             "MyTopic",
             "MyData",
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -2498,13 +2508,13 @@ fn participant_offered_deadline_missed_listener() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -2521,7 +2531,7 @@ fn participant_offered_deadline_missed_listener() {
         .create_datareader::<MyData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();

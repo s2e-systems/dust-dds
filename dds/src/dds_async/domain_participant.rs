@@ -99,13 +99,14 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
     pub async fn create_publisher(
         &self,
         qos: QosKind<PublisherQos>,
-        a_listener: impl PublisherListener<R> + Send + 'static,
+        a_listener: Option<impl PublisherListener<R> + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<PublisherAsync<R>> {
         let (reply_sender, mut reply_receiver) = R::oneshot();
         let status_condition = Actor::spawn(StatusConditionActor::default(), &self.spawner_handle);
         let publisher_status_condition_address = status_condition.address();
-        let listener_sender = PublisherListenerActor::spawn(a_listener, self.spawner_handle());
+        let listener_sender =
+            a_listener.map(|l| PublisherListenerActor::spawn(l, self.spawner_handle()));
         self.participant_address
             .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::CreateUserDefinedPublisher {
@@ -144,13 +145,14 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
     pub async fn create_subscriber(
         &self,
         qos: QosKind<SubscriberQos>,
-        a_listener: impl SubscriberListener<R> + Send + 'static,
+        a_listener: Option<impl SubscriberListener<R> + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<SubscriberAsync<R>> {
         let (reply_sender, mut reply_receiver) = R::oneshot();
         let status_condition = Actor::spawn(StatusConditionActor::default(), &self.spawner_handle);
         let subscriber_status_condition_address = status_condition.address();
-        let listener_sender = SubscriberListenerActor::spawn(a_listener, self.spawner_handle());
+        let listener_sender =
+            a_listener.map(|l| SubscriberListenerActor::spawn(l, self.spawner_handle()));
         self.participant_address
             .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::CreateUserDefinedSubscriber {
@@ -192,7 +194,7 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         topic_name: &str,
         type_name: &str,
         qos: QosKind<TopicQos>,
-        a_listener: impl TopicListener<R> + Send + 'static,
+        a_listener: Option<impl TopicListener<R> + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<TopicAsync<R>>
     where
@@ -211,14 +213,15 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         topic_name: &str,
         type_name: &str,
         qos: QosKind<TopicQos>,
-        a_listener: impl TopicListener<R> + Send + 'static,
+        a_listener: Option<impl TopicListener<R> + Send + 'static>,
         mask: &[StatusKind],
         dynamic_type_representation: Arc<dyn DynamicType + Send + Sync>,
     ) -> DdsResult<TopicAsync<R>> {
         let (reply_sender, mut reply_receiver) = R::oneshot();
         let status_condition = Actor::spawn(StatusConditionActor::default(), &self.spawner_handle);
         let topic_status_condition_address = status_condition.address();
-        let listener_sender = TopicListenerActor::spawn(a_listener, self.spawner_handle());
+        let listener_sender =
+            a_listener.map(|l| TopicListenerActor::spawn(l, self.spawner_handle()));
         self.participant_address
             .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::CreateTopic {
@@ -275,7 +278,7 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         // let topic_name = topic_name.to_owned();
         // let participant_address = self.participant_address.clone();
         // let participant_async = self.clone();
-        // let listener_sender = TopicListenerActor::spawn(NoOpListener, &self.executor_handle);
+        // let listener_sender = TopicListenerActor::spawn(NO_LISTENER, &self.executor_handle);
         // let executor_handle = self.executor_handle.clone();
         // poll_timeout(
 
@@ -608,12 +611,12 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn set_listener(
         &self,
-        a_listener: impl DomainParticipantListener<R> + Send + 'static,
+        a_listener: Option<impl DomainParticipantListener<R> + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         let (reply_sender, mut reply_receiver) = R::oneshot();
-        let listener_sender =
-            DomainParticipantListenerActor::spawn::<R>(a_listener, self.spawner_handle());
+        let listener_sender = a_listener
+            .map(|l| DomainParticipantListenerActor::spawn::<R>(l, self.spawner_handle()));
         self.participant_address
             .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::SetListener {

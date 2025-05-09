@@ -1,4 +1,4 @@
-use dust_dds::listener::NoOpListener;
+use dust_dds::listener::NO_LISTENER;
 use pyo3::{exceptions::PyTypeError, prelude::*};
 
 use crate::{
@@ -80,7 +80,7 @@ impl Subscriber {
             }
             None => self
                 .0
-                .create_datareader(a_topic.as_ref(), qos, NoOpListener, &mask),
+                .create_datareader(a_topic.as_ref(), qos, NO_LISTENER, &mask),
         };
 
         match r {
@@ -169,7 +169,7 @@ impl Subscriber {
             .collect();
         match a_listener {
             Some(l) => self.0.set_listener(SubscriberListener::from(l), &mask),
-            None => self.0.set_listener(NoOpListener, &mask),
+            None => self.0.set_listener(NO_LISTENER, &mask),
         }
         .map_err(into_pyerr)
     }

@@ -20,7 +20,7 @@ use crate::{
     subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     topic_definition::{topic::Topic, type_support::PythonDdsData},
 };
-use dust_dds::listener::NoOpListener;
+use dust_dds::listener::NO_LISTENER;
 use pyo3::{exceptions::PyTypeError, prelude::*};
 
 #[pyclass]
@@ -502,7 +502,7 @@ impl DataReader {
             .collect();
         match a_listener {
             Some(l) => self.0.set_listener(DataReaderListener::from(l), &mask),
-            None => self.0.set_listener(NoOpListener, &mask),
+            None => self.0.set_listener(NO_LISTENER, &mask),
         }
         .map_err(into_pyerr)
     }

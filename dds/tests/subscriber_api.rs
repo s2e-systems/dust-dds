@@ -6,7 +6,7 @@ use dust_dds::{
         status::NO_STATUS,
         type_support::DdsType,
     },
-    listener::NoOpListener,
+    listener::NO_LISTENER,
 };
 
 mod utils;
@@ -20,11 +20,11 @@ fn get_subscriber_parent_participant() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
     let subscriber_parent_participant = subscriber.get_participant();
@@ -40,20 +40,20 @@ fn default_data_reader_qos() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<UserType>(
             "default_data_reader_qos",
             "UserType",
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
     let user_data = vec![1, 2, 3];
@@ -69,7 +69,7 @@ fn default_data_reader_qos() {
         .unwrap();
 
     let reader = subscriber
-        .create_datareader::<UserType>(&topic, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_datareader::<UserType>(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
     assert_eq!(
@@ -88,37 +88,37 @@ fn different_readers_have_different_instance_handles() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<UserType>(
             "default_data_writer_qos",
             "UserType",
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber1 = participant
-        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
     let subscriber2 = participant
-        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
     let reader1_1 = subscriber1
-        .create_datareader::<UserType>(&topic, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_datareader::<UserType>(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let reader1_2 = subscriber1
-        .create_datareader::<UserType>(&topic, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_datareader::<UserType>(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let reader2_1 = subscriber2
-        .create_datareader::<UserType>(&topic, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_datareader::<UserType>(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let reader2_2 = subscriber2
-        .create_datareader::<UserType>(&topic, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_datareader::<UserType>(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
     assert_ne!(
@@ -140,24 +140,24 @@ fn data_reader_get_topicdescription_should_return_same_topic_as_used_for_creatio
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<UserType>(
             "default_data_writer_qos",
             "UserType",
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
     let reader = subscriber
-        .create_datareader::<UserType>(&topic, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_datareader::<UserType>(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
     assert!(reader.get_topicdescription().get_instance_handle() == topic.get_instance_handle());

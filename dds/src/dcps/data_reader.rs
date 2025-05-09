@@ -173,7 +173,7 @@ pub struct DataReaderEntity<R: DdsRuntime> {
     data_available_status_changed_flag: bool,
     incompatible_writer_list: Vec<InstanceHandle>,
     status_condition: Actor<R, StatusConditionActor<R>>,
-    listener_sender: R::ChannelSender<ListenerMail<R>>,
+    listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
     listener_mask: Vec<StatusKind>,
     instances: Vec<InstanceState>,
     instance_received_time: Vec<InstanceReceivedTime>,
@@ -190,7 +190,7 @@ impl<R: DdsRuntime> DataReaderEntity<R> {
         type_name: String,
         type_support: Arc<dyn DynamicType + Send + Sync>,
         status_condition: Actor<R, StatusConditionActor<R>>,
-        listener_sender: R::ChannelSender<ListenerMail<R>>,
+        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         listener_mask: Vec<StatusKind>,
         transport_reader: TransportReaderKind,
     ) -> Self {
@@ -870,7 +870,7 @@ impl<R: DdsRuntime> DataReaderEntity<R> {
             .collect()
     }
 
-    pub fn listener(&self) -> &R::ChannelSender<ListenerMail<R>> {
+    pub fn listener(&self) -> &Option<R::ChannelSender<ListenerMail<R>>> {
         &self.listener_sender
     }
 
@@ -880,7 +880,7 @@ impl<R: DdsRuntime> DataReaderEntity<R> {
 
     pub fn set_listener(
         &mut self,
-        listener_sender: R::ChannelSender<ListenerMail<R>>,
+        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         listener_mask: Vec<StatusKind>,
     ) {
         self.listener_sender = listener_sender;

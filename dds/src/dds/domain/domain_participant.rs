@@ -64,7 +64,7 @@ impl<R: DdsRuntime> DomainParticipant<R> {
     pub fn create_publisher(
         &self,
         qos: QosKind<PublisherQos>,
-        a_listener: impl PublisherListener<R> + Send + 'static,
+        a_listener: Option<impl PublisherListener<R> + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<Publisher<R>> {
         R::block_on(
@@ -101,7 +101,7 @@ impl<R: DdsRuntime> DomainParticipant<R> {
     pub fn create_subscriber(
         &self,
         qos: QosKind<SubscriberQos>,
-        a_listener: impl SubscriberListener<R> + Send + 'static,
+        a_listener: Option<impl SubscriberListener<R> + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<Subscriber<R>> {
         R::block_on(
@@ -138,7 +138,7 @@ impl<R: DdsRuntime> DomainParticipant<R> {
         topic_name: &str,
         type_name: &str,
         qos: QosKind<TopicQos>,
-        a_listener: impl TopicListener<R> + Send + 'static,
+        a_listener: Option<impl TopicListener<R> + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<Topic<R>>
     where
@@ -158,7 +158,7 @@ impl<R: DdsRuntime> DomainParticipant<R> {
         topic_name: &str,
         type_name: &str,
         qos: QosKind<TopicQos>,
-        a_listener: impl TopicListener<R> + Send + 'static,
+        a_listener: Option<impl TopicListener<R> + Send + 'static>,
         mask: &[StatusKind],
         dynamic_type_representation: Arc<dyn DynamicType + Send + Sync>,
     ) -> DdsResult<Topic<R>> {
@@ -478,7 +478,7 @@ impl<R: DdsRuntime> DomainParticipant<R> {
     #[tracing::instrument(skip(self, a_listener))]
     pub fn set_listener(
         &self,
-        a_listener: impl DomainParticipantListener<R> + Send + 'static,
+        a_listener: Option<impl DomainParticipantListener<R> + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         R::block_on(self.participant_async.set_listener(a_listener, mask))

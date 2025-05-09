@@ -60,7 +60,7 @@ impl<R: DdsRuntime> Publisher<R> {
         &self,
         a_topic: &Topic<R>,
         qos: QosKind<DataWriterQos>,
-        a_listener: impl DataWriterListener<'a, R, Foo> + Send + 'static,
+        a_listener: Option<impl DataWriterListener<'a, R, Foo> + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<DataWriter<R, Foo>>
     where
@@ -250,7 +250,7 @@ impl<R: DdsRuntime> Publisher<R> {
     #[tracing::instrument(skip(self, a_listener))]
     pub fn set_listener(
         &self,
-        a_listener: impl PublisherListener<R> + Send + 'static,
+        a_listener: Option<impl PublisherListener<R> + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         R::block_on(self.publisher_async.set_listener(a_listener, mask))

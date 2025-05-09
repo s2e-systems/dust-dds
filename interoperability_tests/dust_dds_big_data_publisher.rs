@@ -10,7 +10,7 @@ use dust_dds::{
         status::{StatusKind, NO_STATUS},
         time::{Duration, DurationKind},
     },
-    listener::NoOpListener,
+    listener::NO_LISTENER,
     wait_set::{Condition, WaitSet},
 };
 mod big_data {
@@ -22,7 +22,7 @@ fn main() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -30,13 +30,13 @@ fn main() {
             "BigData",
             "BigDataType",
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
     let writer_qos = DataWriterQos {
@@ -53,7 +53,7 @@ fn main() {
         .create_datawriter::<BigDataType>(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();

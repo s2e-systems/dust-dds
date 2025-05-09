@@ -21,7 +21,7 @@ pub struct SubscriberEntity<R: DdsRuntime> {
     enabled: bool,
     default_data_reader_qos: DataReaderQos,
     status_condition: Actor<R, StatusConditionActor<R>>,
-    listener_sender: R::ChannelSender<ListenerMail<R>>,
+    listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
     listener_mask: Vec<StatusKind>,
 }
 
@@ -30,7 +30,7 @@ impl<R: DdsRuntime> SubscriberEntity<R> {
         instance_handle: InstanceHandle,
         qos: SubscriberQos,
         status_condition: Actor<R, StatusConditionActor<R>>,
-        listener_sender: R::ChannelSender<ListenerMail<R>>,
+        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         listener_mask: Vec<StatusKind>,
     ) -> Self {
         Self {
@@ -123,7 +123,7 @@ impl<R: DdsRuntime> SubscriberEntity<R> {
 
     pub fn set_listener(
         &mut self,
-        listener_sender: R::ChannelSender<ListenerMail<R>>,
+        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         listener_mask: Vec<StatusKind>,
     ) {
         self.listener_sender = listener_sender;
@@ -134,7 +134,7 @@ impl<R: DdsRuntime> SubscriberEntity<R> {
         &self.status_condition
     }
 
-    pub fn listener(&self) -> &R::ChannelSender<ListenerMail<R>> {
+    pub fn listener(&self) -> &Option<R::ChannelSender<ListenerMail<R>>> {
         &self.listener_sender
     }
 

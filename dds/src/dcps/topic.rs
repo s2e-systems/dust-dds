@@ -23,7 +23,7 @@ pub struct TopicEntity<R: DdsRuntime> {
     enabled: bool,
     inconsistent_topic_status: InconsistentTopicStatus,
     status_condition: Actor<R, StatusConditionActor<R>>,
-    _listener_sender: R::ChannelSender<ListenerMail<R>>,
+    _listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
     _status_kind: Vec<StatusKind>,
     type_support: Arc<dyn DynamicType + Send + Sync>,
 }
@@ -36,7 +36,7 @@ impl<R: DdsRuntime> TopicEntity<R> {
         topic_name: String,
         instance_handle: InstanceHandle,
         status_condition: Actor<R, StatusConditionActor<R>>,
-        listener_sender: R::ChannelSender<ListenerMail<R>>,
+        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         status_kind: Vec<StatusKind>,
         type_support: Arc<dyn DynamicType + Send + Sync>,
     ) -> Self {

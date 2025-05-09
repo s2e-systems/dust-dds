@@ -12,7 +12,7 @@ use dust_dds::{
         time::{Duration, DurationKind},
         type_support::DdsType,
     },
-    listener::NoOpListener,
+    listener::NO_LISTENER,
 };
 
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
@@ -30,7 +30,7 @@ async fn dust_dds_should_run_inside_tokio_runtime() {
 
     let participant_factory = DomainParticipantFactoryAsync::get_instance();
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .await
         .unwrap();
     let topic = participant
@@ -38,14 +38,14 @@ async fn dust_dds_should_run_inside_tokio_runtime() {
             "LargeDataTopic",
             "UserData",
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .await
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .await
         .unwrap();
     let writer_qos = DataWriterQos {
@@ -59,14 +59,14 @@ async fn dust_dds_should_run_inside_tokio_runtime() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .await
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .await
         .unwrap();
     let reader_qos = DataReaderQos {
@@ -80,7 +80,7 @@ async fn dust_dds_should_run_inside_tokio_runtime() {
         .create_datareader::<UserData>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .await

@@ -15,7 +15,7 @@ use dust_dds::{
         status::{StatusKind, NO_STATUS},
         type_support::DdsType,
     },
-    listener::NoOpListener,
+    listener::NO_LISTENER,
     subscription::data_reader_listener::DataReaderListener,
 };
 
@@ -61,7 +61,7 @@ fn main() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -69,13 +69,13 @@ fn main() {
             "BestEffortExampleTopic",
             "BestEffortExampleType",
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
     let (sender, receiver) = sync_channel(0);
@@ -85,7 +85,7 @@ fn main() {
         .create_datareader(
             &topic,
             QosKind::Default,
-            listener,
+            Some(listener),
             &[StatusKind::DataAvailable, StatusKind::SubscriptionMatched],
         )
         .unwrap();

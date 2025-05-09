@@ -37,7 +37,7 @@ where
     CreateUserDefinedPublisher {
         qos: QosKind<PublisherQos>,
         status_condition: Actor<R, StatusConditionActor<R>>,
-        listener_sender: R::ChannelSender<ListenerMail<R>>,
+        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         mask: Vec<StatusKind>,
         reply_sender: R::OneshotSender<DdsResult<InstanceHandle>>,
     },
@@ -49,7 +49,7 @@ where
     CreateUserDefinedSubscriber {
         qos: QosKind<SubscriberQos>,
         status_condition: Actor<R, StatusConditionActor<R>>,
-        listener_sender: R::ChannelSender<ListenerMail<R>>,
+        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         mask: Vec<StatusKind>,
         reply_sender: R::OneshotSender<DdsResult<InstanceHandle>>,
     },
@@ -63,7 +63,7 @@ where
         type_name: String,
         qos: QosKind<TopicQos>,
         status_condition: Actor<R, StatusConditionActor<R>>,
-        listener_sender: R::ChannelSender<ListenerMail<R>>,
+        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         mask: Vec<StatusKind>,
         type_support: Arc<dyn DynamicType + Send + Sync>,
         reply_sender: R::OneshotSender<DdsResult<InstanceHandle>>,
@@ -77,7 +77,7 @@ where
         topic_name: String,
         type_support: Arc<dyn DynamicType + Send + Sync>,
         status_condition: Actor<R, StatusConditionActor<R>>,
-        listener_sender: R::ChannelSender<ListenerMail<R>>,
+        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         #[allow(clippy::type_complexity)]
         reply_sender: R::OneshotSender<
             DdsResult<
@@ -164,7 +164,7 @@ where
         reply_sender: R::OneshotSender<DdsResult<DomainParticipantQos>>,
     },
     SetListener {
-        listener_sender: R::ChannelSender<ListenerMail<R>>,
+        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         status_kind: Vec<StatusKind>,
         reply_sender: R::OneshotSender<DdsResult<()>>,
     },
@@ -212,7 +212,7 @@ where
         topic_name: String,
         qos: QosKind<DataWriterQos>,
         status_condition: Actor<R, StatusConditionActor<R>>,
-        listener_sender: R::ChannelSender<ListenerMail<R>>,
+        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         mask: Vec<StatusKind>,
         participant_address: R::ChannelSender<DomainParticipantMail<R>>,
         reply_sender: R::OneshotSender<DdsResult<InstanceHandle>>,
@@ -242,7 +242,7 @@ where
     },
     SetPublisherListener {
         publisher_handle: InstanceHandle,
-        listener_sender: R::ChannelSender<ListenerMail<R>>,
+        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         mask: Vec<StatusKind>,
         reply_sender: R::OneshotSender<DdsResult<()>>,
     },
@@ -257,7 +257,7 @@ where
         topic_name: String,
         qos: QosKind<DataReaderQos>,
         status_condition: Actor<R, StatusConditionActor<R>>,
-        listener_sender: R::ChannelSender<ListenerMail<R>>,
+        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         mask: Vec<StatusKind>,
         domain_participant_address: R::ChannelSender<DomainParticipantMail<R>>,
         reply_sender: R::OneshotSender<DdsResult<InstanceHandle>>,
@@ -295,7 +295,7 @@ where
     },
     SetListener {
         subscriber_handle: InstanceHandle,
-        listener_sender: R::ChannelSender<ListenerMail<R>>,
+        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         mask: Vec<StatusKind>,
         reply_sender: R::OneshotSender<DdsResult<()>>,
     },
@@ -308,7 +308,7 @@ where
     SetListener {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        listener_sender: R::ChannelSender<ListenerMail<R>>,
+        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         listener_mask: Vec<StatusKind>,
         reply_sender: R::OneshotSender<DdsResult<()>>,
     },
@@ -478,7 +478,7 @@ where
     SetListener {
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
-        listener_sender: R::ChannelSender<ListenerMail<R>>,
+        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         listener_mask: Vec<StatusKind>,
         reply_sender: R::OneshotSender<DdsResult<()>>,
     },

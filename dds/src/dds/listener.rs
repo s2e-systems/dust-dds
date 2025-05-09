@@ -10,18 +10,17 @@ use crate::{
     topic_definition::topic_listener::TopicListener,
 };
 
-/// NoOp Listener which is provided as a convinience type for the user to install as a listener when it intends to have no operation executed.
-/// This object implements all the listener trait and can be used on any DDS entity.
-pub struct NoOpListener;
+/// Convinience constant to be used when the user does not want to install a listener.
+pub const NO_LISTENER: Option<()> = None;
 
-impl<R: DdsRuntime> DomainParticipantListener<R> for NoOpListener {}
+impl<R: DdsRuntime> DomainParticipantListener<R> for () {}
 
-impl<R: DdsRuntime> PublisherListener<R> for NoOpListener {}
+impl<R: DdsRuntime> PublisherListener<R> for () {}
 
-impl<R: DdsRuntime> SubscriberListener<R> for NoOpListener {}
+impl<R: DdsRuntime> SubscriberListener<R> for () {}
 
-impl<R: DdsRuntime> TopicListener<R> for NoOpListener {}
+impl<R: DdsRuntime> TopicListener<R> for () {}
 
-impl<R: DdsRuntime, Foo> DataWriterListener<'_, R, Foo> for NoOpListener {}
+impl<R: DdsRuntime, Foo> DataWriterListener<'_, R, Foo> for () {}
 
-impl<R: DdsRuntime, Foo> DataReaderListener<'_, R, Foo> for NoOpListener {}
+impl<R: DdsRuntime, Foo> DataReaderListener<'_, R, Foo> for () {}

@@ -73,7 +73,7 @@ pub struct DataWriterEntity<R: DdsRuntime> {
     offered_incompatible_qos_status: OfferedIncompatibleQosStatus,
     enabled: bool,
     status_condition: Actor<R, StatusConditionActor<R>>,
-    listener_sender: R::ChannelSender<ListenerMail<R>>,
+    listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
     listener_mask: Vec<StatusKind>,
     max_seq_num: Option<i64>,
     last_change_sequence_number: i64,
@@ -93,7 +93,7 @@ impl<R: DdsRuntime> DataWriterEntity<R> {
         type_name: String,
         type_support: Arc<dyn DynamicType + Send + Sync>,
         status_condition: Actor<R, StatusConditionActor<R>>,
-        listener_sender: R::ChannelSender<ListenerMail<R>>,
+        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         listener_mask: Vec<StatusKind>,
         qos: DataWriterQos,
     ) -> Self {
@@ -557,14 +557,14 @@ impl<R: DdsRuntime> DataWriterEntity<R> {
 
     pub fn set_listener(
         &mut self,
-        listener_sender: R::ChannelSender<ListenerMail<R>>,
+        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         listener_mask: Vec<StatusKind>,
     ) {
         self.listener_sender = listener_sender;
         self.listener_mask = listener_mask;
     }
 
-    pub fn listener(&self) -> &R::ChannelSender<ListenerMail<R>> {
+    pub fn listener(&self) -> &Option<R::ChannelSender<ListenerMail<R>>> {
         &self.listener_sender
     }
 

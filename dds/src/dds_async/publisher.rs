@@ -68,7 +68,7 @@ impl<R: DdsRuntime> PublisherAsync<R> {
         &'a self,
         a_topic: &'a TopicAsync<R>,
         qos: QosKind<DataWriterQos>,
-        a_listener: impl DataWriterListener<'b, R, Foo> + Send + 'static,
+        a_listener: Option<impl DataWriterListener<'b, R, Foo> + Send + 'static>,
         mask: &'a [StatusKind],
     ) -> DdsResult<DataWriterAsync<R, Foo>>
     where
@@ -80,8 +80,8 @@ impl<R: DdsRuntime> PublisherAsync<R> {
             self.participant.spawner_handle(),
         );
         let writer_status_condition_address = status_condition.address();
-        let listener_sender =
-            DataWriterListenerActor::spawn(a_listener, self.participant.spawner_handle());
+        let listener_sender = a_listener
+            .map(|l| DataWriterListenerActor::spawn(l, self.participant.spawner_handle()));
         let (reply_sender, mut reply_receiver) = R::oneshot();
         self.participant_address()
             .send(DomainParticipantMail::Publisher(
@@ -255,12 +255,12 @@ impl<R: DdsRuntime> PublisherAsync<R> {
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn set_listener(
         &self,
-        a_listener: impl PublisherListener<R> + Send + 'static,
+        a_listener: Option<impl PublisherListener<R> + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         let (reply_sender, mut reply_receiver) = R::oneshot();
         let listener_sender =
-            PublisherListenerActor::spawn(a_listener, self.participant.spawner_handle());
+            a_listener.map(|l| PublisherListenerActor::spawn(l, self.participant.spawner_handle()));
         self.participant_address()
             .send(DomainParticipantMail::Publisher(
                 PublisherServiceMail::SetPublisherListener {

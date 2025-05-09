@@ -13,7 +13,7 @@ use dust_dds::{
         time::{Duration, DurationKind},
         type_support::DdsType,
     },
-    listener::NoOpListener,
+    listener::NO_LISTENER,
     subscription::data_reader_listener::DataReaderListener,
     wait_set::{Condition, WaitSet},
 };
@@ -52,20 +52,20 @@ fn reader_subscription_matched_listener_and_wait_set_should_both_trigger() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<MyData>(
             "SubscriptionMatchedListenerTopic",
             "MyData",
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let data_writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -82,13 +82,13 @@ fn reader_subscription_matched_listener_and_wait_set_should_both_trigger() {
         .create_datawriter::<MyData>(
             &topic,
             QosKind::Specific(data_writer_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -112,7 +112,7 @@ fn reader_subscription_matched_listener_and_wait_set_should_both_trigger() {
         .create_datareader(
             &topic,
             QosKind::Specific(reader_qos),
-            reader_listener,
+            Some(reader_listener),
             &[StatusKind::SubscriptionMatched],
         )
         .unwrap();

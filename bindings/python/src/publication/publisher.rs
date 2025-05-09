@@ -1,4 +1,4 @@
-use dust_dds::listener::NoOpListener;
+use dust_dds::listener::NO_LISTENER;
 use pyo3::{exceptions::PyTypeError, prelude::*};
 
 use crate::{
@@ -72,7 +72,7 @@ impl Publisher {
             None => self.0.create_datawriter::<PythonDdsData>(
                 a_topic.as_ref(),
                 qos,
-                NoOpListener,
+                NO_LISTENER,
                 &mask,
             ),
         };
@@ -169,7 +169,7 @@ impl Publisher {
             .collect();
         match a_listener {
             Some(l) => self.0.set_listener(PublisherListener::from(l), &mask),
-            None => self.0.set_listener(NoOpListener, &mask),
+            None => self.0.set_listener(NO_LISTENER, &mask),
         }
         .map_err(into_pyerr)
     }

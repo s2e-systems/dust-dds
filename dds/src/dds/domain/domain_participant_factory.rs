@@ -33,7 +33,7 @@ impl<R: DdsRuntime> DomainParticipantFactory<R> {
         &self,
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
-        a_listener: impl DomainParticipantListener<R> + Send + 'static,
+        a_listener: Option<impl DomainParticipantListener<R> + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<DomainParticipant<R>> {
         R::block_on(

@@ -19,7 +19,7 @@ use dust_dds::{
         status::NO_STATUS,
         time::DurationKind,
     },
-    listener::NoOpListener,
+    listener::NO_LISTENER,
     publication::{data_writer::DataWriter, publisher::Publisher},
     runtime::StdRuntime,
     subscription::{data_reader::DataReader, subscriber::Subscriber},
@@ -128,13 +128,13 @@ impl Default for ShapesDemoApp {
         let domain_id = 0;
         let participant_factory = DomainParticipantFactory::get_instance();
         let participant = participant_factory
-            .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+            .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
             .unwrap();
         let publisher = participant
-            .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
+            .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
             .unwrap();
         let subscriber = participant
-            .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
+            .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
             .unwrap();
 
         let writer_list = Arc::new(Mutex::new(Vec::new()));
@@ -170,7 +170,7 @@ impl ShapesDemoApp {
                     topic_name,
                     "ShapeType",
                     QosKind::Default,
-                    NoOpListener,
+                    NO_LISTENER,
                     NO_STATUS,
                 )
                 .unwrap()
@@ -202,7 +202,7 @@ impl ShapesDemoApp {
         };
         let writer = self
             .publisher
-            .create_datawriter(&topic, QosKind::Specific(qos), NoOpListener, NO_STATUS)
+            .create_datawriter(&topic, QosKind::Specific(qos), NO_LISTENER, NO_STATUS)
             .unwrap();
 
         let velocity = vec2(30.0, 20.0);
@@ -235,7 +235,7 @@ impl ShapesDemoApp {
                     topic_name,
                     "ShapeType",
                     QosKind::Default,
-                    NoOpListener,
+                    NO_LISTENER,
                     NO_STATUS,
                 )
                 .unwrap()
@@ -265,7 +265,7 @@ impl ShapesDemoApp {
         };
         let reader = self
             .subscriber
-            .create_datareader(&topic, QosKind::Specific(qos), NoOpListener, NO_STATUS)
+            .create_datareader(&topic, QosKind::Specific(qos), NO_LISTENER, NO_STATUS)
             .unwrap();
         self.reader_list.push(reader);
     }
