@@ -146,7 +146,7 @@ impl<R: DdsRuntime> Topic<R> {
     #[tracing::instrument(skip(self, a_listener))]
     pub fn set_listener(
         &self,
-        a_listener: impl TopicListener<R> + Send + 'static,
+        a_listener: Option<impl TopicListener<R> + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         R::block_on(self.topic_async.set_listener(a_listener, mask))

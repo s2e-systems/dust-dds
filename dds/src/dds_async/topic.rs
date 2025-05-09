@@ -165,7 +165,7 @@ impl<R: DdsRuntime> TopicAsync<R> {
     #[tracing::instrument(skip(self, _a_listener))]
     pub async fn set_listener(
         &self,
-        _a_listener: impl TopicListener<R> + Send + 'static,
+        _a_listener: Option<impl TopicListener<R> + Send + 'static>,
         _mask: &[StatusKind],
     ) -> DdsResult<()> {
         todo!()
