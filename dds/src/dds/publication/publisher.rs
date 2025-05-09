@@ -1,6 +1,5 @@
 use super::{data_writer_listener::DataWriterListener, publisher_listener::PublisherListener};
 use crate::{
-    condition::StatusCondition,
     dcps::runtime::DdsRuntime,
     dds_async::publisher::PublisherAsync,
     domain::domain_participant::DomainParticipant,
@@ -254,14 +253,6 @@ impl<R: DdsRuntime> Publisher<R> {
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         R::block_on(self.publisher_async.set_listener(a_listener, mask))
-    }
-
-    /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
-    /// condition can then be added to a [`WaitSet`](crate::infrastructure::wait_set::WaitSet) so that the application can wait for specific status changes
-    /// that affect the Entity.
-    #[tracing::instrument(skip(self))]
-    pub fn get_statuscondition(&self) -> StatusCondition<R> {
-        StatusCondition::new(self.publisher_async.get_statuscondition())
     }
 
     /// This operation retrieves the list of communication statuses in the Entity that are 'triggered.' That is, the list of statuses whose

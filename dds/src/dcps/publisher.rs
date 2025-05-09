@@ -1,5 +1,4 @@
 use super::{
-    actor::Actor,
     infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,
@@ -8,7 +7,6 @@ use super::{
     },
     listeners::domain_participant_listener::ListenerMail,
     runtime::DdsRuntime,
-    status_condition_actor::StatusConditionActor,
 };
 use alloc::vec::Vec;
 
@@ -22,7 +20,6 @@ pub struct PublisherEntity<R: DdsRuntime> {
     default_datawriter_qos: DataWriterQos,
     listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
     listener_mask: Vec<StatusKind>,
-    status_condition: Actor<R, StatusConditionActor<R>>,
 }
 
 impl<R: DdsRuntime> PublisherEntity<R> {
@@ -31,7 +28,6 @@ impl<R: DdsRuntime> PublisherEntity<R> {
         instance_handle: InstanceHandle,
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         listener_mask: Vec<StatusKind>,
-        status_condition: Actor<R, StatusConditionActor<R>>,
     ) -> Self {
         Self {
             qos,
@@ -41,7 +37,6 @@ impl<R: DdsRuntime> PublisherEntity<R> {
             default_datawriter_qos: DataWriterQos::default(),
             listener_sender,
             listener_mask,
-            status_condition,
         }
     }
 
@@ -131,10 +126,6 @@ impl<R: DdsRuntime> PublisherEntity<R> {
     ) {
         self.listener_sender = listener_sender;
         self.listener_mask = mask;
-    }
-
-    pub fn status_condition(&self) -> &Actor<R, StatusConditionActor<R>> {
-        &self.status_condition
     }
 
     pub fn listener_mask(&self) -> &[StatusKind] {

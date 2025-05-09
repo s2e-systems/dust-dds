@@ -3,7 +3,6 @@ use pyo3::{exceptions::PyTypeError, prelude::*};
 use crate::{
     domain::domain_participant::DomainParticipant,
     infrastructure::{
-        condition::StatusCondition,
         error::into_pyerr,
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos},
@@ -157,10 +156,6 @@ impl Publisher {
             .map(dust_dds::infrastructure::status::StatusKind::from)
             .collect();
         self.0.set_listener(listener, &mask).map_err(into_pyerr)
-    }
-
-    pub fn get_statuscondition(&self) -> StatusCondition {
-        self.0.get_statuscondition().into()
     }
 
     pub fn get_status_changes(&self) -> PyResult<Vec<StatusKind>> {

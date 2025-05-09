@@ -1,10 +1,9 @@
 use super::{
-    condition::StatusConditionAsync, data_writer::DataWriterAsync,
-    domain_participant::DomainParticipantAsync, topic::TopicAsync,
+    data_writer::DataWriterAsync, domain_participant::DomainParticipantAsync, topic::TopicAsync,
 };
 use crate::{
     dcps::{
-        actor::{Actor, ActorAddress},
+        actor::Actor,
         domain_participant_actor_mail::{DomainParticipantMail, PublisherServiceMail},
         listeners::{
             data_writer_listener::DataWriterListenerActor,
@@ -29,7 +28,6 @@ use alloc::vec::Vec;
 /// Async version of [`Publisher`](crate::publication::publisher::Publisher).
 pub struct PublisherAsync<R: DdsRuntime> {
     handle: InstanceHandle,
-    status_condition_address: ActorAddress<R, StatusConditionActor<R>>,
     participant: DomainParticipantAsync<R>,
 }
 
@@ -37,21 +35,15 @@ impl<R: DdsRuntime> Clone for PublisherAsync<R> {
     fn clone(&self) -> Self {
         Self {
             handle: self.handle.clone(),
-            status_condition_address: self.status_condition_address.clone(),
             participant: self.participant.clone(),
         }
     }
 }
 
 impl<R: DdsRuntime> PublisherAsync<R> {
-    pub(crate) fn new(
-        handle: InstanceHandle,
-        status_condition_address: ActorAddress<R, StatusConditionActor<R>>,
-        participant: DomainParticipantAsync<R>,
-    ) -> Self {
+    pub(crate) fn new(handle: InstanceHandle, participant: DomainParticipantAsync<R>) -> Self {
         Self {
             handle,
-            status_condition_address,
             participant,
         }
     }
@@ -272,15 +264,6 @@ impl<R: DdsRuntime> PublisherAsync<R> {
             ))
             .await?;
         reply_receiver.receive().await?
-    }
-
-    /// Async version of [`get_statuscondition`](crate::publication::publisher::Publisher::get_statuscondition).
-    #[tracing::instrument(skip(self))]
-    pub fn get_statuscondition(&self) -> StatusConditionAsync<R> {
-        StatusConditionAsync::new(
-            self.status_condition_address.clone(),
-            self.participant.clock_handle().clone(),
-        )
     }
 
     /// Async version of [`get_status_changes`](crate::publication::publisher::Publisher::get_status_changes).

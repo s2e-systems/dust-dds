@@ -203,11 +203,6 @@ where
     ) -> DdsResult<PublisherAsync<R>> {
         Ok(PublisherAsync::new(
             publisher_handle,
-            self.domain_participant
-                .get_publisher(publisher_handle)
-                .ok_or(DdsError::AlreadyDeleted)?
-                .status_condition()
-                .address(),
             self.get_participant_async(participant_address),
         ))
     }
@@ -311,7 +306,6 @@ where
     pub fn create_user_defined_publisher(
         &mut self,
         qos: QosKind<PublisherQos>,
-        status_condition: Actor<R, StatusConditionActor<R>>,
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         mask: Vec<StatusKind>,
     ) -> DdsResult<InstanceHandle> {
@@ -322,13 +316,8 @@ where
 
         let publisher_handle = self.instance_handle_counter.generate_new_instance_handle();
 
-        let mut publisher = PublisherEntity::new(
-            publisher_qos,
-            publisher_handle,
-            listener_sender,
-            mask,
-            status_condition,
-        );
+        let mut publisher =
+            PublisherEntity::new(publisher_qos, publisher_handle, listener_sender, mask);
 
         if self.domain_participant.enabled()
             && self

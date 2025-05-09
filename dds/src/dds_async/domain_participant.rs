@@ -96,15 +96,12 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         mask: &[StatusKind],
     ) -> DdsResult<PublisherAsync<R>> {
         let (reply_sender, mut reply_receiver) = R::oneshot();
-        let status_condition = Actor::spawn(StatusConditionActor::default(), &self.spawner_handle);
-        let publisher_status_condition_address = status_condition.address();
         let listener_sender =
             a_listener.map(|l| PublisherListenerActor::spawn(l, self.spawner_handle()));
         self.participant_address
             .send(DomainParticipantMail::Participant(
                 ParticipantServiceMail::CreateUserDefinedPublisher {
                     qos,
-                    status_condition,
                     listener_sender,
                     mask: mask.to_vec(),
                     reply_sender,
@@ -112,7 +109,7 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
             ))
             .await?;
         let guid = reply_receiver.receive().await??;
-        let publisher = PublisherAsync::new(guid, publisher_status_condition_address, self.clone());
+        let publisher = PublisherAsync::new(guid, self.clone());
 
         Ok(publisher)
     }

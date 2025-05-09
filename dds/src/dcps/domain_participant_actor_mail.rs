@@ -36,7 +36,6 @@ where
 {
     CreateUserDefinedPublisher {
         qos: QosKind<PublisherQos>,
-        status_condition: Actor<R, StatusConditionActor<R>>,
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         mask: Vec<StatusKind>,
         reply_sender: R::OneshotSender<DdsResult<InstanceHandle>>,
@@ -614,18 +613,12 @@ where
         match participant_service_mail {
             ParticipantServiceMail::CreateUserDefinedPublisher {
                 qos,
-                status_condition,
                 listener_sender,
                 mask,
                 reply_sender,
             } => {
                 reply_sender
-                    .send(self.create_user_defined_publisher(
-                        qos,
-                        status_condition,
-                        listener_sender,
-                        mask,
-                    ))
+                    .send(self.create_user_defined_publisher(qos, listener_sender, mask))
                     .await
             }
             ParticipantServiceMail::DeleteUserDefinedPublisher {

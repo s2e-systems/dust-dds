@@ -458,7 +458,6 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
             instance_handle_counter.generate_new_instance_handle(),
             None,
             vec![],
-            Actor::spawn(StatusConditionActor::default(), &spawner_handle),
         );
         builtin_publisher.enable();
         builtin_publisher.insert_data_writer(dcps_participant_writer);
