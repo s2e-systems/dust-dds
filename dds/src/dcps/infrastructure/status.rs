@@ -49,7 +49,7 @@ pub enum StatusKind {
 pub const NO_STATUS: &[StatusKind] = &[];
 
 /// Structure holding the values related to the Inconsistent Topic communication status.
-#[derive(Clone, PartialEq, Eq, Debug, Default)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct InconsistentTopicStatus {
     /// Total cumulative count of the Topics discovered whose name matches
     /// the Topic to which this status is attached and whose type is inconsistent with the Topic.
@@ -57,6 +57,21 @@ pub struct InconsistentTopicStatus {
     /// The incremental number of inconsistent topics discovered since the
     /// last time the listener was called or the status was read.
     pub total_count_change: i32,
+}
+
+impl InconsistentTopicStatus {
+    pub const fn const_default() -> Self {
+        Self {
+            total_count: 0,
+            total_count_change: 0,
+        }
+    }
+}
+
+impl Default for InconsistentTopicStatus {
+    fn default() -> Self {
+        Self::const_default()
+    }
 }
 
 /// Structure holding the values related to the Sample Lost communication status.

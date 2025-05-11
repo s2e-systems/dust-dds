@@ -7,6 +7,13 @@ pub struct InstanceHandleCounter {
 }
 
 impl InstanceHandleCounter {
+    pub const fn new() -> Self {
+        Self {
+            counter1: 0,
+            counter2: 0,
+        }
+    }
+
     pub fn generate_new_instance_handle(&mut self) -> InstanceHandle {
         if self.counter1 == u64::MAX {
             self.counter2 += 1;

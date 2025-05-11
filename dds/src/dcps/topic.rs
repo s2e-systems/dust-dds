@@ -30,7 +30,7 @@ pub struct TopicEntity<R: DdsRuntime> {
 
 impl<R: DdsRuntime> TopicEntity<R> {
     #[allow(clippy::too_many_arguments)]
-    pub fn new(
+    pub const fn new(
         qos: TopicQos,
         type_name: String,
         topic_name: String,
@@ -46,7 +46,7 @@ impl<R: DdsRuntime> TopicEntity<R> {
             topic_name,
             instance_handle,
             enabled: false,
-            inconsistent_topic_status: InconsistentTopicStatus::default(),
+            inconsistent_topic_status: InconsistentTopicStatus::const_default(),
             status_condition,
             _listener_sender: listener_sender,
             _status_kind: status_kind,

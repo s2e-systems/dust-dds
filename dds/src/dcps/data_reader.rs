@@ -144,14 +144,10 @@ impl TransportReaderKind {
     }
 }
 
-struct InstanceReceivedTime {
-    instance_handle: InstanceHandle,
-    last_received_time: Time,
-}
-
 struct InstanceOwnership {
     instance_handle: InstanceHandle,
     owner_handle: [u8; 16],
+    last_received_time: Time,
 }
 
 pub struct DataReaderEntity<R: DdsRuntime> {
@@ -173,7 +169,6 @@ pub struct DataReaderEntity<R: DdsRuntime> {
     listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
     listener_mask: Vec<StatusKind>,
     instances: Vec<InstanceState>,
-    instance_received_time: Vec<InstanceReceivedTime>,
     instance_ownership: Vec<InstanceOwnership>,
     transport_reader: TransportReaderKind,
 }
@@ -210,7 +205,6 @@ impl<R: DdsRuntime> DataReaderEntity<R> {
             listener_sender,
             listener_mask,
             instances: Vec::new(),
-            instance_received_time: Vec::new(),
             instance_ownership: Vec::new(),
             transport_reader,
         }
@@ -502,10 +496,14 @@ impl<R: DdsRuntime> DataReaderEntity<R> {
                 .iter_mut()
                 .find(|x| x.instance_handle == sample.instance_handle)
             {
-                Some(x) => x.owner_handle = sample.writer_guid,
+                Some(x) => {
+                    x.owner_handle = sample.writer_guid;
+                    x.last_received_time = reception_timestamp
+                }
                 None => self.instance_ownership.push(InstanceOwnership {
                     instance_handle: sample.instance_handle,
                     owner_handle: sample.writer_guid,
+                    last_received_time: reception_timestamp,
                 }),
             }
         }
@@ -675,22 +673,6 @@ impl<R: DdsRuntime> DataReaderEntity<R> {
             DestinationOrderQosPolicyKind::ByReceptionTimestamp => self
                 .sample_list
                 .sort_by(|a, b| a.reception_timestamp.cmp(&b.reception_timestamp)),
-        }
-
-        match self
-            .instance_received_time
-            .iter_mut()
-            .find(|x| x.instance_handle == change_instance_handle)
-        {
-            Some(x) => {
-                if x.last_received_time < reception_timestamp {
-                    x.last_received_time = reception_timestamp;
-                }
-            }
-            None => self.instance_received_time.push(InstanceReceivedTime {
-                instance_handle: change_instance_handle,
-                last_received_time: reception_timestamp,
-            }),
         }
 
         Ok(AddChangeResult::Added(change_instance_handle))
@@ -883,7 +865,7 @@ impl<R: DdsRuntime> DataReaderEntity<R> {
     }
 
     pub fn get_instance_received_time(&self, instance_handle: &InstanceHandle) -> Option<Time> {
-        self.instance_received_time
+        self.instance_ownership
             .iter()
             .find(|x| &x.instance_handle == instance_handle)
             .map(|x| x.last_received_time)
