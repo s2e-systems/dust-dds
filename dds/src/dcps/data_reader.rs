@@ -11,9 +11,8 @@ use super::{
         },
         sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
         status::{
-            LivelinessChangedStatus, QosPolicyCount, RequestedDeadlineMissedStatus,
-            RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus,
-            SampleRejectedStatusKind, StatusKind, SubscriptionMatchedStatus,
+            QosPolicyCount, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
+            SampleRejectedStatus, SampleRejectedStatusKind, StatusKind, SubscriptionMatchedStatus,
         },
         time::{DurationKind, Time},
     },
@@ -162,10 +161,8 @@ pub struct DataReaderEntity<R: DdsRuntime> {
     topic_name: String,
     type_name: String,
     type_support: Arc<dyn DynamicType + Send + Sync>,
-    _liveliness_changed_status: LivelinessChangedStatus,
     requested_deadline_missed_status: RequestedDeadlineMissedStatus,
     requested_incompatible_qos_status: RequestedIncompatibleQosStatus,
-    _sample_lost_status: SampleLostStatus,
     sample_rejected_status: SampleRejectedStatus,
     subscription_matched_status: SubscriptionMatchedStatus,
     matched_publication_list: Vec<PublicationBuiltinTopicData>,
@@ -183,7 +180,7 @@ pub struct DataReaderEntity<R: DdsRuntime> {
 
 impl<R: DdsRuntime> DataReaderEntity<R> {
     #[allow(clippy::too_many_arguments)]
-    pub fn new(
+    pub const fn new(
         instance_handle: InstanceHandle,
         qos: DataReaderQos,
         topic_name: String,
@@ -201,12 +198,10 @@ impl<R: DdsRuntime> DataReaderEntity<R> {
             topic_name,
             type_name,
             type_support,
-            _liveliness_changed_status: LivelinessChangedStatus::default(),
-            requested_deadline_missed_status: RequestedDeadlineMissedStatus::default(),
-            requested_incompatible_qos_status: RequestedIncompatibleQosStatus::default(),
-            _sample_lost_status: SampleLostStatus::default(),
-            sample_rejected_status: SampleRejectedStatus::default(),
-            subscription_matched_status: SubscriptionMatchedStatus::default(),
+            requested_deadline_missed_status: RequestedDeadlineMissedStatus::const_default(),
+            requested_incompatible_qos_status: RequestedIncompatibleQosStatus::const_default(),
+            sample_rejected_status: SampleRejectedStatus::const_default(),
+            subscription_matched_status: SubscriptionMatchedStatus::const_default(),
             matched_publication_list: Vec::new(),
             enabled: false,
             data_available_status_changed_flag: false,

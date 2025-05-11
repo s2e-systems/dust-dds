@@ -315,9 +315,14 @@ where
         };
 
         let publisher_handle = self.instance_handle_counter.generate_new_instance_handle();
-
-        let mut publisher =
-            PublisherEntity::new(publisher_qos, publisher_handle, listener_sender, mask);
+        let data_writer_list = Default::default();
+        let mut publisher = PublisherEntity::new(
+            publisher_qos,
+            publisher_handle,
+            data_writer_list,
+            listener_sender,
+            mask,
+        );
 
         if self.domain_participant.enabled()
             && self
@@ -374,10 +379,11 @@ where
         let subscriber_handle = self.instance_handle_counter.generate_new_instance_handle();
 
         let listener_mask = mask.to_vec();
-
+        let data_reader_list = Default::default();
         let mut subscriber = SubscriberEntity::new(
             subscriber_handle,
             subscriber_qos,
+            data_reader_list,
             status_condition,
             listener_sender,
             listener_mask,

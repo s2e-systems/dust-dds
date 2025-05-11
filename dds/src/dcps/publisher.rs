@@ -23,18 +23,19 @@ pub struct PublisherEntity<R: DdsRuntime> {
 }
 
 impl<R: DdsRuntime> PublisherEntity<R> {
-    pub fn new(
+    pub const fn new(
         qos: PublisherQos,
         instance_handle: InstanceHandle,
+        data_writer_list: Vec<DataWriterEntity<R>>,
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         listener_mask: Vec<StatusKind>,
     ) -> Self {
         Self {
             qos,
             instance_handle,
-            data_writer_list: Vec::new(),
+            data_writer_list,
             enabled: false,
-            default_datawriter_qos: DataWriterQos::default(),
+            default_datawriter_qos: DataWriterQos::const_default(),
             listener_sender,
             listener_mask,
         }

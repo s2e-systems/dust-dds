@@ -373,18 +373,21 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
         );
         dcps_subscription_reader.enable();
 
+        let data_reader_list = vec![
+            dcps_participant_reader,
+            dcps_topic_reader,
+            dcps_publication_reader,
+            dcps_subscription_reader,
+        ];
         let mut builtin_subscriber = SubscriberEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             SubscriberQos::default(),
+            data_reader_list,
             Actor::spawn(StatusConditionActor::default(), &spawner_handle),
             None,
             vec![],
         );
         builtin_subscriber.enable();
-        builtin_subscriber.insert_data_reader(dcps_participant_reader);
-        builtin_subscriber.insert_data_reader(dcps_topic_reader);
-        builtin_subscriber.insert_data_reader(dcps_publication_reader);
-        builtin_subscriber.insert_data_reader(dcps_subscription_reader);
 
         let mut dcps_participant_transport_writer =
             transport.create_stateless_writer(ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
@@ -453,17 +456,20 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
             sedp_data_writer_qos(),
         );
         dcps_subscriptions_writer.enable();
+        let builtin_data_writer_list = vec![
+            dcps_participant_writer,
+            dcps_topics_writer,
+            dcps_publications_writer,
+            dcps_subscriptions_writer,
+        ];
         let mut builtin_publisher = PublisherEntity::new(
             PublisherQos::default(),
             instance_handle_counter.generate_new_instance_handle(),
+            builtin_data_writer_list,
             None,
             vec![],
         );
         builtin_publisher.enable();
-        builtin_publisher.insert_data_writer(dcps_participant_writer);
-        builtin_publisher.insert_data_writer(dcps_topics_writer);
-        builtin_publisher.insert_data_writer(dcps_publications_writer);
-        builtin_publisher.insert_data_writer(dcps_subscriptions_writer);
         let instance_handle = InstanceHandle::new(transport.guid().into());
 
         let domain_participant = DomainParticipantEntity::new(

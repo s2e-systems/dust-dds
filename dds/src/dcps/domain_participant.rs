@@ -61,7 +61,7 @@ pub struct DomainParticipantEntity<R: DdsRuntime> {
 
 impl<R: DdsRuntime> DomainParticipantEntity<R> {
     #[allow(clippy::too_many_arguments)]
-    pub fn new(
+    pub const fn new(
         domain_id: DomainId,
         domain_participant_qos: DomainParticipantQos,
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
@@ -79,11 +79,11 @@ impl<R: DdsRuntime> DomainParticipantEntity<R> {
             builtin_subscriber,
             builtin_publisher,
             user_defined_subscriber_list: Vec::new(),
-            default_subscriber_qos: SubscriberQos::default(),
+            default_subscriber_qos: SubscriberQos::const_default(),
             user_defined_publisher_list: Vec::new(),
-            default_publisher_qos: PublisherQos::default(),
+            default_publisher_qos: PublisherQos::const_default(),
             topic_list,
-            default_topic_qos: TopicQos::default(),
+            default_topic_qos: TopicQos::const_default(),
             discovered_participant_list: Vec::new(),
             discovered_topic_list: Vec::new(),
             discovered_reader_list: Vec::new(),

@@ -26,9 +26,10 @@ pub struct SubscriberEntity<R: DdsRuntime> {
 }
 
 impl<R: DdsRuntime> SubscriberEntity<R> {
-    pub fn new(
+    pub const fn new(
         instance_handle: InstanceHandle,
         qos: SubscriberQos,
+        data_reader_list: Vec<DataReaderEntity<R>>,
         status_condition: Actor<R, StatusConditionActor<R>>,
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         listener_mask: Vec<StatusKind>,
@@ -36,9 +37,9 @@ impl<R: DdsRuntime> SubscriberEntity<R> {
         Self {
             instance_handle,
             qos,
-            data_reader_list: Vec::new(),
+            data_reader_list,
             enabled: false,
-            default_data_reader_qos: DataReaderQos::default(),
+            default_data_reader_qos: DataReaderQos::const_default(),
             status_condition,
             listener_sender,
             listener_mask,

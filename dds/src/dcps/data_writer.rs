@@ -86,7 +86,7 @@ pub struct DataWriterEntity<R: DdsRuntime> {
 
 impl<R: DdsRuntime> DataWriterEntity<R> {
     #[allow(clippy::too_many_arguments)]
-    pub fn new(
+    pub const fn new(
         instance_handle: InstanceHandle,
         transport_writer: TransportWriterKind,
         topic_name: String,
@@ -104,9 +104,9 @@ impl<R: DdsRuntime> DataWriterEntity<R> {
             type_name,
             type_support,
             matched_subscription_list: Vec::new(),
-            publication_matched_status: PublicationMatchedStatus::default(),
+            publication_matched_status: PublicationMatchedStatus::const_default(),
             incompatible_subscription_list: Vec::new(),
-            offered_incompatible_qos_status: OfferedIncompatibleQosStatus::default(),
+            offered_incompatible_qos_status: OfferedIncompatibleQosStatus::const_default(),
             enabled: false,
             status_condition,
             listener_sender,
@@ -115,7 +115,7 @@ impl<R: DdsRuntime> DataWriterEntity<R> {
             last_change_sequence_number: 0,
             qos,
             registered_instance_list: Vec::new(),
-            offered_deadline_missed_status: OfferedDeadlineMissedStatus::default(),
+            offered_deadline_missed_status: OfferedDeadlineMissedStatus::const_default(),
             instance_publication_time: Vec::new(),
             instance_samples: Vec::new(),
         }

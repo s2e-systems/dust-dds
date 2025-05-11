@@ -1,4 +1,7 @@
-use super::{instance::InstanceHandle, qos_policy::QosPolicyId};
+use super::{
+    instance::{InstanceHandle, HANDLE_NIL},
+    qos_policy::{QosPolicyId, INVALID_QOS_POLICY_ID},
+};
 use alloc::vec::Vec;
 
 /// Enumeration of the different types of communication status
@@ -57,12 +60,27 @@ pub struct InconsistentTopicStatus {
 }
 
 /// Structure holding the values related to the Sample Lost communication status.
-#[derive(Clone, PartialEq, Eq, Debug, Default)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct SampleLostStatus {
     /// Total cumulative count of all samples lost across of instances of data published under the Topic.
     pub total_count: i32,
     /// The incremental number of samples lost since the last time the listener was called or the status was read.
     pub total_count_change: i32,
+}
+
+impl SampleLostStatus {
+    pub const fn const_default() -> Self {
+        Self {
+            total_count: 0,
+            total_count_change: 0,
+        }
+    }
+}
+
+impl Default for SampleLostStatus {
+    fn default() -> Self {
+        Self::const_default()
+    }
 }
 
 /// Enumeration for the kind of sample rejected kind
@@ -78,14 +96,8 @@ pub enum SampleRejectedStatusKind {
     RejectedBySamplesPerInstanceLimit,
 }
 
-impl Default for SampleRejectedStatusKind {
-    fn default() -> Self {
-        Self::NotRejected
-    }
-}
-
 /// Structure holding the values related to the Sample Rejected communication status.
-#[derive(Clone, PartialEq, Eq, Debug, Default)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct SampleRejectedStatus {
     /// Total cumulative count of samples rejected by the DataReader.
     pub total_count: i32,
@@ -95,6 +107,23 @@ pub struct SampleRejectedStatus {
     pub last_reason: SampleRejectedStatusKind,
     /// Handle to the instance being updated by the last sample that was rejected.
     pub last_instance_handle: InstanceHandle,
+}
+
+impl SampleRejectedStatus {
+    pub const fn const_default() -> Self {
+        Self {
+            total_count: 0,
+            total_count_change: 0,
+            last_reason: SampleRejectedStatusKind::NotRejected,
+            last_instance_handle: HANDLE_NIL,
+        }
+    }
+}
+
+impl Default for SampleRejectedStatus {
+    fn default() -> Self {
+        Self::const_default()
+    }
 }
 
 /// Structure holding the values related to the Liveliness Lost communication status.
@@ -112,7 +141,7 @@ pub struct LivelinessLostStatus {
 }
 
 /// Structure holding the values related to the Liveliness Changed communication status.
-#[derive(Clone, PartialEq, Eq, Debug, Default)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct LivelinessChangedStatus {
     /// The total number of currently active DataWriters that write the Topic
     /// read by the DataReader. This count increases when a newly matched
@@ -140,8 +169,26 @@ pub struct LivelinessChangedStatus {
     pub last_publication_handle: InstanceHandle,
 }
 
+impl LivelinessChangedStatus {
+    pub const fn const_default() -> Self {
+        Self {
+            alive_count: 0,
+            not_alive_count: 0,
+            alive_count_change: 0,
+            not_alive_count_change: 0,
+            last_publication_handle: HANDLE_NIL,
+        }
+    }
+}
+
+impl Default for LivelinessChangedStatus {
+    fn default() -> Self {
+        Self::const_default()
+    }
+}
+
 /// Structure holding the values related to the Offered Deadline Missed communication status.
-#[derive(Clone, PartialEq, Eq, Debug, Default)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct OfferedDeadlineMissedStatus {
     /// Total cumulative number of offered deadline periods elapsed during
     /// which a DataWriter failed to provide data. Missed deadlines
@@ -156,8 +203,18 @@ pub struct OfferedDeadlineMissedStatus {
     pub last_instance_handle: InstanceHandle,
 }
 
+impl OfferedDeadlineMissedStatus {
+    pub const fn const_default() -> Self {
+        Self {
+            total_count: 0,
+            total_count_change: 0,
+            last_instance_handle: HANDLE_NIL,
+        }
+    }
+}
+
 /// Structure holding the values related to the Requested Deadline Missed communication status.
-#[derive(Clone, PartialEq, Eq, Debug, Default)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct RequestedDeadlineMissedStatus {
     /// Total cumulative number of missed deadlines detected for any instance
     /// read by the DataReader. Missed deadlines accumulate; that is, each
@@ -169,6 +226,22 @@ pub struct RequestedDeadlineMissedStatus {
     pub total_count_change: i32,
     /// Handle to the last instance in the DataReader for which a deadline was detected
     pub last_instance_handle: InstanceHandle,
+}
+
+impl RequestedDeadlineMissedStatus {
+    pub const fn const_default() -> Self {
+        Self {
+            total_count: 0,
+            total_count_change: 0,
+            last_instance_handle: HANDLE_NIL,
+        }
+    }
+}
+
+impl Default for RequestedDeadlineMissedStatus {
+    fn default() -> Self {
+        Self::const_default()
+    }
 }
 
 /// Structure associating the QosPolicyId and the number of time it appeared in the related communication status.
@@ -200,8 +273,19 @@ pub struct OfferedIncompatibleQosStatus {
     pub policies: Vec<QosPolicyCount>,
 }
 
+impl OfferedIncompatibleQosStatus {
+    pub const fn const_default() -> Self {
+        Self {
+            total_count: 0,
+            total_count_change: 0,
+            last_policy_id: INVALID_QOS_POLICY_ID,
+            policies: Vec::new(),
+        }
+    }
+}
+
 /// Structure holding the values related to the Requested Incompatible Qos communication status.
-#[derive(Clone, PartialEq, Eq, Debug, Default)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct RequestedIncompatibleQosStatus {
     /// Total cumulative number of times the concerned DataReader
     /// discovered a DataWriter for the same Topic with an offered QoS that
@@ -220,8 +304,25 @@ pub struct RequestedIncompatibleQosStatus {
     pub policies: Vec<QosPolicyCount>,
 }
 
+impl RequestedIncompatibleQosStatus {
+    pub const fn const_default() -> Self {
+        Self {
+            total_count: 0,
+            total_count_change: 0,
+            last_policy_id: INVALID_QOS_POLICY_ID,
+            policies: Vec::new(),
+        }
+    }
+}
+
+impl Default for RequestedIncompatibleQosStatus {
+    fn default() -> Self {
+        Self::const_default()
+    }
+}
+
 /// Structure holding the values related to the Publication Matched communication status.
-#[derive(Clone, PartialEq, Eq, Debug, Default)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct PublicationMatchedStatus {
     /// Total cumulative count the concerned DataWriter discovered a
     /// *match* with a DataReader. That is, it found a DataReader for the
@@ -242,8 +343,26 @@ pub struct PublicationMatchedStatus {
     pub current_count_change: i32,
 }
 
+impl PublicationMatchedStatus {
+    pub const fn const_default() -> Self {
+        Self {
+            total_count: 0,
+            total_count_change: 0,
+            last_subscription_handle: HANDLE_NIL,
+            current_count: 0,
+            current_count_change: 0,
+        }
+    }
+}
+
+impl Default for PublicationMatchedStatus {
+    fn default() -> Self {
+        Self::const_default()
+    }
+}
+
 /// Structure holding the values related to the Subscription Matched communication status.
-#[derive(Clone, PartialEq, Eq, Debug, Default)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct SubscriptionMatchedStatus {
     /// Total cumulative count the concerned DataReader discovered a
     /// *match* with a DataWriter. That is, it found a DataWriter for the same
@@ -262,4 +381,22 @@ pub struct SubscriptionMatchedStatus {
     /// The change in current_count since the last time the listener was called
     /// or the status was read.
     pub current_count_change: i32,
+}
+
+impl SubscriptionMatchedStatus {
+    pub const fn const_default() -> Self {
+        Self {
+            total_count: 0,
+            total_count_change: 0,
+            last_publication_handle: HANDLE_NIL,
+            current_count: 0,
+            current_count_change: 0,
+        }
+    }
+}
+
+impl Default for SubscriptionMatchedStatus {
+    fn default() -> Self {
+        Self::const_default()
+    }
 }

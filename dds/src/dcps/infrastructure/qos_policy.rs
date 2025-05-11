@@ -193,11 +193,18 @@ pub const DATA_REPRESENTATION_QOS_POLICY_ID: QosPolicyId = 23;
 
 /// This policy allows the application to attach additional information to the created Entity objects such that when
 /// a remote application discovers their existence it can access that information and use it for its own purposes.
-#[derive(Debug, Default, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct UserDataQosPolicy {
     /// User data value
     pub value: Vec<u8>,
 }
+
+impl UserDataQosPolicy {
+    pub const fn const_default() -> Self {
+        Self { value: Vec::new() }
+    }
+}
+
 impl XTypesSerialize for UserDataQosPolicy {
     fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
         let mut s = serializer.serialize_final_struct()?;
@@ -217,20 +224,39 @@ impl QosPolicy for UserDataQosPolicy {
         USERDATA_QOS_POLICY_NAME
     }
 }
+impl Default for UserDataQosPolicy {
+    fn default() -> Self {
+        Self::const_default()
+    }
+}
 
 /// This policy allows the application to attach additional information to the created Topic such that when a
 /// remote application discovers their existence it can examine the information and use it in an application-defined way.
-#[derive(Debug, Default, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct TopicDataQosPolicy {
     /// Topic data value
     pub value: Vec<u8>,
 }
+
+impl TopicDataQosPolicy {
+    pub const fn const_default() -> Self {
+        Self { value: Vec::new() }
+    }
+}
+
+impl Default for TopicDataQosPolicy {
+    fn default() -> Self {
+        Self::const_default()
+    }
+}
+
 impl XTypesSerialize for TopicDataQosPolicy {
     fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
         let mut s = serializer.serialize_final_struct()?;
         s.serialize_field(&Bytes(self.value.as_slice()), "value")
     }
 }
+
 impl<'de> XTypesDeserialize<'de> for TopicDataQosPolicy {
     fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
         let mut d = deserializer.deserialize_final_struct()?;
@@ -239,6 +265,7 @@ impl<'de> XTypesDeserialize<'de> for TopicDataQosPolicy {
         })
     }
 }
+
 impl QosPolicy for TopicDataQosPolicy {
     fn name(&self) -> &str {
         TOPICDATA_QOS_POLICY_NAME
@@ -251,17 +278,25 @@ impl QosPolicy for TopicDataQosPolicy {
 /// The value is available to the application on the
 /// [`DataReader`](crate::subscription::data_reader::DataReader) and [`DataWriter`](crate::publication::data_writer::DataWriter) entities and is propagated by
 /// means of the built-in topics.
-#[derive(Debug, Default, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct GroupDataQosPolicy {
     /// Group data value
     pub value: Vec<u8>,
 }
+
+impl GroupDataQosPolicy {
+    pub const fn const_default() -> Self {
+        Self { value: Vec::new() }
+    }
+}
+
 impl XTypesSerialize for GroupDataQosPolicy {
     fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
         let mut s = serializer.serialize_final_struct()?;
         s.serialize_field(&Bytes(self.value.as_slice()), "value")
     }
 }
+
 impl<'de> XTypesDeserialize<'de> for GroupDataQosPolicy {
     fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
         let mut d = deserializer.deserialize_final_struct()?;
@@ -276,6 +311,12 @@ impl QosPolicy for GroupDataQosPolicy {
     }
 }
 
+impl Default for GroupDataQosPolicy {
+    fn default() -> Self {
+        Self::const_default()
+    }
+}
+
 /// This policy allows the application to take advantage of transports capable of sending messages with different priorities.
 ///
 /// This policy is considered a hint. The policy depends on the ability of the underlying transports to set a priority on the messages
@@ -285,15 +326,27 @@ impl QosPolicy for GroupDataQosPolicy {
 /// expected that during transport configuration the application would provide a mapping between the values of the
 /// [`TransportPriorityQosPolicy`] set on [`DataWriter`](crate::publication::data_writer::DataWriter) and the values meaningful to each transport.
 /// This mapping would then be used by the infrastructure when propagating the data written by the [`DataWriter`](crate::publication::data_writer::DataWriter).
-#[derive(Debug, Default, PartialEq, Eq, Clone, XTypesSerialize, XTypesDeserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, XTypesSerialize, XTypesDeserialize)]
 pub struct TransportPriorityQosPolicy {
     /// Transport priority value
     pub value: i32,
 }
 
+impl TransportPriorityQosPolicy {
+    pub const fn const_default() -> Self {
+        Self { value: 0 }
+    }
+}
+
 impl QosPolicy for TransportPriorityQosPolicy {
     fn name(&self) -> &str {
         TRANSPORTPRIORITY_QOS_POLICY_NAME
+    }
+}
+
+impl Default for TransportPriorityQosPolicy {
+    fn default() -> Self {
+        Self::const_default()
     }
 }
 
@@ -316,6 +369,14 @@ pub struct LifespanQosPolicy {
     pub duration: DurationKind,
 }
 
+impl LifespanQosPolicy {
+    pub const fn const_default() -> Self {
+        Self {
+            duration: DurationKind::Infinite,
+        }
+    }
+}
+
 impl QosPolicy for LifespanQosPolicy {
     fn name(&self) -> &str {
         LIFESPAN_QOS_POLICY_NAME
@@ -324,9 +385,7 @@ impl QosPolicy for LifespanQosPolicy {
 
 impl Default for LifespanQosPolicy {
     fn default() -> Self {
-        Self {
-            duration: DurationKind::Infinite,
-        }
+        Self::const_default()
     }
 }
 
@@ -393,6 +452,14 @@ pub struct DurabilityQosPolicy {
     pub kind: DurabilityQosPolicyKind,
 }
 
+impl DurabilityQosPolicy {
+    pub const fn const_default() -> Self {
+        Self {
+            kind: DurabilityQosPolicyKind::Volatile,
+        }
+    }
+}
+
 impl QosPolicy for DurabilityQosPolicy {
     fn name(&self) -> &str {
         DURABILITY_QOS_POLICY_NAME
@@ -401,9 +468,7 @@ impl QosPolicy for DurabilityQosPolicy {
 
 impl Default for DurabilityQosPolicy {
     fn default() -> Self {
-        Self {
-            kind: DurabilityQosPolicyKind::Volatile,
-        }
+        Self::const_default()
     }
 }
 
@@ -478,6 +543,16 @@ pub struct PresentationQosPolicy {
     pub ordered_access: bool,
 }
 
+impl PresentationQosPolicy {
+    pub const fn const_default() -> Self {
+        Self {
+            access_scope: PresentationQosPolicyAccessScopeKind::Instance,
+            coherent_access: false,
+            ordered_access: false,
+        }
+    }
+}
+
 impl QosPolicy for PresentationQosPolicy {
     fn name(&self) -> &str {
         PRESENTATION_QOS_POLICY_NAME
@@ -486,11 +561,7 @@ impl QosPolicy for PresentationQosPolicy {
 
 impl Default for PresentationQosPolicy {
     fn default() -> Self {
-        Self {
-            access_scope: PresentationQosPolicyAccessScopeKind::Instance,
-            coherent_access: false,
-            ordered_access: false,
-        }
+        Self::const_default()
     }
 }
 
@@ -514,6 +585,14 @@ pub struct DeadlineQosPolicy {
     pub period: DurationKind,
 }
 
+impl DeadlineQosPolicy {
+    pub const fn const_default() -> Self {
+        Self {
+            period: DurationKind::Infinite,
+        }
+    }
+}
+
 impl QosPolicy for DeadlineQosPolicy {
     fn name(&self) -> &str {
         DEADLINE_QOS_POLICY_NAME
@@ -522,9 +601,7 @@ impl QosPolicy for DeadlineQosPolicy {
 
 impl Default for DeadlineQosPolicy {
     fn default() -> Self {
-        Self {
-            period: DurationKind::Infinite,
-        }
+        Self::const_default()
     }
 }
 
@@ -540,6 +617,14 @@ pub struct LatencyBudgetQosPolicy {
     pub duration: DurationKind,
 }
 
+impl LatencyBudgetQosPolicy {
+    pub const fn const_default() -> Self {
+        Self {
+            duration: DurationKind::Finite(Duration::new(DURATION_ZERO_SEC, DURATION_ZERO_NSEC)),
+        }
+    }
+}
+
 impl QosPolicy for LatencyBudgetQosPolicy {
     fn name(&self) -> &str {
         LATENCYBUDGET_QOS_POLICY_NAME
@@ -548,9 +633,7 @@ impl QosPolicy for LatencyBudgetQosPolicy {
 
 impl Default for LatencyBudgetQosPolicy {
     fn default() -> Self {
-        Self {
-            duration: DurationKind::Finite(Duration::new(DURATION_ZERO_SEC, DURATION_ZERO_NSEC)),
-        }
+        Self::const_default()
     }
 }
 
@@ -578,6 +661,14 @@ pub struct OwnershipQosPolicy {
     pub kind: OwnershipQosPolicyKind,
 }
 
+impl OwnershipQosPolicy {
+    pub const fn const_default() -> Self {
+        Self {
+            kind: OwnershipQosPolicyKind::Shared,
+        }
+    }
+}
+
 impl QosPolicy for OwnershipQosPolicy {
     fn name(&self) -> &str {
         OWNERSHIP_QOS_POLICY_NAME
@@ -586,9 +677,7 @@ impl QosPolicy for OwnershipQosPolicy {
 
 impl Default for OwnershipQosPolicy {
     fn default() -> Self {
-        Self {
-            kind: OwnershipQosPolicyKind::Shared,
-        }
+        Self::const_default()
     }
 }
 
@@ -621,15 +710,27 @@ impl Default for OwnershipQosPolicy {
 /// Exclusive ownership is on an instance-by-instance basis. That is, a subscriber can receive values written by a lower
 /// strength DataWriter as long as they affect instances whose values have not been set by the higher-strength
 /// DataWriter.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Clone, Default, XTypesSerialize, XTypesDeserialize)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Clone, XTypesSerialize, XTypesDeserialize)]
 pub struct OwnershipStrengthQosPolicy {
     /// Ownership strength value
     pub value: i32,
 }
 
+impl OwnershipStrengthQosPolicy {
+    pub const fn const_default() -> Self {
+        Self { value: 0 }
+    }
+}
+
 impl QosPolicy for OwnershipStrengthQosPolicy {
     fn name(&self) -> &str {
         OWNERSHIP_STRENGTH_QOS_POLICY_NAME
+    }
+}
+
+impl Default for OwnershipStrengthQosPolicy {
+    fn default() -> Self {
+        Self::const_default()
     }
 }
 
@@ -699,6 +800,15 @@ pub struct LivelinessQosPolicy {
     pub lease_duration: DurationKind,
 }
 
+impl LivelinessQosPolicy {
+    pub const fn const_default() -> Self {
+        Self {
+            kind: LivelinessQosPolicyKind::Automatic,
+            lease_duration: DurationKind::Infinite,
+        }
+    }
+}
+
 impl QosPolicy for LivelinessQosPolicy {
     fn name(&self) -> &str {
         LIVELINESS_QOS_POLICY_NAME
@@ -707,10 +817,7 @@ impl QosPolicy for LivelinessQosPolicy {
 
 impl Default for LivelinessQosPolicy {
     fn default() -> Self {
-        Self {
-            kind: LivelinessQosPolicyKind::Automatic,
-            lease_duration: DurationKind::Infinite,
-        }
+        Self::const_default()
     }
 }
 
@@ -742,6 +849,17 @@ pub struct TimeBasedFilterQosPolicy {
     pub minimum_separation: DurationKind,
 }
 
+impl TimeBasedFilterQosPolicy {
+    pub const fn const_default() -> Self {
+        Self {
+            minimum_separation: DurationKind::Finite(Duration::new(
+                DURATION_ZERO_SEC,
+                DURATION_ZERO_NSEC,
+            )),
+        }
+    }
+}
+
 impl QosPolicy for TimeBasedFilterQosPolicy {
     fn name(&self) -> &str {
         TIMEBASEDFILTER_QOS_POLICY_NAME
@@ -750,12 +868,7 @@ impl QosPolicy for TimeBasedFilterQosPolicy {
 
 impl Default for TimeBasedFilterQosPolicy {
     fn default() -> Self {
-        Self {
-            minimum_separation: DurationKind::Finite(Duration::new(
-                DURATION_ZERO_SEC,
-                DURATION_ZERO_NSEC,
-            )),
-        }
+        Self::const_default()
     }
 }
 
@@ -780,15 +893,27 @@ impl Default for TimeBasedFilterQosPolicy {
 /// Entity can be in multiple partitions. Finally, as far as the DDS Service is concerned, each unique data instance is identified by
 /// the tuple (domainId, Topic, key). Therefore two Entity objects in different domains cannot refer to the same data instance. On
 /// the other hand, the same data-instance can be made available (published) or requested (subscribed) on one or more partitions.
-#[derive(Debug, PartialEq, Eq, Clone, Default, XTypesSerialize, XTypesDeserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, XTypesSerialize, XTypesDeserialize)]
 pub struct PartitionQosPolicy {
     /// Name of the partition
     pub name: Vec<String>,
 }
 
+impl PartitionQosPolicy {
+    pub const fn const_default() -> Self {
+        Self { name: Vec::new() }
+    }
+}
+
 impl QosPolicy for PartitionQosPolicy {
     fn name(&self) -> &str {
         PARTITION_QOS_POLICY_NAME
+    }
+}
+
+impl Default for PartitionQosPolicy {
+    fn default() -> Self {
+        Self::const_default()
     }
 }
 
@@ -942,6 +1067,14 @@ pub struct DestinationOrderQosPolicy {
     pub kind: DestinationOrderQosPolicyKind,
 }
 
+impl DestinationOrderQosPolicy {
+    pub const fn const_default() -> Self {
+        Self {
+            kind: DestinationOrderQosPolicyKind::ByReceptionTimestamp,
+        }
+    }
+}
+
 impl QosPolicy for DestinationOrderQosPolicyKind {
     fn name(&self) -> &str {
         DESTINATIONORDER_QOS_POLICY_NAME
@@ -950,9 +1083,7 @@ impl QosPolicy for DestinationOrderQosPolicyKind {
 
 impl Default for DestinationOrderQosPolicy {
     fn default() -> Self {
-        Self {
-            kind: DestinationOrderQosPolicyKind::ByReceptionTimestamp,
-        }
+        Self::const_default()
     }
 }
 
@@ -1013,6 +1144,14 @@ pub struct HistoryQosPolicy {
     pub kind: HistoryQosPolicyKind,
 }
 
+impl HistoryQosPolicy {
+    pub const fn const_default() -> Self {
+        Self {
+            kind: HistoryQosPolicyKind::KeepLast(1),
+        }
+    }
+}
+
 impl QosPolicy for HistoryQosPolicy {
     fn name(&self) -> &str {
         HISTORY_QOS_POLICY_NAME
@@ -1021,9 +1160,7 @@ impl QosPolicy for HistoryQosPolicy {
 
 impl Default for HistoryQosPolicy {
     fn default() -> Self {
-        Self {
-            kind: HistoryQosPolicyKind::KeepLast(1),
-        }
+        Self::const_default()
     }
 }
 
@@ -1056,6 +1193,16 @@ pub struct ResourceLimitsQosPolicy {
     pub max_samples_per_instance: Length,
 }
 
+impl ResourceLimitsQosPolicy {
+    pub const fn const_default() -> Self {
+        Self {
+            max_samples: Length::Unlimited,
+            max_instances: Length::Unlimited,
+            max_samples_per_instance: Length::Unlimited,
+        }
+    }
+}
+
 impl QosPolicy for ResourceLimitsQosPolicy {
     fn name(&self) -> &str {
         RESOURCELIMITS_QOS_POLICY_NAME
@@ -1064,11 +1211,7 @@ impl QosPolicy for ResourceLimitsQosPolicy {
 
 impl Default for ResourceLimitsQosPolicy {
     fn default() -> Self {
-        Self {
-            max_samples: Length::Unlimited,
-            max_instances: Length::Unlimited,
-            max_samples_per_instance: Length::Unlimited,
-        }
+        Self::const_default()
     }
 }
 
@@ -1090,6 +1233,14 @@ pub struct EntityFactoryQosPolicy {
     pub autoenable_created_entities: bool,
 }
 
+impl EntityFactoryQosPolicy {
+    pub const fn const_default() -> Self {
+        Self {
+            autoenable_created_entities: true,
+        }
+    }
+}
+
 impl QosPolicy for EntityFactoryQosPolicy {
     fn name(&self) -> &str {
         ENTITYFACTORY_QOS_POLICY_NAME
@@ -1098,9 +1249,7 @@ impl QosPolicy for EntityFactoryQosPolicy {
 
 impl Default for EntityFactoryQosPolicy {
     fn default() -> Self {
-        Self {
-            autoenable_created_entities: true,
-        }
+        Self::const_default()
     }
 }
 
@@ -1126,6 +1275,14 @@ pub struct WriterDataLifecycleQosPolicy {
     pub autodispose_unregistered_instances: bool,
 }
 
+impl WriterDataLifecycleQosPolicy {
+    pub const fn const_default() -> Self {
+        Self {
+            autodispose_unregistered_instances: true,
+        }
+    }
+}
+
 impl QosPolicy for WriterDataLifecycleQosPolicy {
     fn name(&self) -> &str {
         WRITERDATALIFECYCLE_QOS_POLICY_NAME
@@ -1134,9 +1291,7 @@ impl QosPolicy for WriterDataLifecycleQosPolicy {
 
 impl Default for WriterDataLifecycleQosPolicy {
     fn default() -> Self {
-        Self {
-            autodispose_unregistered_instances: true,
-        }
+        Self::const_default()
     }
 }
 
@@ -1168,6 +1323,15 @@ pub struct ReaderDataLifecycleQosPolicy {
     pub autopurge_disposed_samples_delay: DurationKind,
 }
 
+impl ReaderDataLifecycleQosPolicy {
+    pub const fn const_default() -> Self {
+        Self {
+            autopurge_nowriter_samples_delay: DurationKind::Infinite,
+            autopurge_disposed_samples_delay: DurationKind::Infinite,
+        }
+    }
+}
+
 impl QosPolicy for ReaderDataLifecycleQosPolicy {
     fn name(&self) -> &str {
         READERDATALIFECYCLE_QOS_POLICY_NAME
@@ -1176,10 +1340,7 @@ impl QosPolicy for ReaderDataLifecycleQosPolicy {
 
 impl Default for ReaderDataLifecycleQosPolicy {
     fn default() -> Self {
-        Self {
-            autopurge_nowriter_samples_delay: DurationKind::Infinite,
-            autopurge_disposed_samples_delay: DurationKind::Infinite,
-        }
+        Self::const_default()
     }
 }
 
@@ -1216,15 +1377,29 @@ type DataRepresentationIdSeq = Vec<DataRepresentationId>;
 
 /// This policy is a DDS-XTypes extension and represents the standard data Representations available.
 /// [`DataWriter`](crate::publication::data_writer::DataWriter) and [`DataReader`](crate::subscription::data_reader::DataReader) must be able to negotiate which data representation(s) to use.
-#[derive(Debug, PartialEq, Eq, Clone, Default, XTypesSerialize, XTypesDeserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, XTypesSerialize, XTypesDeserialize)]
 pub struct DataRepresentationQosPolicy {
     /// List of data representation values
     pub value: DataRepresentationIdSeq,
 }
 
+impl DataRepresentationQosPolicy {
+    pub const fn const_default() -> Self {
+        Self {
+            value: DataRepresentationIdSeq::new(),
+        }
+    }
+}
+
 impl QosPolicy for DataRepresentationQosPolicy {
     fn name(&self) -> &str {
         DATA_REPRESENTATION_QOS_POLICY_NAME
+    }
+}
+
+impl Default for DataRepresentationQosPolicy {
+    fn default() -> Self {
+        Self::const_default()
     }
 }
 

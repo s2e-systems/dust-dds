@@ -42,7 +42,7 @@ pub struct DomainParticipantQos {
 }
 
 /// QoS policies applicable to the [`Publisher`](crate::publication::publisher::Publisher)
-#[derive(Debug, Default, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct PublisherQos {
     /// Value of the presentation QoS policy.
     pub presentation: PresentationQosPolicy,
@@ -52,6 +52,23 @@ pub struct PublisherQos {
     pub group_data: GroupDataQosPolicy,
     /// Value of the entity factory QoS policy.
     pub entity_factory: EntityFactoryQosPolicy,
+}
+
+impl PublisherQos {
+    pub const fn const_default() -> Self {
+        Self {
+            presentation: PresentationQosPolicy::const_default(),
+            partition: PartitionQosPolicy::const_default(),
+            group_data: GroupDataQosPolicy::const_default(),
+            entity_factory: EntityFactoryQosPolicy::const_default(),
+        }
+    }
+}
+
+impl Default for PublisherQos {
+    fn default() -> Self {
+        Self::const_default()
+    }
 }
 
 /// QoS policies applicable to the [`DataWriter`](crate::publication::data_writer::DataWriter)
@@ -89,8 +106,8 @@ pub struct DataWriterQos {
     pub representation: DataRepresentationQosPolicy,
 }
 
-impl Default for DataWriterQos {
-    fn default() -> Self {
+impl DataWriterQos {
+    pub const fn const_default() -> Self {
         Self {
             reliability: ReliabilityQosPolicy {
                 kind: ReliabilityQosPolicyKind::Reliable,
@@ -99,21 +116,27 @@ impl Default for DataWriterQos {
                     100_000_000, /*100ms*/
                 )),
             },
-            durability: DurabilityQosPolicy::default(),
-            deadline: DeadlineQosPolicy::default(),
-            latency_budget: LatencyBudgetQosPolicy::default(),
-            liveliness: LivelinessQosPolicy::default(),
-            destination_order: DestinationOrderQosPolicy::default(),
-            history: HistoryQosPolicy::default(),
-            resource_limits: ResourceLimitsQosPolicy::default(),
-            user_data: UserDataQosPolicy::default(),
-            ownership: OwnershipQosPolicy::default(),
-            ownership_strength: OwnershipStrengthQosPolicy::default(),
-            lifespan: LifespanQosPolicy::default(),
-            transport_priority: TransportPriorityQosPolicy::default(),
-            writer_data_lifecycle: WriterDataLifecycleQosPolicy::default(),
-            representation: DataRepresentationQosPolicy::default(),
+            durability: DurabilityQosPolicy::const_default(),
+            deadline: DeadlineQosPolicy::const_default(),
+            latency_budget: LatencyBudgetQosPolicy::const_default(),
+            liveliness: LivelinessQosPolicy::const_default(),
+            destination_order: DestinationOrderQosPolicy::const_default(),
+            history: HistoryQosPolicy::const_default(),
+            resource_limits: ResourceLimitsQosPolicy::const_default(),
+            user_data: UserDataQosPolicy::const_default(),
+            ownership: OwnershipQosPolicy::const_default(),
+            ownership_strength: OwnershipStrengthQosPolicy::const_default(),
+            lifespan: LifespanQosPolicy::const_default(),
+            transport_priority: TransportPriorityQosPolicy::const_default(),
+            writer_data_lifecycle: WriterDataLifecycleQosPolicy::const_default(),
+            representation: DataRepresentationQosPolicy::const_default(),
         }
+    }
+}
+
+impl Default for DataWriterQos {
+    fn default() -> Self {
+        Self::const_default()
     }
 }
 
@@ -161,7 +184,7 @@ impl DataWriterQos {
 }
 
 /// QoS policies applicable to the [`Subscriber`](crate::subscription::subscriber::Subscriber)
-#[derive(Default, Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SubscriberQos {
     /// Value of the presentation QoS policy.
     pub presentation: PresentationQosPolicy,
@@ -174,6 +197,15 @@ pub struct SubscriberQos {
 }
 
 impl SubscriberQos {
+    pub const fn const_default() -> Self {
+        Self {
+            presentation: PresentationQosPolicy::const_default(),
+            partition: PartitionQosPolicy::const_default(),
+            group_data: GroupDataQosPolicy::const_default(),
+            entity_factory: EntityFactoryQosPolicy::const_default(),
+        }
+    }
+
     pub(crate) fn check_immutability(&self, other: &Self) -> DdsResult<()> {
         if self.presentation != other.presentation {
             Err(DdsError::ImmutablePolicy)
@@ -183,6 +215,11 @@ impl SubscriberQos {
     }
 }
 
+impl Default for SubscriberQos {
+    fn default() -> Self {
+        Self::const_default()
+    }
+}
 /// QoS policies applicable to the [`DataReader`](crate::subscription::data_reader::DataReader)
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DataReaderQos {
@@ -214,8 +251,8 @@ pub struct DataReaderQos {
     pub representation: DataRepresentationQosPolicy,
 }
 
-impl Default for DataReaderQos {
-    fn default() -> Self {
+impl DataReaderQos {
+    pub const fn const_default() -> Self {
         Self {
             reliability: ReliabilityQosPolicy {
                 kind: ReliabilityQosPolicyKind::BestEffort,
@@ -224,19 +261,25 @@ impl Default for DataReaderQos {
                     100_000_000, /*100ms*/
                 )),
             },
-            durability: DurabilityQosPolicy::default(),
-            deadline: DeadlineQosPolicy::default(),
-            latency_budget: LatencyBudgetQosPolicy::default(),
-            liveliness: LivelinessQosPolicy::default(),
-            destination_order: DestinationOrderQosPolicy::default(),
-            history: HistoryQosPolicy::default(),
-            resource_limits: ResourceLimitsQosPolicy::default(),
-            user_data: UserDataQosPolicy::default(),
-            ownership: OwnershipQosPolicy::default(),
-            time_based_filter: TimeBasedFilterQosPolicy::default(),
-            reader_data_lifecycle: ReaderDataLifecycleQosPolicy::default(),
-            representation: DataRepresentationQosPolicy::default(),
+            durability: DurabilityQosPolicy::const_default(),
+            deadline: DeadlineQosPolicy::const_default(),
+            latency_budget: LatencyBudgetQosPolicy::const_default(),
+            liveliness: LivelinessQosPolicy::const_default(),
+            destination_order: DestinationOrderQosPolicy::const_default(),
+            history: HistoryQosPolicy::const_default(),
+            resource_limits: ResourceLimitsQosPolicy::const_default(),
+            user_data: UserDataQosPolicy::const_default(),
+            ownership: OwnershipQosPolicy::const_default(),
+            time_based_filter: TimeBasedFilterQosPolicy::const_default(),
+            reader_data_lifecycle: ReaderDataLifecycleQosPolicy::const_default(),
+            representation: DataRepresentationQosPolicy::const_default(),
         }
+    }
+}
+
+impl Default for DataReaderQos {
+    fn default() -> Self {
+        Self::const_default()
     }
 }
 
@@ -315,8 +358,8 @@ pub struct TopicQos {
     pub representation: DataRepresentationQosPolicy,
 }
 
-impl Default for TopicQos {
-    fn default() -> Self {
+impl TopicQos {
+    pub const fn const_default() -> Self {
         Self {
             reliability: ReliabilityQosPolicy {
                 kind: ReliabilityQosPolicyKind::BestEffort,
@@ -325,19 +368,25 @@ impl Default for TopicQos {
                     100_000_000, /*100ms*/
                 )),
             },
-            topic_data: TopicDataQosPolicy::default(),
-            durability: DurabilityQosPolicy::default(),
-            deadline: DeadlineQosPolicy::default(),
-            latency_budget: LatencyBudgetQosPolicy::default(),
-            liveliness: LivelinessQosPolicy::default(),
-            destination_order: DestinationOrderQosPolicy::default(),
-            history: HistoryQosPolicy::default(),
-            resource_limits: ResourceLimitsQosPolicy::default(),
-            transport_priority: TransportPriorityQosPolicy::default(),
-            lifespan: LifespanQosPolicy::default(),
-            ownership: OwnershipQosPolicy::default(),
-            representation: DataRepresentationQosPolicy::default(),
+            topic_data: TopicDataQosPolicy::const_default(),
+            durability: DurabilityQosPolicy::const_default(),
+            deadline: DeadlineQosPolicy::const_default(),
+            latency_budget: LatencyBudgetQosPolicy::const_default(),
+            liveliness: LivelinessQosPolicy::const_default(),
+            destination_order: DestinationOrderQosPolicy::const_default(),
+            history: HistoryQosPolicy::const_default(),
+            resource_limits: ResourceLimitsQosPolicy::const_default(),
+            transport_priority: TransportPriorityQosPolicy::const_default(),
+            lifespan: LifespanQosPolicy::const_default(),
+            ownership: OwnershipQosPolicy::const_default(),
+            representation: DataRepresentationQosPolicy::const_default(),
         }
+    }
+}
+
+impl Default for TopicQos {
+    fn default() -> Self {
+        Self::const_default()
     }
 }
 
