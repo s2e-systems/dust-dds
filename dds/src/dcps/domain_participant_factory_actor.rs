@@ -671,45 +671,39 @@ impl<R: DdsRuntime> MailHandler for DomainParticipantFactoryActor<R> {
                 timer_handle,
                 spawner_handle,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(
-                        self.create_participant(
-                            domain_id,
-                            qos,
-                            listener_sender,
-                            status_kind,
-                            clock_handle,
-                            timer_handle,
-                            spawner_handle,
-                        )
-                        .await,
-                    )
-                    .await
-            }
+            } => reply_sender.send(
+                self.create_participant(
+                    domain_id,
+                    qos,
+                    listener_sender,
+                    status_kind,
+                    clock_handle,
+                    timer_handle,
+                    spawner_handle,
+                )
+                .await,
+            ),
             DomainParticipantFactoryMail::DeleteParticipant {
                 handle,
                 reply_sender,
-            } => reply_sender.send(self.delete_participant(handle)).await,
+            } => reply_sender.send(self.delete_participant(handle)),
             DomainParticipantFactoryMail::SetDefaultParticipantQos { qos, reply_sender } => {
-                reply_sender
-                    .send(self.set_default_participant_qos(qos))
-                    .await
+                reply_sender.send(self.set_default_participant_qos(qos))
             }
             DomainParticipantFactoryMail::GetDefaultParticipantQos { reply_sender } => {
-                reply_sender.send(self.get_default_participant_qos()).await
+                reply_sender.send(self.get_default_participant_qos())
             }
             DomainParticipantFactoryMail::SetQos { qos, reply_sender } => {
-                reply_sender.send(self.set_qos(qos)).await
+                reply_sender.send(self.set_qos(qos))
             }
             DomainParticipantFactoryMail::GetQos { reply_sender } => {
-                reply_sender.send(self.get_qos()).await
+                reply_sender.send(self.get_qos())
             }
             DomainParticipantFactoryMail::SetConfiguration { configuration } => {
                 self.set_configuration(configuration)
             }
             DomainParticipantFactoryMail::GetConfiguration { reply_sender } => {
-                reply_sender.send(self.get_configuration()).await
+                reply_sender.send(self.get_configuration())
             }
             DomainParticipantFactoryMail::SetTransport { transport } => {
                 self.set_transport(transport)

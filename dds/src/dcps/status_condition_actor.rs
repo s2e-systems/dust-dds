@@ -92,13 +92,13 @@ impl<R: DdsRuntime> MailHandler for StatusConditionActor<R> {
     async fn handle(&mut self, message: StatusConditionMail<R>) {
         match message {
             StatusConditionMail::GetStatusConditionEnabledStatuses { reply_sender } => {
-                reply_sender.send(self.get_enabled_statuses()).await
+                reply_sender.send(self.get_enabled_statuses())
             }
             StatusConditionMail::SetStatusConditionEnabledStatuses { status_mask } => {
                 self.set_enabled_statuses(status_mask)
             }
             StatusConditionMail::GetStatusConditionTriggerValue { reply_sender } => {
-                reply_sender.send(self.get_trigger_value()).await
+                reply_sender.send(self.get_trigger_value())
             }
             StatusConditionMail::AddCommunicationState { state } => {
                 self.add_communication_state(state)

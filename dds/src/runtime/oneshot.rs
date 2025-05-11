@@ -61,7 +61,7 @@ impl<T> OneshotSend<T> for OneshotSender<T>
 where
     T: Send,
 {
-    async fn send(self, value: T) {
+    fn send(self, value: T) {
         self.send(value);
     }
 }

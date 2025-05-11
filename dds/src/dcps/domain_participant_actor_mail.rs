@@ -616,47 +616,31 @@ where
                 listener_sender,
                 mask,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(self.create_user_defined_publisher(qos, listener_sender, mask))
-                    .await
-            }
+            } => reply_sender.send(self.create_user_defined_publisher(qos, listener_sender, mask)),
             ParticipantServiceMail::DeleteUserDefinedPublisher {
                 participant_handle,
                 publisher_handle,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(self.delete_user_defined_publisher(participant_handle, publisher_handle))
-                    .await
-            }
+            } => reply_sender
+                .send(self.delete_user_defined_publisher(participant_handle, publisher_handle)),
             ParticipantServiceMail::CreateUserDefinedSubscriber {
                 qos,
                 status_condition,
                 listener_sender,
                 mask,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(self.create_user_defined_subscriber(
-                        qos,
-                        status_condition,
-                        listener_sender,
-                        mask,
-                    ))
-                    .await
-            }
+            } => reply_sender.send(self.create_user_defined_subscriber(
+                qos,
+                status_condition,
+                listener_sender,
+                mask,
+            )),
             ParticipantServiceMail::DeleteUserDefinedSubscriber {
                 participant_handle,
                 subscriber_handle,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(
-                        self.delete_user_defined_subscriber(participant_handle, subscriber_handle),
-                    )
-                    .await
-            }
+            } => reply_sender
+                .send(self.delete_user_defined_subscriber(participant_handle, subscriber_handle)),
             ParticipantServiceMail::CreateTopic {
                 topic_name,
                 type_name,
@@ -666,136 +650,103 @@ where
                 mask,
                 type_support,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(self.create_topic(
-                        topic_name,
-                        type_name,
-                        qos,
-                        status_condition,
-                        listener_sender,
-                        mask,
-                        type_support,
-                    ))
-                    .await
-            }
+            } => reply_sender.send(self.create_topic(
+                topic_name,
+                type_name,
+                qos,
+                status_condition,
+                listener_sender,
+                mask,
+                type_support,
+            )),
             ParticipantServiceMail::DeleteUserDefinedTopic {
                 participant_handle,
                 topic_name,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(self.delete_user_defined_topic(participant_handle, topic_name))
-                    .await
-            }
+            } => reply_sender.send(self.delete_user_defined_topic(participant_handle, topic_name)),
             ParticipantServiceMail::_FindTopic {
                 topic_name,
                 type_support,
                 status_condition,
                 listener_sender,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(self.find_topic(
-                        topic_name,
-                        type_support,
-                        status_condition,
-                        listener_sender,
-                    ))
-                    .await
-            }
+            } => reply_sender.send(self.find_topic(
+                topic_name,
+                type_support,
+                status_condition,
+                listener_sender,
+            )),
             ParticipantServiceMail::LookupTopicdescription {
                 topic_name,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(self.lookup_topicdescription(topic_name))
-                    .await
-            }
+            } => reply_sender.send(self.lookup_topicdescription(topic_name)),
             ParticipantServiceMail::IgnoreParticipant {
                 handle,
                 reply_sender,
-            } => reply_sender.send(self.ignore_participant(handle)).await,
+            } => reply_sender.send(self.ignore_participant(handle)),
             ParticipantServiceMail::IgnoreSubscription {
                 handle,
                 reply_sender,
-            } => reply_sender.send(self.ignore_subscription(handle)).await,
+            } => reply_sender.send(self.ignore_subscription(handle)),
             ParticipantServiceMail::IgnorePublication {
                 handle,
                 reply_sender,
-            } => reply_sender.send(self.ignore_publication(handle)).await,
+            } => reply_sender.send(self.ignore_publication(handle)),
             ParticipantServiceMail::DeleteContainedEntities { reply_sender } => {
-                reply_sender
-                    .send(self.delete_participant_contained_entities())
-                    .await
+                reply_sender.send(self.delete_participant_contained_entities())
             }
             ParticipantServiceMail::SetDefaultPublisherQos { qos, reply_sender } => {
-                reply_sender.send(self.set_default_publisher_qos(qos)).await
+                reply_sender.send(self.set_default_publisher_qos(qos))
             }
             ParticipantServiceMail::GetDefaultPublisherQos { reply_sender } => {
-                reply_sender.send(self.get_default_publisher_qos()).await
+                reply_sender.send(self.get_default_publisher_qos())
             }
             ParticipantServiceMail::SetDefaultSubscriberQos { qos, reply_sender } => {
-                reply_sender
-                    .send(self.set_default_subscriber_qos(qos))
-                    .await
+                reply_sender.send(self.set_default_subscriber_qos(qos))
             }
             ParticipantServiceMail::GetDefaultSubscriberQos { reply_sender } => {
-                reply_sender.send(self.get_default_subscriber_qos()).await
+                reply_sender.send(self.get_default_subscriber_qos())
             }
             ParticipantServiceMail::SetDefaultTopicQos { qos, reply_sender } => {
-                reply_sender.send(self.set_default_topic_qos(qos)).await
+                reply_sender.send(self.set_default_topic_qos(qos))
             }
             ParticipantServiceMail::GetDefaultTopicQos { reply_sender } => {
-                reply_sender.send(self.get_default_topic_qos()).await
+                reply_sender.send(self.get_default_topic_qos())
             }
             ParticipantServiceMail::GetCurrentTime { reply_sender } => {
-                reply_sender.send(self.get_current_time()).await
+                reply_sender.send(self.get_current_time())
             }
             ParticipantServiceMail::GetDiscoveredParticipants { reply_sender } => {
-                reply_sender.send(self.get_discovered_participants()).await
+                reply_sender.send(self.get_discovered_participants())
             }
             ParticipantServiceMail::GetDiscoveredParticipantData {
                 participant_handle,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(self.get_discovered_participant_data(participant_handle))
-                    .await
-            }
+            } => reply_sender.send(self.get_discovered_participant_data(participant_handle)),
             ParticipantServiceMail::GetDiscoveredTopics { reply_sender } => {
-                reply_sender.send(self.get_discovered_topics()).await
+                reply_sender.send(self.get_discovered_topics())
             }
             ParticipantServiceMail::GetDiscoveredTopicData {
                 topic_handle,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(self.get_discovered_topic_data(topic_handle))
-                    .await
-            }
+            } => reply_sender.send(self.get_discovered_topic_data(topic_handle)),
             ParticipantServiceMail::SetQos { qos, reply_sender } => {
-                reply_sender
-                    .send(self.set_domain_participant_qos(qos))
-                    .await
+                reply_sender.send(self.set_domain_participant_qos(qos))
             }
             ParticipantServiceMail::GetQos { reply_sender } => {
-                reply_sender.send(self.get_domain_participant_qos()).await
+                reply_sender.send(self.get_domain_participant_qos())
             }
             ParticipantServiceMail::SetListener {
                 listener_sender,
                 status_kind,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(self.set_domain_participant_listener(listener_sender, status_kind))
-                    .await
-            }
+            } => reply_sender
+                .send(self.set_domain_participant_listener(listener_sender, status_kind)),
             ParticipantServiceMail::Enable { reply_sender } => {
-                reply_sender.send(self.enable_domain_participant()).await
+                reply_sender.send(self.enable_domain_participant())
             }
             ParticipantServiceMail::IsEmpty { reply_sender } => {
-                reply_sender.send(self.is_participant_empty()).await
+                reply_sender.send(self.is_participant_empty())
             }
         }
     }
@@ -805,32 +756,24 @@ where
             TopicServiceMail::GetInconsistentTopicStatus {
                 topic_name,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(self.get_inconsistent_topic_status(topic_name).await)
-                    .await
-            }
+            } => reply_sender.send(self.get_inconsistent_topic_status(topic_name).await),
             TopicServiceMail::SetQos {
                 topic_name,
                 topic_qos,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(self.set_topic_qos(topic_name, topic_qos))
-                    .await
-            }
+            } => reply_sender.send(self.set_topic_qos(topic_name, topic_qos)),
             TopicServiceMail::GetQos {
                 topic_name,
                 reply_sender,
-            } => reply_sender.send(self.get_topic_qos(topic_name)).await,
+            } => reply_sender.send(self.get_topic_qos(topic_name)),
             TopicServiceMail::Enable {
                 topic_name,
                 reply_sender,
-            } => reply_sender.send(self.enable_topic(topic_name)).await,
+            } => reply_sender.send(self.enable_topic(topic_name)),
             TopicServiceMail::GetTypeSupport {
                 topic_name,
                 reply_sender,
-            } => reply_sender.send(self.get_type_support(topic_name)).await,
+            } => reply_sender.send(self.get_type_support(topic_name)),
         }
     }
 
@@ -845,75 +788,51 @@ where
                 mask,
                 participant_address,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(
-                        self.create_data_writer(
-                            publisher_handle,
-                            topic_name,
-                            qos,
-                            status_condition,
-                            listener_sender,
-                            mask,
-                            participant_address,
-                        )
-                        .await,
-                    )
-                    .await
-            }
+            } => reply_sender.send(
+                self.create_data_writer(
+                    publisher_handle,
+                    topic_name,
+                    qos,
+                    status_condition,
+                    listener_sender,
+                    mask,
+                    participant_address,
+                )
+                .await,
+            ),
             PublisherServiceMail::DeleteDataWriter {
                 publisher_handle,
                 datawriter_handle,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(self.delete_data_writer(publisher_handle, datawriter_handle))
-                    .await
-            }
+            } => reply_sender.send(self.delete_data_writer(publisher_handle, datawriter_handle)),
             PublisherServiceMail::GetDefaultDataWriterQos {
                 publisher_handle,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(self.get_default_datawriter_qos(publisher_handle))
-                    .await
-            }
+            } => reply_sender.send(self.get_default_datawriter_qos(publisher_handle)),
             PublisherServiceMail::SetDefaultDataWriterQos {
                 publisher_handle,
                 qos,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(self.set_default_datawriter_qos(publisher_handle, qos))
-                    .await
-            }
+            } => reply_sender.send(self.set_default_datawriter_qos(publisher_handle, qos)),
             PublisherServiceMail::GetPublisherQos {
                 publisher_handle,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(self.get_publisher_qos(publisher_handle))
-                    .await
-            }
+            } => reply_sender.send(self.get_publisher_qos(publisher_handle)),
             PublisherServiceMail::SetPublisherQos {
                 publisher_handle,
                 qos,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(self.set_publisher_qos(publisher_handle, qos))
-                    .await
-            }
+            } => reply_sender.send(self.set_publisher_qos(publisher_handle, qos)),
             PublisherServiceMail::SetPublisherListener {
                 publisher_handle,
                 listener_sender,
                 mask,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(self.set_publisher_listener(publisher_handle, listener_sender, mask))
-                    .await
-            }
+            } => reply_sender.send(self.set_publisher_listener(
+                publisher_handle,
+                listener_sender,
+                mask,
+            )),
         }
     }
 
@@ -925,90 +844,63 @@ where
                 listener_sender,
                 listener_mask,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(self.set_listener_data_writer(
-                        publisher_handle,
-                        data_writer_handle,
-                        listener_sender,
-                        listener_mask,
-                    ))
-                    .await
-            }
+            } => reply_sender.send(self.set_listener_data_writer(
+                publisher_handle,
+                data_writer_handle,
+                listener_sender,
+                listener_mask,
+            )),
             WriterServiceMail::GetDataWriterQos {
                 publisher_handle,
                 data_writer_handle,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(self.get_data_writer_qos(publisher_handle, data_writer_handle))
-                    .await
-            }
+            } => reply_sender.send(self.get_data_writer_qos(publisher_handle, data_writer_handle)),
             WriterServiceMail::GetMatchedSubscriptions {
                 publisher_handle,
                 data_writer_handle,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(self.get_matched_subscriptions(publisher_handle, data_writer_handle))
-                    .await
-            }
+            } => reply_sender
+                .send(self.get_matched_subscriptions(publisher_handle, data_writer_handle)),
             WriterServiceMail::GetMatchedSubscriptionData {
                 publisher_handle,
                 data_writer_handle,
                 subscription_handle,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(self.get_matched_subscription_data(
-                        publisher_handle,
-                        data_writer_handle,
-                        subscription_handle,
-                    ))
-                    .await
-            }
+            } => reply_sender.send(self.get_matched_subscription_data(
+                publisher_handle,
+                data_writer_handle,
+                subscription_handle,
+            )),
             WriterServiceMail::GetPublicationMatchedStatus {
                 publisher_handle,
                 data_writer_handle,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(
-                        self.get_publication_matched_status(publisher_handle, data_writer_handle)
-                            .await,
-                    )
-                    .await
-            }
+            } => reply_sender.send(
+                self.get_publication_matched_status(publisher_handle, data_writer_handle)
+                    .await,
+            ),
             WriterServiceMail::UnregisterInstance {
                 publisher_handle,
                 data_writer_handle,
                 serialized_data,
                 timestamp,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(self.unregister_instance(
-                        publisher_handle,
-                        data_writer_handle,
-                        serialized_data,
-                        timestamp,
-                    ))
-                    .await
-            }
+            } => reply_sender.send(self.unregister_instance(
+                publisher_handle,
+                data_writer_handle,
+                serialized_data,
+                timestamp,
+            )),
             WriterServiceMail::LookupInstance {
                 publisher_handle,
                 data_writer_handle,
                 serialized_data,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(self.lookup_instance(
-                        publisher_handle,
-                        data_writer_handle,
-                        serialized_data,
-                    ))
-                    .await
-            }
+            } => reply_sender.send(self.lookup_instance(
+                publisher_handle,
+                data_writer_handle,
+                serialized_data,
+            )),
             WriterServiceMail::WriteWTimestamp {
                 participant_address,
                 publisher_handle,
@@ -1016,97 +908,70 @@ where
                 serialized_data,
                 timestamp,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(
-                        self.write_w_timestamp(
-                            participant_address,
-                            publisher_handle,
-                            data_writer_handle,
-                            serialized_data,
-                            timestamp,
-                        )
-                        .await,
-                    )
-                    .await
-            }
+            } => reply_sender.send(
+                self.write_w_timestamp(
+                    participant_address,
+                    publisher_handle,
+                    data_writer_handle,
+                    serialized_data,
+                    timestamp,
+                )
+                .await,
+            ),
             WriterServiceMail::DisposeWTimestamp {
                 publisher_handle,
                 data_writer_handle,
                 serialized_data,
                 timestamp,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(self.dispose_w_timestamp(
-                        publisher_handle,
-                        data_writer_handle,
-                        serialized_data,
-                        timestamp,
-                    ))
-                    .await
-            }
+            } => reply_sender.send(self.dispose_w_timestamp(
+                publisher_handle,
+                data_writer_handle,
+                serialized_data,
+                timestamp,
+            )),
             WriterServiceMail::WaitForAcknowledgments {
                 participant_address,
                 publisher_handle,
                 data_writer_handle,
                 timeout,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(
-                        self.wait_for_acknowledgments(
-                            participant_address,
-                            publisher_handle,
-                            data_writer_handle,
-                            timeout,
-                        )
-                        .await,
-                    )
-                    .await
-            }
+            } => reply_sender.send(
+                self.wait_for_acknowledgments(
+                    participant_address,
+                    publisher_handle,
+                    data_writer_handle,
+                    timeout,
+                )
+                .await,
+            ),
             WriterServiceMail::GetOfferedDeadlineMissedStatus {
                 publisher_handle,
                 data_writer_handle,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(
-                        self.get_offered_deadline_missed_status(
-                            publisher_handle,
-                            data_writer_handle,
-                        )
-                        .await,
-                    )
-                    .await
-            }
+            } => reply_sender.send(
+                self.get_offered_deadline_missed_status(publisher_handle, data_writer_handle)
+                    .await,
+            ),
             WriterServiceMail::EnableDataWriter {
                 publisher_handle,
                 data_writer_handle,
                 participant_address,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(
-                        self.enable_data_writer(
-                            publisher_handle,
-                            data_writer_handle,
-                            participant_address,
-                        )
-                        .await,
-                    )
-                    .await
-            }
+            } => reply_sender.send(
+                self.enable_data_writer(publisher_handle, data_writer_handle, participant_address)
+                    .await,
+            ),
             WriterServiceMail::SetDataWriterQos {
                 publisher_handle,
                 data_writer_handle,
                 qos,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(self.set_data_writer_qos(publisher_handle, data_writer_handle, qos))
-                    .await
-            }
+            } => reply_sender.send(self.set_data_writer_qos(
+                publisher_handle,
+                data_writer_handle,
+                qos,
+            )),
         }
     }
 
@@ -1124,84 +989,56 @@ where
                 mask,
                 domain_participant_address,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(
-                        self.create_data_reader(
-                            subscriber_handle,
-                            topic_name,
-                            qos,
-                            status_condition,
-                            listener_sender,
-                            mask,
-                            domain_participant_address,
-                        )
-                        .await,
-                    )
-                    .await
-            }
+            } => reply_sender.send(
+                self.create_data_reader(
+                    subscriber_handle,
+                    topic_name,
+                    qos,
+                    status_condition,
+                    listener_sender,
+                    mask,
+                    domain_participant_address,
+                )
+                .await,
+            ),
             SubscriberServiceMail::DeleteDataReader {
                 subscriber_handle,
                 datareader_handle,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(self.delete_data_reader(subscriber_handle, datareader_handle))
-                    .await
-            }
+            } => reply_sender.send(self.delete_data_reader(subscriber_handle, datareader_handle)),
             SubscriberServiceMail::LookupDataReader {
                 subscriber_handle,
                 topic_name,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(self.lookup_data_reader(subscriber_handle, topic_name))
-                    .await
-            }
+            } => reply_sender.send(self.lookup_data_reader(subscriber_handle, topic_name)),
             SubscriberServiceMail::SetDefaultDataReaderQos {
                 subscriber_handle,
                 qos,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(self.set_default_data_reader_qos(subscriber_handle, qos))
-                    .await
-            }
+            } => reply_sender.send(self.set_default_data_reader_qos(subscriber_handle, qos)),
             SubscriberServiceMail::GetDefaultDataReaderQos {
                 subscriber_handle,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(self.get_default_data_reader_qos(subscriber_handle))
-                    .await
-            }
+            } => reply_sender.send(self.get_default_data_reader_qos(subscriber_handle)),
             SubscriberServiceMail::SetQos {
                 subscriber_handle,
                 qos,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(self.set_subscriber_qos(subscriber_handle, qos))
-                    .await
-            }
+            } => reply_sender.send(self.set_subscriber_qos(subscriber_handle, qos)),
             SubscriberServiceMail::GetSubscriberQos {
                 subscriber_handle,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(self.get_subscriber_qos(subscriber_handle))
-                    .await
-            }
+            } => reply_sender.send(self.get_subscriber_qos(subscriber_handle)),
             SubscriberServiceMail::SetListener {
                 subscriber_handle,
                 listener_sender,
                 mask,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(self.set_subscriber_listener(subscriber_handle, listener_sender, mask))
-                    .await
-            }
+            } => reply_sender.send(self.set_subscriber_listener(
+                subscriber_handle,
+                listener_sender,
+                mask,
+            )),
         }
     }
 
@@ -1216,22 +1053,18 @@ where
                 instance_states,
                 specific_instance_handle,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(
-                        self.read(
-                            subscriber_handle,
-                            data_reader_handle,
-                            max_samples,
-                            sample_states,
-                            view_states,
-                            instance_states,
-                            specific_instance_handle,
-                        )
-                        .await,
-                    )
-                    .await
-            }
+            } => reply_sender.send(
+                self.read(
+                    subscriber_handle,
+                    data_reader_handle,
+                    max_samples,
+                    sample_states,
+                    view_states,
+                    instance_states,
+                    specific_instance_handle,
+                )
+                .await,
+            ),
             ReaderServiceMail::Take {
                 subscriber_handle,
                 data_reader_handle,
@@ -1241,22 +1074,18 @@ where
                 instance_states,
                 specific_instance_handle,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(
-                        self.take(
-                            subscriber_handle,
-                            data_reader_handle,
-                            max_samples,
-                            sample_states,
-                            view_states,
-                            instance_states,
-                            specific_instance_handle,
-                        )
-                        .await,
-                    )
-                    .await
-            }
+            } => reply_sender.send(
+                self.take(
+                    subscriber_handle,
+                    data_reader_handle,
+                    max_samples,
+                    sample_states,
+                    view_states,
+                    instance_states,
+                    specific_instance_handle,
+                )
+                .await,
+            ),
             ReaderServiceMail::ReadNextInstance {
                 subscriber_handle,
                 data_reader_handle,
@@ -1266,22 +1095,18 @@ where
                 view_states,
                 instance_states,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(
-                        self.read_next_instance(
-                            subscriber_handle,
-                            data_reader_handle,
-                            max_samples,
-                            previous_handle,
-                            sample_states,
-                            view_states,
-                            instance_states,
-                        )
-                        .await,
-                    )
-                    .await
-            }
+            } => reply_sender.send(
+                self.read_next_instance(
+                    subscriber_handle,
+                    data_reader_handle,
+                    max_samples,
+                    previous_handle,
+                    sample_states,
+                    view_states,
+                    instance_states,
+                )
+                .await,
+            ),
             ReaderServiceMail::TakeNextInstance {
                 subscriber_handle,
                 data_reader_handle,
@@ -1291,125 +1116,90 @@ where
                 view_states,
                 instance_states,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(
-                        self.take_next_instance(
-                            subscriber_handle,
-                            data_reader_handle,
-                            max_samples,
-                            previous_handle,
-                            sample_states,
-                            view_states,
-                            instance_states,
-                        )
-                        .await,
-                    )
-                    .await
-            }
+            } => reply_sender.send(
+                self.take_next_instance(
+                    subscriber_handle,
+                    data_reader_handle,
+                    max_samples,
+                    previous_handle,
+                    sample_states,
+                    view_states,
+                    instance_states,
+                )
+                .await,
+            ),
             ReaderServiceMail::Enable {
                 subscriber_handle,
                 data_reader_handle,
                 participant_address,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(
-                        self.enable_data_reader(
-                            subscriber_handle,
-                            data_reader_handle,
-                            participant_address,
-                        )
-                        .await,
-                    )
-                    .await
-            }
+            } => reply_sender.send(
+                self.enable_data_reader(subscriber_handle, data_reader_handle, participant_address)
+                    .await,
+            ),
             ReaderServiceMail::GetSubscriptionMatchedStatus {
                 subscriber_handle,
                 data_reader_handle,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(
-                        self.get_subscription_matched_status(subscriber_handle, data_reader_handle)
-                            .await,
-                    )
-                    .await
-            }
+            } => reply_sender.send(
+                self.get_subscription_matched_status(subscriber_handle, data_reader_handle)
+                    .await,
+            ),
             ReaderServiceMail::WaitForHistoricalData {
                 participant_address,
                 subscriber_handle,
                 data_reader_handle,
                 max_wait,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(self.wait_for_historical_data(
-                        participant_address,
-                        subscriber_handle,
-                        data_reader_handle,
-                        max_wait,
-                    ))
-                    .await
-            }
+            } => reply_sender.send(self.wait_for_historical_data(
+                participant_address,
+                subscriber_handle,
+                data_reader_handle,
+                max_wait,
+            )),
             ReaderServiceMail::GetMatchedPublicationData {
                 subscriber_handle,
                 data_reader_handle,
                 publication_handle,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(self.get_matched_publication_data(
-                        subscriber_handle,
-                        data_reader_handle,
-                        publication_handle,
-                    ))
-                    .await
-            }
+            } => reply_sender.send(self.get_matched_publication_data(
+                subscriber_handle,
+                data_reader_handle,
+                publication_handle,
+            )),
             ReaderServiceMail::GetMatchedPublications {
                 subscriber_handle,
                 data_reader_handle,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(self.get_matched_publications(subscriber_handle, data_reader_handle))
-                    .await
-            }
+            } => reply_sender
+                .send(self.get_matched_publications(subscriber_handle, data_reader_handle)),
             ReaderServiceMail::GetQos {
                 subscriber_handle,
                 data_reader_handle,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(self.get_data_reader_qos(subscriber_handle, data_reader_handle))
-                    .await
-            }
+            } => reply_sender.send(self.get_data_reader_qos(subscriber_handle, data_reader_handle)),
             ReaderServiceMail::SetQos {
                 subscriber_handle,
                 data_reader_handle,
                 qos,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(self.set_data_reader_qos(subscriber_handle, data_reader_handle, qos))
-                    .await
-            }
+            } => reply_sender.send(self.set_data_reader_qos(
+                subscriber_handle,
+                data_reader_handle,
+                qos,
+            )),
             ReaderServiceMail::SetListener {
                 subscriber_handle,
                 data_reader_handle,
                 listener_sender,
                 listener_mask,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(self.set_data_reader_listener(
-                        subscriber_handle,
-                        data_reader_handle,
-                        listener_sender,
-                        listener_mask,
-                    ))
-                    .await
-            }
+            } => reply_sender.send(self.set_data_reader_listener(
+                subscriber_handle,
+                data_reader_handle,
+                listener_sender,
+                listener_mask,
+            )),
         }
     }
 
@@ -1438,20 +1228,14 @@ where
                 publisher_handle,
                 data_writer_handle,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(self.are_all_changes_acknowledged(publisher_handle, data_writer_handle))
-                    .await
-            }
+            } => reply_sender
+                .send(self.are_all_changes_acknowledged(publisher_handle, data_writer_handle)),
             MessageServiceMail::IsHistoricalDataReceived {
                 subscriber_handle,
                 data_reader_handle,
                 reply_sender,
-            } => {
-                reply_sender
-                    .send(self.is_historical_data_received(subscriber_handle, data_reader_handle))
-                    .await
-            }
+            } => reply_sender
+                .send(self.is_historical_data_received(subscriber_handle, data_reader_handle)),
             MessageServiceMail::AddBuiltinParticipantsDetectorCacheChange { cache_change } => {
                 self.add_builtin_participants_detector_cache_change(cache_change)
             }

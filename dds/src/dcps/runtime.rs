@@ -15,7 +15,7 @@ pub trait Spawner {
 }
 
 pub trait OneshotSend<T> {
-    fn send(self, value: T) -> impl Future<Output = ()> + Send;
+    fn send(self, value: T);
 }
 
 pub trait OneshotReceive<T> {
