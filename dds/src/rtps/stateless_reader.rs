@@ -29,7 +29,7 @@ impl RtpsStatelessReader {
         self.guid
     }
 
-    fn on_data_submessage_received(
+    async fn on_data_submessage_received(
         &mut self,
         data_submessage: &DataSubmessage,
         source_guid_prefix: GuidPrefix,
@@ -45,12 +45,12 @@ impl RtpsStatelessReader {
             ) {
                 // Stateless reader behavior. We add the change if the data is correct. No error is printed
                 // because all readers would get changes marked with ENTITYID_UNKNOWN
-                self.history_cache.add_change(change);
+                self.history_cache.add_change(change).await;
             }
         }
     }
 
-    pub fn process_message(&mut self, datagram: &[u8]) -> RtpsResult<()> {
+    pub async fn process_message(&mut self, datagram: &[u8]) -> RtpsResult<()> {
         let rtps_message = RtpsMessageRead::try_from(datagram)?;
         let mut message_receiver = MessageReceiver::new(&rtps_message);
 
@@ -60,7 +60,8 @@ impl RtpsStatelessReader {
                     data_submessage,
                     message_receiver.source_guid_prefix(),
                     message_receiver.source_timestamp(),
-                );
+                )
+                .await;
             }
         }
         Ok(())

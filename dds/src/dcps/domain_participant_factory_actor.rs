@@ -1,3 +1,5 @@
+use core::{future::Future, pin::Pin};
+
 use super::actor::MailHandler;
 use crate::{
     builtin_topics::{DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC},
@@ -717,17 +719,21 @@ struct DcpsParticipantReaderHistoryCache<R: DdsRuntime> {
 }
 
 impl<R: DdsRuntime> HistoryCache for DcpsParticipantReaderHistoryCache<R> {
-    fn add_change(&mut self, cache_change: CacheChange) {
-        R::block_on(
-            self.participant_address
-                .send(DomainParticipantMail::Message(
-                    MessageServiceMail::AddBuiltinParticipantsDetectorCacheChange { cache_change },
-                )),
-        )
-        .ok();
+    fn add_change(
+        &mut self,
+        cache_change: CacheChange,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
+        let a = self.participant_address.clone();
+        Box::pin(async move {
+            a.send(DomainParticipantMail::Message(
+                MessageServiceMail::AddBuiltinParticipantsDetectorCacheChange { cache_change },
+            ))
+            .await
+            .ok();
+        })
     }
 
-    fn remove_change(&mut self, _sequence_number: i64) {
+    fn remove_change(&mut self, _sequence_number: i64) -> Pin<Box<dyn Future<Output = ()> + Send>> {
         todo!()
     }
 }
@@ -737,17 +743,21 @@ struct DcpsTopicsReaderHistoryCache<R: DdsRuntime> {
 }
 
 impl<R: DdsRuntime> HistoryCache for DcpsTopicsReaderHistoryCache<R> {
-    fn add_change(&mut self, cache_change: CacheChange) {
-        R::block_on(
-            self.participant_address
-                .send(DomainParticipantMail::Message(
-                    MessageServiceMail::AddBuiltinTopicsDetectorCacheChange { cache_change },
-                )),
-        )
-        .ok();
+    fn add_change(
+        &mut self,
+        cache_change: CacheChange,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
+        let a = self.participant_address.clone();
+        Box::pin(async move {
+            a.send(DomainParticipantMail::Message(
+                MessageServiceMail::AddBuiltinTopicsDetectorCacheChange { cache_change },
+            ))
+            .await
+            .ok();
+        })
     }
 
-    fn remove_change(&mut self, _sequence_number: i64) {
+    fn remove_change(&mut self, _sequence_number: i64) -> Pin<Box<dyn Future<Output = ()> + Send>> {
         todo!()
     }
 }
@@ -757,20 +767,24 @@ struct DcpsSubscriptionsReaderHistoryCache<R: DdsRuntime> {
 }
 
 impl<R: DdsRuntime> HistoryCache for DcpsSubscriptionsReaderHistoryCache<R> {
-    fn add_change(&mut self, cache_change: CacheChange) {
-        R::block_on(
-            self.participant_address
-                .send(DomainParticipantMail::Message(
-                    MessageServiceMail::AddBuiltinSubscriptionsDetectorCacheChange {
-                        cache_change,
-                        participant_address: self.participant_address.clone(),
-                    },
-                )),
-        )
-        .ok();
+    fn add_change(
+        &mut self,
+        cache_change: CacheChange,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
+        let a = self.participant_address.clone();
+        Box::pin(async move {
+            a.send(DomainParticipantMail::Message(
+                MessageServiceMail::AddBuiltinSubscriptionsDetectorCacheChange {
+                    cache_change,
+                    participant_address: a.clone(),
+                },
+            ))
+            .await
+            .ok();
+        })
     }
 
-    fn remove_change(&mut self, _sequence_number: i64) {
+    fn remove_change(&mut self, _sequence_number: i64) -> Pin<Box<dyn Future<Output = ()> + Send>> {
         todo!()
     }
 }
@@ -780,20 +794,24 @@ struct DcpsPublicationsReaderHistoryCache<R: DdsRuntime> {
 }
 
 impl<R: DdsRuntime> HistoryCache for DcpsPublicationsReaderHistoryCache<R> {
-    fn add_change(&mut self, cache_change: CacheChange) {
-        R::block_on(
-            self.participant_address
-                .send(DomainParticipantMail::Message(
-                    MessageServiceMail::AddBuiltinPublicationsDetectorCacheChange {
-                        cache_change,
-                        participant_address: self.participant_address.clone(),
-                    },
-                )),
-        )
-        .ok();
+    fn add_change(
+        &mut self,
+        cache_change: CacheChange,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
+        let a = self.participant_address.clone();
+        Box::pin(async move {
+            a.send(DomainParticipantMail::Message(
+                MessageServiceMail::AddBuiltinPublicationsDetectorCacheChange {
+                    cache_change,
+                    participant_address: a.clone(),
+                },
+            ))
+            .await
+            .ok();
+        })
     }
 
-    fn remove_change(&mut self, _sequence_number: i64) {
+    fn remove_change(&mut self, _sequence_number: i64) -> Pin<Box<dyn Future<Output = ()> + Send>> {
         todo!()
     }
 }

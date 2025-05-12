@@ -596,7 +596,7 @@ where
                 self.handle_event_service(event_service_mail).await
             }
             DomainParticipantMail::Discovery(discovery_service_mail) => {
-                self.handle_discovery_service(discovery_service_mail)
+                self.handle_discovery_service(discovery_service_mail).await
             }
         };
     }
@@ -650,15 +650,18 @@ where
                 mask,
                 type_support,
                 reply_sender,
-            } => reply_sender.send(self.create_topic(
-                topic_name,
-                type_name,
-                qos,
-                status_condition,
-                listener_sender,
-                mask,
-                type_support,
-            )),
+            } => reply_sender.send(
+                self.create_topic(
+                    topic_name,
+                    type_name,
+                    qos,
+                    status_condition,
+                    listener_sender,
+                    mask,
+                    type_support,
+                )
+                .await,
+            ),
             ParticipantServiceMail::DeleteUserDefinedTopic {
                 participant_handle,
                 topic_name,
@@ -693,7 +696,7 @@ where
                 reply_sender,
             } => reply_sender.send(self.ignore_publication(handle)),
             ParticipantServiceMail::DeleteContainedEntities { reply_sender } => {
-                reply_sender.send(self.delete_participant_contained_entities())
+                reply_sender.send(self.delete_participant_contained_entities().await)
             }
             ParticipantServiceMail::SetDefaultPublisherQos { qos, reply_sender } => {
                 reply_sender.send(self.set_default_publisher_qos(qos))
@@ -731,7 +734,7 @@ where
                 reply_sender,
             } => reply_sender.send(self.get_discovered_topic_data(topic_handle)),
             ParticipantServiceMail::SetQos { qos, reply_sender } => {
-                reply_sender.send(self.set_domain_participant_qos(qos))
+                reply_sender.send(self.set_domain_participant_qos(qos).await)
             }
             ParticipantServiceMail::GetQos { reply_sender } => {
                 reply_sender.send(self.get_domain_participant_qos())
@@ -743,7 +746,7 @@ where
             } => reply_sender
                 .send(self.set_domain_participant_listener(listener_sender, status_kind)),
             ParticipantServiceMail::Enable { reply_sender } => {
-                reply_sender.send(self.enable_domain_participant())
+                reply_sender.send(self.enable_domain_participant().await)
             }
             ParticipantServiceMail::IsEmpty { reply_sender } => {
                 reply_sender.send(self.is_participant_empty())
@@ -769,7 +772,7 @@ where
             TopicServiceMail::Enable {
                 topic_name,
                 reply_sender,
-            } => reply_sender.send(self.enable_topic(topic_name)),
+            } => reply_sender.send(self.enable_topic(topic_name).await),
             TopicServiceMail::GetTypeSupport {
                 topic_name,
                 reply_sender,
@@ -804,7 +807,10 @@ where
                 publisher_handle,
                 datawriter_handle,
                 reply_sender,
-            } => reply_sender.send(self.delete_data_writer(publisher_handle, datawriter_handle)),
+            } => reply_sender.send(
+                self.delete_data_writer(publisher_handle, datawriter_handle)
+                    .await,
+            ),
             PublisherServiceMail::GetDefaultDataWriterQos {
                 publisher_handle,
                 reply_sender,
@@ -885,12 +891,15 @@ where
                 serialized_data,
                 timestamp,
                 reply_sender,
-            } => reply_sender.send(self.unregister_instance(
-                publisher_handle,
-                data_writer_handle,
-                serialized_data,
-                timestamp,
-            )),
+            } => reply_sender.send(
+                self.unregister_instance(
+                    publisher_handle,
+                    data_writer_handle,
+                    serialized_data,
+                    timestamp,
+                )
+                .await,
+            ),
             WriterServiceMail::LookupInstance {
                 publisher_handle,
                 data_writer_handle,
@@ -924,12 +933,15 @@ where
                 serialized_data,
                 timestamp,
                 reply_sender,
-            } => reply_sender.send(self.dispose_w_timestamp(
-                publisher_handle,
-                data_writer_handle,
-                serialized_data,
-                timestamp,
-            )),
+            } => reply_sender.send(
+                self.dispose_w_timestamp(
+                    publisher_handle,
+                    data_writer_handle,
+                    serialized_data,
+                    timestamp,
+                )
+                .await,
+            ),
             WriterServiceMail::WaitForAcknowledgments {
                 participant_address,
                 publisher_handle,
@@ -967,11 +979,10 @@ where
                 data_writer_handle,
                 qos,
                 reply_sender,
-            } => reply_sender.send(self.set_data_writer_qos(
-                publisher_handle,
-                data_writer_handle,
-                qos,
-            )),
+            } => reply_sender.send(
+                self.set_data_writer_qos(publisher_handle, data_writer_handle, qos)
+                    .await,
+            ),
         }
     }
 
@@ -1005,7 +1016,10 @@ where
                 subscriber_handle,
                 datareader_handle,
                 reply_sender,
-            } => reply_sender.send(self.delete_data_reader(subscriber_handle, datareader_handle)),
+            } => reply_sender.send(
+                self.delete_data_reader(subscriber_handle, datareader_handle)
+                    .await,
+            ),
             SubscriberServiceMail::LookupDataReader {
                 subscriber_handle,
                 topic_name,
@@ -1183,11 +1197,10 @@ where
                 data_reader_handle,
                 qos,
                 reply_sender,
-            } => reply_sender.send(self.set_data_reader_qos(
-                subscriber_handle,
-                data_reader_handle,
-                qos,
-            )),
+            } => reply_sender.send(
+                self.set_data_reader_qos(subscriber_handle, data_reader_handle, qos)
+                    .await,
+            ),
             ReaderServiceMail::SetListener {
                 subscriber_handle,
                 data_reader_handle,
@@ -1223,7 +1236,10 @@ where
                 publisher_handle,
                 data_writer_handle,
                 sequence_number,
-            } => self.remove_writer_change(publisher_handle, data_writer_handle, sequence_number),
+            } => {
+                self.remove_writer_change(publisher_handle, data_writer_handle, sequence_number)
+                    .await
+            }
             MessageServiceMail::AreAllChangesAcknowledged {
                 publisher_handle,
                 data_writer_handle,
@@ -1299,10 +1315,14 @@ where
         }
     }
 
-    fn handle_discovery_service(&mut self, discovery_service_mail: DiscoveryServiceMail) {
+    async fn handle_discovery_service(&mut self, discovery_service_mail: DiscoveryServiceMail) {
         match discovery_service_mail {
-            DiscoveryServiceMail::AnnounceParticipant => self.announce_participant(),
-            DiscoveryServiceMail::AnnounceDeletedParticipant => self.announce_deleted_participant(),
+            DiscoveryServiceMail::AnnounceParticipant => {
+                self.announce_participant().await;
+            }
+            DiscoveryServiceMail::AnnounceDeletedParticipant => {
+                self.announce_deleted_participant().await;
+            }
         }
     }
 }

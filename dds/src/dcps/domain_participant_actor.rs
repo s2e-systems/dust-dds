@@ -280,14 +280,14 @@ where
         Ok(topic.qos().clone())
     }
 
-    pub fn enable_topic(&mut self, topic_name: String) -> DdsResult<()> {
+    pub async fn enable_topic(&mut self, topic_name: String) -> DdsResult<()> {
         let Some(topic) = self.domain_participant.get_mut_topic(&topic_name) else {
             return Err(DdsError::AlreadyDeleted);
         };
 
         if !topic.enabled() {
             topic.enable();
-            self.announce_topic(topic_name);
+            self.announce_topic(topic_name).await;
         }
 
         Ok(())
@@ -435,7 +435,7 @@ where
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn create_topic(
+    pub async fn create_topic(
         &mut self,
         topic_name: String,
         type_name: String,
@@ -480,7 +480,7 @@ where
                 .entity_factory
                 .autoenable_created_entities
         {
-            self.enable_topic(topic_name)?;
+            self.enable_topic(topic_name).await?;
         }
 
         Ok(topic_handle)
@@ -627,12 +627,12 @@ where
         }
     }
 
-    pub fn delete_participant_contained_entities(&mut self) -> DdsResult<()> {
+    pub async fn delete_participant_contained_entities(&mut self) -> DdsResult<()> {
         let deleted_publisher_list: Vec<PublisherEntity<R>> =
             self.domain_participant.drain_publisher_list().collect();
         for mut publisher in deleted_publisher_list {
             for data_writer in publisher.drain_data_writer_list() {
-                self.announce_deleted_data_writer(data_writer);
+                self.announce_deleted_data_writer(data_writer).await;
             }
         }
 
@@ -640,7 +640,7 @@ where
             self.domain_participant.drain_subscriber_list().collect();
         for mut subscriber in deleted_subscriber_list {
             for data_reader in subscriber.drain_data_reader_list() {
-                self.announce_deleted_data_reader(data_reader);
+                self.announce_deleted_data_reader(data_reader).await;
             }
         }
 
@@ -738,7 +738,7 @@ where
         self.clock_handle.now()
     }
 
-    pub fn set_domain_participant_qos(
+    pub async fn set_domain_participant_qos(
         &mut self,
         qos: QosKind<DomainParticipantQos>,
     ) -> DdsResult<()> {
@@ -749,7 +749,7 @@ where
 
         self.domain_participant.set_qos(qos);
         if self.domain_participant.enabled() {
-            self.announce_participant();
+            self.announce_participant().await;
         }
         Ok(())
     }
@@ -768,11 +768,11 @@ where
         Ok(())
     }
 
-    pub fn enable_domain_participant(&mut self) -> DdsResult<()> {
+    pub async fn enable_domain_participant(&mut self) -> DdsResult<()> {
         if !self.domain_participant.enabled() {
             self.domain_participant.enable();
 
-            self.announce_participant();
+            self.announce_participant().await;
         }
 
         Ok(())
@@ -806,20 +806,32 @@ where
         where
             R: DdsRuntime,
         {
-            fn add_change(&mut self, cache_change: CacheChange) {
+            fn add_change(
+                &mut self,
+                cache_change: CacheChange,
+            ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
                 let participant_address = self.domain_participant_address.clone();
-                R::block_on(participant_address.send(DomainParticipantMail::Message(
-                    MessageServiceMail::AddCacheChange {
-                        participant_address: self.domain_participant_address.clone(),
-                        cache_change,
-                        subscriber_handle: self.subscriber_handle,
-                        data_reader_handle: self.data_reader_handle,
-                    },
-                )))
-                .ok();
+                let subscriber_handle = self.subscriber_handle;
+                let data_reader_handle = self.data_reader_handle;
+                Box::pin(async move {
+                    participant_address
+                        .send(DomainParticipantMail::Message(
+                            MessageServiceMail::AddCacheChange {
+                                participant_address: participant_address.clone(),
+                                cache_change,
+                                subscriber_handle,
+                                data_reader_handle,
+                            },
+                        ))
+                        .await
+                        .ok();
+                })
             }
 
-            fn remove_change(&mut self, _sequence_number: i64) {
+            fn remove_change(
+                &mut self,
+                _sequence_number: i64,
+            ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
                 todo!()
             }
         }
@@ -908,7 +920,7 @@ where
         Ok(data_reader_handle)
     }
 
-    pub fn delete_data_reader(
+    pub async fn delete_data_reader(
         &mut self,
         subscriber_handle: InstanceHandle,
         datareader_handle: InstanceHandle,
@@ -922,7 +934,7 @@ where
         let Some(data_reader) = subscriber.remove_data_reader(datareader_handle) else {
             return Err(DdsError::AlreadyDeleted);
         };
-        self.announce_deleted_data_reader(data_reader);
+        self.announce_deleted_data_reader(data_reader).await;
         Ok(())
     }
 
@@ -1118,7 +1130,7 @@ where
         Ok(data_writer_handle)
     }
 
-    pub fn delete_data_writer(
+    pub async fn delete_data_writer(
         &mut self,
         publisher_handle: InstanceHandle,
         datawriter_handle: InstanceHandle,
@@ -1130,7 +1142,7 @@ where
         let Some(data_writer) = publisher.remove_data_writer(datawriter_handle) else {
             return Err(DdsError::AlreadyDeleted);
         };
-        self.announce_deleted_data_writer(data_writer);
+        self.announce_deleted_data_writer(data_writer).await;
         Ok(())
     }
 
@@ -1301,7 +1313,7 @@ where
             .cloned()
     }
 
-    pub fn unregister_instance(
+    pub async fn unregister_instance(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
@@ -1326,7 +1338,9 @@ where
                 return Err(e.into());
             }
         };
-        data_writer.unregister_w_timestamp(serialized_key, timestamp)
+        data_writer
+            .unregister_w_timestamp(serialized_key, timestamp)
+            .await
     }
 
     pub fn lookup_instance(
@@ -1397,11 +1411,10 @@ where
                 let mut timer_handle = self.timer_handle.clone();
                 let sleep_duration = timestamp - now + lifespan_duration;
                 if sleep_duration > Duration::new(0, 0) {
-                    let sequence_number = match data_writer.write_w_timestamp(
-                        serialized_data,
-                        timestamp,
-                        &self.clock_handle,
-                    ) {
+                    let sequence_number = match data_writer
+                        .write_w_timestamp(serialized_data, timestamp, &self.clock_handle)
+                        .await
+                    {
                         Ok(s) => s,
                         Err(e) => {
                             return Err(e);
@@ -1425,7 +1438,9 @@ where
                 }
             }
             DurationKind::Infinite => {
-                match data_writer.write_w_timestamp(serialized_data, timestamp, &self.clock_handle)
+                match data_writer
+                    .write_w_timestamp(serialized_data, timestamp, &self.clock_handle)
+                    .await
                 {
                     Ok(_) => (),
                     Err(e) => {
@@ -1458,7 +1473,7 @@ where
         Ok(())
     }
 
-    pub fn dispose_w_timestamp(
+    pub async fn dispose_w_timestamp(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
@@ -1483,7 +1498,9 @@ where
                 return Err(e.into());
             }
         };
-        data_writer.dispose_w_timestamp(serialized_key, timestamp)
+        data_writer
+            .dispose_w_timestamp(serialized_key, timestamp)
+            .await
     }
 
     pub async fn wait_for_acknowledgments(
@@ -1575,12 +1592,13 @@ where
                 .await;
             }
 
-            self.announce_data_writer(publisher_handle, data_writer_handle);
+            self.announce_data_writer(publisher_handle, data_writer_handle)
+                .await;
         }
         Ok(())
     }
 
-    pub fn set_data_writer_qos(
+    pub async fn set_data_writer_qos(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
@@ -1607,7 +1625,8 @@ where
             }
         }
         if data_writer.enabled() {
-            self.announce_data_writer(publisher_handle, data_writer_handle);
+            self.announce_data_writer(publisher_handle, data_writer_handle)
+                .await;
         }
         Ok(())
     }
@@ -1865,7 +1884,7 @@ where
         Ok(data_reader.get_matched_publications())
     }
 
-    pub fn set_data_reader_qos(
+    pub async fn set_data_reader_qos(
         &mut self,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
@@ -1893,7 +1912,8 @@ where
         };
 
         if data_reader.enabled() {
-            self.announce_data_reader(subscriber_handle, data_reader_handle);
+            self.announce_data_reader(subscriber_handle, data_reader_handle)
+                .await;
         }
 
         Ok(())
@@ -2002,12 +2022,13 @@ where
                 .await;
             }
 
-            self.announce_data_reader(subscriber_handle, data_reader_handle);
+            self.announce_data_reader(subscriber_handle, data_reader_handle)
+                .await;
         }
         Ok(())
     }
 
-    pub fn announce_participant(&mut self) {
+    pub async fn announce_participant(&mut self) {
         if self.domain_participant.enabled() {
             let participant_builtin_topic_data = ParticipantBuiltinTopicData {
                 key: BuiltInTopicKey {
@@ -2057,13 +2078,14 @@ where
             {
                 if let Ok(serialized_data) = spdp_discovered_participant_data.serialize_data() {
                     dw.write_w_timestamp(serialized_data, timestamp, &self.clock_handle)
+                        .await
                         .ok();
                 }
             }
         }
     }
 
-    pub fn announce_deleted_participant(&mut self) {
+    pub async fn announce_deleted_participant(&mut self) {
         if self.domain_participant.enabled() {
             let timestamp = self.get_current_time();
             if let Some(dw) = self
@@ -2073,13 +2095,15 @@ where
             {
                 let key = InstanceHandle::new(self.transport.guid().into());
                 if let Ok(serialized_data) = key.serialize_data() {
-                    dw.dispose_w_timestamp(serialized_data, timestamp).ok();
+                    dw.dispose_w_timestamp(serialized_data, timestamp)
+                        .await
+                        .ok();
                 }
             }
         }
     }
 
-    fn announce_data_writer(
+    async fn announce_data_writer(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
@@ -2137,12 +2161,13 @@ where
         {
             if let Ok(serialized_data) = discovered_writer_data.serialize_data() {
                 dw.write_w_timestamp(serialized_data, timestamp, &self.clock_handle)
+                    .await
                     .ok();
             }
         }
     }
 
-    fn announce_deleted_data_writer(&mut self, data_writer: DataWriterEntity<R>) {
+    async fn announce_deleted_data_writer(&mut self, data_writer: DataWriterEntity<R>) {
         let timestamp = self.get_current_time();
         if let Some(dw) = self
             .domain_participant
@@ -2151,12 +2176,14 @@ where
         {
             let key = InstanceHandle::new(data_writer.transport_writer().guid().into());
             if let Ok(serialized_data) = key.serialize_data() {
-                dw.dispose_w_timestamp(serialized_data, timestamp).ok();
+                dw.dispose_w_timestamp(serialized_data, timestamp)
+                    .await
+                    .ok();
             }
         }
     }
 
-    fn announce_data_reader(
+    async fn announce_data_reader(
         &mut self,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
@@ -2211,12 +2238,13 @@ where
         {
             if let Ok(serialized_data) = discovered_reader_data.serialize_data() {
                 dw.write_w_timestamp(serialized_data, timestamp, &self.clock_handle)
+                    .await
                     .ok();
             }
         }
     }
 
-    fn announce_deleted_data_reader(&mut self, data_reader: DataReaderEntity<R>) {
+    async fn announce_deleted_data_reader(&mut self, data_reader: DataReaderEntity<R>) {
         let timestamp = self.get_current_time();
         if let Some(dw) = self
             .domain_participant
@@ -2226,12 +2254,14 @@ where
             let guid = data_reader.transport_reader().guid();
             let key = InstanceHandle::new(guid.into());
             if let Ok(serialized_data) = key.serialize_data() {
-                dw.dispose_w_timestamp(serialized_data, timestamp).ok();
+                dw.dispose_w_timestamp(serialized_data, timestamp)
+                    .await
+                    .ok();
             }
         }
     }
 
-    fn announce_topic(&mut self, topic_name: String) {
+    async fn announce_topic(&mut self, topic_name: String) {
         let Some(topic) = self.domain_participant.get_topic(&topic_name) else {
             return;
         };
@@ -2265,6 +2295,7 @@ where
         {
             if let Ok(serialized_data) = topic_builtin_topic_data.serialize_data() {
                 dw.write_w_timestamp(serialized_data, timestamp, &self.clock_handle)
+                    .await
                     .ok();
             }
         }
@@ -3604,7 +3635,7 @@ where
         }
     }
 
-    pub fn remove_writer_change(
+    pub async fn remove_writer_change(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
@@ -3612,7 +3643,7 @@ where
     ) {
         if let Some(p) = self.domain_participant.get_mut_publisher(publisher_handle) {
             if let Some(dw) = p.get_mut_data_writer(data_writer_handle) {
-                dw.remove_change(sequence_number);
+                dw.remove_change(sequence_number).await;
             }
         }
     }

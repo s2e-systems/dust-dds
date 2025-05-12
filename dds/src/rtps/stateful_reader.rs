@@ -68,7 +68,7 @@ impl RtpsStatefulReader {
             .find(|x| x.remote_writer_guid() == a_writer_guid)
     }
 
-    pub fn on_data_submessage_received(
+    pub async fn on_data_submessage_received(
         &mut self,
         data_submessage: &DataSubmessage,
         source_guid_prefix: GuidPrefix,
@@ -91,7 +91,7 @@ impl RtpsStatefulReader {
                             source_guid_prefix,
                             source_timestamp,
                         ) {
-                            self.history_cache.add_change(change);
+                            self.history_cache.add_change(change).await;
                         }
                     }
                 }
@@ -105,7 +105,7 @@ impl RtpsStatefulReader {
                             source_guid_prefix,
                             source_timestamp,
                         ) {
-                            self.history_cache.add_change(change);
+                            self.history_cache.add_change(change).await;
                         }
                     }
                 }
@@ -113,7 +113,7 @@ impl RtpsStatefulReader {
         }
     }
 
-    pub fn on_data_frag_submessage_received(
+    pub async fn on_data_frag_submessage_received(
         &mut self,
         data_frag_submessage: &DataFragSubmessage,
         source_guid_prefix: GuidPrefix,
@@ -129,7 +129,8 @@ impl RtpsStatefulReader {
                     &data_submessage,
                     source_guid_prefix,
                     source_timestamp,
-                );
+                )
+                .await;
             }
         }
     }
@@ -204,7 +205,7 @@ impl RtpsStatefulReader {
         }
     }
 
-    pub fn process_message(
+    pub async fn process_message(
         &mut self,
         datagram: &[u8],
         message_writer: &impl WriteMessage,
@@ -219,14 +220,16 @@ impl RtpsStatefulReader {
                         data_submessage,
                         message_receiver.source_guid_prefix(),
                         message_receiver.source_timestamp(),
-                    );
+                    )
+                    .await;
                 }
                 RtpsSubmessageReadKind::DataFrag(data_frag_submessage) => {
                     self.on_data_frag_submessage_received(
                         data_frag_submessage,
                         message_receiver.source_guid_prefix(),
                         message_receiver.source_timestamp(),
-                    );
+                    )
+                    .await;
                 }
                 RtpsSubmessageReadKind::HeartbeatFrag(heartbeat_frag_submessage) => {
                     self.on_heartbeat_frag_submessage_received(

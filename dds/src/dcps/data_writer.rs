@@ -166,7 +166,7 @@ impl<R: DdsRuntime> DataWriterEntity<R> {
         self.registered_instance_list.contains(instance_handle)
     }
 
-    pub fn write_w_timestamp(
+    pub async fn write_w_timestamp(
         &mut self,
         serialized_data: Vec<u8>,
         timestamp: Time,
@@ -269,7 +269,8 @@ impl<R: DdsRuntime> DataWriterEntity<R> {
                     if let Some(smallest_seq_num_instance) = s.samples.pop_front() {
                         self.transport_writer
                             .history_cache()
-                            .remove_change(smallest_seq_num_instance);
+                            .remove_change(smallest_seq_num_instance)
+                            .await;
                     }
                 }
             }
@@ -313,11 +314,14 @@ impl<R: DdsRuntime> DataWriterEntity<R> {
                 self.instance_samples.push(s);
             }
         }
-        self.transport_writer.history_cache().add_change(change);
+        self.transport_writer
+            .history_cache()
+            .add_change(change)
+            .await;
         Ok(self.last_change_sequence_number)
     }
 
-    pub fn dispose_w_timestamp(
+    pub async fn dispose_w_timestamp(
         &mut self,
         serialized_key: Vec<u8>,
         timestamp: Time,
@@ -371,12 +375,13 @@ impl<R: DdsRuntime> DataWriterEntity<R> {
         };
         self.transport_writer
             .history_cache()
-            .add_change(cache_change);
+            .add_change(cache_change)
+            .await;
 
         Ok(())
     }
 
-    pub fn unregister_w_timestamp(
+    pub async fn unregister_w_timestamp(
         &mut self,
         serialized_key: Vec<u8>,
         timestamp: Time,
@@ -430,14 +435,16 @@ impl<R: DdsRuntime> DataWriterEntity<R> {
         };
         self.transport_writer
             .history_cache()
-            .add_change(cache_change);
+            .add_change(cache_change)
+            .await;
         Ok(())
     }
 
-    pub fn remove_change(&mut self, sequence_number: i64) {
+    pub async fn remove_change(&mut self, sequence_number: i64) {
         self.transport_writer
             .history_cache()
-            .remove_change(sequence_number);
+            .remove_change(sequence_number)
+            .await;
     }
 
     pub fn add_matched_subscription(
