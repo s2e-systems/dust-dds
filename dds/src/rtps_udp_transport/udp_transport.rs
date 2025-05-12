@@ -406,7 +406,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                                     .await
                                 });
                             }
-                            ChannelMessageKind::Poke => {
+                            ChannelMessageKind::Poke => block_on(async {
                                 for rtps_stateful_writer in &stateful_writer_list {
                                     rtps_stateful_writer
                                         .lock()
@@ -414,9 +414,10 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                                         .write_message(
                                             message_writer.as_ref(),
                                             &RtpsUdpTransportClock,
-                                        );
+                                        )
+                                        .await;
                                 }
-                            }
+                            }),
                         }
                     }
                 }
@@ -451,6 +452,7 @@ async fn process_message(
             .lock()
             .expect("stateful_writer alive")
             .process_message(datagram, message_writer, clock)
+            .await
             .ok();
     }
 }
@@ -542,7 +544,7 @@ impl MessageWriter {
     }
 }
 impl WriteMessage for MessageWriter {
-    fn write_message(&self, datagram: &[u8], locator_list: &[Locator]) {
+    async fn write_message(&self, datagram: &[u8], locator_list: &[Locator]) {
         for &destination_locator in locator_list {
             if UdpLocator(destination_locator).is_multicast() {
                 let socket2: socket2::Socket = self.socket.try_clone().unwrap().into();
@@ -676,7 +678,8 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
             ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
                 self.rtps_writer.add_change(cache_change);
                 self.rtps_writer.write_message(self.message_writer.as_ref());
-                Box::pin(async {})
+                todo!()
+                // Box::pin(async {})
             }
 
             fn remove_change(
@@ -795,11 +798,17 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
                     .lock()
                     .expect("rtps_stateful_writer is valid")
                     .add_change(cache_change);
-                self.rtps_stateful_writer
-                    .lock()
-                    .expect("rtps_stateful_writer is valid")
-                    .write_message(self.message_writer.as_ref(), &RtpsUdpTransportClock);
-                Box::pin(async {})
+                let stateful_writer = self.rtps_stateful_writer.clone();
+                let message_writer = self.message_writer.clone();
+                todo!()
+                // Box::pin(async move {
+                //     poll
+                //     stateful_writer
+                //         .lock()
+                //         .expect("rtps_stateful_writer is valid")
+                //         .write_message(message_writer.as_ref(), &RtpsUdpTransportClock)
+                //         .await;
+                // })
             }
 
             fn remove_change(

@@ -156,7 +156,7 @@ impl RtpsStatefulReader {
         }
     }
 
-    pub fn on_heartbeat_submessage_received(
+    pub async fn on_heartbeat_submessage_received(
         &mut self,
         heartbeat_submessage: &HeartbeatSubmessage,
         source_guid_prefix: GuidPrefix,
@@ -182,7 +182,7 @@ impl RtpsStatefulReader {
                 }
                 writer_proxy.missing_changes_update(heartbeat_submessage.last_sn());
                 writer_proxy.lost_changes_update(heartbeat_submessage.first_sn());
-                writer_proxy.write_message(&self.guid, message_writer);
+                writer_proxy.write_message(&self.guid, message_writer).await;
             }
         }
     }
@@ -248,7 +248,8 @@ impl RtpsStatefulReader {
                         heartbeat_submessage,
                         message_receiver.source_guid_prefix(),
                         message_writer,
-                    );
+                    )
+                    .await;
                 }
                 _ => (),
             }
