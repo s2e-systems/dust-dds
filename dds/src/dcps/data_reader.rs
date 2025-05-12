@@ -498,7 +498,6 @@ impl<R: DdsRuntime> DataReaderEntity<R> {
             {
                 Some(x) => {
                     x.owner_handle = sample.writer_guid;
-                    x.last_received_time = reception_timestamp
                 }
                 None => self.instance_ownership.push(InstanceOwnership {
                     instance_handle: sample.instance_handle,
@@ -653,6 +652,7 @@ impl<R: DdsRuntime> DataReaderEntity<R> {
             }
         }?;
 
+        let sample_writer_guid = sample.writer_guid;
         tracing::debug!(cache_change = ?sample, "Adding change to data reader history cache");
         self.sample_list.push(sample);
         self.data_available_status_changed_flag = true;
@@ -675,6 +675,22 @@ impl<R: DdsRuntime> DataReaderEntity<R> {
                 .sort_by(|a, b| a.reception_timestamp.cmp(&b.reception_timestamp)),
         }
 
+        match self
+            .instance_ownership
+            .iter_mut()
+            .find(|x| x.instance_handle == change_instance_handle)
+        {
+            Some(x) => {
+                if x.last_received_time < reception_timestamp {
+                    x.last_received_time = reception_timestamp;
+                }
+            }
+            None => self.instance_ownership.push(InstanceOwnership {
+                instance_handle: change_instance_handle,
+                last_received_time: reception_timestamp,
+                owner_handle: sample_writer_guid,
+            }),
+        }
         Ok(AddChangeResult::Added(change_instance_handle))
     }
 
