@@ -1,6 +1,6 @@
 use core::{future::Future, pin::Pin};
 
-use alloc::sync::Arc;
+use alloc::{boxed::Box, sync::Arc};
 
 use super::types::{ChangeKind, Guid, Time};
 
