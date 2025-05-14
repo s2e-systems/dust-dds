@@ -1,5 +1,3 @@
-use core::{future::Future, pin::Pin};
-use alloc::boxed::Box;
 use crate::{
     dcps::runtime::DdsRuntime,
     dds_async::data_writer::DataWriterAsync,
@@ -8,16 +6,17 @@ use crate::{
         PublicationMatchedStatus,
     },
 };
+use core::future::Future;
 
 /// This trait represents a listener object which can be associated with the [`DataWriter`] entity.
-pub trait DataWriterListener<'a, R: DdsRuntime, Foo>: 'static {
+pub trait DataWriterListener<R: DdsRuntime, Foo>: 'static {
     /// Method that is called when this writer reports a liveliness lost status.
     fn on_liveliness_lost(
         &mut self,
         _the_writer: DataWriterAsync<R, Foo>,
         _status: LivelinessLostStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(core::future::ready(()))
+    ) -> impl Future<Output = ()> + Send {
+        core::future::ready(())
     }
 
     /// Method that is called when this writer reports an offered deadline missed status.
@@ -25,8 +24,8 @@ pub trait DataWriterListener<'a, R: DdsRuntime, Foo>: 'static {
         &mut self,
         _the_writer: DataWriterAsync<R, Foo>,
         _status: OfferedDeadlineMissedStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(core::future::ready(()))
+    ) -> impl Future<Output = ()> + Send {
+        core::future::ready(())
     }
 
     /// Method that is called when this writer reports an offered incompatible qos status.
@@ -34,8 +33,8 @@ pub trait DataWriterListener<'a, R: DdsRuntime, Foo>: 'static {
         &mut self,
         _the_writer: DataWriterAsync<R, Foo>,
         _status: OfferedIncompatibleQosStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(core::future::ready(()))
+    ) -> impl Future<Output = ()> + Send {
+        core::future::ready(())
     }
 
     /// Method that is called when this writer reports a publication matched status.
@@ -43,7 +42,7 @@ pub trait DataWriterListener<'a, R: DdsRuntime, Foo>: 'static {
         &mut self,
         _the_writer: DataWriterAsync<R, Foo>,
         _status: PublicationMatchedStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(core::future::ready(()))
+    ) -> impl Future<Output = ()> + Send {
+        core::future::ready(())
     }
 }

@@ -6,8 +6,7 @@ use crate::{
         SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus,
     },
 };
-use alloc::boxed::Box;
-use core::{future::Future, pin::Pin};
+use core::future::Future;
 
 /// This trait represents a listener object which can be associated with the [`Subscriber`](super::subscriber::Subscriber) entity.
 pub trait SubscriberListener<R: DdsRuntime> {
@@ -15,16 +14,16 @@ pub trait SubscriberListener<R: DdsRuntime> {
     fn on_data_on_readers(
         &mut self,
         _the_subscriber: SubscriberAsync<R>,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(core::future::ready(()))
+    ) -> impl Future<Output = ()> + Send {
+        core::future::ready(())
     }
 
     /// Method that is called when any reader belonging to this subcriber reports new data available.
     fn on_data_available(
         &mut self,
         _the_reader: DataReaderAsync<R, ()>,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(core::future::ready(()))
+    ) -> impl Future<Output = ()> + Send {
+        core::future::ready(())
     }
 
     /// Method that is called when any reader belonging to this subcriber reports a sample rejected status.
@@ -32,8 +31,8 @@ pub trait SubscriberListener<R: DdsRuntime> {
         &mut self,
         _the_reader: DataReaderAsync<R, ()>,
         _status: SampleRejectedStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(core::future::ready(()))
+    ) -> impl Future<Output = ()> + Send {
+        core::future::ready(())
     }
 
     /// Method that is called when any reader belonging to this subcriber reports a liveliness changed status.
@@ -41,8 +40,8 @@ pub trait SubscriberListener<R: DdsRuntime> {
         &mut self,
         _the_reader: DataReaderAsync<R, ()>,
         _status: LivelinessChangedStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(core::future::ready(()))
+    ) -> impl Future<Output = ()> + Send {
+        core::future::ready(())
     }
 
     /// Method that is called when any reader belonging to this subcriber reports a requested deadline missed status.
@@ -50,8 +49,8 @@ pub trait SubscriberListener<R: DdsRuntime> {
         &mut self,
         _the_reader: DataReaderAsync<R, ()>,
         _status: RequestedDeadlineMissedStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(core::future::ready(()))
+    ) -> impl Future<Output = ()> + Send {
+        core::future::ready(())
     }
 
     /// Method that is called when any reader belonging to this subcriber reports a requested incompatible QoS status.
@@ -59,8 +58,8 @@ pub trait SubscriberListener<R: DdsRuntime> {
         &mut self,
         _the_reader: DataReaderAsync<R, ()>,
         _status: RequestedIncompatibleQosStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(core::future::ready(()))
+    ) -> impl Future<Output = ()> + Send {
+        core::future::ready(())
     }
 
     /// Method that is called when any reader belonging to this subcriber reports a subscription matched status.
@@ -68,8 +67,8 @@ pub trait SubscriberListener<R: DdsRuntime> {
         &mut self,
         _the_reader: DataReaderAsync<R, ()>,
         _status: SubscriptionMatchedStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(core::future::ready(()))
+    ) -> impl Future<Output = ()> + Send {
+        core::future::ready(())
     }
 
     /// Method that is called when any reader belonging to this subcriber reports a sample lost status.
@@ -77,7 +76,7 @@ pub trait SubscriberListener<R: DdsRuntime> {
         &mut self,
         _the_reader: DataReaderAsync<R, ()>,
         _status: SampleLostStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(core::future::ready(()))
+    ) -> impl Future<Output = ()> + Send {
+        core::future::ready(())
     }
 }

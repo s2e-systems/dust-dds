@@ -21,6 +21,6 @@ impl<R: DdsRuntime> SubscriberListener<R> for () {}
 
 impl<R: DdsRuntime> TopicListener<R> for () {}
 
-impl<R: DdsRuntime, Foo> DataWriterListener<'_, R, Foo> for () {}
+impl<R: DdsRuntime, Foo> DataWriterListener<R, Foo> for () {}
 
-impl<R: DdsRuntime, Foo> DataReaderListener<'_, R, Foo> for () {}
+impl<R: DdsRuntime, Foo> DataReaderListener<R, Foo> for () {}

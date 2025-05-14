@@ -6,8 +6,7 @@ use crate::{
         PublicationMatchedStatus,
     },
 };
-use alloc::boxed::Box;
-use core::{future::Future, pin::Pin};
+use core::future::Future;
 
 /// This trait represents a listener object which can be associated with the [`Publisher`](super::publisher::Publisher) entity.
 pub trait PublisherListener<R: DdsRuntime> {
@@ -16,8 +15,8 @@ pub trait PublisherListener<R: DdsRuntime> {
         &mut self,
         _the_writer: DataWriterAsync<R, ()>,
         _status: LivelinessLostStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(core::future::ready(()))
+    ) -> impl Future<Output = ()> + Send {
+        core::future::ready(())
     }
 
     /// Method that is called when any writer belonging to this publisher reports an offered deadline missed status.
@@ -25,8 +24,8 @@ pub trait PublisherListener<R: DdsRuntime> {
         &mut self,
         _the_writer: DataWriterAsync<R, ()>,
         _status: OfferedDeadlineMissedStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(core::future::ready(()))
+    ) -> impl Future<Output = ()> + Send {
+        core::future::ready(())
     }
 
     /// Method that is called when any writer belonging to this publisher reports an offered incompatible qos status.
@@ -34,8 +33,8 @@ pub trait PublisherListener<R: DdsRuntime> {
         &mut self,
         _the_writer: DataWriterAsync<R, ()>,
         _status: OfferedIncompatibleQosStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(core::future::ready(()))
+    ) -> impl Future<Output = ()> + Send {
+        core::future::ready(())
     }
 
     /// Method that is called when any writer belonging to this publisher reports a publication matched status.
@@ -43,7 +42,7 @@ pub trait PublisherListener<R: DdsRuntime> {
         &mut self,
         _the_writer: DataWriterAsync<R, ()>,
         _status: PublicationMatchedStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(core::future::ready(()))
+    ) -> impl Future<Output = ()> + Send {
+        core::future::ready(())
     }
 }

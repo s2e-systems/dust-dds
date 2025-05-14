@@ -1,5 +1,3 @@
-use std::{future::Future, pin::Pin};
-
 use criterion::{criterion_group, criterion_main, Criterion};
 use dust_dds::{
     dcps::runtime::DdsRuntime,
@@ -134,18 +132,13 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
     struct Listener {
         sender: std::sync::mpsc::SyncSender<()>,
     }
-    impl<R: DdsRuntime> DataReaderListener<'_, R, KeyedData> for Listener {
-        fn on_data_available(
-            &mut self,
-            the_reader: DataReaderAsync<R, KeyedData>,
-        ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-            Box::pin(async move {
-                the_reader
-                    .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-                    .await
-                    .ok();
-                self.sender.send(()).unwrap();
-            })
+    impl<R: DdsRuntime> DataReaderListener<R, KeyedData> for Listener {
+        async fn on_data_available(&mut self, the_reader: DataReaderAsync<R, KeyedData>) {
+            the_reader
+                .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+                .await
+                .ok();
+            self.sender.send(()).unwrap();
         }
     }
 
@@ -226,18 +219,13 @@ fn best_effort_write_and_receive_frag(c: &mut Criterion) {
     struct Listener {
         sender: std::sync::mpsc::SyncSender<()>,
     }
-    impl<R: DdsRuntime> DataReaderListener<'_, R, LargeKeyedData> for Listener {
-        fn on_data_available(
-            &mut self,
-            the_reader: DataReaderAsync<R, LargeKeyedData>,
-        ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-            Box::pin(async move {
-                the_reader
-                    .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-                    .await
-                    .ok();
-                self.sender.send(()).unwrap();
-            })
+    impl<R: DdsRuntime> DataReaderListener<R, LargeKeyedData> for Listener {
+        async fn on_data_available(&mut self, the_reader: DataReaderAsync<R, LargeKeyedData>) {
+            the_reader
+                .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+                .await
+                .ok();
+            self.sender.send(()).unwrap();
         }
     }
 

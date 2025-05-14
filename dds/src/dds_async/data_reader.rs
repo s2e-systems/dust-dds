@@ -519,7 +519,7 @@ where
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn set_listener(
         &self,
-        a_listener: Option<impl DataReaderListener<'a, R, Foo> + Send + 'static>,
+        a_listener: Option<impl DataReaderListener<R, Foo> + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         let (reply_sender, mut reply_receiver) = R::oneshot();

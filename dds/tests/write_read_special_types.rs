@@ -136,9 +136,9 @@ fn foo_with_lifetime_with_listener_should_compile() {
         value: &'a [u8],
     }
     struct ReaderListener;
-    impl<'a, R: DdsRuntime> DataReaderListener<'a, R, BorrowedData<'a>> for ReaderListener {}
+    impl<'a, R: DdsRuntime> DataReaderListener<R, BorrowedData<'a>> for ReaderListener {}
     struct WriterListener;
-    impl<'a, R: DdsRuntime> DataWriterListener<'a, R, BorrowedData<'a>> for WriterListener {}
+    impl<'a, R: DdsRuntime> DataWriterListener<R, BorrowedData<'a>> for WriterListener {}
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let participant = DomainParticipantFactory::get_instance()
@@ -186,9 +186,9 @@ async fn async_foo_with_lifetime_with_listener_should_compile() {
         value: &'a [u8],
     }
     struct ReaderListener;
-    impl<'a, R: DdsRuntime> DataReaderListener<'a, R, BorrowedData<'a>> for ReaderListener {}
+    impl<'a, R: DdsRuntime> DataReaderListener<R, BorrowedData<'a>> for ReaderListener {}
     struct WriterListener;
-    impl<'a, R: DdsRuntime> DataWriterListener<'a, R, BorrowedData<'a>> for WriterListener {}
+    impl<'a, R: DdsRuntime> DataWriterListener<R, BorrowedData<'a>> for WriterListener {}
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let participant_factory = DomainParticipantFactoryAsync::get_instance();

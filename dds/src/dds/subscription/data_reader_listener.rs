@@ -6,17 +6,16 @@ use crate::{
         SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus,
     },
 };
-use alloc::boxed::Box;
-use core::{future::Future, pin::Pin};
+use core::future::Future;
 
 /// This trait represents a listener object which can be associated with the [`DataReader`] entity.
-pub trait DataReaderListener<'a, R: DdsRuntime, Foo>: 'static {
+pub trait DataReaderListener<R: DdsRuntime, Foo>: 'static {
     /// Method that is called when new data is received by the reader.
     fn on_data_available(
         &mut self,
         _the_reader: DataReaderAsync<R, Foo>,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(core::future::ready(()))
+    ) -> impl Future<Output = ()> + Send {
+        core::future::ready(())
     }
 
     /// Method that is called when this reader reports a sample rejected status.
@@ -24,16 +23,16 @@ pub trait DataReaderListener<'a, R: DdsRuntime, Foo>: 'static {
         &mut self,
         _the_reader: DataReaderAsync<R, Foo>,
         _status: SampleRejectedStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(core::future::ready(()))
+    ) -> impl Future<Output = ()> + Send {
+        core::future::ready(())
     }
     /// Method that is called when this reader reports a liveliness changed status.
     fn on_liveliness_changed(
         &mut self,
         _the_reader: DataReaderAsync<R, Foo>,
         _status: LivelinessChangedStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(core::future::ready(()))
+    ) -> impl Future<Output = ()> + Send {
+        core::future::ready(())
     }
 
     /// Method that is called when this reader reports a requested deadline missed status.
@@ -41,8 +40,8 @@ pub trait DataReaderListener<'a, R: DdsRuntime, Foo>: 'static {
         &mut self,
         _the_reader: DataReaderAsync<R, Foo>,
         _status: RequestedDeadlineMissedStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(core::future::ready(()))
+    ) -> impl Future<Output = ()> + Send {
+        core::future::ready(())
     }
 
     /// Method that is called when this reader reports a requested incompatible QoS status.
@@ -50,8 +49,8 @@ pub trait DataReaderListener<'a, R: DdsRuntime, Foo>: 'static {
         &mut self,
         _the_reader: DataReaderAsync<R, Foo>,
         _status: RequestedIncompatibleQosStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(core::future::ready(()))
+    ) -> impl Future<Output = ()> + Send {
+        core::future::ready(())
     }
 
     /// Method that is called when this reader reports a subscription matched status.
@@ -59,8 +58,8 @@ pub trait DataReaderListener<'a, R: DdsRuntime, Foo>: 'static {
         &mut self,
         _the_reader: DataReaderAsync<R, Foo>,
         _status: SubscriptionMatchedStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(core::future::ready(()))
+    ) -> impl Future<Output = ()> + Send {
+        core::future::ready(())
     }
 
     /// Method that is called when this reader reports a sample lost status.
@@ -68,7 +67,7 @@ pub trait DataReaderListener<'a, R: DdsRuntime, Foo>: 'static {
         &mut self,
         _the_reader: DataReaderAsync<R, Foo>,
         _status: SampleLostStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(core::future::ready(()))
+    ) -> impl Future<Output = ()> + Send {
+        core::future::ready(())
     }
 }

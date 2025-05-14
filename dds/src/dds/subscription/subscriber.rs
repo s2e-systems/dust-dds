@@ -58,16 +58,13 @@ impl<R: DdsRuntime> Subscriber<R> {
     /// 3. Combine those two qos policies using the [`Subscriber::copy_from_topic_qos`] and selectively modify policies as desired and
     /// use the resulting [`DataReaderQos`] to construct the [`DataReader`].
     #[tracing::instrument(skip(self, a_topic, a_listener))]
-    pub fn create_datareader<'a, Foo>(
+    pub fn create_datareader<Foo>(
         &self,
         a_topic: &Topic<R>,
         qos: QosKind<DataReaderQos>,
-        a_listener: Option<impl DataReaderListener<'a, R, Foo> + Send + 'static>,
+        a_listener: Option<impl DataReaderListener<R, Foo> + Send + 'static>,
         mask: &[StatusKind],
-    ) -> DdsResult<DataReader<R, Foo>>
-    where
-        Foo: 'a,
-    {
+    ) -> DdsResult<DataReader<R, Foo>> {
         R::block_on(self.subscriber_async.create_datareader::<Foo>(
             a_topic.topic_async(),
             qos,

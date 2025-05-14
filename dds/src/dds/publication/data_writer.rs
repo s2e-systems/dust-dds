@@ -429,7 +429,7 @@ where
     #[tracing::instrument(skip(self, a_listener))]
     pub fn set_listener(
         &self,
-        a_listener: Option<impl DataWriterListener<'a, R, Foo> + Send + 'static>,
+        a_listener: Option<impl DataWriterListener<R, Foo> + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         R::block_on(self.writer_async.set_listener(a_listener, mask))

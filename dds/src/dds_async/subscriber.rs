@@ -63,16 +63,13 @@ impl<R: DdsRuntime> SubscriberAsync<R> {
 impl<R: DdsRuntime> SubscriberAsync<R> {
     /// Async version of [`create_datareader`](crate::subscription::subscriber::Subscriber::create_datareader).
     #[tracing::instrument(skip(self, a_topic, a_listener))]
-    pub async fn create_datareader<'a, 'b, Foo>(
-        &'a self,
-        a_topic: &'a TopicAsync<R>,
+    pub async fn create_datareader<Foo>(
+        &self,
+        a_topic: &TopicAsync<R>,
         qos: QosKind<DataReaderQos>,
-        a_listener: Option<impl DataReaderListener<'b, R, Foo> + Send + 'static>,
-        mask: &'a [StatusKind],
-    ) -> DdsResult<DataReaderAsync<R, Foo>>
-    where
-        Foo: 'b,
-    {
+        a_listener: Option<impl DataReaderListener<R, Foo> + Send + 'static>,
+        mask: &[StatusKind],
+    ) -> DdsResult<DataReaderAsync<R, Foo>> {
         let status_condition = Actor::spawn(
             StatusConditionActor::default(),
             self.participant.spawner_handle(),

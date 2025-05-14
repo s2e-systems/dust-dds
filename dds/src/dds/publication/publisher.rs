@@ -55,16 +55,13 @@ impl<R: DdsRuntime> Publisher<R> {
     /// 3. Combine those two qos policies using the [`Publisher::copy_from_topic_qos`] and selectively modify policies as desired and
     /// use the resulting [`DataWriterQos`] to construct the [`DataWriter`].
     #[tracing::instrument(skip(self, a_topic, a_listener))]
-    pub fn create_datawriter<'a, Foo>(
+    pub fn create_datawriter<Foo>(
         &self,
         a_topic: &Topic<R>,
         qos: QosKind<DataWriterQos>,
-        a_listener: Option<impl DataWriterListener<'a, R, Foo> + Send + 'static>,
+        a_listener: Option<impl DataWriterListener<R, Foo> + Send + 'static>,
         mask: &[StatusKind],
-    ) -> DdsResult<DataWriter<R, Foo>>
-    where
-        Foo: 'a,
-    {
+    ) -> DdsResult<DataWriter<R, Foo>> {
         R::block_on(self.publisher_async.create_datawriter::<Foo>(
             a_topic.topic_async(),
             qos,

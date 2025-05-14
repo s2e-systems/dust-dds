@@ -8,13 +8,10 @@ use super::domain_participant_listener::ListenerMail;
 pub struct DataReaderListenerActor;
 
 impl DataReaderListenerActor {
-    pub fn spawn<'a, R: DdsRuntime, Foo>(
-        mut listener: impl DataReaderListener<'a, R, Foo> + Send + 'static,
+    pub fn spawn<R: DdsRuntime, Foo>(
+        mut listener: impl DataReaderListener<R, Foo> + Send + 'static,
         spawner_handle: &R::SpawnerHandle,
-    ) -> R::ChannelSender<ListenerMail<R>>
-    where
-        Foo: 'a,
-    {
+    ) -> R::ChannelSender<ListenerMail<R>> {
         let (listener_sender, mut listener_receiver) = R::channel();
         spawner_handle.spawn(async move {
             while let Some(m) = listener_receiver.receive().await {

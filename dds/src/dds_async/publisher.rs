@@ -56,16 +56,13 @@ impl<R: DdsRuntime> PublisherAsync<R> {
 impl<R: DdsRuntime> PublisherAsync<R> {
     /// Async version of [`create_datawriter`](crate::publication::publisher::Publisher::create_datawriter).
     #[tracing::instrument(skip(self, a_topic, a_listener))]
-    pub async fn create_datawriter<'a, 'b, Foo>(
-        &'a self,
-        a_topic: &'a TopicAsync<R>,
+    pub async fn create_datawriter<Foo>(
+        &self,
+        a_topic: &TopicAsync<R>,
         qos: QosKind<DataWriterQos>,
-        a_listener: Option<impl DataWriterListener<'b, R, Foo> + Send + 'static>,
-        mask: &'a [StatusKind],
-    ) -> DdsResult<DataWriterAsync<R, Foo>>
-    where
-        Foo: 'b,
-    {
+        a_listener: Option<impl DataWriterListener<R, Foo> + Send + 'static>,
+        mask: &[StatusKind],
+    ) -> DdsResult<DataWriterAsync<R, Foo>> {
         let topic_name = a_topic.get_name();
         let status_condition = Actor::spawn(
             StatusConditionActor::default(),

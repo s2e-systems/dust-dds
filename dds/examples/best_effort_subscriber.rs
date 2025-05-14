@@ -1,6 +1,4 @@
 use std::{
-    future::Future,
-    pin::Pin,
     sync::mpsc::{sync_channel, SyncSender},
     time::Duration,
 };
@@ -28,31 +26,24 @@ struct Listener {
     sender: SyncSender<()>,
 }
 
-impl<R: DdsRuntime> DataReaderListener<'_, R, BestEffortExampleType> for Listener {
-    fn on_data_available(
-        &mut self,
-        the_reader: DataReaderAsync<R, BestEffortExampleType>,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async move {
-            if let Ok(samples) = the_reader
-                .take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-                .await
-            {
-                let sample = samples[0].data().unwrap();
-                println!("Read sample: {:?}", sample);
-            }
-        })
+impl<R: DdsRuntime> DataReaderListener<R, BestEffortExampleType> for Listener {
+    async fn on_data_available(&mut self, the_reader: DataReaderAsync<R, BestEffortExampleType>) {
+        if let Ok(samples) = the_reader
+            .take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+            .await
+        {
+            let sample = samples[0].data().unwrap();
+            println!("Read sample: {:?}", sample);
+        }
     }
-    fn on_subscription_matched(
+    async fn on_subscription_matched(
         &mut self,
         _the_reader: DataReaderAsync<R, BestEffortExampleType>,
         status: dust_dds::infrastructure::status::SubscriptionMatchedStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async move {
-            if status.current_count == 0 {
-                self.sender.send(()).unwrap();
-            }
-        })
+    ) {
+        if status.current_count == 0 {
+            self.sender.send(()).unwrap();
+        }
     }
 }
 

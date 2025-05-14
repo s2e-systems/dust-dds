@@ -460,10 +460,7 @@ impl<R: DdsRuntime, Foo> DataReader<R, Foo> {
     }
 }
 
-impl<'a, R: DdsRuntime, Foo> DataReader<R, Foo>
-where
-    Foo: 'a,
-{
+impl<R: DdsRuntime, Foo> DataReader<R, Foo> {
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
     /// indicated by the specified mask. It is permitted to use [`None`] as the value of the listener. The [`None`] listener behaves
     /// as a Listener whose operations perform no action.
@@ -473,7 +470,7 @@ where
     #[tracing::instrument(skip(self, a_listener))]
     pub fn set_listener(
         &self,
-        a_listener: Option<impl DataReaderListener<'a, R, Foo> + Send + 'static>,
+        a_listener: Option<impl DataReaderListener<R, Foo> + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         R::block_on(self.reader_async.set_listener(a_listener, mask))
