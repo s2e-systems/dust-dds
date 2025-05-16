@@ -511,10 +511,7 @@ impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
     }
 }
 
-impl<'a, R: DdsRuntime, Foo> DataReaderAsync<R, Foo>
-where
-    Foo: 'a,
-{
+impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
     /// Async version of [`set_listener`](crate::subscription::data_reader::DataReader::set_listener).
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn set_listener(

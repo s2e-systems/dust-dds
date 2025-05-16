@@ -29,7 +29,7 @@ pub struct TopicAsync<R: DdsRuntime> {
 impl<R: DdsRuntime> Clone for TopicAsync<R> {
     fn clone(&self) -> Self {
         Self {
-            handle: self.handle.clone(),
+            handle: self.handle,
             status_condition_address: self.status_condition_address.clone(),
             type_name: self.type_name.clone(),
             topic_name: self.topic_name.clone(),

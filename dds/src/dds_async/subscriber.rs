@@ -35,7 +35,7 @@ pub struct SubscriberAsync<R: DdsRuntime> {
 impl<R: DdsRuntime> Clone for SubscriberAsync<R> {
     fn clone(&self) -> Self {
         Self {
-            handle: self.handle.clone(),
+            handle: self.handle,
             status_condition_address: self.status_condition_address.clone(),
             participant: self.participant.clone(),
         }

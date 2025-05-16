@@ -162,6 +162,12 @@ pub struct TimerDriver {
     _timer_thread_join_handle: JoinHandle<()>,
 }
 
+impl Default for TimerDriver {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TimerDriver {
     pub fn new() -> Self {
         let (periodic_task_sender, periodic_task_receiver) =

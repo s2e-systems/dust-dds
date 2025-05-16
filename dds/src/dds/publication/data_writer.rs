@@ -416,10 +416,7 @@ impl<R: DdsRuntime, Foo> DataWriter<R, Foo> {
     }
 }
 
-impl<'a, R: DdsRuntime, Foo> DataWriter<R, Foo>
-where
-    Foo: 'a,
-{
+impl<R: DdsRuntime, Foo> DataWriter<R, Foo> {
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
     /// indicated by the specified mask. It is permitted to use [`None`] as the value of the listener. The [`None`] listener behaves
     /// as a Listener whose operations perform no action.

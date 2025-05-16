@@ -93,6 +93,12 @@ pub struct Executor {
     executor_thread_handle: JoinHandle<()>,
 }
 
+impl Default for Executor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Executor {
     pub fn new() -> Self {
         let (task_sender, task_receiver) = channel::<Arc<Task>>();

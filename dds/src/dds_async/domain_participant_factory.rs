@@ -145,7 +145,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
                 reply_sender,
             })
             .await;
-        Ok(reply_receiver.receive().await?)
+        reply_receiver.receive().await
     }
 
     /// Async version of [`set_qos`](crate::domain::domain_participant_factory::DomainParticipantFactory::set_qos).
@@ -163,7 +163,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
         self.domain_participant_factory_actor
             .send_actor_mail(DomainParticipantFactoryMail::GetQos { reply_sender })
             .await;
-        Ok(reply_receiver.receive().await?)
+        reply_receiver.receive().await
     }
 
     /// Async version of [`set_configuration`](crate::domain::domain_participant_factory::DomainParticipantFactory::set_configuration).
@@ -180,7 +180,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
         self.domain_participant_factory_actor
             .send_actor_mail(DomainParticipantFactoryMail::GetConfiguration { reply_sender })
             .await;
-        Ok(reply_receiver.receive().await?)
+        reply_receiver.receive().await
     }
 
     /// Async version of [`set_transport`](crate::domain::domain_participant_factory::DomainParticipantFactory::set_transport).

@@ -259,7 +259,7 @@ impl<R: DdsRuntime> DataWriterEntity<R> {
                                 if let DurationKind::Finite(t) =
                                     self.qos.reliability.max_blocking_time
                                 {
-                                    if (clock.now() - start_time) > t.into() {
+                                    if (clock.now() - start_time) > t {
                                         return Err(DdsError::Timeout);
                                     }
                                 }

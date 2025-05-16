@@ -46,8 +46,8 @@ impl<R: DdsRuntime> Clone for DomainParticipantAsync<R> {
             builtin_subscriber_status_condition_address: self
                 .builtin_subscriber_status_condition_address
                 .clone(),
-            domain_id: self.domain_id.clone(),
-            handle: self.handle.clone(),
+            domain_id: self.domain_id,
+            handle: self.handle,
             spawner_handle: self.spawner_handle.clone(),
             clock_handle: self.clock_handle.clone(),
         }
@@ -568,7 +568,7 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
                 ParticipantServiceMail::GetCurrentTime { reply_sender },
             ))
             .await?;
-        Ok(reply_receiver.receive().await?)
+        reply_receiver.receive().await
     }
 }
 

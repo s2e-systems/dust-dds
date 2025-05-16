@@ -65,7 +65,7 @@ impl<R: DdsRuntime> WaitSetAsync<R> {
             ConditionAsync::StatusCondition(c) => c.clock_handle().clone(),
         };
         let start = clock_handle.now();
-        while clock_handle.now() - start < timeout.into() {
+        while clock_handle.now() - start < timeout {
             let mut finished = false;
             let mut trigger_conditions = Vec::new();
             for condition in &self.conditions {

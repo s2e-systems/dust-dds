@@ -49,7 +49,7 @@ impl<R: DdsRuntime> StatusConditionAsync<R> {
                 reply_sender,
             })
             .await?;
-        Ok(reply_receiver.receive().await?)
+        reply_receiver.receive().await
     }
 
     /// Async version of [`set_enabled_statuses`](crate::infrastructure::condition::StatusCondition::set_enabled_statuses).
@@ -78,6 +78,6 @@ impl<R: DdsRuntime> StatusConditionAsync<R> {
         self.address
             .send_actor_mail(StatusConditionMail::GetStatusConditionTriggerValue { reply_sender })
             .await?;
-        Ok(reply_receiver.receive().await?)
+        reply_receiver.receive().await
     }
 }

@@ -153,7 +153,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
         ]
     }
 
-    #[allow(clippy::type_complexity)]
+    #[allow(clippy::type_complexity, clippy::too_many_arguments)]
     pub async fn create_participant(
         &mut self,
         domain_id: DomainId,

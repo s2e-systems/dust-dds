@@ -518,6 +518,7 @@ where
         Ok(())
     }
 
+    #[allow(clippy::type_complexity)]
     pub fn find_topic(
         &mut self,
         topic_name: String,
@@ -580,6 +581,7 @@ where
         }
     }
 
+    #[allow(clippy::type_complexity)]
     pub fn lookup_topicdescription(
         &mut self,
         topic_name: String,
@@ -938,6 +940,7 @@ where
         Ok(())
     }
 
+    #[allow(clippy::type_complexity)]
     pub fn lookup_data_reader(
         &mut self,
         subscriber_handle: InstanceHandle,

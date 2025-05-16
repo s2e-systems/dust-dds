@@ -438,10 +438,7 @@ impl<R: DdsRuntime, Foo> DataWriterAsync<R, Foo> {
         self.handle
     }
 }
-impl<'a, R: DdsRuntime, Foo> DataWriterAsync<R, Foo>
-where
-    Foo: 'a,
-{
+impl<R: DdsRuntime, Foo> DataWriterAsync<R, Foo> {
     /// Async version of [`set_listener`](crate::publication::data_writer::DataWriter::set_listener).
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn set_listener(

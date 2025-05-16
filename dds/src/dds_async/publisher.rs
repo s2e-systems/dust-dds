@@ -34,7 +34,7 @@ pub struct PublisherAsync<R: DdsRuntime> {
 impl<R: DdsRuntime> Clone for PublisherAsync<R> {
     fn clone(&self) -> Self {
         Self {
-            handle: self.handle.clone(),
+            handle: self.handle,
             participant: self.participant.clone(),
         }
     }
