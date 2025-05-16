@@ -1,6 +1,7 @@
 use crate::{
     rtps::message_sender::Clock, runtime::executor::block_on, transport::types::LOCATOR_KIND_UDP_V6,
 };
+use async_lock::Mutex;
 use core::{
     future::Future,
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4},
@@ -33,7 +34,7 @@ use std::{
     net::{ToSocketAddrs, UdpSocket},
     sync::{
         mpsc::{channel, Sender},
-        Arc, Mutex,
+        Arc,
     },
 };
 
@@ -410,7 +411,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                                 for rtps_stateful_writer in &stateful_writer_list {
                                     rtps_stateful_writer
                                         .lock()
-                                        .expect("rtps_stateful_writer alive")
+                                        .await
                                         .write_message(
                                             message_writer.as_ref(),
                                             &RtpsUdpTransportClock,
@@ -442,7 +443,7 @@ async fn process_message(
     for stateful_reader in stateful_reader_list {
         stateful_reader
             .lock()
-            .expect("stateful_reader alive")
+            .await
             .process_message(datagram, message_writer)
             .await
             .ok();
@@ -450,7 +451,7 @@ async fn process_message(
     for stateful_writer in stateful_writer_list {
         stateful_writer
             .lock()
-            .expect("stateful_writer alive")
+            .await
             .process_message(datagram, message_writer, clock)
             .await
             .ok();
@@ -677,9 +678,13 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
                 cache_change: CacheChange,
             ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
                 self.rtps_writer.add_change(cache_change);
-                self.rtps_writer.write_message(self.message_writer.as_ref());
-                todo!()
-                // Box::pin(async {})
+                let message_writer = self.message_writer.clone();
+                block_on(async {
+                    self.rtps_writer
+                        .write_message(message_writer.as_ref())
+                        .await
+                });
+                Box::pin(async {})
             }
 
             fn remove_change(
@@ -712,22 +717,28 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
                 self.guid
             }
             fn is_historical_data_received(&self) -> bool {
-                self.rtps_stateful_reader
-                    .lock()
-                    .expect("rtps_stateful_reader is valid")
-                    .is_historical_data_received()
+                block_on(async {
+                    self.rtps_stateful_reader
+                        .lock()
+                        .await
+                        .is_historical_data_received()
+                })
             }
             fn add_matched_writer(&mut self, writer_proxy: WriterProxy) {
-                self.rtps_stateful_reader
-                    .lock()
-                    .expect("rtps_stateful_reader is valid")
-                    .add_matched_writer(&writer_proxy)
+                block_on(async {
+                    self.rtps_stateful_reader
+                        .lock()
+                        .await
+                        .add_matched_writer(&writer_proxy)
+                })
             }
             fn remove_matched_writer(&mut self, remote_writer_guid: Guid) {
-                self.rtps_stateful_reader
-                    .lock()
-                    .expect("rtps_stateful_reader is valid")
-                    .delete_matched_writer(remote_writer_guid)
+                block_on(async {
+                    self.rtps_stateful_reader
+                        .lock()
+                        .await
+                        .delete_matched_writer(remote_writer_guid)
+                })
             }
         }
 
@@ -766,10 +777,12 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
                 self
             }
             fn is_change_acknowledged(&self, sequence_number: i64) -> bool {
-                self.rtps_stateful_writer
-                    .lock()
-                    .expect("rtps_stateful_writer is valid")
-                    .is_change_acknowledged(sequence_number)
+                block_on(async {
+                    self.rtps_stateful_writer
+                        .lock()
+                        .await
+                        .is_change_acknowledged(sequence_number)
+                })
             }
             fn add_matched_reader(&mut self, mut reader_proxy: ReaderProxy) {
                 if reader_proxy.unicast_locator_list.is_empty() {
@@ -777,16 +790,20 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
                         .unicast_locator_list
                         .clone_from(&self.default_unicast_locator_list);
                 }
-                self.rtps_stateful_writer
-                    .lock()
-                    .expect("rtps_stateful_writer is valid")
-                    .add_matched_reader(&reader_proxy);
+                block_on(async {
+                    self.rtps_stateful_writer
+                        .lock()
+                        .await
+                        .add_matched_reader(&reader_proxy);
+                })
             }
             fn remove_matched_reader(&mut self, remote_reader_guid: Guid) {
-                self.rtps_stateful_writer
-                    .lock()
-                    .expect("rtps_stateful_writer is valid")
-                    .delete_matched_reader(remote_reader_guid);
+                block_on(async {
+                    self.rtps_stateful_writer
+                        .lock()
+                        .await
+                        .delete_matched_reader(remote_reader_guid);
+                })
             }
         }
         impl HistoryCache for StatefulWriter {
@@ -794,32 +811,29 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
                 &mut self,
                 cache_change: CacheChange,
             ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
-                self.rtps_stateful_writer
-                    .lock()
-                    .expect("rtps_stateful_writer is valid")
-                    .add_change(cache_change);
-                let stateful_writer = self.rtps_stateful_writer.clone();
+                let rtps_stateful_writer = self.rtps_stateful_writer.clone();
                 let message_writer = self.message_writer.clone();
-                todo!()
-                // Box::pin(async move {
-                //     poll
-                //     stateful_writer
-                //         .lock()
-                //         .expect("rtps_stateful_writer is valid")
-                //         .write_message(message_writer.as_ref(), &RtpsUdpTransportClock)
-                //         .await;
-                // })
+                Box::pin(async move {
+                    rtps_stateful_writer.lock().await.add_change(cache_change);
+                    rtps_stateful_writer
+                        .lock()
+                        .await
+                        .write_message(message_writer.as_ref(), &RtpsUdpTransportClock)
+                        .await;
+                })
             }
 
             fn remove_change(
                 &mut self,
                 sequence_number: i64,
             ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
-                self.rtps_stateful_writer
-                    .lock()
-                    .expect("rtps_stateful_writer is valid")
-                    .remove_change(sequence_number);
-                Box::pin(async {})
+                let rtps_stateful_writer = self.rtps_stateful_writer.clone();
+                Box::pin(async move {
+                    rtps_stateful_writer
+                        .lock()
+                        .await
+                        .remove_change(sequence_number);
+                })
             }
         }
 
