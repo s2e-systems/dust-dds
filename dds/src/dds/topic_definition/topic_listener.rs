@@ -2,8 +2,7 @@ use crate::{
     dcps::runtime::DdsRuntime, dds_async::topic::TopicAsync,
     infrastructure::status::InconsistentTopicStatus,
 };
-use alloc::boxed::Box;
-use core::{future::Future, pin::Pin};
+use core::future::Future;
 
 /// Listener associated with the [`Topic`] entity.
 pub trait TopicListener<R: DdsRuntime> {
@@ -12,7 +11,7 @@ pub trait TopicListener<R: DdsRuntime> {
         &mut self,
         _the_topic: TopicAsync<R>,
         _status: InconsistentTopicStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(core::future::ready(()))
+    ) -> impl Future<Output = ()> + Send {
+        core::future::ready(())
     }
 }

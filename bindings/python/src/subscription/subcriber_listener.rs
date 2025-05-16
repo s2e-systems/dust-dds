@@ -1,4 +1,4 @@
-use std::{future::Future, pin::Pin};
+use std::future::Future;
 
 use pyo3::prelude::*;
 
@@ -26,8 +26,8 @@ impl dust_dds::subscription::subscriber_listener::SubscriberListener<dust_dds::r
         the_subscriber: dust_dds::dds_async::subscriber::SubscriberAsync<
             dust_dds::runtime::StdRuntime,
         >,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async move {
+    )  {
+
             let args = (Subscriber::from(the_subscriber),);
             Python::with_gil(|py| {
                 self.0
@@ -44,8 +44,8 @@ impl dust_dds::subscription::subscriber_listener::SubscriberListener<dust_dds::r
             dust_dds::runtime::StdRuntime,
             (),
         >,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async move {
+    )  {
+
             let args = ((),);
             Python::with_gil(|py| {
                 self.0
@@ -63,8 +63,8 @@ impl dust_dds::subscription::subscriber_listener::SubscriberListener<dust_dds::r
             (),
         >,
         status: dust_dds::infrastructure::status::SampleRejectedStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async move {
+    )  {
+
             let args = ((), SampleRejectedStatus::from(status));
             Python::with_gil(|py| {
                 self.0
@@ -82,8 +82,8 @@ impl dust_dds::subscription::subscriber_listener::SubscriberListener<dust_dds::r
             (),
         >,
         status: dust_dds::infrastructure::status::LivelinessChangedStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async move {
+    )  {
+
             let args = ((), LivelinessChangedStatus::from(status));
             Python::with_gil(|py| {
                 self.0
@@ -101,8 +101,8 @@ impl dust_dds::subscription::subscriber_listener::SubscriberListener<dust_dds::r
             (),
         >,
         status: dust_dds::infrastructure::status::RequestedDeadlineMissedStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async move {
+    )  {
+
             let args = ((), RequestedDeadlineMissedStatus::from(status));
             Python::with_gil(|py| {
                 self.0
@@ -120,8 +120,8 @@ impl dust_dds::subscription::subscriber_listener::SubscriberListener<dust_dds::r
             (),
         >,
         status: dust_dds::infrastructure::status::RequestedIncompatibleQosStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async move {
+    )  {
+
             let args = ((), RequestedIncompatibleQosStatus::from(status));
             Python::with_gil(|py| {
                 self.0
@@ -139,8 +139,8 @@ impl dust_dds::subscription::subscriber_listener::SubscriberListener<dust_dds::r
             (),
         >,
         status: dust_dds::infrastructure::status::SubscriptionMatchedStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async move {
+    )  {
+
             let args = ((), SubscriptionMatchedStatus::from(status));
             Python::with_gil(|py| {
                 self.0
@@ -158,8 +158,8 @@ impl dust_dds::subscription::subscriber_listener::SubscriberListener<dust_dds::r
             (),
         >,
         status: dust_dds::infrastructure::status::SampleLostStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async move {
+    )  {
+
             let args = ((), SampleLostStatus::from(status));
             Python::with_gil(|py| {
                 self.0

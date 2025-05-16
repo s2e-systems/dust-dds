@@ -1,5 +1,3 @@
-use std::{future::Future, pin::Pin};
-
 use pyo3::prelude::*;
 
 use crate::{
@@ -23,156 +21,141 @@ impl From<Py<PyAny>> for DataReaderListener {
 
 impl
     dust_dds::subscription::data_reader_listener::DataReaderListener<
-        '_,
         dust_dds::runtime::StdRuntime,
         PythonDdsData,
     > for DataReaderListener
 {
-    fn on_data_available(
+    async fn on_data_available(
         &mut self,
         the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<
             dust_dds::runtime::StdRuntime,
             PythonDdsData,
         >,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async {
-            let reader = DataReader::from(the_reader);
-            let args = (reader,);
-            Python::with_gil(|py| {
-                self.0
-                    .bind(py)
-                    .call_method("on_data_available", args, None)
-                    .unwrap();
-            })
+    ) {
+        let reader = DataReader::from(the_reader);
+        let args = (reader,);
+        Python::with_gil(|py| {
+            self.0
+                .bind(py)
+                .call_method("on_data_available", args, None)
+                .unwrap();
         })
     }
 
-    fn on_sample_rejected(
+    async fn on_sample_rejected(
         &mut self,
         the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<
             dust_dds::runtime::StdRuntime,
             PythonDdsData,
         >,
         status: dust_dds::infrastructure::status::SampleRejectedStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async {
-            let args = (
-                DataReader::from(the_reader),
-                SampleRejectedStatus::from(status),
-            );
-            Python::with_gil(|py| {
-                self.0
-                    .bind(py)
-                    .call_method("on_sample_rejected", args, None)
-                    .unwrap();
-            })
+    ) {
+        let args = (
+            DataReader::from(the_reader),
+            SampleRejectedStatus::from(status),
+        );
+        Python::with_gil(|py| {
+            self.0
+                .bind(py)
+                .call_method("on_sample_rejected", args, None)
+                .unwrap();
         })
     }
 
-    fn on_liveliness_changed(
+    async fn on_liveliness_changed(
         &mut self,
         the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<
             dust_dds::runtime::StdRuntime,
             PythonDdsData,
         >,
         status: dust_dds::infrastructure::status::LivelinessChangedStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async {
-            let args = (
-                DataReader::from(the_reader),
-                LivelinessChangedStatus::from(status),
-            );
-            Python::with_gil(|py| {
-                self.0
-                    .bind(py)
-                    .call_method("on_liveliness_changed", args, None)
-                    .unwrap();
-            })
+    ) {
+        let args = (
+            DataReader::from(the_reader),
+            LivelinessChangedStatus::from(status),
+        );
+        Python::with_gil(|py| {
+            self.0
+                .bind(py)
+                .call_method("on_liveliness_changed", args, None)
+                .unwrap();
         })
     }
 
-    fn on_requested_deadline_missed(
+    async fn on_requested_deadline_missed(
         &mut self,
         the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<
             dust_dds::runtime::StdRuntime,
             PythonDdsData,
         >,
         status: dust_dds::infrastructure::status::RequestedDeadlineMissedStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async {
-            let args = (
-                DataReader::from(the_reader),
-                RequestedDeadlineMissedStatus::from(status),
-            );
-            Python::with_gil(|py| {
-                self.0
-                    .bind(py)
-                    .call_method("on_requested_deadline_missed", args, None)
-                    .unwrap();
-            })
+    ) {
+        let args = (
+            DataReader::from(the_reader),
+            RequestedDeadlineMissedStatus::from(status),
+        );
+        Python::with_gil(|py| {
+            self.0
+                .bind(py)
+                .call_method("on_requested_deadline_missed", args, None)
+                .unwrap();
         })
     }
 
-    fn on_requested_incompatible_qos(
+    async fn on_requested_incompatible_qos(
         &mut self,
         the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<
             dust_dds::runtime::StdRuntime,
             PythonDdsData,
         >,
         status: dust_dds::infrastructure::status::RequestedIncompatibleQosStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async {
-            let args = (
-                DataReader::from(the_reader),
-                RequestedIncompatibleQosStatus::from(status),
-            );
-            Python::with_gil(|py| {
-                self.0
-                    .bind(py)
-                    .call_method("on_requested_incompatible_qos", args, None)
-                    .unwrap();
-            })
+    ) {
+        let args = (
+            DataReader::from(the_reader),
+            RequestedIncompatibleQosStatus::from(status),
+        );
+        Python::with_gil(|py| {
+            self.0
+                .bind(py)
+                .call_method("on_requested_incompatible_qos", args, None)
+                .unwrap();
         })
     }
 
-    fn on_subscription_matched(
+    async fn on_subscription_matched(
         &mut self,
         the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<
             dust_dds::runtime::StdRuntime,
             PythonDdsData,
         >,
         status: dust_dds::infrastructure::status::SubscriptionMatchedStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async {
-            let args = (
-                DataReader::from(the_reader),
-                SubscriptionMatchedStatus::from(status),
-            );
-            Python::with_gil(|py| {
-                self.0
-                    .bind(py)
-                    .call_method("on_subscription_matched", args, None)
-                    .unwrap();
-            })
+    ) {
+        let args = (
+            DataReader::from(the_reader),
+            SubscriptionMatchedStatus::from(status),
+        );
+        Python::with_gil(|py| {
+            self.0
+                .bind(py)
+                .call_method("on_subscription_matched", args, None)
+                .unwrap();
         })
     }
 
-    fn on_sample_lost(
+    async fn on_sample_lost(
         &mut self,
         the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<
             dust_dds::runtime::StdRuntime,
             PythonDdsData,
         >,
         status: dust_dds::infrastructure::status::SampleLostStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async {
-            let args = (DataReader::from(the_reader), SampleLostStatus::from(status));
-            Python::with_gil(|py| {
-                self.0
-                    .bind(py)
-                    .call_method("on_sample_lost", args, None)
-                    .unwrap();
-            })
+    ) {
+        let args = (DataReader::from(the_reader), SampleLostStatus::from(status));
+        Python::with_gil(|py| {
+            self.0
+                .bind(py)
+                .call_method("on_sample_lost", args, None)
+                .unwrap();
         })
     }
 }
