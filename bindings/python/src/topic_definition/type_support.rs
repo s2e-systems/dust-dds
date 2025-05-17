@@ -1,7 +1,9 @@
 use crate::xtypes::endianness::{self, CDR_LE, REPRESENTATION_OPTIONS};
 use dust_dds::{
-    infrastructure::error::DdsResult,
-    topic_definition::type_support::{DdsDeserialize, DdsSerialize},
+    infrastructure::{
+        error::DdsResult,
+        type_support::{DdsDeserialize, DdsSerialize},
+    },
     xtypes::{
         deserializer::XTypesDeserializer, error::XTypesError, serializer::XTypesSerializer,
         xcdr_deserializer::Xcdr1BeDeserializer, xcdr_deserializer::Xcdr1LeDeserializer,

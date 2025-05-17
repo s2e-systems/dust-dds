@@ -1,4 +1,6 @@
-use alloc::sync::Arc;
+use core::{future::Future, pin::Pin};
+
+use alloc::{boxed::Box, sync::Arc};
 
 use super::types::{ChangeKind, Guid, Time};
 
@@ -31,7 +33,8 @@ impl CacheChange {
 }
 
 pub trait HistoryCache: Send {
-    fn add_change(&mut self, cache_change: CacheChange);
+    fn add_change(&mut self, cache_change: CacheChange)
+        -> Pin<Box<dyn Future<Output = ()> + Send>>;
 
-    fn remove_change(&mut self, sequence_number: i64);
+    fn remove_change(&mut self, sequence_number: i64) -> Pin<Box<dyn Future<Output = ()> + Send>>;
 }

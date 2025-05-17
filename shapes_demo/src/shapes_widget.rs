@@ -1,5 +1,5 @@
 use super::app::shapes_type::ShapeType;
-use dust_dds::subscription::sample_info::InstanceStateKind;
+use dust_dds::infrastructure::sample_info::InstanceStateKind;
 use eframe::egui::{self, epaint};
 
 const PURPLE: egui::Color32 = egui::Color32::from_rgb(128, 0, 128);

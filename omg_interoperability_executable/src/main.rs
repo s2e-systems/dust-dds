@@ -1,6 +1,7 @@
 use clap::Parser;
 use ctrlc;
 use dust_dds::{
+    dcps::runtime::DdsRuntime,
     dds_async::topic::TopicAsync,
     domain::{
         domain_participant::DomainParticipant,
@@ -9,7 +10,6 @@ use dust_dds::{
     },
     infrastructure::{
         error::DdsError,
-        listener::NoOpListener,
         qos::{DataReaderQos, DataWriterQos, PublisherQos, QosKind, SubscriberQos},
         qos_policy::{
             self, DataRepresentationQosPolicy, DurabilityQosPolicy, HistoryQosPolicy,
@@ -17,21 +17,19 @@ use dust_dds::{
             OwnershipStrengthQosPolicy, PartitionQosPolicy, ReliabilityQosPolicy,
             XCDR2_DATA_REPRESENTATION, XCDR_DATA_REPRESENTATION,
         },
+        sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         status::{InconsistentTopicStatus, StatusKind, NO_STATUS},
         time::{Duration, DurationKind},
     },
+    listener::NO_LISTENER,
     publication::data_writer::DataWriter,
-    subscription::{
-        data_reader::DataReader,
-        sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-    },
+    runtime::StdRuntime,
+    subscription::data_reader::DataReader,
 };
 use rand::{random, thread_rng, Rng};
 use std::{
     fmt::Debug,
-    future::Future,
     io::Write,
-    pin::Pin,
     process::{ExitCode, Termination},
     sync::mpsc::Receiver,
 };
@@ -253,157 +251,139 @@ impl Options {
 }
 
 struct Listener;
-impl DomainParticipantListener for Listener {
-    fn on_inconsistent_topic(
+impl<R: DdsRuntime> DomainParticipantListener<R> for Listener {
+    async fn on_inconsistent_topic(
         &mut self,
-        the_topic: TopicAsync,
+        the_topic: TopicAsync<R>,
         _status: InconsistentTopicStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async move {
-            println!(
-                "on_inconsistent_topic() topic: '{}'  type: '{}'",
-                the_topic.get_name(),
-                the_topic.get_type_name(),
-            );
-        })
+    ) {
+        println!(
+            "on_inconsistent_topic() topic: '{}'  type: '{}'",
+            the_topic.get_name(),
+            the_topic.get_type_name(),
+        );
     }
 
-    fn on_offered_incompatible_qos(
+    async fn on_offered_incompatible_qos(
         &mut self,
-        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<()>,
+        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<R, ()>,
         status: dust_dds::infrastructure::status::OfferedIncompatibleQosStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async move {
-            let policy_name = qos_policy_name(status.last_policy_id);
-            println!(
-                "on_offered_incompatible_qos() topic: '{}'  type: '{}' : {:?} ({})",
-                the_writer.get_topic().get_name(),
-                the_writer.get_topic().get_type_name(),
-                status.last_policy_id,
-                policy_name
-            );
-        })
+    ) {
+        let policy_name = qos_policy_name(status.last_policy_id);
+        println!(
+            "on_offered_incompatible_qos() topic: '{}'  type: '{}' : {:?} ({})",
+            the_writer.get_topic().get_name(),
+            the_writer.get_topic().get_type_name(),
+            status.last_policy_id,
+            policy_name
+        );
     }
 
-    fn on_publication_matched(
+    async fn on_publication_matched(
         &mut self,
-        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<()>,
+        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<R, ()>,
         status: dust_dds::infrastructure::status::PublicationMatchedStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async move {
-            if !the_writer.get_topic().get_name().starts_with("DCPS") {
-                println!(
+    ) {
+        if !the_writer.get_topic().get_name().starts_with("DCPS") {
+            println!(
             "on_publication_matched() topic: '{}'  type: '{}' : matched readers {} (change = {})",
             the_writer.get_topic().get_name(),
             the_writer.get_topic().get_type_name(),
             status.current_count,
             status.current_count_change
         );
-            }
-        })
+        }
     }
 
-    fn on_offered_deadline_missed(
+    async fn on_offered_deadline_missed(
         &mut self,
-        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<()>,
+        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<R, ()>,
         status: dust_dds::infrastructure::status::OfferedDeadlineMissedStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async move {
-            println!(
-                "on_offered_deadline_missed() topic: '{}'  type: '{}' : (total = {}, change = {})",
-                the_writer.get_topic().get_name(),
-                the_writer.get_topic().get_type_name(),
-                status.total_count,
-                status.total_count_change
-            );
-        })
+    ) {
+        println!(
+            "on_offered_deadline_missed() topic: '{}'  type: '{}' : (total = {}, change = {})",
+            the_writer.get_topic().get_name(),
+            the_writer.get_topic().get_type_name(),
+            status.total_count,
+            status.total_count_change
+        );
     }
 
-    fn on_liveliness_lost(
+    async fn on_liveliness_lost(
         &mut self,
-        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<()>,
+        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<R, ()>,
         status: dust_dds::infrastructure::status::LivelinessLostStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async move {
-            println!(
-                "on_liveliness_lost() topic: '{}'  type: '{}' : (total = {}, change = {})",
-                the_writer.get_topic().get_name(),
-                the_writer.get_topic().get_type_name(),
-                status.total_count,
-                status.total_count_change
-            );
-        })
+    ) {
+        println!(
+            "on_liveliness_lost() topic: '{}'  type: '{}' : (total = {}, change = {})",
+            the_writer.get_topic().get_name(),
+            the_writer.get_topic().get_type_name(),
+            status.total_count,
+            status.total_count_change
+        );
     }
 
-    fn on_requested_incompatible_qos(
+    async fn on_requested_incompatible_qos(
         &mut self,
-        the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<()>,
+        the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<R, ()>,
         status: dust_dds::infrastructure::status::RequestedIncompatibleQosStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async move {
-            let policy_name = qos_policy_name(status.last_policy_id);
-            println!(
-                "on_requested_incompatible_qos() topic: '{}'  type: '{}' : {} ({})\n",
-                the_reader.get_topicdescription().get_name(),
-                the_reader.get_topicdescription().get_type_name(),
-                status.last_policy_id,
-                policy_name
-            );
-        })
+    ) {
+        let policy_name = qos_policy_name(status.last_policy_id);
+        println!(
+            "on_requested_incompatible_qos() topic: '{}'  type: '{}' : {} ({})\n",
+            the_reader.get_topicdescription().get_name(),
+            the_reader.get_topicdescription().get_type_name(),
+            status.last_policy_id,
+            policy_name
+        );
     }
 
-    fn on_subscription_matched(
+    async fn on_subscription_matched(
         &mut self,
-        the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<()>,
+        the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<R, ()>,
         status: dust_dds::infrastructure::status::SubscriptionMatchedStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async move {
-            if !the_reader
-                .get_topicdescription()
-                .get_name()
-                .starts_with("DCPS")
-            {
-                println!(
+    ) {
+        if !the_reader
+            .get_topicdescription()
+            .get_name()
+            .starts_with("DCPS")
+        {
+            println!(
             "on_subscription_matched() topic: '{}'  type: '{}' : matched writers {} (change = {})",
             the_reader.get_topicdescription().get_name(),
             the_reader.get_topicdescription().get_type_name(),
             status.current_count,
             status.current_count_change
         );
-            }
-        })
+        }
     }
 
-    fn on_requested_deadline_missed(
+    async fn on_requested_deadline_missed(
         &mut self,
-        the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<()>,
+        the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<R, ()>,
         status: dust_dds::infrastructure::status::RequestedDeadlineMissedStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async move {
-            println!(
+    ) {
+        println!(
             "on_requested_deadline_missed() topic: '{}'  type: '{}' : (total = {}, change = {})\n",
             the_reader.get_topicdescription().get_name(),
             the_reader.get_topicdescription().get_type_name(),
             status.total_count,
             status.total_count_change
         );
-        })
     }
 
-    fn on_liveliness_changed(
+    async fn on_liveliness_changed(
         &mut self,
-        the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<()>,
+        the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<R, ()>,
         status: dust_dds::infrastructure::status::LivelinessChangedStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async move {
-            println!(
-                "on_liveliness_changed() topic: '{}'  type: '{}' : (alive = {}, not_alive = {})",
-                the_reader.get_topicdescription().get_name(),
-                the_reader.get_topicdescription().get_type_name(),
-                status.alive_count,
-                status.not_alive_count,
-            );
-        })
+    ) {
+        println!(
+            "on_liveliness_changed() topic: '{}'  type: '{}' : (alive = {}, not_alive = {})",
+            the_reader.get_topicdescription().get_name(),
+            the_reader.get_topicdescription().get_type_name(),
+            status.alive_count,
+            status.not_alive_count,
+        );
     }
 }
 
@@ -435,9 +415,9 @@ fn move_shape(
 }
 
 fn init_publisher(
-    participant: &DomainParticipant,
+    participant: &DomainParticipant<StdRuntime>,
     options: Options,
-) -> Result<DataWriter<ShapeType>, InitializeError> {
+) -> Result<DataWriter<StdRuntime, ShapeType>, InitializeError> {
     let topic = participant
         .lookup_topicdescription(&options.topic_name)
         .expect("lookup_topicdescription succeeds")
@@ -446,7 +426,7 @@ fn init_publisher(
         partition: options.partition_qos_policy(),
         ..Default::default()
     });
-    let publisher = participant.create_publisher(publisher_qos, NoOpListener, NO_STATUS)?;
+    let publisher = participant.create_publisher(publisher_qos, NO_LISTENER, NO_STATUS)?;
     println!(
         "Create writer for topic: {} color: {}",
         options.topic_name,
@@ -472,7 +452,7 @@ fn init_publisher(
     let data_writer = publisher.create_datawriter::<ShapeType>(
         &topic,
         QosKind::Specific(data_writer_qos),
-        NoOpListener,
+        NO_LISTENER,
         NO_STATUS,
     )?;
 
@@ -480,7 +460,7 @@ fn init_publisher(
 }
 
 fn run_publisher(
-    data_writer: &DataWriter<ShapeType>,
+    data_writer: &DataWriter<StdRuntime, ShapeType>,
     options: Options,
     all_done: Receiver<()>,
 ) -> Result<(), RunningError> {
@@ -532,9 +512,9 @@ fn run_publisher(
 }
 
 fn init_subscriber(
-    participant: &DomainParticipant,
+    participant: &DomainParticipant<StdRuntime>,
     options: Options,
-) -> Result<DataReader<ShapeType>, InitializeError> {
+) -> Result<DataReader<StdRuntime, ShapeType>, InitializeError> {
     let topic = participant
         .lookup_topicdescription(&options.topic_name)
         .expect("lookup_topicdescription succeeds")
@@ -543,7 +523,7 @@ fn init_subscriber(
         partition: options.partition_qos_policy(),
         ..Default::default()
     });
-    let subscriber = participant.create_subscriber(subscriber_qos, NoOpListener, NO_STATUS)?;
+    let subscriber = participant.create_subscriber(subscriber_qos, NO_LISTENER, NO_STATUS)?;
 
     let mut data_reader_qos = DataReaderQos {
         durability: options.durability_qos_policy(),
@@ -572,7 +552,7 @@ fn init_subscriber(
             subscriber.create_datareader::<ShapeType>(
                 &topic,
                 QosKind::Specific(data_reader_qos),
-                NoOpListener,
+                NO_LISTENER,
                 NO_STATUS,
             )?
         }
@@ -582,7 +562,7 @@ fn init_subscriber(
             subscriber.create_datareader::<ShapeType>(
                 &topic,
                 QosKind::Specific(data_reader_qos),
-                NoOpListener,
+                NO_LISTENER,
                 NO_STATUS,
             )?
         }
@@ -592,7 +572,7 @@ fn init_subscriber(
 }
 
 fn run_subscriber(
-    data_reader: &DataReader<ShapeType>,
+    data_reader: &DataReader<StdRuntime, ShapeType>,
     options: Options,
     all_done: Receiver<()>,
 ) -> Result<(), RunningError> {
@@ -646,12 +626,12 @@ fn run_subscriber(
     Ok(())
 }
 
-fn initialize(options: &Options) -> Result<DomainParticipant, InitializeError> {
+fn initialize(options: &Options) -> Result<DomainParticipant<StdRuntime>, InitializeError> {
     let participant_factory = DomainParticipantFactory::get_instance();
     let participant = participant_factory.create_participant(
         options.domain_id,
         QosKind::Default,
-        Listener,
+        Some(Listener),
         &[
             StatusKind::InconsistentTopic,
             StatusKind::OfferedIncompatibleQos,
@@ -669,7 +649,7 @@ fn initialize(options: &Options) -> Result<DomainParticipant, InitializeError> {
         &options.topic_name,
         "ShapeType",
         QosKind::Default,
-        NoOpListener,
+        NO_LISTENER,
         NO_STATUS,
     )?;
 

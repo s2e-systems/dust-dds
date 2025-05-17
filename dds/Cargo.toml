@@ -18,13 +18,14 @@ categories = ["api-bindings", "network-programming"]
 [dependencies]
 dust_dds_derive = { version = "0.13", path = "../dds_derive" }
 
-md5 = { version = "0.7.0", optional = true } # Chose this crate over other possibilities since it doesn't have any other dependencies
+md5 = { version = "0.7.0", default-features = false, optional = true } # Chose this crate over other possibilities since it doesn't have any other dependencies
 
 socket2 = { version = "0.5", features = ["all"], optional = true }
 network-interface = { version = "1.1.1", optional = true }
 
 fnmatch-regex = { version = "=0.2.0", optional = true }
-tracing = { version = "0.1", optional = true }
+tracing = { version = "0.1", default-features = false, features = ["attributes"], optional = true }
+async-lock = { version = "3.4.0", optional = true }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt", "macros"] }
@@ -32,14 +33,15 @@ criterion = { version = "0.3", features = ["html_reports"] }
 tracing-subscriber = "0.3"
 
 [features]
-default = ["rtps", "rtps_udp_transport", "std"]
-rtps_udp_transport = ["rtps", "dep:socket2", "dep:network-interface"]
+default = ["dcps", "rtps", "rtps_udp_transport", "std"]
+dcps = ["xtypes", "transport", "dep:md5", "dep:tracing"]
+rtps_udp_transport = ["rtps", "dep:socket2", "dep:network-interface", "dep:async-lock"]
 rtps = ["rtps_messages"]
 rtps_messages = ["transport"]
 transport = ["xtypes"]
 xtypes = []
 
-std = ["dep:md5", "dep:fnmatch-regex", "dep:tracing"]
+std = ["dep:fnmatch-regex"]
 
 
 [[bench]]

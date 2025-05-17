@@ -3,16 +3,17 @@ use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         error::DdsError,
-        listener::NoOpListener,
         qos::{DataWriterQos, QosKind},
         qos_policy::{
             DurabilityQosPolicy, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
             ReliabilityQosPolicy, ReliabilityQosPolicyKind,
         },
+        sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         status::{StatusKind, NO_STATUS},
         time::{Duration, DurationKind},
-        wait_set::{Condition, WaitSet},
+        type_support::{DdsDeserialize, DdsType},
     },
+    listener::NO_LISTENER,
     rtps::types::{PROTOCOLVERSION, VENDOR_ID_S2E},
     rtps_messages::{
         overall_structure::{
@@ -21,11 +22,10 @@ use dust_dds::{
         submessage_elements::{Data, ParameterList, SequenceNumberSet},
         submessages::{ack_nack::AckNackSubmessage, data::DataSubmessage},
     },
-    subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-    topic_definition::type_support::{DdsDeserialize, DdsType},
     transport::types::{
         EntityId, BUILT_IN_READER_WITH_KEY, BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_WITH_KEY,
     },
+    wait_set::{Condition, WaitSet},
 };
 use std::io::Read;
 
@@ -115,7 +115,7 @@ fn writer_should_send_heartbeat_periodically() {
     let reader_socket_port = mock_reader_socket.local_addr().unwrap().port();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
     let builtin_subscriber = participant.get_builtin_subscriber();
@@ -127,13 +127,13 @@ fn writer_should_send_heartbeat_periodically() {
             topic_name,
             type_name,
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -146,7 +146,7 @@ fn writer_should_send_heartbeat_periodically() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
@@ -301,7 +301,7 @@ fn writer_should_not_send_heartbeat_after_acknack() {
     let reader_socket_port = mock_reader_socket.local_addr().unwrap().port();
     println!("Socket open on port {}", reader_socket_port);
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
     let builtin_subscriber = participant.get_builtin_subscriber();
@@ -313,13 +313,13 @@ fn writer_should_not_send_heartbeat_after_acknack() {
             topic_name,
             type_name,
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -332,7 +332,7 @@ fn writer_should_not_send_heartbeat_after_acknack() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
@@ -507,7 +507,7 @@ fn writer_should_resend_data_after_acknack_request() {
     println!("Socket open on port {}", reader_socket_port);
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
     let builtin_subscriber = participant.get_builtin_subscriber();
@@ -519,13 +519,13 @@ fn writer_should_resend_data_after_acknack_request() {
             topic_name,
             type_name,
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -538,7 +538,7 @@ fn writer_should_resend_data_after_acknack_request() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
@@ -720,7 +720,7 @@ fn volatile_writer_should_send_gap_submessage_after_discovery() {
     println!("Socket open on port {}", reader_socket_port);
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
     let builtin_subscriber = participant.get_builtin_subscriber();
@@ -732,13 +732,13 @@ fn volatile_writer_should_send_gap_submessage_after_discovery() {
             topic_name,
             type_name,
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -751,7 +751,7 @@ fn volatile_writer_should_send_gap_submessage_after_discovery() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
@@ -903,7 +903,7 @@ fn transient_local_writer_should_send_data_submessage_after_discovery() {
     println!("Socket open on port {}", reader_socket_port);
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
     let builtin_subscriber = participant.get_builtin_subscriber();
@@ -915,13 +915,13 @@ fn transient_local_writer_should_send_data_submessage_after_discovery() {
             topic_name,
             type_name,
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -937,7 +937,7 @@ fn transient_local_writer_should_send_data_submessage_after_discovery() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
@@ -1095,7 +1095,7 @@ fn reliable_writer_should_not_remove_unacked_sample_from_history() {
     println!("Socket open on port {}", reader_socket_port);
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
     let builtin_subscriber = participant.get_builtin_subscriber();
@@ -1107,13 +1107,13 @@ fn reliable_writer_should_not_remove_unacked_sample_from_history() {
             topic_name,
             type_name,
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -1129,7 +1129,7 @@ fn reliable_writer_should_not_remove_unacked_sample_from_history() {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();

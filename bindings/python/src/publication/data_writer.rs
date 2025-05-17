@@ -1,4 +1,3 @@
-use dust_dds::infrastructure::listener::NoOpListener;
 use pyo3::prelude::*;
 
 use crate::{
@@ -20,22 +19,58 @@ use crate::{
 use super::{data_writer_listener::DataWriterListener, publisher::Publisher};
 
 #[pyclass]
-pub struct DataWriter(dust_dds::publication::data_writer::DataWriter<PythonDdsData>);
+pub struct DataWriter(
+    dust_dds::publication::data_writer::DataWriter<dust_dds::runtime::StdRuntime, PythonDdsData>,
+);
 
-impl From<dust_dds::publication::data_writer::DataWriter<PythonDdsData>> for DataWriter {
-    fn from(value: dust_dds::publication::data_writer::DataWriter<PythonDdsData>) -> Self {
+impl
+    From<
+        dust_dds::publication::data_writer::DataWriter<
+            dust_dds::runtime::StdRuntime,
+            PythonDdsData,
+        >,
+    > for DataWriter
+{
+    fn from(
+        value: dust_dds::publication::data_writer::DataWriter<
+            dust_dds::runtime::StdRuntime,
+            PythonDdsData,
+        >,
+    ) -> Self {
         Self(value)
     }
 }
 
-impl From<dust_dds::dds_async::data_writer::DataWriterAsync<PythonDdsData>> for DataWriter {
-    fn from(value: dust_dds::dds_async::data_writer::DataWriterAsync<PythonDdsData>) -> Self {
+impl
+    From<
+        dust_dds::dds_async::data_writer::DataWriterAsync<
+            dust_dds::runtime::StdRuntime,
+            PythonDdsData,
+        >,
+    > for DataWriter
+{
+    fn from(
+        value: dust_dds::dds_async::data_writer::DataWriterAsync<
+            dust_dds::runtime::StdRuntime,
+            PythonDdsData,
+        >,
+    ) -> Self {
         Self(dust_dds::publication::data_writer::DataWriter::from(value))
     }
 }
 
-impl AsRef<dust_dds::publication::data_writer::DataWriter<PythonDdsData>> for DataWriter {
-    fn as_ref(&self) -> &dust_dds::publication::data_writer::DataWriter<PythonDdsData> {
+impl
+    AsRef<
+        dust_dds::publication::data_writer::DataWriter<
+            dust_dds::runtime::StdRuntime,
+            PythonDdsData,
+        >,
+    > for DataWriter
+{
+    fn as_ref(
+        &self,
+    ) -> &dust_dds::publication::data_writer::DataWriter<dust_dds::runtime::StdRuntime, PythonDdsData>
+    {
         &self.0
     }
 }
@@ -248,15 +283,12 @@ impl DataWriter {
         a_listener: Option<Py<PyAny>>,
         mask: Vec<StatusKind>,
     ) -> PyResult<()> {
+        let listener = a_listener.map(DataWriterListener::from);
         let mask: Vec<dust_dds::infrastructure::status::StatusKind> = mask
             .into_iter()
             .map(dust_dds::infrastructure::status::StatusKind::from)
             .collect();
-        match a_listener {
-            Some(l) => self.0.set_listener(DataWriterListener::from(l), &mask),
-            None => self.0.set_listener(NoOpListener, &mask),
-        }
-        .map_err(into_pyerr)
+        self.0.set_listener(listener, &mask).map_err(into_pyerr)
     }
 
     pub fn get_statuscondition(&self) -> StatusCondition {

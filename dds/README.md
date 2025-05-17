@@ -31,8 +31,8 @@ A basic example on how to use Dust DDS. The publisher side can be implemented as
 ```rust
     use dust_dds::{
         domain::domain_participant_factory::DomainParticipantFactory,
-        infrastructure::{listener::NoOpListener, qos::QosKind, status::NO_STATUS},
-        topic_definition::type_support::DdsType,
+        listener::NO_LISTENER,
+        infrastructure::{qos::QosKind, status::NO_STATUS, type_support::DdsType},
     };
 
     #[derive(DdsType)]
@@ -46,19 +46,19 @@ A basic example on how to use Dust DDS. The publisher side can be implemented as
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
     let topic = participant
-        .create_topic::<HelloWorldType>("HelloWorld", "HelloWorldType", QosKind::Default, NoOpListener, NO_STATUS)
+        .create_topic::<HelloWorldType>("HelloWorld", "HelloWorldType", QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
     let writer = publisher
-        .create_datawriter::<HelloWorldType>(&topic, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_datawriter::<HelloWorldType>(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
     let hello_world = HelloWorldType {
@@ -73,9 +73,8 @@ The subscriber side can be implemented as:
 ```rust
     use dust_dds::{
         domain::domain_participant_factory::DomainParticipantFactory,
-        infrastructure::{listener::NoOpListener, qos::QosKind, status::NO_STATUS},
-        subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-        topic_definition::type_support::DdsType,
+        listener::NO_LISTENER,
+        infrastructure::{qos::QosKind, sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE}, status::NO_STATUS, type_support::DdsType},
     };
 
     #[derive(Debug, DdsType)]
@@ -89,19 +88,19 @@ The subscriber side can be implemented as:
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
     let topic = participant
-        .create_topic::<HelloWorldType>("HelloWorld", "HelloWorldType", QosKind::Default, NoOpListener, NO_STATUS)
+        .create_topic::<HelloWorldType>("HelloWorld", "HelloWorldType", QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
     let reader = subscriber
-        .create_datareader::<HelloWorldType>(&topic, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_datareader::<HelloWorldType>(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
     let samples = reader
@@ -118,7 +117,7 @@ If using only Rust, you can make use of the procedural macros to enable a type t
 using Dust DDS. The key fields can also be defined as part of the macro.
 
 ```rust
-use dust_dds::topic_definition::type_support::DdsType;
+use dust_dds::infrastructure::type_support::DdsType;
 
 #[derive(DdsType)]
 struct HelloWorldType {

@@ -1,23 +1,20 @@
 use std::{
-    future::Future,
-    pin::Pin,
     sync::mpsc::{sync_channel, SyncSender},
     time::Duration,
 };
 
 use dust_dds::{
+    dcps::runtime::DdsRuntime,
     dds_async::data_reader::DataReaderAsync,
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
-        listener::NoOpListener,
         qos::QosKind,
-        status::{StatusKind, NO_STATUS},
-    },
-    subscription::{
-        data_reader_listener::DataReaderListener,
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
+        status::{StatusKind, NO_STATUS},
+        type_support::DdsType,
     },
-    topic_definition::type_support::DdsType,
+    listener::NO_LISTENER,
+    subscription::data_reader_listener::DataReaderListener,
 };
 
 #[derive(DdsType, Debug)]
@@ -29,31 +26,24 @@ struct Listener {
     sender: SyncSender<()>,
 }
 
-impl DataReaderListener<'_, BestEffortExampleType> for Listener {
-    fn on_data_available(
-        &mut self,
-        the_reader: DataReaderAsync<BestEffortExampleType>,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async move {
-            if let Ok(samples) = the_reader
-                .take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-                .await
-            {
-                let sample = samples[0].data().unwrap();
-                println!("Read sample: {:?}", sample);
-            }
-        })
+impl<R: DdsRuntime> DataReaderListener<R, BestEffortExampleType> for Listener {
+    async fn on_data_available(&mut self, the_reader: DataReaderAsync<R, BestEffortExampleType>) {
+        if let Ok(samples) = the_reader
+            .take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+            .await
+        {
+            let sample = samples[0].data().unwrap();
+            println!("Read sample: {:?}", sample);
+        }
     }
-    fn on_subscription_matched(
+    async fn on_subscription_matched(
         &mut self,
-        _the_reader: DataReaderAsync<BestEffortExampleType>,
+        _the_reader: DataReaderAsync<R, BestEffortExampleType>,
         status: dust_dds::infrastructure::status::SubscriptionMatchedStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async move {
-            if status.current_count == 0 {
-                self.sender.send(()).unwrap();
-            }
-        })
+    ) {
+        if status.current_count == 0 {
+            self.sender.send(()).unwrap();
+        }
     }
 }
 
@@ -62,7 +52,7 @@ fn main() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -70,13 +60,13 @@ fn main() {
             "BestEffortExampleTopic",
             "BestEffortExampleType",
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
     let (sender, receiver) = sync_channel(0);
@@ -86,7 +76,7 @@ fn main() {
         .create_datareader(
             &topic,
             QosKind::Default,
-            listener,
+            Some(listener),
             &[StatusKind::DataAvailable, StatusKind::SubscriptionMatched],
         )
         .unwrap();

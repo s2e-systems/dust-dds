@@ -1,22 +1,19 @@
-use std::{future::Future, pin::Pin};
-
 use criterion::{criterion_group, criterion_main, Criterion};
 use dust_dds::{
+    dcps::runtime::DdsRuntime,
     dds_async::data_reader::DataReaderAsync,
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
-        listener::NoOpListener,
         qos::{DataWriterQos, QosKind},
         qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
+        sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         status::{StatusKind, NO_STATUS},
         time::{Duration, DurationKind},
-        wait_set::{Condition, WaitSet},
+        type_support::DdsType,
     },
-    subscription::{
-        data_reader_listener::DataReaderListener,
-        sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-    },
-    topic_definition::type_support::DdsType,
+    listener::NO_LISTENER,
+    subscription::data_reader_listener::DataReaderListener,
+    wait_set::{Condition, WaitSet},
     xtypes::bytes::ByteBuf,
 };
 
@@ -30,19 +27,19 @@ struct KeyedData {
 pub fn best_effort_write_only(c: &mut Criterion) {
     let domain_id = 200;
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<KeyedData>(
             "MyTopic",
             "KeyedData",
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -55,15 +52,15 @@ pub fn best_effort_write_only(c: &mut Criterion) {
         .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let _reader = subscriber
-        .create_datareader::<KeyedData>(&topic, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_datareader::<KeyedData>(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
     let cond = writer.get_statuscondition();
@@ -86,28 +83,28 @@ pub fn best_effort_write_only(c: &mut Criterion) {
 pub fn best_effort_read_only(c: &mut Criterion) {
     let domain_id = 201;
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<KeyedData>(
             "MyTopic",
             "KeyedData",
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_datawriter(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let reader = subscriber
-        .create_datareader::<KeyedData>(&topic, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_datareader::<KeyedData>(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
     let cond = writer.get_statuscondition();
@@ -135,37 +132,32 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
     struct Listener {
         sender: std::sync::mpsc::SyncSender<()>,
     }
-    impl DataReaderListener<'_, KeyedData> for Listener {
-        fn on_data_available(
-            &mut self,
-            the_reader: DataReaderAsync<KeyedData>,
-        ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-            Box::pin(async move {
-                the_reader
-                    .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-                    .await
-                    .ok();
-                self.sender.send(()).unwrap();
-            })
+    impl<R: DdsRuntime> DataReaderListener<R, KeyedData> for Listener {
+        async fn on_data_available(&mut self, the_reader: DataReaderAsync<R, KeyedData>) {
+            the_reader
+                .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+                .await
+                .ok();
+            self.sender.send(()).unwrap();
         }
     }
 
     let domain_id = 202;
     let participant_factory = DomainParticipantFactory::get_instance();
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<KeyedData>(
             "TestTopic",
             "KeyedData",
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
     let (sender, receiver) = std::sync::mpsc::sync_channel(1);
@@ -175,16 +167,16 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
         .create_datareader(
             &topic,
             QosKind::Default,
-            listener,
+            Some(listener),
             &[StatusKind::DataAvailable],
         )
         .unwrap();
     let reader_cond = reader.get_statuscondition();
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_datawriter(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let writer_cond = writer.get_statuscondition();
     writer_cond
@@ -227,37 +219,32 @@ fn best_effort_write_and_receive_frag(c: &mut Criterion) {
     struct Listener {
         sender: std::sync::mpsc::SyncSender<()>,
     }
-    impl DataReaderListener<'_, LargeKeyedData> for Listener {
-        fn on_data_available(
-            &mut self,
-            the_reader: DataReaderAsync<LargeKeyedData>,
-        ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-            Box::pin(async move {
-                the_reader
-                    .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-                    .await
-                    .ok();
-                self.sender.send(()).unwrap();
-            })
+    impl<R: DdsRuntime> DataReaderListener<R, LargeKeyedData> for Listener {
+        async fn on_data_available(&mut self, the_reader: DataReaderAsync<R, LargeKeyedData>) {
+            the_reader
+                .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+                .await
+                .ok();
+            self.sender.send(()).unwrap();
         }
     }
 
     let domain_id = 203;
     let participant_factory = DomainParticipantFactory::get_instance();
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<LargeKeyedData>(
             "TestTopic",
             "LargeKeyedData",
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
     let (sender, receiver) = std::sync::mpsc::sync_channel(1);
@@ -267,16 +254,16 @@ fn best_effort_write_and_receive_frag(c: &mut Criterion) {
         .create_datareader(
             &topic,
             QosKind::Default,
-            listener,
+            Some(listener),
             &[StatusKind::DataAvailable],
         )
         .unwrap();
     let reader_cond = reader.get_statuscondition();
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_datawriter(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let writer_cond = writer.get_statuscondition();
     writer_cond

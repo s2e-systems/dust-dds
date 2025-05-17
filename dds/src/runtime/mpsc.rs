@@ -6,6 +6,11 @@ use std::{
     task::{Context, Poll, Waker},
 };
 
+use crate::{
+    dcps::runtime::{ChannelReceive, ChannelSend},
+    infrastructure::error::{DdsError, DdsResult},
+};
+
 pub fn mpsc_channel<T>() -> (MpscSender<T>, MpscReceiver<T>) {
     let inner = Arc::new(Mutex::new(MpscInner {
         data: VecDeque::with_capacity(64),
@@ -26,15 +31,6 @@ struct MpscInner<T> {
     is_closed: bool,
 }
 
-impl<T> MpscInner<T> {
-    pub fn close(&mut self) {
-        self.is_closed = true;
-        if let Some(w) = self.waker.take() {
-            w.wake();
-        }
-    }
-}
-
 impl<T> std::fmt::Debug for MpscInner<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("MpscInner")
@@ -49,6 +45,12 @@ pub enum MpscSenderError {
     Closed,
 }
 
+impl From<MpscSenderError> for DdsError {
+    fn from(_value: MpscSenderError) -> Self {
+        DdsError::AlreadyDeleted
+    }
+}
+
 pub struct MpscSender<T> {
     inner: Arc<Mutex<MpscInner<T>>>,
 }
@@ -58,6 +60,15 @@ impl<T> Clone for MpscSender<T> {
         Self {
             inner: self.inner.clone(),
         }
+    }
+}
+
+impl<T> ChannelSend<T> for MpscSender<T>
+where
+    T: Send,
+{
+    async fn send(&self, value: T) -> DdsResult<()> {
+        MpscSender::send(self, value).map_err(|_| DdsError::AlreadyDeleted)
     }
 }
 
@@ -82,13 +93,6 @@ impl<T> MpscSender<T> {
             Ok(())
         }
     }
-
-    pub fn close(&self) {
-        self.inner
-            .lock()
-            .expect("Mutex shouldn't be poisoned")
-            .close();
-    }
 }
 
 pub struct MpscReceiver<T> {
@@ -101,6 +105,15 @@ impl<T> MpscReceiver<T> {
             inner: self.inner.clone(),
         }
         .await
+    }
+}
+
+impl<T> ChannelReceive<T> for MpscReceiver<T>
+where
+    T: Send,
+{
+    async fn receive(&mut self) -> Option<T> {
+        self.recv().await
     }
 }
 

@@ -9,7 +9,7 @@ This package provides a derive macro for `DdsType` to support [dust-dds](https:/
 A typical user DDS type will look like this:
 
 ```rust
-use dust_dds::topic_definition::type_support::{DdsType}
+use dust_dds::infrastructure::type_support::{DdsType}
 
 #[derive(DdsType)]
 struct HelloWorldType {

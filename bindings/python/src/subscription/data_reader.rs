@@ -20,26 +20,63 @@ use crate::{
     subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     topic_definition::{topic::Topic, type_support::PythonDdsData},
 };
-use dust_dds::infrastructure::listener::NoOpListener;
 use pyo3::{exceptions::PyTypeError, prelude::*};
 
 #[pyclass]
-pub struct DataReader(dust_dds::subscription::data_reader::DataReader<PythonDdsData>);
+pub struct DataReader(
+    dust_dds::subscription::data_reader::DataReader<dust_dds::runtime::StdRuntime, PythonDdsData>,
+);
 
-impl From<dust_dds::subscription::data_reader::DataReader<PythonDdsData>> for DataReader {
-    fn from(value: dust_dds::subscription::data_reader::DataReader<PythonDdsData>) -> Self {
+impl
+    From<
+        dust_dds::subscription::data_reader::DataReader<
+            dust_dds::runtime::StdRuntime,
+            PythonDdsData,
+        >,
+    > for DataReader
+{
+    fn from(
+        value: dust_dds::subscription::data_reader::DataReader<
+            dust_dds::runtime::StdRuntime,
+            PythonDdsData,
+        >,
+    ) -> Self {
         Self(value)
     }
 }
 
-impl From<dust_dds::dds_async::data_reader::DataReaderAsync<PythonDdsData>> for DataReader {
-    fn from(value: dust_dds::dds_async::data_reader::DataReaderAsync<PythonDdsData>) -> Self {
+impl
+    From<
+        dust_dds::dds_async::data_reader::DataReaderAsync<
+            dust_dds::runtime::StdRuntime,
+            PythonDdsData,
+        >,
+    > for DataReader
+{
+    fn from(
+        value: dust_dds::dds_async::data_reader::DataReaderAsync<
+            dust_dds::runtime::StdRuntime,
+            PythonDdsData,
+        >,
+    ) -> Self {
         Self(dust_dds::subscription::data_reader::DataReader::from(value))
     }
 }
 
-impl AsRef<dust_dds::subscription::data_reader::DataReader<PythonDdsData>> for DataReader {
-    fn as_ref(&self) -> &dust_dds::subscription::data_reader::DataReader<PythonDdsData> {
+impl
+    AsRef<
+        dust_dds::subscription::data_reader::DataReader<
+            dust_dds::runtime::StdRuntime,
+            PythonDdsData,
+        >,
+    > for DataReader
+{
+    fn as_ref(
+        &self,
+    ) -> &dust_dds::subscription::data_reader::DataReader<
+        dust_dds::runtime::StdRuntime,
+        PythonDdsData,
+    > {
         &self.0
     }
 }
@@ -63,15 +100,15 @@ impl DataReader {
             .ok_or(PyTypeError::new_err("Type information not found"))?;
         let sample_states: Vec<_> = sample_states
             .into_iter()
-            .map(dust_dds::subscription::sample_info::SampleStateKind::from)
+            .map(dust_dds::infrastructure::sample_info::SampleStateKind::from)
             .collect();
         let view_states: Vec<_> = view_states
             .into_iter()
-            .map(dust_dds::subscription::sample_info::ViewStateKind::from)
+            .map(dust_dds::infrastructure::sample_info::ViewStateKind::from)
             .collect();
         let instance_states: Vec<_> = instance_states
             .into_iter()
-            .map(dust_dds::subscription::sample_info::InstanceStateKind::from)
+            .map(dust_dds::infrastructure::sample_info::InstanceStateKind::from)
             .collect();
         match self
             .0
@@ -106,15 +143,15 @@ impl DataReader {
             .ok_or(PyTypeError::new_err("Type information not found"))?;
         let sample_states: Vec<_> = sample_states
             .into_iter()
-            .map(dust_dds::subscription::sample_info::SampleStateKind::from)
+            .map(dust_dds::infrastructure::sample_info::SampleStateKind::from)
             .collect();
         let view_states: Vec<_> = view_states
             .into_iter()
-            .map(dust_dds::subscription::sample_info::ViewStateKind::from)
+            .map(dust_dds::infrastructure::sample_info::ViewStateKind::from)
             .collect();
         let instance_states: Vec<_> = instance_states
             .into_iter()
-            .map(dust_dds::subscription::sample_info::InstanceStateKind::from)
+            .map(dust_dds::infrastructure::sample_info::InstanceStateKind::from)
             .collect();
         match self
             .0
@@ -175,15 +212,15 @@ impl DataReader {
             .ok_or(PyTypeError::new_err("Type information not found"))?;
         let sample_states: Vec<_> = sample_states
             .into_iter()
-            .map(dust_dds::subscription::sample_info::SampleStateKind::from)
+            .map(dust_dds::infrastructure::sample_info::SampleStateKind::from)
             .collect();
         let view_states: Vec<_> = view_states
             .into_iter()
-            .map(dust_dds::subscription::sample_info::ViewStateKind::from)
+            .map(dust_dds::infrastructure::sample_info::ViewStateKind::from)
             .collect();
         let instance_states: Vec<_> = instance_states
             .into_iter()
-            .map(dust_dds::subscription::sample_info::InstanceStateKind::from)
+            .map(dust_dds::infrastructure::sample_info::InstanceStateKind::from)
             .collect();
         match self.0.read_instance(
             max_samples,
@@ -223,15 +260,15 @@ impl DataReader {
             .ok_or(PyTypeError::new_err("Type information not found"))?;
         let sample_states: Vec<_> = sample_states
             .into_iter()
-            .map(dust_dds::subscription::sample_info::SampleStateKind::from)
+            .map(dust_dds::infrastructure::sample_info::SampleStateKind::from)
             .collect();
         let view_states: Vec<_> = view_states
             .into_iter()
-            .map(dust_dds::subscription::sample_info::ViewStateKind::from)
+            .map(dust_dds::infrastructure::sample_info::ViewStateKind::from)
             .collect();
         let instance_states: Vec<_> = instance_states
             .into_iter()
-            .map(dust_dds::subscription::sample_info::InstanceStateKind::from)
+            .map(dust_dds::infrastructure::sample_info::InstanceStateKind::from)
             .collect();
         match self.0.take_instance(
             max_samples,
@@ -271,15 +308,15 @@ impl DataReader {
             .ok_or(PyTypeError::new_err("Type information not found"))?;
         let sample_states: Vec<_> = sample_states
             .into_iter()
-            .map(dust_dds::subscription::sample_info::SampleStateKind::from)
+            .map(dust_dds::infrastructure::sample_info::SampleStateKind::from)
             .collect();
         let view_states: Vec<_> = view_states
             .into_iter()
-            .map(dust_dds::subscription::sample_info::ViewStateKind::from)
+            .map(dust_dds::infrastructure::sample_info::ViewStateKind::from)
             .collect();
         let instance_states: Vec<_> = instance_states
             .into_iter()
-            .map(dust_dds::subscription::sample_info::InstanceStateKind::from)
+            .map(dust_dds::infrastructure::sample_info::InstanceStateKind::from)
             .collect();
         match self.0.read_next_instance(
             max_samples,
@@ -319,15 +356,15 @@ impl DataReader {
             .ok_or(PyTypeError::new_err("Type information not found"))?;
         let sample_states: Vec<_> = sample_states
             .into_iter()
-            .map(dust_dds::subscription::sample_info::SampleStateKind::from)
+            .map(dust_dds::infrastructure::sample_info::SampleStateKind::from)
             .collect();
         let view_states: Vec<_> = view_states
             .into_iter()
-            .map(dust_dds::subscription::sample_info::ViewStateKind::from)
+            .map(dust_dds::infrastructure::sample_info::ViewStateKind::from)
             .collect();
         let instance_states: Vec<_> = instance_states
             .into_iter()
-            .map(dust_dds::subscription::sample_info::InstanceStateKind::from)
+            .map(dust_dds::infrastructure::sample_info::InstanceStateKind::from)
             .collect();
         match self.0.take_next_instance(
             max_samples,
@@ -458,15 +495,12 @@ impl DataReader {
         a_listener: Option<Py<PyAny>>,
         mask: Vec<StatusKind>,
     ) -> PyResult<()> {
+        let listener = a_listener.map(DataReaderListener::from);
         let mask: Vec<dust_dds::infrastructure::status::StatusKind> = mask
             .into_iter()
             .map(dust_dds::infrastructure::status::StatusKind::from)
             .collect();
-        match a_listener {
-            Some(l) => self.0.set_listener(DataReaderListener::from(l), &mask),
-            None => self.0.set_listener(NoOpListener, &mask),
-        }
-        .map_err(into_pyerr)
+        self.0.set_listener(listener, &mask).map_err(into_pyerr)
     }
 
     pub fn get_statuscondition(&self) -> StatusCondition {
@@ -494,7 +528,7 @@ impl DataReader {
 
 #[pyclass]
 pub struct Sample {
-    sample: dust_dds::subscription::data_reader::Sample<PythonDdsData>,
+    sample: dust_dds::infrastructure::sample_info::Sample<PythonDdsData>,
     type_: Py<PyAny>,
 }
 

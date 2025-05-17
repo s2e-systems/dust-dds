@@ -109,32 +109,38 @@ impl RtpsStatefulWriter {
             .retain(|rp| rp.remote_reader_guid() != reader_guid);
     }
 
-    pub fn write_message(&mut self, message_writer: &impl WriteMessage, clock: &impl Clock) {
+    pub async fn write_message(&mut self, message_writer: &impl WriteMessage, clock: &impl Clock) {
         for reader_proxy in &mut self.matched_readers {
             match reader_proxy.reliability() {
-                ReliabilityKind::BestEffort => write_message_to_reader_proxy_best_effort(
-                    reader_proxy,
-                    self.guid.entity_id(),
-                    &self.changes,
-                    self.data_max_size_serialized,
-                    message_writer,
-                ),
-                ReliabilityKind::Reliable => write_message_to_reader_proxy_reliable(
-                    reader_proxy,
-                    self.guid.entity_id(),
-                    &self.changes,
-                    self.changes.iter().map(|cc| cc.sequence_number()).min(),
-                    self.changes.iter().map(|cc| cc.sequence_number()).max(),
-                    self.data_max_size_serialized,
-                    self.heartbeat_period,
-                    message_writer,
-                    clock,
-                ),
+                ReliabilityKind::BestEffort => {
+                    write_message_to_reader_proxy_best_effort(
+                        reader_proxy,
+                        self.guid.entity_id(),
+                        &self.changes,
+                        self.data_max_size_serialized,
+                        message_writer,
+                    )
+                    .await
+                }
+                ReliabilityKind::Reliable => {
+                    write_message_to_reader_proxy_reliable(
+                        reader_proxy,
+                        self.guid.entity_id(),
+                        &self.changes,
+                        self.changes.iter().map(|cc| cc.sequence_number()).min(),
+                        self.changes.iter().map(|cc| cc.sequence_number()).max(),
+                        self.data_max_size_serialized,
+                        self.heartbeat_period,
+                        message_writer,
+                        clock,
+                    )
+                    .await
+                }
             }
         }
     }
 
-    pub fn on_acknack_submessage_received(
+    pub async fn on_acknack_submessage_received(
         &mut self,
         acknack_submessage: &AckNackSubmessage,
         source_guid_prefix: GuidPrefix,
@@ -167,13 +173,14 @@ impl RtpsStatefulWriter {
                         self.heartbeat_period,
                         message_writer,
                         clock,
-                    );
+                    )
+                    .await;
                 }
             }
         }
     }
 
-    pub fn on_nack_frag_submessage_received(
+    pub async fn on_nack_frag_submessage_received(
         &mut self,
         nackfrag_submessage: &NackFragSubmessage,
         source_guid_prefix: GuidPrefix,
@@ -204,12 +211,13 @@ impl RtpsStatefulWriter {
                     self.heartbeat_period,
                     message_writer,
                     clock,
-                );
+                )
+                .await;
             }
         }
     }
 
-    pub fn process_message(
+    pub async fn process_message(
         &mut self,
         datagram: &[u8],
         message_writer: &impl WriteMessage,
@@ -226,7 +234,8 @@ impl RtpsStatefulWriter {
                         message_receiver.source_guid_prefix(),
                         message_writer,
                         clock,
-                    );
+                    )
+                    .await;
                 }
                 RtpsSubmessageReadKind::NackFrag(nackfrag_submessage) => {
                     self.on_nack_frag_submessage_received(
@@ -234,7 +243,8 @@ impl RtpsStatefulWriter {
                         message_receiver.source_guid_prefix(),
                         message_writer,
                         clock,
-                    );
+                    )
+                    .await;
                 }
                 _ => (),
             }
@@ -243,7 +253,7 @@ impl RtpsStatefulWriter {
     }
 }
 
-fn write_message_to_reader_proxy_best_effort(
+async fn write_message_to_reader_proxy_best_effort(
     reader_proxy: &mut RtpsReaderProxy,
     writer_id: EntityId,
     changes: &[CacheChange],
@@ -287,7 +297,8 @@ fn write_message_to_reader_proxy_best_effort(
             let rtps_message =
                 RtpsMessageWrite::from_submessages(&[gap_submessage], message_writer.guid_prefix());
             message_writer
-                .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list());
+                .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list())
+                .await;
 
             reader_proxy.set_highest_sent_seq_num(next_unsent_change_seq_num);
         } else if let Some(cache_change) = changes
@@ -356,7 +367,8 @@ fn write_message_to_reader_proxy_best_effort(
                         message_writer.guid_prefix(),
                     );
                     message_writer
-                        .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list());
+                        .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list())
+                        .await;
                 }
             } else {
                 let info_dst = Box::new(InfoDestinationSubmessage::new(
@@ -380,7 +392,8 @@ fn write_message_to_reader_proxy_best_effort(
                     message_writer.guid_prefix(),
                 );
                 message_writer
-                    .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list());
+                    .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list())
+                    .await;
             }
         } else {
             let gap_submessage = Box::new(GapSubmessage::new(
@@ -392,7 +405,8 @@ fn write_message_to_reader_proxy_best_effort(
             let rtps_message =
                 RtpsMessageWrite::from_submessages(&[gap_submessage], message_writer.guid_prefix());
             message_writer
-                .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list());
+                .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list())
+                .await;
         }
 
         reader_proxy.set_highest_sent_seq_num(next_unsent_change_seq_num);
@@ -400,7 +414,7 @@ fn write_message_to_reader_proxy_best_effort(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn write_message_to_reader_proxy_reliable(
+async fn write_message_to_reader_proxy_reliable(
     reader_proxy: &mut RtpsReaderProxy,
     writer_id: EntityId,
     changes: &[CacheChange],
@@ -440,7 +454,8 @@ fn write_message_to_reader_proxy_reliable(
                     message_writer.guid_prefix(),
                 );
                 message_writer
-                    .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list());
+                    .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list())
+                    .await;
             } else {
                 write_change_message_reader_proxy_reliable(
                     reader_proxy,
@@ -452,7 +467,8 @@ fn write_message_to_reader_proxy_reliable(
                     next_unsent_change_seq_num,
                     message_writer,
                     clock,
-                );
+                )
+                .await;
             }
             reader_proxy.set_highest_sent_seq_num(next_unsent_change_seq_num);
         }
@@ -478,7 +494,9 @@ fn write_message_to_reader_proxy_reliable(
             &[info_dst, heartbeat_submessage],
             message_writer.guid_prefix(),
         );
-        message_writer.write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list());
+        message_writer
+            .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list())
+            .await;
     }
 
     // Middle-part of the state-machine - Figure 8.19 RTPS standard
@@ -499,13 +517,14 @@ fn write_message_to_reader_proxy_reliable(
                 next_requested_change_seq_num,
                 message_writer,
                 clock,
-            );
+            )
+            .await;
         }
     }
 }
 
 #[allow(clippy::too_many_arguments)]
-fn write_change_message_reader_proxy_reliable(
+async fn write_change_message_reader_proxy_reliable(
     reader_proxy: &mut RtpsReaderProxy,
     writer_id: EntityId,
     changes: &[CacheChange],
@@ -585,7 +604,8 @@ fn write_change_message_reader_proxy_reliable(
                         message_writer.guid_prefix(),
                     );
                     message_writer
-                        .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list());
+                        .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list())
+                        .await;
                 }
             } else {
                 let info_dst = Box::new(InfoDestinationSubmessage::new(
@@ -617,7 +637,8 @@ fn write_change_message_reader_proxy_reliable(
                     message_writer.guid_prefix(),
                 );
                 message_writer
-                    .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list());
+                    .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list())
+                    .await;
             }
         }
         _ => {
@@ -637,7 +658,7 @@ fn write_change_message_reader_proxy_reliable(
                 message_writer.guid_prefix(),
             );
             message_writer
-                .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list());
+                .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list()).await;
         }
     }
 }

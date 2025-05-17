@@ -1,4 +1,3 @@
-use dust_dds::infrastructure::listener::NoOpListener;
 use pyo3::prelude::*;
 
 use crate::{
@@ -15,22 +14,24 @@ use crate::{
 use super::topic_listener::TopicListener;
 
 #[pyclass]
-pub struct Topic(dust_dds::topic_definition::topic::Topic);
+pub struct Topic(dust_dds::topic_definition::topic::Topic<dust_dds::runtime::StdRuntime>);
 
-impl AsRef<dust_dds::topic_definition::topic::Topic> for Topic {
-    fn as_ref(&self) -> &dust_dds::topic_definition::topic::Topic {
+impl AsRef<dust_dds::topic_definition::topic::Topic<dust_dds::runtime::StdRuntime>> for Topic {
+    fn as_ref(&self) -> &dust_dds::topic_definition::topic::Topic<dust_dds::runtime::StdRuntime> {
         &self.0
     }
 }
 
-impl From<dust_dds::topic_definition::topic::Topic> for Topic {
-    fn from(value: dust_dds::topic_definition::topic::Topic) -> Self {
+impl From<dust_dds::topic_definition::topic::Topic<dust_dds::runtime::StdRuntime>> for Topic {
+    fn from(
+        value: dust_dds::topic_definition::topic::Topic<dust_dds::runtime::StdRuntime>,
+    ) -> Self {
         Self(value)
     }
 }
 
-impl From<dust_dds::dds_async::topic::TopicAsync> for Topic {
-    fn from(value: dust_dds::dds_async::topic::TopicAsync) -> Self {
+impl From<dust_dds::dds_async::topic::TopicAsync<dust_dds::runtime::StdRuntime>> for Topic {
+    fn from(value: dust_dds::dds_async::topic::TopicAsync<dust_dds::runtime::StdRuntime>) -> Self {
         Self(dust_dds::topic_definition::topic::Topic::from(value))
     }
 }
@@ -78,15 +79,12 @@ impl Topic {
         a_listener: Option<Py<PyAny>>,
         mask: Vec<StatusKind>,
     ) -> PyResult<()> {
+        let listener = a_listener.map(TopicListener::from);
         let mask: Vec<dust_dds::infrastructure::status::StatusKind> = mask
             .into_iter()
             .map(dust_dds::infrastructure::status::StatusKind::from)
             .collect();
-        match a_listener {
-            Some(l) => self.0.set_listener(TopicListener::from(l), &mask),
-            None => self.0.set_listener(NoOpListener, &mask),
-        }
-        .map_err(into_pyerr)
+        self.0.set_listener(listener, &mask).map_err(into_pyerr)
     }
 
     pub fn get_statuscondition(&self) -> StatusCondition {
