@@ -60,7 +60,7 @@ fn requested_deadline_missed_listener() {
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
-    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    let (sender, receiver) = std::sync::mpsc::sync_channel(0);
 
     let participant_listener = DeadlineMissedListener { sender };
 
