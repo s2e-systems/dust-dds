@@ -5,13 +5,16 @@ use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     dcps::{
         actor::ActorAddress,
-        domain_participant_actor_mail::{DomainParticipantMail, WriterServiceMail},
+        domain_participant_actor::poll_timeout,
+        domain_participant_actor_mail::{
+            DomainParticipantMail, MessageServiceMail, WriterServiceMail,
+        },
         listeners::data_writer_listener::DataWriterListenerActor,
         runtime::{ChannelSend, DdsRuntime, OneshotReceive},
         status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
-        error::DdsResult,
+        error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataWriterQos, QosKind},
         status::{
@@ -248,19 +251,44 @@ impl<R: DdsRuntime, Foo> DataWriterAsync<R, Foo> {
     /// Async version of [`wait_for_acknowledgments`](crate::publication::data_writer::DataWriter::wait_for_acknowledgments).
     #[tracing::instrument(skip(self))]
     pub async fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
-        self.participant_address()
-            .send(DomainParticipantMail::Writer(
-                WriterServiceMail::WaitForAcknowledgments {
-                    participant_address: self.participant_address().clone(),
-                    publisher_handle: self.publisher.get_instance_handle().await,
-                    data_writer_handle: self.handle,
-                    timeout: max_wait,
-                    reply_sender,
-                },
-            ))
-            .await?;
-        reply_receiver.receive().await?.await
+        let publisher_handle = self.get_publisher().get_instance_handle().await;
+        let timer_handle = self
+            .get_publisher()
+            .get_participant()
+            .timer_handle()
+            .clone();
+        let participant_address = self.participant_address().clone();
+        let data_writer_handle = self.handle;
+
+        poll_timeout(
+            timer_handle,
+            max_wait.into(),
+            Box::pin(async move {
+                loop {
+                    let (reply_sender, mut reply_receiver) = R::oneshot();
+                    participant_address
+                        .send(DomainParticipantMail::Message(
+                            MessageServiceMail::AreAllChangesAcknowledged {
+                                publisher_handle,
+                                data_writer_handle,
+                                reply_sender,
+                            },
+                        ))
+                        .await
+                        .ok();
+                    let reply = reply_receiver.receive().await;
+                    match reply {
+                        Ok(are_changes_acknowledged) => match are_changes_acknowledged {
+                            Ok(true) => return Ok(()),
+                            Ok(false) => (),
+                            Err(e) => return Err(e),
+                        },
+                        Err(_) => return Err(DdsError::Error(String::from("Channel error"))),
+                    }
+                }
+            }),
+        )
+        .await?
     }
 
     /// Async version of [`get_liveliness_lost_status`](crate::publication::data_writer::DataWriter::get_liveliness_lost_status).

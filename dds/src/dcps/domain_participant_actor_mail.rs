@@ -359,13 +359,6 @@ where
         timestamp: Time,
         reply_sender: R::OneshotSender<DdsResult<()>>,
     },
-    WaitForAcknowledgments {
-        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
-        publisher_handle: InstanceHandle,
-        data_writer_handle: InstanceHandle,
-        timeout: Duration,
-        reply_sender: R::OneshotSender<Pin<Box<dyn Future<Output = DdsResult<()>> + Send>>>,
-    },
     GetOfferedDeadlineMissedStatus {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
@@ -932,21 +925,6 @@ where
                     data_writer_handle,
                     serialized_data,
                     timestamp,
-                )
-                .await,
-            ),
-            WriterServiceMail::WaitForAcknowledgments {
-                participant_address,
-                publisher_handle,
-                data_writer_handle,
-                timeout,
-                reply_sender,
-            } => reply_sender.send(
-                self.wait_for_acknowledgments(
-                    participant_address,
-                    publisher_handle,
-                    data_writer_handle,
-                    timeout,
                 )
                 .await,
             ),
