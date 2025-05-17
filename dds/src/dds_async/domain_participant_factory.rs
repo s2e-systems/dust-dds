@@ -56,7 +56,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
                 status_kind,
                 reply_sender,
                 clock_handle: clock_handle.clone(),
-                timer_handle,
+                timer_handle: timer_handle.clone(),
                 spawner_handle: spawner_handle.clone(),
             })
             .await;
@@ -71,6 +71,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
             participant_handle,
             spawner_handle,
             clock_handle,
+            timer_handle,
         );
 
         Ok(domain_participant)

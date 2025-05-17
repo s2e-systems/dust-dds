@@ -91,7 +91,7 @@ use core::{
     task::Poll,
 };
 
-fn poll_timeout<T>(
+pub fn poll_timeout<T>(
     mut timer_handle: impl Timer,
     duration: core::time::Duration,
     mut future: Pin<Box<dyn Future<Output = T> + Send>>,
@@ -156,6 +156,7 @@ where
             self.domain_participant.instance_handle(),
             self.spawner_handle.clone(),
             self.clock_handle.clone(),
+            self.timer_handle.clone(),
         )
     }
 
@@ -524,7 +525,6 @@ where
         topic_name: String,
         type_support: Arc<dyn DynamicType + Send + Sync>,
         status_condition: Actor<R, StatusConditionActor<R>>,
-        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
     ) -> DdsResult<
         Option<(
             InstanceHandle,
@@ -563,7 +563,7 @@ where
                     topic_name.clone(),
                     topic_handle,
                     status_condition,
-                    listener_sender,
+                    None,
                     vec![],
                     type_support,
                 );

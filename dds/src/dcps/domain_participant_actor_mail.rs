@@ -72,11 +72,10 @@ where
         topic_name: String,
         reply_sender: R::OneshotSender<DdsResult<()>>,
     },
-    _FindTopic {
+    FindTopic {
         topic_name: String,
         type_support: Arc<dyn DynamicType + Send + Sync>,
         status_condition: Actor<R, StatusConditionActor<R>>,
-        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         #[allow(clippy::type_complexity)]
         reply_sender: R::OneshotSender<
             DdsResult<
@@ -667,18 +666,12 @@ where
                 topic_name,
                 reply_sender,
             } => reply_sender.send(self.delete_user_defined_topic(participant_handle, topic_name)),
-            ParticipantServiceMail::_FindTopic {
+            ParticipantServiceMail::FindTopic {
                 topic_name,
                 type_support,
                 status_condition,
-                listener_sender,
                 reply_sender,
-            } => reply_sender.send(self.find_topic(
-                topic_name,
-                type_support,
-                status_condition,
-                listener_sender,
-            )),
+            } => reply_sender.send(self.find_topic(topic_name, type_support, status_condition)),
             ParticipantServiceMail::LookupTopicdescription {
                 topic_name,
                 reply_sender,

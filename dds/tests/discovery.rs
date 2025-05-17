@@ -366,7 +366,6 @@ fn two_participants_should_get_subscription_matched() {
 }
 
 #[test]
-#[ignore = "Broken after interface refactor for independent runtime"]
 fn participant_records_discovered_topics() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
