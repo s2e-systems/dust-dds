@@ -302,8 +302,8 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
                         return Ok(TopicAsync::new(
                             guid,
                             topic_status_condition_address,
-                            String::from(type_name),
-                            String::from(topic_name),
+                            type_name,
+                            topic_name,
                             participant_async,
                         ));
                     }
