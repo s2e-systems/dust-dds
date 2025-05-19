@@ -11,6 +11,13 @@ members = [
     "fuzz",
     "bindings/python",
     "omg_interoperability_executable",
+    "nostd_test_project",
 ]
-default-members = ["dds", "dds_derive", "dds_gen", "bindings/python"]
+default-members = [
+    "dds",
+    "dds_derive",
+    "dds_gen",
+    "bindings/python",
+    "nostd_test_project",
+]
 resolver = "2"
