@@ -16,6 +16,6 @@ impl DomainIdGenerator {
     }
 
     pub fn generate_unique_domain_id(&self) -> DomainId {
-        self.id.fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+        self.id.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
     }
 }
