@@ -60,7 +60,7 @@ fn requested_deadline_missed_listener() {
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
-    let (sender, receiver) = std::sync::mpsc::sync_channel(0);
+    let (sender, receiver) = std::sync::mpsc::sync_channel(5);
 
     let participant_listener = DeadlineMissedListener { sender };
 
@@ -171,7 +171,7 @@ fn sample_rejected_listener() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let participant_factory = DomainParticipantFactory::get_instance();
 
-    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    let (sender, receiver) = std::sync::mpsc::sync_channel(5);
     let participant_listener = SampleRejectedListener { sender };
 
     let participant = participant_factory
@@ -288,7 +288,7 @@ fn subscription_matched_listener() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let participant_factory = DomainParticipantFactory::get_instance();
 
-    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    let (sender, receiver) = std::sync::mpsc::sync_channel(5);
     let participant_listener = SubscriptionMatchedListener { sender };
 
     let participant = participant_factory
@@ -383,7 +383,7 @@ fn requested_incompatible_qos_listener() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let participant_factory = DomainParticipantFactory::get_instance();
 
-    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    let (sender, receiver) = std::sync::mpsc::sync_channel(5);
     let participant_listener = RequestedIncompatibleQosListener { sender };
 
     let participant = participant_factory
@@ -478,7 +478,7 @@ fn publication_matched_listener() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let participant_factory = DomainParticipantFactory::get_instance();
 
-    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    let (sender, receiver) = std::sync::mpsc::sync_channel(5);
     let participant_listener = PublicationMatchedListener { sender };
 
     let participant = participant_factory
@@ -574,7 +574,7 @@ fn offered_incompatible_qos_listener() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let participant_factory = DomainParticipantFactory::get_instance();
 
-    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    let (sender, receiver) = std::sync::mpsc::sync_channel(5);
     let participant_listener = OfferedIncompatibleQosListener { sender };
 
     let participant = participant_factory
@@ -709,7 +709,7 @@ fn on_data_available_listener() {
         },
         ..Default::default()
     };
-    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    let (sender, receiver) = std::sync::mpsc::sync_channel(5);
     let reader_listener = DataAvailableListener { sender };
 
     let _reader = subscriber
@@ -787,7 +787,7 @@ fn data_on_readers_listener() {
         )
         .unwrap();
 
-    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    let (sender, receiver) = std::sync::mpsc::sync_channel(5);
     let subscriber_listener = DataOnReadersListener { sender };
 
     let subscriber = participant
@@ -890,7 +890,7 @@ fn data_available_listener_not_called_when_data_on_readers_listener() {
         )
         .unwrap();
 
-    let (sender, data_on_readers_receiver) = std::sync::mpsc::sync_channel(1);
+    let (sender, data_on_readers_receiver) = std::sync::mpsc::sync_channel(5);
     let subscriber_listener = DataOnReadersListener { sender };
 
     let subscriber = participant
@@ -908,7 +908,7 @@ fn data_available_listener_not_called_when_data_on_readers_listener() {
         ..Default::default()
     };
 
-    let (sender, data_available_receiver) = std::sync::mpsc::sync_channel(1);
+    let (sender, data_available_receiver) = std::sync::mpsc::sync_channel(5);
     let reader_listener = DataAvailableListener { sender };
 
     let _reader = subscriber
@@ -1008,7 +1008,7 @@ fn participant_requested_deadline_missed_listener() {
         ..Default::default()
     };
 
-    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    let (sender, receiver) = std::sync::mpsc::sync_channel(5);
     let reader_listener = DeadlineMissedListener { sender };
 
     let _reader = subscriber
@@ -1119,7 +1119,7 @@ fn data_reader_sample_rejected_listener() {
         ..Default::default()
     };
 
-    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    let (sender, receiver) = std::sync::mpsc::sync_channel(5);
     let reader_listener = SampleRejectedListener { sender };
 
     let _reader = subscriber
@@ -1227,7 +1227,7 @@ fn data_reader_subscription_matched_listener() {
         ..Default::default()
     };
 
-    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    let (sender, receiver) = std::sync::mpsc::sync_channel(5);
     let reader_listener = SubscriptionMatchedListener { sender };
 
     let _reader = subscriber
@@ -1317,7 +1317,7 @@ fn data_reader_requested_incompatible_qos_listener() {
         ..Default::default()
     };
 
-    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    let (sender, receiver) = std::sync::mpsc::sync_channel(5);
     let reader_listener = RequestedIncompatibleQosListener { sender };
 
     let _reader = subscriber
@@ -1393,7 +1393,7 @@ fn publisher_publication_matched_listener() {
         )
         .unwrap();
 
-    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    let (sender, receiver) = std::sync::mpsc::sync_channel(5);
     let publisher_listener = PublicationMatchedListener { sender };
     let publisher = participant
         .create_publisher(
@@ -1487,7 +1487,7 @@ fn publisher_offered_incompatible_qos_listener() {
         )
         .unwrap();
 
-    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    let (sender, receiver) = std::sync::mpsc::sync_channel(5);
     let publisher_listener = OfferedIncompatibleQosListener { sender };
 
     let publisher = participant
@@ -1578,7 +1578,7 @@ fn subscriber_requested_deadline_missed_listener() {
         )
         .unwrap();
 
-    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    let (sender, receiver) = std::sync::mpsc::sync_channel(5);
     let subscriber_listener = DeadlineMissedListener { sender };
 
     let subscriber = participant
@@ -1686,7 +1686,7 @@ fn subscriber_sample_rejected_listener() {
         )
         .unwrap();
 
-    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    let (sender, receiver) = std::sync::mpsc::sync_channel(5);
     let subscriber_listener = SampleRejectedListener { sender };
 
     let subscriber = participant
@@ -1801,7 +1801,7 @@ fn subscriber_subscription_matched_listener() {
         )
         .unwrap();
 
-    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    let (sender, receiver) = std::sync::mpsc::sync_channel(5);
     let subscriber_listener = SubscriptionMatchedListener { sender };
 
     let subscriber = participant
@@ -1895,7 +1895,7 @@ fn subscriber_requested_incompatible_qos_listener() {
         )
         .unwrap();
 
-    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    let (sender, receiver) = std::sync::mpsc::sync_channel(5);
     let subscriber_listener = RequestedIncompatibleQosListener { sender };
 
     let subscriber = participant
@@ -2006,7 +2006,7 @@ fn data_writer_publication_matched_listener() {
         ..Default::default()
     };
 
-    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    let (sender, receiver) = std::sync::mpsc::sync_channel(5);
     let writer_listener = PublicationMatchedListener { sender };
 
     let _writer = publisher
@@ -2097,7 +2097,7 @@ fn data_writer_offered_incompatible_qos_listener() {
         ..Default::default()
     };
 
-    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    let (sender, receiver) = std::sync::mpsc::sync_channel(5);
     let writer_listener = OfferedIncompatibleQosListener { sender };
 
     let _writer = publisher
@@ -2223,7 +2223,7 @@ fn writer_offered_deadline_missed_listener() {
         },
         ..Default::default()
     };
-    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    let (sender, receiver) = std::sync::mpsc::sync_channel(5);
     let writer_listener = DeadlineMissedListener { sender };
     let writer = publisher
         .create_datawriter(
@@ -2312,7 +2312,7 @@ fn publisher_offered_deadline_missed_listener() {
         )
         .unwrap();
 
-    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    let (sender, receiver) = std::sync::mpsc::sync_channel(5);
     let publisher_listener = DeadlineMissedListener { sender };
     let publisher = participant
         .create_publisher(
@@ -2406,7 +2406,7 @@ fn participant_offered_deadline_missed_listener() {
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
-    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    let (sender, receiver) = std::sync::mpsc::sync_channel(5);
     let participant_listener = DeadlineMissedListener { sender };
     let participant = DomainParticipantFactory::get_instance()
         .create_participant(
