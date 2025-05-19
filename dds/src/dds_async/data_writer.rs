@@ -26,7 +26,7 @@ use crate::{
     },
     publication::data_writer_listener::DataWriterListener,
 };
-use alloc::vec::Vec;
+use alloc::{boxed::Box, string::String, vec::Vec};
 use core::marker::PhantomData;
 
 /// Async version of [`DataWriter`](crate::publication::data_writer::DataWriter).

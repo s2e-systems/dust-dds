@@ -28,7 +28,7 @@ use crate::{
     topic_definition::topic_listener::TopicListener,
     xtypes::dynamic_type::DynamicType,
 };
-use alloc::{string::String, sync::Arc, vec::Vec};
+use alloc::{boxed::Box, string::String, sync::Arc, vec::Vec};
 
 /// Async version of [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant).
 pub struct DomainParticipantAsync<R: DdsRuntime> {
@@ -273,7 +273,7 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         Foo: TypeSupport,
     {
         let type_support = Arc::new(Foo::get_type());
-        let topic_name = topic_name.to_owned();
+        let topic_name = String::from(topic_name);
         let participant_address = self.participant_address.clone();
         let participant_async = self.clone();
         let executor_handle = self.spawner_handle.clone();
@@ -302,8 +302,8 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
                         return Ok(TopicAsync::new(
                             guid,
                             topic_status_condition_address,
-                            type_name.to_string(),
-                            topic_name.to_string(),
+                            String::from(type_name),
+                            String::from(topic_name),
                             participant_async,
                         ));
                     }
