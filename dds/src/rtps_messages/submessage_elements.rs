@@ -81,7 +81,7 @@ impl TryReadFromBytes for SequenceNumberSet {
         if num_bits > 256 {
             return Err(RtpsMessageError::InvalidData);
         }
-        let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard referred to as "M"
+        let number_of_bitmap_elements = num_bits.div_ceil(32) as usize; //In standard referred to as "M"
         let mut bitmap = [0; 8];
         for bitmap_i in bitmap.iter_mut().take(number_of_bitmap_elements) {
             *bitmap_i = i32::try_read_from_bytes(data, endianness)?;
@@ -96,7 +96,7 @@ impl TryReadFromBytes for SequenceNumberSet {
 
 impl WriteIntoBytes for SequenceNumberSet {
     fn write_into_bytes(&self, buf: &mut dyn Write) {
-        let number_of_bitmap_elements = ((self.num_bits + 31) / 32) as usize; //In standard referred to as "M"
+        let number_of_bitmap_elements = self.num_bits.div_ceil(32) as usize; //In standard referred to as "M"
 
         self.base.write_into_bytes(buf);
         self.num_bits.write_into_bytes(buf);
@@ -126,7 +126,7 @@ impl FragmentNumberSet {
     ) -> RtpsMessageResult<Self> {
         let base = FragmentNumber::try_read_from_bytes(data, endianness)?;
         let num_bits = u32::try_read_from_bytes(data, endianness)?;
-        let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard referred to as "M"
+        let number_of_bitmap_elements = num_bits.div_ceil(32) as usize; //In standard referred to as "M"
         let mut bitmap = [0; 8];
 
         for bitmap_i in bitmap.iter_mut().take(number_of_bitmap_elements) {
@@ -155,7 +155,7 @@ impl WriteIntoBytes for FragmentNumberSet {
                 num_bits = delta_n + 1;
             }
         }
-        let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard referred to as "M"
+        let number_of_bitmap_elements = num_bits.div_ceil(32) as usize; //In standard referred to as "M"
 
         self.base.write_into_bytes(buf);
         num_bits.write_into_bytes(buf);

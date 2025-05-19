@@ -108,13 +108,8 @@ impl CacheChange {
             .iter()
             .find(|&x| x.parameter_id() == PID_KEY_HASH)
         {
-            Some(p) => {
-                if let Ok(key) = <[u8; 16]>::try_from(p.value()) {
-                    Some(key)
-                } else {
-                    None
-                }
-            }
+            Some(p) => <[u8; 16]>::try_from(p.value()).ok(),
+
             None => None,
         };
 

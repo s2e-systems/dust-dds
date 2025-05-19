@@ -544,7 +544,7 @@ impl From<dust_dds::infrastructure::qos_policy::HistoryQosPolicyKind> for Histor
             dust_dds::infrastructure::qos_policy::HistoryQosPolicyKind::KeepLast(depth) => {
                 HistoryQosPolicyKind::KeepLast { depth }
             }
-            dust_dds::infrastructure::qos_policy::HistoryQosPolicyKind::KeepAll {} => {
+            dust_dds::infrastructure::qos_policy::HistoryQosPolicyKind::KeepAll => {
                 HistoryQosPolicyKind::KeepAll {}
             }
         }

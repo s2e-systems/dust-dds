@@ -319,7 +319,7 @@ impl<R: DdsRuntime> DataReaderEntity<R> {
                          ..
                      }| sample_info.absolute_generation_rank,
                 )
-                .last()
+                .next_back()
                 .expect("Instance handle must exist on collection");
 
             let mut total_instance_samples_in_collection = indexed_samples

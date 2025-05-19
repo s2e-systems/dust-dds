@@ -337,10 +337,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
 impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
     fn deserialize_data(serialized_data: &'de [u8]) -> DdsResult<Self> {
         let pl_deserializer = ParameterListCdrDeserializer::new(serialized_data)?;
-        let domain_id = match pl_deserializer.read(PID_DOMAIN_ID) {
-            Ok(domain_id) => Some(domain_id),
-            Err(_) => None,
-        };
+        let domain_id = pl_deserializer.read(PID_DOMAIN_ID).ok();
         Ok(Self {
             dds_participant_data: ParticipantBuiltinTopicData::deserialize_data(serialized_data)?,
             participant_proxy: ParticipantProxy {
