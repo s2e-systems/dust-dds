@@ -108,7 +108,7 @@ jobs:
           command: |
             export RUSTFLAGS="-Cinstrument-coverage -Dwarnings"
             export LLVM_PROFILE_FILE="test-%p-%m.profraw"
-            cargo test --package dust_dds --package dust_dds_derive --package dust_dds_gen --jobs 1
+            cargo test --package dust_dds --package dust_dds_derive --package dust_dds_gen
       - run:
           name: Hello world example
           command: |
