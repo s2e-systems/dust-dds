@@ -30,10 +30,7 @@ use crate::{
 use alloc::{boxed::Box, string::String, sync::Arc, vec::Vec};
 use core::{future::Future, pin::Pin};
 
-pub enum ParticipantServiceMail<R>
-where
-    R: DdsRuntime,
-{
+pub enum ParticipantServiceMail<R: DdsRuntime> {
     CreateUserDefinedPublisher {
         qos: QosKind<PublisherQos>,
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
@@ -174,10 +171,7 @@ where
     },
 }
 
-pub enum TopicServiceMail<R>
-where
-    R: DdsRuntime,
-{
+pub enum TopicServiceMail<R: DdsRuntime> {
     GetInconsistentTopicStatus {
         topic_name: String,
         reply_sender: R::OneshotSender<DdsResult<InconsistentTopicStatus>>,
@@ -201,10 +195,7 @@ where
     },
 }
 
-pub enum PublisherServiceMail<R>
-where
-    R: DdsRuntime,
-{
+pub enum PublisherServiceMail<R: DdsRuntime> {
     CreateDataWriter {
         publisher_handle: InstanceHandle,
         topic_name: String,
@@ -246,10 +237,7 @@ where
     },
 }
 
-pub enum SubscriberServiceMail<R>
-where
-    R: DdsRuntime,
-{
+pub enum SubscriberServiceMail<R: DdsRuntime> {
     CreateDataReader {
         subscriber_handle: InstanceHandle,
         topic_name: String,
@@ -299,10 +287,7 @@ where
     },
 }
 
-pub enum WriterServiceMail<R>
-where
-    R: DdsRuntime,
-{
+pub enum WriterServiceMail<R: DdsRuntime> {
     SetListener {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
@@ -378,10 +363,7 @@ where
     },
 }
 
-pub enum ReaderServiceMail<R>
-where
-    R: DdsRuntime,
-{
+pub enum ReaderServiceMail<R: DdsRuntime> {
     Enable {
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
@@ -475,10 +457,7 @@ where
     },
 }
 
-pub enum MessageServiceMail<R>
-where
-    R: DdsRuntime,
-{
+pub enum MessageServiceMail<R: DdsRuntime> {
     AddCacheChange {
         participant_address: R::ChannelSender<DomainParticipantMail<R>>,
         cache_change: CacheChange,
@@ -516,10 +495,7 @@ where
     },
 }
 
-pub enum EventServiceMail<R>
-where
-    R: DdsRuntime,
-{
+pub enum EventServiceMail<R: DdsRuntime> {
     OfferedDeadlineMissed {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
@@ -539,10 +515,7 @@ pub enum DiscoveryServiceMail {
     AnnounceDeletedParticipant,
 }
 
-pub enum DomainParticipantMail<R>
-where
-    R: DdsRuntime,
-{
+pub enum DomainParticipantMail<R: DdsRuntime> {
     Participant(ParticipantServiceMail<R>),
     Topic(TopicServiceMail<R>),
     Publisher(PublisherServiceMail<R>),
@@ -554,10 +527,7 @@ where
     Discovery(DiscoveryServiceMail),
 }
 
-impl<R> MailHandler for DomainParticipantActor<R>
-where
-    R: DdsRuntime + Send,
-{
+impl<R: DdsRuntime> MailHandler for DomainParticipantActor<R> {
     type Mail = DomainParticipantMail<R>;
     async fn handle(&mut self, message: DomainParticipantMail<R>) {
         match message {
@@ -594,10 +564,7 @@ where
     }
 }
 
-impl<R> DomainParticipantActor<R>
-where
-    R: DdsRuntime,
-{
+impl<R: DdsRuntime> DomainParticipantActor<R> {
     async fn handle_participant_service(
         &mut self,
         participant_service_mail: ParticipantServiceMail<R>,
