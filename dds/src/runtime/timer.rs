@@ -8,6 +8,8 @@ use std::{
     time::{Duration, Instant},
 };
 
+use tracing::trace;
+
 use crate::dcps::runtime::Timer;
 
 pub struct TimerWake {
@@ -38,6 +40,7 @@ impl Ord for TimerWake {
     }
 }
 
+#[derive(Debug)]
 pub struct Sleep {
     id: usize,
     deadline: Option<Instant>,
@@ -46,6 +49,7 @@ pub struct Sleep {
 }
 
 impl Sleep {
+    #[tracing::instrument]
     pub fn is_elapsed(&self) -> bool {
         if let Some(d) = self.deadline {
             Instant::now() > d
@@ -54,6 +58,7 @@ impl Sleep {
         }
     }
 
+    #[tracing::instrument]
     pub fn reset(&mut self) {
         self.deadline = Some(Instant::now() + self.duration);
     }
@@ -122,26 +127,30 @@ impl TimerHeap {
     fn notify_next_timer(&mut self) {
         if let Some(t) = self.heap.pop() {
             debug_assert!(t.deadline < Instant::now());
+            trace!("Notify timer with id {}", t.id);
             t.waker.wake();
         }
     }
 }
 
+#[derive(Debug)]
 struct HandleInner {
     sleep_task_id: usize,
     periodic_task_sender: std::sync::mpsc::Sender<TimerWake>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct TimerHandle {
     inner: Arc<Mutex<HandleInner>>,
 }
 
 impl TimerHandle {
+    #[tracing::instrument]
     pub fn sleep(&self, duration: Duration) -> Sleep {
         let mut inner_lock = self.inner.lock().expect("Mutex should not be poisoned");
         let id = inner_lock.sleep_task_id;
         inner_lock.sleep_task_id += 1;
+        trace!("Create Sleep with id {}", inner_lock.sleep_task_id);
         Sleep {
             id,
             deadline: None,
@@ -152,6 +161,7 @@ impl TimerHandle {
 }
 
 impl Timer for TimerHandle {
+    #[tracing::instrument]
     fn delay(&mut self, duration: core::time::Duration) -> impl Future<Output = ()> + Send {
         self.sleep(duration)
     }
@@ -179,6 +189,7 @@ impl TimerDriver {
                 loop {
                     // Check if there are any elapsed tasks and wake them
                     while timer_heap.is_next_timer_elapsed() {
+                        trace!("Notifying next timer");
                         timer_heap.notify_next_timer();
                     }
 
@@ -187,10 +198,16 @@ impl TimerDriver {
                     // sleep until the next deadline so that the tasks can be
                     // notified at the correct time
                     let new_timer = match timer_heap.duration_until_next_timer() {
-                        Some(d) => periodic_task_receiver.recv_timeout(d),
-                        None => periodic_task_receiver
-                            .recv()
-                            .map_err(|_| RecvTimeoutError::Disconnected),
+                        Some(d) => {
+                            trace!("Waiting for new waker value for fixed duration {:?}", d);
+                            periodic_task_receiver.recv_timeout(d)
+                        }
+                        None => {
+                            trace!("Waiting for new waker value indefinitely");
+                            periodic_task_receiver
+                                .recv()
+                                .map_err(|_| RecvTimeoutError::Disconnected)
+                        }
                     };
 
                     match new_timer {
