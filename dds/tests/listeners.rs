@@ -32,6 +32,9 @@ use dust_dds::{
     wait_set::{Condition, WaitSet},
 };
 
+use tracing::Level;
+use tracing_subscriber::{fmt::format::FmtSpan, FmtSubscriber};
+
 mod utils;
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 
@@ -44,6 +47,22 @@ struct MyData {
 
 #[test]
 fn requested_deadline_missed_listener() {
+    let file = std::fs::OpenOptions::new()
+        .create(true)
+        .write(true)
+        .open("log.txt")
+        .unwrap();
+    let subscriber = FmtSubscriber::builder()
+        // all spans/events with a level higher than TRACE (e.g, debug, info, warn, etc.)
+        // will be written to stdout.
+        .with_max_level(Level::TRACE)
+        .with_span_events(FmtSpan::ACTIVE)
+        .with_writer(file)
+        // completes the builder.
+        .finish();
+
+    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+
     struct DeadlineMissedListener {
         sender: std::sync::mpsc::SyncSender<RequestedDeadlineMissedStatus>,
     }
