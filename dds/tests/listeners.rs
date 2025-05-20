@@ -32,9 +32,6 @@ use dust_dds::{
     wait_set::{Condition, WaitSet},
 };
 
-use tracing::Level;
-use tracing_subscriber::{fmt::format::FmtSpan, FmtSubscriber};
-
 mod utils;
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 
@@ -47,22 +44,6 @@ struct MyData {
 
 #[test]
 fn requested_deadline_missed_listener() {
-    let file = std::fs::OpenOptions::new()
-        .create(true)
-        .write(true)
-        .open("log.txt")
-        .unwrap();
-    let subscriber = FmtSubscriber::builder()
-        // all spans/events with a level higher than TRACE (e.g, debug, info, warn, etc.)
-        // will be written to stdout.
-        .with_max_level(Level::TRACE)
-        .with_span_events(FmtSpan::ACTIVE)
-        .with_writer(file)
-        // completes the builder.
-        .finish();
-
-    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
-
     struct DeadlineMissedListener {
         sender: std::sync::mpsc::SyncSender<RequestedDeadlineMissedStatus>,
     }
@@ -73,7 +54,7 @@ fn requested_deadline_missed_listener() {
             _the_reader: DataReaderAsync<R, ()>,
             status: RequestedDeadlineMissedStatus,
         ) {
-            self.sender.send(status).unwrap();
+            self.sender.send(status).ok();
         }
     }
 
@@ -183,7 +164,7 @@ fn sample_rejected_listener() {
             _the_reader: DataReaderAsync<R, ()>,
             status: SampleRejectedStatus,
         ) {
-            self.sender.send(status).unwrap();
+            self.sender.send(status).ok();
         }
     }
 
@@ -300,7 +281,7 @@ fn subscription_matched_listener() {
             _the_reader: DataReaderAsync<R, ()>,
             status: SubscriptionMatchedStatus,
         ) {
-            self.sender.send(status).unwrap();
+            self.sender.send(status).ok();
         }
     }
 
@@ -395,7 +376,7 @@ fn requested_incompatible_qos_listener() {
             _the_reader: DataReaderAsync<R, ()>,
             status: RequestedIncompatibleQosStatus,
         ) {
-            self.sender.send(status).unwrap();
+            self.sender.send(status).ok();
         }
     }
 
@@ -490,7 +471,7 @@ fn publication_matched_listener() {
             _the_writer: DataWriterAsync<R, ()>,
             status: PublicationMatchedStatus,
         ) {
-            self.sender.send(status).unwrap();
+            self.sender.send(status).ok();
         }
     }
 
@@ -586,7 +567,7 @@ fn offered_incompatible_qos_listener() {
             _the_writer: DataWriterAsync<R, ()>,
             status: OfferedIncompatibleQosStatus,
         ) {
-            self.sender.send(status).unwrap();
+            self.sender.send(status).ok();
         }
     }
 
@@ -972,7 +953,7 @@ fn participant_requested_deadline_missed_listener() {
             _the_reader: DataReaderAsync<R, MyData>,
             status: RequestedDeadlineMissedStatus,
         ) {
-            self.sender.send(status).unwrap();
+            self.sender.send(status).ok();
         }
     }
 
@@ -1075,7 +1056,7 @@ fn data_reader_sample_rejected_listener() {
             _the_reader: DataReaderAsync<R, MyData>,
             status: SampleRejectedStatus,
         ) {
-            self.sender.send(status).unwrap();
+            self.sender.send(status).ok();
         }
     }
 
@@ -1187,7 +1168,7 @@ fn data_reader_subscription_matched_listener() {
             _the_reader: DataReaderAsync<R, MyData>,
             status: SubscriptionMatchedStatus,
         ) {
-            self.sender.send(status).unwrap();
+            self.sender.send(status).ok();
         }
     }
 
@@ -1277,7 +1258,7 @@ fn data_reader_requested_incompatible_qos_listener() {
             _the_reader: DataReaderAsync<R, MyData>,
             status: RequestedIncompatibleQosStatus,
         ) {
-            self.sender.send(status).unwrap();
+            self.sender.send(status).ok();
         }
     }
 
@@ -1367,7 +1348,7 @@ fn publisher_publication_matched_listener() {
             _the_writer: DataWriterAsync<R, ()>,
             status: PublicationMatchedStatus,
         ) {
-            self.sender.send(status).unwrap();
+            self.sender.send(status).ok();
         }
     }
 
@@ -1461,7 +1442,7 @@ fn publisher_offered_incompatible_qos_listener() {
             _the_writer: DataWriterAsync<R, ()>,
             status: OfferedIncompatibleQosStatus,
         ) {
-            self.sender.send(status).unwrap();
+            self.sender.send(status).ok();
         }
     }
 
@@ -1556,7 +1537,7 @@ fn subscriber_requested_deadline_missed_listener() {
             _the_reader: DataReaderAsync<R, ()>,
             status: RequestedDeadlineMissedStatus,
         ) {
-            self.sender.send(status).unwrap();
+            self.sender.send(status).ok();
         }
     }
 
@@ -1662,7 +1643,7 @@ fn subscriber_sample_rejected_listener() {
             _the_reader: DataReaderAsync<R, ()>,
             status: SampleRejectedStatus,
         ) {
-            self.sender.send(status).unwrap();
+            self.sender.send(status).ok();
         }
     }
 
@@ -1777,7 +1758,7 @@ fn subscriber_subscription_matched_listener() {
             _the_reader: DataReaderAsync<R, ()>,
             status: SubscriptionMatchedStatus,
         ) {
-            self.sender.send(status).unwrap();
+            self.sender.send(status).ok();
         }
     }
 
@@ -1871,7 +1852,7 @@ fn subscriber_requested_incompatible_qos_listener() {
             _the_reader: DataReaderAsync<R, ()>,
             status: RequestedIncompatibleQosStatus,
         ) {
-            self.sender.send(status).unwrap();
+            self.sender.send(status).ok();
         }
     }
 
@@ -1965,7 +1946,7 @@ fn data_writer_publication_matched_listener() {
             _the_reader: DataWriterAsync<R, MyData>,
             status: PublicationMatchedStatus,
         ) {
-            self.sender.send(status).unwrap();
+            self.sender.send(status).ok();
         }
     }
 
@@ -2056,7 +2037,7 @@ fn data_writer_offered_incompatible_qos_listener() {
             _the_reader: DataWriterAsync<R, MyData>,
             status: OfferedIncompatibleQosStatus,
         ) {
-            self.sender.send(status).unwrap();
+            self.sender.send(status).ok();
         }
     }
 
@@ -2210,7 +2191,7 @@ fn writer_offered_deadline_missed_listener() {
             _the_writer: DataWriterAsync<R, MyData>,
             status: OfferedDeadlineMissedStatus,
         ) {
-            self.sender.send(status).unwrap();
+            self.sender.send(status).ok();
         }
     }
 
@@ -2312,7 +2293,7 @@ fn publisher_offered_deadline_missed_listener() {
             _the_writer: DataWriterAsync<R, ()>,
             status: OfferedDeadlineMissedStatus,
         ) {
-            self.sender.send(status).unwrap();
+            self.sender.send(status).ok();
         }
     }
 
@@ -2419,7 +2400,7 @@ fn participant_offered_deadline_missed_listener() {
             _the_writer: DataWriterAsync<R, ()>,
             status: OfferedDeadlineMissedStatus,
         ) {
-            self.sender.send(status).unwrap();
+            self.sender.send(status).ok();
         }
     }
 
