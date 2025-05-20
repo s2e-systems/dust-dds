@@ -1,20 +1,19 @@
-use std::{future::Future, pin::Pin};
-
 use dust_dds::{
+    dcps::runtime::DdsRuntime,
     dds_async::data_reader::DataReaderAsync,
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
-        listener::NoOpListener,
         qos::{DataReaderQos, DataWriterQos, QosKind},
         qos_policy::{
             HistoryQosPolicy, HistoryQosPolicyKind, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
         },
         status::{StatusKind, SubscriptionMatchedStatus, NO_STATUS},
         time::{Duration, DurationKind},
-        wait_set::{Condition, WaitSet},
+        type_support::DdsType,
     },
+    listener::NO_LISTENER,
     subscription::data_reader_listener::DataReaderListener,
-    topic_definition::type_support::DdsType,
+    wait_set::{Condition, WaitSet},
 };
 
 mod utils;
@@ -33,17 +32,15 @@ fn reader_subscription_matched_listener_and_wait_set_should_both_trigger() {
         sender: Option<std::sync::mpsc::SyncSender<SubscriptionMatchedStatus>>,
     }
 
-    impl DataReaderListener<'_, MyData> for SubscriptionMatchedListener {
-        fn on_subscription_matched(
+    impl<R: DdsRuntime> DataReaderListener<R, MyData> for SubscriptionMatchedListener {
+        async fn on_subscription_matched(
             &mut self,
-            _the_reader: DataReaderAsync<MyData>,
+            _the_reader: DataReaderAsync<R, MyData>,
             status: SubscriptionMatchedStatus,
-        ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-            Box::pin(async move {
-                if let Some(s) = self.sender.take() {
-                    s.send(status).unwrap()
-                };
-            })
+        ) {
+            if let Some(s) = self.sender.take() {
+                s.send(status).unwrap()
+            };
         }
     }
 
@@ -51,20 +48,20 @@ fn reader_subscription_matched_listener_and_wait_set_should_both_trigger() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<MyData>(
             "SubscriptionMatchedListenerTopic",
             "MyData",
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let data_writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -81,13 +78,13 @@ fn reader_subscription_matched_listener_and_wait_set_should_both_trigger() {
         .create_datawriter::<MyData>(
             &topic,
             QosKind::Specific(data_writer_qos),
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -111,7 +108,7 @@ fn reader_subscription_matched_listener_and_wait_set_should_both_trigger() {
         .create_datareader(
             &topic,
             QosKind::Specific(reader_qos),
-            reader_listener,
+            Some(reader_listener),
             &[StatusKind::SubscriptionMatched],
         )
         .unwrap();

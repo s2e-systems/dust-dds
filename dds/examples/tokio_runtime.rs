@@ -4,13 +4,13 @@ use dust_dds::{
         wait_set::{ConditionAsync, WaitSetAsync},
     },
     infrastructure::{
-        listener::NoOpListener,
         qos::QosKind,
+        sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         status::{StatusKind, NO_STATUS},
         time::Duration,
+        type_support::DdsType,
     },
-    subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-    topic_definition::type_support::DdsType,
+    listener::NO_LISTENER,
 };
 
 #[derive(Debug, PartialEq, DdsType)]
@@ -26,7 +26,7 @@ async fn main() {
 
     let participant_factory = DomainParticipantFactoryAsync::get_instance();
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .await
         .unwrap();
     let topic = participant
@@ -34,28 +34,28 @@ async fn main() {
             "LargeDataTopic",
             "UserData",
             QosKind::Default,
-            NoOpListener,
+            NO_LISTENER,
             NO_STATUS,
         )
         .await
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .await
         .unwrap();
 
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_datawriter(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
         .await
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener, NO_STATUS)
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .await
         .unwrap();
     let reader = subscriber
-        .create_datareader::<UserData>(&topic, QosKind::Default, NoOpListener, NO_STATUS)
+        .create_datareader::<UserData>(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
         .await
         .unwrap();
 

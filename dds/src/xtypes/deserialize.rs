@@ -3,6 +3,7 @@ use super::{
     deserializer::{DeserializeArray, XTypesDeserializer},
     error::XTypesError,
 };
+use alloc::{string::String, vec::Vec};
 
 pub use dust_dds_derive::XTypesDeserialize;
 
@@ -127,14 +128,12 @@ impl<'de: 'a, 'a> XTypesDeserialize<'de> for Bytes<'a> {
     }
 }
 
-#[cfg(feature = "std")]
 impl<'de> XTypesDeserialize<'de> for super::bytes::ByteBuf {
     fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
-        Ok(Self(deserializer.deserialize_byte_sequence()?.to_owned()))
+        Ok(Self(Vec::from(deserializer.deserialize_byte_sequence()?)))
     }
 }
 
-#[cfg(feature = "std")]
 impl<'de, T> XTypesDeserialize<'de> for Vec<T>
 where
     T: XTypesDeserialize<'de>,
@@ -149,9 +148,8 @@ where
     }
 }
 
-#[cfg(feature = "std")]
 impl<'de> XTypesDeserialize<'de> for String {
     fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
-        Ok(deserializer.deserialize_string()?.to_string())
+        Ok(String::from(deserializer.deserialize_string()?))
     }
 }

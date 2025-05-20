@@ -4,14 +4,23 @@
 #![doc = include_str!("../README.md")]
 
 extern crate alloc;
-#[cfg(feature = "std")]
+#[cfg(feature = "dcps")]
 mod dds;
 
-#[cfg(feature = "std")]
+#[cfg(feature = "dcps")]
 pub use dds::*;
+
 /// Contains the async version of the DDS API.
-#[cfg(feature = "std")]
+#[cfg(feature = "dcps")]
 pub mod dds_async;
+
+/// Contains the DCPS logic which provides the behavior to the DDS API
+#[doc(hidden)]
+#[cfg(feature = "dcps")]
+pub mod dcps;
+
+#[cfg(feature = "dcps")]
+pub use dcps::{builtin_topics, infrastructure};
 
 #[doc(hidden)]
 #[cfg(feature = "rtps")]
@@ -25,16 +34,14 @@ pub mod rtps_messages;
 #[doc(hidden)]
 pub mod rtps_udp_transport;
 
-#[cfg(feature = "std")]
-mod implementation;
-
 #[cfg(feature = "transport")]
 #[doc(hidden)]
 /// Contains the Dust DDS transport interface definition.
 pub mod transport;
 
 #[cfg(feature = "std")]
-mod runtime;
+#[doc(hidden)]
+pub mod runtime;
 
 /// Contains the XTypes serializer and deserializer
 #[cfg(feature = "xtypes")]

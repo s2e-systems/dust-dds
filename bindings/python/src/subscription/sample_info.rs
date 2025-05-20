@@ -9,23 +9,23 @@ pub enum SampleStateKind {
     NotRead,
 }
 
-impl From<dust_dds::subscription::sample_info::SampleStateKind> for SampleStateKind {
-    fn from(value: dust_dds::subscription::sample_info::SampleStateKind) -> Self {
+impl From<dust_dds::infrastructure::sample_info::SampleStateKind> for SampleStateKind {
+    fn from(value: dust_dds::infrastructure::sample_info::SampleStateKind) -> Self {
         match value {
-            dust_dds::subscription::sample_info::SampleStateKind::Read => SampleStateKind::Read,
-            dust_dds::subscription::sample_info::SampleStateKind::NotRead => {
+            dust_dds::infrastructure::sample_info::SampleStateKind::Read => SampleStateKind::Read,
+            dust_dds::infrastructure::sample_info::SampleStateKind::NotRead => {
                 SampleStateKind::NotRead
             }
         }
     }
 }
 
-impl From<SampleStateKind> for dust_dds::subscription::sample_info::SampleStateKind {
+impl From<SampleStateKind> for dust_dds::infrastructure::sample_info::SampleStateKind {
     fn from(value: SampleStateKind) -> Self {
         match value {
-            SampleStateKind::Read => dust_dds::subscription::sample_info::SampleStateKind::Read,
+            SampleStateKind::Read => dust_dds::infrastructure::sample_info::SampleStateKind::Read,
             SampleStateKind::NotRead => {
-                dust_dds::subscription::sample_info::SampleStateKind::NotRead
+                dust_dds::infrastructure::sample_info::SampleStateKind::NotRead
             }
         }
     }
@@ -40,20 +40,20 @@ pub enum ViewStateKind {
     NotNew,
 }
 
-impl From<dust_dds::subscription::sample_info::ViewStateKind> for ViewStateKind {
-    fn from(value: dust_dds::subscription::sample_info::ViewStateKind) -> Self {
+impl From<dust_dds::infrastructure::sample_info::ViewStateKind> for ViewStateKind {
+    fn from(value: dust_dds::infrastructure::sample_info::ViewStateKind) -> Self {
         match value {
-            dust_dds::subscription::sample_info::ViewStateKind::New => ViewStateKind::New,
-            dust_dds::subscription::sample_info::ViewStateKind::NotNew => ViewStateKind::NotNew,
+            dust_dds::infrastructure::sample_info::ViewStateKind::New => ViewStateKind::New,
+            dust_dds::infrastructure::sample_info::ViewStateKind::NotNew => ViewStateKind::NotNew,
         }
     }
 }
 
-impl From<ViewStateKind> for dust_dds::subscription::sample_info::ViewStateKind {
+impl From<ViewStateKind> for dust_dds::infrastructure::sample_info::ViewStateKind {
     fn from(value: ViewStateKind) -> Self {
         match value {
-            ViewStateKind::New => dust_dds::subscription::sample_info::ViewStateKind::New,
-            ViewStateKind::NotNew => dust_dds::subscription::sample_info::ViewStateKind::NotNew,
+            ViewStateKind::New => dust_dds::infrastructure::sample_info::ViewStateKind::New,
+            ViewStateKind::NotNew => dust_dds::infrastructure::sample_info::ViewStateKind::NotNew,
         }
     }
 }
@@ -68,33 +68,33 @@ pub enum InstanceStateKind {
     NotAliveNoWriters,
 }
 
-impl From<dust_dds::subscription::sample_info::InstanceStateKind> for InstanceStateKind {
-    fn from(value: dust_dds::subscription::sample_info::InstanceStateKind) -> Self {
+impl From<dust_dds::infrastructure::sample_info::InstanceStateKind> for InstanceStateKind {
+    fn from(value: dust_dds::infrastructure::sample_info::InstanceStateKind) -> Self {
         match value {
-            dust_dds::subscription::sample_info::InstanceStateKind::Alive => {
+            dust_dds::infrastructure::sample_info::InstanceStateKind::Alive => {
                 InstanceStateKind::Alive
             }
-            dust_dds::subscription::sample_info::InstanceStateKind::NotAliveDisposed => {
+            dust_dds::infrastructure::sample_info::InstanceStateKind::NotAliveDisposed => {
                 InstanceStateKind::NotAliveDisposed
             }
-            dust_dds::subscription::sample_info::InstanceStateKind::NotAliveNoWriters => {
+            dust_dds::infrastructure::sample_info::InstanceStateKind::NotAliveNoWriters => {
                 InstanceStateKind::NotAliveNoWriters
             }
         }
     }
 }
 
-impl From<InstanceStateKind> for dust_dds::subscription::sample_info::InstanceStateKind {
+impl From<InstanceStateKind> for dust_dds::infrastructure::sample_info::InstanceStateKind {
     fn from(value: InstanceStateKind) -> Self {
         match value {
             InstanceStateKind::Alive => {
-                dust_dds::subscription::sample_info::InstanceStateKind::Alive
+                dust_dds::infrastructure::sample_info::InstanceStateKind::Alive
             }
             InstanceStateKind::NotAliveDisposed => {
-                dust_dds::subscription::sample_info::InstanceStateKind::NotAliveDisposed
+                dust_dds::infrastructure::sample_info::InstanceStateKind::NotAliveDisposed
             }
             InstanceStateKind::NotAliveNoWriters => {
-                dust_dds::subscription::sample_info::InstanceStateKind::NotAliveNoWriters
+                dust_dds::infrastructure::sample_info::InstanceStateKind::NotAliveNoWriters
             }
         }
     }
@@ -115,10 +115,10 @@ pub const NOT_ALIVE_INSTANCE_STATE: &[InstanceStateKind] = &[
 
 #[pyclass]
 #[derive(Clone)]
-pub struct SampleInfo(dust_dds::subscription::sample_info::SampleInfo);
+pub struct SampleInfo(dust_dds::infrastructure::sample_info::SampleInfo);
 
-impl From<dust_dds::subscription::sample_info::SampleInfo> for SampleInfo {
-    fn from(value: dust_dds::subscription::sample_info::SampleInfo) -> Self {
+impl From<dust_dds::infrastructure::sample_info::SampleInfo> for SampleInfo {
+    fn from(value: dust_dds::infrastructure::sample_info::SampleInfo) -> Self {
         Self(value)
     }
 }

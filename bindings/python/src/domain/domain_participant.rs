@@ -3,13 +3,11 @@ use std::{
     sync::{Arc, Mutex, OnceLock},
 };
 
-use dust_dds::infrastructure::listener::NoOpListener;
 use pyo3::prelude::*;
 
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     infrastructure::{
-        condition::StatusCondition,
         error::into_pyerr,
         instance::InstanceHandle,
         qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
@@ -28,16 +26,29 @@ use super::domain_participant_listener::DomainParticipantListener;
 static TYPE_REGISTRY: OnceLock<Mutex<HashMap<String, Py<PyAny>>>> = OnceLock::new();
 
 #[pyclass]
-pub struct DomainParticipant(dust_dds::domain::domain_participant::DomainParticipant);
+pub struct DomainParticipant(
+    dust_dds::domain::domain_participant::DomainParticipant<dust_dds::runtime::StdRuntime>,
+);
 
-impl From<dust_dds::domain::domain_participant::DomainParticipant> for DomainParticipant {
-    fn from(value: dust_dds::domain::domain_participant::DomainParticipant) -> Self {
+impl From<dust_dds::domain::domain_participant::DomainParticipant<dust_dds::runtime::StdRuntime>>
+    for DomainParticipant
+{
+    fn from(
+        value: dust_dds::domain::domain_participant::DomainParticipant<
+            dust_dds::runtime::StdRuntime,
+        >,
+    ) -> Self {
         Self(value)
     }
 }
 
-impl AsRef<dust_dds::domain::domain_participant::DomainParticipant> for DomainParticipant {
-    fn as_ref(&self) -> &dust_dds::domain::domain_participant::DomainParticipant {
+impl AsRef<dust_dds::domain::domain_participant::DomainParticipant<dust_dds::runtime::StdRuntime>>
+    for DomainParticipant
+{
+    fn as_ref(
+        &self,
+    ) -> &dust_dds::domain::domain_participant::DomainParticipant<dust_dds::runtime::StdRuntime>
+    {
         &self.0
     }
 }
@@ -62,17 +73,13 @@ impl DomainParticipant {
             None => dust_dds::infrastructure::qos::QosKind::Default,
         };
 
+        let listener = a_listener.map(PublisherListener::from);
         let mask: Vec<dust_dds::infrastructure::status::StatusKind> = mask
             .into_iter()
             .map(dust_dds::infrastructure::status::StatusKind::from)
             .collect();
 
-        let r = match a_listener {
-            Some(l) => self
-                .0
-                .create_publisher(qos, PublisherListener::from(l), &mask),
-            None => self.0.create_publisher(qos, NoOpListener, &mask),
-        };
+        let r = self.0.create_publisher(qos, listener, &mask);
         match r {
             Ok(p) => Ok(p.into()),
             Err(e) => Err(into_pyerr(e)),
@@ -98,17 +105,13 @@ impl DomainParticipant {
             None => dust_dds::infrastructure::qos::QosKind::Default,
         };
 
+        let listener = a_listener.map(SubscriberListener::from);
         let mask: Vec<dust_dds::infrastructure::status::StatusKind> = mask
             .into_iter()
             .map(dust_dds::infrastructure::status::StatusKind::from)
             .collect();
 
-        let r = match a_listener {
-            Some(l) => self
-                .0
-                .create_subscriber(qos, SubscriberListener::from(l), &mask),
-            None => self.0.create_subscriber(qos, NoOpListener, &mask),
-        };
+        let r = self.0.create_subscriber(qos, listener, &mask);
         match r {
             Ok(s) => Ok(s.into()),
             Err(e) => Err(into_pyerr(e)),
@@ -136,6 +139,7 @@ impl DomainParticipant {
             None => dust_dds::infrastructure::qos::QosKind::Default,
         };
 
+        let listener = a_listener.map(TopicListener::from);
         let mask: Vec<dust_dds::infrastructure::status::StatusKind> = mask
             .into_iter()
             .map(dust_dds::infrastructure::status::StatusKind::from)
@@ -150,24 +154,14 @@ impl DomainParticipant {
             .insert(type_name.clone(), type_.clone());
 
         let dynamic_type_representation = Arc::new(PythonTypeRepresentation::try_from(type_)?);
-        let r = match a_listener {
-            Some(l) => self.0.create_dynamic_topic(
-                &topic_name,
-                &type_name,
-                qos,
-                TopicListener::from(l),
-                &mask,
-                dynamic_type_representation,
-            ),
-            None => self.0.create_dynamic_topic(
-                &topic_name,
-                &type_name,
-                qos,
-                NoOpListener,
-                &mask,
-                dynamic_type_representation,
-            ),
-        };
+        let r = self.0.create_dynamic_topic(
+            &topic_name,
+            &type_name,
+            qos,
+            listener,
+            &mask,
+            dynamic_type_representation,
+        );
         match r {
             Ok(t) => Ok(t.into()),
             Err(e) => Err(into_pyerr(e)),
@@ -340,21 +334,12 @@ impl DomainParticipant {
         a_listener: Option<Py<PyAny>>,
         mask: Vec<StatusKind>,
     ) -> PyResult<()> {
+        let listener = a_listener.map(DomainParticipantListener::from);
         let mask: Vec<dust_dds::infrastructure::status::StatusKind> = mask
             .into_iter()
             .map(dust_dds::infrastructure::status::StatusKind::from)
             .collect();
-        match a_listener {
-            Some(l) => self
-                .0
-                .set_listener(DomainParticipantListener::from(l), &mask),
-            None => self.0.set_listener(NoOpListener, &mask),
-        }
-        .map_err(into_pyerr)
-    }
-
-    pub fn get_statuscondition(&self) -> StatusCondition {
-        self.0.get_statuscondition().into()
+        self.0.set_listener(listener, &mask).map_err(into_pyerr)
     }
 
     pub fn get_status_changes(&self) -> PyResult<Vec<StatusKind>> {

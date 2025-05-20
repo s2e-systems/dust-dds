@@ -242,7 +242,7 @@ impl RtpsWriterProxy {
         self.acknack_count = self.acknack_count.wrapping_add(1);
     }
 
-    pub fn write_message(&mut self, reader_guid: &Guid, message_writer: &impl WriteMessage) {
+    pub async fn write_message(&mut self, reader_guid: &Guid, message_writer: &impl WriteMessage) {
         if self.must_send_acknacks() || !self.missing_changes().count() == 0 {
             self.set_must_send_acknacks(false);
             self.increment_acknack_count();
@@ -308,7 +308,9 @@ impl RtpsWriterProxy {
 
             let rtps_message =
                 RtpsMessageWrite::from_submessages(&submessages, message_writer.guid_prefix());
-            message_writer.write_message(rtps_message.buffer(), self.unicast_locator_list());
+            message_writer
+                .write_message(rtps_message.buffer(), self.unicast_locator_list())
+                .await;
         }
     }
 

@@ -68,10 +68,7 @@ impl<'a> Preprocessor<'a> {
                 let include_filepath = self
                     .idl_file_path
                     .parent()
-                    .ok_or(io::Error::new(
-                        io::ErrorKind::Other,
-                        "Failed to get parent path of IDL file",
-                    ))?
+                    .ok_or(io::Error::other("Failed to get parent path of IDL file"))?
                     .join(&include_filename[1..include_filename.len() - 1]);
 
                 self.parse_file(&include_filepath)?;

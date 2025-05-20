@@ -1,6 +1,6 @@
 use std::sync::atomic::AtomicI32;
 
-use dust_dds::domain::domain_participant_factory::DomainId;
+use dust_dds::infrastructure::domain::DomainId;
 
 pub static TEST_DOMAIN_ID_GENERATOR: DomainIdGenerator = DomainIdGenerator::new();
 
@@ -16,6 +16,6 @@ impl DomainIdGenerator {
     }
 
     pub fn generate_unique_domain_id(&self) -> DomainId {
-        self.id.fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+        self.id.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
     }
 }

@@ -1,0 +1,16 @@
+[package]
+name = "nostd_test_project"
+version = "0.1.0"
+authors = [
+	"Joao Rebelo <jrebelo@s2e-systems.com>",
+	"Stefan Kimmer <skimmer@s2e-systems.com>",
+]
+license = "Apache-2.0"
+edition = "2021"
+description = "Dust DDS no_std test project"
+
+[dependencies]
+dust_dds = { path = "../dds", default-features = false, features = [
+	"dcps",
+	"rtps",
+] }

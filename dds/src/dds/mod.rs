@@ -1,13 +1,7 @@
-/// Contains the built-in topics used by the service to propagate information needed for discovery and other data.
-pub mod builtin_topics;
-
 /// Contains the [`DomainParticipantFactory`](crate::domain::domain_participant_factory::DomainParticipantFactory) which is responsible for creating the
 /// [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant). The [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant)
 /// acts as an entry-point of the Service and a factory and contained for many of the classes that make up the Service.
 pub mod domain;
-
-/// Contains all the basic types used in the other modules including e.g. qos policies and communication statuses.
-pub mod infrastructure;
 
 /// Contains the [`Publisher`](crate::publication::publisher::Publisher) and [`DataWriter`](crate::publication::data_writer::DataWriter) classes as well as its
 /// listener traits, and more generally, all that is needed on the publication side.
@@ -24,3 +18,12 @@ pub mod topic_definition;
 /// Contains the [`DustDdsConfiguration`](crate::configuration::DustDdsConfiguration) struct that allow configuring the runtime options
 /// of the Dust DDS systems
 pub mod configuration;
+
+/// Classes related to the status conditions.
+pub mod condition;
+
+/// Classes related to the listener infrastructure.
+pub mod listener;
+
+/// Classes related to WaitSet.
+pub mod wait_set;

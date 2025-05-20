@@ -1051,6 +1051,7 @@ pub enum MinimalTypeObject {
 
 // @extensibility(APPENDABLE) @nested
 #[repr(u8)]
+#[allow(clippy::large_enum_variant)]
 pub enum TypeObject {
     // EquivalenceKind
     EkComplete { complete: CompleteTypeObject },
