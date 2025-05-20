@@ -1570,7 +1570,7 @@ where
     }
 
     #[tracing::instrument(skip(self, participant_address))]
-    pub async fn wait_for_acknowledgments(
+    pub fn wait_for_acknowledgments(
         &mut self,
         participant_address: R::ChannelSender<DomainParticipantMail<R>>,
         publisher_handle: InstanceHandle,
