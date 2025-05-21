@@ -1,6 +1,6 @@
 use super::condition::StatusCondition;
 use crate::{
-    dcps::runtime::DdsRuntime,
+    runtime::DdsRuntime,
     dds_async::wait_set::{ConditionAsync, WaitSetAsync},
     infrastructure::{error::DdsResult, time::Duration},
 };

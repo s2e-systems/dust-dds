@@ -2,7 +2,7 @@ use super::subscriber::Subscriber;
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     condition::StatusCondition,
-    dcps::runtime::DdsRuntime,
+    runtime::DdsRuntime,
     dds_async::data_reader::DataReaderAsync,
     infrastructure::{
         error::DdsResult,

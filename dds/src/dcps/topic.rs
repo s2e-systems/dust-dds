@@ -1,7 +1,7 @@
 use alloc::sync::Arc;
 
 use super::{
-    actor::Actor, listeners::domain_participant_listener::ListenerMail, runtime::DdsRuntime,
+    actor::Actor, listeners::domain_participant_listener::ListenerMail,
     status_condition::StatusCondition, status_condition_actor::StatusConditionActor,
 };
 use crate::{
@@ -11,6 +11,7 @@ use crate::{
         qos::TopicQos,
         status::{InconsistentTopicStatus, StatusKind},
     },
+    runtime::DdsRuntime,
     xtypes::dynamic_type::DynamicType,
 };
 use alloc::{string::String, vec::Vec};

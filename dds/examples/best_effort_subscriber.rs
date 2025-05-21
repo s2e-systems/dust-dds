@@ -4,7 +4,7 @@ use std::{
 };
 
 use dust_dds::{
-    dcps::runtime::DdsRuntime,
+    runtime::DdsRuntime,
     dds_async::data_reader::DataReaderAsync,
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{

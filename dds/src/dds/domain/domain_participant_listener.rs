@@ -1,5 +1,5 @@
 use crate::{
-    dcps::runtime::DdsRuntime,
+    runtime::DdsRuntime,
     dds_async::{data_reader::DataReaderAsync, data_writer::DataWriterAsync, topic::TopicAsync},
     infrastructure::status::{
         InconsistentTopicStatus, LivelinessChangedStatus, LivelinessLostStatus,

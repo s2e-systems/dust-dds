@@ -1,5 +1,5 @@
 use crate::{
-    dcps::runtime::DdsRuntime,
+    runtime::DdsRuntime,
     dds_async::condition::StatusConditionAsync,
     infrastructure::{error::DdsResult, status::StatusKind},
 };

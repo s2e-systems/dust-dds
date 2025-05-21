@@ -1,7 +1,6 @@
 use clap::Parser;
 use ctrlc;
 use dust_dds::{
-    dcps::runtime::DdsRuntime,
     dds_async::topic::TopicAsync,
     domain::{
         domain_participant::DomainParticipant,
@@ -23,7 +22,8 @@ use dust_dds::{
     },
     listener::NO_LISTENER,
     publication::data_writer::DataWriter,
-    runtime::StdRuntime,
+    runtime::DdsRuntime,
+    std_runtime::StdRuntime,
     subscription::data_reader::DataReader,
 };
 use rand::{random, thread_rng, Rng};

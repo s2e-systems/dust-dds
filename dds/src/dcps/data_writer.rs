@@ -13,7 +13,6 @@ use super::{
         time::{DurationKind, Time},
     },
     listeners::domain_participant_listener::ListenerMail,
-    runtime::{Clock, DdsRuntime},
     status_condition::StatusCondition,
     status_condition_actor::StatusConditionActor,
     xtypes_glue::key_and_instance_handle::{
@@ -21,6 +20,7 @@ use super::{
     },
 };
 use crate::{
+    runtime::{Clock, DdsRuntime},
     transport::{
         history_cache::{CacheChange, HistoryCache},
         types::{ChangeKind, Guid},

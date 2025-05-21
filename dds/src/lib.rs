@@ -39,9 +39,13 @@ pub mod rtps_udp_transport;
 /// Contains the Dust DDS transport interface definition.
 pub mod transport;
 
+#[cfg(feature = "dcps")]
+/// Contains the Dust DDS runtime abstractions.
+pub mod runtime;
+
 #[cfg(feature = "std")]
 #[doc(hidden)]
-pub mod runtime;
+pub mod std_runtime;
 
 /// Contains the XTypes serializer and deserializer
 #[cfg(feature = "xtypes")]

@@ -1,6 +1,6 @@
 use super::{data_writer_listener::DataWriterListener, publisher_listener::PublisherListener};
 use crate::{
-    dcps::runtime::DdsRuntime,
+    runtime::DdsRuntime,
     dds_async::publisher::PublisherAsync,
     domain::domain_participant::DomainParticipant,
     infrastructure::{

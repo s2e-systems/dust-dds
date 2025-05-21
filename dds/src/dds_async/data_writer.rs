@@ -10,7 +10,6 @@ use crate::{
             DomainParticipantMail, MessageServiceMail, WriterServiceMail,
         },
         listeners::data_writer_listener::DataWriterListenerActor,
-        runtime::{ChannelSend, DdsRuntime, OneshotReceive},
         status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
@@ -25,6 +24,7 @@ use crate::{
         type_support::DdsSerialize,
     },
     publication::data_writer_listener::DataWriterListener,
+    runtime::{ChannelSend, DdsRuntime, OneshotReceive},
 };
 use alloc::{boxed::Box, string::String, vec::Vec};
 use core::marker::PhantomData;

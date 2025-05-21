@@ -1,5 +1,5 @@
 use crate::{
-    dcps::runtime::DdsRuntime,
+    runtime::DdsRuntime,
     dds_async::{data_reader::DataReaderAsync, subscriber::SubscriberAsync},
     infrastructure::status::{
         LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,

@@ -1,7 +1,7 @@
 mod utils;
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 use dust_dds::{
-    dcps::runtime::DdsRuntime,
+    runtime::DdsRuntime,
     dds_async::domain_participant_factory::DomainParticipantFactoryAsync,
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{

@@ -1,7 +1,7 @@
 use core::future::Future;
 
 use crate::{
-    dcps::runtime::{ChannelReceive, ChannelSend, DdsRuntime, Spawner},
+    runtime::{ChannelReceive, ChannelSend, DdsRuntime, Spawner},
     infrastructure::error::{DdsError, DdsResult},
 };
 

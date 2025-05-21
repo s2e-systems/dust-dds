@@ -1,5 +1,5 @@
 use dust_dds::{
-    dcps::runtime::DdsRuntime,
+    runtime::DdsRuntime,
     dds_async::{
         data_reader::DataReaderAsync, data_writer::DataWriterAsync, subscriber::SubscriberAsync,
     },

@@ -6,11 +6,12 @@ use crate::{
         qos::{DataReaderQos, SubscriberQos},
         status::StatusKind,
     },
+    runtime::DdsRuntime,
 };
 use alloc::vec::Vec;
 
 use super::{
-    actor::Actor, listeners::domain_participant_listener::ListenerMail, runtime::DdsRuntime,
+    actor::Actor, listeners::domain_participant_listener::ListenerMail,
     status_condition_actor::StatusConditionActor,
 };
 

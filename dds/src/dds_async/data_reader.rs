@@ -7,7 +7,6 @@ use crate::{
         actor::ActorAddress,
         domain_participant_actor_mail::{DomainParticipantMail, ReaderServiceMail},
         listeners::data_reader_listener::DataReaderListenerActor,
-        runtime::{ChannelSend, DdsRuntime, OneshotReceive},
         status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
@@ -24,6 +23,7 @@ use crate::{
         },
         time::Duration,
     },
+    runtime::{ChannelSend, DdsRuntime, OneshotReceive},
     subscription::data_reader_listener::DataReaderListener,
 };
 use alloc::{vec, vec::Vec};

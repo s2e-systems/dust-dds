@@ -1,5 +1,5 @@
 use crate::{
-    dcps::runtime::{ChannelReceive, DdsRuntime, Spawner},
+    runtime::{ChannelReceive, DdsRuntime, Spawner},
     dds_async::{
         data_reader::DataReaderAsync, data_writer::DataWriterAsync, subscriber::SubscriberAsync,
     },
