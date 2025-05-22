@@ -418,6 +418,9 @@ impl TryFrom<&[u8]> for RtpsMessageRead {
                         if let Ok(submessage) = submessage {
                             submessages.push(submessage);
                         }
+                        if submessage_length == 0 {
+                            break;
+                        }
                         v.consume(submessage_length);
                     }
                 }
@@ -860,5 +863,40 @@ mod tests {
 
         let rtps_message = RtpsMessageRead::try_from(&data[..]).unwrap();
         assert_eq!(expected_submessages, rtps_message.submessages());
+    }
+
+    #[test]
+    fn deserialize_opendds_style_rtps_message() {
+        let expected_header = RtpsMessageHeader {
+            version: ProtocolVersion::new(2, 3),
+            vendor_id: [9, 8],
+            guid_prefix: [3; 12],
+        };
+
+        #[rustfmt::skip]
+        let data = [
+            b'R', b'T', b'P', b'S', // Protocol
+            2, 3, 9, 8, // ProtocolVersion | VendorId
+            3, 3, 3, 3, // GuidPrefix
+            3, 3, 3, 3, // GuidPrefix
+            3, 3, 3, 3, // GuidPrefix
+            0x15, 0b_0000_0011, 0, 0, // Submessage header
+            0, 0, 16, 0, // extraFlags, octetsToInlineQos
+            1, 2, 3, 4, // readerId: value[4]
+            6, 7, 8, 9, // writerId: value[4]
+            0, 0, 0, 0, // writerSN: high
+            5, 0, 0, 0, // writerSN: low
+            6, 0, 4, 0, // inlineQos: parameterId_1, length_1
+            10, 11, 12, 13, // inlineQos: value_1[length_1]
+            7, 0, 4, 0, // inlineQos: parameterId_2, length_2
+            20, 21, 22, 23, // inlineQos: value_2[length_2]
+            1, 0, 0, 0, // inlineQos: Sentinel
+        ];
+
+        let rtps_message = RtpsMessageRead::try_from(&data[..]).unwrap();
+        assert_eq!(rtps_message.header(), expected_header);
+        let submessages = rtps_message.submessages();
+        assert_eq!(submessages.len(), 1);
+        assert!(matches!(submessages[0], RtpsSubmessageReadKind::Data(..)));
     }
 }

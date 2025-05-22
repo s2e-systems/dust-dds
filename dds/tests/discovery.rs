@@ -1112,7 +1112,7 @@ fn participant_removed_after_lease_duration() {
         .delete_participant(&participant2)
         .unwrap();
 
-    std::thread::sleep(std::time::Duration::from_secs(110));
+    std::thread::sleep(std::time::Duration::from_secs(5));
 
     let discovered_participant = participant1.get_discovered_participants().unwrap();
 
