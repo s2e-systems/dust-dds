@@ -11,7 +11,6 @@ use crate::{
             DomainParticipantFactoryMail,
         },
         listeners::domain_participant_listener::DomainParticipantListenerActor,
-        runtime::{ChannelSend, DdsRuntime, OneshotReceive},
     },
     domain::domain_participant_listener::DomainParticipantListener,
     infrastructure::{
@@ -20,6 +19,7 @@ use crate::{
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
         status::StatusKind,
     },
+    runtime::{ChannelSend, DdsRuntime, OneshotReceive},
 };
 use alloc::string::String;
 
@@ -213,23 +213,24 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
 }
 
 #[cfg(feature = "std")]
-impl DomainParticipantFactoryAsync<crate::runtime::StdRuntime> {
+impl DomainParticipantFactoryAsync<crate::std_runtime::StdRuntime> {
     /// This operation returns the [`DomainParticipantFactoryAsync`] singleton. The operation is idempotent, that is, it can be called multiple
     /// times without side-effects and it will return the same [`DomainParticipantFactoryAsync`] instance.
     #[tracing::instrument]
-    pub fn get_instance() -> &'static DomainParticipantFactoryAsync<crate::runtime::StdRuntime> {
+    pub fn get_instance() -> &'static DomainParticipantFactoryAsync<crate::std_runtime::StdRuntime>
+    {
         use core::net::IpAddr;
         use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
         use std::sync::OnceLock;
         use tracing::warn;
 
         static PARTICIPANT_FACTORY_ASYNC: OnceLock<
-            DomainParticipantFactoryAsync<crate::runtime::StdRuntime>,
+            DomainParticipantFactoryAsync<crate::std_runtime::StdRuntime>,
         > = OnceLock::new();
         PARTICIPANT_FACTORY_ASYNC.get_or_init(|| {
-            let executor = crate::runtime::executor::Executor::new();
-            let timer_driver = crate::runtime::timer::TimerDriver::new();
-            let runtime = crate::runtime::StdRuntime::new(executor, timer_driver);
+            let executor = crate::std_runtime::executor::Executor::new();
+            let timer_driver = crate::std_runtime::timer::TimerDriver::new();
+            let runtime = crate::std_runtime::StdRuntime::new(executor, timer_driver);
             let interface_address = NetworkInterface::show()
                 .expect("Could not scan interfaces")
                 .into_iter()

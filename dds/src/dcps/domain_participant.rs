@@ -17,13 +17,13 @@ use crate::{
         qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
         status::StatusKind,
     },
+    runtime::DdsRuntime,
 };
 use alloc::{string::String, vec::Vec};
 
 use super::{
     builtin_topics::{DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC},
     listeners::domain_participant_listener::ListenerMail,
-    runtime::DdsRuntime,
 };
 
 pub const BUILT_IN_TOPIC_NAME_LIST: [&str; 4] = [

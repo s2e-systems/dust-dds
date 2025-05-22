@@ -4,7 +4,7 @@ use super::{
 };
 use crate::{
     condition::StatusCondition,
-    dcps::runtime::DdsRuntime,
+    runtime::DdsRuntime,
     dds_async::subscriber::SubscriberAsync,
     domain::domain_participant::DomainParticipant,
     infrastructure::{

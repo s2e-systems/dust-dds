@@ -1,5 +1,5 @@
 use crate::{
-    dcps::runtime::DdsRuntime, dds_async::topic::TopicAsync,
+    runtime::DdsRuntime, dds_async::topic::TopicAsync,
     infrastructure::status::InconsistentTopicStatus,
 };
 use core::future::Future;

@@ -10,7 +10,6 @@ use crate::{
             data_reader_listener::DataReaderListenerActor,
             subscriber_listener::SubscriberListenerActor,
         },
-        runtime::{ChannelSend, DdsRuntime, OneshotReceive},
         status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
@@ -19,6 +18,7 @@ use crate::{
         qos::{DataReaderQos, QosKind, SubscriberQos, TopicQos},
         status::{SampleLostStatus, StatusKind},
     },
+    runtime::{ChannelSend, DdsRuntime, OneshotReceive},
     subscription::{
         data_reader_listener::DataReaderListener, subscriber_listener::SubscriberListener,
     },

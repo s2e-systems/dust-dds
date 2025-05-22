@@ -1,7 +1,7 @@
 use super::domain_participant::DomainParticipant;
 use crate::{
     configuration::DustDdsConfiguration,
-    dcps::{domain_participant_factory_actor::DdsTransportParticipantFactory, runtime::DdsRuntime},
+    dcps::domain_participant_factory_actor::DdsTransportParticipantFactory,
     dds_async::domain_participant_factory::DomainParticipantFactoryAsync,
     domain::domain_participant_listener::DomainParticipantListener,
     infrastructure::{
@@ -10,6 +10,7 @@ use crate::{
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
         status::StatusKind,
     },
+    runtime::DdsRuntime,
 };
 use tracing::warn;
 
@@ -130,17 +131,18 @@ impl<R: DdsRuntime> DomainParticipantFactory<R> {
 }
 
 #[cfg(feature = "std")]
-impl DomainParticipantFactory<crate::runtime::StdRuntime> {
+impl DomainParticipantFactory<crate::std_runtime::StdRuntime> {
     /// This operation returns the [`DomainParticipantFactory`] singleton. The operation is idempotent, that is, it can be called multiple
     /// times without side-effects and it will return the same [`DomainParticipantFactory`] instance.
     #[tracing::instrument]
     pub fn get_instance() -> &'static Self {
         static PARTICIPANT_FACTORY: std::sync::OnceLock<
-            DomainParticipantFactory<crate::runtime::StdRuntime>,
+            DomainParticipantFactory<crate::std_runtime::StdRuntime>,
         > = std::sync::OnceLock::new();
         PARTICIPANT_FACTORY.get_or_init(|| DomainParticipantFactory {
-            participant_factory_async:
-                DomainParticipantFactoryAsync::<crate::runtime::StdRuntime>::get_instance(),
+            participant_factory_async: DomainParticipantFactoryAsync::<
+                crate::std_runtime::StdRuntime,
+            >::get_instance(),
         })
     }
 }

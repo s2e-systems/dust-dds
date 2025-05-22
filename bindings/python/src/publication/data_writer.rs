@@ -20,20 +20,20 @@ use super::{data_writer_listener::DataWriterListener, publisher::Publisher};
 
 #[pyclass]
 pub struct DataWriter(
-    dust_dds::publication::data_writer::DataWriter<dust_dds::runtime::StdRuntime, PythonDdsData>,
+    dust_dds::publication::data_writer::DataWriter<dust_dds::std_runtime::StdRuntime, PythonDdsData>,
 );
 
 impl
     From<
         dust_dds::publication::data_writer::DataWriter<
-            dust_dds::runtime::StdRuntime,
+            dust_dds::std_runtime::StdRuntime,
             PythonDdsData,
         >,
     > for DataWriter
 {
     fn from(
         value: dust_dds::publication::data_writer::DataWriter<
-            dust_dds::runtime::StdRuntime,
+            dust_dds::std_runtime::StdRuntime,
             PythonDdsData,
         >,
     ) -> Self {
@@ -44,14 +44,14 @@ impl
 impl
     From<
         dust_dds::dds_async::data_writer::DataWriterAsync<
-            dust_dds::runtime::StdRuntime,
+            dust_dds::std_runtime::StdRuntime,
             PythonDdsData,
         >,
     > for DataWriter
 {
     fn from(
         value: dust_dds::dds_async::data_writer::DataWriterAsync<
-            dust_dds::runtime::StdRuntime,
+            dust_dds::std_runtime::StdRuntime,
             PythonDdsData,
         >,
     ) -> Self {
@@ -62,14 +62,14 @@ impl
 impl
     AsRef<
         dust_dds::publication::data_writer::DataWriter<
-            dust_dds::runtime::StdRuntime,
+            dust_dds::std_runtime::StdRuntime,
             PythonDdsData,
         >,
     > for DataWriter
 {
     fn as_ref(
         &self,
-    ) -> &dust_dds::publication::data_writer::DataWriter<dust_dds::runtime::StdRuntime, PythonDdsData>
+    ) -> &dust_dds::publication::data_writer::DataWriter<dust_dds::std_runtime::StdRuntime, PythonDdsData>
     {
         &self.0
     }

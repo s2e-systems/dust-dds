@@ -1,5 +1,5 @@
 use crate::{
-    dcps::runtime::{ChannelReceive, DdsRuntime, Spawner},
+    runtime::{ChannelReceive, DdsRuntime, Spawner},
     topic_definition::topic_listener::TopicListener,
 };
 

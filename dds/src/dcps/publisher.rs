@@ -1,4 +1,5 @@
 use super::{
+    data_writer::DataWriterEntity,
     infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,
@@ -6,11 +7,10 @@ use super::{
         status::StatusKind,
     },
     listeners::domain_participant_listener::ListenerMail,
-    runtime::DdsRuntime,
 };
 use alloc::vec::Vec;
 
-use crate::dcps::data_writer::DataWriterEntity;
+use crate::runtime::DdsRuntime;
 
 pub struct PublisherEntity<R: DdsRuntime> {
     qos: PublisherQos,

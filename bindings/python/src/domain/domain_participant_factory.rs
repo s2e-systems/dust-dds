@@ -14,7 +14,7 @@ use super::{
 #[pyclass]
 pub struct DomainParticipantFactory(
     &'static dust_dds::domain::domain_participant_factory::DomainParticipantFactory<
-        dust_dds::runtime::StdRuntime,
+        dust_dds::std_runtime::StdRuntime,
     >,
 );
 

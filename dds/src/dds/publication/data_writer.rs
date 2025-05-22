@@ -1,7 +1,7 @@
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     condition::StatusCondition,
-    dcps::runtime::DdsRuntime,
+    runtime::DdsRuntime,
     dds_async::data_writer::DataWriterAsync,
     infrastructure::{
         error::DdsResult,

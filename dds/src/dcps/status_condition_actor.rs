@@ -1,15 +1,11 @@
 use core::marker::PhantomData;
 
 use crate::{
-    dcps::{
-        actor::{Actor, MailHandler},
-        runtime::DdsRuntime,
-    },
+    dcps::actor::{Actor, MailHandler},
     infrastructure::status::StatusKind,
+    runtime::{DdsRuntime, OneshotSend},
 };
 use alloc::{vec, vec::Vec};
-
-use super::runtime::OneshotSend;
 
 #[derive(Debug)]
 pub struct StatusConditionActor<R: DdsRuntime> {

@@ -9,7 +9,6 @@ use crate::{
             data_writer_listener::DataWriterListenerActor,
             publisher_listener::PublisherListenerActor,
         },
-        runtime::{ChannelSend, DdsRuntime, OneshotReceive},
         status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
@@ -22,6 +21,7 @@ use crate::{
     publication::{
         data_writer_listener::DataWriterListener, publisher_listener::PublisherListener,
     },
+    runtime::{ChannelSend, DdsRuntime, OneshotReceive},
 };
 use alloc::vec::Vec;
 

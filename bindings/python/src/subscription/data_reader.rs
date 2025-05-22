@@ -24,20 +24,20 @@ use pyo3::{exceptions::PyTypeError, prelude::*};
 
 #[pyclass]
 pub struct DataReader(
-    dust_dds::subscription::data_reader::DataReader<dust_dds::runtime::StdRuntime, PythonDdsData>,
+    dust_dds::subscription::data_reader::DataReader<dust_dds::std_runtime::StdRuntime, PythonDdsData>,
 );
 
 impl
     From<
         dust_dds::subscription::data_reader::DataReader<
-            dust_dds::runtime::StdRuntime,
+            dust_dds::std_runtime::StdRuntime,
             PythonDdsData,
         >,
     > for DataReader
 {
     fn from(
         value: dust_dds::subscription::data_reader::DataReader<
-            dust_dds::runtime::StdRuntime,
+            dust_dds::std_runtime::StdRuntime,
             PythonDdsData,
         >,
     ) -> Self {
@@ -48,14 +48,14 @@ impl
 impl
     From<
         dust_dds::dds_async::data_reader::DataReaderAsync<
-            dust_dds::runtime::StdRuntime,
+            dust_dds::std_runtime::StdRuntime,
             PythonDdsData,
         >,
     > for DataReader
 {
     fn from(
         value: dust_dds::dds_async::data_reader::DataReaderAsync<
-            dust_dds::runtime::StdRuntime,
+            dust_dds::std_runtime::StdRuntime,
             PythonDdsData,
         >,
     ) -> Self {
@@ -66,7 +66,7 @@ impl
 impl
     AsRef<
         dust_dds::subscription::data_reader::DataReader<
-            dust_dds::runtime::StdRuntime,
+            dust_dds::std_runtime::StdRuntime,
             PythonDdsData,
         >,
     > for DataReader
@@ -74,7 +74,7 @@ impl
     fn as_ref(
         &self,
     ) -> &dust_dds::subscription::data_reader::DataReader<
-        dust_dds::runtime::StdRuntime,
+        dust_dds::std_runtime::StdRuntime,
         PythonDdsData,
     > {
         &self.0

@@ -1,7 +1,7 @@
 use super::domain_participant_listener::DomainParticipantListener;
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
-    dcps::runtime::DdsRuntime,
+    runtime::DdsRuntime,
     dds_async::domain_participant::DomainParticipantAsync,
     infrastructure::{
         domain::DomainId,

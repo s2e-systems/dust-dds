@@ -21,7 +21,7 @@ use dust_dds::{
     },
     listener::NO_LISTENER,
     publication::{data_writer::DataWriter, publisher::Publisher},
-    runtime::StdRuntime,
+    std_runtime::StdRuntime,
     subscription::{data_reader::DataReader, subscriber::Subscriber},
 };
 use eframe::{

@@ -1,7 +1,7 @@
 use super::topic_listener::TopicListener;
 use crate::{
     condition::StatusCondition,
-    dcps::runtime::DdsRuntime,
+    runtime::DdsRuntime,
     dds_async::topic::TopicAsync,
     domain::domain_participant::DomainParticipant,
     infrastructure::{
