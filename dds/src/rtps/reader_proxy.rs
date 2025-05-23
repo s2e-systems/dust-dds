@@ -38,11 +38,12 @@ impl HeartbeatMachine {
         first_sn: SequenceNumber,
         last_sn: SequenceNumber,
         heartbeat_time: core::time::Duration,
+        final_flag: bool,
     ) -> HeartbeatSubmessage {
         self.count = self.count.wrapping_add(1);
         self.last_heartbeat_time = heartbeat_time;
         HeartbeatSubmessage::new(
-            false,
+            final_flag,
             false,
             self.reader_id,
             writer_id,
@@ -266,6 +267,4 @@ impl RtpsReaderProxy {
     pub fn set_last_received_nack_frag_count(&mut self, count: Count) {
         self.last_received_nack_frag_count = count;
     }
-
-
 }

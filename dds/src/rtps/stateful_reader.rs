@@ -170,18 +170,14 @@ impl RtpsStatefulReader {
         {
             if writer_proxy.last_received_heartbeat_count() < heartbeat_submessage.count() {
                 writer_proxy.set_last_received_heartbeat_count(heartbeat_submessage.count());
-
-                writer_proxy.set_must_send_acknacks(
-                    !heartbeat_submessage.final_flag()
-                        || (!heartbeat_submessage.liveliness_flag()
-                            && !writer_proxy.missing_changes().count() == 0),
-                );
-
-                if !heartbeat_submessage.final_flag() {
-                    writer_proxy.set_must_send_acknacks(true);
-                }
                 writer_proxy.missing_changes_update(heartbeat_submessage.last_sn());
                 writer_proxy.lost_changes_update(heartbeat_submessage.first_sn());
+
+                let must_send_acknacks = !heartbeat_submessage.final_flag()
+                    || (!heartbeat_submessage.liveliness_flag()
+                        && writer_proxy.missing_changes().count() > 0);
+                writer_proxy.set_must_send_acknacks(must_send_acknacks);
+
                 writer_proxy.write_message(&self.guid, message_writer).await;
             }
         }
