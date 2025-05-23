@@ -72,14 +72,6 @@ impl RtpsStatefulWriter {
     }
 
     pub fn add_matched_reader(&mut self, reader_proxy: &ReaderProxy) {
-        if self
-            .matched_readers
-            .iter()
-            .any(|rp| rp.remote_reader_guid() == reader_proxy.remote_reader_guid)
-        {
-            return;
-        }
-
         let first_relevant_sample_seq_num = match reader_proxy.durability_kind {
             DurabilityKind::Volatile => self
                 .changes
@@ -102,7 +94,15 @@ impl RtpsStatefulWriter {
             first_relevant_sample_seq_num,
             reader_proxy.durability_kind,
         );
-        self.matched_readers.push(rtps_reader_proxy);
+        if let Some(rp) = self
+            .matched_readers
+            .iter_mut()
+            .find(|rp| rp.remote_reader_guid() == reader_proxy.remote_reader_guid)
+        {
+            *rp = rtps_reader_proxy;
+        } else {
+            self.matched_readers.push(rtps_reader_proxy);
+        }
     }
 
     pub fn delete_matched_reader(&mut self, reader_guid: Guid) {
@@ -478,7 +478,7 @@ async fn write_message_to_reader_proxy_reliable(
         if reader_proxy
             .heartbeat_machine()
             .is_time_for_heartbeat(now, heartbeat_period.into())
-            && reader_proxy.durability() == DurabilityKind::Volatile
+            && reader_proxy.durability() != DurabilityKind::Volatile
         {
             let first_sn = seq_num_min.unwrap_or(1);
             let last_sn = seq_num_max.unwrap_or(0);

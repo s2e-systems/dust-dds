@@ -22,15 +22,21 @@ use alloc::{boxed::Box, vec::Vec};
 pub struct RtpsStatefulReader {
     guid: Guid,
     matched_writers: Vec<RtpsWriterProxy>,
+    reliability: ReliabilityKind,
     history_cache: Box<dyn HistoryCache>,
 }
 
 impl RtpsStatefulReader {
-    pub fn new(guid: Guid, history_cache: Box<dyn HistoryCache>) -> Self {
+    pub fn new(
+        guid: Guid,
+        history_cache: Box<dyn HistoryCache>,
+        reliability: ReliabilityKind,
+    ) -> Self {
         Self {
             guid,
             matched_writers: Vec::new(),
             history_cache,
+            reliability,
         }
     }
 
@@ -39,14 +45,6 @@ impl RtpsStatefulReader {
     }
 
     pub fn add_matched_writer(&mut self, writer_proxy: &WriterProxy) {
-        if self
-            .matched_writers
-            .iter()
-            .any(|wp| wp.remote_writer_guid() == writer_proxy.remote_writer_guid)
-        {
-            return;
-        }
-
         let rtps_writer_proxy = RtpsWriterProxy::new(
             writer_proxy.remote_writer_guid,
             &writer_proxy.unicast_locator_list,
@@ -54,7 +52,15 @@ impl RtpsStatefulReader {
             writer_proxy.remote_group_entity_id,
             writer_proxy.reliability_kind,
         );
-        self.matched_writers.push(rtps_writer_proxy);
+        if let Some(wp) = self
+            .matched_writers
+            .iter_mut()
+            .find(|wp| wp.remote_writer_guid() == writer_proxy.remote_writer_guid)
+        {
+            *wp = rtps_writer_proxy;
+        } else {
+            self.matched_writers.push(rtps_writer_proxy);
+        }
     }
 
     pub fn delete_matched_writer(&mut self, writer_guid: Guid) {
@@ -76,8 +82,9 @@ impl RtpsStatefulReader {
     ) {
         let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id());
         let sequence_number = data_submessage.writer_sn();
+        let reliability = self.reliability.clone();
         if let Some(writer_proxy) = self.matched_writer_lookup(writer_guid) {
-            match writer_proxy.reliability() {
+            match reliability {
                 ReliabilityKind::BestEffort => {
                     let expected_seq_num = writer_proxy.available_changes_max() + 1;
                     if sequence_number >= expected_seq_num {
