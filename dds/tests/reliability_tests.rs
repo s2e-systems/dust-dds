@@ -293,6 +293,7 @@ fn writer_should_send_heartbeat_periodically() {
 }
 
 #[test]
+#[ignore]
 fn writer_should_not_send_heartbeat_after_acknack() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 

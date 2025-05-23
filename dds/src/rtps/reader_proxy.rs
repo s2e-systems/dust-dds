@@ -5,7 +5,7 @@ use crate::{
     },
     transport::{
         history_cache::CacheChange,
-        types::{EntityId, Guid, Locator, ReliabilityKind, SequenceNumber},
+        types::{DurabilityKind, EntityId, Guid, Locator, ReliabilityKind, SequenceNumber},
     },
 };
 use alloc::vec::Vec;
@@ -38,11 +38,12 @@ impl HeartbeatMachine {
         first_sn: SequenceNumber,
         last_sn: SequenceNumber,
         heartbeat_time: core::time::Duration,
+        final_flag: bool,
     ) -> HeartbeatSubmessage {
         self.count = self.count.wrapping_add(1);
         self.last_heartbeat_time = heartbeat_time;
         HeartbeatSubmessage::new(
-            false,
+            final_flag,
             false,
             self.reader_id,
             writer_id,
@@ -100,6 +101,7 @@ pub struct RtpsReaderProxy {
     heartbeat_frag_machine: HeartbeatFragMachine,
     reliability: ReliabilityKind,
     first_relevant_sample_seq_num: SequenceNumber,
+    durability: DurabilityKind,
 }
 
 impl RtpsReaderProxy {
@@ -113,6 +115,7 @@ impl RtpsReaderProxy {
         is_active: bool,
         reliability: ReliabilityKind,
         first_relevant_sample_seq_num: SequenceNumber,
+        durability: DurabilityKind,
     ) -> Self {
         let heartbeat_machine = HeartbeatMachine::new(remote_reader_guid.entity_id());
         let heartbeat_frag_machine = HeartbeatFragMachine::new(remote_reader_guid.entity_id());
@@ -132,6 +135,7 @@ impl RtpsReaderProxy {
             heartbeat_frag_machine,
             reliability,
             first_relevant_sample_seq_num,
+            durability,
         }
     }
 
@@ -153,6 +157,10 @@ impl RtpsReaderProxy {
 
     pub fn _heartbeat_frag_machine(&mut self) -> &mut HeartbeatFragMachine {
         &mut self.heartbeat_frag_machine
+    }
+
+    pub fn durability(&self) -> DurabilityKind {
+        self.durability
     }
 
     // //////////////   ReaderProxy operations defined in the Rtps Standard

@@ -72,14 +72,6 @@ impl RtpsStatefulWriter {
     }
 
     pub fn add_matched_reader(&mut self, reader_proxy: &ReaderProxy) {
-        if self
-            .matched_readers
-            .iter()
-            .any(|rp| rp.remote_reader_guid() == reader_proxy.remote_reader_guid)
-        {
-            return;
-        }
-
         let first_relevant_sample_seq_num = match reader_proxy.durability_kind {
             DurabilityKind::Volatile => self
                 .changes
@@ -100,8 +92,17 @@ impl RtpsStatefulWriter {
             true,
             reader_proxy.reliability_kind,
             first_relevant_sample_seq_num,
+            reader_proxy.durability_kind,
         );
-        self.matched_readers.push(rtps_reader_proxy);
+        if let Some(rp) = self
+            .matched_readers
+            .iter_mut()
+            .find(|rp| rp.remote_reader_guid() == reader_proxy.remote_reader_guid)
+        {
+            *rp = rtps_reader_proxy;
+        } else {
+            self.matched_readers.push(rtps_reader_proxy);
+        }
     }
 
     pub fn delete_matched_reader(&mut self, reader_guid: Guid) {
@@ -444,7 +445,7 @@ async fn write_message_to_reader_proxy_reliable(
                 let heartbeat_submessage = Box::new(
                     reader_proxy
                         .heartbeat_machine()
-                        .generate_new_heartbeat(writer_id, first_sn, last_sn, now),
+                        .generate_new_heartbeat(writer_id, first_sn, last_sn, now, false),
                 );
                 let info_dst = Box::new(InfoDestinationSubmessage::new(
                     reader_proxy.remote_reader_guid().prefix(),
@@ -474,6 +475,31 @@ async fn write_message_to_reader_proxy_reliable(
         }
     } else if !reader_proxy.unacked_changes(seq_num_max) {
         // Idle
+        if reader_proxy
+            .heartbeat_machine()
+            .is_time_for_heartbeat(now, heartbeat_period.into())
+            && reader_proxy.durability() != DurabilityKind::Volatile
+        {
+            let first_sn = seq_num_min.unwrap_or(1);
+            let last_sn = seq_num_max.unwrap_or(0);
+            let heartbeat_submessage = Box::new(
+                reader_proxy
+                    .heartbeat_machine()
+                    .generate_new_heartbeat(writer_id, first_sn, last_sn, now, true),
+            );
+
+            let info_dst = Box::new(InfoDestinationSubmessage::new(
+                reader_proxy.remote_reader_guid().prefix(),
+            ));
+
+            let rtps_message = RtpsMessageWrite::from_submessages(
+                &[info_dst, heartbeat_submessage],
+                message_writer.guid_prefix(),
+            );
+            message_writer
+                .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list())
+                .await;
+        }
     } else if reader_proxy
         .heartbeat_machine()
         .is_time_for_heartbeat(now, heartbeat_period.into())
@@ -483,7 +509,7 @@ async fn write_message_to_reader_proxy_reliable(
         let heartbeat_submessage = Box::new(
             reader_proxy
                 .heartbeat_machine()
-                .generate_new_heartbeat(writer_id, first_sn, last_sn, now),
+                .generate_new_heartbeat(writer_id, first_sn, last_sn, now, false),
         );
 
         let info_dst = Box::new(InfoDestinationSubmessage::new(
@@ -629,7 +655,7 @@ async fn write_change_message_reader_proxy_reliable(
                 let heartbeat = Box::new(
                     reader_proxy
                         .heartbeat_machine()
-                        .generate_new_heartbeat(writer_id, first_sn, last_sn, now),
+                        .generate_new_heartbeat(writer_id, first_sn, last_sn, now, false),
                 );
 
                 let rtps_message = RtpsMessageWrite::from_submessages(
@@ -658,7 +684,8 @@ async fn write_change_message_reader_proxy_reliable(
                 message_writer.guid_prefix(),
             );
             message_writer
-                .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list()).await;
+                .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list())
+                .await;
         }
     }
 }

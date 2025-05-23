@@ -1192,6 +1192,7 @@ impl<R: DdsRuntime> DomainParticipantActor<R> {
                 .send(self.is_historical_data_received(subscriber_handle, data_reader_handle)),
             MessageServiceMail::AddBuiltinParticipantsDetectorCacheChange { cache_change } => {
                 self.add_builtin_participants_detector_cache_change(cache_change)
+                    .await
             }
             MessageServiceMail::AddBuiltinPublicationsDetectorCacheChange {
                 cache_change,

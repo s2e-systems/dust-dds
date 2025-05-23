@@ -706,7 +706,7 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
     fn create_stateful_reader(
         &mut self,
         entity_id: EntityId,
-        _reliability_kind: ReliabilityKind,
+        reliability_kind: ReliabilityKind,
         reader_history_cache: Self::HistoryCache,
     ) -> Self::StatefulReader {
         struct StatefulReader {
@@ -747,6 +747,7 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
         let rtps_stateful_reader = Arc::new(Mutex::new(RtpsStatefulReader::new(
             guid,
             reader_history_cache,
+            reliability_kind,
         )));
         self.chanel_message_sender
             .send(ChannelMessageKind::AddStatefulReader(
