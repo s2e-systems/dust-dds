@@ -82,7 +82,7 @@ impl RtpsStatefulReader {
     ) {
         let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id());
         let sequence_number = data_submessage.writer_sn();
-        let reliability = self.reliability.clone();
+        let reliability = self.reliability;
         if let Some(writer_proxy) = self.matched_writer_lookup(writer_guid) {
             match reliability {
                 ReliabilityKind::BestEffort => {
