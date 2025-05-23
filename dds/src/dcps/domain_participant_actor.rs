@@ -3172,7 +3172,10 @@ where
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn add_builtin_participants_detector_cache_change(&mut self, cache_change: CacheChange) {
+    pub async fn add_builtin_participants_detector_cache_change(
+        &mut self,
+        cache_change: CacheChange,
+    ) {
         match cache_change.kind {
             ChangeKind::Alive => {
                 if let Ok(discovered_participant_data) =
@@ -3180,7 +3183,8 @@ where
                         cache_change.data_value.as_ref(),
                     )
                 {
-                    self.add_discovered_participant(discovered_participant_data);
+                    self.add_discovered_participant(discovered_participant_data)
+                        .await;
                 }
             }
             ChangeKind::NotAliveDisposed => {
@@ -4005,14 +4009,10 @@ where
     }
 
     #[tracing::instrument(skip(self))]
-    fn add_discovered_participant(
+    async fn add_discovered_participant(
         &mut self,
         discovered_participant_data: SpdpDiscoveredParticipantData,
     ) {
-        // pub fn add_discovered_participant(
-        //     &mut self,
-        //     discovered_participant_data: &SpdpDiscoveredParticipantData,
-        // ) {
         // Check that the domainId of the discovered participant equals the local one.
         // If it is not equal then there the local endpoints are not configured to
         // communicate with the discovered participant.
@@ -4043,6 +4043,8 @@ where
             self.add_matched_subscriptions_announcer(&discovered_participant_data);
             self.add_matched_topics_detector(&discovered_participant_data);
             self.add_matched_topics_announcer(&discovered_participant_data);
+
+            self.announce_participant().await;
         }
 
         self.domain_participant
