@@ -100,6 +100,7 @@ impl RtpsStatefulWriter {
             true,
             reader_proxy.reliability_kind,
             first_relevant_sample_seq_num,
+            reader_proxy.durability_kind,
         );
         self.matched_readers.push(rtps_reader_proxy);
     }
@@ -472,7 +473,9 @@ async fn write_message_to_reader_proxy_reliable(
             }
             reader_proxy.set_highest_sent_seq_num(next_unsent_change_seq_num);
         }
-    } else if !reader_proxy.unacked_changes(seq_num_max) {
+    } else if !reader_proxy.unacked_changes(seq_num_max)
+        && reader_proxy.durability() == DurabilityKind::Volatile
+    {
         // Idle
     } else if reader_proxy
         .heartbeat_machine()
@@ -658,7 +661,8 @@ async fn write_change_message_reader_proxy_reliable(
                 message_writer.guid_prefix(),
             );
             message_writer
-                .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list()).await;
+                .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list())
+                .await;
         }
     }
 }
