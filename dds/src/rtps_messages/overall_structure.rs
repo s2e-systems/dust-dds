@@ -466,6 +466,10 @@ impl RtpsMessageWrite {
         }
     }
 
+    pub(crate) fn from_prepared_arc(message: Arc<[u8]>) -> Self {
+        RtpsMessageWrite { data: message }
+    }
+
     pub fn buffer(&self) -> &[u8] {
         &self.data
     }

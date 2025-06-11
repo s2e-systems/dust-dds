@@ -1,6 +1,7 @@
 pub mod behavior_types;
 pub mod cache_change;
 pub mod error;
+#[macro_use]
 pub mod message_creator;
 pub mod message_receiver;
 pub mod message_sender;
