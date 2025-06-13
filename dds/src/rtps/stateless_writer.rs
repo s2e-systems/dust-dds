@@ -12,7 +12,7 @@ use crate::{
     },
 };
 
-use alloc::{boxed::Box, vec::Vec};
+use alloc::vec::Vec;
 
 pub struct RtpsStatelessWriter {
     guid: Guid,
@@ -69,34 +69,31 @@ impl RtpsStatelessWriter {
                     .iter()
                     .find(|cc| cc.sequence_number() == unsent_change_seq_num)
                 {
-                    let info_ts_submessage = Box::new(
-                        cache_change
-                            .source_timestamp()
-                            .map_or(InfoTimestampSubmessage::new(true, TIME_INVALID), |t| {
-                                InfoTimestampSubmessage::new(false, t.into())
-                            }),
-                    );
+                    let info_ts_submessage = cache_change
+                        .source_timestamp()
+                        .map_or(InfoTimestampSubmessage::new(true, TIME_INVALID), |t| {
+                            InfoTimestampSubmessage::new(false, t.into())
+                        });
 
-                    let data_submessage = Box::new(
-                        cache_change.as_data_submessage(ENTITYID_UNKNOWN, self.guid.entity_id()),
-                    );
+                    let data_submessage =
+                        cache_change.as_data_submessage(ENTITYID_UNKNOWN, self.guid.entity_id());
 
                     let rtps_message = RtpsMessageWrite::from_submessages(
-                        &[info_ts_submessage, data_submessage],
+                        &[&info_ts_submessage, &data_submessage],
                         message_writer.guid_prefix(),
                     );
                     message_writer
                         .write_message(rtps_message.buffer(), &[reader_locator.locator()])
                         .await;
                 } else {
-                    let gap_submessage = Box::new(GapSubmessage::new(
+                    let gap_submessage = GapSubmessage::new(
                         ENTITYID_UNKNOWN,
                         self.guid.entity_id(),
                         unsent_change_seq_num,
                         SequenceNumberSet::new(unsent_change_seq_num + 1, []),
-                    ));
+                    );
                     let rtps_message = RtpsMessageWrite::from_submessages(
-                        &[gap_submessage],
+                        &[&gap_submessage],
                         message_writer.guid_prefix(),
                     );
                     message_writer
