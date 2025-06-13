@@ -17,7 +17,7 @@ use super::{
         HEARTBEAT_FRAG, INFO_DST, INFO_REPLY, INFO_SRC, INFO_TS, NACK_FRAG, PAD,
     },
 };
-use alloc::{boxed::Box, sync::Arc, vec::Vec};
+use alloc::{sync::Arc, vec::Vec};
 
 pub enum Endianness {
     BigEndian,
@@ -454,7 +454,7 @@ pub struct RtpsMessageWrite {
 }
 
 impl RtpsMessageWrite {
-    pub fn new(header: &RtpsMessageHeader, submessages: &[Box<dyn Submessage + Send>]) -> Self {
+    pub fn new(header: &RtpsMessageHeader, submessages: &[&(dyn Submessage + Send)]) -> Self {
         let buffer = Vec::new();
         let mut cursor = Cursor::new(buffer);
         header.write_into_bytes(&mut cursor);
@@ -653,7 +653,7 @@ mod tests {
             inline_qos,
             serialized_payload,
         );
-        let value = RtpsMessageWrite::new(&header, &[Box::new(submessage)]);
+        let value = RtpsMessageWrite::new(&header, &[&submessage]);
         #[rustfmt::skip]
         assert_eq!(value.buffer(), vec![
             b'R', b'T', b'P', b'S', // Protocol
@@ -682,8 +682,7 @@ mod tests {
             vendor_id: [9, 8],
             guid_prefix: [3; 12],
         };
-        let info_timestamp_submessage =
-            Box::new(InfoTimestampSubmessage::new(false, Time::new(4, 0)));
+        let info_timestamp_submessage = InfoTimestampSubmessage::new(false, Time::new(4, 0));
 
         let inline_qos_flag = true;
         let data_flag = false;
@@ -697,7 +696,7 @@ mod tests {
         let inline_qos = ParameterList::new(vec![parameter_1, parameter_2]);
         let serialized_payload = Data::new(vec![].into());
 
-        let data_submessage = Box::new(DataSubmessage::new(
+        let data_submessage = DataSubmessage::new(
             inline_qos_flag,
             data_flag,
             key_flag,
@@ -707,8 +706,8 @@ mod tests {
             writer_sn,
             inline_qos,
             serialized_payload,
-        ));
-        let value = RtpsMessageWrite::new(&header, &[info_timestamp_submessage, data_submessage]);
+        );
+        let value = RtpsMessageWrite::new(&header, &[&info_timestamp_submessage, &data_submessage]);
         #[rustfmt::skip]
         assert_eq!(value.buffer(), vec![
             b'R', b'T', b'P', b'S', // Protocol

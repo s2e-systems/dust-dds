@@ -218,7 +218,7 @@ fn writer_should_send_heartbeat_periodically() {
             VENDOR_ID_S2E,
             guid_prefix.try_into().unwrap(),
         ),
-        &[Box::new(discovered_reader_data_submessage)],
+        &[&discovered_reader_data_submessage],
     );
 
     let start_time = std::time::Instant::now();
@@ -404,10 +404,8 @@ fn writer_should_not_send_heartbeat_after_acknack() {
         VENDOR_ID_S2E,
         guid_prefix.try_into().unwrap(),
     );
-    let discovered_reader_rtps_message = RtpsMessageWrite::new(
-        &rtps_message_header,
-        &[Box::new(discovered_reader_data_submessage)],
-    );
+    let discovered_reader_rtps_message =
+        RtpsMessageWrite::new(&rtps_message_header, &[&discovered_reader_data_submessage]);
 
     let start_time = std::time::Instant::now();
     while start_time.elapsed() < std::time::Duration::from_secs(10) {
@@ -484,7 +482,7 @@ fn writer_should_not_send_heartbeat_after_acknack() {
         AckNackSubmessage::new(true, reader_id, writer_id, reader_sn_state, 1);
 
     let acknack_message =
-        RtpsMessageWrite::new(&rtps_message_header, &[Box::new(reader_acknack_submessage)]);
+        RtpsMessageWrite::new(&rtps_message_header, &[&reader_acknack_submessage]);
     mock_reader_socket
         .send_to(acknack_message.buffer(), ("127.0.0.1", unicast_port as u16))
         .unwrap();
@@ -610,10 +608,8 @@ fn writer_should_resend_data_after_acknack_request() {
         VENDOR_ID_S2E,
         guid_prefix.try_into().unwrap(),
     );
-    let discovered_reader_rtps_message = RtpsMessageWrite::new(
-        &rtps_message_header,
-        &[Box::new(discovered_reader_data_submessage)],
-    );
+    let discovered_reader_rtps_message =
+        RtpsMessageWrite::new(&rtps_message_header, &[&discovered_reader_data_submessage]);
 
     let start_time = std::time::Instant::now();
     while start_time.elapsed() < std::time::Duration::from_secs(10) {
@@ -685,7 +681,7 @@ fn writer_should_resend_data_after_acknack_request() {
         AckNackSubmessage::new(true, reader_id, writer_id, reader_sn_state, 1);
 
     let acknack_message =
-        RtpsMessageWrite::new(&rtps_message_header, &[Box::new(reader_acknack_submessage)]);
+        RtpsMessageWrite::new(&rtps_message_header, &[&reader_acknack_submessage]);
     mock_reader_socket
         .send_to(
             acknack_message.buffer(),
@@ -824,7 +820,7 @@ fn volatile_writer_should_send_gap_submessage_after_discovery() {
             VENDOR_ID_S2E,
             guid_prefix.try_into().unwrap(),
         ),
-        &[Box::new(discovered_reader_data_submessage)],
+        &[&discovered_reader_data_submessage],
     );
 
     let start_time = std::time::Instant::now();
@@ -1012,7 +1008,7 @@ fn transient_local_writer_should_send_data_submessage_after_discovery() {
             VENDOR_ID_S2E,
             guid_prefix.try_into().unwrap(),
         ),
-        &[Box::new(discovered_reader_data_submessage)],
+        &[&discovered_reader_data_submessage],
     );
 
     let start_time = std::time::Instant::now();
@@ -1201,10 +1197,8 @@ fn reliable_writer_should_not_remove_unacked_sample_from_history() {
         VENDOR_ID_S2E,
         guid_prefix.try_into().unwrap(),
     );
-    let discovered_reader_rtps_message = RtpsMessageWrite::new(
-        &rtps_message_header,
-        &[Box::new(discovered_reader_data_submessage)],
-    );
+    let discovered_reader_rtps_message =
+        RtpsMessageWrite::new(&rtps_message_header, &[&discovered_reader_data_submessage]);
 
     let start_time = std::time::Instant::now();
     while start_time.elapsed() < std::time::Duration::from_secs(10) {

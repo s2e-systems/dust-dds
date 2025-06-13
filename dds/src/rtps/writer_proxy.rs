@@ -1,7 +1,7 @@
 use super::message_sender::WriteMessage;
 use crate::{
     rtps_messages::{
-        overall_structure::{RtpsMessageWrite, Submessage},
+        overall_structure::RtpsMessageWrite,
         submessage_elements::{Data, FragmentNumberSet, SequenceNumberSet},
         submessages::{
             ack_nack::AckNackSubmessage, data::DataSubmessage, data_frag::DataFragSubmessage,
@@ -11,7 +11,7 @@ use crate::{
     },
     transport::types::{EntityId, Guid, Locator, ReliabilityKind, SequenceNumber},
 };
-use alloc::{boxed::Box, sync::Arc, vec, vec::Vec};
+use alloc::{sync::Arc, vec::Vec};
 
 use core::cmp::max;
 
@@ -261,8 +261,13 @@ impl RtpsWriterProxy {
                 self.acknack_count(),
             );
 
-            let mut submessages: Vec<Box<dyn Submessage + Send>> =
-                vec![Box::new(info_dst_submessage), Box::new(acknack_submessage)];
+            let rtps_message = RtpsMessageWrite::from_submessages(
+                &[&info_dst_submessage, &acknack_submessage],
+                message_writer.guid_prefix(),
+            );
+            message_writer
+                .write_message(rtps_message.buffer(), self.unicast_locator_list())
+                .await;
 
             let mut missing_fragment_seq_num_list: Vec<SequenceNumber> =
                 self.frag_buffer.iter().map(|f| f.writer_sn()).collect();
@@ -302,15 +307,15 @@ impl RtpsWriterProxy {
                         self.nack_frag_count,
                     );
 
-                    submessages.push(Box::new(nack_frag_submessage))
+                    let rtps_message = RtpsMessageWrite::from_submessages(
+                        &[&info_dst_submessage, &nack_frag_submessage],
+                        message_writer.guid_prefix(),
+                    );
+                    message_writer
+                        .write_message(rtps_message.buffer(), self.unicast_locator_list())
+                        .await;
                 }
             }
-
-            let rtps_message =
-                RtpsMessageWrite::from_submessages(&submessages, message_writer.guid_prefix());
-            message_writer
-                .write_message(rtps_message.buffer(), self.unicast_locator_list())
-                .await;
         }
     }
 
