@@ -6,9 +6,7 @@ use crate::{
         submessages::{gap::GapSubmessage, info_timestamp::InfoTimestampSubmessage},
         types::TIME_INVALID,
     },
-    transport::{
-        types::{CacheChange, Guid, Locator, SequenceNumber, ENTITYID_UNKNOWN},
-    },
+    transport::types::{CacheChange, Guid, Locator, SequenceNumber, ENTITYID_UNKNOWN},
 };
 
 use alloc::vec::Vec;
@@ -38,7 +36,7 @@ impl RtpsStatelessWriter {
 
     pub fn remove_change(&mut self, sequence_number: SequenceNumber) {
         self.changes
-            .retain(|cc| cc.sequence_number() != sequence_number);
+            .retain(|cc| cc.sequence_number != sequence_number);
     }
 
     pub fn reader_locator_add(&mut self, locator: Locator) {
@@ -66,10 +64,10 @@ impl RtpsStatelessWriter {
                 if let Some(cache_change) = self
                     .changes
                     .iter()
-                    .find(|cc| cc.sequence_number() == unsent_change_seq_num)
+                    .find(|cc| cc.sequence_number == unsent_change_seq_num)
                 {
                     let info_ts_submessage = cache_change
-                        .source_timestamp()
+                        .source_timestamp
                         .map_or(InfoTimestampSubmessage::new(true, TIME_INVALID), |t| {
                             InfoTimestampSubmessage::new(false, t.into())
                         });

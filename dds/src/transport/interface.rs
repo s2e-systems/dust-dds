@@ -1,10 +1,8 @@
-use crate::transport::types::CacheChange;
-
 use super::types::{
-    ChangeKind, DurabilityKind, EntityId, Guid, GuidPrefix, Locator, ProtocolVersion, ReaderProxy,
-    ReliabilityKind, Time, VendorId, WriterProxy,
+    CacheChange, EntityId, Guid, GuidPrefix, Locator, ProtocolVersion, ReaderProxy,
+    ReliabilityKind, VendorId, WriterProxy,
 };
-use alloc::{boxed::Box, sync::Arc, vec::Vec};
+use alloc::boxed::Box;
 use core::{future::Future, pin::Pin};
 
 pub trait TransportParticipantFactory: Send {
@@ -40,24 +38,6 @@ pub trait TransportStatefulReader: Send {
     fn is_historical_data_received(&self) -> bool;
     fn add_matched_writer(&mut self, writer_proxy: WriterProxy);
     fn remove_matched_writer(&mut self, remote_writer_guid: Guid);
-}
-
-impl CacheChange {
-    pub fn kind(&self) -> ChangeKind {
-        self.kind
-    }
-
-    pub fn sequence_number(&self) -> i64 {
-        self.sequence_number
-    }
-
-    pub fn source_timestamp(&self) -> Option<Time> {
-        self.source_timestamp
-    }
-
-    pub fn data_value(&self) -> &Arc<[u8]> {
-        &self.data_value
-    }
 }
 
 pub trait HistoryCache: Send {

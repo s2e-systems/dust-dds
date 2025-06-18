@@ -56,7 +56,7 @@ impl RtpsStatefulWriter {
 
     pub fn remove_change(&mut self, sequence_number: SequenceNumber) {
         self.changes
-            .retain(|cc| cc.sequence_number() != sequence_number);
+            .retain(|cc| cc.sequence_number != sequence_number);
     }
 
     pub fn is_change_acknowledged(&self, sequence_number: SequenceNumber) -> bool {
@@ -124,8 +124,8 @@ impl RtpsStatefulWriter {
                         reader_proxy,
                         self.guid.entity_id(),
                         &self.changes,
-                        self.changes.iter().map(|cc| cc.sequence_number()).min(),
-                        self.changes.iter().map(|cc| cc.sequence_number()).max(),
+                        self.changes.iter().map(|cc| cc.sequence_number).min(),
+                        self.changes.iter().map(|cc| cc.sequence_number).max(),
                         self.data_max_size_serialized,
                         self.heartbeat_period,
                         message_writer,
@@ -164,8 +164,8 @@ impl RtpsStatefulWriter {
                         reader_proxy,
                         self.guid.entity_id(),
                         &self.changes,
-                        self.changes.iter().map(|cc| cc.sequence_number()).min(),
-                        self.changes.iter().map(|cc| cc.sequence_number()).max(),
+                        self.changes.iter().map(|cc| cc.sequence_number).min(),
+                        self.changes.iter().map(|cc| cc.sequence_number).max(),
                         self.data_max_size_serialized,
                         self.heartbeat_period,
                         message_writer,
@@ -202,8 +202,8 @@ impl RtpsStatefulWriter {
                     reader_proxy,
                     self.guid.entity_id(),
                     &self.changes,
-                    self.changes.iter().map(|cc| cc.sequence_number()).min(),
-                    self.changes.iter().map(|cc| cc.sequence_number()).max(),
+                    self.changes.iter().map(|cc| cc.sequence_number).min(),
+                    self.changes.iter().map(|cc| cc.sequence_number).max(),
                     self.data_max_size_serialized,
                     self.heartbeat_period,
                     message_writer,
@@ -302,10 +302,10 @@ async fn write_message_to_reader_proxy_best_effort(
             reader_proxy.set_highest_sent_seq_num(next_unsent_change_seq_num);
         } else if let Some(cache_change) = changes
             .iter()
-            .find(|cc| cc.sequence_number() == next_unsent_change_seq_num)
+            .find(|cc| cc.sequence_number == next_unsent_change_seq_num)
         {
             let number_of_fragments = cache_change
-                .data_value()
+                .data_value
                 .len()
                 .div_ceil(data_max_size_serialized);
 
@@ -315,34 +315,34 @@ async fn write_message_to_reader_proxy_best_effort(
                     let info_dst =
                         InfoDestinationSubmessage::new(reader_proxy.remote_reader_guid().prefix());
 
-                    let info_timestamp = if let Some(timestamp) = cache_change.source_timestamp() {
+                    let info_timestamp = if let Some(timestamp) = cache_change.source_timestamp {
                         InfoTimestampSubmessage::new(false, timestamp.into())
                     } else {
                         InfoTimestampSubmessage::new(true, TIME_INVALID)
                     };
 
                     let inline_qos_flag = true;
-                    let key_flag = match cache_change.kind() {
+                    let key_flag = match cache_change.kind {
                         ChangeKind::Alive => false,
                         ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => true,
                         _ => todo!(),
                     };
                     let non_standard_payload_flag = false;
                     let reader_id = reader_proxy.remote_reader_guid().entity_id();
-                    let writer_sn = cache_change.sequence_number();
+                    let writer_sn = cache_change.sequence_number;
                     let fragment_starting_num = (frag_index + 1) as u32;
                     let fragments_in_submessage = 1;
                     let fragment_size = data_max_size_serialized as u16;
-                    let data_size = cache_change.data_value().len() as u32;
+                    let data_size = cache_change.data_value.len() as u32;
 
                     let start = frag_index * data_max_size_serialized;
                     let end = core::cmp::min(
                         (frag_index + 1) * data_max_size_serialized,
-                        cache_change.data_value().len(),
+                        cache_change.data_value.len(),
                     );
 
                     let serialized_payload = SerializedDataFragment::new(
-                        cache_change.data_value().clone().into(),
+                        cache_change.data_value.clone().into(),
                         start..end,
                     );
 
@@ -372,7 +372,7 @@ async fn write_message_to_reader_proxy_best_effort(
                 let info_dst =
                     InfoDestinationSubmessage::new(reader_proxy.remote_reader_guid().prefix());
 
-                let info_timestamp = if let Some(timestamp) = cache_change.source_timestamp() {
+                let info_timestamp = if let Some(timestamp) = cache_change.source_timestamp {
                     InfoTimestampSubmessage::new(false, timestamp.into())
                 } else {
                     InfoTimestampSubmessage::new(true, TIME_INVALID)
@@ -549,11 +549,11 @@ async fn write_change_message_reader_proxy_reliable(
     let now = clock.now();
     match changes
         .iter()
-        .find(|cc| cc.sequence_number() == change_seq_num)
+        .find(|cc| cc.sequence_number == change_seq_num)
     {
         Some(cache_change) if change_seq_num > reader_proxy.first_relevant_sample_seq_num() => {
             let number_of_fragments = cache_change
-                .data_value()
+                .data_value
                 .len()
                 .div_ceil(data_max_size_serialized);
 
@@ -563,34 +563,34 @@ async fn write_change_message_reader_proxy_reliable(
                     let info_dst =
                         InfoDestinationSubmessage::new(reader_proxy.remote_reader_guid().prefix());
 
-                    let info_timestamp = if let Some(timestamp) = cache_change.source_timestamp() {
+                    let info_timestamp = if let Some(timestamp) = cache_change.source_timestamp {
                         InfoTimestampSubmessage::new(false, timestamp.into())
                     } else {
                         InfoTimestampSubmessage::new(true, TIME_INVALID)
                     };
 
                     let inline_qos_flag = true;
-                    let key_flag = match cache_change.kind() {
+                    let key_flag = match cache_change.kind {
                         ChangeKind::Alive => false,
                         ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => true,
                         _ => todo!(),
                     };
                     let non_standard_payload_flag = false;
                     let reader_id = reader_proxy.remote_reader_guid().entity_id();
-                    let writer_sn = cache_change.sequence_number();
+                    let writer_sn = cache_change.sequence_number;
                     let fragment_starting_num = (frag_index + 1) as u32;
                     let fragments_in_submessage = 1;
                     let fragment_size = data_max_size_serialized as u16;
-                    let data_size = cache_change.data_value().len() as u32;
+                    let data_size = cache_change.data_value.len() as u32;
 
                     let start = frag_index * data_max_size_serialized;
                     let end = core::cmp::min(
                         (frag_index + 1) * data_max_size_serialized,
-                        cache_change.data_value().len(),
+                        cache_change.data_value.len(),
                     );
 
                     let serialized_payload = SerializedDataFragment::new(
-                        cache_change.data_value().clone().into(),
+                        cache_change.data_value.clone().into(),
                         start..end,
                     );
 
@@ -621,7 +621,7 @@ async fn write_change_message_reader_proxy_reliable(
                 let info_dst =
                     InfoDestinationSubmessage::new(reader_proxy.remote_reader_guid().prefix());
 
-                let info_timestamp = if let Some(timestamp) = cache_change.source_timestamp() {
+                let info_timestamp = if let Some(timestamp) = cache_change.source_timestamp {
                     InfoTimestampSubmessage::new(false, timestamp.into())
                 } else {
                     InfoTimestampSubmessage::new(true, TIME_INVALID)
