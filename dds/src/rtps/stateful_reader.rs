@@ -12,9 +12,8 @@ use crate::{
         },
     },
     transport::{
-        history_cache::{CacheChange, HistoryCache},
-        reader::WriterProxy,
-        types::{Guid, GuidPrefix, ReliabilityKind},
+        interface::HistoryCache,
+        types::{CacheChange, Guid, GuidPrefix, ReliabilityKind, WriterProxy},
     },
 };
 use alloc::{boxed::Box, vec::Vec};

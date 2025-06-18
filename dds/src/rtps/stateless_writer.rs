@@ -7,8 +7,7 @@ use crate::{
         types::TIME_INVALID,
     },
     transport::{
-        history_cache::CacheChange,
-        types::{Guid, Locator, SequenceNumber, ENTITYID_UNKNOWN},
+        types::{CacheChange, Guid, Locator, SequenceNumber, ENTITYID_UNKNOWN},
     },
 };
 

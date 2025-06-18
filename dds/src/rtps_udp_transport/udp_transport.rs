@@ -1,6 +1,14 @@
 use crate::{
-    rtps::message_sender::Clock, std_runtime::executor::block_on,
-    transport::types::LOCATOR_KIND_UDP_V6,
+    rtps::message_sender::Clock,
+    std_runtime::executor::block_on,
+    transport::{
+        interface::{
+            HistoryCache, TransportParticipant, TransportParticipantFactory,
+            TransportStatefulReader, TransportStatefulWriter, TransportStatelessReader,
+            TransportStatelessWriter,
+        },
+        types::{CacheChange, ReaderProxy, WriterProxy, LOCATOR_KIND_UDP_V6},
+    },
 };
 use async_lock::Mutex;
 use core::{
@@ -17,16 +25,9 @@ use dust_dds::{
         stateless_writer::RtpsStatelessWriter,
         types::{PROTOCOLVERSION, VENDOR_ID_S2E},
     },
-    transport::{
-        factory::TransportParticipantFactory,
-        history_cache::{CacheChange, HistoryCache},
-        participant::TransportParticipant,
-        reader::{TransportStatefulReader, TransportStatelessReader, WriterProxy},
-        types::{
-            EntityId, Guid, GuidPrefix, Locator, ProtocolVersion, ReliabilityKind, VendorId,
-            ENTITYID_PARTICIPANT, LOCATOR_KIND_UDP_V4,
-        },
-        writer::{ReaderProxy, TransportStatefulWriter, TransportStatelessWriter},
+    transport::types::{
+        EntityId, Guid, GuidPrefix, Locator, ProtocolVersion, ReliabilityKind, VendorId,
+        ENTITYID_PARTICIPANT, LOCATOR_KIND_UDP_V4,
     },
 };
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};

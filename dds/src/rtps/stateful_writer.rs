@@ -16,13 +16,9 @@ use crate::{
         },
         types::TIME_INVALID,
     },
-    transport::{
-        history_cache::CacheChange,
-        types::{
-            ChangeKind, DurabilityKind, EntityId, Guid, GuidPrefix, ReliabilityKind,
-            SequenceNumber, ENTITYID_UNKNOWN,
-        },
-        writer::ReaderProxy,
+    transport::types::{
+        CacheChange, ChangeKind, DurabilityKind, EntityId, Guid, GuidPrefix, ReaderProxy,
+        ReliabilityKind, SequenceNumber, ENTITYID_UNKNOWN,
     },
 };
 use alloc::vec::Vec;

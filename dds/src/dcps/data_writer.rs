@@ -22,9 +22,8 @@ use super::{
 use crate::{
     runtime::{Clock, DdsRuntime},
     transport::{
-        history_cache::{CacheChange, HistoryCache},
-        types::{ChangeKind, Guid},
-        writer::{TransportStatefulWriter, TransportStatelessWriter},
+        interface::{HistoryCache, TransportStatefulWriter, TransportStatelessWriter},
+        types::{CacheChange, ChangeKind, Guid},
     },
     xtypes::dynamic_type::DynamicType,
 };
@@ -276,7 +275,7 @@ impl<R: DdsRuntime> DataWriterEntity<R> {
             }
         }
 
-        let seq_num = change.sequence_number();
+        let seq_num = change.sequence_number;
 
         if seq_num > self.max_seq_num.unwrap_or(0) {
             self.max_seq_num = Some(seq_num)

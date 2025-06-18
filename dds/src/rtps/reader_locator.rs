@@ -1,7 +1,4 @@
-use crate::transport::{
-    history_cache::CacheChange,
-    types::{Locator, SequenceNumber},
-};
+use crate::transport::types::{CacheChange, Locator, SequenceNumber};
 
 pub struct RtpsReaderLocator {
     locator: Locator,
@@ -31,7 +28,7 @@ impl RtpsReaderLocator {
         // ELSE return MIN { unsent_changes.sequenceNumber }
 
         writer_history_cache
-            .map(|cc| cc.sequence_number())
+            .map(|cc| cc.sequence_number)
             .filter(|sn| sn > &self.highest_sent_change_sn)
             .min()
     }

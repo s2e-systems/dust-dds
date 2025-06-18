@@ -1,5 +1,3 @@
-use core::{future::Future, pin::Pin};
-
 use super::actor::MailHandler;
 use crate::{
     builtin_topics::{DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC},
@@ -44,15 +42,14 @@ use crate::{
     },
     runtime::{ChannelReceive, ChannelSend, DdsRuntime, OneshotSend, Spawner, Timer},
     transport::{
-        factory::TransportParticipantFactory,
-        history_cache::{CacheChange, HistoryCache},
-        participant::TransportParticipant,
-        reader::{TransportStatefulReader, TransportStatelessReader},
-        types::{
-            EntityId, GuidPrefix, ReliabilityKind, BUILT_IN_READER_WITH_KEY,
-            BUILT_IN_WRITER_WITH_KEY,
+        interface::{
+            HistoryCache, TransportParticipant, TransportParticipantFactory,
+            TransportStatefulReader, TransportStatefulWriter, TransportStatelessReader,
+            TransportStatelessWriter,
         },
-        writer::{TransportStatefulWriter, TransportStatelessWriter},
+        types::{
+            CacheChange, EntityId, GuidPrefix, ReliabilityKind, BUILT_IN_READER_WITH_KEY, BUILT_IN_WRITER_WITH_KEY
+        },
     },
 };
 use alloc::{
@@ -62,6 +59,7 @@ use alloc::{
     vec,
     vec::Vec,
 };
+use core::{future::Future, pin::Pin};
 
 pub type DdsTransportParticipantFactory =
     Box<dyn TransportParticipantFactory<TransportParticipant = DdsTransportParticipant>>;

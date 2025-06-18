@@ -3,9 +3,8 @@ use crate::{
         submessages::{heartbeat::HeartbeatSubmessage, heartbeat_frag::HeartbeatFragSubmessage},
         types::{Count, FragmentNumber},
     },
-    transport::{
-        history_cache::CacheChange,
-        types::{DurabilityKind, EntityId, Guid, Locator, ReliabilityKind, SequenceNumber},
+    transport::types::{
+        CacheChange, DurabilityKind, EntityId, Guid, Locator, ReliabilityKind, SequenceNumber,
     },
 };
 use alloc::vec::Vec;

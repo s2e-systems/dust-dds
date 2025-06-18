@@ -68,9 +68,9 @@ use crate::{
     runtime::{ChannelSend, Clock, DdsRuntime, OneshotReceive, Spawner, Timer},
     transport::{
         self,
-        history_cache::{CacheChange, HistoryCache},
+        interface::HistoryCache,
         types::{
-            ChangeKind, DurabilityKind, EntityId, Guid, ReliabilityKind, TopicKind,
+            CacheChange, ChangeKind, DurabilityKind, EntityId, Guid, ReliabilityKind, TopicKind,
             ENTITYID_UNKNOWN, USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_WITH_KEY,
             USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
         },
@@ -2535,7 +2535,7 @@ where
                             DurabilityQosPolicyKind::Persistent => DurabilityKind::Persistent,
                         };
 
-                    let reader_proxy = transport::writer::ReaderProxy {
+                    let reader_proxy = transport::types::ReaderProxy {
                         remote_reader_guid: discovered_reader_data.reader_proxy.remote_reader_guid,
                         remote_group_entity_id: discovered_reader_data
                             .reader_proxy
@@ -2918,7 +2918,7 @@ where
                         DurabilityQosPolicyKind::Transient => DurabilityKind::Transient,
                         DurabilityQosPolicyKind::Persistent => DurabilityKind::Persistent,
                     };
-                    let writer_proxy = transport::reader::WriterProxy {
+                    let writer_proxy = transport::types::WriterProxy {
                         remote_writer_guid: discovered_writer_data.writer_proxy.remote_writer_guid,
                         remote_group_entity_id: discovered_writer_data
                             .writer_proxy
@@ -4073,7 +4073,7 @@ where
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
             let expects_inline_qos = false;
-            let reader_proxy = transport::writer::ReaderProxy {
+            let reader_proxy = transport::types::ReaderProxy {
                 remote_reader_guid,
                 remote_group_entity_id,
                 reliability_kind: ReliabilityKind::Reliable,
@@ -4121,7 +4121,7 @@ where
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
 
-            let writer_proxy = transport::reader::WriterProxy {
+            let writer_proxy = transport::types::WriterProxy {
                 remote_writer_guid,
                 remote_group_entity_id,
                 unicast_locator_list: discovered_participant_data
@@ -4168,7 +4168,7 @@ where
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
             let expects_inline_qos = false;
-            let reader_proxy = transport::writer::ReaderProxy {
+            let reader_proxy = transport::types::ReaderProxy {
                 remote_reader_guid,
                 remote_group_entity_id,
                 reliability_kind: ReliabilityKind::Reliable,
@@ -4216,7 +4216,7 @@ where
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
 
-            let writer_proxy = transport::reader::WriterProxy {
+            let writer_proxy = transport::types::WriterProxy {
                 remote_writer_guid,
                 remote_group_entity_id,
                 reliability_kind: ReliabilityKind::Reliable,
@@ -4263,7 +4263,7 @@ where
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
             let expects_inline_qos = false;
-            let reader_proxy = transport::writer::ReaderProxy {
+            let reader_proxy = transport::types::ReaderProxy {
                 remote_reader_guid,
                 remote_group_entity_id,
                 reliability_kind: ReliabilityKind::Reliable,
@@ -4311,7 +4311,7 @@ where
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
 
-            let writer_proxy = transport::reader::WriterProxy {
+            let writer_proxy = transport::types::WriterProxy {
                 remote_writer_guid,
                 remote_group_entity_id,
                 reliability_kind: ReliabilityKind::Reliable,
