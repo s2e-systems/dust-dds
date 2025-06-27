@@ -185,7 +185,7 @@ enum ChannelMessageKind {
 impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
     type TransportParticipant = Box<
         dyn TransportParticipant<
-            HistoryCache = Box<dyn HistoryCache>,
+            HistoryCache = Box<dyn HistoryCache + Sync>,
             StatelessReader = Box<dyn TransportStatelessReader>,
             StatefulReader = Box<dyn TransportStatefulReader>,
             StatelessWriter = Box<dyn TransportStatelessWriter>,
@@ -547,7 +547,7 @@ impl MessageWriter {
     }
 }
 impl WriteMessage for MessageWriter {
-    async fn write_message(&self, datagram: &[u8], locator_list: &[Locator]) {
+    fn write_message(&self, datagram: &[u8], locator_list: &[Locator]) {
         for &destination_locator in locator_list {
             if UdpLocator(destination_locator).is_multicast() {
                 let socket2: socket2::Socket = self.socket.try_clone().unwrap().into();
@@ -603,7 +603,7 @@ pub struct RtpsUdpTransportParticipant {
 }
 
 impl TransportParticipant for RtpsUdpTransportParticipant {
-    type HistoryCache = Box<dyn HistoryCache>;
+    type HistoryCache = Box<dyn HistoryCache + Sync>;
     type StatelessReader = Box<dyn TransportStatelessReader>;
     type StatelessWriter = Box<dyn TransportStatelessWriter>;
     type StatefulReader = Box<dyn TransportStatefulReader>;
@@ -681,11 +681,7 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
             ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
                 self.rtps_writer.add_change(cache_change);
                 let message_writer = self.message_writer.clone();
-                block_on(async {
-                    self.rtps_writer
-                        .write_message(message_writer.as_ref())
-                        .await
-                });
+                block_on(async { self.rtps_writer.behavior(message_writer.as_ref()).await });
                 Box::pin(async {})
             }
 

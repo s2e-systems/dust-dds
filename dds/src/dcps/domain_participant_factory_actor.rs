@@ -65,7 +65,7 @@ pub type DdsTransportParticipantFactory =
     Box<dyn TransportParticipantFactory<TransportParticipant = DdsTransportParticipant>>;
 pub type DdsTransportParticipant = Box<
     dyn TransportParticipant<
-        HistoryCache = Box<dyn HistoryCache>,
+        HistoryCache = Box<dyn HistoryCache + Sync>,
         StatelessReader = Box<dyn TransportStatelessReader>,
         StatefulReader = Box<dyn TransportStatefulReader>,
         StatelessWriter = Box<dyn TransportStatelessWriter>,

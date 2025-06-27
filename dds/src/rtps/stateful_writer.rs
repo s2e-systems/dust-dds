@@ -296,8 +296,7 @@ async fn write_message_to_reader_proxy_best_effort(
                 message_writer.guid_prefix(),
             );
             message_writer
-                .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list())
-                .await;
+                .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list());
 
             reader_proxy.set_highest_sent_seq_num(next_unsent_change_seq_num);
         } else if let Some(cache_change) = changes
@@ -365,8 +364,7 @@ async fn write_message_to_reader_proxy_best_effort(
                         message_writer.guid_prefix(),
                     );
                     message_writer
-                        .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list())
-                        .await;
+                        .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list());
                 }
             } else {
                 let info_dst =
@@ -386,8 +384,7 @@ async fn write_message_to_reader_proxy_best_effort(
                     message_writer.guid_prefix(),
                 );
                 message_writer
-                    .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list())
-                    .await;
+                    .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list());
             }
         } else {
             let gap_submessage = GapSubmessage::new(
@@ -401,8 +398,7 @@ async fn write_message_to_reader_proxy_best_effort(
                 message_writer.guid_prefix(),
             );
             message_writer
-                .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list())
-                .await;
+                .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list());
         }
 
         reader_proxy.set_highest_sent_seq_num(next_unsent_change_seq_num);
@@ -447,8 +443,7 @@ async fn write_message_to_reader_proxy_reliable(
                     message_writer.guid_prefix(),
                 );
                 message_writer
-                    .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list())
-                    .await;
+                    .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list());
             } else {
                 write_change_message_reader_proxy_reliable(
                     reader_proxy,
@@ -460,8 +455,7 @@ async fn write_message_to_reader_proxy_reliable(
                     next_unsent_change_seq_num,
                     message_writer,
                     clock,
-                )
-                .await;
+                );
             }
             reader_proxy.set_highest_sent_seq_num(next_unsent_change_seq_num);
         }
@@ -486,8 +480,7 @@ async fn write_message_to_reader_proxy_reliable(
                 message_writer.guid_prefix(),
             );
             message_writer
-                .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list())
-                .await;
+                .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list());
         }
     } else if reader_proxy
         .heartbeat_machine()
@@ -505,9 +498,7 @@ async fn write_message_to_reader_proxy_reliable(
             &[&info_dst, &heartbeat_submessage],
             message_writer.guid_prefix(),
         );
-        message_writer
-            .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list())
-            .await;
+        message_writer.write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list());
     }
 
     // Middle-part of the state-machine - Figure 8.19 RTPS standard
@@ -614,8 +605,7 @@ async fn write_change_message_reader_proxy_reliable(
                         message_writer.guid_prefix(),
                     );
                     message_writer
-                        .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list())
-                        .await;
+                        .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list());
                 }
             } else {
                 let info_dst =
@@ -641,8 +631,7 @@ async fn write_change_message_reader_proxy_reliable(
                     message_writer.guid_prefix(),
                 );
                 message_writer
-                    .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list())
-                    .await;
+                    .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list());
             }
         }
         _ => {
@@ -661,8 +650,7 @@ async fn write_change_message_reader_proxy_reliable(
                 message_writer.guid_prefix(),
             );
             message_writer
-                .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list())
-                .await;
+                .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list());
         }
     }
 }

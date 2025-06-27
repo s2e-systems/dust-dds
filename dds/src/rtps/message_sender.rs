@@ -7,7 +7,7 @@ pub trait WriteMessage {
         &self,
         datagram: &[u8],
         locator_list: &[Locator],
-    ) -> impl Future<Output = ()> + Send;
+    );
     fn guid_prefix(&self) -> GuidPrefix;
 }
 
