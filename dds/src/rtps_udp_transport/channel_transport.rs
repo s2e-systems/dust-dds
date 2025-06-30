@@ -1,5 +1,6 @@
 use crate::{
     rtps::message_sender::Clock,
+    std_runtime::executor::block_on,
     transport::{
         interface::{
             HistoryCache, TransportParticipant, TransportParticipantFactory,
@@ -111,13 +112,12 @@ impl TransportStatelessWriter for RtpsChannelTransportStatelessWriter {
     }
 }
 impl WriteMessage for RtpsStatelessReader {
-    fn write_message(&mut self, _datagram: &[u8], _locator_list: &[Locator]) {
-        // block_on(async { self.process_message(datagram).await.unwrap() });
+    fn write_message(&mut self, datagram: &[u8], _locator_list: &[Locator]) {
+        block_on(async { self.process_message(datagram).await.unwrap() });
     }
 
     fn guid_prefix(&self) -> GuidPrefix {
-        // self.rtps_stateless_writer.guid().prefix()
-        todo!()
+        self.guid().prefix()
     }
 }
 

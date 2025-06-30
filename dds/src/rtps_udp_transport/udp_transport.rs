@@ -686,7 +686,11 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
                 cache_change: CacheChange,
             ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
                 self.rtps_writer.add_change(cache_change);
-                Box::pin(async { self.rtps_writer.behavior(&mut self.message_writer).await })
+                crate::rtps::stateless_writer::behavior(
+                    &mut self.rtps_writer,
+                    &mut self.message_writer,
+                );
+                Box::pin(async {})
             }
 
             fn remove_change(

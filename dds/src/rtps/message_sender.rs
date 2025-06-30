@@ -1,5 +1,3 @@
-use core::future::Future;
-
 use crate::transport::types::{GuidPrefix, Locator};
 
 pub trait WriteMessage {

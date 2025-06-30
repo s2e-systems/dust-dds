@@ -851,18 +851,15 @@ where
             fn add_change(
                 &mut self,
                 cache_change: CacheChange,
-            ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
-                let participant_address = self.domain_participant_address.clone();
-                let subscriber_handle = self.subscriber_handle;
-                let data_reader_handle = self.data_reader_handle;
+            ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
                 Box::pin(async move {
-                    participant_address
+                    self.domain_participant_address
                         .send(DomainParticipantMail::Message(
                             MessageServiceMail::AddCacheChange {
-                                participant_address: participant_address.clone(),
+                                participant_address: self.domain_participant_address.clone(),
                                 cache_change,
-                                subscriber_handle,
-                                data_reader_handle,
+                                subscriber_handle: self.subscriber_handle,
+                                data_reader_handle: self.data_reader_handle,
                             },
                         ))
                         .await
