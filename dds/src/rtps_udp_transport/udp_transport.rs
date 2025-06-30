@@ -266,10 +266,10 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
             .unwrap(),
         );
 
-        let message_writer = Arc::new(MessageWriter::new(
+        let mut message_writer = MessageWriter::new(
             guid_prefix,
             default_unicast_socket.try_clone().expect("Socket cloning"),
-        ));
+        );
 
         let guid = Guid::new(guid_prefix, ENTITYID_PARTICIPANT);
 
@@ -374,7 +374,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                                 block_on(async {
                                     process_message(
                                         &datagram,
-                                        &message_writer,
+                                        &mut message_writer,
                                         &RtpsUdpTransportClock,
                                         &mut stateless_reader_list,
                                         &stateful_reader_list,
@@ -387,7 +387,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                                 block_on(async {
                                     process_message(
                                         &datagram,
-                                        &message_writer,
+                                        &mut message_writer,
                                         &RtpsUdpTransportClock,
                                         &mut stateless_reader_list,
                                         &stateful_reader_list,
@@ -400,7 +400,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                                 block_on(async {
                                     process_message(
                                         &datagram,
-                                        &message_writer,
+                                        &mut message_writer,
                                         &RtpsUdpTransportClock,
                                         &mut stateless_reader_list,
                                         &stateful_reader_list,
@@ -414,10 +414,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                                     rtps_stateful_writer
                                         .lock()
                                         .await
-                                        .write_message(
-                                            message_writer.as_ref(),
-                                            &RtpsUdpTransportClock,
-                                        )
+                                        .write_message(&mut message_writer, &RtpsUdpTransportClock)
                                         .await;
                                 }
                             }),
@@ -433,7 +430,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
 
 async fn process_message(
     datagram: &[u8],
-    message_writer: &MessageWriter,
+    message_writer: &mut MessageWriter,
     clock: &impl Clock,
     stateless_reader_list: &mut [RtpsStatelessReader],
     stateful_reader_list: &[Arc<Mutex<RtpsStatefulReader>>],
@@ -538,6 +535,15 @@ struct MessageWriter {
     socket: UdpSocket,
 }
 
+impl Clone for MessageWriter {
+    fn clone(&self) -> Self {
+        Self {
+            guid_prefix: self.guid_prefix.clone(),
+            socket: self.socket.try_clone().expect("Socket cloning"),
+        }
+    }
+}
+
 impl MessageWriter {
     fn new(guid_prefix: GuidPrefix, socket: UdpSocket) -> Self {
         Self {
@@ -547,7 +553,7 @@ impl MessageWriter {
     }
 }
 impl WriteMessage for MessageWriter {
-    fn write_message(&self, datagram: &[u8], locator_list: &[Locator]) {
+    fn write_message(&mut self, datagram: &[u8], locator_list: &[Locator]) {
         for &destination_locator in locator_list {
             if UdpLocator(destination_locator).is_multicast() {
                 let socket2: socket2::Socket = self.socket.try_clone().unwrap().into();
@@ -594,7 +600,7 @@ impl Clock for RtpsUdpTransportClock {
 
 pub struct RtpsUdpTransportParticipant {
     guid: Guid,
-    message_writer: Arc<MessageWriter>,
+    message_writer: MessageWriter,
     default_unicast_locator_list: Vec<Locator>,
     metatraffic_unicast_locator_list: Vec<Locator>,
     metatraffic_multicast_locator_list: Vec<Locator>,
@@ -656,7 +662,7 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
     fn create_stateless_writer(&mut self, entity_id: EntityId) -> Self::StatelessWriter {
         struct StatelessWriter {
             rtps_writer: RtpsStatelessWriter,
-            message_writer: Arc<MessageWriter>,
+            message_writer: MessageWriter,
         }
         impl TransportStatelessWriter for StatelessWriter {
             fn guid(&self) -> Guid {
@@ -678,11 +684,9 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
             fn add_change(
                 &mut self,
                 cache_change: CacheChange,
-            ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
+            ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
                 self.rtps_writer.add_change(cache_change);
-                let message_writer = self.message_writer.clone();
-                block_on(async { self.rtps_writer.behavior(message_writer.as_ref()).await });
-                Box::pin(async {})
+                Box::pin(async { self.rtps_writer.behavior(&mut self.message_writer).await })
             }
 
             fn remove_change(
@@ -765,7 +769,7 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
         struct StatefulWriter {
             guid: Guid,
             rtps_stateful_writer: Arc<Mutex<RtpsStatefulWriter>>,
-            message_writer: Arc<MessageWriter>,
+            message_writer: MessageWriter,
             default_unicast_locator_list: Vec<Locator>,
         }
         impl TransportStatefulWriter for StatefulWriter {
@@ -809,15 +813,16 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
             fn add_change(
                 &mut self,
                 cache_change: CacheChange,
-            ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
-                let rtps_stateful_writer = self.rtps_stateful_writer.clone();
-                let message_writer = self.message_writer.clone();
+            ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
                 Box::pin(async move {
-                    rtps_stateful_writer.lock().await.add_change(cache_change);
-                    rtps_stateful_writer
+                    self.rtps_stateful_writer
                         .lock()
                         .await
-                        .write_message(message_writer.as_ref(), &RtpsUdpTransportClock)
+                        .add_change(cache_change);
+                    self.rtps_stateful_writer
+                        .lock()
+                        .await
+                        .write_message(&mut self.message_writer, &RtpsUdpTransportClock)
                         .await;
                 })
             }

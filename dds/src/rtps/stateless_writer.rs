@@ -52,7 +52,7 @@ impl RtpsStatelessWriter {
         &mut self.reader_locators
     }
 
-    pub async fn behavior(&mut self, message_writer: &impl WriteMessage) {
+    pub async fn behavior(&mut self, message_writer: &mut impl WriteMessage) {
         for reader_locator in &mut self.reader_locators {
             while let Some(unsent_change_seq_num) =
                 reader_locator.next_unsent_change(self.changes.iter())
@@ -103,7 +103,7 @@ impl RtpsStatelessWriter {
 
 pub fn behavior(
     rtps_stateless_writer: &mut RtpsStatelessWriter,
-    message_writer: &impl WriteMessage,
+    message_writer: &mut impl WriteMessage,
 ) {
     for reader_locator in &mut rtps_stateless_writer.reader_locators {
         while let Some(unsent_change_seq_num) =

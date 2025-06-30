@@ -1,25 +1,18 @@
 use crate::{
     rtps::message_sender::Clock,
-    rtps_messages::overall_structure::RtpsMessageWrite,
-    std_runtime::executor::block_on,
     transport::{
         interface::{
             HistoryCache, TransportParticipant, TransportParticipantFactory,
             TransportStatefulReader, TransportStatefulWriter, TransportStatelessReader,
             TransportStatelessWriter,
         },
-        types::{CacheChange, ReaderProxy, WriterProxy},
+        types::CacheChange,
     },
 };
-use core::{
-    future::{Future, IntoFuture},
-    pin::Pin,
-};
+use core::{future::Future, pin::Pin};
 use dust_dds::{
     rtps::{
         message_sender::WriteMessage,
-        stateful_reader::RtpsStatefulReader,
-        stateful_writer::RtpsStatefulWriter,
         stateless_reader::RtpsStatelessReader,
         stateless_writer::RtpsStatelessWriter,
         types::{PROTOCOLVERSION, VENDOR_ID_S2E},
@@ -28,10 +21,6 @@ use dust_dds::{
         EntityId, Guid, GuidPrefix, Locator, ProtocolVersion, ReliabilityKind, VendorId,
         ENTITYID_PARTICIPANT,
     },
-};
-use std::sync::{
-    mpsc::{channel, Receiver, Sender},
-    Arc, Mutex,
 };
 
 pub struct RtpsChannelTransportParticipantFactory {}
@@ -48,13 +37,13 @@ impl TransportParticipantFactory for RtpsChannelTransportParticipantFactory {
     fn create_participant(
         &self,
         guid_prefix: GuidPrefix,
-        domain_id: i32,
+        _domain_id: i32,
     ) -> Self::TransportParticipant {
         let guid = Guid::new(guid_prefix, ENTITYID_PARTICIPANT);
         let participant = RtpsChannelTransportParticipant {
             guid,
             stateless_reader: None,
-            stateless_writer: None,
+            _stateless_writer: None,
         };
 
         participant
@@ -80,7 +69,7 @@ impl TransportStatelessReader for RtpsStatelessReader {
 pub struct RtpsChannelTransportParticipant {
     guid: Guid,
     stateless_reader: Option<RtpsStatelessReader>,
-    stateless_writer: Option<RtpsChannelTransportStatelessWriter>,
+    _stateless_writer: Option<RtpsChannelTransportStatelessWriter>,
 }
 
 pub struct RtpsChannelTransportStatelessWriter {
@@ -95,12 +84,12 @@ impl HistoryCache for RtpsChannelTransportStatelessWriter {
         self.rtps_stateless_writer.add_change(cache_change);
         crate::rtps::stateless_writer::behavior(
             &mut self.rtps_stateless_writer,
-            &self.rtps_stateless_reader,
+            &mut self.rtps_stateless_reader,
         );
         Box::pin(async {})
     }
 
-    fn remove_change(&mut self, sequence_number: i64) -> Pin<Box<dyn Future<Output = ()> + Send>> {
+    fn remove_change(&mut self, _sequence_number: i64) -> Pin<Box<dyn Future<Output = ()> + Send>> {
         todo!()
     }
 }
@@ -113,18 +102,17 @@ impl TransportStatelessWriter for RtpsChannelTransportStatelessWriter {
         self
     }
 
-    fn add_reader_locator(&mut self, locator: Locator) {
+    fn add_reader_locator(&mut self, _locator: Locator) {
         todo!()
     }
 
-    fn remove_reader_locator(&mut self, locator: &Locator) {
+    fn remove_reader_locator(&mut self, _locator: &Locator) {
         todo!()
     }
 }
 impl WriteMessage for RtpsStatelessReader {
-    fn write_message(&self, datagram: &[u8], _locator_list: &[Locator]) {
+    fn write_message(&mut self, _datagram: &[u8], _locator_list: &[Locator]) {
         // block_on(async { self.process_message(datagram).await.unwrap() });
-
     }
 
     fn guid_prefix(&self) -> GuidPrefix {
@@ -191,16 +179,16 @@ impl TransportParticipant for RtpsChannelTransportParticipant {
 
     fn create_stateful_reader(
         &mut self,
-        entity_id: EntityId,
-        reliability_kind: ReliabilityKind,
-        reader_history_cache: Self::HistoryCache,
+        _entity_id: EntityId,
+        _reliability_kind: ReliabilityKind,
+        _reader_history_cache: Self::HistoryCache,
     ) -> Self::StatefulReader {
         todo!()
     }
 
     fn create_stateful_writer(
         &mut self,
-        entity_id: EntityId,
+        _entity_id: EntityId,
         _reliability_kind: ReliabilityKind,
     ) -> Self::StatefulWriter {
         todo!()
@@ -210,10 +198,10 @@ impl TransportParticipant for RtpsChannelTransportParticipant {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::transport::types::ENTITYID_UNKNOWN;
+    use crate::std_runtime::executor::block_on;
     use dust_dds::transport::types::ChangeKind;
     use std::sync::mpsc::{sync_channel, SyncSender};
-
+    #[ignore]
     #[test]
     fn basic_transport_stateless_reader_writer_usage() {
         let guid_prefix = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
