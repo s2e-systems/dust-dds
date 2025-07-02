@@ -44,7 +44,6 @@ impl TransportParticipantFactory for RtpsChannelTransportParticipantFactory {
         let participant = RtpsChannelTransportParticipant {
             guid,
             stateless_reader: None,
-            _stateless_writer: None,
         };
 
         participant
@@ -70,7 +69,6 @@ impl TransportStatelessReader for RtpsStatelessReader {
 pub struct RtpsChannelTransportParticipant {
     guid: Guid,
     stateless_reader: Option<RtpsStatelessReader>,
-    _stateless_writer: Option<RtpsChannelTransportStatelessWriter>,
 }
 
 pub struct RtpsChannelTransportStatelessWriter {
@@ -103,8 +101,8 @@ impl TransportStatelessWriter for RtpsChannelTransportStatelessWriter {
         self
     }
 
-    fn add_reader_locator(&mut self, _locator: Locator) {
-        todo!()
+    fn add_reader_locator(&mut self, locator: Locator) {
+        self.rtps_stateless_writer.reader_locator_add(locator)
     }
 
     fn remove_reader_locator(&mut self, _locator: &Locator) {
@@ -170,7 +168,7 @@ impl TransportParticipant for RtpsChannelTransportParticipant {
         let rtps_stateless_reader = self
             .stateless_reader
             .take()
-            .expect("statelessreader already created");
+            .expect("statelessreader must be already created");
         RtpsChannelTransportStatelessWriter {
             rtps_stateless_writer,
             rtps_stateless_reader,
@@ -200,7 +198,7 @@ mod tests {
     use super::*;
     use crate::std_runtime::executor::block_on;
     use dust_dds::transport::types::ChangeKind;
-    use std::sync::mpsc::{sync_channel, SyncSender};
+    use std::sync::mpsc::{channel, Sender};
     #[ignore]
     #[test]
     fn basic_transport_stateless_reader_writer_usage() {
@@ -209,7 +207,7 @@ mod tests {
         let transport = RtpsChannelTransportParticipantFactory::default();
         let mut participant = transport.create_participant(guid_prefix, domain_id);
 
-        struct MockHistoryCache(SyncSender<CacheChange>);
+        struct MockHistoryCache(Sender<CacheChange>);
 
         impl HistoryCache for MockHistoryCache {
             fn add_change(
@@ -230,16 +228,14 @@ mod tests {
         }
 
         let entity_id = EntityId::new([1, 2, 3], 4);
-        let (sender, receiver) = sync_channel(0);
+        let (sender, receiver) = channel();
         let reader_history_cache = Box::new(MockHistoryCache(sender));
         let _reader = participant.create_stateless_reader(entity_id, reader_history_cache);
 
         let entity_id = EntityId::new([5, 6, 7], 8);
         let mut writer = participant.create_stateless_writer(entity_id);
 
-        for locator in participant.default_unicast_locator_list() {
-            writer.add_reader_locator(locator.clone());
-        }
+        writer.add_reader_locator(Locator::new(0, 0, [0; 16]));
 
         let cache_change = CacheChange {
             kind: ChangeKind::Alive,
