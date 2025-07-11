@@ -1,4 +1,4 @@
-use super::{message_sender::WriteMessage, reader_locator::RtpsReaderLocator};
+use super::{message_sender::WriteMessageMut, reader_locator::RtpsReaderLocator};
 use crate::{
     rtps_messages::{
         overall_structure::RtpsMessageWrite,
@@ -103,7 +103,7 @@ impl RtpsStatelessWriter {
 
 pub fn behavior(
     rtps_stateless_writer: &mut RtpsStatelessWriter,
-    message_writer: &mut impl WriteMessage,
+    message_writer: &mut impl WriteMessageMut,
 ) {
     for reader_locator in &mut rtps_stateless_writer.reader_locators {
         while let Some(unsent_change_seq_num) =
@@ -131,7 +131,7 @@ pub fn behavior(
                     &[&info_ts_submessage, &data_submessage],
                     message_writer.guid_prefix(),
                 );
-                message_writer.write_message(rtps_message.buffer(), &[reader_locator.locator()]);
+                message_writer.write_message_mut(rtps_message.buffer(), &[reader_locator.locator()]);
             } else {
                 let gap_submessage = GapSubmessage::new(
                     ENTITYID_UNKNOWN,
@@ -143,7 +143,7 @@ pub fn behavior(
                     &[&gap_submessage],
                     message_writer.guid_prefix(),
                 );
-                message_writer.write_message(rtps_message.buffer(), &[reader_locator.locator()]);
+                message_writer.write_message_mut(rtps_message.buffer(), &[reader_locator.locator()]);
             }
             reader_locator.set_highest_sent_change_sn(unsent_change_seq_num);
         }

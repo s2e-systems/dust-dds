@@ -1,8 +1,9 @@
 use super::{
-    error::RtpsResult, message_receiver::MessageReceiver, message_sender::WriteMessage,
+    error::RtpsResult, message_receiver::MessageReceiver, message_sender::WriteMessageMut,
     writer_proxy::RtpsWriterProxy,
 };
 use crate::{
+    rtps::{message_sender::WriteMessage, stateless_reader::RtpsStatelessReader},
     rtps_messages::{
         self,
         overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
@@ -166,7 +167,7 @@ impl RtpsStatefulReader {
         &mut self,
         heartbeat_submessage: &HeartbeatSubmessage,
         source_guid_prefix: GuidPrefix,
-        message_writer: &mut impl WriteMessage,
+        message_writer: &impl WriteMessage,
     ) {
         let writer_guid = Guid::new(source_guid_prefix, heartbeat_submessage.writer_id());
         if let Some(writer_proxy) = self
@@ -210,7 +211,7 @@ impl RtpsStatefulReader {
     pub async fn process_message(
         &mut self,
         datagram: &[u8],
-        message_writer: &mut impl WriteMessage,
+        message_writer: &impl WriteMessage,
     ) -> RtpsResult<()> {
         let rtps_message = RtpsMessageRead::try_from(datagram)?;
         let mut message_receiver = MessageReceiver::new(&rtps_message);
@@ -258,6 +259,61 @@ impl RtpsStatefulReader {
         }
         Ok(())
     }
+}
+
+pub async fn stateful_reader_process_message(
+    stateful_reader: &mut RtpsStatefulReader,
+    datagram: &[u8],
+    message_writer: &impl WriteMessage,
+) -> RtpsResult<()> {
+    let rtps_message = RtpsMessageRead::try_from(datagram)?;
+    let mut message_receiver = MessageReceiver::new(&rtps_message);
+
+    while let Some(submessage) = message_receiver.next() {
+        match submessage {
+            RtpsSubmessageReadKind::Data(data_submessage) => {
+                stateful_reader
+                    .on_data_submessage_received(
+                        data_submessage,
+                        message_receiver.source_guid_prefix(),
+                        message_receiver.source_timestamp(),
+                    )
+                    .await;
+            }
+            RtpsSubmessageReadKind::DataFrag(data_frag_submessage) => {
+                stateful_reader
+                    .on_data_frag_submessage_received(
+                        data_frag_submessage,
+                        message_receiver.source_guid_prefix(),
+                        message_receiver.source_timestamp(),
+                    )
+                    .await;
+            }
+            RtpsSubmessageReadKind::HeartbeatFrag(heartbeat_frag_submessage) => {
+                stateful_reader.on_heartbeat_frag_submessage_received(
+                    heartbeat_frag_submessage,
+                    message_receiver.source_guid_prefix(),
+                );
+            }
+            RtpsSubmessageReadKind::Gap(gap_submessage) => {
+                stateful_reader.on_gap_submessage_received(
+                    gap_submessage,
+                    message_receiver.source_guid_prefix(),
+                );
+            }
+            RtpsSubmessageReadKind::Heartbeat(heartbeat_submessage) => {
+                stateful_reader
+                    .on_heartbeat_submessage_received(
+                        heartbeat_submessage,
+                        message_receiver.source_guid_prefix(),
+                        message_writer,
+                    )
+                    .await;
+            }
+            _ => (),
+        }
+    }
+    Ok(())
 }
 
 // The methods in this impl block are not defined by the standard

@@ -1,5 +1,9 @@
 use crate::{
-    rtps::message_sender::Clock,
+    rtps::{
+        message_sender::{Clock, WriteMessage},
+        stateful_reader::RtpsStatefulReader,
+        stateful_writer::{stateful_writer_write_message, RtpsStatefulWriter},
+    },
     std_runtime::executor::block_on,
     transport::{
         interface::{
@@ -10,10 +14,10 @@ use crate::{
         types::CacheChange,
     },
 };
-use core::{future::Future, pin::Pin};
+use core::{cell::RefCell, future::Future, pin::Pin};
 use dust_dds::{
     rtps::{
-        message_sender::WriteMessage,
+        message_sender::WriteMessageMut,
         stateless_reader::RtpsStatelessReader,
         stateless_writer::RtpsStatelessWriter,
         types::{PROTOCOLVERSION, VENDOR_ID_S2E},
@@ -44,6 +48,7 @@ impl TransportParticipantFactory for RtpsChannelTransportParticipantFactory {
         let participant = RtpsChannelTransportParticipant {
             guid,
             stateless_reader: None,
+            stateful_reader: None,
         };
 
         participant
@@ -64,11 +69,6 @@ impl TransportStatelessReader for RtpsStatelessReader {
     fn guid(&self) -> Guid {
         self.guid()
     }
-}
-
-pub struct RtpsChannelTransportParticipant {
-    guid: Guid,
-    stateless_reader: Option<RtpsStatelessReader>,
 }
 
 pub struct RtpsChannelTransportStatelessWriter {
@@ -109,8 +109,8 @@ impl TransportStatelessWriter for RtpsChannelTransportStatelessWriter {
         todo!()
     }
 }
-impl WriteMessage for RtpsStatelessReader {
-    fn write_message(&mut self, datagram: &[u8], _locator_list: &[Locator]) {
+impl WriteMessageMut for RtpsStatelessReader {
+    fn write_message_mut(&mut self, datagram: &[u8], _locator_list: &[Locator]) {
         block_on(async { self.process_message(datagram).await.unwrap() });
     }
 
@@ -119,17 +119,82 @@ impl WriteMessage for RtpsStatelessReader {
     }
 }
 
+impl WriteMessage for RefCell<RtpsStatefulReader> {
+    fn write_message(&self, datagram: &[u8], _locator_list: &[Locator]) {
+        block_on(async {
+            self.borrow_mut().process_message(datagram, self).await.ok();
+        });
+    }
+
+    fn guid_prefix(&self) -> GuidPrefix {
+        self.borrow().guid().prefix()
+    }
+}
+
+pub struct RtpsChannelTransportStatefulWriter {
+    rtps_stateful_writer: RtpsStatefulWriter,
+    rtps_stateful_reader: RefCell<RtpsStatefulReader>,
+}
+impl HistoryCache for RtpsChannelTransportStatefulWriter {
+    fn add_change(
+        &mut self,
+        cache_change: CacheChange,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        self.rtps_stateful_writer.add_change(cache_change);
+        block_on(async {
+            stateful_writer_write_message(
+                &mut self.rtps_stateful_writer,
+                &self.rtps_stateful_reader,
+                &RtpsChannelTransportClock,
+            )
+            .await
+        });
+        Box::pin(async {})
+    }
+
+    fn remove_change(&mut self, _sequence_number: i64) -> Pin<Box<dyn Future<Output = ()> + Send>> {
+        todo!()
+    }
+}
+impl TransportStatefulWriter for RtpsChannelTransportStatefulWriter {
+    fn guid(&self) -> Guid {
+        self.rtps_stateful_writer.guid()
+    }
+
+    fn history_cache(&mut self) -> &mut dyn HistoryCache {
+        self
+    }
+
+    fn is_change_acknowledged(&self, sequence_number: i64) -> bool {
+        self.rtps_stateful_writer
+            .is_change_acknowledged(sequence_number)
+    }
+
+    fn add_matched_reader(&mut self, reader_proxy: crate::transport::types::ReaderProxy) {
+        self.rtps_stateful_writer.add_matched_reader(&reader_proxy);
+    }
+
+    fn remove_matched_reader(&mut self, _remote_reader_guid: Guid) {}
+}
+
 impl TransportStatelessReader for Guid {
     fn guid(&self) -> Guid {
         *self
     }
 }
+
+pub struct RtpsChannelTransportParticipant {
+    guid: Guid,
+    stateless_reader: Option<RtpsStatelessReader>,
+    stateful_reader: Option<RtpsStatefulReader>,
+}
+
 impl TransportParticipant for RtpsChannelTransportParticipant {
     type HistoryCache = Box<dyn HistoryCache + Sync>;
     type StatelessReader = Guid;
     type StatelessWriter = RtpsChannelTransportStatelessWriter;
-    type StatefulReader = Box<dyn TransportStatefulReader>;
-    type StatefulWriter = Box<dyn TransportStatefulWriter>;
+    type StatefulReader = Guid;
+    type StatefulWriter = RtpsChannelTransportStatefulWriter;
 
     fn guid(&self) -> Guid {
         self.guid
@@ -177,26 +242,45 @@ impl TransportParticipant for RtpsChannelTransportParticipant {
 
     fn create_stateful_reader(
         &mut self,
-        _entity_id: EntityId,
-        _reliability_kind: ReliabilityKind,
-        _reader_history_cache: Self::HistoryCache,
+        entity_id: EntityId,
+        reliability_kind: ReliabilityKind,
+        reader_history_cache: Self::HistoryCache,
     ) -> Self::StatefulReader {
-        todo!()
+        let guid = Guid::new(self.guid.prefix(), entity_id);
+        self.stateful_reader.replace(RtpsStatefulReader::new(
+            guid,
+            reader_history_cache,
+            reliability_kind,
+        ));
+        guid
     }
 
     fn create_stateful_writer(
         &mut self,
-        _entity_id: EntityId,
+        entity_id: EntityId,
         _reliability_kind: ReliabilityKind,
     ) -> Self::StatefulWriter {
-        todo!()
+        let guid = Guid::new(self.guid.prefix(), entity_id);
+        let data_max_size_serialized = 1024;
+        let rtps_stateful_writer = RtpsStatefulWriter::new(guid, data_max_size_serialized);
+        let rtps_stateful_reader = self
+            .stateful_reader
+            .take()
+            .expect("statefulreader must be already created");
+        RtpsChannelTransportStatefulWriter {
+            rtps_stateful_writer,
+            rtps_stateful_reader: RefCell::new(rtps_stateful_reader),
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::std_runtime::executor::block_on;
+    use crate::{
+        std_runtime::executor::block_on,
+        transport::types::{DurabilityKind, ReaderProxy, WriterProxy, ENTITYID_UNKNOWN},
+    };
     use dust_dds::transport::types::ChangeKind;
     use std::sync::mpsc::{channel, Sender};
     #[ignore]
@@ -258,82 +342,82 @@ mod tests {
         assert_eq!(cache_change, received_cache_change);
     }
 
-    // #[test]
-    // fn basic_transport_stateful_reader_writer_usage() {
-    //     let guid_prefix = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-    //     let domain_id = 0;
-    //     let transport = RtpsChannelTransportParticipantFactory::default();
-    //     let mut participant = transport.create_participant(guid_prefix, domain_id);
+    #[test]
+    fn basic_transport_stateful_reader_writer_usage() {
+        let guid_prefix = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+        let domain_id = 0;
+        let transport = RtpsChannelTransportParticipantFactory::default();
+        let mut participant = transport.create_participant(guid_prefix, domain_id);
 
-    //     struct MockHistoryCache(SyncSender<CacheChange>);
+        struct MockHistoryCache(Sender<CacheChange>);
 
-    //     impl HistoryCache for MockHistoryCache {
-    //         fn add_change(
-    //             &mut self,
-    //             cache_change: CacheChange,
-    //         ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
-    //             self.0.send(cache_change).unwrap();
-    //             Box::pin(async {})
-    //         }
-    //         fn remove_change(
-    //             &mut self,
-    //             _sequence_number: i64,
-    //         ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
-    //             Box::pin(async {
-    //                 unimplemented!();
-    //             })
-    //         }
-    //     }
+        impl HistoryCache for MockHistoryCache {
+            fn add_change(
+                &mut self,
+                cache_change: CacheChange,
+            ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
+                self.0.send(cache_change).unwrap();
+                Box::pin(async {})
+            }
+            fn remove_change(
+                &mut self,
+                _sequence_number: i64,
+            ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
+                Box::pin(async {
+                    unimplemented!();
+                })
+            }
+        }
 
-    //     let entity_id = EntityId::new([1, 2, 3], 4);
-    //     let reliability_kind = ReliabilityKind::BestEffort;
-    //     let (sender, receiver) = sync_channel(0);
-    //     let reader_history_cache = Box::new(MockHistoryCache(sender));
-    //     let mut reader =
-    //         participant.create_stateful_reader(entity_id, reliability_kind, reader_history_cache);
+        let entity_id = EntityId::new([1, 2, 3], 4);
+        let reliability_kind = ReliabilityKind::BestEffort;
+        let (sender, receiver) = channel();
+        let reader_history_cache = Box::new(MockHistoryCache(sender));
+        let mut reader =
+            participant.create_stateful_reader(entity_id, reliability_kind, reader_history_cache);
 
-    //     let entity_id = EntityId::new([5, 6, 7], 8);
-    //     let mut writer = participant.create_stateful_writer(entity_id, reliability_kind);
+        let entity_id = EntityId::new([5, 6, 7], 8);
+        let mut writer = participant.create_stateful_writer(entity_id, reliability_kind);
 
-    //     let reader_proxy = ReaderProxy {
-    //         remote_reader_guid: reader.guid(),
-    //         remote_group_entity_id: ENTITYID_UNKNOWN,
-    //         reliability_kind,
-    //         durability_kind: DurabilityKind::Volatile,
-    //         unicast_locator_list: vec![],
-    //         multicast_locator_list: vec![],
-    //         expects_inline_qos: false,
-    //     };
-    //     writer.add_matched_reader(reader_proxy);
+        let reader_proxy = ReaderProxy {
+            remote_reader_guid: reader,
+            remote_group_entity_id: ENTITYID_UNKNOWN,
+            reliability_kind,
+            durability_kind: DurabilityKind::Volatile,
+            unicast_locator_list: vec![],
+            multicast_locator_list: vec![],
+            expects_inline_qos: false,
+        };
+        writer.add_matched_reader(reader_proxy);
 
-    //     let writer_proxy = WriterProxy {
-    //         remote_writer_guid: writer.guid(),
-    //         remote_group_entity_id: ENTITYID_UNKNOWN,
-    //         reliability_kind,
-    //         durability_kind: DurabilityKind::Volatile,
-    //         unicast_locator_list: vec![],
-    //         multicast_locator_list: vec![],
-    //     };
-    //     reader.add_matched_writer(writer_proxy);
-    //     let cache_change = CacheChange {
-    //         kind: ChangeKind::Alive,
-    //         writer_guid: writer.guid(),
-    //         sequence_number: 1,
-    //         source_timestamp: None,
-    //         instance_handle: None,
-    //         data_value: vec![0, 0, 0, 0, 1, 2, 3, 4].into(),
-    //     };
+        let writer_proxy = WriterProxy {
+            remote_writer_guid: writer.guid(),
+            remote_group_entity_id: ENTITYID_UNKNOWN,
+            reliability_kind,
+            durability_kind: DurabilityKind::Volatile,
+            unicast_locator_list: vec![],
+            multicast_locator_list: vec![],
+        };
+        // reader.add_matched_writer(writer_proxy);
 
-    //     block_on(async {
-    //         writer
-    //             .history_cache()
-    //             .add_change(cache_change.clone())
-    //             .await
-    //     });
+        let cache_change = CacheChange {
+            kind: ChangeKind::Alive,
+            writer_guid: writer.guid(),
+            sequence_number: 1,
+            source_timestamp: None,
+            instance_handle: None,
+            data_value: vec![0, 0, 0, 0, 1, 2, 3, 4].into(),
+        };
+        block_on(async {
+            writer
+                .history_cache()
+                .add_change(cache_change.clone())
+                .await
+        });
 
-    //     let received_cache_change = receiver
-    //         .recv_timeout(std::time::Duration::from_secs(3))
-    //         .unwrap();
-    //     assert_eq!(cache_change, received_cache_change);
-    // }
+        let received_cache_change = receiver
+            .recv_timeout(std::time::Duration::from_secs(3))
+            .unwrap();
+        assert_eq!(cache_change, received_cache_change);
+    }
 }

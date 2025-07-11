@@ -2,11 +2,11 @@ use super::{
     behavior_types::Duration,
     error::RtpsResult,
     message_receiver::MessageReceiver,
-    message_sender::{Clock, WriteMessage},
+    message_sender::{Clock, WriteMessageMut},
     reader_proxy::RtpsReaderProxy,
 };
 use crate::{
-    rtps_messages::{
+    rtps::message_sender::WriteMessage, rtps_messages::{
         overall_structure::{RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageReadKind},
         submessage_elements::{ParameterList, SequenceNumberSet, SerializedDataFragment},
         submessages::{
@@ -15,11 +15,10 @@ use crate::{
             nack_frag::NackFragSubmessage,
         },
         types::TIME_INVALID,
-    },
-    transport::types::{
+    }, transport::types::{
         CacheChange, ChangeKind, DurabilityKind, EntityId, Guid, GuidPrefix, ReaderProxy,
         ReliabilityKind, SequenceNumber, ENTITYID_UNKNOWN,
-    },
+    }
 };
 use alloc::vec::Vec;
 
@@ -106,7 +105,7 @@ impl RtpsStatefulWriter {
             .retain(|rp| rp.remote_reader_guid() != reader_guid);
     }
 
-    pub async fn write_message(&mut self, message_writer: &mut impl WriteMessage, clock: &impl Clock) {
+    pub async fn write_message(&mut self, message_writer: &impl WriteMessage, clock: &impl Clock) {
         for reader_proxy in &mut self.matched_readers {
             match reader_proxy.reliability() {
                 ReliabilityKind::BestEffort => {
@@ -141,7 +140,7 @@ impl RtpsStatefulWriter {
         &mut self,
         acknack_submessage: &AckNackSubmessage,
         source_guid_prefix: GuidPrefix,
-        message_writer: &mut impl WriteMessage,
+        message_writer: &impl WriteMessage,
         clock: &impl Clock,
     ) {
         if &self.guid.entity_id() == acknack_submessage.writer_id() {
@@ -181,7 +180,7 @@ impl RtpsStatefulWriter {
         &mut self,
         nackfrag_submessage: &NackFragSubmessage,
         source_guid_prefix: GuidPrefix,
-        message_writer: &mut impl WriteMessage,
+        message_writer: &impl WriteMessage,
         clock: &impl Clock,
     ) {
         let reader_guid = Guid::new(source_guid_prefix, nackfrag_submessage.reader_id());
@@ -217,7 +216,7 @@ impl RtpsStatefulWriter {
     pub async fn process_message(
         &mut self,
         datagram: &[u8],
-        message_writer: &mut impl WriteMessage,
+        message_writer: &impl WriteMessage,
         clock: &impl Clock,
     ) -> RtpsResult<()> {
         let rtps_message = RtpsMessageRead::try_from(datagram)?;
@@ -250,12 +249,43 @@ impl RtpsStatefulWriter {
     }
 }
 
+pub async fn stateful_writer_write_message(writer: &mut RtpsStatefulWriter, message_writer: &impl WriteMessage, clock: &impl Clock) {
+    for reader_proxy in &mut writer.matched_readers {
+        match reader_proxy.reliability() {
+            ReliabilityKind::BestEffort => {
+                write_message_to_reader_proxy_best_effort(
+                    reader_proxy,
+                    writer.guid.entity_id(),
+                    &writer.changes,
+                    writer.data_max_size_serialized,
+                    message_writer,
+                )
+                .await
+            }
+            ReliabilityKind::Reliable => {
+                write_message_to_reader_proxy_reliable(
+                    reader_proxy,
+                    writer.guid.entity_id(),
+                    &writer.changes,
+                    writer.changes.iter().map(|cc| cc.sequence_number).min(),
+                    writer.changes.iter().map(|cc| cc.sequence_number).max(),
+                    writer.data_max_size_serialized,
+                    writer.heartbeat_period,
+                    message_writer,
+                    clock,
+                )
+                .await
+            }
+        }
+    }
+}
+
 async fn write_message_to_reader_proxy_best_effort(
     reader_proxy: &mut RtpsReaderProxy,
     writer_id: EntityId,
     changes: &[CacheChange],
     data_max_size_serialized: usize,
-    message_writer: &mut impl WriteMessage,
+    message_writer: &impl WriteMessage,
 ) {
     // a_change_seq_num := the_reader_proxy.next_unsent_change();
     // if ( a_change_seq_num > the_reader_proxy.higuest_sent_seq_num +1 ) {
@@ -414,7 +444,7 @@ async fn write_message_to_reader_proxy_reliable(
     seq_num_max: Option<SequenceNumber>,
     data_max_size_serialized: usize,
     heartbeat_period: Duration,
-    message_writer: &mut impl WriteMessage,
+    message_writer: &impl WriteMessage,
     clock: &impl Clock,
 ) {
     let now = clock.now();
@@ -534,7 +564,7 @@ async fn write_change_message_reader_proxy_reliable(
     seq_num_max: Option<SequenceNumber>,
     data_max_size_serialized: usize,
     change_seq_num: SequenceNumber,
-    message_writer: &mut impl WriteMessage,
+    message_writer: &impl WriteMessage,
     clock: &impl Clock,
 ) {
     let now = clock.now();
