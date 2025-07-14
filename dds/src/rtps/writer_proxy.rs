@@ -1,4 +1,3 @@
-use super::message_sender::WriteMessageMut;
 use crate::{
     rtps::message_sender::WriteMessage,
     rtps_messages::{

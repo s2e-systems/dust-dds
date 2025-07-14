@@ -1,9 +1,6 @@
-use super::{
-    error::RtpsResult, message_receiver::MessageReceiver, message_sender::WriteMessageMut,
-    writer_proxy::RtpsWriterProxy,
-};
+use super::{error::RtpsResult, message_receiver::MessageReceiver, writer_proxy::RtpsWriterProxy};
 use crate::{
-    rtps::{message_sender::WriteMessage, stateless_reader::RtpsStatelessReader},
+    rtps::message_sender::WriteMessage,
     rtps_messages::{
         self,
         overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},

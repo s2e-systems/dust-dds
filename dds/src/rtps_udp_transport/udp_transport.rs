@@ -18,7 +18,6 @@ use core::{
 };
 use dust_dds::{
     rtps::{
-        message_sender::WriteMessageMut,
         stateful_reader::RtpsStatefulReader,
         stateful_writer::RtpsStatefulWriter,
         stateless_reader::RtpsStatelessReader,
@@ -871,7 +870,6 @@ mod tests {
     use dust_dds::transport::types::ChangeKind;
     use std::sync::mpsc::{sync_channel, SyncSender};
 
-
     #[test]
     fn basic_transport_stateless_reader_writer_usage() {
         let guid_prefix = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
@@ -1012,5 +1010,4 @@ mod tests {
             .unwrap();
         assert_eq!(cache_change, received_cache_change);
     }
-
 }

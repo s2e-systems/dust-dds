@@ -14,7 +14,7 @@ use crate::{
         types::CacheChange,
     },
 };
-use core::{cell::RefCell, future::Future, pin::Pin};
+use core::{future::Future, pin::Pin};
 use dust_dds::{
     rtps::{
         message_sender::WriteMessageMut,
@@ -27,6 +27,7 @@ use dust_dds::{
         ENTITYID_PARTICIPANT,
     },
 };
+use std::sync::{Arc, Mutex};
 
 pub struct RtpsChannelTransportParticipantFactory {}
 
@@ -119,21 +120,43 @@ impl WriteMessageMut for RtpsStatelessReader {
     }
 }
 
-impl WriteMessage for RefCell<RtpsStatefulReader> {
+impl WriteMessage for Arc<Mutex<RtpsStatefulReader>> {
     fn write_message(&self, datagram: &[u8], _locator_list: &[Locator]) {
         block_on(async {
-            self.borrow_mut().process_message(datagram, self).await.ok();
+            self.lock()
+                .unwrap()
+                .process_message(datagram, self)
+                .await
+                .ok();
         });
     }
 
     fn guid_prefix(&self) -> GuidPrefix {
-        self.borrow().guid().prefix()
+        self.lock().unwrap().guid().prefix()
+    }
+}
+
+impl TransportStatefulReader for Arc<Mutex<RtpsStatefulReader>> {
+    fn guid(&self) -> Guid {
+        self.lock().unwrap().guid()
+    }
+
+    fn is_historical_data_received(&self) -> bool {
+        todo!()
+    }
+
+    fn add_matched_writer(&mut self, writer_proxy: crate::transport::types::WriterProxy) {
+        self.lock().unwrap().add_matched_writer(&writer_proxy);
+    }
+
+    fn remove_matched_writer(&mut self, _remote_writer_guid: Guid) {
+        todo!()
     }
 }
 
 pub struct RtpsChannelTransportStatefulWriter {
     rtps_stateful_writer: RtpsStatefulWriter,
-    rtps_stateful_reader: RefCell<RtpsStatefulReader>,
+    rtps_stateful_reader: Arc<Mutex<RtpsStatefulReader>>,
 }
 impl HistoryCache for RtpsChannelTransportStatefulWriter {
     fn add_change(
@@ -186,14 +209,14 @@ impl TransportStatelessReader for Guid {
 pub struct RtpsChannelTransportParticipant {
     guid: Guid,
     stateless_reader: Option<RtpsStatelessReader>,
-    stateful_reader: Option<RtpsStatefulReader>,
+    stateful_reader: Option<Arc<Mutex<RtpsStatefulReader>>>,
 }
 
 impl TransportParticipant for RtpsChannelTransportParticipant {
     type HistoryCache = Box<dyn HistoryCache + Sync>;
     type StatelessReader = Guid;
     type StatelessWriter = RtpsChannelTransportStatelessWriter;
-    type StatefulReader = Guid;
+    type StatefulReader = Arc<Mutex<RtpsStatefulReader>>;
     type StatefulWriter = RtpsChannelTransportStatefulWriter;
 
     fn guid(&self) -> Guid {
@@ -247,12 +270,13 @@ impl TransportParticipant for RtpsChannelTransportParticipant {
         reader_history_cache: Self::HistoryCache,
     ) -> Self::StatefulReader {
         let guid = Guid::new(self.guid.prefix(), entity_id);
-        self.stateful_reader.replace(RtpsStatefulReader::new(
+        let stateful_reader = Arc::new(Mutex::new(RtpsStatefulReader::new(
             guid,
             reader_history_cache,
             reliability_kind,
-        ));
-        guid
+        )));
+        self.stateful_reader.replace(stateful_reader.clone());
+        stateful_reader
     }
 
     fn create_stateful_writer(
@@ -269,7 +293,7 @@ impl TransportParticipant for RtpsChannelTransportParticipant {
             .expect("statefulreader must be already created");
         RtpsChannelTransportStatefulWriter {
             rtps_stateful_writer,
-            rtps_stateful_reader: RefCell::new(rtps_stateful_reader),
+            rtps_stateful_reader,
         }
     }
 }
@@ -380,7 +404,7 @@ mod tests {
         let mut writer = participant.create_stateful_writer(entity_id, reliability_kind);
 
         let reader_proxy = ReaderProxy {
-            remote_reader_guid: reader,
+            remote_reader_guid: reader.lock().unwrap().guid(),
             remote_group_entity_id: ENTITYID_UNKNOWN,
             reliability_kind,
             durability_kind: DurabilityKind::Volatile,
@@ -398,7 +422,7 @@ mod tests {
             unicast_locator_list: vec![],
             multicast_locator_list: vec![],
         };
-        // reader.add_matched_writer(writer_proxy);
+        reader.add_matched_writer(writer_proxy);
 
         let cache_change = CacheChange {
             kind: ChangeKind::Alive,

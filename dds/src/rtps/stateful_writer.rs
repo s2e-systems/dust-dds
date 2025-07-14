@@ -1,12 +1,10 @@
 use super::{
-    behavior_types::Duration,
-    error::RtpsResult,
-    message_receiver::MessageReceiver,
-    message_sender::{Clock, WriteMessageMut},
-    reader_proxy::RtpsReaderProxy,
+    behavior_types::Duration, error::RtpsResult, message_receiver::MessageReceiver,
+    message_sender::Clock, reader_proxy::RtpsReaderProxy,
 };
 use crate::{
-    rtps::message_sender::WriteMessage, rtps_messages::{
+    rtps::message_sender::WriteMessage,
+    rtps_messages::{
         overall_structure::{RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageReadKind},
         submessage_elements::{ParameterList, SequenceNumberSet, SerializedDataFragment},
         submessages::{
@@ -15,10 +13,11 @@ use crate::{
             nack_frag::NackFragSubmessage,
         },
         types::TIME_INVALID,
-    }, transport::types::{
+    },
+    transport::types::{
         CacheChange, ChangeKind, DurabilityKind, EntityId, Guid, GuidPrefix, ReaderProxy,
         ReliabilityKind, SequenceNumber, ENTITYID_UNKNOWN,
-    }
+    },
 };
 use alloc::vec::Vec;
 
@@ -249,7 +248,11 @@ impl RtpsStatefulWriter {
     }
 }
 
-pub async fn stateful_writer_write_message(writer: &mut RtpsStatefulWriter, message_writer: &impl WriteMessage, clock: &impl Clock) {
+pub async fn stateful_writer_write_message(
+    writer: &mut RtpsStatefulWriter,
+    message_writer: &impl WriteMessage,
+    clock: &impl Clock,
+) {
     for reader_proxy in &mut writer.matched_readers {
         match reader_proxy.reliability() {
             ReliabilityKind::BestEffort => {
@@ -485,7 +488,8 @@ async fn write_message_to_reader_proxy_reliable(
                     next_unsent_change_seq_num,
                     message_writer,
                     clock,
-                ).await;
+                )
+                .await;
             }
             reader_proxy.set_highest_sent_seq_num(next_unsent_change_seq_num);
         }
