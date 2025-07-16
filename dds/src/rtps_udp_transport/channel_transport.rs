@@ -3,6 +3,9 @@ use crate::{
         message_sender::{Clock, WriteMessage},
         stateful_reader::RtpsStatefulReader,
         stateful_writer::{stateful_writer_write_message, RtpsStatefulWriter},
+        stateless_reader::RtpsStatelessReader,
+        stateless_writer::RtpsStatelessWriter,
+        types::{PROTOCOLVERSION, VENDOR_ID_S2E},
     },
     std_runtime::executor::block_on,
     transport::{
@@ -11,31 +14,17 @@ use crate::{
             TransportStatefulReader, TransportStatefulWriter, TransportStatelessReader,
             TransportStatelessWriter,
         },
-        types::CacheChange,
+        types::{
+            CacheChange, EntityId, Guid, GuidPrefix, Locator, ProtocolVersion, ReliabilityKind,
+            VendorId, ENTITYID_PARTICIPANT,
+        },
     },
 };
-use core::{future::Future, pin::Pin};
-use dust_dds::{
-    rtps::{
-        message_sender::WriteMessageMut,
-        stateless_reader::RtpsStatelessReader,
-        stateless_writer::RtpsStatelessWriter,
-        types::{PROTOCOLVERSION, VENDOR_ID_S2E},
-    },
-    transport::types::{
-        EntityId, Guid, GuidPrefix, Locator, ProtocolVersion, ReliabilityKind, VendorId,
-        ENTITYID_PARTICIPANT,
-    },
-};
-use std::sync::{Arc, Mutex};
+use async_lock::Mutex;
+use std::{future::Future, pin::Pin, sync::Arc};
 
+#[derive(Default)]
 pub struct RtpsChannelTransportParticipantFactory {}
-
-impl Default for RtpsChannelTransportParticipantFactory {
-    fn default() -> Self {
-        Self {}
-    }
-}
 
 impl TransportParticipantFactory for RtpsChannelTransportParticipantFactory {
     type TransportParticipant = RtpsChannelTransportParticipant;
@@ -46,13 +35,11 @@ impl TransportParticipantFactory for RtpsChannelTransportParticipantFactory {
         _domain_id: i32,
     ) -> Self::TransportParticipant {
         let guid = Guid::new(guid_prefix, ENTITYID_PARTICIPANT);
-        let participant = RtpsChannelTransportParticipant {
+        RtpsChannelTransportParticipant {
             guid,
             stateless_reader: None,
             stateful_reader: None,
-        };
-
-        participant
+        }
     }
 }
 
@@ -74,7 +61,7 @@ impl TransportStatelessReader for RtpsStatelessReader {
 
 pub struct RtpsChannelTransportStatelessWriter {
     rtps_stateless_writer: RtpsStatelessWriter,
-    rtps_stateless_reader: RtpsStatelessReader,
+    rtps_stateless_reader: Mutex<RtpsStatelessReader>,
 }
 impl HistoryCache for RtpsChannelTransportStatelessWriter {
     fn add_change(
@@ -84,7 +71,7 @@ impl HistoryCache for RtpsChannelTransportStatelessWriter {
         self.rtps_stateless_writer.add_change(cache_change);
         crate::rtps::stateless_writer::behavior(
             &mut self.rtps_stateless_writer,
-            &mut self.rtps_stateless_reader,
+            &self.rtps_stateless_reader,
         );
         Box::pin(async {})
     }
@@ -110,35 +97,31 @@ impl TransportStatelessWriter for RtpsChannelTransportStatelessWriter {
         todo!()
     }
 }
-impl WriteMessageMut for RtpsStatelessReader {
-    fn write_message_mut(&mut self, datagram: &[u8], _locator_list: &[Locator]) {
-        block_on(async { self.process_message(datagram).await.unwrap() });
+impl WriteMessage for Mutex<RtpsStatelessReader> {
+    fn write_message(&self, datagram: &[u8], _locator_list: &[Locator]) {
+        block_on(async { self.lock().await.process_message(datagram).await.unwrap() });
     }
 
     fn guid_prefix(&self) -> GuidPrefix {
-        self.guid().prefix()
+        block_on(async { self.lock().await.guid().prefix() })
     }
 }
 
 impl WriteMessage for Arc<Mutex<RtpsStatefulReader>> {
     fn write_message(&self, datagram: &[u8], _locator_list: &[Locator]) {
         block_on(async {
-            self.lock()
-                .unwrap()
-                .process_message(datagram, self)
-                .await
-                .ok();
+            self.lock().await.process_message(datagram, self).await.ok();
         });
     }
 
     fn guid_prefix(&self) -> GuidPrefix {
-        self.lock().unwrap().guid().prefix()
+        block_on(async { self.lock().await.guid().prefix() })
     }
 }
 
 impl TransportStatefulReader for Arc<Mutex<RtpsStatefulReader>> {
     fn guid(&self) -> Guid {
-        self.lock().unwrap().guid()
+        block_on(async { self.lock().await.guid() })
     }
 
     fn is_historical_data_received(&self) -> bool {
@@ -146,7 +129,7 @@ impl TransportStatefulReader for Arc<Mutex<RtpsStatefulReader>> {
     }
 
     fn add_matched_writer(&mut self, writer_proxy: crate::transport::types::WriterProxy) {
-        self.lock().unwrap().add_matched_writer(&writer_proxy);
+        block_on(async { self.lock().await.add_matched_writer(&writer_proxy) })
     }
 
     fn remove_matched_writer(&mut self, _remote_writer_guid: Guid) {
@@ -259,7 +242,7 @@ impl TransportParticipant for RtpsChannelTransportParticipant {
             .expect("statelessreader must be already created");
         RtpsChannelTransportStatelessWriter {
             rtps_stateless_writer,
-            rtps_stateless_reader,
+            rtps_stateless_reader: Mutex::new(rtps_stateless_reader),
         }
     }
 

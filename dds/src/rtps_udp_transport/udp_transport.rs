@@ -413,7 +413,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                                     rtps_stateful_writer
                                         .lock()
                                         .await
-                                        .write_message(&mut message_writer, &RtpsUdpTransportClock)
+                                        .write_message(&message_writer, &RtpsUdpTransportClock)
                                         .await;
                                 }
                             }),
@@ -537,7 +537,7 @@ struct MessageWriter {
 impl Clone for MessageWriter {
     fn clone(&self) -> Self {
         Self {
-            guid_prefix: self.guid_prefix.clone(),
+            guid_prefix: self.guid_prefix,
             socket: self.socket.try_clone().expect("Socket cloning"),
         }
     }
@@ -687,7 +687,7 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
                 self.rtps_writer.add_change(cache_change);
                 crate::rtps::stateless_writer::behavior(
                     &mut self.rtps_writer,
-                    &mut self.message_writer,
+                    &self.message_writer,
                 );
                 Box::pin(async {})
             }
@@ -825,7 +825,7 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
                     self.rtps_stateful_writer
                         .lock()
                         .await
-                        .write_message(&mut self.message_writer, &RtpsUdpTransportClock)
+                        .write_message(&self.message_writer, &RtpsUdpTransportClock)
                         .await;
                 })
             }
