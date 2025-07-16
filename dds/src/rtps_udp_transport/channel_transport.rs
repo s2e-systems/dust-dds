@@ -27,7 +27,15 @@ use std::{future::Future, pin::Pin, sync::Arc};
 pub struct RtpsChannelTransportParticipantFactory {}
 
 impl TransportParticipantFactory for RtpsChannelTransportParticipantFactory {
-    type TransportParticipant = RtpsChannelTransportParticipant;
+    type TransportParticipant = Box<
+        dyn TransportParticipant<
+            HistoryCache = Box<dyn HistoryCache + Sync>,
+            StatelessReader = Box<dyn TransportStatelessReader>,
+            StatefulReader = Box<dyn TransportStatefulReader>,
+            StatelessWriter = Box<dyn TransportStatelessWriter>,
+            StatefulWriter = Box<dyn TransportStatefulWriter>,
+        >,
+    >;
 
     fn create_participant(
         &self,
@@ -35,11 +43,11 @@ impl TransportParticipantFactory for RtpsChannelTransportParticipantFactory {
         _domain_id: i32,
     ) -> Self::TransportParticipant {
         let guid = Guid::new(guid_prefix, ENTITYID_PARTICIPANT);
-        RtpsChannelTransportParticipant {
+        Box::new(RtpsChannelTransportParticipant {
             guid,
             stateless_reader: None,
             stateful_reader: None,
-        }
+        })
     }
 }
 
@@ -197,10 +205,10 @@ pub struct RtpsChannelTransportParticipant {
 
 impl TransportParticipant for RtpsChannelTransportParticipant {
     type HistoryCache = Box<dyn HistoryCache + Sync>;
-    type StatelessReader = Guid;
-    type StatelessWriter = RtpsChannelTransportStatelessWriter;
-    type StatefulReader = Arc<Mutex<RtpsStatefulReader>>;
-    type StatefulWriter = RtpsChannelTransportStatefulWriter;
+    type StatelessReader = Box<dyn TransportStatelessReader>;
+    type StatelessWriter = Box<dyn TransportStatelessWriter>;
+    type StatefulReader = Box<dyn TransportStatefulReader>;
+    type StatefulWriter = Box<dyn TransportStatefulWriter>;
 
     fn guid(&self) -> Guid {
         self.guid
@@ -231,7 +239,7 @@ impl TransportParticipant for RtpsChannelTransportParticipant {
         let guid = Guid::new(self.guid.prefix(), entity_id);
         self.stateless_reader
             .replace(RtpsStatelessReader::new(guid, reader_history_cache));
-        guid
+        Box::new(guid)
     }
     fn create_stateless_writer(&mut self, entity_id: EntityId) -> Self::StatelessWriter {
         let guid = Guid::new(self.guid.prefix(), entity_id);
@@ -240,10 +248,10 @@ impl TransportParticipant for RtpsChannelTransportParticipant {
             .stateless_reader
             .take()
             .expect("statelessreader must be already created");
-        RtpsChannelTransportStatelessWriter {
+        Box::new(RtpsChannelTransportStatelessWriter {
             rtps_stateless_writer,
             rtps_stateless_reader: Mutex::new(rtps_stateless_reader),
-        }
+        })
     }
 
     fn create_stateful_reader(
@@ -259,7 +267,7 @@ impl TransportParticipant for RtpsChannelTransportParticipant {
             reliability_kind,
         )));
         self.stateful_reader.replace(stateful_reader.clone());
-        stateful_reader
+        Box::new(stateful_reader)
     }
 
     fn create_stateful_writer(
@@ -274,10 +282,10 @@ impl TransportParticipant for RtpsChannelTransportParticipant {
             .stateful_reader
             .take()
             .expect("statefulreader must be already created");
-        RtpsChannelTransportStatefulWriter {
+        Box::new(RtpsChannelTransportStatefulWriter {
             rtps_stateful_writer,
             rtps_stateful_reader,
-        }
+        })
     }
 }
 
@@ -285,10 +293,21 @@ impl TransportParticipant for RtpsChannelTransportParticipant {
 mod tests {
     use super::*;
     use crate::{
+        domain::domain_participant_factory::DomainParticipantFactory,
+        infrastructure::{
+            error::DdsError,
+            qos::{DataReaderQos, DataWriterQos, QosKind},
+            qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
+            status::{StatusKind, NO_STATUS},
+            time::{Duration, DurationKind},
+        },
+        listener::NO_LISTENER,
         std_runtime::executor::block_on,
         transport::types::{DurabilityKind, ReaderProxy, WriterProxy, ENTITYID_UNKNOWN},
+        wait_set::{Condition, WaitSet},
     };
     use dust_dds::transport::types::ChangeKind;
+    use dust_dds_derive::DdsType;
     use std::sync::mpsc::{channel, Sender};
     #[ignore]
     #[test]
@@ -387,7 +406,7 @@ mod tests {
         let mut writer = participant.create_stateful_writer(entity_id, reliability_kind);
 
         let reader_proxy = ReaderProxy {
-            remote_reader_guid: reader.lock().unwrap().guid(),
+            remote_reader_guid: reader.guid(),
             remote_group_entity_id: ENTITYID_UNKNOWN,
             reliability_kind,
             durability_kind: DurabilityKind::Volatile,
@@ -426,5 +445,97 @@ mod tests {
             .recv_timeout(std::time::Duration::from_secs(3))
             .unwrap();
         assert_eq!(cache_change, received_cache_change);
+    }
+
+    #[derive(Clone, Debug, PartialEq, DdsType)]
+    struct KeyedData {
+        #[dust_dds(key)]
+        id: u8,
+        value: u32,
+    }
+
+    #[test]
+    fn read_next_sample() {
+        DomainParticipantFactory::get_instance()
+            .set_transport(Box::new(RtpsChannelTransportParticipantFactory::default()))
+            .unwrap();
+        let participant = DomainParticipantFactory::get_instance()
+            .create_participant(0, QosKind::Default, NO_LISTENER, NO_STATUS)
+            .unwrap();
+
+        let topic = participant
+            .create_topic::<KeyedData>(
+                "MyTopic",
+                "KeyedData",
+                QosKind::Default,
+                NO_LISTENER,
+                NO_STATUS,
+            )
+            .unwrap();
+
+        let publisher = participant
+            .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+            .unwrap();
+        let writer_qos = DataWriterQos {
+            reliability: ReliabilityQosPolicy {
+                kind: ReliabilityQosPolicyKind::Reliable,
+                max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+            },
+            ..Default::default()
+        };
+        let writer = publisher
+            .create_datawriter(
+                &topic,
+                QosKind::Specific(writer_qos),
+                NO_LISTENER,
+                NO_STATUS,
+            )
+            .unwrap();
+
+        let subscriber = participant
+            .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+            .unwrap();
+        let reader_qos = DataReaderQos {
+            reliability: ReliabilityQosPolicy {
+                kind: ReliabilityQosPolicyKind::Reliable,
+                max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+            },
+            ..Default::default()
+        };
+        let reader = subscriber
+            .create_datareader::<KeyedData>(
+                &topic,
+                QosKind::Specific(reader_qos),
+                NO_LISTENER,
+                NO_STATUS,
+            )
+            .unwrap();
+
+        let cond = writer.get_statuscondition();
+        cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+            .unwrap();
+
+        let mut wait_set = WaitSet::new();
+        wait_set
+            .attach_condition(Condition::StatusCondition(cond))
+            .unwrap();
+        wait_set.wait(Duration::new(10, 0)).unwrap();
+
+        let data1 = KeyedData { id: 1, value: 1 };
+        let data2 = KeyedData { id: 2, value: 10 };
+        let data3 = KeyedData { id: 3, value: 20 };
+
+        writer.write(&data1, None).unwrap();
+        writer.write(&data2, None).unwrap();
+        writer.write(&data3, None).unwrap();
+
+        writer
+            .wait_for_acknowledgments(Duration::new(10, 0))
+            .unwrap();
+
+        assert_eq!(reader.read_next_sample().unwrap().data().unwrap(), data1);
+        assert_eq!(reader.read_next_sample().unwrap().data().unwrap(), data2);
+        assert_eq!(reader.read_next_sample().unwrap().data().unwrap(), data3);
+        assert_eq!(reader.read_next_sample(), Err(DdsError::NoData));
     }
 }
