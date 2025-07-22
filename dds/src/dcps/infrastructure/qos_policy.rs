@@ -804,7 +804,7 @@ impl LivelinessQosPolicy {
     pub const fn const_default() -> Self {
         Self {
             kind: LivelinessQosPolicyKind::Automatic,
-            lease_duration: DurationKind::Infinite,
+            lease_duration: DurationKind::Finite(Duration::new(5,0)), // Changed from DurationKind::Infinite to 5 secs so it's finite
         }
     }
 }
