@@ -3,6 +3,9 @@ use std::path::Path;
 use generator::rust;
 use pest::Parser;
 
+pub use crate::parser::parse_idl;
+pub use crate::generator::rust::generate_rust_def;
+
 mod generator;
 mod parser;
 mod preprocessor;

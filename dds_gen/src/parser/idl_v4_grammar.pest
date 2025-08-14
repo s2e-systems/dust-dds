@@ -25,7 +25,6 @@ reserved_keyword = {
     | ^"alias"
     | ^"attribute"
     | ^"bitfield"
-    | ^"bitmask"
     | ^"bitset"
     | ^"boolean"
     | ^"case"
@@ -107,10 +106,15 @@ reserved_keyword = {
 
 // Identifier can not be a keyword. The optional is used instead of the negative lookahead (!)
 // because the identifier might start with a keyword as long as it has something after it.
+
+// Using negative lookahead (`!reserved_keyword`) to reject identifiers
+// that match keywords entirely, because keywords are illegal as identifiers.
+// This replaces the previous optional match which incorrectly allowed
+// identifiers to start as keywords (e.g., "TRUE") causing parse errors.
 identifier = @{
-    reserved_keyword? ~ (ASCII | "_") ~ ("_" | ASCII_ALPHANUMERIC )*
-    | "_" ~ (ASCII | "_") ~ ("_" | ASCII_ALPHANUMERIC )*
+    !reserved_keyword ~ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")*
 }
+
 
 character_literal = @{ "'" ~ (!"'" ~ (escape | ANY)) ~ "'" }
 string_literal = @{ "\"" ~ (!"\"" ~ (escape | ANY))* ~ "\"" }
@@ -170,6 +174,7 @@ definition = {
     | template_module_inst ~ ";"
     // (218)
     | annotation_dcl ~ ";"
+    | struct_dcl ~ ";"
 
 }
 // (3)
@@ -246,6 +251,7 @@ primary_expr = {
     | scoped_name
     | "(" ~ const_expr ~ ")"
 }
+
 // (17)
 literal = {
     floating_pt_literal
