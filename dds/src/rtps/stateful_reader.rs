@@ -1,8 +1,6 @@
-use super::{
-    error::RtpsResult, message_receiver::MessageReceiver, message_sender::WriteMessage,
-    writer_proxy::RtpsWriterProxy,
-};
+use super::{error::RtpsResult, message_receiver::MessageReceiver, writer_proxy::RtpsWriterProxy};
 use crate::{
+    rtps::message_sender::WriteMessage,
     rtps_messages::{
         self,
         overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
@@ -12,9 +10,8 @@ use crate::{
         },
     },
     transport::{
-        history_cache::{CacheChange, HistoryCache},
-        reader::WriterProxy,
-        types::{Guid, GuidPrefix, ReliabilityKind},
+        interface::HistoryCache,
+        types::{CacheChange, Guid, GuidPrefix, ReliabilityKind, WriterProxy},
     },
 };
 use alloc::{boxed::Box, vec::Vec};

@@ -1,5 +1,5 @@
-use super::message_sender::WriteMessage;
 use crate::{
+    rtps::message_sender::WriteMessage,
     rtps_messages::{
         overall_structure::RtpsMessageWrite,
         submessage_elements::{Data, FragmentNumberSet, SequenceNumberSet},
@@ -265,9 +265,7 @@ impl RtpsWriterProxy {
                 &[&info_dst_submessage, &acknack_submessage],
                 message_writer.guid_prefix(),
             );
-            message_writer
-                .write_message(rtps_message.buffer(), self.unicast_locator_list())
-                .await;
+            message_writer.write_message(rtps_message.buffer(), self.unicast_locator_list());
 
             let mut missing_fragment_seq_num_list: Vec<SequenceNumber> =
                 self.frag_buffer.iter().map(|f| f.writer_sn()).collect();
@@ -312,8 +310,7 @@ impl RtpsWriterProxy {
                         message_writer.guid_prefix(),
                     );
                     message_writer
-                        .write_message(rtps_message.buffer(), self.unicast_locator_list())
-                        .await;
+                        .write_message(rtps_message.buffer(), self.unicast_locator_list());
                 }
             }
         }
