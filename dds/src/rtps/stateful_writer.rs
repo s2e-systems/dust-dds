@@ -248,41 +248,6 @@ impl RtpsStatefulWriter {
     }
 }
 
-pub async fn stateful_writer_write_message(
-    writer: &mut RtpsStatefulWriter,
-    message_writer: &impl WriteMessage,
-    clock: &impl Clock,
-) {
-    for reader_proxy in &mut writer.matched_readers {
-        match reader_proxy.reliability() {
-            ReliabilityKind::BestEffort => {
-                write_message_to_reader_proxy_best_effort(
-                    reader_proxy,
-                    writer.guid.entity_id(),
-                    &writer.changes,
-                    writer.data_max_size_serialized,
-                    message_writer,
-                )
-                .await
-            }
-            ReliabilityKind::Reliable => {
-                write_message_to_reader_proxy_reliable(
-                    reader_proxy,
-                    writer.guid.entity_id(),
-                    &writer.changes,
-                    writer.changes.iter().map(|cc| cc.sequence_number).min(),
-                    writer.changes.iter().map(|cc| cc.sequence_number).max(),
-                    writer.data_max_size_serialized,
-                    writer.heartbeat_period,
-                    message_writer,
-                    clock,
-                )
-                .await
-            }
-        }
-    }
-}
-
 async fn write_message_to_reader_proxy_best_effort(
     reader_proxy: &mut RtpsReaderProxy,
     writer_id: EntityId,
