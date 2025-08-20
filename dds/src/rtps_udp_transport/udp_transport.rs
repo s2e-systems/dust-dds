@@ -184,7 +184,7 @@ enum ChannelMessageKind {
 impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
     type TransportParticipant = Box<
         dyn TransportParticipant<
-            HistoryCache = Box<dyn HistoryCache + Sync>,
+            HistoryCache = Box<dyn HistoryCache>,
             StatelessReader = Box<dyn TransportStatelessReader>,
             StatefulReader = Box<dyn TransportStatefulReader>,
             StatelessWriter = Box<dyn TransportStatelessWriter>,
@@ -608,7 +608,7 @@ pub struct RtpsUdpTransportParticipant {
 }
 
 impl TransportParticipant for RtpsUdpTransportParticipant {
-    type HistoryCache = Box<dyn HistoryCache + Sync>;
+    type HistoryCache = Box<dyn HistoryCache>;
     type StatelessReader = Box<dyn TransportStatelessReader>;
     type StatelessWriter = Box<dyn TransportStatelessWriter>;
     type StatefulReader = Box<dyn TransportStatefulReader>;
