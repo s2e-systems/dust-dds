@@ -6,8 +6,8 @@ use crate::{
         submessages::data::DataSubmessage,
     },
     transport::{
-        history_cache::{CacheChange, HistoryCache},
-        types::{Guid, GuidPrefix, ENTITYID_UNKNOWN},
+        interface::HistoryCache,
+        types::{CacheChange, Guid, GuidPrefix, ENTITYID_UNKNOWN},
     },
 };
 use alloc::boxed::Box;

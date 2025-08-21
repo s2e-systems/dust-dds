@@ -1,6 +1,14 @@
 use crate::{
-    rtps::message_sender::Clock, std_runtime::executor::block_on,
-    transport::types::LOCATOR_KIND_UDP_V6,
+    rtps::message_sender::{Clock, WriteMessage},
+    std_runtime::executor::block_on,
+    transport::{
+        interface::{
+            HistoryCache, TransportParticipant, TransportParticipantFactory,
+            TransportStatefulReader, TransportStatefulWriter, TransportStatelessReader,
+            TransportStatelessWriter,
+        },
+        types::{CacheChange, ReaderProxy, WriterProxy, LOCATOR_KIND_UDP_V6},
+    },
 };
 use async_lock::Mutex;
 use core::{
@@ -10,23 +18,15 @@ use core::{
 };
 use dust_dds::{
     rtps::{
-        message_sender::WriteMessage,
         stateful_reader::RtpsStatefulReader,
         stateful_writer::RtpsStatefulWriter,
         stateless_reader::RtpsStatelessReader,
         stateless_writer::RtpsStatelessWriter,
         types::{PROTOCOLVERSION, VENDOR_ID_S2E},
     },
-    transport::{
-        factory::TransportParticipantFactory,
-        history_cache::{CacheChange, HistoryCache},
-        participant::TransportParticipant,
-        reader::{TransportStatefulReader, TransportStatelessReader, WriterProxy},
-        types::{
-            EntityId, Guid, GuidPrefix, Locator, ProtocolVersion, ReliabilityKind, VendorId,
-            ENTITYID_PARTICIPANT, LOCATOR_KIND_UDP_V4,
-        },
-        writer::{ReaderProxy, TransportStatefulWriter, TransportStatelessWriter},
+    transport::types::{
+        EntityId, Guid, GuidPrefix, Locator, ProtocolVersion, ReliabilityKind, VendorId,
+        ENTITYID_PARTICIPANT, LOCATOR_KIND_UDP_V4,
     },
 };
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
@@ -265,10 +265,10 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
             .unwrap(),
         );
 
-        let message_writer = Arc::new(MessageWriter::new(
+        let mut message_writer = MessageWriter::new(
             guid_prefix,
             default_unicast_socket.try_clone().expect("Socket cloning"),
-        ));
+        );
 
         let guid = Guid::new(guid_prefix, ENTITYID_PARTICIPANT);
 
@@ -373,7 +373,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                                 block_on(async {
                                     process_message(
                                         &datagram,
-                                        &message_writer,
+                                        &mut message_writer,
                                         &RtpsUdpTransportClock,
                                         &mut stateless_reader_list,
                                         &stateful_reader_list,
@@ -386,7 +386,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                                 block_on(async {
                                     process_message(
                                         &datagram,
-                                        &message_writer,
+                                        &mut message_writer,
                                         &RtpsUdpTransportClock,
                                         &mut stateless_reader_list,
                                         &stateful_reader_list,
@@ -399,7 +399,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                                 block_on(async {
                                     process_message(
                                         &datagram,
-                                        &message_writer,
+                                        &mut message_writer,
                                         &RtpsUdpTransportClock,
                                         &mut stateless_reader_list,
                                         &stateful_reader_list,
@@ -413,10 +413,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                                     rtps_stateful_writer
                                         .lock()
                                         .await
-                                        .write_message(
-                                            message_writer.as_ref(),
-                                            &RtpsUdpTransportClock,
-                                        )
+                                        .write_message(&message_writer, &RtpsUdpTransportClock)
                                         .await;
                                 }
                             }),
@@ -432,7 +429,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
 
 async fn process_message(
     datagram: &[u8],
-    message_writer: &MessageWriter,
+    message_writer: &mut MessageWriter,
     clock: &impl Clock,
     stateless_reader_list: &mut [RtpsStatelessReader],
     stateful_reader_list: &[Arc<Mutex<RtpsStatefulReader>>],
@@ -537,6 +534,15 @@ struct MessageWriter {
     socket: UdpSocket,
 }
 
+impl Clone for MessageWriter {
+    fn clone(&self) -> Self {
+        Self {
+            guid_prefix: self.guid_prefix,
+            socket: self.socket.try_clone().expect("Socket cloning"),
+        }
+    }
+}
+
 impl MessageWriter {
     fn new(guid_prefix: GuidPrefix, socket: UdpSocket) -> Self {
         Self {
@@ -546,7 +552,7 @@ impl MessageWriter {
     }
 }
 impl WriteMessage for MessageWriter {
-    async fn write_message(&self, datagram: &[u8], locator_list: &[Locator]) {
+    fn write_message(&self, datagram: &[u8], locator_list: &[Locator]) {
         for &destination_locator in locator_list {
             if UdpLocator(destination_locator).is_multicast() {
                 let socket2: socket2::Socket = self.socket.try_clone().unwrap().into();
@@ -593,7 +599,7 @@ impl Clock for RtpsUdpTransportClock {
 
 pub struct RtpsUdpTransportParticipant {
     guid: Guid,
-    message_writer: Arc<MessageWriter>,
+    message_writer: MessageWriter,
     default_unicast_locator_list: Vec<Locator>,
     metatraffic_unicast_locator_list: Vec<Locator>,
     metatraffic_multicast_locator_list: Vec<Locator>,
@@ -655,7 +661,7 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
     fn create_stateless_writer(&mut self, entity_id: EntityId) -> Self::StatelessWriter {
         struct StatelessWriter {
             rtps_writer: RtpsStatelessWriter,
-            message_writer: Arc<MessageWriter>,
+            message_writer: MessageWriter,
         }
         impl TransportStatelessWriter for StatelessWriter {
             fn guid(&self) -> Guid {
@@ -677,14 +683,11 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
             fn add_change(
                 &mut self,
                 cache_change: CacheChange,
-            ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
+            ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
                 self.rtps_writer.add_change(cache_change);
-                let message_writer = self.message_writer.clone();
-                block_on(async {
-                    self.rtps_writer
-                        .write_message(message_writer.as_ref())
-                        .await
-                });
+                self.rtps_writer.behavior(
+                    &mut self.message_writer,
+                );
                 Box::pin(async {})
             }
 
@@ -768,7 +771,7 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
         struct StatefulWriter {
             guid: Guid,
             rtps_stateful_writer: Arc<Mutex<RtpsStatefulWriter>>,
-            message_writer: Arc<MessageWriter>,
+            message_writer: MessageWriter,
             default_unicast_locator_list: Vec<Locator>,
         }
         impl TransportStatefulWriter for StatefulWriter {
@@ -812,15 +815,16 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
             fn add_change(
                 &mut self,
                 cache_change: CacheChange,
-            ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
-                let rtps_stateful_writer = self.rtps_stateful_writer.clone();
-                let message_writer = self.message_writer.clone();
+            ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
                 Box::pin(async move {
-                    rtps_stateful_writer.lock().await.add_change(cache_change);
-                    rtps_stateful_writer
+                    self.rtps_stateful_writer
                         .lock()
                         .await
-                        .write_message(message_writer.as_ref(), &RtpsUdpTransportClock)
+                        .add_change(cache_change);
+                    self.rtps_stateful_writer
+                        .lock()
+                        .await
+                        .write_message(&self.message_writer, &RtpsUdpTransportClock)
                         .await;
                 })
             }
@@ -858,142 +862,151 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use std::sync::mpsc::{sync_channel, SyncSender};
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::transport::types::{DurabilityKind, ENTITYID_UNKNOWN};
+    use dust_dds::transport::types::ChangeKind;
+    use std::sync::mpsc::{sync_channel, SyncSender};
 
-//     use dust_dds::transport::{history_cache::CacheChange, types::ChangeKind};
+    #[test]
+    fn basic_transport_stateless_reader_writer_usage() {
+        let guid_prefix = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+        let domain_id = 0;
+        let transport = RtpsUdpTransportParticipantFactoryBuilder::new()
+            .build()
+            .unwrap();
+        let mut participant = transport.create_participant(guid_prefix, domain_id);
 
-//     use super::*;
+        struct MockHistoryCache(SyncSender<CacheChange>);
 
-// #[test]
-// fn basic_transport_stateful_reader_writer_usage() {
-//     let guid_prefix = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-//     let domain_id = 0;
-//     let transport = RtpsUdpTransportParticipantFactoryBuilder::new()
-//         .build()
-//         .unwrap();
-//     let mut participant = transport.create_participant(guid_prefix, domain_id);
+        impl HistoryCache for MockHistoryCache {
+            fn add_change(
+                &mut self,
+                cache_change: CacheChange,
+            ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
+                self.0.send(cache_change).unwrap();
+                Box::pin(async {})
+            }
+            fn remove_change(
+                &mut self,
+                _sequence_number: i64,
+            ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
+                Box::pin(async {
+                    unimplemented!();
+                })
+            }
+        }
 
-//     struct MockHistoryCache(SyncSender<CacheChange>);
+        let entity_id = EntityId::new([1, 2, 3], 4);
+        let (sender, receiver) = sync_channel(0);
+        let reader_history_cache = Box::new(MockHistoryCache(sender));
+        let _reader = participant.create_stateless_reader(entity_id, reader_history_cache);
 
-//     impl HistoryCache for MockHistoryCache {
-//         fn add_change(
-//             &mut self,
-//             cache_change: CacheChange,
-//         ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
-//             self.0.send(cache_change).unwrap();
-//             Box::pin(async {})
-//         }
-//         fn remove_change(
-//             &mut self,
-//             _sequence_number: i64,
-//         ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
-//             Box::pin(async {
-//                 unimplemented!();
-//             })
-//         }
-//     }
+        let entity_id = EntityId::new([5, 6, 7], 8);
+        let mut writer = participant.create_stateless_writer(entity_id);
+        for locator in participant.default_unicast_locator_list() {
+            writer.add_reader_locator(locator.clone());
+        }
 
-//     let entity_id = EntityId::new([1, 2, 3], 4);
-//     let reliability_kind = ReliabilityKind::BestEffort;
-//     let (sender, receiver) = sync_channel(0);
-//     let reader_history_cache = Box::new(MockHistoryCache(sender));
-//     let mut reader =
-//         participant.create_stateful_reader(entity_id, reliability_kind, reader_history_cache);
+        let cache_change = CacheChange {
+            kind: ChangeKind::Alive,
+            writer_guid: writer.guid(),
+            sequence_number: 1,
+            source_timestamp: None,
+            instance_handle: None,
+            data_value: vec![0, 0, 0, 0, 1, 2, 3, 4].into(),
+        };
+        block_on(async {
+            writer
+                .history_cache()
+                .add_change(cache_change.clone())
+                .await
+        });
 
-//     let entity_id = EntityId::new([5, 6, 7], 8);
-//     let mut writer = participant.create_stateful_writer(entity_id, reliability_kind);
+        let received_cache_change = receiver
+            .recv_timeout(std::time::Duration::from_secs(30))
+            .unwrap();
+        assert_eq!(cache_change, received_cache_change);
+    }
 
-//     let reader_proxy = ReaderProxy {
-//         remote_reader_guid: reader.guid(),
-//         remote_group_entity_id: ENTITYID_UNKNOWN,
-//         reliability_kind,
-//         durability_kind: DurabilityKind::Volatile,
-//         unicast_locator_list: vec![],
-//         multicast_locator_list: vec![],
-//         expects_inline_qos: false,
-//     };
-//     writer.add_matched_reader(reader_proxy);
+    #[test]
+    fn basic_transport_stateful_reader_writer_usage() {
+        let guid_prefix = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+        let domain_id = 0;
+        let transport = RtpsUdpTransportParticipantFactoryBuilder::new()
+            .build()
+            .unwrap();
+        let mut participant = transport.create_participant(guid_prefix, domain_id);
 
-//     let writer_proxy = WriterProxy {
-//         remote_writer_guid: writer.guid(),
-//         remote_group_entity_id: ENTITYID_UNKNOWN,
-//         reliability_kind,
-//         durability_kind: DurabilityKind::Volatile,
-//         unicast_locator_list: vec![],
-//         multicast_locator_list: vec![],
-//     };
-//     reader.add_matched_writer(writer_proxy);
-//     let cache_change = CacheChange {
-//         kind: ChangeKind::Alive,
-//         writer_guid: writer.guid(),
-//         sequence_number: 1,
-//         source_timestamp: None,
-//         instance_handle: None,
-//         data_value: vec![0, 0, 0, 0, 1, 2, 3, 4].into(),
-//     };
-//     writer.history_cache().add_change(cache_change.clone()).await;
+        struct MockHistoryCache(SyncSender<CacheChange>);
 
-//     let received_cache_change = receiver
-//         .recv_timeout(std::time::Duration::from_secs(3))
-//         .unwrap();
-//     assert_eq!(cache_change, received_cache_change);
-// }
+        impl HistoryCache for MockHistoryCache {
+            fn add_change(
+                &mut self,
+                cache_change: CacheChange,
+            ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
+                self.0.send(cache_change).unwrap();
+                Box::pin(async {})
+            }
+            fn remove_change(
+                &mut self,
+                _sequence_number: i64,
+            ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
+                Box::pin(async {
+                    unimplemented!();
+                })
+            }
+        }
 
-//     #[test]
-//     fn basic_transport_stateless_reader_writer_usage() {
-//         let guid_prefix = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-//         let domain_id = 0;
-//         let transport = RtpsUdpTransportParticipantFactoryBuilder::new()
-//             .build()
-//             .unwrap();
-//         let mut participant = transport.create_participant(guid_prefix, domain_id);
+        let entity_id = EntityId::new([1, 2, 3], 4);
+        let reliability_kind = ReliabilityKind::BestEffort;
+        let (sender, receiver) = sync_channel(0);
+        let reader_history_cache = Box::new(MockHistoryCache(sender));
+        let mut reader =
+            participant.create_stateful_reader(entity_id, reliability_kind, reader_history_cache);
 
-//         struct MockHistoryCache(SyncSender<CacheChange>);
+        let entity_id = EntityId::new([5, 6, 7], 8);
+        let mut writer = participant.create_stateful_writer(entity_id, reliability_kind);
 
-//         impl HistoryCache for MockHistoryCache {
-//             fn add_change(
-//                 &mut self,
-//                 cache_change: CacheChange,
-//             ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
-//                 self.0.send(cache_change).unwrap();
-//                 Box::pin(async {})
-//             }
-//             fn remove_change(
-//                 &mut self,
-//                 _sequence_number: i64,
-//             ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
-//                 Box::pin(async {
-//                     unimplemented!();
-//                 })
-//             }
-//         }
+        let reader_proxy = ReaderProxy {
+            remote_reader_guid: reader.guid(),
+            remote_group_entity_id: ENTITYID_UNKNOWN,
+            reliability_kind,
+            durability_kind: DurabilityKind::Volatile,
+            unicast_locator_list: vec![],
+            multicast_locator_list: vec![],
+            expects_inline_qos: false,
+        };
+        writer.add_matched_reader(reader_proxy);
 
-//         let entity_id = EntityId::new([1, 2, 3], 4);
-//         let (sender, receiver) = sync_channel(0);
-//         let reader_history_cache = Box::new(MockHistoryCache(sender));
-//         let _reader = participant.create_stateless_reader(entity_id, reader_history_cache);
+        let writer_proxy = WriterProxy {
+            remote_writer_guid: writer.guid(),
+            remote_group_entity_id: ENTITYID_UNKNOWN,
+            reliability_kind,
+            durability_kind: DurabilityKind::Volatile,
+            unicast_locator_list: vec![],
+            multicast_locator_list: vec![],
+        };
+        reader.add_matched_writer(writer_proxy);
+        let cache_change = CacheChange {
+            kind: ChangeKind::Alive,
+            writer_guid: writer.guid(),
+            sequence_number: 1,
+            source_timestamp: None,
+            instance_handle: None,
+            data_value: vec![0, 0, 0, 0, 1, 2, 3, 4].into(),
+        };
+        block_on(async {
+            writer
+                .history_cache()
+                .add_change(cache_change.clone())
+                .await
+        });
 
-//         let entity_id = EntityId::new([5, 6, 7], 8);
-//         let mut writer = participant.create_stateless_writer(entity_id);
-//         for locator in participant.default_unicast_locator_list() {
-//             writer.add_reader_locator(locator.clone());
-//         }
-
-//         let cache_change = CacheChange {
-//             kind: ChangeKind::Alive,
-//             writer_guid: writer.guid(),
-//             sequence_number: 1,
-//             source_timestamp: None,
-//             instance_handle: None,
-//             data_value: vec![0, 0, 0, 0, 1, 2, 3, 4].into(),
-//         };
-//         writer.history_cache().add_change(cache_change.clone());
-
-//         let received_cache_change = receiver
-//             .recv_timeout(std::time::Duration::from_secs(30))
-//             .unwrap();
-//         assert_eq!(cache_change, received_cache_change);
-//     }
-// }
+        let received_cache_change = receiver
+            .recv_timeout(std::time::Duration::from_secs(3))
+            .unwrap();
+        assert_eq!(cache_change, received_cache_change);
+    }
+}

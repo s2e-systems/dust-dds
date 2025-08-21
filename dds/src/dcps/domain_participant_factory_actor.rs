@@ -1,5 +1,3 @@
-use core::{future::Future, pin::Pin};
-
 use super::actor::MailHandler;
 use crate::{
     builtin_topics::{DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC},
@@ -44,15 +42,15 @@ use crate::{
     },
     runtime::{ChannelReceive, ChannelSend, DdsRuntime, OneshotSend, Spawner, Timer},
     transport::{
-        factory::TransportParticipantFactory,
-        history_cache::{CacheChange, HistoryCache},
-        participant::TransportParticipant,
-        reader::{TransportStatefulReader, TransportStatelessReader},
+        interface::{
+            HistoryCache, TransportParticipant, TransportParticipantFactory,
+            TransportStatefulReader, TransportStatefulWriter, TransportStatelessReader,
+            TransportStatelessWriter,
+        },
         types::{
-            EntityId, GuidPrefix, ReliabilityKind, BUILT_IN_READER_WITH_KEY,
+            CacheChange, EntityId, GuidPrefix, ReliabilityKind, BUILT_IN_READER_WITH_KEY,
             BUILT_IN_WRITER_WITH_KEY,
         },
-        writer::{TransportStatefulWriter, TransportStatelessWriter},
     },
 };
 use alloc::{
@@ -62,6 +60,7 @@ use alloc::{
     vec,
     vec::Vec,
 };
+use core::{future::Future, pin::Pin};
 
 pub type DdsTransportParticipantFactory =
     Box<dyn TransportParticipantFactory<TransportParticipant = DdsTransportParticipant>>;
@@ -722,10 +721,9 @@ impl<R: DdsRuntime> HistoryCache for DcpsParticipantReaderHistoryCache<R> {
     fn add_change(
         &mut self,
         cache_change: CacheChange,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
-        let a = self.participant_address.clone();
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(async move {
-            a.send(DomainParticipantMail::Message(
+            self.participant_address.send(DomainParticipantMail::Message(
                 MessageServiceMail::AddBuiltinParticipantsDetectorCacheChange { cache_change },
             ))
             .await
@@ -746,14 +744,14 @@ impl<R: DdsRuntime> HistoryCache for DcpsTopicsReaderHistoryCache<R> {
     fn add_change(
         &mut self,
         cache_change: CacheChange,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
-        let a = self.participant_address.clone();
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(async move {
-            a.send(DomainParticipantMail::Message(
-                MessageServiceMail::AddBuiltinTopicsDetectorCacheChange { cache_change },
-            ))
-            .await
-            .ok();
+            self.participant_address
+                .send(DomainParticipantMail::Message(
+                    MessageServiceMail::AddBuiltinTopicsDetectorCacheChange { cache_change },
+                ))
+                .await
+                .ok();
         })
     }
 
@@ -770,13 +768,12 @@ impl<R: DdsRuntime> HistoryCache for DcpsSubscriptionsReaderHistoryCache<R> {
     fn add_change(
         &mut self,
         cache_change: CacheChange,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
-        let a = self.participant_address.clone();
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(async move {
-            a.send(DomainParticipantMail::Message(
+            self.participant_address.send(DomainParticipantMail::Message(
                 MessageServiceMail::AddBuiltinSubscriptionsDetectorCacheChange {
                     cache_change,
-                    participant_address: a.clone(),
+                    participant_address: self.participant_address.clone(),
                 },
             ))
             .await
@@ -797,13 +794,12 @@ impl<R: DdsRuntime> HistoryCache for DcpsPublicationsReaderHistoryCache<R> {
     fn add_change(
         &mut self,
         cache_change: CacheChange,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
-        let a = self.participant_address.clone();
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(async move {
-            a.send(DomainParticipantMail::Message(
+            self.participant_address.send(DomainParticipantMail::Message(
                 MessageServiceMail::AddBuiltinPublicationsDetectorCacheChange {
                     cache_change,
-                    participant_address: a.clone(),
+                    participant_address: self.participant_address.clone(),
                 },
             ))
             .await
