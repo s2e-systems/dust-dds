@@ -336,7 +336,7 @@ impl DynamicType for CompleteTypeObject {
 }
 
 impl DynamicTypeMember for CompleteStructMember {
-    fn get_descriptor(&self) -> Result<MemberDescriptor, XTypesError> {
+    fn get_descriptor(&self) -> Result<MemberDescriptor<'_>, XTypesError> {
         Ok(MemberDescriptor {
             name: self.get_name(),
             id: self.get_id(),
@@ -362,7 +362,7 @@ impl DynamicTypeMember for CompleteStructMember {
 }
 
 impl DynamicTypeMember for CompleteEnumeratedLiteral {
-    fn get_descriptor(&self) -> Result<MemberDescriptor, XTypesError> {
+    fn get_descriptor(&self) -> Result<MemberDescriptor<'_>, XTypesError> {
         Ok(MemberDescriptor {
             name: self.get_name(),
             id: self.get_id(),
@@ -388,7 +388,7 @@ impl DynamicTypeMember for CompleteEnumeratedLiteral {
 }
 
 impl DynamicTypeMember for CompleteUnionMember {
-    fn get_descriptor(&self) -> Result<MemberDescriptor, XTypesError> {
+    fn get_descriptor(&self) -> Result<MemberDescriptor<'_>, XTypesError> {
         Ok(MemberDescriptor {
             name: self.get_name(),
             id: self.get_id(),
@@ -414,7 +414,7 @@ impl DynamicTypeMember for CompleteUnionMember {
 }
 
 impl DynamicTypeMember for CompleteAnnotationParameter {
-    fn get_descriptor(&self) -> Result<MemberDescriptor, XTypesError> {
+    fn get_descriptor(&self) -> Result<MemberDescriptor<'_>, XTypesError> {
         Ok(MemberDescriptor {
             name: self.get_name(),
             id: 0,
@@ -440,7 +440,7 @@ impl DynamicTypeMember for CompleteAnnotationParameter {
 }
 
 impl DynamicTypeMember for CompleteBitfield {
-    fn get_descriptor(&self) -> Result<MemberDescriptor, XTypesError> {
+    fn get_descriptor(&self) -> Result<MemberDescriptor<'_>, XTypesError> {
         Ok(MemberDescriptor {
             name: self.get_name(),
             id: self.get_id(),
@@ -466,7 +466,7 @@ impl DynamicTypeMember for CompleteBitfield {
 }
 
 impl DynamicTypeMember for CompleteBitflag {
-    fn get_descriptor(&self) -> Result<MemberDescriptor, XTypesError> {
+    fn get_descriptor(&self) -> Result<MemberDescriptor<'_>, XTypesError> {
         Ok(MemberDescriptor {
             name: self.get_name(),
             id: self.get_id(),

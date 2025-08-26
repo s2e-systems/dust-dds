@@ -97,7 +97,7 @@ pub fn poll_timeout<T>(
     mut future: Pin<Box<dyn Future<Output = T> + Send>>,
 ) -> impl Future<Output = DdsResult<T>> {
     poll_fn(move |cx| {
-        let mut timeout = timer_handle.delay(duration);
+        let timeout = timer_handle.delay(duration);
         if let Poll::Ready(t) = pin!(&mut future).poll(cx) {
             return Poll::Ready(Ok(t));
         }
@@ -1566,7 +1566,7 @@ where
             .await
     }
 
-    #[tracing::instrument(skip(self, participant_address))]
+    //#[tracing::instrument(skip(self, participant_address))]
     pub fn wait_for_acknowledgments(
         &mut self,
         participant_address: R::ChannelSender<DomainParticipantMail<R>>,
@@ -1873,7 +1873,7 @@ where
         Ok(status)
     }
 
-    #[tracing::instrument(skip(self, participant_address))]
+    //#[tracing::instrument(skip(self, participant_address))]
     pub fn wait_for_historical_data(
         &mut self,
         participant_address: R::ChannelSender<DomainParticipantMail<R>>,
