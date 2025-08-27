@@ -1,7 +1,6 @@
 use super::domain_participant_listener::DomainParticipantListener;
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
-    runtime::DdsRuntime,
     dds_async::domain_participant::DomainParticipantAsync,
     infrastructure::{
         domain::DomainId,
@@ -13,6 +12,7 @@ use crate::{
         type_support::TypeSupport,
     },
     publication::{publisher::Publisher, publisher_listener::PublisherListener},
+    runtime::DdsRuntime,
     subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener},
     topic_definition::{topic::Topic, topic_listener::TopicListener},
     xtypes::dynamic_type::DynamicType,
@@ -42,7 +42,8 @@ pub struct DomainParticipant<R: DdsRuntime> {
 }
 
 impl<R: DdsRuntime> DomainParticipant<R> {
-    pub(crate) fn new(participant_async: DomainParticipantAsync<R>) -> Self {
+    /// Construct a new ['DomainParticipant'] from an existing ['DomainParticipantAsync']
+    pub fn new(participant_async: DomainParticipantAsync<R>) -> Self {
         Self { participant_async }
     }
 
