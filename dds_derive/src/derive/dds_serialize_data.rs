@@ -1,7 +1,7 @@
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
-use syn::{DeriveInput, Result};
-use crate::attributes::{get_input_extensibility, get_field_attributes, Extensibility};
+use syn::{DeriveInput, Result, LitStr};
+use crate::derive::attributes::{get_input_extensibility, get_field_attributes, Extensibility};
 
 
 pub fn expand_dds_serialize_data(input: &DeriveInput) -> Result<TokenStream> {
@@ -38,6 +38,12 @@ pub fn expand_dds_serialize_data(input: &DeriveInput) -> Result<TokenStream> {
     let key_fields = keys.join(", ");
     let id_fields = ids.join(", ");
 
+    let flags_info_string = format!(
+        "appendable: {}, final: {}, mutable: {}, keys: {}, ids: {}",
+        appendable_flag, final_flag, mutable_flag, key_fields, id_fields
+    );
+    let flags_info_literal = LitStr::new(&flags_info_string, Span::call_site());
+
     let serialize_function = quote! {
         dust_dds::infrastructure::type_support::serialize_rtps_xtypes_xcdr1_le(self)
     };
@@ -47,23 +53,19 @@ pub fn expand_dds_serialize_data(input: &DeriveInput) -> Result<TokenStream> {
             fn serialize_data(&self) -> dust_dds::infrastructure::error::DdsResult<Vec<u8>> {
                 #serialize_function
             }
+        }
 
+        impl #impl_generics #ident #type_generics #where_clause {
             #[allow(dead_code)]
-            pub fn _dds_flags_info() -> &'static str {
-                concat!(
-                    "appendable: ", if #appendable_flag { "true" } else { "false" },
-                    ", final: ", if #final_flag { "true" } else { "false" },
-                    ", mutable: ", if #mutable_flag { "true" } else { "false" },
-                    ", keys: ", #key_fields,
-                    ", ids: ", #id_fields,
-                )
+            fn _dds_serialize_flags_info() -> &'static str {
+                #flags_info_literal
             }
         }
     })
 }
 
 
-pub fn expand_dds_deserialize_data(input: &DeriveInput) -> Result<proc_macro2::TokenStream> {
+pub fn expand_dds_deserialize_data(input: &DeriveInput) -> Result<TokenStream> {
     if let syn::Data::Union(data_union) = &input.data {
         return Err(syn::Error::new(data_union.union_token.span, "Union not supported"));
     }
@@ -94,6 +96,12 @@ pub fn expand_dds_deserialize_data(input: &DeriveInput) -> Result<proc_macro2::T
     let key_fields = keys.join(", ");
     let id_fields = ids.join(", ");
 
+    let flags_info_string = format!(
+        "appendable: {}, final: {}, mutable: {}, keys: {}, ids: {}",
+        appendable_flag, final_flag, mutable_flag, key_fields, id_fields
+    );
+    let flags_info_literal = LitStr::new(&flags_info_string, Span::call_site());
+
     let (_, type_generics, where_clause) = input.generics.split_for_impl();
 
     let mut de_lifetime_param =
@@ -111,7 +119,6 @@ pub fn expand_dds_deserialize_data(input: &DeriveInput) -> Result<proc_macro2::T
 
     let ident = &input.ident;
 
-    // Your deserialization logic
     let deserialize_function = quote! {
         dust_dds::infrastructure::type_support::deserialize_rtps_encapsulated_data(&mut serialized_data)
     };
@@ -121,16 +128,12 @@ pub fn expand_dds_deserialize_data(input: &DeriveInput) -> Result<proc_macro2::T
             fn deserialize_data(mut serialized_data: &'__de [u8]) -> dust_dds::infrastructure::error::DdsResult<Self> {
                 #deserialize_function
             }
+        }
 
+        impl #generics #ident #type_generics #where_clause {
             #[allow(dead_code)]
-            pub fn _dds_flags_info() -> &'static str {
-                concat!(
-                    "appendable: ", if #appendable_flag { "true" } else { "false" },
-                    ", final: ", if #final_flag { "true" } else { "false" },
-                    ", mutable: ", if #mutable_flag { "true" } else { "false" },
-                    ", keys: ", #key_fields,
-                    ", ids: ", #id_fields,
-                )
+            fn _dds_deserialize_flags_info() -> &'static str {
+                #flags_info_literal
             }
         }
     })

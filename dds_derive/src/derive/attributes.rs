@@ -1,4 +1,4 @@
-use syn::{spanned::Spanned, DeriveInput, Attribute, Expr, Field, Result};
+use syn::{spanned::Spanned, DeriveInput, Expr, Field, Result};
 
 pub enum Extensibility {
     Final,
