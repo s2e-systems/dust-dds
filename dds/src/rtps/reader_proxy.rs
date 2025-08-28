@@ -3,9 +3,8 @@ use crate::{
         submessages::{heartbeat::HeartbeatSubmessage, heartbeat_frag::HeartbeatFragSubmessage},
         types::{Count, FragmentNumber},
     },
-    transport::{
-        history_cache::CacheChange,
-        types::{DurabilityKind, EntityId, Guid, Locator, ReliabilityKind, SequenceNumber},
+    transport::types::{
+        CacheChange, DurabilityKind, EntityId, Guid, Locator, ReliabilityKind, SequenceNumber,
     },
 };
 use alloc::vec::Vec;
@@ -191,7 +190,7 @@ impl RtpsReaderProxy {
         // IF unsent_changes == <empty> return SEQUENCE_NUMBER_INVALID
         // ELSE return MIN { unsent_changes.sequenceNumber }
         writer_history_cache
-            .map(|cc| cc.sequence_number())
+            .map(|cc| cc.sequence_number)
             .filter(|cc_sn| cc_sn > &self.highest_sent_seq_num)
             .min()
     }

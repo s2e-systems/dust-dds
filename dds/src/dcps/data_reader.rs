@@ -26,9 +26,8 @@ use super::{
 use crate::{
     runtime::DdsRuntime,
     transport::{
-        history_cache::CacheChange,
-        reader::{TransportStatefulReader, TransportStatelessReader},
-        types::{ChangeKind, Guid},
+        interface::{TransportStatefulReader, TransportStatelessReader},
+        types::{CacheChange, ChangeKind, Guid},
     },
     xtypes::dynamic_type::DynamicType,
 };
