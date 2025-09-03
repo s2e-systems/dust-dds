@@ -43,7 +43,7 @@ impl<R: DdsRuntime> StatusConditionAsync<R> {
     /// Async version of [`get_enabled_statuses`](crate::infrastructure::condition::StatusCondition::get_enabled_statuses).
     #[tracing::instrument(skip(self))]
     pub async fn get_enabled_statuses(&self) -> DdsResult<Vec<StatusKind>> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         self.address
             .send_actor_mail(StatusConditionMail::GetStatusConditionEnabledStatuses {
                 reply_sender,
@@ -74,7 +74,7 @@ impl<R: DdsRuntime> StatusConditionAsync<R> {
     /// Async version of [`get_trigger_value`](crate::infrastructure::condition::StatusCondition::get_trigger_value).
     #[tracing::instrument(skip(self))]
     pub async fn get_trigger_value(&self) -> DdsResult<bool> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         self.address
             .send_actor_mail(StatusConditionMail::GetStatusConditionTriggerValue { reply_sender })
             .await?;

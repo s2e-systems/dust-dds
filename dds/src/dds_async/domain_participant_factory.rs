@@ -47,7 +47,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
         let status_kind = mask.to_vec();
         let listener_sender =
             a_listener.map(|l| DomainParticipantListenerActor::spawn::<R>(l, &spawner_handle));
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         self.domain_participant_factory_actor
             .send_actor_mail(DomainParticipantFactoryMail::CreateParticipant {
                 domain_id,
@@ -82,7 +82,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
         &self,
         participant: &DomainParticipantAsync<R>,
     ) -> DdsResult<()> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         participant
             .participant_address()
             .send(DomainParticipantMail::Participant(
@@ -91,7 +91,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
             .await?;
         let is_participant_empty = reply_receiver.receive().await?;
         if is_participant_empty {
-            let (reply_sender, mut reply_receiver) = R::oneshot();
+            let (reply_sender, reply_receiver) = R::oneshot();
             let handle = participant.get_instance_handle().await;
 
             self.domain_participant_factory_actor
@@ -128,7 +128,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
         &self,
         qos: QosKind<DomainParticipantQos>,
     ) -> DdsResult<()> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         self.domain_participant_factory_actor
             .send_actor_mail(DomainParticipantFactoryMail::SetDefaultParticipantQos {
                 qos,
@@ -140,7 +140,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
 
     /// Async version of [`get_default_participant_qos`](crate::domain::domain_participant_factory::DomainParticipantFactory::get_default_participant_qos).
     pub async fn get_default_participant_qos(&self) -> DdsResult<DomainParticipantQos> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         self.domain_participant_factory_actor
             .send_actor_mail(DomainParticipantFactoryMail::GetDefaultParticipantQos {
                 reply_sender,
@@ -151,7 +151,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
 
     /// Async version of [`set_qos`](crate::domain::domain_participant_factory::DomainParticipantFactory::set_qos).
     pub async fn set_qos(&self, qos: QosKind<DomainParticipantFactoryQos>) -> DdsResult<()> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         self.domain_participant_factory_actor
             .send_actor_mail(DomainParticipantFactoryMail::SetQos { qos, reply_sender })
             .await;
@@ -160,7 +160,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
 
     /// Async version of [`get_qos`](crate::domain::domain_participant_factory::DomainParticipantFactory::get_qos).
     pub async fn get_qos(&self) -> DdsResult<DomainParticipantFactoryQos> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         self.domain_participant_factory_actor
             .send_actor_mail(DomainParticipantFactoryMail::GetQos { reply_sender })
             .await;
@@ -177,7 +177,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
 
     /// Async version of [`get_configuration`](crate::domain::domain_participant_factory::DomainParticipantFactory::get_configuration).
     pub async fn get_configuration(&self) -> DdsResult<DustDdsConfiguration> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         self.domain_participant_factory_actor
             .send_actor_mail(DomainParticipantFactoryMail::GetConfiguration { reply_sender })
             .await;

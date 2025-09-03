@@ -6,8 +6,8 @@ use std::{
 };
 
 use crate::{
-    runtime::{OneshotReceive, OneshotSend},
     infrastructure::error::{DdsError, DdsResult},
+    runtime::{OneshotReceive, OneshotSend},
 };
 
 #[derive(Debug)]
@@ -102,7 +102,7 @@ impl<T> OneshotReceive<T> for OneshotReceiver<T>
 where
     T: Send,
 {
-    async fn receive(&mut self) -> DdsResult<T> {
+    async fn receive(self) -> DdsResult<T> {
         self.await
             .map_err(|_| DdsError::Error(String::from("Receive error")))
     }

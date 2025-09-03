@@ -22,6 +22,13 @@ pub struct DomainParticipantFactory<R: DdsRuntime> {
 }
 
 impl<R: DdsRuntime> DomainParticipantFactory<R> {
+    /// Construct a new ['DomainParticipantFactory'] from an existing ['DomainParticipantFactoryAsync'] static reference
+    pub fn new(participant_factory_async: &'static DomainParticipantFactoryAsync<R>) -> Self {
+        Self {
+            participant_factory_async,
+        }
+    }
+
     /// This operation creates a new [`DomainParticipant`] object. The [`DomainParticipant`] signifies that the calling application intends
     /// to join the Domain identified by the `domain_id` argument.
     /// If the specified QoS policies are not consistent, the operation will fail and no [`DomainParticipant`] will be created.
