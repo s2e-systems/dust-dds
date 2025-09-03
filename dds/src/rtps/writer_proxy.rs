@@ -265,7 +265,9 @@ impl RtpsWriterProxy {
                 &[&info_dst_submessage, &acknack_submessage],
                 message_writer.guid_prefix(),
             );
-            message_writer.write_message(rtps_message.buffer(), self.unicast_locator_list());
+            message_writer
+                .write_message(rtps_message.buffer(), self.unicast_locator_list())
+                .await;
 
             let mut missing_fragment_seq_num_list: Vec<SequenceNumber> =
                 self.frag_buffer.iter().map(|f| f.writer_sn()).collect();
@@ -310,7 +312,8 @@ impl RtpsWriterProxy {
                         message_writer.guid_prefix(),
                     );
                     message_writer
-                        .write_message(rtps_message.buffer(), self.unicast_locator_list());
+                        .write_message(rtps_message.buffer(), self.unicast_locator_list())
+                        .await;
                 }
             }
         }
