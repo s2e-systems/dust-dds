@@ -131,7 +131,7 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         let serialized_data = instance.serialize_data()?;
         self.participant_address()
             .send(DomainParticipantMail::Writer(
@@ -160,7 +160,7 @@ where
     /// Async version of [`lookup_instance`](crate::publication::data_writer::DataWriter::lookup_instance).
     #[tracing::instrument(skip(self, instance))]
     pub async fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         let serialized_data = instance.serialize_data()?;
         self.participant_address()
             .send(DomainParticipantMail::Writer(
@@ -194,7 +194,7 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         let serialized_data = data.serialize_data()?;
         self.participant_address()
             .send(DomainParticipantMail::Writer(
@@ -230,7 +230,7 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         let serialized_data = data.serialize_data()?;
         self.participant_address()
             .send(DomainParticipantMail::Writer(
@@ -265,7 +265,7 @@ impl<R: DdsRuntime, Foo> DataWriterAsync<R, Foo> {
             max_wait.into(),
             Box::pin(async move {
                 loop {
-                    let (reply_sender, mut reply_receiver) = R::oneshot();
+                    let (reply_sender, reply_receiver) = R::oneshot();
                     participant_address
                         .send(DomainParticipantMail::Message(
                             MessageServiceMail::AreAllChangesAcknowledged {
@@ -302,7 +302,7 @@ impl<R: DdsRuntime, Foo> DataWriterAsync<R, Foo> {
     pub async fn get_offered_deadline_missed_status(
         &self,
     ) -> DdsResult<OfferedDeadlineMissedStatus> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         self.participant_address()
             .send(DomainParticipantMail::Writer(
                 WriterServiceMail::GetOfferedDeadlineMissedStatus {
@@ -326,7 +326,7 @@ impl<R: DdsRuntime, Foo> DataWriterAsync<R, Foo> {
     /// Async version of [`get_publication_matched_status`](crate::publication::data_writer::DataWriter::get_publication_matched_status).
     #[tracing::instrument(skip(self))]
     pub async fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         self.participant_address()
             .send(DomainParticipantMail::Writer(
                 WriterServiceMail::GetPublicationMatchedStatus {
@@ -363,7 +363,7 @@ impl<R: DdsRuntime, Foo> DataWriterAsync<R, Foo> {
         &self,
         subscription_handle: InstanceHandle,
     ) -> DdsResult<SubscriptionBuiltinTopicData> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         self.participant_address()
             .send(DomainParticipantMail::Writer(
                 WriterServiceMail::GetMatchedSubscriptionData {
@@ -380,7 +380,7 @@ impl<R: DdsRuntime, Foo> DataWriterAsync<R, Foo> {
     /// Async version of [`get_matched_subscriptions`](crate::publication::data_writer::DataWriter::get_matched_subscriptions).
     #[tracing::instrument(skip(self))]
     pub async fn get_matched_subscriptions(&self) -> DdsResult<Vec<InstanceHandle>> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         self.participant_address()
             .send(DomainParticipantMail::Writer(
                 WriterServiceMail::GetMatchedSubscriptions {
@@ -398,7 +398,7 @@ impl<R: DdsRuntime, Foo> DataWriterAsync<R, Foo> {
     /// Async version of [`set_qos`](crate::publication::data_writer::DataWriter::set_qos).
     #[tracing::instrument(skip(self))]
     pub async fn set_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         self.participant_address()
             .send(DomainParticipantMail::Writer(
                 WriterServiceMail::SetDataWriterQos {
@@ -415,7 +415,7 @@ impl<R: DdsRuntime, Foo> DataWriterAsync<R, Foo> {
     /// Async version of [`get_qos`](crate::publication::data_writer::DataWriter::get_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_qos(&self) -> DdsResult<DataWriterQos> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         self.participant_address()
             .send(DomainParticipantMail::Writer(
                 WriterServiceMail::GetDataWriterQos {
@@ -446,7 +446,7 @@ impl<R: DdsRuntime, Foo> DataWriterAsync<R, Foo> {
     /// Async version of [`enable`](crate::publication::data_writer::DataWriter::enable).
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         self.participant_address()
             .send(DomainParticipantMail::Writer(
                 WriterServiceMail::EnableDataWriter {
@@ -474,7 +474,7 @@ impl<R: DdsRuntime, Foo> DataWriterAsync<R, Foo> {
         a_listener: Option<impl DataWriterListener<R, Foo> + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         let listener_sender = a_listener.map(|l| {
             DataWriterListenerActor::spawn(
                 l,

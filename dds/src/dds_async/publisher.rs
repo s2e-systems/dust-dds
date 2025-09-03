@@ -71,7 +71,7 @@ impl<R: DdsRuntime> PublisherAsync<R> {
         let writer_status_condition_address = status_condition.address();
         let listener_sender = a_listener
             .map(|l| DataWriterListenerActor::spawn(l, self.participant.spawner_handle()));
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         self.participant_address()
             .send(DomainParticipantMail::Publisher(
                 PublisherServiceMail::CreateDataWriter {
@@ -102,7 +102,7 @@ impl<R: DdsRuntime> PublisherAsync<R> {
         &self,
         a_datawriter: &DataWriterAsync<R, Foo>,
     ) -> DdsResult<()> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         self.participant_address()
             .send(DomainParticipantMail::Publisher(
                 PublisherServiceMail::DeleteDataWriter {
@@ -169,7 +169,7 @@ impl<R: DdsRuntime> PublisherAsync<R> {
     /// Async version of [`set_default_datawriter_qos`](crate::publication::publisher::Publisher::set_default_datawriter_qos).
     #[tracing::instrument(skip(self))]
     pub async fn set_default_datawriter_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         self.participant_address()
             .send(DomainParticipantMail::Publisher(
                 PublisherServiceMail::SetDefaultDataWriterQos {
@@ -185,7 +185,7 @@ impl<R: DdsRuntime> PublisherAsync<R> {
     /// Async version of [`get_default_datawriter_qos`](crate::publication::publisher::Publisher::get_default_datawriter_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_default_datawriter_qos(&self) -> DdsResult<DataWriterQos> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         self.participant_address()
             .send(DomainParticipantMail::Publisher(
                 PublisherServiceMail::GetDefaultDataWriterQos {
@@ -212,7 +212,7 @@ impl<R: DdsRuntime> PublisherAsync<R> {
     /// Async version of [`set_qos`](crate::publication::publisher::Publisher::set_qos).
     #[tracing::instrument(skip(self))]
     pub async fn set_qos(&self, qos: QosKind<PublisherQos>) -> DdsResult<()> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         self.participant_address()
             .send(DomainParticipantMail::Publisher(
                 PublisherServiceMail::SetPublisherQos {
@@ -228,7 +228,7 @@ impl<R: DdsRuntime> PublisherAsync<R> {
     /// Async version of [`get_qos`](crate::publication::publisher::Publisher::get_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_qos(&self) -> DdsResult<PublisherQos> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         self.participant_address()
             .send(DomainParticipantMail::Publisher(
                 PublisherServiceMail::GetPublisherQos {
@@ -247,7 +247,7 @@ impl<R: DdsRuntime> PublisherAsync<R> {
         a_listener: Option<impl PublisherListener<R> + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         let listener_sender =
             a_listener.map(|l| PublisherListenerActor::spawn(l, self.participant.spawner_handle()));
         self.participant_address()

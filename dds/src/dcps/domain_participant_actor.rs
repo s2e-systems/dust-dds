@@ -1581,7 +1581,7 @@ where
                 timeout.into(),
                 Box::pin(async move {
                     loop {
-                        let (reply_sender, mut reply_receiver) = R::oneshot();
+                        let (reply_sender, reply_receiver) = R::oneshot();
                         participant_address
                             .send(DomainParticipantMail::Message(
                                 MessageServiceMail::AreAllChangesAcknowledged {
@@ -1888,7 +1888,7 @@ where
                 max_wait.into(),
                 Box::pin(async move {
                     loop {
-                        let (reply_sender, mut reply_receiver) = R::oneshot();
+                        let (reply_sender, reply_receiver) = R::oneshot();
                         participant_address
                             .send(DomainParticipantMail::Message(
                                 MessageServiceMail::IsHistoricalDataReceived {
