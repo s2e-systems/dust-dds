@@ -1,4 +1,4 @@
-use crate::parser::{IdlPair, Rule};
+use crate::parser::{IdlPair, Rule, StructDef, Annotation};
 
 pub fn generate_rust_source(pair: IdlPair, writer: &mut String) {
     match pair.as_rule() {
@@ -812,6 +812,104 @@ fn wide_char_type(_pair: IdlPair, writer: &mut String) {
 
 fn boolean(_pair: IdlPair, writer: &mut String) {
     writer.push_str("bool");
+}
+
+fn strip_quotes(s: &str) -> &str {
+    s.strip_prefix('"').and_then(|s| s.strip_suffix('"')).unwrap_or(s)
+}
+
+fn map_idl_type(idl_type: &str, annotations: &[Annotation]) -> String {
+    for ann in annotations {
+        if ann.name == "rust_type" {
+            if let Some(value) = ann.parameters.get(0) {
+                return strip_quotes(value).to_string();
+            }
+        }
+    }
+
+    match idl_type {
+        "long" => "i32".to_string(),
+        "unsigned long" => "u32".to_string(),
+        "short" => "i16".to_string(),
+        "unsigned short" => "u16".to_string(),
+        "long long" => "i64".to_string(),
+        "unsigned long long" => "u64".to_string(),
+        "octet" => "u8".to_string(),
+        "float" => "f32".to_string(),
+        "double" => "f64".to_string(),
+        "boolean" => "bool".to_string(),
+        "char" => "char".to_string(),
+        "string" => "String".to_string(),
+        _ => idl_type.to_string(),
+    }
+}
+
+pub fn generate_rust_def(s: &StructDef) -> String {
+    let mut code = String::new();
+
+    // Handle struct-level annotations (derive, repr)
+    for ann in &s.annotations {
+        match ann.name.as_str() {
+            "derive" => {
+                if let Some(value) = ann.parameters.get(0) {
+                    let trimmed = strip_quotes(value);
+                    code.push_str(&format!("#[derive({})]\n", trimmed));
+                }
+            },
+            "repr" => {
+                if let Some(param) = ann.parameters.get(0) {
+                    let trimmed = strip_quotes(param);
+                    code.push_str(&format!("#[repr({})]\n", trimmed));
+                }
+            },
+            _ => {}
+        }
+    }
+
+    code.push_str(&format!("        pub struct {} {{\n", s.name));
+
+    for member in &s.members {
+        // Member-level annotations
+        for ann in &member.annotations {
+            match ann.name.as_str() {
+                "serde_skip" => code.push_str("            #[serde(skip)]\n"),
+                "serde_rename" => {
+                    if let Some(param) = ann.parameters.get(0) {
+                        let trimmed = strip_quotes(param);
+                        code.push_str(&format!("            #[serde(rename = \"{}\")]\n", trimmed));
+                    }
+                },
+                "key" => {
+                    code.push_str("            #[dust_dds(key)]\n");
+                },
+                "appendable" => {
+                    code.push_str("            #[dust_dds(appendable)]\n");
+                },
+                "mutable" => {
+                    code.push_str("            #[dust_dds(mutable)]\n");
+                },
+                "final" => {
+                    code.push_str("            #[dust_dds(final)]\n");
+                },
+                "hashid" => {
+                    code.push_str("            #[dust_dds(hashid)]\n");
+                },
+                "must_understand" => {
+                    code.push_str("            #[dust_dds(must_understand)]\n");
+                },
+                "Optional" | "optional" => {
+                    code.push_str("            #[dust_dds(optional)]\n");
+                },
+                _ => {}
+            }
+        }
+
+        let rust_type = map_idl_type(&member.idl_type, &member.annotations);
+        code.push_str(&format!("            pub {}: {},\n", member.name, rust_type));
+    }
+
+    code.push_str("        }\n");
+    code
 }
 
 #[cfg(test)]
