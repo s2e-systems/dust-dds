@@ -99,9 +99,10 @@ impl GuiShape {
             .into(),
             "Square" => epaint::RectShape::new(
                 egui::Rect::from_center_size(position, epaint::vec2(size, size)),
-                egui::Rounding::ZERO,
+                egui::CornerRadius::ZERO,
                 self.color,
                 stroke,
+                egui::StrokeKind::Middle,
             )
             .into(),
             _ => panic!("shape kind not valid"),
@@ -202,7 +203,11 @@ impl<'a> ShapesWidget<'a> {
         };
         let desired_size = self.original_size * scale;
         let (response, painter) = ui.allocate_painter(desired_size, egui::Sense::hover());
-        painter.rect_filled(response.rect, egui::Rounding::ZERO, egui::Color32::WHITE);
+        painter.rect_filled(
+            response.rect,
+            egui::CornerRadius::ZERO,
+            egui::Color32::WHITE,
+        );
         egui::Image::new(egui::include_image!("../res/s2e_logo_background.png"))
             .paint_at(ui, response.rect);
         for shape in self.shape_list {

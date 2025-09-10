@@ -13,7 +13,6 @@ fn main() -> Result<(), eframe::Error> {
     };
     let options = eframe::NativeOptions {
         viewport,
-        default_theme: eframe::Theme::Light,
         ..Default::default()
     };
     eframe::run_native(
