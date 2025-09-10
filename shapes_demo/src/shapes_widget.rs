@@ -1,5 +1,4 @@
 use super::app::shapes_type::ShapeType;
-use dust_dds::infrastructure::sample_info::InstanceStateKind;
 use eframe::egui::{self, epaint};
 
 const PURPLE: egui::Color32 = egui::Color32::from_rgb(128, 0, 128);
@@ -12,12 +11,19 @@ const MAGENTA: egui::Color32 = egui::Color32::from_rgb(255, 0, 255);
 const ORANGE: egui::Color32 = egui::Color32::from_rgb(255, 165, 0);
 
 #[derive(Clone)]
+pub enum ShapesMarker {
+    Blank,
+    QuestionMark,
+    Cross,
+}
+
+#[derive(Clone)]
 pub struct GuiShape {
     kind: String,
     color: egui::Color32,
     position: egui::Pos2,
     size: f32,
-    instance_state_kind: InstanceStateKind,
+    instance_state_kind: ShapesMarker,
 }
 
 impl GuiShape {
@@ -25,7 +31,7 @@ impl GuiShape {
         kind: String,
         shape_type: &ShapeType,
         alpha: u8,
-        instance_state_kind: InstanceStateKind,
+        instance_state_kind: ShapesMarker,
     ) -> Self {
         let color = match shape_type.color.as_str() {
             "PURPLE" => PURPLE,
@@ -116,14 +122,12 @@ impl GuiShape {
             shape_size *= 0.6;
         };
         let marker = match self.instance_state_kind {
-            InstanceStateKind::NotAliveNoWriters => Some(question_mark_shape(
+            ShapesMarker::QuestionMark => Some(question_mark_shape(
                 egui::vec2(shape_size / 3.0, shape_size / 2.0),
                 symbol_stroke,
             )),
-            InstanceStateKind::NotAliveDisposed => {
-                Some(cross_shape(shape_size * 0.6, symbol_stroke))
-            }
-            InstanceStateKind::Alive => None,
+            ShapesMarker::Cross => Some(cross_shape(shape_size * 0.6, symbol_stroke)),
+            ShapesMarker::Blank => None,
         };
         if let Some(mut marker) = marker {
             marker.translate(shape_position.to_vec2());

@@ -2,6 +2,8 @@ pub mod shapes_type {
     include!(concat!(env!("OUT_DIR"), "/idl/shapes_type.rs"));
 }
 
+use crate::shapes_widget::ShapesMarker;
+
 use self::shapes_type::ShapeType;
 use super::shapes_widget::{GuiShape, MovingShapeObject, ShapesWidget};
 use dust_dds::{
@@ -29,6 +31,16 @@ use eframe::{
     epaint::vec2,
 };
 use std::sync::{Arc, Mutex};
+
+impl From<InstanceStateKind> for ShapesMarker {
+    fn from(value: InstanceStateKind) -> Self {
+        match value {
+            InstanceStateKind::NotAliveNoWriters => Self::QuestionMark,
+            InstanceStateKind::NotAliveDisposed => Self::Cross,
+            InstanceStateKind::Alive => Self::Blank,
+        }
+    }
+}
 
 struct ShapeWriter {
     writer: DataWriter<StdRuntime, ShapeType>,
@@ -214,7 +226,7 @@ impl ShapesDemoApp {
         };
 
         let shape = MovingShapeObject::new(
-            GuiShape::from_shape_type(shape_kind, shape_type, 255, InstanceStateKind::Alive),
+            GuiShape::from_shape_type(shape_kind, shape_type, 255, ShapesMarker::Blank),
             velocity,
         );
 
@@ -443,7 +455,7 @@ impl eframe::App for ShapesDemoApp {
                                 kind.clone(),
                                 &shape_type,
                                 alpha,
-                                sample.sample_info().instance_state,
+                                sample.sample_info().instance_state.into(),
                             );
                             shape_list.push(shape);
                         }
