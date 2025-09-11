@@ -7,30 +7,37 @@ use crate::shapes_widget::ShapesMarker;
 use self::shapes_type::ShapeType;
 use super::shapes_widget::{GuiShape, MovingShapeObject, ShapesWidget};
 use dust_dds::{
+    dds_async::data_reader::DataReaderAsync,
     domain::{
         domain_participant::DomainParticipant, domain_participant_factory::DomainParticipantFactory,
     },
     infrastructure::{
         qos::{DataReaderQos, DataWriterQos, QosKind},
         qos_policy::{
-            DestinationOrderQosPolicy, DestinationOrderQosPolicyKind, HistoryQosPolicy,
-            HistoryQosPolicyKind, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
+            DeadlineQosPolicy, DestinationOrderQosPolicy, DestinationOrderQosPolicyKind,
+            HistoryQosPolicy, HistoryQosPolicyKind, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
             WriterDataLifecycleQosPolicy,
         },
         sample_info::{InstanceStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         status::NO_STATUS,
-        time::DurationKind,
+        time::{Duration, DurationKind},
+        type_support::DdsType,
     },
     listener::NO_LISTENER,
     publication::{data_writer::DataWriter, publisher::Publisher},
     std_runtime::StdRuntime,
-    subscription::{data_reader::DataReader, subscriber::Subscriber},
+    subscription::{
+        data_reader::DataReader, data_reader_listener::DataReaderListener, subscriber::Subscriber,
+    },
 };
 use eframe::{
     egui::{self},
     epaint::vec2,
 };
-use std::sync::{Arc, Mutex};
+use std::{
+    sync::{Arc, Mutex},
+    time::Instant,
+};
 
 impl From<InstanceStateKind> for ShapesMarker {
     fn from(value: InstanceStateKind) -> Self {
@@ -108,6 +115,7 @@ pub struct ShapesDemoApp {
     is_reliable_reader: bool,
     publish_widget: Option<PublishWidget>,
     planner: Planner,
+    instant: std::time::Instant,
 }
 
 struct Planner {
@@ -163,6 +171,7 @@ impl Default for ShapesDemoApp {
             is_reliable_reader: false,
             publish_widget: None,
             planner,
+            instant: Instant::now(),
         }
     }
 }
@@ -474,6 +483,74 @@ impl eframe::App for ShapesDemoApp {
             ui.add(ShapesWidget::new(rect_size, shape_list.as_slice()));
 
             ctx.request_repaint_after(std::time::Duration::from_millis(40));
+            // ctx.request_repaint();
         });
     }
+}
+
+#[test]
+fn timer_test() {
+    #[derive(DdsType)]
+    struct TestType;
+
+    let participant_factory = DomainParticipantFactory::get_instance();
+    let participant = participant_factory
+        .create_participant(0, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let topic = participant
+        .create_topic::<TestType>(
+            "TestTopic",
+            "TestType",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber = participant
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let publisher = participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer = publisher
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(DataWriterQos {
+                deadline: DeadlineQosPolicy {
+                    period: DurationKind::Finite(Duration::new(0, 10_000_000)),
+                },
+                ..Default::default()
+            }),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    struct Listener;
+    impl<R: dust_dds::runtime::DdsRuntime> DataReaderListener<R, TestType> for Listener {
+        async fn on_requested_deadline_missed(&mut self, _the_reader: DataReaderAsync<R, TestType>) {
+            println!("on_requested_deadline_missed")
+        }
+    }
+    let reader = subscriber
+        .create_datareader(
+            &topic,
+            QosKind::Specific(DataReaderQos {
+                deadline: DeadlineQosPolicy {
+                    period: DurationKind::Finite(Duration::new(0, 10_000_000)),
+                },
+                ..Default::default()
+            }),
+            Some(Listener),
+            NO_STATUS,
+        )
+        .unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(2));
+    writer.write(&TestType, None).unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(1));
+    reader
+        .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(2));
 }
