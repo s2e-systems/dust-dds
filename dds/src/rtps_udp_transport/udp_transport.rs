@@ -182,15 +182,7 @@ enum ChannelMessageKind {
 }
 
 impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
-    type TransportParticipant = Box<
-        dyn TransportParticipant<
-            HistoryCache = Box<dyn HistoryCache>,
-            StatelessReader = Box<dyn TransportStatelessReader>,
-            StatefulReader = Box<dyn TransportStatefulReader>,
-            StatelessWriter = Box<dyn TransportStatelessWriter>,
-            StatefulWriter = Box<dyn TransportStatefulWriter>,
-        >,
-    >;
+    type TransportParticipant = RtpsUdpTransportParticipant;
 
     fn create_participant(
         &self,
@@ -423,7 +415,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
             })
             .expect("failed to spawn thread");
 
-        Box::new(global_participant)
+        global_participant
     }
 }
 
@@ -607,12 +599,163 @@ pub struct RtpsUdpTransportParticipant {
     chanel_message_sender: Sender<ChannelMessageKind>,
 }
 
+pub struct StatelessReader {
+    guid: Guid,
+}
+impl TransportStatelessReader for StatelessReader {
+    fn guid(&self) -> Guid {
+        self.guid
+    }
+}
+
+pub struct StatelessWriter {
+    rtps_writer: RtpsStatelessWriter,
+    message_writer: MessageWriter,
+}
+impl TransportStatelessWriter for StatelessWriter {
+    fn guid(&self) -> Guid {
+        self.rtps_writer.guid()
+    }
+    fn history_cache(&mut self) -> &mut dyn HistoryCache {
+        self
+    }
+
+    fn add_reader_locator(&mut self, locator: Locator) {
+        self.rtps_writer.reader_locator_add(locator);
+    }
+
+    fn remove_reader_locator(&mut self, locator: &Locator) {
+        self.rtps_writer.reader_locator_remove(*locator);
+    }
+}
+impl HistoryCache for StatelessWriter {
+    fn add_change(
+        &mut self,
+        cache_change: CacheChange,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        self.rtps_writer.add_change(cache_change);
+        Box::pin(async {
+            self.rtps_writer.behavior(&mut self.message_writer).await;
+        })
+    }
+
+    fn remove_change(&mut self, sequence_number: i64) -> Pin<Box<dyn Future<Output = ()> + Send>> {
+        self.rtps_writer.remove_change(sequence_number);
+        Box::pin(async {})
+    }
+}
+
+pub struct StatefulWriter {
+    guid: Guid,
+    rtps_stateful_writer: Arc<Mutex<RtpsStatefulWriter>>,
+    message_writer: MessageWriter,
+    default_unicast_locator_list: Vec<Locator>,
+}
+impl TransportStatefulWriter for StatefulWriter {
+    fn guid(&self) -> Guid {
+        self.guid
+    }
+    fn history_cache(&mut self) -> &mut dyn HistoryCache {
+        self
+    }
+    fn is_change_acknowledged(&self, sequence_number: i64) -> bool {
+        block_on(async {
+            self.rtps_stateful_writer
+                .lock()
+                .await
+                .is_change_acknowledged(sequence_number)
+        })
+    }
+    fn add_matched_reader(&mut self, mut reader_proxy: ReaderProxy) {
+        if reader_proxy.unicast_locator_list.is_empty() {
+            reader_proxy
+                .unicast_locator_list
+                .clone_from(&self.default_unicast_locator_list);
+        }
+        block_on(async {
+            self.rtps_stateful_writer
+                .lock()
+                .await
+                .add_matched_reader(&reader_proxy);
+        })
+    }
+    fn remove_matched_reader(&mut self, remote_reader_guid: Guid) {
+        block_on(async {
+            self.rtps_stateful_writer
+                .lock()
+                .await
+                .delete_matched_reader(remote_reader_guid);
+        })
+    }
+}
+impl HistoryCache for StatefulWriter {
+    fn add_change(
+        &mut self,
+        cache_change: CacheChange,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        Box::pin(async move {
+            self.rtps_stateful_writer
+                .lock()
+                .await
+                .add_change(cache_change);
+            self.rtps_stateful_writer
+                .lock()
+                .await
+                .write_message(&self.message_writer, &RtpsUdpTransportClock)
+                .await;
+        })
+    }
+
+    fn remove_change(&mut self, sequence_number: i64) -> Pin<Box<dyn Future<Output = ()> + Send>> {
+        let rtps_stateful_writer = self.rtps_stateful_writer.clone();
+        Box::pin(async move {
+            rtps_stateful_writer
+                .lock()
+                .await
+                .remove_change(sequence_number);
+        })
+    }
+}
+
+pub struct StatefulReader {
+    guid: Guid,
+    rtps_stateful_reader: Arc<Mutex<RtpsStatefulReader>>,
+}
+impl TransportStatefulReader for StatefulReader {
+    fn guid(&self) -> Guid {
+        self.guid
+    }
+    fn is_historical_data_received(&self) -> bool {
+        block_on(async {
+            self.rtps_stateful_reader
+                .lock()
+                .await
+                .is_historical_data_received()
+        })
+    }
+    fn add_matched_writer(&mut self, writer_proxy: WriterProxy) {
+        block_on(async {
+            self.rtps_stateful_reader
+                .lock()
+                .await
+                .add_matched_writer(&writer_proxy)
+        })
+    }
+    fn remove_matched_writer(&mut self, remote_writer_guid: Guid) {
+        block_on(async {
+            self.rtps_stateful_reader
+                .lock()
+                .await
+                .delete_matched_writer(remote_writer_guid)
+        })
+    }
+}
+
 impl TransportParticipant for RtpsUdpTransportParticipant {
-    type HistoryCache = Box<dyn HistoryCache>;
-    type StatelessReader = Box<dyn TransportStatelessReader>;
-    type StatelessWriter = Box<dyn TransportStatelessWriter>;
-    type StatefulReader = Box<dyn TransportStatefulReader>;
-    type StatefulWriter = Box<dyn TransportStatefulWriter>;
+    type StatelessReader = StatelessReader;
+    type StatelessWriter = StatelessWriter;
+    type StatefulReader = StatefulReader;
+    type StatefulWriter = StatefulWriter;
 
     fn guid(&self) -> Guid {
         self.guid
@@ -638,113 +781,32 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
     fn create_stateless_reader(
         &mut self,
         entity_id: EntityId,
-        reader_history_cache: Self::HistoryCache,
+        reader_history_cache: Box<dyn HistoryCache>,
     ) -> Self::StatelessReader {
-        struct StatelessReader {
-            guid: Guid,
-        }
-        impl TransportStatelessReader for StatelessReader {
-            fn guid(&self) -> Guid {
-                self.guid
-            }
-        }
         let guid = Guid::new(self.guid.prefix(), entity_id);
         self.chanel_message_sender
             .send(ChannelMessageKind::AddStatelessReader(
                 RtpsStatelessReader::new(guid, reader_history_cache),
             ))
             .expect("chanel_message receiver alive");
-        Box::new(StatelessReader {
+        StatelessReader {
             guid: Guid::new(self.guid.prefix(), entity_id),
-        })
+        }
     }
     fn create_stateless_writer(&mut self, entity_id: EntityId) -> Self::StatelessWriter {
-        struct StatelessWriter {
-            rtps_writer: RtpsStatelessWriter,
-            message_writer: MessageWriter,
-        }
-        impl TransportStatelessWriter for StatelessWriter {
-            fn guid(&self) -> Guid {
-                self.rtps_writer.guid()
-            }
-            fn history_cache(&mut self) -> &mut dyn HistoryCache {
-                self
-            }
-
-            fn add_reader_locator(&mut self, locator: Locator) {
-                self.rtps_writer.reader_locator_add(locator);
-            }
-
-            fn remove_reader_locator(&mut self, locator: &Locator) {
-                self.rtps_writer.reader_locator_remove(*locator);
-            }
-        }
-        impl HistoryCache for StatelessWriter {
-            fn add_change(
-                &mut self,
-                cache_change: CacheChange,
-            ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-                self.rtps_writer.add_change(cache_change);
-                Box::pin(async {
-                    self.rtps_writer.behavior(&mut self.message_writer).await;
-                })
-            }
-
-            fn remove_change(
-                &mut self,
-                sequence_number: i64,
-            ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
-                self.rtps_writer.remove_change(sequence_number);
-                Box::pin(async {})
-            }
-        }
         let guid = Guid::new(self.guid.prefix(), entity_id);
-        Box::new(StatelessWriter {
+        StatelessWriter {
             rtps_writer: RtpsStatelessWriter::new(guid),
             message_writer: self.message_writer.clone(),
-        })
+        }
     }
 
     fn create_stateful_reader(
         &mut self,
         entity_id: EntityId,
         reliability_kind: ReliabilityKind,
-        reader_history_cache: Self::HistoryCache,
+        reader_history_cache: Box<dyn HistoryCache>,
     ) -> Self::StatefulReader {
-        struct StatefulReader {
-            guid: Guid,
-            rtps_stateful_reader: Arc<Mutex<RtpsStatefulReader>>,
-        }
-        impl TransportStatefulReader for StatefulReader {
-            fn guid(&self) -> Guid {
-                self.guid
-            }
-            fn is_historical_data_received(&self) -> bool {
-                block_on(async {
-                    self.rtps_stateful_reader
-                        .lock()
-                        .await
-                        .is_historical_data_received()
-                })
-            }
-            fn add_matched_writer(&mut self, writer_proxy: WriterProxy) {
-                block_on(async {
-                    self.rtps_stateful_reader
-                        .lock()
-                        .await
-                        .add_matched_writer(&writer_proxy)
-                })
-            }
-            fn remove_matched_writer(&mut self, remote_writer_guid: Guid) {
-                block_on(async {
-                    self.rtps_stateful_reader
-                        .lock()
-                        .await
-                        .delete_matched_writer(remote_writer_guid)
-                })
-            }
-        }
-
         let guid = Guid::new(self.guid.prefix(), entity_id);
         let rtps_stateful_reader = Arc::new(Mutex::new(RtpsStatefulReader::new(
             guid,
@@ -756,10 +818,10 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
                 rtps_stateful_reader.clone(),
             ))
             .expect("chanel_message receiver alive");
-        Box::new(StatefulReader {
+        StatefulReader {
             guid,
             rtps_stateful_reader,
-        })
+        }
     }
 
     fn create_stateful_writer(
@@ -767,81 +829,6 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
         entity_id: EntityId,
         _reliability_kind: ReliabilityKind,
     ) -> Self::StatefulWriter {
-        struct StatefulWriter {
-            guid: Guid,
-            rtps_stateful_writer: Arc<Mutex<RtpsStatefulWriter>>,
-            message_writer: MessageWriter,
-            default_unicast_locator_list: Vec<Locator>,
-        }
-        impl TransportStatefulWriter for StatefulWriter {
-            fn guid(&self) -> Guid {
-                self.guid
-            }
-            fn history_cache(&mut self) -> &mut dyn HistoryCache {
-                self
-            }
-            fn is_change_acknowledged(&self, sequence_number: i64) -> bool {
-                block_on(async {
-                    self.rtps_stateful_writer
-                        .lock()
-                        .await
-                        .is_change_acknowledged(sequence_number)
-                })
-            }
-            fn add_matched_reader(&mut self, mut reader_proxy: ReaderProxy) {
-                if reader_proxy.unicast_locator_list.is_empty() {
-                    reader_proxy
-                        .unicast_locator_list
-                        .clone_from(&self.default_unicast_locator_list);
-                }
-                block_on(async {
-                    self.rtps_stateful_writer
-                        .lock()
-                        .await
-                        .add_matched_reader(&reader_proxy);
-                })
-            }
-            fn remove_matched_reader(&mut self, remote_reader_guid: Guid) {
-                block_on(async {
-                    self.rtps_stateful_writer
-                        .lock()
-                        .await
-                        .delete_matched_reader(remote_reader_guid);
-                })
-            }
-        }
-        impl HistoryCache for StatefulWriter {
-            fn add_change(
-                &mut self,
-                cache_change: CacheChange,
-            ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-                Box::pin(async move {
-                    self.rtps_stateful_writer
-                        .lock()
-                        .await
-                        .add_change(cache_change);
-                    self.rtps_stateful_writer
-                        .lock()
-                        .await
-                        .write_message(&self.message_writer, &RtpsUdpTransportClock)
-                        .await;
-                })
-            }
-
-            fn remove_change(
-                &mut self,
-                sequence_number: i64,
-            ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
-                let rtps_stateful_writer = self.rtps_stateful_writer.clone();
-                Box::pin(async move {
-                    rtps_stateful_writer
-                        .lock()
-                        .await
-                        .remove_change(sequence_number);
-                })
-            }
-        }
-
         let guid = Guid::new(self.guid.prefix(), entity_id);
         let rtps_stateful_writer = Arc::new(Mutex::new(RtpsStatefulWriter::new(
             guid,
@@ -852,12 +839,12 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
                 rtps_stateful_writer.clone(),
             ))
             .expect("chanel_message receiver alive");
-        Box::new(StatefulWriter {
+        StatefulWriter {
             guid,
             rtps_stateful_writer,
             message_writer: self.message_writer.clone(),
             default_unicast_locator_list: self.default_unicast_locator_list.clone(),
-        })
+        }
     }
 }
 

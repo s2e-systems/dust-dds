@@ -44,7 +44,6 @@ use crate::{
     transport::{
         interface::{
             HistoryCache, TransportParticipant, TransportParticipantFactory,
-            TransportStatefulReader, TransportStatefulWriter, TransportStatelessReader,
             TransportStatelessWriter,
         },
         types::{
@@ -61,18 +60,6 @@ use alloc::{
     vec::Vec,
 };
 use core::{future::Future, pin::Pin};
-
-pub type DdsTransportParticipantFactory =
-    Box<dyn TransportParticipantFactory<TransportParticipant = DdsTransportParticipant>>;
-pub type DdsTransportParticipant = Box<
-    dyn TransportParticipant<
-        HistoryCache = Box<dyn HistoryCache>,
-        StatelessReader = Box<dyn TransportStatelessReader>,
-        StatefulReader = Box<dyn TransportStatefulReader>,
-        StatelessWriter = Box<dyn TransportStatelessWriter>,
-        StatefulWriter = Box<dyn TransportStatefulWriter>,
-    >,
->;
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
     EntityId::new([0x00, 0x01, 0x00], BUILT_IN_WRITER_WITH_KEY);
@@ -98,23 +85,19 @@ pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER: EntityId =
 pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR: EntityId =
     EntityId::new([0, 0, 0x04], BUILT_IN_READER_WITH_KEY);
 
-pub struct DomainParticipantFactoryActor<R: DdsRuntime> {
+pub struct DomainParticipantFactoryActor<R: DdsRuntime, T> {
     domain_participant_list: Vec<(InstanceHandle, R::ChannelSender<DomainParticipantMail<R>>)>,
     qos: DomainParticipantFactoryQos,
     default_participant_qos: DomainParticipantQos,
     configuration: DustDdsConfiguration,
-    transport: DdsTransportParticipantFactory,
+    transport: T,
     entity_counter: u32,
     app_id: [u8; 4],
     host_id: [u8; 4],
 }
 
-impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
-    pub fn new(
-        app_id: [u8; 4],
-        host_id: [u8; 4],
-        transport: DdsTransportParticipantFactory,
-    ) -> Self {
+impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantFactoryActor<R, T> {
+    pub fn new(app_id: [u8; 4], host_id: [u8; 4], transport: T) -> Self {
         Self {
             domain_participant_list: Default::default(),
             qos: Default::default(),
@@ -298,12 +281,12 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
             ..Default::default()
         };
 
-        let dcps_participant_transport_reader = transport.create_stateless_reader(
+        let dcps_participant_transport_reader = Box::new(transport.create_stateless_reader(
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
             Box::new(DcpsParticipantReaderHistoryCache::<R> {
                 participant_address: participant_sender.clone(),
             }),
-        );
+        ));
         let mut dcps_participant_reader = DataReaderEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             spdp_reader_qos,
@@ -316,13 +299,13 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
             TransportReaderKind::Stateless(dcps_participant_transport_reader),
         );
         dcps_participant_reader.enable();
-        let dcps_topic_transport_reader = transport.create_stateful_reader(
+        let dcps_topic_transport_reader = Box::new(transport.create_stateful_reader(
             ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
             ReliabilityKind::Reliable,
             Box::new(DcpsTopicsReaderHistoryCache::<R> {
                 participant_address: participant_sender.clone(),
             }),
-        );
+        ));
         let mut dcps_topic_reader = DataReaderEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             sedp_data_reader_qos(),
@@ -335,13 +318,13 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
             TransportReaderKind::Stateful(dcps_topic_transport_reader),
         );
         dcps_topic_reader.enable();
-        let dcps_publication_transport_reader = transport.create_stateful_reader(
+        let dcps_publication_transport_reader = Box::new(transport.create_stateful_reader(
             ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
             ReliabilityKind::Reliable,
             Box::new(DcpsPublicationsReaderHistoryCache::<R> {
                 participant_address: participant_sender.clone(),
             }),
-        );
+        ));
         let mut dcps_publication_reader = DataReaderEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             sedp_data_reader_qos(),
@@ -354,13 +337,13 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
             TransportReaderKind::Stateful(dcps_publication_transport_reader),
         );
         dcps_publication_reader.enable();
-        let dcps_subscription_transport_reader = transport.create_stateful_reader(
+        let dcps_subscription_transport_reader = Box::new(transport.create_stateful_reader(
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
             ReliabilityKind::Reliable,
             Box::new(DcpsSubscriptionsReaderHistoryCache::<R> {
                 participant_address: participant_sender.clone(),
             }),
-        );
+        ));
         let mut dcps_subscription_reader = DataReaderEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             sedp_data_reader_qos(),
@@ -391,7 +374,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
         builtin_subscriber.enable();
 
         let mut dcps_participant_transport_writer =
-            transport.create_stateless_writer(ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
+            Box::new(transport.create_stateless_writer(ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER));
         for &discovery_locator in transport.metatraffic_multicast_locator_list() {
             dcps_participant_transport_writer.add_reader_locator(discovery_locator);
         }
@@ -408,10 +391,10 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
         );
         dcps_participant_writer.enable();
 
-        let dcps_topics_transport_writer = transport.create_stateful_writer(
+        let dcps_topics_transport_writer = Box::new(transport.create_stateful_writer(
             ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
             ReliabilityKind::Reliable,
-        );
+        ));
         let mut dcps_topics_writer = DataWriterEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             TransportWriterKind::Stateful(dcps_topics_transport_writer),
@@ -424,10 +407,10 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
             sedp_data_writer_qos(),
         );
         dcps_topics_writer.enable();
-        let dcps_publications_transport_writer = transport.create_stateful_writer(
+        let dcps_publications_transport_writer = Box::new(transport.create_stateful_writer(
             ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
             ReliabilityKind::Reliable,
-        );
+        ));
         let mut dcps_publications_writer = DataWriterEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             TransportWriterKind::Stateful(dcps_publications_transport_writer),
@@ -441,10 +424,10 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
         );
         dcps_publications_writer.enable();
 
-        let dcps_subscriptions_transport_writer = transport.create_stateful_writer(
+        let dcps_subscriptions_transport_writer = Box::new(transport.create_stateful_writer(
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
             ReliabilityKind::Reliable,
-        );
+        ));
         let mut dcps_subscriptions_writer = DataWriterEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             TransportWriterKind::Stateful(dcps_subscriptions_transport_writer),
@@ -485,14 +468,15 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
             String::from(self.configuration.domain_tag()),
         );
 
-        let mut domain_participant_actor = DomainParticipantActor::new(
-            domain_participant,
-            transport,
-            instance_handle_counter,
-            clock_handle,
-            timer_handle.clone(),
-            spawner_handle.clone(),
-        );
+        let mut domain_participant_actor: DomainParticipantActor<R, T> =
+            DomainParticipantActor::new(
+                domain_participant,
+                transport,
+                instance_handle_counter,
+                clock_handle,
+                timer_handle.clone(),
+                spawner_handle.clone(),
+            );
         let participant_handle = domain_participant_actor
             .domain_participant
             .instance_handle();
@@ -605,10 +589,6 @@ impl<R: DdsRuntime> DomainParticipantFactoryActor<R> {
     pub fn get_configuration(&mut self) -> DustDdsConfiguration {
         self.configuration.clone()
     }
-
-    pub fn set_transport(&mut self, transport: DdsTransportParticipantFactory) {
-        self.transport = transport;
-    }
 }
 
 pub enum DomainParticipantFactoryMail<R: DdsRuntime> {
@@ -653,12 +633,11 @@ pub enum DomainParticipantFactoryMail<R: DdsRuntime> {
     GetConfiguration {
         reply_sender: R::OneshotSender<DustDdsConfiguration>,
     },
-    SetTransport {
-        transport: DdsTransportParticipantFactory,
-    },
 }
 
-impl<R: DdsRuntime> MailHandler for DomainParticipantFactoryActor<R> {
+impl<R: DdsRuntime, T: TransportParticipantFactory> MailHandler
+    for DomainParticipantFactoryActor<R, T>
+{
     type Mail = DomainParticipantFactoryMail<R>;
 
     async fn handle(&mut self, message: Self::Mail) {
@@ -706,9 +685,6 @@ impl<R: DdsRuntime> MailHandler for DomainParticipantFactoryActor<R> {
             DomainParticipantFactoryMail::GetConfiguration { reply_sender } => {
                 reply_sender.send(self.get_configuration())
             }
-            DomainParticipantFactoryMail::SetTransport { transport } => {
-                self.set_transport(transport)
-            }
         }
     }
 }
@@ -723,11 +699,12 @@ impl<R: DdsRuntime> HistoryCache for DcpsParticipantReaderHistoryCache<R> {
         cache_change: CacheChange,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(async move {
-            self.participant_address.send(DomainParticipantMail::Message(
-                MessageServiceMail::AddBuiltinParticipantsDetectorCacheChange { cache_change },
-            ))
-            .await
-            .ok();
+            self.participant_address
+                .send(DomainParticipantMail::Message(
+                    MessageServiceMail::AddBuiltinParticipantsDetectorCacheChange { cache_change },
+                ))
+                .await
+                .ok();
         })
     }
 
@@ -770,14 +747,15 @@ impl<R: DdsRuntime> HistoryCache for DcpsSubscriptionsReaderHistoryCache<R> {
         cache_change: CacheChange,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(async move {
-            self.participant_address.send(DomainParticipantMail::Message(
-                MessageServiceMail::AddBuiltinSubscriptionsDetectorCacheChange {
-                    cache_change,
-                    participant_address: self.participant_address.clone(),
-                },
-            ))
-            .await
-            .ok();
+            self.participant_address
+                .send(DomainParticipantMail::Message(
+                    MessageServiceMail::AddBuiltinSubscriptionsDetectorCacheChange {
+                        cache_change,
+                        participant_address: self.participant_address.clone(),
+                    },
+                ))
+                .await
+                .ok();
         })
     }
 
@@ -796,14 +774,15 @@ impl<R: DdsRuntime> HistoryCache for DcpsPublicationsReaderHistoryCache<R> {
         cache_change: CacheChange,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(async move {
-            self.participant_address.send(DomainParticipantMail::Message(
-                MessageServiceMail::AddBuiltinPublicationsDetectorCacheChange {
-                    cache_change,
-                    participant_address: self.participant_address.clone(),
-                },
-            ))
-            .await
-            .ok();
+            self.participant_address
+                .send(DomainParticipantMail::Message(
+                    MessageServiceMail::AddBuiltinPublicationsDetectorCacheChange {
+                        cache_change,
+                        participant_address: self.participant_address.clone(),
+                    },
+                ))
+                .await
+                .ok();
         })
     }
 

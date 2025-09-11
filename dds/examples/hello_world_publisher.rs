@@ -74,7 +74,7 @@ fn main() {
 
     let hello_world = HelloWorldType {
         id: 8,
-        msg: "Hello world!".to_string(),
+        msg: "Hola!".to_string(),
     };
 
     writer.write(&hello_world, None).unwrap();

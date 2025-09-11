@@ -22,7 +22,7 @@ use crate::{
         data_writer::{DataWriterEntity, TransportWriterKind},
         domain_participant::{DomainParticipantEntity, BUILT_IN_TOPIC_NAME_LIST},
         domain_participant_factory_actor::{
-            DdsTransportParticipant, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
             ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
@@ -68,7 +68,7 @@ use crate::{
     runtime::{ChannelSend, Clock, DdsRuntime, OneshotReceive, Spawner, Timer},
     transport::{
         self,
-        interface::HistoryCache,
+        interface::{HistoryCache, TransportParticipant, TransportParticipantFactory},
         types::{
             CacheChange, ChangeKind, DurabilityKind, EntityId, Guid, ReliabilityKind, TopicKind,
             ENTITYID_UNKNOWN, USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_WITH_KEY,
@@ -109,8 +109,8 @@ pub fn poll_timeout<T>(
     })
 }
 
-pub struct DomainParticipantActor<R: DdsRuntime> {
-    pub transport: DdsTransportParticipant,
+pub struct DomainParticipantActor<R: DdsRuntime, T: TransportParticipantFactory> {
+    pub transport: T::TransportParticipant,
     pub instance_handle_counter: InstanceHandleCounter,
     pub entity_counter: u16,
     pub domain_participant: DomainParticipantEntity<R>,
@@ -119,13 +119,14 @@ pub struct DomainParticipantActor<R: DdsRuntime> {
     pub spawner_handle: R::SpawnerHandle,
 }
 
-impl<R> DomainParticipantActor<R>
+impl<R, T> DomainParticipantActor<R, T>
 where
     R: DdsRuntime,
+    T: TransportParticipantFactory,
 {
     pub fn new(
         domain_participant: DomainParticipantEntity<R>,
-        transport: DdsTransportParticipant,
+        transport: T::TransportParticipant,
         instance_handle_counter: InstanceHandleCounter,
         clock_handle: R::ClockHandle,
         timer_handle: R::TimerHandle,
@@ -921,7 +922,7 @@ where
             ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
         };
         let transport_reader =
-            TransportReaderKind::Stateful(self.transport.create_stateful_reader(
+            TransportReaderKind::Stateful(Box::new(self.transport.create_stateful_reader(
                 entity_id,
                 reliablity_kind,
                 Box::new(UserDefinedReaderHistoryCache::<R> {
@@ -929,7 +930,7 @@ where
                     subscriber_handle: subscriber.instance_handle(),
                     data_reader_handle: reader_handle,
                 }),
-            ));
+            )));
 
         let listener_mask = mask.to_vec();
         let data_reader = DataReaderEntity::new(
@@ -1151,9 +1152,10 @@ where
             ReliabilityQosPolicyKind::BestEffort => ReliabilityKind::BestEffort,
             ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
         };
-        let transport_writer = self
-            .transport
-            .create_stateful_writer(entity_id, reliablity_kind);
+        let transport_writer = Box::new(
+            self.transport
+                .create_stateful_writer(entity_id, reliablity_kind),
+        );
 
         let data_writer = DataWriterEntity::new(
             writer_handle,

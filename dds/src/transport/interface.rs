@@ -5,8 +5,8 @@ use super::types::{
 use alloc::boxed::Box;
 use core::{future::Future, pin::Pin};
 
-pub trait TransportParticipantFactory: Send {
-    type TransportParticipant;
+pub trait TransportParticipantFactory: Send + 'static {
+    type TransportParticipant: TransportParticipant;
 
     fn create_participant(
         &self,
@@ -41,18 +41,19 @@ pub trait TransportStatefulReader: Send {
 }
 
 pub trait HistoryCache: Send {
-    fn add_change(&mut self, cache_change: CacheChange)
-        -> Pin<Box<dyn Future<Output = ()> + Send + '_>>;
+    fn add_change(
+        &mut self,
+        cache_change: CacheChange,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>>;
 
     fn remove_change(&mut self, sequence_number: i64) -> Pin<Box<dyn Future<Output = ()> + Send>>;
 }
 
 pub trait TransportParticipant: Send {
-    type HistoryCache;
-    type StatelessReader;
-    type StatefulReader;
-    type StatelessWriter;
-    type StatefulWriter;
+    type StatelessReader: TransportStatelessReader;
+    type StatefulReader: TransportStatefulReader;
+    type StatelessWriter: TransportStatelessWriter;
+    type StatefulWriter: TransportStatefulWriter;
 
     fn guid(&self) -> Guid;
     fn protocol_version(&self) -> ProtocolVersion;
@@ -65,7 +66,7 @@ pub trait TransportParticipant: Send {
     fn create_stateless_reader(
         &mut self,
         entity_id: EntityId,
-        reader_history_cache: Self::HistoryCache,
+        reader_history_cache: Box<dyn HistoryCache>,
     ) -> Self::StatelessReader;
 
     fn create_stateless_writer(&mut self, entity_id: EntityId) -> Self::StatelessWriter;
@@ -74,7 +75,7 @@ pub trait TransportParticipant: Send {
         &mut self,
         entity_id: EntityId,
         reliability_kind: ReliabilityKind,
-        reader_history_cache: Self::HistoryCache,
+        reader_history_cache: Box<dyn HistoryCache>,
     ) -> Self::StatefulReader;
 
     fn create_stateful_writer(
