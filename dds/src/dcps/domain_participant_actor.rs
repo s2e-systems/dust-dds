@@ -924,16 +924,19 @@ where
             ReliabilityQosPolicyKind::BestEffort => ReliabilityKind::BestEffort,
             ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
         };
-        let transport_reader =
-            TransportReaderKind::Stateful(self.transport.create_stateful_reader(
-                entity_id,
-                reliablity_kind,
-                Box::new(UserDefinedReaderHistoryCache::<R> {
-                    domain_participant_address: domain_participant_address.clone(),
-                    subscriber_handle: subscriber.instance_handle(),
-                    data_reader_handle: reader_handle,
-                }),
-            ));
+        let transport_reader = TransportReaderKind::Stateful(
+            self.transport
+                .create_stateful_reader(
+                    entity_id,
+                    reliablity_kind,
+                    Box::new(UserDefinedReaderHistoryCache::<R> {
+                        domain_participant_address: domain_participant_address.clone(),
+                        subscriber_handle: subscriber.instance_handle(),
+                        data_reader_handle: reader_handle,
+                    }),
+                )
+                .await,
+        );
 
         let listener_mask = mask.to_vec();
         let data_reader = DataReaderEntity::new(
@@ -1157,7 +1160,8 @@ where
         };
         let transport_writer = self
             .transport
-            .create_stateful_writer(entity_id, reliablity_kind);
+            .create_stateful_writer(entity_id, reliablity_kind)
+            .await;
 
         let data_writer = DataWriterEntity::new(
             writer_handle,

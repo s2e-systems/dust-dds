@@ -767,7 +767,7 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
     fn default_multicast_locator_list(&self) -> &[Locator] {
         &[]
     }
-    fn create_stateless_reader(
+    async fn create_stateless_reader(
         &mut self,
         entity_id: EntityId,
         reader_history_cache: Box<dyn HistoryCache>,
@@ -782,7 +782,7 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
             guid: Guid::new(self.guid.prefix(), entity_id),
         }
     }
-    fn create_stateless_writer(&mut self, entity_id: EntityId) -> Self::StatelessWriter {
+    async fn create_stateless_writer(&mut self, entity_id: EntityId) -> Self::StatelessWriter {
         let guid = Guid::new(self.guid.prefix(), entity_id);
         StatelessWriter {
             rtps_writer: RtpsStatelessWriter::new(guid),
@@ -790,7 +790,7 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
         }
     }
 
-    fn create_stateful_reader(
+    async fn create_stateful_reader(
         &mut self,
         entity_id: EntityId,
         reliability_kind: ReliabilityKind,
@@ -813,7 +813,7 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
         }
     }
 
-    fn create_stateful_writer(
+    async fn create_stateful_writer(
         &mut self,
         entity_id: EntityId,
         _reliability_kind: ReliabilityKind,
@@ -877,10 +877,14 @@ mod tests {
         let entity_id = EntityId::new([1, 2, 3], 4);
         let (sender, receiver) = sync_channel(0);
         let reader_history_cache = Box::new(MockHistoryCache(sender));
-        let _reader = participant.create_stateless_reader(entity_id, reader_history_cache);
+        let _reader = block_on(async {
+            participant
+                .create_stateless_reader(entity_id, reader_history_cache)
+                .await
+        });
 
         let entity_id = EntityId::new([5, 6, 7], 8);
-        let mut writer = participant.create_stateless_writer(entity_id);
+        let mut writer = block_on(async { participant.create_stateless_writer(entity_id).await });
         for locator in participant.default_unicast_locator_list() {
             writer.add_reader_locator(locator.clone());
         }
@@ -940,11 +944,18 @@ mod tests {
         let reliability_kind = ReliabilityKind::BestEffort;
         let (sender, receiver) = sync_channel(0);
         let reader_history_cache = Box::new(MockHistoryCache(sender));
-        let mut reader =
-            participant.create_stateful_reader(entity_id, reliability_kind, reader_history_cache);
+        let mut reader = block_on(async {
+            participant
+                .create_stateful_reader(entity_id, reliability_kind, reader_history_cache)
+                .await
+        });
 
         let entity_id = EntityId::new([5, 6, 7], 8);
-        let mut writer = participant.create_stateful_writer(entity_id, reliability_kind);
+        let mut writer = block_on(async {
+            participant
+                .create_stateful_writer(entity_id, reliability_kind)
+                .await
+        });
 
         let reader_proxy = ReaderProxy {
             remote_reader_guid: reader.guid(),

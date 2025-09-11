@@ -73,20 +73,23 @@ pub trait TransportParticipant: Send {
         &mut self,
         entity_id: EntityId,
         reader_history_cache: Box<dyn HistoryCache>,
-    ) -> Self::StatelessReader;
+    ) -> impl Future<Output = Self::StatelessReader> + Send;
 
-    fn create_stateless_writer(&mut self, entity_id: EntityId) -> Self::StatelessWriter;
+    fn create_stateless_writer(
+        &mut self,
+        entity_id: EntityId,
+    ) -> impl Future<Output = Self::StatelessWriter> + Send;
 
     fn create_stateful_reader(
         &mut self,
         entity_id: EntityId,
         reliability_kind: ReliabilityKind,
         reader_history_cache: Box<dyn HistoryCache>,
-    ) -> Self::StatefulReader;
+    ) -> impl Future<Output = Self::StatefulReader> + Send;
 
     fn create_stateful_writer(
         &mut self,
         entity_id: EntityId,
         reliability_kind: ReliabilityKind,
-    ) -> Self::StatefulWriter;
+    ) -> impl Future<Output = Self::StatefulWriter> + Send;
 }
