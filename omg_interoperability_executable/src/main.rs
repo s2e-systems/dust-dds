@@ -1,4 +1,4 @@
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use ctrlc;
 use dust_dds::{
     dds_async::topic::TopicAsync,
@@ -65,6 +65,15 @@ fn qos_policy_name(id: i32) -> String {
     .to_string()
 }
 
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+#[clap(rename_all = "kebab_case")]
+enum FinalInstanceState {
+    /// unregister
+    U,
+    /// dispose
+    D,
+}
+
 #[derive(Parser, Clone)]
 #[command(author, version, about, long_about = None)]
 struct Options {
@@ -92,13 +101,9 @@ struct Options {
     #[clap(short = 'k', default_value_t = -1, allow_negative_numbers = true)]
     history_depth: i32,
 
-    /// set a 'deadline' with interval (seconds) (0: OFF)
+    /// set a 'deadline' with interval (ms) (0: OFF)
     #[clap(short = 'f', default_value_t = 0)]
-    deadline_interval: i32,
-
-    /// apply 'time based filter' with interval (seconds) (0: OFF)
-    #[clap(short = 'i', default_value_t = 0)]
-    timebasedfilter_interval: i32,
+    deadline_interval: u32,
 
     /// set ownership strength (-1: SHARED)
     #[clap(short = 's', default_value_t = -1, allow_negative_numbers = true)]
@@ -147,6 +152,59 @@ struct Options {
     /// set log message verbosity (e: ERROR, d: DEBUG)
     #[clap(short = 'v', default_value_t = 'e')]
     log_message_verbosity: char,
+
+    /// apply 'time based filter' with interval in ms [0: OFF]
+    #[clap(short = 'i', long = "time-filter", default_value_t = 0)]
+    timebasedfilter_interval: i32,
+
+    /// indicates the lifespan of a sample in ms
+    #[clap(short = 'l', long = "lifespan", default_value_t = 0)]
+    lifespan: i32,
+
+    /// indicates the number of iterations of the main loop
+    /// After that, the application will exit. Default (0): infinite
+    #[clap(short = 'n', long = "num-iterations", default_value_t = 0)]
+    num_iterations: i32,
+
+    /// indicates the number of instances a DataWriter writes If the value is > 1, the additional instances are
+    /// created by appending a number. For example, if the original color is "BLUE" the instances used are
+    /// "BLUE", "BLUE1", "BLUE2"...
+    #[clap(short = 'I', long = "num-instances", default_value_t = 1)]
+    num_instances: i32,
+
+    /// indicates the number of topics created (using the same type). This also creates a DataReader or DataWriter per
+    /// topic. If the value is > 1, the additional topic names are created by appending a number: For example, if the
+    /// original topic name is "Square", the topics created are "Square", "Square1", "Square2"...
+    #[clap(short = 'E', long = "num-topics", default_value_t = 1)]
+    num_topics: i32,
+
+    /// indicates the action performed after the DataWriter finishes its execution (before deleting it):
+    #[clap(short = 'M', long = "final-instance-state", default_value = None)]
+    final_instance_state: Option<FinalInstanceState>,
+
+    /// sets Presentation.access_scope to INSTANCE, TOPIC or GROUP
+    #[clap(short = 'C', long = "access-scope", default_value = None)]
+    access_scope: char,
+
+    /// sets Presentation.coherent_access = true
+    #[clap(short = 'T', long = "coherent", default_value_t = false)]
+    coherent: bool,
+
+    /// sets Presentation.ordered_access = true
+    #[clap(short = 'O', long = "ordered", default_value_t = false)]
+    ordered: bool,
+
+    /// amount of samples sent for each DataWriter and instance that are grouped in a coherent set
+    #[clap(short = 'H', long = "coherent-sample-count", default_value_t = 0)]
+    coherent_sample_count: i32,
+
+    /// indicates the amount of bytes added to the samples written (for example to use large data)
+    #[clap(short = 'B', long = "additional-payload-size", default_value_t = 0)]
+    additional_payload_size: i32,
+
+    /// uses take()/read() instead of take_next_instance() read_next_instance()
+    #[clap(short = 'K', long = "take-read")]
+    take_read: bool,
 }
 
 impl Options {
@@ -443,7 +501,7 @@ fn init_publisher(
     };
     if options.deadline_interval > 0 {
         data_writer_qos.deadline.period =
-            DurationKind::Finite(Duration::new(options.deadline_interval, 0));
+            DurationKind::Finite(Duration::new(0, options.deadline_interval * 1_000_000));
     }
     if options.ownership_qos_policy().kind == OwnershipQosPolicyKind::Exclusive {
         data_writer_qos.ownership_strength = options.ownership_strength_qos_policy();
@@ -535,7 +593,7 @@ fn init_subscriber(
     };
     if options.deadline_interval > 0 {
         data_reader_qos.deadline.period =
-            DurationKind::Finite(Duration::new(options.deadline_interval, 0));
+            DurationKind::Finite(Duration::new(0, options.deadline_interval * 1_000_000));
     }
 
     let data_reader = match &options.color {
