@@ -22,19 +22,22 @@ use super::{
 use crate::{
     runtime::{Clock, DdsRuntime},
     transport::{
-        interface::{HistoryCache, TransportStatefulWriter, TransportStatelessWriter},
+        interface::{
+            HistoryCache, TransportParticipant, TransportParticipantFactory,
+            TransportStatefulWriter, TransportStatelessWriter,
+        },
         types::{CacheChange, ChangeKind, Guid},
     },
     xtypes::dynamic_type::DynamicType,
 };
-use alloc::{boxed::Box, collections::VecDeque, string::String, sync::Arc, vec::Vec};
+use alloc::{collections::VecDeque, string::String, sync::Arc, vec::Vec};
 
-pub enum TransportWriterKind {
-    Stateful(Box<dyn TransportStatefulWriter>),
-    Stateless(Box<dyn TransportStatelessWriter>),
+pub enum TransportWriterKind<T: TransportParticipantFactory> {
+    Stateful(<T::TransportParticipant as TransportParticipant>::StatefulWriter),
+    Stateless(<T::TransportParticipant as TransportParticipant>::StatelessWriter),
 }
 
-impl TransportWriterKind {
+impl<T: TransportParticipantFactory> TransportWriterKind<T> {
     pub fn guid(&self) -> Guid {
         match self {
             TransportWriterKind::Stateful(w) => w.guid(),
@@ -60,9 +63,9 @@ pub struct InstanceSamples {
     samples: VecDeque<i64>,
 }
 
-pub struct DataWriterEntity<R: DdsRuntime> {
+pub struct DataWriterEntity<R: DdsRuntime, T: TransportParticipantFactory> {
     instance_handle: InstanceHandle,
-    transport_writer: TransportWriterKind,
+    transport_writer: TransportWriterKind<T>,
     topic_name: String,
     type_name: String,
     type_support: Arc<dyn DynamicType + Send + Sync>,
@@ -83,11 +86,11 @@ pub struct DataWriterEntity<R: DdsRuntime> {
     instance_samples: Vec<InstanceSamples>,
 }
 
-impl<R: DdsRuntime> DataWriterEntity<R> {
+impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
     #[allow(clippy::too_many_arguments)]
     pub const fn new(
         instance_handle: InstanceHandle,
-        transport_writer: TransportWriterKind,
+        transport_writer: TransportWriterKind<T>,
         topic_name: String,
         type_name: String,
         type_support: Arc<dyn DynamicType + Send + Sync>,
@@ -132,11 +135,11 @@ impl<R: DdsRuntime> DataWriterEntity<R> {
         self.instance_handle
     }
 
-    pub fn transport_writer(&self) -> &TransportWriterKind {
+    pub fn transport_writer(&self) -> &TransportWriterKind<T> {
         &self.transport_writer
     }
 
-    pub fn transport_writer_mut(&mut self) -> &mut TransportWriterKind {
+    pub fn transport_writer_mut(&mut self) -> &mut TransportWriterKind<T> {
         &mut self.transport_writer
     }
 
@@ -251,7 +254,7 @@ impl<R: DdsRuntime> DataWriterEntity<R> {
                         if self.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
                             let start_time = clock.now();
                             while let TransportWriterKind::Stateful(w) = &self.transport_writer {
-                                if w.is_change_acknowledged(smallest_seq_num_instance) {
+                                if w.is_change_acknowledged(smallest_seq_num_instance).await {
                                     break;
                                 }
 
@@ -578,10 +581,11 @@ impl<R: DdsRuntime> DataWriterEntity<R> {
         &self.listener_mask
     }
 
-    pub fn are_all_changes_acknowledged(&self) -> bool {
+    pub async fn are_all_changes_acknowledged(&self) -> bool {
         match &self.transport_writer {
             TransportWriterKind::Stateful(w) => {
                 w.is_change_acknowledged(self.last_change_sequence_number)
+                    .await
             }
             TransportWriterKind::Stateless(_) => true,
         }

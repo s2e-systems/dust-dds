@@ -158,7 +158,10 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantFactoryActo
         let guid_prefix = self.create_new_guid_prefix();
         let (participant_sender, mut participant_receiver) = R::channel();
 
-        let mut transport = self.transport.create_participant(guid_prefix, domain_id);
+        let mut transport = self
+            .transport
+            .create_participant(guid_prefix, domain_id)
+            .await;
 
         let mut instance_handle_counter = InstanceHandleCounter::default();
         fn sedp_data_reader_qos() -> DataReaderQos {
@@ -281,12 +284,12 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantFactoryActo
             ..Default::default()
         };
 
-        let dcps_participant_transport_reader = Box::new(transport.create_stateless_reader(
+        let dcps_participant_transport_reader = transport.create_stateless_reader(
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
             Box::new(DcpsParticipantReaderHistoryCache::<R> {
                 participant_address: participant_sender.clone(),
             }),
-        ));
+        );
         let mut dcps_participant_reader = DataReaderEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             spdp_reader_qos,
@@ -299,13 +302,13 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantFactoryActo
             TransportReaderKind::Stateless(dcps_participant_transport_reader),
         );
         dcps_participant_reader.enable();
-        let dcps_topic_transport_reader = Box::new(transport.create_stateful_reader(
+        let dcps_topic_transport_reader = transport.create_stateful_reader(
             ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
             ReliabilityKind::Reliable,
             Box::new(DcpsTopicsReaderHistoryCache::<R> {
                 participant_address: participant_sender.clone(),
             }),
-        ));
+        );
         let mut dcps_topic_reader = DataReaderEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             sedp_data_reader_qos(),
@@ -318,13 +321,13 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantFactoryActo
             TransportReaderKind::Stateful(dcps_topic_transport_reader),
         );
         dcps_topic_reader.enable();
-        let dcps_publication_transport_reader = Box::new(transport.create_stateful_reader(
+        let dcps_publication_transport_reader = transport.create_stateful_reader(
             ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
             ReliabilityKind::Reliable,
             Box::new(DcpsPublicationsReaderHistoryCache::<R> {
                 participant_address: participant_sender.clone(),
             }),
-        ));
+        );
         let mut dcps_publication_reader = DataReaderEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             sedp_data_reader_qos(),
@@ -337,13 +340,13 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantFactoryActo
             TransportReaderKind::Stateful(dcps_publication_transport_reader),
         );
         dcps_publication_reader.enable();
-        let dcps_subscription_transport_reader = Box::new(transport.create_stateful_reader(
+        let dcps_subscription_transport_reader = transport.create_stateful_reader(
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
             ReliabilityKind::Reliable,
             Box::new(DcpsSubscriptionsReaderHistoryCache::<R> {
                 participant_address: participant_sender.clone(),
             }),
-        ));
+        );
         let mut dcps_subscription_reader = DataReaderEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             sedp_data_reader_qos(),
@@ -374,7 +377,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantFactoryActo
         builtin_subscriber.enable();
 
         let mut dcps_participant_transport_writer =
-            Box::new(transport.create_stateless_writer(ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER));
+            transport.create_stateless_writer(ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
         for &discovery_locator in transport.metatraffic_multicast_locator_list() {
             dcps_participant_transport_writer.add_reader_locator(discovery_locator);
         }
@@ -391,10 +394,10 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantFactoryActo
         );
         dcps_participant_writer.enable();
 
-        let dcps_topics_transport_writer = Box::new(transport.create_stateful_writer(
+        let dcps_topics_transport_writer = transport.create_stateful_writer(
             ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
             ReliabilityKind::Reliable,
-        ));
+        );
         let mut dcps_topics_writer = DataWriterEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             TransportWriterKind::Stateful(dcps_topics_transport_writer),
@@ -407,10 +410,10 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantFactoryActo
             sedp_data_writer_qos(),
         );
         dcps_topics_writer.enable();
-        let dcps_publications_transport_writer = Box::new(transport.create_stateful_writer(
+        let dcps_publications_transport_writer = transport.create_stateful_writer(
             ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
             ReliabilityKind::Reliable,
-        ));
+        );
         let mut dcps_publications_writer = DataWriterEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             TransportWriterKind::Stateful(dcps_publications_transport_writer),
@@ -424,10 +427,10 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantFactoryActo
         );
         dcps_publications_writer.enable();
 
-        let dcps_subscriptions_transport_writer = Box::new(transport.create_stateful_writer(
+        let dcps_subscriptions_transport_writer = transport.create_stateful_writer(
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
             ReliabilityKind::Reliable,
-        ));
+        );
         let mut dcps_subscriptions_writer = DataWriterEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             TransportWriterKind::Stateful(dcps_subscriptions_transport_writer),

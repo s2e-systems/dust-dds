@@ -26,13 +26,15 @@ use super::{
 use crate::{
     runtime::DdsRuntime,
     transport::{
-        interface::{TransportStatefulReader, TransportStatelessReader},
+        interface::{
+            TransportParticipant, TransportParticipantFactory, TransportStatefulReader,
+            TransportStatelessReader,
+        },
         types::{CacheChange, ChangeKind, Guid},
     },
     xtypes::dynamic_type::DynamicType,
 };
 use alloc::{
-    boxed::Box,
     string::{String, ToString},
     sync::Arc,
     vec::Vec,
@@ -129,12 +131,12 @@ pub struct IndexedSample {
     pub sample: (Option<Arc<[u8]>>, SampleInfo),
 }
 
-pub enum TransportReaderKind {
-    Stateful(Box<dyn TransportStatefulReader>),
-    Stateless(Box<dyn TransportStatelessReader>),
+pub enum TransportReaderKind<T: TransportParticipantFactory> {
+    Stateful(<T::TransportParticipant as TransportParticipant>::StatefulReader),
+    Stateless(<T::TransportParticipant as TransportParticipant>::StatelessReader),
 }
 
-impl TransportReaderKind {
+impl<T: TransportParticipantFactory> TransportReaderKind<T> {
     pub fn guid(&self) -> Guid {
         match self {
             TransportReaderKind::Stateful(r) => r.guid(),
@@ -149,7 +151,7 @@ struct InstanceOwnership {
     last_received_time: Time,
 }
 
-pub struct DataReaderEntity<R: DdsRuntime> {
+pub struct DataReaderEntity<R: DdsRuntime, T: TransportParticipantFactory> {
     instance_handle: InstanceHandle,
     sample_list: Vec<ReaderSample>,
     qos: DataReaderQos,
@@ -169,10 +171,10 @@ pub struct DataReaderEntity<R: DdsRuntime> {
     listener_mask: Vec<StatusKind>,
     instances: Vec<InstanceState>,
     instance_ownership: Vec<InstanceOwnership>,
-    transport_reader: TransportReaderKind,
+    transport_reader: TransportReaderKind<T>,
 }
 
-impl<R: DdsRuntime> DataReaderEntity<R> {
+impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
     #[allow(clippy::too_many_arguments)]
     pub const fn new(
         instance_handle: InstanceHandle,
@@ -183,7 +185,7 @@ impl<R: DdsRuntime> DataReaderEntity<R> {
         status_condition: Actor<R, StatusConditionActor<R>>,
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         listener_mask: Vec<StatusKind>,
-        transport_reader: TransportReaderKind,
+        transport_reader: TransportReaderKind<T>,
     ) -> Self {
         Self {
             instance_handle,
@@ -838,11 +840,11 @@ impl<R: DdsRuntime> DataReaderEntity<R> {
         status
     }
 
-    pub fn transport_reader(&self) -> &TransportReaderKind {
+    pub fn transport_reader(&self) -> &TransportReaderKind<T> {
         &self.transport_reader
     }
 
-    pub fn transport_reader_mut(&mut self) -> &mut TransportReaderKind {
+    pub fn transport_reader_mut(&mut self) -> &mut TransportReaderKind<T> {
         &mut self.transport_reader
     }
 

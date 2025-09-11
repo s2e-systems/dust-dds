@@ -184,7 +184,7 @@ enum ChannelMessageKind {
 impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
     type TransportParticipant = RtpsUdpTransportParticipant;
 
-    fn create_participant(
+    async fn create_participant(
         &self,
         guid_prefix: GuidPrefix,
         domain_id: i32,
@@ -658,34 +658,29 @@ impl TransportStatefulWriter for StatefulWriter {
     fn history_cache(&mut self) -> &mut dyn HistoryCache {
         self
     }
-    fn is_change_acknowledged(&self, sequence_number: i64) -> bool {
-        block_on(async {
-            self.rtps_stateful_writer
-                .lock()
-                .await
-                .is_change_acknowledged(sequence_number)
-        })
+    async fn is_change_acknowledged(&self, sequence_number: i64) -> bool {
+        self.rtps_stateful_writer
+            .lock()
+            .await
+            .is_change_acknowledged(sequence_number)
     }
-    fn add_matched_reader(&mut self, mut reader_proxy: ReaderProxy) {
+    async fn add_matched_reader(&mut self, mut reader_proxy: ReaderProxy) {
         if reader_proxy.unicast_locator_list.is_empty() {
             reader_proxy
                 .unicast_locator_list
                 .clone_from(&self.default_unicast_locator_list);
         }
-        block_on(async {
-            self.rtps_stateful_writer
-                .lock()
-                .await
-                .add_matched_reader(&reader_proxy);
-        })
+
+        self.rtps_stateful_writer
+            .lock()
+            .await
+            .add_matched_reader(&reader_proxy);
     }
-    fn remove_matched_reader(&mut self, remote_reader_guid: Guid) {
-        block_on(async {
-            self.rtps_stateful_writer
-                .lock()
-                .await
-                .delete_matched_reader(remote_reader_guid);
-        })
+    async fn remove_matched_reader(&mut self, remote_reader_guid: Guid) {
+        self.rtps_stateful_writer
+            .lock()
+            .await
+            .delete_matched_reader(remote_reader_guid);
     }
 }
 impl HistoryCache for StatefulWriter {
@@ -725,29 +720,23 @@ impl TransportStatefulReader for StatefulReader {
     fn guid(&self) -> Guid {
         self.guid
     }
-    fn is_historical_data_received(&self) -> bool {
-        block_on(async {
-            self.rtps_stateful_reader
-                .lock()
-                .await
-                .is_historical_data_received()
-        })
+    async fn is_historical_data_received(&self) -> bool {
+        self.rtps_stateful_reader
+            .lock()
+            .await
+            .is_historical_data_received()
     }
-    fn add_matched_writer(&mut self, writer_proxy: WriterProxy) {
-        block_on(async {
-            self.rtps_stateful_reader
-                .lock()
-                .await
-                .add_matched_writer(&writer_proxy)
-        })
+    async fn add_matched_writer(&mut self, writer_proxy: WriterProxy) {
+        self.rtps_stateful_reader
+            .lock()
+            .await
+            .add_matched_writer(&writer_proxy)
     }
-    fn remove_matched_writer(&mut self, remote_writer_guid: Guid) {
-        block_on(async {
-            self.rtps_stateful_reader
-                .lock()
-                .await
-                .delete_matched_writer(remote_writer_guid)
-        })
+    async fn remove_matched_writer(&mut self, remote_writer_guid: Guid) {
+        self.rtps_stateful_reader
+            .lock()
+            .await
+            .delete_matched_writer(remote_writer_guid)
     }
 }
 
@@ -862,7 +851,8 @@ mod tests {
         let transport = RtpsUdpTransportParticipantFactoryBuilder::new()
             .build()
             .unwrap();
-        let mut participant = transport.create_participant(guid_prefix, domain_id);
+        let mut participant =
+            block_on(async { transport.create_participant(guid_prefix, domain_id).await });
 
         struct MockHistoryCache(SyncSender<CacheChange>);
 
@@ -923,7 +913,8 @@ mod tests {
         let transport = RtpsUdpTransportParticipantFactoryBuilder::new()
             .build()
             .unwrap();
-        let mut participant = transport.create_participant(guid_prefix, domain_id);
+        let mut participant =
+            block_on(async { transport.create_participant(guid_prefix, domain_id).await });
 
         struct MockHistoryCache(SyncSender<CacheChange>);
 
@@ -964,7 +955,7 @@ mod tests {
             multicast_locator_list: vec![],
             expects_inline_qos: false,
         };
-        writer.add_matched_reader(reader_proxy);
+        block_on(async { writer.add_matched_reader(reader_proxy).await });
 
         let writer_proxy = WriterProxy {
             remote_writer_guid: writer.guid(),
@@ -974,7 +965,7 @@ mod tests {
             unicast_locator_list: vec![],
             multicast_locator_list: vec![],
         };
-        reader.add_matched_writer(writer_proxy);
+        block_on(async { reader.add_matched_writer(writer_proxy).await });
         let cache_change = CacheChange {
             kind: ChangeKind::Alive,
             writer_guid: writer.guid(),

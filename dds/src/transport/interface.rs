@@ -12,32 +12,38 @@ pub trait TransportParticipantFactory: Send + 'static {
         &self,
         guid_prefix: GuidPrefix,
         domain_id: i32,
-    ) -> Self::TransportParticipant;
+    ) -> impl Future<Output = Self::TransportParticipant> + Send;
 }
-pub trait TransportStatelessWriter: Send {
+pub trait TransportStatelessWriter: Send + Sync {
     fn guid(&self) -> Guid;
     fn history_cache(&mut self) -> &mut dyn HistoryCache;
     fn add_reader_locator(&mut self, locator: Locator);
     fn remove_reader_locator(&mut self, locator: &Locator);
 }
 
-pub trait TransportStatefulWriter: Send {
+pub trait TransportStatefulWriter: Send + Sync {
     fn guid(&self) -> Guid;
     fn history_cache(&mut self) -> &mut dyn HistoryCache;
-    fn is_change_acknowledged(&self, sequence_number: i64) -> bool;
-    fn add_matched_reader(&mut self, reader_proxy: ReaderProxy);
-    fn remove_matched_reader(&mut self, remote_reader_guid: Guid);
+    fn is_change_acknowledged(&self, sequence_number: i64) -> impl Future<Output = bool> + Send;
+    fn add_matched_reader(&mut self, reader_proxy: ReaderProxy) -> impl Future<Output = ()> + Send;
+    fn remove_matched_reader(
+        &mut self,
+        remote_reader_guid: Guid,
+    ) -> impl Future<Output = ()> + Send;
 }
 
-pub trait TransportStatelessReader: Send {
+pub trait TransportStatelessReader: Send + Sync {
     fn guid(&self) -> Guid;
 }
 
-pub trait TransportStatefulReader: Send {
+pub trait TransportStatefulReader: Send + Sync {
     fn guid(&self) -> Guid;
-    fn is_historical_data_received(&self) -> bool;
-    fn add_matched_writer(&mut self, writer_proxy: WriterProxy);
-    fn remove_matched_writer(&mut self, remote_writer_guid: Guid);
+    fn is_historical_data_received(&self) -> impl Future<Output = bool> + Send;
+    fn add_matched_writer(&mut self, writer_proxy: WriterProxy) -> impl Future<Output = ()> + Send;
+    fn remove_matched_writer(
+        &mut self,
+        remote_writer_guid: Guid,
+    ) -> impl Future<Output = ()> + Send;
 }
 
 pub trait HistoryCache: Send {

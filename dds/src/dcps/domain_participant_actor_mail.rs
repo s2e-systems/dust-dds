@@ -1182,14 +1182,18 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantActor<R, T>
                 publisher_handle,
                 data_writer_handle,
                 reply_sender,
-            } => reply_sender
-                .send(self.are_all_changes_acknowledged(publisher_handle, data_writer_handle)),
+            } => reply_sender.send(
+                self.are_all_changes_acknowledged(publisher_handle, data_writer_handle)
+                    .await,
+            ),
             MessageServiceMail::IsHistoricalDataReceived {
                 subscriber_handle,
                 data_reader_handle,
                 reply_sender,
-            } => reply_sender
-                .send(self.is_historical_data_received(subscriber_handle, data_reader_handle)),
+            } => reply_sender.send(
+                self.is_historical_data_received(subscriber_handle, data_reader_handle)
+                    .await,
+            ),
             MessageServiceMail::AddBuiltinParticipantsDetectorCacheChange { cache_change } => {
                 self.add_builtin_participants_detector_cache_change(cache_change)
                     .await

@@ -68,7 +68,10 @@ use crate::{
     runtime::{ChannelSend, Clock, DdsRuntime, OneshotReceive, Spawner, Timer},
     transport::{
         self,
-        interface::{HistoryCache, TransportParticipant, TransportParticipantFactory},
+        interface::{
+            HistoryCache, TransportParticipant, TransportParticipantFactory,
+            TransportStatefulReader, TransportStatefulWriter,
+        },
         types::{
             CacheChange, ChangeKind, DurabilityKind, EntityId, Guid, ReliabilityKind, TopicKind,
             ENTITYID_UNKNOWN, USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_WITH_KEY,
@@ -113,7 +116,7 @@ pub struct DomainParticipantActor<R: DdsRuntime, T: TransportParticipantFactory>
     pub transport: T::TransportParticipant,
     pub instance_handle_counter: InstanceHandleCounter,
     pub entity_counter: u16,
-    pub domain_participant: DomainParticipantEntity<R>,
+    pub domain_participant: DomainParticipantEntity<R, T>,
     pub clock_handle: R::ClockHandle,
     pub timer_handle: R::TimerHandle,
     pub spawner_handle: R::SpawnerHandle,
@@ -125,7 +128,7 @@ where
     T: TransportParticipantFactory,
 {
     pub fn new(
-        domain_participant: DomainParticipantEntity<R>,
+        domain_participant: DomainParticipantEntity<R, T>,
         transport: T::TransportParticipant,
         instance_handle_counter: InstanceHandleCounter,
         clock_handle: R::ClockHandle,
@@ -649,7 +652,7 @@ where
 
     #[tracing::instrument(skip(self))]
     pub async fn delete_participant_contained_entities(&mut self) -> DdsResult<()> {
-        let deleted_publisher_list: Vec<PublisherEntity<R>> =
+        let deleted_publisher_list: Vec<PublisherEntity<R, T>> =
             self.domain_participant.drain_publisher_list().collect();
         for mut publisher in deleted_publisher_list {
             for data_writer in publisher.drain_data_writer_list() {
@@ -657,7 +660,7 @@ where
             }
         }
 
-        let deleted_subscriber_list: Vec<SubscriberEntity<R>> =
+        let deleted_subscriber_list: Vec<SubscriberEntity<R, T>> =
             self.domain_participant.drain_subscriber_list().collect();
         for mut subscriber in deleted_subscriber_list {
             for data_reader in subscriber.drain_data_reader_list() {
@@ -922,7 +925,7 @@ where
             ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
         };
         let transport_reader =
-            TransportReaderKind::Stateful(Box::new(self.transport.create_stateful_reader(
+            TransportReaderKind::Stateful(self.transport.create_stateful_reader(
                 entity_id,
                 reliablity_kind,
                 Box::new(UserDefinedReaderHistoryCache::<R> {
@@ -930,7 +933,7 @@ where
                     subscriber_handle: subscriber.instance_handle(),
                     data_reader_handle: reader_handle,
                 }),
-            )));
+            ));
 
         let listener_mask = mask.to_vec();
         let data_reader = DataReaderEntity::new(
@@ -1152,10 +1155,9 @@ where
             ReliabilityQosPolicyKind::BestEffort => ReliabilityKind::BestEffort,
             ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
         };
-        let transport_writer = Box::new(
-            self.transport
-                .create_stateful_writer(entity_id, reliablity_kind),
-        );
+        let transport_writer = self
+            .transport
+            .create_stateful_writer(entity_id, reliablity_kind);
 
         let data_writer = DataWriterEntity::new(
             writer_handle,
@@ -1701,7 +1703,7 @@ where
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn are_all_changes_acknowledged(
+    pub async fn are_all_changes_acknowledged(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
@@ -1713,7 +1715,7 @@ where
         let Some(data_writer) = publisher.get_data_writer(data_writer_handle) else {
             return Err(DdsError::AlreadyDeleted);
         };
-        Ok(data_writer.are_all_changes_acknowledged())
+        Ok(data_writer.are_all_changes_acknowledged().await)
     }
 
     #[allow(clippy::too_many_arguments, clippy::type_complexity)]
@@ -2039,7 +2041,7 @@ where
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn is_historical_data_received(
+    pub async fn is_historical_data_received(
         &mut self,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
@@ -2065,7 +2067,7 @@ where
         };
 
         if let TransportReaderKind::Stateful(r) = data_reader.transport_reader() {
-            Ok(r.is_historical_data_received())
+            Ok(r.is_historical_data_received().await)
         } else {
             Ok(true)
         }
@@ -2254,7 +2256,7 @@ where
     }
 
     #[tracing::instrument(skip(self, data_writer))]
-    async fn announce_deleted_data_writer(&mut self, data_writer: DataWriterEntity<R>) {
+    async fn announce_deleted_data_writer(&mut self, data_writer: DataWriterEntity<R, T>) {
         let timestamp = self.get_current_time();
         if let Some(dw) = self
             .domain_participant
@@ -2333,7 +2335,7 @@ where
     }
 
     #[tracing::instrument(skip(self, data_reader))]
-    async fn announce_deleted_data_reader(&mut self, data_reader: DataReaderEntity<R>) {
+    async fn announce_deleted_data_reader(&mut self, data_reader: DataReaderEntity<R, T>) {
         let timestamp = self.get_current_time();
         if let Some(dw) = self
             .domain_participant
@@ -2546,7 +2548,7 @@ where
                         expects_inline_qos: false,
                     };
                     if let TransportWriterKind::Stateful(w) = data_writer.transport_writer_mut() {
-                        w.add_matched_reader(reader_proxy);
+                        w.add_matched_reader(reader_proxy).await;
                     }
 
                     if data_writer
@@ -2880,7 +2882,7 @@ where
 
             if is_matched_topic_name && is_matched_type_name {
                 let incompatible_qos_policy_list =
-                    get_discovered_writer_incompatible_qos_policy_list::<R>(
+                    get_discovered_writer_incompatible_qos_policy_list::<R, T>(
                         data_reader,
                         &discovered_writer_data.dds_publication_data,
                         &subscriber_qos,
@@ -2928,7 +2930,7 @@ where
                         durability_kind,
                     };
                     if let TransportReaderKind::Stateful(r) = data_reader.transport_reader_mut() {
-                        r.add_matched_writer(writer_proxy);
+                        r.add_matched_writer(writer_proxy).await;
                     }
 
                     if data_reader
@@ -4036,12 +4038,18 @@ where
             .is_some();
 
         if is_domain_id_matching && is_domain_tag_matching && !is_participant_discovered {
-            self.add_matched_publications_detector(&discovered_participant_data);
-            self.add_matched_publications_announcer(&discovered_participant_data);
-            self.add_matched_subscriptions_detector(&discovered_participant_data);
-            self.add_matched_subscriptions_announcer(&discovered_participant_data);
-            self.add_matched_topics_detector(&discovered_participant_data);
-            self.add_matched_topics_announcer(&discovered_participant_data);
+            self.add_matched_publications_detector(&discovered_participant_data)
+                .await;
+            self.add_matched_publications_announcer(&discovered_participant_data)
+                .await;
+            self.add_matched_subscriptions_detector(&discovered_participant_data)
+                .await;
+            self.add_matched_subscriptions_announcer(&discovered_participant_data)
+                .await;
+            self.add_matched_topics_detector(&discovered_participant_data)
+                .await;
+            self.add_matched_topics_announcer(&discovered_participant_data)
+                .await;
 
             self.announce_participant().await;
         }
@@ -4057,7 +4065,7 @@ where
     }
 
     #[tracing::instrument(skip(self))]
-    fn add_matched_publications_detector(
+    async fn add_matched_publications_detector(
         &mut self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
     ) {
@@ -4097,7 +4105,7 @@ where
                 })
             {
                 match dw.transport_writer_mut() {
-                    TransportWriterKind::Stateful(w) => w.add_matched_reader(reader_proxy),
+                    TransportWriterKind::Stateful(w) => w.add_matched_reader(reader_proxy).await,
                     TransportWriterKind::Stateless(_) => panic!("Invalid built-in writer type"),
                 }
             }
@@ -4105,7 +4113,7 @@ where
     }
 
     #[tracing::instrument(skip(self))]
-    fn add_matched_publications_announcer(
+    async fn add_matched_publications_announcer(
         &mut self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
     ) {
@@ -4144,7 +4152,7 @@ where
                 })
             {
                 match dr.transport_reader_mut() {
-                    TransportReaderKind::Stateful(r) => r.add_matched_writer(writer_proxy),
+                    TransportReaderKind::Stateful(r) => r.add_matched_writer(writer_proxy).await,
                     TransportReaderKind::Stateless(_) => panic!("Invalid built-in reader type"),
                 }
             }
@@ -4152,7 +4160,7 @@ where
     }
 
     #[tracing::instrument(skip(self))]
-    fn add_matched_subscriptions_detector(
+    async fn add_matched_subscriptions_detector(
         &mut self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
     ) {
@@ -4192,7 +4200,7 @@ where
                 })
             {
                 match dw.transport_writer_mut() {
-                    TransportWriterKind::Stateful(w) => w.add_matched_reader(reader_proxy),
+                    TransportWriterKind::Stateful(w) => w.add_matched_reader(reader_proxy).await,
                     TransportWriterKind::Stateless(_) => panic!("Invalid built-in writer type"),
                 }
             }
@@ -4200,7 +4208,7 @@ where
     }
 
     #[tracing::instrument(skip(self))]
-    fn add_matched_subscriptions_announcer(
+    async fn add_matched_subscriptions_announcer(
         &mut self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
     ) {
@@ -4239,7 +4247,7 @@ where
                 })
             {
                 match dr.transport_reader_mut() {
-                    TransportReaderKind::Stateful(r) => r.add_matched_writer(writer_proxy),
+                    TransportReaderKind::Stateful(r) => r.add_matched_writer(writer_proxy).await,
                     TransportReaderKind::Stateless(_) => panic!("Invalid built-in reader type"),
                 }
             }
@@ -4247,7 +4255,7 @@ where
     }
 
     #[tracing::instrument(skip(self))]
-    fn add_matched_topics_detector(
+    async fn add_matched_topics_detector(
         &mut self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
     ) {
@@ -4287,7 +4295,7 @@ where
                 })
             {
                 match dw.transport_writer_mut() {
-                    TransportWriterKind::Stateful(w) => w.add_matched_reader(reader_proxy),
+                    TransportWriterKind::Stateful(w) => w.add_matched_reader(reader_proxy).await,
                     TransportWriterKind::Stateless(_) => panic!("Invalid built-in writer type"),
                 }
             }
@@ -4295,7 +4303,7 @@ where
     }
 
     #[tracing::instrument(skip(self))]
-    fn add_matched_topics_announcer(
+    async fn add_matched_topics_announcer(
         &mut self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
     ) {
@@ -4334,7 +4342,7 @@ where
                 })
             {
                 match dr.transport_reader_mut() {
-                    TransportReaderKind::Stateful(r) => r.add_matched_writer(writer_proxy),
+                    TransportReaderKind::Stateful(r) => r.add_matched_writer(writer_proxy).await,
                     TransportReaderKind::Stateless(_) => panic!("Invalid built-in reader type"),
                 }
             }
@@ -4412,8 +4420,11 @@ fn get_discovered_reader_incompatible_qos_policy_list(
 }
 
 #[tracing::instrument(skip(data_reader))]
-fn get_discovered_writer_incompatible_qos_policy_list<R: DdsRuntime>(
-    data_reader: &DataReaderEntity<R>,
+fn get_discovered_writer_incompatible_qos_policy_list<
+    R: DdsRuntime,
+    T: TransportParticipantFactory,
+>(
+    data_reader: &DataReaderEntity<R, T>,
     publication_builtin_topic_data: &PublicationBuiltinTopicData,
     subscriber_qos: &SubscriberQos,
 ) -> Vec<QosPolicyId> {
