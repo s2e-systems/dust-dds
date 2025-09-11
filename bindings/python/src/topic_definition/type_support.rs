@@ -196,14 +196,12 @@ impl TryFrom<Py<PyAny>> for PythonTypeRepresentation {
                         )
                     } else {
                         Err(PyTypeError::new_err(format!(
-                            "Unsupported Dust DDS representation for Python Type {}",
-                            py_type
+                            "Unsupported Dust DDS representation for Python Type {py_type}"
                         )))
                     }
                 } else {
                     Err(PyTypeError::new_err(format!(
-                        "Unsupported Dust DDS representation for Python Type {}",
-                        type_value
+                        "Unsupported Dust DDS representation for Python Type {type_value}"
                     )))
                 }
             }
@@ -290,7 +288,7 @@ impl PythonDdsData {
                     TypeKind::float64 => serializer.serialize_float64(member_data.extract()?),
                     TypeKind::float128 => Err(XTypesError::InvalidData),
                 }
-                .map_err(|e| PyTypeError::new_err(format!("XTypes error: {:?}", e)))
+                .map_err(|e| PyTypeError::new_err(format!("XTypes error: {e:?}")))
             } else if is_list(member_type)? {
                 let typing_module = PyModule::import_bound(member_type.py(), "typing")?;
                 let get_args_attr = typing_module.getattr("get_args")?;
@@ -306,7 +304,7 @@ impl PythonDdsData {
                 }
                 serializer
                     .serialize_uint32(sequence_len as u32)
-                    .map_err(|e| PyTypeError::new_err(format!("XTypes error: {:?}", e)))?;
+                    .map_err(|e| PyTypeError::new_err(format!("XTypes error: {e:?}")))?;
                 for index in 0..sequence_len {
                     serialize_data_member(&sequence.get_item(index)?, &member_type, serializer)?;
                 }
@@ -316,18 +314,17 @@ impl PythonDdsData {
                 if py_type.py().get_type_bound::<PyBytes>().is(py_type) {
                     serializer
                         .serialize_byte_sequence(member_data.extract()?)
-                        .map_err(|e| PyTypeError::new_err(format!("XTypes error: {:?}", e)))
+                        .map_err(|e| PyTypeError::new_err(format!("XTypes error: {e:?}")))
                 } else if py_type.py().get_type_bound::<PyString>().is(py_type) {
                     serializer
                         .serialize_string(member_data.extract()?)
-                        .map_err(|e| PyTypeError::new_err(format!("XTypes error: {:?}", e)))
+                        .map_err(|e| PyTypeError::new_err(format!("XTypes error: {e:?}")))
                 } else {
                     serialize_data(member_type.py(), member_data.clone().unbind(), serializer)
                 }
             } else {
                 Err(PyTypeError::new_err(format!(
-                    "Unsupported Dust DDS representation for Python Type {}",
-                    member_type
+                    "Unsupported Dust DDS representation for Python Type {member_type}"
                 )))
             }
         }
@@ -373,7 +370,7 @@ impl PythonDdsData {
             let py = member_type.py();
             if let Ok(member_type_kind) = member_type.extract::<TypeKind>() {
                 deserialize_into_py_object(py, member_type_kind, deserializer)
-                    .map_err(|e| PyTypeError::new_err(format!("XTypesError {:?}", e)))
+                    .map_err(|e| PyTypeError::new_err(format!("XTypesError {e:?}")))
             } else if is_list(member_type)? {
                 let typing_module = PyModule::import_bound(member_type.py(), "typing")?;
                 let get_args_attr = typing_module.getattr("get_args")?;
@@ -382,7 +379,7 @@ impl PythonDdsData {
                 let sequence_type = type_args.get_item(0)?;
                 let sequence_len = deserializer
                     .deserialize_uint32()
-                    .map_err(|e| PyTypeError::new_err(format!("XTypesError {:?}", e)))?;
+                    .map_err(|e| PyTypeError::new_err(format!("XTypesError {e:?}")))?;
                 let mut list: Vec<Py<PyAny>> = Vec::with_capacity(sequence_len as usize);
                 for _ in 0..sequence_len {
                     list.push(deserialize_data_member(&sequence_type, deserializer)?);
@@ -392,20 +389,19 @@ impl PythonDdsData {
                 if py_type.py().get_type_bound::<PyBytes>().is(py_type) {
                     Ok(deserializer
                         .deserialize_byte_sequence()
-                        .map_err(|e| PyTypeError::new_err(format!("XTypesError {:?}", e)))?
+                        .map_err(|e| PyTypeError::new_err(format!("XTypesError {e:?}")))?
                         .into_py(py))
                 } else if py_type.py().get_type_bound::<PyString>().is(py_type) {
                     Ok(deserializer
                         .deserialize_string()
-                        .map_err(|e| PyTypeError::new_err(format!("XTypesError {:?}", e)))?
+                        .map_err(|e| PyTypeError::new_err(format!("XTypesError {e:?}")))?
                         .into_py(py))
                 } else {
                     deserialize_data(py, member_type.extract()?, &mut *deserializer)
                 }
             } else {
                 Err(PyTypeError::new_err(format!(
-                    "Unsupported Dust DDS type representation {}",
-                    member_type
+                    "Unsupported Dust DDS type representation {member_type}"
                 )))
             }
         }

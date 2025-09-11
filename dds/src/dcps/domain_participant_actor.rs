@@ -462,9 +462,8 @@ where
     ) -> DdsResult<InstanceHandle> {
         if self.domain_participant.get_topic(&topic_name).is_some() {
             return Err(DdsError::PreconditionNotMet(format!(
-                "Topic with name {} already exists.
+                "Topic with name {topic_name} already exists.
          To access this topic call the lookup_topicdescription method.",
-                topic_name
             )));
         }
 

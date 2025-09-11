@@ -144,8 +144,7 @@ impl RtpsUdpTransportParticipantFactoryBuilder {
         let fragment_size_range = 8..=65000;
         if !fragment_size_range.contains(&self.fragment_size) {
             Err(format!(
-                "Interface size out of range. Value must be between in {:?}",
-                fragment_size_range
+                "Interface size out of range. Value must be between in {fragment_size_range:?}",
             ))
         } else {
             Ok(RtpsUdpTransportParticipantFactory {

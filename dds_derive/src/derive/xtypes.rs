@@ -56,7 +56,7 @@ pub fn expand_xtypes_serialize(input: &DeriveInput) -> Result<TokenStream> {
                     }
                     None => {
                         let index = Index::from(field_index);
-                        let index_str = format!("{:?}", field_index);
+                        let index_str = format!("{field_index:?}", );
                         match extensibility {
                             Extensibility::Final => field_serialization
                                 .extend(quote! { dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &self.#index, #index_str)?;}),
@@ -249,7 +249,7 @@ pub fn expand_xtypes_deserialize(input: &DeriveInput) -> Result<TokenStream> {
                         .is_none();
                     if is_tuple {
                         for (index, field) in data_struct.fields.iter().enumerate() {
-                            let index_str = format!("{:?}", index);
+                            let index_str = format!("{index:?}",);
                             match extensibility {
                                 Extensibility::Final => field_deserialization
                                     .extend(quote! { dust_dds::xtypes::deserializer::DeserializeFinalStruct::deserialize_field(&mut d, #index_str)?,}),

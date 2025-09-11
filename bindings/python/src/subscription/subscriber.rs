@@ -78,7 +78,7 @@ impl Subscriber {
 
         match r {
             Ok(dr) => Ok(dr.into()),
-            Err(e) => Err(PyTypeError::new_err(format!("{:?}", e))),
+            Err(e) => Err(PyTypeError::new_err(format!("{e:?}"))),
         }
     }
 
