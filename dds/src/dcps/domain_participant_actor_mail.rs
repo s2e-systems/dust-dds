@@ -3,11 +3,13 @@ use crate::{
     builtin_topics::{
         ParticipantBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
         TopicBuiltinTopicData,
-    }, dcps::{
+    },
+    dcps::{
         actor::{Actor, ActorAddress, MailHandler},
         listeners::domain_participant_listener::ListenerMail,
         status_condition_actor::StatusConditionActor,
-    }, infrastructure::{
+    },
+    infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,
         qos::{
@@ -20,7 +22,10 @@ use crate::{
             StatusKind, SubscriptionMatchedStatus,
         },
         time::{Duration, Time},
-    }, runtime::{DdsRuntime, OneshotSend}, transport::types::CacheChange, xtypes::dynamic_type::DynamicType
+    },
+    runtime::{DdsRuntime, OneshotSend},
+    transport::{interface::TransportParticipantFactory, types::CacheChange},
+    xtypes::dynamic_type::DynamicType,
 };
 use alloc::{boxed::Box, string::String, sync::Arc, vec::Vec};
 use core::{future::Future, pin::Pin};
@@ -522,7 +527,7 @@ pub enum DomainParticipantMail<R: DdsRuntime> {
     Discovery(DiscoveryServiceMail),
 }
 
-impl<R: DdsRuntime> MailHandler for DomainParticipantActor<R> {
+impl<R: DdsRuntime, T: TransportParticipantFactory> MailHandler for DomainParticipantActor<R, T> {
     type Mail = DomainParticipantMail<R>;
     async fn handle(&mut self, message: DomainParticipantMail<R>) {
         match message {
@@ -559,7 +564,7 @@ impl<R: DdsRuntime> MailHandler for DomainParticipantActor<R> {
     }
 }
 
-impl<R: DdsRuntime> DomainParticipantActor<R> {
+impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantActor<R, T> {
     async fn handle_participant_service(
         &mut self,
         participant_service_mail: ParticipantServiceMail<R>,
@@ -1177,14 +1182,18 @@ impl<R: DdsRuntime> DomainParticipantActor<R> {
                 publisher_handle,
                 data_writer_handle,
                 reply_sender,
-            } => reply_sender
-                .send(self.are_all_changes_acknowledged(publisher_handle, data_writer_handle)),
+            } => reply_sender.send(
+                self.are_all_changes_acknowledged(publisher_handle, data_writer_handle)
+                    .await,
+            ),
             MessageServiceMail::IsHistoricalDataReceived {
                 subscriber_handle,
                 data_reader_handle,
                 reply_sender,
-            } => reply_sender
-                .send(self.is_historical_data_received(subscriber_handle, data_reader_handle)),
+            } => reply_sender.send(
+                self.is_historical_data_received(subscriber_handle, data_reader_handle)
+                    .await,
+            ),
             MessageServiceMail::AddBuiltinParticipantsDetectorCacheChange { cache_change } => {
                 self.add_builtin_participants_detector_cache_change(cache_change)
                     .await

@@ -10,23 +10,23 @@ use super::{
 };
 use alloc::vec::Vec;
 
-use crate::runtime::DdsRuntime;
+use crate::{runtime::DdsRuntime, transport::interface::TransportParticipantFactory};
 
-pub struct PublisherEntity<R: DdsRuntime> {
+pub struct PublisherEntity<R: DdsRuntime, T: TransportParticipantFactory> {
     qos: PublisherQos,
     instance_handle: InstanceHandle,
-    data_writer_list: Vec<DataWriterEntity<R>>,
+    data_writer_list: Vec<DataWriterEntity<R, T>>,
     enabled: bool,
     default_datawriter_qos: DataWriterQos,
     listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
     listener_mask: Vec<StatusKind>,
 }
 
-impl<R: DdsRuntime> PublisherEntity<R> {
+impl<R: DdsRuntime, T: TransportParticipantFactory> PublisherEntity<R, T> {
     pub const fn new(
         qos: PublisherQos,
         instance_handle: InstanceHandle,
-        data_writer_list: Vec<DataWriterEntity<R>>,
+        data_writer_list: Vec<DataWriterEntity<R, T>>,
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         listener_mask: Vec<StatusKind>,
     ) -> Self {
@@ -41,23 +41,23 @@ impl<R: DdsRuntime> PublisherEntity<R> {
         }
     }
 
-    pub fn data_writer_list(&self) -> impl Iterator<Item = &DataWriterEntity<R>> {
+    pub fn data_writer_list(&self) -> impl Iterator<Item = &DataWriterEntity<R, T>> {
         self.data_writer_list.iter()
     }
 
-    pub fn data_writer_list_mut(&mut self) -> impl Iterator<Item = &mut DataWriterEntity<R>> {
+    pub fn data_writer_list_mut(&mut self) -> impl Iterator<Item = &mut DataWriterEntity<R, T>> {
         self.data_writer_list.iter_mut()
     }
 
-    pub fn drain_data_writer_list(&mut self) -> impl Iterator<Item = DataWriterEntity<R>> + '_ {
+    pub fn drain_data_writer_list(&mut self) -> impl Iterator<Item = DataWriterEntity<R, T>> + '_ {
         self.data_writer_list.drain(..)
     }
 
-    pub fn insert_data_writer(&mut self, data_writer: DataWriterEntity<R>) {
+    pub fn insert_data_writer(&mut self, data_writer: DataWriterEntity<R, T>) {
         self.data_writer_list.push(data_writer);
     }
 
-    pub fn remove_data_writer(&mut self, handle: InstanceHandle) -> Option<DataWriterEntity<R>> {
+    pub fn remove_data_writer(&mut self, handle: InstanceHandle) -> Option<DataWriterEntity<R, T>> {
         let index = self
             .data_writer_list
             .iter()
@@ -65,7 +65,7 @@ impl<R: DdsRuntime> PublisherEntity<R> {
         Some(self.data_writer_list.remove(index))
     }
 
-    pub fn get_data_writer(&self, handle: InstanceHandle) -> Option<&DataWriterEntity<R>> {
+    pub fn get_data_writer(&self, handle: InstanceHandle) -> Option<&DataWriterEntity<R, T>> {
         self.data_writer_list
             .iter()
             .find(|x| x.instance_handle() == handle)
@@ -74,13 +74,16 @@ impl<R: DdsRuntime> PublisherEntity<R> {
     pub fn get_mut_data_writer(
         &mut self,
         handle: InstanceHandle,
-    ) -> Option<&mut DataWriterEntity<R>> {
+    ) -> Option<&mut DataWriterEntity<R, T>> {
         self.data_writer_list
             .iter_mut()
             .find(|x| x.instance_handle() == handle)
     }
 
-    pub fn lookup_datawriter_mut(&mut self, topic_name: &str) -> Option<&mut DataWriterEntity<R>> {
+    pub fn lookup_datawriter_mut(
+        &mut self,
+        topic_name: &str,
+    ) -> Option<&mut DataWriterEntity<R, T>> {
         self.data_writer_list
             .iter_mut()
             .find(|x| x.topic_name() == topic_name)

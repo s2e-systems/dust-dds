@@ -7,8 +7,7 @@ use crate::{
             DiscoveryServiceMail, DomainParticipantMail, ParticipantServiceMail,
         },
         domain_participant_factory_actor::{
-            DdsTransportParticipantFactory, DomainParticipantFactoryActor,
-            DomainParticipantFactoryMail,
+            DomainParticipantFactoryActor, DomainParticipantFactoryMail,
         },
         listeners::domain_participant_listener::DomainParticipantListenerActor,
     },
@@ -20,6 +19,7 @@ use crate::{
         status::StatusKind,
     },
     runtime::{ChannelSend, DdsRuntime, OneshotReceive},
+    transport::interface::TransportParticipantFactory,
 };
 use alloc::string::String;
 
@@ -27,12 +27,12 @@ use alloc::string::String;
 /// Unlike the sync version, the [`DomainParticipantFactoryAsync`] is not a singleton and can be created by means of
 /// a constructor by passing a DDS runtime. This allows the factory
 /// to spin tasks on an existing runtime which can be shared with other things outside Dust DDS.
-pub struct DomainParticipantFactoryAsync<R: DdsRuntime> {
+pub struct DomainParticipantFactoryAsync<R: DdsRuntime, T: TransportParticipantFactory> {
     runtime: R,
-    domain_participant_factory_actor: Actor<R, DomainParticipantFactoryActor<R>>,
+    domain_participant_factory_actor: Actor<R, DomainParticipantFactoryActor<R, T>>,
 }
 
-impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
+impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantFactoryAsync<R, T> {
     /// Async version of [`create_participant`](crate::domain::domain_participant_factory::DomainParticipantFactory::create_participant).
     pub async fn create_participant(
         &self,
@@ -183,24 +183,16 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
             .await;
         reply_receiver.receive().await
     }
-
-    /// Async version of [`set_transport`](crate::domain::domain_participant_factory::DomainParticipantFactory::set_transport).
-    pub async fn set_transport(&self, transport: DdsTransportParticipantFactory) -> DdsResult<()> {
-        self.domain_participant_factory_actor
-            .send_actor_mail(DomainParticipantFactoryMail::SetTransport { transport })
-            .await;
-        Ok(())
-    }
 }
 
-impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
+impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantFactoryAsync<R, T> {
     #[doc(hidden)]
     pub fn new(
         runtime: R,
         app_id: [u8; 4],
         host_id: [u8; 4],
-        transport: DdsTransportParticipantFactory,
-    ) -> DomainParticipantFactoryAsync<R> {
+        transport: T,
+    ) -> DomainParticipantFactoryAsync<R, T> {
         let domain_participant_factory_actor = Actor::spawn(
             DomainParticipantFactoryActor::new(app_id, host_id, transport),
             &runtime.spawner(),
@@ -213,19 +205,29 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
 }
 
 #[cfg(feature = "std")]
-impl DomainParticipantFactoryAsync<crate::std_runtime::StdRuntime> {
+impl
+    DomainParticipantFactoryAsync<
+        crate::std_runtime::StdRuntime,
+        crate::rtps_udp_transport::udp_transport::RtpsUdpTransportParticipantFactory,
+    >
+{
     /// This operation returns the [`DomainParticipantFactoryAsync`] singleton. The operation is idempotent, that is, it can be called multiple
     /// times without side-effects and it will return the same [`DomainParticipantFactoryAsync`] instance.
     #[tracing::instrument]
-    pub fn get_instance() -> &'static DomainParticipantFactoryAsync<crate::std_runtime::StdRuntime>
-    {
+    pub fn get_instance() -> &'static DomainParticipantFactoryAsync<
+        crate::std_runtime::StdRuntime,
+        crate::rtps_udp_transport::udp_transport::RtpsUdpTransportParticipantFactory,
+    > {
         use core::net::IpAddr;
         use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
         use std::sync::OnceLock;
         use tracing::warn;
 
         static PARTICIPANT_FACTORY_ASYNC: OnceLock<
-            DomainParticipantFactoryAsync<crate::std_runtime::StdRuntime>,
+            DomainParticipantFactoryAsync<
+                crate::std_runtime::StdRuntime,
+                crate::rtps_udp_transport::udp_transport::RtpsUdpTransportParticipantFactory,
+            >,
         > = OnceLock::new();
         PARTICIPANT_FACTORY_ASYNC.get_or_init(|| {
             let executor = crate::std_runtime::executor::Executor::new();
@@ -256,7 +258,7 @@ impl DomainParticipantFactoryAsync<crate::std_runtime::StdRuntime> {
                 runtime,
                 app_id,
                 host_id,
-                Box::new(transport),
+                transport,
             )
         })
     }

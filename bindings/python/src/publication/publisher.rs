@@ -65,7 +65,7 @@ impl Publisher {
             .create_datawriter::<PythonDdsData>(a_topic.as_ref(), qos, listener, &mask);
         match r {
             Ok(dw) => Ok(dw.into()),
-            Err(e) => Err(PyTypeError::new_err(format!("{:?}", e))),
+            Err(e) => Err(PyTypeError::new_err(format!("{e:?}"))),
         }
     }
 

@@ -53,7 +53,7 @@ impl From<Box<dyn Any + Send + 'static>> for DdsError {
 
 impl From<XTypesError> for DdsError {
     fn from(value: XTypesError) -> Self {
-        DdsError::Error(format!("XTypesError: {:?}", value))
+        DdsError::Error(format!("XTypesError: {value:?}"))
     }
 }
 
