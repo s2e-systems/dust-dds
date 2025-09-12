@@ -9,7 +9,7 @@ use crate::{
         status::StatusKind,
         time::Duration,
     },
-    topic_definition::{topic::Topic, type_support::PythonDdsData},
+    topic_definition::{topic_description::TopicDescription, type_support::PythonDdsData},
 };
 
 use super::{
@@ -18,7 +18,9 @@ use super::{
 };
 
 #[pyclass]
-pub struct Publisher(dust_dds::publication::publisher::Publisher<dust_dds::std_runtime::StdRuntime>);
+pub struct Publisher(
+    dust_dds::publication::publisher::Publisher<dust_dds::std_runtime::StdRuntime>,
+);
 
 impl From<dust_dds::publication::publisher::Publisher<dust_dds::std_runtime::StdRuntime>>
     for Publisher
@@ -45,7 +47,7 @@ impl Publisher {
     #[pyo3(signature = (a_topic, qos = None, a_listener = None, mask = Vec::new()))]
     pub fn create_datawriter(
         &self,
-        a_topic: &Topic,
+        a_topic: &TopicDescription,
         qos: Option<DataWriterQos>,
         a_listener: Option<Py<PyAny>>,
         mask: Vec<StatusKind>,

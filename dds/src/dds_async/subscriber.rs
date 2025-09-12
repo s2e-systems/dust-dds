@@ -1,6 +1,6 @@
 use super::{
     condition::StatusConditionAsync, data_reader::DataReaderAsync,
-    domain_participant::DomainParticipantAsync, topic::TopicAsync,
+    domain_participant::DomainParticipantAsync,
 };
 use crate::{
     dcps::{
@@ -12,6 +12,7 @@ use crate::{
         },
         status_condition_actor::StatusConditionActor,
     },
+    dds_async::topic_description::TopicDescriptionAsync,
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
@@ -65,7 +66,7 @@ impl<R: DdsRuntime> SubscriberAsync<R> {
     #[tracing::instrument(skip(self, a_topic, a_listener))]
     pub async fn create_datareader<Foo>(
         &self,
-        a_topic: &TopicAsync<R>,
+        a_topic: &TopicDescriptionAsync<R>,
         qos: QosKind<DataReaderQos>,
         a_listener: Option<impl DataReaderListener<R, Foo> + Send + 'static>,
         mask: &[StatusKind],

@@ -1,6 +1,5 @@
 use super::{data_writer_listener::DataWriterListener, publisher_listener::PublisherListener};
 use crate::{
-    runtime::DdsRuntime,
     dds_async::publisher::PublisherAsync,
     domain::domain_participant::DomainParticipant,
     infrastructure::{
@@ -11,7 +10,8 @@ use crate::{
         time::Duration,
     },
     publication::data_writer::DataWriter,
-    topic_definition::topic::Topic,
+    runtime::DdsRuntime,
+    topic_definition::topic_description::TopicDescription,
 };
 use alloc::vec::Vec;
 
@@ -57,13 +57,13 @@ impl<R: DdsRuntime> Publisher<R> {
     #[tracing::instrument(skip(self, a_topic, a_listener))]
     pub fn create_datawriter<Foo>(
         &self,
-        a_topic: &Topic<R>,
+        a_topic: &TopicDescription<R>,
         qos: QosKind<DataWriterQos>,
         a_listener: Option<impl DataWriterListener<R, Foo> + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<DataWriter<R, Foo>> {
         R::block_on(self.publisher_async.create_datawriter::<Foo>(
-            a_topic.topic_async(),
+            &a_topic.clone().into(),
             qos,
             a_listener,
             mask,

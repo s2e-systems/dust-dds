@@ -20,6 +20,7 @@ use dust_dds::{
         type_support::DdsType,
     },
     listener::NO_LISTENER,
+    topic_definition::topic_description::TopicDescription,
     wait_set::{Condition, WaitSet},
 };
 
@@ -1934,13 +1935,11 @@ fn inconsistent_topic_status_condition() {
 
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
-    assert!(
-        topic_best_effort
-            .get_inconsistent_topic_status()
-            .unwrap()
-            .total_count
-            > 0
-    );
+    match topic_best_effort {
+        TopicDescription::Topic(topic) => {
+            assert!(topic.get_inconsistent_topic_status().unwrap().total_count > 0)
+        }
+    }
 }
 
 #[test]

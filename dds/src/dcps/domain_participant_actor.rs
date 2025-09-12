@@ -40,7 +40,7 @@ use crate::{
     dds_async::{
         data_reader::DataReaderAsync, data_writer::DataWriterAsync,
         domain_participant::DomainParticipantAsync, publisher::PublisherAsync,
-        subscriber::SubscriberAsync, topic::TopicAsync,
+        subscriber::SubscriberAsync, topic::TopicAsync, topic_description::TopicDescriptionAsync,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -197,7 +197,10 @@ where
             data_reader_handle,
             data_reader.status_condition().address(),
             self.get_subscriber_async(participant_address.clone(), subscriber_handle)?,
-            self.get_topic_async(participant_address, String::from(data_reader.topic_name()))?,
+            self.get_topic_description_async(
+                participant_address,
+                String::from(data_reader.topic_name()),
+            )?,
         ))
     }
 
@@ -229,26 +232,29 @@ where
             data_writer_handle,
             data_writer.status_condition().address(),
             self.get_publisher_async(participant_address.clone(), publisher_handle)?,
-            self.get_topic_async(participant_address, String::from(data_writer.topic_name()))?,
+            self.get_topic_description_async(
+                participant_address,
+                String::from(data_writer.topic_name()),
+            )?,
         ))
     }
 
-    pub fn get_topic_async(
+    pub fn get_topic_description_async(
         &self,
         participant_address: R::ChannelSender<DomainParticipantMail<R>>,
         topic_name: String,
-    ) -> DdsResult<TopicAsync<R>> {
+    ) -> DdsResult<TopicDescriptionAsync<R>> {
         let topic = self
             .domain_participant
             .get_topic(&topic_name)
             .ok_or(DdsError::AlreadyDeleted)?;
-        Ok(TopicAsync::new(
+        Ok(TopicDescriptionAsync::Topic(TopicAsync::new(
             topic.instance_handle(),
             topic.status_condition().address(),
             String::from(topic.type_name()),
             topic_name,
             self.get_participant_async(participant_address),
-        ))
+        )))
     }
 
     #[tracing::instrument(skip(self))]

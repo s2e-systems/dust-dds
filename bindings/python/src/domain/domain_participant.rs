@@ -17,7 +17,8 @@ use crate::{
     publication::{publisher::Publisher, publisher_listener::PublisherListener},
     subscription::{subcriber_listener::SubscriberListener, subscriber::Subscriber},
     topic_definition::{
-        topic::Topic, topic_listener::TopicListener, type_support::PythonTypeRepresentation,
+        topic_description::TopicDescription, topic_listener::TopicListener,
+        type_support::PythonTypeRepresentation,
     },
 };
 
@@ -30,7 +31,8 @@ pub struct DomainParticipant(
     dust_dds::domain::domain_participant::DomainParticipant<dust_dds::std_runtime::StdRuntime>,
 );
 
-impl From<dust_dds::domain::domain_participant::DomainParticipant<dust_dds::std_runtime::StdRuntime>>
+impl
+    From<dust_dds::domain::domain_participant::DomainParticipant<dust_dds::std_runtime::StdRuntime>>
     for DomainParticipant
 {
     fn from(
@@ -42,8 +44,10 @@ impl From<dust_dds::domain::domain_participant::DomainParticipant<dust_dds::std_
     }
 }
 
-impl AsRef<dust_dds::domain::domain_participant::DomainParticipant<dust_dds::std_runtime::StdRuntime>>
-    for DomainParticipant
+impl
+    AsRef<
+        dust_dds::domain::domain_participant::DomainParticipant<dust_dds::std_runtime::StdRuntime>,
+    > for DomainParticipant
 {
     fn as_ref(
         &self,
@@ -133,7 +137,7 @@ impl DomainParticipant {
         qos: Option<TopicQos>,
         a_listener: Option<Py<PyAny>>,
         mask: Vec<StatusKind>,
-    ) -> PyResult<Topic> {
+    ) -> PyResult<TopicDescription> {
         let qos = match qos {
             Some(q) => dust_dds::infrastructure::qos::QosKind::Specific(q.into()),
             None => dust_dds::infrastructure::qos::QosKind::Default,
@@ -168,16 +172,19 @@ impl DomainParticipant {
         }
     }
 
-    pub fn delete_topic(&self, a_topic: &Topic) -> PyResult<()> {
+    pub fn delete_topic(&self, a_topic: &TopicDescription) -> PyResult<()> {
         match self.0.delete_topic(a_topic.as_ref()) {
             Ok(_) => Ok(()),
             Err(e) => Err(into_pyerr(e)),
         }
     }
 
-    pub fn lookup_topicdescription(&self, topic_name: String) -> PyResult<Option<Topic>> {
+    pub fn lookup_topicdescription(
+        &self,
+        topic_name: String,
+    ) -> PyResult<Option<TopicDescription>> {
         match self.0.lookup_topicdescription(&topic_name) {
-            Ok(t) => Ok(t.map(Topic::from)),
+            Ok(t) => Ok(t.map(TopicDescription::from)),
             Err(e) => Err(into_pyerr(e)),
         }
     }

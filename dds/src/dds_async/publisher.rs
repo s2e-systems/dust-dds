@@ -1,6 +1,4 @@
-use super::{
-    data_writer::DataWriterAsync, domain_participant::DomainParticipantAsync, topic::TopicAsync,
-};
+use super::{data_writer::DataWriterAsync, domain_participant::DomainParticipantAsync};
 use crate::{
     dcps::{
         actor::Actor,
@@ -11,6 +9,7 @@ use crate::{
         },
         status_condition_actor::StatusConditionActor,
     },
+    dds_async::topic_description::TopicDescriptionAsync,
     infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,
@@ -58,7 +57,7 @@ impl<R: DdsRuntime> PublisherAsync<R> {
     #[tracing::instrument(skip(self, a_topic, a_listener))]
     pub async fn create_datawriter<Foo>(
         &self,
-        a_topic: &TopicAsync<R>,
+        a_topic: &TopicDescriptionAsync<R>,
         qos: QosKind<DataWriterQos>,
         a_listener: Option<impl DataWriterListener<R, Foo> + Send + 'static>,
         mask: &[StatusKind],

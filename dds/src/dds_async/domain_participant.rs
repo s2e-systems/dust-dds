@@ -12,6 +12,7 @@ use crate::{
         },
         status_condition_actor::StatusConditionActor,
     },
+    dds_async::topic_description::TopicDescriptionAsync,
     domain::domain_participant_listener::DomainParticipantListener,
     infrastructure::{
         domain::DomainId,
@@ -195,7 +196,7 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         qos: QosKind<TopicQos>,
         a_listener: Option<impl TopicListener<R> + Send + 'static>,
         mask: &[StatusKind],
-    ) -> DdsResult<TopicAsync<R>>
+    ) -> DdsResult<TopicDescriptionAsync<R>>
     where
         Foo: TypeSupport,
     {
@@ -215,7 +216,7 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         a_listener: Option<impl TopicListener<R> + Send + 'static>,
         mask: &[StatusKind],
         dynamic_type_representation: Arc<dyn DynamicType + Send + Sync>,
-    ) -> DdsResult<TopicAsync<R>> {
+    ) -> DdsResult<TopicDescriptionAsync<R>> {
         let (reply_sender, reply_receiver) = R::oneshot();
         let status_condition = Actor::spawn(StatusConditionActor::default(), &self.spawner_handle);
         let topic_status_condition_address = status_condition.address();
@@ -237,18 +238,18 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
             .await?;
         let guid = reply_receiver.receive().await??;
 
-        Ok(TopicAsync::new(
+        Ok(TopicDescriptionAsync::Topic(TopicAsync::new(
             guid,
             topic_status_condition_address,
             String::from(type_name),
             String::from(topic_name),
             self.clone(),
-        ))
+        )))
     }
 
     /// Async version of [`delete_topic`](crate::domain::domain_participant::DomainParticipant::delete_topic).
     #[tracing::instrument(skip(self, a_topic))]
-    pub async fn delete_topic(&self, a_topic: &TopicAsync<R>) -> DdsResult<()> {
+    pub async fn delete_topic(&self, a_topic: &TopicDescriptionAsync<R>) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = R::oneshot();
         self.participant_address
             .send(DomainParticipantMail::Participant(
@@ -268,7 +269,7 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         &self,
         topic_name: &str,
         timeout: Duration,
-    ) -> DdsResult<TopicAsync<R>>
+    ) -> DdsResult<TopicDescriptionAsync<R>>
     where
         Foo: TypeSupport,
     {
@@ -299,13 +300,13 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
                     if let Some((guid, topic_status_condition_address, type_name)) =
                         reply_receiver.receive().await??
                     {
-                        return Ok(TopicAsync::new(
+                        return Ok(TopicDescriptionAsync::Topic(TopicAsync::new(
                             guid,
                             topic_status_condition_address,
                             type_name,
                             topic_name,
                             participant_async,
-                        ));
+                        )));
                     }
                 }
             }),
@@ -319,7 +320,7 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
     pub async fn lookup_topicdescription(
         &self,
         topic_name: &str,
-    ) -> DdsResult<Option<TopicAsync<R>>> {
+    ) -> DdsResult<Option<TopicDescriptionAsync<R>>> {
         let (reply_sender, reply_receiver) = R::oneshot();
         self.participant_address
             .send(DomainParticipantMail::Participant(
@@ -332,17 +333,29 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         if let Some((type_name, topic_handle, topic_status_condition_address)) =
             reply_receiver.receive().await??
         {
-            Ok(Some(TopicAsync::new(
+            Ok(Some(TopicDescriptionAsync::Topic(TopicAsync::new(
                 topic_handle,
                 topic_status_condition_address,
                 type_name,
                 String::from(topic_name),
                 self.clone(),
-            )))
+            ))))
         } else {
             Ok(None)
         }
     }
+
+    // /// Async version of [`create_contentfilteredtopic`](crate::domain::domain_participant::DomainParticipant::create_contentfilteredtopic).
+    // #[tracing::instrument(skip(self, related_topic))]
+    // pub fn create_contentfilteredtopic(
+    //     &self,
+    //     name: &str,
+    //     related_topic: TopicAsync<R>,
+    //     filter_expression: String,
+    //     expression_parameters: &[String],
+    // ) -> DdsResult<TopicDescriptionAsync<R>> {
+    //     todo!()
+    // }
 
     /// Async version of [`get_builtin_subscriber`](crate::domain::domain_participant::DomainParticipant::get_builtin_subscriber).
     #[tracing::instrument(skip(self))]
