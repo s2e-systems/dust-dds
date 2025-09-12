@@ -4487,46 +4487,7 @@ fn is_discovered_topic_consistent(
         && &topic_qos.ownership == topic_builtin_topic_data.ownership()
 }
 
-// fn fnmatch_to_regex(pattern: &str) -> String {
-//     let mut regex = String::from("^");
-//     let mut chars = pattern.chars().peekable();
-
-//     while let Some(c) = chars.next() {
-//         match c {
-//             '*' => regex.push_str(".*"),
-//             '?' => regex.push('.'),
-//             '[' => {
-//                 regex.push('[');
-//                 if let Some(&'!') = chars.peek() {
-//                     chars.next();
-//                     regex.push('^');
-//                 } else if let Some(&'^') = chars.peek() {
-//                     // already a regex negation
-//                     regex.push('^');
-//                     chars.next();
-//                 }
-//                 while let Some(ch) = chars.next() {
-//                     regex.push(ch);
-//                     if ch == ']' {
-//                         break;
-//                     }
-//                 }
-//             }
-//             // escape regex metacharacters
-//             '.' | '+' | '(' | ')' | '|' | '^' | '$' | '{' | '}' | '\\' => {
-//                 regex.push('\\');
-//                 regex.push(c);
-//             }
-//             _ => regex.push(c),
-//         }
-//     }
-
-//     regex.push('$');
-//     regex
-// }
-
 fn fnmatch_to_regex(pattern: &str) -> String {
-    let plus_as_quantifier = true;
     fn flush_literal(out: &mut String, lit: &mut String) {
         if !lit.is_empty() {
             out.push_str(&regex::escape(lit));
@@ -4600,14 +4561,9 @@ fn fnmatch_to_regex(pattern: &str) -> String {
                 }
             }
 
-            // plus handling (either literal or quantifier)
             '+' => {
-                if plus_as_quantifier {
-                    flush_literal(&mut out, &mut literal);
-                    out.push('+'); // regex plus (quantifier)
-                } else {
-                    literal.push('+'); // literal plus -> will be escaped on flush
-                }
+                flush_literal(&mut out, &mut literal);
+                out.push('+'); // regex plus (quantifier)
             }
 
             // default: accumulate literal characters (will be escaped when flushed)
@@ -4619,14 +4575,3 @@ fn fnmatch_to_regex(pattern: &str) -> String {
     out.push('$');
     out
 }
-
-// #[test]
-// fn fnmatch() {
-//     let regex = regex::Regex::new(&fnmatch_to_regex("A[1-2]+")).unwrap();
-//     assert_eq!(regex.is_match("A12"), true);
-//     // assert_eq!(regex.is_match("x1"), false);
-
-//     // let regex = regex::Regex::new("x1").unwrap();
-//     // assert_eq!(regex.is_match("p*"), true);
-//     // assert_eq!(regex.is_match("p1"), false);
-// }
