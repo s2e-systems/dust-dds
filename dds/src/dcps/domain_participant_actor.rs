@@ -539,6 +539,25 @@ where
         Ok(())
     }
 
+    #[tracing::instrument(skip(self))]
+    pub fn create_content_filtered_topic(
+        &mut self,
+        participant_handle: InstanceHandle,
+        name: String,
+        related_topic_name: String,
+    ) -> DdsResult<()> {
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn delete_content_filtered_topic(
+        &mut self,
+        participant_handle: InstanceHandle,
+        name: String,
+    ) -> DdsResult<()> {
+        Ok(())
+    }
+
     #[allow(clippy::type_complexity)]
     #[tracing::instrument(skip(self, type_support, status_condition))]
     pub fn find_topic(

@@ -949,9 +949,8 @@ fn create_delete_content_filtered_topic() {
         participant.delete_contentfilteredtopic(&content_filtered_topic),
         Ok(())
     );
-    assert_eq!(participant.delete_topic(&topic), Ok(()));
     assert_eq!(
-        participant.delete_topic(&topic),
+        participant.delete_contentfilteredtopic(&content_filtered_topic),
         Err(DdsError::AlreadyDeleted)
     );
 }

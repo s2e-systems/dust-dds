@@ -12,7 +12,9 @@ use crate::{
         },
         status_condition_actor::StatusConditionActor,
     },
-    dds_async::topic_description::TopicDescriptionAsync,
+    dds_async::{
+        content_filtered_topic::ContentFilteredTopicAsync, topic_description::TopicDescriptionAsync,
+    },
     domain::domain_participant_listener::DomainParticipantListener,
     infrastructure::{
         domain::DomainId,
@@ -272,7 +274,27 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         filter_expression: String,
         expression_parameters: &[String],
     ) -> DdsResult<TopicDescriptionAsync<R>> {
-        todo!()
+        let topic = match related_topic {
+            TopicDescriptionAsync::Topic(t) => t.clone(),
+            TopicDescriptionAsync::ContentFilteredTopic(_) => return Err(DdsError::BadParameter),
+        };
+        let name = name.to_string();
+        let related_topic_name = topic.get_name();
+        let (reply_sender, reply_receiver) = R::oneshot();
+        self.participant_address
+            .send(DomainParticipantMail::Participant(
+                ParticipantServiceMail::CreateContentFilteredTopic {
+                    participant_handle: topic.get_participant().handle,
+                    name: name.clone(),
+                    related_topic_name,
+                    reply_sender,
+                },
+            ))
+            .await?;
+        reply_receiver.receive().await??;
+        Ok(TopicDescriptionAsync::ContentFilteredTopic(
+            ContentFilteredTopicAsync::new(name.clone(), topic),
+        ))
     }
 
     /// Async version of [`delete_contentfilteredtopic`](crate::domain::domain_participant::DomainParticipant::delete_contentfilteredtopic).
@@ -281,7 +303,21 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         &self,
         a_contentfilteredtopic: &TopicDescriptionAsync<R>,
     ) -> DdsResult<()> {
-        todo!()
+        let topic = match a_contentfilteredtopic {
+            TopicDescriptionAsync::Topic(_) => return Err(DdsError::BadParameter),
+            TopicDescriptionAsync::ContentFilteredTopic(t) => t.clone(),
+        };
+        let (reply_sender, reply_receiver) = R::oneshot();
+        self.participant_address
+            .send(DomainParticipantMail::Participant(
+                ParticipantServiceMail::DeleteContentFilteredTopic {
+                    participant_handle: topic.get_participant().handle,
+                    name: topic.get_name(),
+                    reply_sender,
+                },
+            ))
+            .await?;
+        reply_receiver.receive().await?
     }
 
     /// Async version of [`find_topic`](crate::domain::domain_participant::DomainParticipant::find_topic).
