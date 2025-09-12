@@ -68,9 +68,9 @@ use crate::{
     runtime::{ChannelSend, Clock, DdsRuntime, OneshotReceive, Spawner, Timer},
     transport::{
         self,
-        history_cache::{CacheChange, HistoryCache},
+        interface::HistoryCache,
         types::{
-            ChangeKind, DurabilityKind, EntityId, Guid, ReliabilityKind, TopicKind,
+            CacheChange, ChangeKind, DurabilityKind, EntityId, Guid, ReliabilityKind, TopicKind,
             ENTITYID_UNKNOWN, USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_WITH_KEY,
             USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
         },
@@ -97,7 +97,7 @@ pub fn poll_timeout<T>(
     mut future: Pin<Box<dyn Future<Output = T> + Send>>,
 ) -> impl Future<Output = DdsResult<T>> {
     poll_fn(move |cx| {
-        let mut timeout = timer_handle.delay(duration);
+        let timeout = timer_handle.delay(duration);
         if let Poll::Ready(t) = pin!(&mut future).poll(cx) {
             return Poll::Ready(Ok(t));
         }
@@ -851,18 +851,15 @@ where
             fn add_change(
                 &mut self,
                 cache_change: CacheChange,
-            ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
-                let participant_address = self.domain_participant_address.clone();
-                let subscriber_handle = self.subscriber_handle;
-                let data_reader_handle = self.data_reader_handle;
+            ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
                 Box::pin(async move {
-                    participant_address
+                    self.domain_participant_address
                         .send(DomainParticipantMail::Message(
                             MessageServiceMail::AddCacheChange {
-                                participant_address: participant_address.clone(),
+                                participant_address: self.domain_participant_address.clone(),
                                 cache_change,
-                                subscriber_handle,
-                                data_reader_handle,
+                                subscriber_handle: self.subscriber_handle,
+                                data_reader_handle: self.data_reader_handle,
                             },
                         ))
                         .await
@@ -1569,7 +1566,7 @@ where
             .await
     }
 
-    #[tracing::instrument(skip(self, participant_address))]
+    //#[tracing::instrument(skip(self, participant_address))]
     pub fn wait_for_acknowledgments(
         &mut self,
         participant_address: R::ChannelSender<DomainParticipantMail<R>>,
@@ -1584,7 +1581,7 @@ where
                 timeout.into(),
                 Box::pin(async move {
                     loop {
-                        let (reply_sender, mut reply_receiver) = R::oneshot();
+                        let (reply_sender, reply_receiver) = R::oneshot();
                         participant_address
                             .send(DomainParticipantMail::Message(
                                 MessageServiceMail::AreAllChangesAcknowledged {
@@ -1876,7 +1873,7 @@ where
         Ok(status)
     }
 
-    #[tracing::instrument(skip(self, participant_address))]
+    //#[tracing::instrument(skip(self, participant_address))]
     pub fn wait_for_historical_data(
         &mut self,
         participant_address: R::ChannelSender<DomainParticipantMail<R>>,
@@ -1891,7 +1888,7 @@ where
                 max_wait.into(),
                 Box::pin(async move {
                     loop {
-                        let (reply_sender, mut reply_receiver) = R::oneshot();
+                        let (reply_sender, reply_receiver) = R::oneshot();
                         participant_address
                             .send(DomainParticipantMail::Message(
                                 MessageServiceMail::IsHistoricalDataReceived {
@@ -2535,7 +2532,7 @@ where
                             DurabilityQosPolicyKind::Persistent => DurabilityKind::Persistent,
                         };
 
-                    let reader_proxy = transport::writer::ReaderProxy {
+                    let reader_proxy = transport::types::ReaderProxy {
                         remote_reader_guid: discovered_reader_data.reader_proxy.remote_reader_guid,
                         remote_group_entity_id: discovered_reader_data
                             .reader_proxy
@@ -2918,7 +2915,7 @@ where
                         DurabilityQosPolicyKind::Transient => DurabilityKind::Transient,
                         DurabilityQosPolicyKind::Persistent => DurabilityKind::Persistent,
                     };
-                    let writer_proxy = transport::reader::WriterProxy {
+                    let writer_proxy = transport::types::WriterProxy {
                         remote_writer_guid: discovered_writer_data.writer_proxy.remote_writer_guid,
                         remote_group_entity_id: discovered_writer_data
                             .writer_proxy
@@ -3172,7 +3169,10 @@ where
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn add_builtin_participants_detector_cache_change(&mut self, cache_change: CacheChange) {
+    pub async fn add_builtin_participants_detector_cache_change(
+        &mut self,
+        cache_change: CacheChange,
+    ) {
         match cache_change.kind {
             ChangeKind::Alive => {
                 if let Ok(discovered_participant_data) =
@@ -3180,7 +3180,8 @@ where
                         cache_change.data_value.as_ref(),
                     )
                 {
-                    self.add_discovered_participant(discovered_participant_data);
+                    self.add_discovered_participant(discovered_participant_data)
+                        .await;
                 }
             }
             ChangeKind::NotAliveDisposed => {
@@ -4005,14 +4006,10 @@ where
     }
 
     #[tracing::instrument(skip(self))]
-    fn add_discovered_participant(
+    async fn add_discovered_participant(
         &mut self,
         discovered_participant_data: SpdpDiscoveredParticipantData,
     ) {
-        // pub fn add_discovered_participant(
-        //     &mut self,
-        //     discovered_participant_data: &SpdpDiscoveredParticipantData,
-        // ) {
         // Check that the domainId of the discovered participant equals the local one.
         // If it is not equal then there the local endpoints are not configured to
         // communicate with the discovered participant.
@@ -4043,6 +4040,8 @@ where
             self.add_matched_subscriptions_announcer(&discovered_participant_data);
             self.add_matched_topics_detector(&discovered_participant_data);
             self.add_matched_topics_announcer(&discovered_participant_data);
+
+            self.announce_participant().await;
         }
 
         self.domain_participant
@@ -4071,7 +4070,7 @@ where
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
             let expects_inline_qos = false;
-            let reader_proxy = transport::writer::ReaderProxy {
+            let reader_proxy = transport::types::ReaderProxy {
                 remote_reader_guid,
                 remote_group_entity_id,
                 reliability_kind: ReliabilityKind::Reliable,
@@ -4119,7 +4118,7 @@ where
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
 
-            let writer_proxy = transport::reader::WriterProxy {
+            let writer_proxy = transport::types::WriterProxy {
                 remote_writer_guid,
                 remote_group_entity_id,
                 unicast_locator_list: discovered_participant_data
@@ -4166,7 +4165,7 @@ where
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
             let expects_inline_qos = false;
-            let reader_proxy = transport::writer::ReaderProxy {
+            let reader_proxy = transport::types::ReaderProxy {
                 remote_reader_guid,
                 remote_group_entity_id,
                 reliability_kind: ReliabilityKind::Reliable,
@@ -4214,7 +4213,7 @@ where
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
 
-            let writer_proxy = transport::reader::WriterProxy {
+            let writer_proxy = transport::types::WriterProxy {
                 remote_writer_guid,
                 remote_group_entity_id,
                 reliability_kind: ReliabilityKind::Reliable,
@@ -4261,7 +4260,7 @@ where
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
             let expects_inline_qos = false;
-            let reader_proxy = transport::writer::ReaderProxy {
+            let reader_proxy = transport::types::ReaderProxy {
                 remote_reader_guid,
                 remote_group_entity_id,
                 reliability_kind: ReliabilityKind::Reliable,
@@ -4309,7 +4308,7 @@ where
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
 
-            let writer_proxy = transport::reader::WriterProxy {
+            let writer_proxy = transport::types::WriterProxy {
                 remote_writer_guid,
                 remote_group_entity_id,
                 reliability_kind: ReliabilityKind::Reliable,

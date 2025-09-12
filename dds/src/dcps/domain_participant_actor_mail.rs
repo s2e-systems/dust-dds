@@ -3,13 +3,11 @@ use crate::{
     builtin_topics::{
         ParticipantBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
         TopicBuiltinTopicData,
-    },
-    dcps::{
+    }, dcps::{
         actor::{Actor, ActorAddress, MailHandler},
         listeners::domain_participant_listener::ListenerMail,
         status_condition_actor::StatusConditionActor,
-    },
-    infrastructure::{
+    }, infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,
         qos::{
@@ -22,10 +20,7 @@ use crate::{
             StatusKind, SubscriptionMatchedStatus,
         },
         time::{Duration, Time},
-    },
-    runtime::{DdsRuntime, OneshotSend},
-    transport::history_cache::CacheChange,
-    xtypes::dynamic_type::DynamicType,
+    }, runtime::{DdsRuntime, OneshotSend}, transport::types::CacheChange, xtypes::dynamic_type::DynamicType
 };
 use alloc::{boxed::Box, string::String, sync::Arc, vec::Vec};
 use core::{future::Future, pin::Pin};
@@ -1192,6 +1187,7 @@ impl<R: DdsRuntime> DomainParticipantActor<R> {
                 .send(self.is_historical_data_received(subscriber_handle, data_reader_handle)),
             MessageServiceMail::AddBuiltinParticipantsDetectorCacheChange { cache_change } => {
                 self.add_builtin_participants_detector_cache_change(cache_change)
+                    .await
             }
             MessageServiceMail::AddBuiltinPublicationsDetectorCacheChange {
                 cache_change,

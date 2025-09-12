@@ -1,8 +1,6 @@
-use super::{
-    error::RtpsResult, message_receiver::MessageReceiver, message_sender::WriteMessage,
-    writer_proxy::RtpsWriterProxy,
-};
+use super::{error::RtpsResult, message_receiver::MessageReceiver, writer_proxy::RtpsWriterProxy};
 use crate::{
+    rtps::message_sender::WriteMessage,
     rtps_messages::{
         self,
         overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
@@ -12,9 +10,8 @@ use crate::{
         },
     },
     transport::{
-        history_cache::{CacheChange, HistoryCache},
-        reader::WriterProxy,
-        types::{Guid, GuidPrefix, ReliabilityKind},
+        interface::HistoryCache,
+        types::{CacheChange, Guid, GuidPrefix, ReliabilityKind, WriterProxy},
     },
 };
 use alloc::{boxed::Box, vec::Vec};
@@ -22,15 +19,21 @@ use alloc::{boxed::Box, vec::Vec};
 pub struct RtpsStatefulReader {
     guid: Guid,
     matched_writers: Vec<RtpsWriterProxy>,
+    reliability: ReliabilityKind,
     history_cache: Box<dyn HistoryCache>,
 }
 
 impl RtpsStatefulReader {
-    pub fn new(guid: Guid, history_cache: Box<dyn HistoryCache>) -> Self {
+    pub fn new(
+        guid: Guid,
+        history_cache: Box<dyn HistoryCache>,
+        reliability: ReliabilityKind,
+    ) -> Self {
         Self {
             guid,
             matched_writers: Vec::new(),
             history_cache,
+            reliability,
         }
     }
 
@@ -39,14 +42,6 @@ impl RtpsStatefulReader {
     }
 
     pub fn add_matched_writer(&mut self, writer_proxy: &WriterProxy) {
-        if self
-            .matched_writers
-            .iter()
-            .any(|wp| wp.remote_writer_guid() == writer_proxy.remote_writer_guid)
-        {
-            return;
-        }
-
         let rtps_writer_proxy = RtpsWriterProxy::new(
             writer_proxy.remote_writer_guid,
             &writer_proxy.unicast_locator_list,
@@ -54,7 +49,15 @@ impl RtpsStatefulReader {
             writer_proxy.remote_group_entity_id,
             writer_proxy.reliability_kind,
         );
-        self.matched_writers.push(rtps_writer_proxy);
+        if let Some(wp) = self
+            .matched_writers
+            .iter_mut()
+            .find(|wp| wp.remote_writer_guid() == writer_proxy.remote_writer_guid)
+        {
+            *wp = rtps_writer_proxy;
+        } else {
+            self.matched_writers.push(rtps_writer_proxy);
+        }
     }
 
     pub fn delete_matched_writer(&mut self, writer_guid: Guid) {
@@ -76,8 +79,9 @@ impl RtpsStatefulReader {
     ) {
         let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id());
         let sequence_number = data_submessage.writer_sn();
+        let reliability = self.reliability;
         if let Some(writer_proxy) = self.matched_writer_lookup(writer_guid) {
-            match writer_proxy.reliability() {
+            match reliability {
                 ReliabilityKind::BestEffort => {
                     let expected_seq_num = writer_proxy.available_changes_max() + 1;
                     if sequence_number >= expected_seq_num {
@@ -170,18 +174,14 @@ impl RtpsStatefulReader {
         {
             if writer_proxy.last_received_heartbeat_count() < heartbeat_submessage.count() {
                 writer_proxy.set_last_received_heartbeat_count(heartbeat_submessage.count());
-
-                writer_proxy.set_must_send_acknacks(
-                    !heartbeat_submessage.final_flag()
-                        || (!heartbeat_submessage.liveliness_flag()
-                            && !writer_proxy.missing_changes().count() == 0),
-                );
-
-                if !heartbeat_submessage.final_flag() {
-                    writer_proxy.set_must_send_acknacks(true);
-                }
                 writer_proxy.missing_changes_update(heartbeat_submessage.last_sn());
                 writer_proxy.lost_changes_update(heartbeat_submessage.first_sn());
+
+                let must_send_acknacks = !heartbeat_submessage.final_flag()
+                    || (!heartbeat_submessage.liveliness_flag()
+                        && writer_proxy.missing_changes().count() > 0);
+                writer_proxy.set_must_send_acknacks(must_send_acknacks);
+
                 writer_proxy.write_message(&self.guid, message_writer).await;
             }
         }

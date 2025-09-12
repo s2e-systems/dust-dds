@@ -1,3 +1,5 @@
+use super::error::RtpsError;
+use crate::xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize};
 use crate::{
     rtps_messages::{
         self,
@@ -5,17 +7,9 @@ use crate::{
         submessages::data::DataSubmessage,
         types::ParameterId,
     },
-    transport::{
-        history_cache::CacheChange,
-        types::{ChangeKind, EntityId, Guid, GuidPrefix},
-    },
+    transport::types::{CacheChange, ChangeKind, EntityId, Guid, GuidPrefix},
 };
-
-use super::error::RtpsError;
-
 use alloc::{sync::Arc, vec::Vec};
-
-use crate::xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize};
 
 pub const PID_KEY_HASH: ParameterId = 0x0070;
 pub const PID_STATUS_INFO: ParameterId = 0x0071;

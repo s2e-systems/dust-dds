@@ -1,5 +1,5 @@
-use core::future::Future;
 use super::infrastructure::{error::DdsResult, time::Time};
+use core::future::Future;
 
 /// Represents a clock that provides the current time.
 pub trait Clock {
@@ -39,7 +39,7 @@ pub trait OneshotReceive<T> {
     /// Receives a value from the one-shot channel.
     ///
     /// Returns a future that resolves to the received value or an error.
-    fn receive(&mut self) -> impl Future<Output = DdsResult<T>> + Send;
+    fn receive(self) -> impl Future<Output = DdsResult<T>> + Send;
 }
 
 /// Represents the sending half of a multiple-producer channel.

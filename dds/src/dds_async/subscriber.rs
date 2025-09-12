@@ -77,7 +77,7 @@ impl<R: DdsRuntime> SubscriberAsync<R> {
         let reader_status_condition_address = status_condition.address();
         let listener_sender = a_listener
             .map(|l| DataReaderListenerActor::spawn(l, self.participant.spawner_handle()));
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         self.participant_address()
             .send(DomainParticipantMail::Subscriber(
                 SubscriberServiceMail::CreateDataReader {
@@ -108,7 +108,7 @@ impl<R: DdsRuntime> SubscriberAsync<R> {
         &self,
         a_datareader: &DataReaderAsync<R, Foo>,
     ) -> DdsResult<()> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         self.participant_address()
             .send(DomainParticipantMail::Subscriber(
                 SubscriberServiceMail::DeleteDataReader {
@@ -128,7 +128,7 @@ impl<R: DdsRuntime> SubscriberAsync<R> {
         topic_name: &str,
     ) -> DdsResult<Option<DataReaderAsync<R, Foo>>> {
         if let Some(topic) = self.participant.lookup_topicdescription(topic_name).await? {
-            let (reply_sender, mut reply_receiver) = R::oneshot();
+            let (reply_sender, reply_receiver) = R::oneshot();
             self.participant_address()
                 .send(DomainParticipantMail::Subscriber(
                     SubscriberServiceMail::LookupDataReader {
@@ -182,7 +182,7 @@ impl<R: DdsRuntime> SubscriberAsync<R> {
     /// Async version of [`set_default_datareader_qos`](crate::subscription::subscriber::Subscriber::set_default_datareader_qos).
     #[tracing::instrument(skip(self))]
     pub async fn set_default_datareader_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         self.participant_address()
             .send(DomainParticipantMail::Subscriber(
                 SubscriberServiceMail::SetDefaultDataReaderQos {
@@ -199,7 +199,7 @@ impl<R: DdsRuntime> SubscriberAsync<R> {
     /// Async version of [`get_default_datareader_qos`](crate::subscription::subscriber::Subscriber::get_default_datareader_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_default_datareader_qos(&self) -> DdsResult<DataReaderQos> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         self.participant_address()
             .send(DomainParticipantMail::Subscriber(
                 SubscriberServiceMail::GetDefaultDataReaderQos {
@@ -223,7 +223,7 @@ impl<R: DdsRuntime> SubscriberAsync<R> {
     /// Async version of [`set_qos`](crate::subscription::subscriber::Subscriber::set_qos).
     #[tracing::instrument(skip(self))]
     pub async fn set_qos(&self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         self.participant_address()
             .send(DomainParticipantMail::Subscriber(
                 SubscriberServiceMail::SetQos {
@@ -239,7 +239,7 @@ impl<R: DdsRuntime> SubscriberAsync<R> {
     /// Async version of [`get_qos`](crate::subscription::subscriber::Subscriber::get_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_qos(&self) -> DdsResult<SubscriberQos> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         self.participant_address()
             .send(DomainParticipantMail::Subscriber(
                 SubscriberServiceMail::GetSubscriberQos {
@@ -258,7 +258,7 @@ impl<R: DdsRuntime> SubscriberAsync<R> {
         a_listener: Option<impl SubscriberListener<R> + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         let listener_sender = a_listener
             .map(|l| SubscriberListenerActor::spawn(l, self.participant.spawner_handle()));
         self.participant_address()

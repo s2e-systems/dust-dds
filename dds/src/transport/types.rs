@@ -1,3 +1,4 @@
+use alloc::{sync::Arc, vec::Vec};
 use dust_dds_derive::{XTypesDeserialize, XTypesSerialize};
 
 pub type Octet = u8;
@@ -286,4 +287,35 @@ impl Time {
     pub const fn nanosec(&self) -> u32 {
         self.nanosec
     }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct WriterProxy {
+    pub remote_writer_guid: Guid,
+    pub remote_group_entity_id: EntityId,
+    pub reliability_kind: ReliabilityKind,
+    pub durability_kind: DurabilityKind,
+    pub unicast_locator_list: Vec<Locator>,
+    pub multicast_locator_list: Vec<Locator>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CacheChange {
+    pub kind: ChangeKind,
+    pub writer_guid: Guid,
+    pub sequence_number: i64,
+    pub source_timestamp: Option<Time>,
+    pub instance_handle: Option<[u8; 16]>,
+    pub data_value: Arc<[u8]>,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct ReaderProxy {
+    pub remote_reader_guid: Guid,
+    pub remote_group_entity_id: EntityId,
+    pub reliability_kind: ReliabilityKind,
+    pub durability_kind: DurabilityKind,
+    pub unicast_locator_list: Vec<Locator>,
+    pub multicast_locator_list: Vec<Locator>,
+    pub expects_inline_qos: bool,
 }

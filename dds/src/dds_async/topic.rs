@@ -60,7 +60,7 @@ impl<R: DdsRuntime> TopicAsync<R> {
     /// Async version of [`get_inconsistent_topic_status`](crate::topic_definition::topic::Topic::get_inconsistent_topic_status).
     #[tracing::instrument(skip(self))]
     pub async fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         self.participant
             .participant_address()
             .send(DomainParticipantMail::Topic(
@@ -98,7 +98,7 @@ impl<R: DdsRuntime> TopicAsync<R> {
     /// Async version of [`set_qos`](crate::topic_definition::topic::Topic::set_qos).
     #[tracing::instrument(skip(self))]
     pub async fn set_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         self.participant
             .participant_address()
             .send(DomainParticipantMail::Topic(TopicServiceMail::SetQos {
@@ -114,7 +114,7 @@ impl<R: DdsRuntime> TopicAsync<R> {
     /// Async version of [`get_qos`](crate::topic_definition::topic::Topic::get_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_qos(&self) -> DdsResult<TopicQos> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         self.participant
             .participant_address()
             .send(DomainParticipantMail::Topic(TopicServiceMail::GetQos {
@@ -144,7 +144,7 @@ impl<R: DdsRuntime> TopicAsync<R> {
     /// Async version of [`enable`](crate::topic_definition::topic::Topic::enable).
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         self.participant
             .participant_address()
             .send(DomainParticipantMail::Topic(TopicServiceMail::Enable {
@@ -176,7 +176,7 @@ impl<R: DdsRuntime> TopicAsync<R> {
     #[doc(hidden)]
     #[tracing::instrument(skip(self))]
     pub async fn get_type_support(&self) -> DdsResult<Arc<dyn DynamicType + Send + Sync>> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         self.participant
             .participant_address()
             .send(DomainParticipantMail::Topic(
