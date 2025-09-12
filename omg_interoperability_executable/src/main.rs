@@ -166,28 +166,28 @@ struct Options {
 
     /// apply 'time based filter' with interval in ms [0: OFF]
     #[clap(short = 'i', long = "time-filter")]
-    timebasedfilter_interval: i32,
+    time_filter: Option<i32>,
 
     /// indicates the lifespan of a sample in ms
     #[clap(short = 'l', long = "lifespan")]
-    lifespan: i32,
+    lifespan: Option<i32>,
 
     /// indicates the number of iterations of the main loop
     /// After that, the application will exit. Default (0): infinite
     #[clap(short = 'n', long = "num-iterations")]
-    num_iterations: i32,
+    num_iterations: Option<i32>,
 
     /// indicates the number of instances a DataWriter writes If the value is > 1, the additional instances are
     /// created by appending a number. For example, if the original color is "BLUE" the instances used are
     /// "BLUE", "BLUE1", "BLUE2"...
     #[clap(short = 'I', long = "num-instances")]
-    num_instances: i32,
+    num_instances: Option<i32>,
 
     /// indicates the number of topics created (using the same type). This also creates a DataReader or DataWriter per
     /// topic. If the value is > 1, the additional topic names are created by appending a number: For example, if the
     /// original topic name is "Square", the topics created are "Square", "Square1", "Square2"...
     #[clap(short = 'E', long = "num-topics")]
-    num_topics: i32,
+    num_topics: Option<i32>,
 
     /// indicates the action performed after the DataWriter finishes its execution (before deleting it):
     #[clap(short = 'M', long = "final-instance-state")]
@@ -207,11 +207,11 @@ struct Options {
 
     /// amount of samples sent for each DataWriter and instance that are grouped in a coherent set
     #[clap(short = 'H', long = "coherent-sample-count")]
-    coherent_sample_count: i32,
+    coherent_sample_count: Option<i32>,
 
     /// indicates the amount of bytes added to the samples written (for example to use large data)
     #[clap(short = 'B', long = "additional-payload-size")]
-    additional_payload_size: i32,
+    additional_payload_size: Option<i32>,
 
     /// uses take()/read() instead of take_next_instance() read_next_instance()
     #[clap(short = 'K', long = "take-read")]
