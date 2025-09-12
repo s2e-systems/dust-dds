@@ -2436,7 +2436,7 @@ where
             .iter()
             .any(|n| publisher.qos().partition.name.contains(n));
 
-        let is_any_received_regex_matched_with_partition_qos = true;
+        let is_any_received_regex_matched_with_partition_qos = false;
         // discovered_reader_data
         //     .dds_subscription_data
         //     .partition
@@ -2452,7 +2452,7 @@ where
         //             .any(|n| regex.is_match(n))
         //     });
 
-        let is_any_local_regex_matched_with_received_partition_qos = true;
+        let is_any_local_regex_matched_with_received_partition_qos = false;
         // publisher
         //     .qos()
         //     .partition
