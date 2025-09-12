@@ -74,6 +74,17 @@ enum FinalInstanceState {
     D,
 }
 
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+#[clap(rename_all = "kebab_case")]
+enum AccessScope {
+    /// INSTANCE
+    I,
+    /// TOPIC
+    T,
+    /// GROUP
+    G,
+}
+
 #[derive(Parser, Clone)]
 #[command(author, version, about, long_about = None)]
 struct Options {
@@ -154,52 +165,52 @@ struct Options {
     log_message_verbosity: char,
 
     /// apply 'time based filter' with interval in ms [0: OFF]
-    #[clap(short = 'i', long = "time-filter", default_value_t = 0)]
+    #[clap(short = 'i', long = "time-filter")]
     timebasedfilter_interval: i32,
 
     /// indicates the lifespan of a sample in ms
-    #[clap(short = 'l', long = "lifespan", default_value_t = 0)]
+    #[clap(short = 'l', long = "lifespan")]
     lifespan: i32,
 
     /// indicates the number of iterations of the main loop
     /// After that, the application will exit. Default (0): infinite
-    #[clap(short = 'n', long = "num-iterations", default_value_t = 0)]
+    #[clap(short = 'n', long = "num-iterations")]
     num_iterations: i32,
 
     /// indicates the number of instances a DataWriter writes If the value is > 1, the additional instances are
     /// created by appending a number. For example, if the original color is "BLUE" the instances used are
     /// "BLUE", "BLUE1", "BLUE2"...
-    #[clap(short = 'I', long = "num-instances", default_value_t = 1)]
+    #[clap(short = 'I', long = "num-instances")]
     num_instances: i32,
 
     /// indicates the number of topics created (using the same type). This also creates a DataReader or DataWriter per
     /// topic. If the value is > 1, the additional topic names are created by appending a number: For example, if the
     /// original topic name is "Square", the topics created are "Square", "Square1", "Square2"...
-    #[clap(short = 'E', long = "num-topics", default_value_t = 1)]
+    #[clap(short = 'E', long = "num-topics")]
     num_topics: i32,
 
     /// indicates the action performed after the DataWriter finishes its execution (before deleting it):
-    #[clap(short = 'M', long = "final-instance-state", default_value = None)]
+    #[clap(short = 'M', long = "final-instance-state")]
     final_instance_state: Option<FinalInstanceState>,
 
-    /// sets Presentation.access_scope to INSTANCE, TOPIC or GROUP
-    #[clap(short = 'C', long = "access-scope", default_value = None)]
-    access_scope: char,
+    /// sets Presentation.access_scope
+    #[clap(short = 'C', long = "access-scope")]
+    access_scope: Option<AccessScope>,
 
     /// sets Presentation.coherent_access = true
-    #[clap(short = 'T', long = "coherent", default_value_t = false)]
+    #[clap(short = 'T', long = "coherent")]
     coherent: bool,
 
     /// sets Presentation.ordered_access = true
-    #[clap(short = 'O', long = "ordered", default_value_t = false)]
+    #[clap(short = 'O', long = "ordered")]
     ordered: bool,
 
     /// amount of samples sent for each DataWriter and instance that are grouped in a coherent set
-    #[clap(short = 'H', long = "coherent-sample-count", default_value_t = 0)]
+    #[clap(short = 'H', long = "coherent-sample-count")]
     coherent_sample_count: i32,
 
     /// indicates the amount of bytes added to the samples written (for example to use large data)
-    #[clap(short = 'B', long = "additional-payload-size", default_value_t = 0)]
+    #[clap(short = 'B', long = "additional-payload-size")]
     additional_payload_size: i32,
 
     /// uses take()/read() instead of take_next_instance() read_next_instance()
