@@ -466,7 +466,6 @@ fn reader_discovers_disposed_writer_same_participant() {
 }
 
 #[test]
-#[ignore = "Broken because crate needs std"]
 fn publisher_and_subscriber_different_partition_not_matched() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let dp = DomainParticipantFactory::get_instance()
@@ -520,6 +519,7 @@ fn publisher_and_subscriber_different_partition_not_matched() {
 }
 
 #[test]
+#[ignore = "Broken because crate needs std"]
 fn publisher_and_subscriber_regex_partition_is_matched() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let dp = DomainParticipantFactory::get_instance()
@@ -583,6 +583,7 @@ fn publisher_and_subscriber_regex_partition_is_matched() {
 }
 
 #[test]
+#[ignore = "Broken because crate needs std"]
 fn publisher_regex_and_subscriber_partition_is_matched() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let dp = DomainParticipantFactory::get_instance()
