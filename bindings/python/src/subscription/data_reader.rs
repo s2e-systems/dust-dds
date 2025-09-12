@@ -122,7 +122,7 @@ impl DataReader {
                 })
                 .collect()),
             Err(dust_dds::infrastructure::error::DdsError::NoData) => Ok(Vec::new()),
-            Err(e) => Err(PyTypeError::new_err(format!("{:?}", e))),
+            Err(e) => Err(PyTypeError::new_err(format!("{e:?}"))),
         }
     }
 
@@ -165,7 +165,7 @@ impl DataReader {
                 })
                 .collect()),
             Err(dust_dds::infrastructure::error::DdsError::NoData) => Ok(Vec::new()),
-            Err(e) => Err(PyTypeError::new_err(format!("{:?}", e))),
+            Err(e) => Err(PyTypeError::new_err(format!("{e:?}"))),
         }
     }
 
@@ -177,7 +177,7 @@ impl DataReader {
                 sample: s,
                 type_: type_.clone(),
             }),
-            Err(e) => Err(PyTypeError::new_err(format!("{:?}", e))),
+            Err(e) => Err(PyTypeError::new_err(format!("{e:?}"))),
         }
     }
 
@@ -189,7 +189,7 @@ impl DataReader {
                 sample: s,
                 type_: type_.clone(),
             }),
-            Err(e) => Err(PyTypeError::new_err(format!("{:?}", e))),
+            Err(e) => Err(PyTypeError::new_err(format!("{e:?}"))),
         }
     }
 
@@ -237,7 +237,7 @@ impl DataReader {
                 })
                 .collect()),
             Err(dust_dds::infrastructure::error::DdsError::NoData) => Ok(Vec::new()),
-            Err(e) => Err(PyTypeError::new_err(format!("{:?}", e))),
+            Err(e) => Err(PyTypeError::new_err(format!("{e:?}"))),
         }
     }
 
@@ -285,7 +285,7 @@ impl DataReader {
                 })
                 .collect()),
             Err(dust_dds::infrastructure::error::DdsError::NoData) => Ok(Vec::new()),
-            Err(e) => Err(PyTypeError::new_err(format!("{:?}", e))),
+            Err(e) => Err(PyTypeError::new_err(format!("{e:?}"))),
         }
     }
 
@@ -333,7 +333,7 @@ impl DataReader {
                 })
                 .collect()),
             Err(dust_dds::infrastructure::error::DdsError::NoData) => Ok(Vec::new()),
-            Err(e) => Err(PyTypeError::new_err(format!("{:?}", e))),
+            Err(e) => Err(PyTypeError::new_err(format!("{e:?}"))),
         }
     }
 
@@ -381,7 +381,7 @@ impl DataReader {
                 })
                 .collect()),
             Err(dust_dds::infrastructure::error::DdsError::NoData) => Ok(Vec::new()),
-            Err(e) => Err(PyTypeError::new_err(format!("{:?}", e))),
+            Err(e) => Err(PyTypeError::new_err(format!("{e:?}"))),
         }
     }
 

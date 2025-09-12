@@ -18,6 +18,7 @@ use crate::{
         status::StatusKind,
     },
     runtime::DdsRuntime,
+    transport::interface::TransportParticipantFactory,
 };
 use alloc::{string::String, vec::Vec};
 
@@ -33,16 +34,16 @@ pub const BUILT_IN_TOPIC_NAME_LIST: [&str; 4] = [
     DCPS_SUBSCRIPTION,
 ];
 
-pub struct DomainParticipantEntity<R: DdsRuntime> {
+pub struct DomainParticipantEntity<R: DdsRuntime, T: TransportParticipantFactory> {
     domain_id: DomainId,
     domain_tag: String,
     instance_handle: InstanceHandle,
     qos: DomainParticipantQos,
-    builtin_subscriber: SubscriberEntity<R>,
-    builtin_publisher: PublisherEntity<R>,
-    user_defined_subscriber_list: Vec<SubscriberEntity<R>>,
+    builtin_subscriber: SubscriberEntity<R, T>,
+    builtin_publisher: PublisherEntity<R, T>,
+    user_defined_subscriber_list: Vec<SubscriberEntity<R, T>>,
     default_subscriber_qos: SubscriberQos,
-    user_defined_publisher_list: Vec<PublisherEntity<R>>,
+    user_defined_publisher_list: Vec<PublisherEntity<R, T>>,
     default_publisher_qos: PublisherQos,
     topic_list: Vec<TopicEntity<R>>,
     default_topic_qos: TopicQos,
@@ -59,7 +60,7 @@ pub struct DomainParticipantEntity<R: DdsRuntime> {
     listener_mask: Vec<StatusKind>,
 }
 
-impl<R: DdsRuntime> DomainParticipantEntity<R> {
+impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantEntity<R, T> {
     #[allow(clippy::too_many_arguments)]
     pub const fn new(
         domain_id: DomainId,
@@ -67,8 +68,8 @@ impl<R: DdsRuntime> DomainParticipantEntity<R> {
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         listener_mask: Vec<StatusKind>,
         instance_handle: InstanceHandle,
-        builtin_publisher: PublisherEntity<R>,
-        builtin_subscriber: SubscriberEntity<R>,
+        builtin_publisher: PublisherEntity<R, T>,
+        builtin_subscriber: SubscriberEntity<R, T>,
         topic_list: Vec<TopicEntity<R>>,
         domain_tag: String,
     ) -> Self {
@@ -107,7 +108,7 @@ impl<R: DdsRuntime> DomainParticipantEntity<R> {
         self.instance_handle
     }
 
-    pub fn builtin_subscriber(&self) -> &SubscriberEntity<R> {
+    pub fn builtin_subscriber(&self) -> &SubscriberEntity<R, T> {
         &self.builtin_subscriber
     }
 
@@ -139,11 +140,11 @@ impl<R: DdsRuntime> DomainParticipantEntity<R> {
         self.enabled
     }
 
-    pub fn builtin_subscriber_mut(&mut self) -> &mut SubscriberEntity<R> {
+    pub fn builtin_subscriber_mut(&mut self) -> &mut SubscriberEntity<R, T> {
         &mut self.builtin_subscriber
     }
 
-    pub fn builtin_publisher_mut(&mut self) -> &mut PublisherEntity<R> {
+    pub fn builtin_publisher_mut(&mut self) -> &mut PublisherEntity<R, T> {
         &mut self.builtin_publisher
     }
 
@@ -285,7 +286,7 @@ impl<R: DdsRuntime> DomainParticipantEntity<R> {
         self.default_publisher_qos = default_publisher_qos;
     }
 
-    pub fn get_subscriber(&self, handle: InstanceHandle) -> Option<&SubscriberEntity<R>> {
+    pub fn get_subscriber(&self, handle: InstanceHandle) -> Option<&SubscriberEntity<R, T>> {
         self.user_defined_subscriber_list
             .iter()
             .find(|x| x.instance_handle() == handle)
@@ -294,17 +295,17 @@ impl<R: DdsRuntime> DomainParticipantEntity<R> {
     pub fn get_mut_subscriber(
         &mut self,
         handle: InstanceHandle,
-    ) -> Option<&mut SubscriberEntity<R>> {
+    ) -> Option<&mut SubscriberEntity<R, T>> {
         self.user_defined_subscriber_list
             .iter_mut()
             .find(|x| x.instance_handle() == handle)
     }
 
-    pub fn insert_subscriber(&mut self, subscriber: SubscriberEntity<R>) {
+    pub fn insert_subscriber(&mut self, subscriber: SubscriberEntity<R, T>) {
         self.user_defined_subscriber_list.push(subscriber);
     }
 
-    pub fn remove_subscriber(&mut self, handle: &InstanceHandle) -> Option<SubscriberEntity<R>> {
+    pub fn remove_subscriber(&mut self, handle: &InstanceHandle) -> Option<SubscriberEntity<R, T>> {
         let i = self
             .user_defined_subscriber_list
             .iter()
@@ -313,31 +314,34 @@ impl<R: DdsRuntime> DomainParticipantEntity<R> {
         Some(self.user_defined_subscriber_list.remove(i))
     }
 
-    pub fn subscriber_list(&mut self) -> impl Iterator<Item = &SubscriberEntity<R>> {
+    pub fn subscriber_list(&mut self) -> impl Iterator<Item = &SubscriberEntity<R, T>> {
         self.user_defined_subscriber_list.iter()
     }
 
-    pub fn drain_subscriber_list(&mut self) -> impl Iterator<Item = SubscriberEntity<R>> + '_ {
+    pub fn drain_subscriber_list(&mut self) -> impl Iterator<Item = SubscriberEntity<R, T>> + '_ {
         self.user_defined_subscriber_list.drain(..)
     }
 
-    pub fn get_publisher(&self, handle: InstanceHandle) -> Option<&PublisherEntity<R>> {
+    pub fn get_publisher(&self, handle: InstanceHandle) -> Option<&PublisherEntity<R, T>> {
         self.user_defined_publisher_list
             .iter()
             .find(|x| x.instance_handle() == handle)
     }
 
-    pub fn get_mut_publisher(&mut self, handle: InstanceHandle) -> Option<&mut PublisherEntity<R>> {
+    pub fn get_mut_publisher(
+        &mut self,
+        handle: InstanceHandle,
+    ) -> Option<&mut PublisherEntity<R, T>> {
         self.user_defined_publisher_list
             .iter_mut()
             .find(|x| x.instance_handle() == handle)
     }
 
-    pub fn insert_publisher(&mut self, publisher: PublisherEntity<R>) {
+    pub fn insert_publisher(&mut self, publisher: PublisherEntity<R, T>) {
         self.user_defined_publisher_list.push(publisher);
     }
 
-    pub fn remove_publisher(&mut self, handle: &InstanceHandle) -> Option<PublisherEntity<R>> {
+    pub fn remove_publisher(&mut self, handle: &InstanceHandle) -> Option<PublisherEntity<R, T>> {
         let i = self
             .user_defined_publisher_list
             .iter()
@@ -346,15 +350,15 @@ impl<R: DdsRuntime> DomainParticipantEntity<R> {
         Some(self.user_defined_publisher_list.remove(i))
     }
 
-    pub fn drain_publisher_list(&mut self) -> impl Iterator<Item = PublisherEntity<R>> + '_ {
+    pub fn drain_publisher_list(&mut self) -> impl Iterator<Item = PublisherEntity<R, T>> + '_ {
         self.user_defined_publisher_list.drain(..)
     }
 
-    pub fn publisher_list(&mut self) -> impl Iterator<Item = &PublisherEntity<R>> {
+    pub fn publisher_list(&mut self) -> impl Iterator<Item = &PublisherEntity<R, T>> {
         self.user_defined_publisher_list.iter()
     }
 
-    pub fn publisher_list_mut(&mut self) -> impl Iterator<Item = &mut PublisherEntity<R>> {
+    pub fn publisher_list_mut(&mut self) -> impl Iterator<Item = &mut PublisherEntity<R, T>> {
         self.user_defined_publisher_list.iter_mut()
     }
 

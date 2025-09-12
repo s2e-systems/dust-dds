@@ -7,6 +7,7 @@ use crate::{
         status::StatusKind,
     },
     runtime::DdsRuntime,
+    transport::interface::TransportParticipantFactory,
 };
 use alloc::vec::Vec;
 
@@ -15,10 +16,10 @@ use super::{
     status_condition_actor::StatusConditionActor,
 };
 
-pub struct SubscriberEntity<R: DdsRuntime> {
+pub struct SubscriberEntity<R: DdsRuntime, T: TransportParticipantFactory> {
     instance_handle: InstanceHandle,
     qos: SubscriberQos,
-    data_reader_list: Vec<DataReaderEntity<R>>,
+    data_reader_list: Vec<DataReaderEntity<R, T>>,
     enabled: bool,
     default_data_reader_qos: DataReaderQos,
     status_condition: Actor<R, StatusConditionActor<R>>,
@@ -26,11 +27,11 @@ pub struct SubscriberEntity<R: DdsRuntime> {
     listener_mask: Vec<StatusKind>,
 }
 
-impl<R: DdsRuntime> SubscriberEntity<R> {
+impl<R: DdsRuntime, T: TransportParticipantFactory> SubscriberEntity<R, T> {
     pub const fn new(
         instance_handle: InstanceHandle,
         qos: SubscriberQos,
-        data_reader_list: Vec<DataReaderEntity<R>>,
+        data_reader_list: Vec<DataReaderEntity<R, T>>,
         status_condition: Actor<R, StatusConditionActor<R>>,
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         listener_mask: Vec<StatusKind>,
@@ -47,23 +48,23 @@ impl<R: DdsRuntime> SubscriberEntity<R> {
         }
     }
 
-    pub fn data_reader_list(&self) -> impl Iterator<Item = &DataReaderEntity<R>> {
+    pub fn data_reader_list(&self) -> impl Iterator<Item = &DataReaderEntity<R, T>> {
         self.data_reader_list.iter()
     }
 
-    pub fn data_reader_list_mut(&mut self) -> impl Iterator<Item = &mut DataReaderEntity<R>> {
+    pub fn data_reader_list_mut(&mut self) -> impl Iterator<Item = &mut DataReaderEntity<R, T>> {
         self.data_reader_list.iter_mut()
     }
 
-    pub fn drain_data_reader_list(&mut self) -> impl Iterator<Item = DataReaderEntity<R>> + '_ {
+    pub fn drain_data_reader_list(&mut self) -> impl Iterator<Item = DataReaderEntity<R, T>> + '_ {
         self.data_reader_list.drain(..)
     }
 
-    pub fn insert_data_reader(&mut self, data_reader: DataReaderEntity<R>) {
+    pub fn insert_data_reader(&mut self, data_reader: DataReaderEntity<R, T>) {
         self.data_reader_list.push(data_reader);
     }
 
-    pub fn remove_data_reader(&mut self, handle: InstanceHandle) -> Option<DataReaderEntity<R>> {
+    pub fn remove_data_reader(&mut self, handle: InstanceHandle) -> Option<DataReaderEntity<R, T>> {
         let index = self
             .data_reader_list
             .iter()
@@ -71,7 +72,7 @@ impl<R: DdsRuntime> SubscriberEntity<R> {
         Some(self.data_reader_list.remove(index))
     }
 
-    pub fn get_data_reader(&self, handle: InstanceHandle) -> Option<&DataReaderEntity<R>> {
+    pub fn get_data_reader(&self, handle: InstanceHandle) -> Option<&DataReaderEntity<R, T>> {
         self.data_reader_list
             .iter()
             .find(|x| x.instance_handle() == handle)
@@ -80,7 +81,7 @@ impl<R: DdsRuntime> SubscriberEntity<R> {
     pub fn get_mut_data_reader(
         &mut self,
         handle: InstanceHandle,
-    ) -> Option<&mut DataReaderEntity<R>> {
+    ) -> Option<&mut DataReaderEntity<R, T>> {
         self.data_reader_list
             .iter_mut()
             .find(|x| x.instance_handle() == handle)
