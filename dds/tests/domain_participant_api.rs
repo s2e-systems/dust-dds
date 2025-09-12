@@ -20,6 +20,7 @@ use dust_dds::{
         type_support::DdsType,
     },
     listener::NO_LISTENER,
+    topic_definition::topic_description::TopicDescription,
     wait_set::{Condition, WaitSet},
 };
 
@@ -89,7 +90,6 @@ fn create_delete_topic() {
         .unwrap();
 
     assert_eq!(participant.delete_topic(&topic), Ok(()));
-    assert_eq!(topic.get_qos(), Err(DdsError::AlreadyDeleted));
     assert_eq!(
         participant.delete_topic(&topic),
         Err(DdsError::AlreadyDeleted)
@@ -508,7 +508,12 @@ fn default_topic_qos() {
             .value,
         &topic_data
     );
-    assert_eq!(&topic.get_qos().unwrap().topic_data.value, &topic_data);
+    match &topic {
+        TopicDescription::Topic(topic) => {
+            assert_eq!(&topic.get_qos().unwrap().topic_data.value, &topic_data)
+        }
+        TopicDescription::ContentFilteredTopic(_) => unreachable!(),
+    }
 }
 
 #[test]
@@ -945,7 +950,6 @@ fn create_delete_content_filtered_topic() {
         Ok(())
     );
     assert_eq!(participant.delete_topic(&topic), Ok(()));
-    assert_eq!(topic.get_qos(), Err(DdsError::AlreadyDeleted));
     assert_eq!(
         participant.delete_topic(&topic),
         Err(DdsError::AlreadyDeleted)

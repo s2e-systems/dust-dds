@@ -1902,7 +1902,10 @@ fn inconsistent_topic_status_condition() {
         )
         .unwrap();
 
-    let status_cond = topic_best_effort.get_statuscondition();
+    let status_cond = match &topic_best_effort {
+        TopicDescription::Topic(topic) => topic.get_statuscondition(),
+        TopicDescription::ContentFilteredTopic(_) => unreachable!(),
+    };
     status_cond
         .set_enabled_statuses(&[StatusKind::InconsistentTopic])
         .unwrap();
@@ -1939,6 +1942,7 @@ fn inconsistent_topic_status_condition() {
         TopicDescription::Topic(topic) => {
             assert!(topic.get_inconsistent_topic_status().unwrap().total_count > 0)
         }
+        TopicDescription::ContentFilteredTopic(_) => unreachable!(),
     }
 }
 

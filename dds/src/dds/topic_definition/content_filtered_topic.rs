@@ -1,5 +1,6 @@
 use crate::{
-    dds_async::content_filtered_topic::ContentFilteredTopicAsync, infrastructure::error::DdsResult,
+    dds_async::content_filtered_topic::ContentFilteredTopicAsync,
+    domain::domain_participant::DomainParticipant, infrastructure::error::DdsResult,
     runtime::DdsRuntime, topic_definition::topic::Topic,
 };
 
@@ -24,6 +25,12 @@ impl<R: DdsRuntime> From<ContentFilteredTopicAsync<R>> for ContentFilteredTopic<
     }
 }
 
+impl<R: DdsRuntime> From<ContentFilteredTopic<R>> for ContentFilteredTopicAsync<R> {
+    fn from(value: ContentFilteredTopic<R>) -> Self {
+        value.topic
+    }
+}
+
 impl<R: DdsRuntime> ContentFilteredTopic<R> {
     /// This operation returns the [`Topic`] associated with the ContentFilteredTopic. That is, the
     /// [`Topic`] specified when the [`ContentFilteredTopic`] was created.
@@ -41,5 +48,26 @@ impl<R: DdsRuntime> ContentFilteredTopic<R> {
     /// This operation changes the expression_parameters associated with the  [`ContentFilteredTopic`].
     pub fn set_expression_parameters(&self, expression_parameters: &[String]) -> DdsResult<()> {
         R::block_on(self.topic.set_expression_parameters(expression_parameters))
+    }
+}
+
+/// This implementation block represents the TopicDescription operations for the [`Topic`].
+impl<R: DdsRuntime> ContentFilteredTopic<R> {
+    /// This operation returns the [`DomainParticipant`] to which the [`Topic`] belongs.
+    #[tracing::instrument(skip(self))]
+    pub fn get_participant(&self) -> DomainParticipant<R> {
+        DomainParticipant::new(self.topic.get_participant())
+    }
+
+    /// The name of the type used to create the [`Topic`]
+    #[tracing::instrument(skip(self))]
+    pub fn get_type_name(&self) -> String {
+        self.topic.get_type_name()
+    }
+
+    /// The name used to create the [`Topic`]
+    #[tracing::instrument(skip(self))]
+    pub fn get_name(&self) -> String {
+        self.topic.get_name()
     }
 }
