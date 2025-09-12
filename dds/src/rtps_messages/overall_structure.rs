@@ -376,7 +376,7 @@ impl TryFrom<&[u8]> for RtpsMessageRead {
                     }
                     if let Ok(submessage_header) = SubmessageHeaderRead::try_read_from_bytes(&mut v)
                     {
-                        let submessage_length = submessage_header.submessage_length() as usize;
+                        let mut submessage_length = submessage_header.submessage_length() as usize;
                         if v.len() < submessage_length {
                             break;
                         }
@@ -416,11 +416,21 @@ impl TryFrom<&[u8]> for RtpsMessageRead {
                             _ => Err(RtpsMessageError::UnknownMessage),
                         };
                         if let Ok(submessage) = submessage {
+
+                            // DATA and DATA_FRAG submessages can have a length of 0 meaning use everything until the end
+                            // of the buffer
+                            if submessage_length == 0
+                                && (matches!(
+                                    submessage,
+                                    RtpsSubmessageReadKind::Data(_)
+                                        | RtpsSubmessageReadKind::DataFrag(_)
+                                ))
+                            {
+                                submessage_length = v.len();
+                            }
                             submessages.push(submessage);
                         }
-                        if submessage_length == 0 {
-                            break;
-                        }
+
                         v.consume(submessage_length);
                     }
                 }
