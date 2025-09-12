@@ -263,6 +263,27 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         reply_receiver.receive().await?
     }
 
+    /// Async version of [`create_contentfilteredtopic`](crate::domain::domain_participant::DomainParticipant::create_contentfilteredtopic).
+    #[tracing::instrument(skip(self, related_topic))]
+    pub async fn create_contentfilteredtopic(
+        &self,
+        name: &str,
+        related_topic: &TopicDescriptionAsync<R>,
+        filter_expression: String,
+        expression_parameters: &[String],
+    ) -> DdsResult<TopicDescriptionAsync<R>> {
+        todo!()
+    }
+
+    /// Async version of [`delete_contentfilteredtopic`](crate::domain::domain_participant::DomainParticipant::delete_contentfilteredtopic).
+    #[tracing::instrument(skip(self, a_contentfilteredtopic))]
+    pub async fn delete_contentfilteredtopic(
+        &self,
+        a_contentfilteredtopic: &TopicDescriptionAsync<R>,
+    ) -> DdsResult<()> {
+        todo!()
+    }
+
     /// Async version of [`find_topic`](crate::domain::domain_participant::DomainParticipant::find_topic).
     #[tracing::instrument(skip(self))]
     pub async fn find_topic<Foo>(
@@ -344,18 +365,6 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
             Ok(None)
         }
     }
-
-    // /// Async version of [`create_contentfilteredtopic`](crate::domain::domain_participant::DomainParticipant::create_contentfilteredtopic).
-    // #[tracing::instrument(skip(self, related_topic))]
-    // pub fn create_contentfilteredtopic(
-    //     &self,
-    //     name: &str,
-    //     related_topic: TopicAsync<R>,
-    //     filter_expression: String,
-    //     expression_parameters: &[String],
-    // ) -> DdsResult<TopicDescriptionAsync<R>> {
-    //     todo!()
-    // }
 
     /// Async version of [`get_builtin_subscriber`](crate::domain::domain_participant::DomainParticipant::get_builtin_subscriber).
     #[tracing::instrument(skip(self))]

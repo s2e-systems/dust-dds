@@ -916,3 +916,38 @@ fn ignore_participant() {
     // Participant should only discover itself
     assert_eq!(participant1.get_discovered_participants().unwrap().len(), 1);
 }
+
+#[test]
+fn create_delete_content_filtered_topic() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let participant = domain_participant_factory
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic = participant
+        .create_topic::<TestType>("abc", "TestType", QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let filter_expression = String::from(r#"value =  %0 "#);
+    let expression_parameters = [String::from(r#"10"#)];
+    let content_filtered_topic = participant
+        .create_contentfilteredtopic(
+            "filter_abc",
+            &topic,
+            filter_expression,
+            &expression_parameters,
+        )
+        .unwrap();
+
+    assert_eq!(
+        participant.delete_contentfilteredtopic(&content_filtered_topic),
+        Ok(())
+    );
+    assert_eq!(participant.delete_topic(&topic), Ok(()));
+    assert_eq!(topic.get_qos(), Err(DdsError::AlreadyDeleted));
+    assert_eq!(
+        participant.delete_topic(&topic),
+        Err(DdsError::AlreadyDeleted)
+    );
+}

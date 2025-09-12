@@ -183,6 +183,48 @@ impl<R: DdsRuntime> DomainParticipant<R> {
         R::block_on(self.participant_async.delete_topic(&a_topic.clone().into()))
     }
 
+    /// This operation creates a ContentFilteredTopic. which can be used to do content-based subscriptions.
+    /// The related Topic being subscribed to is specified by means of the related_topic parameter. The ContentFilteredTopic only
+    /// relates to samples published under that Topic, filtered according to their content. The filtering is done by means of evaluating a
+    /// logical expression that involves the values of some of the data-fields in the sample. The logical expression is derived from the
+    /// filter_expression and expression_parameters arguments
+    #[tracing::instrument(skip(self, related_topic))]
+    pub fn create_contentfilteredtopic(
+        &self,
+        name: &str,
+        related_topic: &TopicDescription<R>,
+        filter_expression: String,
+        expression_parameters: &[String],
+    ) -> DdsResult<TopicDescription<R>> {
+        R::block_on(self.participant_async.create_contentfilteredtopic(
+            name,
+            &related_topic.clone().into(),
+            filter_expression,
+            expression_parameters,
+        ))
+        .map(TopicDescription::from)
+    }
+
+    /// This operation deletes a ContentFilteredTopic.
+    ///
+    /// The deletion of a ContentFilteredTopic is not allowed if there are any existing DataReader objects that are using the
+    /// ContentFilteredTopic. If the delete_contentfilteredtopic operation is called on a ContentFilteredTopic with existing
+    /// DataReader objects attached to it, it will return PRECONDITION_NOT_MET.
+    ///
+    /// The delete_contentfilteredtopic operation must be called on the same DomainParticipant object used to create the
+    /// ContentFilteredTopic. If delete_contentfilteredtopic is called on a different DomainParticipant, the operation will have no
+    /// effect and it will return PRECONDITION_NOT_MET.
+    #[tracing::instrument(skip(self, a_contentfilteredtopic))]
+    pub fn delete_contentfilteredtopic(
+        &self,
+        a_contentfilteredtopic: &TopicDescription<R>,
+    ) -> DdsResult<()> {
+        R::block_on(
+            self.participant_async
+                .delete_contentfilteredtopic(&a_contentfilteredtopic.clone().into()),
+        )
+    }
+
     /// This operation gives access to an existing (or ready to exist) enabled [`Topic`], based on its name. The operation takes
     /// as arguments the name of the [`Topic`], a timeout and the type as a generic type argument `Foo`.
     /// If a [`Topic`] of the same name and type already exists, it gives access to it, otherwise it waits (blocks the caller) until another mechanism
