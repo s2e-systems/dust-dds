@@ -18,7 +18,7 @@ use dust_dds::{
         },
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         status::{InconsistentTopicStatus, StatusKind, NO_STATUS},
-        time::{Duration, DurationKind},
+        time::DurationKind,
     },
     listener::NO_LISTENER,
     publication::data_writer::DataWriter,
@@ -114,7 +114,7 @@ struct Options {
 
     /// set a 'deadline' with interval (ms) (0: OFF)
     #[clap(short = 'f', default_value_t = 0)]
-    deadline_interval: u32,
+    deadline_interval: u64,
 
     /// set ownership strength (-1: SHARED)
     #[clap(short = 's', default_value_t = -1, allow_negative_numbers = true)]
@@ -511,8 +511,9 @@ fn init_publisher(
         ..Default::default()
     };
     if options.deadline_interval > 0 {
-        data_writer_qos.deadline.period =
-            DurationKind::Finite(Duration::new(0, options.deadline_interval * 1_000_000));
+        data_writer_qos.deadline.period = DurationKind::Finite(
+            core::time::Duration::from_millis(options.deadline_interval).into(),
+        );
     }
     if options.ownership_qos_policy().kind == OwnershipQosPolicyKind::Exclusive {
         data_writer_qos.ownership_strength = options.ownership_strength_qos_policy();
@@ -603,8 +604,9 @@ fn init_subscriber(
         ..Default::default()
     };
     if options.deadline_interval > 0 {
-        data_reader_qos.deadline.period =
-            DurationKind::Finite(Duration::new(0, options.deadline_interval * 1_000_000));
+        data_reader_qos.deadline.period = DurationKind::Finite(
+            core::time::Duration::from_millis(options.deadline_interval).into(),
+        );
     }
 
     let data_reader = match &options.color {
