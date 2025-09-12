@@ -2442,7 +2442,7 @@ where
             .partition
             .name
             .iter()
-            .filter_map(|n| Regex::new(n).ok())
+            .filter_map(|n| Regex::new(&fnmatch_to_regex(n)).ok())
             .any(|regex| {
                 publisher
                     .qos()
@@ -2457,7 +2457,7 @@ where
             .partition
             .name
             .iter()
-            .filter_map(|n| Regex::new(n).ok())
+            .filter_map(|n| Regex::new(&fnmatch_to_regex(n)).ok())
             .any(|regex| {
                 discovered_reader_data
                     .dds_subscription_data
@@ -2833,7 +2833,7 @@ where
             .partition
             .name
             .iter()
-            .filter_map(|n| Regex::new(n).ok())
+            .filter_map(|n| Regex::new(&fnmatch_to_regex(n)).ok())
             .any(|regex| {
                 subscriber
                     .qos()
@@ -2848,7 +2848,7 @@ where
             .partition
             .name
             .iter()
-            .filter_map(|n| Regex::new(n).ok())
+            .filter_map(|n| Regex::new(&fnmatch_to_regex(n)).ok())
             .any(|regex| {
                 discovered_writer_data
                     .dds_publication_data
@@ -4486,3 +4486,147 @@ fn is_discovered_topic_consistent(
         && &topic_qos.lifespan == topic_builtin_topic_data.lifespan()
         && &topic_qos.ownership == topic_builtin_topic_data.ownership()
 }
+
+// fn fnmatch_to_regex(pattern: &str) -> String {
+//     let mut regex = String::from("^");
+//     let mut chars = pattern.chars().peekable();
+
+//     while let Some(c) = chars.next() {
+//         match c {
+//             '*' => regex.push_str(".*"),
+//             '?' => regex.push('.'),
+//             '[' => {
+//                 regex.push('[');
+//                 if let Some(&'!') = chars.peek() {
+//                     chars.next();
+//                     regex.push('^');
+//                 } else if let Some(&'^') = chars.peek() {
+//                     // already a regex negation
+//                     regex.push('^');
+//                     chars.next();
+//                 }
+//                 while let Some(ch) = chars.next() {
+//                     regex.push(ch);
+//                     if ch == ']' {
+//                         break;
+//                     }
+//                 }
+//             }
+//             // escape regex metacharacters
+//             '.' | '+' | '(' | ')' | '|' | '^' | '$' | '{' | '}' | '\\' => {
+//                 regex.push('\\');
+//                 regex.push(c);
+//             }
+//             _ => regex.push(c),
+//         }
+//     }
+
+//     regex.push('$');
+//     regex
+// }
+
+fn fnmatch_to_regex(pattern: &str) -> String {
+    let plus_as_quantifier = true;
+    fn flush_literal(out: &mut String, lit: &mut String) {
+        if !lit.is_empty() {
+            out.push_str(&regex::escape(lit));
+            lit.clear();
+        }
+    }
+
+    let mut out = String::from("^");
+    let mut literal = String::new();
+    let mut chars = pattern.chars().peekable();
+
+    while let Some(c) = chars.next() {
+        match c {
+            // backslash escapes next char literally
+            '\\' => {
+                if let Some(next) = chars.next() {
+                    literal.push(next);
+                } else {
+                    literal.push('\\');
+                }
+            }
+
+            // glob wildcards
+            '*' => {
+                flush_literal(&mut out, &mut literal);
+                out.push_str(".*");
+            }
+            '?' => {
+                flush_literal(&mut out, &mut literal);
+                out.push('.');
+            }
+
+            // character class
+            '[' => {
+                flush_literal(&mut out, &mut literal);
+
+                let mut class = String::from("[");
+                // handle fnmatch negation [!...] -> regex [^...]
+                if let Some(&next) = chars.peek() {
+                    if next == '!' {
+                        chars.next();
+                        class.push('^');
+                    } else if next == '^' {
+                        // treat ^ the same if user used it
+                        chars.next();
+                        class.push('^');
+                    }
+                }
+
+                let mut closed = false;
+                while let Some(ch) = chars.next() {
+                    class.push(ch);
+                    if ch == ']' {
+                        closed = true;
+                        break;
+                    }
+                    // preserve escaped chars inside class
+                    if ch == '\\' {
+                        if let Some(esc) = chars.next() {
+                            class.push(esc);
+                        }
+                    }
+                }
+
+                if closed {
+                    out.push_str(&class);
+                } else {
+                    // unclosed '[' — treat as literal
+                    literal.push('[');
+                    literal.push_str(&class[1..]); // append rest as literal
+                }
+            }
+
+            // plus handling (either literal or quantifier)
+            '+' => {
+                if plus_as_quantifier {
+                    flush_literal(&mut out, &mut literal);
+                    out.push('+'); // regex plus (quantifier)
+                } else {
+                    literal.push('+'); // literal plus -> will be escaped on flush
+                }
+            }
+
+            // default: accumulate literal characters (will be escaped when flushed)
+            other => literal.push(other),
+        }
+    }
+
+    flush_literal(&mut out, &mut literal);
+    out.push('$');
+    out
+}
+
+// #[test]
+// fn fnmatch() {
+//     let regex = regex::Regex::new(&fnmatch_to_regex("A[1-2]+")).unwrap();
+//     assert_eq!(regex.is_match("A12"), true);
+//     // assert_eq!(regex.is_match("x1"), false);
+
+//     // let regex = regex::Regex::new("x1").unwrap();
+//     // assert_eq!(regex.is_match("p*"), true);
+//     // assert_eq!(regex.is_match("p1"), false);
+// }
