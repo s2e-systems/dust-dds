@@ -23,9 +23,10 @@ md5 = { version = "0.7.0", default-features = false, optional = true } # Chose t
 socket2 = { version = "0.5", features = ["all"], optional = true }
 network-interface = { version = "1.1.1", optional = true }
 
-fnmatch-regex = { version = "=0.2.0", optional = true }
 tracing = { version = "0.1", default-features = false, features = ["attributes"], optional = true }
 async-lock = { version = "3.4.0", optional = true }
+
+regex = {version = "1.11.2", default-features = false}
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt", "macros"] }
@@ -40,8 +41,7 @@ rtps = ["rtps_messages"]
 rtps_messages = ["transport"]
 transport = ["xtypes"]
 xtypes = []
-
-std = ["dep:fnmatch-regex"]
+std = []
 
 
 [[bench]]

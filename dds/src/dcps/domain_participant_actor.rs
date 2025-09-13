@@ -93,6 +93,7 @@ use core::{
     pin::{pin, Pin},
     task::Poll,
 };
+use regex::Regex;
 
 pub fn poll_timeout<T>(
     mut timer_handle: impl Timer,
@@ -2443,37 +2444,35 @@ where
             .iter()
             .any(|n| publisher.qos().partition.name.contains(n));
 
-        let is_any_received_regex_matched_with_partition_qos = true;
-        // discovered_reader_data
-        //     .dds_subscription_data
-        //     .partition
-        //     .name
-        //     .iter()
-        //     // .filter_map(|n| glob_to_regex(n).ok())
-        //     .any(|regex| {
-        //         publisher
-        //             .qos()
-        //             .partition
-        //             .name
-        //             .iter()
-        //             .any(|n| regex.is_match(n))
-        //     });
+        let is_any_received_regex_matched_with_partition_qos = discovered_reader_data
+            .dds_subscription_data
+            .partition
+            .name
+            .iter()
+            .filter_map(|n| Regex::new(&fnmatch_to_regex(n)).ok())
+            .any(|regex| {
+                publisher
+                    .qos()
+                    .partition
+                    .name
+                    .iter()
+                    .any(|n| regex.is_match(n))
+            });
 
-        let is_any_local_regex_matched_with_received_partition_qos = true;
-        // publisher
-        //     .qos()
-        //     .partition
-        //     .name
-        //     .iter()
-        //     .filter_map(|n| glob_to_regex(n).ok())
-        //     .any(|regex| {
-        //         discovered_reader_data
-        //             .dds_subscription_data
-        //             .partition
-        //             .name
-        //             .iter()
-        //             .any(|n| regex.is_match(n))
-        //     });
+        let is_any_local_regex_matched_with_received_partition_qos = publisher
+            .qos()
+            .partition
+            .name
+            .iter()
+            .filter_map(|n| Regex::new(&fnmatch_to_regex(n)).ok())
+            .any(|regex| {
+                discovered_reader_data
+                    .dds_subscription_data
+                    .partition
+                    .name
+                    .iter()
+                    .any(|n| regex.is_match(n))
+            });
 
         let is_partition_matched = discovered_reader_data.dds_subscription_data.partition
             == publisher.qos().partition
@@ -2836,37 +2835,35 @@ where
             .iter()
             .any(|n| subscriber.qos().partition.name.contains(n));
 
-        let is_any_received_regex_matched_with_partition_qos = true;
-        // discovered_writer_data
-        //     .dds_publication_data
-        //     .partition
-        //     .name
-        //     .iter()
-        //     .filter_map(|n| glob_to_regex(n).ok())
-        //     .any(|regex| {
-        //         subscriber
-        //             .qos()
-        //             .partition
-        //             .name
-        //             .iter()
-        //             .any(|n| regex.is_match(n))
-        //     });
+        let is_any_received_regex_matched_with_partition_qos = discovered_writer_data
+            .dds_publication_data
+            .partition
+            .name
+            .iter()
+            .filter_map(|n| Regex::new(&fnmatch_to_regex(n)).ok())
+            .any(|regex| {
+                subscriber
+                    .qos()
+                    .partition
+                    .name
+                    .iter()
+                    .any(|n| regex.is_match(n))
+            });
 
-        let is_any_local_regex_matched_with_received_partition_qos = true;
-        // subscriber
-        //     .qos()
-        //     .partition
-        //     .name
-        //     .iter()
-        //     .filter_map(|n| glob_to_regex(n).ok())
-        //     .any(|regex| {
-        //         discovered_writer_data
-        //             .dds_publication_data
-        //             .partition
-        //             .name
-        //             .iter()
-        //             .any(|n| regex.is_match(n))
-        //     });
+        let is_any_local_regex_matched_with_received_partition_qos = subscriber
+            .qos()
+            .partition
+            .name
+            .iter()
+            .filter_map(|n| Regex::new(&fnmatch_to_regex(n)).ok())
+            .any(|regex| {
+                discovered_writer_data
+                    .dds_publication_data
+                    .partition
+                    .name
+                    .iter()
+                    .any(|n| regex.is_match(n))
+            });
 
         let is_partition_matched = discovered_writer_data.dds_publication_data.partition
             == subscriber.qos().partition
@@ -4504,4 +4501,93 @@ fn is_discovered_topic_consistent(
         && &topic_qos.transport_priority == topic_builtin_topic_data.transport_priority()
         && &topic_qos.lifespan == topic_builtin_topic_data.lifespan()
         && &topic_qos.ownership == topic_builtin_topic_data.ownership()
+}
+
+fn fnmatch_to_regex(pattern: &str) -> String {
+    fn flush_literal(out: &mut String, lit: &mut String) {
+        if !lit.is_empty() {
+            out.push_str(&regex::escape(lit));
+            lit.clear();
+        }
+    }
+
+    let mut out = String::from("^");
+    let mut literal = String::new();
+    let mut chars = pattern.chars().peekable();
+
+    while let Some(c) = chars.next() {
+        match c {
+            // backslash escapes next char literally
+            '\\' => {
+                if let Some(next) = chars.next() {
+                    literal.push(next);
+                } else {
+                    literal.push('\\');
+                }
+            }
+
+            // glob wildcards
+            '*' => {
+                flush_literal(&mut out, &mut literal);
+                out.push_str(".*");
+            }
+            '?' => {
+                flush_literal(&mut out, &mut literal);
+                out.push('.');
+            }
+
+            // character class
+            '[' => {
+                flush_literal(&mut out, &mut literal);
+
+                let mut class = String::from("[");
+                // handle fnmatch negation [!...] -> regex [^...]
+                if let Some(&next) = chars.peek() {
+                    if next == '!' {
+                        chars.next();
+                        class.push('^');
+                    } else if next == '^' {
+                        // treat ^ the same if user used it
+                        chars.next();
+                        class.push('^');
+                    }
+                }
+
+                let mut closed = false;
+                while let Some(ch) = chars.next() {
+                    class.push(ch);
+                    if ch == ']' {
+                        closed = true;
+                        break;
+                    }
+                    // preserve escaped chars inside class
+                    if ch == '\\' {
+                        if let Some(esc) = chars.next() {
+                            class.push(esc);
+                        }
+                    }
+                }
+
+                if closed {
+                    out.push_str(&class);
+                } else {
+                    // unclosed '[' — treat as literal
+                    literal.push('[');
+                    literal.push_str(&class[1..]); // append rest as literal
+                }
+            }
+
+            '+' => {
+                flush_literal(&mut out, &mut literal);
+                out.push('+'); // regex plus (quantifier)
+            }
+
+            // default: accumulate literal characters (will be escaped when flushed)
+            other => literal.push(other),
+        }
+    }
+
+    flush_literal(&mut out, &mut literal);
+    out.push('$');
+    out
 }
