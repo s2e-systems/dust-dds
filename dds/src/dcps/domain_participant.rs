@@ -197,10 +197,7 @@ where
             data_reader_handle,
             data_reader.status_condition().address(),
             self.get_subscriber_async(participant_address.clone(), subscriber_handle)?,
-            self.get_topic_description_async(
-                participant_address,
-                String::from(data_reader.topic_name()),
-            )?,
+            self.get_topic_description_async(participant_address, data_reader.topic_name.clone())?,
         ))
     }
 
@@ -232,10 +229,7 @@ where
             data_writer_handle,
             data_writer.status_condition().address(),
             self.get_publisher_async(participant_address.clone(), publisher_handle)?,
-            self.get_topic_description_async(
-                participant_address,
-                String::from(data_writer.topic_name()),
-            )?,
+            self.get_topic_description_async(participant_address, data_writer.topic_name.clone())?,
         ))
     }
 
@@ -249,9 +243,9 @@ where
             .get_topic(&topic_name)
             .ok_or(DdsError::AlreadyDeleted)?;
         Ok(TopicDescriptionAsync::Topic(TopicAsync::new(
-            topic.instance_handle(),
-            topic.status_condition().address(),
-            String::from(topic.type_name()),
+            topic.instance_handle,
+            topic.status_condition.address(),
+            topic.type_name.clone(),
             topic_name,
             self.get_participant_async(participant_address),
         )))
@@ -275,7 +269,7 @@ where
         topic_qos: QosKind<TopicQos>,
     ) -> DdsResult<()> {
         let qos = match topic_qos {
-            QosKind::Default => self.domain_participant.get_default_topic_qos().clone(),
+            QosKind::Default => self.domain_participant.default_topic_qos.clone(),
             QosKind::Specific(q) => q,
         };
         let Some(topic) = self.domain_participant.get_mut_topic(&topic_name) else {
@@ -291,7 +285,7 @@ where
             return Err(DdsError::AlreadyDeleted);
         };
 
-        Ok(topic.qos().clone())
+        Ok(topic.qos.clone())
     }
 
     #[tracing::instrument(skip(self))]
@@ -300,7 +294,7 @@ where
             return Err(DdsError::AlreadyDeleted);
         };
 
-        if !topic.enabled() {
+        if !topic.enabled {
             topic.enable();
             self.announce_topic(topic_name).await;
         }
@@ -316,7 +310,7 @@ where
         let Some(topic) = self.domain_participant.get_mut_topic(&topic_name) else {
             return Err(DdsError::AlreadyDeleted);
         };
-        Ok(topic.type_support().clone())
+        Ok(topic.type_support.clone())
     }
 
     #[tracing::instrument(skip(self, listener_sender))]
@@ -341,10 +335,10 @@ where
             mask,
         );
 
-        if self.domain_participant.enabled()
+        if self.domain_participant.enabled
             && self
                 .domain_participant
-                .qos()
+                .qos
                 .entity_factory
                 .autoenable_created_entities
         {
@@ -408,10 +402,10 @@ where
             listener_mask,
         );
 
-        if self.domain_participant.enabled()
+        if self.domain_participant.enabled
             && self
                 .domain_participant
-                .qos()
+                .qos
                 .entity_factory
                 .autoenable_created_entities
         {
@@ -439,7 +433,7 @@ where
             return Err(DdsError::AlreadyDeleted);
         };
 
-        if subscriber.data_reader_list().count() > 0 {
+        if subscriber.data_reader_list.iter().count() > 0 {
             return Err(DdsError::PreconditionNotMet(
                 "Subscriber still contains data readers".to_string(),
             ));
@@ -474,7 +468,7 @@ where
         }
 
         let qos = match qos {
-            QosKind::Default => self.domain_participant.get_default_topic_qos().clone(),
+            QosKind::Default => self.domain_participant.default_topic_qos.clone(),
             QosKind::Specific(q) => q,
         };
 
@@ -493,10 +487,10 @@ where
 
         self.domain_participant.insert_topic(topic);
 
-        if self.domain_participant.enabled()
+        if self.domain_participant.enabled
             && self
                 .domain_participant
-                .qos()
+                .qos
                 .entity_factory
                 .autoenable_created_entities
         {
@@ -526,7 +520,7 @@ where
             return Err(DdsError::AlreadyDeleted);
         };
 
-        if Arc::strong_count(topic.type_support()) > 1 {
+        if Arc::strong_count(&topic.type_support) > 1 {
             return Err(DdsError::PreconditionNotMet(
                 "Topic still attached to some data writer or data reader".to_string(),
             ));
@@ -582,9 +576,9 @@ where
     > {
         if let Some(topic) = self.domain_participant.get_topic(&topic_name) {
             Ok(Some((
-                topic.instance_handle(),
-                topic.status_condition().address(),
-                String::from(topic.type_name()),
+                topic.instance_handle,
+                topic.status_condition.address(),
+                topic.type_name.clone(),
             )))
         } else {
             if let Some(discovered_topic_data) = self.domain_participant.find_topic(&topic_name) {
@@ -616,7 +610,7 @@ where
                     type_support,
                 );
                 topic.enable();
-                let topic_status_condition_address = topic.status_condition().address();
+                let topic_status_condition_address = topic.status_condition.address();
 
                 self.domain_participant.insert_topic(topic);
                 return Ok(Some((
@@ -643,9 +637,9 @@ where
     > {
         if let Some(topic) = self.domain_participant.get_topic(&topic_name) {
             Ok(Some((
-                String::from(topic.type_name()),
-                topic.instance_handle(),
-                topic.status_condition().address(),
+                topic.type_name.clone(),
+                topic.instance_handle,
+                topic.status_condition.address(),
             )))
         } else {
             Ok(None)
@@ -654,8 +648,15 @@ where
 
     #[tracing::instrument(skip(self))]
     pub fn ignore_participant(&mut self, handle: InstanceHandle) -> DdsResult<()> {
-        if self.domain_participant.enabled() {
-            self.domain_participant.ignore_participant(handle);
+        if self.domain_participant.enabled {
+            if !self
+                .domain_participant
+                .ignored_participants
+                .contains(&handle)
+            {
+                self.domain_participant.ignored_participants.push(handle);
+            }
+
             Ok(())
         } else {
             Err(DdsError::NotEnabled)
@@ -664,8 +665,14 @@ where
 
     #[tracing::instrument(skip(self))]
     pub fn ignore_subscription(&mut self, handle: InstanceHandle) -> DdsResult<()> {
-        if self.domain_participant.enabled() {
-            self.domain_participant.ignore_subscription(handle);
+        if self.domain_participant.enabled {
+            if !self
+                .domain_participant
+                .ignored_subcriptions
+                .contains(&handle)
+            {
+                self.domain_participant.ignored_subcriptions.push(handle);
+            }
             Ok(())
         } else {
             Err(DdsError::NotEnabled)
@@ -674,8 +681,14 @@ where
 
     #[tracing::instrument(skip(self))]
     pub fn ignore_publication(&mut self, handle: InstanceHandle) -> DdsResult<()> {
-        if self.domain_participant.enabled() {
-            self.domain_participant.ignore_publication(handle);
+        if self.domain_participant.enabled {
+            if !self
+                .domain_participant
+                .ignored_publications
+                .contains(&handle)
+            {
+                self.domain_participant.ignored_publications.push(handle);
+            }
             Ok(())
         } else {
             Err(DdsError::NotEnabled)
@@ -756,12 +769,17 @@ where
 
     #[tracing::instrument(skip(self))]
     pub fn get_default_topic_qos(&self) -> DdsResult<TopicQos> {
-        Ok(self.domain_participant.get_default_topic_qos().clone())
+        Ok(self.domain_participant.default_topic_qos.clone())
     }
 
     #[tracing::instrument(skip(self))]
     pub fn get_discovered_participants(&mut self) -> DdsResult<Vec<InstanceHandle>> {
-        Ok(self.domain_participant.get_discovered_participants())
+        Ok(self
+            .domain_participant
+            .discovered_participant_list
+            .iter()
+            .map(|p| InstanceHandle::new(p.dds_participant_data.key().value))
+            .collect())
     }
 
     #[tracing::instrument(skip(self))]
@@ -771,7 +789,9 @@ where
     ) -> DdsResult<ParticipantBuiltinTopicData> {
         let Some(handle) = self
             .domain_participant
-            .get_discovered_participant_data(&participant_handle)
+            .discovered_participant_list
+            .iter()
+            .find(|p| &p.dds_participant_data.key().value == participant_handle.as_ref())
         else {
             return Err(DdsError::BadParameter);
         };
@@ -816,7 +836,7 @@ where
         };
 
         self.domain_participant.set_qos(qos);
-        if self.domain_participant.enabled() {
+        if self.domain_participant.enabled {
             self.announce_participant().await;
         }
         Ok(())
@@ -824,7 +844,7 @@ where
 
     #[tracing::instrument(skip(self))]
     pub fn get_domain_participant_qos(&mut self) -> DdsResult<DomainParticipantQos> {
-        Ok(self.domain_participant.qos().clone())
+        Ok(self.domain_participant.qos.clone())
     }
 
     #[tracing::instrument(skip(self, listener_sender))]
@@ -840,8 +860,8 @@ where
 
     #[tracing::instrument(skip(self))]
     pub async fn enable_domain_participant(&mut self) -> DdsResult<()> {
-        if !self.domain_participant.enabled() {
-            self.domain_participant.enable();
+        if !self.domain_participant.enabled {
+            self.domain_participant.enabled = true;
 
             self.announce_participant().await;
         }
@@ -915,15 +935,17 @@ where
             return Err(DdsError::AlreadyDeleted);
         };
 
-        let topic_kind = get_topic_kind(topic.type_support().as_ref());
-        let topic_name = String::from(topic.topic_name());
-        let type_name = String::from(topic.type_name());
+        let topic_kind = get_topic_kind(topic.type_support.as_ref());
+        let topic_name = topic.topic_name.clone();
+        let type_name = topic.type_name.clone();
         let reader_handle = self.instance_handle_counter.generate_new_instance_handle();
 
-        let type_support = topic.type_support().clone();
+        let type_support = topic.type_support.clone();
         let Some(subscriber) = self
             .domain_participant
-            .get_mut_subscriber(subscriber_handle)
+            .user_defined_subscriber_list
+            .iter_mut()
+            .find(|x| x.instance_handle() == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -987,7 +1009,7 @@ where
 
         subscriber.insert_data_reader(data_reader);
 
-        if subscriber.enabled() && subscriber.qos().entity_factory.autoenable_created_entities {
+        if subscriber.enabled && subscriber.qos.entity_factory.autoenable_created_entities {
             self.enable_data_reader(
                 subscriber_handle,
                 data_reader_handle,
@@ -1006,7 +1028,9 @@ where
     ) -> DdsResult<()> {
         let Some(subscriber) = self
             .domain_participant
-            .get_mut_subscriber(subscriber_handle)
+            .user_defined_subscriber_list
+            .iter_mut()
+            .find(|x: &&mut SubscriberEntity<R, T>| x.instance_handle() == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -1032,19 +1056,23 @@ where
         if self.domain_participant.instance_handle() == subscriber_handle {
             Ok(self
                 .domain_participant
-                .builtin_subscriber_mut()
-                .data_reader_list_mut()
-                .find(|dr| dr.topic_name() == topic_name)
+                .builtin_subscriber
+                .data_reader_list
+                .iter_mut()
+                .find(|dr| dr.topic_name == topic_name)
                 .map(|x| (x.instance_handle(), x.status_condition().address())))
         } else {
             let Some(s) = self
                 .domain_participant
-                .get_mut_subscriber(subscriber_handle)
+                .user_defined_subscriber_list
+                .iter_mut()
+                .find(|x| x.instance_handle() == subscriber_handle)
             else {
                 return Err(DdsError::AlreadyDeleted);
             };
-            Ok(s.data_reader_list_mut()
-                .find(|dr| dr.topic_name() == topic_name)
+            Ok(s.data_reader_list
+                .iter_mut()
+                .find(|dr| dr.topic_name == topic_name)
                 .map(|x| (x.instance_handle(), x.status_condition().address())))
         }
     }
@@ -1057,7 +1085,9 @@ where
     ) -> DdsResult<()> {
         let Some(subscriber) = self
             .domain_participant
-            .get_mut_subscriber(subscriber_handle)
+            .user_defined_subscriber_list
+            .iter_mut()
+            .find(|x| x.instance_handle() == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -1075,7 +1105,9 @@ where
     ) -> DdsResult<DataReaderQos> {
         let Some(subscriber) = self
             .domain_participant
-            .get_mut_subscriber(subscriber_handle)
+            .user_defined_subscriber_list
+            .iter_mut()
+            .find(|x| x.instance_handle() == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -1096,7 +1128,9 @@ where
 
         let Some(subscriber) = self
             .domain_participant
-            .get_mut_subscriber(subscriber_handle)
+            .user_defined_subscriber_list
+            .iter_mut()
+            .find(|x| x.instance_handle() == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -1111,12 +1145,14 @@ where
     ) -> DdsResult<SubscriberQos> {
         let Some(subscriber) = self
             .domain_participant
-            .get_mut_subscriber(subscriber_handle)
+            .user_defined_subscriber_list
+            .iter_mut()
+            .find(|x| x.instance_handle() == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
 
-        Ok(subscriber.qos().clone())
+        Ok(subscriber.qos.clone())
     }
 
     #[tracing::instrument(skip(self, listener_sender))]
@@ -1128,7 +1164,9 @@ where
     ) -> DdsResult<()> {
         let Some(subscriber) = self
             .domain_participant
-            .get_mut_subscriber(subscriber_handle)
+            .user_defined_subscriber_list
+            .iter_mut()
+            .find(|x| x.instance_handle() == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -1153,9 +1191,9 @@ where
             return Err(DdsError::AlreadyDeleted);
         };
 
-        let topic_kind = get_topic_kind(topic.type_support().as_ref());
-        let type_support = topic.type_support().clone();
-        let type_name = String::from(topic.type_name());
+        let topic_kind = get_topic_kind(topic.type_support.as_ref());
+        let type_support = topic.type_support.clone();
+        let type_name = topic.type_name.clone();
         let entity_kind = match topic_kind {
             TopicKind::WithKey => USER_DEFINED_WRITER_WITH_KEY,
             TopicKind::NoKey => USER_DEFINED_WRITER_NO_KEY,
@@ -1210,7 +1248,7 @@ where
 
         publisher.insert_data_writer(data_writer);
 
-        if publisher.enabled() && publisher.qos().entity_factory.autoenable_created_entities {
+        if publisher.enabled && publisher.qos.entity_factory.autoenable_created_entities {
             self.enable_data_writer(publisher_handle, writer_handle, participant_address)
                 .await?;
         }
@@ -1289,7 +1327,7 @@ where
             return Err(DdsError::AlreadyDeleted);
         };
 
-        Ok(publisher.qos().clone())
+        Ok(publisher.qos.clone())
     }
 
     #[tracing::instrument(skip(self, listener_sender))]
@@ -1316,7 +1354,8 @@ where
             return Err(DdsError::AlreadyDeleted);
         };
         let Some(data_writer) = publisher
-            .data_writer_list_mut()
+            .data_writer_list
+            .iter_mut()
             .find(|x| x.instance_handle() == data_writer_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
@@ -1363,13 +1402,14 @@ where
             return Err(DdsError::AlreadyDeleted);
         };
         let Some(data_writer) = publisher
-            .data_writer_list_mut()
+            .data_writer_list
+            .iter_mut()
             .find(|x| x.instance_handle() == data_writer_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
 
-        Ok(data_writer.qos().clone())
+        Ok(data_writer.qos.clone())
     }
 
     #[tracing::instrument(skip(self))]
@@ -1382,7 +1422,8 @@ where
             return Err(DdsError::AlreadyDeleted);
         };
         let Some(data_writer) = publisher
-            .data_writer_list_mut()
+            .data_writer_list
+            .iter_mut()
             .find(|x| x.instance_handle() == data_writer_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
@@ -1401,7 +1442,8 @@ where
             return Err(DdsError::AlreadyDeleted);
         };
         let Some(data_writer) = publisher
-            .data_writer_list_mut()
+            .data_writer_list
+            .iter_mut()
             .find(|x| x.instance_handle() == data_writer_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
@@ -1424,7 +1466,8 @@ where
             return Err(DdsError::AlreadyDeleted);
         };
         let Some(data_writer) = publisher
-            .data_writer_list_mut()
+            .data_writer_list
+            .iter_mut()
             .find(|x| x.instance_handle() == data_writer_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
@@ -1454,13 +1497,14 @@ where
             return Err(DdsError::AlreadyDeleted);
         };
         let Some(data_writer) = publisher
-            .data_writer_list_mut()
+            .data_writer_list
+            .iter_mut()
             .find(|x| x.instance_handle() == data_writer_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
 
-        if !data_writer.enabled() {
+        if !data_writer.enabled {
             return Err(DdsError::NotEnabled);
         }
 
@@ -1493,7 +1537,8 @@ where
             return Err(DdsError::AlreadyDeleted);
         };
         let Some(data_writer) = publisher
-            .data_writer_list_mut()
+            .data_writer_list
+            .iter_mut()
             .find(|x| x.instance_handle() == data_writer_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
@@ -1508,7 +1553,7 @@ where
             }
         };
 
-        match data_writer.qos().lifespan.duration {
+        match data_writer.qos.lifespan.duration {
             DurationKind::Finite(lifespan_duration) => {
                 let mut timer_handle = self.timer_handle.clone();
                 let sleep_duration = timestamp - now + lifespan_duration;
@@ -1552,7 +1597,7 @@ where
             }
         }
 
-        if let DurationKind::Finite(deadline_missed_period) = data_writer.qos().deadline.period {
+        if let DurationKind::Finite(deadline_missed_period) = data_writer.qos.deadline.period {
             let mut timer_handle = self.timer_handle.clone();
             self.spawner_handle.spawn(async move {
                 loop {
@@ -1587,7 +1632,8 @@ where
             return Err(DdsError::AlreadyDeleted);
         };
         let Some(data_writer) = publisher
-            .data_writer_list_mut()
+            .data_writer_list
+            .iter_mut()
             .find(|x| x.instance_handle() == data_writer_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
@@ -1658,7 +1704,8 @@ where
             return Err(DdsError::AlreadyDeleted);
         };
         let Some(data_writer) = publisher
-            .data_writer_list_mut()
+            .data_writer_list
+            .iter_mut()
             .find(|x| x.instance_handle() == data_writer_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
@@ -1680,7 +1727,7 @@ where
         let Some(data_writer) = publisher.get_mut_data_writer(data_writer_handle) else {
             return Err(DdsError::AlreadyDeleted);
         };
-        if !data_writer.enabled() {
+        if !data_writer.enabled {
             data_writer.enable();
 
             let discovered_reader_list: Vec<_> = self
@@ -1719,7 +1766,8 @@ where
             QosKind::Specific(q) => q,
         };
         let Some(data_writer) = publisher
-            .data_writer_list_mut()
+            .data_writer_list
+            .iter_mut()
             .find(|x| x.instance_handle() == data_writer_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
@@ -1731,7 +1779,7 @@ where
                 return Err(e);
             }
         }
-        if data_writer.enabled() {
+        if data_writer.enabled {
             self.announce_data_writer(publisher_handle, data_writer_handle)
                 .await;
         }
@@ -1767,10 +1815,12 @@ where
         specific_instance_handle: Option<InstanceHandle>,
     ) -> DdsResult<Vec<(Option<Arc<[u8]>>, SampleInfo)>> {
         let subscriber = if subscriber_handle == self.domain_participant.instance_handle() {
-            Some(self.domain_participant.builtin_subscriber_mut())
+            Some(&mut self.domain_participant.builtin_subscriber)
         } else {
             self.domain_participant
-                .get_mut_subscriber(subscriber_handle)
+                .user_defined_subscriber_list
+                .iter_mut()
+                .find(|x| x.instance_handle() == subscriber_handle)
         };
 
         let Some(subscriber) = subscriber else {
@@ -1806,7 +1856,9 @@ where
     ) -> DdsResult<Vec<(Option<Arc<[u8]>>, SampleInfo)>> {
         let Some(subscriber) = self
             .domain_participant
-            .get_mut_subscriber(subscriber_handle)
+            .user_defined_subscriber_list
+            .iter_mut()
+            .find(|x| x.instance_handle() == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -1838,7 +1890,9 @@ where
     ) -> DdsResult<Vec<(Option<Arc<[u8]>>, SampleInfo)>> {
         let Some(subscriber) = self
             .domain_participant
-            .get_mut_subscriber(subscriber_handle)
+            .user_defined_subscriber_list
+            .iter_mut()
+            .find(|x| x.instance_handle() == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -1870,7 +1924,9 @@ where
     ) -> DdsResult<Vec<(Option<Arc<[u8]>>, SampleInfo)>> {
         let Some(subscriber) = self
             .domain_participant
-            .get_mut_subscriber(subscriber_handle)
+            .user_defined_subscriber_list
+            .iter_mut()
+            .find(|x| x.instance_handle() == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -1896,7 +1952,9 @@ where
     ) -> DdsResult<SubscriptionMatchedStatus> {
         let Some(subscriber) = self
             .domain_participant
-            .get_mut_subscriber(subscriber_handle)
+            .user_defined_subscriber_list
+            .iter_mut()
+            .find(|x| x.instance_handle() == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -1964,14 +2022,16 @@ where
     ) -> DdsResult<PublicationBuiltinTopicData> {
         let Some(subscriber) = self
             .domain_participant
-            .get_mut_subscriber(subscriber_handle)
+            .user_defined_subscriber_list
+            .iter_mut()
+            .find(|x| x.instance_handle() == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
         let Some(data_reader) = subscriber.get_data_reader(data_reader_handle) else {
             return Err(DdsError::AlreadyDeleted);
         };
-        if !data_reader.enabled() {
+        if !data_reader.enabled {
             return Err(DdsError::NotEnabled);
         }
 
@@ -1989,7 +2049,9 @@ where
     ) -> DdsResult<Vec<InstanceHandle>> {
         let Some(subscriber) = self
             .domain_participant
-            .get_mut_subscriber(subscriber_handle)
+            .user_defined_subscriber_list
+            .iter_mut()
+            .find(|x| x.instance_handle() == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -2009,7 +2071,9 @@ where
     ) -> DdsResult<()> {
         let Some(subscriber) = self
             .domain_participant
-            .get_mut_subscriber(subscriber_handle)
+            .user_defined_subscriber_list
+            .iter_mut()
+            .find(|x| x.instance_handle() == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -2021,18 +2085,17 @@ where
             return Err(DdsError::AlreadyDeleted);
         };
 
-        match data_reader.set_qos(qos) {
-            Ok(_) => (),
-            Err(e) => {
-                return Err(e);
-            }
-        };
+        qos.is_consistent()?;
+        if data_reader.enabled {
+            data_reader.qos.check_immutability(&qos)?
+        }
 
-        if data_reader.enabled() {
+        data_reader.qos = qos;
+
+        if data_reader.enabled {
             self.announce_data_reader(subscriber_handle, data_reader_handle)
                 .await;
         }
-
         Ok(())
     }
 
@@ -2044,7 +2107,9 @@ where
     ) -> DdsResult<DataReaderQos> {
         let Some(subscriber) = self
             .domain_participant
-            .get_mut_subscriber(subscriber_handle)
+            .user_defined_subscriber_list
+            .iter_mut()
+            .find(|x| x.instance_handle() == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -2052,7 +2117,7 @@ where
         let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle) else {
             return Err(DdsError::AlreadyDeleted);
         };
-        Ok(data_reader.qos().clone())
+        Ok(data_reader.qos.clone())
     }
 
     #[tracing::instrument(skip(self, listener_sender))]
@@ -2065,7 +2130,9 @@ where
     ) -> DdsResult<()> {
         let Some(subscriber) = self
             .domain_participant
-            .get_mut_subscriber(subscriber_handle)
+            .user_defined_subscriber_list
+            .iter_mut()
+            .find(|x| x.instance_handle() == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -2089,11 +2156,11 @@ where
         let Some(data_reader) = subscriber.get_data_reader(data_reader_handle) else {
             return Err(DdsError::AlreadyDeleted);
         };
-        if !data_reader.enabled() {
+        if !data_reader.enabled {
             return Err(DdsError::NotEnabled);
         };
 
-        match data_reader.qos().durability.kind {
+        match data_reader.qos.durability.kind {
             DurabilityQosPolicyKind::Volatile => {
                 return Err(DdsError::IllegalOperation);
             }
@@ -2118,14 +2185,16 @@ where
     ) -> DdsResult<()> {
         let Some(subscriber) = self
             .domain_participant
-            .get_mut_subscriber(subscriber_handle)
+            .user_defined_subscriber_list
+            .iter_mut()
+            .find(|x| x.instance_handle() == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
         let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle) else {
             return Err(DdsError::AlreadyDeleted);
         };
-        if !data_reader.enabled() {
+        if !data_reader.enabled {
             data_reader.enable();
 
             let discovered_writer_list: Vec<_> = self
@@ -2151,12 +2220,12 @@ where
 
     #[tracing::instrument(skip(self))]
     pub async fn announce_participant(&mut self) {
-        if self.domain_participant.enabled() {
+        if self.domain_participant.enabled {
             let participant_builtin_topic_data = ParticipantBuiltinTopicData {
                 key: BuiltInTopicKey {
                     value: self.transport.guid().into(),
                 },
-                user_data: self.domain_participant.qos().user_data.clone(),
+                user_data: self.domain_participant.qos.user_data.clone(),
             };
             let participant_proxy = ParticipantProxy {
                 domain_id: Some(self.domain_participant.domain_id()),
@@ -2189,7 +2258,12 @@ where
                 dds_participant_data: participant_builtin_topic_data,
                 participant_proxy,
                 lease_duration: Duration::new(100, 0),
-                discovered_participant_list: self.domain_participant.get_discovered_participants(),
+                discovered_participant_list: self
+                    .domain_participant
+                    .discovered_participant_list
+                    .iter()
+                    .map(|p| InstanceHandle::new(p.dds_participant_data.key().value))
+                    .collect(),
             };
             let timestamp = self.get_current_time();
 
@@ -2209,7 +2283,7 @@ where
 
     #[tracing::instrument(skip(self))]
     pub async fn announce_deleted_participant(&mut self) {
-        if self.domain_participant.enabled() {
+        if self.domain_participant.enabled {
             let timestamp = self.get_current_time();
             if let Some(dw) = self
                 .domain_participant
@@ -2238,34 +2312,34 @@ where
         let Some(data_writer) = publisher.get_data_writer(data_writer_handle) else {
             return;
         };
-        let Some(topic) = self.domain_participant.get_topic(data_writer.topic_name()) else {
+        let Some(topic) = self.domain_participant.get_topic(&data_writer.topic_name) else {
             return;
         };
 
-        let topic_data = topic.qos().topic_data.clone();
+        let topic_data = topic.qos.topic_data.clone();
 
         let dds_publication_data = PublicationBuiltinTopicData {
             key: BuiltInTopicKey {
                 value: data_writer.transport_writer().guid().into(),
             },
             participant_key: BuiltInTopicKey { value: [0; 16] },
-            topic_name: String::from(data_writer.topic_name()),
+            topic_name: data_writer.topic_name.clone(),
             type_name: String::from(data_writer.type_name()),
-            durability: data_writer.qos().durability.clone(),
-            deadline: data_writer.qos().deadline.clone(),
-            latency_budget: data_writer.qos().latency_budget.clone(),
-            liveliness: data_writer.qos().liveliness.clone(),
-            reliability: data_writer.qos().reliability.clone(),
-            lifespan: data_writer.qos().lifespan.clone(),
-            user_data: data_writer.qos().user_data.clone(),
-            ownership: data_writer.qos().ownership.clone(),
-            ownership_strength: data_writer.qos().ownership_strength.clone(),
-            destination_order: data_writer.qos().destination_order.clone(),
-            presentation: publisher.qos().presentation.clone(),
-            partition: publisher.qos().partition.clone(),
+            durability: data_writer.qos.durability.clone(),
+            deadline: data_writer.qos.deadline.clone(),
+            latency_budget: data_writer.qos.latency_budget.clone(),
+            liveliness: data_writer.qos.liveliness.clone(),
+            reliability: data_writer.qos.reliability.clone(),
+            lifespan: data_writer.qos.lifespan.clone(),
+            user_data: data_writer.qos.user_data.clone(),
+            ownership: data_writer.qos.ownership.clone(),
+            ownership_strength: data_writer.qos.ownership_strength.clone(),
+            destination_order: data_writer.qos.destination_order.clone(),
+            presentation: publisher.qos.presentation.clone(),
+            partition: publisher.qos.partition.clone(),
             topic_data,
-            group_data: publisher.qos().group_data.clone(),
-            representation: data_writer.qos().representation.clone(),
+            group_data: publisher.qos.group_data.clone(),
+            representation: data_writer.qos.representation.clone(),
         };
         let writer_proxy = WriterProxy {
             remote_writer_guid: data_writer.transport_writer().guid(),
@@ -2320,7 +2394,7 @@ where
         let Some(data_reader) = subscriber.get_data_reader(data_reader_handle) else {
             return;
         };
-        let Some(topic) = self.domain_participant.get_topic(data_reader.topic_name()) else {
+        let Some(topic) = self.domain_participant.get_topic(&data_reader.topic_name) else {
             return;
         };
 
@@ -2328,22 +2402,22 @@ where
         let dds_subscription_data = SubscriptionBuiltinTopicData {
             key: BuiltInTopicKey { value: guid.into() },
             participant_key: BuiltInTopicKey { value: [0; 16] },
-            topic_name: String::from(data_reader.topic_name()),
-            type_name: String::from(data_reader.type_name()),
-            durability: data_reader.qos().durability.clone(),
-            deadline: data_reader.qos().deadline.clone(),
-            latency_budget: data_reader.qos().latency_budget.clone(),
-            liveliness: data_reader.qos().liveliness.clone(),
-            reliability: data_reader.qos().reliability.clone(),
-            ownership: data_reader.qos().ownership.clone(),
-            destination_order: data_reader.qos().destination_order.clone(),
-            user_data: data_reader.qos().user_data.clone(),
-            time_based_filter: data_reader.qos().time_based_filter.clone(),
-            presentation: subscriber.qos().presentation.clone(),
-            partition: subscriber.qos().partition.clone(),
-            topic_data: topic.qos().topic_data.clone(),
-            group_data: subscriber.qos().group_data.clone(),
-            representation: data_reader.qos().representation.clone(),
+            topic_name: data_reader.topic_name.clone(),
+            type_name: data_reader.type_name.clone(),
+            durability: data_reader.qos.durability.clone(),
+            deadline: data_reader.qos.deadline.clone(),
+            latency_budget: data_reader.qos.latency_budget.clone(),
+            liveliness: data_reader.qos.liveliness.clone(),
+            reliability: data_reader.qos.reliability.clone(),
+            ownership: data_reader.qos.ownership.clone(),
+            destination_order: data_reader.qos.destination_order.clone(),
+            user_data: data_reader.qos.user_data.clone(),
+            time_based_filter: data_reader.qos.time_based_filter.clone(),
+            presentation: subscriber.qos.presentation.clone(),
+            partition: subscriber.qos.partition.clone(),
+            topic_data: topic.qos.topic_data.clone(),
+            group_data: subscriber.qos.group_data.clone(),
+            representation: data_reader.qos.representation.clone(),
         };
         let reader_proxy = ReaderProxy {
             remote_reader_guid: data_reader.transport_reader().guid(),
@@ -2396,23 +2470,23 @@ where
 
         let topic_builtin_topic_data = TopicBuiltinTopicData {
             key: BuiltInTopicKey {
-                value: topic.instance_handle().into(),
+                value: topic.instance_handle.into(),
             },
-            name: String::from(topic.topic_name()),
-            type_name: String::from(topic.type_name()),
-            durability: topic.qos().durability.clone(),
-            deadline: topic.qos().deadline.clone(),
-            latency_budget: topic.qos().latency_budget.clone(),
-            liveliness: topic.qos().liveliness.clone(),
-            reliability: topic.qos().reliability.clone(),
-            transport_priority: topic.qos().transport_priority.clone(),
-            lifespan: topic.qos().lifespan.clone(),
-            destination_order: topic.qos().destination_order.clone(),
-            history: topic.qos().history.clone(),
-            resource_limits: topic.qos().resource_limits.clone(),
-            ownership: topic.qos().ownership.clone(),
-            topic_data: topic.qos().topic_data.clone(),
-            representation: topic.qos().representation.clone(),
+            name: topic.topic_name.clone(),
+            type_name: topic.type_name.clone(),
+            durability: topic.qos.durability.clone(),
+            deadline: topic.qos.deadline.clone(),
+            latency_budget: topic.qos.latency_budget.clone(),
+            liveliness: topic.qos.liveliness.clone(),
+            reliability: topic.qos.reliability.clone(),
+            transport_priority: topic.qos.transport_priority.clone(),
+            lifespan: topic.qos.lifespan.clone(),
+            destination_order: topic.qos.destination_order.clone(),
+            history: topic.qos.history.clone(),
+            resource_limits: topic.qos.resource_limits.clone(),
+            ownership: topic.qos.ownership.clone(),
+            topic_data: topic.qos.topic_data.clone(),
+            representation: topic.qos.representation.clone(),
         };
 
         let timestamp = self.get_current_time();
@@ -2474,7 +2548,7 @@ where
             .partition
             .name
             .iter()
-            .any(|n| publisher.qos().partition.name.contains(n));
+            .any(|n| publisher.qos.partition.name.contains(n));
 
         let is_any_received_regex_matched_with_partition_qos = discovered_reader_data
             .dds_subscription_data
@@ -2484,7 +2558,7 @@ where
             .filter_map(|n| Regex::new(&fnmatch_to_regex(n)).ok())
             .any(|regex| {
                 publisher
-                    .qos()
+                    .qos
                     .partition
                     .name
                     .iter()
@@ -2492,7 +2566,7 @@ where
             });
 
         let is_any_local_regex_matched_with_received_partition_qos = publisher
-            .qos()
+            .qos
             .partition
             .name
             .iter()
@@ -2507,25 +2581,25 @@ where
             });
 
         let is_partition_matched = discovered_reader_data.dds_subscription_data.partition
-            == publisher.qos().partition
+            == publisher.qos.partition
             || is_any_name_matched
             || is_any_received_regex_matched_with_partition_qos
             || is_any_local_regex_matched_with_received_partition_qos;
         if is_partition_matched {
-            let publisher_qos = publisher.qos().clone();
+            let publisher_qos = publisher.qos.clone();
             let Some(data_writer) = publisher.get_mut_data_writer(data_writer_handle) else {
                 return;
             };
 
-            let is_matched_topic_name = discovered_reader_data.dds_subscription_data.topic_name()
-                == data_writer.topic_name();
+            let is_matched_topic_name =
+                discovered_reader_data.dds_subscription_data.topic_name == data_writer.topic_name;
             let is_matched_type_name = discovered_reader_data.dds_subscription_data.get_type_name()
                 == data_writer.type_name();
 
             if is_matched_topic_name && is_matched_type_name {
                 let incompatible_qos_policy_list =
                     get_discovered_reader_incompatible_qos_policy_list(
-                        data_writer.qos(),
+                        &data_writer.qos,
                         &discovered_reader_data.dds_subscription_data,
                         &publisher_qos,
                     );
@@ -2856,7 +2930,9 @@ where
         };
         let Some(subscriber) = self
             .domain_participant
-            .get_mut_subscriber(subscriber_handle)
+            .user_defined_subscriber_list
+            .iter_mut()
+            .find(|x| x.instance_handle() == subscriber_handle)
         else {
             return;
         };
@@ -2865,7 +2941,7 @@ where
             .partition
             .name
             .iter()
-            .any(|n| subscriber.qos().partition.name.contains(n));
+            .any(|n| subscriber.qos.partition.name.contains(n));
 
         let is_any_received_regex_matched_with_partition_qos = discovered_writer_data
             .dds_publication_data
@@ -2875,7 +2951,7 @@ where
             .filter_map(|n| Regex::new(&fnmatch_to_regex(n)).ok())
             .any(|regex| {
                 subscriber
-                    .qos()
+                    .qos
                     .partition
                     .name
                     .iter()
@@ -2883,7 +2959,7 @@ where
             });
 
         let is_any_local_regex_matched_with_received_partition_qos = subscriber
-            .qos()
+            .qos
             .partition
             .name
             .iter()
@@ -2898,17 +2974,17 @@ where
             });
 
         let is_partition_matched = discovered_writer_data.dds_publication_data.partition
-            == subscriber.qos().partition
+            == subscriber.qos.partition
             || is_any_name_matched
             || is_any_received_regex_matched_with_partition_qos
             || is_any_local_regex_matched_with_received_partition_qos;
         if is_partition_matched {
-            let subscriber_qos = subscriber.qos().clone();
+            let subscriber_qos = subscriber.qos.clone();
             let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle) else {
                 return;
             };
-            let is_matched_topic_name = discovered_writer_data.dds_publication_data.topic_name()
-                == data_reader.topic_name();
+            let is_matched_topic_name =
+                discovered_writer_data.dds_publication_data.topic_name == data_reader.topic_name;
             let is_matched_type_name = discovered_writer_data.dds_publication_data.get_type_name()
                 == data_reader.type_name();
 
@@ -2941,11 +3017,11 @@ where
                     } else {
                         discovered_writer_data.writer_proxy.multicast_locator_list
                     };
-                    let reliability_kind = match data_reader.qos().reliability.kind {
+                    let reliability_kind = match data_reader.qos.reliability.kind {
                         ReliabilityQosPolicyKind::BestEffort => ReliabilityKind::BestEffort,
                         ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
                     };
-                    let durability_kind = match data_reader.qos().durability.kind {
+                    let durability_kind = match data_reader.qos.durability.kind {
                         DurabilityQosPolicyKind::Volatile => DurabilityKind::Volatile,
                         DurabilityQosPolicyKind::TransientLocal => DurabilityKind::TransientLocal,
                         DurabilityQosPolicyKind::Transient => DurabilityKind::Transient,
@@ -2978,7 +3054,9 @@ where
                         };
                         let Some(subscriber) = self
                             .domain_participant
-                            .get_mut_subscriber(subscriber_handle)
+                            .user_defined_subscriber_list
+                            .iter_mut()
+                            .find(|x| x.instance_handle() == subscriber_handle)
                         else {
                             return;
                         };
@@ -3005,7 +3083,9 @@ where
                         };
                         let Some(subscriber) = self
                             .domain_participant
-                            .get_mut_subscriber(subscriber_handle)
+                            .user_defined_subscriber_list
+                            .iter_mut()
+                            .find(|x| x.instance_handle() == subscriber_handle)
                         else {
                             return;
                         };
@@ -3033,7 +3113,9 @@ where
                         };
                         let Some(subscriber) = self
                             .domain_participant
-                            .get_mut_subscriber(subscriber_handle)
+                            .user_defined_subscriber_list
+                            .iter_mut()
+                            .find(|x| x.instance_handle() == subscriber_handle)
                         else {
                             return;
                         };
@@ -3051,7 +3133,9 @@ where
 
                     let Some(subscriber) = self
                         .domain_participant
-                        .get_mut_subscriber(subscriber_handle)
+                        .user_defined_subscriber_list
+                        .iter_mut()
+                        .find(|x| x.instance_handle() == subscriber_handle)
                     else {
                         return;
                     };
@@ -3087,7 +3171,9 @@ where
                         };
                         let Some(subscriber) = self
                             .domain_participant
-                            .get_mut_subscriber(subscriber_handle)
+                            .user_defined_subscriber_list
+                            .iter_mut()
+                            .find(|x| x.instance_handle() == subscriber_handle)
                         else {
                             return;
                         };
@@ -3113,7 +3199,9 @@ where
                         };
                         let Some(subscriber) = self
                             .domain_participant
-                            .get_mut_subscriber(subscriber_handle)
+                            .user_defined_subscriber_list
+                            .iter_mut()
+                            .find(|x| x.instance_handle() == subscriber_handle)
                         else {
                             return;
                         };
@@ -3141,7 +3229,9 @@ where
                         };
                         let Some(subscriber) = self
                             .domain_participant
-                            .get_mut_subscriber(subscriber_handle)
+                            .user_defined_subscriber_list
+                            .iter_mut()
+                            .find(|x| x.instance_handle() == subscriber_handle)
                         else {
                             return;
                         };
@@ -3159,7 +3249,9 @@ where
 
                     let Some(subscriber) = self
                         .domain_participant
-                        .get_mut_subscriber(subscriber_handle)
+                        .user_defined_subscriber_list
+                        .iter_mut()
+                        .find(|x| x.instance_handle() == subscriber_handle)
                     else {
                         return;
                     };
@@ -3187,7 +3279,9 @@ where
     ) {
         let Some(subscriber) = self
             .domain_participant
-            .get_mut_subscriber(subscriber_handle)
+            .user_defined_subscriber_list
+            .iter_mut()
+            .find(|x| x.instance_handle() == subscriber_handle)
         else {
             return;
         };
@@ -3235,9 +3329,10 @@ where
         let reception_timestamp = self.get_current_time();
         if let Some(reader) = self
             .domain_participant
-            .builtin_subscriber_mut()
-            .data_reader_list_mut()
-            .find(|dr| dr.topic_name() == DCPS_PARTICIPANT)
+            .builtin_subscriber
+            .data_reader_list
+            .iter_mut()
+            .find(|dr| dr.topic_name == DCPS_PARTICIPANT)
         {
             reader
                 .add_reader_change(cache_change, reception_timestamp)
@@ -3265,8 +3360,8 @@ where
                     {
                         let writer_topic = TopicBuiltinTopicData {
                             key: BuiltInTopicKey::default(),
-                            name: String::from(publication_builtin_topic_data.topic_name()),
-                            type_name: String::from(publication_builtin_topic_data.get_type_name()),
+                            name: publication_builtin_topic_data.topic_name.clone(),
+                            type_name: publication_builtin_topic_data.type_name.clone(),
                             durability: publication_builtin_topic_data.durability().clone(),
                             deadline: publication_builtin_topic_data.deadline().clone(),
                             latency_budget: publication_builtin_topic_data.latency_budget().clone(),
@@ -3289,8 +3384,8 @@ where
                     self.domain_participant
                         .add_discovered_writer(discovered_writer_data.clone());
                     let mut handle_list = Vec::new();
-                    for subscriber in self.domain_participant.subscriber_list() {
-                        for data_reader in subscriber.data_reader_list() {
+                    for subscriber in &self.domain_participant.user_defined_subscriber_list {
+                        for data_reader in subscriber.data_reader_list.iter() {
                             handle_list.push((
                                 subscriber.instance_handle(),
                                 data_reader.instance_handle(),
@@ -3316,8 +3411,8 @@ where
                         .remove_discovered_writer(&discovered_writer_handle);
 
                     let mut handle_list = Vec::new();
-                    for subscriber in self.domain_participant.subscriber_list() {
-                        for data_reader in subscriber.data_reader_list() {
+                    for subscriber in &self.domain_participant.user_defined_subscriber_list {
+                        for data_reader in subscriber.data_reader_list.iter() {
                             handle_list.push((
                                 subscriber.instance_handle(),
                                 data_reader.instance_handle(),
@@ -3340,9 +3435,10 @@ where
         let reception_timestamp = self.get_current_time();
         if let Some(reader) = self
             .domain_participant
-            .builtin_subscriber_mut()
-            .data_reader_list_mut()
-            .find(|dr| dr.topic_name() == DCPS_PUBLICATION)
+            .builtin_subscriber
+            .data_reader_list
+            .iter_mut()
+            .find(|dr| dr.topic_name == DCPS_PUBLICATION)
         {
             reader
                 .add_reader_change(cache_change, reception_timestamp)
@@ -3370,7 +3466,7 @@ where
                             key: BuiltInTopicKey::default(),
                             name: discovered_reader_data
                                 .dds_subscription_data
-                                .topic_name()
+                                .topic_name
                                 .to_string(),
                             type_name: discovered_reader_data
                                 .dds_subscription_data
@@ -3424,7 +3520,7 @@ where
                     self.domain_participant
                         .add_discovered_reader(discovered_reader_data.clone());
                     let mut handle_list = Vec::new();
-                    for publisher in self.domain_participant.publisher_list() {
+                    for publisher in &self.domain_participant.user_defined_publisher_list {
                         for data_writer in publisher.data_writer_list() {
                             handle_list
                                 .push((publisher.instance_handle(), data_writer.instance_handle()));
@@ -3449,7 +3545,7 @@ where
                         .remove_discovered_reader(&discovered_reader_handle);
 
                     let mut handle_list = Vec::new();
-                    for publisher in self.domain_participant.publisher_list_mut() {
+                    for publisher in &self.domain_participant.user_defined_publisher_list {
                         for data_writer in publisher.data_writer_list() {
                             handle_list
                                 .push((publisher.instance_handle(), data_writer.instance_handle()));
@@ -3472,9 +3568,10 @@ where
         let reception_timestamp = self.get_current_time();
         if let Some(reader) = self
             .domain_participant
-            .builtin_subscriber_mut()
-            .data_reader_list_mut()
-            .find(|dr| dr.topic_name() == DCPS_SUBSCRIPTION)
+            .builtin_subscriber
+            .data_reader_list
+            .iter_mut()
+            .find(|dr| dr.topic_name == DCPS_SUBSCRIPTION)
         {
             reader
                 .add_reader_change(cache_change, reception_timestamp)
@@ -3491,11 +3588,11 @@ where
                 {
                     self.domain_participant
                         .add_discovered_topic(topic_builtin_topic_data.clone());
-                    for topic in self.domain_participant.topic_list_mut() {
-                        if topic.topic_name() == topic_builtin_topic_data.name()
-                            && topic.type_name() == topic_builtin_topic_data.get_type_name()
+                    for topic in self.domain_participant.topic_list.iter_mut() {
+                        if topic.topic_name == topic_builtin_topic_data.name()
+                            && topic.type_name == topic_builtin_topic_data.get_type_name()
                             && !is_discovered_topic_consistent(
-                                topic.qos(),
+                                &topic.qos,
                                 &topic_builtin_topic_data,
                             )
                         {
@@ -3513,9 +3610,10 @@ where
         let reception_timestamp = self.get_current_time();
         if let Some(reader) = self
             .domain_participant
-            .builtin_subscriber_mut()
-            .data_reader_list_mut()
-            .find(|dr| dr.topic_name() == DCPS_TOPIC)
+            .builtin_subscriber
+            .data_reader_list
+            .iter_mut()
+            .find(|dr| dr.topic_name == DCPS_TOPIC)
         {
             reader
                 .add_reader_change(cache_change, reception_timestamp)
@@ -3534,7 +3632,9 @@ where
         let reception_timestamp = self.get_current_time();
         let Some(subscriber) = self
             .domain_participant
-            .get_mut_subscriber(subscriber_handle)
+            .user_defined_subscriber_list
+            .iter_mut()
+            .find(|x| x.instance_handle() == subscriber_handle)
         else {
             return;
         };
@@ -3551,7 +3651,7 @@ where
             match data_reader.add_reader_change(cache_change, reception_timestamp) {
                 Ok(AddChangeResult::Added(change_instance_handle)) => {
                     if let DurationKind::Finite(deadline_missed_period) =
-                        data_reader.qos().deadline.period
+                        data_reader.qos.deadline.period
                     {
                         let mut timer_handle = self.timer_handle.clone();
                         let participant_address = participant_address.clone();
@@ -3579,7 +3679,9 @@ where
 
                     let Some(subscriber) = self
                         .domain_participant
-                        .get_mut_subscriber(subscriber_handle)
+                        .user_defined_subscriber_list
+                        .iter_mut()
+                        .find(|x| x.instance_handle() == subscriber_handle)
                     else {
                         return;
                     };
@@ -3595,7 +3697,9 @@ where
                         };
                         let Some(subscriber) = self
                             .domain_participant
-                            .get_mut_subscriber(subscriber_handle)
+                            .user_defined_subscriber_list
+                            .iter_mut()
+                            .find(|x| x.instance_handle() == subscriber_handle)
                         else {
                             return;
                         };
@@ -3615,7 +3719,9 @@ where
                         };
                         let Some(subscriber) = self
                             .domain_participant
-                            .get_mut_subscriber(subscriber_handle)
+                            .user_defined_subscriber_list
+                            .iter_mut()
+                            .find(|x| x.instance_handle() == subscriber_handle)
                         else {
                             return;
                         };
@@ -3633,7 +3739,9 @@ where
 
                     let Some(subscriber) = self
                         .domain_participant
-                        .get_mut_subscriber(subscriber_handle)
+                        .user_defined_subscriber_list
+                        .iter_mut()
+                        .find(|x| x.instance_handle() == subscriber_handle)
                     else {
                         return;
                     };
@@ -3676,7 +3784,9 @@ where
                         };
                         let Some(subscriber) = self
                             .domain_participant
-                            .get_mut_subscriber(subscriber_handle)
+                            .user_defined_subscriber_list
+                            .iter_mut()
+                            .find(|x| x.instance_handle() == subscriber_handle)
                         else {
                             return;
                         };
@@ -3703,7 +3813,9 @@ where
                         };
                         let Some(subscriber) = self
                             .domain_participant
-                            .get_mut_subscriber(subscriber_handle)
+                            .user_defined_subscriber_list
+                            .iter_mut()
+                            .find(|x| x.instance_handle() == subscriber_handle)
                         else {
                             return;
                         };
@@ -3732,7 +3844,9 @@ where
                         };
                         let Some(subscriber) = self
                             .domain_participant
-                            .get_mut_subscriber(subscriber_handle)
+                            .user_defined_subscriber_list
+                            .iter_mut()
+                            .find(|x| x.instance_handle() == subscriber_handle)
                         else {
                             return;
                         };
@@ -3751,7 +3865,9 @@ where
 
                     let Some(subscriber) = self
                         .domain_participant
-                        .get_mut_subscriber(subscriber_handle)
+                        .user_defined_subscriber_list
+                        .iter_mut()
+                        .find(|x| x.instance_handle() == subscriber_handle)
                     else {
                         return;
                     };
@@ -3802,7 +3918,7 @@ where
             return;
         };
 
-        if let DurationKind::Finite(deadline) = data_writer.qos().deadline.period {
+        if let DurationKind::Finite(deadline) = data_writer.qos.deadline.period {
             match data_writer.get_instance_write_time(change_instance_handle) {
                 Some(t) => {
                     if current_time - t < deadline {
@@ -3920,7 +4036,9 @@ where
         let current_time = self.get_current_time();
         let Some(subscriber) = self
             .domain_participant
-            .get_mut_subscriber(subscriber_handle)
+            .user_defined_subscriber_list
+            .iter_mut()
+            .find(|x| x.instance_handle() == subscriber_handle)
         else {
             return;
         };
@@ -3928,7 +4046,7 @@ where
             return;
         };
 
-        if let DurationKind::Finite(deadline) = data_reader.qos().deadline.period {
+        if let DurationKind::Finite(deadline) = data_reader.qos.deadline.period {
             if let Some(t) = data_reader.get_instance_received_time(&change_instance_handle) {
                 if current_time - t < deadline {
                     return;
@@ -3955,7 +4073,9 @@ where
             };
             let Some(subscriber) = self
                 .domain_participant
-                .get_mut_subscriber(subscriber_handle)
+                .user_defined_subscriber_list
+                .iter_mut()
+                .find(|x| x.instance_handle() == subscriber_handle)
             else {
                 return;
             };
@@ -3981,7 +4101,9 @@ where
 
             let Some(subscriber) = self
                 .domain_participant
-                .get_mut_subscriber(subscriber_handle)
+                .user_defined_subscriber_list
+                .iter_mut()
+                .find(|x| x.instance_handle() == subscriber_handle)
             else {
                 return;
             };
@@ -4009,7 +4131,9 @@ where
 
             let Some(subscriber) = self
                 .domain_participant
-                .get_mut_subscriber(subscriber_handle)
+                .user_defined_subscriber_list
+                .iter_mut()
+                .find(|x| x.instance_handle() == subscriber_handle)
             else {
                 return;
             };
@@ -4025,7 +4149,9 @@ where
         }
         let Some(subscriber) = self
             .domain_participant
-            .get_mut_subscriber(subscriber_handle)
+            .user_defined_subscriber_list
+            .iter_mut()
+            .find(|x| x.instance_handle() == subscriber_handle)
         else {
             return;
         };
@@ -4064,9 +4190,12 @@ where
 
         let is_participant_discovered = self
             .domain_participant
-            .get_discovered_participant_data(&InstanceHandle::new(
-                discovered_participant_data.dds_participant_data.key.value,
-            ))
+            .discovered_participant_list
+            .iter()
+            .find(|p| {
+                &p.dds_participant_data.key().value
+                    == &discovered_participant_data.dds_participant_data.key.value
+            })
             .is_some();
 
         if is_domain_id_matching && is_domain_tag_matching && !is_participant_discovered {
@@ -4130,7 +4259,8 @@ where
             if let Some(dw) = self
                 .domain_participant
                 .builtin_publisher
-                .data_writer_list_mut()
+                .data_writer_list
+                .iter_mut()
                 .find(|dw| {
                     dw.transport_writer().guid().entity_id()
                         == ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER
@@ -4176,8 +4306,9 @@ where
             };
             if let Some(dr) = self
                 .domain_participant
-                .builtin_subscriber_mut()
-                .data_reader_list_mut()
+                .builtin_subscriber
+                .data_reader_list
+                .iter_mut()
                 .find(|dr| {
                     dr.transport_reader().guid().entity_id()
                         == ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR
@@ -4225,7 +4356,8 @@ where
             if let Some(dw) = self
                 .domain_participant
                 .builtin_publisher
-                .data_writer_list_mut()
+                .data_writer_list
+                .iter_mut()
                 .find(|dw| {
                     dw.transport_writer().guid().entity_id()
                         == ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER
@@ -4271,8 +4403,9 @@ where
             };
             if let Some(dr) = self
                 .domain_participant
-                .builtin_subscriber_mut()
-                .data_reader_list_mut()
+                .builtin_subscriber
+                .data_reader_list
+                .iter_mut()
                 .find(|dr| {
                     dr.transport_reader().guid().entity_id()
                         == ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR
@@ -4320,7 +4453,8 @@ where
             if let Some(dw) = self
                 .domain_participant
                 .builtin_publisher
-                .data_writer_list_mut()
+                .data_writer_list
+                .iter_mut()
                 .find(|dw| {
                     dw.transport_writer().guid().entity_id()
                         == ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER
@@ -4366,8 +4500,9 @@ where
             };
             if let Some(dr) = self
                 .domain_participant
-                .builtin_subscriber_mut()
-                .data_reader_list_mut()
+                .builtin_subscriber
+                .data_reader_list
+                .iter_mut()
                 .find(|dr| {
                     dr.transport_reader().guid().entity_id()
                         == ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR
@@ -4473,25 +4608,25 @@ fn get_discovered_writer_incompatible_qos_policy_list<
     {
         incompatible_qos_policy_list.push(PRESENTATION_QOS_POLICY_ID);
     }
-    if &data_reader.qos().durability > publication_builtin_topic_data.durability() {
+    if &data_reader.qos.durability > publication_builtin_topic_data.durability() {
         incompatible_qos_policy_list.push(DURABILITY_QOS_POLICY_ID);
     }
-    if &data_reader.qos().deadline < publication_builtin_topic_data.deadline() {
+    if &data_reader.qos.deadline < publication_builtin_topic_data.deadline() {
         incompatible_qos_policy_list.push(DEADLINE_QOS_POLICY_ID);
     }
-    if &data_reader.qos().latency_budget > publication_builtin_topic_data.latency_budget() {
+    if &data_reader.qos.latency_budget > publication_builtin_topic_data.latency_budget() {
         incompatible_qos_policy_list.push(LATENCYBUDGET_QOS_POLICY_ID);
     }
-    if &data_reader.qos().liveliness > publication_builtin_topic_data.liveliness() {
+    if &data_reader.qos.liveliness > publication_builtin_topic_data.liveliness() {
         incompatible_qos_policy_list.push(LIVELINESS_QOS_POLICY_ID);
     }
-    if data_reader.qos().reliability.kind > publication_builtin_topic_data.reliability().kind {
+    if data_reader.qos.reliability.kind > publication_builtin_topic_data.reliability().kind {
         incompatible_qos_policy_list.push(RELIABILITY_QOS_POLICY_ID);
     }
-    if &data_reader.qos().destination_order > publication_builtin_topic_data.destination_order() {
+    if &data_reader.qos.destination_order > publication_builtin_topic_data.destination_order() {
         incompatible_qos_policy_list.push(DESTINATIONORDER_QOS_POLICY_ID);
     }
-    if data_reader.qos().ownership.kind != publication_builtin_topic_data.ownership().kind {
+    if data_reader.qos.ownership.kind != publication_builtin_topic_data.ownership().kind {
         incompatible_qos_policy_list.push(OWNERSHIP_QOS_POLICY_ID);
     }
 
@@ -4501,14 +4636,14 @@ fn get_discovered_writer_incompatible_qos_policy_list<
         .first()
         .unwrap_or(&XCDR_DATA_REPRESENTATION);
     if !data_reader
-        .qos()
+        .qos
         .representation
         .value
         .contains(writer_offered_representation)
     {
         // Empty list is interpreted as containing XCDR_DATA_REPRESENTATION
         if !(writer_offered_representation == &XCDR_DATA_REPRESENTATION
-            && data_reader.qos().representation.value.is_empty())
+            && data_reader.qos.representation.value.is_empty())
         {
             incompatible_qos_policy_list.push(DATA_REPRESENTATION_QOS_POLICY_ID)
         }
@@ -4699,10 +4834,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantEntity<R, T
         }
     }
 
-    pub fn enable(&mut self) {
-        self.enabled = true;
-    }
-
     pub fn instance_handle(&self) -> InstanceHandle {
         self.instance_handle
     }
@@ -4727,64 +4858,14 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantEntity<R, T
             .retain(|x| &x.dds_publication_data.key().value != discovered_writer_handle.as_ref());
     }
 
-    pub fn qos(&self) -> &DomainParticipantQos {
-        &self.qos
-    }
-
     pub fn set_qos(&mut self, qos: DomainParticipantQos) {
         self.qos = qos;
-    }
-
-    pub fn enabled(&self) -> bool {
-        self.enabled
-    }
-
-    pub fn builtin_subscriber_mut(&mut self) -> &mut SubscriberEntity<R, T> {
-        &mut self.builtin_subscriber
-    }
-
-    pub fn ignore_participant(&mut self, handle: InstanceHandle) {
-        if !self.ignored_participants.contains(&handle) {
-            self.ignored_participants.push(handle);
-        }
-    }
-
-    pub fn ignore_subscription(&mut self, handle: InstanceHandle) {
-        if !self.ignored_subcriptions.contains(&handle) {
-            self.ignored_subcriptions.push(handle);
-        }
-    }
-
-    pub fn ignore_publication(&mut self, handle: InstanceHandle) {
-        if !self.ignored_publications.contains(&handle) {
-            self.ignored_publications.push(handle);
-        }
-    }
-
-    pub fn get_default_topic_qos(&self) -> &TopicQos {
-        &self.default_topic_qos
     }
 
     pub fn set_default_topic_qos(&mut self, qos: TopicQos) -> DdsResult<()> {
         qos.is_consistent()?;
         self.default_topic_qos = qos;
         Ok(())
-    }
-
-    pub fn get_discovered_participants(&self) -> Vec<InstanceHandle> {
-        self.discovered_participant_list
-            .iter()
-            .map(|p| InstanceHandle::new(p.dds_participant_data.key().value))
-            .collect()
-    }
-
-    pub fn get_discovered_participant_data(
-        &self,
-        participant_handle: &InstanceHandle,
-    ) -> Option<&SpdpDiscoveredParticipantData> {
-        self.discovered_participant_list
-            .iter()
-            .find(|p| &p.dds_participant_data.key().value == participant_handle.as_ref())
     }
 
     pub fn get_discovered_topics(&self) -> Vec<InstanceHandle> {
@@ -4909,10 +4990,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantEntity<R, T
         Some(self.user_defined_subscriber_list.remove(i))
     }
 
-    pub fn subscriber_list(&mut self) -> impl Iterator<Item = &SubscriberEntity<R, T>> {
-        self.user_defined_subscriber_list.iter()
-    }
-
     pub fn drain_subscriber_list(&mut self) -> impl Iterator<Item = SubscriberEntity<R, T>> + '_ {
         self.user_defined_subscriber_list.drain(..)
     }
@@ -4949,31 +5026,21 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantEntity<R, T
         self.user_defined_publisher_list.drain(..)
     }
 
-    pub fn publisher_list(&mut self) -> impl Iterator<Item = &PublisherEntity<R, T>> {
-        self.user_defined_publisher_list.iter()
-    }
-
-    pub fn publisher_list_mut(&mut self) -> impl Iterator<Item = &mut PublisherEntity<R, T>> {
-        self.user_defined_publisher_list.iter_mut()
-    }
-
     pub fn get_topic(&self, topic_name: &str) -> Option<&TopicEntity<R>> {
-        self.topic_list
-            .iter()
-            .find(|x| x.topic_name() == topic_name)
+        self.topic_list.iter().find(|x| x.topic_name == topic_name)
     }
 
     pub fn get_mut_topic(&mut self, topic_name: &str) -> Option<&mut TopicEntity<R>> {
         self.topic_list
             .iter_mut()
-            .find(|x| x.topic_name() == topic_name)
+            .find(|x| x.topic_name == topic_name)
     }
 
     pub fn insert_topic(&mut self, topic: TopicEntity<R>) {
         match self
             .topic_list
             .iter_mut()
-            .find(|x| x.topic_name() == topic.topic_name())
+            .find(|x| x.topic_name == topic.topic_name)
         {
             Some(x) => *x = topic,
             None => self.topic_list.push(topic),
@@ -4984,17 +5051,13 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantEntity<R, T
         let index = self
             .topic_list
             .iter()
-            .position(|x| x.topic_name() == topic_name)?;
+            .position(|x| x.topic_name == topic_name)?;
         Some(self.topic_list.remove(index))
     }
 
     pub fn delete_all_topics(&mut self) {
         self.topic_list
-            .retain(|x| BUILT_IN_TOPIC_NAME_LIST.contains(&x.topic_name()));
-    }
-
-    pub fn topic_list_mut(&mut self) -> impl Iterator<Item = &mut TopicEntity<R>> {
-        self.topic_list.iter_mut()
+            .retain(|x| BUILT_IN_TOPIC_NAME_LIST.contains(&x.topic_name.as_ref()));
     }
 
     pub fn content_filtered_topic_list(
@@ -5007,7 +5070,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantEntity<R, T
         let no_user_defined_topics = self
             .topic_list
             .iter()
-            .filter(|t| !BUILT_IN_TOPIC_NAME_LIST.contains(&t.topic_name()))
+            .filter(|t| !BUILT_IN_TOPIC_NAME_LIST.contains(&t.topic_name.as_ref()))
             .count()
             == 0;
 
@@ -5127,10 +5190,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> SubscriberEntity<R, T> {
         self.data_reader_list.iter()
     }
 
-    pub fn data_reader_list_mut(&mut self) -> impl Iterator<Item = &mut DataReaderEntity<R, T>> {
-        self.data_reader_list.iter_mut()
-    }
-
     pub fn drain_data_reader_list(&mut self) -> impl Iterator<Item = DataReaderEntity<R, T>> + '_ {
         self.data_reader_list.drain(..)
     }
@@ -5170,10 +5229,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> SubscriberEntity<R, T> {
         self.enabled = true;
     }
 
-    pub fn enabled(&self) -> bool {
-        self.enabled
-    }
-
     pub fn default_data_reader_qos(&self) -> &DataReaderQos {
         &self.default_data_reader_qos
     }
@@ -5185,10 +5240,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> SubscriberEntity<R, T> {
         default_data_reader_qos.is_consistent()?;
         self.default_data_reader_qos = default_data_reader_qos;
         Ok(())
-    }
-
-    pub fn qos(&self) -> &SubscriberQos {
-        &self.qos
     }
 
     pub fn set_qos(&mut self, qos: SubscriberQos) -> DdsResult<()> {
@@ -5262,34 +5313,6 @@ impl<R: DdsRuntime> TopicEntity<R> {
 
     pub fn enable(&mut self) {
         self.enabled = true;
-    }
-
-    pub fn enabled(&mut self) -> bool {
-        self.enabled
-    }
-
-    pub fn type_name(&self) -> &str {
-        &self.type_name
-    }
-
-    pub fn topic_name(&self) -> &str {
-        &self.topic_name
-    }
-
-    pub fn instance_handle(&self) -> InstanceHandle {
-        self.instance_handle
-    }
-
-    pub fn type_support(&self) -> &Arc<dyn DynamicType + Send + Sync> {
-        &self.type_support
-    }
-
-    pub fn status_condition(&self) -> &Actor<R, StatusConditionActor<R>> {
-        &self.status_condition
-    }
-
-    pub fn qos(&self) -> &TopicQos {
-        &self.qos
     }
 
     pub fn set_qos(&mut self, qos: TopicQos) -> DdsResult<()> {
@@ -5366,10 +5389,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> PublisherEntity<R, T> {
         self.data_writer_list.iter()
     }
 
-    pub fn data_writer_list_mut(&mut self) -> impl Iterator<Item = &mut DataWriterEntity<R, T>> {
-        self.data_writer_list.iter_mut()
-    }
-
     pub fn drain_data_writer_list(&mut self) -> impl Iterator<Item = DataWriterEntity<R, T>> + '_ {
         self.data_writer_list.drain(..)
     }
@@ -5407,7 +5426,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> PublisherEntity<R, T> {
     ) -> Option<&mut DataWriterEntity<R, T>> {
         self.data_writer_list
             .iter_mut()
-            .find(|x| x.topic_name() == topic_name)
+            .find(|x| x.topic_name == topic_name)
     }
 
     pub fn instance_handle(&self) -> InstanceHandle {
@@ -5416,10 +5435,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> PublisherEntity<R, T> {
 
     pub fn enable(&mut self) {
         self.enabled = true;
-    }
-
-    pub fn enabled(&self) -> bool {
-        self.enabled
     }
 
     pub fn default_datawriter_qos(&self) -> &DataWriterQos {
@@ -5433,10 +5448,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> PublisherEntity<R, T> {
         default_datawriter_qos.is_consistent()?;
         self.default_datawriter_qos = default_datawriter_qos;
         Ok(())
-    }
-
-    pub fn qos(&self) -> &PublisherQos {
-        &self.qos
     }
 
     pub fn set_qos(&mut self, qos: PublisherQos) -> DdsResult<()> {
@@ -5573,16 +5584,8 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
         &mut self.transport_writer
     }
 
-    pub fn enabled(&self) -> bool {
-        self.enabled
-    }
-
     pub fn enable(&mut self) {
         self.enabled = true;
-    }
-
-    pub fn qos(&self) -> &DataWriterQos {
-        &self.qos
     }
 
     pub fn set_qos(&mut self, qos: DataWriterQos) -> DdsResult<()> {
@@ -6697,31 +6700,12 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
         self.enabled = true;
     }
 
-    pub fn enabled(&self) -> bool {
-        self.enabled
-    }
-
-    pub fn qos(&self) -> &DataReaderQos {
-        &self.qos
-    }
-
     pub fn type_name(&self) -> &str {
         &self.type_name
     }
 
     pub fn topic_name(&self) -> &str {
         &self.topic_name
-    }
-
-    pub fn set_qos(&mut self, qos: DataReaderQos) -> DdsResult<()> {
-        qos.is_consistent()?;
-        if self.enabled {
-            self.qos.check_immutability(&qos)?
-        }
-
-        self.qos = qos;
-
-        Ok(())
     }
 
     pub fn add_matched_publication(
