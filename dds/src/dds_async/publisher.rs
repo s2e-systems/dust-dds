@@ -2,7 +2,7 @@ use super::{data_writer::DataWriterAsync, domain_participant::DomainParticipantA
 use crate::{
     dcps::{
         actor::Actor,
-        domain_participant_actor_mail::{DomainParticipantMail, PublisherServiceMail},
+        domain_participant_mail::{DomainParticipantMail, PublisherServiceMail},
         listeners::{
             data_writer_listener::DataWriterListenerActor,
             publisher_listener::PublisherListenerActor,

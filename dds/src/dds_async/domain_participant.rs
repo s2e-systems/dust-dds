@@ -3,8 +3,8 @@ use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     dcps::{
         actor::{Actor, ActorAddress},
-        domain_participant_actor::poll_timeout,
-        domain_participant_actor_mail::{DomainParticipantMail, ParticipantServiceMail},
+        domain_participant::poll_timeout,
+        domain_participant_mail::{DomainParticipantMail, ParticipantServiceMail},
         listeners::{
             domain_participant_listener::DomainParticipantListenerActor,
             publisher_listener::PublisherListenerActor,

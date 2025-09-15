@@ -5,8 +5,8 @@ use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     dcps::{
         actor::ActorAddress,
-        domain_participant_actor::poll_timeout,
-        domain_participant_actor_mail::{
+        domain_participant::poll_timeout,
+        domain_participant_mail::{
             DomainParticipantMail, MessageServiceMail, WriterServiceMail,
         },
         listeners::data_writer_listener::DataWriterListenerActor,

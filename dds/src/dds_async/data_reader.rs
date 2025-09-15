@@ -5,7 +5,7 @@ use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     dcps::{
         actor::ActorAddress,
-        domain_participant_actor_mail::{DomainParticipantMail, ReaderServiceMail},
+        domain_participant_mail::{DomainParticipantMail, ReaderServiceMail},
         listeners::data_reader_listener::DataReaderListenerActor,
         status_condition_actor::StatusConditionActor,
     },

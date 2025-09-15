@@ -2,7 +2,7 @@ use super::{condition::StatusConditionAsync, domain_participant::DomainParticipa
 use crate::{
     dcps::{
         actor::ActorAddress,
-        domain_participant_actor_mail::{DomainParticipantMail, TopicServiceMail},
+        domain_participant_mail::{DomainParticipantMail, TopicServiceMail},
         status_condition_actor::StatusConditionActor,
     },
     infrastructure::{

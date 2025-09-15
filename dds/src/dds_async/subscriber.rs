@@ -5,7 +5,7 @@ use super::{
 use crate::{
     dcps::{
         actor::{Actor, ActorAddress},
-        domain_participant_actor_mail::{DomainParticipantMail, SubscriberServiceMail},
+        domain_participant_mail::{DomainParticipantMail, SubscriberServiceMail},
         listeners::{
             data_reader_listener::DataReaderListenerActor,
             subscriber_listener::SubscriberListenerActor,

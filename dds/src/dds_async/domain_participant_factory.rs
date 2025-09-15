@@ -3,11 +3,10 @@ use crate::{
     configuration::DustDdsConfiguration,
     dcps::{
         actor::Actor,
-        domain_participant_actor_mail::{
+        domain_participant_factory::DomainParticipantFactoryActor,
+        domain_participant_factory_mail::DomainParticipantFactoryMail,
+        domain_participant_mail::{
             DiscoveryServiceMail, DomainParticipantMail, ParticipantServiceMail,
-        },
-        domain_participant_factory_actor::{
-            DomainParticipantFactoryActor, DomainParticipantFactoryMail,
         },
         listeners::domain_participant_listener::DomainParticipantListenerActor,
     },
