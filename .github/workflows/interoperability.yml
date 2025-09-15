@@ -3,7 +3,7 @@ name: interoperability
 on:
   workflow_dispatch:
 
-jobs:  
+jobs:
   interoperability:
     name: OMG Interoperability
     runs-on: ubuntu-latest
@@ -30,7 +30,7 @@ jobs:
       run: sudo apt-get install zip -y
     - name: Rename executable
       run: |
-        version=$( tq -f dds/Cargo.toml 'package.version' )
+        version=$( tq -f dds/Cargo.toml 'package.version' | tr -d '"' )
         cp ./target/release/dust_dds_shape_main_linux ./dust_dds-${version}_shape_main_linux
         mkdir artifacts
         zip --junk-paths artifacts/dust_dds-${version}_shape_main_linux.zip ./dust_dds-${version}_shape_main_linux
@@ -66,4 +66,3 @@ jobs:
       with:
         name: interoperability_report
         path: ./index.html
-    
