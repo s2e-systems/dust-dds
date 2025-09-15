@@ -3,6 +3,7 @@ use crate::{
     infrastructure::error::DdsResult,
     runtime::DdsRuntime,
 };
+use alloc::string::String;
 
 /// Async version of [`Topic`](crate::topic_definition::content_filtered_topic::ContentFilteredTopic).
 pub struct ContentFilteredTopicAsync<R: DdsRuntime> {

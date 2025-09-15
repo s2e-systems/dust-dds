@@ -17,7 +17,7 @@ use crate::{
     topic_definition::{topic_description::TopicDescription, topic_listener::TopicListener},
     xtypes::dynamic_type::DynamicType,
 };
-use alloc::{sync::Arc, vec::Vec};
+use alloc::{string::String, sync::Arc, vec::Vec};
 
 /// The [`DomainParticipant`] represents the participation of the application on a communication plane that isolates applications running on the
 /// same set of physical computers from each other. A domain establishes a *virtual network* linking all applications that

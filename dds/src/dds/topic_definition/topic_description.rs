@@ -4,6 +4,7 @@ use crate::{
     runtime::DdsRuntime,
     topic_definition::{content_filtered_topic::ContentFilteredTopic, topic::Topic},
 };
+use alloc::string::String;
 
 /// This class is an enumrator for different topic types.
 pub enum TopicDescription<R: DdsRuntime> {
