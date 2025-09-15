@@ -534,7 +534,7 @@ where
         }
 
         for content_filtered_topic in self.domain_participant.content_filtered_topic_list() {
-            if content_filtered_topic.related_topic_name() == &topic_name {
+            if content_filtered_topic.related_topic_name() == topic_name {
                 return Err(DdsError::PreconditionNotMet(
                     "Topic still attached to content filtered topic".to_string(),
                 ));

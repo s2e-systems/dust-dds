@@ -5,7 +5,6 @@ use crate::{
 };
 
 /// Async version of [`Topic`](crate::topic_definition::content_filtered_topic::ContentFilteredTopic).
-
 pub struct ContentFilteredTopicAsync<R: DdsRuntime> {
     name: String,
     topic: TopicAsync<R>,
@@ -21,7 +20,7 @@ impl<R: DdsRuntime> Clone for ContentFilteredTopicAsync<R> {
 }
 
 impl<R: DdsRuntime> ContentFilteredTopicAsync<R> {
-    pub(crate) fn new(name: String, topic: TopicAsync<R>) -> Self {
+    pub(crate) fn _new(name: String, topic: TopicAsync<R>) -> Self {
         Self { name, topic }
     }
 }
@@ -40,7 +39,7 @@ impl<R: DdsRuntime> ContentFilteredTopicAsync<R> {
     /// Async version of [`set_expression_parameters`](crate::topic_definition::content_filtered_topic::ContentFilteredTopic::set_expression_parameters).
     pub async fn set_expression_parameters(
         &self,
-        expression_parameters: &[String],
+        _expression_parameters: &[String],
     ) -> DdsResult<()> {
         todo!()
     }

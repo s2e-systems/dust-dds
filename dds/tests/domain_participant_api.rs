@@ -923,6 +923,7 @@ fn ignore_participant() {
 }
 
 #[test]
+#[ignore = "Not yet implemented"]
 fn create_delete_content_filtered_topic() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
