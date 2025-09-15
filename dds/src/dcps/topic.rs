@@ -2,9 +2,10 @@ use alloc::sync::Arc;
 
 use super::{
     actor::Actor, listeners::domain_participant_listener::ListenerMail,
-    status_condition::StatusCondition, status_condition_actor::StatusConditionActor,
+    status_condition_actor::StatusConditionActor,
 };
 use crate::{
+    dcps::status_condition_actor::StatusConditionMail,
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
@@ -110,7 +111,9 @@ impl<R: DdsRuntime> TopicEntity<R> {
         let status = self.inconsistent_topic_status.clone();
         self.inconsistent_topic_status.total_count_change = 0;
         self.status_condition
-            .remove_state(StatusKind::InconsistentTopic)
+            .send_actor_mail(StatusConditionMail::RemoveCommunicationState {
+                state: StatusKind::InconsistentTopic,
+            })
             .await;
         status
     }
@@ -119,7 +122,9 @@ impl<R: DdsRuntime> TopicEntity<R> {
         self.inconsistent_topic_status.total_count += 1;
         self.inconsistent_topic_status.total_count_change += 1;
         self.status_condition
-            .add_state(StatusKind::InconsistentTopic)
+            .send_actor_mail(StatusConditionMail::AddCommunicationState {
+                state: StatusKind::InconsistentTopic,
+            })
             .await;
     }
 }

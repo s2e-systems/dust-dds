@@ -13,13 +13,13 @@ use super::{
         time::{DurationKind, Time},
     },
     listeners::domain_participant_listener::ListenerMail,
-    status_condition::StatusCondition,
     status_condition_actor::StatusConditionActor,
     xtypes_glue::key_and_instance_handle::{
         get_instance_handle_from_serialized_foo, get_instance_handle_from_serialized_key,
     },
 };
 use crate::{
+    dcps::status_condition_actor::StatusConditionMail,
     runtime::{Clock, DdsRuntime},
     transport::{
         interface::{
@@ -595,7 +595,9 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
         let status = self.offered_deadline_missed_status.clone();
         self.offered_deadline_missed_status.total_count_change = 0;
         self.status_condition
-            .remove_state(StatusKind::OfferedDeadlineMissed)
+            .send_actor_mail(StatusConditionMail::RemoveCommunicationState {
+                state: StatusKind::OfferedDeadlineMissed,
+            })
             .await;
 
         status

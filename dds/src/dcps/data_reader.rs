@@ -17,13 +17,13 @@ use super::{
         time::{DurationKind, Time},
     },
     listeners::domain_participant_listener::ListenerMail,
-    status_condition::StatusCondition,
     status_condition_actor::StatusConditionActor,
     xtypes_glue::key_and_instance_handle::{
         get_instance_handle_from_serialized_foo, get_instance_handle_from_serialized_key,
     },
 };
 use crate::{
+    dcps::status_condition_actor::StatusConditionMail,
     runtime::DdsRuntime,
     transport::{
         interface::{
@@ -900,7 +900,9 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
         self.subscription_matched_status.current_count = self.matched_publication_list.len() as i32;
         self.subscription_matched_status.current_count_change -= 1;
         self.status_condition
-            .add_state(StatusKind::SubscriptionMatched)
+            .send_actor_mail(StatusConditionMail::AddCommunicationState {
+                state: StatusKind::SubscriptionMatched,
+            })
             .await;
     }
 
@@ -917,7 +919,9 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
         }
 
         self.status_condition
-            .remove_state(StatusKind::DataAvailable)
+            .send_actor_mail(StatusConditionMail::RemoveCommunicationState {
+                state: StatusKind::DataAvailable,
+            })
             .await;
 
         let indexed_sample_list = self.create_indexed_sample_collection(
@@ -964,7 +968,9 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
         )?;
 
         self.status_condition
-            .remove_state(StatusKind::DataAvailable)
+            .send_actor_mail(StatusConditionMail::RemoveCommunicationState {
+                state: StatusKind::DataAvailable,
+            })
             .await;
 
         let mut change_index_list: Vec<usize>;

@@ -1,7 +1,7 @@
 use core::marker::PhantomData;
 
 use crate::{
-    dcps::actor::{Actor, MailHandler},
+    dcps::actor::MailHandler,
     infrastructure::status::StatusKind,
     runtime::{DdsRuntime, OneshotSend},
 };
@@ -103,19 +103,5 @@ impl<R: DdsRuntime> MailHandler for StatusConditionActor<R> {
                 self.remove_communication_state(state)
             }
         }
-    }
-}
-
-impl<R: DdsRuntime> crate::dcps::status_condition::StatusCondition
-    for Actor<R, StatusConditionActor<R>>
-{
-    async fn add_state(&mut self, state: StatusKind) {
-        self.send_actor_mail(StatusConditionMail::AddCommunicationState { state })
-            .await;
-    }
-
-    async fn remove_state(&mut self, state: StatusKind) {
-        self.send_actor_mail(StatusConditionMail::RemoveCommunicationState { state })
-            .await;
     }
 }
