@@ -5,6 +5,7 @@ use crate::{
     },
     runtime::DdsRuntime,
 };
+use alloc::string::String;
 
 /// Async version of [`TopicDescription`](crate::topic_definition::topic_description::TopicDescription).
 pub enum TopicDescriptionAsync<R: DdsRuntime> {

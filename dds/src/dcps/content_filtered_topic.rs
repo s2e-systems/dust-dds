@@ -1,3 +1,5 @@
+use alloc::{string::String, vec::Vec};
+
 pub struct ContentFilteredTopicEntity {
     name: String,
     related_topic_name: String,
