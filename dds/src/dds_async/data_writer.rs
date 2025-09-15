@@ -1,6 +1,6 @@
 use tracing::warn;
 
-use super::{condition::StatusConditionAsync, publisher::PublisherAsync, topic::TopicAsync};
+use super::{condition::StatusConditionAsync, publisher::PublisherAsync};
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     dcps::{
@@ -12,6 +12,7 @@ use crate::{
         listeners::data_writer_listener::DataWriterListenerActor,
         status_condition_actor::StatusConditionActor,
     },
+    dds_async::topic_description::TopicDescriptionAsync,
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
@@ -34,7 +35,7 @@ pub struct DataWriterAsync<R: DdsRuntime, Foo> {
     handle: InstanceHandle,
     status_condition_address: ActorAddress<R, StatusConditionActor<R>>,
     publisher: PublisherAsync<R>,
-    topic: TopicAsync<R>,
+    topic: TopicDescriptionAsync<R>,
     phantom: PhantomData<Foo>,
 }
 
@@ -55,7 +56,7 @@ impl<R: DdsRuntime, Foo> DataWriterAsync<R, Foo> {
         handle: InstanceHandle,
         status_condition_address: ActorAddress<R, StatusConditionActor<R>>,
         publisher: PublisherAsync<R>,
-        topic: TopicAsync<R>,
+        topic: TopicDescriptionAsync<R>,
     ) -> Self {
         Self {
             handle,
@@ -341,7 +342,7 @@ impl<R: DdsRuntime, Foo> DataWriterAsync<R, Foo> {
 
     /// Async version of [`get_topic`](crate::publication::data_writer::DataWriter::get_topic).
     #[tracing::instrument(skip(self))]
-    pub fn get_topic(&self) -> TopicAsync<R> {
+    pub fn get_topic(&self) -> TopicDescriptionAsync<R> {
         self.topic.clone()
     }
 

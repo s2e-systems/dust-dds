@@ -20,6 +20,7 @@ use dust_dds::{
         type_support::DdsType,
     },
     listener::NO_LISTENER,
+    topic_definition::topic_description::TopicDescription,
     wait_set::{Condition, WaitSet},
 };
 
@@ -1901,7 +1902,10 @@ fn inconsistent_topic_status_condition() {
         )
         .unwrap();
 
-    let status_cond = topic_best_effort.get_statuscondition();
+    let status_cond = match &topic_best_effort {
+        TopicDescription::Topic(topic) => topic.get_statuscondition(),
+        TopicDescription::ContentFilteredTopic(_) => unreachable!(),
+    };
     status_cond
         .set_enabled_statuses(&[StatusKind::InconsistentTopic])
         .unwrap();
@@ -1934,13 +1938,12 @@ fn inconsistent_topic_status_condition() {
 
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
-    assert!(
-        topic_best_effort
-            .get_inconsistent_topic_status()
-            .unwrap()
-            .total_count
-            > 0
-    );
+    match topic_best_effort {
+        TopicDescription::Topic(topic) => {
+            assert!(topic.get_inconsistent_topic_status().unwrap().total_count > 0)
+        }
+        TopicDescription::ContentFilteredTopic(_) => unreachable!(),
+    }
 }
 
 #[test]

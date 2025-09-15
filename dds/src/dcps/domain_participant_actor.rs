@@ -40,7 +40,7 @@ use crate::{
     dds_async::{
         data_reader::DataReaderAsync, data_writer::DataWriterAsync,
         domain_participant::DomainParticipantAsync, publisher::PublisherAsync,
-        subscriber::SubscriberAsync, topic::TopicAsync,
+        subscriber::SubscriberAsync, topic::TopicAsync, topic_description::TopicDescriptionAsync,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -198,7 +198,10 @@ where
             data_reader_handle,
             data_reader.status_condition().address(),
             self.get_subscriber_async(participant_address.clone(), subscriber_handle)?,
-            self.get_topic_async(participant_address, String::from(data_reader.topic_name()))?,
+            self.get_topic_description_async(
+                participant_address,
+                String::from(data_reader.topic_name()),
+            )?,
         ))
     }
 
@@ -230,26 +233,29 @@ where
             data_writer_handle,
             data_writer.status_condition().address(),
             self.get_publisher_async(participant_address.clone(), publisher_handle)?,
-            self.get_topic_async(participant_address, String::from(data_writer.topic_name()))?,
+            self.get_topic_description_async(
+                participant_address,
+                String::from(data_writer.topic_name()),
+            )?,
         ))
     }
 
-    pub fn get_topic_async(
+    pub fn get_topic_description_async(
         &self,
         participant_address: R::ChannelSender<DomainParticipantMail<R>>,
         topic_name: String,
-    ) -> DdsResult<TopicAsync<R>> {
+    ) -> DdsResult<TopicDescriptionAsync<R>> {
         let topic = self
             .domain_participant
             .get_topic(&topic_name)
             .ok_or(DdsError::AlreadyDeleted)?;
-        Ok(TopicAsync::new(
+        Ok(TopicDescriptionAsync::Topic(TopicAsync::new(
             topic.instance_handle(),
             topic.status_condition().address(),
             String::from(topic.type_name()),
             topic_name,
             self.get_participant_async(participant_address),
-        ))
+        )))
     }
 
     #[tracing::instrument(skip(self))]
@@ -527,10 +533,37 @@ where
             ));
         }
 
+        for content_filtered_topic in self.domain_participant.content_filtered_topic_list() {
+            if content_filtered_topic.related_topic_name() == topic_name {
+                return Err(DdsError::PreconditionNotMet(
+                    "Topic still attached to content filtered topic".to_string(),
+                ));
+            }
+        }
+
         let Some(_) = self.domain_participant.remove_topic(&topic_name) else {
             return Err(DdsError::AlreadyDeleted);
         };
 
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn create_content_filtered_topic(
+        &mut self,
+        participant_handle: InstanceHandle,
+        name: String,
+        related_topic_name: String,
+    ) -> DdsResult<()> {
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn delete_content_filtered_topic(
+        &mut self,
+        participant_handle: InstanceHandle,
+        name: String,
+    ) -> DdsResult<()> {
         Ok(())
     }
 

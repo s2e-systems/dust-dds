@@ -1,6 +1,7 @@
 use crate::{
     builtin_topics::TopicBuiltinTopicData,
     dcps::{
+        content_filtered_topic::ContentFilteredTopicEntity,
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,
             discovered_writer_data::DiscoveredWriterData,
@@ -46,6 +47,7 @@ pub struct DomainParticipantEntity<R: DdsRuntime, T: TransportParticipantFactory
     user_defined_publisher_list: Vec<PublisherEntity<R, T>>,
     default_publisher_qos: PublisherQos,
     topic_list: Vec<TopicEntity<R>>,
+    content_filtered_topic_list: Vec<ContentFilteredTopicEntity>,
     default_topic_qos: TopicQos,
     discovered_participant_list: Vec<SpdpDiscoveredParticipantData>,
     discovered_topic_list: Vec<TopicBuiltinTopicData>,
@@ -84,6 +86,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantEntity<R, T
             user_defined_publisher_list: Vec::new(),
             default_publisher_qos: PublisherQos::const_default(),
             topic_list,
+            content_filtered_topic_list: Vec::new(),
             default_topic_qos: TopicQos::const_default(),
             discovered_participant_list: Vec::new(),
             discovered_topic_list: Vec::new(),
@@ -400,6 +403,12 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantEntity<R, T
 
     pub fn topic_list_mut(&mut self) -> impl Iterator<Item = &mut TopicEntity<R>> {
         self.topic_list.iter_mut()
+    }
+
+    pub fn content_filtered_topic_list(
+        &mut self,
+    ) -> impl Iterator<Item = &ContentFilteredTopicEntity> {
+        self.content_filtered_topic_list.iter()
     }
 
     pub fn is_empty(&self) -> bool {

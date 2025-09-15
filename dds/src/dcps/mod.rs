@@ -19,5 +19,6 @@ pub mod builtin_topics;
 /// Contains all the basic types used in the other modules including e.g. qos policies and communication statuses.
 pub mod infrastructure;
 
+pub mod content_filtered_topic;
 pub mod status_condition;
 pub mod xtypes_glue;

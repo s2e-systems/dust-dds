@@ -69,6 +69,17 @@ pub enum ParticipantServiceMail<R: DdsRuntime> {
         topic_name: String,
         reply_sender: R::OneshotSender<DdsResult<()>>,
     },
+    CreateContentFilteredTopic {
+        participant_handle: InstanceHandle,
+        name: String,
+        related_topic_name: String,
+        reply_sender: R::OneshotSender<DdsResult<()>>,
+    },
+    DeleteContentFilteredTopic {
+        participant_handle: InstanceHandle,
+        name: String,
+        reply_sender: R::OneshotSender<DdsResult<()>>,
+    },
     FindTopic {
         topic_name: String,
         type_support: Arc<dyn DynamicType + Send + Sync>,
@@ -626,6 +637,21 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantActor<R, T>
                 topic_name,
                 reply_sender,
             } => reply_sender.send(self.delete_user_defined_topic(participant_handle, topic_name)),
+            ParticipantServiceMail::CreateContentFilteredTopic {
+                participant_handle,
+                name,
+                related_topic_name,
+                reply_sender,
+            } => reply_sender.send(self.create_content_filtered_topic(
+                participant_handle,
+                name,
+                related_topic_name,
+            )),
+            ParticipantServiceMail::DeleteContentFilteredTopic {
+                participant_handle,
+                name,
+                reply_sender,
+            } => reply_sender.send(self.delete_content_filtered_topic(participant_handle, name)),
             ParticipantServiceMail::FindTopic {
                 topic_name,
                 type_support,
