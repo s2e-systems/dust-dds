@@ -5,7 +5,7 @@ use crate::{
         domain_participant_factory::DomainParticipantFactoryActor,
         domain_participant_mail::DomainParticipantMail,
         listeners::domain_participant_listener::ListenerMail,
-        status_condition_actor::StatusConditionActor,
+        status_condition::StatusConditionActor,
     },
     infrastructure::{
         domain::DomainId,

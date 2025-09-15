@@ -7,7 +7,7 @@ use crate::{
         actor::ActorAddress,
         domain_participant_mail::{DomainParticipantMail, ReaderServiceMail},
         listeners::data_reader_listener::DataReaderListenerActor,
-        status_condition_actor::StatusConditionActor,
+        status_condition::StatusConditionActor,
     },
     dds_async::topic_description::TopicDescriptionAsync,
     infrastructure::{

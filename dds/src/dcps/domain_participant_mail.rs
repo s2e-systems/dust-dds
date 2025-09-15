@@ -7,7 +7,7 @@ use crate::{
     dcps::{
         actor::{Actor, ActorAddress, MailHandler},
         listeners::domain_participant_listener::ListenerMail,
-        status_condition_actor::StatusConditionActor,
+        status_condition::StatusConditionActor,
     },
     infrastructure::{
         error::DdsResult,

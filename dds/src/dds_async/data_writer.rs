@@ -10,7 +10,7 @@ use crate::{
             DomainParticipantMail, MessageServiceMail, WriterServiceMail,
         },
         listeners::data_writer_listener::DataWriterListenerActor,
-        status_condition_actor::StatusConditionActor,
+        status_condition::StatusConditionActor,
     },
     dds_async::topic_description::TopicDescriptionAsync,
     infrastructure::{

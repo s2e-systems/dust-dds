@@ -10,7 +10,7 @@ use crate::{
             data_reader_listener::DataReaderListenerActor,
             subscriber_listener::SubscriberListenerActor,
         },
-        status_condition_actor::StatusConditionActor,
+        status_condition::StatusConditionActor,
     },
     dds_async::topic_description::TopicDescriptionAsync,
     infrastructure::{

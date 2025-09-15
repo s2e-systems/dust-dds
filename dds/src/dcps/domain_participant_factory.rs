@@ -4,24 +4,22 @@ use crate::{
     configuration::DustDdsConfiguration,
     dcps::{
         actor::{Actor, ActorAddress},
-        data_reader::{DataReaderEntity, TransportReaderKind},
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,
             discovered_topic_data::DiscoveredTopicData,
             discovered_writer_data::DiscoveredWriterData,
             spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         },
-        data_writer::{DataWriterEntity, TransportWriterKind},
-        domain_participant::{DomainParticipantActor, DomainParticipantEntity},
+        domain_participant::{
+            DataReaderEntity, DataWriterEntity, DomainParticipantActor, DomainParticipantEntity,
+            InstanceHandleCounter, PublisherEntity, SubscriberEntity, TopicEntity,
+            TransportReaderKind, TransportWriterKind,
+        },
         domain_participant_mail::{
             DiscoveryServiceMail, DomainParticipantMail, MessageServiceMail, ParticipantServiceMail,
         },
-        handle::InstanceHandleCounter,
         listeners::domain_participant_listener::ListenerMail,
-        publisher::PublisherEntity,
-        status_condition_actor::StatusConditionActor,
-        subscriber::SubscriberEntity,
-        topic::TopicEntity,
+        status_condition::StatusConditionActor,
     },
     infrastructure::{
         domain::DomainId,

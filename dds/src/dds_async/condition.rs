@@ -1,7 +1,7 @@
 use crate::{
     dcps::{
-        actor::ActorAddress,
-        status_condition_actor::{StatusConditionActor, StatusConditionMail},
+        actor::ActorAddress, status_condition::StatusConditionActor,
+        status_condition_mail::StatusConditionMail,
     },
     infrastructure::{error::DdsResult, status::StatusKind},
     runtime::{DdsRuntime, OneshotReceive},

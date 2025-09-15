@@ -3,7 +3,7 @@ use crate::{
     dcps::{
         actor::ActorAddress,
         domain_participant_mail::{DomainParticipantMail, TopicServiceMail},
-        status_condition_actor::StatusConditionActor,
+        status_condition::StatusConditionActor,
     },
     infrastructure::{
         error::DdsResult,

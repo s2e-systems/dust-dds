@@ -10,7 +10,7 @@ use crate::{
             publisher_listener::PublisherListenerActor,
             subscriber_listener::SubscriberListenerActor, topic_listener::TopicListenerActor,
         },
-        status_condition_actor::StatusConditionActor,
+        status_condition::StatusConditionActor,
     },
     dds_async::topic_description::TopicDescriptionAsync,
     domain::domain_participant_listener::DomainParticipantListener,
