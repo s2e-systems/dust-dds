@@ -47,6 +47,7 @@ jobs:
       with:
         repository: omg-dds/dds-rtps
         latest: true
+        preRelease: true
         fileName: "*"
     - name: Unzip
       run: unzip '*.zip' -d executables
