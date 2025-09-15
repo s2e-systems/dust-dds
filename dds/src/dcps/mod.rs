@@ -2,7 +2,6 @@ pub mod actor;
 pub mod data_reader;
 pub mod data_representation_builtin_endpoints;
 pub mod data_writer;
-pub mod domain_participant;
 pub mod domain_participant_actor;
 pub mod domain_participant_actor_mail;
 pub mod domain_participant_factory_actor;

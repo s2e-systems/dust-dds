@@ -12,8 +12,7 @@ use crate::{
             spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         },
         data_writer::{DataWriterEntity, TransportWriterKind},
-        domain_participant::DomainParticipantEntity,
-        domain_participant_actor::DomainParticipantActor,
+        domain_participant_actor::{DomainParticipantActor, DomainParticipantEntity},
         domain_participant_actor_mail::{
             DiscoveryServiceMail, DomainParticipantMail, MessageServiceMail, ParticipantServiceMail,
         },
