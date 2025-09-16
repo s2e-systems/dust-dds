@@ -4,24 +4,13 @@ on:
   workflow_dispatch:
 
 jobs:
-  prepare:
+  create_bin_release:
     name: OMG Interoperability
     runs-on: ubuntu-latest
     steps:
     - name: Checkout sources
       uses: actions/checkout@v4
-    - name: Checkout dds-rtps
-      uses: actions/checkout@v4
-      with:
-        repository: omg-dds/dds-rtps
-        ref: '53803e70c00cbf60c816bb95c7886701ab9ae597'
-        path: omg-dds-rtps
-        sparse-checkout-cone-mode: false
-        sparse-checkout: |
-          interoperability_report.py
-          test_suite.py
-          rtps_test_utilities.py
-          requirements.txt
+
     - uses: dtolnay/rust-toolchain@stable
     - run: cargo build --package dust_dds_shape_main_linux --release
     - name: Install tomlq
@@ -39,6 +28,34 @@ jobs:
       with:
         name: interoperability_executable
         path: ./artifacts/
+
+  run_tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        publisher:
+        - ./target/release/dust_dds_shape_main_linux
+        - ./executables/connext_dds-*_shape_main_linux
+        subscriber:
+        - ./target/release/dust_dds_shape_main_linux
+        - ./executables/connext_dds-*_shape_main_linux
+    steps:
+    - name: Checkout sources
+      uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+    - run: cargo build --package dust_dds_shape_main_linux --release
+    - name: Checkout dds-rtps
+      uses: actions/checkout@v4
+      with:
+        repository: omg-dds/dds-rtps
+        ref: '53803e70c00cbf60c816bb95c7886701ab9ae597'
+        path: omg-dds-rtps
+        sparse-checkout-cone-mode: false
+        sparse-checkout: |
+          interoperability_report.py
+          test_suite.py
+          rtps_test_utilities.py
+          requirements.txt
     - uses: actions/setup-python@v5
       with:
         python-version: '3.11.4'
@@ -53,20 +70,8 @@ jobs:
       run: unzip '*.zip' -d executables
     - name: Setting up environment
       run: pip install -r omg-dds-rtps/requirements.txt
-  run_tests:
-    runs-on: ubuntu-latest
-    needs: prepare
-    strategy:
-      matrix:
-        publisher:
-        - ./target/release/dust_dds_shape_main_linux
-        - ./executables/connext_dds-*_shape_main_linux
-        subscriber:
-        - ./target/release/dust_dds_shape_main_linux
-        - ./executables/connext_dds-*_shape_main_linux
-    steps:
-      - name: Run Interoperability script
-        run: python3 ./omg-dds-rtps/interoperability_report.py -P "${{ matrix.publisher }}" -S "${{ matrix.subscriber }}" -o=junit_interoperability_report.xml
+    - name: Run Interoperability script
+      run: python3 ./omg-dds-rtps/interoperability_report.py -P "${{ matrix.publisher }}" -S "${{ matrix.subscriber }}" -o=junit_interoperability_report.xml
 
   report:
     runs-on: ubuntu-latest
