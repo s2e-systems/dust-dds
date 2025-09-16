@@ -157,7 +157,7 @@ where
                 .status_condition()
                 .address(),
             self.domain_participant.domain_id(),
-            self.domain_participant.instance_handle(),
+            self.domain_participant.instance_handle,
             self.spawner_handle.clone(),
             self.clock_handle.clone(),
             self.timer_handle.clone(),
@@ -356,7 +356,7 @@ where
         participant_handle: InstanceHandle,
         publisher_handle: InstanceHandle,
     ) -> DdsResult<()> {
-        if participant_handle != self.domain_participant.instance_handle() {
+        if participant_handle != self.domain_participant.instance_handle {
             return Err(DdsError::PreconditionNotMet(
                 "Publisher can only be deleted from its parent participant".to_string(),
             ));
@@ -423,7 +423,7 @@ where
         participant_handle: InstanceHandle,
         subscriber_handle: InstanceHandle,
     ) -> DdsResult<()> {
-        if self.domain_participant.instance_handle() != participant_handle {
+        if self.domain_participant.instance_handle != participant_handle {
             return Err(DdsError::PreconditionNotMet(
                 "Subscriber can only be deleted from its parent participant".to_string(),
             ));
@@ -506,7 +506,7 @@ where
         participant_handle: InstanceHandle,
         topic_name: String,
     ) -> DdsResult<()> {
-        if self.domain_participant.instance_handle() != participant_handle {
+        if self.domain_participant.instance_handle != participant_handle {
             return Err(DdsError::PreconditionNotMet(
                 "Topic can only be deleted from its parent participant".to_string(),
             ));
@@ -835,7 +835,7 @@ where
             QosKind::Specific(q) => q,
         };
 
-        self.domain_participant.set_qos(qos);
+        self.domain_participant.qos = qos;
         if self.domain_participant.enabled {
             self.announce_participant().await;
         }
@@ -945,7 +945,7 @@ where
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| x.instance_handle() == subscriber_handle)
+            .find(|x| x.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -985,7 +985,7 @@ where
                     reliablity_kind,
                     Box::new(UserDefinedReaderHistoryCache::<R> {
                         domain_participant_address: domain_participant_address.clone(),
-                        subscriber_handle: subscriber.instance_handle(),
+                        subscriber_handle: subscriber.instance_handle,
                         data_reader_handle: reader_handle,
                     }),
                 )
@@ -1005,7 +1005,7 @@ where
             transport_reader,
         );
 
-        let data_reader_handle = data_reader.instance_handle();
+        let data_reader_handle = data_reader.instance_handle;
 
         subscriber.insert_data_reader(data_reader);
 
@@ -1030,7 +1030,7 @@ where
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x: &&mut SubscriberEntity<R, T>| x.instance_handle() == subscriber_handle)
+            .find(|x: &&mut SubscriberEntity<R, T>| x.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -1053,27 +1053,27 @@ where
         }
 
         // Built-in subscriber is identified by the handle of the participant itself
-        if self.domain_participant.instance_handle() == subscriber_handle {
+        if self.domain_participant.instance_handle == subscriber_handle {
             Ok(self
                 .domain_participant
                 .builtin_subscriber
                 .data_reader_list
                 .iter_mut()
                 .find(|dr| dr.topic_name == topic_name)
-                .map(|x| (x.instance_handle(), x.status_condition().address())))
+                .map(|x| (x.instance_handle, x.status_condition().address())))
         } else {
             let Some(s) = self
                 .domain_participant
                 .user_defined_subscriber_list
                 .iter_mut()
-                .find(|x| x.instance_handle() == subscriber_handle)
+                .find(|x| x.instance_handle == subscriber_handle)
             else {
                 return Err(DdsError::AlreadyDeleted);
             };
             Ok(s.data_reader_list
                 .iter_mut()
                 .find(|dr| dr.topic_name == topic_name)
-                .map(|x| (x.instance_handle(), x.status_condition().address())))
+                .map(|x| (x.instance_handle, x.status_condition().address())))
         }
     }
 
@@ -1087,7 +1087,7 @@ where
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| x.instance_handle() == subscriber_handle)
+            .find(|x| x.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -1107,7 +1107,7 @@ where
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| x.instance_handle() == subscriber_handle)
+            .find(|x| x.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -1130,7 +1130,7 @@ where
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| x.instance_handle() == subscriber_handle)
+            .find(|x| x.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -1147,7 +1147,7 @@ where
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| x.instance_handle() == subscriber_handle)
+            .find(|x| x.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -1166,7 +1166,7 @@ where
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| x.instance_handle() == subscriber_handle)
+            .find(|x| x.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -1244,7 +1244,7 @@ where
             mask,
             qos,
         );
-        let data_writer_handle = data_writer.instance_handle();
+        let data_writer_handle = data_writer.instance_handle;
 
         publisher.insert_data_writer(data_writer);
 
@@ -1356,7 +1356,7 @@ where
         let Some(data_writer) = publisher
             .data_writer_list
             .iter_mut()
-            .find(|x| x.instance_handle() == data_writer_handle)
+            .find(|x| x.instance_handle == data_writer_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -1404,7 +1404,7 @@ where
         let Some(data_writer) = publisher
             .data_writer_list
             .iter_mut()
-            .find(|x| x.instance_handle() == data_writer_handle)
+            .find(|x| x.instance_handle == data_writer_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -1424,7 +1424,7 @@ where
         let Some(data_writer) = publisher
             .data_writer_list
             .iter_mut()
-            .find(|x| x.instance_handle() == data_writer_handle)
+            .find(|x| x.instance_handle == data_writer_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -1444,7 +1444,7 @@ where
         let Some(data_writer) = publisher
             .data_writer_list
             .iter_mut()
-            .find(|x| x.instance_handle() == data_writer_handle)
+            .find(|x| x.instance_handle == data_writer_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -1468,13 +1468,13 @@ where
         let Some(data_writer) = publisher
             .data_writer_list
             .iter_mut()
-            .find(|x| x.instance_handle() == data_writer_handle)
+            .find(|x| x.instance_handle == data_writer_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
         let serialized_key = match get_serialized_key_from_serialized_foo(
             &serialized_data,
-            data_writer.type_support(),
+            data_writer.type_support.as_ref(),
         ) {
             Ok(k) => k,
             Err(e) => {
@@ -1499,7 +1499,7 @@ where
         let Some(data_writer) = publisher
             .data_writer_list
             .iter_mut()
-            .find(|x| x.instance_handle() == data_writer_handle)
+            .find(|x| x.instance_handle == data_writer_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -1510,7 +1510,7 @@ where
 
         let instance_handle = match get_instance_handle_from_serialized_foo(
             &serialized_data,
-            data_writer.type_support(),
+            data_writer.type_support.as_ref(),
         ) {
             Ok(k) => k,
             Err(e) => {
@@ -1539,13 +1539,13 @@ where
         let Some(data_writer) = publisher
             .data_writer_list
             .iter_mut()
-            .find(|x| x.instance_handle() == data_writer_handle)
+            .find(|x| x.instance_handle == data_writer_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
         let instance_handle = match get_instance_handle_from_serialized_foo(
             &serialized_data,
-            data_writer.type_support(),
+            data_writer.type_support.as_ref(),
         ) {
             Ok(k) => k,
             Err(e) => {
@@ -1634,13 +1634,13 @@ where
         let Some(data_writer) = publisher
             .data_writer_list
             .iter_mut()
-            .find(|x| x.instance_handle() == data_writer_handle)
+            .find(|x| x.instance_handle == data_writer_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
         let serialized_key = match get_serialized_key_from_serialized_foo(
             &serialized_data,
-            data_writer.type_support(),
+            data_writer.type_support.as_ref(),
         ) {
             Ok(k) => k,
             Err(e) => {
@@ -1706,7 +1706,7 @@ where
         let Some(data_writer) = publisher
             .data_writer_list
             .iter_mut()
-            .find(|x| x.instance_handle() == data_writer_handle)
+            .find(|x| x.instance_handle == data_writer_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -1768,7 +1768,7 @@ where
         let Some(data_writer) = publisher
             .data_writer_list
             .iter_mut()
-            .find(|x| x.instance_handle() == data_writer_handle)
+            .find(|x| x.instance_handle == data_writer_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -1814,13 +1814,13 @@ where
         instance_states: Vec<InstanceStateKind>,
         specific_instance_handle: Option<InstanceHandle>,
     ) -> DdsResult<Vec<(Option<Arc<[u8]>>, SampleInfo)>> {
-        let subscriber = if subscriber_handle == self.domain_participant.instance_handle() {
+        let subscriber = if subscriber_handle == self.domain_participant.instance_handle {
             Some(&mut self.domain_participant.builtin_subscriber)
         } else {
             self.domain_participant
                 .user_defined_subscriber_list
                 .iter_mut()
-                .find(|x| x.instance_handle() == subscriber_handle)
+                .find(|x| x.instance_handle == subscriber_handle)
         };
 
         let Some(subscriber) = subscriber else {
@@ -1858,7 +1858,7 @@ where
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| x.instance_handle() == subscriber_handle)
+            .find(|x| x.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -1892,7 +1892,7 @@ where
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| x.instance_handle() == subscriber_handle)
+            .find(|x| x.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -1926,7 +1926,7 @@ where
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| x.instance_handle() == subscriber_handle)
+            .find(|x| x.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -1954,7 +1954,7 @@ where
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| x.instance_handle() == subscriber_handle)
+            .find(|x| x.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -2024,7 +2024,7 @@ where
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| x.instance_handle() == subscriber_handle)
+            .find(|x| x.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -2051,7 +2051,7 @@ where
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| x.instance_handle() == subscriber_handle)
+            .find(|x| x.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -2073,7 +2073,7 @@ where
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| x.instance_handle() == subscriber_handle)
+            .find(|x| x.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -2109,7 +2109,7 @@ where
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| x.instance_handle() == subscriber_handle)
+            .find(|x| x.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -2132,7 +2132,7 @@ where
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| x.instance_handle() == subscriber_handle)
+            .find(|x| x.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -2187,7 +2187,7 @@ where
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| x.instance_handle() == subscriber_handle)
+            .find(|x| x.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -2320,11 +2320,11 @@ where
 
         let dds_publication_data = PublicationBuiltinTopicData {
             key: BuiltInTopicKey {
-                value: data_writer.transport_writer().guid().into(),
+                value: data_writer.transport_writer.guid().into(),
             },
             participant_key: BuiltInTopicKey { value: [0; 16] },
             topic_name: data_writer.topic_name.clone(),
-            type_name: String::from(data_writer.type_name()),
+            type_name: data_writer.type_name.clone(),
             durability: data_writer.qos.durability.clone(),
             deadline: data_writer.qos.deadline.clone(),
             latency_budget: data_writer.qos.latency_budget.clone(),
@@ -2342,7 +2342,7 @@ where
             representation: data_writer.qos.representation.clone(),
         };
         let writer_proxy = WriterProxy {
-            remote_writer_guid: data_writer.transport_writer().guid(),
+            remote_writer_guid: data_writer.transport_writer.guid(),
             remote_group_entity_id: ENTITYID_UNKNOWN,
             unicast_locator_list: vec![],
             multicast_locator_list: vec![],
@@ -2373,7 +2373,7 @@ where
             .builtin_publisher
             .lookup_datawriter_mut(DCPS_PUBLICATION)
         {
-            let key = InstanceHandle::new(data_writer.transport_writer().guid().into());
+            let key = InstanceHandle::new(data_writer.transport_writer.guid().into());
             if let Ok(serialized_data) = key.serialize_data() {
                 dw.dispose_w_timestamp(serialized_data, timestamp)
                     .await
@@ -2594,7 +2594,7 @@ where
             let is_matched_topic_name =
                 discovered_reader_data.dds_subscription_data.topic_name == data_writer.topic_name;
             let is_matched_type_name = discovered_reader_data.dds_subscription_data.get_type_name()
-                == data_writer.type_name();
+                == data_writer.type_name;
 
             if is_matched_topic_name && is_matched_type_name {
                 let incompatible_qos_policy_list =
@@ -2655,7 +2655,7 @@ where
                         multicast_locator_list,
                         expects_inline_qos: false,
                     };
-                    if let TransportWriterKind::Stateful(w) = data_writer.transport_writer_mut() {
+                    if let TransportWriterKind::Stateful(w) = &mut data_writer.transport_writer {
                         w.add_matched_reader(reader_proxy).await;
                     }
 
@@ -2932,7 +2932,7 @@ where
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| x.instance_handle() == subscriber_handle)
+            .find(|x| x.instance_handle == subscriber_handle)
         else {
             return;
         };
@@ -2986,7 +2986,7 @@ where
             let is_matched_topic_name =
                 discovered_writer_data.dds_publication_data.topic_name == data_reader.topic_name;
             let is_matched_type_name = discovered_writer_data.dds_publication_data.get_type_name()
-                == data_reader.type_name();
+                == data_reader.type_name;
 
             if is_matched_topic_name && is_matched_type_name {
                 let incompatible_qos_policy_list =
@@ -3056,7 +3056,7 @@ where
                             .domain_participant
                             .user_defined_subscriber_list
                             .iter_mut()
-                            .find(|x| x.instance_handle() == subscriber_handle)
+                            .find(|x| x.instance_handle == subscriber_handle)
                         else {
                             return;
                         };
@@ -3085,7 +3085,7 @@ where
                             .domain_participant
                             .user_defined_subscriber_list
                             .iter_mut()
-                            .find(|x| x.instance_handle() == subscriber_handle)
+                            .find(|x| x.instance_handle == subscriber_handle)
                         else {
                             return;
                         };
@@ -3115,7 +3115,7 @@ where
                             .domain_participant
                             .user_defined_subscriber_list
                             .iter_mut()
-                            .find(|x| x.instance_handle() == subscriber_handle)
+                            .find(|x| x.instance_handle == subscriber_handle)
                         else {
                             return;
                         };
@@ -3135,7 +3135,7 @@ where
                         .domain_participant
                         .user_defined_subscriber_list
                         .iter_mut()
-                        .find(|x| x.instance_handle() == subscriber_handle)
+                        .find(|x| x.instance_handle == subscriber_handle)
                     else {
                         return;
                     };
@@ -3173,7 +3173,7 @@ where
                             .domain_participant
                             .user_defined_subscriber_list
                             .iter_mut()
-                            .find(|x| x.instance_handle() == subscriber_handle)
+                            .find(|x| x.instance_handle == subscriber_handle)
                         else {
                             return;
                         };
@@ -3201,7 +3201,7 @@ where
                             .domain_participant
                             .user_defined_subscriber_list
                             .iter_mut()
-                            .find(|x| x.instance_handle() == subscriber_handle)
+                            .find(|x| x.instance_handle == subscriber_handle)
                         else {
                             return;
                         };
@@ -3231,7 +3231,7 @@ where
                             .domain_participant
                             .user_defined_subscriber_list
                             .iter_mut()
-                            .find(|x| x.instance_handle() == subscriber_handle)
+                            .find(|x| x.instance_handle == subscriber_handle)
                         else {
                             return;
                         };
@@ -3251,7 +3251,7 @@ where
                         .domain_participant
                         .user_defined_subscriber_list
                         .iter_mut()
-                        .find(|x| x.instance_handle() == subscriber_handle)
+                        .find(|x| x.instance_handle == subscriber_handle)
                     else {
                         return;
                     };
@@ -3281,7 +3281,7 @@ where
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| x.instance_handle() == subscriber_handle)
+            .find(|x| x.instance_handle == subscriber_handle)
         else {
             return;
         };
@@ -3386,10 +3386,8 @@ where
                     let mut handle_list = Vec::new();
                     for subscriber in &self.domain_participant.user_defined_subscriber_list {
                         for data_reader in subscriber.data_reader_list.iter() {
-                            handle_list.push((
-                                subscriber.instance_handle(),
-                                data_reader.instance_handle(),
-                            ));
+                            handle_list
+                                .push((subscriber.instance_handle, data_reader.instance_handle));
                         }
                     }
                     for (subscriber_handle, data_reader_handle) in handle_list {
@@ -3413,10 +3411,8 @@ where
                     let mut handle_list = Vec::new();
                     for subscriber in &self.domain_participant.user_defined_subscriber_list {
                         for data_reader in subscriber.data_reader_list.iter() {
-                            handle_list.push((
-                                subscriber.instance_handle(),
-                                data_reader.instance_handle(),
-                            ));
+                            handle_list
+                                .push((subscriber.instance_handle, data_reader.instance_handle));
                         }
                     }
                     for (subscriber_handle, data_reader_handle) in handle_list {
@@ -3523,7 +3519,7 @@ where
                     for publisher in &self.domain_participant.user_defined_publisher_list {
                         for data_writer in publisher.data_writer_list() {
                             handle_list
-                                .push((publisher.instance_handle(), data_writer.instance_handle()));
+                                .push((publisher.instance_handle, data_writer.instance_handle));
                         }
                     }
                     for (publisher_handle, data_writer_handle) in handle_list {
@@ -3548,7 +3544,7 @@ where
                     for publisher in &self.domain_participant.user_defined_publisher_list {
                         for data_writer in publisher.data_writer_list() {
                             handle_list
-                                .push((publisher.instance_handle(), data_writer.instance_handle()));
+                                .push((publisher.instance_handle, data_writer.instance_handle));
                         }
                     }
 
@@ -3634,7 +3630,7 @@ where
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| x.instance_handle() == subscriber_handle)
+            .find(|x| x.instance_handle == subscriber_handle)
         else {
             return;
         };
@@ -3681,7 +3677,7 @@ where
                         .domain_participant
                         .user_defined_subscriber_list
                         .iter_mut()
-                        .find(|x| x.instance_handle() == subscriber_handle)
+                        .find(|x| x.instance_handle == subscriber_handle)
                     else {
                         return;
                     };
@@ -3699,7 +3695,7 @@ where
                             .domain_participant
                             .user_defined_subscriber_list
                             .iter_mut()
-                            .find(|x| x.instance_handle() == subscriber_handle)
+                            .find(|x| x.instance_handle == subscriber_handle)
                         else {
                             return;
                         };
@@ -3721,7 +3717,7 @@ where
                             .domain_participant
                             .user_defined_subscriber_list
                             .iter_mut()
-                            .find(|x| x.instance_handle() == subscriber_handle)
+                            .find(|x| x.instance_handle == subscriber_handle)
                         else {
                             return;
                         };
@@ -3741,7 +3737,7 @@ where
                         .domain_participant
                         .user_defined_subscriber_list
                         .iter_mut()
-                        .find(|x| x.instance_handle() == subscriber_handle)
+                        .find(|x| x.instance_handle == subscriber_handle)
                     else {
                         return;
                     };
@@ -3786,7 +3782,7 @@ where
                             .domain_participant
                             .user_defined_subscriber_list
                             .iter_mut()
-                            .find(|x| x.instance_handle() == subscriber_handle)
+                            .find(|x| x.instance_handle == subscriber_handle)
                         else {
                             return;
                         };
@@ -3815,7 +3811,7 @@ where
                             .domain_participant
                             .user_defined_subscriber_list
                             .iter_mut()
-                            .find(|x| x.instance_handle() == subscriber_handle)
+                            .find(|x| x.instance_handle == subscriber_handle)
                         else {
                             return;
                         };
@@ -3846,7 +3842,7 @@ where
                             .domain_participant
                             .user_defined_subscriber_list
                             .iter_mut()
-                            .find(|x| x.instance_handle() == subscriber_handle)
+                            .find(|x| x.instance_handle == subscriber_handle)
                         else {
                             return;
                         };
@@ -3867,7 +3863,7 @@ where
                         .domain_participant
                         .user_defined_subscriber_list
                         .iter_mut()
-                        .find(|x| x.instance_handle() == subscriber_handle)
+                        .find(|x| x.instance_handle == subscriber_handle)
                     else {
                         return;
                     };
@@ -4038,7 +4034,7 @@ where
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| x.instance_handle() == subscriber_handle)
+            .find(|x| x.instance_handle == subscriber_handle)
         else {
             return;
         };
@@ -4075,7 +4071,7 @@ where
                 .domain_participant
                 .user_defined_subscriber_list
                 .iter_mut()
-                .find(|x| x.instance_handle() == subscriber_handle)
+                .find(|x| x.instance_handle == subscriber_handle)
             else {
                 return;
             };
@@ -4103,7 +4099,7 @@ where
                 .domain_participant
                 .user_defined_subscriber_list
                 .iter_mut()
-                .find(|x| x.instance_handle() == subscriber_handle)
+                .find(|x| x.instance_handle == subscriber_handle)
             else {
                 return;
             };
@@ -4133,7 +4129,7 @@ where
                 .domain_participant
                 .user_defined_subscriber_list
                 .iter_mut()
-                .find(|x| x.instance_handle() == subscriber_handle)
+                .find(|x| x.instance_handle == subscriber_handle)
             else {
                 return;
             };
@@ -4151,7 +4147,7 @@ where
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| x.instance_handle() == subscriber_handle)
+            .find(|x| x.instance_handle == subscriber_handle)
         else {
             return;
         };
@@ -4262,11 +4258,11 @@ where
                 .data_writer_list
                 .iter_mut()
                 .find(|dw| {
-                    dw.transport_writer().guid().entity_id()
+                    dw.transport_writer.guid().entity_id()
                         == ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER
                 })
             {
-                match dw.transport_writer_mut() {
+                match &mut dw.transport_writer {
                     TransportWriterKind::Stateful(w) => w.add_matched_reader(reader_proxy).await,
                     TransportWriterKind::Stateless(_) => panic!("Invalid built-in writer type"),
                 }
@@ -4359,11 +4355,11 @@ where
                 .data_writer_list
                 .iter_mut()
                 .find(|dw| {
-                    dw.transport_writer().guid().entity_id()
+                    dw.transport_writer.guid().entity_id()
                         == ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER
                 })
             {
-                match dw.transport_writer_mut() {
+                match &mut dw.transport_writer {
                     TransportWriterKind::Stateful(w) => w.add_matched_reader(reader_proxy).await,
                     TransportWriterKind::Stateless(_) => panic!("Invalid built-in writer type"),
                 }
@@ -4456,11 +4452,10 @@ where
                 .data_writer_list
                 .iter_mut()
                 .find(|dw| {
-                    dw.transport_writer().guid().entity_id()
-                        == ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER
+                    dw.transport_writer.guid().entity_id() == ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER
                 })
             {
-                match dw.transport_writer_mut() {
+                match &mut dw.transport_writer {
                     TransportWriterKind::Stateful(w) => w.add_matched_reader(reader_proxy).await,
                     TransportWriterKind::Stateless(_) => panic!("Invalid built-in writer type"),
                 }
@@ -4858,10 +4853,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantEntity<R, T
             .retain(|x| &x.dds_publication_data.key().value != discovered_writer_handle.as_ref());
     }
 
-    pub fn set_qos(&mut self, qos: DomainParticipantQos) {
-        self.qos = qos;
-    }
-
     pub fn set_default_topic_qos(&mut self, qos: TopicQos) -> DdsResult<()> {
         qos.is_consistent()?;
         self.default_topic_qos = qos;
@@ -4965,7 +4956,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantEntity<R, T
     pub fn get_subscriber(&self, handle: InstanceHandle) -> Option<&SubscriberEntity<R, T>> {
         self.user_defined_subscriber_list
             .iter()
-            .find(|x| x.instance_handle() == handle)
+            .find(|x| x.instance_handle == handle)
     }
 
     pub fn get_mut_subscriber(
@@ -4974,7 +4965,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantEntity<R, T
     ) -> Option<&mut SubscriberEntity<R, T>> {
         self.user_defined_subscriber_list
             .iter_mut()
-            .find(|x| x.instance_handle() == handle)
+            .find(|x| x.instance_handle == handle)
     }
 
     pub fn insert_subscriber(&mut self, subscriber: SubscriberEntity<R, T>) {
@@ -4985,7 +4976,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantEntity<R, T
         let i = self
             .user_defined_subscriber_list
             .iter()
-            .position(|x| &x.instance_handle() == handle)?;
+            .position(|x| &x.instance_handle == handle)?;
 
         Some(self.user_defined_subscriber_list.remove(i))
     }
@@ -4997,7 +4988,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantEntity<R, T
     pub fn get_publisher(&self, handle: InstanceHandle) -> Option<&PublisherEntity<R, T>> {
         self.user_defined_publisher_list
             .iter()
-            .find(|x| x.instance_handle() == handle)
+            .find(|x| x.instance_handle == handle)
     }
 
     pub fn get_mut_publisher(
@@ -5006,7 +4997,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantEntity<R, T
     ) -> Option<&mut PublisherEntity<R, T>> {
         self.user_defined_publisher_list
             .iter_mut()
-            .find(|x| x.instance_handle() == handle)
+            .find(|x| x.instance_handle == handle)
     }
 
     pub fn insert_publisher(&mut self, publisher: PublisherEntity<R, T>) {
@@ -5017,7 +5008,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantEntity<R, T
         let i = self
             .user_defined_publisher_list
             .iter()
-            .position(|x| &x.instance_handle() == handle)?;
+            .position(|x| &x.instance_handle == handle)?;
 
         Some(self.user_defined_publisher_list.remove(i))
     }
@@ -5202,14 +5193,14 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> SubscriberEntity<R, T> {
         let index = self
             .data_reader_list
             .iter()
-            .position(|x| x.instance_handle() == handle)?;
+            .position(|x| x.instance_handle == handle)?;
         Some(self.data_reader_list.remove(index))
     }
 
     pub fn get_data_reader(&self, handle: InstanceHandle) -> Option<&DataReaderEntity<R, T>> {
         self.data_reader_list
             .iter()
-            .find(|x| x.instance_handle() == handle)
+            .find(|x| x.instance_handle == handle)
     }
 
     pub fn get_mut_data_reader(
@@ -5218,11 +5209,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> SubscriberEntity<R, T> {
     ) -> Option<&mut DataReaderEntity<R, T>> {
         self.data_reader_list
             .iter_mut()
-            .find(|x| x.instance_handle() == handle)
-    }
-
-    pub fn instance_handle(&self) -> InstanceHandle {
-        self.instance_handle
+            .find(|x| x.instance_handle == handle)
     }
 
     pub fn enable(&mut self) {
@@ -5401,14 +5388,14 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> PublisherEntity<R, T> {
         let index = self
             .data_writer_list
             .iter()
-            .position(|x| x.instance_handle() == handle)?;
+            .position(|x| x.instance_handle == handle)?;
         Some(self.data_writer_list.remove(index))
     }
 
     pub fn get_data_writer(&self, handle: InstanceHandle) -> Option<&DataWriterEntity<R, T>> {
         self.data_writer_list
             .iter()
-            .find(|x| x.instance_handle() == handle)
+            .find(|x| x.instance_handle == handle)
     }
 
     pub fn get_mut_data_writer(
@@ -5417,7 +5404,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> PublisherEntity<R, T> {
     ) -> Option<&mut DataWriterEntity<R, T>> {
         self.data_writer_list
             .iter_mut()
-            .find(|x| x.instance_handle() == handle)
+            .find(|x| x.instance_handle == handle)
     }
 
     pub fn lookup_datawriter_mut(
@@ -5427,10 +5414,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> PublisherEntity<R, T> {
         self.data_writer_list
             .iter_mut()
             .find(|x| x.topic_name == topic_name)
-    }
-
-    pub fn instance_handle(&self) -> InstanceHandle {
-        self.instance_handle
     }
 
     pub fn enable(&mut self) {
@@ -5564,26 +5547,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
         }
     }
 
-    pub fn type_name(&self) -> &str {
-        &self.type_name
-    }
-
-    pub fn topic_name(&self) -> &str {
-        &self.topic_name
-    }
-
-    pub fn instance_handle(&self) -> InstanceHandle {
-        self.instance_handle
-    }
-
-    pub fn transport_writer(&self) -> &TransportWriterKind<T> {
-        &self.transport_writer
-    }
-
-    pub fn transport_writer_mut(&mut self) -> &mut TransportWriterKind<T> {
-        &mut self.transport_writer
-    }
-
     pub fn enable(&mut self) {
         self.enabled = true;
     }
@@ -5670,7 +5633,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
 
         let change = CacheChange {
             kind: ChangeKind::Alive,
-            writer_guid: self.transport_writer().guid(),
+            writer_guid: self.transport_writer.guid(),
             sequence_number: self.last_change_sequence_number,
             source_timestamp: Some(timestamp.into()),
             instance_handle: Some(instance_handle.into()),
@@ -5802,7 +5765,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
 
         let cache_change = CacheChange {
             kind: ChangeKind::NotAliveDisposed,
-            writer_guid: self.transport_writer().guid(),
+            writer_guid: self.transport_writer.guid(),
             sequence_number: self.last_change_sequence_number,
             source_timestamp: Some(timestamp.into()),
             instance_handle: Some(instance_handle.into()),
@@ -5862,7 +5825,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
 
         let cache_change = CacheChange {
             kind: ChangeKind::NotAliveDisposed,
-            writer_guid: self.transport_writer().guid(),
+            writer_guid: self.transport_writer.guid(),
             sequence_number: self.last_change_sequence_number,
             source_timestamp: Some(timestamp.into()),
             instance_handle: Some(instance_handle.into()),
@@ -5980,10 +5943,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
         self.offered_deadline_missed_status.last_instance_handle = instance_handle;
         self.offered_deadline_missed_status.total_count += 1;
         self.offered_deadline_missed_status.total_count_change += 1;
-    }
-
-    pub fn type_support(&self) -> &(dyn DynamicType + Send + Sync) {
-        self.type_support.as_ref()
     }
 
     pub fn status_condition(&self) -> &Actor<R, StatusConditionActor<R>> {
@@ -6692,20 +6651,8 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
         Ok(AddChangeResult::Added(change_instance_handle))
     }
 
-    pub fn instance_handle(&self) -> InstanceHandle {
-        self.instance_handle
-    }
-
     pub fn enable(&mut self) {
         self.enabled = true;
-    }
-
-    pub fn type_name(&self) -> &str {
-        &self.type_name
-    }
-
-    pub fn topic_name(&self) -> &str {
-        &self.topic_name
     }
 
     pub fn add_matched_publication(
