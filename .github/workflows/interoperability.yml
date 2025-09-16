@@ -71,7 +71,7 @@ jobs:
     - name: Setting up environment
       run: pip install -r omg-dds-rtps/requirements.txt
     - name: Run Interoperability script
-      run: python3 ./omg-dds-rtps/interoperability_report.py -P "${{ matrix.publisher }}" -S "${{ matrix.subscriber }}" -o=junit_interoperability_report.xml
+      run: python3 ./omg-dds-rtps/interoperability_report.py -P ${{ matrix.publisher }} -S ${{ matrix.subscriber }} -o=junit_interoperability_report.xml
 
   report:
     runs-on: ubuntu-latest
