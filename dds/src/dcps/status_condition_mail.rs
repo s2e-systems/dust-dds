@@ -1,10 +1,10 @@
 use crate::{
-    dcps::{actor::MailHandler, status_condition::StatusConditionActor},
+    dcps::{actor::MailHandler, status_condition::DcpsStatusCondition},
     infrastructure::status::StatusKind,
     runtime::{DdsRuntime, OneshotSend},
 };
 
-pub enum StatusConditionMail<R: DdsRuntime> {
+pub enum DcpsStatusConditionMail<R: DdsRuntime> {
     GetStatusConditionEnabledStatuses {
         reply_sender: R::OneshotSender<Vec<StatusKind>>,
     },
@@ -22,23 +22,23 @@ pub enum StatusConditionMail<R: DdsRuntime> {
     },
 }
 
-impl<R: DdsRuntime> MailHandler for StatusConditionActor<R> {
-    type Mail = StatusConditionMail<R>;
-    async fn handle(&mut self, message: StatusConditionMail<R>) {
+impl<R: DdsRuntime> MailHandler for DcpsStatusCondition<R> {
+    type Mail = DcpsStatusConditionMail<R>;
+    async fn handle(&mut self, message: DcpsStatusConditionMail<R>) {
         match message {
-            StatusConditionMail::GetStatusConditionEnabledStatuses { reply_sender } => {
+            DcpsStatusConditionMail::GetStatusConditionEnabledStatuses { reply_sender } => {
                 reply_sender.send(self.get_enabled_statuses())
             }
-            StatusConditionMail::SetStatusConditionEnabledStatuses { status_mask } => {
+            DcpsStatusConditionMail::SetStatusConditionEnabledStatuses { status_mask } => {
                 self.set_enabled_statuses(status_mask)
             }
-            StatusConditionMail::GetStatusConditionTriggerValue { reply_sender } => {
+            DcpsStatusConditionMail::GetStatusConditionTriggerValue { reply_sender } => {
                 reply_sender.send(self.get_trigger_value())
             }
-            StatusConditionMail::AddCommunicationState { state } => {
+            DcpsStatusConditionMail::AddCommunicationState { state } => {
                 self.add_communication_state(state)
             }
-            StatusConditionMail::RemoveCommunicationState { state } => {
+            DcpsStatusConditionMail::RemoveCommunicationState { state } => {
                 self.remove_communication_state(state)
             }
         }

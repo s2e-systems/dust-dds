@@ -1,4 +1,4 @@
-use super::domain_participant_mail::{DomainParticipantMail, EventServiceMail, MessageServiceMail};
+use super::domain_participant_mail::{DcpsDomainParticipantMail, EventServiceMail, MessageServiceMail};
 use crate::{
     builtin_topics::{
         BuiltInTopicKey, ParticipantBuiltinTopicData, PublicationBuiltinTopicData,
@@ -23,8 +23,8 @@ use crate::{
             ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
         },
         listeners::domain_participant_listener::ListenerMail,
-        status_condition::StatusConditionActor,
-        status_condition_mail::StatusConditionMail,
+        status_condition::DcpsStatusCondition,
+        status_condition_mail::DcpsStatusConditionMail,
         xtypes_glue::key_and_instance_handle::{
             get_instance_handle_from_serialized_foo, get_instance_handle_from_serialized_key,
             get_serialized_key_from_serialized_foo,
@@ -112,7 +112,7 @@ pub fn poll_timeout<T>(
     })
 }
 
-pub struct DomainParticipantActor<R: DdsRuntime, T: TransportParticipantFactory> {
+pub struct DcpsDomainParticipant<R: DdsRuntime, T: TransportParticipantFactory> {
     pub transport: T::TransportParticipant,
     pub instance_handle_counter: InstanceHandleCounter,
     pub entity_counter: u16,
@@ -122,7 +122,7 @@ pub struct DomainParticipantActor<R: DdsRuntime, T: TransportParticipantFactory>
     pub spawner_handle: R::SpawnerHandle,
 }
 
-impl<R, T> DomainParticipantActor<R, T>
+impl<R, T> DcpsDomainParticipant<R, T>
 where
     R: DdsRuntime,
     T: TransportParticipantFactory,
@@ -148,7 +148,7 @@ where
 
     fn get_participant_async(
         &self,
-        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
     ) -> DomainParticipantAsync<R> {
         DomainParticipantAsync::new(
             participant_address,
@@ -166,7 +166,7 @@ where
 
     fn get_subscriber_async(
         &self,
-        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
         subscriber_handle: InstanceHandle,
     ) -> DdsResult<SubscriberAsync<R>> {
         Ok(SubscriberAsync::new(
@@ -184,7 +184,7 @@ where
 
     fn get_data_reader_async<Foo>(
         &self,
-        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
     ) -> DdsResult<DataReaderAsync<R, Foo>> {
@@ -209,7 +209,7 @@ where
 
     fn get_publisher_async(
         &self,
-        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
         publisher_handle: InstanceHandle,
     ) -> DdsResult<PublisherAsync<R>> {
         Ok(PublisherAsync::new(
@@ -220,7 +220,7 @@ where
 
     fn get_data_writer_async<Foo>(
         &self,
-        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
     ) -> DdsResult<DataWriterAsync<R, Foo>> {
@@ -243,7 +243,7 @@ where
 
     fn get_topic_description_async(
         &self,
-        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
         topic_name: String,
     ) -> DdsResult<TopicDescriptionAsync<R>> {
         let topic = self
@@ -438,7 +438,7 @@ where
     pub fn create_user_defined_subscriber(
         &mut self,
         qos: QosKind<SubscriberQos>,
-        status_condition: Actor<R, StatusConditionActor<R>>,
+        status_condition: Actor<R, DcpsStatusCondition<R>>,
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         mask: Vec<StatusKind>,
     ) -> DdsResult<InstanceHandle> {
@@ -519,7 +519,7 @@ where
         topic_name: String,
         type_name: String,
         qos: QosKind<TopicQos>,
-        status_condition: Actor<R, StatusConditionActor<R>>,
+        status_condition: Actor<R, DcpsStatusCondition<R>>,
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         mask: Vec<StatusKind>,
         type_support: Arc<dyn DynamicType + Send + Sync>,
@@ -655,11 +655,11 @@ where
         &mut self,
         topic_name: String,
         type_support: Arc<dyn DynamicType + Send + Sync>,
-        status_condition: Actor<R, StatusConditionActor<R>>,
+        status_condition: Actor<R, DcpsStatusCondition<R>>,
     ) -> DdsResult<
         Option<(
             InstanceHandle,
-            ActorAddress<R, StatusConditionActor<R>>,
+            ActorAddress<R, DcpsStatusCondition<R>>,
             String,
         )>,
     > {
@@ -735,7 +735,7 @@ where
         Option<(
             String,
             InstanceHandle,
-            ActorAddress<R, StatusConditionActor<R>>,
+            ActorAddress<R, DcpsStatusCondition<R>>,
         )>,
     > {
         if let Some(topic) = self
@@ -1010,16 +1010,16 @@ where
         subscriber_handle: InstanceHandle,
         topic_name: String,
         qos: QosKind<DataReaderQos>,
-        status_condition: Actor<R, StatusConditionActor<R>>,
+        status_condition: Actor<R, DcpsStatusCondition<R>>,
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         mask: Vec<StatusKind>,
-        domain_participant_address: R::ChannelSender<DomainParticipantMail<R>>,
+        domain_participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
     ) -> DdsResult<InstanceHandle> {
         struct UserDefinedReaderHistoryCache<R>
         where
             R: DdsRuntime,
         {
-            pub domain_participant_address: R::ChannelSender<DomainParticipantMail<R>>,
+            pub domain_participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
             pub subscriber_handle: InstanceHandle,
             pub data_reader_handle: InstanceHandle,
         }
@@ -1034,7 +1034,7 @@ where
             ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
                 Box::pin(async move {
                     self.domain_participant_address
-                        .send(DomainParticipantMail::Message(
+                        .send(DcpsDomainParticipantMail::Message(
                             MessageServiceMail::AddCacheChange {
                                 participant_address: self.domain_participant_address.clone(),
                                 cache_change,
@@ -1183,7 +1183,7 @@ where
         &mut self,
         subscriber_handle: InstanceHandle,
         topic_name: String,
-    ) -> DdsResult<Option<(InstanceHandle, ActorAddress<R, StatusConditionActor<R>>)>> {
+    ) -> DdsResult<Option<(InstanceHandle, ActorAddress<R, DcpsStatusCondition<R>>)>> {
         if !self
             .domain_participant
             .topic_list
@@ -1330,10 +1330,10 @@ where
         publisher_handle: InstanceHandle,
         topic_name: String,
         qos: QosKind<DataWriterQos>,
-        status_condition: Actor<R, StatusConditionActor<R>>,
+        status_condition: Actor<R, DcpsStatusCondition<R>>,
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         mask: Vec<StatusKind>,
-        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
     ) -> DdsResult<InstanceHandle> {
         let Some(topic) = self
             .domain_participant
@@ -1518,7 +1518,7 @@ where
 
         data_writer
             .status_condition
-            .send_actor_mail(StatusConditionMail::RemoveCommunicationState {
+            .send_actor_mail(DcpsStatusConditionMail::RemoveCommunicationState {
                 state: StatusKind::PublicationMatched,
             })
             .await;
@@ -1687,7 +1687,7 @@ where
     #[tracing::instrument(skip(self, participant_address))]
     pub async fn write_w_timestamp(
         &mut self,
-        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         serialized_data: Vec<u8>,
@@ -1733,7 +1733,7 @@ where
                     self.spawner_handle.spawn(async move {
                         timer_handle.delay(sleep_duration.into()).await;
                         participant_address
-                            .send(DomainParticipantMail::Message(
+                            .send(DcpsDomainParticipantMail::Message(
                                 MessageServiceMail::RemoveWriterChange {
                                     publisher_handle,
                                     data_writer_handle,
@@ -1764,7 +1764,7 @@ where
                 loop {
                     timer_handle.delay(deadline_missed_period.into()).await;
                     participant_address
-                        .send(DomainParticipantMail::Event(
+                        .send(DcpsDomainParticipantMail::Event(
                             EventServiceMail::OfferedDeadlineMissed {
                                 publisher_handle,
                                 data_writer_handle,
@@ -1816,7 +1816,7 @@ where
     //#[tracing::instrument(skip(self, participant_address))]
     pub fn wait_for_acknowledgments(
         &mut self,
-        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         timeout: Duration,
@@ -1830,7 +1830,7 @@ where
                     loop {
                         let (reply_sender, reply_receiver) = R::oneshot();
                         participant_address
-                            .send(DomainParticipantMail::Message(
+                            .send(DcpsDomainParticipantMail::Message(
                                 MessageServiceMail::AreAllChangesAcknowledged {
                                     publisher_handle,
                                     data_writer_handle,
@@ -1880,7 +1880,7 @@ where
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
     ) -> DdsResult<()> {
         let Some(publisher) = self.domain_participant.get_mut_publisher(publisher_handle) else {
             return Err(DdsError::AlreadyDeleted);
@@ -2127,7 +2127,7 @@ where
         let status = data_reader.get_subscription_matched_status();
         data_reader
             .status_condition
-            .send_actor_mail(StatusConditionMail::RemoveCommunicationState {
+            .send_actor_mail(DcpsStatusConditionMail::RemoveCommunicationState {
                 state: StatusKind::SubscriptionMatched,
             })
             .await;
@@ -2137,7 +2137,7 @@ where
     //#[tracing::instrument(skip(self, participant_address))]
     pub fn wait_for_historical_data(
         &mut self,
-        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         max_wait: Duration,
@@ -2151,7 +2151,7 @@ where
                     loop {
                         let (reply_sender, reply_receiver) = R::oneshot();
                         participant_address
-                            .send(DomainParticipantMail::Message(
+                            .send(DcpsDomainParticipantMail::Message(
                                 MessageServiceMail::IsHistoricalDataReceived {
                                     subscriber_handle,
                                     data_reader_handle,
@@ -2364,7 +2364,7 @@ where
         &mut self,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
-        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
             .domain_participant
@@ -2718,7 +2718,7 @@ where
         discovered_reader_data: DiscoveredReaderData,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
     ) {
         let default_unicast_locator_list = if let Some(p) = self
             .domain_participant
@@ -2962,7 +2962,7 @@ where
                     };
                     data_writer
                         .status_condition
-                        .send_actor_mail(StatusConditionMail::AddCommunicationState {
+                        .send_actor_mail(DcpsStatusConditionMail::AddCommunicationState {
                             state: StatusKind::PublicationMatched,
                         })
                         .await;
@@ -3066,7 +3066,7 @@ where
                     };
                     data_writer
                         .status_condition
-                        .send_actor_mail(StatusConditionMail::AddCommunicationState {
+                        .send_actor_mail(DcpsStatusConditionMail::AddCommunicationState {
                             state: StatusKind::OfferedIncompatibleQos,
                         })
                         .await;
@@ -3098,7 +3098,7 @@ where
 
             data_writer
                 .status_condition
-                .send_actor_mail(StatusConditionMail::AddCommunicationState {
+                .send_actor_mail(DcpsStatusConditionMail::AddCommunicationState {
                     state: StatusKind::PublicationMatched,
                 })
                 .await;
@@ -3111,7 +3111,7 @@ where
         discovered_writer_data: DiscoveredWriterData,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
-        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
     ) {
         let default_unicast_locator_list = if let Some(p) = self
             .domain_participant
@@ -3360,7 +3360,7 @@ where
                     };
                     data_reader
                         .status_condition
-                        .send_actor_mail(StatusConditionMail::AddCommunicationState {
+                        .send_actor_mail(DcpsStatusConditionMail::AddCommunicationState {
                             state: StatusKind::SubscriptionMatched,
                         })
                         .await;
@@ -3476,7 +3476,7 @@ where
                     };
                     data_reader
                         .status_condition
-                        .send_actor_mail(StatusConditionMail::AddCommunicationState {
+                        .send_actor_mail(DcpsStatusConditionMail::AddCommunicationState {
                             state: StatusKind::RequestedIncompatibleQos,
                         })
                         .await;
@@ -3560,7 +3560,7 @@ where
     pub async fn add_builtin_publications_detector_cache_change(
         &mut self,
         cache_change: CacheChange,
-        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
     ) {
         match cache_change.kind {
             ChangeKind::Alive => {
@@ -3662,7 +3662,7 @@ where
     pub async fn add_builtin_subscriptions_detector_cache_change(
         &mut self,
         cache_change: CacheChange,
-        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
     ) {
         match cache_change.kind {
             ChangeKind::Alive => {
@@ -3812,7 +3812,7 @@ where
                             topic.inconsistent_topic_status.total_count_change += 1;
                             topic
                                 .status_condition
-                                .send_actor_mail(StatusConditionMail::AddCommunicationState {
+                                .send_actor_mail(DcpsStatusConditionMail::AddCommunicationState {
                                     state: StatusKind::InconsistentTopic,
                                 })
                                 .await;
@@ -3843,7 +3843,7 @@ where
     #[tracing::instrument(skip(self, participant_address))]
     pub async fn add_cache_change(
         &mut self,
-        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
         cache_change: CacheChange,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
@@ -3880,7 +3880,7 @@ where
                             loop {
                                 timer_handle.delay(deadline_missed_period.into()).await;
                                 participant_address
-                                    .send(DomainParticipantMail::Event(
+                                    .send(DcpsDomainParticipantMail::Event(
                                         EventServiceMail::RequestedDeadlineMissed {
                                             subscriber_handle,
                                             data_reader_handle,
@@ -3968,7 +3968,7 @@ where
 
                     subscriber
                         .status_condition
-                        .send_actor_mail(StatusConditionMail::AddCommunicationState {
+                        .send_actor_mail(DcpsStatusConditionMail::AddCommunicationState {
                             state: StatusKind::DataOnReaders,
                         })
                         .await;
@@ -3978,7 +3978,7 @@ where
                     };
                     data_reader
                         .status_condition
-                        .send_actor_mail(StatusConditionMail::AddCommunicationState {
+                        .send_actor_mail(DcpsStatusConditionMail::AddCommunicationState {
                             state: StatusKind::DataAvailable,
                         })
                         .await;
@@ -4098,7 +4098,7 @@ where
                     };
                     data_reader
                         .status_condition
-                        .send_actor_mail(StatusConditionMail::AddCommunicationState {
+                        .send_actor_mail(DcpsStatusConditionMail::AddCommunicationState {
                             state: StatusKind::SampleRejected,
                         })
                         .await;
@@ -4131,7 +4131,7 @@ where
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         change_instance_handle: InstanceHandle,
-        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
     ) {
         let current_time = self.get_current_time();
         let Some(publisher) = self.domain_participant.get_mut_publisher(publisher_handle) else {
@@ -4248,7 +4248,7 @@ where
         };
         data_writer
             .status_condition
-            .send_actor_mail(StatusConditionMail::AddCommunicationState {
+            .send_actor_mail(DcpsStatusConditionMail::AddCommunicationState {
                 state: StatusKind::OfferedDeadlineMissed,
             })
             .await;
@@ -4260,7 +4260,7 @@ where
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         change_instance_handle: InstanceHandle,
-        participant_address: R::ChannelSender<DomainParticipantMail<R>>,
+        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
     ) {
         let current_time = self.get_current_time();
         let Some(subscriber) = self
@@ -4390,7 +4390,7 @@ where
 
         data_reader
             .status_condition
-            .send_actor_mail(StatusConditionMail::AddCommunicationState {
+            .send_actor_mail(DcpsStatusConditionMail::AddCommunicationState {
                 state: StatusKind::RequestedDeadlineMissed,
             })
             .await;
@@ -5207,7 +5207,7 @@ pub struct SubscriberEntity<R: DdsRuntime, T: TransportParticipantFactory> {
     data_reader_list: Vec<DataReaderEntity<R, T>>,
     enabled: bool,
     default_data_reader_qos: DataReaderQos,
-    status_condition: Actor<R, StatusConditionActor<R>>,
+    status_condition: Actor<R, DcpsStatusCondition<R>>,
     listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
     listener_mask: Vec<StatusKind>,
 }
@@ -5217,7 +5217,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> SubscriberEntity<R, T> {
         instance_handle: InstanceHandle,
         qos: SubscriberQos,
         data_reader_list: Vec<DataReaderEntity<R, T>>,
-        status_condition: Actor<R, StatusConditionActor<R>>,
+        status_condition: Actor<R, DcpsStatusCondition<R>>,
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         listener_mask: Vec<StatusKind>,
     ) -> Self {
@@ -5233,7 +5233,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> SubscriberEntity<R, T> {
         }
     }
 
-    pub fn status_condition(&self) -> &Actor<R, StatusConditionActor<R>> {
+    pub fn status_condition(&self) -> &Actor<R, DcpsStatusCondition<R>> {
         &self.status_condition
     }
 
@@ -5258,7 +5258,7 @@ pub struct TopicEntity<R: DdsRuntime> {
     instance_handle: InstanceHandle,
     enabled: bool,
     inconsistent_topic_status: InconsistentTopicStatus,
-    status_condition: Actor<R, StatusConditionActor<R>>,
+    status_condition: Actor<R, DcpsStatusCondition<R>>,
     _listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
     _status_kind: Vec<StatusKind>,
     type_support: Arc<dyn DynamicType + Send + Sync>,
@@ -5271,7 +5271,7 @@ impl<R: DdsRuntime> TopicEntity<R> {
         type_name: String,
         topic_name: String,
         instance_handle: InstanceHandle,
-        status_condition: Actor<R, StatusConditionActor<R>>,
+        status_condition: Actor<R, DcpsStatusCondition<R>>,
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         status_kind: Vec<StatusKind>,
         type_support: Arc<dyn DynamicType + Send + Sync>,
@@ -5298,7 +5298,7 @@ impl<R: DdsRuntime> TopicEntity<R> {
         let status = self.inconsistent_topic_status.clone();
         self.inconsistent_topic_status.total_count_change = 0;
         self.status_condition
-            .send_actor_mail(StatusConditionMail::RemoveCommunicationState {
+            .send_actor_mail(DcpsStatusConditionMail::RemoveCommunicationState {
                 state: StatusKind::InconsistentTopic,
             })
             .await;
@@ -5461,7 +5461,7 @@ pub struct DataWriterEntity<R: DdsRuntime, T: TransportParticipantFactory> {
     incompatible_subscription_list: Vec<InstanceHandle>,
     offered_incompatible_qos_status: OfferedIncompatibleQosStatus,
     enabled: bool,
-    status_condition: Actor<R, StatusConditionActor<R>>,
+    status_condition: Actor<R, DcpsStatusCondition<R>>,
     listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
     listener_mask: Vec<StatusKind>,
     max_seq_num: Option<i64>,
@@ -5481,7 +5481,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
         topic_name: String,
         type_name: String,
         type_support: Arc<dyn DynamicType + Send + Sync>,
-        status_condition: Actor<R, StatusConditionActor<R>>,
+        status_condition: Actor<R, DcpsStatusCondition<R>>,
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         listener_mask: Vec<StatusKind>,
         qos: DataWriterQos,
@@ -5887,7 +5887,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
         let status = self.offered_deadline_missed_status.clone();
         self.offered_deadline_missed_status.total_count_change = 0;
         self.status_condition
-            .send_actor_mail(StatusConditionMail::RemoveCommunicationState {
+            .send_actor_mail(DcpsStatusConditionMail::RemoveCommunicationState {
                 state: StatusKind::OfferedDeadlineMissed,
             })
             .await;
@@ -6022,7 +6022,7 @@ pub struct DataReaderEntity<R: DdsRuntime, T: TransportParticipantFactory> {
     enabled: bool,
     data_available_status_changed_flag: bool,
     incompatible_writer_list: Vec<InstanceHandle>,
-    status_condition: Actor<R, StatusConditionActor<R>>,
+    status_condition: Actor<R, DcpsStatusCondition<R>>,
     listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
     listener_mask: Vec<StatusKind>,
     instances: Vec<InstanceState>,
@@ -6038,7 +6038,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
         topic_name: String,
         type_name: String,
         type_support: Arc<dyn DynamicType + Send + Sync>,
-        status_condition: Actor<R, StatusConditionActor<R>>,
+        status_condition: Actor<R, DcpsStatusCondition<R>>,
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         listener_mask: Vec<StatusKind>,
         transport_reader: TransportReaderKind<T>,
@@ -6687,7 +6687,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
         self.subscription_matched_status.current_count = self.matched_publication_list.len() as i32;
         self.subscription_matched_status.current_count_change -= 1;
         self.status_condition
-            .send_actor_mail(StatusConditionMail::AddCommunicationState {
+            .send_actor_mail(DcpsStatusConditionMail::AddCommunicationState {
                 state: StatusKind::SubscriptionMatched,
             })
             .await;
@@ -6706,7 +6706,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
         }
 
         self.status_condition
-            .send_actor_mail(StatusConditionMail::RemoveCommunicationState {
+            .send_actor_mail(DcpsStatusConditionMail::RemoveCommunicationState {
                 state: StatusKind::DataAvailable,
             })
             .await;
@@ -6755,7 +6755,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
         )?;
 
         self.status_condition
-            .send_actor_mail(StatusConditionMail::RemoveCommunicationState {
+            .send_actor_mail(DcpsStatusConditionMail::RemoveCommunicationState {
                 state: StatusKind::DataAvailable,
             })
             .await;

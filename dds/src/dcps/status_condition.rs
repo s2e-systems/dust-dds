@@ -4,13 +4,13 @@ use crate::{infrastructure::status::StatusKind, runtime::DdsRuntime};
 use alloc::{vec, vec::Vec};
 
 #[derive(Debug)]
-pub struct StatusConditionActor<R: DdsRuntime> {
+pub struct DcpsStatusCondition<R: DdsRuntime> {
     enabled_statuses: Vec<StatusKind>,
     status_changes: Vec<StatusKind>,
     phantom: PhantomData<R>,
 }
 
-impl<R: DdsRuntime> Default for StatusConditionActor<R> {
+impl<R: DdsRuntime> Default for DcpsStatusCondition<R> {
     fn default() -> Self {
         Self {
             enabled_statuses: vec![
@@ -34,7 +34,7 @@ impl<R: DdsRuntime> Default for StatusConditionActor<R> {
     }
 }
 
-impl<R: DdsRuntime> StatusConditionActor<R> {
+impl<R: DdsRuntime> DcpsStatusCondition<R> {
     pub fn add_communication_state(&mut self, state: StatusKind) {
         self.status_changes.push(state);
     }

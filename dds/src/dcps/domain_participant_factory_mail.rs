@@ -2,10 +2,10 @@ use crate::{
     configuration::DustDdsConfiguration,
     dcps::{
         actor::{ActorAddress, MailHandler},
-        domain_participant_factory::DomainParticipantFactoryActor,
-        domain_participant_mail::DomainParticipantMail,
+        domain_participant_factory::DcpsParticipantFactory,
+        domain_participant_mail::DcpsDomainParticipantMail,
         listeners::domain_participant_listener::ListenerMail,
-        status_condition::StatusConditionActor,
+        status_condition::DcpsStatusCondition,
     },
     infrastructure::{
         domain::DomainId,
@@ -18,7 +18,7 @@ use crate::{
     transport::interface::TransportParticipantFactory,
 };
 
-pub enum DomainParticipantFactoryMail<R: DdsRuntime> {
+pub enum DcpsParticipantFactoryMail<R: DdsRuntime> {
     CreateParticipant {
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
@@ -30,15 +30,15 @@ pub enum DomainParticipantFactoryMail<R: DdsRuntime> {
         #[allow(clippy::type_complexity)]
         reply_sender: R::OneshotSender<
             DdsResult<(
-                R::ChannelSender<DomainParticipantMail<R>>,
+                R::ChannelSender<DcpsDomainParticipantMail<R>>,
                 InstanceHandle,
-                ActorAddress<R, StatusConditionActor<R>>,
+                ActorAddress<R, DcpsStatusCondition<R>>,
             )>,
         >,
     },
     DeleteParticipant {
         handle: InstanceHandle,
-        reply_sender: R::OneshotSender<DdsResult<R::ChannelSender<DomainParticipantMail<R>>>>,
+        reply_sender: R::OneshotSender<DdsResult<R::ChannelSender<DcpsDomainParticipantMail<R>>>>,
     },
     SetDefaultParticipantQos {
         qos: QosKind<DomainParticipantQos>,
@@ -62,14 +62,12 @@ pub enum DomainParticipantFactoryMail<R: DdsRuntime> {
     },
 }
 
-impl<R: DdsRuntime, T: TransportParticipantFactory> MailHandler
-    for DomainParticipantFactoryActor<R, T>
-{
-    type Mail = DomainParticipantFactoryMail<R>;
+impl<R: DdsRuntime, T: TransportParticipantFactory> MailHandler for DcpsParticipantFactory<R, T> {
+    type Mail = DcpsParticipantFactoryMail<R>;
 
     async fn handle(&mut self, message: Self::Mail) {
         match message {
-            DomainParticipantFactoryMail::CreateParticipant {
+            DcpsParticipantFactoryMail::CreateParticipant {
                 domain_id,
                 qos,
                 listener_sender,
@@ -90,26 +88,26 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> MailHandler
                 )
                 .await,
             ),
-            DomainParticipantFactoryMail::DeleteParticipant {
+            DcpsParticipantFactoryMail::DeleteParticipant {
                 handle,
                 reply_sender,
             } => reply_sender.send(self.delete_participant(handle)),
-            DomainParticipantFactoryMail::SetDefaultParticipantQos { qos, reply_sender } => {
+            DcpsParticipantFactoryMail::SetDefaultParticipantQos { qos, reply_sender } => {
                 reply_sender.send(self.set_default_participant_qos(qos))
             }
-            DomainParticipantFactoryMail::GetDefaultParticipantQos { reply_sender } => {
+            DcpsParticipantFactoryMail::GetDefaultParticipantQos { reply_sender } => {
                 reply_sender.send(self.get_default_participant_qos())
             }
-            DomainParticipantFactoryMail::SetQos { qos, reply_sender } => {
+            DcpsParticipantFactoryMail::SetQos { qos, reply_sender } => {
                 reply_sender.send(self.set_qos(qos))
             }
-            DomainParticipantFactoryMail::GetQos { reply_sender } => {
+            DcpsParticipantFactoryMail::GetQos { reply_sender } => {
                 reply_sender.send(self.get_qos())
             }
-            DomainParticipantFactoryMail::SetConfiguration { configuration } => {
+            DcpsParticipantFactoryMail::SetConfiguration { configuration } => {
                 self.set_configuration(configuration)
             }
-            DomainParticipantFactoryMail::GetConfiguration { reply_sender } => {
+            DcpsParticipantFactoryMail::GetConfiguration { reply_sender } => {
                 reply_sender.send(self.get_configuration())
             }
         }
