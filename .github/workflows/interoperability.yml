@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  interoperability:
+  prepare:
     name: OMG Interoperability
     runs-on: ubuntu-latest
     steps:
@@ -53,8 +53,25 @@ jobs:
       run: unzip '*.zip' -d executables
     - name: Setting up environment
       run: pip install -r omg-dds-rtps/requirements.txt
-    - name: Publisher Dust - Subscriber Connext
-      run: python3 ./omg-dds-rtps/interoperability_report.py -P ./target/release/dust_dds_shape_main_linux -S ./executables/connext_dds-*_shape_main_linux -o=report.xml
+  run_tests:
+    runs-on: ubuntu-latest
+    needs: prepare
+    strategy:
+      matrix:
+        publisher:
+        - ./target/release/dust_dds_shape_main_linux
+        - ./executables/connext_dds-*_shape_main_linux
+        subscriber:
+        - ./target/release/dust_dds_shape_main_linux
+        - ./executables/connext_dds-*_shape_main_linux
+    steps:
+      - name: Run Interoperability script
+        run: python3 ./omg-dds-rtps/interoperability_report.py -P "${{ matrix.publisher }}" -S "${{ matrix.subscriber }}" -o=junit_interoperability_report.xml
+
+  report:
+    runs-on: ubuntu-latest
+    needs: run_tests
+    steps:
     - name: Publisher Connext - Subscriber Dust
       run: python3 ./omg-dds-rtps/interoperability_report.py -P ./executables/connext_dds-*_shape_main_linux -S ./target/release/dust_dds_shape_main_linux -o=report.xml
     - name: XUnit
