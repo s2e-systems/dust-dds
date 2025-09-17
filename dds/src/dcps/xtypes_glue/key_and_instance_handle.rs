@@ -421,7 +421,7 @@ mod tests {
     use dust_dds_derive::TypeSupport;
 
     #[derive(TypeSupport)]
-    #[dust_dds(extensibility = "Mutable")]
+    #[dust_dds(extensibility = "mutable")]
     struct MutableStruct {
         #[dust_dds(key, id = 10)]
         _key_field1: u8,
@@ -498,7 +498,7 @@ mod tests {
     }
 
     #[derive(TypeSupport)]
-    #[dust_dds(extensibility = "Final")]
+    #[dust_dds(extensibility = "final")]
     struct Nested {
         #[dust_dds(key)]
         _x: u8,
@@ -506,7 +506,7 @@ mod tests {
         _y: u8,
     }
     #[derive(TypeSupport)]
-    #[dust_dds(extensibility = "Final")]
+    #[dust_dds(extensibility = "final")]
     struct Complex {
         _field1: i64,
         #[dust_dds(key)]
@@ -517,7 +517,7 @@ mod tests {
     }
 
     #[derive(TypeSupport)]
-    #[dust_dds(extensibility = "Final")]
+    #[dust_dds(extensibility = "final")]
     struct Simple {
         #[dust_dds(key)]
         _key_field1: i64,
@@ -650,7 +650,7 @@ mod tests {
     }
 
     #[derive(TypeSupport)]
-    #[dust_dds(extensibility = "Final")]
+    #[dust_dds(extensibility = "final")]
     struct Large {
         #[dust_dds(key)]
         _key_field1: i64,
@@ -790,7 +790,7 @@ mod tests {
     }
 
     #[derive(TypeSupport)]
-    #[dust_dds(extensibility = "Final")]
+    #[dust_dds(extensibility = "final")]
     struct BasicTypes {
         #[dust_dds(key)]
         _f1: bool,

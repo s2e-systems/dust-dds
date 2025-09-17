@@ -1,7 +1,6 @@
 mod utils;
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 use dust_dds::{
-    runtime::DdsRuntime,
     dds_async::domain_participant_factory::DomainParticipantFactoryAsync,
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
@@ -10,13 +9,15 @@ use dust_dds::{
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         status::{StatusKind, NO_STATUS},
         time::{Duration, DurationKind},
-        type_support::DdsType,
+        type_support::{DdsSerialize, DdsType},
     },
     listener::NO_LISTENER,
     publication::data_writer_listener::DataWriterListener,
+    runtime::DdsRuntime,
     subscription::data_reader_listener::DataReaderListener,
     wait_set::{Condition, WaitSet},
 };
+use dust_dds_derive::{DdsDeserialize, TypeSupport, XTypesDeserialize};
 
 #[derive(DdsType)]
 struct MutableType {
@@ -602,6 +603,134 @@ fn foo_xtypes_union_should_read_and_write() {
 
     let samples = reader
         .take(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+
+    assert_eq!(samples.len(), 1);
+    assert_eq!(samples[0].data().unwrap(), data);
+}
+
+#[test]
+fn xcdr2_writer_and_reader() {
+    #[derive(Debug, PartialEq, TypeSupport, XTypesDeserialize, DdsDeserialize)]
+    struct Cdr2Data {
+        id: u8,
+        value: u32,
+    }
+
+    impl DdsSerialize for Cdr2Data {
+        fn serialize_data(&self) -> dust_dds::infrastructure::error::DdsResult<Vec<u8>> {
+            Ok(vec![
+                0,
+                9,
+                0,
+                0,
+                self.id,
+                0,
+                0,
+                0,
+                self.value.to_le_bytes()[0],
+                self.value.to_le_bytes()[1],
+                self.value.to_le_bytes()[2],
+                self.value.to_le_bytes()[3],
+            ])
+        }
+    }
+
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+
+    let participant1 = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic = participant1
+        .create_topic::<Cdr2Data>(
+            "MyTopic",
+            "Cdr2Data",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let publisher = participant1
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+    let writer = publisher
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let participant2 = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let subscriber = participant2
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+    let topic = participant2
+        .create_topic::<Cdr2Data>(
+            "MyTopic",
+            "Cdr2Data",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+    let reader = subscriber
+        .create_datareader::<Cdr2Data>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let cond = writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(100, 0)).unwrap();
+
+    let cond = reader.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    let data = Cdr2Data { id: 1, value: 1 };
+
+    writer.write(&data, None).unwrap();
+
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    let samples = reader
+        .take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         .unwrap();
 
     assert_eq!(samples.len(), 1);
