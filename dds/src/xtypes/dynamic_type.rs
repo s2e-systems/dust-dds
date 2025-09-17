@@ -1,10 +1,10 @@
-use crate::xtypes::type_object::TypeObject;
+use crate::xtypes::type_object::{LBoundSeq, TypeObject};
 
 use super::{
     error::XTypesError,
     type_object::{TypeIdentifier, TypeKind},
 };
-use alloc::string::String;
+use alloc::{string::String, vec::Vec};
 
 pub type ObjectName = String;
 
@@ -52,8 +52,7 @@ pub struct MemberDescriptor {
 
 pub struct DynamicType {
     descriptor: TypeDescriptor,
-    name: ObjectName,
-    kind: TypeKind,
+    member_list: Vec<DynamicTypeMember>,
 }
 
 impl DynamicType {
@@ -61,21 +60,24 @@ impl DynamicType {
         todo!()
     }
     pub fn get_name(&self) -> ObjectName {
-        todo!()
+        self.descriptor.name.clone()
     }
     pub fn get_kind(&self) -> TypeKind {
-        todo!()
+        self.descriptor.kind
     }
 
     // DDS::ReturnCode_t get_member_by_name(inout DynamicTypeMember member, in ObjectName name);
     // DDS::ReturnCode_t get_all_members_by_name(inout DynamicTypeMembersByName member);
     // DDS::ReturnCode_t get_member(inout DynamicTypeMember member, in MemberId id);
     // DDS::ReturnCode_t get_all_members(inout DynamicTypeMembersById member);
+
     pub fn get_member_count(&self) -> u32 {
-        todo!()
+        self.member_list.len() as u32
     }
     pub fn get_member_by_index(&self, index: u32) -> Result<&DynamicTypeMember, XTypesError> {
-        todo!()
+        self.member_list
+            .get(index as usize)
+            .ok_or(XTypesError::InvalidIndex)
     }
     // fn get_annotation_count(&self) -> u32;
     // DDS::ReturnCode_t get_annotation(inout AnnotationDescriptor descriptor, in unsigned long idx);
@@ -84,14 +86,12 @@ impl DynamicType {
 }
 
 pub struct DynamicTypeMember {
-    id: MemberId,
-    name: ObjectName,
     descriptor: MemberDescriptor,
 }
 
 impl DynamicTypeMember {
-    pub fn get_descriptor(&self) -> Result<MemberDescriptor, XTypesError> {
-        todo!()
+    pub fn get_descriptor(&self) -> &MemberDescriptor {
+        &self.descriptor
     }
     // unsigned long get_annotation_count();
     // DDS::ReturnCode_t get_annotation(inout AnnotationDescriptor descriptor, in unsigned long idx);
@@ -99,10 +99,10 @@ impl DynamicTypeMember {
     // DDS::ReturnCode_t get_verbatim_text(inout VerbatimTextDescriptor descriptor, in unsigned long idx);
 
     pub fn get_id(&self) -> MemberId {
-        self.id
+        self.descriptor.id
     }
     pub fn get_name(&self) -> &ObjectName {
-        &self.name
+        &self.descriptor.name
     }
 }
 
@@ -129,13 +129,115 @@ impl DynamicTypeBuilderFactory {
         DynamicTypeBuilder
     }
 
-    pub fn create_sequence_type(bound: u32) -> DynamicTypeBuilder {
+    pub fn create_wstring_type(bound: u32) -> DynamicTypeBuilder {
+        DynamicTypeBuilder
+    }
+
+    pub fn create_sequence_type(element_type: DynamicType, bound: u32) -> DynamicTypeBuilder {
+        DynamicTypeBuilder
+    }
+
+    pub fn create_array_type(element_type: DynamicType, bound: LBoundSeq) -> DynamicTypeBuilder {
+        DynamicTypeBuilder
+    }
+
+    pub fn create_map_type(
+        key_element_type: DynamicType,
+        element_type: DynamicType,
+        bound: u32,
+    ) -> DynamicTypeBuilder {
+        DynamicTypeBuilder
+    }
+
+    pub fn create_bitmask_type(bound: u32) -> DynamicTypeBuilder {
+        DynamicTypeBuilder
+    }
+
+    pub fn create_type_w_uri(
+        document_url: String,
+        type_name: String,
+        include_paths: Vec<String>,
+    ) -> DynamicTypeBuilder {
+        DynamicTypeBuilder
+    }
+
+    pub fn create_type_w_document(
+        document: String,
+        type_name: String,
+        include_paths: Vec<String>,
+    ) -> DynamicTypeBuilder {
         DynamicTypeBuilder
     }
 }
 
 pub struct DynamicTypeBuilder;
 
-impl DynamicTypeBuilder {}
+impl DynamicTypeBuilder {
+    pub fn get_descriptor(&self) -> Result<TypeDescriptor, XTypesError> {
+        todo!()
+    }
+
+    pub fn get_name(&self) -> ObjectName {
+        todo!()
+    }
+
+    pub fn get_kind(&self) -> TypeKind {
+        todo!()
+    }
+
+    pub fn get_member_by_name(&self, name: &ObjectName) -> Result<DynamicTypeMember, XTypesError> {
+        todo!()
+    }
+
+    pub fn get_all_members_by_name(
+        &self,
+    ) -> Result<Vec<(ObjectName, DynamicTypeMember)>, XTypesError> {
+        todo!()
+    }
+
+    pub fn get_member(&self, id: MemberId) -> Result<DynamicTypeMember, XTypesError> {
+        todo!()
+    }
+
+    pub fn get_all_members(&self) -> Result<Vec<(MemberId, DynamicTypeMember)>, XTypesError> {
+        todo!()
+    }
+
+    pub fn get_member_count(&self) -> u32 {
+        todo!()
+    }
+
+    pub fn get_member_by_index(&self, index: u32) -> Result<DynamicTypeMember, XTypesError> {
+        todo!()
+    }
+
+    pub fn get_annotation_count(&self) -> u32 {
+        todo!()
+    }
+
+    pub fn get_annotation(&self, idx: u32) -> Result<(), XTypesError> {
+        todo!()
+    }
+
+    pub fn add_member(&mut self, descriptor: MemberDescriptor) -> Result<(), XTypesError> {
+        todo!()
+    }
+
+    pub fn apply_annotation(&mut self) -> Result<(), XTypesError> {
+        todo!()
+    }
+
+    pub fn apply_annotation_to_member(&mut self, id: MemberId) -> Result<(), XTypesError> {
+        todo!()
+    }
+
+    pub fn set_name(&mut self, name: ObjectName) -> Result<(), XTypesError> {
+        todo!()
+    }
+
+    pub fn build(self) -> DynamicType {
+        todo!()
+    }
+}
 
 pub struct DynamicData;
