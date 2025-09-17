@@ -19,22 +19,6 @@ use dust_dds::{
 };
 use dust_dds_derive::{DdsDeserialize, TypeSupport, XTypesDeserialize};
 
-#[derive(DdsType)]
-struct MutableType {
-    #[dust_dds(key)]
-    id: u32,
-    value: Vec<u8>,
-    #[dust_dds(key)]
-    another_id: u64,
-}
-
-// This tests the ability of the DdsType derive macro to work with
-// arrays whose length is given by a separate constant.
-// If this compiles, the test passes.
-const ARRAY_LENGTH: usize = 10;
-#[derive(DdsType)]
-struct ArrayContainingType([u8; ARRAY_LENGTH]);
-
 #[test]
 fn foo_with_lifetime_should_read_and_write() {
     #[derive(Clone, Debug, PartialEq, DdsType)]
@@ -612,26 +596,57 @@ fn foo_xtypes_union_should_read_and_write() {
 #[test]
 fn xcdr2_writer_and_reader() {
     #[derive(Debug, PartialEq, TypeSupport, XTypesDeserialize, DdsDeserialize)]
-    struct Cdr2Data {
-        id: u8,
-        value: u32,
+    #[dust_dds(extensibility = "appendable")]
+    pub struct ShapeType {
+        #[dust_dds(key)]
+        pub color: String,
+        pub x: i32,
+        pub y: i32,
+        pub shapesize: i32,
+        pub additional_payload_size: Vec<u8>,
     }
 
-    impl DdsSerialize for Cdr2Data {
+    impl DdsSerialize for ShapeType {
         fn serialize_data(&self) -> dust_dds::infrastructure::error::DdsResult<Vec<u8>> {
             Ok(vec![
                 0,
                 9,
                 0,
                 0,
-                self.id,
+                0x1c,
                 0,
                 0,
                 0,
-                self.value.to_le_bytes()[0],
-                self.value.to_le_bytes()[1],
-                self.value.to_le_bytes()[2],
-                self.value.to_le_bytes()[3],
+                // color
+                5,
+                0,
+                0,
+                0,
+                b'B',
+                b'L',
+                b'U',
+                b'E',
+                0,
+                //padding
+                0,
+                0,
+                0,
+                self.x.to_le_bytes()[0],
+                self.x.to_le_bytes()[1],
+                self.x.to_le_bytes()[2],
+                self.x.to_le_bytes()[3],
+                self.y.to_le_bytes()[0],
+                self.y.to_le_bytes()[1],
+                self.y.to_le_bytes()[2],
+                self.y.to_le_bytes()[3],
+                self.shapesize.to_le_bytes()[0],
+                self.shapesize.to_le_bytes()[1],
+                self.shapesize.to_le_bytes()[2],
+                self.shapesize.to_le_bytes()[3],
+                0,
+                0,
+                0,
+                0,
             ])
         }
     }
@@ -643,9 +658,9 @@ fn xcdr2_writer_and_reader() {
         .unwrap();
 
     let topic = participant1
-        .create_topic::<Cdr2Data>(
+        .create_topic::<ShapeType>(
             "MyTopic",
-            "Cdr2Data",
+            "ShapeType",
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
@@ -685,16 +700,16 @@ fn xcdr2_writer_and_reader() {
         ..Default::default()
     };
     let topic = participant2
-        .create_topic::<Cdr2Data>(
+        .create_topic::<ShapeType>(
             "MyTopic",
-            "Cdr2Data",
+            "ShapeType",
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
     let reader = subscriber
-        .create_datareader::<Cdr2Data>(
+        .create_datareader::<ShapeType>(
             &topic,
             QosKind::Specific(reader_qos),
             NO_LISTENER,
@@ -721,7 +736,13 @@ fn xcdr2_writer_and_reader() {
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
-    let data = Cdr2Data { id: 1, value: 1 };
+    let data = ShapeType {
+        color: String::from("BLUE"),
+        x: 0x2f,
+        y: 0x45,
+        shapesize: 0x14,
+        additional_payload_size: vec![],
+    };
 
     writer.write(&data, None).unwrap();
 
@@ -735,4 +756,8 @@ fn xcdr2_writer_and_reader() {
 
     assert_eq!(samples.len(), 1);
     assert_eq!(samples[0].data().unwrap(), data);
+    assert_eq!(
+        samples[0].sample_info().instance_handle.as_ref(),
+        &[0, 0, 0, 5, b'B', b'L', b'U', b'E', 0, 0, 0, 0, 0, 0, 0, 0]
+    )
 }
