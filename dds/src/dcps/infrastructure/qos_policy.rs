@@ -1366,7 +1366,7 @@ impl From<&DurabilityQosPolicy> for DurabilityKind {
 
 /*******  DDS X-TYPES Extension **********/
 
-type DataRepresentationId = u64;
+type DataRepresentationId = u16;
 /// XCDR data representation
 pub const XCDR_DATA_REPRESENTATION: DataRepresentationId = 0;
 /// XML data representation
