@@ -17,6 +17,7 @@ use crate::{
     runtime::{DdsRuntime, OneshotSend},
     transport::interface::TransportParticipantFactory,
 };
+use alloc::vec::Vec;
 
 pub enum DcpsParticipantFactoryMail<R: DdsRuntime> {
     CreateParticipant {

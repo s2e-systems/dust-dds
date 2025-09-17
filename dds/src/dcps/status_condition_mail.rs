@@ -3,6 +3,7 @@ use crate::{
     infrastructure::status::StatusKind,
     runtime::{DdsRuntime, OneshotSend},
 };
+use alloc::vec::Vec;
 
 pub enum DcpsStatusConditionMail<R: DdsRuntime> {
     GetStatusConditionEnabledStatuses {
