@@ -71,8 +71,8 @@ jobs:
         name: interoperability_executable
     - name: Unzip executables
       run: unzip '*.zip' -d executables
-    - name: Setting up environment
-      run: pip install -r omg-dds-rtps/requirements.txt
+    - name: Install omg-dds dds-rtps Python requirements
+      run: pip install --requirement omg-dds-rtps/requirements.txt
 
     - name: Run Interoperability script
       run: python3 ./omg-dds-rtps/interoperability_report.py --publisher ./executables/${{ matrix.publisher }}-*_shape_main_linux --subscriber ./executables/${{ matrix.subscriber }}-*_shape_main_linux --test Test_Domain_0 --output-name junit_report-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml
@@ -106,14 +106,14 @@ jobs:
     - uses: actions/setup-python@v5
       with:
         python-version: '3.11.4'
-    - name: Install omg-dds dds-rtps requirements
-      run: pip install --requirement requirements.txt
+    - name: Install omg-dds dds-rtps Python requirements
+      run: pip install --requirement omg-dds-rtps/requirements.txt
     - name: Install junit-merge
       run: pip install junit-merge
     - name: merge reports
       run: junit-merge *.xml > junit_interoperability_report.xml
     - name: Generate xlsx report
-      run: python3 generate_xlsx_report.py --input junit_interoperability_report.xml --output interoperability_report.xlsx
+      run: python3 ./omg-dds-rtps/generate_xlsx_report.py --input junit_interoperability_report.xml --output interoperability_report.xlsx
     - name: XUnit
       uses: AutoModality/action-xunit-viewer@v1
       with:
