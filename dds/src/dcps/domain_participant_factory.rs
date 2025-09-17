@@ -12,8 +12,8 @@ use crate::{
         },
         domain_participant::{
             DataReaderEntity, DataWriterEntity, DcpsDomainParticipant, DomainParticipantEntity,
-            InstanceHandleCounter, PublisherEntity, SubscriberEntity, TopicEntity,
-            TransportReaderKind, TransportWriterKind,
+            PublisherEntity, SubscriberEntity, TopicEntity, TransportReaderKind,
+            TransportWriterKind,
         },
         domain_participant_mail::{
             DcpsDomainParticipantMail, DiscoveryServiceMail, MessageServiceMail,
@@ -42,10 +42,12 @@ use crate::{
     transport::{
         interface::{
             HistoryCache, TransportParticipant, TransportParticipantFactory,
+            TransportStatefulReader, TransportStatefulWriter, TransportStatelessReader,
             TransportStatelessWriter,
         },
         types::{
-            CacheChange, EntityId, GuidPrefix, ReliabilityKind, BUILT_IN_READER_WITH_KEY,
+            CacheChange, EntityId, GuidPrefix, ReliabilityKind, BUILT_IN_READER_GROUP,
+            BUILT_IN_READER_WITH_KEY, BUILT_IN_TOPIC, BUILT_IN_WRITER_GROUP,
             BUILT_IN_WRITER_WITH_KEY,
         },
     },
@@ -163,8 +165,8 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             .transport
             .create_participant(guid_prefix, domain_id)
             .await;
+        let participant_instance_handle = InstanceHandle::new(transport.guid().into());
 
-        let mut instance_handle_counter = InstanceHandleCounter::default();
         fn sedp_data_reader_qos() -> DataReaderQos {
             DataReaderQos {
                 durability: DurabilityQosPolicy {
@@ -198,13 +200,31 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
         }
 
         let mut topic_list = Vec::new();
-        let spdp_topic_participant_handle = instance_handle_counter.generate_new_instance_handle();
+
+        let spdp_topic_participant_handle = [
+            participant_instance_handle[0],
+            participant_instance_handle[1],
+            participant_instance_handle[2],
+            participant_instance_handle[3],
+            participant_instance_handle[4],
+            participant_instance_handle[5],
+            participant_instance_handle[6],
+            participant_instance_handle[7],
+            participant_instance_handle[8],
+            participant_instance_handle[9],
+            participant_instance_handle[10],
+            participant_instance_handle[11],
+            0,
+            0,
+            0,
+            BUILT_IN_TOPIC,
+        ];
 
         let mut spdp_topic_participant = TopicEntity::new(
             TopicQos::default(),
             "SpdpDiscoveredParticipantData".to_string(),
             String::from(DCPS_PARTICIPANT),
-            spdp_topic_participant_handle,
+            InstanceHandle::new(spdp_topic_participant_handle),
             Actor::spawn(DcpsStatusCondition::default(), &spawner_handle),
             None,
             vec![],
@@ -214,12 +234,29 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
 
         topic_list.push(spdp_topic_participant);
 
-        let sedp_topic_topics_handle = instance_handle_counter.generate_new_instance_handle();
+        let sedp_topic_topics_handle = [
+            participant_instance_handle[0],
+            participant_instance_handle[1],
+            participant_instance_handle[2],
+            participant_instance_handle[3],
+            participant_instance_handle[4],
+            participant_instance_handle[5],
+            participant_instance_handle[6],
+            participant_instance_handle[7],
+            participant_instance_handle[8],
+            participant_instance_handle[9],
+            participant_instance_handle[10],
+            participant_instance_handle[11],
+            0,
+            0,
+            1,
+            BUILT_IN_TOPIC,
+        ];
         let mut sedp_topic_topics = TopicEntity::new(
             TopicQos::default(),
             "DiscoveredTopicData".to_string(),
             String::from(DCPS_TOPIC),
-            sedp_topic_topics_handle,
+            InstanceHandle::new(sedp_topic_topics_handle),
             Actor::spawn(DcpsStatusCondition::default(), &spawner_handle),
             None,
             vec![],
@@ -229,12 +266,29 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
 
         topic_list.push(sedp_topic_topics);
 
-        let sedp_topic_publications_handle = instance_handle_counter.generate_new_instance_handle();
+        let sedp_topic_publications_handle = [
+            participant_instance_handle[0],
+            participant_instance_handle[1],
+            participant_instance_handle[2],
+            participant_instance_handle[3],
+            participant_instance_handle[4],
+            participant_instance_handle[5],
+            participant_instance_handle[6],
+            participant_instance_handle[7],
+            participant_instance_handle[8],
+            participant_instance_handle[9],
+            participant_instance_handle[10],
+            participant_instance_handle[11],
+            0,
+            0,
+            2,
+            BUILT_IN_TOPIC,
+        ];
         let mut sedp_topic_publications = TopicEntity::new(
             TopicQos::default(),
             "DiscoveredWriterData".to_string(),
             String::from(DCPS_PUBLICATION),
-            sedp_topic_publications_handle,
+            InstanceHandle::new(sedp_topic_publications_handle),
             Actor::spawn(DcpsStatusCondition::default(), &spawner_handle),
             None,
             vec![],
@@ -243,13 +297,29 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
         sedp_topic_publications.enable();
         topic_list.push(sedp_topic_publications);
 
-        let sedp_topic_subscriptions_handle =
-            instance_handle_counter.generate_new_instance_handle();
+        let sedp_topic_subscriptions_handle = [
+            participant_instance_handle[0],
+            participant_instance_handle[1],
+            participant_instance_handle[2],
+            participant_instance_handle[3],
+            participant_instance_handle[4],
+            participant_instance_handle[5],
+            participant_instance_handle[6],
+            participant_instance_handle[7],
+            participant_instance_handle[8],
+            participant_instance_handle[9],
+            participant_instance_handle[10],
+            participant_instance_handle[11],
+            0,
+            0,
+            3,
+            BUILT_IN_TOPIC,
+        ];
         let mut sedp_topic_subscriptions = TopicEntity::new(
             TopicQos::default(),
             "DiscoveredReaderData".to_string(),
             String::from(DCPS_SUBSCRIPTION),
-            sedp_topic_subscriptions_handle,
+            InstanceHandle::new(sedp_topic_subscriptions_handle),
             Actor::spawn(DcpsStatusCondition::default(), &spawner_handle),
             None,
             vec![],
@@ -294,7 +364,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             )
             .await;
         let mut dcps_participant_reader = DataReaderEntity::new(
-            instance_handle_counter.generate_new_instance_handle(),
+            InstanceHandle::new(dcps_participant_transport_reader.guid().into()),
             spdp_reader_qos,
             String::from(DCPS_PARTICIPANT),
             "SpdpDiscoveredParticipantData".to_string(),
@@ -315,7 +385,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             )
             .await;
         let mut dcps_topic_reader = DataReaderEntity::new(
-            instance_handle_counter.generate_new_instance_handle(),
+            InstanceHandle::new(dcps_topic_transport_reader.guid().into()),
             sedp_data_reader_qos(),
             String::from(DCPS_TOPIC),
             "DiscoveredTopicData".to_string(),
@@ -336,7 +406,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             )
             .await;
         let mut dcps_publication_reader = DataReaderEntity::new(
-            instance_handle_counter.generate_new_instance_handle(),
+            InstanceHandle::new(dcps_publication_transport_reader.guid().into()),
             sedp_data_reader_qos(),
             String::from(DCPS_PUBLICATION),
             "DiscoveredWriterData".to_string(),
@@ -357,7 +427,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             )
             .await;
         let mut dcps_subscription_reader = DataReaderEntity::new(
-            instance_handle_counter.generate_new_instance_handle(),
+            InstanceHandle::new(dcps_subscription_transport_reader.guid().into()),
             sedp_data_reader_qos(),
             String::from(DCPS_SUBSCRIPTION),
             "DiscoveredReaderData".to_string(),
@@ -375,8 +445,26 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             dcps_publication_reader,
             dcps_subscription_reader,
         ];
+        let builtin_subscriber_handle = [
+            participant_instance_handle[0],
+            participant_instance_handle[1],
+            participant_instance_handle[2],
+            participant_instance_handle[3],
+            participant_instance_handle[4],
+            participant_instance_handle[5],
+            participant_instance_handle[6],
+            participant_instance_handle[7],
+            participant_instance_handle[8],
+            participant_instance_handle[9],
+            participant_instance_handle[10],
+            participant_instance_handle[11],
+            0,
+            0,
+            0,
+            BUILT_IN_READER_GROUP,
+        ];
         let mut builtin_subscriber = SubscriberEntity::new(
-            instance_handle_counter.generate_new_instance_handle(),
+            InstanceHandle::new(builtin_subscriber_handle),
             SubscriberQos::default(),
             data_reader_list,
             Actor::spawn(DcpsStatusCondition::default(), &spawner_handle),
@@ -392,7 +480,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             dcps_participant_transport_writer.add_reader_locator(discovery_locator);
         }
         let mut dcps_participant_writer = DataWriterEntity::new(
-            instance_handle_counter.generate_new_instance_handle(),
+            InstanceHandle::new(dcps_participant_transport_writer.guid().into()),
             TransportWriterKind::Stateless(dcps_participant_transport_writer),
             String::from(DCPS_PARTICIPANT),
             "SpdpDiscoveredParticipantData".to_string(),
@@ -411,7 +499,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             )
             .await;
         let mut dcps_topics_writer = DataWriterEntity::new(
-            instance_handle_counter.generate_new_instance_handle(),
+            InstanceHandle::new(dcps_topics_transport_writer.guid().into()),
             TransportWriterKind::Stateful(dcps_topics_transport_writer),
             String::from(DCPS_TOPIC),
             "DiscoveredTopicData".to_string(),
@@ -429,7 +517,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             )
             .await;
         let mut dcps_publications_writer = DataWriterEntity::new(
-            instance_handle_counter.generate_new_instance_handle(),
+            InstanceHandle::new(dcps_publications_transport_writer.guid().into()),
             TransportWriterKind::Stateful(dcps_publications_transport_writer),
             String::from(DCPS_PUBLICATION),
             "DiscoveredWriterData".to_string(),
@@ -448,7 +536,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             )
             .await;
         let mut dcps_subscriptions_writer = DataWriterEntity::new(
-            instance_handle_counter.generate_new_instance_handle(),
+            InstanceHandle::new(dcps_subscriptions_transport_writer.guid().into()),
             TransportWriterKind::Stateful(dcps_subscriptions_transport_writer),
             String::from(DCPS_SUBSCRIPTION),
             "DiscoveredReaderData".to_string(),
@@ -465,49 +553,60 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             dcps_publications_writer,
             dcps_subscriptions_writer,
         ];
+        let builtin_publisher_handle = [
+            participant_instance_handle[0],
+            participant_instance_handle[1],
+            participant_instance_handle[2],
+            participant_instance_handle[3],
+            participant_instance_handle[4],
+            participant_instance_handle[5],
+            participant_instance_handle[6],
+            participant_instance_handle[7],
+            participant_instance_handle[8],
+            participant_instance_handle[9],
+            participant_instance_handle[10],
+            participant_instance_handle[11],
+            0,
+            0,
+            0,
+            BUILT_IN_WRITER_GROUP,
+        ];
         let mut builtin_publisher = PublisherEntity::new(
             PublisherQos::default(),
-            instance_handle_counter.generate_new_instance_handle(),
+            InstanceHandle::new(builtin_publisher_handle),
             builtin_data_writer_list,
             None,
             vec![],
         );
         builtin_publisher.enable();
-        let instance_handle = InstanceHandle::new(transport.guid().into());
 
         let domain_participant = DomainParticipantEntity::new(
             domain_id,
             domain_participant_qos,
             listener_sender,
             status_kind,
-            instance_handle,
+            participant_instance_handle,
             builtin_publisher,
             builtin_subscriber,
             topic_list,
             String::from(self.configuration.domain_tag()),
         );
 
-        let mut domain_participant_actor: DcpsDomainParticipant<R, T> = DcpsDomainParticipant::new(
+        let mut dcps_participant: DcpsDomainParticipant<R, T> = DcpsDomainParticipant::new(
             domain_participant,
             transport,
-            instance_handle_counter,
             clock_handle,
             timer_handle.clone(),
             spawner_handle.clone(),
         );
-        let participant_handle = domain_participant_actor
-            .domain_participant
-            .instance_handle();
-
-        let builtin_subscriber_status_condition_address = domain_participant_actor
-            .domain_participant
-            .builtin_subscriber()
+        let builtin_subscriber_status_condition_address = dcps_participant
+            .get_builtin_subscriber()
             .status_condition()
             .address();
 
         spawner_handle.spawn(async move {
             while let Some(m) = participant_receiver.receive().await {
-                domain_participant_actor.handle(m).await;
+                dcps_participant.handle(m).await;
             }
         });
 
@@ -542,11 +641,11 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
 
         let participant_address = participant_sender.clone();
         self.domain_participant_list
-            .push((participant_handle, participant_sender));
+            .push((participant_instance_handle, participant_sender));
 
         Ok((
             participant_address,
-            participant_handle,
+            participant_instance_handle,
             builtin_subscriber_status_condition_address,
         ))
     }
