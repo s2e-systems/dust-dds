@@ -1,13 +1,13 @@
 use crate::{
-    runtime::{ChannelReceive, DdsRuntime, Spawner},
     publication::publisher_listener::PublisherListener,
+    runtime::{ChannelReceive, DdsRuntime, Spawner},
 };
 
 use super::domain_participant_listener::ListenerMail;
 
-pub struct PublisherListenerActor;
+pub struct DcpsPublisherListener;
 
-impl PublisherListenerActor {
+impl DcpsPublisherListener {
     pub fn spawn<R: DdsRuntime>(
         mut listener: impl PublisherListener<R> + Send + 'static,
         spawner_handle: &R::SpawnerHandle,

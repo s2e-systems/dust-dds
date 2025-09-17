@@ -1,5 +1,4 @@
 use crate::{
-    runtime::{ChannelReceive, DdsRuntime, Spawner},
     dds_async::{
         data_reader::DataReaderAsync, data_writer::DataWriterAsync, subscriber::SubscriberAsync,
     },
@@ -9,11 +8,12 @@ use crate::{
         RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleRejectedStatus,
         SubscriptionMatchedStatus,
     },
+    runtime::{ChannelReceive, DdsRuntime, Spawner},
 };
 
-pub struct DomainParticipantListenerActor;
+pub struct DcpsDomainParticipantListener;
 
-impl DomainParticipantListenerActor {
+impl DcpsDomainParticipantListener {
     pub fn spawn<R: DdsRuntime>(
         mut listener: impl DomainParticipantListener<R> + Send + 'static,
         spawner_handle: &R::SpawnerHandle,
