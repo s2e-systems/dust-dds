@@ -220,7 +220,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             BUILT_IN_TOPIC,
         ];
 
-        let mut spdp_topic_participant = TopicEntity::new(
+        let spdp_topic_participant = TopicEntity::new(
             TopicQos::default(),
             "SpdpDiscoveredParticipantData".to_string(),
             String::from(DCPS_PARTICIPANT),
@@ -230,7 +230,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             vec![],
             Arc::new(SpdpDiscoveredParticipantData::get_type()),
         );
-        spdp_topic_participant.enable();
 
         topic_list.push(spdp_topic_participant);
 
@@ -252,7 +251,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             1,
             BUILT_IN_TOPIC,
         ];
-        let mut sedp_topic_topics = TopicEntity::new(
+        let sedp_topic_topics = TopicEntity::new(
             TopicQos::default(),
             "DiscoveredTopicData".to_string(),
             String::from(DCPS_TOPIC),
@@ -262,7 +261,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             vec![],
             Arc::new(DiscoveredTopicData::get_type()),
         );
-        sedp_topic_topics.enable();
 
         topic_list.push(sedp_topic_topics);
 
@@ -284,7 +282,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             2,
             BUILT_IN_TOPIC,
         ];
-        let mut sedp_topic_publications = TopicEntity::new(
+        let sedp_topic_publications = TopicEntity::new(
             TopicQos::default(),
             "DiscoveredWriterData".to_string(),
             String::from(DCPS_PUBLICATION),
@@ -294,7 +292,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             vec![],
             Arc::new(DiscoveredWriterData::get_type()),
         );
-        sedp_topic_publications.enable();
         topic_list.push(sedp_topic_publications);
 
         let sedp_topic_subscriptions_handle = [
@@ -315,7 +312,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             3,
             BUILT_IN_TOPIC,
         ];
-        let mut sedp_topic_subscriptions = TopicEntity::new(
+        let sedp_topic_subscriptions = TopicEntity::new(
             TopicQos::default(),
             "DiscoveredReaderData".to_string(),
             String::from(DCPS_SUBSCRIPTION),
@@ -325,7 +322,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             vec![],
             Arc::new(DiscoveredReaderData::get_type()),
         );
-        sedp_topic_subscriptions.enable();
         topic_list.push(sedp_topic_subscriptions);
 
         let spdp_writer_qos = DataWriterQos {
@@ -363,7 +359,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 }),
             )
             .await;
-        let mut dcps_participant_reader = DataReaderEntity::new(
+        let dcps_participant_reader = DataReaderEntity::new(
             InstanceHandle::new(dcps_participant_transport_reader.guid().into()),
             spdp_reader_qos,
             String::from(DCPS_PARTICIPANT),
@@ -374,7 +370,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             Vec::new(),
             TransportReaderKind::Stateless(dcps_participant_transport_reader),
         );
-        dcps_participant_reader.enable();
         let dcps_topic_transport_reader = transport
             .create_stateful_reader(
                 ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
@@ -384,7 +379,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 }),
             )
             .await;
-        let mut dcps_topic_reader = DataReaderEntity::new(
+        let dcps_topic_reader = DataReaderEntity::new(
             InstanceHandle::new(dcps_topic_transport_reader.guid().into()),
             sedp_data_reader_qos(),
             String::from(DCPS_TOPIC),
@@ -395,7 +390,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             Vec::new(),
             TransportReaderKind::Stateful(dcps_topic_transport_reader),
         );
-        dcps_topic_reader.enable();
         let dcps_publication_transport_reader = transport
             .create_stateful_reader(
                 ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
@@ -405,7 +399,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 }),
             )
             .await;
-        let mut dcps_publication_reader = DataReaderEntity::new(
+        let dcps_publication_reader = DataReaderEntity::new(
             InstanceHandle::new(dcps_publication_transport_reader.guid().into()),
             sedp_data_reader_qos(),
             String::from(DCPS_PUBLICATION),
@@ -416,7 +410,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             Vec::new(),
             TransportReaderKind::Stateful(dcps_publication_transport_reader),
         );
-        dcps_publication_reader.enable();
         let dcps_subscription_transport_reader = transport
             .create_stateful_reader(
                 ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
@@ -426,7 +419,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 }),
             )
             .await;
-        let mut dcps_subscription_reader = DataReaderEntity::new(
+        let dcps_subscription_reader = DataReaderEntity::new(
             InstanceHandle::new(dcps_subscription_transport_reader.guid().into()),
             sedp_data_reader_qos(),
             String::from(DCPS_SUBSCRIPTION),
@@ -437,7 +430,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             Vec::new(),
             TransportReaderKind::Stateful(dcps_subscription_transport_reader),
         );
-        dcps_subscription_reader.enable();
 
         let data_reader_list = vec![
             dcps_participant_reader,
@@ -463,7 +455,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             0,
             BUILT_IN_READER_GROUP,
         ];
-        let mut builtin_subscriber = SubscriberEntity::new(
+        let builtin_subscriber = SubscriberEntity::new(
             InstanceHandle::new(builtin_subscriber_handle),
             SubscriberQos::default(),
             data_reader_list,
@@ -471,7 +463,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             None,
             vec![],
         );
-        builtin_subscriber.enable();
 
         let mut dcps_participant_transport_writer = transport
             .create_stateless_writer(ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER)
@@ -479,7 +470,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
         for &discovery_locator in transport.metatraffic_multicast_locator_list() {
             dcps_participant_transport_writer.add_reader_locator(discovery_locator);
         }
-        let mut dcps_participant_writer = DataWriterEntity::new(
+        let dcps_participant_writer = DataWriterEntity::new(
             InstanceHandle::new(dcps_participant_transport_writer.guid().into()),
             TransportWriterKind::Stateless(dcps_participant_transport_writer),
             String::from(DCPS_PARTICIPANT),
@@ -490,7 +481,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             vec![],
             spdp_writer_qos,
         );
-        dcps_participant_writer.enable();
 
         let dcps_topics_transport_writer = transport
             .create_stateful_writer(
@@ -498,7 +488,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 ReliabilityKind::Reliable,
             )
             .await;
-        let mut dcps_topics_writer = DataWriterEntity::new(
+        let dcps_topics_writer = DataWriterEntity::new(
             InstanceHandle::new(dcps_topics_transport_writer.guid().into()),
             TransportWriterKind::Stateful(dcps_topics_transport_writer),
             String::from(DCPS_TOPIC),
@@ -509,14 +499,13 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             vec![],
             sedp_data_writer_qos(),
         );
-        dcps_topics_writer.enable();
         let dcps_publications_transport_writer = transport
             .create_stateful_writer(
                 ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
                 ReliabilityKind::Reliable,
             )
             .await;
-        let mut dcps_publications_writer = DataWriterEntity::new(
+        let dcps_publications_writer = DataWriterEntity::new(
             InstanceHandle::new(dcps_publications_transport_writer.guid().into()),
             TransportWriterKind::Stateful(dcps_publications_transport_writer),
             String::from(DCPS_PUBLICATION),
@@ -527,7 +516,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             vec![],
             sedp_data_writer_qos(),
         );
-        dcps_publications_writer.enable();
 
         let dcps_subscriptions_transport_writer = transport
             .create_stateful_writer(
@@ -535,7 +523,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 ReliabilityKind::Reliable,
             )
             .await;
-        let mut dcps_subscriptions_writer = DataWriterEntity::new(
+        let dcps_subscriptions_writer = DataWriterEntity::new(
             InstanceHandle::new(dcps_subscriptions_transport_writer.guid().into()),
             TransportWriterKind::Stateful(dcps_subscriptions_transport_writer),
             String::from(DCPS_SUBSCRIPTION),
@@ -546,7 +534,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             vec![],
             sedp_data_writer_qos(),
         );
-        dcps_subscriptions_writer.enable();
         let builtin_data_writer_list = vec![
             dcps_participant_writer,
             dcps_topics_writer,
@@ -571,14 +558,13 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             0,
             BUILT_IN_WRITER_GROUP,
         ];
-        let mut builtin_publisher = PublisherEntity::new(
+        let builtin_publisher = PublisherEntity::new(
             PublisherQos::default(),
             InstanceHandle::new(builtin_publisher_handle),
             builtin_data_writer_list,
             None,
             vec![],
         );
-        builtin_publisher.enable();
 
         let domain_participant = DomainParticipantEntity::new(
             domain_id,

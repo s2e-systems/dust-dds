@@ -352,7 +352,7 @@ where
         };
 
         if !topic.enabled {
-            topic.enable();
+            topic.enabled = true;
             self.announce_topic(topic_name).await;
         }
 
@@ -422,7 +422,7 @@ where
                 .entity_factory
                 .autoenable_created_entities
         {
-            publisher.enable();
+            publisher.enabled = true;
         }
 
         self.domain_participant
@@ -514,7 +514,7 @@ where
                 .entity_factory
                 .autoenable_created_entities
         {
-            subscriber.enable();
+            subscriber.enabled = true;
         }
 
         self.domain_participant
@@ -787,7 +787,7 @@ where
                     vec![],
                     type_support,
                 );
-                topic.enable();
+                topic.enabled = true;
                 let topic_status_condition_address = topic.status_condition.address();
 
                 match self
@@ -1069,6 +1069,18 @@ where
     #[tracing::instrument(skip(self))]
     pub async fn enable_domain_participant(&mut self) -> DdsResult<()> {
         if !self.domain_participant.enabled {
+            for t in &mut self.domain_participant.topic_list {
+                t.enabled = true;
+            }
+            for dw in &mut self.domain_participant.builtin_publisher.data_writer_list {
+                dw.enabled = true;
+            }
+            self.domain_participant.builtin_publisher.enabled = true;
+
+            for dr in &mut self.domain_participant.builtin_subscriber.data_reader_list {
+                dr.enabled = true;
+            }
+            self.domain_participant.builtin_subscriber.enabled = true;
             self.domain_participant.enabled = true;
 
             self.announce_participant().await;
@@ -2099,7 +2111,7 @@ where
             return Err(DdsError::AlreadyDeleted);
         };
         if !data_writer.enabled {
-            data_writer.enable();
+            data_writer.enabled = true;
 
             let discovered_reader_list: Vec<_> =
                 self.domain_participant.discovered_reader_list.to_vec();
@@ -2593,7 +2605,7 @@ where
             return Err(DdsError::AlreadyDeleted);
         };
         if !data_reader.enabled {
-            data_reader.enable();
+            data_reader.enabled = true;
 
             let discovered_writer_list: Vec<_> =
                 self.domain_participant.discovered_writer_list.to_vec();
@@ -5512,10 +5524,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> SubscriberEntity<R, T> {
             .iter_mut()
             .find(|x| x.instance_handle == handle)
     }
-
-    pub fn enable(&mut self) {
-        self.enabled = true;
-    }
 }
 
 pub struct TopicEntity<R: DdsRuntime> {
@@ -5555,10 +5563,6 @@ impl<R: DdsRuntime> TopicEntity<R> {
             _status_kind: status_kind,
             type_support,
         }
-    }
-
-    pub fn enable(&mut self) {
-        self.enabled = true;
     }
 
     pub async fn get_inconsistent_topic_status(&mut self) -> InconsistentTopicStatus {
@@ -5644,10 +5648,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> PublisherEntity<R, T> {
         self.data_writer_list
             .iter_mut()
             .find(|x| x.topic_name == topic_name)
-    }
-
-    pub fn enable(&mut self) {
-        self.enabled = true;
     }
 
     pub fn default_datawriter_qos(&self) -> &DataWriterQos {
@@ -5775,10 +5775,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
             instance_publication_time: Vec::new(),
             instance_samples: Vec::new(),
         }
-    }
-
-    pub fn enable(&mut self) {
-        self.enabled = true;
     }
 
     pub async fn write_w_timestamp(
@@ -6816,10 +6812,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
             }),
         }
         Ok(AddChangeResult::Added(change_instance_handle))
-    }
-
-    pub fn enable(&mut self) {
-        self.enabled = true;
     }
 
     pub fn add_matched_publication(
