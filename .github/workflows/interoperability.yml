@@ -81,7 +81,7 @@ jobs:
       run: pip install --requirement omg-dds-rtps/requirements.txt
 
     - name: Run Interoperability script
-      run: python3 ./omg-dds-rtps/interoperability_report.py --publisher ./executables/${{ matrix.publisher }}-*_shape_main_linux --subscriber ./executables/${{ matrix.subscriber }}-*_shape_main_linux --disable-test Test_DataRepresentation_3 --output-name junit_report-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml
+      run: python3 ./omg-dds-rtps/interoperability_report.py --publisher ./executables/${{ matrix.publisher }}-*_shape_main_linux --subscriber ./executables/${{ matrix.subscriber }}-*_shape_main_linux --output-name junit_report-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml
 
     - name: Upload report
       uses: actions/upload-artifact@v4
