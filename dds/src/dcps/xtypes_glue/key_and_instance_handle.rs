@@ -314,8 +314,8 @@ const CDR_BE: RepresentationIdentifier = [0x00, 0x00];
 const CDR_LE: RepresentationIdentifier = [0x00, 0x01];
 const CDR2_BE: RepresentationIdentifier = [0x00, 0x06];
 const CDR2_LE: RepresentationIdentifier = [0x00, 0x07];
-const _D_CDR2_BE: RepresentationIdentifier = [0x00, 0x08];
-const _D_CDR2_LE: RepresentationIdentifier = [0x00, 0x09];
+const D_CDR2_BE: RepresentationIdentifier = [0x00, 0x08];
+const D_CDR2_LE: RepresentationIdentifier = [0x00, 0x09];
 const PL_CDR_BE: RepresentationIdentifier = [0x00, 0x02];
 const PL_CDR_LE: RepresentationIdentifier = [0x00, 0x03];
 
@@ -369,8 +369,12 @@ pub fn get_instance_handle_from_serialized_foo(
         match representation_identifier {
             CDR_BE => push_to_key(dynamic_type, &mut s, &mut Xcdr1BeDeserializer::new(data))?,
             CDR_LE => push_to_key(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?,
-            CDR2_BE => push_to_key(dynamic_type, &mut s, &mut Xcdr2BeDeserializer::new(data))?,
-            CDR2_LE => push_to_key(dynamic_type, &mut s, &mut Xcdr2LeDeserializer::new(data))?,
+            CDR2_BE | D_CDR2_BE => {
+                push_to_key(dynamic_type, &mut s, &mut Xcdr2BeDeserializer::new(data))?
+            }
+            CDR2_LE | D_CDR2_LE => {
+                push_to_key(dynamic_type, &mut s, &mut Xcdr2LeDeserializer::new(data))?
+            }
             PL_CDR_BE => push_to_key_parameter_list_be(dynamic_type, &mut s, data)?,
             PL_CDR_LE => push_to_key_parameter_list_le(dynamic_type, &mut s, data)?,
             _ => panic!("representation_identifier not supported"),
@@ -417,7 +421,7 @@ mod tests {
     use dust_dds_derive::TypeSupport;
 
     #[derive(TypeSupport)]
-    #[dust_dds(extensibility = "Mutable")]
+    #[dust_dds(extensibility = "mutable")]
     struct MutableStruct {
         #[dust_dds(key, id = 10)]
         _key_field1: u8,
@@ -494,7 +498,7 @@ mod tests {
     }
 
     #[derive(TypeSupport)]
-    #[dust_dds(extensibility = "Final")]
+    #[dust_dds(extensibility = "final")]
     struct Nested {
         #[dust_dds(key)]
         _x: u8,
@@ -502,7 +506,7 @@ mod tests {
         _y: u8,
     }
     #[derive(TypeSupport)]
-    #[dust_dds(extensibility = "Final")]
+    #[dust_dds(extensibility = "final")]
     struct Complex {
         _field1: i64,
         #[dust_dds(key)]
@@ -513,7 +517,7 @@ mod tests {
     }
 
     #[derive(TypeSupport)]
-    #[dust_dds(extensibility = "Final")]
+    #[dust_dds(extensibility = "final")]
     struct Simple {
         #[dust_dds(key)]
         _key_field1: i64,
@@ -646,7 +650,7 @@ mod tests {
     }
 
     #[derive(TypeSupport)]
-    #[dust_dds(extensibility = "Final")]
+    #[dust_dds(extensibility = "final")]
     struct Large {
         #[dust_dds(key)]
         _key_field1: i64,
@@ -786,7 +790,7 @@ mod tests {
     }
 
     #[derive(TypeSupport)]
-    #[dust_dds(extensibility = "Final")]
+    #[dust_dds(extensibility = "final")]
     struct BasicTypes {
         #[dust_dds(key)]
         _f1: bool,
