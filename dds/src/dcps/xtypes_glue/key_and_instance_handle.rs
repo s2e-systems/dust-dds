@@ -314,8 +314,8 @@ const CDR_BE: RepresentationIdentifier = [0x00, 0x00];
 const CDR_LE: RepresentationIdentifier = [0x00, 0x01];
 const CDR2_BE: RepresentationIdentifier = [0x00, 0x06];
 const CDR2_LE: RepresentationIdentifier = [0x00, 0x07];
-const _D_CDR2_BE: RepresentationIdentifier = [0x00, 0x08];
-const _D_CDR2_LE: RepresentationIdentifier = [0x00, 0x09];
+const D_CDR2_BE: RepresentationIdentifier = [0x00, 0x08];
+const D_CDR2_LE: RepresentationIdentifier = [0x00, 0x09];
 const PL_CDR_BE: RepresentationIdentifier = [0x00, 0x02];
 const PL_CDR_LE: RepresentationIdentifier = [0x00, 0x03];
 
@@ -369,8 +369,12 @@ pub fn get_instance_handle_from_serialized_foo(
         match representation_identifier {
             CDR_BE => push_to_key(dynamic_type, &mut s, &mut Xcdr1BeDeserializer::new(data))?,
             CDR_LE => push_to_key(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?,
-            CDR2_BE => push_to_key(dynamic_type, &mut s, &mut Xcdr2BeDeserializer::new(data))?,
-            CDR2_LE => push_to_key(dynamic_type, &mut s, &mut Xcdr2LeDeserializer::new(data))?,
+            CDR2_BE | D_CDR2_BE => {
+                push_to_key(dynamic_type, &mut s, &mut Xcdr2BeDeserializer::new(data))?
+            }
+            CDR2_LE | D_CDR2_LE => {
+                push_to_key(dynamic_type, &mut s, &mut Xcdr2LeDeserializer::new(data))?
+            }
             PL_CDR_BE => push_to_key_parameter_list_be(dynamic_type, &mut s, data)?,
             PL_CDR_LE => push_to_key_parameter_list_le(dynamic_type, &mut s, data)?,
             _ => panic!("representation_identifier not supported"),
