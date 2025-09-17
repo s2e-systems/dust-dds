@@ -331,7 +331,7 @@ where
                 )?;
             }
         }
-        crate::xtypes::dynamic_type::ExtensibilityKind::Mutable => todo!(),
+        crate::xtypes::dynamic_type::ExtensibilityKind::Mutable => (),
     }
 
     Ok(())
