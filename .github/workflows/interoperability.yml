@@ -75,7 +75,7 @@ jobs:
       run: pip install -r omg-dds-rtps/requirements.txt
 
     - name: Run Interoperability script
-      run: python3 ./omg-dds-rtps/interoperability_report.py --publisher ./executables/${{ matrix.publisher }}-*_shape_main_linux --subscriber ./executables/${{ matrix.subscriber }}-*_shape_main_linux --test Test_Domain_0 --output-name junit_report-${{ matrix.publisher }}-${{ matrix.publisher }}.xml
+      run: python3 ./omg-dds-rtps/interoperability_report.py --publisher ./executables/${{ matrix.publisher }}-*_shape_main_linux --subscriber ./executables/${{ matrix.subscriber }}-*_shape_main_linux --test Test_Domain_0 --output-name junit_report-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml
 
     - name: Upload report
       uses: actions/upload-artifact@v4
@@ -93,17 +93,37 @@ jobs:
         pattern: junit_report-*
         merge-multiple: true
     - run: ls
+    - name: Checkout omg-dds dds-rtps
+      uses: actions/checkout@v4
+      with:
+        repository: omg-dds/dds-rtps
+        ref: '9e1fdbcd30bc785e5e5113a94e5e936695a3385e'
+        path: omg-dds-rtps
+        sparse-checkout-cone-mode: false
+        sparse-checkout: |
+          generate_xlsx_report.py
+          requirements.txt
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.11.4'
+    - name: Install omg-dds dds-rtps requirements
+      run: pip install --requirement requirements.txt
     - name: Install junit-merge
       run: pip install junit-merge
     - name: merge reports
-      run: junit-merge *.xml
+      run: junit-merge *.xml > junit_interoperability_report.xml
+    - name: Generate xlsx report
+      run: python3 generate_xlsx_report.py --input junit_interoperability_report.xml --output interoperability_report.xlsx
     - name: XUnit
       uses: AutoModality/action-xunit-viewer@v1
       with:
-        results: ./report.xml
+        results: ./junit_interoperability_report.xml
         fail: false
     - name: Upload report
       uses: actions/upload-artifact@v4
       with:
-        name: interoperability_report
-        path: ./index.html
+        name: interoperability_report_complete
+        path: |
+          ./index.html
+          ./junit_interoperability_report.xml
+          ./interoperability_report.xlsx
