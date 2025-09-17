@@ -543,6 +543,7 @@ fn run_publisher(
         x: random::<i32>() % da_width,
         y: random::<i32>() % da_height,
         shapesize: options.shapesize,
+        additional_payload_size: vec![]
     };
 
     // get random non-zero velocity.

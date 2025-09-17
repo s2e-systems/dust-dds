@@ -5,4 +5,5 @@ struct ShapeType {
   int32 x;
   int32 y;
   int32 shapesize;
+  sequence<uint8> additional_payload_size;
 };
