@@ -1490,6 +1490,7 @@ where
             entity_id.entity_key()[2],
             entity_id.entity_kind(),
         ]);
+        self.writer_counter += 1;
 
         let qos = match qos {
             QosKind::Default => publisher.default_datawriter_qos().clone(),
