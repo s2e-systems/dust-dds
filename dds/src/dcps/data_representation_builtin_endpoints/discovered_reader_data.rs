@@ -42,7 +42,7 @@ impl TypeSupport for DiscoveredReaderData {
         "DiscoveredReaderData"
     }
 
-    fn get_type() -> impl crate::xtypes::dynamic_type::DynamicType {
+    fn get_type() -> crate::xtypes::dynamic_type::DynamicType {
         dust_dds::xtypes::type_object::CompleteTypeObject::TkStructure {
             struct_type: dust_dds::xtypes::type_object::CompleteStructType {
                 struct_flags: dust_dds::xtypes::type_object::StructTypeFlag {
@@ -94,7 +94,17 @@ impl TypeSupport for DiscoveredReaderData {
                     },
                 }],
             },
-        }
+        };
+
+        todo!()
+    }
+
+    fn create_sample(src: crate::xtypes::dynamic_type::DynamicData) -> Self {
+        todo!()
+    }
+
+    fn create_dynamic_sample(&self) -> crate::xtypes::dynamic_type::DynamicData {
+        todo!()
     }
 }
 impl DdsSerialize for DiscoveredReaderData {

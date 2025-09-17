@@ -27,7 +27,9 @@ use crate::{
         type_support::{DdsDeserialize, DdsSerialize, TypeSupport},
     },
     transport::types::{GuidPrefix, Locator, Long, ProtocolVersion, VendorId},
-    xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize},
+    xtypes::{
+        deserialize::XTypesDeserialize, dynamic_type::DynamicData, serialize::XTypesSerialize,
+    },
 };
 use alloc::{
     boxed::Box,
@@ -146,7 +148,7 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
         "SpdpDiscoveredParticipantData"
     }
 
-    fn get_type() -> impl crate::xtypes::dynamic_type::DynamicType {
+    fn get_type() -> crate::xtypes::dynamic_type::DynamicType {
         dust_dds::xtypes::type_object::CompleteTypeObject::TkStructure {
             struct_type: dust_dds::xtypes::type_object::CompleteStructType {
                 struct_flags: dust_dds::xtypes::type_object::StructTypeFlag {
@@ -199,7 +201,17 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
                     },
                 }],
             },
-        }
+        };
+
+        todo!()
+    }
+
+    fn create_sample(src: DynamicData) -> Self {
+        todo!()
+    }
+
+    fn create_dynamic_sample(&self) -> DynamicData {
+        todo!()
     }
 }
 

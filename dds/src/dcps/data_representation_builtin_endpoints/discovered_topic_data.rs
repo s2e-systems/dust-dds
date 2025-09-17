@@ -14,8 +14,9 @@ use crate::{
         qos_policy::DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
         type_support::{DdsDeserialize, DdsSerialize, TypeSupport},
     },
+    xtypes::dynamic_type::{DynamicData, DynamicType},
 };
-use alloc::{boxed::Box,string::ToString, vec, vec::Vec};
+use alloc::{boxed::Box, string::ToString, vec, vec::Vec};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DiscoveredTopicData {
@@ -26,7 +27,7 @@ impl TypeSupport for DiscoveredTopicData {
         "DiscoveredTopicData"
     }
 
-    fn get_type() -> impl crate::xtypes::dynamic_type::DynamicType {
+    fn get_type() -> DynamicType {
         dust_dds::xtypes::type_object::CompleteTypeObject::TkStructure {
             struct_type: dust_dds::xtypes::type_object::CompleteStructType {
                 struct_flags: dust_dds::xtypes::type_object::StructTypeFlag {
@@ -78,7 +79,17 @@ impl TypeSupport for DiscoveredTopicData {
                     },
                 }],
             },
-        }
+        };
+
+        todo!()
+    }
+
+    fn create_sample(src: DynamicData) -> Self {
+        todo!()
+    }
+
+    fn create_dynamic_sample(&self) -> DynamicData {
+        todo!()
     }
 }
 

@@ -19,8 +19,9 @@ use crate::{
         type_support::{DdsDeserialize, DdsSerialize, TypeSupport},
     },
     transport::types::{EntityId, Guid, Locator},
+    xtypes::dynamic_type::{DynamicData, DynamicType},
 };
-use alloc::{boxed::Box,string::ToString, vec, vec::Vec};
+use alloc::{boxed::Box, string::ToString, vec, vec::Vec};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct WriterProxy {
@@ -40,7 +41,7 @@ impl TypeSupport for DiscoveredWriterData {
         "DiscoveredWriterData"
     }
 
-    fn get_type() -> impl crate::xtypes::dynamic_type::DynamicType {
+    fn get_type() -> DynamicType {
         dust_dds::xtypes::type_object::CompleteTypeObject::TkStructure {
             struct_type: dust_dds::xtypes::type_object::CompleteStructType {
                 struct_flags: dust_dds::xtypes::type_object::StructTypeFlag {
@@ -92,7 +93,17 @@ impl TypeSupport for DiscoveredWriterData {
                     },
                 }],
             },
-        }
+        };
+
+        todo!()
+    }
+
+    fn create_sample(src: DynamicData) -> Self {
+        todo!()
+    }
+
+    fn create_dynamic_sample(&self) -> DynamicData {
+        todo!()
     }
 }
 impl DdsSerialize for DiscoveredWriterData {

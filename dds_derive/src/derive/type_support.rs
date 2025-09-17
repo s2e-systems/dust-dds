@@ -280,9 +280,19 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 #ident_str
             }
 
-            fn get_type() -> impl dust_dds::xtypes::dynamic_type::DynamicType
+            fn get_type() -> dust_dds::xtypes::dynamic_type::DynamicType
             {
-                #complete_type_object_quote
+                #complete_type_object_quote;
+
+                todo!()
+            }
+
+            fn create_sample(src: dust_dds::xtypes::dynamic_type::DynamicData) -> Self {
+                todo!()
+            }
+
+            fn create_dynamic_sample(&self) -> dust_dds::xtypes::dynamic_type::DynamicData {
+                todo!()
             }
         }
     })

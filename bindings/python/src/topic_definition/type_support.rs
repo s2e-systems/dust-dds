@@ -84,32 +84,6 @@ fn deserialize_into_py_object<'de, D: XTypesDeserializer<'de>>(
 }
 
 pub struct PythonTypeRepresentation(dust_dds::xtypes::type_object::CompleteTypeObject);
-impl dust_dds::xtypes::dynamic_type::DynamicType for PythonTypeRepresentation {
-    fn get_descriptor(
-        &self,
-    ) -> Result<dust_dds::xtypes::dynamic_type::TypeDescriptor, XTypesError> {
-        self.0.get_descriptor()
-    }
-
-    fn get_name(&self) -> dust_dds::xtypes::dynamic_type::ObjectName {
-        self.0.get_name()
-    }
-
-    fn get_kind(&self) -> dust_dds::xtypes::type_object::TypeKind {
-        self.0.get_kind()
-    }
-
-    fn get_member_count(&self) -> u32 {
-        self.0.get_member_count()
-    }
-
-    fn get_member_by_index(
-        &self,
-        index: u32,
-    ) -> Result<&dyn dust_dds::xtypes::dynamic_type::DynamicTypeMember, XTypesError> {
-        self.0.get_member_by_index(index)
-    }
-}
 
 impl TryFrom<Py<PyAny>> for PythonTypeRepresentation {
     type Error = PyErr;

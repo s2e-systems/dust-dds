@@ -180,7 +180,7 @@ where
 }
 
 fn push_to_key<'a, T>(
-    dynamic_type: &dyn DynamicType,
+    dynamic_type: &DynamicType,
     serializer: &mut impl SerializeFinalStruct,
     de: &mut T,
 ) -> Result<(), XTypesError>
@@ -190,7 +190,7 @@ where
     for member_descriptor in dynamic_type.into_iter() {
         let member_descriptor = member_descriptor?;
         deserialize_and_serialize_if_key_field(
-            member_descriptor.type_,
+            &member_descriptor.r#type,
             member_descriptor.is_key,
             de,
             serializer,
@@ -200,7 +200,7 @@ where
 }
 
 fn push_to_key_for_key<'a, T>(
-    dynamic_type: &dyn DynamicType,
+    dynamic_type: &DynamicType,
     serializer: &mut impl SerializeFinalStruct,
     de: &mut T,
 ) -> Result<(), XTypesError>
@@ -210,7 +210,12 @@ where
     for member_descriptor in dynamic_type.into_iter() {
         let member_descriptor = member_descriptor?;
         if member_descriptor.is_key {
-            deserialize_and_serialize_if_key_field(member_descriptor.type_, true, de, serializer)?;
+            deserialize_and_serialize_if_key_field(
+                &member_descriptor.r#type,
+                true,
+                de,
+                serializer,
+            )?;
         }
     }
     Ok(())
@@ -247,11 +252,11 @@ fn go_to_pid_be(mut reader: &[u8], pid: u32) -> Result<&[u8], XTypesError> {
 }
 
 pub struct MemberDescriptorIter<'a> {
-    dynamic_type: &'a dyn DynamicType,
+    dynamic_type: &'a DynamicType,
     range: core::ops::Range<u32>,
 }
 impl<'a> Iterator for MemberDescriptorIter<'a> {
-    type Item = Result<MemberDescriptor<'a>, XTypesError>;
+    type Item = Result<MemberDescriptor, XTypesError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let i = self.range.next()?;
@@ -265,8 +270,8 @@ impl<'a> Iterator for MemberDescriptorIter<'a> {
     }
 }
 
-impl<'a> IntoIterator for &'a dyn DynamicType {
-    type Item = Result<MemberDescriptor<'a>, XTypesError>;
+impl<'a> IntoIterator for &'a DynamicType {
+    type Item = Result<MemberDescriptor, XTypesError>;
     type IntoIter = MemberDescriptorIter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -278,7 +283,7 @@ impl<'a> IntoIterator for &'a dyn DynamicType {
 }
 
 fn push_to_key_parameter_list_le(
-    dynamic_type: &dyn DynamicType,
+    dynamic_type: &DynamicType,
     serializer: &mut impl SerializeFinalStruct,
     data: &[u8],
 ) -> Result<(), XTypesError> {
@@ -287,14 +292,14 @@ fn push_to_key_parameter_list_le(
         if descriptor.is_key {
             let buffer = go_to_pid_le(data, descriptor.id)?;
             let mut de = Xcdr1LeDeserializer::new(buffer);
-            deserialize_and_serialize_if_key_field(descriptor.type_, true, &mut de, serializer)?;
+            deserialize_and_serialize_if_key_field(&descriptor.r#type, true, &mut de, serializer)?;
         }
     }
     Ok(())
 }
 
 fn push_to_key_parameter_list_be(
-    dynamic_type: &dyn DynamicType,
+    dynamic_type: &DynamicType,
     serializer: &mut impl SerializeFinalStruct,
     data: &[u8],
 ) -> Result<(), XTypesError> {
@@ -303,7 +308,7 @@ fn push_to_key_parameter_list_be(
         if descriptor.is_key {
             let buffer = go_to_pid_be(data, descriptor.id)?;
             let mut de = Xcdr1BeDeserializer::new(buffer);
-            deserialize_and_serialize_if_key_field(descriptor.type_, true, &mut de, serializer)?;
+            deserialize_and_serialize_if_key_field(&descriptor.r#type, true, &mut de, serializer)?;
         }
     }
     Ok(())
@@ -321,7 +326,7 @@ const PL_CDR_LE: RepresentationIdentifier = [0x00, 0x03];
 
 pub fn get_instance_handle_from_serialized_key(
     mut data: &[u8],
-    dynamic_type: &dyn DynamicType,
+    dynamic_type: &DynamicType,
 ) -> Result<InstanceHandle, XTypesError> {
     let mut md5_collection = Md5 {
         key: [0; 16],
@@ -354,7 +359,7 @@ pub fn get_instance_handle_from_serialized_key(
 
 pub fn get_instance_handle_from_serialized_foo(
     mut data: &[u8],
-    dynamic_type: &dyn DynamicType,
+    dynamic_type: &DynamicType,
 ) -> Result<InstanceHandle, XTypesError> {
     let mut md5_collection = Md5 {
         key: [0; 16],
@@ -381,7 +386,7 @@ pub fn get_instance_handle_from_serialized_foo(
 
 pub fn get_serialized_key_from_serialized_foo(
     mut data: &[u8],
-    dynamic_type: &dyn DynamicType,
+    dynamic_type: &DynamicType,
 ) -> Result<Vec<u8>, XTypesError> {
     let mut collection = Vec::new();
     {
