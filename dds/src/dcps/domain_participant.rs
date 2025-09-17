@@ -2250,7 +2250,11 @@ where
             return Err(DdsError::AlreadyDeleted);
         };
 
-        let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle) else {
+        let Some(data_reader) = subscriber
+            .data_reader_list
+            .iter_mut()
+            .find(|x| x.instance_handle == data_reader_handle)
+        else {
             return Err(DdsError::AlreadyDeleted);
         };
 
@@ -2285,7 +2289,11 @@ where
         else {
             return Err(DdsError::AlreadyDeleted);
         };
-        let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle) else {
+        let Some(data_reader) = subscriber
+            .data_reader_list
+            .iter_mut()
+            .find(|x| x.instance_handle == data_reader_handle)
+        else {
             return Err(DdsError::AlreadyDeleted);
         };
         data_reader
@@ -2319,7 +2327,11 @@ where
         else {
             return Err(DdsError::AlreadyDeleted);
         };
-        let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle) else {
+        let Some(data_reader) = subscriber
+            .data_reader_list
+            .iter_mut()
+            .find(|x| x.instance_handle == data_reader_handle)
+        else {
             return Err(DdsError::AlreadyDeleted);
         };
         data_reader
@@ -2353,7 +2365,11 @@ where
         else {
             return Err(DdsError::AlreadyDeleted);
         };
-        let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle) else {
+        let Some(data_reader) = subscriber
+            .data_reader_list
+            .iter_mut()
+            .find(|x| x.instance_handle == data_reader_handle)
+        else {
             return Err(DdsError::AlreadyDeleted);
         };
         data_reader
@@ -2381,7 +2397,11 @@ where
         else {
             return Err(DdsError::AlreadyDeleted);
         };
-        let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle) else {
+        let Some(data_reader) = subscriber
+            .data_reader_list
+            .iter_mut()
+            .find(|x| x.instance_handle == data_reader_handle)
+        else {
             return Err(DdsError::AlreadyDeleted);
         };
         let status = data_reader.get_subscription_matched_status();
@@ -2514,7 +2534,11 @@ where
             QosKind::Default => subscriber.default_data_reader_qos.clone(),
             QosKind::Specific(q) => q,
         };
-        let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle) else {
+        let Some(data_reader) = subscriber
+            .data_reader_list
+            .iter_mut()
+            .find(|x| x.instance_handle == data_reader_handle)
+        else {
             return Err(DdsError::AlreadyDeleted);
         };
 
@@ -2547,7 +2571,11 @@ where
             return Err(DdsError::AlreadyDeleted);
         };
 
-        let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle) else {
+        let Some(data_reader) = subscriber
+            .data_reader_list
+            .iter_mut()
+            .find(|x| x.instance_handle == data_reader_handle)
+        else {
             return Err(DdsError::AlreadyDeleted);
         };
         Ok(data_reader.qos.clone())
@@ -2569,7 +2597,11 @@ where
         else {
             return Err(DdsError::AlreadyDeleted);
         };
-        let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle) else {
+        let Some(data_reader) = subscriber
+            .data_reader_list
+            .iter_mut()
+            .find(|x| x.instance_handle == data_reader_handle)
+        else {
             return Err(DdsError::AlreadyDeleted);
         };
         data_reader.listener_sender = listener_sender;
@@ -2634,7 +2666,11 @@ where
         else {
             return Err(DdsError::AlreadyDeleted);
         };
-        let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle) else {
+        let Some(data_reader) = subscriber
+            .data_reader_list
+            .iter_mut()
+            .find(|x| x.instance_handle == data_reader_handle)
+        else {
             return Err(DdsError::AlreadyDeleted);
         };
         if !data_reader.enabled {
@@ -3435,8 +3471,7 @@ where
         if data_writer
             .matched_subscription_list
             .iter()
-            .find(|x| subscription_handle.as_ref() == &x.key().value)
-            .is_some()
+            .any(|x| subscription_handle.as_ref() == &x.key().value)
         {
             data_writer.remove_matched_subscription(&subscription_handle);
 
@@ -3539,7 +3574,11 @@ where
             || is_any_local_regex_matched_with_received_partition_qos;
         if is_partition_matched {
             let subscriber_qos = subscriber.qos.clone();
-            let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle) else {
+            let Some(data_reader) = subscriber
+                .data_reader_list
+                .iter_mut()
+                .find(|x| x.instance_handle == data_reader_handle)
+            else {
                 return;
             };
             let is_matched_topic_name =
@@ -3619,7 +3658,10 @@ where
                         else {
                             return;
                         };
-                        let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle)
+                        let Some(data_reader) = subscriber
+                            .data_reader_list
+                            .iter_mut()
+                            .find(|x| x.instance_handle == data_reader_handle)
                         else {
                             return;
                         };
@@ -3648,7 +3690,10 @@ where
                         else {
                             return;
                         };
-                        let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle)
+                        let Some(data_reader) = subscriber
+                            .data_reader_list
+                            .iter_mut()
+                            .find(|x| x.instance_handle == data_reader_handle)
                         else {
                             return;
                         };
@@ -3678,7 +3723,10 @@ where
                         else {
                             return;
                         };
-                        let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle)
+                        let Some(data_reader) = subscriber
+                            .data_reader_list
+                            .iter_mut()
+                            .find(|x| x.instance_handle == data_reader_handle)
                         else {
                             return;
                         };
@@ -3698,7 +3746,10 @@ where
                     else {
                         return;
                     };
-                    let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle)
+                    let Some(data_reader) = subscriber
+                        .data_reader_list
+                        .iter_mut()
+                        .find(|x| x.instance_handle == data_reader_handle)
                     else {
                         return;
                     };
@@ -3736,7 +3787,10 @@ where
                         else {
                             return;
                         };
-                        let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle)
+                        let Some(data_reader) = subscriber
+                            .data_reader_list
+                            .iter_mut()
+                            .find(|x| x.instance_handle == data_reader_handle)
                         else {
                             return;
                         };
@@ -3764,7 +3818,10 @@ where
                         else {
                             return;
                         };
-                        let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle)
+                        let Some(data_reader) = subscriber
+                            .data_reader_list
+                            .iter_mut()
+                            .find(|x| x.instance_handle == data_reader_handle)
                         else {
                             return;
                         };
@@ -3794,7 +3851,10 @@ where
                         else {
                             return;
                         };
-                        let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle)
+                        let Some(data_reader) = subscriber
+                            .data_reader_list
+                            .iter_mut()
+                            .find(|x| x.instance_handle == data_reader_handle)
                         else {
                             return;
                         };
@@ -3814,7 +3874,10 @@ where
                     else {
                         return;
                     };
-                    let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle)
+                    let Some(data_reader) = subscriber
+                        .data_reader_list
+                        .iter_mut()
+                        .find(|x| x.instance_handle == data_reader_handle)
                     else {
                         return;
                     };
@@ -3844,7 +3907,11 @@ where
         else {
             return;
         };
-        let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle) else {
+        let Some(data_reader) = subscriber
+            .data_reader_list
+            .iter_mut()
+            .find(|x| x.instance_handle == data_reader_handle)
+        else {
             return;
         };
         if data_reader
@@ -4202,7 +4269,11 @@ where
             return;
         };
 
-        let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle) else {
+        let Some(data_reader) = subscriber
+            .data_reader_list
+            .iter_mut()
+            .find(|x| x.instance_handle == data_reader_handle)
+        else {
             return;
         };
         let writer_instance_handle = InstanceHandle::new(cache_change.writer_guid.into());
@@ -4290,7 +4361,10 @@ where
                             return;
                         };
 
-                        let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle)
+                        let Some(data_reader) = subscriber
+                            .data_reader_list
+                            .iter_mut()
+                            .find(|x| x.instance_handle == data_reader_handle)
                         else {
                             return;
                         };
@@ -4316,7 +4390,10 @@ where
                             state: StatusKind::DataOnReaders,
                         })
                         .await;
-                    let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle)
+                    let Some(data_reader) = subscriber
+                        .data_reader_list
+                        .iter_mut()
+                        .find(|x| x.instance_handle == data_reader_handle)
                     else {
                         return;
                     };
@@ -4355,7 +4432,10 @@ where
                             return;
                         };
 
-                        let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle)
+                        let Some(data_reader) = subscriber
+                            .data_reader_list
+                            .iter_mut()
+                            .find(|x| x.instance_handle == data_reader_handle)
                         else {
                             return;
                         };
@@ -4384,7 +4464,10 @@ where
                             return;
                         };
 
-                        let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle)
+                        let Some(data_reader) = subscriber
+                            .data_reader_list
+                            .iter_mut()
+                            .find(|x| x.instance_handle == data_reader_handle)
                         else {
                             return;
                         };
@@ -4415,7 +4498,10 @@ where
                             return;
                         };
 
-                        let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle)
+                        let Some(data_reader) = subscriber
+                            .data_reader_list
+                            .iter_mut()
+                            .find(|x| x.instance_handle == data_reader_handle)
                         else {
                             return;
                         };
@@ -4436,7 +4522,10 @@ where
                         return;
                     };
 
-                    let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle)
+                    let Some(data_reader) = subscriber
+                        .data_reader_list
+                        .iter_mut()
+                        .find(|x| x.instance_handle == data_reader_handle)
                     else {
                         return;
                     };
@@ -4666,7 +4755,11 @@ where
         else {
             return;
         };
-        let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle) else {
+        let Some(data_reader) = subscriber
+            .data_reader_list
+            .iter_mut()
+            .find(|x| x.instance_handle == data_reader_handle)
+        else {
             return;
         };
 
@@ -4703,7 +4796,11 @@ where
             else {
                 return;
             };
-            let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle) else {
+            let Some(data_reader) = subscriber
+                .data_reader_list
+                .iter_mut()
+                .find(|x| x.instance_handle == data_reader_handle)
+            else {
                 return;
             };
             if let Some(l) = &data_reader.listener_sender {
@@ -4731,7 +4828,11 @@ where
             else {
                 return;
             };
-            let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle) else {
+            let Some(data_reader) = subscriber
+                .data_reader_list
+                .iter_mut()
+                .find(|x| x.instance_handle == data_reader_handle)
+            else {
                 return;
             };
             let status = data_reader.get_requested_deadline_missed_status();
@@ -4761,7 +4862,11 @@ where
             else {
                 return;
             };
-            let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle) else {
+            let Some(data_reader) = subscriber
+                .data_reader_list
+                .iter_mut()
+                .find(|x| x.instance_handle == data_reader_handle)
+            else {
                 return;
             };
             let status = data_reader.get_requested_deadline_missed_status();
@@ -4779,7 +4884,11 @@ where
         else {
             return;
         };
-        let Some(data_reader) = subscriber.get_mut_data_reader(data_reader_handle) else {
+        let Some(data_reader) = subscriber
+            .data_reader_list
+            .iter_mut()
+            .find(|x| x.instance_handle == data_reader_handle)
+        else {
             return;
         };
 
@@ -5621,15 +5730,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> SubscriberEntity<R, T> {
 
     pub fn status_condition(&self) -> &Actor<R, DcpsStatusCondition<R>> {
         &self.status_condition
-    }
-
-    pub fn get_mut_data_reader(
-        &mut self,
-        handle: InstanceHandle,
-    ) -> Option<&mut DataReaderEntity<R, T>> {
-        self.data_reader_list
-            .iter_mut()
-            .find(|x| x.instance_handle == handle)
     }
 }
 
