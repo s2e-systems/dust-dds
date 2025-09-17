@@ -238,7 +238,9 @@ where
             .iter()
             .find(|x| x.instance_handle == publisher_handle)
             .ok_or(DdsError::AlreadyDeleted)?
-            .get_data_writer(data_writer_handle)
+            .data_writer_list
+            .iter()
+            .find(|x| x.instance_handle == data_writer_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
 
         Ok(DataWriterAsync::new(
@@ -286,7 +288,16 @@ where
         else {
             return Err(DdsError::AlreadyDeleted);
         };
-        Ok(topic.get_inconsistent_topic_status().await)
+        let status = topic.inconsistent_topic_status.clone();
+        topic.inconsistent_topic_status.total_count_change = 0;
+        topic
+            .status_condition
+            .send_actor_mail(DcpsStatusConditionMail::RemoveCommunicationState {
+                state: StatusKind::InconsistentTopic,
+            })
+            .await;
+
+        Ok(status)
     }
 
     #[tracing::instrument(skip(self))]
@@ -452,7 +463,7 @@ where
             return Err(DdsError::AlreadyDeleted);
         };
 
-        if publisher.data_writer_list().count() > 0 {
+        if !publisher.data_writer_list.is_empty() {
             return Err(DdsError::PreconditionNotMet(
                 "Publisher still contains data writers".to_string(),
             ));
@@ -895,7 +906,7 @@ where
             .drain(..)
             .collect();
         for mut publisher in deleted_publisher_list {
-            for data_writer in publisher.drain_data_writer_list() {
+            for data_writer in publisher.data_writer_list.drain(..) {
                 self.announce_deleted_data_writer(data_writer).await;
             }
         }
@@ -1505,7 +1516,7 @@ where
         self.writer_counter += 1;
 
         let qos = match qos {
-            QosKind::Default => publisher.default_datawriter_qos().clone(),
+            QosKind::Default => publisher.default_datawriter_qos.clone(),
             QosKind::Specific(q) => {
                 if q.is_consistent().is_ok() {
                     q
@@ -1536,7 +1547,7 @@ where
         );
         let data_writer_handle = data_writer.instance_handle;
 
-        publisher.insert_data_writer(data_writer);
+        publisher.data_writer_list.push(data_writer);
 
         if publisher.enabled && publisher.qos.entity_factory.autoenable_created_entities {
             self.enable_data_writer(publisher_handle, writer_handle, participant_address)
@@ -1561,11 +1572,17 @@ where
             return Err(DdsError::AlreadyDeleted);
         };
 
-        let Some(data_writer) = publisher.remove_data_writer(datawriter_handle) else {
+        if let Some(index) = publisher
+            .data_writer_list
+            .iter()
+            .position(|x| x.instance_handle == datawriter_handle)
+        {
+            let data_writer = publisher.data_writer_list.remove(index);
+            self.announce_deleted_data_writer(data_writer).await;
+            Ok(())
+        } else {
             return Err(DdsError::AlreadyDeleted);
-        };
-        self.announce_deleted_data_writer(data_writer).await;
-        Ok(())
+        }
     }
 
     #[tracing::instrument(skip(self))]
@@ -1581,7 +1598,7 @@ where
         else {
             return Err(DdsError::AlreadyDeleted);
         };
-        Ok(publisher.default_datawriter_qos().clone())
+        Ok(publisher.default_datawriter_qos.clone())
     }
 
     #[tracing::instrument(skip(self))]
@@ -1603,7 +1620,9 @@ where
             QosKind::Default => DataWriterQos::default(),
             QosKind::Specific(q) => q,
         };
-        publisher.set_default_datawriter_qos(qos)
+        qos.is_consistent()?;
+        publisher.default_datawriter_qos = qos;
+        Ok(())
     }
 
     #[tracing::instrument(skip(self))]
@@ -1625,7 +1644,8 @@ where
             return Err(DdsError::AlreadyDeleted);
         };
 
-        publisher.set_qos(qos)
+        publisher.qos = qos;
+        Ok(())
     }
 
     #[tracing::instrument(skip(self))]
@@ -1660,7 +1680,8 @@ where
         else {
             return Err(DdsError::AlreadyDeleted);
         };
-        publisher.set_listener(listener_sender, mask);
+        publisher.listener_sender = listener_sender;
+        publisher.listener_mask = mask;
         Ok(())
     }
 
@@ -1713,7 +1734,11 @@ where
         else {
             return Ok(());
         };
-        let Some(data_writer) = publisher.get_mut_data_writer(data_writer_handle) else {
+        let Some(data_writer) = publisher
+            .data_writer_list
+            .iter_mut()
+            .find(|x| x.instance_handle == data_writer_handle)
+        else {
             return Ok(());
         };
 
@@ -2107,7 +2132,11 @@ where
         else {
             return Err(DdsError::AlreadyDeleted);
         };
-        let Some(data_writer) = publisher.get_mut_data_writer(data_writer_handle) else {
+        let Some(data_writer) = publisher
+            .data_writer_list
+            .iter_mut()
+            .find(|x| x.instance_handle == data_writer_handle)
+        else {
             return Err(DdsError::AlreadyDeleted);
         };
         if !data_writer.enabled {
@@ -2147,7 +2176,7 @@ where
             return Err(DdsError::AlreadyDeleted);
         };
         let qos = match qos {
-            QosKind::Default => publisher.default_datawriter_qos().clone(),
+            QosKind::Default => publisher.default_datawriter_qos.clone(),
             QosKind::Specific(q) => q,
         };
         let Some(data_writer) = publisher
@@ -2186,7 +2215,11 @@ where
             return Err(DdsError::AlreadyDeleted);
         };
 
-        let Some(data_writer) = publisher.get_data_writer(data_writer_handle) else {
+        let Some(data_writer) = publisher
+            .data_writer_list
+            .iter()
+            .find(|x| x.instance_handle == data_writer_handle)
+        else {
             return Err(DdsError::AlreadyDeleted);
         };
         Ok(data_writer.are_all_changes_acknowledged().await)
@@ -2677,7 +2710,9 @@ where
             if let Some(dw) = self
                 .domain_participant
                 .builtin_publisher
-                .lookup_datawriter_mut(DCPS_PARTICIPANT)
+                .data_writer_list
+                .iter_mut()
+                .find(|x| x.topic_name == DCPS_PARTICIPANT)
             {
                 if let Ok(serialized_data) = spdp_discovered_participant_data.serialize_data() {
                     dw.write_w_timestamp(serialized_data, timestamp, &self.clock_handle)
@@ -2695,7 +2730,9 @@ where
             if let Some(dw) = self
                 .domain_participant
                 .builtin_publisher
-                .lookup_datawriter_mut(DCPS_PARTICIPANT)
+                .data_writer_list
+                .iter_mut()
+                .find(|x| x.topic_name == DCPS_PARTICIPANT)
             {
                 let key = InstanceHandle::new(self.transport.guid().into());
                 if let Ok(serialized_data) = key.serialize_data() {
@@ -2721,7 +2758,11 @@ where
         else {
             return;
         };
-        let Some(data_writer) = publisher.get_data_writer(data_writer_handle) else {
+        let Some(data_writer) = publisher
+            .data_writer_list
+            .iter()
+            .find(|x| x.instance_handle == data_writer_handle)
+        else {
             return;
         };
         let Some(topic) = self
@@ -2772,7 +2813,9 @@ where
         if let Some(dw) = self
             .domain_participant
             .builtin_publisher
-            .lookup_datawriter_mut(DCPS_PUBLICATION)
+            .data_writer_list
+            .iter_mut()
+            .find(|x| x.topic_name == DCPS_PUBLICATION)
         {
             if let Ok(serialized_data) = discovered_writer_data.serialize_data() {
                 dw.write_w_timestamp(serialized_data, timestamp, &self.clock_handle)
@@ -2788,7 +2831,9 @@ where
         if let Some(dw) = self
             .domain_participant
             .builtin_publisher
-            .lookup_datawriter_mut(DCPS_PUBLICATION)
+            .data_writer_list
+            .iter_mut()
+            .find(|x| x.topic_name == DCPS_PUBLICATION)
         {
             let key = InstanceHandle::new(data_writer.transport_writer.guid().into());
             if let Ok(serialized_data) = key.serialize_data() {
@@ -2865,7 +2910,9 @@ where
         if let Some(dw) = self
             .domain_participant
             .builtin_publisher
-            .lookup_datawriter_mut(DCPS_SUBSCRIPTION)
+            .data_writer_list
+            .iter_mut()
+            .find(|x| x.topic_name == DCPS_SUBSCRIPTION)
         {
             if let Ok(serialized_data) = discovered_reader_data.serialize_data() {
                 dw.write_w_timestamp(serialized_data, timestamp, &self.clock_handle)
@@ -2881,7 +2928,9 @@ where
         if let Some(dw) = self
             .domain_participant
             .builtin_publisher
-            .lookup_datawriter_mut(DCPS_SUBSCRIPTION)
+            .data_writer_list
+            .iter_mut()
+            .find(|x| x.topic_name == DCPS_SUBSCRIPTION)
         {
             let guid = data_reader.transport_reader.guid();
             let key = InstanceHandle::new(guid.into());
@@ -2929,7 +2978,9 @@ where
         if let Some(dw) = self
             .domain_participant
             .builtin_publisher
-            .lookup_datawriter_mut(DCPS_TOPIC)
+            .data_writer_list
+            .iter_mut()
+            .find(|x| x.topic_name == DCPS_TOPIC)
         {
             if let Ok(serialized_data) = topic_builtin_topic_data.serialize_data() {
                 dw.write_w_timestamp(serialized_data, timestamp, &self.clock_handle)
@@ -3030,7 +3081,11 @@ where
             || is_any_local_regex_matched_with_received_partition_qos;
         if is_partition_matched {
             let publisher_qos = publisher.qos.clone();
-            let Some(data_writer) = publisher.get_mut_data_writer(data_writer_handle) else {
+            let Some(data_writer) = publisher
+                .data_writer_list
+                .iter_mut()
+                .find(|x| x.instance_handle == data_writer_handle)
+            else {
                 return;
             };
 
@@ -3122,7 +3177,10 @@ where
                         else {
                             return;
                         };
-                        let Some(data_writer) = publisher.get_mut_data_writer(data_writer_handle)
+                        let Some(data_writer) = publisher
+                            .data_writer_list
+                            .iter_mut()
+                            .find(|x| x.instance_handle == data_writer_handle)
                         else {
                             return;
                         };
@@ -3132,7 +3190,7 @@ where
                                 .ok();
                         }
                     } else if publisher
-                        .listener_mask()
+                        .listener_mask
                         .contains(&StatusKind::PublicationMatched)
                     {
                         let Ok(the_writer) = self.get_data_writer_async(
@@ -3150,12 +3208,15 @@ where
                         else {
                             return;
                         };
-                        let Some(data_writer) = publisher.get_mut_data_writer(data_writer_handle)
+                        let Some(data_writer) = publisher
+                            .data_writer_list
+                            .iter_mut()
+                            .find(|x| x.instance_handle == data_writer_handle)
                         else {
                             return;
                         };
                         let status = data_writer.get_publication_matched_status();
-                        if let Some(l) = publisher.listener() {
+                        if let Some(l) = &publisher.listener_sender {
                             l.send(ListenerMail::PublicationMatched { the_writer, status })
                                 .await
                                 .ok();
@@ -3180,7 +3241,10 @@ where
                         else {
                             return;
                         };
-                        let Some(data_writer) = publisher.get_mut_data_writer(data_writer_handle)
+                        let Some(data_writer) = publisher
+                            .data_writer_list
+                            .iter_mut()
+                            .find(|x| x.instance_handle == data_writer_handle)
                         else {
                             return;
                         };
@@ -3200,7 +3264,10 @@ where
                     else {
                         return;
                     };
-                    let Some(data_writer) = publisher.get_mut_data_writer(data_writer_handle)
+                    let Some(data_writer) = publisher
+                        .data_writer_list
+                        .iter_mut()
+                        .find(|x| x.instance_handle == data_writer_handle)
                     else {
                         return;
                     };
@@ -3238,7 +3305,10 @@ where
                         else {
                             return;
                         };
-                        let Some(data_writer) = publisher.get_mut_data_writer(data_writer_handle)
+                        let Some(data_writer) = publisher
+                            .data_writer_list
+                            .iter_mut()
+                            .find(|x| x.instance_handle == data_writer_handle)
                         else {
                             return;
                         };
@@ -3248,7 +3318,7 @@ where
                                 .ok();
                         }
                     } else if publisher
-                        .listener_mask()
+                        .listener_mask
                         .contains(&StatusKind::OfferedIncompatibleQos)
                     {
                         let Ok(the_writer) = self.get_data_writer_async(
@@ -3266,12 +3336,15 @@ where
                         else {
                             return;
                         };
-                        let Some(data_writer) = publisher.get_mut_data_writer(data_writer_handle)
+                        let Some(data_writer) = publisher
+                            .data_writer_list
+                            .iter_mut()
+                            .find(|x| x.instance_handle == data_writer_handle)
                         else {
                             return;
                         };
                         let status = data_writer.get_offered_incompatible_qos_status();
-                        if let Some(l) = publisher.listener() {
+                        if let Some(l) = &publisher.listener_sender {
                             l.send(ListenerMail::OfferedIncompatibleQos { the_writer, status })
                                 .await
                                 .ok();
@@ -3296,7 +3369,10 @@ where
                         else {
                             return;
                         };
-                        let Some(data_writer) = publisher.get_mut_data_writer(data_writer_handle)
+                        let Some(data_writer) = publisher
+                            .data_writer_list
+                            .iter_mut()
+                            .find(|x| x.instance_handle == data_writer_handle)
                         else {
                             return;
                         };
@@ -3316,7 +3392,10 @@ where
                     else {
                         return;
                     };
-                    let Some(data_writer) = publisher.get_mut_data_writer(data_writer_handle)
+                    let Some(data_writer) = publisher
+                        .data_writer_list
+                        .iter_mut()
+                        .find(|x| x.instance_handle == data_writer_handle)
                     else {
                         return;
                     };
@@ -3346,7 +3425,11 @@ where
         else {
             return;
         };
-        let Some(data_writer) = publisher.get_mut_data_writer(data_writer_handle) else {
+        let Some(data_writer) = publisher
+            .data_writer_list
+            .iter_mut()
+            .find(|x| x.instance_handle == data_writer_handle)
+        else {
             return;
         };
         if data_writer
@@ -3994,7 +4077,7 @@ where
                         .add_discovered_reader(discovered_reader_data.clone());
                     let mut handle_list = Vec::new();
                     for publisher in &self.domain_participant.user_defined_publisher_list {
-                        for data_writer in publisher.data_writer_list() {
+                        for data_writer in publisher.data_writer_list.iter() {
                             handle_list
                                 .push((publisher.instance_handle, data_writer.instance_handle));
                         }
@@ -4019,7 +4102,7 @@ where
 
                     let mut handle_list = Vec::new();
                     for publisher in &self.domain_participant.user_defined_publisher_list {
-                        for data_writer in publisher.data_writer_list() {
+                        for data_writer in publisher.data_writer_list.iter() {
                             handle_list
                                 .push((publisher.instance_handle, data_writer.instance_handle));
                         }
@@ -4382,7 +4465,11 @@ where
             .iter_mut()
             .find(|x| x.instance_handle == publisher_handle)
         {
-            if let Some(dw) = p.get_mut_data_writer(data_writer_handle) {
+            if let Some(dw) = p
+                .data_writer_list
+                .iter_mut()
+                .find(|x| x.instance_handle == data_writer_handle)
+            {
                 dw.transport_writer
                     .history_cache()
                     .remove_change(sequence_number)
@@ -4408,7 +4495,11 @@ where
         else {
             return;
         };
-        let Some(data_writer) = publisher.get_mut_data_writer(data_writer_handle) else {
+        let Some(data_writer) = publisher
+            .data_writer_list
+            .iter_mut()
+            .find(|x| x.instance_handle == data_writer_handle)
+        else {
             return;
         };
 
@@ -4454,7 +4545,11 @@ where
             else {
                 return;
             };
-            let Some(data_writer) = publisher.get_mut_data_writer(data_writer_handle) else {
+            let Some(data_writer) = publisher
+                .data_writer_list
+                .iter_mut()
+                .find(|x| x.instance_handle == data_writer_handle)
+            else {
                 return;
             };
 
@@ -4464,7 +4559,7 @@ where
                     .ok();
             }
         } else if publisher
-            .listener_mask()
+            .listener_mask
             .contains(&StatusKind::OfferedDeadlineMissed)
         {
             let Ok(the_writer) = self.get_data_writer_async(
@@ -4482,11 +4577,15 @@ where
             else {
                 return;
             };
-            let Some(data_writer) = publisher.get_mut_data_writer(data_writer_handle) else {
+            let Some(data_writer) = publisher
+                .data_writer_list
+                .iter_mut()
+                .find(|x| x.instance_handle == data_writer_handle)
+            else {
                 return;
             };
             let status = data_writer.get_offered_deadline_missed_status().await;
-            if let Some(l) = publisher.listener() {
+            if let Some(l) = &publisher.listener_sender {
                 l.send(ListenerMail::OfferedDeadlineMissed { the_writer, status })
                     .await
                     .ok();
@@ -4512,7 +4611,11 @@ where
             else {
                 return;
             };
-            let Some(data_writer) = publisher.get_mut_data_writer(data_writer_handle) else {
+            let Some(data_writer) = publisher
+                .data_writer_list
+                .iter_mut()
+                .find(|x| x.instance_handle == data_writer_handle)
+            else {
                 return;
             };
             let status = data_writer.get_offered_deadline_missed_status().await;
@@ -4531,7 +4634,11 @@ where
         else {
             return;
         };
-        let Some(data_writer) = publisher.get_mut_data_writer(data_writer_handle) else {
+        let Some(data_writer) = publisher
+            .data_writer_list
+            .iter_mut()
+            .find(|x| x.instance_handle == data_writer_handle)
+        else {
             return;
         };
         data_writer
@@ -5564,17 +5671,6 @@ impl<R: DdsRuntime> TopicEntity<R> {
             type_support,
         }
     }
-
-    pub async fn get_inconsistent_topic_status(&mut self) -> InconsistentTopicStatus {
-        let status = self.inconsistent_topic_status.clone();
-        self.inconsistent_topic_status.total_count_change = 0;
-        self.status_condition
-            .send_actor_mail(DcpsStatusConditionMail::RemoveCommunicationState {
-                state: StatusKind::InconsistentTopic,
-            })
-            .await;
-        status
-    }
 }
 
 pub struct PublisherEntity<R: DdsRuntime, T: TransportParticipantFactory> {
@@ -5604,85 +5700,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> PublisherEntity<R, T> {
             listener_sender,
             listener_mask,
         }
-    }
-
-    pub fn data_writer_list(&self) -> impl Iterator<Item = &DataWriterEntity<R, T>> {
-        self.data_writer_list.iter()
-    }
-
-    pub fn drain_data_writer_list(&mut self) -> impl Iterator<Item = DataWriterEntity<R, T>> + '_ {
-        self.data_writer_list.drain(..)
-    }
-
-    pub fn insert_data_writer(&mut self, data_writer: DataWriterEntity<R, T>) {
-        self.data_writer_list.push(data_writer);
-    }
-
-    pub fn remove_data_writer(&mut self, handle: InstanceHandle) -> Option<DataWriterEntity<R, T>> {
-        let index = self
-            .data_writer_list
-            .iter()
-            .position(|x| x.instance_handle == handle)?;
-        Some(self.data_writer_list.remove(index))
-    }
-
-    pub fn get_data_writer(&self, handle: InstanceHandle) -> Option<&DataWriterEntity<R, T>> {
-        self.data_writer_list
-            .iter()
-            .find(|x| x.instance_handle == handle)
-    }
-
-    pub fn get_mut_data_writer(
-        &mut self,
-        handle: InstanceHandle,
-    ) -> Option<&mut DataWriterEntity<R, T>> {
-        self.data_writer_list
-            .iter_mut()
-            .find(|x| x.instance_handle == handle)
-    }
-
-    pub fn lookup_datawriter_mut(
-        &mut self,
-        topic_name: &str,
-    ) -> Option<&mut DataWriterEntity<R, T>> {
-        self.data_writer_list
-            .iter_mut()
-            .find(|x| x.topic_name == topic_name)
-    }
-
-    pub fn default_datawriter_qos(&self) -> &DataWriterQos {
-        &self.default_datawriter_qos
-    }
-
-    pub fn set_default_datawriter_qos(
-        &mut self,
-        default_datawriter_qos: DataWriterQos,
-    ) -> DdsResult<()> {
-        default_datawriter_qos.is_consistent()?;
-        self.default_datawriter_qos = default_datawriter_qos;
-        Ok(())
-    }
-
-    pub fn set_qos(&mut self, qos: PublisherQos) -> DdsResult<()> {
-        self.qos = qos;
-        Ok(())
-    }
-
-    pub fn set_listener(
-        &mut self,
-        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
-        mask: Vec<StatusKind>,
-    ) {
-        self.listener_sender = listener_sender;
-        self.listener_mask = mask;
-    }
-
-    pub fn listener_mask(&self) -> &[StatusKind] {
-        &self.listener_mask
-    }
-
-    pub fn listener(&self) -> &Option<R::ChannelSender<ListenerMail<R>>> {
-        &self.listener_sender
     }
 }
 
