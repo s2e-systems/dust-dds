@@ -5,7 +5,7 @@ use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         qos::{DataReaderQos, DataWriterQos, QosKind},
-        qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
+        qos_policy::{DataRepresentationQosPolicy, ReliabilityQosPolicy, ReliabilityQosPolicyKind},
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         status::{StatusKind, NO_STATUS},
         time::{Duration, DurationKind},
@@ -672,9 +672,10 @@ fn xcdr2_writer_and_reader() {
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
+            kind: ReliabilityQosPolicyKind::BestEffort,
             max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
+        representation: DataRepresentationQosPolicy { value: vec![2] },
         ..Default::default()
     };
     let writer = publisher
@@ -694,9 +695,10 @@ fn xcdr2_writer_and_reader() {
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
+            kind: ReliabilityQosPolicyKind::BestEffort,
             max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
+        representation: DataRepresentationQosPolicy { value: vec![2] },
         ..Default::default()
     };
     let topic = participant2
@@ -746,9 +748,14 @@ fn xcdr2_writer_and_reader() {
 
     writer.write(&data, None).unwrap();
 
-    writer
-        .wait_for_acknowledgments(Duration::new(10, 0))
+    let cond = reader.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::DataAvailable])
         .unwrap();
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let samples = reader
         .take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
