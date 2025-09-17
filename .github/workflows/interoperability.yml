@@ -11,7 +11,6 @@ jobs:
     - name: Checkout sources
       uses: actions/checkout@v4
 
-    - uses: dtolnay/rust-toolchain@stable
     - run: cargo build --package dust_dds_shape_main_linux --release
     - name: Install tomlq
       run: cargo install tomlq
@@ -43,8 +42,6 @@ jobs:
     steps:
     - name: Checkout sources
       uses: actions/checkout@v4
-    - uses: dtolnay/rust-toolchain@stable
-    - run: cargo build --package dust_dds_shape_main_linux --release
     - name: Checkout dds-rtps
       uses: actions/checkout@v4
       with:
@@ -56,6 +53,7 @@ jobs:
           interoperability_report.py
           test_suite.py
           rtps_test_utilities.py
+          test_suite_functions.py
           requirements.txt
     - uses: actions/setup-python@v5
       with:
