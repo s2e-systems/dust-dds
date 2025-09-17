@@ -87,6 +87,16 @@ jobs:
     runs-on: ubuntu-latest
     needs: run_tests
     steps:
+    - name: Download junit reports
+      uses: actions/download-artifact@v4
+      with:
+        pattern: junit_report-*
+        merge-multiple: true
+    - run: ls
+    - name: Install junit-merge
+      run: pip install junit-merge
+    - name: merge reports
+      run: junit-merge *.xml
     - name: XUnit
       uses: AutoModality/action-xunit-viewer@v1
       with:
