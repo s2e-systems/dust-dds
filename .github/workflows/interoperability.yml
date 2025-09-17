@@ -81,11 +81,13 @@ jobs:
         name: interoperability_executable
     - name: Unzip executables
       run: unzip '*.zip' -d executables
+    - name: List directory
+      run: ls -l
     - name: Install omg-dds dds-rtps Python requirements
       run: pip install --requirement omg-dds-rtps/requirements.txt
 
     - name: Run Interoperability script
-      run: python3 ./omg-dds-rtps/interoperability_report.py --publisher ./executables/${{ matrix.publisher }}-*_shape_main_linux --subscriber ./executables/${{ matrix.subscriber }}-*_shape_main_linux --output-name junit_report-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml
+      run: python3 ./omg-dds-rtps/interoperability_report.py --publisher ./executables/${{ matrix.publisher }}-*shape_main_linux --subscriber ./executables/${{ matrix.subscriber }}-*shape_main_linux --output-name junit_report-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml
 
     - name: Upload report
       uses: actions/upload-artifact@v4
@@ -102,7 +104,6 @@ jobs:
       with:
         pattern: junit_report-*
         merge-multiple: true
-    - run: ls
     - name: Checkout omg-dds dds-rtps
       uses: actions/checkout@v4
       with:
@@ -123,6 +124,8 @@ jobs:
       run: pip install --requirement omg-dds-rtps/requirements.txt
     - name: merge reports
       run: junitparser merge *.xml junit_interoperability_report.xml
+    - name: List directory
+      run: ls -l
     - name: Generate xlsx report
       run: python3 ./omg-dds-rtps/generate_xlsx_report.py --input junit_interoperability_report.xml --output interoperability_report.xlsx
     - name: XUnit
