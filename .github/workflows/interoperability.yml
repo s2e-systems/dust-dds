@@ -109,7 +109,7 @@ jobs:
     - name: Install omg-dds dds-rtps Python requirements
       run: pip install --requirement omg-dds-rtps/requirements.txt
     - name: merge reports
-      run: junitparser *.xml > junit_interoperability_report.xml
+      run: junitparser merge *.xml junit_interoperability_report.xml
     - name: Generate xlsx report
       run: python3 ./omg-dds-rtps/generate_xlsx_report.py --input junit_interoperability_report.xml --output interoperability_report.xlsx
     - name: XUnit
