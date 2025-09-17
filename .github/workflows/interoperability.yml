@@ -34,11 +34,11 @@ jobs:
     strategy:
       matrix:
         publisher:
-        - dust_dds-*_shape_main_linux
-        - connext_dds-*_shape_main_linux
+        - dust_dds
+        - connext_dds
         subscriber:
-        - dust_dds-*_shape_main_linux
-        - connext_dds-*_shape_main_linux
+        - dust_dds
+        - connext_dds
     steps:
     - name: Checkout sources
       uses: actions/checkout@v4
@@ -55,9 +55,6 @@ jobs:
           rtps_test_utilities.py
           test_suite_functions.py
           requirements.txt
-    - uses: actions/setup-python@v5
-      with:
-        python-version: '3.11.4'
     - name: Downloads shape_main executables from OMG
       uses: robinraju/release-downloader@v1.10
       with:
@@ -73,21 +70,15 @@ jobs:
       run: unzip '*.zip' -d executables
     - name: Setting up environment
       run: pip install -r omg-dds-rtps/requirements.txt
-    - name: Set report name without asterisk
-      run: |
-        PUBLISHER_NAME=$(echo '${{ matrix.publisher }}' | tr -d '*')
-        SUBSCRIBER_NAME=$(echo '${{ matrix.subscriber }}' | tr -d '*')
-        REPORT_NAME=${${{ matrix.publisher }}%-\*_shape_main_linux}-${${{ matrix.subscriber }}%-\*_shape_main_linux}
-        printenv
-        echo "REPORT_NAME=$REPORT_NAME" >> $GITHUB_ENV
+
     - name: Run Interoperability script
-      run: python3 ./omg-dds-rtps/interoperability_report.py --publisher ./executables/${{ matrix.publisher }} --subscriber ./executables/${{ matrix.subscriber }} --test Test_Domain_0 --output-name ${{ env.REPORT_NAME }}
+      run: python3 ./omg-dds-rtps/interoperability_report.py --publisher ./executables/${{ matrix.publisher }}-*_shape_main_linux --subscriber ./executables/${{ matrix.subscriber }}-*_shape_main_linux --test Test_Domain_0 --output-name junit_report-${{ matrix.publisher }}-${{ matrix.publisher }}.xml
 
     - name: Upload report
       uses: actions/upload-artifact@v4
       with:
         name: junit_interoperability_report
-        path: ./${{ env.REPORT_NAME }}
+        path: ./junit_report-${{ matrix.publisher }}-${{ matrix.publisher }}.xml
 
   report:
     runs-on: ubuntu-latest
