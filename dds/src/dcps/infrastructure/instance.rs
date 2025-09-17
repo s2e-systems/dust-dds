@@ -1,3 +1,5 @@
+use core::ops::Index;
+
 use crate::infrastructure::{
     error::DdsResult,
     type_support::{DdsDeserialize, DdsSerialize},
@@ -68,6 +70,14 @@ impl AsRef<[u8; 16]> for InstanceHandle {
 impl Default for InstanceHandle {
     fn default() -> Self {
         HANDLE_NIL
+    }
+}
+
+impl Index<usize> for InstanceHandle {
+    type Output = u8;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.0[index]
     }
 }
 
