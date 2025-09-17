@@ -104,6 +104,7 @@ jobs:
           generate_xlsx_report.py
           rtps_test_utilities.py
           test_suite.py
+          test_suite_functions.py
           requirements.txt
     - uses: actions/setup-python@v5
       with:
