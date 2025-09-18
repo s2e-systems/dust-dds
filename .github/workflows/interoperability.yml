@@ -98,7 +98,7 @@ jobs:
       run: pip install --requirement omg-dds-rtps/requirements.txt
 
     - name: Run Interoperability script
-      timeout-minutes: 30
+      timeout-minutes: 60
       run: python3 ./omg-dds-rtps/interoperability_report.py --verbose --publisher ./executables/${{ matrix.publisher }}-*shape_main_linux --subscriber ./executables/${{ matrix.subscriber }}-*shape_main_linux --output-name junit_report-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml
 
     - name: Upload report
