@@ -15,6 +15,7 @@ pub const EK_COMPLETE: EquivalenceKind = 0xF2; // 0x1111 0010
 pub const EK_BOTH: EquivalenceKind = 0xF3; // 0x1111 0011
 
 // ---------- TypeKinds (begin) -------------------
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[repr(u8)]
 pub enum TypeKind {
     // Primitive TKs

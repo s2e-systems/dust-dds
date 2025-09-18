@@ -256,7 +256,7 @@ pub struct MemberDescriptorIter<'a> {
     range: core::ops::Range<u32>,
 }
 impl<'a> Iterator for MemberDescriptorIter<'a> {
-    type Item = Result<MemberDescriptor, XTypesError>;
+    type Item = Result<&'a MemberDescriptor, XTypesError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let i = self.range.next()?;
@@ -271,7 +271,7 @@ impl<'a> Iterator for MemberDescriptorIter<'a> {
 }
 
 impl<'a> IntoIterator for &'a DynamicType {
-    type Item = Result<MemberDescriptor, XTypesError>;
+    type Item = Result<&'a MemberDescriptor, XTypesError>;
     type IntoIter = MemberDescriptorIter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {

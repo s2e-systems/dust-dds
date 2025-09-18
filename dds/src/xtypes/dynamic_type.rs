@@ -1,4 +1,7 @@
-use crate::xtypes::type_object::{LBoundSeq, TypeObject};
+use crate::xtypes::{
+    error::XTypesResult,
+    type_object::{LBoundSeq, TypeObject},
+};
 
 use super::{
     error::XTypesError,
@@ -90,8 +93,8 @@ pub struct DynamicTypeMember {
 }
 
 impl DynamicTypeMember {
-    pub fn get_descriptor(&self) -> &MemberDescriptor {
-        &self.descriptor
+    pub fn get_descriptor(&self) -> XTypesResult<&MemberDescriptor> {
+        Ok(&self.descriptor)
     }
     // unsigned long get_annotation_count();
     // DDS::ReturnCode_t get_annotation(inout AnnotationDescriptor descriptor, in unsigned long idx);
@@ -110,7 +113,45 @@ pub struct DynamicTypeBuilderFactory;
 
 impl DynamicTypeBuilderFactory {
     pub fn get_primitive_type(kind: TypeKind) -> DynamicType {
-        todo!()
+        let kind = match kind {
+            TypeKind::BOOLEAN
+            | TypeKind::BYTE
+            | TypeKind::INT16
+            | TypeKind::INT32
+            | TypeKind::INT64
+            | TypeKind::UINT16
+            | TypeKind::UINT32
+            | TypeKind::UINT64
+            | TypeKind::FLOAT32
+            | TypeKind::FLOAT64
+            | TypeKind::INT8
+            | TypeKind::UINT8
+            | TypeKind::CHAR8
+            | TypeKind::STRING8 => kind,
+            TypeKind::NONE
+            | TypeKind::CHAR16  // Not available in Rust type system
+            | TypeKind::STRING16 // Not available in Rust type system
+            | TypeKind::FLOAT128 // Not available in Rust type system
+            | TypeKind::ALIAS
+            | TypeKind::ENUM
+            | TypeKind::BITMASK
+            | TypeKind::ANNOTATION
+            | TypeKind::STRUCTURE
+            | TypeKind::UNION
+            | TypeKind::BITSET
+            | TypeKind::SEQUENCE
+            | TypeKind::ARRAY
+            | TypeKind::MAP => TypeKind::NONE,
+        };
+        DynamicType {
+            descriptor: TypeDescriptor {
+                kind,
+                name: String::from(""),
+                extensibility_kind: ExtensibilityKind::Appendable,
+                is_nested: false,
+            },
+            member_list: vec![],
+        }
     }
 
     pub fn create_type(descriptor: TypeDescriptor) -> DynamicTypeBuilder {
