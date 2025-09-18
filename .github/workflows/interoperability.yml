@@ -37,7 +37,7 @@ jobs:
         - dust_dds
         - connext_dds
         - eprosima_fastdds
-        - opendds
+        # - opendds
         - toc_coredx_dds
         - intercom_dds
         subscriber:
