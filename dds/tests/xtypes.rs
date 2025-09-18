@@ -49,4 +49,6 @@ fn create_type_with_builder() {
             is_default_label: false,
         })
         .unwrap();
+
+    let dynamic_shape_type = builder.build();
 }

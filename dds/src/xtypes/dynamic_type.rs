@@ -155,31 +155,34 @@ impl DynamicTypeBuilderFactory {
     }
 
     pub fn create_type(descriptor: TypeDescriptor) -> DynamicTypeBuilder {
-        DynamicTypeBuilder
+        DynamicTypeBuilder {
+            descriptor,
+            member_list: Vec::new(),
+        }
     }
 
     pub fn create_type_copy(r#type: DynamicType) -> DynamicTypeBuilder {
-        DynamicTypeBuilder
+        todo!()
     }
 
     pub fn create_type_w_type_object(type_object: TypeObject) -> DynamicTypeBuilder {
-        DynamicTypeBuilder
+        todo!()
     }
 
     pub fn create_string_type(bound: u32) -> DynamicTypeBuilder {
-        DynamicTypeBuilder
+        todo!()
     }
 
     pub fn create_wstring_type(bound: u32) -> DynamicTypeBuilder {
-        DynamicTypeBuilder
+        todo!()
     }
 
     pub fn create_sequence_type(element_type: DynamicType, bound: u32) -> DynamicTypeBuilder {
-        DynamicTypeBuilder
+        todo!()
     }
 
     pub fn create_array_type(element_type: DynamicType, bound: LBoundSeq) -> DynamicTypeBuilder {
-        DynamicTypeBuilder
+        todo!()
     }
 
     pub fn create_map_type(
@@ -187,11 +190,11 @@ impl DynamicTypeBuilderFactory {
         element_type: DynamicType,
         bound: u32,
     ) -> DynamicTypeBuilder {
-        DynamicTypeBuilder
+        todo!()
     }
 
     pub fn create_bitmask_type(bound: u32) -> DynamicTypeBuilder {
-        DynamicTypeBuilder
+        todo!()
     }
 
     pub fn create_type_w_uri(
@@ -199,7 +202,7 @@ impl DynamicTypeBuilderFactory {
         type_name: String,
         include_paths: Vec<String>,
     ) -> DynamicTypeBuilder {
-        DynamicTypeBuilder
+        todo!()
     }
 
     pub fn create_type_w_document(
@@ -207,11 +210,14 @@ impl DynamicTypeBuilderFactory {
         type_name: String,
         include_paths: Vec<String>,
     ) -> DynamicTypeBuilder {
-        DynamicTypeBuilder
+        todo!()
     }
 }
 
-pub struct DynamicTypeBuilder;
+pub struct DynamicTypeBuilder {
+    descriptor: TypeDescriptor,
+    member_list: Vec<MemberDescriptor>,
+}
 
 impl DynamicTypeBuilder {
     pub fn get_descriptor(&self) -> Result<TypeDescriptor, XTypesError> {
@@ -248,7 +254,7 @@ impl DynamicTypeBuilder {
         todo!()
     }
 
-    pub fn get_member_by_index(&self, index: u32) -> Result<DynamicTypeMember, XTypesError> {
+    pub fn get_member_by_index(&self, index: u32) -> XTypesResult<DynamicTypeMember> {
         todo!()
     }
 
@@ -256,28 +262,49 @@ impl DynamicTypeBuilder {
         todo!()
     }
 
-    pub fn get_annotation(&self, idx: u32) -> Result<(), XTypesError> {
+    pub fn get_annotation(&self, idx: u32) -> XTypesResult<()> {
         todo!()
     }
 
-    pub fn add_member(&mut self, descriptor: MemberDescriptor) -> Result<(), XTypesError> {
+    pub fn add_member(&mut self, descriptor: MemberDescriptor) -> XTypesResult<()> {
+        if !matches!(
+            self.descriptor.kind,
+            TypeKind::ENUM
+                | TypeKind::BITMASK
+                | TypeKind::ANNOTATION
+                | TypeKind::STRUCTURE
+                | TypeKind::UNION
+                | TypeKind::BITSET
+        ) {
+            return Err(XTypesError::IllegalOperation);
+        }
+
+        self.member_list.push(descriptor);
+
+        Ok(())
+    }
+
+    pub fn apply_annotation(&mut self) -> XTypesResult<()> {
         todo!()
     }
 
-    pub fn apply_annotation(&mut self) -> Result<(), XTypesError> {
+    pub fn apply_annotation_to_member(&mut self, id: MemberId) -> XTypesResult<()> {
         todo!()
     }
 
-    pub fn apply_annotation_to_member(&mut self, id: MemberId) -> Result<(), XTypesError> {
-        todo!()
-    }
-
-    pub fn set_name(&mut self, name: ObjectName) -> Result<(), XTypesError> {
+    pub fn set_name(&mut self, name: ObjectName) -> XTypesResult<()> {
         todo!()
     }
 
     pub fn build(self) -> DynamicType {
-        todo!()
+        DynamicType {
+            descriptor: self.descriptor,
+            member_list: self
+                .member_list
+                .into_iter()
+                .map(|descriptor| DynamicTypeMember { descriptor })
+                .collect(),
+        }
     }
 }
 
