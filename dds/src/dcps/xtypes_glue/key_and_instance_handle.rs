@@ -478,13 +478,13 @@ pub fn get_instance_handle_from_serialized_key(
             CDR_LE => {
                 push_to_key_for_key(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?
             }
-            CDR2_BE => {
+            CDR2_BE | D_CDR2_BE=> {
                 push_to_key_for_key(dynamic_type, &mut s, &mut Xcdr2BeDeserializer::new(data))?
             }
-            CDR2_LE => {
+            CDR2_LE | D_CDR2_LE => {
                 push_to_key_for_key(dynamic_type, &mut s, &mut Xcdr2LeDeserializer::new(data))?
             }
-            _ => panic!("representation_identifier not supported"),
+            _ => return Err(XTypesError::InvalidData),
         }
     }
     Ok(InstanceHandle::new(md5_collection.into_key()))
