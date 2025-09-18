@@ -33,20 +33,31 @@ jobs:
     needs: create_bin_release
     strategy:
       matrix:
-        publisher:
-        - dust_dds
-        - connext_dds
-        - eprosima_fastdds
-        # - opendds
-        - toc_coredx_dds
-        - intercom_dds
-        subscriber:
-        - dust_dds
-        - connext_dds
-        - eprosima_fastdds
-        - opendds
-        - toc_coredx_dds
-        - intercom_dds
+        include:
+        - publisher: dust_dds
+          subscriber: dust_dds
+        - publisher: dust_dds
+          subscriber: connext_dds
+        - publisher: dust_dds
+          subscriber: eprosima_fastdds
+        - publisher: dust_dds
+          subscriber: toc_coredx_dds
+        - publisher: dust_dds
+          subscriber: intercom_dds
+        - publisher: dust_dds
+          subscriber: opendds
+
+        - publisher: connext_dds
+          subscriber: dust_dds
+        - publisher: eprosima_fastdds
+          subscriber: dust_dds
+        - publisher: toc_coredx_dds
+          subscriber: dust_dds
+        - publisher: intercom_dds
+          subscriber: dust_dds
+        - publisher: opendds
+          subscriber: dust_dds
+
     steps:
     - name: Checkout sources
       uses: actions/checkout@v4
@@ -87,7 +98,8 @@ jobs:
       run: pip install --requirement omg-dds-rtps/requirements.txt
 
     - name: Run Interoperability script
-      run: python3 ./omg-dds-rtps/interoperability_report.py --publisher ./executables/${{ matrix.publisher }}-*shape_main_linux --subscriber ./executables/${{ matrix.subscriber }}-*shape_main_linux --output-name junit_report-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml
+      timeout-minutes: 30
+      run: python3 ./omg-dds-rtps/interoperability_report.py --verbose --publisher ./executables/${{ matrix.publisher }}-*shape_main_linux --subscriber ./executables/${{ matrix.subscriber }}-*shape_main_linux --output-name junit_report-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml
 
     - name: Upload report
       uses: actions/upload-artifact@v4
