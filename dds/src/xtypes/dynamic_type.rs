@@ -1,3 +1,5 @@
+use core::any::Any;
+
 use crate::xtypes::{
     error::XTypesResult,
     type_object::{LBoundSeq, TypeObject},
@@ -7,7 +9,7 @@ use super::{
     error::XTypesError,
     type_object::{TypeIdentifier, TypeKind},
 };
-use alloc::{string::String, vec::Vec};
+use alloc::{collections::BTreeMap, string::String, vec::Vec};
 
 pub type ObjectName = String;
 
@@ -308,4 +310,17 @@ impl DynamicTypeBuilder {
     }
 }
 
-pub struct DynamicData;
+pub struct DynamicData<'a> {
+    type_ref: &'a DynamicType,
+    abstract_data: BTreeMap<MemberId, Box<dyn Any>>,
+}
+
+impl<'a> DynamicData<'a> {
+    pub fn get_int64_value(&self, id: MemberId) -> XTypesResult<&i64> {
+        self.abstract_data
+            .get(&id)
+            .ok_or(XTypesError::InvalidIndex)?
+            .downcast_ref::<i64>()
+            .ok_or(XTypesError::InvalidData)
+    }
+}
