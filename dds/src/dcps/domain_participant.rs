@@ -5283,7 +5283,7 @@ fn get_discovered_reader_incompatible_qos_policy_list(
     if &writer_qos.deadline > discovered_reader_data.deadline() {
         incompatible_qos_policy_list.push(DEADLINE_QOS_POLICY_ID);
     }
-    if &writer_qos.latency_budget < discovered_reader_data.latency_budget() {
+    if &writer_qos.latency_budget > discovered_reader_data.latency_budget() {
         incompatible_qos_policy_list.push(LATENCYBUDGET_QOS_POLICY_ID);
     }
     if &writer_qos.liveliness < discovered_reader_data.liveliness() {
@@ -5345,7 +5345,7 @@ fn get_discovered_writer_incompatible_qos_policy_list<
     if &data_reader.qos.deadline < publication_builtin_topic_data.deadline() {
         incompatible_qos_policy_list.push(DEADLINE_QOS_POLICY_ID);
     }
-    if &data_reader.qos.latency_budget > publication_builtin_topic_data.latency_budget() {
+    if &data_reader.qos.latency_budget < publication_builtin_topic_data.latency_budget() {
         incompatible_qos_policy_list.push(LATENCYBUDGET_QOS_POLICY_ID);
     }
     if &data_reader.qos.liveliness > publication_builtin_topic_data.liveliness() {

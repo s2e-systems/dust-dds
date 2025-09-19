@@ -17,21 +17,21 @@ pub fn get_input_extensibility(input: &DeriveInput) -> Result<Extensibility> {
             if meta.path.is_ident("extensibility") {
                 let format_str: syn::LitStr = meta.value()?.parse()?;
                 match format_str.value().as_ref() {
-                    "Final" => {
+                    "final" => {
                         extensibility = Extensibility::Final;
                         Ok(())
                     }
-                    "Appendable" => {
+                    "appendable" => {
                         extensibility = Extensibility::Appendable;
                         Ok(())
                     }
-                    "Mutable" => {
+                    "mutable" => {
                         extensibility = Extensibility::Mutable;
                         Ok(())
                     }
                     _ => Err(syn::Error::new(
                         meta.path.span(),
-                        r#"Invalid format specified. Valid options are "Final", "Appendable", "Mutable". "#,
+                        r#"Invalid format specified. Valid options are "final", "appendable", "mutable". "#,
                     )),
                 }
             } else {

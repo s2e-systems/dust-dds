@@ -92,8 +92,8 @@ const CDR_BE: RepresentationIdentifier = [0x00, 0x00];
 const CDR_LE: RepresentationIdentifier = [0x00, 0x01];
 const CDR2_BE: RepresentationIdentifier = [0x00, 0x06];
 const CDR2_LE: RepresentationIdentifier = [0x00, 0x07];
-const _D_CDR2_BE: RepresentationIdentifier = [0x00, 0x08];
-const _D_CDR2_LE: RepresentationIdentifier = [0x00, 0x09];
+const D_CDR2_BE: RepresentationIdentifier = [0x00, 0x08];
+const D_CDR2_LE: RepresentationIdentifier = [0x00, 0x09];
 const _PL_CDR_BE: RepresentationIdentifier = [0x00, 0x02];
 const _PL_CDR_LE: RepresentationIdentifier = [0x00, 0x03];
 const REPRESENTATION_OPTIONS: RepresentationOptions = [0x00, 0x00];
@@ -149,8 +149,12 @@ where
     let value = match representation_identifier {
         CDR_BE => XTypesDeserialize::deserialize(&mut Xcdr1BeDeserializer::new(serialized_data)),
         CDR_LE => XTypesDeserialize::deserialize(&mut Xcdr1LeDeserializer::new(serialized_data)),
-        CDR2_BE => XTypesDeserialize::deserialize(&mut Xcdr2BeDeserializer::new(serialized_data)),
-        CDR2_LE => XTypesDeserialize::deserialize(&mut Xcdr2LeDeserializer::new(serialized_data)),
+        CDR2_BE | D_CDR2_BE => {
+            XTypesDeserialize::deserialize(&mut Xcdr2BeDeserializer::new(serialized_data))
+        }
+        CDR2_LE | D_CDR2_LE => {
+            XTypesDeserialize::deserialize(&mut Xcdr2LeDeserializer::new(serialized_data))
+        }
         _ => Err(XTypesError::InvalidData),
     }?;
     Ok(value)

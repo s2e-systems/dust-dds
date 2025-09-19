@@ -412,7 +412,7 @@ mod tests {
     fn xtypes_serialize_final_struct_with_basic_types() {
         let input = syn::parse2::<DeriveInput>(
             "
-            #[dust_dds(extensibility = \"Final\")]
+            #[dust_dds(extensibility = \"final\")]
             struct MyData {
                 x: u32,
                 y: u32,
@@ -454,7 +454,7 @@ mod tests {
     fn xtypes_serialize_appendable_struct_with_basic_types() {
         let input = syn::parse2::<DeriveInput>(
             "
-            #[dust_dds(extensibility = \"Appendable\")]
+            #[dust_dds(extensibility = \"appendable\")]
             struct MyData {
                 x: u32,
                 y: u32,
@@ -496,7 +496,7 @@ mod tests {
     fn xtypes_serialize_mutable_struct_with_basic_types() {
         let input = syn::parse2::<DeriveInput>(
             "
-            #[dust_dds(extensibility = \"Mutable\")]
+            #[dust_dds(extensibility = \"mutable\")]
             struct MyData {
                 #[dust_dds(id = 1)]
                 x: u32,
@@ -583,7 +583,7 @@ mod tests {
     fn xtypes_deserialize_appendable_struct_with_basic_types() {
         let input = syn::parse2::<DeriveInput>(
             "
-            #[dust_dds(extensibility = \"Appendable\")]
+            #[dust_dds(extensibility = \"appendable\")]
             struct MyData {
                 x: u32,
                 y: u32,
@@ -665,7 +665,7 @@ mod tests {
     fn xtypes_deserialize_mutable_struct_with_basic_types() {
         let input = syn::parse2::<DeriveInput>(
             "
-            #[dust_dds(extensibility = \"Mutable\")]
+            #[dust_dds(extensibility = \"mutable\")]
             struct MyData {
                 #[dust_dds(id=1)]
                 x: u32,

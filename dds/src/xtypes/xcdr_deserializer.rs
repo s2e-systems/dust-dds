@@ -187,7 +187,6 @@ where
         &mut self,
         _name: &str,
     ) -> Result<T, XTypesError> {
-        u32::deserialize(&mut *self.deserializer)?;
         T::deserialize(&mut *self.deserializer)
     }
 }
@@ -603,6 +602,7 @@ impl<'de> XTypesDeserializer<'de> for &mut Xcdr2BeDeserializer<'de> {
     fn deserialize_appendable_struct(
         self,
     ) -> Result<impl DeserializeAppendableStruct<'de>, XTypesError> {
+        let _dheader = self.deserialize_uint32()?;
         Ok(DelimitedCdrDecoder { deserializer: self })
     }
     fn deserialize_mutable_struct(self) -> Result<impl DeserializeMutableStruct<'de>, XTypesError> {
@@ -682,6 +682,7 @@ impl<'de> XTypesDeserializer<'de> for &mut Xcdr2LeDeserializer<'de> {
     fn deserialize_appendable_struct(
         self,
     ) -> Result<impl DeserializeAppendableStruct<'de>, XTypesError> {
+        let _dheader = self.deserialize_uint32()?;
         Ok(DelimitedCdrDecoder {
             deserializer: &mut *self,
         })
@@ -1315,34 +1316,39 @@ mod tests {
     // @extensibility(APPENDABLE) @nested
     struct AppendableType {
         value: u16,
+        next_value: u16,
     }
     impl<'de> XTypesDeserialize<'de> for AppendableType {
         fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
             let mut deserializer = deserializer.deserialize_appendable_struct()?;
             Ok(Self {
                 value: deserializer.deserialize_field("value")?,
+                next_value: deserializer.deserialize_field("next_value")?,
             })
         }
     }
 
     #[test]
     fn deserialize_appendable_struct() {
-        let expected = Ok(AppendableType { value: 7 });
+        let expected = Ok(AppendableType {
+            value: 7,
+            next_value: 8,
+        });
         // PLAIN_CDR:
-        assert_eq!(deserialize_v1_be::<AppendableType>(&[0, 7]), expected);
-        assert_eq!(deserialize_v1_le::<AppendableType>(&[7, 0]), expected);
+        assert_eq!(deserialize_v1_be::<AppendableType>(&[0, 7, 0, 8]), expected);
+        assert_eq!(deserialize_v1_le::<AppendableType>(&[7, 0, 8, 0]), expected);
         // DELIMITED_CDR:
         assert_eq!(
             deserialize_v2_be::<AppendableType>(&[
-                0, 0, 0, 2, // DHEADER
-                0, 7 // value
+                0, 0, 0, 4, // DHEADER
+                0, 7, 0, 8 // value | next value
             ]),
             expected
         );
         assert_eq!(
             deserialize_v2_le::<AppendableType>(&[
-                2, 0, 0, 0, // DHEADER
-                7, 0 // value
+                4, 0, 0, 0, // DHEADER
+                7, 0, 8, 0 // value | next value
             ]),
             expected
         );
@@ -1498,13 +1504,13 @@ mod tests {
             deserialize_v2_be(&[
                 1, 2, 0, 3, // f1: bool | f2: i8 | f3: i16
                 0, 0, 0, 4, // f4: i32
-                0, 0, 0, 0, // f5-1: i64 
+                0, 0, 0, 0, // f5-1: i64
                 0, 0, 0, 5, // f5-2: i64
-                6, 0, 0, 7, // f6: u8 | padding (1 byte) | f7: u16 
+                6, 0, 0, 7, // f6: u8 | padding (1 byte) | f7: u16
                 0, 0, 0, 8, // f8: u32
                 0, 0, 0, 0, // f9-1: u64
                 0, 0, 0, 9, // f9-2: u64
-                0x3F, 0x80, 0x00, 0x00, // f10: f32 
+                0x3F, 0x80, 0x00, 0x00, // f10: f32
                 0x3F, 0xF0, 0x00, 0x00, // f11-1: f64
                 0x00, 0x00, 0x00, 0x00, // f11-2: f64
                 b'a', // f12: char
@@ -1515,13 +1521,13 @@ mod tests {
             deserialize_v2_le(&[
                 1, 2, 3, 0, // f1: bool | f2: i8 | f3: i16
                 4, 0, 0, 0, // f4: i32
-                5, 0, 0, 0, // f5-1: i64 
+                5, 0, 0, 0, // f5-1: i64
                 0, 0, 0, 0, // f5-2: i64
-                6, 0, 7, 0, // f6: u8 | padding (1 byte) | f7: u16 
+                6, 0, 7, 0, // f6: u8 | padding (1 byte) | f7: u16
                 8, 0, 0, 0, // f8: u32
                 9, 0, 0, 0, // f9-1: u64
                 0, 0, 0, 0, // f9-2: u64
-                0x00, 0x00, 0x80, 0x3F, // f10: f32 
+                0x00, 0x00, 0x80, 0x3F, // f10: f32
                 0x00, 0x00, 0x00, 0x00, // f11-1: f64
                 0x00, 0x00, 0xF0, 0x3F, // f11-2: f64
                 b'a', // f12: char
