@@ -38,68 +38,6 @@ pub fn parse_idl(source: &str) -> Result<Vec<StructDef>, pest::error::Error<Rule
 
     let mut structs = Vec::new();
 
-    for definition in file.into_inner() {
-        println!("\n-- Top-Level Child: {:?}", definition.as_rule());
-
-        if definition.as_rule() != Rule::definition {
-            println!("Skipped top-level rule: {:?}", definition.as_rule());
-            continue;
-        }
-
-        let mut inner_rules = definition.into_inner().peekable();
-
-        // Collect top-level annotations (e.g., @derive)
-        let mut struct_annotations = Vec::new();
-        while let Some(ann) = inner_rules.peek() {
-            if ann.as_rule() == Rule::annotation_appl {
-                println!("Found annotation: {:?}", ann.as_str());
-                struct_annotations.push(parse_annotation(inner_rules.next().unwrap()));
-            } else {
-                break;
-            }
-        }
-
-        // After annotations, the next rule should be type_dcl (or other definitions)
-        if let Some(type_dcl) = inner_rules.next() {
-            println!("Next rule after annotations: {:?}", type_dcl.as_rule());
-
-            if type_dcl.as_rule() == Rule::type_dcl {
-                // Drill down into constr_type_dcl
-                for constr_type in type_dcl.into_inner() {
-                    println!("Inside type_dcl: {:?}", constr_type.as_rule());
-
-                    if constr_type.as_rule() == Rule::constr_type_dcl {
-                        // Drill down into struct_dcl
-                        for struct_dcl in constr_type.into_inner() {
-                            println!("Inside constr_type_dcl: {:?}", struct_dcl.as_rule());
-
-                            if struct_dcl.as_rule() == Rule::struct_dcl {
-                                // Drill down into struct_def
-                                for struct_def in struct_dcl.into_inner() {
-                                    println!("Inside struct_dcl: {:?}", struct_def.as_rule());
-
-                                    if struct_def.as_rule() == Rule::struct_def {
-                                        let mut parsed_struct = parse_struct(struct_def.clone());
-                                        // Merge annotations collected outside struct_def, if any
-                                        parsed_struct.annotations.extend(struct_annotations.clone());
-
-                                        println!("Parsed struct: {:?}", parsed_struct.name);
-                                        structs.push(parsed_struct);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            } else {
-                println!("Expected type_dcl but found: {:?}", type_dcl.as_rule());
-            }
-        } else {
-            println!("No type_dcl found inside definition");
-        }
-    }
-
-    println!("\n== Finished Parsing. Structs Parsed: {} ==\n", structs.len());
 
     Ok(structs)
 }

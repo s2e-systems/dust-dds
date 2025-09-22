@@ -10,7 +10,7 @@ octal_escape = ${ "\\" ~ ASCII_OCT_DIGIT ~ ASCII_OCT_DIGIT? ~ ASCII_OCT_DIGIT? }
 hex_escape = ${ "\\" ~ "x" ~ ASCII_HEX_DIGIT ~ ASCII_HEX_DIGIT? }
 unicode_escape = ${ "\\" ~ "u" ~ ASCII_HEX_DIGIT{1,4} }
 
-WHITESPACE = _{ " " | "\t" | "\n" | "\r\n" }
+WHITESPACE = _{ " " | "\t" | NEWLINE }
 block_comment = @{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
 line_comment = @{ "//" ~ (!NEWLINE ~ ANY)* }
 COMMENT = _{ block_comment | line_comment }
@@ -19,102 +19,98 @@ COMMENT = _{ block_comment | line_comment }
 // Identifiers that collide with keywords (see 7.2.3, Identifiers) are illegal.
 // For example, boolean is a valid keyword; Boolean and BOOLEAN are illegal identifiers.
 reserved_keyword = {
-      "abstract"
-    | "any"
-    | "bitmask"
-    | "alias"
-    | "attribute"
-    | "bitfield"
-    | "bitset"
-    | "boolean"
-    | "case"
-    | "char"
-    | "component"
-    | "connector"
-    | "const"
-    | "consumes"
-    | "context"
-    | "custom"
-    | "default"
-    | "double"
-    | "exception"
-    | "emits"
-    | "enum"
-    | "eventtype"
-    | "factory"
-    | "FALSE"
-    | "finder"
-    | "fixed"
-    | "float"
-    | "getraises"
-    | "home"
-    | "import"
-    | "in"
-    | "inout"
-    | "interface"
-    | "local"
-    | "long"
-    | "manages"
-    | "map"
-    | "mirrorport"
-    | "module"
-    | "multiple"
-    | "native"
-    | "Object"
-    | "octet"
-    | "oneway"
-    | "out"
-    | "primarykey"
-    | "private"
-    | "port"
-    | "porttype"
-    | "provides"
-    | "public"
-    | "publishes"
-    | "raises"
-    | "readonly"
-    | "setraises"
-    | "sequence"
-    | "short"
-    | "string"
-    | "struct"
-    | "supports"
-    | "switch"
-    | "TRUE"
-    | "truncatable"
-    | "typedef"
-    | "typeid"
-    | "typename"
-    | "typeprefix"
-    | "unsigned"
-    | "union"
-    | "uses"
-    | "ValueBase"
-    | "valuetype"
-    | "void"
-    | "wchar"
-    | "wstring"
-    | "int8"
-    | "uint8"
-    | "int16"
-    | "int32"
-    | "int64"
-    | "uint16"
-    | "uint32"
-    | "uint64"
+      ^"abstract"
+    | ^"any"
+    | ^"bitmask"
+    | ^"alias"
+    | ^"attribute"
+    | ^"bitfield"
+    | ^"bitmask"
+    | ^"bitset"
+    | ^"boolean"
+    | ^"case"
+    | ^"char"
+    | ^"component"
+    | ^"connector"
+    | ^"const"
+    | ^"consumes"
+    | ^"context"
+    | ^"custom"
+    | ^"default"
+    | ^"double"
+    | ^"exception"
+    | ^"emits"
+    | ^"enum"
+    | ^"eventtype"
+    | ^"factory"
+    | ^"FALSE"
+    | ^"finder"
+    | ^"fixed"
+    | ^"float"
+    | ^"getraises"
+    | ^"home"
+    | ^"import"
+    | ^"in"
+    | ^"inout"
+    | ^"interface"
+    | ^"local"
+    | ^"long"
+    | ^"manages"
+    | ^"map"
+    | ^"mirrorport"
+    | ^"module"
+    | ^"multiple"
+    | ^"native"
+    | ^"Object"
+    | ^"octet"
+    | ^"oneway"
+    | ^"out"
+    | ^"primarykey"
+    | ^"private"
+    | ^"port"
+    | ^"porttype"
+    | ^"provides"
+    | ^"public"
+    | ^"publishes"
+    | ^"raises"
+    | ^"readonly"
+    | ^"setraises"
+    | ^"sequence"
+    | ^"short"
+    | ^"string"
+    | ^"struct"
+    | ^"supports"
+    | ^"switch"
+    | ^"TRUE"
+    | ^"truncatable"
+    | ^"typedef"
+    | ^"typeid"
+    | ^"typename"
+    | ^"typeprefix"
+    | ^"unsigned"
+    | ^"union"
+    | ^"uses"
+    | ^"ValueBase"
+    | ^"valuetype"
+    | ^"void"
+    | ^"wchar"
+    | ^"wstring"
+    | ^"int8"
+    | ^"uint8"
+    | ^"int16"
+    | ^"int32"
+    | ^"int64"
+    | ^"uint16"
+    | ^"uint32"
+    | ^"uint64"
 }
 
 // Identifier can not be a keyword. The optional is used instead of the negative lookahead (!)
 // because the identifier might start with a keyword as long as it has something after it.
-
-// Using negative lookahead (`!reserved_keyword`) to reject identifiers
-// that match keywords entirely, because keywords are illegal as identifiers.
-// This replaces the previous optional match which incorrectly allowed
-// identifiers to start as keywords (e.g., "TRUE") causing parse errors.
-identifier = {
-    !reserved_keyword ~ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")*
+identifier = @{
+    reserved_keyword? ~ (ASCII | "_") ~ ("_" | ASCII_ALPHANUMERIC )*
+    | "_" ~ (ASCII | "_") ~ ("_" | ASCII_ALPHANUMERIC )*
 }
-
 
 character_literal = @{ "'" ~ (!"'" ~ (escape | ANY)) ~ "'" }
 string_literal = @{ "\"" ~ (!"\"" ~ (escape | ANY))* ~ "\"" }
@@ -174,7 +170,6 @@ definition = {
     | template_module_inst ~ ";"
     // (218)
     | annotation_dcl ~ ";"
-    | struct_dcl ~ ";"
 
 }
 // (3)
@@ -251,7 +246,6 @@ primary_expr = {
     | scoped_name
     | "(" ~ const_expr ~ ")"
 }
-
 // (17)
 literal = {
     floating_pt_literal
@@ -281,11 +275,12 @@ type_spec = {
     // (216)
     template_type_spec
     | simple_type_spec
+
 }
 // (22)
 simple_type_spec = {
-    scoped_name
-    | base_type_spec
+    base_type_spec
+    | scoped_name
 }
 // (23)
 base_type_spec = {
@@ -412,7 +407,7 @@ struct_dcl = {
 // (46)
 struct_def = { annotation_appl* ~ "struct" ~ identifier ~ /*(195)*/(":" ~ scoped_name)? ~ "{" ~ member* ~ "}" }
 // (47)
-member = { (annotation_appl ~ WHITESPACE+)* ~ type_spec ~ declarators ~ ";" }
+member = { annotation_appl* ~ type_spec ~ declarators ~ ";" }
 // (48)
 struct_forward_dcl = { "struct" ~ identifier }
 // (49)
@@ -617,8 +612,7 @@ value_element = {
     | init_dcl
 }
 // (106)
-state_member = { annotation_appl* ~ ( "public" | "private" )? ~ type_spec ~ declarators ~ ";" }
-
+state_member = { ( "public" | "private" ) ~ type_spec ~ declarators ~ ";" }
 // (107)
 init_dcl = { "factory" ~ identifier ~ "(" ~ init_param_dcls? ~ ")" ~ raises_expr? ~ ";" }
 // (108)
@@ -921,7 +915,6 @@ annotation_member_type = { const_type | any_const_type | scoped_name }
 any_const_type = { "any" }
 // (225)
 annotation_appl = { "@" ~ scoped_name ~ ("(" ~ annotation_appl_params ~ ")")? }
-
 // (226)
 annotation_appl_params = {
     const_expr
