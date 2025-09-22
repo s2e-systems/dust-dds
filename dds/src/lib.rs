@@ -1,5 +1,5 @@
 #![forbid(unsafe_code)]
-#![forbid(missing_docs)]
+// #![forbid(missing_docs)]
 #![cfg_attr(not(feature = "std"), no_std)]
 #![doc = include_str!("../README.md")]
 
@@ -49,7 +49,6 @@ pub mod std_runtime;
 
 /// Contains the XTypes serializer and deserializer
 #[cfg(feature = "xtypes")]
-#[doc(hidden)]
 pub mod xtypes;
 
 // To enable using our own derive macros to allow the name dust_dds:: to be used

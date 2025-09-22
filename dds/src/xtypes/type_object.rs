@@ -105,6 +105,7 @@ pub const INVALID_SBOUND: SBound = 0;
 
 // @extensibility(FINAL) @nested
 #[repr(u8)]
+#[derive(Debug, Clone)]
 pub enum TypeObjectHashId {
     EkComplete { hash: EquivalenceHash },
     EkMinimal { hash: EquivalenceHash },
@@ -125,11 +126,13 @@ pub struct MemberFlag(pub u16);
 // @position(5) IS_KEY, // K StructMember, UnionDiscriminator
 // @position(6) IS_DEFAULT // D UnionMember, EnumerationLiteral
 
+#[derive(Debug, Clone)]
 pub struct CollectionElementFlag {
     pub try_construct: TryConstructKind,
     pub is_external: bool,
 } // T1, T2, X
 
+#[derive(Debug, Clone)]
 pub struct StructMemberFlag {
     pub try_construct: TryConstructKind,
     pub is_external: bool,
@@ -137,21 +140,30 @@ pub struct StructMemberFlag {
     pub is_must_undestand: bool,
     pub is_key: bool,
 } // T1, T2, O, M, K, X
+
+#[derive(Debug, Clone)]
 pub struct UnionMemberFlag {
     pub try_construct: TryConstructKind,
     pub is_default: bool,
     pub is_external: bool,
 } // T1, T2, D, X
+
+#[derive(Debug, Clone)]
 pub struct UnionDiscriminatorFlag {
     pub try_construct: TryConstructKind,
     pub is_key: bool,
 } // T1, T2, K
+#[derive(Debug, Clone)]
 pub struct EnumeratedLiteralFlag {
     pub is_default: bool,
 } // D
+#[derive(Debug, Clone)]
 pub struct AnnotationParameterFlag; // Unused. No flags apply
+#[derive(Debug, Clone)]
 pub struct AliasMemberFlag; // Unused. No flags apply
+#[derive(Debug, Clone)]
 pub struct BitflagFlag; // Unused. No flags apply
+#[derive(Debug, Clone)]
 pub struct BitsetMemberFlag; // Unused. No flags apply
 
 // Mask used to remove the flags that do no affect assignability
@@ -161,6 +173,7 @@ pub const MEMBER_FLAG_MINIMAL_MASK: u16 = 0x003f;
 // Depending on the flag it may not apply to all types
 // When not all, the applicable types are listed
 // @bit_bound(16)
+#[derive(Debug, Clone)]
 pub struct TypeFlag(pub u16);
 // @position(0) IS_FINAL, // F |
 // @position(1) IS_APPENDABLE, // A |- Struct, Union
@@ -169,6 +182,7 @@ pub struct TypeFlag(pub u16);
 // @position(4) IS_AUTOID_HASH // H Struct
 
 //@bit_bound(16)
+#[derive(Debug, Clone)]
 pub struct StructTypeFlag {
     pub is_final: bool,
     pub is_appendable: bool,
@@ -177,6 +191,7 @@ pub struct StructTypeFlag {
     pub is_autoid_hash: bool,
 }
 
+#[derive(Debug, Clone)]
 pub struct UnionTypeFlag {
     pub is_final: bool,
     pub is_appendable: bool,
@@ -184,11 +199,17 @@ pub struct UnionTypeFlag {
     pub is_nested: bool,
     pub is_autoid_hash: bool,
 } // All flags apply
+#[derive(Debug, Clone)]
 pub struct CollectionTypeFlag; // Unused. No flags apply
+#[derive(Debug, Clone)]
 pub struct AnnotationTypeFlag; // Unused. No flags apply
+#[derive(Debug, Clone)]
 pub struct AliasTypeFlag; // Unused. No flags apply
+#[derive(Debug, Clone)]
 pub struct EnumTypeFlag; // Unused. No flags apply
+#[derive(Debug, Clone)]
 pub struct BitmaskTypeFlag; // Unused. No flags apply
+#[derive(Debug, Clone)]
 pub struct BitsetTypeFlag; // Unused. No flags apply
 
 // Mask used to remove the flags that do no affect assignability
@@ -196,22 +217,27 @@ pub const TYPE_FLAG_MINIMAL_MASK: u16 = 0x0007; // Selects M, A, F
 
 // 1 Byte
 // @extensibility(FINAL) @nested
+#[derive(Debug, Clone)]
 pub struct StringSTypeDefn {
     pub bound: SBound,
 }
 // 4 Bytes
 // @extensibility(FINAL) @nested
+#[derive(Debug, Clone)]
 pub struct StringLTypeDefn {
     pub bound: LBound,
 }
 
 // @extensibility(FINAL) @nested
+#[derive(Debug, Clone)]
 pub struct PlainCollectionHeader {
     pub equiv_kind: EquivalenceKind,
     pub element_flags: CollectionElementFlag,
 }
 
 // @extensibility(FINAL) @nested
+
+#[derive(Debug, Clone)]
 pub struct PlainSequenceSElemDefn {
     pub header: PlainCollectionHeader,
     pub bound: SBound,
@@ -219,6 +245,7 @@ pub struct PlainSequenceSElemDefn {
 }
 
 // @extensibility(FINAL) @nested
+#[derive(Debug, Clone)]
 pub struct PlainSequenceLElemDefn {
     pub header: PlainCollectionHeader,
     pub bound: LBound,
@@ -226,6 +253,7 @@ pub struct PlainSequenceLElemDefn {
 }
 
 // @extensibility(FINAL) @nested
+#[derive(Debug, Clone)]
 pub struct PlainArraySElemDefn {
     pub header: PlainCollectionHeader,
     pub array_bound_seq: SBoundSeq,
@@ -233,6 +261,7 @@ pub struct PlainArraySElemDefn {
 }
 
 // @extensibility(FINAL) @nested
+#[derive(Debug, Clone)]
 pub struct PlainArrayLElemDefn {
     pub header: PlainCollectionHeader,
     pub array_bound_seq: LBoundSeq,
@@ -240,6 +269,7 @@ pub struct PlainArrayLElemDefn {
 }
 
 // @extensibility(FINAL) @nested
+#[derive(Debug, Clone)]
 pub struct PlainMapSTypeDefn {
     pub header: PlainCollectionHeader,
     pub bound: SBound,
@@ -249,6 +279,7 @@ pub struct PlainMapSTypeDefn {
 }
 
 // @extensibility(FINAL) @nested
+#[derive(Debug, Clone)]
 pub struct PlainMapLTypeDefn {
     pub header: PlainCollectionHeader,
     pub bound: LBound,
@@ -259,6 +290,7 @@ pub struct PlainMapLTypeDefn {
 
 // Used for Types that have cyclic depencencies with other types
 // @extensibility(APPENDABLE) @nested
+#[derive(Debug, Clone)]
 pub struct StronglyConnectedComponentId {
     pub sc_component_id: TypeObjectHashId, // Hash StronglyConnectedComponent
     pub scc_length: i32,                   // StronglyConnectedComponent.length
@@ -291,6 +323,7 @@ pub struct ExtendedTypeDefn {
 // This means the TypeIdentifier is the same for both relationships
 //
 // @extensibility(FINAL) @nested
+#[derive(Debug, Clone)]
 #[repr(u8)]
 pub enum TypeIdentifier {
     TkNone,
@@ -375,6 +408,7 @@ pub struct ExtendedAnnotationParameterValue {
 */
 // @extensibility(FINAL) @nested
 #[repr(u8)]
+#[derive(Debug, Clone)]
 pub enum AnnotationParameterValue {
     TkBoolean {
         boolean_value: bool,
@@ -433,6 +467,7 @@ pub enum AnnotationParameterValue {
 
 // The application of an annotation to some type or type member
 // @extensibility(APPENDABLE) @nested
+#[derive(Debug, Clone)]
 pub struct AppliedAnnotationParameter {
     pub paramname_hash: NameHash,
     pub value: AnnotationParameterValue,
@@ -441,6 +476,7 @@ pub struct AppliedAnnotationParameter {
 pub type AppliedAnnotationParameterSeq = Vec<AppliedAnnotationParameter>;
 
 // @extensibility(APPENDABLE) @nested
+#[derive(Debug, Clone)]
 pub struct AppliedAnnotation {
     pub annotation_typeid: TypeIdentifier,
     pub param_seq: Option<AppliedAnnotationParameterSeq>,
@@ -449,6 +485,7 @@ pub struct AppliedAnnotation {
 pub type AppliedAnnotationSeq = Vec<AppliedAnnotation>;
 // @verbatim(placement="<placement>", language="<lang>", text="<text>")
 // @extensibility(FINAL) @nested
+#[derive(Debug, Clone)]
 pub struct AppliedVerbatimAnnotation {
     pub placement: String, //string<32>
     pub language: String,  //string<32>
@@ -457,6 +494,7 @@ pub struct AppliedVerbatimAnnotation {
 
 // --- Aggregate types: ------------------------------------------------
 // @extensibility(APPENDABLE) @nested
+#[derive(Debug, Clone)]
 pub struct AppliedBuiltinMemberAnnotations {
     pub unit: Option<String>,                  // @unit("<unit>")
     pub min: Option<AnnotationParameterValue>, // @min , @range
@@ -465,6 +503,7 @@ pub struct AppliedBuiltinMemberAnnotations {
 }
 
 // @extensibility(FINAL) @nested
+#[derive(Debug, Clone)]
 pub struct CommonStructMember {
     pub member_id: MemberId,
     pub member_flags: StructMemberFlag,
@@ -473,6 +512,7 @@ pub struct CommonStructMember {
 
 // COMPLETE Details for a member of an aggregate type
 // @extensibility(FINAL) @nested
+#[derive(Debug, Clone)]
 pub struct CompleteMemberDetail {
     pub name: MemberName,
     pub ann_builtin: Option<AppliedBuiltinMemberAnnotations>,
@@ -480,6 +520,7 @@ pub struct CompleteMemberDetail {
 }
 // MINIMAL Details for a member of an aggregate type
 // @extensibility(FINAL) @nested
+#[derive(Debug, Clone)]
 pub struct MinimalMemberDetail {
     pub name_hash: NameHash,
 }
@@ -494,6 +535,7 @@ pub struct CompleteStructMember {
 pub type CompleteStructMemberSeq = Vec<CompleteStructMember>;
 // Member of an aggregate type
 // @extensibility(APPENDABLE) @nested
+#[derive(Debug, Clone)]
 pub struct MinimalStructMember {
     pub common: CommonStructMember,
     pub detail: MinimalMemberDetail,
@@ -501,16 +543,19 @@ pub struct MinimalStructMember {
 // Ordered by common.member_id
 pub type MinimalStructMemberSeq = Vec<MinimalStructMember>;
 // @extensibility(APPENDABLE) @nested
+#[derive(Debug, Clone)]
 pub struct AppliedBuiltinTypeAnnotations {
     pub verbatim: Option<AppliedVerbatimAnnotation>, // @verbatim(...)
 }
 
 // @extensibility(FINAL) @nested
+#[derive(Debug, Clone)]
 pub struct MinimalTypeDetail {
     // Empty. Available for future extension
 }
 
 // @extensibility(FINAL) @nested
+#[derive(Debug, Clone)]
 pub struct CompleteTypeDetail {
     pub ann_builtin: Option<AppliedBuiltinTypeAnnotations>,
     pub ann_custom: Option<AppliedAnnotationSeq>,
@@ -518,12 +563,14 @@ pub struct CompleteTypeDetail {
 }
 
 // @extensibility(APPENDABLE) @nested
+#[derive(Debug, Clone)]
 pub struct CompleteStructHeader {
     pub base_type: TypeIdentifier,
     pub detail: CompleteTypeDetail,
 }
 
 // @extensibility(APPENDABLE) @nested
+#[derive(Debug, Clone)]
 pub struct MinimalStructHeader {
     pub base_type: TypeIdentifier,
     pub detail: MinimalTypeDetail,
@@ -537,6 +584,7 @@ pub struct CompleteStructType {
 }
 
 // @extensibility(FINAL) @nested
+#[derive(Debug, Clone)]
 pub struct MinimalStructType {
     pub struct_flags: StructTypeFlag,
     pub header: MinimalStructHeader,
@@ -548,6 +596,7 @@ pub struct MinimalStructType {
 // Ordered by their values
 pub type UnionCaseLabelSeq = Vec<i32>;
 // @extensibility(FINAL) @nested
+#[derive(Debug, Clone)]
 pub struct CommonUnionMember {
     pub member_id: MemberId,
     pub member_flags: UnionMemberFlag,
@@ -566,6 +615,7 @@ pub type CompleteUnionMemberSeq = Vec<CompleteUnionMember>;
 
 // Member of a union type
 // @extensibility(APPENDABLE) @nested
+#[derive(Debug, Clone)]
 pub struct MinimalUnionMember {
     pub common: CommonUnionMember,
     pub detail: MinimalMemberDetail,
@@ -573,6 +623,7 @@ pub struct MinimalUnionMember {
 // Ordered by MinimalUnionMember.common.member_id
 pub type MinimalUnionMemberSeq = Vec<MinimalUnionMember>;
 // @extensibility(FINAL) @nested
+#[derive(Debug, Clone)]
 pub struct CommonDiscriminatorMember {
     pub member_flags: UnionDiscriminatorFlag,
     pub type_id: TypeIdentifier,
@@ -586,16 +637,19 @@ pub struct CompleteDiscriminatorMember {
 }
 // Member of a union type
 // @extensibility(APPENDABLE) @nested
+#[derive(Debug, Clone)]
 pub struct MinimalDiscriminatorMember {
     pub common: CommonDiscriminatorMember,
 }
 
 // @extensibility(APPENDABLE) @nested
+#[derive(Debug, Clone)]
 pub struct CompleteUnionHeader {
     pub detail: CompleteTypeDetail,
 }
 
 // @extensibility(APPENDABLE) @nested
+#[derive(Debug, Clone)]
 pub struct MinimalUnionHeader {
     pub detail: MinimalTypeDetail,
 }
@@ -609,6 +663,7 @@ pub struct CompleteUnionType {
 }
 
 // @extensibility(FINAL) @nested
+#[derive(Debug, Clone)]
 pub struct MinimalUnionType {
     pub union_flags: UnionTypeFlag,
     pub header: MinimalUnionHeader,
@@ -618,6 +673,7 @@ pub struct MinimalUnionType {
 
 // --- Annotation: ----------------------------------------------------
 // @extensibility(FINAL) @nested
+#[derive(Debug, Clone)]
 pub struct CommonAnnotationParameter {
     pub member_flags: AnnotationParameterFlag,
     pub member_type_id: TypeIdentifier,
@@ -625,6 +681,7 @@ pub struct CommonAnnotationParameter {
 
 // Member of an annotation type
 // @extensibility(APPENDABLE) @nested
+#[derive(Debug, Clone)]
 pub struct CompleteAnnotationParameter {
     pub common: CommonAnnotationParameter,
     pub name: MemberName,
@@ -634,6 +691,7 @@ pub struct CompleteAnnotationParameter {
 pub type CompleteAnnotationParameterSeq = Vec<CompleteAnnotationParameter>;
 
 // @extensibility(APPENDABLE) @nested
+#[derive(Debug, Clone)]
 pub struct MinimalAnnotationParameter {
     pub common: CommonAnnotationParameter,
     pub name_hash: NameHash,
@@ -647,6 +705,7 @@ pub struct CompleteAnnotationHeader {
 }
 
 // @extensibility(APPENDABLE) @nested
+#[derive(Debug, Clone)]
 pub struct MinimalAnnotationHeader {
     // Empty. Available for future extension
 }
@@ -659,6 +718,7 @@ pub struct CompleteAnnotationType {
 }
 
 // @extensibility(FINAL) @nested
+#[derive(Debug, Clone)]
 pub struct MinimalAnnotationType {
     pub annotation_flag: AnnotationTypeFlag,
     pub header: MinimalAnnotationHeader,
@@ -667,6 +727,7 @@ pub struct MinimalAnnotationType {
 
 // --- Alias: ----------------------------------------------------------
 // @extensibility(FINAL) @nested
+#[derive(Debug, Clone)]
 pub struct CommonAliasBody {
     pub related_flags: AliasMemberFlag,
     pub related_type: TypeIdentifier,
@@ -680,6 +741,7 @@ pub struct CompleteAliasBody {
 }
 
 // @extensibility(APPENDABLE) @nested
+#[derive(Debug, Clone)]
 pub struct MinimalAliasBody {
     pub common: CommonAliasBody,
 }
@@ -690,6 +752,7 @@ pub struct CompleteAliasHeader {
 }
 
 // @extensibility(APPENDABLE) @nested
+#[derive(Debug, Clone)]
 pub struct MinimalAliasHeader {
     // Empty. Available for future extension
 }
@@ -702,6 +765,7 @@ pub struct CompleteAliasType {
 }
 
 // @extensibility(FINAL) @nested
+#[derive(Debug, Clone)]
 pub struct MinimalAliasType {
     pub alias_flags: AliasTypeFlag,
     pub header: MinimalAliasHeader,
@@ -710,46 +774,54 @@ pub struct MinimalAliasType {
 
 // --- Collections: ----------------------------------------------------
 // @extensibility(FINAL) @nested
+#[derive(Debug, Clone)]
 pub struct CompleteElementDetail {
     pub ann_builtin: Option<AppliedBuiltinMemberAnnotations>,
     pub ann_custom: Option<AppliedAnnotationSeq>,
 }
 
 // @extensibility(FINAL) @nested
+#[derive(Debug, Clone)]
 pub struct CommonCollectionElement {
     pub element_flags: CollectionElementFlag,
     pub _type: TypeIdentifier,
 }
 
 // @extensibility(APPENDABLE) @nested
+#[derive(Debug, Clone)]
 pub struct CompleteCollectionElement {
     pub common: CommonCollectionElement,
     pub detail: CompleteElementDetail,
 }
 
 // @extensibility(APPENDABLE) @nested
+#[derive(Debug, Clone)]
 pub struct MinimalCollectionElement {
     pub common: CommonCollectionElement,
 }
 
 // @extensibility(FINAL) @nested
+#[derive(Debug, Clone)]
 pub struct CommonCollectionHeader {
     pub bound: LBound,
 }
 
 // @extensibility(APPENDABLE) @nested
+#[derive(Debug, Clone)]
 pub struct CompleteCollectionHeader {
     pub common: CommonCollectionHeader,
     pub detail: Option<CompleteTypeDetail>, // not present for anonymous
 }
 
 // @extensibility(APPENDABLE) @nested
+#[derive(Debug, Clone)]
 pub struct MinimalCollectionHeader {
     pub common: CommonCollectionHeader,
 }
 
 // --- Sequence: ------------------------------------------------------
 // @extensibility(FINAL) @nested
+#[derive(Debug, Clone)]
 pub struct CompleteSequenceType {
     pub collection_flag: CollectionTypeFlag,
     pub header: CompleteCollectionHeader,
@@ -757,6 +829,7 @@ pub struct CompleteSequenceType {
 }
 
 // @extensibility(FINAL) @nested
+#[derive(Debug, Clone)]
 pub struct MinimalSequenceType {
     pub collection_flag: CollectionTypeFlag,
     pub header: MinimalCollectionHeader,
@@ -765,22 +838,26 @@ pub struct MinimalSequenceType {
 
 // --- Array: ------------------------------------------------------
 // @extensibility(FINAL) @nested
+#[derive(Debug, Clone)]
 pub struct CommonArrayHeader {
     pub bound_seq: LBoundSeq,
 }
 
 // @extensibility(APPENDABLE) @nested
+#[derive(Debug, Clone)]
 pub struct CompleteArrayHeader {
     pub common: CommonArrayHeader,
     pub detail: CompleteTypeDetail,
 }
 
 // @extensibility(APPENDABLE) @nested
+#[derive(Debug, Clone)]
 pub struct MinimalArrayHeader {
     pub common: CommonArrayHeader,
 }
 
 // @extensibility(APPENDABLE) @nested
+#[derive(Debug, Clone)]
 pub struct CompleteArrayType {
     pub collection_flag: CollectionTypeFlag,
     pub header: CompleteArrayHeader,
@@ -788,6 +865,7 @@ pub struct CompleteArrayType {
 }
 
 // @extensibility(FINAL) @nested
+#[derive(Debug, Clone)]
 pub struct MinimalArrayType {
     pub collection_flag: CollectionTypeFlag,
     pub header: MinimalArrayHeader,
@@ -804,6 +882,7 @@ pub struct CompleteMapType {
 }
 
 // @extensibility(FINAL) @nested
+#[derive(Debug, Clone)]
 pub struct MinimalMapType {
     pub collection_flag: CollectionTypeFlag,
     pub header: MinimalCollectionHeader,
@@ -815,6 +894,7 @@ pub struct MinimalMapType {
 pub type BitBound = u16;
 // Constant in an enumerated type
 // @extensibility(APPENDABLE) @nested
+#[derive(Debug, Clone)]
 pub struct CommonEnumeratedLiteral {
     pub value: i32,
     pub flags: EnumeratedLiteralFlag,
@@ -832,6 +912,7 @@ pub type CompleteEnumeratedLiteralSeq = Vec<CompleteEnumeratedLiteral>;
 
 // Constant in an enumerated type
 // @extensibility(APPENDABLE) @nested
+#[derive(Debug, Clone)]
 pub struct MinimalEnumeratedLiteral {
     pub common: CommonEnumeratedLiteral,
     pub detail: MinimalMemberDetail,
@@ -840,6 +921,7 @@ pub struct MinimalEnumeratedLiteral {
 // Ordered by EnumeratedLiteral.common.value
 pub type MinimalEnumeratedLiteralSeq = Vec<MinimalEnumeratedLiteral>;
 // @extensibility(FINAL) @nested
+#[derive(Debug, Clone)]
 pub struct CommonEnumeratedHeader {
     pub bit_bound: BitBound,
 }
@@ -851,6 +933,7 @@ pub struct CompleteEnumeratedHeader {
 }
 
 // @extensibility(APPENDABLE) @nested
+#[derive(Debug, Clone)]
 pub struct MinimalEnumeratedHeader {
     pub common: CommonEnumeratedHeader,
 }
@@ -865,6 +948,7 @@ pub struct CompleteEnumeratedType {
 
 // Enumerated type
 // @extensibility(FINAL) @nested
+#[derive(Debug, Clone)]
 pub struct MinimalEnumeratedType {
     pub enum_flags: EnumTypeFlag, // unused
     pub header: MinimalEnumeratedHeader,
@@ -874,6 +958,7 @@ pub struct MinimalEnumeratedType {
 // --- Bitmask: --------------------------------------------------------
 // Bit in a bit mask
 // @extensibility(FINAL) @nested
+#[derive(Debug, Clone)]
 pub struct CommonBitflag {
     pub position: u16,
     pub flags: BitflagFlag,
@@ -888,6 +973,7 @@ pub struct CompleteBitflag {
 pub type CompleteBitflagSeq = Vec<CompleteBitflag>;
 
 // @extensibility(APPENDABLE) @nested
+#[derive(Debug, Clone)]
 pub struct MinimalBitflag {
     pub common: CommonBitflag,
     pub detail: MinimalMemberDetail,
@@ -908,6 +994,7 @@ pub struct CompleteBitmaskType {
 }
 
 // @extensibility(APPENDABLE) @nested
+#[derive(Debug, Clone)]
 pub struct MinimalBitmaskType {
     pub bitmask_flags: BitmaskTypeFlag, // unused
     pub header: MinimalBitmaskHeader,
@@ -916,6 +1003,7 @@ pub struct MinimalBitmaskType {
 
 // --- Bitset: ----------------------------------------------------------
 // @extensibility(FINAL) @nested
+#[derive(Debug, Clone)]
 pub struct CommonBitfield {
     pub position: u16,
     pub flags: BitsetMemberFlag,
@@ -933,6 +1021,7 @@ pub struct CompleteBitfield {
 pub type CompleteBitfieldSeq = Vec<CompleteBitfield>;
 
 // @extensibility(APPENDABLE) @nested
+#[derive(Debug, Clone)]
 pub struct MinimalBitfield {
     pub common: CommonBitfield,
     pub name_hash: NameHash,
@@ -946,6 +1035,7 @@ pub struct CompleteBitsetHeader {
 }
 
 // @extensibility(APPENDABLE) @nested
+#[derive(Debug, Clone)]
 pub struct MinimalBitsetHeader {
     // Empty. Available for future extension
 }
@@ -958,6 +1048,7 @@ pub struct CompleteBitsetType {
 }
 
 // @extensibility(APPENDABLE) @nested
+#[derive(Debug, Clone)]
 pub struct MinimalBitsetType {
     pub bitset_flags: BitsetTypeFlag, // unused
     pub header: MinimalBitsetHeader,
@@ -1015,6 +1106,7 @@ pub struct MinimalExtendedType {
 }
 
 // @extensibility(FINAL) @nested
+#[derive(Debug, Clone)]
 #[repr(u8)]
 pub enum MinimalTypeObject {
     TkAlias {

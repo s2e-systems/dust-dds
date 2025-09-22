@@ -4,6 +4,7 @@ pub type XTypesResult<T> = Result<T, XTypesError>;
 pub enum XTypesError {
     OutOfMemory,
     InvalidData,
+    InvalidType,
     PidNotFound(u16),
     InvalidIndex,
     /// An operation was invoked on an inappropriate object or

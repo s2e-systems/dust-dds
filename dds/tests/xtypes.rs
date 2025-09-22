@@ -1,7 +1,7 @@
 use dust_dds::xtypes::{
     dynamic_type::{
-        DynamicTypeBuilderFactory, ExtensibilityKind, MemberDescriptor, TryConstructKind,
-        TypeDescriptor,
+        DynamicDataFactory, DynamicTypeBuilderFactory, ExtensibilityKind, MemberDescriptor,
+        TryConstructKind, TypeDescriptor,
     },
     type_object::{StringSTypeDefn, TypeIdentifier, TypeKind},
 };
@@ -51,4 +51,40 @@ fn create_type_with_builder() {
         .unwrap();
 
     let dynamic_shape_type = builder.build();
+}
+
+#[test]
+fn create_type_with_data() {
+    let mut builder = DynamicTypeBuilderFactory::create_type(TypeDescriptor {
+        kind: TypeKind::STRUCTURE,
+        name: String::from("Shape"),
+        extensibility_kind: ExtensibilityKind::Appendable,
+        is_nested: false,
+    });
+
+    builder
+        .add_member(MemberDescriptor {
+            name: String::from("Color"),
+            id: 0,
+            r#type: TypeIdentifier::TiString8Small {
+                string_sdefn: StringSTypeDefn { bound: 128 },
+            },
+            default_value: "",
+            index: 0,
+            try_construct_kind: TryConstructKind::UseDefault,
+            is_key: true,
+            is_optional: false,
+            is_must_understand: true,
+            is_shared: false,
+            is_default_label: false,
+        })
+        .unwrap();
+
+    let dynamic_shape_type = builder.build();
+
+    let mut dynamic_shape_data = DynamicDataFactory::create_data(dynamic_shape_type);
+    dynamic_shape_data
+        .set_string_value(0, String::from("BLUE"))
+        .unwrap();
+    assert_eq!(dynamic_shape_data.get_string_value(0).unwrap(), "BLUE");
 }
