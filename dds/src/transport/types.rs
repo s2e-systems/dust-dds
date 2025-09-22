@@ -1,5 +1,4 @@
-use std::sync::Arc;
-
+use alloc::{sync::Arc, vec::Vec};
 use dust_dds_derive::{XTypesDeserialize, XTypesSerialize};
 
 pub type Octet = u8;

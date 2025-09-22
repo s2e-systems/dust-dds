@@ -66,7 +66,7 @@ pub trait DynamicType: Send + Sync + 'static {
 }
 
 pub trait DynamicTypeMember {
-    fn get_descriptor(&self) -> Result<MemberDescriptor, XTypesError>;
+    fn get_descriptor(&self) -> Result<MemberDescriptor<'_>, XTypesError>;
     // unsigned long get_annotation_count();
     // DDS::ReturnCode_t get_annotation(inout AnnotationDescriptor descriptor, in unsigned long idx);
     // unsigned long get_verbatim_text_count();

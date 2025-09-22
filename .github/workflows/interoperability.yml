@@ -1,28 +1,16 @@
-name: interoperability
+name: OMG interoperability
 
 on:
   workflow_dispatch:
 
-jobs:  
-  interoperability:
-    name: OMG Interoperability
+jobs:
+  create_bin_release:
+    name: Create binary release
     runs-on: ubuntu-latest
     steps:
     - name: Checkout sources
       uses: actions/checkout@v4
-    - name: Checkout dds-rtps
-      uses: actions/checkout@v4
-      with:
-        repository: omg-dds/dds-rtps
-        ref: '53803e70c00cbf60c816bb95c7886701ab9ae597'
-        path: omg-dds-rtps
-        sparse-checkout-cone-mode: false
-        sparse-checkout: |
-          interoperability_report.py
-          test_suite.py
-          rtps_test_utilities.py
-          requirements.txt
-    - uses: dtolnay/rust-toolchain@stable
+
     - run: cargo build --package dust_dds_shape_main_linux --release
     - name: Install tomlq
       run: cargo install tomlq
@@ -30,40 +18,138 @@ jobs:
       run: sudo apt-get install zip -y
     - name: Rename executable
       run: |
-        version=$( tq -f dds/Cargo.toml 'package.version' )
+        version=$( tq -f dds/Cargo.toml 'package.version' | tr -d '"' )
         cp ./target/release/dust_dds_shape_main_linux ./dust_dds-${version}_shape_main_linux
         mkdir artifacts
         zip --junk-paths artifacts/dust_dds-${version}_shape_main_linux.zip ./dust_dds-${version}_shape_main_linux
-    - name: Upload executable
+    - name: Upload executable artifact
       uses: actions/upload-artifact@v4
       with:
         name: interoperability_executable
         path: ./artifacts/
+
+  run_tests:
+    runs-on: ubuntu-latest
+    needs: create_bin_release
+    strategy:
+      matrix:
+        include:
+        - publisher: dust_dds
+          subscriber: dust_dds
+        - publisher: dust_dds
+          subscriber: connext_dds
+        - publisher: dust_dds
+          subscriber: eprosima_fastdds
+        - publisher: dust_dds
+          subscriber: toc_coredx_dds
+        - publisher: dust_dds
+          subscriber: intercom_dds
+        - publisher: dust_dds
+          subscriber: opendds
+
+        - publisher: connext_dds
+          subscriber: dust_dds
+        - publisher: eprosima_fastdds
+          subscriber: dust_dds
+        - publisher: toc_coredx_dds
+          subscriber: dust_dds
+        - publisher: intercom_dds
+          subscriber: dust_dds
+        - publisher: opendds
+          subscriber: dust_dds
+
+    steps:
+    - name: Checkout sources
+      uses: actions/checkout@v4
+    - name: Checkout dds-rtps
+      uses: actions/checkout@v4
+      with:
+        repository: omg-dds/dds-rtps
+        ref: '9e1fdbcd30bc785e5e5113a94e5e936695a3385e'
+        path: omg-dds-rtps
+        sparse-checkout-cone-mode: false
+        sparse-checkout: |
+          interoperability_report.py
+          test_suite.py
+          rtps_test_utilities.py
+          test_suite_functions.py
+          requirements.txt
     - uses: actions/setup-python@v5
       with:
         python-version: '3.11.4'
-    - name: Downloads assets
+    - name: Downloads shape_main executables from OMG
       uses: robinraju/release-downloader@v1.10
       with:
         repository: omg-dds/dds-rtps
         latest: true
+        preRelease: true
         fileName: "*"
-    - name: Unzip
+    - name: Remove DustDDS
+      run: rm dust_dds-*
+    - name: Download dust_dds_shape_main executable artifact from create_bin_release
+      uses: actions/download-artifact@v4
+      with:
+        name: interoperability_executable
+    - name: Unzip executables
       run: unzip '*.zip' -d executables
-    - name: Setting up environment
-      run: pip install -r omg-dds-rtps/requirements.txt
-    - name: Publisher Dust - Subscriber Connext
-      run: python3 ./omg-dds-rtps/interoperability_report.py -P ./target/release/dust_dds_shape_main_linux -S ./executables/connext_dds-*_shape_main_linux -o=report.xml
-    - name: Publisher Connext - Subscriber Dust
-      run: python3 ./omg-dds-rtps/interoperability_report.py -P ./executables/connext_dds-*_shape_main_linux -S ./target/release/dust_dds_shape_main_linux -o=report.xml
+    - name: List directory
+      run: ls -l
+    - name: Install omg-dds dds-rtps Python requirements
+      run: pip install --requirement omg-dds-rtps/requirements.txt
+
+    - name: Run Interoperability script
+      timeout-minutes: 60
+      run: python3 ./omg-dds-rtps/interoperability_report.py --verbose --publisher ./executables/${{ matrix.publisher }}-*shape_main_linux --subscriber ./executables/${{ matrix.subscriber }}-*shape_main_linux --output-name junit_report-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml
+
+    - name: Upload report
+      uses: actions/upload-artifact@v4
+      with:
+        name: junit_report-${{ matrix.publisher }}-${{ matrix.subscriber }}
+        path: ./junit_report-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml
+
+  report:
+    runs-on: ubuntu-latest
+    needs: run_tests
+    steps:
+    - name: Download junit reports
+      uses: actions/download-artifact@v4
+      with:
+        pattern: junit_report-*
+        merge-multiple: true
+    - name: Checkout omg-dds dds-rtps
+      uses: actions/checkout@v4
+      with:
+        repository: omg-dds/dds-rtps
+        ref: '9e1fdbcd30bc785e5e5113a94e5e936695a3385e'
+        path: omg-dds-rtps
+        sparse-checkout-cone-mode: false
+        sparse-checkout: |
+          generate_xlsx_report.py
+          rtps_test_utilities.py
+          test_suite.py
+          test_suite_functions.py
+          requirements.txt
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.11.4'
+    - name: Install omg-dds dds-rtps Python requirements
+      run: pip install --requirement omg-dds-rtps/requirements.txt
+    - name: merge reports
+      run: junitparser merge *.xml junit_interoperability_report.xml
+    - name: List directory
+      run: ls -l
+    - name: Generate xlsx report
+      run: python3 ./omg-dds-rtps/generate_xlsx_report.py --input junit_interoperability_report.xml --output interoperability_report.xlsx
     - name: XUnit
       uses: AutoModality/action-xunit-viewer@v1
       with:
-        results: ./report.xml
+        results: ./junit_interoperability_report.xml
         fail: false
     - name: Upload report
       uses: actions/upload-artifact@v4
       with:
-        name: interoperability_report
-        path: ./index.html
-    
+        name: interoperability_report_complete
+        path: |
+          ./index.html
+          ./junit_interoperability_report.xml
+          ./interoperability_report.xlsx

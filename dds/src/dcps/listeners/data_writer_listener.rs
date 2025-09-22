@@ -1,13 +1,13 @@
 use crate::{
-    runtime::{ChannelReceive, DdsRuntime, Spawner},
     publication::data_writer_listener::DataWriterListener,
+    runtime::{ChannelReceive, DdsRuntime, Spawner},
 };
 
 use super::domain_participant_listener::ListenerMail;
 
-pub struct DataWriterListenerActor;
+pub struct DcpsDataWriterListener;
 
-impl DataWriterListenerActor {
+impl DcpsDataWriterListener {
     pub fn spawn<R: DdsRuntime, Foo>(
         mut listener: impl DataWriterListener<R, Foo> + Send + 'static,
         spawner_handle: &R::SpawnerHandle,

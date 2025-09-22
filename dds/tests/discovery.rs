@@ -466,7 +466,6 @@ fn reader_discovers_disposed_writer_same_participant() {
 }
 
 #[test]
-#[ignore = "Broken because crate needs std"]
 fn publisher_and_subscriber_different_partition_not_matched() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let dp = DomainParticipantFactory::get_instance()
@@ -1112,7 +1111,7 @@ fn participant_removed_after_lease_duration() {
         .delete_participant(&participant2)
         .unwrap();
 
-    std::thread::sleep(std::time::Duration::from_secs(110));
+    std::thread::sleep(std::time::Duration::from_secs(5));
 
     let discovered_participant = participant1.get_discovered_participants().unwrap();
 

@@ -5,9 +5,9 @@ use crate::{
 
 use super::domain_participant_listener::ListenerMail;
 
-pub struct SubscriberListenerActor;
+pub struct DcpsSubscriberListener;
 
-impl SubscriberListenerActor {
+impl DcpsSubscriberListener {
     pub fn spawn<R: DdsRuntime>(
         mut listener: impl SubscriberListener<R> + Send + 'static,
         spanwer_handle: &R::SpawnerHandle,

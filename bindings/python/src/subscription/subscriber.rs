@@ -9,7 +9,7 @@ use crate::{
         qos::{DataReaderQos, SubscriberQos},
         status::{SampleLostStatus, StatusKind},
     },
-    topic_definition::topic::Topic,
+    topic_definition::topic_description::TopicDescription,
 };
 
 use super::{
@@ -57,7 +57,7 @@ impl Subscriber {
     #[pyo3(signature = (a_topic, qos = None, a_listener = None, mask = Vec::new()))]
     pub fn create_datareader(
         &self,
-        a_topic: &Topic,
+        a_topic: &TopicDescription,
         qos: Option<DataReaderQos>,
         a_listener: Option<Py<PyAny>>,
         mask: Vec<StatusKind>,
@@ -78,7 +78,7 @@ impl Subscriber {
 
         match r {
             Ok(dr) => Ok(dr.into()),
-            Err(e) => Err(PyTypeError::new_err(format!("{:?}", e))),
+            Err(e) => Err(PyTypeError::new_err(format!("{e:?}"))),
         }
     }
 

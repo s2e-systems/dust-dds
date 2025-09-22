@@ -8,33 +8,35 @@ pub enum Extensibility {
 
 pub fn get_input_extensibility(input: &DeriveInput) -> Result<Extensibility> {
     let mut extensibility = Extensibility::Final;
-
-    for attr in input.attrs.iter().filter(|a| a.path().is_ident("dust_dds")) {
-        attr.parse_nested_meta(|meta| {
-            let name = meta.path.get_ident().map(|id| id.to_string());
-
-            match name.as_deref() {
-                Some("extensibility") => {
-                    let format_str: syn::LitStr = meta.value()?.parse()?;
-                    extensibility = match format_str.value().as_str() {
-                        "Final" => Extensibility::Final,
-                        "Appendable" => Extensibility::Appendable,
-                        "Mutable" => Extensibility::Mutable,
-                        other => {
-                            return Err(syn::Error::new(
-                                format_str.span(),
-                                format!("Invalid extensibility: `{}`. Use \"Final\", \"Appendable\", or \"Mutable\"", other),
-                            ));
-                        }
-                    };
+    if let Some(xtypes_attribute) = input
+        .attrs
+        .iter()
+        .find(|attr| attr.path().is_ident("dust_dds"))
+    {
+        xtypes_attribute.parse_nested_meta(|meta| {
+            if meta.path.is_ident("extensibility") {
+                let format_str: syn::LitStr = meta.value()?.parse()?;
+                match format_str.value().as_ref() {
+                    "final" => {
+                        extensibility = Extensibility::Final;
+                        Ok(())
+                    }
+                    "appendable" => {
+                        extensibility = Extensibility::Appendable;
+                        Ok(())
+                    }
+                    "mutable" => {
+                        extensibility = Extensibility::Mutable;
+                        Ok(())
+                    }
+                    _ => Err(syn::Error::new(
+                        meta.path.span(),
+                        r#"Invalid format specified. Valid options are "final", "appendable", "mutable". "#,
+                    )),
                 }
-                Some("final") => extensibility = Extensibility::Final,
-                Some("appendable") => extensibility = Extensibility::Appendable,
-                Some("mutable") => extensibility = Extensibility::Mutable,
-                _ => {}
+            } else {
+                Ok(())
             }
-
-            Ok(())
         })?;
     }
 

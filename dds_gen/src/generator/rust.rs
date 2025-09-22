@@ -215,7 +215,7 @@ pub fn generate_rust_source(pair: IdlPair, writer: &mut String) {
         Rule::annotation_member => todo!(),
         Rule::annotation_member_type => todo!(),
         Rule::any_const_type => todo!(),
-        Rule::annotation_appl => annotation_appl(pair, writer),
+        Rule::annotation_appl => todo!(),
         Rule::annotation_appl_params => todo!(),
         Rule::annotation_appl_param => todo!(),
     }
@@ -291,6 +291,29 @@ fn struct_def(pair: IdlPair, writer: &mut String) {
         .expect("Identifier must exist according to the grammar");
 
     writer.push_str("#[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]\n");
+    for annotation_appl in inner_pairs
+        .clone()
+        .filter(|p| p.as_rule() == Rule::annotation_appl)
+    {
+        let inner_pairs = annotation_appl.into_inner();
+
+        let scoped_name = inner_pairs
+            .clone()
+            .find(|p| p.as_rule() == Rule::scoped_name)
+            .expect("Must have a scoped name according to the grammar");
+
+        let identifier = scoped_name
+            .into_inner()
+            .next()
+            .expect("Must have an identifier according to the grammar");
+
+        match identifier.as_str() {
+            "final" => writer.push_str("#[dust_dds(extensibility = \"final\")]\n"),
+            "appendable" => writer.push_str("#[dust_dds(extensibility = \"appendable\")]\n"),
+            "mutable" => writer.push_str("#[dust_dds(extensibility = \"mutable\")]\n"),
+            _ => (),
+        }
+    }
     writer.push_str("pub struct ");
     generate_rust_source(identifier, writer);
 
@@ -350,7 +373,21 @@ fn member(pair: IdlPair, writer: &mut String) {
         .clone()
         .filter(|p| p.as_rule() == Rule::annotation_appl)
     {
-        generate_rust_source(annotation_appl, writer);
+        let inner_pairs = annotation_appl.into_inner();
+
+        let scoped_name = inner_pairs
+            .clone()
+            .find(|p| p.as_rule() == Rule::scoped_name)
+            .expect("Must have a scoped name according to the grammar");
+
+        let identifier = scoped_name
+            .into_inner()
+            .next()
+            .expect("Must have an identifier according to the grammar");
+
+        if identifier.as_str() == "key" {
+            writer.push_str("#[dust_dds(key)]");
+        }
     }
 
     for declarator in declarators.into_inner() {
@@ -740,24 +777,6 @@ fn const_expr(pair: IdlPair, writer: &mut String) {
     writer.push_str(pair.as_str());
 }
 
-fn annotation_appl(pair: IdlPair, writer: &mut String) {
-    let inner_pairs = pair.into_inner();
-
-    let scoped_name = inner_pairs
-        .clone()
-        .find(|p| p.as_rule() == Rule::scoped_name)
-        .expect("Must have a scoped name according to the grammar");
-
-    let identifier = scoped_name
-        .into_inner()
-        .next()
-        .expect("Must have an identifier according to the grammar");
-
-    if identifier.as_str() == "key" {
-        writer.push_str("#[dust_dds(key)]");
-    }
-}
-
 fn scoped_name(pair: IdlPair, writer: &mut String) {
     let identifier = pair
         .into_inner()
@@ -939,6 +958,21 @@ mod tests {
         assert_eq!(
             "#[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]\npub struct MyStruct {pub a:i32,pub b:i64,pub c:i64,pub xary:[u8;32],pub yary:[u8;64],}\n",
             &out
+        );
+    }
+
+    #[test]
+    fn parse_appendable_struct() {
+        let mut out = String::new();
+        let p = IdlParser::parse(Rule::struct_def, "@appendable struct MyStruct { long a; };")
+            .unwrap()
+            .next()
+            .unwrap();
+        generate_rust_source(p, &mut out);
+        println!("RESULT: {}", out);
+        assert_eq!(
+            &out,
+            "#[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]\n#[dust_dds(extensibility = \"appendable\")]\npub struct MyStruct {pub a:i32,}\n",
         );
     }
 

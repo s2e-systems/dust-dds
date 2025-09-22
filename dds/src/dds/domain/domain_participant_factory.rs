@@ -1,7 +1,6 @@
 use super::domain_participant::DomainParticipant;
 use crate::{
     configuration::DustDdsConfiguration,
-    dcps::domain_participant_factory_actor::DdsTransportParticipantFactory,
     dds_async::domain_participant_factory::DomainParticipantFactoryAsync,
     domain::domain_participant_listener::DomainParticipantListener,
     infrastructure::{
@@ -11,17 +10,25 @@ use crate::{
         status::StatusKind,
     },
     runtime::DdsRuntime,
+    transport::interface::TransportParticipantFactory,
 };
 use tracing::warn;
 
 /// The sole purpose of this class is to allow the creation and destruction of [`DomainParticipant`] objects.
 /// [`DomainParticipantFactory`] itself has no factory. It is a pre-existing singleton object that can be accessed by means of the
 /// [`DomainParticipantFactory::get_instance`] operation.
-pub struct DomainParticipantFactory<R: DdsRuntime> {
-    participant_factory_async: &'static DomainParticipantFactoryAsync<R>,
+pub struct DomainParticipantFactory<R: DdsRuntime, T: TransportParticipantFactory> {
+    participant_factory_async: &'static DomainParticipantFactoryAsync<R, T>,
 }
 
-impl<R: DdsRuntime> DomainParticipantFactory<R> {
+impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantFactory<R, T> {
+    /// Construct a new ['DomainParticipantFactory'] from an existing ['DomainParticipantFactoryAsync'] static reference
+    pub fn new(participant_factory_async: &'static DomainParticipantFactoryAsync<R, T>) -> Self {
+        Self {
+            participant_factory_async,
+        }
+    }
+
     /// This operation creates a new [`DomainParticipant`] object. The [`DomainParticipant`] signifies that the calling application intends
     /// to join the Domain identified by the `domain_id` argument.
     /// If the specified QoS policies are not consistent, the operation will fail and no [`DomainParticipant`] will be created.
@@ -109,7 +116,7 @@ impl<R: DdsRuntime> DomainParticipantFactory<R> {
     }
 }
 
-impl<R: DdsRuntime> DomainParticipantFactory<R> {
+impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantFactory<R, T> {
     /// Set the configuration of the [`DomainParticipantFactory`] singleton
     pub fn set_configuration(&self, configuration: DustDdsConfiguration) -> DdsResult<()> {
         R::block_on(
@@ -122,26 +129,29 @@ impl<R: DdsRuntime> DomainParticipantFactory<R> {
     pub fn get_configuration(&self) -> DdsResult<DustDdsConfiguration> {
         R::block_on(self.participant_factory_async.get_configuration())
     }
-
-    /// Set the transport to be used by the [`DomainParticipants`] entities
-    /// created by the [`DomainParticipantFactory`] singleton
-    pub fn set_transport(&self, transport: DdsTransportParticipantFactory) -> DdsResult<()> {
-        R::block_on(self.participant_factory_async.set_transport(transport))
-    }
 }
 
 #[cfg(feature = "std")]
-impl DomainParticipantFactory<crate::std_runtime::StdRuntime> {
+impl
+    DomainParticipantFactory<
+        crate::std_runtime::StdRuntime,
+        crate::rtps_udp_transport::udp_transport::RtpsUdpTransportParticipantFactory,
+    >
+{
     /// This operation returns the [`DomainParticipantFactory`] singleton. The operation is idempotent, that is, it can be called multiple
     /// times without side-effects and it will return the same [`DomainParticipantFactory`] instance.
     #[tracing::instrument]
     pub fn get_instance() -> &'static Self {
         static PARTICIPANT_FACTORY: std::sync::OnceLock<
-            DomainParticipantFactory<crate::std_runtime::StdRuntime>,
+            DomainParticipantFactory<
+                crate::std_runtime::StdRuntime,
+                crate::rtps_udp_transport::udp_transport::RtpsUdpTransportParticipantFactory,
+            >,
         > = std::sync::OnceLock::new();
         PARTICIPANT_FACTORY.get_or_init(|| DomainParticipantFactory {
             participant_factory_async: DomainParticipantFactoryAsync::<
                 crate::std_runtime::StdRuntime,
+                crate::rtps_udp_transport::udp_transport::RtpsUdpTransportParticipantFactory,
             >::get_instance(),
         })
     }

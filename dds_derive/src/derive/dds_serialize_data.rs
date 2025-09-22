@@ -48,20 +48,20 @@ pub fn expand_dds_serialize_data(input: &DeriveInput) -> Result<TokenStream> {
         dust_dds::infrastructure::type_support::serialize_rtps_xtypes_xcdr1_le(self)
     };
 
-    Ok(quote! {
-        impl #impl_generics dust_dds::infrastructure::type_support::DdsSerialize for #ident #type_generics #where_clause {
-            fn serialize_data(&self) -> dust_dds::infrastructure::error::DdsResult<Vec<u8>> {
-                #serialize_function
-            }
+            Ok(quote! {
+                #[automatically_derived]
+                impl #impl_generics dust_dds::infrastructure::type_support::DdsSerialize for #ident #type_generics #where_clause {
+                    fn serialize_data(&self) -> dust_dds::infrastructure::error::DdsResult<Vec<u8>> {
+                        #serialize_function
+                    }
+                }
+            })
         }
-
-        impl #impl_generics #ident #type_generics #where_clause {
-            #[allow(dead_code)]
-            fn _dds_serialize_flags_info() -> &'static str {
-                #flags_info_literal
-            }
-        }
-    })
+        syn::Data::Union(data_union) => Err(syn::Error::new(
+            data_union.union_token.span,
+            "Union not supported",
+        )),
+    }
 }
 
 
@@ -123,18 +123,18 @@ pub fn expand_dds_deserialize_data(input: &DeriveInput) -> Result<TokenStream> {
         dust_dds::infrastructure::type_support::deserialize_rtps_encapsulated_data(&mut serialized_data)
     };
 
-    Ok(quote! {
-        impl #generics dust_dds::infrastructure::type_support::DdsDeserialize<'__de> for #ident #type_generics #where_clause {
-            fn deserialize_data(mut serialized_data: &'__de [u8]) -> dust_dds::infrastructure::error::DdsResult<Self> {
-                #deserialize_function
-            }
+            Ok(quote! {
+                #[automatically_derived]
+                impl #generics dust_dds::infrastructure::type_support::DdsDeserialize<'__de> for #ident #type_generics #where_clause {
+                    fn deserialize_data(mut serialized_data: &'__de [u8]) -> dust_dds::infrastructure::error::DdsResult<Self> {
+                        #deserialize_function
+                    }
+                }
+            })
         }
-
-        impl #generics #ident #type_generics #where_clause {
-            #[allow(dead_code)]
-            fn _dds_deserialize_flags_info() -> &'static str {
-                #flags_info_literal
-            }
-        }
-    })
+        syn::Data::Union(data_union) => Err(syn::Error::new(
+            data_union.union_token.span,
+            "Union not supported",
+        )),
+    }
 }

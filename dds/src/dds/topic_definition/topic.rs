@@ -1,7 +1,6 @@
 use super::topic_listener::TopicListener;
 use crate::{
     condition::StatusCondition,
-    runtime::DdsRuntime,
     dds_async::topic::TopicAsync,
     domain::domain_participant::DomainParticipant,
     infrastructure::{
@@ -10,6 +9,7 @@ use crate::{
         qos::{QosKind, TopicQos},
         status::{InconsistentTopicStatus, StatusKind},
     },
+    runtime::DdsRuntime,
     xtypes::dynamic_type::DynamicType,
 };
 use alloc::{string::String, sync::Arc, vec::Vec};
@@ -21,15 +21,23 @@ pub struct Topic<R: DdsRuntime> {
     topic_async: TopicAsync<R>,
 }
 
-impl<R: DdsRuntime> Topic<R> {
-    pub(crate) fn topic_async(&self) -> &TopicAsync<R> {
-        &self.topic_async
+impl<R: DdsRuntime> Clone for Topic<R> {
+    fn clone(&self) -> Self {
+        Self {
+            topic_async: self.topic_async.clone(),
+        }
     }
 }
 
 impl<R: DdsRuntime> From<TopicAsync<R>> for Topic<R> {
     fn from(value: TopicAsync<R>) -> Self {
         Self { topic_async: value }
+    }
+}
+
+impl<R: DdsRuntime> From<Topic<R>> for TopicAsync<R> {
+    fn from(value: Topic<R>) -> Self {
+        value.topic_async
     }
 }
 

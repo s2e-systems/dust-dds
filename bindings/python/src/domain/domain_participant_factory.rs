@@ -15,6 +15,7 @@ use super::{
 pub struct DomainParticipantFactory(
     &'static dust_dds::domain::domain_participant_factory::DomainParticipantFactory<
         dust_dds::std_runtime::StdRuntime,
+        dust_dds::rtps_udp_transport::udp_transport::RtpsUdpTransportParticipantFactory,
     >,
 );
 
