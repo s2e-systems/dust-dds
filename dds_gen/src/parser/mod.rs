@@ -28,6 +28,7 @@ pub struct StructDef {
 }
 
 pub fn parse_idl(source: &str) -> Result<Vec<StructDef>, pest::error::Error<Rule>> {
+    println!("Unwrapping parse file");
     let file = IdlParser::parse(Rule::specification, source)?
         .next()
         .unwrap();
@@ -113,6 +114,7 @@ fn parse_struct(pair: IdlPair) -> StructDef {
     let mut members = Vec::new();
 
     for inner in pair.into_inner() {
+        println!("Parsing rule struct: {:?}", inner.as_rule());
         match inner.as_rule() {
             Rule::annotation_appl => {
                 annotations.push(parse_annotation(inner));
@@ -140,14 +142,20 @@ fn parse_member(pair: IdlPair) -> Member {
     let mut name = String::new();
 
     for inner in pair.into_inner() {
+        println!("Parsing rule member: {:?}", inner.as_rule());
+
         match inner.as_rule() {
             Rule::annotation_appl => {
                 annotations.push(parse_annotation(inner));
             }
             Rule::type_spec => {
+                println!("type_spec: '{}'", inner.as_str());
                 idl_type = inner.as_str().to_string();
             }
             Rule::declarators => {
+                for child in inner.clone().into_inner() {
+                    println!("Declarator child rule: {:?}, text: '{}'", child.as_rule(), child.as_str());
+                }
                 name = inner.into_inner().next().unwrap().as_str().to_string();
             }
             _ => {}
@@ -167,6 +175,7 @@ fn parse_annotation(pair: IdlPair) -> Annotation {
     let mut parameters = Vec::new();
 
     if let Some(param_group) = inner.next() {
+        println!("Parsing rule annotation: {:?}", param_group.as_rule());
         match param_group.as_rule() {
             Rule::annotation_appl_params => {
                 for p in param_group.into_inner() {
