@@ -1,0 +1,11 @@
+@appendable
+struct Point {
+    double x;
+    double y;
+};
+
+@mutable
+struct Data {
+    @key int16 id;
+    double x;
+};

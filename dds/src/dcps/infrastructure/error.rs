@@ -1,6 +1,6 @@
 use crate::{rtps::error::RtpsError, xtypes::error::XTypesError};
 use alloc::{boxed::Box, format, string::String};
-use core::any::Any;
+use core::{any::Any, fmt::{Display}, error::Error};
 
 /// Result type returned by the different operations of the service
 pub type DdsResult<T> = Result<T, DdsError>;
@@ -39,6 +39,27 @@ pub enum DdsError {
     IllegalOperation,
 }
 
+impl Display for DdsError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::Error(err) => write!(f, "unspecified: {err}"),
+            Self::Unsupported => write!(f, "unsupported operation"),
+            Self::BadParameter => write!(f, "illegal parameter value"),
+            Self::PreconditionNotMet(err) => write!(f, "operation precondition not met: {err}"),
+            Self::OutOfResources => write!(f, "insufficient resources to complete the operation"),
+            Self::NotEnabled => write!(f, "operation not enabled"),
+            Self::ImmutablePolicy => write!(f, "attempted to modify an immutable policy"),
+            Self::InconsistentPolicy => write!(f, "specified a set of inconsistent policies"),
+            Self::AlreadyDeleted => write!(f, "object of operation has been already deleted"),
+            Self::Timeout => write!(f, "operation timed out"),
+            Self::NoData => write!(f, "operation returned no data, but no error occurred"),
+            Self::IllegalOperation => write!(f, "illegal operation")
+        }
+    }
+}
+
+impl Error for DdsError {}
+
 impl From<RtpsError> for DdsError {
     fn from(_value: RtpsError) -> Self {
         DdsError::Error(String::new())
@@ -53,7 +74,7 @@ impl From<Box<dyn Any + Send + 'static>> for DdsError {
 
 impl From<XTypesError> for DdsError {
     fn from(value: XTypesError) -> Self {
-        DdsError::Error(format!("XTypesError: {:?}", value))
+        DdsError::Error(format!("XTypesError: {value:?}"))
     }
 }
 

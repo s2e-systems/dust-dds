@@ -1,16 +1,15 @@
-use super::{
-    data_writer::DataWriterAsync, domain_participant::DomainParticipantAsync, topic::TopicAsync,
-};
+use super::{data_writer::DataWriterAsync, domain_participant::DomainParticipantAsync};
 use crate::{
     dcps::{
         actor::Actor,
-        domain_participant_actor_mail::{DomainParticipantMail, PublisherServiceMail},
+        domain_participant_mail::{DcpsDomainParticipantMail, PublisherServiceMail},
         listeners::{
-            data_writer_listener::DataWriterListenerActor,
-            publisher_listener::PublisherListenerActor,
+            data_writer_listener::DcpsDataWriterListener,
+            publisher_listener::DcpsPublisherListener,
         },
-        status_condition_actor::StatusConditionActor,
+        status_condition::DcpsStatusCondition,
     },
+    dds_async::topic_description::TopicDescriptionAsync,
     infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,
@@ -48,7 +47,7 @@ impl<R: DdsRuntime> PublisherAsync<R> {
         }
     }
 
-    pub(crate) fn participant_address(&self) -> &R::ChannelSender<DomainParticipantMail<R>> {
+    pub(crate) fn participant_address(&self) -> &R::ChannelSender<DcpsDomainParticipantMail<R>> {
         self.participant.participant_address()
     }
 }
@@ -58,22 +57,22 @@ impl<R: DdsRuntime> PublisherAsync<R> {
     #[tracing::instrument(skip(self, a_topic, a_listener))]
     pub async fn create_datawriter<Foo>(
         &self,
-        a_topic: &TopicAsync<R>,
+        a_topic: &TopicDescriptionAsync<R>,
         qos: QosKind<DataWriterQos>,
         a_listener: Option<impl DataWriterListener<R, Foo> + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<DataWriterAsync<R, Foo>> {
         let topic_name = a_topic.get_name();
         let status_condition = Actor::spawn(
-            StatusConditionActor::default(),
+            DcpsStatusCondition::default(),
             self.participant.spawner_handle(),
         );
         let writer_status_condition_address = status_condition.address();
         let listener_sender = a_listener
-            .map(|l| DataWriterListenerActor::spawn(l, self.participant.spawner_handle()));
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+            .map(|l| DcpsDataWriterListener::spawn(l, self.participant.spawner_handle()));
+        let (reply_sender, reply_receiver) = R::oneshot();
         self.participant_address()
-            .send(DomainParticipantMail::Publisher(
+            .send(DcpsDomainParticipantMail::Publisher(
                 PublisherServiceMail::CreateDataWriter {
                     publisher_handle: self.handle,
                     topic_name,
@@ -102,9 +101,9 @@ impl<R: DdsRuntime> PublisherAsync<R> {
         &self,
         a_datawriter: &DataWriterAsync<R, Foo>,
     ) -> DdsResult<()> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         self.participant_address()
-            .send(DomainParticipantMail::Publisher(
+            .send(DcpsDomainParticipantMail::Publisher(
                 PublisherServiceMail::DeleteDataWriter {
                     publisher_handle: self.handle,
                     datawriter_handle: a_datawriter.get_instance_handle().await,
@@ -169,9 +168,9 @@ impl<R: DdsRuntime> PublisherAsync<R> {
     /// Async version of [`set_default_datawriter_qos`](crate::publication::publisher::Publisher::set_default_datawriter_qos).
     #[tracing::instrument(skip(self))]
     pub async fn set_default_datawriter_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         self.participant_address()
-            .send(DomainParticipantMail::Publisher(
+            .send(DcpsDomainParticipantMail::Publisher(
                 PublisherServiceMail::SetDefaultDataWriterQos {
                     publisher_handle: self.handle,
                     qos,
@@ -185,9 +184,9 @@ impl<R: DdsRuntime> PublisherAsync<R> {
     /// Async version of [`get_default_datawriter_qos`](crate::publication::publisher::Publisher::get_default_datawriter_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_default_datawriter_qos(&self) -> DdsResult<DataWriterQos> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         self.participant_address()
-            .send(DomainParticipantMail::Publisher(
+            .send(DcpsDomainParticipantMail::Publisher(
                 PublisherServiceMail::GetDefaultDataWriterQos {
                     publisher_handle: self.handle,
                     reply_sender,
@@ -212,9 +211,9 @@ impl<R: DdsRuntime> PublisherAsync<R> {
     /// Async version of [`set_qos`](crate::publication::publisher::Publisher::set_qos).
     #[tracing::instrument(skip(self))]
     pub async fn set_qos(&self, qos: QosKind<PublisherQos>) -> DdsResult<()> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         self.participant_address()
-            .send(DomainParticipantMail::Publisher(
+            .send(DcpsDomainParticipantMail::Publisher(
                 PublisherServiceMail::SetPublisherQos {
                     publisher_handle: self.handle,
                     qos,
@@ -228,9 +227,9 @@ impl<R: DdsRuntime> PublisherAsync<R> {
     /// Async version of [`get_qos`](crate::publication::publisher::Publisher::get_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_qos(&self) -> DdsResult<PublisherQos> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         self.participant_address()
-            .send(DomainParticipantMail::Publisher(
+            .send(DcpsDomainParticipantMail::Publisher(
                 PublisherServiceMail::GetPublisherQos {
                     publisher_handle: self.handle,
                     reply_sender,
@@ -247,11 +246,11 @@ impl<R: DdsRuntime> PublisherAsync<R> {
         a_listener: Option<impl PublisherListener<R> + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        let (reply_sender, mut reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = R::oneshot();
         let listener_sender =
-            a_listener.map(|l| PublisherListenerActor::spawn(l, self.participant.spawner_handle()));
+            a_listener.map(|l| DcpsPublisherListener::spawn(l, self.participant.spawner_handle()));
         self.participant_address()
-            .send(DomainParticipantMail::Publisher(
+            .send(DcpsDomainParticipantMail::Publisher(
                 PublisherServiceMail::SetPublisherListener {
                     publisher_handle: self.handle,
                     listener_sender,

@@ -16,25 +16,36 @@ pub fn get_input_extensibility(input: &DeriveInput) -> Result<Extensibility> {
             match name.as_deref() {
                 Some("extensibility") => {
                     let format_str: syn::LitStr = meta.value()?.parse()?;
-                    extensibility = match format_str.value().as_str() {
-                        "Final" => Extensibility::Final,
-                        "Appendable" => Extensibility::Appendable,
-                        "Mutable" => Extensibility::Mutable,
+                    extensibility = match format_str.value().to_ascii_lowercase().as_str() {
+                        "final" => Extensibility::Final,
+                        "appendable" => Extensibility::Appendable,
+                        "mutable" => Extensibility::Mutable,
                         other => {
                             return Err(syn::Error::new(
                                 format_str.span(),
-                                format!("Invalid extensibility: `{}`. Use \"Final\", \"Appendable\", or \"Mutable\"", other),
+                                format!(
+                                    "Invalid extensibility: `{}`. Use \"Final\", \"final\", \"Appendable\", \"appendable\", \"Mutable\", or \"mutable\"",
+                                    other
+                                ),
                             ));
                         }
                     };
+                    Ok(())
                 }
-                Some("final") => extensibility = Extensibility::Final,
-                Some("appendable") => extensibility = Extensibility::Appendable,
-                Some("mutable") => extensibility = Extensibility::Mutable,
-                _ => {}
+                Some("final") => {
+                    extensibility = Extensibility::Final;
+                    Ok(())
+                }
+                Some("appendable") => {
+                    extensibility = Extensibility::Appendable;
+                    Ok(())
+                }
+                Some("mutable") => {
+                    extensibility = Extensibility::Mutable;
+                    Ok(())
+                }
+                _ => Ok(()),
             }
-
-            Ok(())
         })?;
     }
 

@@ -133,7 +133,10 @@ jobs:
             export RUSTFLAGS="-Cinstrument-coverage -Dwarnings"
             export LLVM_PROFILE_FILE="test-%p-%m.profraw"
             cargo run --example tokio_runtime
-
+      - run:
+          name: Compile No Std Project
+          command: |
+            cargo test --package nostd_test_project
       - run:
           name: Gather coverage data
           command: |

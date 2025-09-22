@@ -1,5 +1,7 @@
 /// Classes related to the async status conditions.
 pub mod condition;
+/// Classes related to the async content filtered topic.
+pub mod content_filtered_topic;
 /// Classes related to the async data reader.
 pub mod data_reader;
 /// Classes related to the async data writer.
@@ -14,5 +16,7 @@ pub mod publisher;
 pub mod subscriber;
 /// Classes related to the async topic.
 pub mod topic;
+/// Classes related to the async topic description.
+pub mod topic_description;
 /// Classes related to the async wait set.
 pub mod wait_set;
