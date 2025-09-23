@@ -1,6 +1,5 @@
-FROM ubuntu:24.04 AS android_builder
-ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && apt-get install -y wget unzip openjdk-21-jre-headless
+FROM debian:trixie AS android_builder
+RUN apt-get update && apt-get install -y wget unzip openjdk-25-jre-headless
 WORKDIR /android_sdk/cmdline-tools/latest
 RUN wget https://dl.google.com/android/repository/commandlinetools-linux-13114758_latest.zip \
     && unzip commandlinetools-linux-13114758_latest.zip \
@@ -8,9 +7,9 @@ RUN wget https://dl.google.com/android/repository/commandlinetools-linux-1311475
 RUN yes | ./bin/sdkmanager --licenses
 RUN ./bin/sdkmanager --install "build-tools;35.0.0" "ndk;29.0.13113456" "platform-tools" "platforms;android-36"
 
-FROM ghcr.io/actions/runner:latest
-RUN apt-get update && apt-get install -y \
-    openjdk-19-jre-headless \
+FROM rust:1.90-trixie
+RUN apt-get update \
+    && apt-get install -y openjdk-25-jre-headless \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=android_builder /android_sdk /android_sdk
 ENV ANDROID_HOME=/android_sdk
