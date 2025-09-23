@@ -9,7 +9,7 @@ on:
       - '.github/resources/Dockerfile.android_builder'
 
 jobs:
-  create_linux_installer:
+  create_shapes_demo_android_app:
     runs-on: ubuntu-latest
     container:
       image: "ghcr.io/${{ github.repository }}:android-builder"
@@ -35,7 +35,7 @@ jobs:
     #       path: shapes_demo/android/app/build/outputs/bundle/release
 
       - name: Build_Android
-        run: ./shapes_demo/android/gradlew --project-dir shapes_demo/android bundleRelease
+        run: ./shapes_demo/android/gradlew --project-dir shapes_demo/android bundleRelease --stacktrace --info
       - uses: actions/upload-artifact@v4
         with:
           name: shapes_demo_android_app
