@@ -9,7 +9,6 @@ RUN yes | ./bin/sdkmanager --licenses
 RUN ./bin/sdkmanager --install "build-tools;35.0.0" "ndk;29.0.13113456" "platform-tools" "platforms;android-36"
 
 FROM cimg/rust:1.85.0
-USER root
 RUN apt-get update && apt-get install -y \
     openjdk-19-jre-headless \
     && rm -rf /var/lib/apt/lists/*
