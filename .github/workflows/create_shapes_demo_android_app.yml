@@ -1,0 +1,37 @@
+name: Create Shapes Demo Android App
+
+on:
+  workflow_dispatch:
+
+jobs:
+  create_linux_installer:
+    runs-on: ubuntu-latest
+    container:
+      image: "ghcr.io/${{ github.repository }}:android-builder"
+      credentials:
+        username: ${{ github.ref }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+    #   - run:
+    #       name: Decode_Android_key_store
+    #       command: echo $BASE64_KEYSTORE | base64 -d | tee keystore shapes_demo/android/app/keystore.jks > /dev/null
+    #   - run:
+    #       name: Create_keystore_properties
+    #       command: cd shapes_demo/android && printf 'keyAlias=%s\nkeyPassword=%s\nstoreFile=keystore.jks\nstorePassword=%s' $RELEASE_KEY_ALIAS $RELEASE_KEY_PASSWORD $RELEASE_STORE_PASSWORD > keystore.properties
+    #   - run:
+    #       name: Build_Android
+    #       command: ./shapes_demo/android/gradlew --project-dir shapes_demo/android bundleRelease
+    #   - store_artifacts:
+    #       path: shapes_demo/android/app/build/outputs/bundle/release
+
+      - name: Build_Android
+        run: ./shapes_demo/android/gradlew --project-dir shapes_demo/android bundleRelease
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shapes_demo_android_app
+          path: shapes_demo/android/app/build/outputs/bundle/release
