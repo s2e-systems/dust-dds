@@ -2,11 +2,6 @@ name: Create Shapes Demo Android App
 
 on:
   workflow_dispatch:
-  pull_request:
-    branches:
-      - main
-    paths:
-      - '.github/resources/Dockerfile.android_builder'
 
 jobs:
   create_shapes_demo_android_app:
