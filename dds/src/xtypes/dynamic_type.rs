@@ -43,7 +43,6 @@ pub struct TypeDescriptor {
 pub type MemberId = u32;
 
 #[derive(Debug, Clone)]
-
 pub struct MemberDescriptor {
     pub name: ObjectName,
     pub id: MemberId,
@@ -224,11 +223,11 @@ impl DynamicTypeBuilderFactory {
 
 pub struct DynamicTypeBuilder {
     descriptor: TypeDescriptor,
-    member_list: Vec<MemberDescriptor>,
+    member_list: Vec<DynamicTypeMember>,
 }
 
 impl DynamicTypeBuilder {
-    pub fn get_descriptor(&self) -> Result<&TypeDescriptor, XTypesError> {
+    pub fn get_descriptor(&self) -> XTypesResult<&TypeDescriptor> {
         Ok(&self.descriptor)
     }
 
@@ -240,8 +239,14 @@ impl DynamicTypeBuilder {
         self.descriptor.kind
     }
 
-    pub fn get_member_by_name(&self, name: &ObjectName) -> XTypesResult<DynamicTypeMember> {
-        todo!()
+    pub fn get_member_by_name(
+        &mut self,
+        name: &ObjectName,
+    ) -> XTypesResult<&mut DynamicTypeMember> {
+        self.member_list
+            .iter_mut()
+            .find(|m| &m.descriptor.name == name)
+            .ok_or(XTypesError::InvalidData)
     }
 
     pub fn get_all_members_by_name(
@@ -279,7 +284,7 @@ impl DynamicTypeBuilder {
             return Err(XTypesError::IllegalOperation);
         }
 
-        self.member_list.push(descriptor);
+        self.member_list.push(DynamicTypeMember { descriptor });
 
         Ok(())
     }
@@ -291,11 +296,7 @@ impl DynamicTypeBuilder {
     pub fn build(self) -> DynamicType {
         DynamicType {
             descriptor: self.descriptor,
-            member_list: self
-                .member_list
-                .into_iter()
-                .map(|descriptor| DynamicTypeMember { descriptor })
-                .collect(),
+            member_list: self.member_list,
         }
     }
 }
