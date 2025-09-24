@@ -22,18 +22,13 @@ jobs:
         with:
           toolchain: stable
           override: true
-    #   - run:
-    #       name: Decode_Android_key_store
-    #       command: echo $BASE64_KEYSTORE | base64 -d | tee keystore shapes_demo/android/app/keystore.jks > /dev/null
-    #   - run:
-    #       name: Create_keystore_properties
-    #       command: cd shapes_demo/android && printf 'keyAlias=%s\nkeyPassword=%s\nstoreFile=keystore.jks\nstorePassword=%s' $RELEASE_KEY_ALIAS $RELEASE_KEY_PASSWORD $RELEASE_STORE_PASSWORD > keystore.properties
-    #   - run:
-    #       name: Build_Android
-    #       command: ./shapes_demo/android/gradlew --project-dir shapes_demo/android bundleRelease
-    #   - store_artifacts:
-    #       path: shapes_demo/android/app/build/outputs/bundle/release
 
+    # Note: The keystore can be transformed into a base64 string using PowerShell like so:
+    #  [Convert]::ToBase64String([IO.File]::ReadAllBytes($FileName))
+      - name: Decode_Android_key_store
+        run: echo ${{ secrets.BASE64_KEYSTORE }} | base64 -d > shapes_demo/android/app/keystore.jks
+      - name: Decode_Android_key_store
+        run: printf "keyAlias=key1\nkeyPassword=%s\nstoreFile=keystore.jks\nstorePassword=%s" ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }} ${{ secrets.ANDROID_RELEASE_STORE_PASSWORD }} > shapes_demo/android/keystore.properties
       - name: Build_Android
         run: ./shapes_demo/android/gradlew --project-dir shapes_demo/android bundleRelease --stacktrace --info
       - uses: actions/upload-artifact@v4
