@@ -18,6 +18,7 @@ categories = ["compilers"]
 [dependencies]
 pest = "2.7"
 pest_derive = "2.7"
+regex = "1"
 
 [dev-dependencies]
 syn = { version = "2.0", features = ["full", "extra-traits"] }
