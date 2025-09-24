@@ -27,6 +27,7 @@ android {
     defaultConfig {
         applicationId = "com.s2e_systems.dustddsshapesdemo"
         minSdk = 26
+        targetSdk = 35
         versionCode = 7
         versionName = "1.0.13"
     }
@@ -47,15 +48,13 @@ android {
 
 val cargoBuild by tasks.registering(Exec::class) {
     val outputDir = layout.buildDirectory.dir("rustJniLibs")
-    // The --platform should be "android.compileSdk", but the ndk did not include a prebuilt
-    // for API level (compileSdk) 36
     commandLine(
         "cargo", "ndk",
         "--target", "arm64-v8a",
         "--target", "armeabi-v7a",
         "--target", "x86_64",
         "--target", "x86",
-        "--platform", 35,
+        "--platform", android.defaultConfig.targetSdk,
         "--output-dir", outputDir.get().asFile.absolutePath,
         "build", "--release",
         "--package", "shapes_demo_app"
