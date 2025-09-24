@@ -14,3 +14,4 @@ RUN apt-get update \
 COPY --from=android_builder /android_sdk /android_sdk
 ENV ANDROID_HOME=/android_sdk
 RUN rustup target add armv7-linux-androideabi aarch64-linux-android i686-linux-android x86_64-linux-android
+RUN cargo install cargo-ndk
