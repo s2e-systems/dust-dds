@@ -390,7 +390,7 @@ pub enum ReaderServiceMail<R: DdsRuntime> {
         instance_states: Vec<InstanceStateKind>,
         specific_instance_handle: Option<InstanceHandle>,
         #[allow(clippy::type_complexity)]
-        reply_sender: R::OneshotSender<DdsResult<Vec<(Option<Arc<[u8]>>, SampleInfo)>>>,
+        reply_sender: R::OneshotSender<DdsResult<Vec<(Option<DynamicData>, SampleInfo)>>>,
     },
     Take {
         subscriber_handle: InstanceHandle,
@@ -401,7 +401,7 @@ pub enum ReaderServiceMail<R: DdsRuntime> {
         instance_states: Vec<InstanceStateKind>,
         specific_instance_handle: Option<InstanceHandle>,
         #[allow(clippy::type_complexity)]
-        reply_sender: R::OneshotSender<DdsResult<Vec<(Option<Arc<[u8]>>, SampleInfo)>>>,
+        reply_sender: R::OneshotSender<DdsResult<Vec<(Option<DynamicData>, SampleInfo)>>>,
     },
     ReadNextInstance {
         subscriber_handle: InstanceHandle,
@@ -412,7 +412,7 @@ pub enum ReaderServiceMail<R: DdsRuntime> {
         view_states: Vec<ViewStateKind>,
         instance_states: Vec<InstanceStateKind>,
         #[allow(clippy::type_complexity)]
-        reply_sender: R::OneshotSender<DdsResult<Vec<(Option<Arc<[u8]>>, SampleInfo)>>>,
+        reply_sender: R::OneshotSender<DdsResult<Vec<(Option<DynamicData>, SampleInfo)>>>,
     },
     TakeNextInstance {
         subscriber_handle: InstanceHandle,
@@ -423,7 +423,7 @@ pub enum ReaderServiceMail<R: DdsRuntime> {
         view_states: Vec<ViewStateKind>,
         instance_states: Vec<InstanceStateKind>,
         #[allow(clippy::type_complexity)]
-        reply_sender: R::OneshotSender<DdsResult<Vec<(Option<Arc<[u8]>>, SampleInfo)>>>,
+        reply_sender: R::OneshotSender<DdsResult<Vec<(Option<DynamicData>, SampleInfo)>>>,
     },
     GetSubscriptionMatchedStatus {
         subscriber_handle: InstanceHandle,

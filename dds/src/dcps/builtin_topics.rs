@@ -24,16 +24,20 @@ pub const DCPS_TOPIC: &str = "DCPSTopic";
 pub const DCPS_PARTICIPANT: &str = "DCPSParticipant";
 
 /// Structure representing the instance handle (or key) of an entity.
-#[derive(Debug, PartialEq, Eq, Clone, Default, XTypesSerialize, XTypesDeserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Default, TypeSupport, XTypesSerialize, XTypesDeserialize)]
+#[dust_dds(extensibility = "Appendable", nested)]
 pub struct BuiltInTopicKey {
     /// InstanceHandle value as an array of 16 octets.
     pub value: [u8; 16], // Originally in the DDS idl [i32;3]
 }
 
 /// Structure representing a discovered [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant).
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, TypeSupport)]
+#[dust_dds(extensibility = "Mutable")]
 pub struct ParticipantBuiltinTopicData {
+    #[dust_dds(id = 0x0050, key)]
     pub(crate) key: BuiltInTopicKey,
+    #[dust_dds(id = 0x002C)]
     pub(crate) user_data: UserDataQosPolicy,
 }
 

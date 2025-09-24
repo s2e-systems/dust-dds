@@ -221,7 +221,7 @@ struct MessageLength;
 /// ParameterId_t
 /// Type used to uniquely identify a parameter in a parameter list.
 /// Used extensively by the Discovery Module mainly to define QoS Parameters. A range of values is reserved for protocol-defined parameters, while another range can be used for vendor-defined parameters, see 8.3.5.9.
-pub type ParameterId = Short;
+pub type ParameterId = u32;
 
 /// FragmentNumber_t
 /// Type used to hold fragment numbers.

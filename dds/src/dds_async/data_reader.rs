@@ -109,7 +109,7 @@ impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
 
         Ok(samples
             .into_iter()
-            .map(|(data, sample_info)| Sample::new(data, sample_info))
+            .map(|(dynamic_data, sample_info)| Sample::new(dynamic_data, sample_info))
             .collect())
     }
 

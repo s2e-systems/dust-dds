@@ -1,11 +1,12 @@
 use core::ops::Index;
 
-use crate::infrastructure::{error::DdsResult, type_support::DdsDeserialize};
+use crate::infrastructure::error::DdsResult;
 
 use crate::xtypes::{
     deserialize::XTypesDeserialize, serialize::XTypesSerialize, xcdr_serializer::Xcdr1BeSerializer,
 };
 use alloc::vec::Vec;
+use dust_dds_derive::TypeSupport;
 
 /// Type for the instance handle representing an Entity
 #[derive(
@@ -17,10 +18,11 @@ use alloc::vec::Vec;
     Hash,
     PartialOrd,
     Ord,
+    TypeSupport,
     XTypesSerialize,
     XTypesDeserialize,
-    DdsDeserialize,
 )]
+#[dust_dds(extensibility = "Final", nested)]
 pub struct InstanceHandle([u8; 16]);
 
 impl InstanceHandle {

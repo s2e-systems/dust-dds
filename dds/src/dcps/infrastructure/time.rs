@@ -1,3 +1,5 @@
+use dust_dds_derive::TypeSupport;
+
 use crate::xtypes::{
     deserialize::XTypesDeserialize,
     deserializer::{DeserializeFinalStruct, XTypesDeserializer},
@@ -58,7 +60,10 @@ impl PartialOrd<DurationKind> for DurationKind {
 }
 
 /// Structure representing a time interval with a nanosecond resolution.
-#[derive(PartialOrd, PartialEq, Eq, Debug, Clone, Copy, XTypesSerialize, XTypesDeserialize)]
+#[derive(
+    PartialOrd, PartialEq, Eq, Debug, Clone, Copy, TypeSupport, XTypesSerialize, XTypesDeserialize,
+)]
+#[dust_dds(extensibility = "Final", nested)]
 pub struct Duration {
     sec: i32,
     nanosec: u32,

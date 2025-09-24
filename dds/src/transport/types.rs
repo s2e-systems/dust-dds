@@ -1,5 +1,5 @@
 use alloc::{sync::Arc, vec::Vec};
-use dust_dds_derive::{XTypesDeserialize, XTypesSerialize};
+use dust_dds_derive::{TypeSupport, XTypesDeserialize, XTypesSerialize};
 
 pub type Octet = u8;
 pub type Short = i16;
@@ -184,7 +184,8 @@ pub enum DurabilityKind {
 /// Type used to represent the addressing information needed to send a message to an RTPS Endpoint using one of the supported transports.
 /// Should be able to hold a discriminator identifying the kind of transport, an address, and a port number. It must be possible to represent the discriminator and port number using 4 octets each, the address using 16 octets.
 /// The following values are reserved by the protocol: LOCATOR_INVALID LOCATOR_KIND_INVALID LOCATOR_KIND_RESERVED LOCATOR_KIND_UDP_V4 LOCATOR_KIND_UDP_V6 LOCATOR_ADDRESS_INVALID LOCATOR_PORT_INVALID
-#[derive(Clone, Copy, PartialEq, Eq, Debug, XTypesSerialize, XTypesDeserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, TypeSupport, XTypesSerialize, XTypesDeserialize)]
+#[dust_dds(extensibility = "Final", nested)]
 pub struct Locator {
     kind: Long,
     port: UnsignedLong,
@@ -231,7 +232,8 @@ impl Locator {
 /// The following values are reserved by the protocol: PROTOCOLVERSION PROTOCOLVERSION_1_0 PROTOCOLVERSION_1_1 PROTOCOLVERSION_2_0 PROTOCOLVERSION_2_1 PROTOCOLVERSION_2_2
 /// PROTOCOLVERSION_2_4
 /// PROTOCOLVERSION is an alias for the most recent version, in this case PROTOCOLVERSION_2_4
-#[derive(Clone, Copy, PartialEq, Eq, Debug, XTypesSerialize, XTypesDeserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, TypeSupport, XTypesSerialize, XTypesDeserialize)]
+#[dust_dds(extensibility = "Final", nested)]
 pub struct ProtocolVersion {
     bytes: [u8; 2],
 }

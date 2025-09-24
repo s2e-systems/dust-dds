@@ -3,7 +3,7 @@ use crate::{
     transport::types::{EntityId, Short, ENTITYID_UNKNOWN},
 };
 
-pub type ParameterId = Short;
+pub type ParameterId = u32;
 
 // Constant value from Table 9.13 - ParameterId Values
 pub const _PID_PAD: ParameterId = 0x0000;

@@ -13,6 +13,7 @@ use crate::{
 };
 use alloc::{string::String, vec::Vec};
 use core::cmp::Ordering;
+use dust_dds_derive::TypeSupport;
 
 /// QosPolicyId type alias
 pub type QosPolicyId = i32;
@@ -193,7 +194,8 @@ pub const DATA_REPRESENTATION_QOS_POLICY_ID: QosPolicyId = 23;
 
 /// This policy allows the application to attach additional information to the created Entity objects such that when
 /// a remote application discovers their existence it can access that information and use it for its own purposes.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, TypeSupport)]
+#[dust_dds(extensibility = "Appendable", nested)]
 pub struct UserDataQosPolicy {
     /// User data value
     pub value: Vec<u8>,

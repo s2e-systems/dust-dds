@@ -16,7 +16,7 @@ keywords = ["dds", "rtps", "middleware", "network", "udp"]
 categories = ["api-bindings", "network-programming"]
 
 [dependencies]
-dust_dds_derive = { version = "0.13", path = "../dds_derive" }
+dust_dds_derive = { version = "0.14.0", path = "../dds_derive" }
 
 md5 = { version = "0.7.0", default-features = false, optional = true } # Chose this crate over other possibilities since it doesn't have any other dependencies
 

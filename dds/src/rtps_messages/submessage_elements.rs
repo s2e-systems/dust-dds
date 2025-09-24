@@ -255,7 +255,7 @@ impl Parameter {
             value
         };
 
-        Ok(Self::new(parameter_id, value))
+        Ok(Self::new(parameter_id as u32, value))
     }
 }
 
@@ -288,7 +288,7 @@ impl ParameterList {
         let mut parameter = Vec::new();
         for _ in 0..MAX_PARAMETERS {
             let parameter_i = Parameter::try_read_from_bytes(data, endianness)?;
-            if parameter_i.parameter_id() == PID_SENTINEL {
+            if parameter_i.parameter_id() == PID_SENTINEL as u32 {
                 break;
             } else {
                 parameter.push(parameter_i);

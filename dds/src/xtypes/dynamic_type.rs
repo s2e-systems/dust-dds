@@ -322,9 +322,10 @@ impl DynamicDataFactory {
     }
 }
 
+#[derive(Debug)]
 pub struct DynamicData {
     type_ref: DynamicType,
-    abstract_data: BTreeMap<MemberId, Box<dyn Any + Send>>,
+    abstract_data: BTreeMap<MemberId, Box<dyn Any + Send + Sync>>,
 }
 
 impl DynamicData {
@@ -1182,7 +1183,7 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn insert_value<T: Any + Send>(mut self, id: MemberId, value: T) -> Self {
+    pub fn insert_value<T: Any + Send + Sync>(mut self, id: MemberId, value: T) -> Self {
         self.abstract_data.insert(id, Box::new(value));
         self
     }
