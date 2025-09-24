@@ -291,7 +291,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 todo!()
             }
 
-            fn create_dynamic_sample(&self) -> dust_dds::xtypes::dynamic_type::DynamicData {
+            fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
                 todo!()
             }
         }

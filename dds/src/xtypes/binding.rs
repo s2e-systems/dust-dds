@@ -146,7 +146,7 @@ impl<T: RustXTypesBinding> RustXTypesBinding for Vec<T> {
     }
 }
 
-impl<'a, T: RustXTypesBinding> RustXTypesBinding for &'a [T] {
+impl<T: RustXTypesBinding> RustXTypesBinding for &[T] {
     fn type_identifier() -> TypeIdentifier {
         let header = PlainCollectionHeader {
             equiv_kind: EquivalenceKind::Complete,

@@ -102,7 +102,7 @@ impl TypeSupport for DiscoveredWriterData {
         todo!()
     }
 
-    fn create_dynamic_sample(&self) -> DynamicData {
+    fn create_dynamic_sample(self) -> DynamicData {
         todo!()
     }
 }

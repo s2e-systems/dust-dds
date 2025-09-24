@@ -4,6 +4,8 @@ pub trait XTypesTypeObject {
     fn type_object() -> TypeObject;
 }
 
+use crate::xtypes::dynamic_type::TypeKind;
+
 use super::dynamic_type::{DynamicType, TryConstructKind};
 
 /* Manually created from dds-xtypes_typeobject.idl */
@@ -16,48 +18,6 @@ pub enum EquivalenceKind {
     Complete = 0xF2, // 0x1111 0010
     Both = 0xF3,     // 0x1111 0011
 }
-
-// ---------- TypeKinds (begin) -------------------
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-#[repr(u8)]
-pub enum TypeKind {
-    // Primitive TKs
-    NONE = 0x00,
-    BOOLEAN = 0x01,
-    BYTE = 0x02,
-    INT16 = 0x03,
-    INT32 = 0x04,
-    INT64 = 0x05,
-    UINT16 = 0x06,
-    UINT32 = 0x07,
-    UINT64 = 0x08,
-    FLOAT32 = 0x09,
-    FLOAT64 = 0x0A,
-    FLOAT128 = 0x0B,
-    INT8 = 0x0C,
-    UINT8 = 0x0D,
-    CHAR8 = 0x10,
-    CHAR16 = 0x11,
-    // String TKs
-    STRING8 = 0x20,
-    STRING16 = 0x21,
-    // Constructed/Named types
-    ALIAS = 0x30,
-    // Enumerated TKs
-    ENUM = 0x40,
-    BITMASK = 0x41,
-    // Structured TKs
-    ANNOTATION = 0x50,
-    STRUCTURE = 0x51,
-    UNION = 0x52,
-    BITSET = 0x53,
-    // Collection TKs
-    SEQUENCE = 0x60,
-    ARRAY = 0x61,
-    MAP = 0x62,
-}
-
-// ---------- TypeKinds (end) -------------------
 
 // ---------- Extra TypeIdentifiers (begin) ------------
 pub type TypeIdentiferKind = u8;

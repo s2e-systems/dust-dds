@@ -88,7 +88,7 @@ impl TypeSupport for DiscoveredTopicData {
         todo!()
     }
 
-    fn create_dynamic_sample(&self) -> DynamicData {
+    fn create_dynamic_sample(self) -> DynamicData {
         todo!()
     }
 }

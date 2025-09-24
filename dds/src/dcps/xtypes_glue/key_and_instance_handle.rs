@@ -187,16 +187,17 @@ fn push_to_key<'a, T>(
 where
     for<'b> &'b mut T: XTypesDeserializer<'a>,
 {
-    for member_descriptor in dynamic_type.into_iter() {
-        let member_descriptor = member_descriptor?;
-        deserialize_and_serialize_if_key_field(
-            &member_descriptor.r#type,
-            member_descriptor.is_key,
-            de,
-            serializer,
-        )?;
-    }
-    Ok(())
+    todo!()
+    // for member_descriptor in dynamic_type.into_iter() {
+    //     let member_descriptor = member_descriptor?;
+    //     deserialize_and_serialize_if_key_field(
+    //         &member_descriptor.r#type,
+    //         member_descriptor.is_key,
+    //         de,
+    //         serializer,
+    //     )?;
+    // }
+    // Ok(())
 }
 
 fn push_to_key_for_key<'a, T>(
@@ -207,18 +208,19 @@ fn push_to_key_for_key<'a, T>(
 where
     for<'b> &'b mut T: XTypesDeserializer<'a>,
 {
-    for member_descriptor in dynamic_type.into_iter() {
-        let member_descriptor = member_descriptor?;
-        if member_descriptor.is_key {
-            deserialize_and_serialize_if_key_field(
-                &member_descriptor.r#type,
-                true,
-                de,
-                serializer,
-            )?;
-        }
-    }
-    Ok(())
+    todo!()
+    // for member_descriptor in dynamic_type.into_iter() {
+    //     let member_descriptor = member_descriptor?;
+    //     if member_descriptor.is_key {
+    //         deserialize_and_serialize_if_key_field(
+    //             &member_descriptor.r#type,
+    //             true,
+    //             de,
+    //             serializer,
+    //         )?;
+    //     }
+    // }
+    // Ok(())
 }
 
 fn go_to_pid_le(mut reader: &[u8], pid: u32) -> Result<&[u8], XTypesError> {
@@ -287,15 +289,16 @@ fn push_to_key_parameter_list_le(
     serializer: &mut impl SerializeFinalStruct,
     data: &[u8],
 ) -> Result<(), XTypesError> {
-    for descriptor in dynamic_type.into_iter() {
-        let descriptor = descriptor?;
-        if descriptor.is_key {
-            let buffer = go_to_pid_le(data, descriptor.id)?;
-            let mut de = Xcdr1LeDeserializer::new(buffer);
-            deserialize_and_serialize_if_key_field(&descriptor.r#type, true, &mut de, serializer)?;
-        }
-    }
-    Ok(())
+    todo!()
+    // for descriptor in dynamic_type.into_iter() {
+    //     let descriptor = descriptor?;
+    //     if descriptor.is_key {
+    //         let buffer = go_to_pid_le(data, descriptor.id)?;
+    //         let mut de = Xcdr1LeDeserializer::new(buffer);
+    //         deserialize_and_serialize_if_key_field(&descriptor.r#type, true, &mut de, serializer)?;
+    //     }
+    // }
+    // Ok(())
 }
 
 fn push_to_key_parameter_list_be(
@@ -303,15 +306,16 @@ fn push_to_key_parameter_list_be(
     serializer: &mut impl SerializeFinalStruct,
     data: &[u8],
 ) -> Result<(), XTypesError> {
-    for descriptor in dynamic_type.into_iter() {
-        let descriptor = descriptor?;
-        if descriptor.is_key {
-            let buffer = go_to_pid_be(data, descriptor.id)?;
-            let mut de = Xcdr1BeDeserializer::new(buffer);
-            deserialize_and_serialize_if_key_field(&descriptor.r#type, true, &mut de, serializer)?;
-        }
-    }
-    Ok(())
+    todo!()
+    // for descriptor in dynamic_type.into_iter() {
+    //     let descriptor = descriptor?;
+    //     if descriptor.is_key {
+    //         let buffer = go_to_pid_be(data, descriptor.id)?;
+    //         let mut de = Xcdr1BeDeserializer::new(buffer);
+    //         deserialize_and_serialize_if_key_field(&descriptor.r#type, true, &mut de, serializer)?;
+    //     }
+    // }
+    // Ok(())
 }
 
 type RepresentationIdentifier = [u8; 2];

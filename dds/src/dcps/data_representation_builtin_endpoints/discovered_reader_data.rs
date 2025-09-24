@@ -103,7 +103,7 @@ impl TypeSupport for DiscoveredReaderData {
         todo!()
     }
 
-    fn create_dynamic_sample(&self) -> crate::xtypes::dynamic_type::DynamicData {
+    fn create_dynamic_sample(self) -> crate::xtypes::dynamic_type::DynamicData {
         todo!()
     }
 }
