@@ -16,11 +16,6 @@ jobs:
         password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
-
     # Note: The keystore can be transformed into a base64 string using PowerShell like so:
     #  [Convert]::ToBase64String([IO.File]::ReadAllBytes($FileName))
       - name: Decode_Android_key_store
@@ -28,7 +23,7 @@ jobs:
       - name: Decode_Android_key_store
         run: printf "keyAlias=key1\nkeyPassword=%s\nstoreFile=keystore.jks\nstorePassword=%s" ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }} ${{ secrets.ANDROID_RELEASE_STORE_PASSWORD }} > shapes_demo/android/keystore.properties
       - name: Build_Android
-        run: ./shapes_demo/android/gradlew --project-dir shapes_demo/android bundleRelease --info
+        run: ./shapes_demo/android/gradlew --project-dir shapes_demo/android bundleRelease
       - uses: actions/upload-artifact@v4
         with:
           name: shapes_demo_android_app
