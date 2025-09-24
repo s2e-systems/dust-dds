@@ -53,7 +53,7 @@ pub fn derive_dds_type(input: TokenStream) -> TokenStream {
 
     output.extend(derive_xtypes_serialize(input.clone()));
     output.extend(derive_xtypes_deserialize(input.clone()));
-    output.extend(derive_dds_serialize(input.clone()));
+    // output.extend(derive_dds_serialize(input.clone()));
     output.extend(derive_dds_deserialize(input.clone()));
     output.extend(derive_type_support(input));
 

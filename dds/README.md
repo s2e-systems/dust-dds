@@ -65,7 +65,7 @@ A basic example on how to use Dust DDS. The publisher side can be implemented as
         id: 8,
         msg: "Hello world!".to_string(),
     };
-    writer.write(&hello_world, None).unwrap();
+    writer.write(hello_world, None).unwrap();
 ```
 
 The subscriber side can be implemented as:

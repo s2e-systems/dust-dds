@@ -91,7 +91,7 @@ fn main() {
         id: 8,
         msg: "Hello world".to_string(),
     };
-    writer.write(&hello_world, None).unwrap();
+    writer.write(hello_world, None).unwrap();
 
     writer
         .wait_for_acknowledgments(Duration::new(30, 0))

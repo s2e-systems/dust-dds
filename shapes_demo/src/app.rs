@@ -37,7 +37,7 @@ struct ShapeWriter {
 impl ShapeWriter {
     fn write(&self) {
         let data = self.shape.gui_shape().as_shape_type();
-        self.writer.write(&data, None).ok();
+        self.writer.write(data, None).ok();
     }
     fn color(&self) -> String {
         self.shape.gui_shape().as_shape_type().color.clone()

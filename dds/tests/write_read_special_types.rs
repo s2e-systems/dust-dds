@@ -1,7 +1,6 @@
 mod utils;
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 use dust_dds::{
-    runtime::DdsRuntime,
     dds_async::domain_participant_factory::DomainParticipantFactoryAsync,
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
@@ -14,6 +13,7 @@ use dust_dds::{
     },
     listener::NO_LISTENER,
     publication::data_writer_listener::DataWriterListener,
+    runtime::DdsRuntime,
     subscription::data_reader_listener::DataReaderListener,
     wait_set::{Condition, WaitSet},
 };
@@ -113,7 +113,7 @@ fn foo_with_lifetime_should_read_and_write() {
         value: &data_vec,
     };
 
-    writer.write(&data, None).unwrap();
+    writer.write(data.clone(), None).unwrap();
 
     writer
         .wait_for_acknowledgments(Duration::new(10, 0))
@@ -315,7 +315,7 @@ fn foo_with_non_consecutive_key_should_read_and_write() {
         another_id: 20,
     };
 
-    writer.write(&data, None).unwrap();
+    writer.write(data.clone(), None).unwrap();
 
     writer
         .wait_for_acknowledgments(Duration::new(10, 0))
@@ -404,7 +404,7 @@ fn foo_enumerator_should_read_and_write() {
 
     let data = MyEnum::VariantB;
 
-    writer.write(&data, None).unwrap();
+    writer.write(data.clone(), None).unwrap();
 
     writer
         .wait_for_acknowledgments(Duration::new(10, 0))
@@ -420,13 +420,13 @@ fn foo_enumerator_should_read_and_write() {
 
 #[test]
 fn nested_types_should_read_and_write() {
-    #[derive(PartialEq, Eq, Debug, DdsType)]
+    #[derive(Clone, PartialEq, Eq, Debug, DdsType)]
     struct InnerType {
         a: i32,
         b: u8,
     }
 
-    #[derive(PartialEq, Eq, Debug, DdsType)]
+    #[derive(Clone, PartialEq, Eq, Debug, DdsType)]
     struct OuterType {
         inner: InnerType,
         flag: bool,
@@ -501,7 +501,7 @@ fn nested_types_should_read_and_write() {
         flag: true,
     };
 
-    writer.write(&data, None).unwrap();
+    writer.write(data.clone(), None).unwrap();
 
     writer
         .wait_for_acknowledgments(Duration::new(10, 0))
@@ -594,7 +594,7 @@ fn foo_xtypes_union_should_read_and_write() {
 
     let data = MyEnum::VariantB { a: 10, b: -20 };
 
-    writer.write(&data, None).unwrap();
+    writer.write(data.clone(), None).unwrap();
 
     writer
         .wait_for_acknowledgments(Duration::new(10, 0))

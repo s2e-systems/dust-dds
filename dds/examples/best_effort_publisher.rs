@@ -1,12 +1,12 @@
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
-    listener::NO_LISTENER,
     infrastructure::{
         qos::QosKind,
         status::{StatusKind, NO_STATUS},
         time::Duration,
         type_support::DdsType,
     },
+    listener::NO_LISTENER,
     wait_set::{Condition, WaitSet},
 };
 
@@ -53,8 +53,8 @@ fn main() {
 
     for id in 1..=10 {
         let sample = BestEffortExampleType { id };
-        writer.write(&sample, None).unwrap();
         println!("Wrote sample: {:?}", sample);
+        writer.write(sample, None).unwrap();
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
 

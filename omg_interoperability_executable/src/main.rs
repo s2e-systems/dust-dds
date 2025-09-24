@@ -563,7 +563,7 @@ fn run_publisher(
         }
 
         move_shape(&mut shape, &mut x_vel, &mut y_vel, da_width, da_height);
-        data_writer.write(&shape, None).ok();
+        data_writer.write(shape, None).ok();
         if options.print_writer_samples {
             println!(
                 "{:10} {:10} {:03} {:03} [{:}]",

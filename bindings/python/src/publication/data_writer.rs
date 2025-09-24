@@ -141,7 +141,7 @@ impl DataWriter {
     pub fn lookup_instance(&self, instance: Py<PyAny>) -> PyResult<Option<InstanceHandle>> {
         Ok(self
             .0
-            .lookup_instance(&PythonDdsData::from_py_object(instance)?)
+            .lookup_instance(PythonDdsData::from_py_object(instance)?)
             .map_err(into_pyerr)?
             .map(InstanceHandle::from))
     }

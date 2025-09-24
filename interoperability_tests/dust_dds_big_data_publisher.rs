@@ -71,7 +71,7 @@ fn main() {
     let data = big_data::BigDataType {
         msg: vec![b'a'; 15000],
     };
-    writer.write(&data, None).unwrap();
+    writer.write(data, None).unwrap();
 
     writer
         .wait_for_acknowledgments(Duration::new(30, 0))

@@ -13,7 +13,7 @@ use dust_dds::{
     listener::NO_LISTENER,
 };
 
-#[derive(Debug, PartialEq, DdsType)]
+#[derive(Debug, Clone, PartialEq, DdsType)]
 struct UserData {
     #[dust_dds(key)]
     id: u8,
@@ -76,7 +76,7 @@ async fn main() {
         value: vec![8; 100],
     };
 
-    writer.write(&data, None).await.unwrap();
+    writer.write(data.clone(), None).await.unwrap();
 
     let cond = reader.get_statuscondition();
     cond.set_enabled_statuses(&[StatusKind::DataAvailable])

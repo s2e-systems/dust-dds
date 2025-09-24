@@ -94,7 +94,7 @@ fn writer_offered_deadline_missed_waitset() {
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let data1 = MyData { id: 1, value: 1 };
-    writer.write(&data1, None).unwrap();
+    writer.write(data1, None).unwrap();
 
     writer
         .wait_for_acknowledgments(Duration::new(10, 0))

@@ -15,7 +15,7 @@ use dust_dds::{
 use tracing::Level;
 use tracing_subscriber::{fmt::format::FmtSpan, FmtSubscriber};
 
-#[derive(Debug, PartialEq, DdsType)]
+#[derive(Debug, Clone, PartialEq, DdsType)]
 struct Data {
     #[dust_dds(key)]
     id: u8,
@@ -102,7 +102,7 @@ fn main() {
         value: vec![8; 15000],
     };
 
-    writer.write(&data, None).unwrap();
+    writer.write(data.clone(), None).unwrap();
 
     let cond = reader.get_statuscondition();
     cond.set_enabled_statuses(&[StatusKind::DataAvailable])

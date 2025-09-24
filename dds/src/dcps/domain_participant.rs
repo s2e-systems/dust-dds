@@ -27,10 +27,7 @@ use crate::{
         listeners::domain_participant_listener::ListenerMail,
         status_condition::DcpsStatusCondition,
         status_condition_mail::DcpsStatusConditionMail,
-        xtypes_glue::key_and_instance_handle::{
-            get_instance_handle_from_serialized_foo, get_instance_handle_from_serialized_key,
-            get_serialized_key_from_serialized_foo,
-        },
+        xtypes_glue::key_and_instance_handle::get_instance_handle_from_dynamic_data,
     },
     dds_async::{
         data_reader::DataReaderAsync, data_writer::DataWriterAsync,
@@ -62,7 +59,7 @@ use crate::{
             StatusKind, SubscriptionMatchedStatus,
         },
         time::{Duration, DurationKind, Time},
-        type_support::{DdsDeserialize, DdsSerialize},
+        type_support::{DdsDeserialize, TypeSupport},
     },
     runtime::{ChannelSend, Clock, DdsRuntime, OneshotReceive, Spawner, Timer},
     transport::{
@@ -79,7 +76,7 @@ use crate::{
             USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
         },
     },
-    xtypes::dynamic_type::DynamicType,
+    xtypes::dynamic_type::{DynamicData, DynamicType},
 };
 use alloc::{
     boxed::Box,
@@ -1828,12 +1825,12 @@ where
             .cloned()
     }
 
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self, dynamic_data))]
     pub async fn unregister_instance(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        serialized_data: Vec<u8>,
+        dynamic_data: DynamicData,
         timestamp: Time,
     ) -> DdsResult<()> {
         let Some(publisher) = self
@@ -1851,26 +1848,26 @@ where
         else {
             return Err(DdsError::AlreadyDeleted);
         };
-        let serialized_key = match get_serialized_key_from_serialized_foo(
-            &serialized_data,
-            data_writer.type_support.as_ref(),
-        ) {
-            Ok(k) => k,
-            Err(e) => {
-                return Err(e.into());
-            }
-        };
+        // let serialized_key = match get_serialized_key_from_serialized_foo(
+        //     &serialized_data,
+        //     data_writer.type_support.as_ref(),
+        // ) {
+        //     Ok(k) => k,
+        //     Err(e) => {
+        //         return Err(e.into());
+        //     }
+        // };
         data_writer
-            .unregister_w_timestamp(serialized_key, timestamp)
+            .unregister_w_timestamp(dynamic_data, timestamp)
             .await
     }
 
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self, dynamic_data))]
     pub fn lookup_instance(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        serialized_data: Vec<u8>,
+        dynamic_data: DynamicData,
     ) -> DdsResult<Option<InstanceHandle>> {
         let Some(publisher) = self
             .domain_participant
@@ -1892,8 +1889,8 @@ where
             return Err(DdsError::NotEnabled);
         }
 
-        let instance_handle = match get_instance_handle_from_serialized_foo(
-            &serialized_data,
+        let instance_handle = match get_instance_handle_from_dynamic_data(
+            &dynamic_data,
             data_writer.type_support.as_ref(),
         ) {
             Ok(k) => k,
@@ -1908,13 +1905,13 @@ where
             .then_some(instance_handle))
     }
 
-    #[tracing::instrument(skip(self, participant_address))]
+    #[tracing::instrument(skip(self, participant_address, dynamic_data))]
     pub async fn write_w_timestamp(
         &mut self,
         participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        serialized_data: Vec<u8>,
+        dynamic_data: DynamicData,
         timestamp: Time,
     ) -> DdsResult<()> {
         let now = self.get_current_time();
@@ -1933,8 +1930,8 @@ where
         else {
             return Err(DdsError::AlreadyDeleted);
         };
-        let instance_handle = match get_instance_handle_from_serialized_foo(
-            &serialized_data,
+        let instance_handle = match get_instance_handle_from_dynamic_data(
+            &dynamic_data,
             data_writer.type_support.as_ref(),
         ) {
             Ok(k) => k,
@@ -1949,7 +1946,7 @@ where
                 let sleep_duration = timestamp - now + lifespan_duration;
                 if sleep_duration > Duration::new(0, 0) {
                     let sequence_number = match data_writer
-                        .write_w_timestamp(serialized_data, timestamp, &self.clock_handle)
+                        .write_w_timestamp(dynamic_data, timestamp, &self.clock_handle)
                         .await
                     {
                         Ok(s) => s,
@@ -1976,7 +1973,7 @@ where
             }
             DurationKind::Infinite => {
                 match data_writer
-                    .write_w_timestamp(serialized_data, timestamp, &self.clock_handle)
+                    .write_w_timestamp(dynamic_data, timestamp, &self.clock_handle)
                     .await
                 {
                     Ok(_) => (),
@@ -2010,12 +2007,12 @@ where
         Ok(())
     }
 
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self, dynamic_data))]
     pub async fn dispose_w_timestamp(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        serialized_data: Vec<u8>,
+        dynamic_data: DynamicData,
         timestamp: Time,
     ) -> DdsResult<()> {
         let Some(publisher) = self
@@ -2033,17 +2030,9 @@ where
         else {
             return Err(DdsError::AlreadyDeleted);
         };
-        let serialized_key = match get_serialized_key_from_serialized_foo(
-            &serialized_data,
-            data_writer.type_support.as_ref(),
-        ) {
-            Ok(k) => k,
-            Err(e) => {
-                return Err(e.into());
-            }
-        };
+
         data_writer
-            .dispose_w_timestamp(serialized_key, timestamp)
+            .dispose_w_timestamp(dynamic_data, timestamp)
             .await
     }
 
@@ -2747,11 +2736,13 @@ where
                 .iter_mut()
                 .find(|x| x.topic_name == DCPS_PARTICIPANT)
             {
-                if let Ok(serialized_data) = spdp_discovered_participant_data.serialize_data() {
-                    dw.write_w_timestamp(serialized_data, timestamp, &self.clock_handle)
-                        .await
-                        .ok();
-                }
+                dw.write_w_timestamp(
+                    spdp_discovered_participant_data.create_dynamic_sample(),
+                    timestamp,
+                    &self.clock_handle,
+                )
+                .await
+                .ok();
             }
         }
     }
@@ -2768,11 +2759,12 @@ where
                 .find(|x| x.topic_name == DCPS_PARTICIPANT)
             {
                 let key = InstanceHandle::new(self.transport.guid().into());
-                if let Ok(serialized_data) = key.serialize_data() {
-                    dw.dispose_w_timestamp(serialized_data, timestamp)
-                        .await
-                        .ok();
-                }
+                todo!()
+                // if let Ok(serialized_data) = key.serialize_data() {
+                //     dw.dispose_w_timestamp(serialized_data, timestamp)
+                //         .await
+                //         .ok();
+                // }
             }
         }
     }
@@ -2850,11 +2842,13 @@ where
             .iter_mut()
             .find(|x| x.topic_name == DCPS_PUBLICATION)
         {
-            if let Ok(serialized_data) = discovered_writer_data.serialize_data() {
-                dw.write_w_timestamp(serialized_data, timestamp, &self.clock_handle)
-                    .await
-                    .ok();
-            }
+            dw.write_w_timestamp(
+                discovered_writer_data.create_dynamic_sample(),
+                timestamp,
+                &self.clock_handle,
+            )
+            .await
+            .ok();
         }
     }
 
@@ -2869,11 +2863,12 @@ where
             .find(|x| x.topic_name == DCPS_PUBLICATION)
         {
             let key = InstanceHandle::new(data_writer.transport_writer.guid().into());
-            if let Ok(serialized_data) = key.serialize_data() {
-                dw.dispose_w_timestamp(serialized_data, timestamp)
-                    .await
-                    .ok();
-            }
+            todo!()
+            // if let Ok(serialized_data) = key.serialize_data() {
+            //     dw.dispose_w_timestamp(serialized_data, timestamp)
+            //         .await
+            //         .ok();
+            // }
         }
     }
 
@@ -2947,11 +2942,13 @@ where
             .iter_mut()
             .find(|x| x.topic_name == DCPS_SUBSCRIPTION)
         {
-            if let Ok(serialized_data) = discovered_reader_data.serialize_data() {
-                dw.write_w_timestamp(serialized_data, timestamp, &self.clock_handle)
-                    .await
-                    .ok();
-            }
+            dw.write_w_timestamp(
+                discovered_reader_data.create_dynamic_sample(),
+                timestamp,
+                &self.clock_handle,
+            )
+            .await
+            .ok();
         }
     }
 
@@ -2967,11 +2964,12 @@ where
         {
             let guid = data_reader.transport_reader.guid();
             let key = InstanceHandle::new(guid.into());
-            if let Ok(serialized_data) = key.serialize_data() {
-                dw.dispose_w_timestamp(serialized_data, timestamp)
-                    .await
-                    .ok();
-            }
+            todo!()
+            // if let Ok(serialized_data) = key.serialize_data() {
+            //     dw.dispose_w_timestamp(serialized_data, timestamp)
+            //         .await
+            //         .ok();
+            // }
         }
     }
 
@@ -3015,11 +3013,13 @@ where
             .iter_mut()
             .find(|x| x.topic_name == DCPS_TOPIC)
         {
-            if let Ok(serialized_data) = topic_builtin_topic_data.serialize_data() {
-                dw.write_w_timestamp(serialized_data, timestamp, &self.clock_handle)
-                    .await
-                    .ok();
-            }
+            dw.write_w_timestamp(
+                topic_builtin_topic_data.create_dynamic_sample(),
+                timestamp,
+                &self.clock_handle,
+            )
+            .await
+            .ok();
         }
     }
 
@@ -5893,7 +5893,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
 
     pub async fn write_w_timestamp(
         &mut self,
-        serialized_data: Vec<u8>,
+        serialized_data: DynamicData,
         timestamp: Time,
         clock: &impl Clock,
     ) -> DdsResult<i64> {
@@ -5904,7 +5904,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
         self.last_change_sequence_number += 1;
 
         let instance_handle =
-            get_instance_handle_from_serialized_foo(&serialized_data, self.type_support.as_ref())?;
+            get_instance_handle_from_dynamic_data(&serialized_data, self.type_support.as_ref())?;
 
         if !self.registered_instance_list.contains(&instance_handle) {
             if self.registered_instance_list.len() < self.qos.resource_limits.max_instances {
@@ -5964,7 +5964,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
             sequence_number: self.last_change_sequence_number,
             source_timestamp: Some(timestamp.into()),
             instance_handle: Some(instance_handle.into()),
-            data_value: serialized_data.into(),
+            data_value: todo!(), //serialized_data.into(),
         };
         if let HistoryQosPolicyKind::KeepLast(depth) = self.qos.history.kind {
             if let Some(s) = self
@@ -6048,7 +6048,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
 
     pub async fn dispose_w_timestamp(
         &mut self,
-        serialized_key: Vec<u8>,
+        dynamic_data: DynamicData,
         timestamp: Time,
     ) -> DdsResult<()> {
         if !self.enabled {
@@ -6075,7 +6075,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
         }
 
         let instance_handle =
-            get_instance_handle_from_serialized_key(&serialized_key, self.type_support.as_ref())?;
+            get_instance_handle_from_dynamic_data(&dynamic_data, self.type_support.as_ref())?;
         if !self.registered_instance_list.contains(&instance_handle) {
             return Err(DdsError::BadParameter);
         }
@@ -6096,7 +6096,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
             sequence_number: self.last_change_sequence_number,
             source_timestamp: Some(timestamp.into()),
             instance_handle: Some(instance_handle.into()),
-            data_value: serialized_key.into(),
+            data_value: todo!(), //dynamic_data.into(),
         };
         self.transport_writer
             .history_cache()
@@ -6108,7 +6108,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
 
     pub async fn unregister_w_timestamp(
         &mut self,
-        serialized_key: Vec<u8>,
+        dynamic_data: DynamicData,
         timestamp: Time,
     ) -> DdsResult<()> {
         if !self.enabled {
@@ -6135,7 +6135,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
         }
 
         let instance_handle =
-            get_instance_handle_from_serialized_key(&serialized_key, self.type_support.as_ref())?;
+            get_instance_handle_from_dynamic_data(&dynamic_data, self.type_support.as_ref())?;
         if !self.registered_instance_list.contains(&instance_handle) {
             return Err(DdsError::BadParameter);
         }
@@ -6156,7 +6156,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
             sequence_number: self.last_change_sequence_number,
             source_timestamp: Some(timestamp.into()),
             instance_handle: Some(instance_handle.into()),
-            data_value: serialized_key.into(),
+            data_value: todo!(), //serialized_key.into(),
         };
         self.transport_writer
             .history_cache()
@@ -6613,78 +6613,80 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
         cache_change: CacheChange,
         reception_timestamp: Time,
     ) -> DdsResult<ReaderSample> {
-        let instance_handle = {
-            match cache_change.kind {
-                ChangeKind::Alive | ChangeKind::AliveFiltered => {
-                    get_instance_handle_from_serialized_foo(
-                        cache_change.data_value.as_ref(),
-                        self.type_support.as_ref(),
-                    )?
-                }
-                ChangeKind::NotAliveDisposed
-                | ChangeKind::NotAliveUnregistered
-                | ChangeKind::NotAliveDisposedUnregistered => match cache_change.instance_handle {
-                    Some(i) => InstanceHandle::new(i),
-                    None => get_instance_handle_from_serialized_key(
-                        cache_change.data_value.as_ref(),
-                        self.type_support.as_ref(),
-                    )?,
-                },
-            }
-        };
+        todo!();
+        // let instance_handle = {
+        //     match cache_change.kind {
+        //         ChangeKind::Alive | ChangeKind::AliveFiltered => {
+        //             get_instance_handle_from_dynamic_data(
+        //                 cache_change.data_value.as_ref(),
+        //                 self.type_support.as_ref(),
+        //             )?
+        //         }
+        //         ChangeKind::NotAliveDisposed
+        //         | ChangeKind::NotAliveUnregistered
+        //         | ChangeKind::NotAliveDisposedUnregistered => match cache_change.instance_handle {
+        //             Some(i) => InstanceHandle::new(i),
+        //             None => get_instance_handle_from_dynamic_data(
+        //                 cache_change.data_value.as_ref(),
+        //                 self.type_support.as_ref(),
+        //             )?,
+        //         },
+        //     }
+        // };
 
         // Update the state of the instance before creating since this has direct impact on
         // the information that is store on the sample
-        match cache_change.kind {
-            ChangeKind::Alive | ChangeKind::AliveFiltered => {
-                match self
-                    .instances
-                    .iter_mut()
-                    .find(|x| x.handle() == instance_handle)
-                {
-                    Some(x) => x.update_state(cache_change.kind),
-                    None => {
-                        let mut s = InstanceState::new(instance_handle);
-                        s.update_state(cache_change.kind);
-                        self.instances.push(s);
-                    }
-                }
-                Ok(())
-            }
-            ChangeKind::NotAliveDisposed
-            | ChangeKind::NotAliveUnregistered
-            | ChangeKind::NotAliveDisposedUnregistered => {
-                match self
-                    .instances
-                    .iter_mut()
-                    .find(|x| x.handle() == instance_handle)
-                {
-                    Some(instance) => {
-                        instance.update_state(cache_change.kind);
-                        Ok(())
-                    }
-                    None => Err(DdsError::Error(
-                        "Received message changing state of unknown instance".to_string(),
-                    )),
-                }
-            }
-        }?;
-        let instance = self
-            .instances
-            .iter()
-            .find(|x| x.handle() == instance_handle)
-            .expect("Sample with handle must exist");
-        Ok(ReaderSample {
-            kind: cache_change.kind,
-            writer_guid: cache_change.writer_guid.into(),
-            instance_handle,
-            source_timestamp: cache_change.source_timestamp.map(Into::into),
-            data_value: cache_change.data_value.clone(),
-            sample_state: SampleStateKind::NotRead,
-            disposed_generation_count: instance.most_recent_disposed_generation_count,
-            no_writers_generation_count: instance.most_recent_no_writers_generation_count,
-            reception_timestamp,
-        })
+        // match cache_change.kind {
+        //     ChangeKind::Alive | ChangeKind::AliveFiltered => {
+        //         match self
+        //             .instances
+        //             .iter_mut()
+        //             .find(|x| x.handle() == instance_handle)
+        //         {
+        //             Some(x) => x.update_state(cache_change.kind),
+        //             None => {
+        //                 let mut s = InstanceState::new(instance_handle);
+        //                 s.update_state(cache_change.kind);
+        //                 self.instances.push(s);
+        //             }
+        //         }
+        //         Ok(())
+        //     }
+        //     ChangeKind::NotAliveDisposed
+        //     | ChangeKind::NotAliveUnregistered
+        //     | ChangeKind::NotAliveDisposedUnregistered => {
+        //         match self
+        //             .instances
+        //             .iter_mut()
+        //             .find(|x| x.handle() == instance_handle)
+        //         {
+        //             Some(instance) => {
+        //                 instance.update_state(cache_change.kind);
+        //                 Ok(())
+        //             }
+        //             None => Err(DdsError::Error(
+        //                 "Received message changing state of unknown instance".to_string(),
+        //             )),
+        //         }
+        //     }
+        // }?;
+        // let instance = self
+        //     .instances
+        //     .iter()
+        //     .find(|x| x.handle() == instance_handle)
+        //     .expect("Sample with handle must exist");
+        // Ok(ReaderSample {
+        //     kind: cache_change.kind,
+        //     writer_guid: cache_change.writer_guid.into(),
+        //     instance_handle,
+        //     source_timestamp: cache_change.source_timestamp.map(Into::into),
+        //     data_value: cache_change.data_value.clone(),
+        //     sample_state: SampleStateKind::NotRead,
+        //     disposed_generation_count: instance.most_recent_disposed_generation_count,
+        //     no_writers_generation_count: instance.most_recent_no_writers_generation_count,
+        //     reception_timestamp,
+        // })
+        todo!()
     }
 
     pub fn add_reader_change(

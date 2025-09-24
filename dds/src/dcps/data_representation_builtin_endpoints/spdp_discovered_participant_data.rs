@@ -1,7 +1,7 @@
 use super::{
     parameter_id_values::{
-        DEFAULT_DOMAIN_TAG, DEFAULT_EXPECTS_INLINE_QOS, DEFAULT_PARTICIPANT_LEASE_DURATION,
-        PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET, PID_DATA_REPRESENTATION, PID_DEADLINE,
+        DEFAULT_EXPECTS_INLINE_QOS, DEFAULT_PARTICIPANT_LEASE_DURATION, PID_BUILTIN_ENDPOINT_QOS,
+        PID_BUILTIN_ENDPOINT_SET, PID_DATA_REPRESENTATION, PID_DEADLINE,
         PID_DEFAULT_MULTICAST_LOCATOR, PID_DEFAULT_UNICAST_LOCATOR, PID_DESTINATION_ORDER,
         PID_DISCOVERED_PARTICIPANT, PID_DOMAIN_ID, PID_DOMAIN_TAG, PID_DURABILITY,
         PID_ENDPOINT_GUID, PID_EXPECTS_INLINE_QOS, PID_HISTORY, PID_LATENCY_BUDGET, PID_LIFESPAN,
@@ -11,10 +11,7 @@ use super::{
         PID_RESOURCE_LIMITS, PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TRANSPORT_PRIORITY, PID_TYPE_NAME,
         PID_USER_DATA, PID_VENDORID,
     },
-    payload_serializer_deserializer::{
-        parameter_list_deserializer::ParameterListCdrDeserializer,
-        parameter_list_serializer::ParameterListCdrSerializer,
-    },
+    payload_serializer_deserializer::parameter_list_deserializer::ParameterListCdrDeserializer,
 };
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
@@ -24,7 +21,7 @@ use crate::{
         instance::InstanceHandle,
         qos_policy::DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
         time::Duration,
-        type_support::{DdsDeserialize, DdsSerialize, TypeSupport},
+        type_support::{DdsDeserialize, TypeSupport},
     },
     transport::types::{GuidPrefix, Locator, Long, ProtocolVersion, VendorId},
     xtypes::{
@@ -215,18 +212,18 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
     }
 }
 
-impl DdsSerialize for ParticipantBuiltinTopicData {
-    fn serialize_data(&self) -> DdsResult<Vec<u8>> {
-        let mut serializer = ParameterListCdrSerializer::default();
-        serializer.write_header()?;
+// impl DdsSerialize for ParticipantBuiltinTopicData {
+//     fn serialize_data(&self) -> DdsResult<Vec<u8>> {
+//         let mut serializer = ParameterListCdrSerializer::default();
+//         serializer.write_header()?;
 
-        // dds_participant_data: ParticipantBuiltinTopicData :
-        serializer.write(PID_PARTICIPANT_GUID, &self.key)?;
-        serializer.write_with_default(PID_USER_DATA, &self.user_data, &Default::default())?;
-        serializer.write_sentinel()?;
-        Ok(serializer.writer)
-    }
-}
+//         // dds_participant_data: ParticipantBuiltinTopicData :
+//         serializer.write(PID_PARTICIPANT_GUID, &self.key)?;
+//         serializer.write_with_default(PID_USER_DATA, &self.user_data, &Default::default())?;
+//         serializer.write_sentinel()?;
+//         Ok(serializer.writer)
+//     }
+// }
 
 impl<'de> DdsDeserialize<'de> for ParticipantBuiltinTopicData {
     fn deserialize_data(serialized_data: &'de [u8]) -> DdsResult<Self> {
@@ -270,81 +267,81 @@ impl<'de> DdsDeserialize<'de> for TopicBuiltinTopicData {
     }
 }
 
-impl DdsSerialize for SpdpDiscoveredParticipantData {
-    fn serialize_data(&self) -> DdsResult<Vec<u8>> {
-        let mut serializer = ParameterListCdrSerializer::default();
-        serializer.write_header()?;
+// impl DdsSerialize for SpdpDiscoveredParticipantData {
+//     fn serialize_data(&self) -> DdsResult<Vec<u8>> {
+//         let mut serializer = ParameterListCdrSerializer::default();
+//         serializer.write_header()?;
 
-        // dds_participant_data: ParticipantBuiltinTopicData :
-        serializer.write(PID_PARTICIPANT_GUID, &self.dds_participant_data.key)?;
-        serializer.write_with_default(
-            PID_USER_DATA,
-            &self.dds_participant_data.user_data,
-            &Default::default(),
-        )?;
+//         // dds_participant_data: ParticipantBuiltinTopicData :
+//         serializer.write(PID_PARTICIPANT_GUID, &self.dds_participant_data.key)?;
+//         serializer.write_with_default(
+//             PID_USER_DATA,
+//             &self.dds_participant_data.user_data,
+//             &Default::default(),
+//         )?;
 
-        // participant_proxy: ParticipantProxy :
-        if let Some(domain_id) = &self.participant_proxy.domain_id {
-            serializer.write(PID_DOMAIN_ID, domain_id)?;
-        }
-        serializer.write_with_default(
-            PID_DOMAIN_TAG,
-            &self.participant_proxy.domain_tag,
-            &String::from(DEFAULT_DOMAIN_TAG),
-        )?;
-        serializer.write(
-            PID_PROTOCOL_VERSION,
-            &self.participant_proxy.protocol_version,
-        )?;
-        serializer.write(PID_VENDORID, &self.participant_proxy.vendor_id)?;
-        serializer.write_with_default(
-            PID_EXPECTS_INLINE_QOS,
-            &self.participant_proxy.expects_inline_qos,
-            &DEFAULT_EXPECTS_INLINE_QOS,
-        )?;
-        serializer.write_collection(
-            PID_METATRAFFIC_UNICAST_LOCATOR,
-            &self.participant_proxy.metatraffic_unicast_locator_list,
-        )?;
-        serializer.write_collection(
-            PID_METATRAFFIC_MULTICAST_LOCATOR,
-            &self.participant_proxy.metatraffic_multicast_locator_list,
-        )?;
-        serializer.write_collection(
-            PID_DEFAULT_UNICAST_LOCATOR,
-            &self.participant_proxy.default_unicast_locator_list,
-        )?;
-        serializer.write_collection(
-            PID_DEFAULT_MULTICAST_LOCATOR,
-            &self.participant_proxy.default_multicast_locator_list,
-        )?;
-        serializer.write(
-            PID_BUILTIN_ENDPOINT_SET,
-            &self.participant_proxy.available_builtin_endpoints,
-        )?;
-        serializer.write_with_default(
-            PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
-            &self.participant_proxy.manual_liveliness_count,
-            &Default::default(),
-        )?;
-        serializer.write_with_default(
-            PID_BUILTIN_ENDPOINT_QOS,
-            &self.participant_proxy.builtin_endpoint_qos,
-            &Default::default(),
-        )?;
+//         // participant_proxy: ParticipantProxy :
+//         if let Some(domain_id) = &self.participant_proxy.domain_id {
+//             serializer.write(PID_DOMAIN_ID, domain_id)?;
+//         }
+//         serializer.write_with_default(
+//             PID_DOMAIN_TAG,
+//             &self.participant_proxy.domain_tag,
+//             &String::from(DEFAULT_DOMAIN_TAG),
+//         )?;
+//         serializer.write(
+//             PID_PROTOCOL_VERSION,
+//             &self.participant_proxy.protocol_version,
+//         )?;
+//         serializer.write(PID_VENDORID, &self.participant_proxy.vendor_id)?;
+//         serializer.write_with_default(
+//             PID_EXPECTS_INLINE_QOS,
+//             &self.participant_proxy.expects_inline_qos,
+//             &DEFAULT_EXPECTS_INLINE_QOS,
+//         )?;
+//         serializer.write_collection(
+//             PID_METATRAFFIC_UNICAST_LOCATOR,
+//             &self.participant_proxy.metatraffic_unicast_locator_list,
+//         )?;
+//         serializer.write_collection(
+//             PID_METATRAFFIC_MULTICAST_LOCATOR,
+//             &self.participant_proxy.metatraffic_multicast_locator_list,
+//         )?;
+//         serializer.write_collection(
+//             PID_DEFAULT_UNICAST_LOCATOR,
+//             &self.participant_proxy.default_unicast_locator_list,
+//         )?;
+//         serializer.write_collection(
+//             PID_DEFAULT_MULTICAST_LOCATOR,
+//             &self.participant_proxy.default_multicast_locator_list,
+//         )?;
+//         serializer.write(
+//             PID_BUILTIN_ENDPOINT_SET,
+//             &self.participant_proxy.available_builtin_endpoints,
+//         )?;
+//         serializer.write_with_default(
+//             PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
+//             &self.participant_proxy.manual_liveliness_count,
+//             &Default::default(),
+//         )?;
+//         serializer.write_with_default(
+//             PID_BUILTIN_ENDPOINT_QOS,
+//             &self.participant_proxy.builtin_endpoint_qos,
+//             &Default::default(),
+//         )?;
 
-        // Default (DEFAULT_PARTICIPANT_LEASE_DURATION) is ommited compared to the standard due to interoperability reasons :
-        serializer.write(PID_PARTICIPANT_LEASE_DURATION, &self.lease_duration)?;
+//         // Default (DEFAULT_PARTICIPANT_LEASE_DURATION) is ommited compared to the standard due to interoperability reasons :
+//         serializer.write(PID_PARTICIPANT_LEASE_DURATION, &self.lease_duration)?;
 
-        serializer.write_collection(
-            PID_DISCOVERED_PARTICIPANT,
-            &self.discovered_participant_list,
-        )?;
+//         serializer.write_collection(
+//             PID_DISCOVERED_PARTICIPANT,
+//             &self.discovered_participant_list,
+//         )?;
 
-        serializer.write_sentinel()?;
-        Ok(serializer.writer)
-    }
-}
+//         serializer.write_sentinel()?;
+//         Ok(serializer.writer)
+//     }
+// }
 
 impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
     fn deserialize_data(serialized_data: &'de [u8]) -> DdsResult<Self> {
@@ -394,123 +391,122 @@ mod tests {
     use super::*;
     use crate::{builtin_topics::BuiltInTopicKey, infrastructure::qos_policy::UserDataQosPolicy};
 
-    #[test]
-    fn serialize_spdp_discovered_participant_data() {
-        let locator1 = Locator::new(11, 12, [1; 16]);
-        let locator2 = Locator::new(21, 22, [2; 16]);
+    // #[test]
+    // fn serialize_spdp_discovered_participant_data() {
+    //     let locator1 = Locator::new(11, 12, [1; 16]);
+    //     let locator2 = Locator::new(21, 22, [2; 16]);
 
-        let domain_id = Some(1);
-        let domain_tag = "ab".to_string();
-        let protocol_version = ProtocolVersion::new(2, 4);
-        let guid_prefix = [8; 12];
-        let vendor_id = [73, 74];
-        let expects_inline_qos = true;
-        let metatraffic_unicast_locator_list = vec![locator1, locator2];
-        let metatraffic_multicast_locator_list = vec![locator1];
-        let default_unicast_locator_list = vec![locator1];
-        let default_multicast_locator_list = vec![locator1];
-        let available_builtin_endpoints =
-            BuiltinEndpointSet::new(BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR);
-        let manual_liveliness_count = 2;
-        let builtin_endpoint_qos = BuiltinEndpointQos::new(
-            BuiltinEndpointQos::BEST_EFFORT_PARTICIPANT_MESSAGE_DATA_READER,
-        );
-        let lease_duration = Duration::new(10, 11);
+    //     let domain_id = Some(1);
+    //     let domain_tag = "ab".to_string();
+    //     let protocol_version = ProtocolVersion::new(2, 4);
+    //     let guid_prefix = [8; 12];
+    //     let vendor_id = [73, 74];
+    //     let expects_inline_qos = true;
+    //     let metatraffic_unicast_locator_list = vec![locator1, locator2];
+    //     let metatraffic_multicast_locator_list = vec![locator1];
+    //     let default_unicast_locator_list = vec![locator1];
+    //     let default_multicast_locator_list = vec![locator1];
+    //     let available_builtin_endpoints =
+    //         BuiltinEndpointSet::new(BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR);
+    //     let manual_liveliness_count = 2;
+    //     let builtin_endpoint_qos = BuiltinEndpointQos::new(
+    //         BuiltinEndpointQos::BEST_EFFORT_PARTICIPANT_MESSAGE_DATA_READER,
+    //     );
+    //     let lease_duration = Duration::new(10, 11);
 
-        let data = SpdpDiscoveredParticipantData {
-            dds_participant_data: ParticipantBuiltinTopicData {
-                key: BuiltInTopicKey {
-                    value: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0xc1],
-                },
-                user_data: UserDataQosPolicy { value: vec![] },
-            },
-            participant_proxy: ParticipantProxy {
-                domain_id,
-                domain_tag,
-                protocol_version,
-                guid_prefix,
-                vendor_id,
-                expects_inline_qos,
-                metatraffic_unicast_locator_list,
-                metatraffic_multicast_locator_list,
-                default_unicast_locator_list,
-                default_multicast_locator_list,
-                available_builtin_endpoints,
-                manual_liveliness_count,
-                builtin_endpoint_qos,
-            },
-            lease_duration,
-            discovered_participant_list: vec![],
-        };
+    //     let data = SpdpDiscoveredParticipantData {
+    //         dds_participant_data: ParticipantBuiltinTopicData {
+    //             key: BuiltInTopicKey {
+    //                 value: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0xc1],
+    //             },
+    //             user_data: UserDataQosPolicy { value: vec![] },
+    //         },
+    //         participant_proxy: ParticipantProxy {
+    //             domain_id,
+    //             domain_tag,
+    //             protocol_version,
+    //             guid_prefix,
+    //             vendor_id,
+    //             expects_inline_qos,
+    //             metatraffic_unicast_locator_list,
+    //             metatraffic_multicast_locator_list,
+    //             default_unicast_locator_list,
+    //             default_multicast_locator_list,
+    //             available_builtin_endpoints,
+    //             manual_liveliness_count,
+    //             builtin_endpoint_qos,
+    //         },
+    //         lease_duration,
+    //         discovered_participant_list: vec![],
+    //     };
 
-        let expected = vec![
-            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
-            0x50, 0x00, 16, 0x00, // PID_PARTICIPANT_GUID, Length
-            8, 8, 8, 8, // GuidPrefix
-            8, 8, 8, 8, // GuidPrefix
-            8, 8, 8, 8, // GuidPrefix
-            0, 0, 1, 0xc1, // EntityId
-            0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
-            0x01, 0x00, 0x00, 0x00, // DomainId
-            0x14, 0x40, 0x08, 0x00, // PID_DOMAIN_TAG, Length: 8
-            3, 0x00, 0x00, 0x00, // DomainTag: string length (incl. terminator)
-            b'a', b'b', 0, 0x00, // DomainTag: string + padding (1 byte)
-            0x15, 0x00, 4, 0x00, // PID_PROTOCOL_VERSION, Length
-            0x02, 0x04, 0x00, 0x00, // ProtocolVersion
-            0x16, 0x00, 4, 0x00, // PID_VENDORID
-            73, 74, 0x00, 0x00, // VendorId
-            0x43, 0x00, 0x04, 0x00, // PID_EXPECTS_INLINE_QOS, Length: 4,
-            0x01, 0x00, 0x00, 0x00, // True
-            0x32, 0x00, 24, 0x00, // PID_METATRAFFIC_UNICAST_LOCATOR
-            11, 0x00, 0x00, 0x00, // Locator{kind
-            12, 0x00, 0x00, 0x00, // port,
-            0x01, 0x01, 0x01, 0x01, //
-            0x01, 0x01, 0x01, 0x01, // address
-            0x01, 0x01, 0x01, 0x01, //
-            0x01, 0x01, 0x01, 0x01, // }
-            0x32, 0x00, 24, 0x00, // PID_METATRAFFIC_UNICAST_LOCATOR
-            21, 0x00, 0x00, 0x00, // Locator{kind
-            22, 0x00, 0x00, 0x00, // port,
-            0x02, 0x02, 0x02, 0x02, //
-            0x02, 0x02, 0x02, 0x02, // address
-            0x02, 0x02, 0x02, 0x02, //
-            0x02, 0x02, 0x02, 0x02, // }
-            0x33, 0x00, 24, 0x00, // PID_METATRAFFIC_MULTICAST_LOCATOR
-            11, 0x00, 0x00, 0x00, // Locator{kind
-            12, 0x00, 0x00, 0x00, // port,
-            0x01, 0x01, 0x01, 0x01, //
-            0x01, 0x01, 0x01, 0x01, // address
-            0x01, 0x01, 0x01, 0x01, //
-            0x01, 0x01, 0x01, 0x01, // }
-            0x31, 0x00, 24, 0x00, // PID_DEFAULT_UNICAST_LOCATOR
-            11, 0x00, 0x00, 0x00, // Locator{kind
-            12, 0x00, 0x00, 0x00, // port,
-            0x01, 0x01, 0x01, 0x01, //
-            0x01, 0x01, 0x01, 0x01, // address
-            0x01, 0x01, 0x01, 0x01, //
-            0x01, 0x01, 0x01, 0x01, // }
-            0x48, 0x00, 24, 0x00, // PID_DEFAULT_MULTICAST_LOCATOR
-            11, 0x00, 0x00, 0x00, // Locator{kind
-            12, 0x00, 0x00, 0x00, // port,
-            0x01, 0x01, 0x01, 0x01, //
-            0x01, 0x01, 0x01, 0x01, // address
-            0x01, 0x01, 0x01, 0x01, //
-            0x01, 0x01, 0x01, 0x01, // }
-            0x58, 0x00, 4, 0x00, // PID_BUILTIN_ENDPOINT_SET
-            0x02, 0x00, 0x00, 0x00, //
-            0x34, 0x00, 4, 0x00, // PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT
-            0x02, 0x00, 0x00, 0x00, // Count
-            0x77, 0x00, 4, 0x00, // PID_BUILTIN_ENDPOINT_QOS
-            0x00, 0x00, 0x00, 0x20, //
-            0x02, 0x00, 8, 0x00, // PID_PARTICIPANT_LEASE_DURATION
-            10, 0x00, 0x00, 0x00, // Duration: seconds
-            11, 0x00, 0x00, 0x00, // Duration: fraction
-            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
-        ];
-        let result = data.serialize_data().unwrap();
-        assert_eq!(result, expected);
-    }
-
+    //     let expected = vec![
+    //         0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+    //         0x50, 0x00, 16, 0x00, // PID_PARTICIPANT_GUID, Length
+    //         8, 8, 8, 8, // GuidPrefix
+    //         8, 8, 8, 8, // GuidPrefix
+    //         8, 8, 8, 8, // GuidPrefix
+    //         0, 0, 1, 0xc1, // EntityId
+    //         0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
+    //         0x01, 0x00, 0x00, 0x00, // DomainId
+    //         0x14, 0x40, 0x08, 0x00, // PID_DOMAIN_TAG, Length: 8
+    //         3, 0x00, 0x00, 0x00, // DomainTag: string length (incl. terminator)
+    //         b'a', b'b', 0, 0x00, // DomainTag: string + padding (1 byte)
+    //         0x15, 0x00, 4, 0x00, // PID_PROTOCOL_VERSION, Length
+    //         0x02, 0x04, 0x00, 0x00, // ProtocolVersion
+    //         0x16, 0x00, 4, 0x00, // PID_VENDORID
+    //         73, 74, 0x00, 0x00, // VendorId
+    //         0x43, 0x00, 0x04, 0x00, // PID_EXPECTS_INLINE_QOS, Length: 4,
+    //         0x01, 0x00, 0x00, 0x00, // True
+    //         0x32, 0x00, 24, 0x00, // PID_METATRAFFIC_UNICAST_LOCATOR
+    //         11, 0x00, 0x00, 0x00, // Locator{kind
+    //         12, 0x00, 0x00, 0x00, // port,
+    //         0x01, 0x01, 0x01, 0x01, //
+    //         0x01, 0x01, 0x01, 0x01, // address
+    //         0x01, 0x01, 0x01, 0x01, //
+    //         0x01, 0x01, 0x01, 0x01, // }
+    //         0x32, 0x00, 24, 0x00, // PID_METATRAFFIC_UNICAST_LOCATOR
+    //         21, 0x00, 0x00, 0x00, // Locator{kind
+    //         22, 0x00, 0x00, 0x00, // port,
+    //         0x02, 0x02, 0x02, 0x02, //
+    //         0x02, 0x02, 0x02, 0x02, // address
+    //         0x02, 0x02, 0x02, 0x02, //
+    //         0x02, 0x02, 0x02, 0x02, // }
+    //         0x33, 0x00, 24, 0x00, // PID_METATRAFFIC_MULTICAST_LOCATOR
+    //         11, 0x00, 0x00, 0x00, // Locator{kind
+    //         12, 0x00, 0x00, 0x00, // port,
+    //         0x01, 0x01, 0x01, 0x01, //
+    //         0x01, 0x01, 0x01, 0x01, // address
+    //         0x01, 0x01, 0x01, 0x01, //
+    //         0x01, 0x01, 0x01, 0x01, // }
+    //         0x31, 0x00, 24, 0x00, // PID_DEFAULT_UNICAST_LOCATOR
+    //         11, 0x00, 0x00, 0x00, // Locator{kind
+    //         12, 0x00, 0x00, 0x00, // port,
+    //         0x01, 0x01, 0x01, 0x01, //
+    //         0x01, 0x01, 0x01, 0x01, // address
+    //         0x01, 0x01, 0x01, 0x01, //
+    //         0x01, 0x01, 0x01, 0x01, // }
+    //         0x48, 0x00, 24, 0x00, // PID_DEFAULT_MULTICAST_LOCATOR
+    //         11, 0x00, 0x00, 0x00, // Locator{kind
+    //         12, 0x00, 0x00, 0x00, // port,
+    //         0x01, 0x01, 0x01, 0x01, //
+    //         0x01, 0x01, 0x01, 0x01, // address
+    //         0x01, 0x01, 0x01, 0x01, //
+    //         0x01, 0x01, 0x01, 0x01, // }
+    //         0x58, 0x00, 4, 0x00, // PID_BUILTIN_ENDPOINT_SET
+    //         0x02, 0x00, 0x00, 0x00, //
+    //         0x34, 0x00, 4, 0x00, // PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT
+    //         0x02, 0x00, 0x00, 0x00, // Count
+    //         0x77, 0x00, 4, 0x00, // PID_BUILTIN_ENDPOINT_QOS
+    //         0x00, 0x00, 0x00, 0x20, //
+    //         0x02, 0x00, 8, 0x00, // PID_PARTICIPANT_LEASE_DURATION
+    //         10, 0x00, 0x00, 0x00, // Duration: seconds
+    //         11, 0x00, 0x00, 0x00, // Duration: fraction
+    //         0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
+    //     ];
+    //     let result = data.serialize_data().unwrap();
+    //     assert_eq!(result, expected);
+    // }
     #[test]
     fn deserialize_spdp_discovered_participant_data() {
         let locator1 = Locator::new(11, 12, [1; 16]);
