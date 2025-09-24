@@ -1,12 +1,11 @@
 use crate::xtypes::endianness::{self, CDR_LE, REPRESENTATION_OPTIONS};
 use dust_dds::{
-    infrastructure::{
-        error::DdsResult,
-        type_support::{DdsDeserialize, DdsSerialize},
-    },
+    infrastructure::{error::DdsResult, type_support::TypeSupport},
     xtypes::{
-        deserializer::XTypesDeserializer, error::XTypesError, serializer::XTypesSerializer,
-        xcdr_deserializer::Xcdr1BeDeserializer, xcdr_deserializer::Xcdr1LeDeserializer,
+        deserializer::XTypesDeserializer,
+        error::XTypesError,
+        serializer::XTypesSerializer,
+        xcdr_deserializer::{Xcdr1BeDeserializer, Xcdr1LeDeserializer},
         xcdr_serializer::Xcdr1LeSerializer,
     },
 };
@@ -420,17 +419,19 @@ impl PythonDdsData {
     }
 }
 
-impl DdsSerialize for PythonDdsData {
-    fn serialize_data(&self) -> DdsResult<Vec<u8>> {
-        Ok(self.data.clone())
+impl TypeSupport for PythonDdsData {
+    fn get_type() -> dust_dds::xtypes::dynamic_type::DynamicType {
+        todo!()
     }
-}
 
-impl<'de> DdsDeserialize<'de> for PythonDdsData {
-    fn deserialize_data(serialized_data: &'de [u8]) -> DdsResult<Self> {
-        Ok(Self {
-            data: serialized_data.to_vec(),
-            key: Vec::new(),
-        })
+    fn create_sample(src: dust_dds::xtypes::dynamic_type::DynamicData) -> DdsResult<Self>
+    where
+        Self: Sized,
+    {
+        todo!()
+    }
+
+    fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
+        todo!()
     }
 }

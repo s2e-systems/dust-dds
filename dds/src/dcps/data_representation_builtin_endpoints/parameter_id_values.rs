@@ -1,6 +1,6 @@
 use crate::{
     infrastructure::time::Duration,
-    transport::types::{EntityId, Short, ENTITYID_UNKNOWN},
+    transport::types::{EntityId, ENTITYID_UNKNOWN},
 };
 
 pub type ParameterId = u32;

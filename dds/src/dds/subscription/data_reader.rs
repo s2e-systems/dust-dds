@@ -13,6 +13,7 @@ use crate::{
             SampleLostStatus, SampleRejectedStatus, StatusKind, SubscriptionMatchedStatus,
         },
         time::Duration,
+        type_support::TypeSupport,
     },
     runtime::DdsRuntime,
     subscription::data_reader_listener::DataReaderListener,
@@ -51,7 +52,7 @@ impl<R: DdsRuntime, Foo> Clone for DataReader<R, Foo> {
     }
 }
 
-impl<R: DdsRuntime, Foo> DataReader<R, Foo> {
+impl<R: DdsRuntime, Foo: TypeSupport> DataReader<R, Foo> {
     /// This operation accesses a collection of [`Sample`] from the [`DataReader`]. The size of the returned collection will
     /// be limited to the specified `max_samples`. The properties of the data values collection and the setting of the
     /// [`PresentationQosPolicy`](crate::infrastructure::qos_policy::PresentationQosPolicy) may impose further limits

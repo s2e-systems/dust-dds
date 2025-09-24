@@ -11,7 +11,7 @@ use dust_dds::{
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         status::{StatusKind, NO_STATUS},
         time::{Duration, DurationKind},
-        type_support::{DdsDeserialize, DdsType},
+        type_support::DdsType,
     },
     listener::NO_LISTENER,
     rtps::types::{PROTOCOLVERSION, VENDOR_ID_S2E},
@@ -27,6 +27,7 @@ use dust_dds::{
     },
     wait_set::{Condition, WaitSet},
 };
+use dust_dds_derive::TypeSupport;
 use std::io::Read;
 
 mod utils;
@@ -63,16 +64,10 @@ struct KeyedData {
     value: u32,
 }
 
-struct DynamicType<'a>(&'a [u8]);
-impl<'de> DdsDeserialize<'de> for DynamicType<'de> {
-    fn deserialize_data(
-        serialized_data: &'de [u8],
-    ) -> dust_dds::infrastructure::error::DdsResult<Self> {
-        Ok(Self(serialized_data))
-    }
-}
+#[derive(Debug, TypeSupport)]
+struct BytesType<'a>(&'a [u8]);
 
-impl<'a> DynamicType<'a> {
+impl<'a> BytesType<'a> {
     fn metatraffic_unicast_locator_port(&self) -> u32 {
         const PID_METATRAFFIC_UNICAST_LOCATOR: i16 = 0x0032;
         let reader = &mut &self.0[4..];
@@ -230,7 +225,7 @@ fn writer_should_send_heartbeat_periodically() {
     assert!(participant.get_discovered_participants().unwrap().len() == 1);
 
     let dcps_participant_reader = builtin_subscriber
-        .lookup_datareader::<DynamicType>(DCPS_PARTICIPANT)
+        .lookup_datareader::<BytesType>(DCPS_PARTICIPANT)
         .unwrap()
         .unwrap();
     let dcps_sample_list = dcps_participant_reader
@@ -416,7 +411,7 @@ fn writer_should_not_send_heartbeat_after_acknack() {
     assert!(participant.get_discovered_participants().unwrap().len() == 1);
 
     let dcps_participant_reader = builtin_subscriber
-        .lookup_datareader::<DynamicType>(DCPS_PARTICIPANT)
+        .lookup_datareader::<BytesType>(DCPS_PARTICIPANT)
         .unwrap()
         .unwrap();
     let dcps_sample_list = dcps_participant_reader
@@ -454,7 +449,7 @@ fn writer_should_not_send_heartbeat_after_acknack() {
     mock_reader_socket.recv(&mut buffer).unwrap();
 
     let dcps_subscription_reader = builtin_subscriber
-        .lookup_datareader::<DynamicType>(DCPS_PARTICIPANT)
+        .lookup_datareader::<BytesType>(DCPS_PARTICIPANT)
         .unwrap()
         .unwrap();
     let dcps_sample_list = dcps_subscription_reader
@@ -620,7 +615,7 @@ fn writer_should_resend_data_after_acknack_request() {
     assert!(participant.get_discovered_participants().unwrap().len() == 1);
 
     let dcps_participant_reader = builtin_subscriber
-        .lookup_datareader::<DynamicType>(DCPS_PARTICIPANT)
+        .lookup_datareader::<BytesType>(DCPS_PARTICIPANT)
         .unwrap()
         .unwrap();
     let dcps_sample_list = dcps_participant_reader
@@ -835,7 +830,7 @@ fn volatile_writer_should_send_gap_submessage_after_discovery() {
     writer.write(KeyedData { id: 1, value: 2 }, None).unwrap();
 
     let dcps_participant_reader = builtin_subscriber
-        .lookup_datareader::<DynamicType>(DCPS_PARTICIPANT)
+        .lookup_datareader::<BytesType>(DCPS_PARTICIPANT)
         .unwrap()
         .unwrap();
     let dcps_sample_list = dcps_participant_reader
@@ -1023,7 +1018,7 @@ fn transient_local_writer_should_send_data_submessage_after_discovery() {
     writer.write(KeyedData { id: 1, value: 2 }, None).unwrap();
 
     let dcps_participant_reader = builtin_subscriber
-        .lookup_datareader::<DynamicType>(DCPS_PARTICIPANT)
+        .lookup_datareader::<BytesType>(DCPS_PARTICIPANT)
         .unwrap()
         .unwrap();
     let dcps_sample_list = dcps_participant_reader
@@ -1209,7 +1204,7 @@ fn reliable_writer_should_not_remove_unacked_sample_from_history() {
     assert!(participant.get_discovered_participants().unwrap().len() == 1);
 
     let dcps_participant_reader = builtin_subscriber
-        .lookup_datareader::<DynamicType>(DCPS_PARTICIPANT)
+        .lookup_datareader::<BytesType>(DCPS_PARTICIPANT)
         .unwrap()
         .unwrap();
     let dcps_sample_list = dcps_participant_reader

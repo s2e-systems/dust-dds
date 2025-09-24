@@ -9,7 +9,7 @@ use crate::xtypes::{
 use core::ops::{Add, Sub};
 
 /// Enumeration representing whether a duration is finite or infinite
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy, TypeSupport)]
 pub enum DurationKind {
     /// Finite duration with the corresponding associated value
     Finite(Duration),

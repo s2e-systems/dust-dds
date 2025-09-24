@@ -1,12 +1,8 @@
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{spanned::Spanned, DeriveInput, Field, Result};
+use syn::{spanned::Spanned, DeriveInput, GenericArgument, PathArguments, Result};
 
 use super::attributes::{get_field_attributes, get_input_extensibility, Extensibility};
-
-fn is_field_optional(field: &Field) -> bool {
-    matches!(&field.ty, syn::Type::Path(field_type_path) if field_type_path.path.segments[0].ident == "Option")
-}
 
 pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
     let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
@@ -64,15 +60,36 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     .as_ref()
                     .map(|i| i.to_string())
                     .unwrap_or(field_index.to_string());
-                let is_optional = is_field_optional(field);
-                let member_type_id = &field.ty;
+                let (is_optional, member_type) = match &field.ty {
+                    syn::Type::Path(field_type_path)
+                        if field_type_path.path.segments[0].ident == "Option" =>
+                    {
+                        if let PathArguments::AngleBracketed(angle_bracketed) =
+                            &field_type_path.path.segments[0].arguments
+                        {
+                            if let Some(GenericArgument::Type(inner_ty)) =
+                                angle_bracketed.args.first()
+                            {
+                                (true, quote!(#inner_ty))
+                            } else {
+                                (true, quote!(#field_type_path))
+                            }
+                        } else {
+                            (true, quote!(#field_type_path))
+                        }
+                    }
+                    _ => {
+                        let field_type = &field.ty;
+                        (false, quote!(#field_type))
+                    }
+                };
                 let is_key = field_attributes.key;
                 member_seq.extend(
                     quote! {
                          builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
                             name: alloc::string::String::from(#field_name),
                             id: #member_id,
-                            r#type: <#member_type_id as dust_dds::infrastructure::type_support::TypeSupport>::get_type(),
+                            r#type: <#member_type as dust_dds::infrastructure::type_support::TypeSupport>::get_type(),
                             default_value: alloc::string::String::new(),
                             index: #index,
                             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,

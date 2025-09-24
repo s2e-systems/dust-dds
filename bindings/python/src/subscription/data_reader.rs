@@ -538,10 +538,11 @@ pub struct Sample {
 #[pymethods]
 impl Sample {
     pub fn get_data(&self) -> PyResult<Py<PyAny>> {
-        self.sample
-            .data()
-            .map_err(into_pyerr)?
-            .into_py_object(&self.type_)
+        todo!()
+        // self.sample
+        //     .data()
+        //     .map_err(into_pyerr)?
+        //     .into_py_object(&self.type_)
     }
 
     pub fn get_sample_info(&self) -> SampleInfo {

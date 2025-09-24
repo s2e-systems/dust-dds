@@ -124,7 +124,7 @@ fn foo_with_lifetime_should_read_and_write() {
         .unwrap();
 
     assert_eq!(samples.len(), 1);
-    assert_eq!(samples[0].data().unwrap(), data);
+    assert_eq!(samples[0].data().unwrap(), &data);
 }
 
 #[test]
@@ -326,7 +326,7 @@ fn foo_with_non_consecutive_key_should_read_and_write() {
         .unwrap();
 
     assert_eq!(samples.len(), 1);
-    assert_eq!(samples[0].data().unwrap(), data);
+    assert_eq!(samples[0].data().unwrap(), &data);
 }
 
 #[test]
@@ -415,7 +415,7 @@ fn foo_enumerator_should_read_and_write() {
         .unwrap();
 
     assert_eq!(samples.len(), 1);
-    assert_eq!(samples[0].data().unwrap(), data);
+    assert_eq!(samples[0].data().unwrap(), &data);
 }
 
 #[test]
@@ -512,7 +512,7 @@ fn nested_types_should_read_and_write() {
         .unwrap();
 
     assert_eq!(samples.len(), 1);
-    assert_eq!(samples[0].data().unwrap(), data);
+    assert_eq!(samples[0].data().unwrap(), &data);
 }
 
 #[test]
@@ -605,5 +605,5 @@ fn foo_xtypes_union_should_read_and_write() {
         .unwrap();
 
     assert_eq!(samples.len(), 1);
-    assert_eq!(samples[0].data().unwrap(), data);
+    assert_eq!(samples[0].data().unwrap(), &data);
 }

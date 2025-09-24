@@ -85,7 +85,7 @@ impl DataWriter {
     pub fn register_instance(&self, instance: Py<PyAny>) -> PyResult<Option<InstanceHandle>> {
         Ok(self
             .0
-            .register_instance(&PythonDdsData::from_py_object(instance)?)
+            .register_instance(PythonDdsData::from_py_object(instance)?)
             .map_err(into_pyerr)?
             .map(InstanceHandle::from))
     }
@@ -98,7 +98,7 @@ impl DataWriter {
         Ok(self
             .0
             .register_instance_w_timestamp(
-                &PythonDdsData::from_py_object(instance)?,
+                PythonDdsData::from_py_object(instance)?,
                 timestamp.into(),
             )
             .map_err(into_pyerr)?
@@ -112,7 +112,7 @@ impl DataWriter {
     ) -> PyResult<()> {
         self.0
             .unregister_instance(
-                &PythonDdsData::from_py_object(instance)?,
+                PythonDdsData::from_py_object(instance)?,
                 handle.map(|h| h.into()),
             )
             .map_err(into_pyerr)
@@ -127,7 +127,7 @@ impl DataWriter {
     ) -> PyResult<()> {
         self.0
             .unregister_instance_w_timestamp(
-                &PythonDdsData::from_py_object(instance)?,
+                PythonDdsData::from_py_object(instance)?,
                 handle.map(|h| h.into()),
                 timestamp.into(),
             )
@@ -149,7 +149,7 @@ impl DataWriter {
     pub fn write(&self, data: Py<PyAny>, handle: Option<InstanceHandle>) -> PyResult<()> {
         self.0
             .write(
-                &PythonDdsData::from_py_object(data)?,
+                PythonDdsData::from_py_object(data)?,
                 handle.map(|h| h.into()),
             )
             .map_err(into_pyerr)
@@ -164,7 +164,7 @@ impl DataWriter {
     ) -> PyResult<()> {
         self.0
             .write_w_timestamp(
-                &PythonDdsData::from_py_object(data)?,
+                PythonDdsData::from_py_object(data)?,
                 handle.map(|h| h.into()),
                 timestamp.into(),
             )
@@ -174,7 +174,7 @@ impl DataWriter {
     pub fn dispose(&self, data: Py<PyAny>, handle: Option<InstanceHandle>) -> PyResult<()> {
         self.0
             .dispose(
-                &PythonDdsData::from_py_object(data)?,
+                PythonDdsData::from_py_object(data)?,
                 handle.map(|h| h.into()),
             )
             .map_err(into_pyerr)
@@ -189,7 +189,7 @@ impl DataWriter {
     ) -> PyResult<()> {
         self.0
             .dispose_w_timestamp(
-                &PythonDdsData::from_py_object(data)?,
+                PythonDdsData::from_py_object(data)?,
                 handle.map(|h| h.into()),
                 timestamp.into(),
             )

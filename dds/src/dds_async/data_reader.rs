@@ -23,6 +23,7 @@ use crate::{
             SampleLostStatus, SampleRejectedStatus, StatusKind, SubscriptionMatchedStatus,
         },
         time::Duration,
+        type_support::TypeSupport,
     },
     runtime::{ChannelSend, DdsRuntime, OneshotReceive},
     subscription::data_reader_listener::DataReaderListener,
@@ -82,7 +83,7 @@ impl<R: DdsRuntime, Foo> Clone for DataReaderAsync<R, Foo> {
     }
 }
 
-impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
+impl<R: DdsRuntime, Foo: TypeSupport> DataReaderAsync<R, Foo> {
     /// Async version of [`read`](crate::subscription::data_reader::DataReader::read).
     #[tracing::instrument(skip(self))]
     pub async fn read(
@@ -107,10 +108,16 @@ impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
             .await?;
         let samples = reply_receiver.receive().await??;
 
-        Ok(samples
-            .into_iter()
-            .map(|(dynamic_data, sample_info)| Sample::new(dynamic_data, sample_info))
-            .collect())
+        todo!()
+        // Ok(samples
+        //     .into_iter()
+        //     .map(|(dynamic_data, sample_info)| {
+        //         Sample::new(
+        //             dynamic_data.map(|d| Foo::create_sample(d).ok()),
+        //             sample_info,
+        //         )
+        //     })
+        //     .collect())
     }
 
     /// Async version of [`take`](crate::subscription::data_reader::DataReader::take).
@@ -135,12 +142,13 @@ impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
                 reply_sender,
             }))
             .await?;
-        let samples = reply_receiver.receive().await??;
 
-        Ok(samples
-            .into_iter()
-            .map(|(data, sample_info)| Sample::new(data, sample_info))
-            .collect())
+        let samples = reply_receiver.receive().await??;
+        todo!()
+        // Ok(samples
+        //     .into_iter()
+        //     .map(|(data, sample_info)| Sample::new(data, sample_info))
+        //     .collect())
     }
 
     /// Async version of [`read_next_sample`](crate::subscription::data_reader::DataReader::read_next_sample).
@@ -161,7 +169,8 @@ impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
             .await?;
         let mut samples = reply_receiver.receive().await??;
         let (data, sample_info) = samples.pop().expect("Would return NoData if empty");
-        Ok(Sample::new(data, sample_info))
+        todo!()
+        // Ok(Sample::new(data, sample_info))
     }
 
     /// Async version of [`take_next_sample`](crate::subscription::data_reader::DataReader::take_next_sample).
@@ -181,8 +190,9 @@ impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
             }))
             .await?;
         let mut samples = reply_receiver.receive().await??;
-        let (data, sample_info) = samples.pop().expect("Would return NoData if empty");
-        Ok(Sample::new(data, sample_info))
+        todo!()
+        // let (data, sample_info) = samples.pop().expect("Would return NoData if empty");
+        // Ok(Sample::new(data, sample_info))
     }
 
     /// Async version of [`read_instance`](crate::subscription::data_reader::DataReader::read_instance).
@@ -209,10 +219,11 @@ impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
             }))
             .await?;
         let samples = reply_receiver.receive().await??;
-        Ok(samples
-            .into_iter()
-            .map(|(data, sample_info)| Sample::new(data, sample_info))
-            .collect())
+        todo!()
+        // Ok(samples
+        //     .into_iter()
+        //     .map(|(data, sample_info)| Sample::new(data, sample_info))
+        //     .collect())
     }
 
     /// Async version of [`take_instance`](crate::subscription::data_reader::DataReader::take_instance).
@@ -239,11 +250,11 @@ impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
             }))
             .await?;
         let samples = reply_receiver.receive().await??;
-
-        Ok(samples
-            .into_iter()
-            .map(|(data, sample_info)| Sample::new(data, sample_info))
-            .collect())
+        todo!()
+        // Ok(samples
+        //     .into_iter()
+        //     .map(|(data, sample_info)| Sample::new(data, sample_info))
+        //     .collect())
     }
 
     /// Async version of [`read_next_instance`](crate::subscription::data_reader::DataReader::read_next_instance).
@@ -272,10 +283,11 @@ impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
             ))
             .await?;
         let samples = reply_receiver.receive().await??;
-        Ok(samples
-            .into_iter()
-            .map(|(data, sample_info)| Sample::new(data, sample_info))
-            .collect())
+        todo!()
+        // Ok(samples
+        //     .into_iter()
+        //     .map(|(data, sample_info)| Sample::new(data, sample_info))
+        //     .collect())
     }
 
     /// Async version of [`take_next_instance`](crate::subscription::data_reader::DataReader::take_next_instance).
@@ -304,10 +316,11 @@ impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
             ))
             .await?;
         let samples = reply_receiver.receive().await??;
-        Ok(samples
-            .into_iter()
-            .map(|(data, sample_info)| Sample::new(data, sample_info))
-            .collect())
+        todo!()
+        // Ok(samples
+        //     .into_iter()
+        //     .map(|(data, sample_info)| Sample::new(data, sample_info))
+        //     .collect())
     }
 
     /// Async version of [`get_key_value`](crate::subscription::data_reader::DataReader::get_key_value).
@@ -451,12 +464,14 @@ impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
     pub async fn set_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = R::oneshot();
         self.participant_address()
-            .send(DcpsDomainParticipantMail::Reader(ReaderServiceMail::SetQos {
-                subscriber_handle: self.subscriber.get_instance_handle().await,
-                data_reader_handle: self.handle,
-                qos,
-                reply_sender,
-            }))
+            .send(DcpsDomainParticipantMail::Reader(
+                ReaderServiceMail::SetQos {
+                    subscriber_handle: self.subscriber.get_instance_handle().await,
+                    data_reader_handle: self.handle,
+                    qos,
+                    reply_sender,
+                },
+            ))
             .await?;
         reply_receiver.receive().await?
     }
@@ -466,11 +481,13 @@ impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
     pub async fn get_qos(&self) -> DdsResult<DataReaderQos> {
         let (reply_sender, reply_receiver) = R::oneshot();
         self.participant_address()
-            .send(DcpsDomainParticipantMail::Reader(ReaderServiceMail::GetQos {
-                subscriber_handle: self.subscriber.get_instance_handle().await,
-                data_reader_handle: self.handle,
-                reply_sender,
-            }))
+            .send(DcpsDomainParticipantMail::Reader(
+                ReaderServiceMail::GetQos {
+                    subscriber_handle: self.subscriber.get_instance_handle().await,
+                    data_reader_handle: self.handle,
+                    reply_sender,
+                },
+            ))
             .await?;
         reply_receiver.receive().await?
     }
@@ -495,12 +512,14 @@ impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
     pub async fn enable(&self) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = R::oneshot();
         self.participant_address()
-            .send(DcpsDomainParticipantMail::Reader(ReaderServiceMail::Enable {
-                subscriber_handle: self.subscriber.get_instance_handle().await,
-                data_reader_handle: self.handle,
-                participant_address: self.participant_address().clone(),
-                reply_sender,
-            }))
+            .send(DcpsDomainParticipantMail::Reader(
+                ReaderServiceMail::Enable {
+                    subscriber_handle: self.subscriber.get_instance_handle().await,
+                    data_reader_handle: self.handle,
+                    participant_address: self.participant_address().clone(),
+                    reply_sender,
+                },
+            ))
             .await?;
         reply_receiver.receive().await?
     }
