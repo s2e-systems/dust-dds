@@ -2,11 +2,6 @@ name: Create Docker Image Android Buidler
 
 on:
   workflow_dispatch:
-  # pull_request:
-  #   branches:
-  #     - main
-  #   paths:
-  #     - '.github/resources/Dockerfile.android_builder'
 
 jobs:
   create_docker_image_android_builder:
