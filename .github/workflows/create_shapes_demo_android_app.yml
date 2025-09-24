@@ -5,8 +5,6 @@ on:
   pull_request:
     branches:
       - main
-    paths:
-      - '.github/resources/Dockerfile.android_builder'
 
 jobs:
   create_shapes_demo_android_app:
@@ -30,7 +28,7 @@ jobs:
       - name: Decode_Android_key_store
         run: printf "keyAlias=key1\nkeyPassword=%s\nstoreFile=keystore.jks\nstorePassword=%s" ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }} ${{ secrets.ANDROID_RELEASE_STORE_PASSWORD }} > shapes_demo/android/keystore.properties
       - name: Build_Android
-        run: ./shapes_demo/android/gradlew --project-dir shapes_demo/android bundleRelease
+        run: ./shapes_demo/android/gradlew --project-dir shapes_demo/android bundleRelease --info
       - uses: actions/upload-artifact@v4
         with:
           name: shapes_demo_android_app
