@@ -52,6 +52,7 @@ val cargoBuild by tasks.registering(Exec::class) {
         "--target", "arm64-v8a",
         "--target", "armeabi-v7a",
         "--target", "x86_64",
+        "--target", "x86",
         "--platform", android.compileSdk,
         "--output-dir", outputDir.get().asFile.absolutePath,
         "build", "--release",
