@@ -88,6 +88,7 @@ impl DynamicType {
             .get(index as usize)
             .ok_or(XTypesError::InvalidIndex)
     }
+    
     // fn get_annotation_count(&self) -> u32;
     // DDS::ReturnCode_t get_annotation(inout AnnotationDescriptor descriptor, in unsigned long idx);
     // unsigned long get_verbatim_text_count();
@@ -318,6 +319,44 @@ pub struct DynamicData {
 }
 
 impl DynamicData {
+    pub fn get_descriptor(&self, id: MemberId) -> XTypesResult<MemberDescriptor> {
+        todo!()
+    }
+
+    pub fn set_descriptor(&mut self, id: MemberId, value: MemberDescriptor) -> XTypesResult<()> {
+        todo!()
+    }
+
+    pub fn get_member_id_by_name(&self, name: &ObjectName) -> Option<MemberId> {
+        self.type_ref
+            .member_list
+            .iter()
+            .find(|m| m.get_name() == name)
+            .map(|m| m.get_id())
+    }
+
+    pub fn get_member_id_at_index(&self, index: u32) -> Option<MemberId> {
+        self.type_ref
+            .member_list
+            .get(index as usize)
+            .map(|m| m.get_id())
+    }
+
+    // unsigned long get_item_count();
+
+    pub fn clear_all_values(&mut self) -> XTypesResult<()> {
+        self.abstract_data.clear();
+        Ok(())
+    }
+
+    pub fn clear_nonkey_values(&mut self) -> XTypesResult<()> {
+        todo!()
+    }
+
+    pub fn clear_value(&mut self, id: MemberId) -> XTypesResult<()> {
+        todo!()
+    }
+
     pub fn get_int32_value(&self, id: MemberId) -> XTypesResult<&i32> {
         self.abstract_data
             .get(&id)

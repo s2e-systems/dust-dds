@@ -182,7 +182,7 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
                             array_sdefn: Box::new(
                                 dust_dds::xtypes::type_object::PlainArraySElemDefn {
                                     header: dust_dds::xtypes::type_object::PlainCollectionHeader {
-                                        equiv_kind: 0,
+                                        equiv_kind: crate::xtypes::type_object::EquivalenceKind::Complete,
                                         element_flags: dust_dds::xtypes::type_object::CollectionElementFlag {
                                             try_construct: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
                                             is_external: false,
@@ -206,7 +206,7 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
         todo!()
     }
 
-    fn create_sample(src: DynamicData) -> Self {
+    fn create_sample(src: DynamicData) -> DdsResult<Self> {
         todo!()
     }
 

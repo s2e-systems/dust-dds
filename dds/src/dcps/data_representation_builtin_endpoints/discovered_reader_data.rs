@@ -75,7 +75,7 @@ impl TypeSupport for DiscoveredReaderData {
                             array_sdefn: Box::new(
                                 dust_dds::xtypes::type_object::PlainArraySElemDefn {
                                     header: dust_dds::xtypes::type_object::PlainCollectionHeader {
-                                        equiv_kind: 0,
+                                        equiv_kind: crate::xtypes::type_object::EquivalenceKind::Complete,
                                         element_flags: dust_dds::xtypes::type_object::CollectionElementFlag {
                                             try_construct: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
                                             is_external: false,
@@ -99,7 +99,7 @@ impl TypeSupport for DiscoveredReaderData {
         todo!()
     }
 
-    fn create_sample(src: crate::xtypes::dynamic_type::DynamicData) -> Self {
+    fn create_sample(src: crate::xtypes::dynamic_type::DynamicData) -> DdsResult<Self> {
         todo!()
     }
 

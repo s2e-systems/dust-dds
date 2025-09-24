@@ -150,7 +150,7 @@ impl TryFrom<Py<PyAny>> for PythonTypeRepresentation {
                         Ok(dust_dds::xtypes::type_object::TypeIdentifier::TiPlainSequenceSmall {
                                 seq_sdefn: Box::new(dust_dds::xtypes::type_object::PlainSequenceSElemDefn {
                                         header: dust_dds::xtypes::type_object::PlainCollectionHeader {
-                                            equiv_kind: dust_dds::xtypes::type_object::EK_COMPLETE,
+                                            equiv_kind: dust_dds::xtypes::type_object::EquivalenceKind::Complete,
                                             element_flags: dust_dds::xtypes::type_object::CollectionElementFlag {
                                                 try_construct: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
                                                 is_external: false

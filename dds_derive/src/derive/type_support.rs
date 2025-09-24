@@ -18,7 +18,7 @@ fn get_type_identifier(type_: &Type) -> Result<TokenStream> {
                         dust_dds::xtypes::type_object::TypeIdentifier::TiPlainArraySmall {
                             array_sdefn: alloc::boxed::Box::new(dust_dds::xtypes::type_object::PlainArraySElemDefn {
                                 header: dust_dds::xtypes::type_object::PlainCollectionHeader {
-                                    equiv_kind: dust_dds::xtypes::type_object::EK_COMPLETE,
+                                    equiv_kind: dust_dds::xtypes::type_object::EquivalenceKind::Complete,
                                     element_flags: dust_dds::xtypes::type_object::CollectionElementFlag {
                                         try_construct: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
                                         is_external: false,
@@ -32,7 +32,7 @@ fn get_type_identifier(type_: &Type) -> Result<TokenStream> {
                         dust_dds::xtypes::type_object::TypeIdentifier::TiPlainArrayLarge {
                             array_ldefn: alloc::boxed::Box::new(dust_dds::xtypes::type_object::PlainArrayLElemDefn {
                                 header: dust_dds::xtypes::type_object::PlainCollectionHeader {
-                                    equiv_kind: dust_dds::xtypes::type_object::EK_COMPLETE,
+                                    equiv_kind: dust_dds::xtypes::type_object::EquivalenceKind::Complete,
                                     element_flags: dust_dds::xtypes::type_object::CollectionElementFlag {
                                         try_construct: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
                                         is_external: false,
@@ -117,7 +117,7 @@ fn get_type_identifier(type_: &Type) -> Result<TokenStream> {
                         dust_dds::xtypes::type_object::TypeIdentifier::TiPlainSequenceSmall {
                             seq_sdefn: alloc::boxed::Box::new(dust_dds::xtypes::type_object::PlainSequenceSElemDefn {
                                 header: dust_dds::xtypes::type_object::PlainCollectionHeader {
-                                    equiv_kind: dust_dds::xtypes::type_object::EK_COMPLETE,
+                                    equiv_kind: dust_dds::xtypes::type_object::EquivalenceKind::Complete,
                                     element_flags: dust_dds::xtypes::type_object::CollectionElementFlag {
                                         try_construct: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
                                         is_external: false,
@@ -155,7 +155,7 @@ fn get_type_identifier(type_: &Type) -> Result<TokenStream> {
                 dust_dds::xtypes::type_object::TypeIdentifier::TiPlainSequenceSmall {
                     seq_sdefn: alloc::boxed::Box::new(dust_dds::xtypes::type_object::PlainSequenceSElemDefn {
                         header: dust_dds::xtypes::type_object::PlainCollectionHeader {
-                            equiv_kind: dust_dds::xtypes::type_object::EK_COMPLETE,
+                            equiv_kind: dust_dds::xtypes::type_object::EquivalenceKind::Complete,
                             element_flags: dust_dds::xtypes::type_object::CollectionElementFlag {
                                 try_construct: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
                                 is_external: false,
@@ -287,7 +287,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 todo!()
             }
 
-            fn create_sample(src: dust_dds::xtypes::dynamic_type::DynamicData) -> Self {
+            fn create_sample(src: dust_dds::xtypes::dynamic_type::DynamicData) -> dust_dds::infrastructure::error::DdsResult<Self> {
                 todo!()
             }
 

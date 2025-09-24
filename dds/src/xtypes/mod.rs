@@ -1,3 +1,4 @@
+pub mod binding;
 pub mod bytes;
 pub mod deserialize;
 pub mod deserializer;

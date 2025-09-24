@@ -9,10 +9,13 @@ use super::dynamic_type::{DynamicType, TryConstructKind};
 /* Manually created from dds-xtypes_typeobject.idl */
 
 // ---------- Equivalence Kinds -------------------
-pub type EquivalenceKind = u8;
-pub const EK_MINIMAL: EquivalenceKind = 0xF1; // 0x1111 0001
-pub const EK_COMPLETE: EquivalenceKind = 0xF2; // 0x1111 0010
-pub const EK_BOTH: EquivalenceKind = 0xF3; // 0x1111 0011
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum EquivalenceKind {
+    Minimal = 0xF1,  // 0x1111 0001
+    Complete = 0xF2, // 0x1111 0010
+    Both = 0xF3,     // 0x1111 0011
+}
 
 // ---------- TypeKinds (begin) -------------------
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -126,7 +129,7 @@ pub struct MemberFlag(pub u16);
 // @position(5) IS_KEY, // K StructMember, UnionDiscriminator
 // @position(6) IS_DEFAULT // D UnionMember, EnumerationLiteral
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct CollectionElementFlag {
     pub try_construct: TryConstructKind,
     pub is_external: bool,
@@ -229,7 +232,7 @@ pub struct StringLTypeDefn {
 }
 
 // @extensibility(FINAL) @nested
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct PlainCollectionHeader {
     pub equiv_kind: EquivalenceKind,
     pub element_flags: CollectionElementFlag,

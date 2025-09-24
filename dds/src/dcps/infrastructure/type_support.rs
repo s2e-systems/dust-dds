@@ -13,11 +13,15 @@ pub trait TypeSupport {
     /// This operation returns the default name for the data-type represented by the TypeSupport.
     fn get_type_name() -> &'static str;
 
-    /// This operation returns a ['DynamicType'] object corresponding to the TypeSupport’s data type
+    /// This operation returns a ['DynamicType'] object corresponding to the TypeSupport’s data type.
     fn get_type() -> DynamicType;
 
-    fn create_sample(src: DynamicData) -> Self;
+    /// Create a sample of the TypeSupport’s data type with the contents of an input DynamicData object.
+    fn create_sample(src: DynamicData) -> DdsResult<Self>
+    where
+        Self: Sized;
 
+    /// Create a 'DynamicData' object with the contents of an input sample of the TypeSupport’s data type.
     fn create_dynamic_sample(&self) -> DynamicData;
 }
 

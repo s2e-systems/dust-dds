@@ -1,9 +1,12 @@
-use dust_dds::xtypes::{
-    dynamic_type::{
-        DynamicDataFactory, DynamicTypeBuilderFactory, ExtensibilityKind, MemberDescriptor,
-        TryConstructKind, TypeDescriptor,
+use dust_dds::{
+    infrastructure::type_support::TypeSupport,
+    xtypes::{
+        dynamic_type::{
+            DynamicDataFactory, DynamicTypeBuilderFactory, ExtensibilityKind, MemberDescriptor,
+            TryConstructKind, TypeDescriptor,
+        },
+        type_object::{StringSTypeDefn, TypeIdentifier, TypeKind},
     },
-    type_object::{StringSTypeDefn, TypeIdentifier, TypeKind},
 };
 
 #[test]
@@ -64,7 +67,7 @@ fn create_type_with_data() {
 
     builder
         .add_member(MemberDescriptor {
-            name: String::from("Color"),
+            name: String::from("color"),
             id: 0,
             r#type: TypeIdentifier::TiString8Small {
                 string_sdefn: StringSTypeDefn { bound: 128 },
@@ -87,4 +90,54 @@ fn create_type_with_data() {
         .set_string_value(0, String::from("BLUE"))
         .unwrap();
     assert_eq!(dynamic_shape_data.get_string_value(0).unwrap(), "BLUE");
+}
+
+pub struct Shape {
+    color: String,
+}
+
+impl TypeSupport for Shape {
+    fn get_type_name() -> &'static str {
+        "Shape"
+    }
+
+    fn get_type() -> dust_dds::xtypes::dynamic_type::DynamicType {
+        let mut builder = DynamicTypeBuilderFactory::create_type(TypeDescriptor {
+            kind: TypeKind::STRUCTURE,
+            name: String::from("Shape"),
+            extensibility_kind: ExtensibilityKind::Appendable,
+            is_nested: false,
+        });
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("color"),
+                id: 0,
+                r#type: TypeIdentifier::TiString8Small {
+                    string_sdefn: StringSTypeDefn { bound: 128 },
+                },
+                default_value: "",
+                index: 0,
+                try_construct_kind: TryConstructKind::UseDefault,
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder.build()
+    }
+
+    fn create_sample(
+        src: dust_dds::xtypes::dynamic_type::DynamicData,
+    ) -> dust_dds::infrastructure::error::DdsResult<Self>
+    where
+        Self: Sized,
+    {
+        todo!()
+    }
+
+    fn create_dynamic_sample(&self) -> dust_dds::xtypes::dynamic_type::DynamicData {
+        todo!()
+    }
 }
