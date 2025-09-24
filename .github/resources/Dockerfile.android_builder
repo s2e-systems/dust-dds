@@ -5,7 +5,7 @@ RUN wget https://dl.google.com/android/repository/commandlinetools-linux-1311475
     && unzip commandlinetools-linux-13114758_latest.zip \
     && mv cmdline-tools/* .
 RUN yes | ./bin/sdkmanager --licenses
-RUN ./bin/sdkmanager --install "build-tools;35.0.0" "ndk;29.0.13113456" "platform-tools" "platforms;android-36"
+RUN ./bin/sdkmanager --install "build-tools;35.0.0" "ndk;29.0.14033849" "platform-tools" "platforms;android-36"
 
 FROM rust:1.90-trixie
 RUN apt-get update \
