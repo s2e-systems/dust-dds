@@ -52,15 +52,8 @@ pub const TK_MAP: TypeKind = 0x62;
 pub struct DynamicTypeBuilderFactory;
 
 impl DynamicTypeBuilderFactory {
-    pub fn get_primitive_type(kind: TypeKind) -> XTypesResult<DynamicType> {
-        match kind {
-            TK_NONE | TK_BOOLEAN | TK_BYTE | TK_INT16 | TK_INT32 | TK_INT64 | TK_UINT16
-            | TK_UINT32 | TK_UINT64 | TK_FLOAT32 | TK_FLOAT64 | TK_FLOAT128 | TK_INT8
-            | TK_UINT8 | TK_CHAR8 | TK_CHAR16 | TK_STRING8 | TK_STRING16 => Ok(()),
-            _ => Err(XTypesError::InvalidType),
-        }?;
-
-        Ok(DynamicType {
+    pub fn get_primitive_type(kind: TypeKind) -> DynamicType {
+        DynamicType {
             descriptor: Box::new(TypeDescriptor {
                 kind,
                 name: String::new(),
@@ -73,7 +66,7 @@ impl DynamicTypeBuilderFactory {
                 is_nested: false,
             }),
             member_list: Vec::new(),
-        })
+        }
     }
 
     pub fn create_type(descriptor: TypeDescriptor) -> DynamicTypeBuilder {

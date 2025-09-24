@@ -1,23 +1,18 @@
 use dust_dds::{
     infrastructure::type_support::TypeSupport,
     xtypes::dynamic_type::{
-        DynamicData, DynamicDataFactory, DynamicTypeBuilderFactory, ExtensibilityKind,
-        MemberDescriptor, TryConstructKind, TypeDescriptor, TK_INT64, TK_STRING8, TK_STRUCTURE,
+        DynamicDataFactory, DynamicTypeBuilderFactory, ExtensibilityKind, MemberDescriptor,
+        TryConstructKind, TypeDescriptor, TK_INT64, TK_STRUCTURE,
     },
 };
 
 #[test]
 fn build_valid_primitive_types() {
     let kind = TK_INT64;
-    let dynamic_type = DynamicTypeBuilderFactory::get_primitive_type(kind).unwrap();
+    let dynamic_type = DynamicTypeBuilderFactory::get_primitive_type(kind);
     assert_eq!(dynamic_type.get_kind(), kind);
     assert_eq!(dynamic_type.get_name(), "");
     assert_eq!(dynamic_type.get_member_count(), 0);
-}
-
-#[test]
-fn build_invalid_primitive_types() {
-    assert!(DynamicTypeBuilderFactory::get_primitive_type(TK_STRUCTURE).is_err());
 }
 
 #[test]
@@ -51,7 +46,7 @@ fn create_type_with_builder() {
         })
         .unwrap();
 
-    let dynamic_shape_type = builder.build();
+    let _dynamic_shape_type = builder.build();
 }
 
 #[test]
