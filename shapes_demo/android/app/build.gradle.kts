@@ -27,7 +27,7 @@ android {
     defaultConfig {
         applicationId = "com.s2e_systems.dustddsshapesdemo"
         minSdk = 26
-        versionCode = 6
+        versionCode = 7
         versionName = "1.0.13"
     }
 
