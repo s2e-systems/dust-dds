@@ -1,14 +1,12 @@
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{spanned::Spanned, DeriveInput, GenericArgument, PathArguments, Result};
-
-use super::attributes::{get_field_attributes, get_input_extensibility, Extensibility};
+use syn::{spanned::Spanned, DeriveInput, Expr, Field, GenericArgument, PathArguments, Result};
 
 pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
     let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
     let ident = &input.ident;
 
-    let dynamic_type_quote = match &input.data {
+    let (get_type_quote, create_sample_quote, create_dynamic_sample_quote) = match &input.data {
         syn::Data::Struct(data_struct) => {
             let type_name = ident.to_string();
             let extensibility = get_input_extensibility(input)?;
@@ -41,7 +39,10 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     });
             };
 
-            let mut member_seq = quote! {};
+            let mut member_builder_seq = quote! {};
+            let mut member_sample_seq = quote! {};
+            let mut member_dynamic_sample_seq = quote! {};
+
             for (field_index, field) in data_struct.fields.iter().enumerate() {
                 let field_attributes = get_field_attributes(field)?;
 
@@ -84,7 +85,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     }
                 };
                 let is_key = field_attributes.key;
-                member_seq.extend(
+                member_builder_seq.extend(
                     quote! {
                          builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
                             name: alloc::string::String::from(#field_name),
@@ -103,12 +104,54 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                         .unwrap();
                     },
                 );
+                match &field.ident {
+                    Some(field_ident) => {
+                        member_sample_seq.extend(quote! {
+                            #field_ident: src.remove_value(#member_id)?,
+                        });
+                        member_dynamic_sample_seq.extend(quote! {
+                            .insert_value(#member_id, self.#field_ident)
+                        })
+                    }
+                    None => {
+                        member_sample_seq.extend(quote! {  src.remove_value(#member_id)?,});
+                        member_dynamic_sample_seq.extend(quote! {
+                            .insert_value(#member_id, self.#index)
+                        })
+                    }
+                }
             }
-            Ok(quote! {
+            let is_tuple = data_struct
+                .fields
+                .iter()
+                .next()
+                .expect("Not empty")
+                .ident
+                .is_none();
+
+            let get_type_quote = quote! {
                 #struct_builder
-                #member_seq
+                #member_builder_seq
                 builder.build()
-            })
+            };
+
+            let create_sample_quote = if is_tuple {
+                quote! {Ok(Self (
+                    #member_sample_seq
+                ))}
+            } else {
+                quote! {Ok(Self {
+                    #member_sample_seq
+                })}
+            };
+            let create_dynamic_sample_quote = quote! {
+                dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type())#member_dynamic_sample_seq
+            };
+            Ok((
+                get_type_quote,
+                create_sample_quote,
+                create_dynamic_sample_quote,
+            ))
         }
         syn::Data::Enum(_data_enum) => {
             let type_name = ident.to_string();
@@ -140,12 +183,18 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                         is_nested: false,
                     });
             };
-
-            Ok(quote! {
+            let get_type_quote = quote! {
                 #enum_builder
 
                 builder.build()
-            })
+            };
+            let create_sample_quote = quote! {todo!()};
+            let create_dynamic_sample_quote = quote! {todo!()};
+            Ok((
+                get_type_quote,
+                create_sample_quote,
+                create_dynamic_sample_quote,
+            ))
         }
         syn::Data::Union(data_union) => Err(syn::Error::new(
             data_union.union_token.span,
@@ -157,16 +206,83 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
         impl #impl_generics dust_dds::infrastructure::type_support::TypeSupport for #ident #type_generics #where_clause {
             fn get_type() -> dust_dds::xtypes::dynamic_type::DynamicType
             {
-                #dynamic_type_quote
+                #get_type_quote
             }
 
-            fn create_sample(src: dust_dds::xtypes::dynamic_type::DynamicData) -> dust_dds::infrastructure::error::DdsResult<Self> {
-                todo!()
+            fn create_sample(mut src: dust_dds::xtypes::dynamic_type::DynamicData) -> dust_dds::infrastructure::error::DdsResult<Self> {
+                #create_sample_quote
             }
 
             fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
-                todo!()
+                #create_dynamic_sample_quote
             }
         }
     })
+}
+
+enum Extensibility {
+    Final,
+    Appendable,
+    Mutable,
+}
+
+fn get_input_extensibility(input: &DeriveInput) -> Result<Extensibility> {
+    let mut extensibility = Extensibility::Final;
+    if let Some(xtypes_attribute) = input
+        .attrs
+        .iter()
+        .find(|attr| attr.path().is_ident("dust_dds"))
+    {
+        xtypes_attribute.parse_nested_meta(|meta| {
+            if meta.path.is_ident("extensibility") {
+                let format_str: syn::LitStr = meta.value()?.parse()?;
+                match format_str.value().as_ref() {
+                    "Final" => {
+                        extensibility = Extensibility::Final;
+                        Ok(())
+                    }
+                    "Appendable" => {
+                        extensibility = Extensibility::Appendable;
+                        Ok(())
+                    }
+                    "Mutable" => {
+                        extensibility = Extensibility::Mutable;
+                        Ok(())
+                    }
+                    _ => Err(syn::Error::new(
+                        meta.path.span(),
+                        r#"Invalid format specified. Valid options are "Final", "Appendable", "Mutable". "#,
+                    )),
+                }
+            } else {
+                Ok(())
+            }
+        })?;
+    }
+    Ok(extensibility)
+}
+
+struct FieldAttributes {
+    pub key: bool,
+    pub id: Option<Expr>,
+}
+
+fn get_field_attributes(field: &Field) -> syn::Result<FieldAttributes> {
+    let mut key = false;
+    let mut id = None;
+    if let Some(xtypes_attribute) = field
+        .attrs
+        .iter()
+        .find(|attr| attr.path().is_ident("dust_dds"))
+    {
+        xtypes_attribute.parse_nested_meta(|meta| {
+            if meta.path.is_ident("key") {
+                key = true;
+            } else if meta.path.is_ident("id") {
+                id = Some(meta.value()?.parse()?);
+            }
+            Ok(())
+        })?;
+    }
+    Ok(FieldAttributes { key, id })
 }
