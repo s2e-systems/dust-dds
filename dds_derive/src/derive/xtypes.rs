@@ -2,6 +2,7 @@ use super::{
     attributes::{get_field_attributes, get_input_extensibility, Extensibility},
     enum_support::{
         get_enum_bitbound, is_enum_xtypes_union, read_enum_variant_discriminant_mapping, BitBound,
+        VariantArgs,
     },
 };
 use proc_macro2::{Span, TokenStream};
@@ -56,7 +57,7 @@ pub fn expand_xtypes_serialize(input: &DeriveInput) -> Result<TokenStream> {
                     }
                     None => {
                         let index = Index::from(field_index);
-                        let index_str = format!("{field_index:?}", );
+                        let index_str = format!("{field_index:?}",);
                         match extensibility {
                             Extensibility::Final => field_serialization
                                 .extend(quote! { dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &self.#index, #index_str)?;}),
@@ -100,14 +101,28 @@ pub fn expand_xtypes_serialize(input: &DeriveInput) -> Result<TokenStream> {
                 if is_enum_xtypes_union(data_enum) {
                     let mut variant_serialization = quote!();
                     for variant in data_enum.variants.iter() {
-                        let variant_discriminant = &variant
-                            .discriminant
-                            .as_ref()
-                            .ok_or(syn::Error::new(
-                                variant.span(),
-                                "Union variant must have explicit discriminant",
-                            ))?
-                            .1;
+                        let args = variant
+                            .attrs
+                            .iter()
+                            .find(|attr| attr.path().is_ident("dust_dds"))
+                            .map(|attr| attr.parse_args::<VariantArgs>())
+                            .transpose()?
+                            .unwrap_or_default();
+
+                        let variant_discriminant = match args.discriminant {
+                            Some(ref discriminant) => discriminant,
+                            None => {
+                                &variant
+                                    .discriminant
+                                    .as_ref()
+                                    .ok_or(syn::Error::new(
+                                        variant.span(),
+                                        "Union variant must have a discriminant, either via `#[dust_dds(discriminant = DISCRIMINANT)]` or explicitly as `Variant(...) = DISCRIMINANT`",
+                                    ))?
+                                    .1
+                            }
+                        };
+
                         let variant_ident = &variant.ident;
                         match &variant.fields {
                             Fields::Named(f) => {
@@ -311,14 +326,27 @@ pub fn expand_xtypes_deserialize(input: &DeriveInput) -> Result<TokenStream> {
                 if is_enum_xtypes_union(data_enum) {
                     let mut variant_deserialization = quote!();
                     for variant in data_enum.variants.iter() {
-                        let variant_discriminant = &variant
-                            .discriminant
-                            .as_ref()
-                            .ok_or(syn::Error::new(
-                                variant.span(),
-                                "Union variant must have explicit discriminant",
-                            ))?
-                            .1;
+                        let args = variant
+                            .attrs
+                            .iter()
+                            .find(|attr| attr.path().is_ident("dust_dds"))
+                            .map(|attr| attr.parse_args::<VariantArgs>())
+                            .transpose()?
+                            .unwrap_or_default();
+
+                        let variant_discriminant = match args.discriminant {
+                            Some(ref discriminant) => discriminant,
+                            None => {
+                                &variant
+                                    .discriminant
+                                    .as_ref()
+                                    .ok_or(syn::Error::new(
+                                        variant.span(),
+                                        "Union variant must have a discriminant, either via `#[dust_dds(discriminant = DISCRIMINANT)]` or explicitly as `Variant(...) = DISCRIMINANT`",
+                                    ))?
+                                    .1
+                            }
+                        };
 
                         let variant_ident = &variant.ident;
                         match &variant.fields {
@@ -817,6 +845,10 @@ mod tests {
                 a(u32)=10,
                 b{a:u32, b:i32, c:f32}=200,
                 c=201,
+                #[dust_dds(discriminant = 300)]
+                d,
+                #[dust_dds(discriminant = 301)]
+                e(u8),
             }
         "
             .parse()
@@ -849,6 +881,15 @@ mod tests {
                             let discriminator: u8 = 201;
                             dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &discriminator, \"discriminator\")?;
                         },
+                        SimpleEnum::d => {
+                            let discriminator: u8 = 300;
+                            dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &discriminator, \"discriminator\")?;
+                        },
+                        SimpleEnum::e(f) => {
+                            let discriminator: u8 = 301;
+                            dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &discriminator, \"discriminator\")?;
+                            dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &f, \"0\")?;
+                        },
                     }
                     Ok(())
                 }
@@ -876,6 +917,10 @@ mod tests {
                 a(u32)=10,
                 b{a:u32, b:i32, c:f32}=200,
                 c=201,
+                #[dust_dds(discriminant = 300)]
+                d,
+                #[dust_dds(discriminant = 301)]
+                e(u8),
             }
         "
             .parse()
@@ -905,6 +950,11 @@ mod tests {
                             Ok(SimpleEnum::b{a,b,c,})
                         },
                         201 => Ok(SimpleEnum::c),
+                        300 => Ok(SimpleEnum::d),
+                        301 => {
+                           let f = dust_dds::xtypes::deserializer::DeserializeFinalStruct::deserialize_field(&mut d, \"0\")?;
+                           Ok(SimpleEnum::e(f))
+                        },
                         _ => Err(dust_dds::xtypes::error::XTypesError::InvalidData),
                     }
                 }

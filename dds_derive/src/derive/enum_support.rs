@@ -1,9 +1,45 @@
-use syn::{DataEnum, Expr, ExprLit, Fields, Ident, Lit};
+use syn::{
+    parse::Parse, punctuated::Punctuated, DataEnum, Expr, ExprLit, Fields, Ident, Lit,
+    MetaNameValue, Token,
+};
 
 pub enum BitBound {
     Bit8,
     Bit16,
     Bit32,
+}
+
+#[derive(Default)]
+pub struct VariantArgs {
+    pub discriminant: Option<Expr>,
+}
+
+impl Parse for VariantArgs {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let mut discriminant = None;
+
+        let args = Punctuated::<MetaNameValue, Token![,]>::parse_terminated(input)?;
+        for arg in args {
+            let ident = arg.path.require_ident()?;
+
+            if ident == "discriminant" {
+                if discriminant.is_some() {
+                    return Err(syn::Error::new(
+                        ident.span(),
+                        format!("argument `discriminant` already defined"),
+                    ));
+                }
+                discriminant = Some(arg.value);
+            } else {
+                return Err(syn::Error::new(
+                    ident.span(),
+                    format!("unknown argument `{ident}`"),
+                ));
+            }
+        }
+
+        Ok(Self { discriminant })
+    }
 }
 
 // The return of this function is a Vec instead of a HashMap so that the tests give
