@@ -3,14 +3,12 @@ use crate::{
     configuration::DustDdsConfiguration,
     dcps::{
         actor::Actor,
-        domain_participant_actor_mail::{
-            DiscoveryServiceMail, DomainParticipantMail, ParticipantServiceMail,
+        domain_participant_factory::DcpsParticipantFactory,
+        domain_participant_factory_mail::DcpsParticipantFactoryMail,
+        domain_participant_mail::{
+            DiscoveryServiceMail, DcpsDomainParticipantMail, ParticipantServiceMail,
         },
-        domain_participant_factory_actor::{
-            DdsTransportParticipantFactory, DomainParticipantFactoryActor,
-            DomainParticipantFactoryMail,
-        },
-        listeners::domain_participant_listener::DomainParticipantListenerActor,
+        listeners::domain_participant_listener::DcpsDomainParticipantListener,
     },
     domain::domain_participant_listener::DomainParticipantListener,
     infrastructure::{
@@ -20,6 +18,7 @@ use crate::{
         status::StatusKind,
     },
     runtime::{ChannelSend, DdsRuntime, OneshotReceive},
+    transport::interface::TransportParticipantFactory,
 };
 use alloc::string::String;
 
@@ -27,12 +26,12 @@ use alloc::string::String;
 /// Unlike the sync version, the [`DomainParticipantFactoryAsync`] is not a singleton and can be created by means of
 /// a constructor by passing a DDS runtime. This allows the factory
 /// to spin tasks on an existing runtime which can be shared with other things outside Dust DDS.
-pub struct DomainParticipantFactoryAsync<R: DdsRuntime> {
+pub struct DomainParticipantFactoryAsync<R: DdsRuntime, T: TransportParticipantFactory> {
     runtime: R,
-    domain_participant_factory_actor: Actor<R, DomainParticipantFactoryActor<R>>,
+    domain_participant_factory_actor: Actor<R, DcpsParticipantFactory<R, T>>,
 }
 
-impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
+impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantFactoryAsync<R, T> {
     /// Async version of [`create_participant`](crate::domain::domain_participant_factory::DomainParticipantFactory::create_participant).
     pub async fn create_participant(
         &self,
@@ -46,10 +45,10 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
         let spawner_handle = self.runtime.spawner();
         let status_kind = mask.to_vec();
         let listener_sender =
-            a_listener.map(|l| DomainParticipantListenerActor::spawn::<R>(l, &spawner_handle));
+            a_listener.map(|l| DcpsDomainParticipantListener::spawn::<R>(l, &spawner_handle));
         let (reply_sender, reply_receiver) = R::oneshot();
         self.domain_participant_factory_actor
-            .send_actor_mail(DomainParticipantFactoryMail::CreateParticipant {
+            .send_actor_mail(DcpsParticipantFactoryMail::CreateParticipant {
                 domain_id,
                 qos,
                 listener_sender,
@@ -85,7 +84,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
         let (reply_sender, reply_receiver) = R::oneshot();
         participant
             .participant_address()
-            .send(DomainParticipantMail::Participant(
+            .send(DcpsDomainParticipantMail::Participant(
                 ParticipantServiceMail::IsEmpty { reply_sender },
             ))
             .await?;
@@ -95,14 +94,14 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
             let handle = participant.get_instance_handle().await;
 
             self.domain_participant_factory_actor
-                .send_actor_mail(DomainParticipantFactoryMail::DeleteParticipant {
+                .send_actor_mail(DcpsParticipantFactoryMail::DeleteParticipant {
                     handle,
                     reply_sender,
                 })
                 .await;
             let deleted_participant = reply_receiver.receive().await??;
             deleted_participant
-                .send(DomainParticipantMail::Discovery(
+                .send(DcpsDomainParticipantMail::Discovery(
                     DiscoveryServiceMail::AnnounceDeletedParticipant,
                 ))
                 .await
@@ -130,7 +129,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = R::oneshot();
         self.domain_participant_factory_actor
-            .send_actor_mail(DomainParticipantFactoryMail::SetDefaultParticipantQos {
+            .send_actor_mail(DcpsParticipantFactoryMail::SetDefaultParticipantQos {
                 qos,
                 reply_sender,
             })
@@ -142,7 +141,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
     pub async fn get_default_participant_qos(&self) -> DdsResult<DomainParticipantQos> {
         let (reply_sender, reply_receiver) = R::oneshot();
         self.domain_participant_factory_actor
-            .send_actor_mail(DomainParticipantFactoryMail::GetDefaultParticipantQos {
+            .send_actor_mail(DcpsParticipantFactoryMail::GetDefaultParticipantQos {
                 reply_sender,
             })
             .await;
@@ -153,7 +152,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
     pub async fn set_qos(&self, qos: QosKind<DomainParticipantFactoryQos>) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = R::oneshot();
         self.domain_participant_factory_actor
-            .send_actor_mail(DomainParticipantFactoryMail::SetQos { qos, reply_sender })
+            .send_actor_mail(DcpsParticipantFactoryMail::SetQos { qos, reply_sender })
             .await;
         reply_receiver.receive().await?
     }
@@ -162,7 +161,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
     pub async fn get_qos(&self) -> DdsResult<DomainParticipantFactoryQos> {
         let (reply_sender, reply_receiver) = R::oneshot();
         self.domain_participant_factory_actor
-            .send_actor_mail(DomainParticipantFactoryMail::GetQos { reply_sender })
+            .send_actor_mail(DcpsParticipantFactoryMail::GetQos { reply_sender })
             .await;
         reply_receiver.receive().await
     }
@@ -170,7 +169,7 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
     /// Async version of [`set_configuration`](crate::domain::domain_participant_factory::DomainParticipantFactory::set_configuration).
     pub async fn set_configuration(&self, configuration: DustDdsConfiguration) -> DdsResult<()> {
         self.domain_participant_factory_actor
-            .send_actor_mail(DomainParticipantFactoryMail::SetConfiguration { configuration })
+            .send_actor_mail(DcpsParticipantFactoryMail::SetConfiguration { configuration })
             .await;
         Ok(())
     }
@@ -179,30 +178,22 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
     pub async fn get_configuration(&self) -> DdsResult<DustDdsConfiguration> {
         let (reply_sender, reply_receiver) = R::oneshot();
         self.domain_participant_factory_actor
-            .send_actor_mail(DomainParticipantFactoryMail::GetConfiguration { reply_sender })
+            .send_actor_mail(DcpsParticipantFactoryMail::GetConfiguration { reply_sender })
             .await;
         reply_receiver.receive().await
     }
-
-    /// Async version of [`set_transport`](crate::domain::domain_participant_factory::DomainParticipantFactory::set_transport).
-    pub async fn set_transport(&self, transport: DdsTransportParticipantFactory) -> DdsResult<()> {
-        self.domain_participant_factory_actor
-            .send_actor_mail(DomainParticipantFactoryMail::SetTransport { transport })
-            .await;
-        Ok(())
-    }
 }
 
-impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
+impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantFactoryAsync<R, T> {
     #[doc(hidden)]
     pub fn new(
         runtime: R,
         app_id: [u8; 4],
         host_id: [u8; 4],
-        transport: DdsTransportParticipantFactory,
-    ) -> DomainParticipantFactoryAsync<R> {
+        transport: T,
+    ) -> DomainParticipantFactoryAsync<R, T> {
         let domain_participant_factory_actor = Actor::spawn(
-            DomainParticipantFactoryActor::new(app_id, host_id, transport),
+            DcpsParticipantFactory::new(app_id, host_id, transport),
             &runtime.spawner(),
         );
         DomainParticipantFactoryAsync {
@@ -213,19 +204,29 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
 }
 
 #[cfg(feature = "std")]
-impl DomainParticipantFactoryAsync<crate::std_runtime::StdRuntime> {
+impl
+    DomainParticipantFactoryAsync<
+        crate::std_runtime::StdRuntime,
+        crate::rtps_udp_transport::udp_transport::RtpsUdpTransportParticipantFactory,
+    >
+{
     /// This operation returns the [`DomainParticipantFactoryAsync`] singleton. The operation is idempotent, that is, it can be called multiple
     /// times without side-effects and it will return the same [`DomainParticipantFactoryAsync`] instance.
     #[tracing::instrument]
-    pub fn get_instance() -> &'static DomainParticipantFactoryAsync<crate::std_runtime::StdRuntime>
-    {
+    pub fn get_instance() -> &'static DomainParticipantFactoryAsync<
+        crate::std_runtime::StdRuntime,
+        crate::rtps_udp_transport::udp_transport::RtpsUdpTransportParticipantFactory,
+    > {
         use core::net::IpAddr;
         use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
         use std::sync::OnceLock;
         use tracing::warn;
 
         static PARTICIPANT_FACTORY_ASYNC: OnceLock<
-            DomainParticipantFactoryAsync<crate::std_runtime::StdRuntime>,
+            DomainParticipantFactoryAsync<
+                crate::std_runtime::StdRuntime,
+                crate::rtps_udp_transport::udp_transport::RtpsUdpTransportParticipantFactory,
+            >,
         > = OnceLock::new();
         PARTICIPANT_FACTORY_ASYNC.get_or_init(|| {
             let executor = crate::std_runtime::executor::Executor::new();
@@ -256,7 +257,7 @@ impl DomainParticipantFactoryAsync<crate::std_runtime::StdRuntime> {
                 runtime,
                 app_id,
                 host_id,
-                Box::new(transport),
+                transport,
             )
         })
     }

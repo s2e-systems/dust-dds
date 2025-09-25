@@ -19,7 +19,7 @@ fn write_type(pyi_file: &mut fs::File, type_path: &syn::Type) {
                     "String" => "str".to_string(),
                     _ => i.to_string(),
                 };
-                write!(pyi_file, "{}", type_name).unwrap();
+                write!(pyi_file, "{type_name}").unwrap();
             } else {
                 let type_name = p.path.segments[0].ident.to_string();
                 // write!(self.pyi_file, ": {:?}", p.path.segments[0]).unwrap();
@@ -78,7 +78,7 @@ fn write_type(pyi_file: &mut fs::File, type_path: &syn::Type) {
             write!(pyi_file, "]").unwrap();
         }
         _ => {
-            write!(pyi_file, "Unimplemented {:?}", type_path).unwrap();
+            write!(pyi_file, "Unimplemented {type_path:?}").unwrap();
             todo!();
         }
     }
@@ -238,7 +238,7 @@ impl PyiImplVisitor<'_> {
         if is_constructor(fn_item) {
             write!(self.pyi_file, "\tdef __init__(self, ").unwrap();
         } else {
-            write!(self.pyi_file, "\tdef {}(", fn_name).unwrap();
+            write!(self.pyi_file, "\tdef {fn_name}(").unwrap();
         }
 
         let mut is_first = true;
@@ -257,7 +257,7 @@ impl PyiImplVisitor<'_> {
                         syn::Pat::Ident(i) => &i.ident,
                         _ => unreachable!(),
                     };
-                    write!(self.pyi_file, "{}", field_ident).unwrap();
+                    write!(self.pyi_file, "{field_ident}").unwrap();
                     write!(self.pyi_file, ": ").unwrap();
                     write_type(self.pyi_file, t.ty.as_ref());
                     write_default_value(self.pyi_file, field_ident, &fn_item.attrs);
@@ -347,7 +347,7 @@ impl<'ast> Visit<'ast> for PyiStructVisitor<'ast> {
             writeln!(self.pyi_file).unwrap();
 
             let class_name = node.ident.to_string();
-            writeln!(self.pyi_file, "class {}:", class_name).unwrap();
+            writeln!(self.pyi_file, "class {class_name}:").unwrap();
 
             if let Some(s) = self
                 .dust_dds_ast_file
@@ -422,7 +422,7 @@ impl<'ast> Visit<'ast> for PyiStructVisitor<'ast> {
                         }
                         write!(self.pyi_file, " ) -> None: ...").unwrap();
                     }
-                    write!(self.pyi_file, "\nclass {}: \n", enum_name).unwrap();
+                    write!(self.pyi_file, "\nclass {enum_name}: \n").unwrap();
                     for variant in i.variants.iter() {
                         writeln!(
                             self.pyi_file,
@@ -433,7 +433,7 @@ impl<'ast> Visit<'ast> for PyiStructVisitor<'ast> {
                     }
                 }
                 syn::Fields::Unit => {
-                    writeln!(self.pyi_file, "\nclass {}: ", enum_name).unwrap();
+                    writeln!(self.pyi_file, "\nclass {enum_name}: ").unwrap();
                     if let Some(s) = self
                         .dust_dds_ast_file
                         .items

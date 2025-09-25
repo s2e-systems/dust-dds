@@ -14,6 +14,7 @@ pub fn expand_dds_serialize_data(input: &DeriveInput) -> Result<TokenStream> {
             let ident = &input.ident;
 
             Ok(quote! {
+                #[automatically_derived]
                 impl #impl_generics dust_dds::infrastructure::type_support::DdsSerialize for #ident #type_generics #where_clause {
                     fn serialize_data(&self) -> dust_dds::infrastructure::error::DdsResult<Vec<u8>> {
                         #serialize_function
@@ -54,6 +55,7 @@ pub fn expand_dds_deserialize_data(input: &DeriveInput) -> Result<TokenStream> {
             };
 
             Ok(quote! {
+                #[automatically_derived]
                 impl #generics dust_dds::infrastructure::type_support::DdsDeserialize<'__de> for #ident #type_generics #where_clause {
                     fn deserialize_data(mut serialized_data: &'__de [u8]) -> dust_dds::infrastructure::error::DdsResult<Self> {
                         #deserialize_function

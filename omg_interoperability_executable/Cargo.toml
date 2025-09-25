@@ -11,7 +11,7 @@ description = "OMG DDS_RTPS Interoperability"
 
 [dependencies]
 dust_dds = { path = "../dds" }
-clap = { version = "4.4.11", features = ["derive", "string"] }
+clap = { version = "4.5.47", features = ["derive", "string"] }
 rand = "0.8.5"
 ctrlc = "3.4"
 

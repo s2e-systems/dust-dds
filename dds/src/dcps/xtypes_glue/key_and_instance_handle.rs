@@ -1,7 +1,7 @@
 use crate::{
     infrastructure::instance::InstanceHandle,
     xtypes::{
-        deserializer::{DeserializeSequence, XTypesDeserializer},
+        deserializer::{DeserializeAppendableStruct, DeserializeSequence, XTypesDeserializer},
         dynamic_type::{DynamicType, MemberDescriptor},
         error::XTypesError,
         serialize::{Write, XTypesSerializer},
@@ -13,7 +13,7 @@ use crate::{
         xcdr_serializer::{Xcdr1LeSerializer, Xcdr2BeSerializer},
     },
 };
-use alloc::vec::Vec;
+use alloc::{string::String, vec::Vec};
 
 struct Md5 {
     key: [u8; 16],
@@ -179,6 +179,126 @@ where
     Ok(())
 }
 
+fn deserialize_and_serialize_if_key_field_for_appendable_cdr<'a>(
+    type_identifier: &TypeIdentifier,
+    is_key_field: bool,
+    de: &mut impl DeserializeAppendableStruct<'a>,
+    serializer: &mut impl SerializeFinalStruct,
+) -> Result<(), XTypesError> {
+    let name = "";
+    match type_identifier {
+        TypeIdentifier::TkNone => todo!(),
+        TypeIdentifier::TkBoolean => {
+            let v = de.deserialize_field::<bool>(name)?;
+            if is_key_field {
+                serializer.serialize_field(&v, "")?;
+            }
+        }
+        TypeIdentifier::TkByteType => todo!(),
+        TypeIdentifier::TkInt8Type => {
+            let v = de.deserialize_field::<i8>(name)?;
+            if is_key_field {
+                serializer.serialize_field(&v, "")?;
+            }
+        }
+        TypeIdentifier::TkInt16Type => {
+            let v = de.deserialize_field::<i16>(name)?;
+            if is_key_field {
+                serializer.serialize_field(&v, "")?;
+            }
+        }
+        TypeIdentifier::TkInt32Type => {
+            let v = de.deserialize_field::<i32>(name)?;
+            if is_key_field {
+                serializer.serialize_field(&v, "")?;
+            }
+        }
+        TypeIdentifier::TkInt64Type => {
+            let v = de.deserialize_field::<i64>(name)?;
+            if is_key_field {
+                serializer.serialize_field(&v, "")?;
+            }
+        }
+        TypeIdentifier::TkUint8Type => {
+            let v = de.deserialize_field::<u8>(name)?;
+            if is_key_field {
+                serializer.serialize_field(&v, "")?;
+            }
+        }
+        TypeIdentifier::TkUint16Type => {
+            let v = de.deserialize_field::<u16>(name)?;
+            if is_key_field {
+                serializer.serialize_field(&v, "")?;
+            }
+        }
+        TypeIdentifier::TkUint32Type => {
+            let v = de.deserialize_field::<u32>(name)?;
+            if is_key_field {
+                serializer.serialize_field(&v, "")?;
+            }
+        }
+        TypeIdentifier::TkUint64Type => {
+            let v = de.deserialize_field::<u64>(name)?;
+            if is_key_field {
+                serializer.serialize_field(&v, "")?;
+            }
+        }
+        TypeIdentifier::TkFloat32Type => {
+            let v = de.deserialize_field::<f32>(name)?;
+            if is_key_field {
+                serializer.serialize_field(&v, "")?;
+            }
+        }
+        TypeIdentifier::TkFloat64Type => {
+            let v = de.deserialize_field::<f64>(name)?;
+            if is_key_field {
+                serializer.serialize_field(&v, "")?;
+            }
+        }
+        TypeIdentifier::TkFloat128Type => todo!(),
+        TypeIdentifier::TkChar8Type => {
+            let v = de.deserialize_field::<u8>(name)?;
+            if is_key_field {
+                serializer.serialize_field(&v, "")?;
+            }
+        }
+        TypeIdentifier::TkChar16Type => todo!(),
+        TypeIdentifier::TiString8Small { .. } => {
+            let v = de.deserialize_field::<String>(name)?;
+            if is_key_field {
+                serializer.serialize_field(&v, "")?;
+            }
+        }
+        TypeIdentifier::TiString16Small { .. } => todo!(),
+        TypeIdentifier::TiString8Large { .. } => todo!(),
+        TypeIdentifier::TiString16Large { .. } => todo!(),
+        TypeIdentifier::TiPlainSequenceSmall { seq_sdefn } => {
+            let len = de.deserialize_field::<u32>(name)?;
+            if is_key_field {
+                serializer.serialize_field(&len, "")?;
+
+                for _ in 0..len {
+                    deserialize_and_serialize_if_key_field_for_appendable_cdr(
+                        &seq_sdefn.element_identifier,
+                        is_key_field,
+                        de,
+                        serializer,
+                    )?;
+                }
+            }
+        }
+        TypeIdentifier::TiPlainSequenceLarge { .. } => todo!(),
+        TypeIdentifier::TiPlainArraySmall { .. } => todo!(),
+        TypeIdentifier::TiPlainArrayLarge { .. } => todo!(),
+        TypeIdentifier::TiPlainMapSmall { .. } => todo!(),
+        TypeIdentifier::TiPlainMapLarge { .. } => todo!(),
+        TypeIdentifier::TiStronglyConnectedComponent { .. } => todo!(),
+        TypeIdentifier::EkComplete { .. } => todo!(),
+        TypeIdentifier::EkMinimal { .. } => todo!(),
+    }
+    Ok(())
+}
+
 fn push_to_key<'a, T>(
     dynamic_type: &dyn DynamicType,
     serializer: &mut impl SerializeFinalStruct,
@@ -187,15 +307,33 @@ fn push_to_key<'a, T>(
 where
     for<'b> &'b mut T: XTypesDeserializer<'a>,
 {
-    for member_descriptor in dynamic_type.into_iter() {
-        let member_descriptor = member_descriptor?;
-        deserialize_and_serialize_if_key_field(
-            member_descriptor.type_,
-            member_descriptor.is_key,
-            de,
-            serializer,
-        )?;
+    match dynamic_type.get_descriptor()?.extensibility_kind {
+        crate::xtypes::dynamic_type::ExtensibilityKind::Final => {
+            for member_descriptor in dynamic_type.into_iter() {
+                let member_descriptor = member_descriptor?;
+                deserialize_and_serialize_if_key_field(
+                    member_descriptor.type_,
+                    member_descriptor.is_key,
+                    de,
+                    serializer,
+                )?;
+            }
+        }
+        crate::xtypes::dynamic_type::ExtensibilityKind::Appendable => {
+            let mut appendable_struct_deserializer = de.deserialize_appendable_struct()?;
+            for member_descriptor in dynamic_type.into_iter() {
+                let member_descriptor = member_descriptor?;
+                deserialize_and_serialize_if_key_field_for_appendable_cdr(
+                    member_descriptor.type_,
+                    member_descriptor.is_key,
+                    &mut appendable_struct_deserializer,
+                    serializer,
+                )?;
+            }
+        }
+        crate::xtypes::dynamic_type::ExtensibilityKind::Mutable => (),
     }
+
     Ok(())
 }
 
@@ -314,8 +452,8 @@ const CDR_BE: RepresentationIdentifier = [0x00, 0x00];
 const CDR_LE: RepresentationIdentifier = [0x00, 0x01];
 const CDR2_BE: RepresentationIdentifier = [0x00, 0x06];
 const CDR2_LE: RepresentationIdentifier = [0x00, 0x07];
-const _D_CDR2_BE: RepresentationIdentifier = [0x00, 0x08];
-const _D_CDR2_LE: RepresentationIdentifier = [0x00, 0x09];
+const D_CDR2_BE: RepresentationIdentifier = [0x00, 0x08];
+const D_CDR2_LE: RepresentationIdentifier = [0x00, 0x09];
 const PL_CDR_BE: RepresentationIdentifier = [0x00, 0x02];
 const PL_CDR_LE: RepresentationIdentifier = [0x00, 0x03];
 
@@ -340,13 +478,13 @@ pub fn get_instance_handle_from_serialized_key(
             CDR_LE => {
                 push_to_key_for_key(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?
             }
-            CDR2_BE => {
+            CDR2_BE | D_CDR2_BE=> {
                 push_to_key_for_key(dynamic_type, &mut s, &mut Xcdr2BeDeserializer::new(data))?
             }
-            CDR2_LE => {
+            CDR2_LE | D_CDR2_LE => {
                 push_to_key_for_key(dynamic_type, &mut s, &mut Xcdr2LeDeserializer::new(data))?
             }
-            _ => panic!("representation_identifier not supported"),
+            _ => return Err(XTypesError::InvalidData),
         }
     }
     Ok(InstanceHandle::new(md5_collection.into_key()))
@@ -369,8 +507,12 @@ pub fn get_instance_handle_from_serialized_foo(
         match representation_identifier {
             CDR_BE => push_to_key(dynamic_type, &mut s, &mut Xcdr1BeDeserializer::new(data))?,
             CDR_LE => push_to_key(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?,
-            CDR2_BE => push_to_key(dynamic_type, &mut s, &mut Xcdr2BeDeserializer::new(data))?,
-            CDR2_LE => push_to_key(dynamic_type, &mut s, &mut Xcdr2LeDeserializer::new(data))?,
+            CDR2_BE | D_CDR2_BE => {
+                push_to_key(dynamic_type, &mut s, &mut Xcdr2BeDeserializer::new(data))?
+            }
+            CDR2_LE | D_CDR2_LE => {
+                push_to_key(dynamic_type, &mut s, &mut Xcdr2LeDeserializer::new(data))?
+            }
             PL_CDR_BE => push_to_key_parameter_list_be(dynamic_type, &mut s, data)?,
             PL_CDR_LE => push_to_key_parameter_list_le(dynamic_type, &mut s, data)?,
             _ => panic!("representation_identifier not supported"),
@@ -417,7 +559,7 @@ mod tests {
     use dust_dds_derive::TypeSupport;
 
     #[derive(TypeSupport)]
-    #[dust_dds(extensibility = "Mutable")]
+    #[dust_dds(extensibility = "mutable")]
     struct MutableStruct {
         #[dust_dds(key, id = 10)]
         _key_field1: u8,
@@ -494,7 +636,7 @@ mod tests {
     }
 
     #[derive(TypeSupport)]
-    #[dust_dds(extensibility = "Final")]
+    #[dust_dds(extensibility = "final")]
     struct Nested {
         #[dust_dds(key)]
         _x: u8,
@@ -502,7 +644,7 @@ mod tests {
         _y: u8,
     }
     #[derive(TypeSupport)]
-    #[dust_dds(extensibility = "Final")]
+    #[dust_dds(extensibility = "final")]
     struct Complex {
         _field1: i64,
         #[dust_dds(key)]
@@ -513,7 +655,7 @@ mod tests {
     }
 
     #[derive(TypeSupport)]
-    #[dust_dds(extensibility = "Final")]
+    #[dust_dds(extensibility = "final")]
     struct Simple {
         #[dust_dds(key)]
         _key_field1: i64,
@@ -646,7 +788,7 @@ mod tests {
     }
 
     #[derive(TypeSupport)]
-    #[dust_dds(extensibility = "Final")]
+    #[dust_dds(extensibility = "final")]
     struct Large {
         #[dust_dds(key)]
         _key_field1: i64,
@@ -786,7 +928,7 @@ mod tests {
     }
 
     #[derive(TypeSupport)]
-    #[dust_dds(extensibility = "Final")]
+    #[dust_dds(extensibility = "final")]
     struct BasicTypes {
         #[dust_dds(key)]
         _f1: bool,

@@ -1,7 +1,6 @@
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     condition::StatusCondition,
-    runtime::DdsRuntime,
     dds_async::data_writer::DataWriterAsync,
     infrastructure::{
         error::DdsResult,
@@ -15,7 +14,8 @@ use crate::{
         type_support::DdsSerialize,
     },
     publication::{data_writer_listener::DataWriterListener, publisher::Publisher},
-    topic_definition::topic::Topic,
+    runtime::DdsRuntime,
+    topic_definition::topic_description::TopicDescription,
 };
 use alloc::vec::Vec;
 
@@ -288,8 +288,8 @@ impl<R: DdsRuntime, Foo> DataWriter<R, Foo> {
 
     /// This operation returns the [`Topic`] associated with the [`DataWriter`]. This is the same [`Topic`] that was used to create the [`DataWriter`].
     #[tracing::instrument(skip(self))]
-    pub fn get_topic(&self) -> Topic<R> {
-        Topic::from(self.writer_async.get_topic())
+    pub fn get_topic(&self) -> TopicDescription<R> {
+        self.writer_async.get_topic().into()
     }
 
     /// This operation returns the [`Publisher`] to which the [`DataWriter`] object belongs.

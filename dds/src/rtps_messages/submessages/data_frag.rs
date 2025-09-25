@@ -53,12 +53,17 @@ impl DataFragSubmessage {
             let fragment_size = u16::try_read_from_bytes(&mut slice, endianness)?;
             let data_size = u32::try_read_from_bytes(&mut slice, endianness)?;
 
-            if octets_to_inline_qos > submessage_header.submessage_length() as usize {
+            let end_position = if submessage_header.submessage_length() == 0 {
+                data.len()
+            } else {
+                submessage_header.submessage_length() as usize
+            };
+
+            if octets_to_inline_qos > end_position {
                 return Err(RtpsMessageError::InvalidData);
             }
 
-            let mut data_starting_at_inline_qos =
-                &data[octets_to_inline_qos..submessage_header.submessage_length() as usize];
+            let mut data_starting_at_inline_qos = &data[octets_to_inline_qos..end_position];
 
             let inline_qos = if inline_qos_flag {
                 ParameterList::try_read_from_bytes(&mut data_starting_at_inline_qos, endianness)?

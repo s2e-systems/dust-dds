@@ -7,6 +7,7 @@ use dust_dds::{
         type_support::DdsType,
     },
     listener::NO_LISTENER,
+    topic_definition::topic_description::TopicDescription,
 };
 
 mod utils;
@@ -160,5 +161,10 @@ fn data_reader_get_topicdescription_should_return_same_topic_as_used_for_creatio
         .create_datareader::<UserType>(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
-    assert!(reader.get_topicdescription().get_instance_handle() == topic.get_instance_handle());
+    match reader.get_topicdescription() {
+        TopicDescription::Topic(topic) => {
+            assert!(topic.get_instance_handle() == topic.get_instance_handle())
+        }
+        TopicDescription::ContentFilteredTopic(_) => unreachable!(),
+    }
 }

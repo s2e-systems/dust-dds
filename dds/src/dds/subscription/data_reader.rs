@@ -2,7 +2,6 @@ use super::subscriber::Subscriber;
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     condition::StatusCondition,
-    runtime::DdsRuntime,
     dds_async::data_reader::DataReaderAsync,
     infrastructure::{
         error::DdsResult,
@@ -15,8 +14,9 @@ use crate::{
         },
         time::Duration,
     },
+    runtime::DdsRuntime,
     subscription::data_reader_listener::DataReaderListener,
-    topic_definition::topic::Topic,
+    topic_definition::topic_description::TopicDescription,
 };
 use alloc::vec::Vec;
 
@@ -328,8 +328,8 @@ impl<R: DdsRuntime, Foo> DataReader<R, Foo> {
     /// This operation returns the [`Topic`] associated with the [`DataReader`]. This is the same [`Topic`]
     /// that was used to create the [`DataReader`].
     #[tracing::instrument(skip(self))]
-    pub fn get_topicdescription(&self) -> Topic<R> {
-        Topic::from(self.reader_async.get_topicdescription())
+    pub fn get_topicdescription(&self) -> TopicDescription<R> {
+        self.reader_async.get_topicdescription().into()
     }
 
     /// This operation returns the [`Subscriber`] to which the [`DataReader`] belongs.

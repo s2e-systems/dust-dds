@@ -18,13 +18,16 @@ use crate::{
         time::Duration,
     },
     subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-    topic_definition::{topic::Topic, type_support::PythonDdsData},
+    topic_definition::{topic_description::TopicDescription, type_support::PythonDdsData},
 };
 use pyo3::{exceptions::PyTypeError, prelude::*};
 
 #[pyclass]
 pub struct DataReader(
-    dust_dds::subscription::data_reader::DataReader<dust_dds::std_runtime::StdRuntime, PythonDdsData>,
+    dust_dds::subscription::data_reader::DataReader<
+        dust_dds::std_runtime::StdRuntime,
+        PythonDdsData,
+    >,
 );
 
 impl
@@ -122,7 +125,7 @@ impl DataReader {
                 })
                 .collect()),
             Err(dust_dds::infrastructure::error::DdsError::NoData) => Ok(Vec::new()),
-            Err(e) => Err(PyTypeError::new_err(format!("{:?}", e))),
+            Err(e) => Err(PyTypeError::new_err(format!("{e:?}"))),
         }
     }
 
@@ -165,7 +168,7 @@ impl DataReader {
                 })
                 .collect()),
             Err(dust_dds::infrastructure::error::DdsError::NoData) => Ok(Vec::new()),
-            Err(e) => Err(PyTypeError::new_err(format!("{:?}", e))),
+            Err(e) => Err(PyTypeError::new_err(format!("{e:?}"))),
         }
     }
 
@@ -177,7 +180,7 @@ impl DataReader {
                 sample: s,
                 type_: type_.clone(),
             }),
-            Err(e) => Err(PyTypeError::new_err(format!("{:?}", e))),
+            Err(e) => Err(PyTypeError::new_err(format!("{e:?}"))),
         }
     }
 
@@ -189,7 +192,7 @@ impl DataReader {
                 sample: s,
                 type_: type_.clone(),
             }),
-            Err(e) => Err(PyTypeError::new_err(format!("{:?}", e))),
+            Err(e) => Err(PyTypeError::new_err(format!("{e:?}"))),
         }
     }
 
@@ -237,7 +240,7 @@ impl DataReader {
                 })
                 .collect()),
             Err(dust_dds::infrastructure::error::DdsError::NoData) => Ok(Vec::new()),
-            Err(e) => Err(PyTypeError::new_err(format!("{:?}", e))),
+            Err(e) => Err(PyTypeError::new_err(format!("{e:?}"))),
         }
     }
 
@@ -285,7 +288,7 @@ impl DataReader {
                 })
                 .collect()),
             Err(dust_dds::infrastructure::error::DdsError::NoData) => Ok(Vec::new()),
-            Err(e) => Err(PyTypeError::new_err(format!("{:?}", e))),
+            Err(e) => Err(PyTypeError::new_err(format!("{e:?}"))),
         }
     }
 
@@ -333,7 +336,7 @@ impl DataReader {
                 })
                 .collect()),
             Err(dust_dds::infrastructure::error::DdsError::NoData) => Ok(Vec::new()),
-            Err(e) => Err(PyTypeError::new_err(format!("{:?}", e))),
+            Err(e) => Err(PyTypeError::new_err(format!("{e:?}"))),
         }
     }
 
@@ -381,7 +384,7 @@ impl DataReader {
                 })
                 .collect()),
             Err(dust_dds::infrastructure::error::DdsError::NoData) => Ok(Vec::new()),
-            Err(e) => Err(PyTypeError::new_err(format!("{:?}", e))),
+            Err(e) => Err(PyTypeError::new_err(format!("{e:?}"))),
         }
     }
 
@@ -439,7 +442,7 @@ impl DataReader {
             .into())
     }
 
-    pub fn get_topicdescription(&self) -> Topic {
+    pub fn get_topicdescription(&self) -> TopicDescription {
         self.0.get_topicdescription().into()
     }
 

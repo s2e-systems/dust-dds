@@ -2,8 +2,8 @@ use super::{condition::StatusConditionAsync, domain_participant::DomainParticipa
 use crate::{
     dcps::{
         actor::ActorAddress,
-        domain_participant_actor_mail::{DomainParticipantMail, TopicServiceMail},
-        status_condition_actor::StatusConditionActor,
+        domain_participant_mail::{DcpsDomainParticipantMail, TopicServiceMail},
+        status_condition::DcpsStatusCondition,
     },
     infrastructure::{
         error::DdsResult,
@@ -20,7 +20,7 @@ use alloc::{string::String, sync::Arc, vec::Vec};
 /// Async version of [`Topic`](crate::topic_definition::topic::Topic).
 pub struct TopicAsync<R: DdsRuntime> {
     handle: InstanceHandle,
-    status_condition_address: ActorAddress<R, StatusConditionActor<R>>,
+    status_condition_address: ActorAddress<R, DcpsStatusCondition<R>>,
     type_name: String,
     topic_name: String,
     participant: DomainParticipantAsync<R>,
@@ -41,7 +41,7 @@ impl<R: DdsRuntime> Clone for TopicAsync<R> {
 impl<R: DdsRuntime> TopicAsync<R> {
     pub(crate) fn new(
         handle: InstanceHandle,
-        status_condition_address: ActorAddress<R, StatusConditionActor<R>>,
+        status_condition_address: ActorAddress<R, DcpsStatusCondition<R>>,
         type_name: String,
         topic_name: String,
         participant: DomainParticipantAsync<R>,
@@ -63,7 +63,7 @@ impl<R: DdsRuntime> TopicAsync<R> {
         let (reply_sender, reply_receiver) = R::oneshot();
         self.participant
             .participant_address()
-            .send(DomainParticipantMail::Topic(
+            .send(DcpsDomainParticipantMail::Topic(
                 TopicServiceMail::GetInconsistentTopicStatus {
                     topic_name: self.topic_name.clone(),
                     reply_sender,
@@ -101,7 +101,7 @@ impl<R: DdsRuntime> TopicAsync<R> {
         let (reply_sender, reply_receiver) = R::oneshot();
         self.participant
             .participant_address()
-            .send(DomainParticipantMail::Topic(TopicServiceMail::SetQos {
+            .send(DcpsDomainParticipantMail::Topic(TopicServiceMail::SetQos {
                 topic_name: self.topic_name.clone(),
                 topic_qos: qos,
                 reply_sender,
@@ -117,7 +117,7 @@ impl<R: DdsRuntime> TopicAsync<R> {
         let (reply_sender, reply_receiver) = R::oneshot();
         self.participant
             .participant_address()
-            .send(DomainParticipantMail::Topic(TopicServiceMail::GetQos {
+            .send(DcpsDomainParticipantMail::Topic(TopicServiceMail::GetQos {
                 topic_name: self.topic_name.clone(),
                 reply_sender,
             }))
@@ -147,7 +147,7 @@ impl<R: DdsRuntime> TopicAsync<R> {
         let (reply_sender, reply_receiver) = R::oneshot();
         self.participant
             .participant_address()
-            .send(DomainParticipantMail::Topic(TopicServiceMail::Enable {
+            .send(DcpsDomainParticipantMail::Topic(TopicServiceMail::Enable {
                 topic_name: self.topic_name.clone(),
                 reply_sender,
             }))
@@ -179,7 +179,7 @@ impl<R: DdsRuntime> TopicAsync<R> {
         let (reply_sender, reply_receiver) = R::oneshot();
         self.participant
             .participant_address()
-            .send(DomainParticipantMail::Topic(
+            .send(DcpsDomainParticipantMail::Topic(
                 TopicServiceMail::GetTypeSupport {
                     topic_name: self.topic_name.clone(),
                     reply_sender,

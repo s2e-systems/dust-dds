@@ -13,14 +13,17 @@ use crate::{
         },
         time::{Duration, Time},
     },
-    topic_definition::{topic::Topic, type_support::PythonDdsData},
+    topic_definition::{topic_description::TopicDescription, type_support::PythonDdsData},
 };
 
 use super::{data_writer_listener::DataWriterListener, publisher::Publisher};
 
 #[pyclass]
 pub struct DataWriter(
-    dust_dds::publication::data_writer::DataWriter<dust_dds::std_runtime::StdRuntime, PythonDdsData>,
+    dust_dds::publication::data_writer::DataWriter<
+        dust_dds::std_runtime::StdRuntime,
+        PythonDdsData,
+    >,
 );
 
 impl
@@ -69,8 +72,10 @@ impl
 {
     fn as_ref(
         &self,
-    ) -> &dust_dds::publication::data_writer::DataWriter<dust_dds::std_runtime::StdRuntime, PythonDdsData>
-    {
+    ) -> &dust_dds::publication::data_writer::DataWriter<
+        dust_dds::std_runtime::StdRuntime,
+        PythonDdsData,
+    > {
         &self.0
     }
 }
@@ -229,7 +234,7 @@ impl DataWriter {
             .into())
     }
 
-    pub fn get_topic(&self) -> Topic {
+    pub fn get_topic(&self) -> TopicDescription {
         self.0.get_topic().into()
     }
 

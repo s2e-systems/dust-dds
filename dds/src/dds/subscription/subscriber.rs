@@ -4,7 +4,6 @@ use super::{
 };
 use crate::{
     condition::StatusCondition,
-    runtime::DdsRuntime,
     dds_async::subscriber::SubscriberAsync,
     domain::domain_participant::DomainParticipant,
     infrastructure::{
@@ -13,7 +12,8 @@ use crate::{
         qos::{DataReaderQos, QosKind, SubscriberQos, TopicQos},
         status::{SampleLostStatus, StatusKind},
     },
-    topic_definition::topic::Topic,
+    runtime::DdsRuntime,
+    topic_definition::topic_description::TopicDescription,
 };
 use alloc::vec::Vec;
 
@@ -60,13 +60,13 @@ impl<R: DdsRuntime> Subscriber<R> {
     #[tracing::instrument(skip(self, a_topic, a_listener))]
     pub fn create_datareader<Foo>(
         &self,
-        a_topic: &Topic<R>,
+        a_topic: &TopicDescription<R>,
         qos: QosKind<DataReaderQos>,
         a_listener: Option<impl DataReaderListener<R, Foo> + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<DataReader<R, Foo>> {
         R::block_on(self.subscriber_async.create_datareader::<Foo>(
-            a_topic.topic_async(),
+            &a_topic.clone().into(),
             qos,
             a_listener,
             mask,

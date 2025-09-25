@@ -2,8 +2,7 @@ import java.util.Properties
 import java.io.FileInputStream
 
 plugins {
-    id("com.android.application") version "8.9.2"
-    id("org.mozilla.rust-android-gradle.rust-android") version "0.9.6"
+    id("com.android.application") version "8.13.0"
 }
 
 android {
@@ -22,14 +21,13 @@ android {
         }
     }
     namespace = "com.s2e_systems.dustddsshapesdemo"
-    ndkVersion = "29.0.13113456 rc1"
+    ndkVersion = "29.0.14033849"
     compileSdk = 36
 
     defaultConfig {
         applicationId = "com.s2e_systems.dustddsshapesdemo"
         minSdk = 26
-        targetSdk = 36
-        versionCode = 6
+        versionCode = 7
         versionName = "1.0.13"
     }
 
@@ -44,27 +42,27 @@ android {
             signingConfig = signingConfigs.getByName("release")
         }
     }
-
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
-    }
+    sourceSets["main"].jniLibs.srcDirs(layout.buildDirectory.dir("rustJniLibs"))
 }
 
-apply(plugin = "org.mozilla.rust-android-gradle.rust-android")
-
-cargo {
-    module = "."
-    targets = listOf("x86", "x86_64", "arm", "arm64")
-    libname = "shapes_demo_app"
-    verbose = true
-    prebuiltToolchains = true
-    targetDirectory = "../../../target"
-    profile = "release"
+val cargoBuild by tasks.registering(Exec::class) {
+    val outputDir = layout.buildDirectory.dir("rustJniLibs")
+    // The --platform should be "android.compileSdk", but the ndk did not include a prebuilt
+    // for API level (compileSdk) 36
+    commandLine(
+        "cargo", "ndk",
+        "--target", "arm64-v8a",
+        "--target", "armeabi-v7a",
+        "--target", "x86_64",
+        "--target", "x86",
+        "--platform", 35,
+        "--output-dir", outputDir.get().asFile.absolutePath,
+        "build", "--release",
+        "--package", "shapes_demo_app"
+    )
 }
 
-dependencies {
-    tasks.named("preBuild").configure {
-        dependsOn("cargoBuild")
-    }
+tasks.named("preBuild") {
+    dependsOn(cargoBuild)
 }
+

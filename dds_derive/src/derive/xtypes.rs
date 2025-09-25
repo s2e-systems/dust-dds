@@ -56,7 +56,7 @@ pub fn expand_xtypes_serialize(input: &DeriveInput) -> Result<TokenStream> {
                     }
                     None => {
                         let index = Index::from(field_index);
-                        let index_str = format!("{:?}", field_index);
+                        let index_str = format!("{field_index:?}", );
                         match extensibility {
                             Extensibility::Final => field_serialization
                                 .extend(quote! { dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &self.#index, #index_str)?;}),
@@ -81,8 +81,9 @@ pub fn expand_xtypes_serialize(input: &DeriveInput) -> Result<TokenStream> {
             }
 
             Ok(quote! {
-                impl #impl_generics  dust_dds::xtypes::serialize::XTypesSerialize for #ident #type_generics #where_clause {
-                    fn serialize(&self, serializer: impl  dust_dds::xtypes::serialize::XTypesSerializer) -> Result<(),  dust_dds::xtypes::error::XTypesError> {
+                #[automatically_derived]
+                impl #impl_generics dust_dds::xtypes::serialize::XTypesSerialize for #ident #type_generics #where_clause {
+                    fn serialize(&self, serializer: impl dust_dds::xtypes::serialize::XTypesSerializer) -> Result<(), dust_dds::xtypes::error::XTypesError> {
                         #field_serialization
                         Ok(())
                     }
@@ -187,8 +188,9 @@ pub fn expand_xtypes_serialize(input: &DeriveInput) -> Result<TokenStream> {
             };
 
             Ok(quote! {
-                impl #impl_generics  dust_dds::xtypes::serialize::XTypesSerialize for #ident #type_generics #where_clause {
-                    fn serialize(&self, serializer: impl  dust_dds::xtypes::serialize::XTypesSerializer) -> Result<(),  dust_dds::xtypes::error::XTypesError>
+                #[automatically_derived]
+                impl #impl_generics dust_dds::xtypes::serialize::XTypesSerialize for #ident #type_generics #where_clause {
+                    fn serialize(&self, serializer: impl dust_dds::xtypes::serialize::XTypesSerializer) -> Result<(), dust_dds::xtypes::error::XTypesError>
                     {
                         #serialize_enum
                     }
@@ -249,7 +251,7 @@ pub fn expand_xtypes_deserialize(input: &DeriveInput) -> Result<TokenStream> {
                         .is_none();
                     if is_tuple {
                         for (index, field) in data_struct.fields.iter().enumerate() {
-                            let index_str = format!("{:?}", index);
+                            let index_str = format!("{index:?}",);
                             match extensibility {
                                 Extensibility::Final => field_deserialization
                                     .extend(quote! { dust_dds::xtypes::deserializer::DeserializeFinalStruct::deserialize_field(&mut d, #index_str)?,}),
@@ -290,8 +292,9 @@ pub fn expand_xtypes_deserialize(input: &DeriveInput) -> Result<TokenStream> {
             }
 
             Ok(quote! {
-                    impl #generics  dust_dds::xtypes::deserialize::XTypesDeserialize<'__de> for #ident #type_generics #where_clause {
-                        fn deserialize(deserializer: impl  dust_dds::xtypes::deserializer::XTypesDeserializer<'__de>) -> Result<Self,  dust_dds::xtypes::error::XTypesError> {
+                    #[automatically_derived]
+                    impl #generics dust_dds::xtypes::deserialize::XTypesDeserialize<'__de> for #ident #type_generics #where_clause {
+                        fn deserialize(deserializer: impl dust_dds::xtypes::deserializer::XTypesDeserializer<'__de>) -> Result<Self, dust_dds::xtypes::error::XTypesError> {
                             #deserializer_definition
                             Ok(#struct_deserialization)
                         }
@@ -387,8 +390,9 @@ pub fn expand_xtypes_deserialize(input: &DeriveInput) -> Result<TokenStream> {
             };
 
             Ok(quote! {
-                impl #generics  dust_dds::xtypes::deserialize::XTypesDeserialize<'__de> for #ident #type_generics #where_clause {
-                    fn deserialize(deserializer: impl  dust_dds::xtypes::deserializer::XTypesDeserializer<'__de>) -> Result<Self,  dust_dds::xtypes::error::XTypesError> {
+                #[automatically_derived]
+                impl #generics dust_dds::xtypes::deserialize::XTypesDeserialize<'__de> for #ident #type_generics #where_clause {
+                    fn deserialize(deserializer: impl dust_dds::xtypes::deserializer::XTypesDeserializer<'__de>) -> Result<Self, dust_dds::xtypes::error::XTypesError> {
                         #deserialize_enum
                     }
                 }
@@ -412,7 +416,7 @@ mod tests {
     fn xtypes_serialize_final_struct_with_basic_types() {
         let input = syn::parse2::<DeriveInput>(
             "
-            #[dust_dds(extensibility = \"Final\")]
+            #[dust_dds(extensibility = \"final\")]
             struct MyData {
                 x: u32,
                 y: u32,
@@ -427,9 +431,10 @@ mod tests {
         let result = syn::parse2::<ItemImpl>(output_token_stream).unwrap();
         let expected = syn::parse2::<ItemImpl>(
             "
-            impl  dust_dds::xtypes::serialize::XTypesSerialize for MyData {
-                fn serialize(&self, serializer: impl  dust_dds::xtypes::serialize::XTypesSerializer) -> Result<(),  dust_dds::xtypes::error::XTypesError> {
-                    let mut s =  dust_dds::xtypes::serializer::XTypesSerializer::serialize_final_struct(serializer)?;
+            #[automatically_derived]
+            impl dust_dds::xtypes::serialize::XTypesSerialize for MyData {
+                fn serialize(&self, serializer: impl dust_dds::xtypes::serialize::XTypesSerializer) -> Result<(), dust_dds::xtypes::error::XTypesError> {
+                    let mut s = dust_dds::xtypes::serializer::XTypesSerializer::serialize_final_struct(serializer)?;
                     dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &self.x, \"x\")?;
                     dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &self.y, \"y\")?;
                     Ok(())
@@ -454,7 +459,7 @@ mod tests {
     fn xtypes_serialize_appendable_struct_with_basic_types() {
         let input = syn::parse2::<DeriveInput>(
             "
-            #[dust_dds(extensibility = \"Appendable\")]
+            #[dust_dds(extensibility = \"appendable\")]
             struct MyData {
                 x: u32,
                 y: u32,
@@ -469,8 +474,9 @@ mod tests {
         let result = syn::parse2::<ItemImpl>(output_token_stream).unwrap();
         let expected = syn::parse2::<ItemImpl>(
             "
-            impl  dust_dds::xtypes::serialize::XTypesSerialize for MyData {
-                fn serialize(&self, serializer: impl  dust_dds::xtypes::serialize::XTypesSerializer) -> Result<(),  dust_dds::xtypes::error::XTypesError> {
+            #[automatically_derived]
+            impl dust_dds::xtypes::serialize::XTypesSerialize for MyData {
+                fn serialize(&self, serializer: impl dust_dds::xtypes::serialize::XTypesSerializer) -> Result<(), dust_dds::xtypes::error::XTypesError> {
                     let mut s =  dust_dds::xtypes::serializer::XTypesSerializer::serialize_appendable_struct(serializer)?;
                      dust_dds::xtypes::serializer::SerializeAppendableStruct::serialize_field(&mut s, &self.x, \"x\")?;
                      dust_dds::xtypes::serializer::SerializeAppendableStruct::serialize_field(&mut s, &self.y, \"y\")?;
@@ -496,7 +502,7 @@ mod tests {
     fn xtypes_serialize_mutable_struct_with_basic_types() {
         let input = syn::parse2::<DeriveInput>(
             "
-            #[dust_dds(extensibility = \"Mutable\")]
+            #[dust_dds(extensibility = \"mutable\")]
             struct MyData {
                 #[dust_dds(id = 1)]
                 x: u32,
@@ -513,12 +519,13 @@ mod tests {
         let result = syn::parse2::<ItemImpl>(output_token_stream).unwrap();
         let expected = syn::parse2::<ItemImpl>(
             "
-            impl  dust_dds::xtypes::serialize::XTypesSerialize for MyData {
-                fn serialize(&self, serializer: impl  dust_dds::xtypes::serialize::XTypesSerializer) -> Result<(),  dust_dds::xtypes::error::XTypesError> {
+            #[automatically_derived]
+            impl dust_dds::xtypes::serialize::XTypesSerialize for MyData {
+                fn serialize(&self, serializer: impl dust_dds::xtypes::serialize::XTypesSerializer) -> Result<(), dust_dds::xtypes::error::XTypesError> {
                     let mut s =  dust_dds::xtypes::serializer::XTypesSerializer::serialize_mutable_struct(serializer)?;
-                     dust_dds::xtypes::serializer::SerializeMutableStruct::serialize_field(&mut s, &self.x, 1, \"x\")?;
-                     dust_dds::xtypes::serializer::SerializeMutableStruct::serialize_field(&mut s, &self.y, 2, \"y\")?;
-                     dust_dds::xtypes::serializer::SerializeMutableStruct::end(s)?;
+                    dust_dds::xtypes::serializer::SerializeMutableStruct::serialize_field(&mut s, &self.x, 1, \"x\")?;
+                    dust_dds::xtypes::serializer::SerializeMutableStruct::serialize_field(&mut s, &self.y, 2, \"y\")?;
+                    dust_dds::xtypes::serializer::SerializeMutableStruct::end(s)?;
                     Ok(())
                 }
             }
@@ -555,12 +562,13 @@ mod tests {
         let result = syn::parse2::<ItemImpl>(output_token_stream).unwrap();
         let expected = syn::parse2::<ItemImpl>(
             "
-            impl<'__de>  dust_dds::xtypes::deserialize::XTypesDeserialize<'__de> for MyData {
-                fn deserialize(deserializer: impl  dust_dds::xtypes::deserializer::XTypesDeserializer<'__de>) -> Result<Self,  dust_dds::xtypes::error::XTypesError> {
-                    let mut d =  dust_dds::xtypes::deserializer::XTypesDeserializer::deserialize_final_struct(deserializer)?;
+            #[automatically_derived]
+            impl<'__de> dust_dds::xtypes::deserialize::XTypesDeserialize<'__de> for MyData {
+                fn deserialize(deserializer: impl dust_dds::xtypes::deserializer::XTypesDeserializer<'__de>) -> Result<Self, dust_dds::xtypes::error::XTypesError> {
+                    let mut d = dust_dds::xtypes::deserializer::XTypesDeserializer::deserialize_final_struct(deserializer)?;
                     Ok(Self {
-                        x:  dust_dds::xtypes::deserializer::DeserializeFinalStruct::deserialize_field(&mut d, \"x\")?,
-                        y:  dust_dds::xtypes::deserializer::DeserializeFinalStruct::deserialize_field(&mut d, \"y\")?,
+                        x: dust_dds::xtypes::deserializer::DeserializeFinalStruct::deserialize_field(&mut d, \"x\")?,
+                        y: dust_dds::xtypes::deserializer::DeserializeFinalStruct::deserialize_field(&mut d, \"y\")?,
                     })
                 }
             }
@@ -583,7 +591,7 @@ mod tests {
     fn xtypes_deserialize_appendable_struct_with_basic_types() {
         let input = syn::parse2::<DeriveInput>(
             "
-            #[dust_dds(extensibility = \"Appendable\")]
+            #[dust_dds(extensibility = \"appendable\")]
             struct MyData {
                 x: u32,
                 y: u32,
@@ -598,12 +606,13 @@ mod tests {
         let result = syn::parse2::<ItemImpl>(output_token_stream).unwrap();
         let expected = syn::parse2::<ItemImpl>(
             "
-            impl<'__de>  dust_dds::xtypes::deserialize::XTypesDeserialize<'__de> for MyData {
-                fn deserialize(deserializer: impl  dust_dds::xtypes::deserializer::XTypesDeserializer<'__de>) -> Result<Self,  dust_dds::xtypes::error::XTypesError> {
-                    let mut d =  dust_dds::xtypes::deserializer::XTypesDeserializer::deserialize_appendable_struct(deserializer)?;
+            #[automatically_derived]
+            impl<'__de> dust_dds::xtypes::deserialize::XTypesDeserialize<'__de> for MyData {
+                fn deserialize(deserializer: impl dust_dds::xtypes::deserializer::XTypesDeserializer<'__de>) -> Result<Self, dust_dds::xtypes::error::XTypesError> {
+                    let mut d = dust_dds::xtypes::deserializer::XTypesDeserializer::deserialize_appendable_struct(deserializer)?;
                     Ok(Self {
-                        x:  dust_dds::xtypes::deserializer::DeserializeAppendableStruct::deserialize_field(&mut d, \"x\")?,
-                        y:  dust_dds::xtypes::deserializer::DeserializeAppendableStruct::deserialize_field(&mut d, \"y\")?,
+                        x: dust_dds::xtypes::deserializer::DeserializeAppendableStruct::deserialize_field(&mut d, \"x\")?,
+                        y: dust_dds::xtypes::deserializer::DeserializeAppendableStruct::deserialize_field(&mut d, \"y\")?,
                     })
                 }
             }
@@ -638,11 +647,12 @@ mod tests {
         let result = syn::parse2::<ItemImpl>(expand_xtypes_deserialize(&input).unwrap()).unwrap();
         let expected = syn::parse2::<ItemImpl>(
             "
-            impl<'__de : 'a, 'a>  dust_dds::xtypes::deserialize::XTypesDeserialize<'__de> for BorrowedData<'a> {
-                fn deserialize(deserializer: impl  dust_dds::xtypes::deserializer::XTypesDeserializer<'__de>) -> Result<Self,  dust_dds::xtypes::error::XTypesError> {
-                    let mut d =  dust_dds::xtypes::deserializer::XTypesDeserializer::deserialize_final_struct(deserializer)?;
+            #[automatically_derived]
+            impl<'__de : 'a, 'a> dust_dds::xtypes::deserialize::XTypesDeserialize<'__de> for BorrowedData<'a> {
+                fn deserialize(deserializer: impl dust_dds::xtypes::deserializer::XTypesDeserializer<'__de>) -> Result<Self, dust_dds::xtypes::error::XTypesError> {
+                    let mut d = dust_dds::xtypes::deserializer::XTypesDeserializer::deserialize_final_struct(deserializer)?;
                     Ok(Self {
-                        data:  dust_dds::xtypes::deserializer::DeserializeFinalStruct::deserialize_field(&mut d, \"data\")?,
+                        data: dust_dds::xtypes::deserializer::DeserializeFinalStruct::deserialize_field(&mut d, \"data\")?,
                     })
                 }
             }
@@ -665,7 +675,7 @@ mod tests {
     fn xtypes_deserialize_mutable_struct_with_basic_types() {
         let input = syn::parse2::<DeriveInput>(
             "
-            #[dust_dds(extensibility = \"Mutable\")]
+            #[dust_dds(extensibility = \"mutable\")]
             struct MyData {
                 #[dust_dds(id=1)]
                 x: u32,
@@ -682,12 +692,13 @@ mod tests {
         let result = syn::parse2::<ItemImpl>(output_token_stream).unwrap();
         let expected = syn::parse2::<ItemImpl>(
             "
-            impl<'__de>  dust_dds::xtypes::deserialize::XTypesDeserialize<'__de> for MyData {
-                fn deserialize(deserializer: impl  dust_dds::xtypes::deserializer::XTypesDeserializer<'__de>) -> Result<Self,  dust_dds::xtypes::error::XTypesError> {
-                    let mut d =  dust_dds::xtypes::deserializer::XTypesDeserializer::deserialize_mutable_struct(deserializer)?;
+            #[automatically_derived]
+            impl<'__de> dust_dds::xtypes::deserialize::XTypesDeserialize<'__de> for MyData {
+                fn deserialize(deserializer: impl dust_dds::xtypes::deserializer::XTypesDeserializer<'__de>) -> Result<Self, dust_dds::xtypes::error::XTypesError> {
+                    let mut d = dust_dds::xtypes::deserializer::XTypesDeserializer::deserialize_mutable_struct(deserializer)?;
                     Ok(Self {
-                        x:  dust_dds::xtypes::deserializer::DeserializeMutableStruct::deserialize_field(&mut d, 1, \"x\")?,
-                        y:  dust_dds::xtypes::deserializer::DeserializeMutableStruct::deserialize_field(&mut d, 2, \"y\")?,
+                        x: dust_dds::xtypes::deserializer::DeserializeMutableStruct::deserialize_field(&mut d, 1, \"x\")?,
+                        y: dust_dds::xtypes::deserializer::DeserializeMutableStruct::deserialize_field(&mut d, 2, \"y\")?,
                     })
                 }
             }
@@ -725,14 +736,15 @@ mod tests {
         let result = syn::parse2::<ItemImpl>(output_token_stream).unwrap();
         let expected = syn::parse2::<ItemImpl>(
             "
-            impl  dust_dds::xtypes::serialize::XTypesSerialize for SimpleEnum {
-                fn serialize(&self, serializer: impl  dust_dds::xtypes::serialize::XTypesSerializer) -> Result<(),  dust_dds::xtypes::error::XTypesError> {
+            #[automatically_derived]
+            impl dust_dds::xtypes::serialize::XTypesSerialize for SimpleEnum {
+                fn serialize(&self, serializer: impl dust_dds::xtypes::serialize::XTypesSerializer) -> Result<(), dust_dds::xtypes::error::XTypesError> {
                     let discriminant: u16 = match self {
                         SimpleEnum::a => 10,
                         SimpleEnum::b => 2000,
                         SimpleEnum::c => 2001,
                     };
-                     dust_dds::xtypes::serialize::XTypesSerialize::serialize(&discriminant, serializer)
+                    dust_dds::xtypes::serialize::XTypesSerialize::serialize(&discriminant, serializer)
                 }
             }
             "
@@ -769,9 +781,10 @@ mod tests {
         let result = syn::parse2::<ItemImpl>(output_token_stream).unwrap();
         let expected = syn::parse2::<ItemImpl>(
             "
-            impl<'__de>  dust_dds::xtypes::deserialize::XTypesDeserialize<'__de> for SimpleEnum {
-                fn deserialize(deserializer: impl  dust_dds::xtypes::deserializer::XTypesDeserializer<'__de>) -> Result<Self,  dust_dds::xtypes::error::XTypesError> {
-                    let discriminant: u16 =  dust_dds::xtypes::deserialize::XTypesDeserialize::deserialize(deserializer)?;
+            #[automatically_derived]
+            impl<'__de> dust_dds::xtypes::deserialize::XTypesDeserialize<'__de> for SimpleEnum {
+                fn deserialize(deserializer: impl dust_dds::xtypes::deserializer::XTypesDeserializer<'__de>) -> Result<Self, dust_dds::xtypes::error::XTypesError> {
+                    let discriminant: u16 = dust_dds::xtypes::deserialize::XTypesDeserialize::deserialize(deserializer)?;
 
                     match discriminant {
                         10 => Ok(SimpleEnum::a),
@@ -815,24 +828,25 @@ mod tests {
         let result = syn::parse2::<ItemImpl>(output_token_stream).unwrap();
         let expected = syn::parse2::<ItemImpl>(
             "
-            impl  dust_dds::xtypes::serialize::XTypesSerialize for SimpleEnum {
-                fn serialize(&self, serializer: impl  dust_dds::xtypes::serialize::XTypesSerializer) -> Result<(),  dust_dds::xtypes::error::XTypesError> {
-                    let mut s =  dust_dds::xtypes::serializer::XTypesSerializer::serialize_final_struct(serializer)?;
+            #[automatically_derived]
+            impl dust_dds::xtypes::serialize::XTypesSerialize for SimpleEnum {
+                fn serialize(&self, serializer: impl dust_dds::xtypes::serialize::XTypesSerializer) -> Result<(), dust_dds::xtypes::error::XTypesError> {
+                    let mut s = dust_dds::xtypes::serializer::XTypesSerializer::serialize_final_struct(serializer)?;
                     match self {
                         SimpleEnum::a(f) => {
-                            let discriminator : u8 = 10;
+                            let discriminator: u8 = 10;
                             dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &discriminator, \"discriminator\")?;
                             dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &f, \"0\")?;
                         },
                         SimpleEnum::b{a, b, c,} => {
-                            let discriminator : u8 = 200;
+                            let discriminator: u8 = 200;
                             dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &discriminator, \"discriminator\")?;
                             dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &a, \"a\")?;
                             dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &b, \"b\")?;
                             dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &c, \"c\")?;
                         },
                         SimpleEnum::c => {
-                            let discriminator : u8 = 201;
+                            let discriminator: u8 = 201;
                             dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &discriminator, \"discriminator\")?;
                         },
                     }
@@ -873,8 +887,9 @@ mod tests {
         let result = syn::parse2::<ItemImpl>(output_token_stream).unwrap();
         let expected = syn::parse2::<ItemImpl>(
             "
-            impl<'__de>  dust_dds::xtypes::deserialize::XTypesDeserialize<'__de> for SimpleEnum {
-                fn deserialize(deserializer: impl  dust_dds::xtypes::deserializer::XTypesDeserializer<'__de>) -> Result<Self,  dust_dds::xtypes::error::XTypesError> {
+            #[automatically_derived]
+            impl<'__de> dust_dds::xtypes::deserialize::XTypesDeserialize<'__de> for SimpleEnum {
+                fn deserialize(deserializer: impl dust_dds::xtypes::deserializer::XTypesDeserializer<'__de>) -> Result<Self, dust_dds::xtypes::error::XTypesError> {
                     let mut d =  dust_dds::xtypes::deserializer::XTypesDeserializer::deserialize_final_struct(deserializer)?;
                     let discriminator : u8 = dust_dds::xtypes::deserializer::DeserializeFinalStruct::deserialize_field(&mut d, \"discriminator\")?;
 
