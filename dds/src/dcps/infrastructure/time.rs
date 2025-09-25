@@ -1,11 +1,5 @@
 use dust_dds_derive::TypeSupport;
 
-use crate::xtypes::{
-    deserialize::XTypesDeserialize,
-    deserializer::{DeserializeFinalStruct, XTypesDeserializer},
-    error::XTypesError,
-    serialize::{XTypesSerialize, XTypesSerializer},
-};
 use core::ops::{Add, Sub};
 
 /// Enumeration representing whether a duration is finite or infinite
@@ -15,26 +9,6 @@ pub enum DurationKind {
     Finite(Duration),
     /// Infinite duration
     Infinite,
-}
-impl XTypesSerialize for DurationKind {
-    fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
-        XTypesSerialize::serialize(
-            match self {
-                DurationKind::Finite(d) => d,
-                DurationKind::Infinite => &DURATION_INFINITE,
-            },
-            serializer,
-        )
-    }
-}
-impl<'de> XTypesDeserialize<'de> for DurationKind {
-    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
-        let mut f = deserializer.deserialize_final_struct()?;
-        Ok(match f.deserialize_field::<Duration>("duration_kind")? {
-            DURATION_INFINITE => DurationKind::Infinite,
-            duration => DurationKind::Finite(duration),
-        })
-    }
 }
 
 const DURATION_INFINITE_SEC: i32 = 0x7fffffff;
@@ -60,9 +34,7 @@ impl PartialOrd<DurationKind> for DurationKind {
 }
 
 /// Structure representing a time interval with a nanosecond resolution.
-#[derive(
-    PartialOrd, PartialEq, Eq, Debug, Clone, Copy, TypeSupport, XTypesSerialize, XTypesDeserialize,
-)]
+#[derive(PartialOrd, PartialEq, Eq, Debug, Clone, Copy, TypeSupport)]
 #[dust_dds(extensibility = "Final", nested)]
 pub struct Duration {
     sec: i32,

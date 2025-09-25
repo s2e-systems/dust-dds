@@ -2,14 +2,6 @@ use super::time::{DURATION_ZERO_NSEC, DURATION_ZERO_SEC};
 use crate::{
     infrastructure::time::{Duration, DurationKind},
     transport::types::{DurabilityKind, ReliabilityKind},
-    xtypes::{
-        bytes::{ByteBuf, Bytes},
-        deserialize::XTypesDeserialize,
-        deserializer::{DeserializeFinalStruct, XTypesDeserializer},
-        error::XTypesError,
-        serialize::{XTypesSerialize, XTypesSerializer},
-        serializer::SerializeFinalStruct,
-    },
 };
 use alloc::{string::String, vec::Vec};
 use core::cmp::Ordering;
@@ -25,26 +17,6 @@ pub enum Length {
     Unlimited,
     /// Limited length with the corresponding associated value.
     Limited(u32),
-}
-
-const LENGTH_UNLIMITED: i32 = -1;
-impl XTypesSerialize for Length {
-    fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
-        match self {
-            Length::Unlimited => XTypesSerialize::serialize(&LENGTH_UNLIMITED, serializer)?,
-            Length::Limited(length) => XTypesSerialize::serialize(length, serializer)?,
-        }
-        Ok(())
-    }
-}
-impl<'de> XTypesDeserialize<'de> for Length {
-    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
-        match XTypesDeserialize::deserialize(deserializer)? {
-            LENGTH_UNLIMITED => Ok(Length::Unlimited),
-            value @ 0..=i32::MAX => Ok(Length::Limited(value as u32)),
-            _ => Err(XTypesError::InvalidData),
-        }
-    }
 }
 
 impl PartialOrd for Length {
@@ -207,20 +179,6 @@ impl UserDataQosPolicy {
     }
 }
 
-impl XTypesSerialize for UserDataQosPolicy {
-    fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
-        let mut s = serializer.serialize_final_struct()?;
-        s.serialize_field(&Bytes(self.value.as_slice()), "value")
-    }
-}
-impl<'de> XTypesDeserialize<'de> for UserDataQosPolicy {
-    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
-        let mut d = deserializer.deserialize_final_struct()?;
-        Ok(Self {
-            value: d.deserialize_field::<ByteBuf>("value")?.0,
-        })
-    }
-}
 impl QosPolicy for UserDataQosPolicy {
     fn name(&self) -> &str {
         USERDATA_QOS_POLICY_NAME
@@ -253,22 +211,6 @@ impl Default for TopicDataQosPolicy {
     }
 }
 
-impl XTypesSerialize for TopicDataQosPolicy {
-    fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
-        let mut s = serializer.serialize_final_struct()?;
-        s.serialize_field(&Bytes(self.value.as_slice()), "value")
-    }
-}
-
-impl<'de> XTypesDeserialize<'de> for TopicDataQosPolicy {
-    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
-        let mut d = deserializer.deserialize_final_struct()?;
-        Ok(Self {
-            value: d.deserialize_field::<ByteBuf>("value")?.0,
-        })
-    }
-}
-
 impl QosPolicy for TopicDataQosPolicy {
     fn name(&self) -> &str {
         TOPICDATA_QOS_POLICY_NAME
@@ -294,21 +236,6 @@ impl GroupDataQosPolicy {
     }
 }
 
-impl XTypesSerialize for GroupDataQosPolicy {
-    fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
-        let mut s = serializer.serialize_final_struct()?;
-        s.serialize_field(&Bytes(self.value.as_slice()), "value")
-    }
-}
-
-impl<'de> XTypesDeserialize<'de> for GroupDataQosPolicy {
-    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
-        let mut d = deserializer.deserialize_final_struct()?;
-        Ok(Self {
-            value: d.deserialize_field::<ByteBuf>("value")?.0,
-        })
-    }
-}
 impl QosPolicy for GroupDataQosPolicy {
     fn name(&self) -> &str {
         GROUPDATA_QOS_POLICY_NAME
@@ -943,28 +870,6 @@ pub enum ReliabilityQosPolicyKind {
 const BEST_EFFORT: i32 = 1;
 const RELIABLE: i32 = 2;
 
-impl XTypesSerialize for ReliabilityQosPolicyKind {
-    fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
-        XTypesSerialize::serialize(
-            &match self {
-                ReliabilityQosPolicyKind::BestEffort => BEST_EFFORT,
-                ReliabilityQosPolicyKind::Reliable => RELIABLE,
-            },
-            serializer,
-        )
-    }
-}
-
-impl<'de> XTypesDeserialize<'de> for ReliabilityQosPolicyKind {
-    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
-        match i32::deserialize(deserializer)? {
-            BEST_EFFORT => Ok(Self::BestEffort),
-            RELIABLE => Ok(Self::Reliable),
-            _ => Err(XTypesError::InvalidData),
-        }
-    }
-}
-
 impl PartialOrd for ReliabilityQosPolicyKind {
     fn partial_cmp(&self, other: &ReliabilityQosPolicyKind) -> Option<Ordering> {
         match self {
@@ -1110,21 +1015,6 @@ pub enum HistoryQosPolicyKind {
     KeepLast(u32),
     /// Keep all samples.
     KeepAll,
-}
-impl XTypesSerialize for HistoryQosPolicyKind {
-    fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
-        let mut f = serializer.serialize_final_struct()?;
-        match self {
-            HistoryQosPolicyKind::KeepLast(depth) => {
-                f.serialize_field(&0_u8, "discriminant")?;
-                f.serialize_field(depth, "depth")
-            }
-            HistoryQosPolicyKind::KeepAll => {
-                f.serialize_field(&1_u8, "discriminant")?;
-                f.serialize_field(&0_u32, "depth")
-            }
-        }
-    }
 }
 
 /// This policy controls the behavior of the Service when the value of an instance changes before it is finally

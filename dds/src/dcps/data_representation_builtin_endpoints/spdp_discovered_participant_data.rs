@@ -10,13 +10,12 @@ use crate::{
         domain::DomainId, instance::InstanceHandle, time::Duration, type_support::TypeSupport,
     },
     transport::types::{GuidPrefix, Locator, Long, ProtocolVersion, VendorId},
-    xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize},
 };
 use alloc::{string::String, vec::Vec};
 
 pub type Count = Long;
 
-#[derive(PartialEq, Eq, Debug, Clone, Copy, TypeSupport, XTypesSerialize, XTypesDeserialize)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy, TypeSupport)]
 #[dust_dds(extensibility = "Final", nested)]
 pub struct BuiltinEndpointSet(pub u32);
 
@@ -78,9 +77,7 @@ impl BuiltinEndpointSet {
     }
 }
 
-#[derive(
-    PartialEq, Eq, Debug, Default, Clone, Copy, TypeSupport, XTypesSerialize, XTypesDeserialize,
-)]
+#[derive(PartialEq, Eq, Debug, Default, Clone, Copy, TypeSupport)]
 #[dust_dds(extensibility = "Final", nested)]
 pub struct BuiltinEndpointQos(pub u32);
 

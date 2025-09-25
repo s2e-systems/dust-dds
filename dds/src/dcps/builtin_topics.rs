@@ -14,7 +14,6 @@ use crate::{
         PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TRANSPORT_PRIORITY, PID_TYPE_NAME, PID_USER_DATA,
     },
     infrastructure::type_support::TypeSupport,
-    xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize},
 };
 use alloc::string::String;
 
@@ -31,7 +30,7 @@ pub const DCPS_TOPIC: &str = "DCPSTopic";
 pub const DCPS_PARTICIPANT: &str = "DCPSParticipant";
 
 /// Structure representing the instance handle (or key) of an entity.
-#[derive(Debug, PartialEq, Eq, Clone, Default, TypeSupport, XTypesSerialize, XTypesDeserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Default, TypeSupport)]
 #[dust_dds(extensibility = "Appendable", nested)]
 pub struct BuiltInTopicKey {
     /// InstanceHandle value as an array of 16 octets.

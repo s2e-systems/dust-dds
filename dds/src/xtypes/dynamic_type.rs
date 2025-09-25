@@ -93,11 +93,37 @@ impl DynamicTypeBuilderFactory {
     }
 
     pub fn create_sequence_type(element_type: DynamicType, bound: u32) -> DynamicTypeBuilder {
-        todo!()
+        DynamicTypeBuilder {
+            descriptor: TypeDescriptor {
+                kind: TK_SEQUENCE,
+                name: String::new(),
+                base_type: None,
+                discriminator_type: None,
+                bound: vec![bound],
+                element_type: Some(element_type),
+                key_element_type: None,
+                extensibility_kind: ExtensibilityKind::Final,
+                is_nested: false,
+            },
+            member_list: Vec::new(),
+        }
     }
 
     pub fn create_array_type(element_type: DynamicType, bound: BoundSeq) -> DynamicTypeBuilder {
-        todo!()
+        DynamicTypeBuilder {
+            descriptor: TypeDescriptor {
+                kind: TK_ARRAY,
+                name: String::new(),
+                base_type: None,
+                discriminator_type: None,
+                bound,
+                element_type: Some(element_type),
+                key_element_type: None,
+                extensibility_kind: ExtensibilityKind::Final,
+                is_nested: false,
+            },
+            member_list: Vec::new(),
+        }
     }
 
     pub fn create_map_type(

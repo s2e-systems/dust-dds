@@ -1,16 +1,8 @@
 use crate::{
     infrastructure::instance::InstanceHandle,
     xtypes::{
-        deserializer::{DeserializeSequence, XTypesDeserializer},
         dynamic_type::{DynamicData, DynamicType, MemberDescriptor},
         error::XTypesError,
-        serialize::{Write, XTypesSerializer},
-        serializer::SerializeFinalStruct,
-        type_object::TypeIdentifier,
-        xcdr_deserializer::{
-            Xcdr1BeDeserializer, Xcdr1LeDeserializer, Xcdr2BeDeserializer, Xcdr2LeDeserializer,
-        },
-        xcdr_serializer::{Xcdr1LeSerializer, Xcdr2BeSerializer},
     },
 };
 use alloc::vec::Vec;
@@ -35,193 +27,193 @@ impl Md5 {
     }
 }
 
-impl Write for Md5 {
-    fn write(&mut self, buf: &[u8]) {
-        let total_new_length = self.length + buf.len();
-        if total_new_length <= self.key.len() {
-            self.key[self.length..total_new_length].copy_from_slice(buf);
-        }
-        self.context.consume(buf);
-        self.length += buf.len();
-    }
-}
+// impl Write for Md5 {
+//     fn write(&mut self, buf: &[u8]) {
+//         let total_new_length = self.length + buf.len();
+//         if total_new_length <= self.key.len() {
+//             self.key[self.length..total_new_length].copy_from_slice(buf);
+//         }
+//         self.context.consume(buf);
+//         self.length += buf.len();
+//     }
+// }
 
-fn deserialize_and_serialize_if_key_field<'a, T>(
-    type_identifier: &TypeIdentifier,
-    is_key_field: bool,
-    de: &mut T,
-    serializer: &mut impl SerializeFinalStruct,
-) -> Result<(), XTypesError>
-where
-    for<'b> &'b mut T: XTypesDeserializer<'a>,
-{
-    match type_identifier {
-        TypeIdentifier::TkNone => todo!(),
-        TypeIdentifier::TkBoolean => {
-            let v = de.deserialize_boolean()?;
-            if is_key_field {
-                serializer.serialize_field(&v, "")?;
-            }
-        }
-        TypeIdentifier::TkByteType => todo!(),
-        TypeIdentifier::TkInt8Type => {
-            let v = de.deserialize_int8()?;
-            if is_key_field {
-                serializer.serialize_field(&v, "")?;
-            }
-        }
-        TypeIdentifier::TkInt16Type => {
-            let v = de.deserialize_int16()?;
-            if is_key_field {
-                serializer.serialize_field(&v, "")?;
-            }
-        }
-        TypeIdentifier::TkInt32Type => {
-            let v = de.deserialize_int32()?;
-            if is_key_field {
-                serializer.serialize_field(&v, "")?;
-            }
-        }
-        TypeIdentifier::TkInt64Type => {
-            let v = de.deserialize_int64()?;
-            if is_key_field {
-                serializer.serialize_field(&v, "")?;
-            }
-        }
-        TypeIdentifier::TkUint8Type => {
-            let v = de.deserialize_uint8()?;
-            if is_key_field {
-                serializer.serialize_field(&v, "")?;
-            }
-        }
-        TypeIdentifier::TkUint16Type => {
-            let v = de.deserialize_uint16()?;
-            if is_key_field {
-                serializer.serialize_field(&v, "")?;
-            }
-        }
-        TypeIdentifier::TkUint32Type => {
-            let v = de.deserialize_uint32()?;
-            if is_key_field {
-                serializer.serialize_field(&v, "")?;
-            }
-        }
-        TypeIdentifier::TkUint64Type => {
-            let v = de.deserialize_uint64()?;
-            if is_key_field {
-                serializer.serialize_field(&v, "")?;
-            }
-        }
-        TypeIdentifier::TkFloat32Type => {
-            let v = de.deserialize_float32()?;
-            if is_key_field {
-                serializer.serialize_field(&v, "")?;
-            }
-        }
-        TypeIdentifier::TkFloat64Type => {
-            let v = de.deserialize_float64()?;
-            if is_key_field {
-                serializer.serialize_field(&v, "")?;
-            }
-        }
-        TypeIdentifier::TkFloat128Type => todo!(),
-        TypeIdentifier::TkChar8Type => {
-            let v = de.deserialize_char8()?;
-            if is_key_field {
-                serializer.serialize_field(&v, "")?;
-            }
-        }
-        TypeIdentifier::TkChar16Type => todo!(),
-        TypeIdentifier::TiString8Small { .. } => {
-            let v = de.deserialize_string()?;
-            if is_key_field {
-                serializer.serialize_field(&v, "")?;
-            }
-        }
-        TypeIdentifier::TiString16Small { .. } => todo!(),
-        TypeIdentifier::TiString8Large { .. } => todo!(),
-        TypeIdentifier::TiString16Large { .. } => todo!(),
-        TypeIdentifier::TiPlainSequenceSmall { seq_sdefn } => {
-            let len = de.deserialize_sequence()?.len() as u32;
-            if is_key_field {
-                serializer.serialize_field(&len, "")?;
+// fn deserialize_and_serialize_if_key_field<'a, T>(
+//     type_identifier: &TypeIdentifier,
+//     is_key_field: bool,
+//     de: &mut T,
+//     serializer: &mut impl SerializeFinalStruct,
+// ) -> Result<(), XTypesError>
+// where
+//     for<'b> &'b mut T: XTypesDeserializer<'a>,
+// {
+//     match type_identifier {
+//         TypeIdentifier::TkNone => todo!(),
+//         TypeIdentifier::TkBoolean => {
+//             let v = de.deserialize_boolean()?;
+//             if is_key_field {
+//                 serializer.serialize_field(&v, "")?;
+//             }
+//         }
+//         TypeIdentifier::TkByteType => todo!(),
+//         TypeIdentifier::TkInt8Type => {
+//             let v = de.deserialize_int8()?;
+//             if is_key_field {
+//                 serializer.serialize_field(&v, "")?;
+//             }
+//         }
+//         TypeIdentifier::TkInt16Type => {
+//             let v = de.deserialize_int16()?;
+//             if is_key_field {
+//                 serializer.serialize_field(&v, "")?;
+//             }
+//         }
+//         TypeIdentifier::TkInt32Type => {
+//             let v = de.deserialize_int32()?;
+//             if is_key_field {
+//                 serializer.serialize_field(&v, "")?;
+//             }
+//         }
+//         TypeIdentifier::TkInt64Type => {
+//             let v = de.deserialize_int64()?;
+//             if is_key_field {
+//                 serializer.serialize_field(&v, "")?;
+//             }
+//         }
+//         TypeIdentifier::TkUint8Type => {
+//             let v = de.deserialize_uint8()?;
+//             if is_key_field {
+//                 serializer.serialize_field(&v, "")?;
+//             }
+//         }
+//         TypeIdentifier::TkUint16Type => {
+//             let v = de.deserialize_uint16()?;
+//             if is_key_field {
+//                 serializer.serialize_field(&v, "")?;
+//             }
+//         }
+//         TypeIdentifier::TkUint32Type => {
+//             let v = de.deserialize_uint32()?;
+//             if is_key_field {
+//                 serializer.serialize_field(&v, "")?;
+//             }
+//         }
+//         TypeIdentifier::TkUint64Type => {
+//             let v = de.deserialize_uint64()?;
+//             if is_key_field {
+//                 serializer.serialize_field(&v, "")?;
+//             }
+//         }
+//         TypeIdentifier::TkFloat32Type => {
+//             let v = de.deserialize_float32()?;
+//             if is_key_field {
+//                 serializer.serialize_field(&v, "")?;
+//             }
+//         }
+//         TypeIdentifier::TkFloat64Type => {
+//             let v = de.deserialize_float64()?;
+//             if is_key_field {
+//                 serializer.serialize_field(&v, "")?;
+//             }
+//         }
+//         TypeIdentifier::TkFloat128Type => todo!(),
+//         TypeIdentifier::TkChar8Type => {
+//             let v = de.deserialize_char8()?;
+//             if is_key_field {
+//                 serializer.serialize_field(&v, "")?;
+//             }
+//         }
+//         TypeIdentifier::TkChar16Type => todo!(),
+//         TypeIdentifier::TiString8Small { .. } => {
+//             let v = de.deserialize_string()?;
+//             if is_key_field {
+//                 serializer.serialize_field(&v, "")?;
+//             }
+//         }
+//         TypeIdentifier::TiString16Small { .. } => todo!(),
+//         TypeIdentifier::TiString8Large { .. } => todo!(),
+//         TypeIdentifier::TiString16Large { .. } => todo!(),
+//         TypeIdentifier::TiPlainSequenceSmall { seq_sdefn } => {
+//             let len = de.deserialize_sequence()?.len() as u32;
+//             if is_key_field {
+//                 serializer.serialize_field(&len, "")?;
 
-                for _ in 0..len {
-                    deserialize_and_serialize_if_key_field(
-                        &seq_sdefn.element_identifier,
-                        is_key_field,
-                        de,
-                        serializer,
-                    )?;
-                }
-            }
-        }
-        TypeIdentifier::TiPlainSequenceLarge { .. } => todo!(),
-        TypeIdentifier::TiPlainArraySmall { array_sdefn } => {
-            for _ in 0..array_sdefn.array_bound_seq[0] {
-                deserialize_and_serialize_if_key_field(
-                    &array_sdefn.element_identifier,
-                    is_key_field,
-                    de,
-                    serializer,
-                )?;
-            }
-        }
-        TypeIdentifier::TiPlainArrayLarge { .. } => todo!(),
-        TypeIdentifier::TiPlainMapSmall { .. } => todo!(),
-        TypeIdentifier::TiPlainMapLarge { .. } => todo!(),
-        TypeIdentifier::TiStronglyConnectedComponent { .. } => todo!(),
-        TypeIdentifier::EkComplete { complete } => {
-            push_to_key(complete.as_ref(), serializer, de)?;
-        }
-        TypeIdentifier::EkMinimal { .. } => todo!(),
-    }
-    Ok(())
-}
+//                 for _ in 0..len {
+//                     deserialize_and_serialize_if_key_field(
+//                         &seq_sdefn.element_identifier,
+//                         is_key_field,
+//                         de,
+//                         serializer,
+//                     )?;
+//                 }
+//             }
+//         }
+//         TypeIdentifier::TiPlainSequenceLarge { .. } => todo!(),
+//         TypeIdentifier::TiPlainArraySmall { array_sdefn } => {
+//             for _ in 0..array_sdefn.array_bound_seq[0] {
+//                 deserialize_and_serialize_if_key_field(
+//                     &array_sdefn.element_identifier,
+//                     is_key_field,
+//                     de,
+//                     serializer,
+//                 )?;
+//             }
+//         }
+//         TypeIdentifier::TiPlainArrayLarge { .. } => todo!(),
+//         TypeIdentifier::TiPlainMapSmall { .. } => todo!(),
+//         TypeIdentifier::TiPlainMapLarge { .. } => todo!(),
+//         TypeIdentifier::TiStronglyConnectedComponent { .. } => todo!(),
+//         TypeIdentifier::EkComplete { complete } => {
+//             push_to_key(complete.as_ref(), serializer, de)?;
+//         }
+//         TypeIdentifier::EkMinimal { .. } => todo!(),
+//     }
+//     Ok(())
+// }
 
-fn push_to_key<'a, T>(
-    dynamic_type: &DynamicType,
-    serializer: &mut impl SerializeFinalStruct,
-    de: &mut T,
-) -> Result<(), XTypesError>
-where
-    for<'b> &'b mut T: XTypesDeserializer<'a>,
-{
-    todo!()
-    // for member_descriptor in dynamic_type.into_iter() {
-    //     let member_descriptor = member_descriptor?;
-    //     deserialize_and_serialize_if_key_field(
-    //         &member_descriptor.r#type,
-    //         member_descriptor.is_key,
-    //         de,
-    //         serializer,
-    //     )?;
-    // }
-    // Ok(())
-}
+// fn push_to_key<'a, T>(
+//     dynamic_type: &DynamicType,
+//     serializer: &mut impl SerializeFinalStruct,
+//     de: &mut T,
+// ) -> Result<(), XTypesError>
+// where
+//     for<'b> &'b mut T: XTypesDeserializer<'a>,
+// {
+//     todo!()
+//     // for member_descriptor in dynamic_type.into_iter() {
+//     //     let member_descriptor = member_descriptor?;
+//     //     deserialize_and_serialize_if_key_field(
+//     //         &member_descriptor.r#type,
+//     //         member_descriptor.is_key,
+//     //         de,
+//     //         serializer,
+//     //     )?;
+//     // }
+//     // Ok(())
+// }
 
-fn push_to_key_for_key<'a, T>(
-    dynamic_type: &DynamicType,
-    serializer: &mut impl SerializeFinalStruct,
-    de: &mut T,
-) -> Result<(), XTypesError>
-where
-    for<'b> &'b mut T: XTypesDeserializer<'a>,
-{
-    todo!()
-    // for member_descriptor in dynamic_type.into_iter() {
-    //     let member_descriptor = member_descriptor?;
-    //     if member_descriptor.is_key {
-    //         deserialize_and_serialize_if_key_field(
-    //             &member_descriptor.r#type,
-    //             true,
-    //             de,
-    //             serializer,
-    //         )?;
-    //     }
-    // }
-    // Ok(())
-}
+// fn push_to_key_for_key<'a, T>(
+//     dynamic_type: &DynamicType,
+//     serializer: &mut impl SerializeFinalStruct,
+//     de: &mut T,
+// ) -> Result<(), XTypesError>
+// where
+//     for<'b> &'b mut T: XTypesDeserializer<'a>,
+// {
+//     todo!()
+//     // for member_descriptor in dynamic_type.into_iter() {
+//     //     let member_descriptor = member_descriptor?;
+//     //     if member_descriptor.is_key {
+//     //         deserialize_and_serialize_if_key_field(
+//     //             &member_descriptor.r#type,
+//     //             true,
+//     //             de,
+//     //             serializer,
+//     //         )?;
+//     //     }
+//     // }
+//     // Ok(())
+// }
 
 fn go_to_pid_le(mut reader: &[u8], pid: u32) -> Result<&[u8], XTypesError> {
     const PID_SENTINEL: u16 = 1;
@@ -284,39 +276,39 @@ impl<'a> IntoIterator for &'a DynamicType {
     }
 }
 
-fn push_to_key_parameter_list_le(
-    dynamic_type: &DynamicType,
-    serializer: &mut impl SerializeFinalStruct,
-    data: &[u8],
-) -> Result<(), XTypesError> {
-    todo!()
-    // for descriptor in dynamic_type.into_iter() {
-    //     let descriptor = descriptor?;
-    //     if descriptor.is_key {
-    //         let buffer = go_to_pid_le(data, descriptor.id)?;
-    //         let mut de = Xcdr1LeDeserializer::new(buffer);
-    //         deserialize_and_serialize_if_key_field(&descriptor.r#type, true, &mut de, serializer)?;
-    //     }
-    // }
-    // Ok(())
-}
+// fn push_to_key_parameter_list_le(
+//     dynamic_type: &DynamicType,
+//     serializer: &mut impl SerializeFinalStruct,
+//     data: &[u8],
+// ) -> Result<(), XTypesError> {
+//     todo!()
+//     // for descriptor in dynamic_type.into_iter() {
+//     //     let descriptor = descriptor?;
+//     //     if descriptor.is_key {
+//     //         let buffer = go_to_pid_le(data, descriptor.id)?;
+//     //         let mut de = Xcdr1LeDeserializer::new(buffer);
+//     //         deserialize_and_serialize_if_key_field(&descriptor.r#type, true, &mut de, serializer)?;
+//     //     }
+//     // }
+//     // Ok(())
+// }
 
-fn push_to_key_parameter_list_be(
-    dynamic_type: &DynamicType,
-    serializer: &mut impl SerializeFinalStruct,
-    data: &[u8],
-) -> Result<(), XTypesError> {
-    todo!()
-    // for descriptor in dynamic_type.into_iter() {
-    //     let descriptor = descriptor?;
-    //     if descriptor.is_key {
-    //         let buffer = go_to_pid_be(data, descriptor.id)?;
-    //         let mut de = Xcdr1BeDeserializer::new(buffer);
-    //         deserialize_and_serialize_if_key_field(&descriptor.r#type, true, &mut de, serializer)?;
-    //     }
-    // }
-    // Ok(())
-}
+// fn push_to_key_parameter_list_be(
+//     dynamic_type: &DynamicType,
+//     serializer: &mut impl SerializeFinalStruct,
+//     data: &[u8],
+// ) -> Result<(), XTypesError> {
+//     todo!()
+//     // for descriptor in dynamic_type.into_iter() {
+//     //     let descriptor = descriptor?;
+//     //     if descriptor.is_key {
+//     //         let buffer = go_to_pid_be(data, descriptor.id)?;
+//     //         let mut de = Xcdr1BeDeserializer::new(buffer);
+//     //         deserialize_and_serialize_if_key_field(&descriptor.r#type, true, &mut de, serializer)?;
+//     //     }
+//     // }
+//     // Ok(())
+// }
 
 type RepresentationIdentifier = [u8; 2];
 const CDR_BE: RepresentationIdentifier = [0x00, 0x00];
@@ -393,31 +385,32 @@ pub fn get_serialized_key_from_serialized_foo(
     mut data: &[u8],
     dynamic_type: &DynamicType,
 ) -> Result<Vec<u8>, XTypesError> {
-    let mut collection = Vec::new();
-    {
-        let representation_identifier = [data[0], data[1]];
-        collection.extend_from_slice(&CDR_LE);
-        collection.extend_from_slice(&[0, 0]);
-        data = &data[4..];
+    // let mut collection = Vec::new();
+    // {
+    //     let representation_identifier = [data[0], data[1]];
+    //     collection.extend_from_slice(&CDR_LE);
+    //     collection.extend_from_slice(&[0, 0]);
+    //     data = &data[4..];
 
-        let mut serializer = Xcdr1LeSerializer::new(&mut collection);
-        let mut s = serializer.serialize_final_struct()?;
+    //     let mut serializer = Xcdr1LeSerializer::new(&mut collection);
+    //     let mut s = serializer.serialize_final_struct()?;
 
-        match representation_identifier {
-            CDR_BE => push_to_key(dynamic_type, &mut s, &mut Xcdr1BeDeserializer::new(data))?,
-            CDR_LE => push_to_key(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?,
-            CDR2_BE => push_to_key(dynamic_type, &mut s, &mut Xcdr2BeDeserializer::new(data))?,
-            CDR2_LE => push_to_key(dynamic_type, &mut s, &mut Xcdr2LeDeserializer::new(data))?,
-            PL_CDR_BE => push_to_key_parameter_list_be(dynamic_type, &mut s, data)?,
-            PL_CDR_LE => push_to_key_parameter_list_le(dynamic_type, &mut s, data)?,
-            _ => panic!("representation_identifier not supported"),
-        }
-    }
-    let padding_len = collection.len().div_ceil(4) * 4 - collection.len();
-    const ZEROS: [u8; 4] = [0; 4];
-    collection.extend_from_slice(&ZEROS[..padding_len]);
-    collection[3] |= padding_len as u8;
-    Ok(collection)
+    //     match representation_identifier {
+    //         CDR_BE => push_to_key(dynamic_type, &mut s, &mut Xcdr1BeDeserializer::new(data))?,
+    //         CDR_LE => push_to_key(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?,
+    //         CDR2_BE => push_to_key(dynamic_type, &mut s, &mut Xcdr2BeDeserializer::new(data))?,
+    //         CDR2_LE => push_to_key(dynamic_type, &mut s, &mut Xcdr2LeDeserializer::new(data))?,
+    //         PL_CDR_BE => push_to_key_parameter_list_be(dynamic_type, &mut s, data)?,
+    //         PL_CDR_LE => push_to_key_parameter_list_le(dynamic_type, &mut s, data)?,
+    //         _ => panic!("representation_identifier not supported"),
+    //     }
+    // }
+    // let padding_len = collection.len().div_ceil(4) * 4 - collection.len();
+    // const ZEROS: [u8; 4] = [0; 4];
+    // collection.extend_from_slice(&ZEROS[..padding_len]);
+    // collection[3] |= padding_len as u8;
+    // Ok(collection)
+    todo!()
 }
 
 // #[cfg(test)]
