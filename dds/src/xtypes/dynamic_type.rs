@@ -355,8 +355,13 @@ pub struct DynamicData {
 }
 
 impl DynamicData {
-    pub fn get_descriptor(&self, id: MemberId) -> XTypesResult<MemberDescriptor> {
-        todo!()
+    pub fn get_descriptor(&self, id: MemberId) -> XTypesResult<&MemberDescriptor> {
+        self.type_ref
+            .member_list
+            .iter()
+            .find(|m| m.get_id() == id)
+            .map(|m| &m.descriptor)
+            .ok_or(XTypesError::InvalidIndex)
     }
 
     pub fn set_descriptor(&mut self, id: MemberId, value: MemberDescriptor) -> XTypesResult<()> {
@@ -372,13 +377,15 @@ impl DynamicData {
     }
 
     pub fn get_member_id_at_index(&self, index: u32) -> Option<MemberId> {
-        self.type_ref
-            .member_list
-            .get(index as usize)
-            .map(|m| m.get_id())
+        self.abstract_data.keys().nth(index as usize).cloned()
     }
 
-    // unsigned long get_item_count();
+    pub fn get_item_count(&self) -> u32 {
+        match self.type_ref.get_kind() {
+            TK_STRUCTURE => self.abstract_data.len() as u32,
+            _ => todo!(),
+        }
+    }
 
     pub fn clear_all_values(&mut self) -> XTypesResult<()> {
         self.abstract_data.clear();

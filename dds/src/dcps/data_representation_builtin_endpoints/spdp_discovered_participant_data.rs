@@ -129,6 +129,7 @@ pub struct ParticipantProxy {
 
 #[derive(Debug, PartialEq, Eq, Clone, TypeSupport)]
 pub struct SpdpDiscoveredParticipantData {
+    #[dust_dds(key)]
     pub(crate) dds_participant_data: ParticipantBuiltinTopicData,
     pub(crate) participant_proxy: ParticipantProxy,
     pub(crate) lease_duration: Duration,

@@ -1,8 +1,10 @@
 use crate::{
     infrastructure::instance::InstanceHandle,
     xtypes::{
-        dynamic_type::{DynamicData, DynamicType, MemberDescriptor},
+        dynamic_type::{DynamicData, DynamicType, MemberDescriptor, TK_STRUCTURE},
         error::XTypesError,
+        serialize::{Write, XTypesSerializer},
+        xcdr_serializer::Xcdr2BeSerializer,
     },
 };
 use alloc::vec::Vec;
@@ -27,16 +29,16 @@ impl Md5 {
     }
 }
 
-// impl Write for Md5 {
-//     fn write(&mut self, buf: &[u8]) {
-//         let total_new_length = self.length + buf.len();
-//         if total_new_length <= self.key.len() {
-//             self.key[self.length..total_new_length].copy_from_slice(buf);
-//         }
-//         self.context.consume(buf);
-//         self.length += buf.len();
-//     }
-// }
+impl Write for Md5 {
+    fn write(&mut self, buf: &[u8]) {
+        let total_new_length = self.length + buf.len();
+        if total_new_length <= self.key.len() {
+            self.key[self.length..total_new_length].copy_from_slice(buf);
+        }
+        self.context.consume(buf);
+        self.length += buf.len();
+    }
+}
 
 // fn deserialize_and_serialize_if_key_field<'a, T>(
 //     type_identifier: &TypeIdentifier,
@@ -354,31 +356,17 @@ const PL_CDR_LE: RepresentationIdentifier = [0x00, 0x03];
 // }
 
 pub fn get_instance_handle_from_dynamic_data(
-    mut data: &DynamicData,
+    data: &DynamicData,
     dynamic_type: &DynamicType,
 ) -> Result<InstanceHandle, XTypesError> {
-    todo!()
-    // let mut md5_collection = Md5 {
-    //     key: [0; 16],
-    //     context: md5::Context::new(),
-    //     length: 0,
-    // };
-    // {
-    //     let representation_identifier = [data[0], data[1]];
-    //     data = &data[4..];
-    //     let mut serializer = Xcdr2BeSerializer::new(&mut md5_collection);
-    //     let mut s = serializer.serialize_final_struct()?;
-    //     match representation_identifier {
-    //         CDR_BE => push_to_key(dynamic_type, &mut s, &mut Xcdr1BeDeserializer::new(data))?,
-    //         CDR_LE => push_to_key(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?,
-    //         CDR2_BE => push_to_key(dynamic_type, &mut s, &mut Xcdr2BeDeserializer::new(data))?,
-    //         CDR2_LE => push_to_key(dynamic_type, &mut s, &mut Xcdr2LeDeserializer::new(data))?,
-    //         PL_CDR_BE => push_to_key_parameter_list_be(dynamic_type, &mut s, data)?,
-    //         PL_CDR_LE => push_to_key_parameter_list_le(dynamic_type, &mut s, data)?,
-    //         _ => panic!("representation_identifier not supported"),
-    //     }
-    // }
-    // Ok(InstanceHandle::new(md5_collection.into_key()))
+    let mut md5_collection = Md5 {
+        key: [0; 16],
+        context: md5::Context::new(),
+        length: 0,
+    };
+    let mut serializer = Xcdr2BeSerializer::new(&mut md5_collection);
+    data.serialize_key(&mut serializer);
+    Ok(InstanceHandle::new(md5_collection.into_key()))
 }
 
 pub fn get_serialized_key_from_serialized_foo(
@@ -413,6 +401,23 @@ pub fn get_serialized_key_from_serialized_foo(
     todo!()
 }
 
+impl DynamicData {
+    pub fn serialize_key(&self, serializer: impl XTypesSerializer) {
+        for index in 0..self.get_item_count() {
+            let id = self.get_member_id_at_index(index).unwrap();
+            let member_descriptor = self.get_descriptor(id).unwrap();
+            if member_descriptor.is_key {
+                match member_descriptor.r#type.get_kind() {
+                    TK_STRUCTURE => {
+                        let data = self.get_complex_value(id).unwrap();
+                    }
+                    _ => todo!(),
+                }
+                todo!()
+            }
+        }
+    }
+}
 // #[cfg(test)]
 // mod tests {
 //     use super::*;
