@@ -26,14 +26,14 @@ impl Parse for VariantArgs {
                 if discriminant.is_some() {
                     return Err(syn::Error::new(
                         ident.span(),
-                        format!("argument `discriminant` already defined"),
+                        "Argument `discriminant` already defined",
                     ));
                 }
                 discriminant = Some(arg.value);
             } else {
                 return Err(syn::Error::new(
                     ident.span(),
-                    format!("unknown argument `{ident}`"),
+                    format!("Unknown argument `{ident}`"),
                 ));
             }
         }
