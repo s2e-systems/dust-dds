@@ -1,6 +1,3 @@
-import java.util.Properties
-import java.io.FileInputStream
-
 plugins {
     id("com.android.application") version "8.13.0"
 }
@@ -8,16 +5,10 @@ plugins {
 android {
     signingConfigs {
         create("release") {
-            val keystorePropertiesFile = rootProject.file("keystore.properties")
-            val keystoreProperties = Properties()
-            if (keystorePropertiesFile.exists()) {
-                keystoreProperties.load(FileInputStream(keystorePropertiesFile))
-
-                keyAlias = keystoreProperties["keyAlias"] as String
-                keyPassword = keystoreProperties["keyPassword"] as String
-                storeFile = file(keystoreProperties["storeFile"] as String)
-                storePassword = keystoreProperties["storePassword"] as String
-            }
+            keyAlias = "key1"
+            keyPassword = System.getenv("ANDROID_RELEASE_KEY_PASSWORD")
+            storeFile = file("keystore.jks")
+            storePassword = System.getenv("ANDROID_RELEASE_STORE_PASSWORD")
         }
     }
     namespace = "com.s2e_systems.dustddsshapesdemo"
@@ -27,7 +18,7 @@ android {
     defaultConfig {
         applicationId = "com.s2e_systems.dustddsshapesdemo"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 8
         versionName = "1.0.13"
     }
@@ -35,10 +26,10 @@ android {
     buildTypes {
         getByName("release") {
             isDebuggable = false
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
             )
             signingConfig = signingConfigs.getByName("release")
         }
@@ -54,7 +45,7 @@ val cargoBuild by tasks.registering(Exec::class) {
         "--target", "armeabi-v7a",
         "--target", "x86_64",
         "--target", "x86",
-        "--platform", android.defaultConfig.targetSdk,
+        "--platform", 35,
         "--output-dir", outputDir.get().asFile.absolutePath,
         "build", "--release",
         "--package", "shapes_demo_app"
