@@ -1,8 +1,8 @@
 use dust_dds::{
     infrastructure::type_support::TypeSupport,
     xtypes::dynamic_type::{
-        DynamicDataFactory, DynamicTypeBuilderFactory, ExtensibilityKind, MemberDescriptor,
-        TryConstructKind, TypeDescriptor, TK_INT64, TK_STRUCTURE,
+        DynamicData, DynamicDataFactory, DynamicTypeBuilderFactory, ExtensibilityKind,
+        MemberDescriptor, TryConstructKind, TypeDescriptor, TK_INT64, TK_STRUCTURE,
     },
 };
 
@@ -99,12 +99,13 @@ fn create_type_with_data() {
             Self: Sized,
         {
             Ok(Self {
-                color: src.remove_value(0)?,
+                color: <String as TypeSupport>::create_sample(src.remove_value::<DynamicData>(0)?)?,
             })
         }
 
         fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
-            DynamicDataFactory::create_data(Self::get_type()).insert_value(0, self.color)
+            DynamicDataFactory::create_data(Self::get_type())
+                .insert_value(0, self.color.create_dynamic_sample())
         }
     }
 

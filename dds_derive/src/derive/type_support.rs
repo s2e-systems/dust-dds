@@ -104,19 +104,20 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                         .unwrap();
                     },
                 );
+                let field_type = &field.ty;
                 match &field.ident {
                     Some(field_ident) => {
                         member_sample_seq.extend(quote! {
-                            #field_ident: src.remove_value(#member_id)?,
+                            #field_ident: <#field_type as dust_dds::infrastructure::type_support::TypeSupport>::create_sample(src.remove_value(#member_id)?)?,
                         });
                         member_dynamic_sample_seq.extend(quote! {
-                            .insert_value(#member_id, self.#field_ident)
+                            .insert_value(#member_id,  <#field_type as dust_dds::infrastructure::type_support::TypeSupport>::create_dynamic_sample(self.#field_ident))
                         })
                     }
                     None => {
-                        member_sample_seq.extend(quote! {  src.remove_value(#member_id)?,});
+                        member_sample_seq.extend(quote! {  <#field_type as dust_dds::infrastructure::type_support::TypeSupport>::create_sample(src.remove_value(#member_id)?)?,});
                         member_dynamic_sample_seq.extend(quote! {
-                            .insert_value(#member_id, self.#index)
+                            .insert_value(#member_id, <#field_type as dust_dds::infrastructure::type_support::TypeSupport>::create_dynamic_sample(self.#index))
                         })
                     }
                 }

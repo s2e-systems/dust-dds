@@ -303,3 +303,20 @@ impl TypeSupport for &[u8] {
         // DynamicDataFactory::create_data(Self::get_type()).insert_value(0, self.clone())
     }
 }
+
+impl<T: Send + Sync + 'static> TypeSupport for Option<T> {
+    fn get_type() -> DynamicType {
+        DynamicTypeBuilderFactory::create_sequence_type(u8::get_type(), u32::MAX).build()
+    }
+
+    fn create_sample(mut src: DynamicData) -> DdsResult<Self>
+    where
+        Self: Sized,
+    {
+        Ok(src.remove_value(0)?)
+    }
+
+    fn create_dynamic_sample(self) -> DynamicData {
+        DynamicDataFactory::create_data(Self::get_type()).insert_value(0, self)
+    }
+}

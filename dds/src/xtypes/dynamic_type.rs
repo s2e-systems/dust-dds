@@ -708,25 +708,6 @@ impl DynamicData {
     }
 
     pub fn set_string_value(&mut self, id: MemberId, value: String) -> XTypesResult<()> {
-        // match &self
-        //     .type_ref
-        //     .get_member_by_index(id)?
-        //     .get_descriptor()?
-        //     .r#type
-        // {
-        //     TypeIdentifier::TiString8Small { string_sdefn } => {
-        //         if value.len() > string_sdefn.bound as usize {
-        //             return Err(XTypesError::InvalidData);
-        //         }
-        //     }
-        //     TypeIdentifier::TiString8Large { string_ldefn } => {
-        //         if value.len() > string_ldefn.bound as usize {
-        //             return Err(XTypesError::InvalidData);
-        //         }
-        //     }
-        //     _ => return Err(XTypesError::InvalidType),
-        // }
-
         self.abstract_data.insert(id, Box::new(value));
         Ok(())
     }
@@ -740,16 +721,6 @@ impl DynamicData {
     }
 
     pub fn set_complex_value(&mut self, id: MemberId, value: DynamicData) -> XTypesResult<()> {
-        // if !matches!(
-        //     self.type_ref
-        //         .get_member_by_index(id)?
-        //         .get_descriptor()?
-        //         .r#type,
-        //     TypeIdentifier::EkComplete { complete: _ }
-        // ) {
-        //     return Err(XTypesError::InvalidType);
-        // }
-
         self.abstract_data.insert(id, Box::new(value));
         Ok(())
     }
@@ -763,31 +734,6 @@ impl DynamicData {
     }
 
     pub fn set_int32_values(&mut self, id: MemberId, value: Vec<i32>) -> XTypesResult<()> {
-        // match &self
-        //     .type_ref
-        //     .get_member_by_index(id)?
-        //     .get_descriptor()?
-        //     .r#type
-        // {
-        //     TypeIdentifier::TiPlainSequenceSmall { seq_sdefn } => {
-        //         if value.len() > seq_sdefn.bound as usize {
-        //             return Err(XTypesError::InvalidData);
-        //         }
-        //         if !matches!(seq_sdefn.element_identifier, TypeIdentifier::TkInt32Type) {
-        //             return Err(XTypesError::InvalidType);
-        //         }
-        //     }
-        //     TypeIdentifier::TiPlainSequenceLarge { seq_ldefn } => {
-        //         if value.len() > seq_ldefn.bound as usize {
-        //             return Err(XTypesError::InvalidData);
-        //         }
-        //         if !matches!(seq_ldefn.element_identifier, TypeIdentifier::TkInt32Type) {
-        //             return Err(XTypesError::InvalidType);
-        //         }
-        //     }
-        //     _ => return Err(XTypesError::InvalidType),
-        // }
-
         self.abstract_data.insert(id, Box::new(value));
         Ok(())
     }
@@ -801,31 +747,6 @@ impl DynamicData {
     }
 
     pub fn set_uint32_values(&mut self, id: MemberId, value: Vec<u32>) -> XTypesResult<()> {
-        // match &self
-        //     .type_ref
-        //     .get_member_by_index(id)?
-        //     .get_descriptor()?
-        //     .r#type
-        // {
-        //     TypeIdentifier::TiPlainSequenceSmall { seq_sdefn } => {
-        //         if value.len() > seq_sdefn.bound as usize {
-        //             return Err(XTypesError::InvalidData);
-        //         }
-        //         if !matches!(seq_sdefn.element_identifier, TypeIdentifier::TkUint32Type) {
-        //             return Err(XTypesError::InvalidType);
-        //         }
-        //     }
-        //     TypeIdentifier::TiPlainSequenceLarge { seq_ldefn } => {
-        //         if value.len() > seq_ldefn.bound as usize {
-        //             return Err(XTypesError::InvalidData);
-        //         }
-        //         if !matches!(seq_ldefn.element_identifier, TypeIdentifier::TkUint32Type) {
-        //             return Err(XTypesError::InvalidType);
-        //         }
-        //     }
-        //     _ => return Err(XTypesError::InvalidType),
-        // }
-
         self.abstract_data.insert(id, Box::new(value));
         Ok(())
     }
@@ -839,31 +760,6 @@ impl DynamicData {
     }
 
     pub fn set_int16_values(&mut self, id: MemberId, value: Vec<i16>) -> XTypesResult<()> {
-        // match &self
-        //     .type_ref
-        //     .get_member_by_index(id)?
-        //     .get_descriptor()?
-        //     .r#type
-        // {
-        //     TypeIdentifier::TiPlainSequenceSmall { seq_sdefn } => {
-        //         if value.len() > seq_sdefn.bound as usize {
-        //             return Err(XTypesError::InvalidData);
-        //         }
-        //         if !matches!(seq_sdefn.element_identifier, TypeIdentifier::TkInt16Type) {
-        //             return Err(XTypesError::InvalidType);
-        //         }
-        //     }
-        //     TypeIdentifier::TiPlainSequenceLarge { seq_ldefn } => {
-        //         if value.len() > seq_ldefn.bound as usize {
-        //             return Err(XTypesError::InvalidData);
-        //         }
-        //         if !matches!(seq_ldefn.element_identifier, TypeIdentifier::TkInt16Type) {
-        //             return Err(XTypesError::InvalidType);
-        //         }
-        //     }
-        //     _ => return Err(XTypesError::InvalidType),
-        // }
-
         self.abstract_data.insert(id, Box::new(value));
         Ok(())
     }
@@ -877,31 +773,6 @@ impl DynamicData {
     }
 
     pub fn set_uint16_values(&mut self, id: MemberId, value: Vec<u16>) -> XTypesResult<()> {
-        // match &self
-        //     .type_ref
-        //     .get_member_by_index(id)?
-        //     .get_descriptor()?
-        //     .r#type
-        // {
-        //     TypeIdentifier::TiPlainSequenceSmall { seq_sdefn } => {
-        //         if value.len() > seq_sdefn.bound as usize {
-        //             return Err(XTypesError::InvalidData);
-        //         }
-        //         if !matches!(seq_sdefn.element_identifier, TypeIdentifier::TkUint16Type) {
-        //             return Err(XTypesError::InvalidType);
-        //         }
-        //     }
-        //     TypeIdentifier::TiPlainSequenceLarge { seq_ldefn } => {
-        //         if value.len() > seq_ldefn.bound as usize {
-        //             return Err(XTypesError::InvalidData);
-        //         }
-        //         if !matches!(seq_ldefn.element_identifier, TypeIdentifier::TkUint16Type) {
-        //             return Err(XTypesError::InvalidType);
-        //         }
-        //     }
-        //     _ => return Err(XTypesError::InvalidType),
-        // }
-
         self.abstract_data.insert(id, Box::new(value));
         Ok(())
     }
@@ -915,31 +786,6 @@ impl DynamicData {
     }
 
     pub fn set_int64_values(&mut self, id: MemberId, value: Vec<i64>) -> XTypesResult<()> {
-        // match &self
-        //     .type_ref
-        //     .get_member_by_index(id)?
-        //     .get_descriptor()?
-        //     .r#type
-        // {
-        //     TypeIdentifier::TiPlainSequenceSmall { seq_sdefn } => {
-        //         if value.len() > seq_sdefn.bound as usize {
-        //             return Err(XTypesError::InvalidData);
-        //         }
-        //         if !matches!(seq_sdefn.element_identifier, TypeIdentifier::TkInt64Type) {
-        //             return Err(XTypesError::InvalidType);
-        //         }
-        //     }
-        //     TypeIdentifier::TiPlainSequenceLarge { seq_ldefn } => {
-        //         if value.len() > seq_ldefn.bound as usize {
-        //             return Err(XTypesError::InvalidData);
-        //         }
-        //         if !matches!(seq_ldefn.element_identifier, TypeIdentifier::TkInt64Type) {
-        //             return Err(XTypesError::InvalidType);
-        //         }
-        //     }
-        //     _ => return Err(XTypesError::InvalidType),
-        // }
-
         self.abstract_data.insert(id, Box::new(value));
         Ok(())
     }
@@ -953,31 +799,6 @@ impl DynamicData {
     }
 
     pub fn set_uint64_values(&mut self, id: MemberId, value: Vec<u64>) -> XTypesResult<()> {
-        // match &self
-        //     .type_ref
-        //     .get_member_by_index(id)?
-        //     .get_descriptor()?
-        //     .r#type
-        // {
-        //     TypeIdentifier::TiPlainSequenceSmall { seq_sdefn } => {
-        //         if value.len() > seq_sdefn.bound as usize {
-        //             return Err(XTypesError::InvalidData);
-        //         }
-        //         if !matches!(seq_sdefn.element_identifier, TypeIdentifier::TkUint64Type) {
-        //             return Err(XTypesError::InvalidType);
-        //         }
-        //     }
-        //     TypeIdentifier::TiPlainSequenceLarge { seq_ldefn } => {
-        //         if value.len() > seq_ldefn.bound as usize {
-        //             return Err(XTypesError::InvalidData);
-        //         }
-        //         if !matches!(seq_ldefn.element_identifier, TypeIdentifier::TkUint64Type) {
-        //             return Err(XTypesError::InvalidType);
-        //         }
-        //     }
-        //     _ => return Err(XTypesError::InvalidType),
-        // }
-
         self.abstract_data.insert(id, Box::new(value));
         Ok(())
     }
@@ -991,31 +812,6 @@ impl DynamicData {
     }
 
     pub fn set_float32_values(&mut self, id: MemberId, value: Vec<f32>) -> XTypesResult<()> {
-        // match &self
-        //     .type_ref
-        //     .get_member_by_index(id)?
-        //     .get_descriptor()?
-        //     .r#type
-        // {
-        //     TypeIdentifier::TiPlainSequenceSmall { seq_sdefn } => {
-        //         if value.len() > seq_sdefn.bound as usize {
-        //             return Err(XTypesError::InvalidData);
-        //         }
-        //         if !matches!(seq_sdefn.element_identifier, TypeIdentifier::TkFloat32Type) {
-        //             return Err(XTypesError::InvalidType);
-        //         }
-        //     }
-        //     TypeIdentifier::TiPlainSequenceLarge { seq_ldefn } => {
-        //         if value.len() > seq_ldefn.bound as usize {
-        //             return Err(XTypesError::InvalidData);
-        //         }
-        //         if !matches!(seq_ldefn.element_identifier, TypeIdentifier::TkFloat32Type) {
-        //             return Err(XTypesError::InvalidType);
-        //         }
-        //     }
-        //     _ => return Err(XTypesError::InvalidType),
-        // }
-
         self.abstract_data.insert(id, Box::new(value));
         Ok(())
     }
@@ -1029,31 +825,6 @@ impl DynamicData {
     }
 
     pub fn set_float64_values(&mut self, id: MemberId, value: Vec<f64>) -> XTypesResult<()> {
-        // match &self
-        //     .type_ref
-        //     .get_member_by_index(id)?
-        //     .get_descriptor()?
-        //     .r#type
-        // {
-        //     TypeIdentifier::TiPlainSequenceSmall { seq_sdefn } => {
-        //         if value.len() > seq_sdefn.bound as usize {
-        //             return Err(XTypesError::InvalidData);
-        //         }
-        //         if !matches!(seq_sdefn.element_identifier, TypeIdentifier::TkFloat64Type) {
-        //             return Err(XTypesError::InvalidType);
-        //         }
-        //     }
-        //     TypeIdentifier::TiPlainSequenceLarge { seq_ldefn } => {
-        //         if value.len() > seq_ldefn.bound as usize {
-        //             return Err(XTypesError::InvalidData);
-        //         }
-        //         if !matches!(seq_ldefn.element_identifier, TypeIdentifier::TkFloat64Type) {
-        //             return Err(XTypesError::InvalidType);
-        //         }
-        //     }
-        //     _ => return Err(XTypesError::InvalidType),
-        // }
-
         self.abstract_data.insert(id, Box::new(value));
         Ok(())
     }
@@ -1067,31 +838,6 @@ impl DynamicData {
     }
 
     pub fn set_char8_values(&mut self, id: MemberId, value: Vec<char>) -> XTypesResult<()> {
-        // match &self
-        //     .type_ref
-        //     .get_member_by_index(id)?
-        //     .get_descriptor()?
-        //     .r#type
-        // {
-        //     TypeIdentifier::TiPlainSequenceSmall { seq_sdefn } => {
-        //         if value.len() > seq_sdefn.bound as usize {
-        //             return Err(XTypesError::InvalidData);
-        //         }
-        //         if !matches!(seq_sdefn.element_identifier, TypeIdentifier::TkChar8Type) {
-        //             return Err(XTypesError::InvalidType);
-        //         }
-        //     }
-        //     TypeIdentifier::TiPlainSequenceLarge { seq_ldefn } => {
-        //         if value.len() > seq_ldefn.bound as usize {
-        //             return Err(XTypesError::InvalidData);
-        //         }
-        //         if !matches!(seq_ldefn.element_identifier, TypeIdentifier::TkChar8Type) {
-        //             return Err(XTypesError::InvalidType);
-        //         }
-        //     }
-        //     _ => return Err(XTypesError::InvalidType),
-        // }
-
         self.abstract_data.insert(id, Box::new(value));
         Ok(())
     }
@@ -1105,31 +851,6 @@ impl DynamicData {
     }
 
     pub fn set_byte_values(&mut self, id: MemberId, value: Vec<u8>) -> XTypesResult<()> {
-        // match &self
-        //     .type_ref
-        //     .get_member_by_index(id)?
-        //     .get_descriptor()?
-        //     .r#type
-        // {
-        //     TypeIdentifier::TiPlainSequenceSmall { seq_sdefn } => {
-        //         if value.len() > seq_sdefn.bound as usize {
-        //             return Err(XTypesError::InvalidData);
-        //         }
-        //         if !matches!(seq_sdefn.element_identifier, TypeIdentifier::TkByteType) {
-        //             return Err(XTypesError::InvalidType);
-        //         }
-        //     }
-        //     TypeIdentifier::TiPlainSequenceLarge { seq_ldefn } => {
-        //         if value.len() > seq_ldefn.bound as usize {
-        //             return Err(XTypesError::InvalidData);
-        //         }
-        //         if !matches!(seq_ldefn.element_identifier, TypeIdentifier::TkByteType) {
-        //             return Err(XTypesError::InvalidType);
-        //         }
-        //     }
-        //     _ => return Err(XTypesError::InvalidType),
-        // }
-
         self.abstract_data.insert(id, Box::new(value));
         Ok(())
     }
@@ -1143,31 +864,6 @@ impl DynamicData {
     }
 
     pub fn set_boolean_values(&mut self, id: MemberId, value: Vec<bool>) -> XTypesResult<()> {
-        // match &self
-        //     .type_ref
-        //     .get_member_by_index(id)?
-        //     .get_descriptor()?
-        //     .r#type
-        // {
-        //     TypeIdentifier::TiPlainSequenceSmall { seq_sdefn } => {
-        //         if value.len() > seq_sdefn.bound as usize {
-        //             return Err(XTypesError::InvalidData);
-        //         }
-        //         if !matches!(seq_sdefn.element_identifier, TypeIdentifier::TkBoolean) {
-        //             return Err(XTypesError::InvalidType);
-        //         }
-        //     }
-        //     TypeIdentifier::TiPlainSequenceLarge { seq_ldefn } => {
-        //         if value.len() > seq_ldefn.bound as usize {
-        //             return Err(XTypesError::InvalidData);
-        //         }
-        //         if !matches!(seq_ldefn.element_identifier, TypeIdentifier::TkBoolean) {
-        //             return Err(XTypesError::InvalidType);
-        //         }
-        //     }
-        //     _ => return Err(XTypesError::InvalidType),
-        // }
-
         self.abstract_data.insert(id, Box::new(value));
         Ok(())
     }
@@ -1181,37 +877,6 @@ impl DynamicData {
     }
 
     pub fn set_string_values(&mut self, id: MemberId, value: Vec<String>) -> XTypesResult<()> {
-        // match &self
-        //     .type_ref
-        //     .get_member_by_index(id)?
-        //     .get_descriptor()?
-        //     .r#type
-        // {
-        //     TypeIdentifier::TiPlainSequenceSmall { seq_sdefn } => {
-        //         if value.len() > seq_sdefn.bound as usize {
-        //             return Err(XTypesError::InvalidData);
-        //         }
-        //         if !matches!(
-        //             seq_sdefn.element_identifier,
-        //             TypeIdentifier::TiString8Small { string_sdefn: _ }
-        //         ) {
-        //             return Err(XTypesError::InvalidType);
-        //         }
-        //     }
-        //     TypeIdentifier::TiPlainSequenceLarge { seq_ldefn } => {
-        //         if value.len() > seq_ldefn.bound as usize {
-        //             return Err(XTypesError::InvalidData);
-        //         }
-        //         if !matches!(
-        //             seq_ldefn.element_identifier,
-        //             TypeIdentifier::TiString8Small { string_sdefn: _ }
-        //         ) {
-        //             return Err(XTypesError::InvalidType);
-        //         }
-        //     }
-        //     _ => return Err(XTypesError::InvalidType),
-        // }
-
         self.abstract_data.insert(id, Box::new(value));
         Ok(())
     }

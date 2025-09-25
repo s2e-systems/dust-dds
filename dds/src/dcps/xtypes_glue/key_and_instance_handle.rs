@@ -365,7 +365,7 @@ pub fn get_instance_handle_from_dynamic_data(
         length: 0,
     };
     let mut serializer = Xcdr2BeSerializer::new(&mut md5_collection);
-    data.serialize_key(&mut serializer);
+    data.serialize_key(&mut &mut serializer);
     Ok(InstanceHandle::new(md5_collection.into_key()))
 }
 
@@ -402,7 +402,7 @@ pub fn get_serialized_key_from_serialized_foo(
 }
 
 impl DynamicData {
-    pub fn serialize_key(&self, serializer: impl XTypesSerializer) {
+    pub fn serialize_key(&self, serializer: &mut impl XTypesSerializer) {
         for index in 0..self.get_item_count() {
             let id = self.get_member_id_at_index(index).unwrap();
             let member_descriptor = self.get_descriptor(id).unwrap();
@@ -410,10 +410,10 @@ impl DynamicData {
                 match member_descriptor.r#type.get_kind() {
                     TK_STRUCTURE => {
                         let data = self.get_complex_value(id).unwrap();
+                        data.serialize_key(serializer);
                     }
                     _ => todo!(),
                 }
-                todo!()
             }
         }
     }
