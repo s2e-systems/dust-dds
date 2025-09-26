@@ -1,28 +1,30 @@
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{spanned::Spanned, DeriveInput, Expr, Field, GenericArgument, PathArguments, Result};
+use syn::{
+    spanned::Spanned, DeriveInput, Expr, Field, GenericArgument, Index, PathArguments, Result,
+};
 
 pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
-    let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
+    let input_attributes = get_input_attributes(input)?;
     let ident = &input.ident;
+    let type_name = ident.to_string();
 
+    let extensibility_kind = match input_attributes.extensibility {
+        Extensibility::Final => {
+            quote! {dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final}
+        }
+        Extensibility::Appendable => {
+            quote! {dust_dds::xtypes::dynamic_type::ExtensibilityKind::Appendable}
+        }
+        Extensibility::Mutable => {
+            quote! {dust_dds::xtypes::dynamic_type::ExtensibilityKind::Mutable}
+        }
+    };
+    let is_nested = input_attributes.is_nested;
+
+    let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
     let (get_type_quote, create_sample_quote, create_dynamic_sample_quote) = match &input.data {
         syn::Data::Struct(data_struct) => {
-            let type_name = ident.to_string();
-            let extensibility = get_input_extensibility(input)?;
-
-            let extensibility_kind = match extensibility {
-                Extensibility::Final => {
-                    quote! {dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final}
-                }
-                Extensibility::Appendable => {
-                    quote! {dust_dds::xtypes::dynamic_type::ExtensibilityKind::Appendable}
-                }
-                Extensibility::Mutable => {
-                    quote! {dust_dds::xtypes::dynamic_type::ExtensibilityKind::Mutable}
-                }
-            };
-
             let struct_builder = quote! {
                 extern crate alloc;
                 let mut builder = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
@@ -35,7 +37,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                         element_type: None,
                         key_element_type: None,
                         extensibility_kind: #extensibility_kind,
-                        is_nested: false,
+                        is_nested: #is_nested,
                     });
             };
 
@@ -47,7 +49,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 let field_attributes = get_field_attributes(field)?;
 
                 let index = field_index as u32;
-                let member_id = match extensibility {
+                let member_id = match input_attributes.extensibility {
                     Extensibility::Final | Extensibility::Appendable => {
                         syn::parse_str(&field_index.to_string())
                     }
@@ -115,6 +117,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                         })
                     }
                     None => {
+                        let index = Index::from(field_index);
                         member_sample_seq.extend(quote! {  <#field_type as dust_dds::infrastructure::type_support::TypeSupport>::create_sample(src.remove_value(#member_id)?)?,});
                         member_dynamic_sample_seq.extend(quote! {
                             .insert_value(#member_id, <#field_type as dust_dds::infrastructure::type_support::TypeSupport>::create_dynamic_sample(self.#index))
@@ -155,20 +158,6 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
             ))
         }
         syn::Data::Enum(_data_enum) => {
-            let type_name = ident.to_string();
-            let extensibility = get_input_extensibility(input)?;
-
-            let extensibility_kind = match extensibility {
-                Extensibility::Final => {
-                    quote! {dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final}
-                }
-                Extensibility::Appendable => {
-                    quote! {dust_dds::xtypes::dynamic_type::ExtensibilityKind::Appendable}
-                }
-                Extensibility::Mutable => {
-                    quote! {dust_dds::xtypes::dynamic_type::ExtensibilityKind::Mutable}
-                }
-            };
             let enum_builder = quote! {
                 extern crate alloc;
                 let mut builder = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
@@ -181,7 +170,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                         element_type: None,
                         key_element_type: None,
                         extensibility_kind: #extensibility_kind,
-                        is_nested: false,
+                        is_nested: #is_nested,
                     });
             };
             let get_type_quote = quote! {
@@ -227,8 +216,14 @@ enum Extensibility {
     Mutable,
 }
 
-fn get_input_extensibility(input: &DeriveInput) -> Result<Extensibility> {
+struct InputAttributes {
+    extensibility: Extensibility,
+    is_nested: bool,
+}
+
+fn get_input_attributes(input: &DeriveInput) -> Result<InputAttributes> {
     let mut extensibility = Extensibility::Final;
+    let mut is_nested = false;
     if let Some(xtypes_attribute) = input
         .attrs
         .iter()
@@ -255,12 +250,19 @@ fn get_input_extensibility(input: &DeriveInput) -> Result<Extensibility> {
                         r#"Invalid format specified. Valid options are "Final", "Appendable", "Mutable". "#,
                     )),
                 }
-            } else {
+            } else if meta.path.is_ident("nested") {
+                is_nested = true;
+                Ok(())
+            }
+            else {
                 Ok(())
             }
         })?;
     }
-    Ok(extensibility)
+    Ok(InputAttributes {
+        extensibility,
+        is_nested,
+    })
 }
 
 struct FieldAttributes {

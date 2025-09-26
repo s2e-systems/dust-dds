@@ -307,8 +307,8 @@ pub struct DynamicType {
 }
 
 impl DynamicType {
-    pub fn get_descriptor(&self) -> Result<TypeDescriptor, XTypesError> {
-        todo!()
+    pub fn get_descriptor(&self) -> &TypeDescriptor {
+        &self.descriptor
     }
     pub fn get_name(&self) -> ObjectName {
         self.descriptor.name.clone()
@@ -355,6 +355,10 @@ pub struct DynamicData {
 }
 
 impl DynamicData {
+    pub fn type_ref(&self) -> &DynamicType {
+        &self.type_ref
+    }
+
     pub fn get_descriptor(&self, id: MemberId) -> XTypesResult<&MemberDescriptor> {
         self.type_ref
             .member_list
@@ -397,7 +401,10 @@ impl DynamicData {
     }
 
     pub fn clear_value(&mut self, id: MemberId) -> XTypesResult<()> {
-        todo!()
+        self.abstract_data
+            .remove(&id)
+            .ok_or(XTypesError::InvalidIndex)?;
+        Ok(())
     }
 
     pub fn get_int32_value(&self, id: MemberId) -> XTypesResult<&i32> {
@@ -409,16 +416,6 @@ impl DynamicData {
     }
 
     pub fn set_int32_value(&mut self, id: MemberId, value: i32) -> XTypesResult<()> {
-        // if !matches!(
-        //     self.type_ref
-        //         .get_member_by_index(id)?
-        //         .get_descriptor()?
-        //         .r#type,
-        //     TypeIdentifier::TkInt32Type
-        // ) {
-        //     return Err(XTypesError::InvalidType);
-        // }
-
         self.abstract_data.insert(id, Box::new(value));
         Ok(())
     }
@@ -432,16 +429,6 @@ impl DynamicData {
     }
 
     pub fn set_uint32_value(&mut self, id: MemberId, value: u32) -> XTypesResult<()> {
-        // if !matches!(
-        //     self.type_ref
-        //         .get_member_by_index(id)?
-        //         .get_descriptor()?
-        //         .r#type,
-        //     TypeIdentifier::TkUint32Type
-        // ) {
-        //     return Err(XTypesError::InvalidType);
-        // }
-
         self.abstract_data.insert(id, Box::new(value));
         Ok(())
     }
@@ -455,16 +442,6 @@ impl DynamicData {
     }
 
     pub fn set_int8_value(&mut self, id: MemberId, value: i8) -> XTypesResult<()> {
-        // if !matches!(
-        //     self.type_ref
-        //         .get_member_by_index(id)?
-        //         .get_descriptor()?
-        //         .r#type,
-        //     TypeIdentifier::TkInt8Type
-        // ) {
-        //     return Err(XTypesError::InvalidType);
-        // }
-
         self.abstract_data.insert(id, Box::new(value));
         Ok(())
     }
@@ -478,16 +455,6 @@ impl DynamicData {
     }
 
     pub fn set_uint8_value(&mut self, id: MemberId, value: u8) -> XTypesResult<()> {
-        // if !matches!(
-        //     self.type_ref
-        //         .get_member_by_index(id)?
-        //         .get_descriptor()?
-        //         .r#type,
-        //     TypeIdentifier::TkUint8Type
-        // ) {
-        //     return Err(XTypesError::InvalidType);
-        // }
-
         self.abstract_data.insert(id, Box::new(value));
         Ok(())
     }
@@ -501,16 +468,6 @@ impl DynamicData {
     }
 
     pub fn set_int16_value(&mut self, id: MemberId, value: i16) -> XTypesResult<()> {
-        // if !matches!(
-        //     self.type_ref
-        //         .get_member_by_index(id)?
-        //         .get_descriptor()?
-        //         .r#type,
-        //     TypeIdentifier::TkInt16Type
-        // ) {
-        //     return Err(XTypesError::InvalidType);
-        // }
-
         self.abstract_data.insert(id, Box::new(value));
         Ok(())
     }
@@ -524,16 +481,6 @@ impl DynamicData {
     }
 
     pub fn set_uint16_value(&mut self, id: MemberId, value: u16) -> XTypesResult<()> {
-        // if !matches!(
-        //     self.type_ref
-        //         .get_member_by_index(id)?
-        //         .get_descriptor()?
-        //         .r#type,
-        //     DynamicTypeBuilderFactory::ge ::TkUint16Type
-        // ) {
-        //     return Err(XTypesError::InvalidType);
-        // }
-
         self.abstract_data.insert(id, Box::new(value));
         Ok(())
     }
@@ -547,16 +494,6 @@ impl DynamicData {
     }
 
     pub fn set_int64_value(&mut self, id: MemberId, value: i64) -> XTypesResult<()> {
-        // if !matches!(
-        //     self.type_ref
-        //         .get_member_by_index(id)?
-        //         .get_descriptor()?
-        //         .r#type,
-        //     TypeIdentifier::TkInt64Type
-        // ) {
-        //     return Err(XTypesError::InvalidType);
-        // }
-
         self.abstract_data.insert(id, Box::new(value));
         Ok(())
     }
@@ -570,16 +507,6 @@ impl DynamicData {
     }
 
     pub fn set_uint64_value(&mut self, id: MemberId, value: u64) -> XTypesResult<()> {
-        // if !matches!(
-        //     self.type_ref
-        //         .get_member_by_index(id)?
-        //         .get_descriptor()?
-        //         .r#type,
-        //     TypeIdentifier::TkUint64Type
-        // ) {
-        //     return Err(XTypesError::InvalidType);
-        // }
-
         self.abstract_data.insert(id, Box::new(value));
         Ok(())
     }
@@ -593,16 +520,6 @@ impl DynamicData {
     }
 
     pub fn set_float32_value(&mut self, id: MemberId, value: f32) -> XTypesResult<()> {
-        // if !matches!(
-        //     self.type_ref
-        //         .get_member_by_index(id)?
-        //         .get_descriptor()?
-        //         .r#type,
-        //     TypeIdentifier::TkFloat32Type
-        // ) {
-        //     return Err(XTypesError::InvalidType);
-        // }
-
         self.abstract_data.insert(id, Box::new(value));
         Ok(())
     }
@@ -616,16 +533,6 @@ impl DynamicData {
     }
 
     pub fn set_float64_value(&mut self, id: MemberId, value: f64) -> XTypesResult<()> {
-        // if !matches!(
-        //     self.type_ref
-        //         .get_member_by_index(id)?
-        //         .get_descriptor()?
-        //         .r#type,
-        //     TypeIdentifier::TkFloat64Type
-        // ) {
-        //     return Err(XTypesError::InvalidType);
-        // }
-
         self.abstract_data.insert(id, Box::new(value));
         Ok(())
     }
@@ -639,16 +546,6 @@ impl DynamicData {
     }
 
     pub fn set_char8_value(&mut self, id: MemberId, value: char) -> XTypesResult<()> {
-        // if !matches!(
-        //     self.type_ref
-        //         .get_member_by_index(id)?
-        //         .get_descriptor()?
-        //         .r#type,
-        //     TypeIdentifier::TkChar8Type
-        // ) {
-        //     return Err(XTypesError::InvalidType);
-        // }
-
         self.abstract_data.insert(id, Box::new(value));
         Ok(())
     }
@@ -662,16 +559,6 @@ impl DynamicData {
     }
 
     pub fn set_byte_value(&mut self, id: MemberId, value: u8) -> XTypesResult<()> {
-        // if !matches!(
-        //     self.type_ref
-        //         .get_member_by_index(id)?
-        //         .get_descriptor()?
-        //         .r#type,
-        //     TypeIdentifier::TkByteType
-        // ) {
-        //     return Err(XTypesError::InvalidType);
-        // }
-
         self.abstract_data.insert(id, Box::new(value));
         Ok(())
     }
@@ -685,16 +572,6 @@ impl DynamicData {
     }
 
     pub fn set_boolean_value(&mut self, id: MemberId, value: bool) -> XTypesResult<()> {
-        // if !matches!(
-        //     self.type_ref
-        //         .get_member_by_index(id)?
-        //         .get_descriptor()?
-        //         .r#type,
-        //     TypeIdentifier::TkByteType
-        // ) {
-        //     return Err(XTypesError::InvalidType);
-        // }
-
         self.abstract_data.insert(id, Box::new(value));
         Ok(())
     }
@@ -877,6 +754,20 @@ impl DynamicData {
     }
 
     pub fn set_string_values(&mut self, id: MemberId, value: Vec<String>) -> XTypesResult<()> {
+        self.abstract_data.insert(id, Box::new(value));
+        Ok(())
+    }
+
+    // Custom functions
+    pub fn get_uint8_values(&self, id: MemberId) -> XTypesResult<&Vec<u8>> {
+        self.abstract_data
+            .get(&id)
+            .ok_or(XTypesError::InvalidIndex)?
+            .downcast_ref()
+            .ok_or(XTypesError::InvalidType)
+    }
+
+    pub fn set_uint8_values(&mut self, id: MemberId, value: Vec<u8>) -> XTypesResult<()> {
         self.abstract_data.insert(id, Box::new(value));
         Ok(())
     }

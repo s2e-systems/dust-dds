@@ -1,9 +1,11 @@
 use crate::{
     infrastructure::instance::InstanceHandle,
     xtypes::{
-        dynamic_type::{DynamicData, DynamicType, MemberDescriptor, TK_STRUCTURE},
+        dynamic_type::{
+            DynamicData, DynamicType, MemberDescriptor, TK_ARRAY, TK_STRUCTURE, TK_UINT8,
+        },
         error::XTypesError,
-        serialize::{Write, XTypesSerializer},
+        serialize::{SerializeCollection, Write, XTypesSerializer},
         xcdr_serializer::Xcdr2BeSerializer,
     },
 };
@@ -403,14 +405,37 @@ pub fn get_serialized_key_from_serialized_foo(
 
 impl DynamicData {
     pub fn serialize_key(&self, serializer: &mut impl XTypesSerializer) {
+        let is_nested = self.type_ref().get_descriptor().is_nested;
         for index in 0..self.get_item_count() {
             let id = self.get_member_id_at_index(index).unwrap();
             let member_descriptor = self.get_descriptor(id).unwrap();
-            if member_descriptor.is_key {
+            if member_descriptor.is_key || is_nested {
                 match member_descriptor.r#type.get_kind() {
                     TK_STRUCTURE => {
                         let data = self.get_complex_value(id).unwrap();
                         data.serialize_key(serializer);
+                    }
+                    TK_ARRAY => {
+                        let bound = member_descriptor.r#type.get_descriptor().bound[0]; // We support only single dimension arrays, otherwise we get nested arrays anyway
+                        match member_descriptor
+                            .r#type
+                            .get_descriptor()
+                            .element_type
+                            .as_ref()
+                            .unwrap()
+                            .get_descriptor()
+                            .kind
+                        {
+                            TK_UINT8 => {
+                                let value = self.get_uint8_values(id).unwrap();
+                                println!("Value {:?}", value);
+                                // let array_serializer =
+                                //     (&mut *serializer).serialize_array().unwrap();
+
+                                // array_serializer.serialize_element(value)
+                            }
+                            _ => todo!(),
+                        }
                     }
                     _ => todo!(),
                 }

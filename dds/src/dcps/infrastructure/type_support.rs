@@ -252,7 +252,7 @@ impl TypeSupport for String {
     }
 }
 
-impl<T: TypeSupport + Send + Sync + 'static, const N: usize> TypeSupport for [T; N] {
+impl<T: TypeSupport + Clone + Send + Sync + 'static, const N: usize> TypeSupport for [T; N] {
     fn get_type() -> DynamicType {
         DynamicTypeBuilderFactory::create_array_type(T::get_type(), vec![N as u32]).build()
     }
@@ -265,7 +265,7 @@ impl<T: TypeSupport + Send + Sync + 'static, const N: usize> TypeSupport for [T;
     }
 
     fn create_dynamic_sample(self) -> DynamicData {
-        DynamicDataFactory::create_data(Self::get_type()).insert_value(0, self)
+        DynamicDataFactory::create_data(Self::get_type()).insert_value(0, self.to_vec())
     }
 }
 
@@ -286,7 +286,7 @@ impl<T: TypeSupport + Send + Sync + 'static> TypeSupport for Vec<T> {
     }
 }
 
-impl TypeSupport for &[u8] {
+impl TypeSupport for &'static [u8] {
     fn get_type() -> DynamicType {
         DynamicTypeBuilderFactory::create_sequence_type(u8::get_type(), u32::MAX).build()
     }
@@ -299,8 +299,7 @@ impl TypeSupport for &[u8] {
     }
 
     fn create_dynamic_sample(self) -> DynamicData {
-        todo!()
-        // DynamicDataFactory::create_data(Self::get_type()).insert_value(0, self.clone())
+        DynamicDataFactory::create_data(Self::get_type()).insert_value(0, self.to_vec())
     }
 }
 
