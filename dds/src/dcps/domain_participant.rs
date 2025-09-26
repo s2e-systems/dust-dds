@@ -5971,16 +5971,16 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
         let mut serialized_data = Vec::new();
         if self.qos.representation.value.len() == 0 {
             let mut serializer = Xcdr1LeSerializer::new(&mut serialized_data);
-            dynamic_data.serialize(&mut &mut serializer, false);
+            dynamic_data.serialize_data(&mut serializer);
         } else {
             match self.qos.representation.value[0] {
                 XCDR_DATA_REPRESENTATION => {
                     let mut serializer = Xcdr1LeSerializer::new(&mut serialized_data);
-                    dynamic_data.serialize(&mut &mut serializer, false);
+                    dynamic_data.serialize_data(&mut serializer);
                 }
                 XCDR2_DATA_REPRESENTATION => {
                     let mut serializer = Xcdr2LeSerializer::new(&mut serialized_data);
-                    dynamic_data.serialize(&mut &mut serializer, false);
+                    dynamic_data.serialize_data(&mut serializer);
                 }
                 _ => unreachable!("Unsupported representation format"),
             }

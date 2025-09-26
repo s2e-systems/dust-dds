@@ -255,7 +255,7 @@ impl<C: Write> XTypesSerializer for &mut Xcdr1BeSerializer<'_, C> {
         Ok(())
     }
 
-    fn serialize_byte_array<const N: usize>(self, v: &[u8; N]) -> Result<(), XTypesError> {
+    fn serialize_byte_array(self, v: &[u8]) -> Result<(), XTypesError> {
         self.writer.write_slice(v);
         Ok(())
     }
@@ -425,7 +425,7 @@ impl<C: Write> XTypesSerializer for &mut Xcdr1LeSerializer<'_, C> {
         Ok(())
     }
 
-    fn serialize_byte_array<const N: usize>(self, v: &[u8; N]) -> Result<(), XTypesError> {
+    fn serialize_byte_array(self, v: &[u8]) -> Result<(), XTypesError> {
         self.writer.write_slice(v);
         Ok(())
     }
@@ -650,7 +650,7 @@ impl<C: Write> XTypesSerializer for &mut Xcdr2BeSerializer<'_, C> {
         self.writer.write_slice(v);
         Ok(())
     }
-    fn serialize_byte_array<const N: usize>(self, v: &[u8; N]) -> Result<(), XTypesError> {
+    fn serialize_byte_array(self, v: &[u8]) -> Result<(), XTypesError> {
         self.writer.write_slice(v);
         Ok(())
     }
@@ -721,7 +721,7 @@ impl<C: Write> XTypesSerializer for &mut Xcdr2LeSerializer<'_, C> {
         self.writer.write_slice(v);
         Ok(())
     }
-    fn serialize_byte_array<const N: usize>(self, v: &[u8; N]) -> Result<(), XTypesError> {
+    fn serialize_byte_array(self, v: &[u8]) -> Result<(), XTypesError> {
         self.writer.write_slice(v);
         Ok(())
     }
