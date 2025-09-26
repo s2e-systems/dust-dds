@@ -1,14 +1,34 @@
-use dust_dds_derive::TypeSupport;
-
 use core::ops::{Add, Sub};
 
+use crate::infrastructure::type_support::TypeSupport;
+
 /// Enumeration representing whether a duration is finite or infinite
-#[derive(PartialEq, Eq, Debug, Clone, Copy, TypeSupport)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub enum DurationKind {
     /// Finite duration with the corresponding associated value
     Finite(Duration),
     /// Infinite duration
     Infinite,
+}
+
+impl TypeSupport for DurationKind {
+    fn get_type() -> crate::xtypes::dynamic_type::DynamicType {
+        Duration::get_type()
+    }
+
+    fn create_sample(src: crate::xtypes::dynamic_type::DynamicData) -> super::error::DdsResult<Self>
+    where
+        Self: Sized,
+    {
+        todo!()
+    }
+
+    fn create_dynamic_sample(self) -> crate::xtypes::dynamic_type::DynamicData {
+        match self {
+            DurationKind::Finite(duration) => duration.create_dynamic_sample(),
+            DurationKind::Infinite => DURATION_INFINITE.create_dynamic_sample(),
+        }
+    }
 }
 
 const DURATION_INFINITE_SEC: i32 = 0x7fffffff;

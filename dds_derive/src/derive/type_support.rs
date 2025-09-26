@@ -1,7 +1,8 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{
-    spanned::Spanned, DeriveInput, Expr, Field, GenericArgument, Index, PathArguments, Result,
+    spanned::Spanned, DataEnum, DeriveInput, Expr, ExprLit, Field, Fields, GenericArgument, Ident,
+    Index, Lit, PathArguments, Result,
 };
 
 pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
@@ -92,7 +93,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                          builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
                             name: alloc::string::String::from(#field_name),
                             id: #member_id,
-                            r#type: <#member_type as dust_dds::xtypes::dynamic_type::DynamicDataInsert>::get_type(),
+                            r#type: <#member_type as dust_dds::xtypes::dynamic_type::DynamicDataInsert>::get_dynamic_type(),
                             default_value: alloc::string::String::new(),
                             index: #index,
                             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
@@ -166,34 +167,107 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 create_dynamic_sample_quote,
             ))
         }
-        syn::Data::Enum(_data_enum) => {
-            let enum_builder = quote! {
-                extern crate alloc;
-                let mut builder = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
-                    dust_dds::xtypes::dynamic_type::TypeDescriptor {
-                        kind: dust_dds::xtypes::dynamic_type::TK_ENUM,
-                        name: alloc::string::String::from(#type_name),
-                        base_type: None,
-                        discriminator_type: None,
-                        bound: alloc::vec::Vec::new(),
-                        element_type: None,
-                        key_element_type: None,
-                        extensibility_kind: #extensibility_kind,
-                        is_nested: #is_nested,
-                    });
-            };
-            let get_type_quote = quote! {
-                #enum_builder
+        syn::Data::Enum(data_enum) => {
+            // Separate between Unions and Enumeration which are both
+            // mapped as Rust enum types
+            if is_enum_xtypes_union(data_enum) {
+                let union_builder = quote! {
+                    extern crate alloc;
+                    let mut builder = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
+                        dust_dds::xtypes::dynamic_type::TypeDescriptor {
+                            kind: dust_dds::xtypes::dynamic_type::TK_UNION,
+                            name: alloc::string::String::from(#type_name),
+                            base_type: None,
+                            discriminator_type: None,
+                            bound: alloc::vec::Vec::new(),
+                            element_type: None,
+                            key_element_type: None,
+                            extensibility_kind: #extensibility_kind,
+                            is_nested: #is_nested,
+                        });
+                };
+                let get_type_quote = quote! {
+                    #union_builder
 
-                builder.build()
-            };
-            let create_sample_quote = quote! {todo!()};
-            let create_dynamic_sample_quote = quote! {todo!("enumerated dynamic sample")};
-            Ok((
-                get_type_quote,
-                create_sample_quote,
-                create_dynamic_sample_quote,
-            ))
+                    builder.build()
+                };
+                let create_sample_quote = quote! {todo!()};
+                let create_dynamic_sample_quote = quote! {todo!()};
+                Ok((
+                    get_type_quote,
+                    create_sample_quote,
+                    create_dynamic_sample_quote,
+                ))
+            } else {
+                // Note: Mapping has to be done with a match self strategy because the enum might not be copy so casting it using e.g. "self as i64" would
+                // be consuming it.
+                let discriminator_mapping = read_enum_variant_discriminant_mapping(data_enum);
+                let max_discriminator = *discriminator_mapping
+                    .iter()
+                    .map(|(_, v)| v)
+                    .max()
+                    .expect("Map contains at least a value");
+
+                let (discriminator_type, discriminator_dynamic_value) = if max_discriminator
+                    > 0usize
+                    && max_discriminator <= u8::MAX as usize
+                {
+                    (
+                        quote! {dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::get_primitive_type(dust_dds::xtypes::dynamic_type::TK_UINT8)},
+                        quote! {data.set_uint8_value(0, self as u8).unwrap();},
+                    )
+                } else if max_discriminator > u8::MAX as usize
+                    && max_discriminator <= u16::MAX as usize
+                {
+                    (
+                        quote! {dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::get_primitive_type(dust_dds::xtypes::dynamic_type::TK_UINT16)},
+                        quote! {data.set_uint16_value(0, self as u16).unwrap();},
+                    )
+                } else if max_discriminator > u16::MAX as usize
+                    && max_discriminator <= u32::MAX as usize
+                {
+                    (
+                        quote! {dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::get_primitive_type(dust_dds::xtypes::dynamic_type::TK_UINT32)},
+                        quote! {data.set_uint32_value(0, self as u32).unwrap();},
+                    )
+                } else {
+                    return Err(syn::Error::new(
+                        data_enum.enum_token.span,
+                        "Enum discriminant size above maximum of u32::MAX",
+                    ));
+                };
+                let enum_builder = quote! {
+                    extern crate alloc;
+                    let mut builder = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
+                        dust_dds::xtypes::dynamic_type::TypeDescriptor {
+                            kind: dust_dds::xtypes::dynamic_type::TK_ENUM,
+                            name: alloc::string::String::from(#type_name),
+                            base_type: None,
+                            discriminator_type: Some(#discriminator_type),
+                            bound: alloc::vec::Vec::new(),
+                            element_type: None,
+                            key_element_type: None,
+                            extensibility_kind: #extensibility_kind,
+                            is_nested: #is_nested,
+                        });
+                };
+                let get_type_quote = quote! {
+                    #enum_builder
+
+                    builder.build()
+                };
+                let create_sample_quote = quote! {todo!()};
+                let create_dynamic_sample_quote = quote! {
+                    let mut data = DynamicDataFactory::create_data(Self::get_type());
+                    #discriminator_dynamic_value
+                    data
+                };
+                Ok((
+                    get_type_quote,
+                    create_sample_quote,
+                    create_dynamic_sample_quote,
+                ))
+            }
         }
         syn::Data::Union(data_union) => Err(syn::Error::new(
             data_union.union_token.span,
@@ -298,4 +372,57 @@ fn get_field_attributes(field: &Field) -> syn::Result<FieldAttributes> {
         })?;
     }
     Ok(FieldAttributes { key, id })
+}
+
+pub enum BitBound {
+    Bit8,
+    Bit16,
+    Bit32,
+}
+
+// The return of this function is a Vec instead of a HashMap so that the tests give
+// consistent results. Iterating over a HashMap gives different order of members every time.
+// The order is also important for the XML string generation.
+pub fn read_enum_variant_discriminant_mapping(data_enum: &DataEnum) -> Vec<(Ident, usize)> {
+    let mut map = Vec::new();
+    let mut discriminant = 0;
+    for variant in data_enum.variants.iter() {
+        if let Some((_, discriminant_expr)) = &variant.discriminant {
+            match discriminant_expr {
+                Expr::Lit(ExprLit { lit, .. }) => match lit {
+                    Lit::Int(lit_int) => {
+                        discriminant = lit_int
+                            .base10_parse()
+                            .expect("Integer should be verified by compiler")
+                    }
+                    _ => panic!("Only literal integer discrimimants are expected"),
+                },
+                _ => panic!("Only literal discrimimants are expected"),
+            }
+        }
+        map.push((variant.ident.clone(), discriminant));
+        discriminant += 1;
+    }
+
+    map
+}
+
+pub fn get_enum_bitbound(max_discriminator: &usize) -> BitBound {
+    if max_discriminator >= &0 && max_discriminator <= &(u8::MAX as usize) {
+        BitBound::Bit8
+    } else if max_discriminator > &(u8::MAX as usize) && max_discriminator <= &(u16::MAX as usize) {
+        BitBound::Bit16
+    } else if max_discriminator > &(u16::MAX as usize) && max_discriminator <= &(u32::MAX as usize)
+    {
+        BitBound::Bit32
+    } else {
+        panic!("Enum discriminant value outside of supported range")
+    }
+}
+
+pub fn is_enum_xtypes_union(data_enum: &DataEnum) -> bool {
+    data_enum
+        .variants
+        .iter()
+        .any(|v| !matches!(&v.fields, Fields::Unit))
 }

@@ -1,22 +1,44 @@
 use super::time::{DURATION_ZERO_NSEC, DURATION_ZERO_SEC};
 use crate::{
-    infrastructure::time::{Duration, DurationKind},
+    infrastructure::{
+        time::{Duration, DurationKind},
+        type_support::TypeSupport,
+    },
     transport::types::{DurabilityKind, ReliabilityKind},
+    xtypes::dynamic_type::{
+        DynamicData, DynamicDataFactory, DynamicDataInsert, DynamicTypeBuilderFactory, TK_INT32,
+    },
 };
 use alloc::{string::String, vec::Vec};
 use core::cmp::Ordering;
-use dust_dds_derive::TypeSupport;
 
 /// QosPolicyId type alias
 pub type QosPolicyId = i32;
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy, TypeSupport)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 /// Enumeration representing a Length which be either limited or unlimited.
 pub enum Length {
     /// Unlimited length.
     Unlimited,
     /// Limited length with the corresponding associated value.
     Limited(u32),
+}
+
+impl DynamicDataInsert for Length {
+    fn get_dynamic_type() -> crate::xtypes::dynamic_type::DynamicType {
+        DynamicTypeBuilderFactory::get_primitive_type(TK_INT32)
+    }
+
+    fn insert_value(
+        self,
+        dynamic_data: &mut DynamicData,
+        id: crate::xtypes::dynamic_type::MemberId,
+    ) -> crate::xtypes::error::XTypesResult<()> {
+        match self {
+            Length::Unlimited => dynamic_data.set_int32_value(id, -1),
+            Length::Limited(l) => dynamic_data.set_int32_value(id, l as i32),
+        }
+    }
 }
 
 impl PartialOrd for Length {
@@ -1009,12 +1031,52 @@ impl Default for DestinationOrderQosPolicy {
 }
 
 /// Enumeration representing the different types of history QoS policies.
-#[derive(Debug, PartialEq, Eq, Clone, Copy, TypeSupport)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum HistoryQosPolicyKind {
     /// Keep number of samples indicated by the associated value.
     KeepLast(u32),
     /// Keep all samples.
     KeepAll,
+}
+
+impl TypeSupport for HistoryQosPolicyKind {
+    fn get_type() -> crate::xtypes::dynamic_type::DynamicType {
+        extern crate alloc;
+        let builder = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
+            dust_dds::xtypes::dynamic_type::TypeDescriptor {
+                kind: dust_dds::xtypes::dynamic_type::TK_ENUM,
+                name: alloc::string::String::from("HistoryQosPolicyKind"),
+                base_type: None,
+                discriminator_type: Some(
+                    dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::get_primitive_type(
+                        dust_dds::xtypes::dynamic_type::TK_UINT8,
+                    ),
+                ),
+                bound: alloc::vec::Vec::new(),
+                element_type: None,
+                key_element_type: None,
+                extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
+                is_nested: false,
+            },
+        );
+        builder.build()
+    }
+
+    fn create_sample(src: DynamicData) -> super::error::DdsResult<Self>
+    where
+        Self: Sized,
+    {
+        todo!()
+    }
+
+    fn create_dynamic_sample(self) -> DynamicData {
+        let mut data = DynamicDataFactory::create_data(Self::get_type());
+        match self {
+            HistoryQosPolicyKind::KeepLast(_) => data.set_uint8_value(0, 0).unwrap(),
+            HistoryQosPolicyKind::KeepAll => data.set_uint8_value(0, 1).unwrap(),
+        }
+        data
+    }
 }
 
 /// This policy controls the behavior of the Service when the value of an instance changes before it is finally
@@ -1031,8 +1093,7 @@ pub enum HistoryQosPolicyKind {
 /// [`ReliabilityQosPolicyKind::Reliable`], then the Service will block the [`DataWriter`](crate::publication::data_writer::DataWriter) until it can deliver the necessary old values to all subscribers.
 /// The setting of [`HistoryQosPolicy`] depth must be consistent with the [`ResourceLimitsQosPolicy::max_samples_per_instance`]. For these two
 /// QoS to be consistent, they must verify that *depth <= max_samples_per_instance*.
-#[derive(Debug, PartialEq, Eq, Clone, TypeSupport)]
-#[dust_dds(extensibility = "Appendable", nested)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct HistoryQosPolicy {
     /// Kind of history QoS associated with this policy.
     pub kind: HistoryQosPolicyKind,
@@ -1055,6 +1116,83 @@ impl QosPolicy for HistoryQosPolicy {
 impl Default for HistoryQosPolicy {
     fn default() -> Self {
         Self::const_default()
+    }
+}
+
+impl dust_dds::infrastructure::type_support::TypeSupport for HistoryQosPolicy {
+    fn get_type() -> dust_dds::xtypes::dynamic_type::DynamicType {
+        extern crate alloc;
+        let mut builder = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
+            dust_dds::xtypes::dynamic_type::TypeDescriptor {
+                kind: dust_dds::xtypes::dynamic_type::TK_STRUCTURE,
+                name: alloc::string::String::from("HistoryQosPolicy"),
+                base_type: None,
+                discriminator_type: None,
+                bound: alloc::vec::Vec::new(),
+                element_type: None,
+                key_element_type: None,
+                extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Appendable,
+                is_nested: true,
+            },
+        );
+        builder
+            .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+                name: alloc::string::String::from("kind"),
+                id: 0,
+                r#type: HistoryQosPolicyKind::get_type(),
+                default_value: alloc::string::String::new(),
+                index: 0u32,
+                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+                label: alloc::vec::Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+                name: alloc::string::String::from("depth"),
+                id: 1,
+                r#type:
+                    dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::get_primitive_type(
+                        TK_INT32,
+                    ),
+                default_value: alloc::string::String::new(),
+                index: 1u32,
+                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+                label: alloc::vec::Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder.build()
+    }
+
+    fn create_sample(
+        mut src: dust_dds::xtypes::dynamic_type::DynamicData,
+    ) -> dust_dds::infrastructure::error::DdsResult<Self> {
+        todo!("create sample")
+    }
+
+    fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
+        let mut data =
+            dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type());
+        match self.kind {
+            HistoryQosPolicyKind::KeepLast(depth) => {
+                data.set_complex_value(0, self.kind.create_dynamic_sample());
+                data.set_int32_value(1, depth as i32);
+            }
+            HistoryQosPolicyKind::KeepAll => {
+                data.set_complex_value(0, self.kind.create_dynamic_sample());
+                data.set_int32_value(1, 0);
+            }
+        }
+        data
     }
 }
 
