@@ -49,7 +49,7 @@ use crate::{
             DATA_REPRESENTATION_QOS_POLICY_ID, DEADLINE_QOS_POLICY_ID,
             DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID,
             LIVELINESS_QOS_POLICY_ID, OWNERSHIP_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID,
-            RELIABILITY_QOS_POLICY_ID, XCDR_DATA_REPRESENTATION,
+            RELIABILITY_QOS_POLICY_ID, XCDR2_DATA_REPRESENTATION, XCDR_DATA_REPRESENTATION,
         },
         sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
         status::{
@@ -76,7 +76,10 @@ use crate::{
             USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
         },
     },
-    xtypes::dynamic_type::{DynamicData, DynamicType},
+    xtypes::{
+        dynamic_type::{DynamicData, DynamicType},
+        xcdr_serializer::{Xcdr1LeSerializer, Xcdr2LeSerializer},
+    },
 };
 use alloc::{
     boxed::Box,
@@ -5900,7 +5903,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
 
     pub async fn write_w_timestamp(
         &mut self,
-        serialized_data: DynamicData,
+        dynamic_data: DynamicData,
         timestamp: Time,
         clock: &impl Clock,
     ) -> DdsResult<i64> {
@@ -5911,7 +5914,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
         self.last_change_sequence_number += 1;
 
         let instance_handle =
-            get_instance_handle_from_dynamic_data(&serialized_data, self.type_support.as_ref())?;
+            get_instance_handle_from_dynamic_data(&dynamic_data, self.type_support.as_ref())?;
 
         if !self.registered_instance_list.contains(&instance_handle) {
             if self.registered_instance_list.len() < self.qos.resource_limits.max_instances {
@@ -5965,13 +5968,31 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
             }
         }
 
+        let mut serialized_data = Vec::new();
+        if self.qos.representation.value.len() == 0 {
+            let mut serializer = Xcdr1LeSerializer::new(&mut serialized_data);
+            dynamic_data.serialize(&mut &mut serializer, false);
+        } else {
+            match self.qos.representation.value[0] {
+                XCDR_DATA_REPRESENTATION => {
+                    let mut serializer = Xcdr1LeSerializer::new(&mut serialized_data);
+                    dynamic_data.serialize(&mut &mut serializer, false);
+                }
+                XCDR2_DATA_REPRESENTATION => {
+                    let mut serializer = Xcdr2LeSerializer::new(&mut serialized_data);
+                    dynamic_data.serialize(&mut &mut serializer, false);
+                }
+                _ => unreachable!("Unsupported representation format"),
+            }
+        };
+
         let change = CacheChange {
             kind: ChangeKind::Alive,
             writer_guid: self.transport_writer.guid(),
             sequence_number: self.last_change_sequence_number,
             source_timestamp: Some(timestamp.into()),
             instance_handle: Some(instance_handle.into()),
-            data_value: todo!(), //serialized_data.into(),
+            data_value: serialized_data.into(),
         };
         if let HistoryQosPolicyKind::KeepLast(depth) = self.qos.history.kind {
             if let Some(s) = self

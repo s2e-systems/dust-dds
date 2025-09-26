@@ -367,7 +367,7 @@ pub fn get_instance_handle_from_dynamic_data(
         length: 0,
     };
     let mut serializer = Xcdr2BeSerializer::new(&mut md5_collection);
-    data.serialize_key(&mut &mut serializer);
+    data.serialize(&mut &mut serializer, true);
     Ok(InstanceHandle::new(md5_collection.into_key()))
 }
 
@@ -404,7 +404,7 @@ pub fn get_serialized_key_from_serialized_foo(
 }
 
 impl DynamicData {
-    pub fn serialize_key(&self, serializer: &mut impl XTypesSerializer) {
+    pub fn serialize(&self, serializer: &mut impl XTypesSerializer, key: bool) {
         let is_nested = self.type_ref().get_descriptor().is_nested;
         for index in 0..self.get_item_count() {
             let id = self.get_member_id_at_index(index).unwrap();
@@ -413,7 +413,7 @@ impl DynamicData {
                 match member_descriptor.r#type.get_kind() {
                     TK_STRUCTURE => {
                         let data = self.get_complex_value(id).unwrap();
-                        data.serialize_key(serializer);
+                        data.serialize(serializer, key);
                     }
                     TK_ARRAY => {
                         let bound = member_descriptor.r#type.get_descriptor().bound[0]; // We support only single dimension arrays, otherwise we get nested arrays anyway

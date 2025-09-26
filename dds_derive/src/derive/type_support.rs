@@ -43,7 +43,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
 
             let mut member_builder_seq = quote! {};
             let mut member_sample_seq = quote! {};
-            let mut member_dynamic_sample_seq = quote! {};
+            let mut member_dynamic_sample_seq = Vec::new();
 
             for (field_index, field) in data_struct.fields.iter().enumerate() {
                 let field_attributes = get_field_attributes(field)?;
@@ -92,7 +92,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                          builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
                             name: alloc::string::String::from(#field_name),
                             id: #member_id,
-                            r#type: <#member_type as dust_dds::infrastructure::type_support::TypeSupport>::get_type(),
+                            r#type: <#member_type as dust_dds::xtypes::dynamic_type::DynamicDataInsert>::get_type(),
                             default_value: alloc::string::String::new(),
                             index: #index,
                             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
@@ -106,21 +106,28 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                         .unwrap();
                     },
                 );
-                let field_type = &field.ty;
                 match &field.ident {
                     Some(field_ident) => {
-                        member_sample_seq.extend(quote! {
-                            #field_ident: <#field_type as dust_dds::infrastructure::type_support::TypeSupport>::create_sample(src.remove_value(#member_id)?)?,
+                        if is_optional {
+                            member_dynamic_sample_seq.push(quote! {
+                            if let Some(x) = self.#field_ident {
+                                dust_dds::xtypes::dynamic_type::DynamicDataInsert::insert_value(x, &mut data, #member_id).unwrap();
+                            }
                         });
-                        member_dynamic_sample_seq.extend(quote! {
-                            .insert_value(#member_id,  <#field_type as dust_dds::infrastructure::type_support::TypeSupport>::create_dynamic_sample(self.#field_ident))
-                        })
+                        } else {
+                            member_sample_seq.extend(quote! {
+                            #field_ident: dust_dds::infrastructure::type_support::TypeSupport::create_sample(src.remove_value(#member_id)?)?,
+                        });
+                            member_dynamic_sample_seq.push(quote! {
+                            dust_dds::xtypes::dynamic_type::DynamicDataInsert::insert_value(self.#field_ident, &mut data, #member_id).unwrap();
+                        });
+                        }
                     }
                     None => {
                         let index = Index::from(field_index);
-                        member_sample_seq.extend(quote! {  <#field_type as dust_dds::infrastructure::type_support::TypeSupport>::create_sample(src.remove_value(#member_id)?)?,});
-                        member_dynamic_sample_seq.extend(quote! {
-                            .insert_value(#member_id, <#field_type as dust_dds::infrastructure::type_support::TypeSupport>::create_dynamic_sample(self.#index))
+                        member_sample_seq.extend(quote! {  dust_dds::infrastructure::type_support::TypeSupport::create_sample(src.remove_value(#member_id)?)?,});
+                        member_dynamic_sample_seq.push(quote! {
+                            dust_dds::xtypes::dynamic_type::DynamicDataInsert::insert_value(self.#index, &mut data, #member_id).unwrap();
                         })
                     }
                 }
@@ -149,7 +156,9 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 })}
             };
             let create_dynamic_sample_quote = quote! {
-                dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type())#member_dynamic_sample_seq
+                let mut data = dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type());
+                #(#member_dynamic_sample_seq)*
+                data
             };
             Ok((
                 get_type_quote,
@@ -179,7 +188,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 builder.build()
             };
             let create_sample_quote = quote! {todo!()};
-            let create_dynamic_sample_quote = quote! {todo!()};
+            let create_dynamic_sample_quote = quote! {todo!("enumerated dynamic sample")};
             Ok((
                 get_type_quote,
                 create_sample_quote,
@@ -200,7 +209,8 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
             }
 
             fn create_sample(mut src: dust_dds::xtypes::dynamic_type::DynamicData) -> dust_dds::infrastructure::error::DdsResult<Self> {
-                #create_sample_quote
+                // #create_sample_quote
+                todo!("create sample")
             }
 
             fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
