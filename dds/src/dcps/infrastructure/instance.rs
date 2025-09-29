@@ -9,6 +9,7 @@ use crate::xtypes::{
     deserialize::XTypesDeserialize, serialize::XTypesSerialize, xcdr_serializer::Xcdr1BeSerializer,
 };
 use alloc::vec::Vec;
+use dust_dds_derive::TypeSupport;
 
 /// Type for the instance handle representing an Entity
 #[derive(
@@ -24,6 +25,7 @@ use alloc::vec::Vec;
     XTypesDeserialize,
     DdsSerialize,
     DdsDeserialize,
+    TypeSupport,
 )]
 pub struct InstanceHandle([u8; 16]);
 

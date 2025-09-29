@@ -29,17 +29,12 @@ use crate::{
     transport::types::{GuidPrefix, Locator, Long, ProtocolVersion, VendorId},
     xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize},
 };
-use alloc::{
-    boxed::Box,
-    string::{String, ToString},
-    vec,
-    vec::Vec,
-};
-use dust_dds_derive::TypeSupport;
+use alloc::{string::String, vec::Vec};
 
 pub type Count = Long;
 
-#[derive(PartialEq, Eq, Debug, Clone, Copy, XTypesSerialize, XTypesDeserialize)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy, XTypesSerialize, XTypesDeserialize, TypeSupport)]
+#[dust_dds(extensibility = "final", nested)]
 pub struct BuiltinEndpointSet(pub u32);
 
 impl Default for BuiltinEndpointSet {
@@ -100,7 +95,10 @@ impl BuiltinEndpointSet {
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Default, Clone, Copy, XTypesSerialize, XTypesDeserialize)]
+#[derive(
+    PartialEq, Eq, Debug, Default, Clone, Copy, XTypesSerialize, XTypesDeserialize, TypeSupport,
+)]
+#[dust_dds(extensibility = "final", nested)]
 pub struct BuiltinEndpointQos(pub u32);
 
 impl BuiltinEndpointQos {
@@ -118,20 +116,34 @@ impl BuiltinEndpointQos {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, TypeSupport)]
+#[dust_dds(extensibility = "mutable")]
 pub struct ParticipantProxy {
+    #[dust_dds(id=PID_DOMAIN_ID as u32)]
     pub(crate) domain_id: Option<DomainId>,
+    #[dust_dds(id=PID_DOMAIN_TAG as u32)]
     pub(crate) domain_tag: String,
+    #[dust_dds(id=PID_PROTOCOL_VERSION as u32)]
     pub(crate) protocol_version: ProtocolVersion,
+    #[dust_dds(id = PID_PARTICIPANT_GUID as u32)]
     pub(crate) guid_prefix: GuidPrefix,
+    #[dust_dds(id = PID_VENDORID as u32)]
     pub(crate) vendor_id: VendorId,
+    #[dust_dds(id = PID_EXPECTS_INLINE_QOS as u32)]
     pub(crate) expects_inline_qos: bool,
+    #[dust_dds(id = PID_METATRAFFIC_UNICAST_LOCATOR as u32)]
     pub(crate) metatraffic_unicast_locator_list: Vec<Locator>,
+    #[dust_dds(id = PID_METATRAFFIC_MULTICAST_LOCATOR as u32)]
     pub(crate) metatraffic_multicast_locator_list: Vec<Locator>,
+    #[dust_dds(id = PID_METATRAFFIC_UNICAST_LOCATOR as u32)]
     pub(crate) default_unicast_locator_list: Vec<Locator>,
+    #[dust_dds(id = PID_METATRAFFIC_MULTICAST_LOCATOR as u32)]
     pub(crate) default_multicast_locator_list: Vec<Locator>,
+    #[dust_dds(id = PID_BUILTIN_ENDPOINT_SET as u32)]
     pub(crate) available_builtin_endpoints: BuiltinEndpointSet,
+    #[dust_dds(id = PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT as u32)]
     pub(crate) manual_liveliness_count: Count,
+    #[dust_dds(id = PID_BUILTIN_ENDPOINT_QOS as u32)]
     pub(crate) builtin_endpoint_qos: BuiltinEndpointQos,
 }
 

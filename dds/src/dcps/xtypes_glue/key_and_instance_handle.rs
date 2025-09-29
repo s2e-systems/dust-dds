@@ -1,7 +1,7 @@
 use crate::{
     infrastructure::instance::InstanceHandle,
     xtypes::{
-        deserializer::{DeserializeAppendableStruct, XTypesDeserializer},
+        deserializer::{DeserializeAppendableStruct, DeserializeSequence, XTypesDeserializer},
         dynamic_type::{
             DynamicType, MemberDescriptor, TK_ARRAY, TK_BOOLEAN, TK_CHAR8, TK_FLOAT32, TK_FLOAT64,
             TK_INT16, TK_INT32, TK_INT64, TK_INT8, TK_SEQUENCE, TK_STRING8, TK_STRUCTURE,
@@ -50,7 +50,7 @@ impl Write for Md5 {
 }
 
 fn deserialize_and_serialize_if_key_field<'a, T>(
-    member_descriptor: &MemberDescriptor,
+    dynamic_type: &DynamicType,
     is_key_field: bool,
     de: &mut T,
     serializer: &mut impl SerializeFinalStruct,
@@ -58,7 +58,7 @@ fn deserialize_and_serialize_if_key_field<'a, T>(
 where
     for<'b> &'b mut T: XTypesDeserializer<'a>,
 {
-    match member_descriptor.r#type.get_kind() {
+    match dynamic_type.get_kind() {
         TK_BOOLEAN => {
             let v = de.deserialize_boolean()?;
             if is_key_field {
@@ -138,35 +138,32 @@ where
             }
         }
         TK_SEQUENCE => {
-            todo!()
-            // let len = de.deserialize_sequence()?.len() as u32;
-            // if is_key_field {
-            //     serializer.serialize_field(&len, "")?;
+            let len = de.deserialize_sequence()?.len() as u32;
+            if is_key_field {
+                serializer.serialize_field(&len, "")?;
 
-            //     for _ in 0..len {
-            //         deserialize_and_serialize_if_key_field(
-            //             &seq_sdefn.element_identifier,
-            //             is_key_field,
-            //             de,
-            //             serializer,
-            //         )?;
-            //     }
-            // }
+                for _ in 0..len {
+                    deserialize_and_serialize_if_key_field(
+                        dynamic_type.get_descriptor().element_type.as_ref().unwrap(),
+                        is_key_field,
+                        de,
+                        serializer,
+                    )?;
+                }
+            }
         }
         TK_ARRAY => {
-            todo!()
-            // for _ in 0..array_sdefn.array_bound_seq[0] {
-            //     deserialize_and_serialize_if_key_field(
-            //         &array_sdefn.element_identifier,
-            //         is_key_field,
-            //         de,
-            //         serializer,
-            //     )?;
-            // }
+            for _ in 0..dynamic_type.get_descriptor().bound[0] {
+                deserialize_and_serialize_if_key_field(
+                    dynamic_type.get_descriptor().element_type.as_ref().unwrap(),
+                    is_key_field,
+                    de,
+                    serializer,
+                )?;
+            }
         }
         TK_STRUCTURE => {
-            todo!()
-            // push_to_key(complete.as_ref(), serializer, de)?;
+            push_to_key(&dynamic_type, serializer, de)?;
         }
         _ => todo!(),
     }
@@ -174,13 +171,13 @@ where
 }
 
 fn deserialize_and_serialize_if_key_field_for_appendable_cdr<'a>(
-    member_descriptor: &MemberDescriptor,
+    dynamic_type: &DynamicType,
     is_key_field: bool,
     de: &mut impl DeserializeAppendableStruct<'a>,
     serializer: &mut impl SerializeFinalStruct,
 ) -> Result<(), XTypesError> {
     let name = "";
-    match member_descriptor.r#type.get_kind() {
+    match dynamic_type.get_kind() {
         TK_BOOLEAN => {
             let v = de.deserialize_field::<bool>(name)?;
             if is_key_field {
@@ -260,20 +257,19 @@ fn deserialize_and_serialize_if_key_field_for_appendable_cdr<'a>(
             }
         }
         TK_SEQUENCE => {
-            todo!()
-            // let len = de.deserialize_field::<u32>(name)?;
-            // if is_key_field {
-            //     serializer.serialize_field(&len, "")?;
+            let len = de.deserialize_field::<u32>(name)?;
+            if is_key_field {
+                serializer.serialize_field(&len, "")?;
 
-            //     for _ in 0..len {
-            //         deserialize_and_serialize_if_key_field_for_appendable_cdr(
-            //             &seq_sdefn.element_identifier,
-            //             is_key_field,
-            //             de,
-            //             serializer,
-            //         )?;
-            //     }
-            // }
+                for _ in 0..len {
+                    deserialize_and_serialize_if_key_field_for_appendable_cdr(
+                        dynamic_type.get_descriptor().element_type.as_ref().unwrap(),
+                        is_key_field,
+                        de,
+                        serializer,
+                    )?;
+                }
+            }
         }
         _ => todo!(),
     }
@@ -293,7 +289,7 @@ where
             for member_descriptor in dynamic_type.into_iter() {
                 let member_descriptor = member_descriptor?;
                 deserialize_and_serialize_if_key_field(
-                    member_descriptor,
+                    &member_descriptor.r#type,
                     member_descriptor.is_key,
                     de,
                     serializer,
@@ -305,7 +301,7 @@ where
             for member_descriptor in dynamic_type.into_iter() {
                 let member_descriptor = member_descriptor?;
                 deserialize_and_serialize_if_key_field_for_appendable_cdr(
-                    member_descriptor,
+                    &member_descriptor.r#type,
                     member_descriptor.is_key,
                     &mut appendable_struct_deserializer,
                     serializer,
@@ -329,7 +325,12 @@ where
     for member_descriptor in dynamic_type.into_iter() {
         let member_descriptor = member_descriptor?;
         if member_descriptor.is_key {
-            deserialize_and_serialize_if_key_field(member_descriptor, true, de, serializer)?;
+            deserialize_and_serialize_if_key_field(
+                &member_descriptor.r#type,
+                true,
+                de,
+                serializer,
+            )?;
         }
     }
     Ok(())
@@ -406,7 +407,7 @@ fn push_to_key_parameter_list_le(
         if descriptor.is_key {
             let buffer = go_to_pid_le(data, descriptor.id)?;
             let mut de = Xcdr1LeDeserializer::new(buffer);
-            deserialize_and_serialize_if_key_field(descriptor, true, &mut de, serializer)?;
+            deserialize_and_serialize_if_key_field(&descriptor.r#type, true, &mut de, serializer)?;
         }
     }
     Ok(())
@@ -422,7 +423,7 @@ fn push_to_key_parameter_list_be(
         if descriptor.is_key {
             let buffer = go_to_pid_be(data, descriptor.id)?;
             let mut de = Xcdr1BeDeserializer::new(buffer);
-            deserialize_and_serialize_if_key_field(descriptor, true, &mut de, serializer)?;
+            deserialize_and_serialize_if_key_field(&descriptor.r#type, true, &mut de, serializer)?;
         }
     }
     Ok(())
@@ -537,10 +538,9 @@ pub fn get_serialized_key_from_serialized_foo(
 mod tests {
     use super::*;
     use crate::infrastructure::type_support::TypeSupport;
-    use dust_dds_derive::TypeSupport;
 
     #[derive(TypeSupport)]
-    #[dust_dds(extensibility = "Mutable")]
+    #[dust_dds(extensibility = "mutable")]
     struct MutableStruct {
         #[dust_dds(key, id = 10)]
         _key_field1: u8,
@@ -617,7 +617,7 @@ mod tests {
     }
 
     #[derive(TypeSupport)]
-    #[dust_dds(extensibility = "Final")]
+    #[dust_dds(extensibility = "final")]
     struct Nested {
         #[dust_dds(key)]
         _x: u8,
@@ -625,7 +625,7 @@ mod tests {
         _y: u8,
     }
     #[derive(TypeSupport)]
-    #[dust_dds(extensibility = "Final")]
+    #[dust_dds(extensibility = "final")]
     struct Complex {
         _field1: i64,
         #[dust_dds(key)]
@@ -636,7 +636,7 @@ mod tests {
     }
 
     #[derive(TypeSupport)]
-    #[dust_dds(extensibility = "Final")]
+    #[dust_dds(extensibility = "final")]
     struct Simple {
         #[dust_dds(key)]
         _key_field1: i64,
@@ -769,7 +769,7 @@ mod tests {
     }
 
     #[derive(TypeSupport)]
-    #[dust_dds(extensibility = "Final")]
+    #[dust_dds(extensibility = "final")]
     struct Large {
         #[dust_dds(key)]
         _key_field1: i64,
@@ -909,7 +909,7 @@ mod tests {
     }
 
     #[derive(TypeSupport)]
-    #[dust_dds(extensibility = "Final")]
+    #[dust_dds(extensibility = "final")]
     struct BasicTypes {
         #[dust_dds(key)]
         _f1: bool,

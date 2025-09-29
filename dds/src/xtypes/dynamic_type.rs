@@ -940,7 +940,7 @@ impl<T: TypeSupport> DynamicDataInsert for T {
 
 impl<T: TypeSupport, const N: usize> DynamicDataInsert for [T; N] {
     fn get_dynamic_type() -> DynamicType {
-        T::get_type()
+        DynamicTypeBuilderFactory::create_array_type(T::get_type(), vec![N as u32]).build()
     }
 }
 

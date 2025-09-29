@@ -157,7 +157,10 @@ impl DomainParticipant {
             .unwrap()
             .insert(type_name.clone(), type_.clone());
 
-        let dynamic_type_representation = Arc::new(PythonTypeRepresentation::try_from(type_)?);
+        let dynamic_type_representation =
+            Arc::new(dust_dds::xtypes::dynamic_type::DynamicType::from(
+                PythonTypeRepresentation::try_from(type_)?,
+            ));
         let r = self.0.create_dynamic_topic(
             &topic_name,
             &type_name,

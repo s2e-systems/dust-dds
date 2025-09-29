@@ -1,8 +1,9 @@
+use crate::derive::attributes::get_field_attributes;
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{
-    spanned::Spanned, DataEnum, DeriveInput, Expr, ExprLit, Field, Fields, GenericArgument, Ident,
-    Index, Lit, PathArguments, Result,
+    spanned::Spanned, DataEnum, DeriveInput, Expr, ExprLit, Fields, GenericArgument, Ident, Index,
+    Lit, PathArguments, Result,
 };
 
 pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
@@ -276,21 +277,21 @@ fn get_input_attributes(input: &DeriveInput) -> Result<InputAttributes> {
             if meta.path.is_ident("extensibility") {
                 let format_str: syn::LitStr = meta.value()?.parse()?;
                 match format_str.value().as_ref() {
-                    "Final" => {
+                    "final" => {
                         extensibility = Extensibility::Final;
                         Ok(())
                     }
-                    "Appendable" => {
+                    "appendable" => {
                         extensibility = Extensibility::Appendable;
                         Ok(())
                     }
-                    "Mutable" => {
+                    "mutable" => {
                         extensibility = Extensibility::Mutable;
                         Ok(())
                     }
                     _ => Err(syn::Error::new(
                         meta.path.span(),
-                        r#"Invalid format specified. Valid options are "Final", "Appendable", "Mutable". "#,
+                        r#"Invalid format specified. Valid options are "final", "appendable", "mutable". "#,
                     )),
                 }
             } else if meta.path.is_ident("nested") {
@@ -306,31 +307,6 @@ fn get_input_attributes(input: &DeriveInput) -> Result<InputAttributes> {
         extensibility,
         is_nested,
     })
-}
-
-struct FieldAttributes {
-    pub key: bool,
-    pub id: Option<Expr>,
-}
-
-fn get_field_attributes(field: &Field) -> syn::Result<FieldAttributes> {
-    let mut key = false;
-    let mut id = None;
-    if let Some(xtypes_attribute) = field
-        .attrs
-        .iter()
-        .find(|attr| attr.path().is_ident("dust_dds"))
-    {
-        xtypes_attribute.parse_nested_meta(|meta| {
-            if meta.path.is_ident("key") {
-                key = true;
-            } else if meta.path.is_ident("id") {
-                id = Some(meta.value()?.parse()?);
-            }
-            Ok(())
-        })?;
-    }
-    Ok(FieldAttributes { key, id })
 }
 
 // The return of this function is a Vec instead of a HashMap so that the tests give

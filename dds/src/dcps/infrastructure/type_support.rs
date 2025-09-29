@@ -6,7 +6,7 @@ use crate::{
     },
 };
 use alloc::vec::Vec;
-pub use dust_dds_derive::{DdsDeserialize, DdsSerialize};
+pub use dust_dds_derive::{DdsDeserialize, DdsSerialize, TypeSupport};
 
 /// The TypeSupport trait represents a type that can be transmitted by DDS.
 pub trait TypeSupport {
