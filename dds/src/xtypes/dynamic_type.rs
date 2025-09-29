@@ -79,11 +79,11 @@ impl DynamicTypeBuilderFactory {
         }
     }
 
-    pub fn create_type_copy(r#type: DynamicType) -> DynamicTypeBuilder {
+    pub fn create_type_copy(r#_type: DynamicType) -> DynamicTypeBuilder {
         todo!()
     }
 
-    pub fn create_type_w_type_object(type_object: TypeObject) -> DynamicTypeBuilder {
+    pub fn create_type_w_type_object(_type_object: TypeObject) -> DynamicTypeBuilder {
         todo!()
     }
 
@@ -143,29 +143,29 @@ impl DynamicTypeBuilderFactory {
     }
 
     pub fn create_map_type(
-        key_element_type: DynamicType,
-        element_type: DynamicType,
-        bound: u32,
+        _key_element_type: DynamicType,
+        _element_type: DynamicType,
+        _bound: u32,
     ) -> DynamicTypeBuilder {
         todo!()
     }
 
-    pub fn create_bitmask_type(bound: u32) -> DynamicTypeBuilder {
+    pub fn create_bitmask_type(_bound: u32) -> DynamicTypeBuilder {
         todo!()
     }
 
     pub fn create_type_w_uri(
-        document_url: String,
-        type_name: String,
-        include_paths: Vec<String>,
+        _document_url: String,
+        _type_name: String,
+        _include_paths: Vec<String>,
     ) -> DynamicTypeBuilder {
         todo!()
     }
 
     pub fn create_type_w_document(
-        document: String,
-        type_name: String,
-        include_paths: Vec<String>,
+        _document: String,
+        _type_name: String,
+        _include_paths: Vec<String>,
     ) -> DynamicTypeBuilder {
         todo!()
     }
@@ -275,7 +275,7 @@ impl DynamicTypeBuilder {
         todo!()
     }
 
-    pub fn get_member(&self, id: MemberId) -> Result<DynamicTypeMember, XTypesError> {
+    pub fn get_member(&self, _id: MemberId) -> Result<DynamicTypeMember, XTypesError> {
         todo!()
     }
 
@@ -287,7 +287,7 @@ impl DynamicTypeBuilder {
         todo!()
     }
 
-    pub fn get_annotation(&self, idx: u32) -> XTypesResult<()> {
+    pub fn get_annotation(&self, _idx: u32) -> XTypesResult<()> {
         todo!()
     }
 
@@ -384,7 +384,7 @@ impl DynamicData {
             .ok_or(XTypesError::InvalidIndex)
     }
 
-    pub fn set_descriptor(&mut self, id: MemberId, value: MemberDescriptor) -> XTypesResult<()> {
+    pub fn set_descriptor(&mut self, _id: MemberId, _value: MemberDescriptor) -> XTypesResult<()> {
         todo!()
     }
 
