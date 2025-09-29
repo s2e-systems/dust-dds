@@ -40,7 +40,7 @@ impl TypeSupport for DiscoveredWriterData {
         "DiscoveredWriterData"
     }
 
-    fn get_type() -> impl crate::xtypes::dynamic_type::DynamicType {
+    fn get_type() -> crate::xtypes::dynamic_type::DynamicType {
         dust_dds::xtypes::type_object::CompleteTypeObject::TkStructure {
             struct_type: dust_dds::xtypes::type_object::CompleteStructType {
                 struct_flags: dust_dds::xtypes::type_object::StructTypeFlag {

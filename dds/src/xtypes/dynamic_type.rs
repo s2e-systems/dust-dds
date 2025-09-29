@@ -822,26 +822,16 @@ impl DynamicData {
 
 pub trait DynamicDataInsert {
     fn get_dynamic_type() -> DynamicType;
-
-    fn insert_value(self, dynamic_data: &mut DynamicData, id: MemberId) -> XTypesResult<()>;
 }
 
 impl DynamicDataInsert for u8 {
     fn get_dynamic_type() -> DynamicType {
         DynamicTypeBuilderFactory::get_primitive_type(TK_UINT8)
     }
-
-    fn insert_value(self, dynamic_data: &mut DynamicData, id: MemberId) -> XTypesResult<()> {
-        dynamic_data.set_uint8_value(id, self)
-    }
 }
 impl DynamicDataInsert for i8 {
     fn get_dynamic_type() -> DynamicType {
         DynamicTypeBuilderFactory::get_primitive_type(TK_INT8)
-    }
-
-    fn insert_value(self, dynamic_data: &mut DynamicData, id: MemberId) -> XTypesResult<()> {
-        dynamic_data.set_int8_value(id, self)
     }
 }
 
@@ -849,19 +839,11 @@ impl DynamicDataInsert for u16 {
     fn get_dynamic_type() -> DynamicType {
         DynamicTypeBuilderFactory::get_primitive_type(TK_UINT16)
     }
-
-    fn insert_value(self, dynamic_data: &mut DynamicData, id: MemberId) -> XTypesResult<()> {
-        dynamic_data.set_uint16_value(id, self)
-    }
 }
 
 impl DynamicDataInsert for i16 {
     fn get_dynamic_type() -> DynamicType {
         DynamicTypeBuilderFactory::get_primitive_type(TK_INT16)
-    }
-
-    fn insert_value(self, dynamic_data: &mut DynamicData, id: MemberId) -> XTypesResult<()> {
-        dynamic_data.set_int16_value(id, self)
     }
 }
 
@@ -869,19 +851,11 @@ impl DynamicDataInsert for u32 {
     fn get_dynamic_type() -> DynamicType {
         DynamicTypeBuilderFactory::get_primitive_type(TK_UINT32)
     }
-
-    fn insert_value(self, dynamic_data: &mut DynamicData, id: MemberId) -> XTypesResult<()> {
-        dynamic_data.set_uint32_value(id, self)
-    }
 }
 
 impl DynamicDataInsert for i64 {
     fn get_dynamic_type() -> DynamicType {
         DynamicTypeBuilderFactory::get_primitive_type(TK_INT64)
-    }
-
-    fn insert_value(self, dynamic_data: &mut DynamicData, id: MemberId) -> XTypesResult<()> {
-        dynamic_data.set_int64_value(id, self)
     }
 }
 
@@ -889,19 +863,11 @@ impl DynamicDataInsert for u64 {
     fn get_dynamic_type() -> DynamicType {
         DynamicTypeBuilderFactory::get_primitive_type(TK_UINT64)
     }
-
-    fn insert_value(self, dynamic_data: &mut DynamicData, id: MemberId) -> XTypesResult<()> {
-        dynamic_data.set_uint64_value(id, self)
-    }
 }
 
 impl DynamicDataInsert for i32 {
     fn get_dynamic_type() -> DynamicType {
         DynamicTypeBuilderFactory::get_primitive_type(TK_INT32)
-    }
-
-    fn insert_value(self, dynamic_data: &mut DynamicData, id: MemberId) -> XTypesResult<()> {
-        dynamic_data.set_int32_value(id, self)
     }
 }
 
@@ -909,19 +875,29 @@ impl DynamicDataInsert for String {
     fn get_dynamic_type() -> DynamicType {
         DynamicTypeBuilderFactory::create_string_type(u32::MAX).build()
     }
-
-    fn insert_value(self, dynamic_data: &mut DynamicData, id: MemberId) -> XTypesResult<()> {
-        dynamic_data.set_string_value(id, self)
-    }
 }
 
 impl DynamicDataInsert for bool {
     fn get_dynamic_type() -> DynamicType {
         DynamicTypeBuilderFactory::get_primitive_type(TK_BOOLEAN)
     }
+}
 
-    fn insert_value(self, dynamic_data: &mut DynamicData, id: MemberId) -> XTypesResult<()> {
-        dynamic_data.set_boolean_value(id, self)
+impl DynamicDataInsert for f32 {
+    fn get_dynamic_type() -> DynamicType {
+        DynamicTypeBuilderFactory::get_primitive_type(TK_FLOAT32)
+    }
+}
+
+impl DynamicDataInsert for f64 {
+    fn get_dynamic_type() -> DynamicType {
+        DynamicTypeBuilderFactory::get_primitive_type(TK_FLOAT64)
+    }
+}
+
+impl DynamicDataInsert for char {
+    fn get_dynamic_type() -> DynamicType {
+        DynamicTypeBuilderFactory::get_primitive_type(TK_CHAR8)
     }
 }
 
@@ -929,19 +905,11 @@ impl<const N: usize> DynamicDataInsert for [u8; N] {
     fn get_dynamic_type() -> DynamicType {
         DynamicTypeBuilderFactory::create_array_type(u8::get_dynamic_type(), vec![N as u32]).build()
     }
-
-    fn insert_value(self, dynamic_data: &mut DynamicData, id: MemberId) -> XTypesResult<()> {
-        dynamic_data.set_uint8_values(id, self.to_vec())
-    }
 }
 
 impl DynamicDataInsert for &'_ [u8] {
     fn get_dynamic_type() -> DynamicType {
         DynamicTypeBuilderFactory::create_sequence_type(u8::get_dynamic_type(), u32::MAX).build()
-    }
-
-    fn insert_value(self, dynamic_data: &mut DynamicData, id: MemberId) -> XTypesResult<()> {
-        dynamic_data.set_uint8_values(id, self.to_vec())
     }
 }
 
@@ -949,19 +917,11 @@ impl DynamicDataInsert for Vec<u8> {
     fn get_dynamic_type() -> DynamicType {
         DynamicTypeBuilderFactory::create_sequence_type(u8::get_dynamic_type(), u32::MAX).build()
     }
-
-    fn insert_value(self, dynamic_data: &mut DynamicData, id: MemberId) -> XTypesResult<()> {
-        dynamic_data.set_uint8_values(id, self)
-    }
 }
 
 impl DynamicDataInsert for Vec<u16> {
     fn get_dynamic_type() -> DynamicType {
         DynamicTypeBuilderFactory::create_sequence_type(u16::get_dynamic_type(), u32::MAX).build()
-    }
-
-    fn insert_value(self, dynamic_data: &mut DynamicData, id: MemberId) -> XTypesResult<()> {
-        dynamic_data.set_uint16_values(id, self)
     }
 }
 
@@ -970,29 +930,22 @@ impl DynamicDataInsert for Vec<String> {
         DynamicTypeBuilderFactory::create_sequence_type(String::get_dynamic_type(), u32::MAX)
             .build()
     }
-
-    fn insert_value(self, dynamic_data: &mut DynamicData, id: MemberId) -> XTypesResult<()> {
-        dynamic_data.set_string_values(id, self)
-    }
 }
 
 impl<T: TypeSupport> DynamicDataInsert for T {
     fn get_dynamic_type() -> DynamicType {
         T::get_type()
     }
+}
 
-    fn insert_value(self, dynamic_data: &mut DynamicData, id: MemberId) -> XTypesResult<()> {
-        dynamic_data.set_complex_value(id, T::create_dynamic_sample(self))
+impl<T: TypeSupport, const N: usize> DynamicDataInsert for [T; N] {
+    fn get_dynamic_type() -> DynamicType {
+        T::get_type()
     }
 }
 
 impl<T: TypeSupport> DynamicDataInsert for Vec<T> {
     fn get_dynamic_type() -> DynamicType {
         DynamicTypeBuilderFactory::create_sequence_type(T::get_type(), u32::MAX).build()
-    }
-
-    fn insert_value(self, dynamic_data: &mut DynamicData, id: MemberId) -> XTypesResult<()> {
-        let values = self.into_iter().map(T::create_dynamic_sample).collect();
-        dynamic_data.set_complex_values(id, values)
     }
 }

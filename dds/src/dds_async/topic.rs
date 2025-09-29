@@ -175,7 +175,7 @@ impl<R: DdsRuntime> TopicAsync<R> {
 impl<R: DdsRuntime> TopicAsync<R> {
     #[doc(hidden)]
     #[tracing::instrument(skip(self))]
-    pub async fn get_type_support(&self) -> DdsResult<Arc<dyn DynamicType + Send + Sync>> {
+    pub async fn get_type_support(&self) -> DdsResult<Arc<DynamicType>> {
         let (reply_sender, reply_receiver) = R::oneshot();
         self.participant
             .participant_address()

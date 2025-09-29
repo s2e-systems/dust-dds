@@ -11,7 +11,9 @@ pub use dust_dds_derive::{DdsDeserialize, DdsSerialize};
 /// The TypeSupport trait represents a type that can be transmitted by DDS.
 pub trait TypeSupport {
     /// This operation returns the default name for the data-type represented by the TypeSupport.
-    fn get_type_name() -> &'static str;
+    fn get_type_name() -> &'static str {
+        std::any::type_name::<Self>()
+    }
 
     /// This operation returns a ['DynamicType'] object corresponding to the TypeSupport’s data type
     fn get_type() -> DynamicType;

@@ -61,7 +61,7 @@ pub enum ParticipantServiceMail<R: DdsRuntime> {
         status_condition: Actor<R, DcpsStatusCondition<R>>,
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         mask: Vec<StatusKind>,
-        type_support: Arc<dyn DynamicType + Send + Sync>,
+        type_support: Arc<DynamicType>,
         reply_sender: R::OneshotSender<DdsResult<InstanceHandle>>,
     },
     DeleteUserDefinedTopic {
@@ -82,7 +82,7 @@ pub enum ParticipantServiceMail<R: DdsRuntime> {
     },
     FindTopic {
         topic_name: String,
-        type_support: Arc<dyn DynamicType + Send + Sync>,
+        type_support: Arc<DynamicType>,
         status_condition: Actor<R, DcpsStatusCondition<R>>,
         #[allow(clippy::type_complexity)]
         reply_sender: R::OneshotSender<
@@ -202,7 +202,7 @@ pub enum TopicServiceMail<R: DdsRuntime> {
     },
     GetTypeSupport {
         topic_name: String,
-        reply_sender: R::OneshotSender<DdsResult<Arc<dyn DynamicType + Send + Sync>>>,
+        reply_sender: R::OneshotSender<DdsResult<Arc<DynamicType>>>,
     },
 }
 
