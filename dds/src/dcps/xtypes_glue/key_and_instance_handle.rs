@@ -163,7 +163,7 @@ where
             }
         }
         TK_STRUCTURE => {
-            push_to_key(&dynamic_type, serializer, de)?;
+            push_to_key(dynamic_type, serializer, de)?;
         }
         _ => todo!(),
     }
