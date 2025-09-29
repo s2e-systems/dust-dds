@@ -345,7 +345,7 @@ pub enum TypeIdentifier {
     // ============ The remaining cases - use EquivalenceKind =========
     EkComplete {
         // equivalence_hash: EquivalenceHash, // Original in IDL
-        complete: Box<dyn DynamicType>,
+        complete: Box<DynamicType>,
     },
     EkMinimal {
         minimal: Box<MinimalTypeObject>,

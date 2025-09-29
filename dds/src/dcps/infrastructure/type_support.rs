@@ -14,7 +14,7 @@ pub trait TypeSupport {
     fn get_type_name() -> &'static str;
 
     /// This operation returns a ['DynamicType'] object corresponding to the TypeSupport’s data type
-    fn get_type() -> impl DynamicType;
+    fn get_type() -> DynamicType;
 }
 
 /// This trait defines how to serialize the information contained in a data structure to be published.
