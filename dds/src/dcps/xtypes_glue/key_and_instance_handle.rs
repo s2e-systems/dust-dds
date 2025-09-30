@@ -256,6 +256,18 @@ fn deserialize_and_serialize_if_key_field_for_appendable_cdr<'a>(
                 serializer.serialize_field(&v, "")?;
             }
         }
+        TK_ARRAY => {
+            if is_key_field {
+                for _ in 0..dynamic_type.get_descriptor().bound[0] {
+                    deserialize_and_serialize_if_key_field_for_appendable_cdr(
+                        dynamic_type.get_descriptor().element_type.as_ref().unwrap(),
+                        is_key_field,
+                        de,
+                        serializer,
+                    )?;
+                }
+            }
+        }
         TK_SEQUENCE => {
             let len = de.deserialize_field::<u32>(name)?;
             if is_key_field {
