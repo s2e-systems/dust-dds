@@ -1,6 +1,8 @@
 use alloc::{sync::Arc, vec::Vec};
 use dust_dds_derive::{XTypesDeserialize, XTypesSerialize};
 
+use crate::infrastructure::type_support::TypeSupport;
+
 pub type Octet = u8;
 pub type Short = i16;
 pub type Long = i32;
@@ -34,7 +36,8 @@ pub const USER_DEFINED_TOPIC: Octet = 0x0a;
 /// Type used to hold globally-unique RTPS-entity identifiers. These are identifiers used to uniquely refer to each RTPS Entity in the system.
 /// Must be possible to represent using 16 octets.
 /// The following values are reserved by the protocol: GUID_UNKNOWN
-#[derive(Clone, Copy, PartialEq, Eq, Debug, XTypesSerialize, XTypesDeserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, XTypesSerialize, XTypesDeserialize, TypeSupport)]
+#[dust_dds(extensibility = "final", nested)]
 pub struct Guid {
     prefix: GuidPrefix,
     entity_id: EntityId,
@@ -101,7 +104,8 @@ pub const GUIDPREFIX_UNKNOWN: GuidPrefix = [0; 12];
 /// Type used to hold the suffix part of the globally-unique RTPS-entity identifiers. The
 /// EntityId_t uniquely identifies an Entity within a Participant. Must be possible to represent using 4 octets.
 /// The following values are reserved by the protocol: ENTITYID_UNKNOWN Additional pre-defined values are defined by the Discovery module in 8.5
-#[derive(Clone, Copy, PartialEq, Eq, Debug, XTypesSerialize, XTypesDeserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, XTypesSerialize, XTypesDeserialize, TypeSupport)]
+#[dust_dds(extensibility = "final", nested)]
 pub struct EntityId {
     entity_key: OctetArray3,
     entity_kind: Octet,
@@ -184,7 +188,8 @@ pub enum DurabilityKind {
 /// Type used to represent the addressing information needed to send a message to an RTPS Endpoint using one of the supported transports.
 /// Should be able to hold a discriminator identifying the kind of transport, an address, and a port number. It must be possible to represent the discriminator and port number using 4 octets each, the address using 16 octets.
 /// The following values are reserved by the protocol: LOCATOR_INVALID LOCATOR_KIND_INVALID LOCATOR_KIND_RESERVED LOCATOR_KIND_UDP_V4 LOCATOR_KIND_UDP_V6 LOCATOR_ADDRESS_INVALID LOCATOR_PORT_INVALID
-#[derive(Clone, Copy, PartialEq, Eq, Debug, XTypesSerialize, XTypesDeserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, XTypesSerialize, XTypesDeserialize, TypeSupport)]
+#[dust_dds(extensibility = "final", nested)]
 pub struct Locator {
     kind: Long,
     port: UnsignedLong,
@@ -231,7 +236,8 @@ impl Locator {
 /// The following values are reserved by the protocol: PROTOCOLVERSION PROTOCOLVERSION_1_0 PROTOCOLVERSION_1_1 PROTOCOLVERSION_2_0 PROTOCOLVERSION_2_1 PROTOCOLVERSION_2_2
 /// PROTOCOLVERSION_2_4
 /// PROTOCOLVERSION is an alias for the most recent version, in this case PROTOCOLVERSION_2_4
-#[derive(Clone, Copy, PartialEq, Eq, Debug, XTypesSerialize, XTypesDeserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, XTypesSerialize, XTypesDeserialize, TypeSupport)]
+#[dust_dds(extensibility = "final", nested)]
 pub struct ProtocolVersion {
     bytes: [u8; 2],
 }

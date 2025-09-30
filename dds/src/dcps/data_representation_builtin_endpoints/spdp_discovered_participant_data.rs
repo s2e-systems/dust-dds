@@ -22,23 +22,23 @@ use crate::{
         domain::DomainId,
         error::DdsResult,
         instance::InstanceHandle,
-        qos_policy::DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+        qos_policy::{UserDataQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS},
         time::Duration,
         type_support::{DdsDeserialize, DdsSerialize, TypeSupport},
     },
     transport::types::{GuidPrefix, Locator, Long, ProtocolVersion, VendorId},
-    xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize},
+    xtypes::{deserialize::XTypesDeserialize, dynamic_type::TK_UINT8, serialize::XTypesSerialize},
 };
-use alloc::{
-    boxed::Box,
-    string::{String, ToString},
-    vec,
-    vec::Vec,
+use alloc::{string::String, vec, vec::Vec};
+use dust_dds::xtypes::dynamic_type::{
+    DynamicTypeBuilderFactory, ExtensibilityKind, MemberDescriptor, TryConstructKind,
+    TypeDescriptor, XTypesBinding, TK_STRUCTURE,
 };
 
 pub type Count = Long;
 
-#[derive(PartialEq, Eq, Debug, Clone, Copy, XTypesSerialize, XTypesDeserialize)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy, XTypesSerialize, XTypesDeserialize, TypeSupport)]
+#[dust_dds(extensibility = "final", nested)]
 pub struct BuiltinEndpointSet(pub u32);
 
 impl Default for BuiltinEndpointSet {
@@ -99,7 +99,10 @@ impl BuiltinEndpointSet {
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Default, Clone, Copy, XTypesSerialize, XTypesDeserialize)]
+#[derive(
+    PartialEq, Eq, Debug, Default, Clone, Copy, XTypesSerialize, XTypesDeserialize, TypeSupport,
+)]
+#[dust_dds(extensibility = "final", nested)]
 pub struct BuiltinEndpointQos(pub u32);
 
 impl BuiltinEndpointQos {
@@ -141,65 +144,282 @@ pub struct SpdpDiscoveredParticipantData {
     pub(crate) lease_duration: Duration,
     pub(crate) discovered_participant_list: Vec<InstanceHandle>,
 }
-impl TypeSupport for SpdpDiscoveredParticipantData {
-    fn get_type_name() -> &'static str {
-        "SpdpDiscoveredParticipantData"
-    }
 
-    fn get_type() -> impl crate::xtypes::dynamic_type::DynamicType {
-        dust_dds::xtypes::type_object::CompleteTypeObject::TkStructure {
-            struct_type: dust_dds::xtypes::type_object::CompleteStructType {
-                struct_flags: dust_dds::xtypes::type_object::StructTypeFlag {
-                    is_final: false,
-                    is_appendable: false,
-                    is_mutable: true,
-                    is_nested: false,
-                    is_autoid_hash: false,
-                },
-                header: dust_dds::xtypes::type_object::CompleteStructHeader {
-                    base_type: dust_dds::xtypes::type_object::TypeIdentifier::TkNone,
-                    detail: dust_dds::xtypes::type_object::CompleteTypeDetail {
-                        ann_builtin: None,
-                        ann_custom: None,
-                        type_name: "SpdpDiscoveredParticipantData".to_string(),
-                    },
-                },
-                member_seq: vec![dust_dds::xtypes::type_object::CompleteStructMember {
-                    common: dust_dds::xtypes::type_object::CommonStructMember {
-                        member_id: 0x50u32,
-                        member_flags: dust_dds::xtypes::type_object::StructMemberFlag {
-                            try_construct:
-                                dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
-                            is_external: false,
-                            is_optional: false,
-                            is_must_undestand: true,
-                            is_key: true,
-                        },
-                        member_type_id:
-                        dust_dds::xtypes::type_object::TypeIdentifier::TiPlainArraySmall {
-                            array_sdefn: Box::new(
-                                dust_dds::xtypes::type_object::PlainArraySElemDefn {
-                                    header: dust_dds::xtypes::type_object::PlainCollectionHeader {
-                                        equiv_kind: 0,
-                                        element_flags: dust_dds::xtypes::type_object::CollectionElementFlag {
-                                            try_construct: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
-                                            is_external: false,
-                                        },
-                                    },
-                                    array_bound_seq: vec![16],
-                                    element_identifier: dust_dds::xtypes::type_object::TypeIdentifier::TkUint8Type,
-                                },
-                            ),
-                        },
-                    },
-                    detail: dust_dds::xtypes::type_object::CompleteMemberDetail {
-                        name: "value".to_string(),
-                        ann_builtin: None,
-                        ann_custom: None,
-                    },
-                }],
-            },
-        }
+impl TypeSupport for SpdpDiscoveredParticipantData {
+    fn get_type() -> dust_dds::xtypes::dynamic_type::DynamicType {
+        extern crate alloc;
+        let mut builder = DynamicTypeBuilderFactory::create_type(TypeDescriptor {
+            kind: TK_STRUCTURE,
+            name: String::from("ParticipantProxy"),
+            base_type: None,
+            discriminator_type: None,
+            bound: alloc::vec::Vec::new(),
+            element_type: None,
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Mutable,
+            is_nested: false,
+        });
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("domain_id"),
+                id: PID_DOMAIN_ID as u32,
+                r#type: <DomainId as XTypesBinding>::get_dynamic_type(),
+                default_value: String::new(),
+                index: 0u32,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: alloc::vec::Vec::new(),
+                is_key: false,
+                is_optional: true,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("domain_tag"),
+                id: PID_DOMAIN_TAG as u32,
+                r#type: <String as XTypesBinding>::get_dynamic_type(),
+                default_value: String::new(),
+                index: 1u32,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: alloc::vec::Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("protocol_version"),
+                id: PID_PROTOCOL_VERSION as u32,
+                r#type: <ProtocolVersion as XTypesBinding>::get_dynamic_type(),
+                default_value: String::new(),
+                index: 2u32,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: alloc::vec::Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("guid_prefix"),
+                id: PID_PARTICIPANT_GUID as u32,
+                r#type: DynamicTypeBuilderFactory::create_array_type(
+                    DynamicTypeBuilderFactory::get_primitive_type(TK_UINT8),
+                    vec![16],
+                )
+                .build(),
+                default_value: String::new(),
+                index: 3u32,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: alloc::vec::Vec::new(),
+                is_key: true,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("vendor_id"),
+                id: PID_VENDORID as u32,
+                r#type: <VendorId as XTypesBinding>::get_dynamic_type(),
+                default_value: String::new(),
+                index: 4u32,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: alloc::vec::Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("expects_inline_qos"),
+                id: PID_EXPECTS_INLINE_QOS as u32,
+                r#type: <bool as XTypesBinding>::get_dynamic_type(),
+                default_value: String::new(),
+                index: 5u32,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: alloc::vec::Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("metatraffic_unicast_locator_list"),
+                id: PID_METATRAFFIC_UNICAST_LOCATOR as u32,
+                r#type: <Vec<Locator> as XTypesBinding>::get_dynamic_type(),
+                default_value: String::new(),
+                index: 6u32,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: alloc::vec::Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("metatraffic_multicast_locator_list"),
+                id: PID_METATRAFFIC_MULTICAST_LOCATOR as u32,
+                r#type: <Vec<Locator> as XTypesBinding>::get_dynamic_type(),
+                default_value: String::new(),
+                index: 7u32,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: alloc::vec::Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("default_unicast_locator_list"),
+                id: PID_METATRAFFIC_UNICAST_LOCATOR as u32,
+                r#type: <Vec<Locator> as XTypesBinding>::get_dynamic_type(),
+                default_value: String::new(),
+                index: 8u32,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: alloc::vec::Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("default_multicast_locator_list"),
+                id: PID_METATRAFFIC_MULTICAST_LOCATOR as u32,
+                r#type: <Vec<Locator> as XTypesBinding>::get_dynamic_type(),
+                default_value: String::new(),
+                index: 9u32,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: alloc::vec::Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("available_builtin_endpoints"),
+                id: PID_BUILTIN_ENDPOINT_SET as u32,
+                r#type: <BuiltinEndpointSet as XTypesBinding>::get_dynamic_type(),
+                default_value: String::new(),
+                index: 10u32,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: alloc::vec::Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("manual_liveliness_count"),
+                id: PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT as u32,
+                r#type: <Count as XTypesBinding>::get_dynamic_type(),
+                default_value: String::new(),
+                index: 11u32,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: alloc::vec::Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("builtin_endpoint_qos"),
+                id: PID_BUILTIN_ENDPOINT_QOS as u32,
+                r#type: <BuiltinEndpointQos as XTypesBinding>::get_dynamic_type(),
+                default_value: String::new(),
+                index: 12u32,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: alloc::vec::Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("user_data"),
+                id: PID_USER_DATA as u32,
+                r#type: <UserDataQosPolicy as XTypesBinding>::get_dynamic_type(),
+                default_value: String::new(),
+                index: 13u32,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: alloc::vec::Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("lease_duration"),
+                id: PID_PARTICIPANT_LEASE_DURATION as u32,
+                r#type: <Duration as XTypesBinding>::get_dynamic_type(),
+                default_value: String::new(),
+                index: 14u32,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: alloc::vec::Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("discovered_participant_list"),
+                id: PID_DISCOVERED_PARTICIPANT as u32,
+                r#type: <UserDataQosPolicy as XTypesBinding>::get_dynamic_type(),
+                default_value: String::new(),
+                index: 15u32,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: alloc::vec::Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder.build()
     }
 }
 

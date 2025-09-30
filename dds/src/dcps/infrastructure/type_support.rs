@@ -6,15 +6,17 @@ use crate::{
     },
 };
 use alloc::vec::Vec;
-pub use dust_dds_derive::{DdsDeserialize, DdsSerialize};
+pub use dust_dds_derive::{DdsDeserialize, DdsSerialize, TypeSupport};
 
 /// The TypeSupport trait represents a type that can be transmitted by DDS.
 pub trait TypeSupport {
     /// This operation returns the default name for the data-type represented by the TypeSupport.
-    fn get_type_name() -> &'static str;
+    fn get_type_name() -> &'static str {
+        core::any::type_name::<Self>()
+    }
 
     /// This operation returns a ['DynamicType'] object corresponding to the TypeSupport’s data type
-    fn get_type() -> impl DynamicType;
+    fn get_type() -> DynamicType;
 }
 
 /// This trait defines how to serialize the information contained in a data structure to be published.

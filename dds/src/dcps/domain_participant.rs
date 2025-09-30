@@ -374,7 +374,7 @@ where
     pub fn get_type_support(
         &mut self,
         topic_name: String,
-    ) -> DdsResult<Arc<dyn DynamicType + Send + Sync>> {
+    ) -> DdsResult<Arc<DynamicType>> {
         let Some(topic) = self
             .domain_participant
             .topic_list
@@ -581,7 +581,7 @@ where
         status_condition: Actor<R, DcpsStatusCondition<R>>,
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         mask: Vec<StatusKind>,
-        type_support: Arc<dyn DynamicType + Send + Sync>,
+        type_support: Arc<DynamicType>,
     ) -> DdsResult<InstanceHandle> {
         if self
             .domain_participant
@@ -731,7 +731,7 @@ where
     pub fn find_topic(
         &mut self,
         topic_name: String,
-        type_support: Arc<dyn DynamicType + Send + Sync>,
+        type_support: Arc<DynamicType>,
         status_condition: Actor<R, DcpsStatusCondition<R>>,
     ) -> DdsResult<
         Option<(
@@ -5249,7 +5249,7 @@ where
 }
 
 #[tracing::instrument(skip(type_support))]
-fn get_topic_kind(type_support: &dyn DynamicType) -> TopicKind {
+fn get_topic_kind(type_support: &DynamicType) -> TopicKind {
     for index in 0..type_support.get_member_count() {
         if let Ok(m) = type_support.get_member_by_index(index) {
             if let Ok(d) = m.get_descriptor() {
@@ -5743,7 +5743,7 @@ pub struct TopicEntity<R: DdsRuntime> {
     status_condition: Actor<R, DcpsStatusCondition<R>>,
     _listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
     _status_kind: Vec<StatusKind>,
-    type_support: Arc<dyn DynamicType + Send + Sync>,
+    type_support: Arc<DynamicType>,
 }
 
 impl<R: DdsRuntime> TopicEntity<R> {
@@ -5756,7 +5756,7 @@ impl<R: DdsRuntime> TopicEntity<R> {
         status_condition: Actor<R, DcpsStatusCondition<R>>,
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         status_kind: Vec<StatusKind>,
-        type_support: Arc<dyn DynamicType + Send + Sync>,
+        type_support: Arc<DynamicType>,
     ) -> Self {
         Self {
             qos,
@@ -5839,7 +5839,7 @@ pub struct DataWriterEntity<R: DdsRuntime, T: TransportParticipantFactory> {
     transport_writer: TransportWriterKind<T>,
     topic_name: String,
     type_name: String,
-    type_support: Arc<dyn DynamicType + Send + Sync>,
+    type_support: Arc<DynamicType>,
     matched_subscription_list: Vec<SubscriptionBuiltinTopicData>,
     publication_matched_status: PublicationMatchedStatus,
     incompatible_subscription_list: Vec<InstanceHandle>,
@@ -5864,7 +5864,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
         transport_writer: TransportWriterKind<T>,
         topic_name: String,
         type_name: String,
-        type_support: Arc<dyn DynamicType + Send + Sync>,
+        type_support: Arc<DynamicType>,
         status_condition: Actor<R, DcpsStatusCondition<R>>,
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         listener_mask: Vec<StatusKind>,
@@ -6393,7 +6393,7 @@ pub struct DataReaderEntity<R: DdsRuntime, T: TransportParticipantFactory> {
     qos: DataReaderQos,
     topic_name: String,
     type_name: String,
-    type_support: Arc<dyn DynamicType + Send + Sync>,
+    type_support: Arc<DynamicType>,
     requested_deadline_missed_status: RequestedDeadlineMissedStatus,
     requested_incompatible_qos_status: RequestedIncompatibleQosStatus,
     sample_rejected_status: SampleRejectedStatus,
@@ -6417,7 +6417,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
         qos: DataReaderQos,
         topic_name: String,
         type_name: String,
-        type_support: Arc<dyn DynamicType + Send + Sync>,
+        type_support: Arc<DynamicType>,
         status_condition: Actor<R, DcpsStatusCondition<R>>,
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         listener_mask: Vec<StatusKind>,

@@ -159,7 +159,7 @@ impl<R: DdsRuntime> DomainParticipant<R> {
         qos: QosKind<TopicQos>,
         a_listener: Option<impl TopicListener<R> + Send + 'static>,
         mask: &[StatusKind],
-        dynamic_type_representation: Arc<dyn DynamicType + Send + Sync>,
+        dynamic_type_representation: Arc<DynamicType>,
     ) -> DdsResult<TopicDescription<R>> {
         R::block_on(self.participant_async.create_dynamic_topic(
             topic_name,

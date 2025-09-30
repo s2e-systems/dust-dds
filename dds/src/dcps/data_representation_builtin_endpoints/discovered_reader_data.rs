@@ -13,15 +13,29 @@ use super::{
     },
 };
 use crate::{
-    builtin_topics::SubscriptionBuiltinTopicData,
+    builtin_topics::{BuiltInTopicKey, SubscriptionBuiltinTopicData},
     infrastructure::{
         error::DdsResult,
-        qos_policy::DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-        type_support::{DdsDeserialize, DdsSerialize, TypeSupport},
+        qos_policy::{
+            DataRepresentationQosPolicy, DeadlineQosPolicy, DestinationOrderQosPolicy,
+            DurabilityQosPolicy, GroupDataQosPolicy, LatencyBudgetQosPolicy, LivelinessQosPolicy,
+            OwnershipQosPolicy, PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy,
+            TimeBasedFilterQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
+            DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+        },
+        type_support::{DdsDeserialize, DdsSerialize},
     },
     transport::types::{EntityId, Guid, Locator},
+    xtypes::dynamic_type::TK_UINT8,
 };
-use alloc::{boxed::Box, string::ToString, vec, vec::Vec};
+use alloc::{string::String, vec, vec::Vec};
+use dust_dds::{
+    infrastructure::type_support::TypeSupport,
+    xtypes::dynamic_type::{
+        DynamicTypeBuilderFactory, ExtensibilityKind, MemberDescriptor, TryConstructKind,
+        TypeDescriptor, XTypesBinding, TK_STRUCTURE,
+    },
+};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ReaderProxy {
@@ -37,66 +51,397 @@ pub struct DiscoveredReaderData {
     pub(crate) dds_subscription_data: SubscriptionBuiltinTopicData,
     pub(crate) reader_proxy: ReaderProxy,
 }
-impl TypeSupport for DiscoveredReaderData {
-    fn get_type_name() -> &'static str {
-        "DiscoveredReaderData"
-    }
 
-    fn get_type() -> impl crate::xtypes::dynamic_type::DynamicType {
-        dust_dds::xtypes::type_object::CompleteTypeObject::TkStructure {
-            struct_type: dust_dds::xtypes::type_object::CompleteStructType {
-                struct_flags: dust_dds::xtypes::type_object::StructTypeFlag {
-                    is_final: false,
-                    is_appendable: false,
-                    is_mutable: true,
-                    is_nested: false,
-                    is_autoid_hash: false,
-                },
-                header: dust_dds::xtypes::type_object::CompleteStructHeader {
-                    base_type: dust_dds::xtypes::type_object::TypeIdentifier::TkNone,
-                    detail: dust_dds::xtypes::type_object::CompleteTypeDetail {
-                        ann_builtin: None,
-                        ann_custom: None,
-                        type_name: "DiscoveredReaderData".to_string(),
-                    },
-                },
-                member_seq: vec![dust_dds::xtypes::type_object::CompleteStructMember {
-                    common: dust_dds::xtypes::type_object::CommonStructMember {
-                        member_id: 0x5Au32,
-                        member_flags: dust_dds::xtypes::type_object::StructMemberFlag {
-                            try_construct:
-                                dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
-                            is_external: false,
-                            is_optional: false,
-                            is_must_undestand: true,
-                            is_key: true,
-                        },
-                        member_type_id: dust_dds::xtypes::type_object::TypeIdentifier::TiPlainArraySmall {
-                            array_sdefn: Box::new(
-                                dust_dds::xtypes::type_object::PlainArraySElemDefn {
-                                    header: dust_dds::xtypes::type_object::PlainCollectionHeader {
-                                        equiv_kind: 0,
-                                        element_flags: dust_dds::xtypes::type_object::CollectionElementFlag {
-                                            try_construct: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
-                                            is_external: false,
-                                        },
-                                    },
-                                    array_bound_seq: vec![16],
-                                    element_identifier: dust_dds::xtypes::type_object::TypeIdentifier::TkUint8Type,
-                                },
-                            ),
-                        },
-                    },
-                    detail: dust_dds::xtypes::type_object::CompleteMemberDetail {
-                        name: "value".to_string(),
-                        ann_builtin: None,
-                        ann_custom: None,
-                    },
-                }],
-            },
-        }
+impl TypeSupport for DiscoveredReaderData {
+    fn get_type() -> dust_dds::xtypes::dynamic_type::DynamicType {
+        extern crate alloc;
+        let mut builder = DynamicTypeBuilderFactory::create_type(TypeDescriptor {
+            kind: TK_STRUCTURE,
+            name: String::from("DiscoveredReaderData"),
+            base_type: None,
+            discriminator_type: None,
+            bound: Vec::new(),
+            element_type: None,
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Mutable,
+            is_nested: false,
+        });
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("key"),
+                id: PID_ENDPOINT_GUID as u32,
+                r#type: DynamicTypeBuilderFactory::create_array_type(
+                    DynamicTypeBuilderFactory::get_primitive_type(TK_UINT8),
+                    vec![16],
+                )
+                .build(),
+                default_value: String::new(),
+                index: 0u32,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: Vec::new(),
+                is_key: true,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("participant_key"),
+                id: PID_PARTICIPANT_GUID as u32,
+                r#type: <BuiltInTopicKey as XTypesBinding>::get_dynamic_type(),
+                default_value: String::new(),
+                index: 1u32,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("topic_name"),
+                id: PID_TOPIC_NAME as u32,
+                r#type: <String as XTypesBinding>::get_dynamic_type(),
+                default_value: String::new(),
+                index: 2u32,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("type_name"),
+                id: PID_TYPE_NAME as u32,
+                r#type: <String as XTypesBinding>::get_dynamic_type(),
+                default_value: String::new(),
+                index: 3u32,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("durability"),
+                id: PID_DURABILITY as u32,
+                r#type: <DurabilityQosPolicy as XTypesBinding>::get_dynamic_type(),
+                default_value: String::new(),
+                index: 4u32,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("deadline"),
+                id: PID_DEADLINE as u32,
+                r#type: <DeadlineQosPolicy as XTypesBinding>::get_dynamic_type(),
+                default_value: String::new(),
+                index: 5u32,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("latency_budget"),
+                id: PID_LATENCY_BUDGET as u32,
+                r#type: <LatencyBudgetQosPolicy as XTypesBinding>::get_dynamic_type(),
+                default_value: String::new(),
+                index: 6u32,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("liveliness"),
+                id: PID_LIVELINESS as u32,
+                r#type: <LivelinessQosPolicy as XTypesBinding>::get_dynamic_type(),
+                default_value: String::new(),
+                index: 7u32,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("reliability"),
+                id: PID_RELIABILITY as u32,
+                r#type: <ReliabilityQosPolicy as XTypesBinding>::get_dynamic_type(),
+                default_value: String::new(),
+                index: 8u32,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("ownership"),
+                id: PID_OWNERSHIP as u32,
+                r#type: <OwnershipQosPolicy as XTypesBinding>::get_dynamic_type(),
+                default_value: String::new(),
+                index: 9u32,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("destination_order"),
+                id: PID_DESTINATION_ORDER as u32,
+                r#type: <DestinationOrderQosPolicy as XTypesBinding>::get_dynamic_type(),
+                default_value: String::new(),
+                index: 10u32,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("user_data"),
+                id: PID_USER_DATA as u32,
+                r#type: <UserDataQosPolicy as XTypesBinding>::get_dynamic_type(),
+                default_value: String::new(),
+                index: 11u32,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("time_based_filter"),
+                id: PID_TIME_BASED_FILTER as u32,
+                r#type: <TimeBasedFilterQosPolicy as XTypesBinding>::get_dynamic_type(),
+                default_value: String::new(),
+                index: 12u32,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("presentation"),
+                id: PID_PRESENTATION as u32,
+                r#type: <PresentationQosPolicy as XTypesBinding>::get_dynamic_type(),
+                default_value: String::new(),
+                index: 13u32,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("partition"),
+                id: PID_PARTITION as u32,
+                r#type: <PartitionQosPolicy as XTypesBinding>::get_dynamic_type(),
+                default_value: String::new(),
+                index: 14u32,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("topic_data"),
+                id: PID_TOPIC_DATA as u32,
+                r#type: <TopicDataQosPolicy as XTypesBinding>::get_dynamic_type(),
+                default_value: String::new(),
+                index: 15u32,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("group_data"),
+                id: PID_GROUP_DATA as u32,
+                r#type: <GroupDataQosPolicy as XTypesBinding>::get_dynamic_type(),
+                default_value: String::new(),
+                index: 16u32,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("representation"),
+                id: PID_DATA_REPRESENTATION as u32,
+                r#type: <DataRepresentationQosPolicy as XTypesBinding>::get_dynamic_type(),
+                default_value: String::new(),
+                index: 17u32,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("remote_reader_guid"),
+                id: PID_ENDPOINT_GUID as u32,
+                r#type: <Guid as XTypesBinding>::get_dynamic_type(),
+                default_value: String::new(),
+                index: 18u32,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("remote_group_entity_id"),
+                id: PID_GROUP_ENTITYID as u32,
+                r#type: <EntityId as XTypesBinding>::get_dynamic_type(),
+                default_value: String::new(),
+                index: 19u32,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("unicast_locator_list"),
+                id: PID_UNICAST_LOCATOR as u32,
+                r#type: <Vec<Locator> as XTypesBinding>::get_dynamic_type(),
+                default_value: String::new(),
+                index: 20u32,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("multicast_locator_list"),
+                id: PID_MULTICAST_LOCATOR as u32,
+                r#type: <Vec<Locator> as XTypesBinding>::get_dynamic_type(),
+                default_value: String::new(),
+                index: 21u32,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("expects_inline_qos"),
+                id: PID_EXPECTS_INLINE_QOS as u32,
+                r#type: <bool as XTypesBinding>::get_dynamic_type(),
+                default_value: String::new(),
+                index: 22u32,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder.build()
     }
 }
+
 impl DdsSerialize for DiscoveredReaderData {
     fn serialize_data(&self) -> DdsResult<Vec<u8>> {
         let mut serializer = ParameterListCdrSerializer::default();

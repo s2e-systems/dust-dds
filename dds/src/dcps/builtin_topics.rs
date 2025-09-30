@@ -1,6 +1,12 @@
-use super::infrastructure::error::DdsResult;
-use super::{
-    data_representation_builtin_endpoints::{
+use super::infrastructure::qos_policy::{
+    DataRepresentationQosPolicy, DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
+    GroupDataQosPolicy, HistoryQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy,
+    LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy, PartitionQosPolicy,
+    PresentationQosPolicy, ReliabilityQosPolicy, ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy,
+    TopicDataQosPolicy, TransportPriorityQosPolicy, UserDataQosPolicy,
+};
+use crate::{
+    dcps::data_representation_builtin_endpoints::{
         parameter_id_values::{
             PID_DATA_REPRESENTATION, PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY,
             PID_ENDPOINT_GUID, PID_GROUP_DATA, PID_HISTORY, PID_LATENCY_BUDGET, PID_LIFESPAN,
@@ -12,20 +18,15 @@ use super::{
         payload_serializer_deserializer::parameter_list_serializer::ParameterListCdrSerializer,
     },
     infrastructure::{
+        error::DdsResult,
         qos_policy::{
-            DataRepresentationQosPolicy, DeadlineQosPolicy, DestinationOrderQosPolicy,
-            DurabilityQosPolicy, GroupDataQosPolicy, HistoryQosPolicy, LatencyBudgetQosPolicy,
-            LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy,
-            PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy,
-            ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy,
-            TransportPriorityQosPolicy, UserDataQosPolicy,
             DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
             DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
         },
-        type_support::DdsSerialize,
+        type_support::{DdsSerialize, TypeSupport},
     },
+    xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize},
 };
-use crate::xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize};
 use alloc::{string::String, vec::Vec};
 
 /// Topic name of the built-in publication discovery topic
@@ -41,14 +42,15 @@ pub const DCPS_TOPIC: &str = "DCPSTopic";
 pub const DCPS_PARTICIPANT: &str = "DCPSParticipant";
 
 /// Structure representing the instance handle (or key) of an entity.
-#[derive(Debug, PartialEq, Eq, Clone, Default, XTypesSerialize, XTypesDeserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Default, XTypesSerialize, XTypesDeserialize, TypeSupport)]
+#[dust_dds(extensibility = "appendable", nested)]
 pub struct BuiltInTopicKey {
     /// InstanceHandle value as an array of 16 octets.
     pub value: [u8; 16], // Originally in the DDS idl [i32;3]
 }
 
 /// Structure representing a discovered [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant).
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, XTypesSerialize, XTypesDeserialize)]
 pub struct ParticipantBuiltinTopicData {
     pub(crate) key: BuiltInTopicKey,
     pub(crate) user_data: UserDataQosPolicy,
