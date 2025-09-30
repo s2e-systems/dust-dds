@@ -28,12 +28,12 @@ use crate::{
     transport::types::{EntityId, Guid, Locator},
     xtypes::dynamic_type::TK_UINT8,
 };
-use alloc::{string::String, vec::Vec};
+use alloc::{string::String, vec, vec::Vec};
 use dust_dds::{
     infrastructure::type_support::TypeSupport,
     xtypes::dynamic_type::{
-        XTypesBinding, DynamicTypeBuilderFactory, ExtensibilityKind, MemberDescriptor,
-        TryConstructKind, TypeDescriptor, TK_STRUCTURE,
+        DynamicTypeBuilderFactory, ExtensibilityKind, MemberDescriptor, TryConstructKind,
+        TypeDescriptor, XTypesBinding, TK_STRUCTURE,
     },
 };
 

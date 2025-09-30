@@ -29,10 +29,10 @@ use crate::{
     transport::types::{GuidPrefix, Locator, Long, ProtocolVersion, VendorId},
     xtypes::{deserialize::XTypesDeserialize, dynamic_type::TK_UINT8, serialize::XTypesSerialize},
 };
-use alloc::{string::String, vec::Vec};
+use alloc::{string::String, vec, vec::Vec};
 use dust_dds::xtypes::dynamic_type::{
-    XTypesBinding, DynamicTypeBuilderFactory, ExtensibilityKind, MemberDescriptor,
-    TryConstructKind, TypeDescriptor, TK_STRUCTURE,
+    DynamicTypeBuilderFactory, ExtensibilityKind, MemberDescriptor, TryConstructKind,
+    TypeDescriptor, XTypesBinding, TK_STRUCTURE,
 };
 
 pub type Count = Long;
