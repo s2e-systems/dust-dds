@@ -27,7 +27,7 @@ use crate::{
     },
     xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize},
 };
-use alloc::string::String;
+use alloc::{string::String, vec::Vec};
 
 /// Topic name of the built-in publication discovery topic
 pub const DCPS_PUBLICATION: &str = "DCPSPublication";

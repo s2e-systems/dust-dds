@@ -6,7 +6,7 @@ use crate::{
 };
 
 use super::error::XTypesError;
-use alloc::{collections::BTreeMap, string::String, vec::Vec};
+use alloc::{boxed::Box, collections::BTreeMap, string::String, vec, vec::Vec};
 
 pub type BoundSeq = Vec<u32>;
 pub type IncludePathSeq = Vec<String>;

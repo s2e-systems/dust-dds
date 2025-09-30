@@ -12,7 +12,7 @@ pub use dust_dds_derive::{DdsDeserialize, DdsSerialize, TypeSupport};
 pub trait TypeSupport {
     /// This operation returns the default name for the data-type represented by the TypeSupport.
     fn get_type_name() -> &'static str {
-        std::any::type_name::<Self>()
+        core::any::type_name::<Self>()
     }
 
     /// This operation returns a ['DynamicType'] object corresponding to the TypeSupport’s data type
