@@ -42,7 +42,8 @@ impl<R: DdsRuntime, Foo> Clone for DataWriter<R, Foo> {
 }
 
 impl<R: DdsRuntime, Foo> DataWriter<R, Foo> {
-    pub(crate) fn writer_async(&self) -> &DataWriterAsync<R, Foo> {
+    /// write
+    pub fn writer_async(&self) -> &DataWriterAsync<R, Foo> {
         &self.writer_async
     }
 }

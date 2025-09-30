@@ -2,12 +2,11 @@ pub mod shapes_type {
     include!(concat!(env!("OUT_DIR"), "/idl/shapes_type.rs"));
 }
 
-use crate::shapes_widget::ShapesMarker;
-
 use self::shapes_type::ShapeType;
 use super::shapes_widget::{GuiShape, MovingShapeObject, ShapesWidget};
+use crate::shapes_widget::ShapesMarker;
 use dust_dds::{
-    dds_async::data_reader::DataReaderAsync,
+    dds_async::data_writer::DataWriterAsync,
     domain::{
         domain_participant::DomainParticipant, domain_participant_factory::DomainParticipantFactory,
     },
@@ -19,25 +18,21 @@ use dust_dds::{
             WriterDataLifecycleQosPolicy,
         },
         sample_info::{InstanceStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-        status::NO_STATUS,
+        status::{OfferedDeadlineMissedStatus, StatusKind, NO_STATUS},
         time::{Duration, DurationKind},
-        type_support::DdsType,
     },
     listener::NO_LISTENER,
-    publication::{data_writer::DataWriter, publisher::Publisher},
-    std_runtime::StdRuntime,
-    subscription::{
-        data_reader::DataReader, data_reader_listener::DataReaderListener, subscriber::Subscriber,
+    publication::{
+        data_writer::DataWriter, data_writer_listener::DataWriterListener, publisher::Publisher,
     },
+    std_runtime::StdRuntime,
+    subscription::{data_reader::DataReader, subscriber::Subscriber},
 };
 use eframe::{
     egui::{self},
     epaint::vec2,
 };
-use std::{
-    sync::{Arc, Mutex},
-    time::Instant,
-};
+use std::sync::{Arc, Mutex};
 
 impl From<InstanceStateKind> for ShapesMarker {
     fn from(value: InstanceStateKind) -> Self {
@@ -51,15 +46,17 @@ impl From<InstanceStateKind> for ShapesMarker {
 
 struct ShapeWriter {
     writer: DataWriter<StdRuntime, ShapeType>,
-    shape: MovingShapeObject,
+    shape: Arc<Mutex<MovingShapeObject>>,
 }
 impl ShapeWriter {
-    fn write(&self) {
-        let data = self.shape.gui_shape().as_shape_type();
-        self.writer.write(&data, None).ok();
-    }
     fn color(&self) -> String {
-        self.shape.gui_shape().as_shape_type().color.clone()
+        self.shape
+            .lock()
+            .expect("shape_lockable")
+            .gui_shape()
+            .as_shape_type()
+            .color
+            .clone()
     }
 }
 fn reliability_kind(kind: &ReliabilityQosPolicyKind) -> &'static str {
@@ -110,39 +107,12 @@ pub struct ShapesDemoApp {
     publisher: Publisher<StdRuntime>,
     subscriber: Subscriber<StdRuntime>,
     reader_list: Vec<DataReader<StdRuntime, ShapeType>>,
-    writer_list: Arc<Mutex<Vec<ShapeWriter>>>,
+    writer_list: Vec<ShapeWriter>,
     time: f64,
     is_reliable_reader: bool,
     publish_widget: Option<PublishWidget>,
-    planner: Planner,
-    instant: std::time::Instant,
 }
 
-struct Planner {
-    writer_list: Arc<Mutex<Vec<ShapeWriter>>>,
-    rate: Arc<Mutex<u64>>,
-}
-
-impl Planner {
-    fn new(writer_list: Arc<Mutex<Vec<ShapeWriter>>>) -> Self {
-        Self {
-            writer_list,
-            rate: Arc::new(Mutex::new(25)),
-        }
-    }
-
-    fn start(&mut self) {
-        let writer_list_clone = self.writer_list.clone();
-        let rate_clone = self.rate.clone();
-        std::thread::spawn(move || loop {
-            let rate = *rate_clone.lock().unwrap();
-            for writer in writer_list_clone.lock().unwrap().iter() {
-                writer.write()
-            }
-            std::thread::sleep(std::time::Duration::from_millis(rate));
-        });
-    }
-}
 impl Default for ShapesDemoApp {
     fn default() -> Self {
         let domain_id = 0;
@@ -157,21 +127,15 @@ impl Default for ShapesDemoApp {
             .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
             .unwrap();
 
-        let writer_list = Arc::new(Mutex::new(Vec::new()));
-        let mut planner = Planner::new(writer_list.clone());
-        planner.start();
-
         Self {
             participant,
             publisher,
             subscriber,
             reader_list: vec![],
-            writer_list,
+            writer_list: vec![],
             time: 0.0,
             is_reliable_reader: false,
             publish_widget: None,
-            planner,
-            instant: Instant::now(),
         }
     }
 }
@@ -199,48 +163,83 @@ impl ShapesDemoApp {
         let writer_data_lifecycle = WriterDataLifecycleQosPolicy {
             autodispose_unregistered_instances: false,
         };
-        let qos = if is_reliable {
-            DataWriterQos {
-                reliability: ReliabilityQosPolicy {
-                    kind: ReliabilityQosPolicyKind::Reliable,
-                    max_blocking_time: DurationKind::Infinite,
-                },
-                destination_order: DestinationOrderQosPolicy {
-                    kind: DestinationOrderQosPolicyKind::BySourceTimestamp,
-                },
-                writer_data_lifecycle,
-                ..Default::default()
+        let reliability = if is_reliable {
+            ReliabilityQosPolicy {
+                kind: ReliabilityQosPolicyKind::Reliable,
+                max_blocking_time: DurationKind::Infinite,
             }
         } else {
-            DataWriterQos {
-                reliability: ReliabilityQosPolicy {
-                    kind: ReliabilityQosPolicyKind::BestEffort,
-                    max_blocking_time: DurationKind::Infinite,
-                },
-                writer_data_lifecycle,
-                ..Default::default()
+            ReliabilityQosPolicy {
+                kind: ReliabilityQosPolicyKind::BestEffort,
+                max_blocking_time: DurationKind::Infinite,
             }
         };
+
+        let qos = DataWriterQos {
+            reliability,
+            destination_order: DestinationOrderQosPolicy {
+                kind: DestinationOrderQosPolicyKind::BySourceTimestamp,
+            },
+            deadline: DeadlineQosPolicy {
+                period: DurationKind::Finite(Duration::new(0, 1_000_000_000)),
+            },
+            writer_data_lifecycle,
+            ..Default::default()
+        };
+
         let writer = self
             .publisher
             .create_datawriter(&topic, QosKind::Specific(qos), NO_LISTENER, NO_STATUS)
             .unwrap();
 
         let velocity = vec2(30.0, 20.0);
-        let shape_type = &ShapeType {
+        let shape_type = ShapeType {
             color: color.to_string(),
             x: 100,
             y: 80,
             shapesize: 30,
         };
+        writer.write(&shape_type, None).ok();
 
-        let shape = MovingShapeObject::new(
-            GuiShape::from_shape_type(shape_kind, shape_type, 255, ShapesMarker::Blank),
+        let shape = Arc::new(Mutex::new(MovingShapeObject::new(
+            GuiShape::from_shape_type(shape_kind, &shape_type, 255, ShapesMarker::Blank),
             velocity,
-        );
+        )));
+        struct Listener {
+            shape: Arc<Mutex<MovingShapeObject>>,
+            start: std::time::Instant
+        }
+
+        impl<R: dust_dds::runtime::DdsRuntime> DataWriterListener<R, ShapeType> for Listener {
+            async fn on_offered_deadline_missed(
+                &mut self,
+                the_writer: DataWriterAsync<R, ShapeType>,
+                status: OfferedDeadlineMissedStatus,
+            ) {
+                let s = the_writer.get_offered_deadline_missed_status().await;
+                println!("[{:?}] {:?} {:?}", self.start.elapsed(), status, s);
+                let data = self
+                    .shape
+                    .lock()
+                    .expect("shape_lockable")
+                    .gui_shape()
+                    .as_shape_type();
+                the_writer.write(&data, None).await.ok();
+            }
+        }
+        writer
+            .set_listener(
+                Some(Listener {
+                    shape: shape.clone(),
+                    start: std::time::Instant::now()
+                }),
+                &[StatusKind::OfferedDeadlineMissed],
+            )
+            .unwrap();
 
         let shape_writer = ShapeWriter { writer, shape };
-        self.writer_list.lock().unwrap().push(shape_writer);
+
+        self.writer_list.push(shape_writer);
     }
 
     fn create_reader(&mut self, topic_name: &str, is_reliable: bool) {
@@ -305,9 +304,8 @@ impl ShapesDemoApp {
 
         ui.separator();
         ui.label("Publish rate [ms]:");
-        let mut rate = *self.planner.rate.lock().unwrap();
+        let mut rate = 50;
         ui.add(egui::Slider::new(&mut rate, 5..=500));
-        *self.planner.rate.lock().unwrap() = rate;
 
         ui.separator();
         ui.heading("Subscribe");
@@ -374,48 +372,45 @@ impl eframe::App for ShapesDemoApp {
                             ui.label("Color");
                             ui.label("Reliability");
                             ui.end_row();
-                            self.writer_list
-                                .lock()
-                                .expect("Writer list locking failed")
-                                .retain(|shape_writer| {
-                                    let dispose_button = ui
-                                        .button("D")
-                                        .on_hover_text("Dispose instance and delete data writer");
-                                    let unregister_button = ui.button("U").on_hover_text(
-                                        "Unregister instance and delete data writer",
-                                    );
-                                    ui.label("writer");
-                                    ui.label(shape_writer.writer.get_topic().get_name());
-                                    ui.label(shape_writer.color());
-                                    ui.label(reliability_kind(
-                                        &shape_writer.writer.get_qos().unwrap().reliability.kind,
-                                    ));
-                                    ui.end_row();
-                                    let instance = &ShapeType {
-                                        color: shape_writer.color(),
-                                        x: Default::default(),
-                                        y: Default::default(),
-                                        shapesize: Default::default(),
-                                    };
-                                    if dispose_button.clicked() {
-                                        shape_writer.writer.dispose(instance, None).unwrap();
-                                    };
-                                    if unregister_button.clicked() {
-                                        shape_writer
-                                            .writer
-                                            .unregister_instance(instance, None)
-                                            .unwrap();
-                                    };
-                                    if dispose_button.clicked() || unregister_button.clicked() {
-                                        shape_writer
-                                            .writer
-                                            .get_publisher()
-                                            .delete_datawriter(&shape_writer.writer)
-                                            .is_err()
-                                    } else {
-                                        true
-                                    }
-                                });
+                            self.writer_list.retain(|shape_writer| {
+                                let dispose_button = ui
+                                    .button("D")
+                                    .on_hover_text("Dispose instance and delete data writer");
+                                let unregister_button = ui
+                                    .button("U")
+                                    .on_hover_text("Unregister instance and delete data writer");
+                                ui.label("writer");
+                                ui.label(shape_writer.writer.get_topic().get_name());
+                                ui.label(shape_writer.color());
+                                ui.label(reliability_kind(
+                                    &shape_writer.writer.get_qos().unwrap().reliability.kind,
+                                ));
+                                ui.end_row();
+                                let instance = &ShapeType {
+                                    color: shape_writer.color(),
+                                    x: Default::default(),
+                                    y: Default::default(),
+                                    shapesize: Default::default(),
+                                };
+                                if dispose_button.clicked() {
+                                    shape_writer.writer.dispose(instance, None).unwrap();
+                                };
+                                if unregister_button.clicked() {
+                                    shape_writer
+                                        .writer
+                                        .unregister_instance(instance, None)
+                                        .unwrap();
+                                };
+                                if dispose_button.clicked() || unregister_button.clicked() {
+                                    shape_writer
+                                        .writer
+                                        .get_publisher()
+                                        .delete_datawriter(&shape_writer.writer)
+                                        .is_err()
+                                } else {
+                                    true
+                                }
+                            });
 
                             ui.end_row();
                             self.reader_list.retain(|reader| {
@@ -476,81 +471,24 @@ impl eframe::App for ShapesDemoApp {
             let time = ui.input(|i| i.time);
             let time_delta = (time - self.time) as f32;
             self.time = time;
-            for writer in self.writer_list.lock().unwrap().iter_mut() {
-                writer.shape.move_within_rect(rect_size, time_delta);
-                shape_list.push(writer.shape.gui_shape().clone());
+            for writer in self.writer_list.iter_mut() {
+                writer
+                    .shape
+                    .lock()
+                    .expect("shape_lockable")
+                    .move_within_rect(rect_size, time_delta);
+                shape_list.push(
+                    writer
+                        .shape
+                        .lock()
+                        .expect("shape_lockable")
+                        .gui_shape()
+                        .clone(),
+                );
             }
             ui.add(ShapesWidget::new(rect_size, shape_list.as_slice()));
 
             ctx.request_repaint_after(std::time::Duration::from_millis(40));
-            // ctx.request_repaint();
         });
     }
-}
-
-#[test]
-fn timer_test() {
-    #[derive(DdsType)]
-    struct TestType;
-
-    let participant_factory = DomainParticipantFactory::get_instance();
-    let participant = participant_factory
-        .create_participant(0, QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
-    let topic = participant
-        .create_topic::<TestType>(
-            "TestTopic",
-            "TestType",
-            QosKind::Default,
-            NO_LISTENER,
-            NO_STATUS,
-        )
-        .unwrap();
-
-    let subscriber = participant
-        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
-    let publisher = participant
-        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
-    let writer = publisher
-        .create_datawriter(
-            &topic,
-            QosKind::Specific(DataWriterQos {
-                deadline: DeadlineQosPolicy {
-                    period: DurationKind::Finite(Duration::new(0, 10_000_000)),
-                },
-                ..Default::default()
-            }),
-            NO_LISTENER,
-            NO_STATUS,
-        )
-        .unwrap();
-
-    struct Listener;
-    impl<R: dust_dds::runtime::DdsRuntime> DataReaderListener<R, TestType> for Listener {
-        async fn on_requested_deadline_missed(&mut self, _the_reader: DataReaderAsync<R, TestType>) {
-            println!("on_requested_deadline_missed")
-        }
-    }
-    let reader = subscriber
-        .create_datareader(
-            &topic,
-            QosKind::Specific(DataReaderQos {
-                deadline: DeadlineQosPolicy {
-                    period: DurationKind::Finite(Duration::new(0, 10_000_000)),
-                },
-                ..Default::default()
-            }),
-            Some(Listener),
-            NO_STATUS,
-        )
-        .unwrap();
-    std::thread::sleep(std::time::Duration::from_secs(2));
-    writer.write(&TestType, None).unwrap();
-    std::thread::sleep(std::time::Duration::from_secs(1));
-    reader
-        .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-        .unwrap();
-    std::thread::sleep(std::time::Duration::from_secs(2));
 }

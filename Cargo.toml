@@ -19,5 +19,6 @@ default-members = [
     "dds_gen",
     "bindings/python",
     "nostd_test_project",
+    "shapes_demo"
 ]
 resolver = "2"
