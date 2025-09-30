@@ -1,7 +1,7 @@
 use crate::{
     infrastructure::error::DdsResult,
     xtypes::{
-        dynamic_type::DynamicType,
+        dynamic_type::{DynamicData, DynamicType},
         xcdr_deserializer::{Xcdr2BeDeserializer, Xcdr2LeDeserializer},
     },
 };
@@ -17,6 +17,9 @@ pub trait TypeSupport {
 
     /// This operation returns a ['DynamicType'] object corresponding to the TypeSupport’s data type
     fn get_type() -> DynamicType;
+
+    /// Create a 'DynamicData' object with the contents of an input sample of the TypeSupport’s data type.
+    fn create_dynamic_sample(self) -> DynamicData;
 }
 
 /// This trait defines how to serialize the information contained in a data structure to be published.

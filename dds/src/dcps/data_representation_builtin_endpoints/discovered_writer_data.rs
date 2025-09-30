@@ -435,6 +435,10 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredWriterDat
             .unwrap();
         builder.build()
     }
+
+    fn create_dynamic_sample(self) -> crate::xtypes::dynamic_type::DynamicData {
+        todo!()
+    }
 }
 
 impl DdsSerialize for DiscoveredWriterData {

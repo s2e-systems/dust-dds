@@ -309,6 +309,10 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredTopicData
             .unwrap();
         builder.build()
     }
+
+    fn create_dynamic_sample(self) -> crate::xtypes::dynamic_type::DynamicData {
+        todo!()
+    }
 }
 
 impl DdsSerialize for DiscoveredTopicData {

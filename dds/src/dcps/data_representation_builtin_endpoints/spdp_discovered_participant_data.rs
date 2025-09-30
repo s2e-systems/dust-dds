@@ -421,6 +421,10 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
             .unwrap();
         builder.build()
     }
+
+    fn create_dynamic_sample(self) -> crate::xtypes::dynamic_type::DynamicData {
+        todo!()
+    }
 }
 
 impl DdsSerialize for ParticipantBuiltinTopicData {

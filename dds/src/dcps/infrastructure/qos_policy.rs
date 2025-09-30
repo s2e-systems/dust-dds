@@ -9,7 +9,7 @@ use crate::{
         bytes::{ByteBuf, Bytes},
         deserialize::XTypesDeserialize,
         deserializer::{DeserializeFinalStruct, XTypesDeserializer},
-        dynamic_type::{XTypesBinding, DynamicTypeBuilderFactory, TK_INT32},
+        dynamic_type::{DynamicTypeBuilderFactory, XTypesBinding, TK_INT32},
         error::XTypesError,
         serialize::{XTypesSerialize, XTypesSerializer},
         serializer::SerializeFinalStruct,
@@ -33,6 +33,14 @@ pub enum Length {
 impl XTypesBinding for Length {
     fn get_dynamic_type() -> crate::xtypes::dynamic_type::DynamicType {
         DynamicTypeBuilderFactory::get_primitive_type(TK_INT32)
+    }
+
+    fn insert_value(
+        self,
+        _dynamic_data: &mut crate::xtypes::dynamic_type::DynamicData,
+        _id: crate::xtypes::dynamic_type::MemberId,
+    ) -> crate::xtypes::error::XTypesResult<()> {
+        todo!()
     }
 }
 
@@ -1156,6 +1164,10 @@ impl TypeSupport for HistoryQosPolicyKind {
         );
         builder.build()
     }
+
+    fn create_dynamic_sample(self) -> crate::xtypes::dynamic_type::DynamicData {
+        todo!()
+    }
 }
 
 impl XTypesSerialize for HistoryQosPolicyKind {
@@ -1267,6 +1279,10 @@ impl dust_dds::infrastructure::type_support::TypeSupport for HistoryQosPolicy {
             })
             .unwrap();
         builder.build()
+    }
+
+    fn create_dynamic_sample(self) -> crate::xtypes::dynamic_type::DynamicData {
+        todo!()
     }
 }
 

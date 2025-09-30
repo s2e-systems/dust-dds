@@ -25,7 +25,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
     let is_nested = input_attributes.is_nested;
 
     let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
-    let get_type_quote = match &input.data {
+    let (get_type_quote, create_dynamic_sample_quote) = match &input.data {
         syn::Data::Struct(data_struct) => {
             let struct_builder = quote! {
                 extern crate alloc;
@@ -148,7 +148,12 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 builder.build()
             };
 
-            Ok(get_type_quote)
+            let create_dynamic_sample_quote = quote! {
+                let mut data = dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type());
+                #(#member_dynamic_sample_seq)*
+                data
+            };
+            Ok((get_type_quote, create_dynamic_sample_quote))
         }
         syn::Data::Enum(data_enum) => {
             // Separate between Unions and Enumeration which are both
@@ -175,7 +180,8 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     builder.build()
                 };
 
-                Ok(get_type_quote)
+                let create_dynamic_sample_quote = quote! {todo!()};
+                Ok((get_type_quote, create_dynamic_sample_quote))
             } else {
                 // Note: Mapping has to be done with a match self strategy because the enum might not be copy so casting it using e.g. "self as i64" would
                 // be consuming it.
@@ -186,7 +192,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     .max()
                     .expect("Map contains at least a value");
 
-                let (discriminator_type, _discriminator_dynamic_value) = if max_discriminator
+                let (discriminator_type, discriminator_dynamic_value) = if max_discriminator
                     > 0usize
                     && max_discriminator <= u8::MAX as usize
                 {
@@ -235,7 +241,12 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     builder.build()
                 };
 
-                Ok(get_type_quote)
+                let create_dynamic_sample_quote = quote! {
+                    let mut data = dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type());
+                    #discriminator_dynamic_value
+                    data
+                };
+                Ok((get_type_quote, create_dynamic_sample_quote))
             }
         }
         syn::Data::Union(data_union) => Err(syn::Error::new(
@@ -249,6 +260,10 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
             fn get_type() -> dust_dds::xtypes::dynamic_type::DynamicType
             {
                 #get_type_quote
+            }
+
+            fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
+                #create_dynamic_sample_quote
             }
         }
     })
