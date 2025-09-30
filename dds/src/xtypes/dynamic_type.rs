@@ -396,8 +396,12 @@ impl DynamicData {
             .map(|m| m.get_id())
     }
 
-    pub fn get_member_id_at_index(&self, index: u32) -> Option<MemberId> {
-        self.abstract_data.keys().nth(index as usize).cloned()
+    pub fn get_member_id_at_index(&self, index: u32) -> XTypesResult<MemberId> {
+        self.abstract_data
+            .keys()
+            .nth(index as usize)
+            .cloned()
+            .ok_or(XTypesError::InvalidIndex)
     }
 
     pub fn get_item_count(&self) -> u32 {
