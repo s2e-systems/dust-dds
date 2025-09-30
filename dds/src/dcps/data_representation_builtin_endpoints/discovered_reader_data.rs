@@ -32,7 +32,7 @@ use alloc::{string::String, vec::Vec};
 use dust_dds::{
     infrastructure::type_support::TypeSupport,
     xtypes::dynamic_type::{
-        DynamicDataInsert, DynamicTypeBuilderFactory, ExtensibilityKind, MemberDescriptor,
+        XTypesBinding, DynamicTypeBuilderFactory, ExtensibilityKind, MemberDescriptor,
         TryConstructKind, TypeDescriptor, TK_STRUCTURE,
     },
 };
@@ -90,7 +90,7 @@ impl TypeSupport for DiscoveredReaderData {
             .add_member(MemberDescriptor {
                 name: String::from("participant_key"),
                 id: PID_PARTICIPANT_GUID as u32,
-                r#type: <BuiltInTopicKey as DynamicDataInsert>::get_dynamic_type(),
+                r#type: <BuiltInTopicKey as XTypesBinding>::get_dynamic_type(),
                 default_value: String::new(),
                 index: 1u32,
                 try_construct_kind: TryConstructKind::UseDefault,
@@ -106,7 +106,7 @@ impl TypeSupport for DiscoveredReaderData {
             .add_member(MemberDescriptor {
                 name: String::from("topic_name"),
                 id: PID_TOPIC_NAME as u32,
-                r#type: <String as DynamicDataInsert>::get_dynamic_type(),
+                r#type: <String as XTypesBinding>::get_dynamic_type(),
                 default_value: String::new(),
                 index: 2u32,
                 try_construct_kind: TryConstructKind::UseDefault,
@@ -122,7 +122,7 @@ impl TypeSupport for DiscoveredReaderData {
             .add_member(MemberDescriptor {
                 name: String::from("type_name"),
                 id: PID_TYPE_NAME as u32,
-                r#type: <String as DynamicDataInsert>::get_dynamic_type(),
+                r#type: <String as XTypesBinding>::get_dynamic_type(),
                 default_value: String::new(),
                 index: 3u32,
                 try_construct_kind: TryConstructKind::UseDefault,
@@ -138,7 +138,7 @@ impl TypeSupport for DiscoveredReaderData {
             .add_member(MemberDescriptor {
                 name: String::from("durability"),
                 id: PID_DURABILITY as u32,
-                r#type: <DurabilityQosPolicy as DynamicDataInsert>::get_dynamic_type(),
+                r#type: <DurabilityQosPolicy as XTypesBinding>::get_dynamic_type(),
                 default_value: String::new(),
                 index: 4u32,
                 try_construct_kind: TryConstructKind::UseDefault,
@@ -154,7 +154,7 @@ impl TypeSupport for DiscoveredReaderData {
             .add_member(MemberDescriptor {
                 name: String::from("deadline"),
                 id: PID_DEADLINE as u32,
-                r#type: <DeadlineQosPolicy as DynamicDataInsert>::get_dynamic_type(),
+                r#type: <DeadlineQosPolicy as XTypesBinding>::get_dynamic_type(),
                 default_value: String::new(),
                 index: 5u32,
                 try_construct_kind: TryConstructKind::UseDefault,
@@ -170,7 +170,7 @@ impl TypeSupport for DiscoveredReaderData {
             .add_member(MemberDescriptor {
                 name: String::from("latency_budget"),
                 id: PID_LATENCY_BUDGET as u32,
-                r#type: <LatencyBudgetQosPolicy as DynamicDataInsert>::get_dynamic_type(),
+                r#type: <LatencyBudgetQosPolicy as XTypesBinding>::get_dynamic_type(),
                 default_value: String::new(),
                 index: 6u32,
                 try_construct_kind: TryConstructKind::UseDefault,
@@ -186,7 +186,7 @@ impl TypeSupport for DiscoveredReaderData {
             .add_member(MemberDescriptor {
                 name: String::from("liveliness"),
                 id: PID_LIVELINESS as u32,
-                r#type: <LivelinessQosPolicy as DynamicDataInsert>::get_dynamic_type(),
+                r#type: <LivelinessQosPolicy as XTypesBinding>::get_dynamic_type(),
                 default_value: String::new(),
                 index: 7u32,
                 try_construct_kind: TryConstructKind::UseDefault,
@@ -202,7 +202,7 @@ impl TypeSupport for DiscoveredReaderData {
             .add_member(MemberDescriptor {
                 name: String::from("reliability"),
                 id: PID_RELIABILITY as u32,
-                r#type: <ReliabilityQosPolicy as DynamicDataInsert>::get_dynamic_type(),
+                r#type: <ReliabilityQosPolicy as XTypesBinding>::get_dynamic_type(),
                 default_value: String::new(),
                 index: 8u32,
                 try_construct_kind: TryConstructKind::UseDefault,
@@ -218,7 +218,7 @@ impl TypeSupport for DiscoveredReaderData {
             .add_member(MemberDescriptor {
                 name: String::from("ownership"),
                 id: PID_OWNERSHIP as u32,
-                r#type: <OwnershipQosPolicy as DynamicDataInsert>::get_dynamic_type(),
+                r#type: <OwnershipQosPolicy as XTypesBinding>::get_dynamic_type(),
                 default_value: String::new(),
                 index: 9u32,
                 try_construct_kind: TryConstructKind::UseDefault,
@@ -234,7 +234,7 @@ impl TypeSupport for DiscoveredReaderData {
             .add_member(MemberDescriptor {
                 name: String::from("destination_order"),
                 id: PID_DESTINATION_ORDER as u32,
-                r#type: <DestinationOrderQosPolicy as DynamicDataInsert>::get_dynamic_type(),
+                r#type: <DestinationOrderQosPolicy as XTypesBinding>::get_dynamic_type(),
                 default_value: String::new(),
                 index: 10u32,
                 try_construct_kind: TryConstructKind::UseDefault,
@@ -250,7 +250,7 @@ impl TypeSupport for DiscoveredReaderData {
             .add_member(MemberDescriptor {
                 name: String::from("user_data"),
                 id: PID_USER_DATA as u32,
-                r#type: <UserDataQosPolicy as DynamicDataInsert>::get_dynamic_type(),
+                r#type: <UserDataQosPolicy as XTypesBinding>::get_dynamic_type(),
                 default_value: String::new(),
                 index: 11u32,
                 try_construct_kind: TryConstructKind::UseDefault,
@@ -266,7 +266,7 @@ impl TypeSupport for DiscoveredReaderData {
             .add_member(MemberDescriptor {
                 name: String::from("time_based_filter"),
                 id: PID_TIME_BASED_FILTER as u32,
-                r#type: <TimeBasedFilterQosPolicy as DynamicDataInsert>::get_dynamic_type(),
+                r#type: <TimeBasedFilterQosPolicy as XTypesBinding>::get_dynamic_type(),
                 default_value: String::new(),
                 index: 12u32,
                 try_construct_kind: TryConstructKind::UseDefault,
@@ -282,7 +282,7 @@ impl TypeSupport for DiscoveredReaderData {
             .add_member(MemberDescriptor {
                 name: String::from("presentation"),
                 id: PID_PRESENTATION as u32,
-                r#type: <PresentationQosPolicy as DynamicDataInsert>::get_dynamic_type(),
+                r#type: <PresentationQosPolicy as XTypesBinding>::get_dynamic_type(),
                 default_value: String::new(),
                 index: 13u32,
                 try_construct_kind: TryConstructKind::UseDefault,
@@ -298,7 +298,7 @@ impl TypeSupport for DiscoveredReaderData {
             .add_member(MemberDescriptor {
                 name: String::from("partition"),
                 id: PID_PARTITION as u32,
-                r#type: <PartitionQosPolicy as DynamicDataInsert>::get_dynamic_type(),
+                r#type: <PartitionQosPolicy as XTypesBinding>::get_dynamic_type(),
                 default_value: String::new(),
                 index: 14u32,
                 try_construct_kind: TryConstructKind::UseDefault,
@@ -314,7 +314,7 @@ impl TypeSupport for DiscoveredReaderData {
             .add_member(MemberDescriptor {
                 name: String::from("topic_data"),
                 id: PID_TOPIC_DATA as u32,
-                r#type: <TopicDataQosPolicy as DynamicDataInsert>::get_dynamic_type(),
+                r#type: <TopicDataQosPolicy as XTypesBinding>::get_dynamic_type(),
                 default_value: String::new(),
                 index: 15u32,
                 try_construct_kind: TryConstructKind::UseDefault,
@@ -330,7 +330,7 @@ impl TypeSupport for DiscoveredReaderData {
             .add_member(MemberDescriptor {
                 name: String::from("group_data"),
                 id: PID_GROUP_DATA as u32,
-                r#type: <GroupDataQosPolicy as DynamicDataInsert>::get_dynamic_type(),
+                r#type: <GroupDataQosPolicy as XTypesBinding>::get_dynamic_type(),
                 default_value: String::new(),
                 index: 16u32,
                 try_construct_kind: TryConstructKind::UseDefault,
@@ -346,7 +346,7 @@ impl TypeSupport for DiscoveredReaderData {
             .add_member(MemberDescriptor {
                 name: String::from("representation"),
                 id: PID_DATA_REPRESENTATION as u32,
-                r#type: <DataRepresentationQosPolicy as DynamicDataInsert>::get_dynamic_type(),
+                r#type: <DataRepresentationQosPolicy as XTypesBinding>::get_dynamic_type(),
                 default_value: String::new(),
                 index: 17u32,
                 try_construct_kind: TryConstructKind::UseDefault,
@@ -362,7 +362,7 @@ impl TypeSupport for DiscoveredReaderData {
             .add_member(MemberDescriptor {
                 name: String::from("remote_reader_guid"),
                 id: PID_ENDPOINT_GUID as u32,
-                r#type: <Guid as DynamicDataInsert>::get_dynamic_type(),
+                r#type: <Guid as XTypesBinding>::get_dynamic_type(),
                 default_value: String::new(),
                 index: 18u32,
                 try_construct_kind: TryConstructKind::UseDefault,
@@ -378,7 +378,7 @@ impl TypeSupport for DiscoveredReaderData {
             .add_member(MemberDescriptor {
                 name: String::from("remote_group_entity_id"),
                 id: PID_GROUP_ENTITYID as u32,
-                r#type: <EntityId as DynamicDataInsert>::get_dynamic_type(),
+                r#type: <EntityId as XTypesBinding>::get_dynamic_type(),
                 default_value: String::new(),
                 index: 19u32,
                 try_construct_kind: TryConstructKind::UseDefault,
@@ -394,7 +394,7 @@ impl TypeSupport for DiscoveredReaderData {
             .add_member(MemberDescriptor {
                 name: String::from("unicast_locator_list"),
                 id: PID_UNICAST_LOCATOR as u32,
-                r#type: <Vec<Locator> as DynamicDataInsert>::get_dynamic_type(),
+                r#type: <Vec<Locator> as XTypesBinding>::get_dynamic_type(),
                 default_value: String::new(),
                 index: 20u32,
                 try_construct_kind: TryConstructKind::UseDefault,
@@ -410,7 +410,7 @@ impl TypeSupport for DiscoveredReaderData {
             .add_member(MemberDescriptor {
                 name: String::from("multicast_locator_list"),
                 id: PID_MULTICAST_LOCATOR as u32,
-                r#type: <Vec<Locator> as DynamicDataInsert>::get_dynamic_type(),
+                r#type: <Vec<Locator> as XTypesBinding>::get_dynamic_type(),
                 default_value: String::new(),
                 index: 21u32,
                 try_construct_kind: TryConstructKind::UseDefault,
@@ -426,7 +426,7 @@ impl TypeSupport for DiscoveredReaderData {
             .add_member(MemberDescriptor {
                 name: String::from("expects_inline_qos"),
                 id: PID_EXPECTS_INLINE_QOS as u32,
-                r#type: <bool as DynamicDataInsert>::get_dynamic_type(),
+                r#type: <bool as XTypesBinding>::get_dynamic_type(),
                 default_value: String::new(),
                 index: 22u32,
                 try_construct_kind: TryConstructKind::UseDefault,

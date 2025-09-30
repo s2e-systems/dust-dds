@@ -31,7 +31,7 @@ use crate::{
 };
 use alloc::{string::String, vec::Vec};
 use dust_dds::xtypes::dynamic_type::{
-    DynamicDataInsert, DynamicTypeBuilderFactory, ExtensibilityKind, MemberDescriptor,
+    XTypesBinding, DynamicTypeBuilderFactory, ExtensibilityKind, MemberDescriptor,
     TryConstructKind, TypeDescriptor, TK_STRUCTURE,
 };
 
@@ -163,7 +163,7 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
             .add_member(MemberDescriptor {
                 name: String::from("domain_id"),
                 id: PID_DOMAIN_ID as u32,
-                r#type: <DomainId as DynamicDataInsert>::get_dynamic_type(),
+                r#type: <DomainId as XTypesBinding>::get_dynamic_type(),
                 default_value: String::new(),
                 index: 0u32,
                 try_construct_kind: TryConstructKind::UseDefault,
@@ -179,7 +179,7 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
             .add_member(MemberDescriptor {
                 name: String::from("domain_tag"),
                 id: PID_DOMAIN_TAG as u32,
-                r#type: <String as DynamicDataInsert>::get_dynamic_type(),
+                r#type: <String as XTypesBinding>::get_dynamic_type(),
                 default_value: String::new(),
                 index: 1u32,
                 try_construct_kind: TryConstructKind::UseDefault,
@@ -195,7 +195,7 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
             .add_member(MemberDescriptor {
                 name: String::from("protocol_version"),
                 id: PID_PROTOCOL_VERSION as u32,
-                r#type: <ProtocolVersion as DynamicDataInsert>::get_dynamic_type(),
+                r#type: <ProtocolVersion as XTypesBinding>::get_dynamic_type(),
                 default_value: String::new(),
                 index: 2u32,
                 try_construct_kind: TryConstructKind::UseDefault,
@@ -231,7 +231,7 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
             .add_member(MemberDescriptor {
                 name: String::from("vendor_id"),
                 id: PID_VENDORID as u32,
-                r#type: <VendorId as DynamicDataInsert>::get_dynamic_type(),
+                r#type: <VendorId as XTypesBinding>::get_dynamic_type(),
                 default_value: String::new(),
                 index: 4u32,
                 try_construct_kind: TryConstructKind::UseDefault,
@@ -247,7 +247,7 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
             .add_member(MemberDescriptor {
                 name: String::from("expects_inline_qos"),
                 id: PID_EXPECTS_INLINE_QOS as u32,
-                r#type: <bool as DynamicDataInsert>::get_dynamic_type(),
+                r#type: <bool as XTypesBinding>::get_dynamic_type(),
                 default_value: String::new(),
                 index: 5u32,
                 try_construct_kind: TryConstructKind::UseDefault,
@@ -263,7 +263,7 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
             .add_member(MemberDescriptor {
                 name: String::from("metatraffic_unicast_locator_list"),
                 id: PID_METATRAFFIC_UNICAST_LOCATOR as u32,
-                r#type: <Vec<Locator> as DynamicDataInsert>::get_dynamic_type(),
+                r#type: <Vec<Locator> as XTypesBinding>::get_dynamic_type(),
                 default_value: String::new(),
                 index: 6u32,
                 try_construct_kind: TryConstructKind::UseDefault,
@@ -279,7 +279,7 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
             .add_member(MemberDescriptor {
                 name: String::from("metatraffic_multicast_locator_list"),
                 id: PID_METATRAFFIC_MULTICAST_LOCATOR as u32,
-                r#type: <Vec<Locator> as DynamicDataInsert>::get_dynamic_type(),
+                r#type: <Vec<Locator> as XTypesBinding>::get_dynamic_type(),
                 default_value: String::new(),
                 index: 7u32,
                 try_construct_kind: TryConstructKind::UseDefault,
@@ -295,7 +295,7 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
             .add_member(MemberDescriptor {
                 name: String::from("default_unicast_locator_list"),
                 id: PID_METATRAFFIC_UNICAST_LOCATOR as u32,
-                r#type: <Vec<Locator> as DynamicDataInsert>::get_dynamic_type(),
+                r#type: <Vec<Locator> as XTypesBinding>::get_dynamic_type(),
                 default_value: String::new(),
                 index: 8u32,
                 try_construct_kind: TryConstructKind::UseDefault,
@@ -311,7 +311,7 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
             .add_member(MemberDescriptor {
                 name: String::from("default_multicast_locator_list"),
                 id: PID_METATRAFFIC_MULTICAST_LOCATOR as u32,
-                r#type: <Vec<Locator> as DynamicDataInsert>::get_dynamic_type(),
+                r#type: <Vec<Locator> as XTypesBinding>::get_dynamic_type(),
                 default_value: String::new(),
                 index: 9u32,
                 try_construct_kind: TryConstructKind::UseDefault,
@@ -327,7 +327,7 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
             .add_member(MemberDescriptor {
                 name: String::from("available_builtin_endpoints"),
                 id: PID_BUILTIN_ENDPOINT_SET as u32,
-                r#type: <BuiltinEndpointSet as DynamicDataInsert>::get_dynamic_type(),
+                r#type: <BuiltinEndpointSet as XTypesBinding>::get_dynamic_type(),
                 default_value: String::new(),
                 index: 10u32,
                 try_construct_kind: TryConstructKind::UseDefault,
@@ -343,7 +343,7 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
             .add_member(MemberDescriptor {
                 name: String::from("manual_liveliness_count"),
                 id: PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT as u32,
-                r#type: <Count as DynamicDataInsert>::get_dynamic_type(),
+                r#type: <Count as XTypesBinding>::get_dynamic_type(),
                 default_value: String::new(),
                 index: 11u32,
                 try_construct_kind: TryConstructKind::UseDefault,
@@ -359,7 +359,7 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
             .add_member(MemberDescriptor {
                 name: String::from("builtin_endpoint_qos"),
                 id: PID_BUILTIN_ENDPOINT_QOS as u32,
-                r#type: <BuiltinEndpointQos as DynamicDataInsert>::get_dynamic_type(),
+                r#type: <BuiltinEndpointQos as XTypesBinding>::get_dynamic_type(),
                 default_value: String::new(),
                 index: 12u32,
                 try_construct_kind: TryConstructKind::UseDefault,
@@ -375,7 +375,7 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
             .add_member(MemberDescriptor {
                 name: String::from("user_data"),
                 id: PID_USER_DATA as u32,
-                r#type: <UserDataQosPolicy as DynamicDataInsert>::get_dynamic_type(),
+                r#type: <UserDataQosPolicy as XTypesBinding>::get_dynamic_type(),
                 default_value: String::new(),
                 index: 13u32,
                 try_construct_kind: TryConstructKind::UseDefault,
@@ -391,7 +391,7 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
             .add_member(MemberDescriptor {
                 name: String::from("lease_duration"),
                 id: PID_PARTICIPANT_LEASE_DURATION as u32,
-                r#type: <Duration as DynamicDataInsert>::get_dynamic_type(),
+                r#type: <Duration as XTypesBinding>::get_dynamic_type(),
                 default_value: String::new(),
                 index: 14u32,
                 try_construct_kind: TryConstructKind::UseDefault,
@@ -407,7 +407,7 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
             .add_member(MemberDescriptor {
                 name: String::from("discovered_participant_list"),
                 id: PID_DISCOVERED_PARTICIPANT as u32,
-                r#type: <UserDataQosPolicy as DynamicDataInsert>::get_dynamic_type(),
+                r#type: <UserDataQosPolicy as XTypesBinding>::get_dynamic_type(),
                 default_value: String::new(),
                 index: 15u32,
                 try_construct_kind: TryConstructKind::UseDefault,

@@ -9,7 +9,7 @@ use crate::{
         bytes::{ByteBuf, Bytes},
         deserialize::XTypesDeserialize,
         deserializer::{DeserializeFinalStruct, XTypesDeserializer},
-        dynamic_type::{DynamicDataInsert, DynamicTypeBuilderFactory, TK_INT32},
+        dynamic_type::{XTypesBinding, DynamicTypeBuilderFactory, TK_INT32},
         error::XTypesError,
         serialize::{XTypesSerialize, XTypesSerializer},
         serializer::SerializeFinalStruct,
@@ -30,7 +30,7 @@ pub enum Length {
     Limited(u32),
 }
 
-impl DynamicDataInsert for Length {
+impl XTypesBinding for Length {
     fn get_dynamic_type() -> crate::xtypes::dynamic_type::DynamicType {
         DynamicTypeBuilderFactory::get_primitive_type(TK_INT32)
     }

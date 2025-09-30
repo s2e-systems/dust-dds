@@ -94,7 +94,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                          builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
                             name: alloc::string::String::from(#field_name),
                             id: #member_id,
-                            r#type: <#member_type as dust_dds::xtypes::dynamic_type::DynamicDataInsert>::get_dynamic_type(),
+                            r#type: <#member_type as dust_dds::xtypes::dynamic_type::XTypesBinding>::get_dynamic_type(),
                             default_value: alloc::string::String::new(),
                             index: #index,
                             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
@@ -113,7 +113,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                         if is_optional {
                             member_dynamic_sample_seq.push(quote! {
                             if let Some(x) = self.#field_ident {
-                                dust_dds::xtypes::dynamic_type::DynamicDataInsert::insert_value(x, &mut data, #member_id).unwrap();
+                                dust_dds::xtypes::dynamic_type::XTypesBinding::insert_value(x, &mut data, #member_id).unwrap();
                             }
                         });
                         } else {
@@ -121,7 +121,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                             #field_ident: dust_dds::infrastructure::type_support::TypeSupport::create_sample(src.remove_value(#member_id)?)?,
                         });
                             member_dynamic_sample_seq.push(quote! {
-                            dust_dds::xtypes::dynamic_type::DynamicDataInsert::insert_value(self.#field_ident, &mut data, #member_id).unwrap();
+                            dust_dds::xtypes::dynamic_type::XTypesBinding::insert_value(self.#field_ident, &mut data, #member_id).unwrap();
                         });
                         }
                     }
@@ -129,7 +129,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                         let index = Index::from(field_index);
                         member_sample_seq.extend(quote! {  dust_dds::infrastructure::type_support::TypeSupport::create_sample(src.remove_value(#member_id)?)?,});
                         member_dynamic_sample_seq.push(quote! {
-                            dust_dds::xtypes::dynamic_type::DynamicDataInsert::insert_value(self.#index, &mut data, #member_id).unwrap();
+                            dust_dds::xtypes::dynamic_type::XTypesBinding::insert_value(self.#index, &mut data, #member_id).unwrap();
                         })
                     }
                 }
