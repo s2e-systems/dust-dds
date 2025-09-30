@@ -12,33 +12,167 @@ use super::{
     },
 };
 use crate::{
-    builtin_topics::PublicationBuiltinTopicData,
+    builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData},
     infrastructure::{
         error::DdsResult,
-        qos_policy::DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
-        type_support::{DdsDeserialize, DdsSerialize, TypeSupport},
+        qos_policy::{
+            DataRepresentationQosPolicy, DeadlineQosPolicy, DestinationOrderQosPolicy,
+            DurabilityQosPolicy, GroupDataQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy,
+            LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy,
+            PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy, TopicDataQosPolicy,
+            UserDataQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
+        },
+        type_support::{DdsDeserialize, DdsSerialize},
     },
     transport::types::{EntityId, Guid, Locator},
 };
 use alloc::vec::Vec;
 
-#[derive(Debug, PartialEq, Eq, Clone, TypeSupport)]
-#[dust_dds(extensibility = "mutable")]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct WriterProxy {
-    #[dust_dds(id=PID_ENDPOINT_GUID as u32)]
     pub remote_writer_guid: Guid,
-    #[dust_dds(id=PID_GROUP_ENTITYID as u32)]
     pub remote_group_entity_id: EntityId,
-    #[dust_dds(id=PID_UNICAST_LOCATOR as u32)]
     pub unicast_locator_list: Vec<Locator>,
-    #[dust_dds(id=PID_MULTICAST_LOCATOR as u32)]
     pub multicast_locator_list: Vec<Locator>,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, TypeSupport)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DiscoveredWriterData {
     pub(crate) dds_publication_data: PublicationBuiltinTopicData,
     pub(crate) writer_proxy: WriterProxy,
+}
+
+impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredWriterData {
+    fn get_type() -> dust_dds::xtypes::dynamic_type::DynamicType {
+        extern crate alloc;
+        let mut builder = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
+            dust_dds::xtypes::dynamic_type::TypeDescriptor {
+                kind: dust_dds::xtypes::dynamic_type::TK_STRUCTURE,
+                name: alloc::string::String::from("PublicationBuiltinTopicData"),
+                base_type: None,
+                discriminator_type: None,
+                bound: alloc::vec::Vec::new(),
+                element_type: None,
+                key_element_type: None,
+                extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Mutable,
+                is_nested: false,
+            },
+        );
+        builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+            name:alloc::string::String::from("key"),id:PID_ENDPOINT_GUID as u32,r#type: <BuiltInTopicKey as dust_dds::xtypes::dynamic_type::DynamicDataInsert> ::get_dynamic_type(),default_value:alloc::string::String::new(),index:0u32,try_construct_kind:dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,label:alloc::vec::Vec::new(),is_key:false,is_optional:false,is_must_understand:true,is_shared:false,is_default_label:false,
+        }).unwrap();
+        builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+            name:alloc::string::String::from("participant_key"),id:PID_PARTICIPANT_GUID as u32,r#type: <BuiltInTopicKey as dust_dds::xtypes::dynamic_type::DynamicDataInsert> ::get_dynamic_type(),default_value:alloc::string::String::new(),index:1u32,try_construct_kind:dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,label:alloc::vec::Vec::new(),is_key:false,is_optional:false,is_must_understand:true,is_shared:false,is_default_label:false,
+        }).unwrap();
+        builder
+            .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+                name: alloc::string::String::from("topic_name"),
+                id: PID_TOPIC_NAME as u32,
+                r#type:
+                    <String as dust_dds::xtypes::dynamic_type::DynamicDataInsert>::get_dynamic_type(
+                    ),
+                default_value: alloc::string::String::new(),
+                index: 2u32,
+                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+                label: alloc::vec::Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+                name: alloc::string::String::from("type_name"),
+                id: PID_TYPE_NAME as u32,
+                r#type:
+                    <String as dust_dds::xtypes::dynamic_type::DynamicDataInsert>::get_dynamic_type(
+                    ),
+                default_value: alloc::string::String::new(),
+                index: 3u32,
+                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+                label: alloc::vec::Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+            name:alloc::string::String::from("durability"),id:PID_DURABILITY as u32,r#type: <DurabilityQosPolicy as dust_dds::xtypes::dynamic_type::DynamicDataInsert> ::get_dynamic_type(),default_value:alloc::string::String::new(),index:4u32,try_construct_kind:dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,label:alloc::vec::Vec::new(),is_key:false,is_optional:false,is_must_understand:true,is_shared:false,is_default_label:false,
+        }).unwrap();
+        builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+            name:alloc::string::String::from("deadline"),id:PID_DEADLINE as u32,r#type: <DeadlineQosPolicy as dust_dds::xtypes::dynamic_type::DynamicDataInsert> ::get_dynamic_type(),default_value:alloc::string::String::new(),index:5u32,try_construct_kind:dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,label:alloc::vec::Vec::new(),is_key:false,is_optional:false,is_must_understand:true,is_shared:false,is_default_label:false,
+        }).unwrap();
+        builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+            name:alloc::string::String::from("latency_budget"),id:PID_LATENCY_BUDGET as u32,r#type: <LatencyBudgetQosPolicy as dust_dds::xtypes::dynamic_type::DynamicDataInsert> ::get_dynamic_type(),default_value:alloc::string::String::new(),index:6u32,try_construct_kind:dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,label:alloc::vec::Vec::new(),is_key:false,is_optional:false,is_must_understand:true,is_shared:false,is_default_label:false,
+        }).unwrap();
+        builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+            name:alloc::string::String::from("liveliness"),id:PID_LIVELINESS as u32,r#type: <LivelinessQosPolicy as dust_dds::xtypes::dynamic_type::DynamicDataInsert> ::get_dynamic_type(),default_value:alloc::string::String::new(),index:7u32,try_construct_kind:dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,label:alloc::vec::Vec::new(),is_key:false,is_optional:false,is_must_understand:true,is_shared:false,is_default_label:false,
+        }).unwrap();
+        builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+            name:alloc::string::String::from("reliability"),id:PID_RELIABILITY as u32,r#type: <ReliabilityQosPolicy as dust_dds::xtypes::dynamic_type::DynamicDataInsert> ::get_dynamic_type(),default_value:alloc::string::String::new(),index:8u32,try_construct_kind:dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,label:alloc::vec::Vec::new(),is_key:false,is_optional:false,is_must_understand:true,is_shared:false,is_default_label:false,
+        }).unwrap();
+        builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+            name:alloc::string::String::from("lifespan"),id:PID_LIFESPAN as u32,r#type: <LifespanQosPolicy as dust_dds::xtypes::dynamic_type::DynamicDataInsert> ::get_dynamic_type(),default_value:alloc::string::String::new(),index:9u32,try_construct_kind:dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,label:alloc::vec::Vec::new(),is_key:false,is_optional:false,is_must_understand:true,is_shared:false,is_default_label:false,
+        }).unwrap();
+        builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+            name:alloc::string::String::from("user_data"),id:PID_USER_DATA as u32,r#type: <UserDataQosPolicy as dust_dds::xtypes::dynamic_type::DynamicDataInsert> ::get_dynamic_type(),default_value:alloc::string::String::new(),index:10u32,try_construct_kind:dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,label:alloc::vec::Vec::new(),is_key:false,is_optional:false,is_must_understand:true,is_shared:false,is_default_label:false,
+        }).unwrap();
+        builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+            name:alloc::string::String::from("ownership"),id:PID_OWNERSHIP as u32,r#type: <OwnershipQosPolicy as dust_dds::xtypes::dynamic_type::DynamicDataInsert> ::get_dynamic_type(),default_value:alloc::string::String::new(),index:11u32,try_construct_kind:dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,label:alloc::vec::Vec::new(),is_key:false,is_optional:false,is_must_understand:true,is_shared:false,is_default_label:false,
+        }).unwrap();
+        builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+            name:alloc::string::String::from("ownership_strength"),id:PID_OWNERSHIP_STRENGTH as u32,r#type: <OwnershipStrengthQosPolicy as dust_dds::xtypes::dynamic_type::DynamicDataInsert> ::get_dynamic_type(),default_value:alloc::string::String::new(),index:12u32,try_construct_kind:dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,label:alloc::vec::Vec::new(),is_key:false,is_optional:false,is_must_understand:true,is_shared:false,is_default_label:false,
+        }).unwrap();
+        builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+            name:alloc::string::String::from("destination_order"),id:PID_DESTINATION_ORDER as u32,r#type: <DestinationOrderQosPolicy as dust_dds::xtypes::dynamic_type::DynamicDataInsert> ::get_dynamic_type(),default_value:alloc::string::String::new(),index:13u32,try_construct_kind:dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,label:alloc::vec::Vec::new(),is_key:false,is_optional:false,is_must_understand:true,is_shared:false,is_default_label:false,
+        }).unwrap();
+        builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+            name:alloc::string::String::from("presentation"),id:PID_PRESENTATION as u32,r#type: <PresentationQosPolicy as dust_dds::xtypes::dynamic_type::DynamicDataInsert> ::get_dynamic_type(),default_value:alloc::string::String::new(),index:14u32,try_construct_kind:dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,label:alloc::vec::Vec::new(),is_key:false,is_optional:false,is_must_understand:true,is_shared:false,is_default_label:false,
+        }).unwrap();
+        builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+            name:alloc::string::String::from("partition"),id:PID_PARTITION as u32,r#type: <PartitionQosPolicy as dust_dds::xtypes::dynamic_type::DynamicDataInsert> ::get_dynamic_type(),default_value:alloc::string::String::new(),index:15u32,try_construct_kind:dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,label:alloc::vec::Vec::new(),is_key:false,is_optional:false,is_must_understand:true,is_shared:false,is_default_label:false,
+        }).unwrap();
+        builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+            name:alloc::string::String::from("topic_data"),id:PID_TOPIC_DATA as u32,r#type: <TopicDataQosPolicy as dust_dds::xtypes::dynamic_type::DynamicDataInsert> ::get_dynamic_type(),default_value:alloc::string::String::new(),index:16u32,try_construct_kind:dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,label:alloc::vec::Vec::new(),is_key:false,is_optional:false,is_must_understand:true,is_shared:false,is_default_label:false,
+        }).unwrap();
+        builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+            name:alloc::string::String::from("group_data"),id:PID_GROUP_DATA as u32,r#type: <GroupDataQosPolicy as dust_dds::xtypes::dynamic_type::DynamicDataInsert> ::get_dynamic_type(),default_value:alloc::string::String::new(),index:17u32,try_construct_kind:dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,label:alloc::vec::Vec::new(),is_key:false,is_optional:false,is_must_understand:true,is_shared:false,is_default_label:false,
+        }).unwrap();
+        builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+            name:alloc::string::String::from("representation"),id:PID_DATA_REPRESENTATION as u32,r#type: <DataRepresentationQosPolicy as dust_dds::xtypes::dynamic_type::DynamicDataInsert> ::get_dynamic_type(),default_value:alloc::string::String::new(),index:18u32,try_construct_kind:dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,label:alloc::vec::Vec::new(),is_key:false,is_optional:false,is_must_understand:true,is_shared:false,is_default_label:false,
+        }).unwrap();
+        builder
+            .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+                name: alloc::string::String::from("remote_writer_guid"),
+                id: PID_ENDPOINT_GUID as u32,
+                r#type:
+                    <Guid as dust_dds::xtypes::dynamic_type::DynamicDataInsert>::get_dynamic_type(),
+                default_value: alloc::string::String::new(),
+                index: 0u32,
+                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+                label: alloc::vec::Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+            name:alloc::string::String::from("remote_group_entity_id"),id:PID_GROUP_ENTITYID as u32,r#type: <EntityId as dust_dds::xtypes::dynamic_type::DynamicDataInsert> ::get_dynamic_type(),default_value:alloc::string::String::new(),index:1u32,try_construct_kind:dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,label:alloc::vec::Vec::new(),is_key:false,is_optional:false,is_must_understand:true,is_shared:false,is_default_label:false,
+        }).unwrap();
+        builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+            name:alloc::string::String::from("unicast_locator_list"),id:PID_UNICAST_LOCATOR as u32,r#type: <Vec<Locator>as dust_dds::xtypes::dynamic_type::DynamicDataInsert> ::get_dynamic_type(),default_value:alloc::string::String::new(),index:2u32,try_construct_kind:dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,label:alloc::vec::Vec::new(),is_key:false,is_optional:false,is_must_understand:true,is_shared:false,is_default_label:false,
+        }).unwrap();
+        builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+            name:alloc::string::String::from("multicast_locator_list"),id:PID_MULTICAST_LOCATOR as u32,r#type: <Vec<Locator>as dust_dds::xtypes::dynamic_type::DynamicDataInsert> ::get_dynamic_type(),default_value:alloc::string::String::new(),index:3u32,try_construct_kind:dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,label:alloc::vec::Vec::new(),is_key:false,is_optional:false,is_must_understand:true,is_shared:false,is_default_label:false,
+        }).unwrap();
+        builder.build()
+    }
 }
 
 impl DdsSerialize for DiscoveredWriterData {

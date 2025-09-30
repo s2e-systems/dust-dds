@@ -17,12 +17,12 @@ use super::{
     },
 };
 use crate::{
-    builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
+    builtin_topics::{BuiltInTopicKey, ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     infrastructure::{
         domain::DomainId,
         error::DdsResult,
         instance::InstanceHandle,
-        qos_policy::DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+        qos_policy::{UserDataQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS},
         time::Duration,
         type_support::{DdsDeserialize, DdsSerialize, TypeSupport},
     },
@@ -116,44 +116,129 @@ impl BuiltinEndpointQos {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, TypeSupport)]
-#[dust_dds(extensibility = "mutable")]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ParticipantProxy {
-    #[dust_dds(id=PID_DOMAIN_ID as u32)]
     pub(crate) domain_id: Option<DomainId>,
-    #[dust_dds(id=PID_DOMAIN_TAG as u32)]
     pub(crate) domain_tag: String,
-    #[dust_dds(id=PID_PROTOCOL_VERSION as u32)]
     pub(crate) protocol_version: ProtocolVersion,
-    #[dust_dds(id = PID_PARTICIPANT_GUID as u32)]
     pub(crate) guid_prefix: GuidPrefix,
-    #[dust_dds(id = PID_VENDORID as u32)]
     pub(crate) vendor_id: VendorId,
-    #[dust_dds(id = PID_EXPECTS_INLINE_QOS as u32)]
     pub(crate) expects_inline_qos: bool,
-    #[dust_dds(id = PID_METATRAFFIC_UNICAST_LOCATOR as u32)]
     pub(crate) metatraffic_unicast_locator_list: Vec<Locator>,
-    #[dust_dds(id = PID_METATRAFFIC_MULTICAST_LOCATOR as u32)]
     pub(crate) metatraffic_multicast_locator_list: Vec<Locator>,
-    #[dust_dds(id = PID_METATRAFFIC_UNICAST_LOCATOR as u32)]
     pub(crate) default_unicast_locator_list: Vec<Locator>,
-    #[dust_dds(id = PID_METATRAFFIC_MULTICAST_LOCATOR as u32)]
     pub(crate) default_multicast_locator_list: Vec<Locator>,
-    #[dust_dds(id = PID_BUILTIN_ENDPOINT_SET as u32)]
     pub(crate) available_builtin_endpoints: BuiltinEndpointSet,
-    #[dust_dds(id = PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT as u32)]
     pub(crate) manual_liveliness_count: Count,
-    #[dust_dds(id = PID_BUILTIN_ENDPOINT_QOS as u32)]
     pub(crate) builtin_endpoint_qos: BuiltinEndpointQos,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, TypeSupport)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SpdpDiscoveredParticipantData {
-    #[dust_dds(key)]
     pub(crate) dds_participant_data: ParticipantBuiltinTopicData,
     pub(crate) participant_proxy: ParticipantProxy,
     pub(crate) lease_duration: Duration,
     pub(crate) discovered_participant_list: Vec<InstanceHandle>,
+}
+
+impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParticipantData {
+    fn get_type() -> dust_dds::xtypes::dynamic_type::DynamicType {
+        extern crate alloc;
+        let mut builder = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
+            dust_dds::xtypes::dynamic_type::TypeDescriptor {
+                kind: dust_dds::xtypes::dynamic_type::TK_STRUCTURE,
+                name: alloc::string::String::from("ParticipantProxy"),
+                base_type: None,
+                discriminator_type: None,
+                bound: alloc::vec::Vec::new(),
+                element_type: None,
+                key_element_type: None,
+                extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Mutable,
+                is_nested: false,
+            },
+        );
+        builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+            name:alloc::string::String::from("domain_id"),id:PID_DOMAIN_ID as u32,r#type: <DomainId as dust_dds::xtypes::dynamic_type::DynamicDataInsert> ::get_dynamic_type(),default_value:alloc::string::String::new(),index:0u32,try_construct_kind:dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,label:alloc::vec::Vec::new(),is_key:false,is_optional:true,is_must_understand:true,is_shared:false,is_default_label:false,
+        }).unwrap();
+        builder
+            .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+                name: alloc::string::String::from("domain_tag"),
+                id: PID_DOMAIN_TAG as u32,
+                r#type:
+                    <String as dust_dds::xtypes::dynamic_type::DynamicDataInsert>::get_dynamic_type(
+                    ),
+                default_value: alloc::string::String::new(),
+                index: 1u32,
+                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+                label: alloc::vec::Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+            name:alloc::string::String::from("protocol_version"),id:PID_PROTOCOL_VERSION as u32,r#type: <ProtocolVersion as dust_dds::xtypes::dynamic_type::DynamicDataInsert> ::get_dynamic_type(),default_value:alloc::string::String::new(),index:2u32,try_construct_kind:dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,label:alloc::vec::Vec::new(),is_key:false,is_optional:false,is_must_understand:true,is_shared:false,is_default_label:false,
+        }).unwrap();
+        builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+            name:alloc::string::String::from("guid_prefix"),id:PID_PARTICIPANT_GUID as u32,r#type: <GuidPrefix as dust_dds::xtypes::dynamic_type::DynamicDataInsert> ::get_dynamic_type(),default_value:alloc::string::String::new(),index:3u32,try_construct_kind:dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,label:alloc::vec::Vec::new(),is_key:false,is_optional:false,is_must_understand:true,is_shared:false,is_default_label:false,
+        }).unwrap();
+        builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+            name:alloc::string::String::from("vendor_id"),id:PID_VENDORID as u32,r#type: <VendorId as dust_dds::xtypes::dynamic_type::DynamicDataInsert> ::get_dynamic_type(),default_value:alloc::string::String::new(),index:4u32,try_construct_kind:dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,label:alloc::vec::Vec::new(),is_key:false,is_optional:false,is_must_understand:true,is_shared:false,is_default_label:false,
+        }).unwrap();
+        builder
+            .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+                name: alloc::string::String::from("expects_inline_qos"),
+                id: PID_EXPECTS_INLINE_QOS as u32,
+                r#type:
+                    <bool as dust_dds::xtypes::dynamic_type::DynamicDataInsert>::get_dynamic_type(),
+                default_value: alloc::string::String::new(),
+                index: 5u32,
+                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+                label: alloc::vec::Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+            name:alloc::string::String::from("metatraffic_unicast_locator_list"),id:PID_METATRAFFIC_UNICAST_LOCATOR as u32,r#type: <Vec<Locator>as dust_dds::xtypes::dynamic_type::DynamicDataInsert> ::get_dynamic_type(),default_value:alloc::string::String::new(),index:6u32,try_construct_kind:dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,label:alloc::vec::Vec::new(),is_key:false,is_optional:false,is_must_understand:true,is_shared:false,is_default_label:false,
+        }).unwrap();
+        builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+            name:alloc::string::String::from("metatraffic_multicast_locator_list"),id:PID_METATRAFFIC_MULTICAST_LOCATOR as u32,r#type: <Vec<Locator>as dust_dds::xtypes::dynamic_type::DynamicDataInsert> ::get_dynamic_type(),default_value:alloc::string::String::new(),index:7u32,try_construct_kind:dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,label:alloc::vec::Vec::new(),is_key:false,is_optional:false,is_must_understand:true,is_shared:false,is_default_label:false,
+        }).unwrap();
+        builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+            name:alloc::string::String::from("default_unicast_locator_list"),id:PID_METATRAFFIC_UNICAST_LOCATOR as u32,r#type: <Vec<Locator>as dust_dds::xtypes::dynamic_type::DynamicDataInsert> ::get_dynamic_type(),default_value:alloc::string::String::new(),index:8u32,try_construct_kind:dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,label:alloc::vec::Vec::new(),is_key:false,is_optional:false,is_must_understand:true,is_shared:false,is_default_label:false,
+        }).unwrap();
+        builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+            name:alloc::string::String::from("default_multicast_locator_list"),id:PID_METATRAFFIC_MULTICAST_LOCATOR as u32,r#type: <Vec<Locator>as dust_dds::xtypes::dynamic_type::DynamicDataInsert> ::get_dynamic_type(),default_value:alloc::string::String::new(),index:9u32,try_construct_kind:dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,label:alloc::vec::Vec::new(),is_key:false,is_optional:false,is_must_understand:true,is_shared:false,is_default_label:false,
+        }).unwrap();
+        builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+            name:alloc::string::String::from("available_builtin_endpoints"),id:PID_BUILTIN_ENDPOINT_SET as u32,r#type: <BuiltinEndpointSet as dust_dds::xtypes::dynamic_type::DynamicDataInsert> ::get_dynamic_type(),default_value:alloc::string::String::new(),index:10u32,try_construct_kind:dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,label:alloc::vec::Vec::new(),is_key:false,is_optional:false,is_must_understand:true,is_shared:false,is_default_label:false,
+        }).unwrap();
+        builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+            name:alloc::string::String::from("manual_liveliness_count"),id:PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT as u32,r#type: <Count as dust_dds::xtypes::dynamic_type::DynamicDataInsert> ::get_dynamic_type(),default_value:alloc::string::String::new(),index:11u32,try_construct_kind:dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,label:alloc::vec::Vec::new(),is_key:false,is_optional:false,is_must_understand:true,is_shared:false,is_default_label:false,
+        }).unwrap();
+        builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+            name:alloc::string::String::from("builtin_endpoint_qos"),id:PID_BUILTIN_ENDPOINT_QOS as u32,r#type: <BuiltinEndpointQos as dust_dds::xtypes::dynamic_type::DynamicDataInsert> ::get_dynamic_type(),default_value:alloc::string::String::new(),index:12u32,try_construct_kind:dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,label:alloc::vec::Vec::new(),is_key:false,is_optional:false,is_must_understand:true,is_shared:false,is_default_label:false,
+        }).unwrap();
+        builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+            name:alloc::string::String::from("key"),id:PID_PARTICIPANT_GUID as u32,r#type: <BuiltInTopicKey as dust_dds::xtypes::dynamic_type::DynamicDataInsert> ::get_dynamic_type(),default_value:alloc::string::String::new(),index:0u32,try_construct_kind:dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,label:alloc::vec::Vec::new(),is_key:true,is_optional:false,is_must_understand:true,is_shared:false,is_default_label:false,
+        }).unwrap();
+        builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+            name:alloc::string::String::from("user_data"),id:PID_USER_DATA as u32,r#type: <UserDataQosPolicy as dust_dds::xtypes::dynamic_type::DynamicDataInsert> ::get_dynamic_type(),default_value:alloc::string::String::new(),index:1u32,try_construct_kind:dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,label:alloc::vec::Vec::new(),is_key:false,is_optional:false,is_must_understand:true,is_shared:false,is_default_label:false,
+        }).unwrap();
+        builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+            name:alloc::string::String::from("lease_duration"),id: PID_PARTICIPANT_LEASE_DURATION as u32,r#type: <Duration as dust_dds::xtypes::dynamic_type::DynamicDataInsert> ::get_dynamic_type(),default_value:alloc::string::String::new(),index:0u32,try_construct_kind:dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,label:alloc::vec::Vec::new(),is_key:true,is_optional:false,is_must_understand:true,is_shared:false,is_default_label:false,
+        }).unwrap();
+        builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+            name:alloc::string::String::from("discovered_participant_list"),id:PID_DISCOVERED_PARTICIPANT as u32,r#type: <UserDataQosPolicy as dust_dds::xtypes::dynamic_type::DynamicDataInsert> ::get_dynamic_type(),default_value:alloc::string::String::new(),index:1u32,try_construct_kind:dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,label:alloc::vec::Vec::new(),is_key:false,is_optional:false,is_must_understand:true,is_shared:false,is_default_label:false,
+        }).unwrap();
+        builder.build()
+    }
 }
 
 impl DdsSerialize for ParticipantBuiltinTopicData {

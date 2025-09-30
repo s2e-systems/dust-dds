@@ -50,12 +50,9 @@ pub struct BuiltInTopicKey {
 }
 
 /// Structure representing a discovered [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant).
-#[derive(Debug, PartialEq, Eq, Clone, XTypesSerialize, XTypesDeserialize, TypeSupport)]
-#[dust_dds(extensibility = "mutable")]
+#[derive(Debug, PartialEq, Eq, Clone, XTypesSerialize, XTypesDeserialize)]
 pub struct ParticipantBuiltinTopicData {
-    #[dust_dds(id = 0x0050, key)]
     pub(crate) key: BuiltInTopicKey,
-    #[dust_dds(id = 0x002C)]
     pub(crate) user_data: UserDataQosPolicy,
 }
 
@@ -72,40 +69,23 @@ impl ParticipantBuiltinTopicData {
 }
 
 /// Structure representing a discovered [`Topic`](crate::topic_definition::topic::Topic).
-#[derive(Debug, PartialEq, Eq, Clone, TypeSupport)]
-#[dust_dds(extensibility = "mutable")]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct TopicBuiltinTopicData {
-    #[dust_dds(key, id = PID_ENDPOINT_GUID as u32)]
     pub(crate) key: BuiltInTopicKey,
-    #[dust_dds(id = PID_TOPIC_NAME as u32)]
     pub(crate) name: String,
-    #[dust_dds(id = PID_TYPE_NAME as u32)]
     pub(crate) type_name: String,
-    #[dust_dds(id = PID_DURABILITY as u32)]
     pub(crate) durability: DurabilityQosPolicy,
-    #[dust_dds(id = PID_DEADLINE as u32)]
     pub(crate) deadline: DeadlineQosPolicy,
-    #[dust_dds(id = PID_LATENCY_BUDGET as u32)]
     pub(crate) latency_budget: LatencyBudgetQosPolicy,
-    #[dust_dds(id = PID_LIVELINESS as u32)]
     pub(crate) liveliness: LivelinessQosPolicy,
-    #[dust_dds(id = PID_RELIABILITY as u32)]
     pub(crate) reliability: ReliabilityQosPolicy,
-    #[dust_dds(id = PID_TRANSPORT_PRIORITY as u32)]
     pub(crate) transport_priority: TransportPriorityQosPolicy,
-    #[dust_dds(id = PID_LIFESPAN as u32)]
     pub(crate) lifespan: LifespanQosPolicy,
-    #[dust_dds(id = PID_DESTINATION_ORDER as u32)]
     pub(crate) destination_order: DestinationOrderQosPolicy,
-    #[dust_dds(id = PID_HISTORY as u32)]
     pub(crate) history: HistoryQosPolicy,
-    #[dust_dds(id = PID_RESOURCE_LIMITS as u32)]
     pub(crate) resource_limits: ResourceLimitsQosPolicy,
-    #[dust_dds(id = PID_OWNERSHIP as u32)]
     pub(crate) ownership: OwnershipQosPolicy,
-    #[dust_dds(id = PID_TOPIC_DATA as u32)]
     pub(crate) topic_data: TopicDataQosPolicy,
-    #[dust_dds(id = PID_DATA_REPRESENTATION as u32)]
     pub(crate) representation: DataRepresentationQosPolicy,
 }
 
