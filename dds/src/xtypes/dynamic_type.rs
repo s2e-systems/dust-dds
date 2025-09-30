@@ -809,20 +809,6 @@ impl DynamicData {
         self.abstract_data.insert(id, Box::new(value));
         Ok(())
     }
-
-    pub fn insert_value<T: Any + Send + Sync>(mut self, id: MemberId, value: T) -> Self {
-        self.abstract_data.insert(id, Box::new(value));
-        self
-    }
-
-    pub fn remove_value<T: Any>(&mut self, id: MemberId) -> XTypesResult<T> {
-        Ok(*self
-            .abstract_data
-            .remove(&id)
-            .ok_or(XTypesError::InvalidIndex)?
-            .downcast()
-            .map_err(|_| XTypesError::InvalidType)?)
-    }
 }
 
 pub trait XTypesBinding {
