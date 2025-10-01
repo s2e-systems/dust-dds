@@ -25,7 +25,14 @@ use crate::{
         },
         type_support::{DdsSerialize, TypeSupport},
     },
-    xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize},
+    xtypes::{
+        deserialize::XTypesDeserialize,
+        dynamic_type::{
+            DynamicTypeBuilderFactory, ExtensibilityKind, MemberDescriptor, TryConstructKind,
+            TypeDescriptor, XTypesBinding, TK_STRUCTURE,
+        },
+        serialize::XTypesSerialize,
+    },
 };
 use alloc::{string::String, vec::Vec};
 
@@ -89,56 +96,101 @@ pub struct TopicBuiltinTopicData {
     pub(crate) representation: DataRepresentationQosPolicy,
 }
 
-impl DdsSerialize for TopicBuiltinTopicData {
-    fn serialize_data(&self) -> DdsResult<Vec<u8>> {
-        let mut serializer = ParameterListCdrSerializer::default();
-        serializer.write_header()?;
+impl TypeSupport for TopicBuiltinTopicData {
+    fn get_type() -> crate::xtypes::dynamic_type::DynamicType {
+        extern crate alloc;
+        let mut builder = DynamicTypeBuilderFactory::create_type(TypeDescriptor {
+            kind: TK_STRUCTURE,
+            name: String::from("TopicBuiltinTopicData"),
+            base_type: None,
+            discriminator_type: None,
+            bound: alloc::vec::Vec::new(),
+            element_type: None,
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Final,
+            is_nested: false,
+        });
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("data"),
+                id: 777,
+                r#type: DynamicTypeBuilderFactory::create_array_type(
+                    u8::get_dynamic_type(),
+                    vec![u32::MAX],
+                )
+                .build(),
+                default_value: String::new(),
+                index: 777,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: alloc::vec::Vec::new(),
+                is_key: false,
+                is_optional: true,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
 
-        // topic_builtin_topic_data: TopicBuiltinTopicData:
+        builder.build()
+    }
 
-        serializer.write(PID_ENDPOINT_GUID, &self.key)?;
-        serializer.write(PID_TOPIC_NAME, &self.name)?;
-        serializer.write(PID_TYPE_NAME, &self.type_name)?;
-        serializer.write_with_default(PID_DURABILITY, &self.durability, &Default::default())?;
-        serializer.write_with_default(PID_DEADLINE, &self.deadline, &Default::default())?;
-        serializer.write_with_default(
-            PID_LATENCY_BUDGET,
-            &self.latency_budget,
-            &Default::default(),
-        )?;
-        serializer.write_with_default(PID_LIVELINESS, &self.liveliness, &Default::default())?;
-        serializer.write_with_default(
-            PID_RELIABILITY,
-            &self.reliability,
-            &DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-        )?;
-        serializer.write_with_default(
-            PID_TRANSPORT_PRIORITY,
-            &self.transport_priority,
-            &Default::default(),
-        )?;
-        serializer.write_with_default(PID_LIFESPAN, &self.lifespan, &Default::default())?;
-        serializer.write_with_default(
-            PID_DESTINATION_ORDER,
-            &self.destination_order,
-            &Default::default(),
-        )?;
-        serializer.write_with_default(PID_HISTORY, &self.history, &Default::default())?;
-        serializer.write_with_default(
-            PID_RESOURCE_LIMITS,
-            &self.resource_limits,
-            &Default::default(),
-        )?;
-        serializer.write_with_default(PID_OWNERSHIP, &self.ownership, &Default::default())?;
-        serializer.write_with_default(PID_TOPIC_DATA, &self.topic_data, &Default::default())?;
-        serializer.write_with_default(
-            PID_DATA_REPRESENTATION,
-            &self.representation,
-            &Default::default(),
-        )?;
+    fn create_dynamic_sample(self) -> crate::xtypes::dynamic_type::DynamicData {
+        fn serialize_data(this: &TopicBuiltinTopicData) -> DdsResult<Vec<u8>> {
+            let mut serializer = ParameterListCdrSerializer::default();
+            serializer.write_header()?;
 
-        serializer.write_sentinel()?;
-        Ok(serializer.writer)
+            // topic_builtin_topic_data: TopicBuiltinTopicData:
+
+            serializer.write(PID_ENDPOINT_GUID, &this.key)?;
+            serializer.write(PID_TOPIC_NAME, &this.name)?;
+            serializer.write(PID_TYPE_NAME, &this.type_name)?;
+            serializer.write_with_default(PID_DURABILITY, &this.durability, &Default::default())?;
+            serializer.write_with_default(PID_DEADLINE, &this.deadline, &Default::default())?;
+            serializer.write_with_default(
+                PID_LATENCY_BUDGET,
+                &this.latency_budget,
+                &Default::default(),
+            )?;
+            serializer.write_with_default(PID_LIVELINESS, &this.liveliness, &Default::default())?;
+            serializer.write_with_default(
+                PID_RELIABILITY,
+                &this.reliability,
+                &DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+            )?;
+            serializer.write_with_default(
+                PID_TRANSPORT_PRIORITY,
+                &this.transport_priority,
+                &Default::default(),
+            )?;
+            serializer.write_with_default(PID_LIFESPAN, &this.lifespan, &Default::default())?;
+            serializer.write_with_default(
+                PID_DESTINATION_ORDER,
+                &this.destination_order,
+                &Default::default(),
+            )?;
+            serializer.write_with_default(PID_HISTORY, &this.history, &Default::default())?;
+            serializer.write_with_default(
+                PID_RESOURCE_LIMITS,
+                &this.resource_limits,
+                &Default::default(),
+            )?;
+            serializer.write_with_default(PID_OWNERSHIP, &this.ownership, &Default::default())?;
+            serializer.write_with_default(PID_TOPIC_DATA, &this.topic_data, &Default::default())?;
+            serializer.write_with_default(
+                PID_DATA_REPRESENTATION,
+                &this.representation,
+                &Default::default(),
+            )?;
+
+            serializer.write_sentinel()?;
+            Ok(serializer.writer)
+        }
+        let mut data =
+            dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type());
+        data.set_uint8_values(777, serialize_data(&self).unwrap())
+            .unwrap();
+
+        data
     }
 }
 

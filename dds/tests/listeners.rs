@@ -1,5 +1,4 @@
 use dust_dds::{
-    runtime::DdsRuntime,
     dds_async::{
         data_reader::DataReaderAsync, data_writer::DataWriterAsync, subscriber::SubscriberAsync,
     },
@@ -25,6 +24,7 @@ use dust_dds::{
     publication::{
         data_writer_listener::DataWriterListener, publisher_listener::PublisherListener,
     },
+    runtime::DdsRuntime,
     subscription::{
         data_reader_listener::DataReaderListener, subscriber_listener::SubscriberListener,
     },
@@ -139,7 +139,7 @@ fn requested_deadline_missed_listener() {
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let data1 = MyData { id: 1, value: 1 };
-    writer.write(&data1, None).unwrap();
+    writer.write(data1, None).unwrap();
 
     writer
         .wait_for_acknowledgments(Duration::new(10, 0))
@@ -254,9 +254,9 @@ fn sample_rejected_listener() {
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
-    writer.write(&MyData { id: 1, value: 0 }, None).unwrap();
-    writer.write(&MyData { id: 1, value: 1 }, None).unwrap();
-    writer.write(&MyData { id: 1, value: 2 }, None).unwrap();
+    writer.write(MyData { id: 1, value: 0 }, None).unwrap();
+    writer.write(MyData { id: 1, value: 1 }, None).unwrap();
+    writer.write(MyData { id: 1, value: 2 }, None).unwrap();
 
     let status = receiver
         .recv_timeout(std::time::Duration::from_secs(10))
@@ -732,7 +732,7 @@ fn on_data_available_listener() {
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let data1 = MyData { id: 1, value: 1 };
-    writer.write(&data1, None).unwrap();
+    writer.write(data1, None).unwrap();
 
     assert!(receiver
         .recv_timeout(std::time::Duration::from_secs(10))
@@ -825,7 +825,7 @@ fn data_on_readers_listener() {
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let data1 = MyData { id: 1, value: 1 };
-    writer.write(&data1, None).unwrap();
+    writer.write(data1, None).unwrap();
 
     assert!(receiver
         .recv_timeout(std::time::Duration::from_secs(10))
@@ -931,7 +931,7 @@ fn data_available_listener_not_called_when_data_on_readers_listener() {
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let data1 = MyData { id: 1, value: 1 };
-    writer.write(&data1, None).unwrap();
+    writer.write(data1, None).unwrap();
 
     assert!(data_on_readers_receiver
         .recv_timeout(std::time::Duration::from_secs(10))
@@ -1031,7 +1031,7 @@ fn participant_requested_deadline_missed_listener() {
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let data1 = MyData { id: 1, value: 1 };
-    writer.write(&data1, None).unwrap();
+    writer.write(data1, None).unwrap();
 
     writer
         .wait_for_acknowledgments(Duration::new(10, 0))
@@ -1141,9 +1141,9 @@ fn data_reader_sample_rejected_listener() {
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
-    writer.write(&MyData { id: 1, value: 0 }, None).unwrap();
-    writer.write(&MyData { id: 1, value: 1 }, None).unwrap();
-    writer.write(&MyData { id: 1, value: 2 }, None).unwrap();
+    writer.write(MyData { id: 1, value: 0 }, None).unwrap();
+    writer.write(MyData { id: 1, value: 1 }, None).unwrap();
+    writer.write(MyData { id: 1, value: 2 }, None).unwrap();
 
     let status = receiver
         .recv_timeout(std::time::Duration::from_secs(10))
@@ -1619,7 +1619,7 @@ fn subscriber_requested_deadline_missed_listener() {
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let data1 = MyData { id: 1, value: 1 };
-    writer.write(&data1, None).unwrap();
+    writer.write(data1, None).unwrap();
 
     writer
         .wait_for_acknowledgments(Duration::new(10, 0))
@@ -1732,9 +1732,9 @@ fn subscriber_sample_rejected_listener() {
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
-    writer.write(&MyData { id: 1, value: 0 }, None).unwrap();
-    writer.write(&MyData { id: 1, value: 1 }, None).unwrap();
-    writer.write(&MyData { id: 1, value: 2 }, None).unwrap();
+    writer.write(MyData { id: 1, value: 0 }, None).unwrap();
+    writer.write(MyData { id: 1, value: 1 }, None).unwrap();
+    writer.write(MyData { id: 1, value: 2 }, None).unwrap();
 
     let status = receiver
         .recv_timeout(std::time::Duration::from_secs(10))
@@ -2268,7 +2268,7 @@ fn writer_offered_deadline_missed_listener() {
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let data1 = MyData { id: 1, value: 1 };
-    writer.write(&data1, None).unwrap();
+    writer.write(data1, None).unwrap();
 
     writer
         .wait_for_acknowledgments(Duration::new(10, 0))
@@ -2375,7 +2375,7 @@ fn publisher_offered_deadline_missed_listener() {
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let data1 = MyData { id: 1, value: 1 };
-    writer.write(&data1, None).unwrap();
+    writer.write(data1, None).unwrap();
 
     writer
         .wait_for_acknowledgments(Duration::new(10, 0))
@@ -2483,7 +2483,7 @@ fn participant_offered_deadline_missed_listener() {
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let data1 = MyData { id: 1, value: 1 };
-    writer.write(&data1, None).unwrap();
+    writer.write(data1, None).unwrap();
 
     writer
         .wait_for_acknowledgments(Duration::new(10, 0))

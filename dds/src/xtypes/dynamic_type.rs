@@ -6,7 +6,7 @@ use crate::{
 };
 
 use super::error::XTypesError;
-use alloc::{boxed::Box, collections::BTreeMap, string::String, vec, vec::Vec};
+use alloc::{boxed::Box, collections::BTreeMap, string::String, sync::Arc, vec, vec::Vec};
 
 pub type BoundSeq = Vec<u32>;
 pub type IncludePathSeq = Vec<String>;
@@ -364,10 +364,10 @@ impl DynamicDataFactory {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DynamicData {
     type_ref: DynamicType,
-    abstract_data: BTreeMap<MemberId, Box<dyn Any + Send + Sync>>,
+    abstract_data: BTreeMap<MemberId, Arc<dyn Any + Send + Sync>>,
 }
 
 impl DynamicData {
@@ -417,7 +417,14 @@ impl DynamicData {
     }
 
     pub fn clear_nonkey_values(&mut self) -> XTypesResult<()> {
-        todo!()
+        for index in 0..self.type_ref.get_member_count() {
+            let member = self.type_ref.get_member_by_index(index)?;
+            if !member.get_descriptor()?.is_key {
+                let member_id = member.get_id();
+                self.abstract_data.remove(&member_id);
+            }
+        }
+        Ok(())
     }
 
     pub fn clear_value(&mut self, id: MemberId) -> XTypesResult<()> {
@@ -436,7 +443,7 @@ impl DynamicData {
     }
 
     pub fn set_int32_value(&mut self, id: MemberId, value: i32) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Box::new(value));
+        self.abstract_data.insert(id, Arc::new(value));
         Ok(())
     }
 
@@ -449,7 +456,7 @@ impl DynamicData {
     }
 
     pub fn set_uint32_value(&mut self, id: MemberId, value: u32) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Box::new(value));
+        self.abstract_data.insert(id, Arc::new(value));
         Ok(())
     }
 
@@ -462,7 +469,7 @@ impl DynamicData {
     }
 
     pub fn set_int8_value(&mut self, id: MemberId, value: i8) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Box::new(value));
+        self.abstract_data.insert(id, Arc::new(value));
         Ok(())
     }
 
@@ -475,7 +482,7 @@ impl DynamicData {
     }
 
     pub fn set_uint8_value(&mut self, id: MemberId, value: u8) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Box::new(value));
+        self.abstract_data.insert(id, Arc::new(value));
         Ok(())
     }
 
@@ -488,7 +495,7 @@ impl DynamicData {
     }
 
     pub fn set_int16_value(&mut self, id: MemberId, value: i16) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Box::new(value));
+        self.abstract_data.insert(id, Arc::new(value));
         Ok(())
     }
 
@@ -501,7 +508,7 @@ impl DynamicData {
     }
 
     pub fn set_uint16_value(&mut self, id: MemberId, value: u16) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Box::new(value));
+        self.abstract_data.insert(id, Arc::new(value));
         Ok(())
     }
 
@@ -514,7 +521,7 @@ impl DynamicData {
     }
 
     pub fn set_int64_value(&mut self, id: MemberId, value: i64) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Box::new(value));
+        self.abstract_data.insert(id, Arc::new(value));
         Ok(())
     }
 
@@ -527,7 +534,7 @@ impl DynamicData {
     }
 
     pub fn set_uint64_value(&mut self, id: MemberId, value: u64) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Box::new(value));
+        self.abstract_data.insert(id, Arc::new(value));
         Ok(())
     }
 
@@ -540,7 +547,7 @@ impl DynamicData {
     }
 
     pub fn set_float32_value(&mut self, id: MemberId, value: f32) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Box::new(value));
+        self.abstract_data.insert(id, Arc::new(value));
         Ok(())
     }
 
@@ -553,7 +560,7 @@ impl DynamicData {
     }
 
     pub fn set_float64_value(&mut self, id: MemberId, value: f64) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Box::new(value));
+        self.abstract_data.insert(id, Arc::new(value));
         Ok(())
     }
 
@@ -566,7 +573,7 @@ impl DynamicData {
     }
 
     pub fn set_char8_value(&mut self, id: MemberId, value: char) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Box::new(value));
+        self.abstract_data.insert(id, Arc::new(value));
         Ok(())
     }
 
@@ -579,7 +586,7 @@ impl DynamicData {
     }
 
     pub fn set_byte_value(&mut self, id: MemberId, value: u8) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Box::new(value));
+        self.abstract_data.insert(id, Arc::new(value));
         Ok(())
     }
 
@@ -592,7 +599,7 @@ impl DynamicData {
     }
 
     pub fn set_boolean_value(&mut self, id: MemberId, value: bool) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Box::new(value));
+        self.abstract_data.insert(id, Arc::new(value));
         Ok(())
     }
 
@@ -605,7 +612,7 @@ impl DynamicData {
     }
 
     pub fn set_string_value(&mut self, id: MemberId, value: String) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Box::new(value));
+        self.abstract_data.insert(id, Arc::new(value));
         Ok(())
     }
 
@@ -618,7 +625,7 @@ impl DynamicData {
     }
 
     pub fn set_complex_value(&mut self, id: MemberId, value: DynamicData) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Box::new(value));
+        self.abstract_data.insert(id, Arc::new(value));
         Ok(())
     }
 
@@ -631,7 +638,7 @@ impl DynamicData {
     }
 
     pub fn set_int32_values(&mut self, id: MemberId, value: Vec<i32>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Box::new(value));
+        self.abstract_data.insert(id, Arc::new(value));
         Ok(())
     }
 
@@ -644,7 +651,7 @@ impl DynamicData {
     }
 
     pub fn set_uint32_values(&mut self, id: MemberId, value: Vec<u32>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Box::new(value));
+        self.abstract_data.insert(id, Arc::new(value));
         Ok(())
     }
 
@@ -657,7 +664,7 @@ impl DynamicData {
     }
 
     pub fn set_int16_values(&mut self, id: MemberId, value: Vec<i16>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Box::new(value));
+        self.abstract_data.insert(id, Arc::new(value));
         Ok(())
     }
 
@@ -670,7 +677,7 @@ impl DynamicData {
     }
 
     pub fn set_uint16_values(&mut self, id: MemberId, value: Vec<u16>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Box::new(value));
+        self.abstract_data.insert(id, Arc::new(value));
         Ok(())
     }
 
@@ -683,7 +690,7 @@ impl DynamicData {
     }
 
     pub fn set_int64_values(&mut self, id: MemberId, value: Vec<i64>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Box::new(value));
+        self.abstract_data.insert(id, Arc::new(value));
         Ok(())
     }
 
@@ -696,7 +703,7 @@ impl DynamicData {
     }
 
     pub fn set_uint64_values(&mut self, id: MemberId, value: Vec<u64>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Box::new(value));
+        self.abstract_data.insert(id, Arc::new(value));
         Ok(())
     }
 
@@ -709,7 +716,7 @@ impl DynamicData {
     }
 
     pub fn set_float32_values(&mut self, id: MemberId, value: Vec<f32>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Box::new(value));
+        self.abstract_data.insert(id, Arc::new(value));
         Ok(())
     }
 
@@ -722,7 +729,7 @@ impl DynamicData {
     }
 
     pub fn set_float64_values(&mut self, id: MemberId, value: Vec<f64>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Box::new(value));
+        self.abstract_data.insert(id, Arc::new(value));
         Ok(())
     }
 
@@ -735,7 +742,7 @@ impl DynamicData {
     }
 
     pub fn set_char8_values(&mut self, id: MemberId, value: Vec<char>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Box::new(value));
+        self.abstract_data.insert(id, Arc::new(value));
         Ok(())
     }
 
@@ -748,7 +755,7 @@ impl DynamicData {
     }
 
     pub fn set_byte_values(&mut self, id: MemberId, value: Vec<u8>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Box::new(value));
+        self.abstract_data.insert(id, Arc::new(value));
         Ok(())
     }
 
@@ -761,7 +768,7 @@ impl DynamicData {
     }
 
     pub fn set_boolean_values(&mut self, id: MemberId, value: Vec<bool>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Box::new(value));
+        self.abstract_data.insert(id, Arc::new(value));
         Ok(())
     }
 
@@ -774,7 +781,7 @@ impl DynamicData {
     }
 
     pub fn set_string_values(&mut self, id: MemberId, value: Vec<String>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Box::new(value));
+        self.abstract_data.insert(id, Arc::new(value));
         Ok(())
     }
 
@@ -788,12 +795,12 @@ impl DynamicData {
     }
 
     pub fn set_uint8_values(&mut self, id: MemberId, value: Vec<u8>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Box::new(value));
+        self.abstract_data.insert(id, Arc::new(value));
         Ok(())
     }
 
     pub fn set_int8_values(&mut self, id: MemberId, value: Vec<i8>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Box::new(value));
+        self.abstract_data.insert(id, Arc::new(value));
         Ok(())
     }
 
@@ -810,7 +817,7 @@ impl DynamicData {
         id: MemberId,
         value: Vec<DynamicData>,
     ) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Box::new(value));
+        self.abstract_data.insert(id, Arc::new(value));
         Ok(())
     }
 }
@@ -962,7 +969,8 @@ impl<const N: usize> XTypesBinding for [u8; N] {
 
 impl<const N: usize> XTypesBinding for [i16; N] {
     fn get_dynamic_type() -> DynamicType {
-        DynamicTypeBuilderFactory::create_array_type(i16::get_dynamic_type(), vec![N as u32]).build()
+        DynamicTypeBuilderFactory::create_array_type(i16::get_dynamic_type(), vec![N as u32])
+            .build()
     }
 
     fn insert_value(self, dynamic_data: &mut DynamicData, id: MemberId) -> XTypesResult<()> {

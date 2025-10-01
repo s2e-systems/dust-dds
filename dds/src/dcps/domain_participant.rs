@@ -28,8 +28,8 @@ use crate::{
         status_condition::DcpsStatusCondition,
         status_condition_mail::DcpsStatusConditionMail,
         xtypes_glue::key_and_instance_handle::{
-            get_instance_handle_from_serialized_foo, get_instance_handle_from_serialized_key,
-            get_serialized_key_from_serialized_foo,
+            get_instance_handle_from_dynamic_data, get_instance_handle_from_serialized_foo,
+            get_instance_handle_from_serialized_key, get_serialized_key_from_serialized_foo,
         },
     },
     dds_async::{
@@ -52,7 +52,7 @@ use crate::{
             DATA_REPRESENTATION_QOS_POLICY_ID, DEADLINE_QOS_POLICY_ID,
             DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID,
             LIVELINESS_QOS_POLICY_ID, OWNERSHIP_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID,
-            RELIABILITY_QOS_POLICY_ID, XCDR_DATA_REPRESENTATION,
+            RELIABILITY_QOS_POLICY_ID, XCDR2_DATA_REPRESENTATION, XCDR_DATA_REPRESENTATION,
         },
         sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
         status::{
@@ -62,7 +62,7 @@ use crate::{
             StatusKind, SubscriptionMatchedStatus,
         },
         time::{Duration, DurationKind, Time},
-        type_support::{DdsDeserialize, DdsSerialize},
+        type_support::{DdsDeserialize, DdsSerialize, TypeSupport},
     },
     runtime::{ChannelSend, Clock, DdsRuntime, OneshotReceive, Spawner, Timer},
     transport::{
@@ -79,7 +79,11 @@ use crate::{
             USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
         },
     },
-    xtypes::dynamic_type::DynamicType,
+    xtypes::{
+        dynamic_type::{DynamicData, DynamicType, ExtensibilityKind},
+        serialize::XTypesSerialize,
+        xcdr_serializer::{Xcdr1LeSerializer, Xcdr2LeSerializer},
+    },
 };
 use alloc::{
     boxed::Box,
@@ -371,10 +375,7 @@ where
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn get_type_support(
-        &mut self,
-        topic_name: String,
-    ) -> DdsResult<Arc<DynamicType>> {
+    pub fn get_type_support(&mut self, topic_name: String) -> DdsResult<Arc<DynamicType>> {
         let Some(topic) = self
             .domain_participant
             .topic_list
@@ -1836,7 +1837,7 @@ where
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        serialized_data: Vec<u8>,
+        dynamic_data: DynamicData,
         timestamp: Time,
     ) -> DdsResult<()> {
         let Some(publisher) = self
@@ -1855,7 +1856,7 @@ where
             return Err(DdsError::AlreadyDeleted);
         };
         let serialized_key = match get_serialized_key_from_serialized_foo(
-            &serialized_data,
+            &dynamic_data,
             data_writer.type_support.as_ref(),
         ) {
             Ok(k) => k,
@@ -1873,7 +1874,7 @@ where
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        serialized_data: Vec<u8>,
+        dynamic_data: DynamicData,
     ) -> DdsResult<Option<InstanceHandle>> {
         let Some(publisher) = self
             .domain_participant
@@ -1895,10 +1896,7 @@ where
             return Err(DdsError::NotEnabled);
         }
 
-        let instance_handle = match get_instance_handle_from_serialized_foo(
-            &serialized_data,
-            data_writer.type_support.as_ref(),
-        ) {
+        let instance_handle = match get_instance_handle_from_dynamic_data(dynamic_data) {
             Ok(k) => k,
             Err(e) => {
                 return Err(e.into());
@@ -1917,7 +1915,7 @@ where
         participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        serialized_data: Vec<u8>,
+        dynamic_data: DynamicData,
         timestamp: Time,
     ) -> DdsResult<()> {
         let now = self.get_current_time();
@@ -1936,10 +1934,7 @@ where
         else {
             return Err(DdsError::AlreadyDeleted);
         };
-        let instance_handle = match get_instance_handle_from_serialized_foo(
-            &serialized_data,
-            data_writer.type_support.as_ref(),
-        ) {
+        let instance_handle = match get_instance_handle_from_dynamic_data(dynamic_data.clone()) {
             Ok(k) => k,
             Err(e) => {
                 return Err(e.into());
@@ -1952,7 +1947,7 @@ where
                 let sleep_duration = timestamp - now + lifespan_duration;
                 if sleep_duration > Duration::new(0, 0) {
                     let sequence_number = match data_writer
-                        .write_w_timestamp(serialized_data, timestamp, &self.clock_handle)
+                        .write_w_timestamp(dynamic_data, timestamp, &self.clock_handle)
                         .await
                     {
                         Ok(s) => s,
@@ -1979,7 +1974,7 @@ where
             }
             DurationKind::Infinite => {
                 match data_writer
-                    .write_w_timestamp(serialized_data, timestamp, &self.clock_handle)
+                    .write_w_timestamp(dynamic_data, timestamp, &self.clock_handle)
                     .await
                 {
                     Ok(_) => (),
@@ -2018,7 +2013,7 @@ where
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        serialized_data: Vec<u8>,
+        dynamic_data: DynamicData,
         timestamp: Time,
     ) -> DdsResult<()> {
         let Some(publisher) = self
@@ -2036,8 +2031,9 @@ where
         else {
             return Err(DdsError::AlreadyDeleted);
         };
+
         let serialized_key = match get_serialized_key_from_serialized_foo(
-            &serialized_data,
+            &dynamic_data,
             data_writer.type_support.as_ref(),
         ) {
             Ok(k) => k,
@@ -2750,11 +2746,13 @@ where
                 .iter_mut()
                 .find(|x| x.topic_name == DCPS_PARTICIPANT)
             {
-                if let Ok(serialized_data) = spdp_discovered_participant_data.serialize_data() {
-                    dw.write_w_timestamp(serialized_data, timestamp, &self.clock_handle)
-                        .await
-                        .ok();
-                }
+                dw.write_w_timestamp(
+                    spdp_discovered_participant_data.create_dynamic_sample(),
+                    timestamp,
+                    &self.clock_handle,
+                )
+                .await
+                .ok();
             }
         }
     }
@@ -2853,11 +2851,13 @@ where
             .iter_mut()
             .find(|x| x.topic_name == DCPS_PUBLICATION)
         {
-            if let Ok(serialized_data) = discovered_writer_data.serialize_data() {
-                dw.write_w_timestamp(serialized_data, timestamp, &self.clock_handle)
-                    .await
-                    .ok();
-            }
+            dw.write_w_timestamp(
+                discovered_writer_data.create_dynamic_sample(),
+                timestamp,
+                &self.clock_handle,
+            )
+            .await
+            .ok();
         }
     }
 
@@ -2950,11 +2950,13 @@ where
             .iter_mut()
             .find(|x| x.topic_name == DCPS_SUBSCRIPTION)
         {
-            if let Ok(serialized_data) = discovered_reader_data.serialize_data() {
-                dw.write_w_timestamp(serialized_data, timestamp, &self.clock_handle)
-                    .await
-                    .ok();
-            }
+            dw.write_w_timestamp(
+                discovered_reader_data.create_dynamic_sample(),
+                timestamp,
+                &self.clock_handle,
+            )
+            .await
+            .ok();
         }
     }
 
@@ -3018,11 +3020,13 @@ where
             .iter_mut()
             .find(|x| x.topic_name == DCPS_TOPIC)
         {
-            if let Ok(serialized_data) = topic_builtin_topic_data.serialize_data() {
-                dw.write_w_timestamp(serialized_data, timestamp, &self.clock_handle)
-                    .await
-                    .ok();
-            }
+            dw.write_w_timestamp(
+                topic_builtin_topic_data.create_dynamic_sample(),
+                timestamp,
+                &self.clock_handle,
+            )
+            .await
+            .ok();
         }
     }
 
@@ -5896,7 +5900,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
 
     pub async fn write_w_timestamp(
         &mut self,
-        serialized_data: Vec<u8>,
+        dynamic_data: DynamicData,
         timestamp: Time,
         clock: &impl Clock,
     ) -> DdsResult<i64> {
@@ -5906,8 +5910,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
 
         self.last_change_sequence_number += 1;
 
-        let instance_handle =
-            get_instance_handle_from_serialized_foo(&serialized_data, self.type_support.as_ref())?;
+        let instance_handle = get_instance_handle_from_dynamic_data(dynamic_data.clone())?;
 
         if !self.registered_instance_list.contains(&instance_handle) {
             if self.registered_instance_list.len() < self.qos.resource_limits.max_instances {
@@ -5960,6 +5963,28 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
                 return Err(DdsError::OutOfResources);
             }
         }
+
+        let serialized_data = if self.qos.representation.value.is_empty()
+            || self.qos.representation.value[0] == XCDR_DATA_REPRESENTATION
+        {
+            let mut buffer = match dynamic_data.type_ref().get_descriptor().extensibility_kind {
+                ExtensibilityKind::Final | ExtensibilityKind::Appendable => vec![0x00, 0x01, 0, 0],
+                ExtensibilityKind::Mutable => vec![0x00, 0x03, 0, 0],
+            };
+            let mut serializer = Xcdr1LeSerializer::new(&mut buffer);
+            dynamic_data.serialize(&mut serializer)?;
+            buffer
+        } else if self.qos.representation.value[0] == XCDR2_DATA_REPRESENTATION {
+            let mut buffer = match dynamic_data.type_ref().get_descriptor().extensibility_kind {
+                ExtensibilityKind::Final => vec![0x00, 0x07, 0, 0],
+                ExtensibilityKind::Appendable => vec![0x00, 0x09, 0, 0],
+                ExtensibilityKind::Mutable => todo!(),
+            };
+            Xcdr2LeSerializer::new(&mut buffer);
+            buffer
+        } else {
+            panic!("Invalid data representation")
+        };
 
         let change = CacheChange {
             kind: ChangeKind::Alive,

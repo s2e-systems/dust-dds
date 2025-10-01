@@ -446,9 +446,6 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
     }
 
     fn create_dynamic_sample(self) -> crate::xtypes::dynamic_type::DynamicData {
-        let mut data =
-            dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type());
-
         fn serialize(this: &SpdpDiscoveredParticipantData) -> Result<Vec<u8>, RtpsError> {
             let mut serializer = ParameterListCdrSerializer::default();
             serializer.write_header()?;
@@ -522,6 +519,10 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
             serializer.write_sentinel()?;
             Ok(serializer.writer)
         }
+        
+        let mut data =
+            dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type());
+
         data.set_uint8_values(777, serialize(&self).unwrap())
             .unwrap();
 
