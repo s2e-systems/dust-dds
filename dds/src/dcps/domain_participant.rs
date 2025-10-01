@@ -5971,6 +5971,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
                 ExtensibilityKind::Final | ExtensibilityKind::Appendable => vec![0x00, 0x01, 0, 0],
                 ExtensibilityKind::Mutable => vec![0x00, 0x03, 0, 0],
             };
+            let mut buffer = vec![];
             let mut serializer = Xcdr1LeSerializer::new(&mut buffer);
             dynamic_data.serialize(&mut serializer)?;
             buffer

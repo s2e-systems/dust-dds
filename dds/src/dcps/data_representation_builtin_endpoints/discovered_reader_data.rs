@@ -63,7 +63,7 @@ impl TypeSupport for DiscoveredReaderData {
             bound: Vec::new(),
             element_type: None,
             key_element_type: None,
-            extensibility_kind: ExtensibilityKind::Mutable,
+            extensibility_kind: ExtensibilityKind::Final,
             is_nested: false,
         });
         builder
