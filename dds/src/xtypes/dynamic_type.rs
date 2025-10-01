@@ -960,6 +960,16 @@ impl<const N: usize> XTypesBinding for [u8; N] {
     }
 }
 
+impl<const N: usize> XTypesBinding for [i16; N] {
+    fn get_dynamic_type() -> DynamicType {
+        DynamicTypeBuilderFactory::create_array_type(i16::get_dynamic_type(), vec![N as u32]).build()
+    }
+
+    fn insert_value(self, dynamic_data: &mut DynamicData, id: MemberId) -> XTypesResult<()> {
+        dynamic_data.set_int16_values(id, self.to_vec())
+    }
+}
+
 impl XTypesBinding for &'_ [u8] {
     fn get_dynamic_type() -> DynamicType {
         DynamicTypeBuilderFactory::create_sequence_type(u8::get_dynamic_type(), u32::MAX).build()
