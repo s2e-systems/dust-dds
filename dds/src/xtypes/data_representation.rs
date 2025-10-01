@@ -1,8 +1,9 @@
 use crate::xtypes::{
     dynamic_type::{
-        DynamicData, ExtensibilityKind, MemberDescriptor, TK_ARRAY, TK_INT16, TK_INT32, TK_INT64, TK_SEQUENCE, TK_STRUCTURE, TK_UINT16, TK_UINT32, TK_UINT8
+        DynamicData, ExtensibilityKind, MemberDescriptor, TK_ARRAY, TK_BOOLEAN, TK_INT16, TK_INT32,
+        TK_INT64, TK_SEQUENCE, TK_STRING8, TK_STRUCTURE, TK_UINT16, TK_UINT32, TK_UINT8,
     },
-    serialize::XTypesSerialize,
+    serialize::{SerializeCollection, XTypesSerialize},
     serializer::{SerializeAppendableStruct, SerializeFinalStruct, SerializeMutableStruct},
 };
 
@@ -14,6 +15,21 @@ impl MemberDescriptor {
             .as_ref()
             .expect("array type must have element type")
             .get_kind()
+    }
+}
+
+struct Array<'a, T>(&'a Vec<T>);
+impl<'a, T: XTypesSerialize> XTypesSerialize for Array<'a, T> {
+    fn serialize(
+        &self,
+        serializer: impl crate::xtypes::serialize::XTypesSerializer,
+    ) -> Result<(), crate::xtypes::error::XTypesError> {
+        let mut collection_serializer = serializer.serialize_array()?;
+        for e in self.0 {
+            collection_serializer.serialize_element(e)?;
+        }
+
+        Ok(())
     }
 }
 
@@ -31,6 +47,13 @@ impl XTypesSerialize for DynamicData {
                         let member_descriptor = self.get_descriptor(member_id)?;
                         let member_type_kind = member_descriptor.r#type.get_kind();
                         let member_name = &member_descriptor.name;
+                        println!(
+                            "Final {} (member_type_kind: {:#X?}): {}: {}",
+                            field_index,
+                            member_type_kind,
+                            self.type_ref().get_name(),
+                            member_name
+                        );
                         match member_type_kind {
                             TK_UINT8 => {
                                 let value = self.get_uint8_value(member_id)?;
@@ -60,83 +83,72 @@ impl XTypesSerialize for DynamicData {
                                 let complex_value = self.get_complex_value(member_id)?;
                                 final_serializer.serialize_field(complex_value, member_name)?;
                             }
-                            TK_ARRAY => {
-                                match member_descriptor.get_element_type() {
-                                    TK_UINT8 => {
-                                        for value in self.get_uint8_values(member_id)? {
-                                            final_serializer.serialize_field(value, member_name)?;
-                                        }
-                                    }
-                                    TK_UINT16 => {
-                                        for value in self.get_uint16_values(member_id)? {
-                                            final_serializer.serialize_field(value, member_name)?;
-                                        }
-                                    }
-                                    TK_UINT32 => {
-                                        for value in self.get_uint32_values(member_id)? {
-                                            final_serializer.serialize_field(value, member_name)?;
-                                        }
-                                    }
-                                    TK_INT16 => {
-                                        for value in self.get_int16_values(member_id)? {
-                                            final_serializer.serialize_field(value, member_name)?;
-                                        }
-                                    }
-                                    TK_INT32 => {
-                                        for value in self.get_int32_values(member_id)? {
-                                            final_serializer.serialize_field(value, member_name)?;
-                                        }
-                                    }
-                                    TK_INT64 => {
-                                        for value in self.get_int64_values(member_id)? {
-                                            final_serializer.serialize_field(value, member_name)?;
-                                        }
-                                    }
-                                    TK_STRUCTURE => {
-                                        for value in self.get_complex_values(member_id)? {
-                                            final_serializer.serialize_field(value, member_name)?;
-                                        }
-                                    }
-                                    element_type => todo!(
-                                        "Not implemented for members of type {element_type:x?}"
-                                    ),
+                            TK_ARRAY => match member_descriptor.get_element_type() {
+                                TK_UINT8 => {
+                                    let value = self.get_uint8_values(member_id)?;
+                                    final_serializer.serialize_field(&Array(value), member_name)?;
                                 }
-                            }
-                            TK_SEQUENCE => {
-                                match member_descriptor.get_element_type() {
-                                    TK_UINT8 => {
-                                        let values = self.get_uint8_values(member_id)?;
-                                        final_serializer.serialize_field(values, member_name)?;
-                                    }
-                                    TK_UINT16 => {
-                                        let values = self.get_uint16_values(member_id)?;
-                                        final_serializer.serialize_field(values, member_name)?;
-                                    }
-                                    TK_UINT32 => {
-                                        let values = self.get_uint32_values(member_id)?;
-                                        final_serializer.serialize_field(values, member_name)?;
-                                    }
-                                    TK_INT16 => {
-                                        let values = self.get_int16_values(member_id)?;
-                                        final_serializer.serialize_field(values, member_name)?;
-                                    }
-                                    TK_INT32 => {
-                                        let values = self.get_int32_values(member_id)?;
-                                        final_serializer.serialize_field(values, member_name)?;
-                                    }
-                                    TK_INT64 => {
-                                        let values = self.get_int64_values(member_id)?;
-                                        final_serializer.serialize_field(values, member_name)?;
-                                    }
-                                    TK_STRUCTURE => {
-                                        let values = self.get_complex_values(member_id)?;
-                                        final_serializer.serialize_field(values, member_name)?;
-                                    }
-                                    element_type => todo!(
-                                        "Not implemented for members of type {element_type:#X?}"
-                                    ),
+                                TK_UINT16 => {
+                                    let value = self.get_uint16_values(member_id)?;
+                                    final_serializer.serialize_field(&Array(value), member_name)?;
                                 }
-                            }
+                                TK_UINT32 => {
+                                    let value = self.get_uint32_values(member_id)?;
+                                    final_serializer.serialize_field(&Array(value), member_name)?;
+                                }
+                                TK_INT16 => {
+                                    let value = self.get_int16_values(member_id)?;
+                                    final_serializer.serialize_field(&Array(value), member_name)?;
+                                }
+                                TK_INT32 => {
+                                    let value = self.get_int32_values(member_id)?;
+                                    final_serializer.serialize_field(&Array(value), member_name)?;
+                                }
+                                TK_INT64 => {
+                                    let value = self.get_int64_values(member_id)?;
+                                    final_serializer.serialize_field(&Array(value), member_name)?;
+                                }
+                                TK_STRUCTURE => {
+                                    let value = self.get_complex_values(member_id)?;
+                                    final_serializer.serialize_field(&Array(value), member_name)?;
+                                }
+                                element_type => {
+                                    todo!("Not implemented for members of type {element_type:x?}")
+                                }
+                            },
+                            TK_SEQUENCE => match member_descriptor.get_element_type() {
+                                TK_UINT8 => {
+                                    let values = self.get_uint8_values(member_id)?;
+                                    final_serializer.serialize_field(values, member_name)?;
+                                }
+                                TK_UINT16 => {
+                                    let values = self.get_uint16_values(member_id)?;
+                                    final_serializer.serialize_field(values, member_name)?;
+                                }
+                                TK_UINT32 => {
+                                    let values = self.get_uint32_values(member_id)?;
+                                    final_serializer.serialize_field(values, member_name)?;
+                                }
+                                TK_INT16 => {
+                                    let values = self.get_int16_values(member_id)?;
+                                    final_serializer.serialize_field(values, member_name)?;
+                                }
+                                TK_INT32 => {
+                                    let values = self.get_int32_values(member_id)?;
+                                    final_serializer.serialize_field(values, member_name)?;
+                                }
+                                TK_INT64 => {
+                                    let values = self.get_int64_values(member_id)?;
+                                    final_serializer.serialize_field(values, member_name)?;
+                                }
+                                TK_STRUCTURE => {
+                                    let values = self.get_complex_values(member_id)?;
+                                    final_serializer.serialize_field(values, member_name)?;
+                                }
+                                element_type => {
+                                    todo!("Not implemented for members of type {element_type:#X?}")
+                                }
+                            },
                             _ => {
                                 todo!("Not implemented for members of type {member_type_kind:#x?}")
                             }
@@ -151,6 +163,11 @@ impl XTypesSerialize for DynamicData {
                         let member_descriptor = self.get_descriptor(member_id)?;
                         let member_type_kind = member_descriptor.r#type.get_kind();
                         let member_name = &member_descriptor.name;
+                        println!(
+                            "Appendable: {}: {}",
+                            self.type_ref().get_name(),
+                            member_name
+                        );
                         match member_type_kind {
                             TK_UINT8 => {
                                 let value = self.get_uint8_value(member_id)?;
@@ -180,6 +197,79 @@ impl XTypesSerialize for DynamicData {
                                 let value = self.get_complex_value(member_id)?;
                                 appendable_serializer.serialize_field(value, member_name)?;
                             }
+                            TK_ARRAY => match member_descriptor.get_element_type() {
+                                TK_UINT8 => {
+                                    let value = self.get_uint8_values(member_id)?;
+                                    appendable_serializer
+                                        .serialize_field(&Array(value), member_name)?;
+                                }
+                                TK_UINT16 => {
+                                    let value = self.get_uint16_values(member_id)?;
+                                    appendable_serializer
+                                        .serialize_field(&Array(value), member_name)?;
+                                }
+                                TK_UINT32 => {
+                                    let value = self.get_uint32_values(member_id)?;
+                                    appendable_serializer
+                                        .serialize_field(&Array(value), member_name)?;
+                                }
+                                TK_INT16 => {
+                                    let value = self.get_int16_values(member_id)?;
+                                    appendable_serializer
+                                        .serialize_field(&Array(value), member_name)?;
+                                }
+                                TK_INT32 => {
+                                    let value = self.get_int32_values(member_id)?;
+                                    appendable_serializer
+                                        .serialize_field(&Array(value), member_name)?;
+                                }
+                                TK_INT64 => {
+                                    let value = self.get_int64_values(member_id)?;
+                                    appendable_serializer
+                                        .serialize_field(&Array(value), member_name)?;
+                                }
+                                TK_STRUCTURE => {
+                                    let value = self.get_complex_values(member_id)?;
+                                    appendable_serializer
+                                        .serialize_field(&Array(value), member_name)?;
+                                }
+                                element_type => {
+                                    todo!("Not implemented for members of type {element_type:x?}")
+                                }
+                            },
+                            TK_SEQUENCE => match member_descriptor.get_element_type() {
+                                TK_UINT8 => {
+                                    let values = self.get_uint8_values(member_id)?;
+                                    appendable_serializer.serialize_field(values, member_name)?;
+                                }
+                                TK_UINT16 => {
+                                    let values = self.get_uint16_values(member_id)?;
+                                    appendable_serializer.serialize_field(values, member_name)?;
+                                }
+                                TK_UINT32 => {
+                                    let values = self.get_uint32_values(member_id)?;
+                                    appendable_serializer.serialize_field(values, member_name)?;
+                                }
+                                TK_INT16 => {
+                                    let values = self.get_int16_values(member_id)?;
+                                    appendable_serializer.serialize_field(values, member_name)?;
+                                }
+                                TK_INT32 => {
+                                    let values = self.get_int32_values(member_id)?;
+                                    appendable_serializer.serialize_field(values, member_name)?;
+                                }
+                                TK_INT64 => {
+                                    let values = self.get_int64_values(member_id)?;
+                                    appendable_serializer.serialize_field(values, member_name)?;
+                                }
+                                TK_STRUCTURE => {
+                                    let values = self.get_complex_values(member_id)?;
+                                    appendable_serializer.serialize_field(values, member_name)?;
+                                }
+                                element_type => {
+                                    todo!("Not implemented for members of type {element_type:#X?}")
+                                }
+                            },
 
                             _ => {
                                 todo!("Not implemented for members of type {member_type_kind:#X?}")
@@ -196,7 +286,18 @@ impl XTypesSerialize for DynamicData {
                         let member_type_kind = member_descriptor.r#type.get_kind();
                         let member_name = &member_descriptor.name;
                         let pid = member_id;
+                        println!(
+                            "Mutable {} (member_type_kind: {:#X?}): {}: {}",
+                            field_index,
+                            member_type_kind,
+                            self.type_ref().get_name(),
+                            member_name
+                        );
                         match member_type_kind {
+                            TK_BOOLEAN => {
+                                let value = self.get_boolean_value(member_id)?;
+                                mutable_serializer.serialize_field(value, pid, member_name)?;
+                            }
                             TK_UINT8 => {
                                 let value = self.get_uint8_value(member_id)?;
                                 mutable_serializer.serialize_field(value, pid, member_name)?;
@@ -225,7 +326,139 @@ impl XTypesSerialize for DynamicData {
                                 let value = self.get_complex_value(member_id)?;
                                 mutable_serializer.serialize_field(value, pid, member_name)?;
                             }
-
+                            TK_ARRAY => match member_descriptor.get_element_type() {
+                                TK_UINT8 => {
+                                    let value = self.get_uint8_values(member_id)?;
+                                    mutable_serializer.serialize_field(
+                                        &Array(value),
+                                        pid,
+                                        member_name,
+                                    )?;
+                                }
+                                TK_UINT16 => {
+                                    let value = self.get_uint16_values(member_id)?;
+                                    mutable_serializer.serialize_field(
+                                        &Array(value),
+                                        pid,
+                                        member_name,
+                                    )?;
+                                }
+                                TK_UINT32 => {
+                                    let value = self.get_uint32_values(member_id)?;
+                                    mutable_serializer.serialize_field(
+                                        &Array(value),
+                                        pid,
+                                        member_name,
+                                    )?;
+                                }
+                                TK_INT16 => {
+                                    let value = self.get_int16_values(member_id)?;
+                                    mutable_serializer.serialize_field(
+                                        &Array(value),
+                                        pid,
+                                        member_name,
+                                    )?;
+                                }
+                                TK_INT32 => {
+                                    let value = self.get_int32_values(member_id)?;
+                                    mutable_serializer.serialize_field(
+                                        &Array(value),
+                                        pid,
+                                        member_name,
+                                    )?;
+                                }
+                                TK_INT64 => {
+                                    let value = self.get_int64_values(member_id)?;
+                                    mutable_serializer.serialize_field(
+                                        &Array(value),
+                                        pid,
+                                        member_name,
+                                    )?;
+                                }
+                                TK_STRUCTURE => {
+                                    let value = self.get_complex_values(member_id)?;
+                                    mutable_serializer.serialize_field(
+                                        &Array(value),
+                                        pid,
+                                        member_name,
+                                    )?;
+                                }
+                                element_type => {
+                                    todo!("Not implemented for members of type {element_type:x?}")
+                                }
+                            },
+                            TK_STRING8 => {
+                                let value = self.get_string_value(member_id)?;
+                                mutable_serializer.serialize_field(&value, pid, member_name)?;
+                            }
+                            TK_SEQUENCE => match member_descriptor.get_element_type() {
+                                TK_UINT8 => {
+                                    for value in self.get_uint8_values(member_id)? {
+                                        mutable_serializer.serialize_field(
+                                            value,
+                                            pid,
+                                            member_name,
+                                        )?;
+                                    }
+                                }
+                                TK_UINT16 => {
+                                    for value in self.get_uint16_values(member_id)? {
+                                        mutable_serializer.serialize_field(
+                                            value,
+                                            pid,
+                                            member_name,
+                                        )?;
+                                    }
+                                }
+                                TK_UINT32 => {
+                                    for value in self.get_uint32_values(member_id)? {
+                                        mutable_serializer.serialize_field(
+                                            value,
+                                            pid,
+                                            member_name,
+                                        )?;
+                                    }
+                                }
+                                TK_INT16 => {
+                                    for value in self.get_int16_values(member_id)? {
+                                        mutable_serializer.serialize_field(
+                                            value,
+                                            pid,
+                                            member_name,
+                                        )?;
+                                    }
+                                }
+                                TK_INT32 => {
+                                    for value in self.get_int32_values(member_id)? {
+                                        mutable_serializer.serialize_field(
+                                            value,
+                                            pid,
+                                            member_name,
+                                        )?;
+                                    }
+                                }
+                                TK_INT64 => {
+                                    for value in self.get_int64_values(member_id)? {
+                                        mutable_serializer.serialize_field(
+                                            value,
+                                            pid,
+                                            member_name,
+                                        )?;
+                                    }
+                                }
+                                TK_STRUCTURE => {
+                                    for value in self.get_complex_values(member_id)? {
+                                        mutable_serializer.serialize_field(
+                                            value,
+                                            pid,
+                                            member_name,
+                                        )?;
+                                    }
+                                }
+                                element_type => {
+                                    todo!("Not implemented for members of type {element_type:#X?}")
+                                }
+                            },
                             _ => {
                                 todo!("Not implemented for members of type {member_type_kind:#X?}")
                             }

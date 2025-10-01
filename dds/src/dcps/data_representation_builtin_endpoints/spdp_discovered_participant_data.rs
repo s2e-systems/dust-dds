@@ -17,7 +17,7 @@ use super::{
     },
 };
 use crate::{
-    builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
+    builtin_topics::{BuiltInTopicKey, ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     infrastructure::{
         domain::DomainId,
         error::DdsResult,
@@ -26,8 +26,14 @@ use crate::{
         time::Duration,
         type_support::{DdsDeserialize, DdsSerialize, TypeSupport},
     },
+    rtps::error::RtpsError,
     transport::types::{GuidPrefix, Locator, Long, ProtocolVersion, VendorId},
-    xtypes::{deserialize::XTypesDeserialize, dynamic_type::TK_UINT8, serialize::XTypesSerialize},
+    xtypes::{
+        deserialize::XTypesDeserialize,
+        dynamic_type::TK_UINT8,
+        error::XTypesResult,
+        serialize::{SerializeCollection, XTypesSerialize},
+    },
 };
 use alloc::{string::String, vec, vec::Vec};
 use dust_dds::xtypes::dynamic_type::{
@@ -156,9 +162,30 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
             bound: alloc::vec::Vec::new(),
             element_type: None,
             key_element_type: None,
-            extensibility_kind: ExtensibilityKind::Mutable,
+            extensibility_kind: ExtensibilityKind::Final,
             is_nested: false,
         });
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("data"),
+                id: 777,
+                r#type: DynamicTypeBuilderFactory::create_array_type(
+                    u8::get_dynamic_type(),
+                    vec![u32::MAX],
+                )
+                .build(),
+                default_value: String::new(),
+                index: 777,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: alloc::vec::Vec::new(),
+                is_key: false,
+                is_optional: true,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+
         builder
             .add_member(MemberDescriptor {
                 name: String::from("domain_id"),
@@ -209,13 +236,9 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
             .unwrap();
         builder
             .add_member(MemberDescriptor {
-                name: String::from("guid_prefix"),
+                name: String::from("key"),
                 id: PID_PARTICIPANT_GUID as u32,
-                r#type: DynamicTypeBuilderFactory::create_array_type(
-                    DynamicTypeBuilderFactory::get_primitive_type(TK_UINT8),
-                    vec![16],
-                )
-                .build(),
+                r#type: <BuiltInTopicKey as XTypesBinding>::get_dynamic_type(),
                 default_value: String::new(),
                 index: 3u32,
                 try_construct_kind: TryConstructKind::UseDefault,
@@ -294,7 +317,7 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
         builder
             .add_member(MemberDescriptor {
                 name: String::from("default_unicast_locator_list"),
-                id: PID_METATRAFFIC_UNICAST_LOCATOR as u32,
+                id: PID_DEFAULT_UNICAST_LOCATOR as u32,
                 r#type: <Vec<Locator> as XTypesBinding>::get_dynamic_type(),
                 default_value: String::new(),
                 index: 8u32,
@@ -310,7 +333,7 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
         builder
             .add_member(MemberDescriptor {
                 name: String::from("default_multicast_locator_list"),
-                id: PID_METATRAFFIC_MULTICAST_LOCATOR as u32,
+                id: PID_DEFAULT_MULTICAST_LOCATOR as u32,
                 r#type: <Vec<Locator> as XTypesBinding>::get_dynamic_type(),
                 default_value: String::new(),
                 index: 9u32,
@@ -423,7 +446,86 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
     }
 
     fn create_dynamic_sample(self) -> crate::xtypes::dynamic_type::DynamicData {
-        todo!()
+        let mut data =
+            dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type());
+
+        fn serialize(this: &SpdpDiscoveredParticipantData) -> Result<Vec<u8>, RtpsError> {
+            let mut serializer = ParameterListCdrSerializer::default();
+            serializer.write_header()?;
+
+            // dds_participant_data: ParticipantBuiltinTopicData :
+            serializer.write(PID_PARTICIPANT_GUID, &this.dds_participant_data.key)?;
+            serializer.write_with_default(
+                PID_USER_DATA,
+                &this.dds_participant_data.user_data,
+                &Default::default(),
+            )?;
+
+            // participant_proxy: ParticipantProxy :
+            if let Some(domain_id) = &this.participant_proxy.domain_id {
+                serializer.write(PID_DOMAIN_ID, domain_id)?;
+            }
+            serializer.write_with_default(
+                PID_DOMAIN_TAG,
+                &this.participant_proxy.domain_tag,
+                &String::from(DEFAULT_DOMAIN_TAG),
+            )?;
+            serializer.write(
+                PID_PROTOCOL_VERSION,
+                &this.participant_proxy.protocol_version,
+            )?;
+            serializer.write(PID_VENDORID, &this.participant_proxy.vendor_id)?;
+            serializer.write_with_default(
+                PID_EXPECTS_INLINE_QOS,
+                &this.participant_proxy.expects_inline_qos,
+                &DEFAULT_EXPECTS_INLINE_QOS,
+            )?;
+            serializer.write_collection(
+                PID_METATRAFFIC_UNICAST_LOCATOR,
+                &this.participant_proxy.metatraffic_unicast_locator_list,
+            )?;
+            serializer.write_collection(
+                PID_METATRAFFIC_MULTICAST_LOCATOR,
+                &this.participant_proxy.metatraffic_multicast_locator_list,
+            )?;
+            serializer.write_collection(
+                PID_DEFAULT_UNICAST_LOCATOR,
+                &this.participant_proxy.default_unicast_locator_list,
+            )?;
+            serializer.write_collection(
+                PID_DEFAULT_MULTICAST_LOCATOR,
+                &this.participant_proxy.default_multicast_locator_list,
+            )?;
+            serializer.write(
+                PID_BUILTIN_ENDPOINT_SET,
+                &this.participant_proxy.available_builtin_endpoints,
+            )?;
+            serializer.write_with_default(
+                PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
+                &this.participant_proxy.manual_liveliness_count,
+                &Default::default(),
+            )?;
+            serializer.write_with_default(
+                PID_BUILTIN_ENDPOINT_QOS,
+                &this.participant_proxy.builtin_endpoint_qos,
+                &Default::default(),
+            )?;
+
+            // Default (DEFAULT_PARTICIPANT_LEASE_DURATION) is ommited compared to the standard due to interoperability reasons :
+            serializer.write(PID_PARTICIPANT_LEASE_DURATION, &this.lease_duration)?;
+
+            serializer.write_collection(
+                PID_DISCOVERED_PARTICIPANT,
+                &this.discovered_participant_list,
+            )?;
+
+            serializer.write_sentinel()?;
+            Ok(serializer.writer)
+        }
+        data.set_uint8_values(777, serialize(&self).unwrap())
+            .unwrap();
+
+        data
     }
 }
 
@@ -604,7 +706,10 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{builtin_topics::BuiltInTopicKey, infrastructure::qos_policy::UserDataQosPolicy};
+    use crate::{
+        builtin_topics::BuiltInTopicKey, infrastructure::qos_policy::UserDataQosPolicy,
+        xtypes::xcdr_serializer::Xcdr1LeSerializer,
+    };
 
     #[test]
     fn serialize_spdp_discovered_participant_data() {
@@ -719,8 +824,13 @@ mod tests {
             11, 0x00, 0x00, 0x00, // Duration: fraction
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ];
-        let result = data.serialize_data().unwrap();
-        assert_eq!(result, expected);
+        let dynamic_sample = data.create_dynamic_sample();
+
+        let mut buffer = vec![];
+        dynamic_sample
+            .serialize(&mut Xcdr1LeSerializer::new(&mut buffer))
+            .unwrap();
+        assert_eq!(buffer, expected);
     }
 
     #[test]
