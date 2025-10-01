@@ -49,10 +49,11 @@ use crate::{
             DestinationOrderQosPolicyKind, DurabilityQosPolicyKind, HistoryQosPolicy,
             HistoryQosPolicyKind, Length, LifespanQosPolicy, OwnershipQosPolicyKind, QosPolicyId,
             ReliabilityQosPolicyKind, ResourceLimitsQosPolicy, TransportPriorityQosPolicy,
-            BUILT_IN_DATA_REPRESENTATION, DATA_REPRESENTATION_QOS_POLICY_ID, DEADLINE_QOS_POLICY_ID,
-            DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID,
-            LIVELINESS_QOS_POLICY_ID, OWNERSHIP_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID,
-            RELIABILITY_QOS_POLICY_ID, XCDR2_DATA_REPRESENTATION, XCDR_DATA_REPRESENTATION,
+            BUILT_IN_DATA_REPRESENTATION, DATA_REPRESENTATION_QOS_POLICY_ID,
+            DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID,
+            LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID, OWNERSHIP_QOS_POLICY_ID,
+            PRESENTATION_QOS_POLICY_ID, RELIABILITY_QOS_POLICY_ID, XCDR2_DATA_REPRESENTATION,
+            XCDR_DATA_REPRESENTATION,
         },
         sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
         status::{
@@ -62,7 +63,7 @@ use crate::{
             StatusKind, SubscriptionMatchedStatus,
         },
         time::{Duration, DurationKind, Time},
-        type_support::{DdsDeserialize, DdsSerialize, TypeSupport},
+        type_support::{DdsDeserialize, TypeSupport},
     },
     runtime::{ChannelSend, Clock, DdsRuntime, OneshotReceive, Spawner, Timer},
     transport::{
@@ -1855,10 +1856,7 @@ where
         else {
             return Err(DdsError::AlreadyDeleted);
         };
-        let serialized_key = match get_serialized_key_from_serialized_foo(
-            &dynamic_data,
-            data_writer.type_support.as_ref(),
-        ) {
+        let serialized_key = match get_serialized_key_from_serialized_foo(&dynamic_data) {
             Ok(k) => k,
             Err(e) => {
                 return Err(e.into());
@@ -2032,17 +2030,8 @@ where
             return Err(DdsError::AlreadyDeleted);
         };
 
-        let serialized_key = match get_serialized_key_from_serialized_foo(
-            &dynamic_data,
-            data_writer.type_support.as_ref(),
-        ) {
-            Ok(k) => k,
-            Err(e) => {
-                return Err(e.into());
-            }
-        };
         data_writer
-            .dispose_w_timestamp(serialized_key, timestamp)
+            .dispose_w_timestamp(dynamic_data, timestamp)
             .await
     }
 
@@ -2769,11 +2758,10 @@ where
                 .find(|x| x.topic_name == DCPS_PARTICIPANT)
             {
                 let key = InstanceHandle::new(self.transport.guid().into());
-                if let Ok(serialized_data) = key.serialize_data() {
-                    dw.dispose_w_timestamp(serialized_data, timestamp)
-                        .await
-                        .ok();
-                }
+                let serialized_data = key.create_dynamic_sample();
+                dw.dispose_w_timestamp(serialized_data, timestamp)
+                    .await
+                    .ok();
             }
         }
     }
@@ -2872,11 +2860,10 @@ where
             .find(|x| x.topic_name == DCPS_PUBLICATION)
         {
             let key = InstanceHandle::new(data_writer.transport_writer.guid().into());
-            if let Ok(serialized_data) = key.serialize_data() {
-                dw.dispose_w_timestamp(serialized_data, timestamp)
-                    .await
-                    .ok();
-            }
+            let serialized_data = key.create_dynamic_sample();
+            dw.dispose_w_timestamp(serialized_data, timestamp)
+                .await
+                .ok();
         }
     }
 
@@ -2972,11 +2959,10 @@ where
         {
             let guid = data_reader.transport_reader.guid();
             let key = InstanceHandle::new(guid.into());
-            if let Ok(serialized_data) = key.serialize_data() {
-                dw.dispose_w_timestamp(serialized_data, timestamp)
-                    .await
-                    .ok();
-            }
+            let serialized_data = key.create_dynamic_sample();
+            dw.dispose_w_timestamp(serialized_data, timestamp)
+                .await
+                .ok();
         }
     }
 
@@ -6081,7 +6067,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
 
     pub async fn dispose_w_timestamp(
         &mut self,
-        serialized_key: Vec<u8>,
+        dynamic_data: DynamicData,
         timestamp: Time,
     ) -> DdsResult<()> {
         if !self.enabled {
@@ -6107,8 +6093,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
             return Err(DdsError::IllegalOperation);
         }
 
-        let instance_handle =
-            get_instance_handle_from_serialized_key(&serialized_key, self.type_support.as_ref())?;
+        let instance_handle = get_instance_handle_from_dynamic_data(dynamic_data.clone())?;
         if !self.registered_instance_list.contains(&instance_handle) {
             return Err(DdsError::BadParameter);
         }
@@ -6122,7 +6107,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
         }
 
         self.last_change_sequence_number += 1;
-
+        let serialized_key = get_serialized_key_from_serialized_foo(&dynamic_data)?;
         let cache_change = CacheChange {
             kind: ChangeKind::NotAliveDisposed,
             writer_guid: self.transport_writer.guid(),

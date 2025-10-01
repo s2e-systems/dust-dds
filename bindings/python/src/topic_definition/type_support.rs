@@ -2,7 +2,7 @@ use crate::xtypes::endianness::{self, CDR_LE, REPRESENTATION_OPTIONS};
 use dust_dds::{
     infrastructure::{
         error::DdsResult,
-        type_support::{DdsDeserialize, DdsSerialize, TypeSupport},
+        type_support::{DdsDeserialize, TypeSupport},
     },
     xtypes::{
         deserializer::XTypesDeserializer,
@@ -434,12 +434,6 @@ impl PythonDdsData {
             }),
             _ => panic!("Unknown endianness"),
         }
-    }
-}
-
-impl DdsSerialize for PythonDdsData {
-    fn serialize_data(&self) -> DdsResult<Vec<u8>> {
-        Ok(self.data.clone())
     }
 }
 

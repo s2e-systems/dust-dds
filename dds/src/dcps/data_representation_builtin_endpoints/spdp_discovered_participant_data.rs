@@ -24,7 +24,7 @@ use crate::{
         instance::InstanceHandle,
         qos_policy::{UserDataQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS},
         time::Duration,
-        type_support::{DdsDeserialize, DdsSerialize, TypeSupport},
+        type_support::{DdsDeserialize, TypeSupport},
     },
     rtps::error::RtpsError,
     transport::types::{GuidPrefix, Locator, Long, ProtocolVersion, VendorId},
@@ -525,19 +525,6 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
     }
 }
 
-impl DdsSerialize for ParticipantBuiltinTopicData {
-    fn serialize_data(&self) -> DdsResult<Vec<u8>> {
-        let mut serializer = ParameterListCdrSerializer::default();
-        serializer.write_header()?;
-
-        // dds_participant_data: ParticipantBuiltinTopicData :
-        serializer.write(PID_PARTICIPANT_GUID, &self.key)?;
-        serializer.write_with_default(PID_USER_DATA, &self.user_data, &Default::default())?;
-        serializer.write_sentinel()?;
-        Ok(serializer.writer)
-    }
-}
-
 impl<'de> DdsDeserialize<'de> for ParticipantBuiltinTopicData {
     fn deserialize_data(serialized_data: &'de [u8]) -> DdsResult<Self> {
         let pl_deserializer = ParameterListCdrDeserializer::new(serialized_data)?;
@@ -577,82 +564,6 @@ impl<'de> DdsDeserialize<'de> for TopicBuiltinTopicData {
             representation: pl_deserializer
                 .read_with_default(PID_DATA_REPRESENTATION, Default::default())?,
         })
-    }
-}
-
-impl DdsSerialize for SpdpDiscoveredParticipantData {
-    fn serialize_data(&self) -> DdsResult<Vec<u8>> {
-        let mut serializer = ParameterListCdrSerializer::default();
-        serializer.write_header()?;
-
-        // dds_participant_data: ParticipantBuiltinTopicData :
-        serializer.write(PID_PARTICIPANT_GUID, &self.dds_participant_data.key)?;
-        serializer.write_with_default(
-            PID_USER_DATA,
-            &self.dds_participant_data.user_data,
-            &Default::default(),
-        )?;
-
-        // participant_proxy: ParticipantProxy :
-        if let Some(domain_id) = &self.participant_proxy.domain_id {
-            serializer.write(PID_DOMAIN_ID, domain_id)?;
-        }
-        serializer.write_with_default(
-            PID_DOMAIN_TAG,
-            &self.participant_proxy.domain_tag,
-            &String::from(DEFAULT_DOMAIN_TAG),
-        )?;
-        serializer.write(
-            PID_PROTOCOL_VERSION,
-            &self.participant_proxy.protocol_version,
-        )?;
-        serializer.write(PID_VENDORID, &self.participant_proxy.vendor_id)?;
-        serializer.write_with_default(
-            PID_EXPECTS_INLINE_QOS,
-            &self.participant_proxy.expects_inline_qos,
-            &DEFAULT_EXPECTS_INLINE_QOS,
-        )?;
-        serializer.write_collection(
-            PID_METATRAFFIC_UNICAST_LOCATOR,
-            &self.participant_proxy.metatraffic_unicast_locator_list,
-        )?;
-        serializer.write_collection(
-            PID_METATRAFFIC_MULTICAST_LOCATOR,
-            &self.participant_proxy.metatraffic_multicast_locator_list,
-        )?;
-        serializer.write_collection(
-            PID_DEFAULT_UNICAST_LOCATOR,
-            &self.participant_proxy.default_unicast_locator_list,
-        )?;
-        serializer.write_collection(
-            PID_DEFAULT_MULTICAST_LOCATOR,
-            &self.participant_proxy.default_multicast_locator_list,
-        )?;
-        serializer.write(
-            PID_BUILTIN_ENDPOINT_SET,
-            &self.participant_proxy.available_builtin_endpoints,
-        )?;
-        serializer.write_with_default(
-            PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
-            &self.participant_proxy.manual_liveliness_count,
-            &Default::default(),
-        )?;
-        serializer.write_with_default(
-            PID_BUILTIN_ENDPOINT_QOS,
-            &self.participant_proxy.builtin_endpoint_qos,
-            &Default::default(),
-        )?;
-
-        // Default (DEFAULT_PARTICIPANT_LEASE_DURATION) is ommited compared to the standard due to interoperability reasons :
-        serializer.write(PID_PARTICIPANT_LEASE_DURATION, &self.lease_duration)?;
-
-        serializer.write_collection(
-            PID_DISCOVERED_PARTICIPANT,
-            &self.discovered_participant_list,
-        )?;
-
-        serializer.write_sentinel()?;
-        Ok(serializer.writer)
     }
 }
 

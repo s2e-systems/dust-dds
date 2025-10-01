@@ -1,6 +1,6 @@
 mod derive;
 use derive::{
-    dds_serialize_data::{expand_dds_deserialize_data, expand_dds_serialize_data},
+    dds_serialize_data::expand_dds_deserialize_data,
     type_support::expand_type_support,
     xtypes::{expand_xtypes_deserialize, expand_xtypes_serialize},
 };
@@ -31,14 +31,6 @@ pub fn derive_type_support(input: TokenStream) -> TokenStream {
         .into()
 }
 
-#[proc_macro_derive(DdsSerialize, attributes(dust_dds))]
-pub fn derive_dds_serialize(input: TokenStream) -> TokenStream {
-    let input: DeriveInput = parse_macro_input!(input);
-    expand_dds_serialize_data(&input)
-        .unwrap_or_else(syn::Error::into_compile_error)
-        .into()
-}
-
 #[proc_macro_derive(DdsDeserialize, attributes(dust_dds))]
 pub fn derive_dds_deserialize(input: TokenStream) -> TokenStream {
     let input: DeriveInput = parse_macro_input!(input);
@@ -53,7 +45,6 @@ pub fn derive_dds_type(input: TokenStream) -> TokenStream {
 
     output.extend(derive_xtypes_serialize(input.clone()));
     output.extend(derive_xtypes_deserialize(input.clone()));
-    output.extend(derive_dds_serialize(input.clone()));
     output.extend(derive_dds_deserialize(input.clone()));
     output.extend(derive_type_support(input));
 

@@ -545,7 +545,6 @@ pub fn get_instance_handle_from_dynamic_data(
 
 pub fn get_serialized_key_from_serialized_foo(
     mut data: &DynamicData,
-    dynamic_type: &DynamicType,
 ) -> Result<Vec<u8>, XTypesError> {
     todo!()
     // let mut collection = Vec::new();

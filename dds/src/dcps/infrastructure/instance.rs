@@ -1,9 +1,6 @@
 use core::ops::Index;
 
-use crate::infrastructure::{
-    error::DdsResult,
-    type_support::{DdsDeserialize, DdsSerialize},
-};
+use crate::infrastructure::{error::DdsResult, type_support::DdsDeserialize};
 
 use crate::xtypes::{
     deserialize::XTypesDeserialize, serialize::XTypesSerialize, xcdr_serializer::Xcdr1BeSerializer,
@@ -23,7 +20,6 @@ use dust_dds_derive::TypeSupport;
     Ord,
     XTypesSerialize,
     XTypesDeserialize,
-    DdsSerialize,
     DdsDeserialize,
     TypeSupport,
 )]
