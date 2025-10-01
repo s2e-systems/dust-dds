@@ -8,61 +8,106 @@ pub enum Extensibility {
 
 pub fn get_input_extensibility(input: &DeriveInput) -> Result<Extensibility> {
     let mut extensibility = Extensibility::Final;
-    if let Some(xtypes_attribute) = input
-        .attrs
-        .iter()
-        .find(|attr| attr.path().is_ident("dust_dds"))
-    {
-        xtypes_attribute.parse_nested_meta(|meta| {
-            if meta.path.is_ident("extensibility") {
-                let format_str: syn::LitStr = meta.value()?.parse()?;
-                match format_str.value().as_ref() {
-                    "final" => {
-                        extensibility = Extensibility::Final;
-                        Ok(())
-                    }
-                    "appendable" => {
-                        extensibility = Extensibility::Appendable;
-                        Ok(())
-                    }
-                    "mutable" => {
-                        extensibility = Extensibility::Mutable;
-                        Ok(())
-                    }
-                    _ => Err(syn::Error::new(
-                        meta.path.span(),
-                        r#"Invalid format specified. Valid options are "final", "appendable", "mutable". "#,
-                    )),
+
+    for attr in input.attrs.iter().filter(|a| a.path().is_ident("dust_dds")) {
+        attr.parse_nested_meta(|meta| {
+            let name = meta.path.get_ident().map(|id| id.to_string());
+
+            match name.as_deref() {
+                Some("extensibility") => {
+                    let format_str: syn::LitStr = meta.value()?.parse()?;
+                    extensibility = match format_str.value().to_ascii_lowercase().as_str() {
+                        "final" => Extensibility::Final,
+                        "appendable" => Extensibility::Appendable,
+                        "mutable" => Extensibility::Mutable,
+                        other => {
+                            return Err(syn::Error::new(
+                                format_str.span(),
+                                format!(
+                                    "Invalid extensibility: `{}`. Use \"Final\", \"final\", \"Appendable\", \"appendable\", \"Mutable\", or \"mutable\"",
+                                    other
+                                ),
+                            ));
+                        }
+                    };
+                    Ok(())
                 }
-            } else {
-                Ok(())
+                Some("final") => {
+                    extensibility = Extensibility::Final;
+                    Ok(())
+                }
+                Some("appendable") => {
+                    extensibility = Extensibility::Appendable;
+                    Ok(())
+                }
+                Some("mutable") => {
+                    extensibility = Extensibility::Mutable;
+                    Ok(())
+                }
+                _ => Ok(()),
             }
         })?;
     }
+
     Ok(extensibility)
 }
 
+
+#[derive(Default)]
 pub struct FieldAttributes {
     pub key: bool,
     pub id: Option<Expr>,
+    pub optional: bool,
+    pub hashid: bool,
+    pub must_understand: bool,
 }
 
-pub fn get_field_attributes(field: &Field) -> syn::Result<FieldAttributes> {
-    let mut key = false;
-    let mut id = None;
-    if let Some(xtypes_attribute) = field
-        .attrs
-        .iter()
-        .find(|attr| attr.path().is_ident("dust_dds"))
-    {
-        xtypes_attribute.parse_nested_meta(|meta| {
-            if meta.path.is_ident("key") {
-                key = true;
-            } else if meta.path.is_ident("id") {
-                id = Some(meta.value()?.parse()?);
+
+pub fn get_field_attributes(field: &Field) -> Result<FieldAttributes> {
+    let mut attrs = FieldAttributes::default();
+
+    for attr in field.attrs.iter().filter(|a| a.path().is_ident("dust_dds")) {
+        attr.parse_nested_meta(|meta| {
+            let name = meta.path.get_ident().map(|id| id.to_string());
+
+            match name.as_deref() {
+                Some("key") => {
+                    attrs.key = true;
+                }
+                Some("optional") | Some("Optional") => {
+                    attrs.optional = true;
+                }
+                Some("hashid") => {
+                    attrs.hashid = true;
+                }
+                Some("must_understand") => {
+                    attrs.must_understand = true;
+                }
+                Some("id") => {
+                    let expr: Expr = meta.value()?.parse()?;
+                    if let Expr::Lit(expr_lit) = &expr {
+                        if let syn::Lit::Int(_) = &expr_lit.lit {
+                            attrs.id = Some(expr);
+                        } else {
+                            return Err(syn::Error::new(expr.span(), "Expected integer literal for `id`"));
+                        }
+                    } else {
+                        return Err(syn::Error::new(expr.span(), "Expected literal expression for `id`"));
+                    }
+                }
+                Some(other) => {
+                    return Err(syn::Error::new(
+                        meta.path.span(),
+                        format!("Unknown dust_dds field attribute: `{}`", other),
+                    ));
+                }
+                None => {}
             }
+
             Ok(())
         })?;
     }
-    Ok(FieldAttributes { key, id })
+
+    Ok(attrs)
 }
+
