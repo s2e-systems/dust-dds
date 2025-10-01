@@ -13,42 +13,44 @@ pub type IncludePathSeq = Vec<String>;
 pub type ObjectName = String;
 
 // ---------- TypeKinds (begin) -------------------
-pub type TypeKind = u8;
-
-// Primitive TKs
-pub const TK_NONE: TypeKind = 0x00;
-pub const TK_BOOLEAN: TypeKind = 0x01;
-pub const TK_BYTE: TypeKind = 0x02;
-pub const TK_INT16: TypeKind = 0x03;
-pub const TK_INT32: TypeKind = 0x04;
-pub const TK_INT64: TypeKind = 0x05;
-pub const TK_UINT16: TypeKind = 0x06;
-pub const TK_UINT32: TypeKind = 0x07;
-pub const TK_UINT64: TypeKind = 0x08;
-pub const TK_FLOAT32: TypeKind = 0x09;
-pub const TK_FLOAT64: TypeKind = 0x0A;
-pub const TK_FLOAT128: TypeKind = 0x0B;
-pub const TK_INT8: TypeKind = 0x0C;
-pub const TK_UINT8: TypeKind = 0x0D;
-pub const TK_CHAR8: TypeKind = 0x10;
-pub const TK_CHAR16: TypeKind = 0x11;
-// String TK;
-pub const TK_STRING8: TypeKind = 0x20;
-pub const TK_STRING16: TypeKind = 0x21;
-// Constructed/Named type;
-pub const TK_ALIAS: TypeKind = 0x30;
-// Enumerated TK;
-pub const TK_ENUM: TypeKind = 0x40;
-pub const TK_BITMASK: TypeKind = 0x41;
-// Structured TK;
-pub const TK_ANNOTATION: TypeKind = 0x50;
-pub const TK_STRUCTURE: TypeKind = 0x51;
-pub const TK_UNION: TypeKind = 0x52;
-pub const TK_BITSET: TypeKind = 0x53;
-// Collection TK;
-pub const TK_SEQUENCE: TypeKind = 0x60;
-pub const TK_ARRAY: TypeKind = 0x61;
-pub const TK_MAP: TypeKind = 0x62;
+#[derive(Debug, Clone, Copy)]
+#[repr(u8)]
+pub enum TypeKind {
+    // Primitive TKs
+    NONE = 0x00,
+    BOOLEAN = 0x01,
+    BYTE = 0x02,
+    INT16 = 0x03,
+    INT32 = 0x04,
+    INT64 = 0x05,
+    UINT16 = 0x06,
+    UINT32 = 0x07,
+    UINT64 = 0x08,
+    FLOAT32 = 0x09,
+    FLOAT64 = 0x0A,
+    FLOAT128 = 0x0B,
+    INT8 = 0x0C,
+    UINT8 = 0x0D,
+    CHAR8 = 0x10,
+    CHAR16 = 0x11,
+    // String TK;
+    STRING8 = 0x20,
+    STRING16 = 0x21,
+    // Constructed/Named type;
+    ALIAS = 0x30,
+    // Enumerated TK;
+    ENUM = 0x40,
+    BITMASK = 0x41,
+    // Structured TK;
+    ANNOTATION = 0x50,
+    STRUCTURE = 0x51,
+    UNION = 0x52,
+    BITSET = 0x53,
+    // Collection TK;
+    SEQUENCE = 0x60,
+    ARRAY = 0x61,
+    MAP = 0x62,
+}
 
 // ---------- TypeKinds (end) -------------------
 
@@ -90,7 +92,7 @@ impl DynamicTypeBuilderFactory {
     pub fn create_string_type(bound: u32) -> DynamicTypeBuilder {
         DynamicTypeBuilder {
             descriptor: TypeDescriptor {
-                kind: TK_STRING8,
+                kind: TypeKind::STRING8,
                 name: String::new(),
                 base_type: None,
                 discriminator_type: None,
@@ -111,7 +113,7 @@ impl DynamicTypeBuilderFactory {
     pub fn create_sequence_type(element_type: DynamicType, bound: u32) -> DynamicTypeBuilder {
         DynamicTypeBuilder {
             descriptor: TypeDescriptor {
-                kind: TK_SEQUENCE,
+                kind: TypeKind::SEQUENCE,
                 name: String::new(),
                 base_type: None,
                 discriminator_type: None,
@@ -128,7 +130,7 @@ impl DynamicTypeBuilderFactory {
     pub fn create_array_type(element_type: DynamicType, bound: BoundSeq) -> DynamicTypeBuilder {
         DynamicTypeBuilder {
             descriptor: TypeDescriptor {
-                kind: TK_ARRAY,
+                kind: TypeKind::ARRAY,
                 name: String::new(),
                 base_type: None,
                 discriminator_type: None,
@@ -292,8 +294,12 @@ impl DynamicTypeBuilder {
     }
 
     pub fn add_member(&mut self, descriptor: MemberDescriptor) -> XTypesResult<()> {
-        if let TK_ENUM | TK_BITMASK | TK_ANNOTATION | TK_STRUCTURE | TK_UNION | TK_BITSET =
-            self.descriptor.kind
+        if let TypeKind::ENUM
+        | TypeKind::BITMASK
+        | TypeKind::ANNOTATION
+        | TypeKind::STRUCTURE
+        | TypeKind::UNION
+        | TypeKind::BITSET = self.descriptor.kind
         {
         } else {
             return Err(XTypesError::IllegalOperation);
@@ -406,7 +412,7 @@ impl DynamicData {
 
     pub fn get_item_count(&self) -> u32 {
         match self.type_ref.get_kind() {
-            TK_STRUCTURE => self.abstract_data.len() as u32,
+            TypeKind::STRUCTURE => self.abstract_data.len() as u32,
             _ => todo!(),
         }
     }
@@ -830,7 +836,7 @@ pub trait XTypesBinding {
 
 impl XTypesBinding for u8 {
     fn get_dynamic_type() -> DynamicType {
-        DynamicTypeBuilderFactory::get_primitive_type(TK_UINT8)
+        DynamicTypeBuilderFactory::get_primitive_type(TypeKind::UINT8)
     }
 
     fn insert_value(self, dynamic_data: &mut DynamicData, id: MemberId) -> XTypesResult<()> {
@@ -839,7 +845,7 @@ impl XTypesBinding for u8 {
 }
 impl XTypesBinding for i8 {
     fn get_dynamic_type() -> DynamicType {
-        DynamicTypeBuilderFactory::get_primitive_type(TK_INT8)
+        DynamicTypeBuilderFactory::get_primitive_type(TypeKind::INT8)
     }
 
     fn insert_value(self, dynamic_data: &mut DynamicData, id: MemberId) -> XTypesResult<()> {
@@ -849,7 +855,7 @@ impl XTypesBinding for i8 {
 
 impl XTypesBinding for u16 {
     fn get_dynamic_type() -> DynamicType {
-        DynamicTypeBuilderFactory::get_primitive_type(TK_UINT16)
+        DynamicTypeBuilderFactory::get_primitive_type(TypeKind::UINT16)
     }
 
     fn insert_value(self, dynamic_data: &mut DynamicData, id: MemberId) -> XTypesResult<()> {
@@ -859,7 +865,7 @@ impl XTypesBinding for u16 {
 
 impl XTypesBinding for i16 {
     fn get_dynamic_type() -> DynamicType {
-        DynamicTypeBuilderFactory::get_primitive_type(TK_INT16)
+        DynamicTypeBuilderFactory::get_primitive_type(TypeKind::INT16)
     }
 
     fn insert_value(self, dynamic_data: &mut DynamicData, id: MemberId) -> XTypesResult<()> {
@@ -869,7 +875,7 @@ impl XTypesBinding for i16 {
 
 impl XTypesBinding for u32 {
     fn get_dynamic_type() -> DynamicType {
-        DynamicTypeBuilderFactory::get_primitive_type(TK_UINT32)
+        DynamicTypeBuilderFactory::get_primitive_type(TypeKind::UINT32)
     }
 
     fn insert_value(self, dynamic_data: &mut DynamicData, id: MemberId) -> XTypesResult<()> {
@@ -879,7 +885,7 @@ impl XTypesBinding for u32 {
 
 impl XTypesBinding for i32 {
     fn get_dynamic_type() -> DynamicType {
-        DynamicTypeBuilderFactory::get_primitive_type(TK_INT32)
+        DynamicTypeBuilderFactory::get_primitive_type(TypeKind::INT32)
     }
 
     fn insert_value(self, dynamic_data: &mut DynamicData, id: MemberId) -> XTypesResult<()> {
@@ -889,7 +895,7 @@ impl XTypesBinding for i32 {
 
 impl XTypesBinding for u64 {
     fn get_dynamic_type() -> DynamicType {
-        DynamicTypeBuilderFactory::get_primitive_type(TK_UINT64)
+        DynamicTypeBuilderFactory::get_primitive_type(TypeKind::UINT64)
     }
 
     fn insert_value(self, dynamic_data: &mut DynamicData, id: MemberId) -> XTypesResult<()> {
@@ -899,7 +905,7 @@ impl XTypesBinding for u64 {
 
 impl XTypesBinding for i64 {
     fn get_dynamic_type() -> DynamicType {
-        DynamicTypeBuilderFactory::get_primitive_type(TK_INT64)
+        DynamicTypeBuilderFactory::get_primitive_type(TypeKind::INT64)
     }
 
     fn insert_value(self, dynamic_data: &mut DynamicData, id: MemberId) -> XTypesResult<()> {
@@ -919,7 +925,7 @@ impl XTypesBinding for String {
 
 impl XTypesBinding for bool {
     fn get_dynamic_type() -> DynamicType {
-        DynamicTypeBuilderFactory::get_primitive_type(TK_BOOLEAN)
+        DynamicTypeBuilderFactory::get_primitive_type(TypeKind::BOOLEAN)
     }
 
     fn insert_value(self, dynamic_data: &mut DynamicData, id: MemberId) -> XTypesResult<()> {
@@ -929,7 +935,7 @@ impl XTypesBinding for bool {
 
 impl XTypesBinding for f32 {
     fn get_dynamic_type() -> DynamicType {
-        DynamicTypeBuilderFactory::get_primitive_type(TK_FLOAT32)
+        DynamicTypeBuilderFactory::get_primitive_type(TypeKind::FLOAT32)
     }
 
     fn insert_value(self, dynamic_data: &mut DynamicData, id: MemberId) -> XTypesResult<()> {
@@ -939,7 +945,7 @@ impl XTypesBinding for f32 {
 
 impl XTypesBinding for f64 {
     fn get_dynamic_type() -> DynamicType {
-        DynamicTypeBuilderFactory::get_primitive_type(TK_FLOAT64)
+        DynamicTypeBuilderFactory::get_primitive_type(TypeKind::FLOAT64)
     }
 
     fn insert_value(self, dynamic_data: &mut DynamicData, id: MemberId) -> XTypesResult<()> {
@@ -949,7 +955,7 @@ impl XTypesBinding for f64 {
 
 impl XTypesBinding for char {
     fn get_dynamic_type() -> DynamicType {
-        DynamicTypeBuilderFactory::get_primitive_type(TK_CHAR8)
+        DynamicTypeBuilderFactory::get_primitive_type(TypeKind::CHAR8)
     }
 
     fn insert_value(self, dynamic_data: &mut DynamicData, id: MemberId) -> XTypesResult<()> {

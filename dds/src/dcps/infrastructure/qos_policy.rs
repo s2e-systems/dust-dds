@@ -9,7 +9,7 @@ use crate::{
         bytes::{ByteBuf, Bytes},
         deserialize::XTypesDeserialize,
         deserializer::{DeserializeFinalStruct, XTypesDeserializer},
-        dynamic_type::{DynamicTypeBuilderFactory, XTypesBinding, TK_INT32},
+        dynamic_type::{DynamicTypeBuilderFactory, TypeKind, XTypesBinding},
         error::XTypesError,
         serialize::{XTypesSerialize, XTypesSerializer},
         serializer::SerializeFinalStruct,
@@ -32,7 +32,7 @@ pub enum Length {
 
 impl XTypesBinding for Length {
     fn get_dynamic_type() -> crate::xtypes::dynamic_type::DynamicType {
-        DynamicTypeBuilderFactory::get_primitive_type(TK_INT32)
+        DynamicTypeBuilderFactory::get_primitive_type(TypeKind::INT32)
     }
 
     fn insert_value(
@@ -1147,12 +1147,12 @@ impl TypeSupport for HistoryQosPolicyKind {
         extern crate alloc;
         let builder = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
             dust_dds::xtypes::dynamic_type::TypeDescriptor {
-                kind: dust_dds::xtypes::dynamic_type::TK_ENUM,
+                kind: dust_dds::xtypes::dynamic_type::TypeKind::ENUM,
                 name: alloc::string::String::from("HistoryQosPolicyKind"),
                 base_type: None,
                 discriminator_type: Some(
                     dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::get_primitive_type(
-                        dust_dds::xtypes::dynamic_type::TK_UINT8,
+                        dust_dds::xtypes::dynamic_type::TypeKind::UINT8,
                     ),
                 ),
                 bound: alloc::vec::Vec::new(),
@@ -1232,7 +1232,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for HistoryQosPolicy {
         extern crate alloc;
         let mut builder = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
             dust_dds::xtypes::dynamic_type::TypeDescriptor {
-                kind: dust_dds::xtypes::dynamic_type::TK_STRUCTURE,
+                kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
                 name: alloc::string::String::from("HistoryQosPolicy"),
                 base_type: None,
                 discriminator_type: None,
@@ -1265,7 +1265,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for HistoryQosPolicy {
                 id: 1,
                 r#type:
                     dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::get_primitive_type(
-                        TK_INT32,
+                        TypeKind::INT32,
                     ),
                 default_value: alloc::string::String::new(),
                 index: 1u32,

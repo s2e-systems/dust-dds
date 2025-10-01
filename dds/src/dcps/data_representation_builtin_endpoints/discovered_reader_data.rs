@@ -26,14 +26,14 @@ use crate::{
         type_support::DdsDeserialize,
     },
     transport::types::{EntityId, Guid, Locator},
-    xtypes::dynamic_type::TK_UINT8,
+    xtypes::dynamic_type::TypeKind,
 };
 use alloc::{string::String, vec, vec::Vec};
 use dust_dds::{
     infrastructure::type_support::TypeSupport,
     xtypes::dynamic_type::{
         DynamicTypeBuilderFactory, ExtensibilityKind, MemberDescriptor, TryConstructKind,
-        TypeDescriptor, XTypesBinding, TK_STRUCTURE,
+        TypeDescriptor, XTypesBinding,
     },
 };
 
@@ -56,7 +56,7 @@ impl TypeSupport for DiscoveredReaderData {
     fn get_type() -> dust_dds::xtypes::dynamic_type::DynamicType {
         extern crate alloc;
         let mut builder = DynamicTypeBuilderFactory::create_type(TypeDescriptor {
-            kind: TK_STRUCTURE,
+            kind: TypeKind::STRUCTURE,
             name: String::from("DiscoveredReaderData"),
             base_type: None,
             discriminator_type: None,
@@ -91,7 +91,7 @@ impl TypeSupport for DiscoveredReaderData {
                 name: String::from("key"),
                 id: PID_ENDPOINT_GUID as u32,
                 r#type: DynamicTypeBuilderFactory::create_array_type(
-                    DynamicTypeBuilderFactory::get_primitive_type(TK_UINT8),
+                    DynamicTypeBuilderFactory::get_primitive_type(TypeKind::UINT8),
                     vec![16],
                 )
                 .build(),

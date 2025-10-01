@@ -2,18 +2,14 @@ use crate::{
     infrastructure::instance::InstanceHandle,
     xtypes::{
         deserializer::{DeserializeAppendableStruct, DeserializeSequence, XTypesDeserializer},
-        dynamic_type::{
-            DynamicData, DynamicType, MemberDescriptor, TK_ARRAY, TK_BOOLEAN, TK_CHAR8, TK_FLOAT32,
-            TK_FLOAT64, TK_INT16, TK_INT32, TK_INT64, TK_INT8, TK_SEQUENCE, TK_STRING8,
-            TK_STRUCTURE, TK_UINT16, TK_UINT32, TK_UINT64, TK_UINT8,
-        },
+        dynamic_type::{DynamicData, DynamicType, MemberDescriptor, TypeKind},
         error::XTypesError,
         serialize::{Write, XTypesSerialize, XTypesSerializer},
         serializer::SerializeFinalStruct,
         xcdr_deserializer::{
             Xcdr1BeDeserializer, Xcdr1LeDeserializer, Xcdr2BeDeserializer, Xcdr2LeDeserializer,
         },
-        xcdr_serializer::{Xcdr1LeSerializer, Xcdr2BeSerializer},
+        xcdr_serializer::Xcdr2BeSerializer,
     },
 };
 use alloc::{string::String, vec::Vec};
@@ -59,85 +55,85 @@ where
     for<'b> &'b mut T: XTypesDeserializer<'a>,
 {
     match dynamic_type.get_kind() {
-        TK_BOOLEAN => {
+        TypeKind::BOOLEAN => {
             let v = de.deserialize_boolean()?;
             if is_key_field {
                 serializer.serialize_field(&v, "")?;
             }
         }
-        TK_INT8 => {
+        TypeKind::INT8 => {
             let v = de.deserialize_int8()?;
             if is_key_field {
                 serializer.serialize_field(&v, "")?;
             }
         }
-        TK_INT16 => {
+        TypeKind::INT16 => {
             let v = de.deserialize_int16()?;
             if is_key_field {
                 serializer.serialize_field(&v, "")?;
             }
         }
-        TK_INT32 => {
+        TypeKind::INT32 => {
             let v = de.deserialize_int32()?;
             if is_key_field {
                 serializer.serialize_field(&v, "")?;
             }
         }
-        TK_INT64 => {
+        TypeKind::INT64 => {
             let v = de.deserialize_int64()?;
             if is_key_field {
                 serializer.serialize_field(&v, "")?;
             }
         }
-        TK_UINT8 => {
+        TypeKind::UINT8 => {
             let v = de.deserialize_uint8()?;
             if is_key_field {
                 serializer.serialize_field(&v, "")?;
             }
         }
-        TK_UINT16 => {
+        TypeKind::UINT16 => {
             let v = de.deserialize_uint16()?;
             if is_key_field {
                 serializer.serialize_field(&v, "")?;
             }
         }
-        TK_UINT32 => {
+        TypeKind::UINT32 => {
             let v = de.deserialize_uint32()?;
             if is_key_field {
                 serializer.serialize_field(&v, "")?;
             }
         }
-        TK_UINT64 => {
+        TypeKind::UINT64 => {
             let v = de.deserialize_uint64()?;
             if is_key_field {
                 serializer.serialize_field(&v, "")?;
             }
         }
-        TK_FLOAT32 => {
+        TypeKind::FLOAT32 => {
             let v = de.deserialize_float32()?;
             if is_key_field {
                 serializer.serialize_field(&v, "")?;
             }
         }
-        TK_FLOAT64 => {
+        TypeKind::FLOAT64 => {
             let v = de.deserialize_float64()?;
             if is_key_field {
                 serializer.serialize_field(&v, "")?;
             }
         }
-        TK_CHAR8 => {
+        TypeKind::CHAR8 => {
             let v = de.deserialize_char8()?;
             if is_key_field {
                 serializer.serialize_field(&v, "")?;
             }
         }
-        TK_STRING8 => {
+        TypeKind::STRING8 => {
             let v = de.deserialize_string()?;
             if is_key_field {
                 serializer.serialize_field(&v, "")?;
             }
         }
-        TK_SEQUENCE => {
+        TypeKind::SEQUENCE => {
             let len = de.deserialize_sequence()?.len() as u32;
             if is_key_field {
                 serializer.serialize_field(&len, "")?;
@@ -152,7 +148,7 @@ where
                 }
             }
         }
-        TK_ARRAY => {
+        TypeKind::ARRAY => {
             for _ in 0..dynamic_type.get_descriptor().bound[0] {
                 deserialize_and_serialize_if_key_field(
                     dynamic_type.get_descriptor().element_type.as_ref().unwrap(),
@@ -162,7 +158,7 @@ where
                 )?;
             }
         }
-        TK_STRUCTURE => {
+        TypeKind::STRUCTURE => {
             push_to_key(dynamic_type, serializer, de)?;
         }
         _ => todo!(),
@@ -178,85 +174,85 @@ fn deserialize_and_serialize_if_key_field_for_appendable_cdr<'a>(
 ) -> Result<(), XTypesError> {
     let name = "";
     match dynamic_type.get_kind() {
-        TK_BOOLEAN => {
+        TypeKind::BOOLEAN => {
             let v = de.deserialize_field::<bool>(name)?;
             if is_key_field {
                 serializer.serialize_field(&v, "")?;
             }
         }
-        TK_INT8 => {
+        TypeKind::INT8 => {
             let v = de.deserialize_field::<i8>(name)?;
             if is_key_field {
                 serializer.serialize_field(&v, "")?;
             }
         }
-        TK_INT16 => {
+        TypeKind::INT16 => {
             let v = de.deserialize_field::<i16>(name)?;
             if is_key_field {
                 serializer.serialize_field(&v, "")?;
             }
         }
-        TK_INT32 => {
+        TypeKind::INT32 => {
             let v = de.deserialize_field::<i32>(name)?;
             if is_key_field {
                 serializer.serialize_field(&v, "")?;
             }
         }
-        TK_INT64 => {
+        TypeKind::INT64 => {
             let v = de.deserialize_field::<i64>(name)?;
             if is_key_field {
                 serializer.serialize_field(&v, "")?;
             }
         }
-        TK_UINT8 => {
+        TypeKind::UINT8 => {
             let v = de.deserialize_field::<u8>(name)?;
             if is_key_field {
                 serializer.serialize_field(&v, "")?;
             }
         }
-        TK_UINT16 => {
+        TypeKind::UINT16 => {
             let v = de.deserialize_field::<u16>(name)?;
             if is_key_field {
                 serializer.serialize_field(&v, "")?;
             }
         }
-        TK_UINT32 => {
+        TypeKind::UINT32 => {
             let v = de.deserialize_field::<u32>(name)?;
             if is_key_field {
                 serializer.serialize_field(&v, "")?;
             }
         }
-        TK_UINT64 => {
+        TypeKind::UINT64 => {
             let v = de.deserialize_field::<u64>(name)?;
             if is_key_field {
                 serializer.serialize_field(&v, "")?;
             }
         }
-        TK_FLOAT32 => {
+        TypeKind::FLOAT32 => {
             let v = de.deserialize_field::<f32>(name)?;
             if is_key_field {
                 serializer.serialize_field(&v, "")?;
             }
         }
-        TK_FLOAT64 => {
+        TypeKind::FLOAT64 => {
             let v = de.deserialize_field::<f64>(name)?;
             if is_key_field {
                 serializer.serialize_field(&v, "")?;
             }
         }
-        TK_CHAR8 => {
+        TypeKind::CHAR8 => {
             let v = de.deserialize_field::<u8>(name)?;
             if is_key_field {
                 serializer.serialize_field(&v, "")?;
             }
         }
-        TK_STRING8 => {
+        TypeKind::STRING8 => {
             let v = de.deserialize_field::<String>(name)?;
             if is_key_field {
                 serializer.serialize_field(&v, "")?;
             }
         }
-        TK_ARRAY => {
+        TypeKind::ARRAY => {
             if is_key_field {
                 for _ in 0..dynamic_type.get_descriptor().bound[0] {
                     deserialize_and_serialize_if_key_field_for_appendable_cdr(
@@ -268,7 +264,7 @@ fn deserialize_and_serialize_if_key_field_for_appendable_cdr<'a>(
                 }
             }
         }
-        TK_SEQUENCE => {
+        TypeKind::SEQUENCE => {
             let len = de.deserialize_field::<u32>(name)?;
             if is_key_field {
                 serializer.serialize_field(&len, "")?;

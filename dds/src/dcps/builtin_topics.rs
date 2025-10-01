@@ -29,7 +29,7 @@ use crate::{
         deserialize::XTypesDeserialize,
         dynamic_type::{
             DynamicTypeBuilderFactory, ExtensibilityKind, MemberDescriptor, TryConstructKind,
-            TypeDescriptor, XTypesBinding, TK_STRUCTURE,
+            TypeDescriptor, TypeKind, XTypesBinding,
         },
         serialize::XTypesSerialize,
     },
@@ -100,7 +100,7 @@ impl TypeSupport for TopicBuiltinTopicData {
     fn get_type() -> crate::xtypes::dynamic_type::DynamicType {
         extern crate alloc;
         let mut builder = DynamicTypeBuilderFactory::create_type(TypeDescriptor {
-            kind: TK_STRUCTURE,
+            kind: TypeKind::STRUCTURE,
             name: String::from("TopicBuiltinTopicData"),
             base_type: None,
             discriminator_type: None,

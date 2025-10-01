@@ -31,7 +31,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 extern crate alloc;
                 let mut builder = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
                     dust_dds::xtypes::dynamic_type::TypeDescriptor {
-                        kind: dust_dds::xtypes::dynamic_type::TK_STRUCTURE,
+                        kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
                         name: alloc::string::String::from(#type_name),
                         base_type: None,
                         discriminator_type: None,
@@ -163,7 +163,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     extern crate alloc;
                     let mut builder = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
                         dust_dds::xtypes::dynamic_type::TypeDescriptor {
-                            kind: dust_dds::xtypes::dynamic_type::TK_UNION,
+                            kind: dust_dds::xtypes::dynamic_type::TypeKind::UNION,
                             name: alloc::string::String::from(#type_name),
                             base_type: None,
                             discriminator_type: None,
@@ -197,21 +197,21 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     && max_discriminator <= u8::MAX as usize
                 {
                     (
-                        quote! {dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::get_primitive_type(dust_dds::xtypes::dynamic_type::TK_UINT8)},
+                        quote! {dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::get_primitive_type(dust_dds::xtypes::dynamic_type::TypeKind::UINT8)},
                         quote! {data.set_uint8_value(0, self as u8).unwrap();},
                     )
                 } else if max_discriminator > u8::MAX as usize
                     && max_discriminator <= u16::MAX as usize
                 {
                     (
-                        quote! {dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::get_primitive_type(dust_dds::xtypes::dynamic_type::TK_UINT16)},
+                        quote! {dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::get_primitive_type(dust_dds::xtypes::dynamic_type::TypeKind::UINT16)},
                         quote! {data.set_uint16_value(0, self as u16).unwrap();},
                     )
                 } else if max_discriminator > u16::MAX as usize
                     && max_discriminator <= u32::MAX as usize
                 {
                     (
-                        quote! {dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::get_primitive_type(dust_dds::xtypes::dynamic_type::TK_UINT32)},
+                        quote! {dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::get_primitive_type(dust_dds::xtypes::dynamic_type::TypeKind::UINT32)},
                         quote! {data.set_uint32_value(0, self as u32).unwrap();},
                     )
                 } else {
@@ -224,7 +224,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     extern crate alloc;
                     let mut builder = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
                         dust_dds::xtypes::dynamic_type::TypeDescriptor {
-                            kind: dust_dds::xtypes::dynamic_type::TK_ENUM,
+                            kind: dust_dds::xtypes::dynamic_type::TypeKind::ENUM,
                             name: alloc::string::String::from(#type_name),
                             base_type: None,
                             discriminator_type: Some(#discriminator_type),

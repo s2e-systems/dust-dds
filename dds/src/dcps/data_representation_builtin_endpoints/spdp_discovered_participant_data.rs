@@ -28,17 +28,12 @@ use crate::{
     },
     rtps::error::RtpsError,
     transport::types::{GuidPrefix, Locator, Long, ProtocolVersion, VendorId},
-    xtypes::{
-        deserialize::XTypesDeserialize,
-        dynamic_type::TK_UINT8,
-        error::XTypesResult,
-        serialize::{SerializeCollection, XTypesSerialize},
-    },
+    xtypes::{deserialize::XTypesDeserialize, dynamic_type::TypeKind, serialize::XTypesSerialize},
 };
 use alloc::{string::String, vec, vec::Vec};
 use dust_dds::xtypes::dynamic_type::{
     DynamicTypeBuilderFactory, ExtensibilityKind, MemberDescriptor, TryConstructKind,
-    TypeDescriptor, XTypesBinding, TK_STRUCTURE,
+    TypeDescriptor, XTypesBinding,
 };
 
 pub type Count = Long;
@@ -155,7 +150,7 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
     fn get_type() -> dust_dds::xtypes::dynamic_type::DynamicType {
         extern crate alloc;
         let mut builder = DynamicTypeBuilderFactory::create_type(TypeDescriptor {
-            kind: TK_STRUCTURE,
+            kind: TypeKind::STRUCTURE,
             name: String::from("ParticipantProxy"),
             base_type: None,
             discriminator_type: None,
@@ -519,7 +514,7 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
             serializer.write_sentinel()?;
             Ok(serializer.writer)
         }
-        
+
         let mut data =
             dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type());
 
