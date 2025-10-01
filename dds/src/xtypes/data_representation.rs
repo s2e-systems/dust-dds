@@ -47,13 +47,6 @@ impl XTypesSerialize for DynamicData {
                         let member_descriptor = self.get_descriptor(member_id)?;
                         let member_type_kind = member_descriptor.r#type.get_kind();
                         let member_name = &member_descriptor.name;
-                        println!(
-                            "Final {} (member_type_kind: {:#X?}): {}: {}",
-                            field_index,
-                            member_type_kind,
-                            self.type_ref().get_name(),
-                            member_name
-                        );
                         match member_type_kind {
                             TK_UINT8 => {
                                 let value = self.get_uint8_value(member_id)?;
@@ -163,11 +156,6 @@ impl XTypesSerialize for DynamicData {
                         let member_descriptor = self.get_descriptor(member_id)?;
                         let member_type_kind = member_descriptor.r#type.get_kind();
                         let member_name = &member_descriptor.name;
-                        println!(
-                            "Appendable: {}: {}",
-                            self.type_ref().get_name(),
-                            member_name
-                        );
                         match member_type_kind {
                             TK_UINT8 => {
                                 let value = self.get_uint8_value(member_id)?;
@@ -286,13 +274,7 @@ impl XTypesSerialize for DynamicData {
                         let member_type_kind = member_descriptor.r#type.get_kind();
                         let member_name = &member_descriptor.name;
                         let pid = member_id;
-                        println!(
-                            "Mutable {} (member_type_kind: {:#X?}): {}: {}",
-                            field_index,
-                            member_type_kind,
-                            self.type_ref().get_name(),
-                            member_name
-                        );
+
                         match member_type_kind {
                             TK_BOOLEAN => {
                                 let value = self.get_boolean_value(member_id)?;

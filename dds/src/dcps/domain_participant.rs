@@ -49,7 +49,7 @@ use crate::{
             DestinationOrderQosPolicyKind, DurabilityQosPolicyKind, HistoryQosPolicy,
             HistoryQosPolicyKind, Length, LifespanQosPolicy, OwnershipQosPolicyKind, QosPolicyId,
             ReliabilityQosPolicyKind, ResourceLimitsQosPolicy, TransportPriorityQosPolicy,
-            DATA_REPRESENTATION_QOS_POLICY_ID, DEADLINE_QOS_POLICY_ID,
+            BUILT_IN_DATA_REPRESENTATION, DATA_REPRESENTATION_QOS_POLICY_ID, DEADLINE_QOS_POLICY_ID,
             DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID,
             LIVELINESS_QOS_POLICY_ID, OWNERSHIP_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID,
             RELIABILITY_QOS_POLICY_ID, XCDR2_DATA_REPRESENTATION, XCDR_DATA_REPRESENTATION,
@@ -5971,7 +5971,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
                 ExtensibilityKind::Final | ExtensibilityKind::Appendable => vec![0x00, 0x01, 0, 0],
                 ExtensibilityKind::Mutable => vec![0x00, 0x03, 0, 0],
             };
-            let mut buffer = vec![];
             let mut serializer = Xcdr1LeSerializer::new(&mut buffer);
             dynamic_data.serialize(&mut serializer)?;
             buffer
@@ -5982,6 +5981,11 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
                 ExtensibilityKind::Mutable => todo!(),
             };
             Xcdr2LeSerializer::new(&mut buffer);
+            buffer
+        } else if self.qos.representation.value[0] == BUILT_IN_DATA_REPRESENTATION {
+            let mut buffer = vec![];
+            let mut serializer = Xcdr1LeSerializer::new(&mut buffer);
+            dynamic_data.serialize(&mut serializer)?;
             buffer
         } else {
             panic!("Invalid data representation")

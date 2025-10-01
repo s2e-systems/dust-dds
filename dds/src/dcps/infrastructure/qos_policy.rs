@@ -1508,6 +1508,8 @@ pub const XCDR_DATA_REPRESENTATION: DataRepresentationId = 0;
 pub const XML_DATA_REPRESENTATION: DataRepresentationId = 1;
 /// XCDR2 data representation
 pub const XCDR2_DATA_REPRESENTATION: DataRepresentationId = 2;
+/// Built-in topic data representation
+pub(crate) const BUILT_IN_DATA_REPRESENTATION: DataRepresentationId = 9999;
 type DataRepresentationIdSeq = Vec<DataRepresentationId>;
 
 /// This policy is a DDS-XTypes extension and represents the standard data Representations available.
