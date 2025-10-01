@@ -1,7 +1,7 @@
 use crate::xtypes::{
     dynamic_type::{
-        DynamicData, ExtensibilityKind, TK_ARRAY, TK_INT16, TK_INT32, TK_INT64, TK_STRUCTURE,
-        TK_UINT16, TK_UINT32, TK_UINT8,
+        DynamicData, ExtensibilityKind, TK_ARRAY, TK_INT16, TK_INT32, TK_INT64, TK_SEQUENCE,
+        TK_STRUCTURE, TK_UINT16, TK_UINT32, TK_UINT8,
     },
     serialize::XTypesSerialize,
     serializer::{SerializeAppendableStruct, SerializeFinalStruct, SerializeMutableStruct},
@@ -99,7 +99,49 @@ impl XTypesSerialize for DynamicData {
                                     ),
                                 }
                             }
-                            _ => todo!("Not implemented for members of type {member_type_kind:x?}"),
+                            TK_SEQUENCE => {
+                                let element_type = member_descriptor
+                                    .r#type
+                                    .get_descriptor()
+                                    .element_type
+                                    .as_ref()
+                                    .expect("array type must have element type")
+                                    .get_kind();
+                                match element_type {
+                                    TK_UINT8 => {
+                                        let values = self.get_uint8_values(member_id)?;
+                                        final_serializer.serialize_field(values, member_name)?;
+                                    }
+                                    TK_UINT16 => {
+                                        let values = self.get_uint16_values(member_id)?;
+                                        final_serializer.serialize_field(values, member_name)?;
+                                    }
+                                    TK_UINT32 => {
+                                        let values = self.get_uint32_values(member_id)?;
+                                        final_serializer.serialize_field(values, member_name)?;
+                                    }
+                                    TK_INT16 => {
+                                        let values = self.get_int16_values(member_id)?;
+                                        final_serializer.serialize_field(values, member_name)?;
+                                    }
+                                    TK_INT32 => {
+                                        let values = self.get_int32_values(member_id)?;
+                                        final_serializer.serialize_field(values, member_name)?;
+                                    }
+                                    TK_INT64 => {
+                                        let values = self.get_int64_values(member_id)?;
+                                        final_serializer.serialize_field(values, member_name)?;
+                                    }
+                                    TK_STRUCTURE => {
+                                        let values = self.get_complex_values(member_id)?;
+                                        final_serializer.serialize_field(values, member_name)?;
+                                    }
+                                    _ => todo!(
+                                        "Not implemented for members of type {element_type:#X?}"
+                                    ),
+                                }
+                            }
+                            _ => todo!("Not implemented for members of type {member_type_kind:#x?}"),
                         }
                     }
                     Ok(())
@@ -142,7 +184,7 @@ impl XTypesSerialize for DynamicData {
                             }
 
                             _ => {
-                                todo!("Not implemented for members of type 0x{member_type_kind:x?}")
+                                todo!("Not implemented for members of type {member_type_kind:#X?}")
                             }
                         }
                     }
@@ -187,7 +229,7 @@ impl XTypesSerialize for DynamicData {
                             }
 
                             _ => {
-                                todo!("Not implemented for members of type 0x{member_type_kind:x?}")
+                                todo!("Not implemented for members of type {member_type_kind:#X?}")
                             }
                         }
                     }
@@ -257,6 +299,26 @@ mod tests {
             &buffer,
             &[
                 1, 0, 2, 0, //array_i16
+            ]
+        )
+    }
+
+    #[test]
+    fn serialize_final_struct_with_sequence_cdr1() {
+        #[derive(TypeSupport)]
+        struct FinalStruct {
+            sequence_i16: Vec<i16>,
+        }
+        let dynamic_sample = FinalStruct { sequence_i16: vec![1, 2] }.create_dynamic_sample();
+        let mut buffer = vec![];
+        dynamic_sample
+            .serialize(&mut Xcdr1LeSerializer::new(&mut buffer))
+            .unwrap();
+        assert_eq!(
+            &buffer,
+            &[
+                2, 0, 0, 0, // length sequence_i16
+                1, 0, 2, 0, //sequence_i16
             ]
         )
     }

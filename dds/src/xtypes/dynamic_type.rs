@@ -1032,7 +1032,7 @@ impl XTypesBinding for Vec<i8> {
 
 impl XTypesBinding for Vec<i16> {
     fn get_dynamic_type() -> DynamicType {
-        DynamicTypeBuilderFactory::create_sequence_type(i8::get_dynamic_type(), u32::MAX).build()
+        DynamicTypeBuilderFactory::create_sequence_type(i16::get_dynamic_type(), u32::MAX).build()
     }
 
     fn insert_value(self, dynamic_data: &mut DynamicData, id: MemberId) -> XTypesResult<()> {
@@ -1062,7 +1062,7 @@ impl XTypesBinding for Vec<i64> {
 
 impl XTypesBinding for Vec<f32> {
     fn get_dynamic_type() -> DynamicType {
-        DynamicTypeBuilderFactory::create_sequence_type(i32::get_dynamic_type(), u32::MAX).build()
+        DynamicTypeBuilderFactory::create_sequence_type(f32::get_dynamic_type(), u32::MAX).build()
     }
 
     fn insert_value(self, dynamic_data: &mut DynamicData, id: MemberId) -> XTypesResult<()> {
@@ -1072,7 +1072,7 @@ impl XTypesBinding for Vec<f32> {
 
 impl XTypesBinding for Vec<f64> {
     fn get_dynamic_type() -> DynamicType {
-        DynamicTypeBuilderFactory::create_sequence_type(i64::get_dynamic_type(), u32::MAX).build()
+        DynamicTypeBuilderFactory::create_sequence_type(f64::get_dynamic_type(), u32::MAX).build()
     }
 
     fn insert_value(self, dynamic_data: &mut DynamicData, id: MemberId) -> XTypesResult<()> {
