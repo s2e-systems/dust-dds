@@ -4,7 +4,7 @@ use crate::xtypes::{
         TK_UINT32, TK_UINT8,
     },
     serialize::XTypesSerialize,
-    serializer::{SerializeFinalStruct, SerializeMutableStruct},
+    serializer::{SerializeAppendableStruct, SerializeFinalStruct, SerializeMutableStruct},
 };
 
 impl XTypesSerialize for DynamicData {
@@ -57,8 +57,48 @@ impl XTypesSerialize for DynamicData {
                     Ok(())
                 }
                 ExtensibilityKind::Appendable => {
-                    let mutappendable_serializer = serializer.serialize_appendable_struct()?;
-                    todo!()
+                    let mut appendable_serializer = serializer.serialize_appendable_struct()?;
+                    for field_index in 0..self.get_item_count() {
+                        let member_id = self.get_member_id_at_index(field_index)?;
+                        let member_descriptor = self.get_descriptor(member_id)?;
+                        let member_type_kind = member_descriptor.r#type.get_kind();
+                        let member_name = &member_descriptor.name;
+                        match member_type_kind {
+                            TK_UINT8 => {
+                                let value = self.get_uint8_value(member_id)?;
+                                appendable_serializer.serialize_field(value, member_name)?;
+                            }
+                            TK_UINT16 => {
+                                let value = self.get_uint16_value(member_id)?;
+                                appendable_serializer.serialize_field(value, member_name)?;
+                            }
+                            TK_UINT32 => {
+                                let value = self.get_uint32_value(member_id)?;
+                                appendable_serializer.serialize_field(value, member_name)?;
+                            }
+                            TK_INT16 => {
+                                let value = self.get_int16_value(member_id)?;
+                                appendable_serializer.serialize_field(value, member_name)?;
+                            }
+                            TK_INT32 => {
+                                let value = self.get_int32_value(member_id)?;
+                                appendable_serializer.serialize_field(value, member_name)?;
+                            }
+                            TK_INT64 => {
+                                let value = self.get_int64_value(member_id)?;
+                                appendable_serializer.serialize_field(value, member_name)?;
+                            }
+                            TK_STRUCTURE => {
+                                let value = self.get_complex_value(member_id)?;
+                                appendable_serializer.serialize_field(value, member_name)?;
+                            }
+
+                            _ => {
+                                todo!("Not implemented for members of type 0x{member_type_kind:x?}")
+                            }
+                        }
+                    }
+                    Ok(())
                 }
                 ExtensibilityKind::Mutable => {
                     let mut mutable_serializer = serializer.serialize_mutable_struct()?;
@@ -184,6 +224,39 @@ mod tests {
         )
     }
 
+
+    #[test]
+    fn serialize_nested_appendable_struct_cdr1() {
+        #[derive(TypeSupport)]
+        #[dust_dds(extensibility = "appendable")]
+        struct Nested {
+            n: u16,
+            m: i16,
+        }
+        #[derive(TypeSupport)]
+        #[dust_dds(extensibility = "appendable")]
+        struct AppendableStruct {
+            a: i32,
+            nested: Nested,
+        }
+        let dynamic_sample = AppendableStruct {
+            a: 1,
+            nested: Nested { n: 2, m: 3 },
+        }
+        .create_dynamic_sample();
+        let mut buffer = vec![];
+        dynamic_sample
+            .serialize(&mut Xcdr1LeSerializer::new(&mut buffer))
+            .unwrap();
+        assert_eq!(
+            &buffer,
+            &[
+                1, 0, 0, 0, // a
+                2, 0, 3, 0, // nested
+            ]
+        )
+    }
+
     #[test]
     fn serialize_mutable_struct_cdr1() {
         #[derive(TypeSupport)]
@@ -214,7 +287,7 @@ mod tests {
     #[test]
     fn serialize_nested_mutable_struct_cdr1() {
         #[derive(TypeSupport)]
-        #[dust_dds(extensibility = "mutable", nested)]
+        #[dust_dds(extensibility = "mutable")]
         struct NestedStruct {
             #[dust_dds(id = 0x09)]
             nested_byte: u8,
@@ -224,20 +297,21 @@ mod tests {
         #[derive(TypeSupport)]
         #[dust_dds(extensibility = "mutable")]
         struct MutableStruct {
-            #[dust_dds(id = 0x07)]
+            #[dust_dds(id = 0x06)]
             byte: u8,
-            #[dust_dds(id = 0xFF)]
+            #[dust_dds(id = 0x07)]
             nested: NestedStruct,
             #[dust_dds(id = 0x08)]
             long: i32,
         }
+
         let dynamic_sample = MutableStruct {
             byte: 1,
-            long: 2,
             nested: NestedStruct {
                 nested_byte: 11,
                 nested_long: 22,
             },
+            long: 2,
         }
         .create_dynamic_sample();
         let mut buffer = vec![];
@@ -247,16 +321,192 @@ mod tests {
         assert_eq!(
             &buffer,
             &[
-                0x07, 0x00, 1, 0, // PID | length
+                0x06, 0x00, 1, 0, // PID | length
                 1, 0, 0, 0, // byte | padding
-                0x09, 0x00, 1, 0, // PID | length
-                11, 0, 0, 0, // nested_byte | padding
-                0x0A, 0x00, 1, 0, // PID | length
-                22, 0, 0, 0, // nested_long | padding
+                0x07, 0x00, 20, 0, // Nested: PID | length
+                0x09, 0x00, 1, 0, // Nested: PID | length
+                11, 0, 0, 0, // Nested: nested_byte | padding
+                0x0A, 0x00, 4, 0, // Nested: PID | length
+                22, 0, 0, 0, // Nested: nested_long | padding
+                1, 0, 0, 0, // Nested: Sentinel
                 0x08, 0x00, 4, 0, // PID | length
                 2, 0, 0, 0, // long
                 1, 0, 0, 0, // Sentinel
             ]
         )
     }
+
+    // #[test]
+    // fn serialize_marked_nested_mutable_struct_cdr1() {
+    //     #[derive(TypeSupport)]
+    //     #[dust_dds(extensibility = "mutable", nested)]
+    //     struct NestedStruct {
+    //         #[dust_dds(id = 0x09)]
+    //         nested_byte: u8,
+    //         #[dust_dds(id = 0x0A)]
+    //         nested_long: i32,
+    //     }
+    //     // #[derive(TypeSupport)]
+    //     // #[dust_dds(extensibility = "mutable")]
+    //     struct MutableStruct {
+    //         // #[dust_dds(id = 0x07)]
+    //         byte: u8,
+    //         nested: NestedStruct,
+    //         // #[dust_dds(id = 0x08)]
+    //         long: i32,
+    //     }
+
+    //     impl dust_dds::infrastructure::type_support::TypeSupport for MutableStruct {
+    //         fn get_type() -> dust_dds::xtypes::dynamic_type::DynamicType {
+    //             extern crate alloc;
+    //             let mut builder =
+    //                 dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
+    //                     dust_dds::xtypes::dynamic_type::TypeDescriptor {
+    //                         kind: dust_dds::xtypes::dynamic_type::TK_STRUCTURE,
+    //                         name: alloc::string::String::from("MutableStruct"),
+    //                         base_type: None,
+    //                         discriminator_type: None,
+    //                         bound: alloc::vec::Vec::new(),
+    //                         element_type: None,
+    //                         key_element_type: None,
+    //                         extensibility_kind:
+    //                             dust_dds::xtypes::dynamic_type::ExtensibilityKind::Mutable,
+    //                         is_nested: false,
+    //                     },
+    //                 );
+    //             builder
+    //                 .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+    //                     name: alloc::string::String::from("byte"),
+    //                     id: 0x07,
+    //                     r#type:
+    //                         <u8 as dust_dds::xtypes::dynamic_type::XTypesBinding>::get_dynamic_type(
+    //                         ),
+    //                     default_value: alloc::string::String::new(),
+    //                     index: 0u32,
+    //                     try_construct_kind:
+    //                         dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+    //                     label: alloc::vec::Vec::new(),
+    //                     is_key: false,
+    //                     is_optional: false,
+    //                     is_must_understand: true,
+    //                     is_shared: false,
+    //                     is_default_label: false,
+    //                 })
+    //                 .unwrap();
+    //             builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+    //         name:alloc::string::String::from("nested"),id:0xFF,r#type: <NestedStruct as dust_dds::xtypes::dynamic_type::XTypesBinding> ::get_dynamic_type(),default_value:alloc::string::String::new(),index:1u32,try_construct_kind:dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,label:alloc::vec::Vec::new(),is_key:false,is_optional:false,is_must_understand:true,is_shared:false,is_default_label:false,
+    //     }).unwrap();
+    //             builder
+    //         .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+    //             name: alloc::string::String::from("long"),
+    //             id: 0x08,
+    //             r#type: <i32 as dust_dds::xtypes::dynamic_type::XTypesBinding>::get_dynamic_type(),
+    //             default_value: alloc::string::String::new(),
+    //             index: 2u32,
+    //             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+    //             label: alloc::vec::Vec::new(),
+    //             is_key: false,
+    //             is_optional: false,
+    //             is_must_understand: true,
+    //             is_shared: false,
+    //             is_default_label: false,
+    //         })
+    //         .unwrap();
+    //             builder.build()
+    //         }
+
+    //         fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
+    //             let mut data = dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(
+    //                 Self::get_type(),
+    //             );
+    //             dust_dds::xtypes::dynamic_type::XTypesBinding::insert_value(
+    //                 self.byte, &mut data, 0x07,
+    //             )
+    //             .unwrap();
+
+    //             // -- Begin Nested --
+    //             let da = self.nested.create_dynamic_sample();
+    //             for item_index in 0..da.get_item_count() {
+    //                 let member_id = da.get_member_id_at_index(item_index).unwrap();
+    //                 let member_descriptor = da.get_descriptor(member_id).unwrap();
+    //                 let member_type_kind = member_descriptor.r#type.get_kind();
+    //                 let member_name = &member_descriptor.name;
+    //                 match member_type_kind {
+    //                     TK_UINT8 => {
+    //                         let value = da.get_uint8_value(member_id).unwrap();
+    //                         dust_dds::xtypes::dynamic_type::XTypesBinding::insert_value(
+    //                             *value, &mut data, member_id,
+    //                         )
+    //                         .unwrap();
+    //                     }
+    //                     TK_UINT16 => {
+    //                         todo!()
+    //                     }
+    //                     TK_UINT32 => {
+    //                         let value = da.get_uint32_value(member_id).unwrap();
+    //                         dust_dds::xtypes::dynamic_type::XTypesBinding::insert_value(
+    //                             *value, &mut data, member_id,
+    //                         )
+    //                         .unwrap();
+    //                     }
+    //                     TK_INT16 => {
+    //                         todo!()
+    //                     }
+    //                     TK_INT32 => {
+    //                         let value = da.get_int32_value(member_id).unwrap();
+    //                         dust_dds::xtypes::dynamic_type::XTypesBinding::insert_value(
+    //                             *value, &mut data, member_id,
+    //                         )
+    //                         .unwrap();
+    //                     }
+    //                     TK_INT64 => {
+    //                         todo!()
+    //                     }
+    //                     TK_STRUCTURE => {
+    //                         todo!()
+    //                     }
+
+    //                     _ => {
+    //                         todo!("Not implemented for members of type 0x{member_type_kind:x?}")
+    //                     }
+    //                 }
+    //             }
+    //             // -- End Nested --
+
+    //             dust_dds::xtypes::dynamic_type::XTypesBinding::insert_value(
+    //                 self.long, &mut data, 0x08,
+    //             )
+    //             .unwrap();
+    //             data
+    //         }
+    //     }
+
+    //     let dynamic_sample = MutableStruct {
+    //         byte: 1,
+    //         long: 2,
+    //         nested: NestedStruct {
+    //             nested_byte: 11,
+    //             nested_long: 22,
+    //         },
+    //     }
+    //     .create_dynamic_sample();
+    //     let mut buffer = vec![];
+    //     dynamic_sample
+    //         .serialize(&mut Xcdr1LeSerializer::new(&mut buffer))
+    //         .unwrap();
+    //     assert_eq!(
+    //         &buffer,
+    //         &[
+    //             0x07, 0x00, 1, 0, // PID | length
+    //             1, 0, 0, 0, // byte | padding
+    //             0x09, 0x00, 1, 0, // PID | length
+    //             11, 0, 0, 0, // nested_byte | padding
+    //             0x0A, 0x00, 1, 0, // PID | length
+    //             22, 0, 0, 0, // nested_long | padding
+    //             0x08, 0x00, 4, 0, // PID | length
+    //             2, 0, 0, 0, // long
+    //             1, 0, 0, 0, // Sentinel
+    //         ]
+    //     )
+    // }
 }
