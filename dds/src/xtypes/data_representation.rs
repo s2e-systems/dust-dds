@@ -1,11 +1,21 @@
 use crate::xtypes::{
     dynamic_type::{
-        DynamicData, ExtensibilityKind, TK_ARRAY, TK_INT16, TK_INT32, TK_INT64, TK_SEQUENCE,
-        TK_STRUCTURE, TK_UINT16, TK_UINT32, TK_UINT8,
+        DynamicData, ExtensibilityKind, MemberDescriptor, TK_ARRAY, TK_INT16, TK_INT32, TK_INT64, TK_SEQUENCE, TK_STRUCTURE, TK_UINT16, TK_UINT32, TK_UINT8
     },
     serialize::XTypesSerialize,
     serializer::{SerializeAppendableStruct, SerializeFinalStruct, SerializeMutableStruct},
 };
+
+impl MemberDescriptor {
+    fn get_element_type(&self) -> u8 {
+        self.r#type
+            .get_descriptor()
+            .element_type
+            .as_ref()
+            .expect("array type must have element type")
+            .get_kind()
+    }
+}
 
 impl XTypesSerialize for DynamicData {
     fn serialize(
@@ -51,14 +61,7 @@ impl XTypesSerialize for DynamicData {
                                 final_serializer.serialize_field(complex_value, member_name)?;
                             }
                             TK_ARRAY => {
-                                let element_type = member_descriptor
-                                    .r#type
-                                    .get_descriptor()
-                                    .element_type
-                                    .as_ref()
-                                    .expect("array type must have element type")
-                                    .get_kind();
-                                match element_type {
+                                match member_descriptor.get_element_type() {
                                     TK_UINT8 => {
                                         for value in self.get_uint8_values(member_id)? {
                                             final_serializer.serialize_field(value, member_name)?;
@@ -94,20 +97,13 @@ impl XTypesSerialize for DynamicData {
                                             final_serializer.serialize_field(value, member_name)?;
                                         }
                                     }
-                                    _ => todo!(
+                                    element_type => todo!(
                                         "Not implemented for members of type {element_type:x?}"
                                     ),
                                 }
                             }
                             TK_SEQUENCE => {
-                                let element_type = member_descriptor
-                                    .r#type
-                                    .get_descriptor()
-                                    .element_type
-                                    .as_ref()
-                                    .expect("array type must have element type")
-                                    .get_kind();
-                                match element_type {
+                                match member_descriptor.get_element_type() {
                                     TK_UINT8 => {
                                         let values = self.get_uint8_values(member_id)?;
                                         final_serializer.serialize_field(values, member_name)?;
@@ -136,12 +132,14 @@ impl XTypesSerialize for DynamicData {
                                         let values = self.get_complex_values(member_id)?;
                                         final_serializer.serialize_field(values, member_name)?;
                                     }
-                                    _ => todo!(
+                                    element_type => todo!(
                                         "Not implemented for members of type {element_type:#X?}"
                                     ),
                                 }
                             }
-                            _ => todo!("Not implemented for members of type {member_type_kind:#x?}"),
+                            _ => {
+                                todo!("Not implemented for members of type {member_type_kind:#x?}")
+                            }
                         }
                     }
                     Ok(())
@@ -309,7 +307,10 @@ mod tests {
         struct FinalStruct {
             sequence_i16: Vec<i16>,
         }
-        let dynamic_sample = FinalStruct { sequence_i16: vec![1, 2] }.create_dynamic_sample();
+        let dynamic_sample = FinalStruct {
+            sequence_i16: vec![1, 2],
+        }
+        .create_dynamic_sample();
         let mut buffer = vec![];
         dynamic_sample
             .serialize(&mut Xcdr1LeSerializer::new(&mut buffer))
