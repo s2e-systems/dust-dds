@@ -307,60 +307,32 @@ impl XTypesSerialize for DynamicData {
                             }
                             TypeKind::ARRAY => match member_descriptor.get_element_type() {
                                 TypeKind::UINT8 => {
-                                    let value = self.get_uint8_values(member_id)?;
-                                    mutable_serializer.serialize_field(
-                                        &Array(value),
-                                        pid,
-                                        member_name,
-                                    )?;
+                                    let value = &Array(self.get_uint8_values(member_id)?);
+                                    mutable_serializer.serialize_field(value, pid, member_name)?;
                                 }
                                 TypeKind::UINT16 => {
-                                    let value = self.get_uint16_values(member_id)?;
-                                    mutable_serializer.serialize_field(
-                                        &Array(value),
-                                        pid,
-                                        member_name,
-                                    )?;
+                                    let value = &Array(self.get_uint16_values(member_id)?);
+                                    mutable_serializer.serialize_field(value, pid, member_name)?;
                                 }
                                 TypeKind::UINT32 => {
-                                    let value = self.get_uint32_values(member_id)?;
-                                    mutable_serializer.serialize_field(
-                                        &Array(value),
-                                        pid,
-                                        member_name,
-                                    )?;
+                                    let value = &Array(self.get_uint32_values(member_id)?);
+                                    mutable_serializer.serialize_field(value, pid, member_name)?;
                                 }
                                 TypeKind::INT16 => {
-                                    let value = self.get_int16_values(member_id)?;
-                                    mutable_serializer.serialize_field(
-                                        &Array(value),
-                                        pid,
-                                        member_name,
-                                    )?;
+                                    let value = &Array(self.get_int16_values(member_id)?);
+                                    mutable_serializer.serialize_field(value, pid, member_name)?;
                                 }
                                 TypeKind::INT32 => {
-                                    let value = self.get_int32_values(member_id)?;
-                                    mutable_serializer.serialize_field(
-                                        &Array(value),
-                                        pid,
-                                        member_name,
-                                    )?;
+                                    let value = &Array(self.get_int32_values(member_id)?);
+                                    mutable_serializer.serialize_field(value, pid, member_name)?;
                                 }
                                 TypeKind::INT64 => {
-                                    let value = self.get_int64_values(member_id)?;
-                                    mutable_serializer.serialize_field(
-                                        &Array(value),
-                                        pid,
-                                        member_name,
-                                    )?;
+                                    let value = &Array(self.get_int64_values(member_id)?);
+                                    mutable_serializer.serialize_field(value, pid, member_name)?;
                                 }
                                 TypeKind::STRUCTURE => {
-                                    let value = self.get_complex_values(member_id)?;
-                                    mutable_serializer.serialize_field(
-                                        &Array(value),
-                                        pid,
-                                        member_name,
-                                    )?;
+                                    let value = &Array(self.get_complex_values(member_id)?);
+                                    mutable_serializer.serialize_field(value, pid, member_name)?;
                                 }
                                 element_type => {
                                     todo!("Not implemented for members of type {element_type:x?}")
@@ -372,67 +344,60 @@ impl XTypesSerialize for DynamicData {
                             }
                             TypeKind::SEQUENCE => match member_descriptor.get_element_type() {
                                 TypeKind::UINT8 => {
-                                    for value in self.get_uint8_values(member_id)? {
-                                        mutable_serializer.serialize_field(
-                                            value,
-                                            pid,
-                                            member_name,
-                                        )?;
-                                    }
+                                    let values = self.get_uint8_values(member_id)?;
+                                    mutable_serializer.serialize_collection(
+                                        values,
+                                        pid,
+                                        member_name,
+                                    )?;
                                 }
                                 TypeKind::UINT16 => {
-                                    for value in self.get_uint16_values(member_id)? {
-                                        mutable_serializer.serialize_field(
-                                            value,
-                                            pid,
-                                            member_name,
-                                        )?;
-                                    }
+                                    let values = self.get_uint16_values(member_id)?;
+                                    mutable_serializer.serialize_collection(
+                                        values,
+                                        pid,
+                                        member_name,
+                                    )?;
                                 }
                                 TypeKind::UINT32 => {
-                                    for value in self.get_uint32_values(member_id)? {
-                                        mutable_serializer.serialize_field(
-                                            value,
-                                            pid,
-                                            member_name,
-                                        )?;
-                                    }
+                                    let values = self.get_uint32_values(member_id)?;
+                                    mutable_serializer.serialize_collection(
+                                        values,
+                                        pid,
+                                        member_name,
+                                    )?;
                                 }
                                 TypeKind::INT16 => {
-                                    for value in self.get_int16_values(member_id)? {
-                                        mutable_serializer.serialize_field(
-                                            value,
-                                            pid,
-                                            member_name,
-                                        )?;
-                                    }
+                                    let values = self.get_int16_values(member_id)?;
+                                    mutable_serializer.serialize_collection(
+                                        values,
+                                        pid,
+                                        member_name,
+                                    )?;
                                 }
                                 TypeKind::INT32 => {
-                                    for value in self.get_int32_values(member_id)? {
-                                        mutable_serializer.serialize_field(
-                                            value,
-                                            pid,
-                                            member_name,
-                                        )?;
-                                    }
+                                    let values = self.get_int32_values(member_id)?;
+                                    mutable_serializer.serialize_collection(
+                                        values,
+                                        pid,
+                                        member_name,
+                                    )?;
                                 }
                                 TypeKind::INT64 => {
-                                    for value in self.get_int64_values(member_id)? {
-                                        mutable_serializer.serialize_field(
-                                            value,
-                                            pid,
-                                            member_name,
-                                        )?;
-                                    }
+                                    let values = self.get_int64_values(member_id)?;
+                                    mutable_serializer.serialize_collection(
+                                        values,
+                                        pid,
+                                        member_name,
+                                    )?;
                                 }
                                 TypeKind::STRUCTURE => {
-                                    for value in self.get_complex_values(member_id)? {
-                                        mutable_serializer.serialize_field(
-                                            value,
-                                            pid,
-                                            member_name,
-                                        )?;
-                                    }
+                                    let values = self.get_complex_values(member_id)?;
+                                    mutable_serializer.serialize_collection(
+                                        values,
+                                        pid,
+                                        member_name,
+                                    )?;
                                 }
                                 element_type => {
                                     todo!("Not implemented for members of type {element_type:#X?}")
