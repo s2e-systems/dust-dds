@@ -82,6 +82,7 @@ use crate::{
     },
     xtypes::{
         dynamic_type::{DynamicData, DynamicType, ExtensibilityKind},
+        pl_cdr_serializer::PlCdrLeSerializer,
         serialize::XTypesSerialize,
         xcdr_serializer::{Xcdr1LeSerializer, Xcdr2LeSerializer},
     },
@@ -5966,11 +5967,12 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
                 ExtensibilityKind::Appendable => vec![0x00, 0x09, 0, 0],
                 ExtensibilityKind::Mutable => todo!(),
             };
-            Xcdr2LeSerializer::new(&mut buffer);
+            let mut serializer = Xcdr2LeSerializer::new(&mut buffer);
+            dynamic_data.serialize(&mut serializer)?;
             buffer
         } else if self.qos.representation.value[0] == BUILT_IN_DATA_REPRESENTATION {
-            let mut buffer = vec![];
-            let mut serializer = Xcdr1LeSerializer::new(&mut buffer);
+            let mut buffer = vec![0x00, 0x03, 0, 0];
+            let mut serializer = PlCdrLeSerializer::new(&mut buffer);
             dynamic_data.serialize(&mut serializer)?;
             buffer
         } else {
