@@ -9,7 +9,7 @@ use crate::{
         bytes::{ByteBuf, Bytes},
         deserialize::XTypesDeserialize,
         deserializer::{DeserializeFinalStruct, XTypesDeserializer},
-        dynamic_type::{DynamicTypeBuilderFactory, TypeKind, XTypesBinding},
+        dynamic_type::{DynamicDataFactory, DynamicTypeBuilderFactory, TypeKind, XTypesBinding},
         error::XTypesError,
         serialize::{XTypesSerialize, XTypesSerializer},
         serializer::SerializeFinalStruct,
@@ -37,10 +37,13 @@ impl XTypesBinding for Length {
 
     fn insert_value(
         self,
-        _dynamic_data: &mut crate::xtypes::dynamic_type::DynamicData,
-        _id: crate::xtypes::dynamic_type::MemberId,
+        dynamic_data: &mut crate::xtypes::dynamic_type::DynamicData,
+        id: crate::xtypes::dynamic_type::MemberId,
     ) -> crate::xtypes::error::XTypesResult<()> {
-        todo!()
+        match self {
+            Length::Unlimited => dynamic_data.set_int32_value(id, LENGTH_UNLIMITED),
+            Length::Limited(l) => dynamic_data.set_int32_value(id, l as i32),
+        }
     }
 }
 
@@ -1166,7 +1169,7 @@ impl TypeSupport for HistoryQosPolicyKind {
     }
 
     fn create_dynamic_sample(self) -> crate::xtypes::dynamic_type::DynamicData {
-        todo!()
+        unimplemented!()
     }
 }
 
@@ -1282,7 +1285,18 @@ impl dust_dds::infrastructure::type_support::TypeSupport for HistoryQosPolicy {
     }
 
     fn create_dynamic_sample(self) -> crate::xtypes::dynamic_type::DynamicData {
-        todo!()
+        let mut data = DynamicDataFactory::create_data(Self::get_type());
+        match self.kind {
+            HistoryQosPolicyKind::KeepLast(depth) => {
+                data.set_uint8_value(0, 0).unwrap();
+                data.set_int32_value(1, depth as i32).unwrap();
+            }
+            HistoryQosPolicyKind::KeepAll => {
+                data.set_uint8_value(0, 1).unwrap();
+                data.set_int32_value(1, 0).unwrap();
+            }
+        }
+        data
     }
 }
 

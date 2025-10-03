@@ -24,7 +24,10 @@ impl TypeSupport for DurationKind {
     }
 
     fn create_dynamic_sample(self) -> crate::xtypes::dynamic_type::DynamicData {
-        todo!()
+        match self {
+            DurationKind::Finite(duration) => duration.create_dynamic_sample(),
+            DurationKind::Infinite => DURATION_INFINITE.create_dynamic_sample(),
+        }
     }
 }
 

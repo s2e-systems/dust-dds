@@ -10,8 +10,8 @@ use crate::{
         parameter_id_values::{
             PID_DATA_REPRESENTATION, PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY,
             PID_ENDPOINT_GUID, PID_HISTORY, PID_LATENCY_BUDGET, PID_LIFESPAN, PID_LIVELINESS,
-            PID_OWNERSHIP, PID_RELIABILITY, PID_RESOURCE_LIMITS, PID_TOPIC_DATA, PID_TOPIC_NAME,
-            PID_TRANSPORT_PRIORITY, PID_TYPE_NAME,
+            PID_OWNERSHIP, PID_PARTICIPANT_GUID, PID_RELIABILITY, PID_RESOURCE_LIMITS,
+            PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TRANSPORT_PRIORITY, PID_TYPE_NAME,
         },
         payload_serializer_deserializer::parameter_list_serializer::ParameterListCdrSerializer,
     },
@@ -92,7 +92,6 @@ pub struct TopicBuiltinTopicData {
 
 impl TypeSupport for TopicBuiltinTopicData {
     fn get_type() -> crate::xtypes::dynamic_type::DynamicType {
-        extern crate alloc;
         let mut builder = DynamicTypeBuilderFactory::create_type(TypeDescriptor {
             kind: TypeKind::STRUCTURE,
             name: String::from("TopicBuiltinTopicData"),
@@ -106,15 +105,251 @@ impl TypeSupport for TopicBuiltinTopicData {
         });
         builder
             .add_member(MemberDescriptor {
-                name: String::from("data"),
-                id: 777,
-                r#type: DynamicTypeBuilderFactory::create_array_type(
-                    u8::get_dynamic_type(),
-                    vec![u32::MAX],
-                )
-                .build(),
+                name: String::from("key"),
+                id: PID_PARTICIPANT_GUID as u32,
+                r#type: <BuiltInTopicKey as TypeSupport>::get_type(),
                 default_value: String::new(),
-                index: 777,
+                index: 0,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: alloc::vec::Vec::new(),
+                is_key: true,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("name"),
+                id: PID_TOPIC_NAME as u32,
+                r#type: <String as XTypesBinding>::get_dynamic_type(),
+                default_value: String::new(),
+                index: 1,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: alloc::vec::Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("type_name"),
+                id: PID_TYPE_NAME as u32,
+                r#type: <String as XTypesBinding>::get_dynamic_type(),
+                default_value: String::new(),
+                index: 2,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: alloc::vec::Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("durability"),
+                id: PID_DURABILITY as u32,
+                r#type: <DurabilityQosPolicy as TypeSupport>::get_type(),
+                default_value: String::new(),
+                index: 3,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: alloc::vec::Vec::new(),
+                is_key: false,
+                is_optional: true,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("deadline"),
+                id: PID_DEADLINE as u32,
+                r#type: <DeadlineQosPolicy as TypeSupport>::get_type(),
+                default_value: String::new(),
+                index: 4,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: alloc::vec::Vec::new(),
+                is_key: false,
+                is_optional: true,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("latency_budget"),
+                id: PID_LATENCY_BUDGET as u32,
+                r#type: <LatencyBudgetQosPolicy as TypeSupport>::get_type(),
+                default_value: String::new(),
+                index: 5,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: alloc::vec::Vec::new(),
+                is_key: false,
+                is_optional: true,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("liveliness"),
+                id: PID_LIVELINESS as u32,
+                r#type: <LivelinessQosPolicy as TypeSupport>::get_type(),
+                default_value: String::new(),
+                index: 6,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: alloc::vec::Vec::new(),
+                is_key: false,
+                is_optional: true,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("reliability"),
+                id: PID_RELIABILITY as u32,
+                r#type: <ReliabilityQosPolicy as TypeSupport>::get_type(),
+                default_value: String::new(),
+                index: 7,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: alloc::vec::Vec::new(),
+                is_key: false,
+                is_optional: true,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("transport_priority"),
+                id: PID_TRANSPORT_PRIORITY as u32,
+                r#type: <TransportPriorityQosPolicy as TypeSupport>::get_type(),
+                default_value: String::new(),
+                index: 8,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: alloc::vec::Vec::new(),
+                is_key: false,
+                is_optional: true,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("lifespan"),
+                id: PID_LIFESPAN as u32,
+                r#type: <LifespanQosPolicy as TypeSupport>::get_type(),
+                default_value: String::new(),
+                index: 9,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: alloc::vec::Vec::new(),
+                is_key: false,
+                is_optional: true,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("destination_order"),
+                id: PID_DESTINATION_ORDER as u32,
+                r#type: <DestinationOrderQosPolicy as TypeSupport>::get_type(),
+                default_value: String::new(),
+                index: 10,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: alloc::vec::Vec::new(),
+                is_key: false,
+                is_optional: true,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("history"),
+                id: PID_HISTORY as u32,
+                r#type: <HistoryQosPolicy as TypeSupport>::get_type(),
+                default_value: String::new(),
+                index: 11,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: alloc::vec::Vec::new(),
+                is_key: false,
+                is_optional: true,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("resource_limits"),
+                id: PID_RESOURCE_LIMITS as u32,
+                r#type: <ResourceLimitsQosPolicy as TypeSupport>::get_type(),
+                default_value: String::new(),
+                index: 12,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: alloc::vec::Vec::new(),
+                is_key: false,
+                is_optional: true,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("ownership"),
+                id: PID_OWNERSHIP as u32,
+                r#type: <OwnershipQosPolicy as TypeSupport>::get_type(),
+                default_value: String::new(),
+                index: 13,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: alloc::vec::Vec::new(),
+                is_key: false,
+                is_optional: true,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("topic_data"),
+                id: PID_TOPIC_DATA as u32,
+                r#type: <TopicDataQosPolicy as TypeSupport>::get_type(),
+                default_value: String::new(),
+                index: 14,
+                try_construct_kind: TryConstructKind::UseDefault,
+                label: alloc::vec::Vec::new(),
+                is_key: false,
+                is_optional: true,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(MemberDescriptor {
+                name: String::from("representation"),
+                id: PID_TOPIC_DATA as u32,
+                r#type: <DataRepresentationQosPolicy as TypeSupport>::get_type(),
+                default_value: String::new(),
+                index: 15,
                 try_construct_kind: TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
                 is_key: false,
@@ -129,60 +364,70 @@ impl TypeSupport for TopicBuiltinTopicData {
     }
 
     fn create_dynamic_sample(self) -> crate::xtypes::dynamic_type::DynamicData {
-        fn serialize_data(this: &TopicBuiltinTopicData) -> DdsResult<Vec<u8>> {
-            let mut serializer = ParameterListCdrSerializer::default();
-            serializer.write_header()?;
-
-            // topic_builtin_topic_data: TopicBuiltinTopicData:
-
-            serializer.write(PID_ENDPOINT_GUID, &this.key)?;
-            serializer.write(PID_TOPIC_NAME, &this.name)?;
-            serializer.write(PID_TYPE_NAME, &this.type_name)?;
-            serializer.write_with_default(PID_DURABILITY, &this.durability, &Default::default())?;
-            serializer.write_with_default(PID_DEADLINE, &this.deadline, &Default::default())?;
-            serializer.write_with_default(
-                PID_LATENCY_BUDGET,
-                &this.latency_budget,
-                &Default::default(),
-            )?;
-            serializer.write_with_default(PID_LIVELINESS, &this.liveliness, &Default::default())?;
-            serializer.write_with_default(
-                PID_RELIABILITY,
-                &this.reliability,
-                &DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-            )?;
-            serializer.write_with_default(
-                PID_TRANSPORT_PRIORITY,
-                &this.transport_priority,
-                &Default::default(),
-            )?;
-            serializer.write_with_default(PID_LIFESPAN, &this.lifespan, &Default::default())?;
-            serializer.write_with_default(
-                PID_DESTINATION_ORDER,
-                &this.destination_order,
-                &Default::default(),
-            )?;
-            serializer.write_with_default(PID_HISTORY, &this.history, &Default::default())?;
-            serializer.write_with_default(
-                PID_RESOURCE_LIMITS,
-                &this.resource_limits,
-                &Default::default(),
-            )?;
-            serializer.write_with_default(PID_OWNERSHIP, &this.ownership, &Default::default())?;
-            serializer.write_with_default(PID_TOPIC_DATA, &this.topic_data, &Default::default())?;
-            serializer.write_with_default(
-                PID_DATA_REPRESENTATION,
-                &this.representation,
-                &Default::default(),
-            )?;
-
-            serializer.write_sentinel()?;
-            Ok(serializer.writer)
-        }
         let mut data =
             dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type());
-        data.set_uint8_values(777, serialize_data(&self).unwrap())
+        data.set_complex_value(
+            PID_PARTICIPANT_GUID as u32,
+            self.key.create_dynamic_sample(),
+        )
+        .unwrap();
+        data.set_string_value(PID_TOPIC_NAME as u32, self.name)
             .unwrap();
+        data.set_string_value(PID_TYPE_NAME as u32, self.type_name)
+            .unwrap();
+        data.set_complex_value(
+            PID_DURABILITY as u32,
+            self.durability.create_dynamic_sample(),
+        )
+        .unwrap();
+        data.set_complex_value(PID_DEADLINE as u32, self.deadline.create_dynamic_sample())
+            .unwrap();
+        data.set_complex_value(
+            PID_LATENCY_BUDGET as u32,
+            self.latency_budget.create_dynamic_sample(),
+        )
+        .unwrap();
+        data.set_complex_value(
+            PID_LIVELINESS as u32,
+            self.liveliness.create_dynamic_sample(),
+        )
+        .unwrap();
+        data.set_complex_value(
+            PID_RELIABILITY as u32,
+            self.reliability.create_dynamic_sample(),
+        )
+        .unwrap();
+        data.set_complex_value(
+            PID_TRANSPORT_PRIORITY as u32,
+            self.transport_priority.create_dynamic_sample(),
+        )
+        .unwrap();
+        data.set_complex_value(PID_LIFESPAN as u32, self.lifespan.create_dynamic_sample())
+            .unwrap();
+        data.set_complex_value(
+            PID_DESTINATION_ORDER as u32,
+            self.destination_order.create_dynamic_sample(),
+        )
+        .unwrap();
+        data.set_complex_value(PID_HISTORY as u32, self.history.create_dynamic_sample())
+            .unwrap();
+        data.set_complex_value(
+            PID_RESOURCE_LIMITS as u32,
+            self.resource_limits.create_dynamic_sample(),
+        )
+        .unwrap();
+        data.set_complex_value(PID_OWNERSHIP as u32, self.ownership.create_dynamic_sample())
+            .unwrap();
+        data.set_complex_value(
+            PID_TOPIC_DATA as u32,
+            self.topic_data.create_dynamic_sample(),
+        )
+        .unwrap();
+        data.set_complex_value(
+            PID_DATA_REPRESENTATION as u32,
+            self.representation.create_dynamic_sample(),
+        )
+        .unwrap();
 
         data
     }
