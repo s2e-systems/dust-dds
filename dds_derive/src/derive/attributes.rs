@@ -45,11 +45,13 @@ pub fn get_input_extensibility(input: &DeriveInput) -> Result<Extensibility> {
 pub struct FieldAttributes {
     pub key: bool,
     pub id: Option<Expr>,
+    pub non_serialized: bool,
 }
 
 pub fn get_field_attributes(field: &Field) -> syn::Result<FieldAttributes> {
     let mut key = false;
     let mut id = None;
+    let mut non_serialized = false;
     if let Some(xtypes_attribute) = field
         .attrs
         .iter()
@@ -60,9 +62,15 @@ pub fn get_field_attributes(field: &Field) -> syn::Result<FieldAttributes> {
                 key = true;
             } else if meta.path.is_ident("id") {
                 id = Some(meta.value()?.parse()?);
+            } else if meta.path.is_ident("non_serialized") {
+                non_serialized = true;
             }
             Ok(())
         })?;
     }
-    Ok(FieldAttributes { key, id })
+    Ok(FieldAttributes {
+        key,
+        id,
+        non_serialized,
+    })
 }

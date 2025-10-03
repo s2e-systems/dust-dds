@@ -1,17 +1,11 @@
-use std::sync::Arc;
-
-use super::{
-    parameter_id_values::{
-        PID_DATA_REPRESENTATION, PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY,
-        PID_ENDPOINT_GUID, PID_HISTORY, PID_LATENCY_BUDGET, PID_LIFESPAN, PID_LIVELINESS,
-        PID_OWNERSHIP, PID_RELIABILITY, PID_RESOURCE_LIMITS, PID_TOPIC_DATA, PID_TOPIC_NAME,
-        PID_TRANSPORT_PRIORITY, PID_TYPE_NAME,
-    },
-    payload_serializer_deserializer::parameter_list_serializer::ParameterListCdrSerializer,
+use super::parameter_id_values::{
+    PID_DATA_REPRESENTATION, PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY,
+    PID_ENDPOINT_GUID, PID_HISTORY, PID_LATENCY_BUDGET, PID_LIFESPAN, PID_LIVELINESS,
+    PID_OWNERSHIP, PID_RELIABILITY, PID_RESOURCE_LIMITS, PID_TOPIC_DATA, PID_TOPIC_NAME,
+    PID_TRANSPORT_PRIORITY, PID_TYPE_NAME,
 };
 use crate::{
     builtin_topics::{BuiltInTopicKey, TopicBuiltinTopicData},
-    dcps::data_representation_builtin_endpoints::parameter_id_values::PID_PARTICIPANT_GUID,
     infrastructure::{
         error::DdsResult,
         qos_policy::{
@@ -23,9 +17,9 @@ use crate::{
         },
         type_support::{DdsDeserialize, TypeSupport},
     },
-    xtypes::dynamic_type::{DataKind, TypeKind},
+    xtypes::dynamic_type::TypeKind,
 };
-use alloc::{string::String, vec, vec::Vec};
+use alloc::string::String;
 use dust_dds::xtypes::dynamic_type::{
     DynamicTypeBuilderFactory, ExtensibilityKind, MemberDescriptor, TryConstructKind,
     TypeDescriptor, XTypesBinding,
@@ -527,7 +521,7 @@ mod tests {
             2, 0, 0, 0, // ,
             3, 0, 0, 0, // ,
             4, 0, 0, 0, // ,
-            // 0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
+               // 0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
         let dynamic_data = data.create_dynamic_sample();
         let mut buffer = Vec::new();
