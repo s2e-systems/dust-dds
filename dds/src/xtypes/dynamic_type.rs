@@ -1,19 +1,17 @@
-use core::any::Any;
-
 use crate::{
     infrastructure::type_support::TypeSupport,
     xtypes::{error::XTypesResult, type_object::TypeObject},
 };
 
 use super::error::XTypesError;
-use alloc::{boxed::Box, collections::BTreeMap, string::String, sync::Arc, vec, vec::Vec};
+use alloc::{boxed::Box, collections::BTreeMap, string::String, vec, vec::Vec};
 
 pub type BoundSeq = Vec<u32>;
 pub type IncludePathSeq = Vec<String>;
 pub type ObjectName = String;
 
 // ---------- TypeKinds (begin) -------------------
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 #[repr(u8)]
 pub enum TypeKind {
     // Primitive TKs
@@ -175,21 +173,21 @@ impl DynamicTypeBuilderFactory {
 
 pub type Parameters = BTreeMap<ObjectName, ObjectName>;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ExtensibilityKind {
     Final,
     Appendable,
     Mutable,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TryConstructKind {
     UseDefault,
     Discard,
     Trim,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TypeDescriptor {
     pub kind: TypeKind,
     pub name: ObjectName,
@@ -205,12 +203,12 @@ pub struct TypeDescriptor {
 pub type MemberId = u32;
 pub type UnionCaseLabelSeq = Vec<i32>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct MemberDescriptor {
     pub name: ObjectName,
     pub id: MemberId,
     pub r#type: DynamicType,
-    pub default_value: Option<DynamicData>,
+    pub default_value: Option<DataKind>,
     pub index: u32,
     pub label: UnionCaseLabelSeq,
     pub try_construct_kind: TryConstructKind,
@@ -221,7 +219,7 @@ pub struct MemberDescriptor {
     pub is_default_label: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct DynamicTypeMember {
     descriptor: MemberDescriptor,
 }
@@ -322,7 +320,7 @@ impl DynamicTypeBuilder {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct DynamicType {
     descriptor: Box<TypeDescriptor>,
     member_list: Vec<DynamicTypeMember>,
@@ -370,10 +368,48 @@ impl DynamicDataFactory {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
+pub enum DataKind {
+    UInt8(u8),
+    Int8(i8),
+    UInt16(u16),
+    Int16(i16),
+    Int32(i32),
+    UInt32(u32),
+    Int64(i64),
+    UInt64(u64),
+    Float32(f32),
+    Float64(f64),
+    Char8(char),
+    Boolean(bool),
+    String(String),
+    ComplexValue(DynamicData),
+    UInt8List(Vec<u8>),
+    Int8List(Vec<i8>),
+    UInt16List(Vec<u16>),
+    Int16List(Vec<i16>),
+    Int32List(Vec<i32>),
+    UInt32List(Vec<u32>),
+    Int64List(Vec<i64>),
+    UInt64List(Vec<u64>),
+    Float32List(Vec<f32>),
+    Float64List(Vec<f64>),
+    Char8List(Vec<char>),
+    BooleanList(Vec<bool>),
+    StringList(Vec<String>),
+    ComplexValueList(Vec<DynamicData>),
+}
+
+impl From<DynamicData> for DataKind {
+    fn from(value: DynamicData) -> Self {
+        Self::ComplexValue(value)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct DynamicData {
     type_ref: DynamicType,
-    abstract_data: BTreeMap<MemberId, Arc<dyn Any + Send + Sync>>,
+    abstract_data: BTreeMap<MemberId, DataKind>,
 }
 
 impl DynamicData {
@@ -441,381 +477,497 @@ impl DynamicData {
     }
 
     pub fn get_int32_value(&self, id: MemberId) -> XTypesResult<&i32> {
-        self.abstract_data
+        if let DataKind::Int32(d) = self
+            .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
-            .downcast_ref()
-            .ok_or(XTypesError::InvalidType)
+        {
+            Ok(d)
+        } else {
+            Err(XTypesError::InvalidType)
+        }
     }
 
     pub fn set_int32_value(&mut self, id: MemberId, value: i32) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Arc::new(value));
+        self.abstract_data.insert(id, DataKind::Int32(value));
         Ok(())
     }
 
     pub fn get_uint32_value(&self, id: MemberId) -> XTypesResult<&u32> {
-        self.abstract_data
+        if let DataKind::UInt32(d) = self
+            .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
-            .downcast_ref()
-            .ok_or(XTypesError::InvalidType)
+        {
+            Ok(d)
+        } else {
+            Err(XTypesError::InvalidType)
+        }
     }
 
     pub fn set_uint32_value(&mut self, id: MemberId, value: u32) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Arc::new(value));
+        self.abstract_data.insert(id, DataKind::UInt32(value));
         Ok(())
     }
 
     pub fn get_int8_value(&self, id: MemberId) -> XTypesResult<&i8> {
-        self.abstract_data
+        if let DataKind::Int8(d) = self
+            .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
-            .downcast_ref()
-            .ok_or(XTypesError::InvalidType)
+        {
+            Ok(d)
+        } else {
+            Err(XTypesError::InvalidType)
+        }
     }
 
     pub fn set_int8_value(&mut self, id: MemberId, value: i8) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Arc::new(value));
+        self.abstract_data.insert(id, DataKind::Int8(value));
         Ok(())
     }
 
     pub fn get_uint8_value(&self, id: MemberId) -> XTypesResult<&u8> {
-        self.abstract_data
+        if let DataKind::UInt8(d) = self
+            .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
-            .downcast_ref()
-            .ok_or(XTypesError::InvalidType)
+        {
+            Ok(d)
+        } else {
+            Err(XTypesError::InvalidType)
+        }
     }
 
     pub fn set_uint8_value(&mut self, id: MemberId, value: u8) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Arc::new(value));
+        self.abstract_data.insert(id, DataKind::UInt8(value));
         Ok(())
     }
 
     pub fn get_int16_value(&self, id: MemberId) -> XTypesResult<&i16> {
-        self.abstract_data
+        if let DataKind::Int16(d) = self
+            .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
-            .downcast_ref()
-            .ok_or(XTypesError::InvalidType)
+        {
+            Ok(d)
+        } else {
+            Err(XTypesError::InvalidType)
+        }
     }
 
     pub fn set_int16_value(&mut self, id: MemberId, value: i16) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Arc::new(value));
+        self.abstract_data.insert(id, DataKind::Int16(value));
         Ok(())
     }
 
     pub fn get_uint16_value(&self, id: MemberId) -> XTypesResult<&u16> {
-        self.abstract_data
+        if let DataKind::UInt16(d) = self
+            .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
-            .downcast_ref()
-            .ok_or(XTypesError::InvalidType)
+        {
+            Ok(d)
+        } else {
+            Err(XTypesError::InvalidType)
+        }
     }
 
     pub fn set_uint16_value(&mut self, id: MemberId, value: u16) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Arc::new(value));
+        self.abstract_data.insert(id, DataKind::UInt16(value));
         Ok(())
     }
 
     pub fn get_int64_value(&self, id: MemberId) -> XTypesResult<&i64> {
-        self.abstract_data
+        if let DataKind::Int64(d) = self
+            .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
-            .downcast_ref()
-            .ok_or(XTypesError::InvalidType)
+        {
+            Ok(d)
+        } else {
+            Err(XTypesError::InvalidType)
+        }
     }
 
     pub fn set_int64_value(&mut self, id: MemberId, value: i64) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Arc::new(value));
+        self.abstract_data.insert(id, DataKind::Int64(value));
         Ok(())
     }
 
     pub fn get_uint64_value(&self, id: MemberId) -> XTypesResult<&u64> {
-        self.abstract_data
+        if let DataKind::UInt64(d) = self
+            .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
-            .downcast_ref()
-            .ok_or(XTypesError::InvalidType)
+        {
+            Ok(d)
+        } else {
+            Err(XTypesError::InvalidType)
+        }
     }
 
     pub fn set_uint64_value(&mut self, id: MemberId, value: u64) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Arc::new(value));
+        self.abstract_data.insert(id, DataKind::UInt64(value));
         Ok(())
     }
 
     pub fn get_float32_value(&self, id: MemberId) -> XTypesResult<&f32> {
-        self.abstract_data
+        if let DataKind::Float32(d) = self
+            .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
-            .downcast_ref()
-            .ok_or(XTypesError::InvalidType)
+        {
+            Ok(d)
+        } else {
+            Err(XTypesError::InvalidType)
+        }
     }
 
     pub fn set_float32_value(&mut self, id: MemberId, value: f32) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Arc::new(value));
+        self.abstract_data.insert(id, DataKind::Float32(value));
         Ok(())
     }
 
     pub fn get_float64_value(&self, id: MemberId) -> XTypesResult<&f64> {
-        self.abstract_data
+        if let DataKind::Float64(d) = self
+            .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
-            .downcast_ref()
-            .ok_or(XTypesError::InvalidType)
+        {
+            Ok(d)
+        } else {
+            Err(XTypesError::InvalidType)
+        }
     }
 
     pub fn set_float64_value(&mut self, id: MemberId, value: f64) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Arc::new(value));
+        self.abstract_data.insert(id, DataKind::Float64(value));
         Ok(())
     }
 
     pub fn get_char8_value(&self, id: MemberId) -> XTypesResult<&char> {
-        self.abstract_data
+        if let DataKind::Char8(d) = self
+            .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
-            .downcast_ref()
-            .ok_or(XTypesError::InvalidType)
+        {
+            Ok(d)
+        } else {
+            Err(XTypesError::InvalidType)
+        }
     }
 
     pub fn set_char8_value(&mut self, id: MemberId, value: char) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Arc::new(value));
+        self.abstract_data.insert(id, DataKind::Char8(value));
         Ok(())
     }
 
     pub fn get_byte_value(&self, id: MemberId) -> XTypesResult<&u8> {
-        self.abstract_data
+        if let DataKind::UInt8(d) = self
+            .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
-            .downcast_ref()
-            .ok_or(XTypesError::InvalidType)
+        {
+            Ok(d)
+        } else {
+            Err(XTypesError::InvalidType)
+        }
     }
 
     pub fn set_byte_value(&mut self, id: MemberId, value: u8) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Arc::new(value));
+        self.abstract_data.insert(id, DataKind::UInt8(value));
         Ok(())
     }
 
     pub fn get_boolean_value(&self, id: MemberId) -> XTypesResult<&bool> {
-        self.abstract_data
+        if let DataKind::Boolean(d) = self
+            .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
-            .downcast_ref()
-            .ok_or(XTypesError::InvalidType)
+        {
+            Ok(d)
+        } else {
+            Err(XTypesError::InvalidType)
+        }
     }
 
     pub fn set_boolean_value(&mut self, id: MemberId, value: bool) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Arc::new(value));
+        self.abstract_data.insert(id, DataKind::Boolean(value));
         Ok(())
     }
 
     pub fn get_string_value(&self, id: MemberId) -> XTypesResult<&String> {
-        self.abstract_data
+        if let DataKind::String(d) = self
+            .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
-            .downcast_ref()
-            .ok_or(XTypesError::InvalidType)
+        {
+            Ok(d)
+        } else {
+            Err(XTypesError::InvalidType)
+        }
     }
 
     pub fn set_string_value(&mut self, id: MemberId, value: String) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Arc::new(value));
+        self.abstract_data.insert(id, DataKind::String(value));
         Ok(())
     }
 
     pub fn get_complex_value(&self, id: MemberId) -> XTypesResult<&DynamicData> {
-        self.abstract_data
+        if let DataKind::ComplexValue(d) = self
+            .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
-            .downcast_ref()
-            .ok_or(XTypesError::InvalidType)
+        {
+            Ok(d)
+        } else {
+            Err(XTypesError::InvalidType)
+        }
     }
 
     pub fn set_complex_value(&mut self, id: MemberId, value: DynamicData) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Arc::new(value));
+        self.abstract_data.insert(id, DataKind::ComplexValue(value));
         Ok(())
     }
 
     pub fn get_int32_values(&self, id: MemberId) -> XTypesResult<&Vec<i32>> {
-        self.abstract_data
+        if let DataKind::Int32List(d) = self
+            .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
-            .downcast_ref()
-            .ok_or(XTypesError::InvalidType)
+        {
+            Ok(d)
+        } else {
+            Err(XTypesError::InvalidType)
+        }
     }
 
     pub fn set_int32_values(&mut self, id: MemberId, value: Vec<i32>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Arc::new(value));
+        self.abstract_data.insert(id, DataKind::Int32List(value));
         Ok(())
     }
 
     pub fn get_uint32_values(&self, id: MemberId) -> XTypesResult<&Vec<u32>> {
-        self.abstract_data
+        if let DataKind::UInt32List(d) = self
+            .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
-            .downcast_ref()
-            .ok_or(XTypesError::InvalidType)
+        {
+            Ok(d)
+        } else {
+            Err(XTypesError::InvalidType)
+        }
     }
 
     pub fn set_uint32_values(&mut self, id: MemberId, value: Vec<u32>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Arc::new(value));
+        self.abstract_data.insert(id, DataKind::UInt32List(value));
         Ok(())
     }
 
     pub fn get_int16_values(&self, id: MemberId) -> XTypesResult<&Vec<i16>> {
-        self.abstract_data
+        if let DataKind::Int16List(d) = self
+            .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
-            .downcast_ref()
-            .ok_or(XTypesError::InvalidType)
+        {
+            Ok(d)
+        } else {
+            Err(XTypesError::InvalidType)
+        }
     }
 
     pub fn set_int16_values(&mut self, id: MemberId, value: Vec<i16>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Arc::new(value));
+        self.abstract_data.insert(id, DataKind::Int16List(value));
         Ok(())
     }
 
     pub fn get_uint16_values(&self, id: MemberId) -> XTypesResult<&Vec<u16>> {
-        self.abstract_data
+        if let DataKind::UInt16List(d) = self
+            .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
-            .downcast_ref()
-            .ok_or(XTypesError::InvalidType)
+        {
+            Ok(d)
+        } else {
+            Err(XTypesError::InvalidType)
+        }
     }
 
     pub fn set_uint16_values(&mut self, id: MemberId, value: Vec<u16>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Arc::new(value));
+        self.abstract_data.insert(id, DataKind::UInt16List(value));
         Ok(())
     }
 
     pub fn get_int64_values(&self, id: MemberId) -> XTypesResult<&Vec<i64>> {
-        self.abstract_data
+        if let DataKind::Int64List(d) = self
+            .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
-            .downcast_ref()
-            .ok_or(XTypesError::InvalidType)
+        {
+            Ok(d)
+        } else {
+            Err(XTypesError::InvalidType)
+        }
     }
 
     pub fn set_int64_values(&mut self, id: MemberId, value: Vec<i64>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Arc::new(value));
+        self.abstract_data.insert(id, DataKind::Int64List(value));
         Ok(())
     }
 
     pub fn get_uint64_values(&self, id: MemberId) -> XTypesResult<&Vec<u64>> {
-        self.abstract_data
+        if let DataKind::UInt64List(d) = self
+            .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
-            .downcast_ref()
-            .ok_or(XTypesError::InvalidType)
+        {
+            Ok(d)
+        } else {
+            Err(XTypesError::InvalidType)
+        }
     }
 
     pub fn set_uint64_values(&mut self, id: MemberId, value: Vec<u64>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Arc::new(value));
+        self.abstract_data.insert(id, DataKind::UInt64List(value));
         Ok(())
     }
 
     pub fn get_float32_values(&self, id: MemberId) -> XTypesResult<&Vec<f32>> {
-        self.abstract_data
+        if let DataKind::Float32List(d) = self
+            .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
-            .downcast_ref()
-            .ok_or(XTypesError::InvalidType)
+        {
+            Ok(d)
+        } else {
+            Err(XTypesError::InvalidType)
+        }
     }
 
     pub fn set_float32_values(&mut self, id: MemberId, value: Vec<f32>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Arc::new(value));
+        self.abstract_data.insert(id, DataKind::Float32List(value));
         Ok(())
     }
 
     pub fn get_float64_values(&self, id: MemberId) -> XTypesResult<&Vec<f64>> {
-        self.abstract_data
+        if let DataKind::Float64List(d) = self
+            .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
-            .downcast_ref()
-            .ok_or(XTypesError::InvalidType)
+        {
+            Ok(d)
+        } else {
+            Err(XTypesError::InvalidType)
+        }
     }
 
     pub fn set_float64_values(&mut self, id: MemberId, value: Vec<f64>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Arc::new(value));
+        self.abstract_data.insert(id, DataKind::Float64List(value));
         Ok(())
     }
 
     pub fn get_char8_values(&self, id: MemberId) -> XTypesResult<&Vec<char>> {
-        self.abstract_data
+        if let DataKind::Char8List(d) = self
+            .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
-            .downcast_ref()
-            .ok_or(XTypesError::InvalidType)
+        {
+            Ok(d)
+        } else {
+            Err(XTypesError::InvalidType)
+        }
     }
 
     pub fn set_char8_values(&mut self, id: MemberId, value: Vec<char>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Arc::new(value));
+        self.abstract_data.insert(id, DataKind::Char8List(value));
         Ok(())
     }
 
     pub fn get_byte_values(&self, id: MemberId) -> XTypesResult<&Vec<u8>> {
-        self.abstract_data
+        if let DataKind::UInt8List(d) = self
+            .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
-            .downcast_ref()
-            .ok_or(XTypesError::InvalidType)
+        {
+            Ok(d)
+        } else {
+            Err(XTypesError::InvalidType)
+        }
     }
 
     pub fn set_byte_values(&mut self, id: MemberId, value: Vec<u8>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Arc::new(value));
+        self.abstract_data.insert(id, DataKind::UInt8List(value));
         Ok(())
     }
 
     pub fn get_boolean_values(&self, id: MemberId) -> XTypesResult<&Vec<bool>> {
-        self.abstract_data
+        if let DataKind::BooleanList(d) = self
+            .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
-            .downcast_ref()
-            .ok_or(XTypesError::InvalidType)
+        {
+            Ok(d)
+        } else {
+            Err(XTypesError::InvalidType)
+        }
     }
 
     pub fn set_boolean_values(&mut self, id: MemberId, value: Vec<bool>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Arc::new(value));
+        self.abstract_data.insert(id, DataKind::BooleanList(value));
         Ok(())
     }
 
     pub fn get_string_values(&self, id: MemberId) -> XTypesResult<&Vec<String>> {
-        self.abstract_data
+        if let DataKind::StringList(d) = self
+            .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
-            .downcast_ref()
-            .ok_or(XTypesError::InvalidType)
+        {
+            Ok(d)
+        } else {
+            Err(XTypesError::InvalidType)
+        }
     }
 
     pub fn set_string_values(&mut self, id: MemberId, value: Vec<String>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Arc::new(value));
+        self.abstract_data.insert(id, DataKind::StringList(value));
         Ok(())
     }
 
     // Custom functions
     pub fn get_uint8_values(&self, id: MemberId) -> XTypesResult<&Vec<u8>> {
-        self.abstract_data
+        if let DataKind::UInt8List(d) = self
+            .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
-            .downcast_ref()
-            .ok_or(XTypesError::InvalidType)
+        {
+            Ok(d)
+        } else {
+            Err(XTypesError::InvalidType)
+        }
     }
 
     pub fn set_uint8_values(&mut self, id: MemberId, value: Vec<u8>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Arc::new(value));
+        self.abstract_data.insert(id, DataKind::UInt8List(value));
         Ok(())
     }
 
     pub fn set_int8_values(&mut self, id: MemberId, value: Vec<i8>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Arc::new(value));
+        self.abstract_data.insert(id, DataKind::Int8List(value));
         Ok(())
     }
 
     pub fn get_complex_values(&self, id: MemberId) -> XTypesResult<&Vec<DynamicData>> {
-        self.abstract_data
+        if let DataKind::ComplexValueList(d) = self
+            .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
-            .downcast_ref()
-            .ok_or(XTypesError::InvalidType)
+        {
+            Ok(d)
+        } else {
+            Err(XTypesError::InvalidType)
+        }
     }
 
     pub fn set_complex_values(
@@ -823,7 +975,8 @@ impl DynamicData {
         id: MemberId,
         value: Vec<DynamicData>,
     ) -> XTypesResult<()> {
-        self.abstract_data.insert(id, Arc::new(value));
+        self.abstract_data
+            .insert(id, DataKind::ComplexValueList(value));
         Ok(())
     }
 }
