@@ -1257,7 +1257,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for HistoryQosPolicy {
                 name: alloc::string::String::from("kind"),
                 id: 0,
                 r#type: HistoryQosPolicyKind::get_type(),
-                default_value: alloc::string::String::new(),
+                default_value: None,
                 index: 0u32,
                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
@@ -1276,7 +1276,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for HistoryQosPolicy {
                     dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::get_primitive_type(
                         TypeKind::INT32,
                     ),
-                default_value: alloc::string::String::new(),
+                default_value: None,
                 index: 1u32,
                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),

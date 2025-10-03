@@ -210,7 +210,7 @@ pub struct MemberDescriptor {
     pub name: ObjectName,
     pub id: MemberId,
     pub r#type: DynamicType,
-    pub default_value: String,
+    pub default_value: Option<DynamicData>,
     pub index: u32,
     pub label: UnionCaseLabelSeq,
     pub try_construct_kind: TryConstructKind,

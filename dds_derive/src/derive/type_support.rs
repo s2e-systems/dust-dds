@@ -95,7 +95,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                             name: alloc::string::String::from(#field_name),
                             id: #member_id,
                             r#type: <#member_type as dust_dds::xtypes::dynamic_type::XTypesBinding>::get_dynamic_type(),
-                            default_value: alloc::string::String::new(),
+                            default_value: None,
                             index: #index,
                             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                             label: alloc::vec::Vec::new(),
