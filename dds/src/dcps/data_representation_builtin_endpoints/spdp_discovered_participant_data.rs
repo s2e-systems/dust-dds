@@ -31,9 +31,12 @@ use crate::{
     xtypes::{deserialize::XTypesDeserialize, dynamic_type::TypeKind, serialize::XTypesSerialize},
 };
 use alloc::{string::String, vec, vec::Vec};
-use dust_dds::xtypes::dynamic_type::{
-    DynamicTypeBuilderFactory, ExtensibilityKind, MemberDescriptor, TryConstructKind,
-    TypeDescriptor, XTypesBinding,
+use dust_dds::xtypes::{
+    binding::XTypesBinding,
+    dynamic_type::{
+        DynamicTypeBuilderFactory, ExtensibilityKind, MemberDescriptor, TryConstructKind,
+        TypeDescriptor,
+    },
 };
 
 pub type Count = Long;

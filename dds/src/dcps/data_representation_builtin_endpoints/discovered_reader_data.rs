@@ -31,9 +31,12 @@ use crate::{
 use alloc::{string::String, vec, vec::Vec};
 use dust_dds::{
     infrastructure::type_support::TypeSupport,
-    xtypes::dynamic_type::{
-        DynamicTypeBuilderFactory, ExtensibilityKind, MemberDescriptor, TryConstructKind,
-        TypeDescriptor, XTypesBinding,
+    xtypes::{
+        binding::XTypesBinding,
+        dynamic_type::{
+            DynamicTypeBuilderFactory, ExtensibilityKind, MemberDescriptor, TryConstructKind,
+            TypeDescriptor,
+        },
     },
 };
 

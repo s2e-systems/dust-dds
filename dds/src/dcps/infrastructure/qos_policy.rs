@@ -6,10 +6,11 @@ use crate::{
     },
     transport::types::{DurabilityKind, ReliabilityKind},
     xtypes::{
+        binding::XTypesBinding,
         bytes::{ByteBuf, Bytes},
         deserialize::XTypesDeserialize,
         deserializer::{DeserializeFinalStruct, XTypesDeserializer},
-        dynamic_type::{DynamicDataFactory, DynamicTypeBuilderFactory, TypeKind, XTypesBinding},
+        dynamic_type::{DynamicDataFactory, DynamicTypeBuilderFactory, TypeKind},
         error::XTypesError,
         serialize::{XTypesSerialize, XTypesSerializer},
         serializer::SerializeFinalStruct,
