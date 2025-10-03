@@ -36,6 +36,24 @@ impl XTypesSerialize for DynamicData {
         serializer: impl super::serialize::XTypesSerializer,
     ) -> Result<(), super::error::XTypesError> {
         match self.type_ref().get_kind() {
+            TypeKind::ENUM => {
+                match self
+                    .type_ref()
+                    .get_descriptor()
+                    .discriminator_type
+                    .as_ref()
+                    .expect("Enumerations must have discriminator")
+                    .get_kind()
+                {
+                    TypeKind::UINT8 => {
+                        let value = self.get_uint8_value(0)?;
+                        serializer.serialize_uint8(*value)?;
+                    }
+                    discriminator_type => {
+                        todo!("Not implemented for discriminator of type {discriminator_type:?}")
+                    }
+                }
+            }
             TypeKind::STRUCTURE => match self.type_ref().get_descriptor().extensibility_kind {
                 ExtensibilityKind::Final => {
                     let mut final_serializer = serializer.serialize_final_struct()?;
@@ -67,6 +85,10 @@ impl XTypesSerialize for DynamicData {
                             }
                             TypeKind::INT64 => {
                                 let value = self.get_int64_value(member_id)?;
+                                final_serializer.serialize_field(value, member_name)?;
+                            }
+                            TypeKind::STRING8 => {
+                                let value = self.get_string_value(member_id)?;
                                 final_serializer.serialize_field(value, member_name)?;
                             }
                             TypeKind::STRUCTURE => {
@@ -139,12 +161,12 @@ impl XTypesSerialize for DynamicData {
                                     todo!("Not implemented for members of type {element_type:#X?}")
                                 }
                             },
+
                             _ => {
                                 todo!("Not implemented for members of type {member_type_kind:#x?}")
                             }
                         }
                     }
-                    Ok(())
                 }
                 ExtensibilityKind::Appendable => {
                     let mut appendable_serializer = serializer.serialize_appendable_struct()?;
@@ -176,6 +198,10 @@ impl XTypesSerialize for DynamicData {
                             }
                             TypeKind::INT64 => {
                                 let value = self.get_int64_value(member_id)?;
+                                appendable_serializer.serialize_field(value, member_name)?;
+                            }
+                            TypeKind::ENUM => {
+                                let value = self.get_complex_value(member_id)?;
                                 appendable_serializer.serialize_field(value, member_name)?;
                             }
                             TypeKind::STRUCTURE => {
@@ -261,7 +287,6 @@ impl XTypesSerialize for DynamicData {
                             }
                         }
                     }
-                    Ok(())
                 }
                 ExtensibilityKind::Mutable => {
                     let mut mutable_serializer = serializer.serialize_mutable_struct()?;
@@ -409,11 +434,11 @@ impl XTypesSerialize for DynamicData {
                         }
                     }
                     mutable_serializer.end()?;
-                    Ok(())
                 }
             },
-            _ => todo!(),
+            kind => todo!("Noy yet implemented for {kind:?}"),
         }
+        Ok(())
     }
 }
 

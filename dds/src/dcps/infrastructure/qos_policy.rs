@@ -1169,7 +1169,13 @@ impl TypeSupport for HistoryQosPolicyKind {
     }
 
     fn create_dynamic_sample(self) -> crate::xtypes::dynamic_type::DynamicData {
-        unimplemented!()
+        let mut data = DynamicDataFactory::create_data(Self::get_type());
+        let value = match self {
+            HistoryQosPolicyKind::KeepLast(_) => 0,
+            HistoryQosPolicyKind::KeepAll => 1,
+        };
+        data.set_uint8_value(0, value).unwrap();
+        data
     }
 }
 
@@ -1288,11 +1294,13 @@ impl dust_dds::infrastructure::type_support::TypeSupport for HistoryQosPolicy {
         let mut data = DynamicDataFactory::create_data(Self::get_type());
         match self.kind {
             HistoryQosPolicyKind::KeepLast(depth) => {
-                data.set_uint8_value(0, 0).unwrap();
+                data.set_complex_value(0, self.kind.create_dynamic_sample())
+                    .unwrap();
                 data.set_int32_value(1, depth as i32).unwrap();
             }
             HistoryQosPolicyKind::KeepAll => {
-                data.set_uint8_value(0, 1).unwrap();
+                data.set_complex_value(0, self.kind.create_dynamic_sample())
+                    .unwrap();
                 data.set_int32_value(1, 0).unwrap();
             }
         }

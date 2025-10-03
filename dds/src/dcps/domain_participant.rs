@@ -11,6 +11,7 @@ use crate::{
         actor::{Actor, ActorAddress},
         data_representation_builtin_endpoints::{
             discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
+            discovered_topic_data::DiscoveredTopicData,
             discovered_writer_data::{DiscoveredWriterData, WriterProxy},
             spdp_discovered_participant_data::{
                 BuiltinEndpointQos, BuiltinEndpointSet, ParticipantProxy,
@@ -2978,25 +2979,27 @@ where
             return;
         };
 
-        let topic_builtin_topic_data = TopicBuiltinTopicData {
-            key: BuiltInTopicKey {
-                value: topic.instance_handle.into(),
+        let discovered_topic_data = DiscoveredTopicData {
+            topic_builtin_topic_data: TopicBuiltinTopicData {
+                key: BuiltInTopicKey {
+                    value: topic.instance_handle.into(),
+                },
+                name: topic.topic_name.clone(),
+                type_name: topic.type_name.clone(),
+                durability: topic.qos.durability.clone(),
+                deadline: topic.qos.deadline.clone(),
+                latency_budget: topic.qos.latency_budget.clone(),
+                liveliness: topic.qos.liveliness.clone(),
+                reliability: topic.qos.reliability.clone(),
+                transport_priority: topic.qos.transport_priority.clone(),
+                lifespan: topic.qos.lifespan.clone(),
+                destination_order: topic.qos.destination_order.clone(),
+                history: topic.qos.history.clone(),
+                resource_limits: topic.qos.resource_limits.clone(),
+                ownership: topic.qos.ownership.clone(),
+                topic_data: topic.qos.topic_data.clone(),
+                representation: topic.qos.representation.clone(),
             },
-            name: topic.topic_name.clone(),
-            type_name: topic.type_name.clone(),
-            durability: topic.qos.durability.clone(),
-            deadline: topic.qos.deadline.clone(),
-            latency_budget: topic.qos.latency_budget.clone(),
-            liveliness: topic.qos.liveliness.clone(),
-            reliability: topic.qos.reliability.clone(),
-            transport_priority: topic.qos.transport_priority.clone(),
-            lifespan: topic.qos.lifespan.clone(),
-            destination_order: topic.qos.destination_order.clone(),
-            history: topic.qos.history.clone(),
-            resource_limits: topic.qos.resource_limits.clone(),
-            ownership: topic.qos.ownership.clone(),
-            topic_data: topic.qos.topic_data.clone(),
-            representation: topic.qos.representation.clone(),
         };
 
         let timestamp = self.get_current_time();
@@ -3008,7 +3011,7 @@ where
             .find(|x| x.topic_name == DCPS_TOPIC)
         {
             dw.write_w_timestamp(
-                topic_builtin_topic_data.create_dynamic_sample(),
+                discovered_topic_data.create_dynamic_sample(),
                 timestamp,
                 &self.clock_handle,
             )
