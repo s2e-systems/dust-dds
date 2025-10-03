@@ -96,11 +96,7 @@ impl TypeSupport for DiscoveredTopicData {
                 name: String::from("durability"),
                 id: PID_DURABILITY as u32,
                 r#type: <DurabilityQosPolicy as TypeSupport>::get_type(),
-                default_value: Some(
-                    DurabilityQosPolicy::const_default()
-                        .create_dynamic_sample()
-                        .into(),
-                ),
+                default_value: Some(DurabilityQosPolicy::const_default().into()),
                 index: 3,
                 try_construct_kind: TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
@@ -116,11 +112,7 @@ impl TypeSupport for DiscoveredTopicData {
                 name: String::from("deadline"),
                 id: PID_DEADLINE as u32,
                 r#type: <DeadlineQosPolicy as TypeSupport>::get_type(),
-                default_value: Some(
-                    DeadlineQosPolicy::const_default()
-                        .create_dynamic_sample()
-                        .into(),
-                ),
+                default_value: Some(DeadlineQosPolicy::const_default().into()),
                 index: 4,
                 try_construct_kind: TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
@@ -136,11 +128,7 @@ impl TypeSupport for DiscoveredTopicData {
                 name: String::from("latency_budget"),
                 id: PID_LATENCY_BUDGET as u32,
                 r#type: <LatencyBudgetQosPolicy as TypeSupport>::get_type(),
-                default_value: Some(
-                    LatencyBudgetQosPolicy::const_default()
-                        .create_dynamic_sample()
-                        .into(),
-                ),
+                default_value: Some(LatencyBudgetQosPolicy::const_default().into()),
                 index: 5,
                 try_construct_kind: TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
@@ -156,11 +144,7 @@ impl TypeSupport for DiscoveredTopicData {
                 name: String::from("liveliness"),
                 id: PID_LIVELINESS as u32,
                 r#type: <LivelinessQosPolicy as TypeSupport>::get_type(),
-                default_value: Some(
-                    LivelinessQosPolicy::const_default()
-                        .create_dynamic_sample()
-                        .into(),
-                ),
+                default_value: Some(LivelinessQosPolicy::const_default().into()),
                 index: 6,
                 try_construct_kind: TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
@@ -176,11 +160,7 @@ impl TypeSupport for DiscoveredTopicData {
                 name: String::from("reliability"),
                 id: PID_RELIABILITY as u32,
                 r#type: <ReliabilityQosPolicy as TypeSupport>::get_type(),
-                default_value: Some(
-                    DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS
-                        .create_dynamic_sample()
-                        .into(),
-                ),
+                default_value: Some(DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS.into()),
                 index: 7,
                 try_construct_kind: TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
@@ -196,11 +176,7 @@ impl TypeSupport for DiscoveredTopicData {
                 name: String::from("transport_priority"),
                 id: PID_TRANSPORT_PRIORITY as u32,
                 r#type: <TransportPriorityQosPolicy as TypeSupport>::get_type(),
-                default_value: Some(
-                    TransportPriorityQosPolicy::const_default()
-                        .create_dynamic_sample()
-                        .into(),
-                ),
+                default_value: Some(TransportPriorityQosPolicy::const_default().into()),
                 index: 8,
                 try_construct_kind: TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
@@ -216,11 +192,7 @@ impl TypeSupport for DiscoveredTopicData {
                 name: String::from("lifespan"),
                 id: PID_LIFESPAN as u32,
                 r#type: <LifespanQosPolicy as TypeSupport>::get_type(),
-                default_value: Some(
-                    LifespanQosPolicy::const_default()
-                        .create_dynamic_sample()
-                        .into(),
-                ),
+                default_value: Some(LifespanQosPolicy::const_default().into()),
                 index: 9,
                 try_construct_kind: TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
@@ -236,11 +208,7 @@ impl TypeSupport for DiscoveredTopicData {
                 name: String::from("destination_order"),
                 id: PID_DESTINATION_ORDER as u32,
                 r#type: <DestinationOrderQosPolicy as TypeSupport>::get_type(),
-                default_value: Some(
-                    DestinationOrderQosPolicy::const_default()
-                        .create_dynamic_sample()
-                        .into(),
-                ),
+                default_value: Some(DestinationOrderQosPolicy::const_default().into()),
                 index: 10,
                 try_construct_kind: TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
@@ -256,11 +224,7 @@ impl TypeSupport for DiscoveredTopicData {
                 name: String::from("history"),
                 id: PID_HISTORY as u32,
                 r#type: <HistoryQosPolicy as TypeSupport>::get_type(),
-                default_value: Some(
-                    HistoryQosPolicy::const_default()
-                        .create_dynamic_sample()
-                        .into(),
-                ),
+                default_value: Some(HistoryQosPolicy::const_default().into()),
                 index: 11,
                 try_construct_kind: TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
@@ -276,11 +240,7 @@ impl TypeSupport for DiscoveredTopicData {
                 name: String::from("resource_limits"),
                 id: PID_RESOURCE_LIMITS as u32,
                 r#type: <ResourceLimitsQosPolicy as TypeSupport>::get_type(),
-                default_value: Some(
-                    ResourceLimitsQosPolicy::const_default()
-                        .create_dynamic_sample()
-                        .into(),
-                ),
+                default_value: Some(ResourceLimitsQosPolicy::const_default().into()),
                 index: 12,
                 try_construct_kind: TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
@@ -296,11 +256,7 @@ impl TypeSupport for DiscoveredTopicData {
                 name: String::from("ownership"),
                 id: PID_OWNERSHIP as u32,
                 r#type: <OwnershipQosPolicy as TypeSupport>::get_type(),
-                default_value: Some(
-                    OwnershipQosPolicy::const_default()
-                        .create_dynamic_sample()
-                        .into(),
-                ),
+                default_value: Some(OwnershipQosPolicy::const_default().into()),
                 index: 13,
                 try_construct_kind: TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
@@ -316,11 +272,7 @@ impl TypeSupport for DiscoveredTopicData {
                 name: String::from("topic_data"),
                 id: PID_TOPIC_DATA as u32,
                 r#type: <TopicDataQosPolicy as TypeSupport>::get_type(),
-                default_value: Some(
-                    TopicDataQosPolicy::const_default()
-                        .create_dynamic_sample()
-                        .into(),
-                ),
+                default_value: Some(TopicDataQosPolicy::const_default().into()),
                 index: 14,
                 try_construct_kind: TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
@@ -336,11 +288,7 @@ impl TypeSupport for DiscoveredTopicData {
                 name: String::from("representation"),
                 id: PID_DATA_REPRESENTATION as u32,
                 r#type: <DataRepresentationQosPolicy as TypeSupport>::get_type(),
-                default_value: Some(
-                    DataRepresentationQosPolicy::const_default()
-                        .create_dynamic_sample()
-                        .into(),
-                ),
+                default_value: Some(DataRepresentationQosPolicy::const_default().into()),
                 index: 15,
                 try_construct_kind: TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),

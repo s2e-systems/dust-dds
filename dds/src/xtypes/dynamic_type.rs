@@ -400,11 +400,12 @@ pub enum DataKind {
     ComplexValueList(Vec<DynamicData>),
 }
 
-impl From<DynamicData> for DataKind {
-    fn from(value: DynamicData) -> Self {
-        Self::ComplexValue(value)
+impl<T: TypeSupport> From<T> for DataKind {
+    fn from(value: T) -> Self {
+        Self::ComplexValue(value.create_dynamic_sample())
     }
 }
+
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct DynamicData {
