@@ -2,8 +2,7 @@ use crate::derive::attributes::get_field_attributes;
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{
-    spanned::Spanned, DataEnum, DeriveInput, Expr, ExprLit, Fields, GenericArgument, Ident, Index,
-    Lit, PathArguments, Result,
+    spanned::Spanned, DataEnum, DeriveInput, Expr, ExprLit, Fields, Ident, Index, Lit, Result,
 };
 
 pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
@@ -65,37 +64,21 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     .as_ref()
                     .map(|i| i.to_string())
                     .unwrap_or(field_index.to_string());
-                let (is_optional, member_type) = match &field.ty {
-                    syn::Type::Path(field_type_path)
-                        if field_type_path.path.segments[0].ident == "Option" =>
-                    {
-                        if let PathArguments::AngleBracketed(angle_bracketed) =
-                            &field_type_path.path.segments[0].arguments
-                        {
-                            if let Some(GenericArgument::Type(inner_ty)) =
-                                angle_bracketed.args.first()
-                            {
-                                (true, quote!(#inner_ty))
-                            } else {
-                                (true, quote!(#field_type_path))
-                            }
-                        } else {
-                            (true, quote!(#field_type_path))
-                        }
-                    }
-                    _ => {
-                        let field_type = &field.ty;
-                        (false, quote!(#field_type))
-                    }
-                };
+
+                let member_type = &field.ty;
                 let is_key = field_attributes.key;
+                let is_optional = field_attributes.optional;
+                let default_value = match field_attributes.default_value {
+                    Some(expr) => quote!(Some(#expr)),
+                    None => quote!(None),
+                };
                 member_builder_seq.extend(
                     quote! {
                          builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
                             name: alloc::string::String::from(#field_name),
                             id: #member_id,
                             r#type: <#member_type as dust_dds::xtypes::binding::XTypesBinding>::get_dynamic_type(),
-                            default_value: None,
+                            default_value: #default_value,
                             index: #index,
                             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                             label: alloc::vec::Vec::new(),
