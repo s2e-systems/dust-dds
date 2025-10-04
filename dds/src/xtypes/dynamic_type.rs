@@ -1,7 +1,4 @@
-use crate::{
-    infrastructure::type_support::TypeSupport,
-    xtypes::{binding::DataKind, error::XTypesResult, type_object::TypeObject},
-};
+use crate::xtypes::{binding::DataKind, error::XTypesResult, type_object::TypeObject};
 
 use super::error::XTypesError;
 use alloc::{boxed::Box, collections::BTreeMap, string::String, vec, vec::Vec};
@@ -940,5 +937,14 @@ impl DynamicData {
         self.abstract_data
             .insert(id, DataKind::ComplexValueList(value));
         Ok(())
+    }
+
+    pub fn set_value(&mut self, id: MemberId, value: DataKind) -> XTypesResult<()> {
+        self.abstract_data.insert(id, value);
+        Ok(())
+    }
+
+    pub fn get_value(&self, id: MemberId) -> XTypesResult<&DataKind> {
+        self.abstract_data.get(&id).ok_or(XTypesError::InvalidIndex)
     }
 }

@@ -95,26 +95,17 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 if !field_attributes.non_serialized {
                     match &field.ident {
                         Some(field_ident) => {
-                            if is_optional {
-                                member_dynamic_sample_seq.push(quote! {
-                            if let Some(x) = self.#field_ident {
-                                dust_dds::xtypes::binding::XTypesBinding::insert_value(x, &mut data, #member_id).unwrap();
-                            }
-                        });
-                            } else {
                                 member_sample_seq.extend(quote! {
-                            #field_ident: dust_dds::infrastructure::type_support::TypeSupport::create_sample(src.remove_value(#member_id)?)?,
-                        });
-                                member_dynamic_sample_seq.push(quote! {
-                            dust_dds::xtypes::binding::XTypesBinding::insert_value(self.#field_ident, &mut data, #member_id).unwrap();
-                        });
-                            }
+                                #field_ident: dust_dds::infrastructure::type_support::TypeSupport::create_sample(src.remove_value(#member_id)?)?,
+                            });
+                                member_dynamic_sample_seq.push(
+                                    quote! {data.set_value(#member_id, self.#field_ident.into()).unwrap();});
                         }
                         None => {
                             let index = Index::from(field_index);
                             member_sample_seq.extend(quote! {  dust_dds::infrastructure::type_support::TypeSupport::create_sample(src.remove_value(#member_id)?)?,});
                             member_dynamic_sample_seq.push(quote! {
-                            dust_dds::xtypes::binding::XTypesBinding::insert_value(self.#index, &mut data, #member_id).unwrap();
+                            data.set_value(#member_id, self.#index.into()).unwrap();
                         })
                         }
                     }

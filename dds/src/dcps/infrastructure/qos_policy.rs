@@ -6,7 +6,7 @@ use crate::{
     },
     transport::types::{DurabilityKind, ReliabilityKind},
     xtypes::{
-        binding::XTypesBinding,
+        binding::{DataKind, XTypesBinding},
         bytes::{ByteBuf, Bytes},
         deserialize::XTypesDeserialize,
         deserializer::{DeserializeFinalStruct, XTypesDeserializer},
@@ -35,15 +35,13 @@ impl XTypesBinding for Length {
     fn get_dynamic_type() -> crate::xtypes::dynamic_type::DynamicType {
         DynamicTypeBuilderFactory::get_primitive_type(TypeKind::INT32)
     }
+}
 
-    fn insert_value(
-        self,
-        dynamic_data: &mut crate::xtypes::dynamic_type::DynamicData,
-        id: crate::xtypes::dynamic_type::MemberId,
-    ) -> crate::xtypes::error::XTypesResult<()> {
-        match self {
-            Length::Unlimited => dynamic_data.set_int32_value(id, LENGTH_UNLIMITED),
-            Length::Limited(l) => dynamic_data.set_int32_value(id, l as i32),
+impl From<Length> for DataKind {
+    fn from(value: Length) -> Self {
+        match value {
+            Length::Unlimited => DataKind::Int32(LENGTH_UNLIMITED),
+            Length::Limited(l) => DataKind::Int32(l as i32),
         }
     }
 }
