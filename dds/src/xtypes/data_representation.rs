@@ -329,13 +329,18 @@ impl XTypesSerialize for DynamicData {
                             }
                             TypeKind::STRUCTURE => {
                                 let value = self.get_complex_value(member_id)?;
-                                if let Some(default) = &member_descriptor.default_value {
-                                    if let DataKind::ComplexValue(x) = default {
-                                        if x == value {
+                                if member_descriptor.is_optional {
+                                    let default = member_descriptor
+                                        .default_value
+                                        .as_ref()
+                                        .expect("Optional structs must define default value");
+                                    if let DataKind::ComplexValue(default) = default {
+                                        if value == default {
                                             continue;
                                         }
                                     }
                                 }
+
                                 mutable_serializer.serialize_field(value, pid, member_name)?;
                             }
                             TypeKind::ARRAY => match member_descriptor.get_element_type() {

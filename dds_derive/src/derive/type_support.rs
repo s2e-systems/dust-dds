@@ -69,8 +69,11 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 let is_key = field_attributes.key;
                 let is_optional = field_attributes.optional;
                 let default_value = match field_attributes.default_value {
-                    Some(expr) => quote!(Some(#expr)),
-                    None => quote!(None),
+                    Some(expr) => quote! {Some(#expr.into())},
+                    None if is_optional => {
+                        quote! {Some(<#member_type as Default>::default().into())}
+                    }
+                    _ => quote! {None},
                 };
                 member_builder_seq.extend(
                     quote! {
@@ -95,18 +98,18 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 if !field_attributes.non_serialized {
                     match &field.ident {
                         Some(field_ident) => {
-                                member_sample_seq.extend(quote! {
+                            member_sample_seq.extend(quote! {
                                 #field_ident: dust_dds::infrastructure::type_support::TypeSupport::create_sample(src.remove_value(#member_id)?)?,
                             });
-                                member_dynamic_sample_seq.push(
+                            member_dynamic_sample_seq.push(
                                     quote! {data.set_value(#member_id, self.#field_ident.into()).unwrap();});
                         }
                         None => {
                             let index = Index::from(field_index);
                             member_sample_seq.extend(quote! {  dust_dds::infrastructure::type_support::TypeSupport::create_sample(src.remove_value(#member_id)?)?,});
                             member_dynamic_sample_seq.push(quote! {
-                            data.set_value(#member_id, self.#index.into()).unwrap();
-                        })
+                                data.set_value(#member_id, self.#index.into()).unwrap();
+                            })
                         }
                     }
                 }
