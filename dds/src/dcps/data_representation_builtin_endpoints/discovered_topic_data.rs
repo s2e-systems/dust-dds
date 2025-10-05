@@ -90,7 +90,7 @@ mod tests {
             2, 0, 0, 0, // ,
             3, 0, 0, 0, // ,
             4, 0, 0, 0, // ,
-               // 0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
+            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
         let dynamic_data = data.create_dynamic_sample();
         let mut buffer = Vec::new();

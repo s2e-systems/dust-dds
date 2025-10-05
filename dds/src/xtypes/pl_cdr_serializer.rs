@@ -417,6 +417,7 @@ mod tests {
                 7, 0, 0, 0, // field_u16 | padding (2 bytes)
                 20, 0, 4, 0, // PID | length
                 8, 0, 0, 0, // field_u8 | padding (3 bytes)
+                1, 0, 0, 0, // Sentinel
             ]
         );
     }
@@ -445,6 +446,7 @@ mod tests {
                 30, 0, 8, 0, // PID | length
                 5, 0, 0, 0, // Time: sec
                 6, 0, 0, 0, // Time: nanosec
+                1, 0, 0, 0, // Sentinel
             ]
         );
     }
@@ -470,6 +472,7 @@ mod tests {
                 30, 0, 8, 0, // PID | length
                 7, 0, 0, 0, // Time: sec
                 8, 0, 0, 0, // Time: nanosec
+                1, 0, 0, 0, // Sentinel
             ]
         );
     }
@@ -498,9 +501,11 @@ mod tests {
                 7, 0, 0, 0, // field_u16 | padding (2 bytes)
                 20, 0, 4, 0, // PID | length
                 8, 0, 0, 0, // field_u8 | padding (3 bytes)
+                1, 0, 0, 0, // Sentinel
                 30, 0, 8, 0, // PID | length
                 5, 0, 0, 0, // Time: sec
                 6, 0, 0, 0, // Time: nanosec
+                1, 0, 0, 0, // Sentinel
             ]
         );
     }

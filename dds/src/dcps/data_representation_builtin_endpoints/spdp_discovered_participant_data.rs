@@ -619,9 +619,8 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
 mod tests {
     use super::*;
     use crate::{
-        builtin_topics::BuiltInTopicKey,
-        infrastructure::qos_policy::UserDataQosPolicy,
-        xtypes::{pl_cdr_serializer::PlCdrLeSerializer, xcdr_serializer::Xcdr1LeSerializer},
+        builtin_topics::BuiltInTopicKey, infrastructure::qos_policy::UserDataQosPolicy,
+        xtypes::pl_cdr_serializer::PlCdrLeSerializer,
     };
 
     #[test]
