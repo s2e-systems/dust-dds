@@ -148,6 +148,12 @@ where
     }
 }
 
+impl<'de> XTypesDeserialize<'de> for Option<i32> {
+    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
+        Ok(Some(deserializer.deserialize_int32()?))
+    }
+}
+
 impl<'de> XTypesDeserialize<'de> for String {
     fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
         Ok(String::from(deserializer.deserialize_string()?))

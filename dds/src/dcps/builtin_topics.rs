@@ -20,7 +20,7 @@ use crate::{
         },
         type_support::TypeSupport,
     },
-    xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize},
+    xtypes::{binding::XTypesBinding, deserialize::XTypesDeserialize, serialize::XTypesSerialize},
 };
 use alloc::string::String;
 
@@ -45,9 +45,12 @@ pub struct BuiltInTopicKey {
 }
 
 /// Structure representing a discovered [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant).
-#[derive(Debug, PartialEq, Eq, Clone, XTypesSerialize, XTypesDeserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, XTypesSerialize, XTypesDeserialize, TypeSupport)]
+#[dust_dds(extensibility = "mutable")]
 pub struct ParticipantBuiltinTopicData {
+    #[dust_dds(id = PID_PARTICIPANT_GUID as u32)]
     pub(crate) key: BuiltInTopicKey,
+    #[dust_dds(id = PID_USER_DATA as u32, optional)]
     pub(crate) user_data: UserDataQosPolicy,
 }
 

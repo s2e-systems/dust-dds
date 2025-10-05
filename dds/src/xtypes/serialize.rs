@@ -112,6 +112,13 @@ where
     }
 }
 
+impl XTypesSerialize for Option<i32>
+{
+    fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
+        serializer.serialize_int32(self.unwrap_or_default())
+    }
+}
+
 impl XTypesSerialize for () {
     fn serialize(&self, _serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
         Ok(())

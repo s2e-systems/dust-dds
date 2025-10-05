@@ -124,20 +124,34 @@ impl BuiltinEndpointQos {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, TypeSupport)]
+#[dust_dds(extensibility = "mutable")]
 pub struct ParticipantProxy {
+    #[dust_dds(id = PID_DOMAIN_ID as u32)]
     pub(crate) domain_id: Option<DomainId>,
+    #[dust_dds(id = PID_DOMAIN_TAG as u32)]
     pub(crate) domain_tag: String,
+    #[dust_dds(id = PID_PROTOCOL_VERSION as u32)]
     pub(crate) protocol_version: ProtocolVersion,
+    #[dust_dds(id = PID_PARTICIPANT_GUID as u32)]
     pub(crate) guid_prefix: GuidPrefix,
+    #[dust_dds(id = PID_VENDORID as u32)]
     pub(crate) vendor_id: VendorId,
+    #[dust_dds(id = PID_EXPECTS_INLINE_QOS as u32)]
     pub(crate) expects_inline_qos: bool,
+    #[dust_dds(id = PID_METATRAFFIC_MULTICAST_LOCATOR as u32)]
     pub(crate) metatraffic_unicast_locator_list: Vec<Locator>,
+    #[dust_dds(id = PID_METATRAFFIC_MULTICAST_LOCATOR as u32)]
     pub(crate) metatraffic_multicast_locator_list: Vec<Locator>,
+    #[dust_dds(id = PID_DEFAULT_UNICAST_LOCATOR as u32)]
     pub(crate) default_unicast_locator_list: Vec<Locator>,
+    #[dust_dds(id = PID_DEFAULT_MULTICAST_LOCATOR as u32)]
     pub(crate) default_multicast_locator_list: Vec<Locator>,
+    #[dust_dds(id = PID_BUILTIN_ENDPOINT_SET as u32)]
     pub(crate) available_builtin_endpoints: BuiltinEndpointSet,
+    #[dust_dds(id = PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT as u32)]
     pub(crate) manual_liveliness_count: Count,
+    #[dust_dds(id = PID_BUILTIN_ENDPOINT_QOS as u32)]
     pub(crate) builtin_endpoint_qos: BuiltinEndpointQos,
 }
 
@@ -149,49 +163,46 @@ pub struct SpdpDiscoveredParticipantData {
     pub(crate) discovered_participant_list: Vec<InstanceHandle>,
 }
 
-impl TypeSupport for SpdpDiscoveredParticipantData {
+impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParticipantData {
     fn get_type() -> dust_dds::xtypes::dynamic_type::DynamicType {
         extern crate alloc;
-        let mut builder = DynamicTypeBuilderFactory::create_type(TypeDescriptor {
-            kind: TypeKind::STRUCTURE,
-            name: String::from("ParticipantProxy"),
-            base_type: None,
-            discriminator_type: None,
-            bound: alloc::vec::Vec::new(),
-            element_type: None,
-            key_element_type: None,
-            extensibility_kind: ExtensibilityKind::Final,
-            is_nested: false,
-        });
+        let mut builder = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
+            dust_dds::xtypes::dynamic_type::TypeDescriptor {
+                kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
+                name: alloc::string::String::from("SpdpDiscoveredParticipantData"),
+                base_type: None,
+                discriminator_type: None,
+                bound: alloc::vec::Vec::new(),
+                element_type: None,
+                key_element_type: None,
+                extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Mutable,
+                is_nested: false,
+            },
+        );
         builder
-            .add_member(MemberDescriptor {
-                name: String::from("data"),
-                id: 777,
-                r#type: DynamicTypeBuilderFactory::create_array_type(
-                    u8::get_dynamic_type(),
-                    vec![u32::MAX],
-                )
-                .build(),
-                default_value: None,
-                index: 777,
-                try_construct_kind: TryConstructKind::UseDefault,
-                label: alloc::vec::Vec::new(),
-                is_key: false,
-                is_optional: true,
-                is_must_understand: true,
-                is_shared: false,
-                is_default_label: false,
-            })
-            .unwrap();
-
-        builder
-            .add_member(MemberDescriptor {
-                name: String::from("domain_id"),
-                id: PID_DOMAIN_ID as u32,
-                r#type: <DomainId as XTypesBinding>::get_dynamic_type(),
+            .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+                name: alloc::string::String::from("key"),
+                id: PID_PARTICIPANT_GUID as u32,
+                r#type: BuiltInTopicKey::get_dynamic_type(),
                 default_value: None,
                 index: 0u32,
-                try_construct_kind: TryConstructKind::UseDefault,
+                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+                label: alloc::vec::Vec::new(),
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })
+            .unwrap();
+        builder
+            .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+                name: alloc::string::String::from("user_data"),
+                id: PID_USER_DATA as u32,
+                r#type: UserDataQosPolicy::get_dynamic_type(),
+                default_value: Some(<UserDataQosPolicy as Default>::default().into()),
+                index: 1u32,
+                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
                 is_key: false,
                 is_optional: true,
@@ -201,29 +212,13 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
             })
             .unwrap();
         builder
-            .add_member(MemberDescriptor {
-                name: String::from("domain_tag"),
-                id: PID_DOMAIN_TAG as u32,
-                r#type: <String as XTypesBinding>::get_dynamic_type(),
-                default_value: None,
-                index: 1u32,
-                try_construct_kind: TryConstructKind::UseDefault,
-                label: alloc::vec::Vec::new(),
-                is_key: false,
-                is_optional: false,
-                is_must_understand: true,
-                is_shared: false,
-                is_default_label: false,
-            })
-            .unwrap();
-        builder
-            .add_member(MemberDescriptor {
-                name: String::from("protocol_version"),
-                id: PID_PROTOCOL_VERSION as u32,
-                r#type: <ProtocolVersion as XTypesBinding>::get_dynamic_type(),
+            .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+                name: alloc::string::String::from("domain_id"),
+                id: PID_DOMAIN_ID as u32,
+                r#type: Option::<DomainId>::get_dynamic_type(),
                 default_value: None,
                 index: 2u32,
-                try_construct_kind: TryConstructKind::UseDefault,
+                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
                 is_key: false,
                 is_optional: false,
@@ -233,15 +228,15 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
             })
             .unwrap();
         builder
-            .add_member(MemberDescriptor {
-                name: String::from("key"),
-                id: PID_PARTICIPANT_GUID as u32,
-                r#type: <BuiltInTopicKey as XTypesBinding>::get_dynamic_type(),
+            .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+                name: alloc::string::String::from("domain_tag"),
+                id: PID_DOMAIN_TAG as u32,
+                r#type: <String as dust_dds::xtypes::binding::XTypesBinding>::get_dynamic_type(),
                 default_value: None,
                 index: 3u32,
-                try_construct_kind: TryConstructKind::UseDefault,
+                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
-                is_key: true,
+                is_key: false,
                 is_optional: false,
                 is_must_understand: true,
                 is_shared: false,
@@ -249,13 +244,13 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
             })
             .unwrap();
         builder
-            .add_member(MemberDescriptor {
-                name: String::from("vendor_id"),
-                id: PID_VENDORID as u32,
-                r#type: <VendorId as XTypesBinding>::get_dynamic_type(),
+            .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+                name: alloc::string::String::from("protocol_version"),
+                id: PID_PROTOCOL_VERSION as u32,
+                r#type: ProtocolVersion::get_dynamic_type(),
                 default_value: None,
                 index: 4u32,
-                try_construct_kind: TryConstructKind::UseDefault,
+                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
                 is_key: false,
                 is_optional: false,
@@ -264,30 +259,30 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
                 is_default_label: false,
             })
             .unwrap();
+        // builder
+        //     .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+        //         name: alloc::string::String::from("guid_prefix"),
+        //         id: PID_PARTICIPANT_GUID as u32,
+        //         r#type: GuidPrefix::get_dynamic_type(),
+        //         default_value: None,
+        //         index: 5u32,
+        //         try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+        //         label: alloc::vec::Vec::new(),
+        //         is_key: false,
+        //         is_optional: false,
+        //         is_must_understand: true,
+        //         is_shared: false,
+        //         is_default_label: false,
+        //     })
+        //     .unwrap();
         builder
-            .add_member(MemberDescriptor {
-                name: String::from("expects_inline_qos"),
-                id: PID_EXPECTS_INLINE_QOS as u32,
-                r#type: <bool as XTypesBinding>::get_dynamic_type(),
-                default_value: None,
-                index: 5u32,
-                try_construct_kind: TryConstructKind::UseDefault,
-                label: alloc::vec::Vec::new(),
-                is_key: false,
-                is_optional: false,
-                is_must_understand: true,
-                is_shared: false,
-                is_default_label: false,
-            })
-            .unwrap();
-        builder
-            .add_member(MemberDescriptor {
-                name: String::from("metatraffic_unicast_locator_list"),
-                id: PID_METATRAFFIC_UNICAST_LOCATOR as u32,
-                r#type: <Vec<Locator> as XTypesBinding>::get_dynamic_type(),
+            .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+                name: alloc::string::String::from("vendor_id"),
+                id: PID_VENDORID as u32,
+                r#type: VendorId::get_dynamic_type(),
                 default_value: None,
                 index: 6u32,
-                try_construct_kind: TryConstructKind::UseDefault,
+                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
                 is_key: false,
                 is_optional: false,
@@ -297,13 +292,13 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
             })
             .unwrap();
         builder
-            .add_member(MemberDescriptor {
-                name: String::from("metatraffic_multicast_locator_list"),
-                id: PID_METATRAFFIC_MULTICAST_LOCATOR as u32,
-                r#type: <Vec<Locator> as XTypesBinding>::get_dynamic_type(),
+            .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+                name: alloc::string::String::from("expects_inline_qos"),
+                id: PID_EXPECTS_INLINE_QOS as u32,
+                r#type: <bool as dust_dds::xtypes::binding::XTypesBinding>::get_dynamic_type(),
                 default_value: None,
                 index: 7u32,
-                try_construct_kind: TryConstructKind::UseDefault,
+                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
                 is_key: false,
                 is_optional: false,
@@ -313,13 +308,14 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
             })
             .unwrap();
         builder
-            .add_member(MemberDescriptor {
-                name: String::from("default_unicast_locator_list"),
-                id: PID_DEFAULT_UNICAST_LOCATOR as u32,
-                r#type: <Vec<Locator> as XTypesBinding>::get_dynamic_type(),
+            .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+                name: alloc::string::String::from("metatraffic_unicast_locator_list"),
+                id: PID_METATRAFFIC_UNICAST_LOCATOR as u32,
+                r#type:
+                    <Vec<Locator> as dust_dds::xtypes::binding::XTypesBinding>::get_dynamic_type(),
                 default_value: None,
                 index: 8u32,
-                try_construct_kind: TryConstructKind::UseDefault,
+                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
                 is_key: false,
                 is_optional: false,
@@ -329,13 +325,13 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
             })
             .unwrap();
         builder
-            .add_member(MemberDescriptor {
-                name: String::from("default_multicast_locator_list"),
-                id: PID_DEFAULT_MULTICAST_LOCATOR as u32,
-                r#type: <Vec<Locator> as XTypesBinding>::get_dynamic_type(),
+            .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+                name: alloc::string::String::from("metatraffic_multicast_locator_list"),
+                id: PID_METATRAFFIC_MULTICAST_LOCATOR as u32,
+                r#type: Vec::<Locator>::get_dynamic_type(),
                 default_value: None,
                 index: 9u32,
-                try_construct_kind: TryConstructKind::UseDefault,
+                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
                 is_key: false,
                 is_optional: false,
@@ -345,13 +341,13 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
             })
             .unwrap();
         builder
-            .add_member(MemberDescriptor {
-                name: String::from("available_builtin_endpoints"),
-                id: PID_BUILTIN_ENDPOINT_SET as u32,
-                r#type: <BuiltinEndpointSet as XTypesBinding>::get_dynamic_type(),
+            .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+                name: alloc::string::String::from("default_unicast_locator_list"),
+                id: PID_DEFAULT_UNICAST_LOCATOR as u32,
+                r#type: Vec::<Locator>::get_dynamic_type(),
                 default_value: None,
                 index: 10u32,
-                try_construct_kind: TryConstructKind::UseDefault,
+                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
                 is_key: false,
                 is_optional: false,
@@ -361,13 +357,13 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
             })
             .unwrap();
         builder
-            .add_member(MemberDescriptor {
-                name: String::from("manual_liveliness_count"),
-                id: PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT as u32,
-                r#type: <Count as XTypesBinding>::get_dynamic_type(),
+            .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+                name: alloc::string::String::from("default_multicast_locator_list"),
+                id: PID_DEFAULT_MULTICAST_LOCATOR as u32,
+                r#type: Vec::<Locator>::get_dynamic_type(),
                 default_value: None,
                 index: 11u32,
-                try_construct_kind: TryConstructKind::UseDefault,
+                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
                 is_key: false,
                 is_optional: false,
@@ -377,13 +373,13 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
             })
             .unwrap();
         builder
-            .add_member(MemberDescriptor {
-                name: String::from("builtin_endpoint_qos"),
-                id: PID_BUILTIN_ENDPOINT_QOS as u32,
-                r#type: <BuiltinEndpointQos as XTypesBinding>::get_dynamic_type(),
+            .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+                name: alloc::string::String::from("available_builtin_endpoints"),
+                id: PID_BUILTIN_ENDPOINT_SET as u32,
+                r#type: BuiltinEndpointSet::get_dynamic_type(),
                 default_value: None,
                 index: 12u32,
-                try_construct_kind: TryConstructKind::UseDefault,
+                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
                 is_key: false,
                 is_optional: false,
@@ -393,13 +389,13 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
             })
             .unwrap();
         builder
-            .add_member(MemberDescriptor {
-                name: String::from("user_data"),
-                id: PID_USER_DATA as u32,
-                r#type: <UserDataQosPolicy as XTypesBinding>::get_dynamic_type(),
+            .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+                name: alloc::string::String::from("manual_liveliness_count"),
+                id: PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT as u32,
+                r#type: <Count as dust_dds::xtypes::binding::XTypesBinding>::get_dynamic_type(),
                 default_value: None,
                 index: 13u32,
-                try_construct_kind: TryConstructKind::UseDefault,
+                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
                 is_key: false,
                 is_optional: false,
@@ -409,13 +405,13 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
             })
             .unwrap();
         builder
-            .add_member(MemberDescriptor {
-                name: String::from("lease_duration"),
-                id: PID_PARTICIPANT_LEASE_DURATION as u32,
-                r#type: <Duration as XTypesBinding>::get_dynamic_type(),
+            .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+                name: alloc::string::String::from("builtin_endpoint_qos"),
+                id: PID_BUILTIN_ENDPOINT_QOS as u32,
+                r#type: BuiltinEndpointQos::get_dynamic_type(),
                 default_value: None,
                 index: 14u32,
-                try_construct_kind: TryConstructKind::UseDefault,
+                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
                 is_key: false,
                 is_optional: false,
@@ -425,13 +421,13 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
             })
             .unwrap();
         builder
-            .add_member(MemberDescriptor {
-                name: String::from("discovered_participant_list"),
-                id: PID_DISCOVERED_PARTICIPANT as u32,
-                r#type: <UserDataQosPolicy as XTypesBinding>::get_dynamic_type(),
+            .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+                name: alloc::string::String::from("lease_duration"),
+                id: PID_PARTICIPANT_LEASE_DURATION as u32,
+                r#type: Duration::get_dynamic_type(),
                 default_value: None,
                 index: 15u32,
-                try_construct_kind: TryConstructKind::UseDefault,
+                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
                 is_key: false,
                 is_optional: false,
@@ -443,87 +439,93 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
         builder.build()
     }
 
-    fn create_dynamic_sample(self) -> crate::xtypes::dynamic_type::DynamicData {
-        fn serialize(this: &SpdpDiscoveredParticipantData) -> Result<Vec<u8>, RtpsError> {
-            let mut serializer = ParameterListCdrSerializer::default();
-            serializer.write_header()?;
-
-            // dds_participant_data: ParticipantBuiltinTopicData :
-            serializer.write(PID_PARTICIPANT_GUID, &this.dds_participant_data.key)?;
-            serializer.write_with_default(
-                PID_USER_DATA,
-                &this.dds_participant_data.user_data,
-                &Default::default(),
-            )?;
-
-            // participant_proxy: ParticipantProxy :
-            if let Some(domain_id) = &this.participant_proxy.domain_id {
-                serializer.write(PID_DOMAIN_ID, domain_id)?;
-            }
-            serializer.write_with_default(
-                PID_DOMAIN_TAG,
-                &this.participant_proxy.domain_tag,
-                &String::from(DEFAULT_DOMAIN_TAG),
-            )?;
-            serializer.write(
-                PID_PROTOCOL_VERSION,
-                &this.participant_proxy.protocol_version,
-            )?;
-            serializer.write(PID_VENDORID, &this.participant_proxy.vendor_id)?;
-            serializer.write_with_default(
-                PID_EXPECTS_INLINE_QOS,
-                &this.participant_proxy.expects_inline_qos,
-                &DEFAULT_EXPECTS_INLINE_QOS,
-            )?;
-            serializer.write_collection(
-                PID_METATRAFFIC_UNICAST_LOCATOR,
-                &this.participant_proxy.metatraffic_unicast_locator_list,
-            )?;
-            serializer.write_collection(
-                PID_METATRAFFIC_MULTICAST_LOCATOR,
-                &this.participant_proxy.metatraffic_multicast_locator_list,
-            )?;
-            serializer.write_collection(
-                PID_DEFAULT_UNICAST_LOCATOR,
-                &this.participant_proxy.default_unicast_locator_list,
-            )?;
-            serializer.write_collection(
-                PID_DEFAULT_MULTICAST_LOCATOR,
-                &this.participant_proxy.default_multicast_locator_list,
-            )?;
-            serializer.write(
-                PID_BUILTIN_ENDPOINT_SET,
-                &this.participant_proxy.available_builtin_endpoints,
-            )?;
-            serializer.write_with_default(
-                PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
-                &this.participant_proxy.manual_liveliness_count,
-                &Default::default(),
-            )?;
-            serializer.write_with_default(
-                PID_BUILTIN_ENDPOINT_QOS,
-                &this.participant_proxy.builtin_endpoint_qos,
-                &Default::default(),
-            )?;
-
-            // Default (DEFAULT_PARTICIPANT_LEASE_DURATION) is ommited compared to the standard due to interoperability reasons :
-            serializer.write(PID_PARTICIPANT_LEASE_DURATION, &this.lease_duration)?;
-
-            serializer.write_collection(
-                PID_DISCOVERED_PARTICIPANT,
-                &this.discovered_participant_list,
-            )?;
-
-            serializer.write_sentinel()?;
-            Ok(serializer.writer)
-        }
-
+    fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
         let mut data =
             dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type());
 
-        data.set_uint8_values(777, serialize(&self).unwrap())
-            .unwrap();
+        data.set_value(
+            PID_PARTICIPANT_GUID as u32,
+            self.dds_participant_data.key.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_USER_DATA as u32,
+            self.dds_participant_data.user_data.into(),
+        )
+        .unwrap();
 
+        data.set_value(
+            PID_DOMAIN_ID as u32,
+            self.participant_proxy.domain_id.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_DOMAIN_TAG as u32,
+            self.participant_proxy.domain_tag.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_PROTOCOL_VERSION as u32,
+            self.participant_proxy.protocol_version.into(),
+        )
+        .unwrap();
+        // data.set_value(
+        //     PID_PARTICIPANT_GUID as u32,
+        //     self.participant_proxy.guid_prefix.into(),
+        // )
+        // .unwrap();
+        data.set_value(PID_VENDORID as u32, self.participant_proxy.vendor_id.into())
+            .unwrap();
+        data.set_value(
+            PID_EXPECTS_INLINE_QOS as u32,
+            self.participant_proxy.expects_inline_qos.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_METATRAFFIC_UNICAST_LOCATOR as u32,
+            self.participant_proxy
+                .metatraffic_unicast_locator_list
+                .into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_METATRAFFIC_MULTICAST_LOCATOR as u32,
+            self.participant_proxy
+                .metatraffic_multicast_locator_list
+                .into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_DEFAULT_UNICAST_LOCATOR as u32,
+            self.participant_proxy.default_unicast_locator_list.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_DEFAULT_MULTICAST_LOCATOR as u32,
+            self.participant_proxy.default_multicast_locator_list.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_BUILTIN_ENDPOINT_SET as u32,
+            self.participant_proxy.available_builtin_endpoints.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT as u32,
+            self.participant_proxy.manual_liveliness_count.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_BUILTIN_ENDPOINT_QOS as u32,
+            self.participant_proxy.builtin_endpoint_qos.into(),
+        )
+        .unwrap();
+
+        data.set_value(
+            PID_PARTICIPANT_LEASE_DURATION as u32,
+            self.lease_duration.into(),
+        )
+        .unwrap();
         data
     }
 }
@@ -577,7 +579,7 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
         Ok(Self {
             dds_participant_data: ParticipantBuiltinTopicData::deserialize_data(serialized_data)?,
             participant_proxy: ParticipantProxy {
-                domain_id,
+                domain_id: domain_id.unwrap_or_default(),
                 domain_tag: pl_deserializer
                     .read_with_default(PID_DOMAIN_TAG, Default::default())?,
                 protocol_version: pl_deserializer.read(PID_PROTOCOL_VERSION)?,
@@ -617,8 +619,9 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
 mod tests {
     use super::*;
     use crate::{
-        builtin_topics::BuiltInTopicKey, infrastructure::qos_policy::UserDataQosPolicy,
-        xtypes::xcdr_serializer::Xcdr1LeSerializer,
+        builtin_topics::BuiltInTopicKey,
+        infrastructure::qos_policy::UserDataQosPolicy,
+        xtypes::{pl_cdr_serializer::PlCdrLeSerializer, xcdr_serializer::Xcdr1LeSerializer},
     };
 
     #[test]
@@ -671,23 +674,23 @@ mod tests {
         };
 
         let expected = vec![
-            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
-            0x50, 0x00, 16, 0x00, // PID_PARTICIPANT_GUID, Length
-            8, 8, 8, 8, // GuidPrefix
-            8, 8, 8, 8, // GuidPrefix
-            8, 8, 8, 8, // GuidPrefix
-            0, 0, 1, 0xc1, // EntityId
+            // 0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+            0x02, 0x00, 8, 0x00, // PID_PARTICIPANT_LEASE_DURATION
+            10, 0x00, 0x00, 0x00, // Duration: seconds
+            11, 0x00, 0x00, 0x00, // Duration: fraction
             0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
             0x01, 0x00, 0x00, 0x00, // DomainId
-            0x14, 0x40, 0x08, 0x00, // PID_DOMAIN_TAG, Length: 8
-            3, 0x00, 0x00, 0x00, // DomainTag: string length (incl. terminator)
-            b'a', b'b', 0, 0x00, // DomainTag: string + padding (1 byte)
             0x15, 0x00, 4, 0x00, // PID_PROTOCOL_VERSION, Length
             0x02, 0x04, 0x00, 0x00, // ProtocolVersion
             0x16, 0x00, 4, 0x00, // PID_VENDORID
             73, 74, 0x00, 0x00, // VendorId
-            0x43, 0x00, 0x04, 0x00, // PID_EXPECTS_INLINE_QOS, Length: 4,
-            0x01, 0x00, 0x00, 0x00, // True
+            0x31, 0x00, 24, 0x00, // PID_DEFAULT_UNICAST_LOCATOR
+            11, 0x00, 0x00, 0x00, // Locator{kind
+            12, 0x00, 0x00, 0x00, // port,
+            0x01, 0x01, 0x01, 0x01, //
+            0x01, 0x01, 0x01, 0x01, // address
+            0x01, 0x01, 0x01, 0x01, //
+            0x01, 0x01, 0x01, 0x01, // }
             0x32, 0x00, 24, 0x00, // PID_METATRAFFIC_UNICAST_LOCATOR
             11, 0x00, 0x00, 0x00, // Locator{kind
             12, 0x00, 0x00, 0x00, // port,
@@ -709,13 +712,10 @@ mod tests {
             0x01, 0x01, 0x01, 0x01, // address
             0x01, 0x01, 0x01, 0x01, //
             0x01, 0x01, 0x01, 0x01, // }
-            0x31, 0x00, 24, 0x00, // PID_DEFAULT_UNICAST_LOCATOR
-            11, 0x00, 0x00, 0x00, // Locator{kind
-            12, 0x00, 0x00, 0x00, // port,
-            0x01, 0x01, 0x01, 0x01, //
-            0x01, 0x01, 0x01, 0x01, // address
-            0x01, 0x01, 0x01, 0x01, //
-            0x01, 0x01, 0x01, 0x01, // }
+            0x34, 0x00, 4, 0x00, // PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT
+            0x02, 0x00, 0x00, 0x00, // Count
+            0x43, 0x00, 0x04, 0x00, // PID_EXPECTS_INLINE_QOS, Length: 4,
+            0x01, 0x00, 0x00, 0x00, // True
             0x48, 0x00, 24, 0x00, // PID_DEFAULT_MULTICAST_LOCATOR
             11, 0x00, 0x00, 0x00, // Locator{kind
             12, 0x00, 0x00, 0x00, // port,
@@ -723,22 +723,25 @@ mod tests {
             0x01, 0x01, 0x01, 0x01, // address
             0x01, 0x01, 0x01, 0x01, //
             0x01, 0x01, 0x01, 0x01, // }
+            0x50, 0x00, 16, 0x00, // PID_PARTICIPANT_GUID, Length
+            8, 8, 8, 8, // GuidPrefix
+            8, 8, 8, 8, // GuidPrefix
+            8, 8, 8, 8, // GuidPrefix
+            0, 0, 1, 0xc1, // EntityId
             0x58, 0x00, 4, 0x00, // PID_BUILTIN_ENDPOINT_SET
             0x02, 0x00, 0x00, 0x00, //
-            0x34, 0x00, 4, 0x00, // PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT
-            0x02, 0x00, 0x00, 0x00, // Count
             0x77, 0x00, 4, 0x00, // PID_BUILTIN_ENDPOINT_QOS
             0x00, 0x00, 0x00, 0x20, //
-            0x02, 0x00, 8, 0x00, // PID_PARTICIPANT_LEASE_DURATION
-            10, 0x00, 0x00, 0x00, // Duration: seconds
-            11, 0x00, 0x00, 0x00, // Duration: fraction
+            0x14, 0x40, 0x08, 0x00, // PID_DOMAIN_TAG, Length: 8
+            3, 0x00, 0x00, 0x00, // DomainTag: string length (incl. terminator)
+            b'a', b'b', 0, 0x00, // DomainTag: string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ];
         let dynamic_sample = data.create_dynamic_sample();
 
         let mut buffer = vec![];
         dynamic_sample
-            .serialize(&mut Xcdr1LeSerializer::new(&mut buffer))
+            .serialize(&mut PlCdrLeSerializer::new(&mut buffer))
             .unwrap();
         assert_eq!(buffer, expected);
     }

@@ -303,6 +303,12 @@ impl<T: TypeSupport> From<Vec<T>> for DataKind {
     }
 }
 
+impl From<Option<i32>> for DataKind {
+    fn from(value: Option<i32>) -> Self {
+        Self::Int32(value.unwrap_or_default())
+    }
+}
+
 pub trait XTypesBinding {
     fn get_dynamic_type() -> DynamicType;
 }
@@ -485,5 +491,11 @@ impl<T: TypeSupport, const N: usize> XTypesBinding for [T; N] {
 impl<T: TypeSupport> XTypesBinding for Vec<T> {
     fn get_dynamic_type() -> DynamicType {
         DynamicTypeBuilderFactory::create_sequence_type(T::get_type(), u32::MAX).build()
+    }
+}
+
+impl XTypesBinding for Option<i32> {
+    fn get_dynamic_type() -> DynamicType {
+        DynamicTypeBuilderFactory::get_primitive_type(TypeKind::INT32)
     }
 }

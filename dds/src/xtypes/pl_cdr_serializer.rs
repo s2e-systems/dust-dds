@@ -167,8 +167,8 @@ impl<C: Write> SerializeMutableStruct for &mut PlCdrLeSerializer<'_, C> {
         Ok(())
     }
     fn end(self) -> Result<(), XTypesError> {
-        // self.writer.write_slice(&PID_SENTINEL.to_le_bytes());
-        // self.writer.write_slice(&0u16.to_le_bytes());
+        self.writer.write_slice(&PID_SENTINEL.to_le_bytes());
+        self.writer.write_slice(&0u16.to_le_bytes());
         Ok(())
     }
 }
