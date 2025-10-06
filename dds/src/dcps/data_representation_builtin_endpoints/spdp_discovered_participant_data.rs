@@ -725,7 +725,9 @@ mod tests {
     fn serialize_spdp_discovered_participant_data_all_default() {
         let data = SpdpDiscoveredParticipantData {
             dds_participant_data: ParticipantBuiltinTopicData {
-                key: BuiltInTopicKey::default(),
+                key: BuiltInTopicKey {
+                    value: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0xc1],
+                },
                 user_data: UserDataQosPolicy::default(),
             },
             participant_proxy: ParticipantProxy {
@@ -739,7 +741,9 @@ mod tests {
                 metatraffic_multicast_locator_list: Vec::new(),
                 default_unicast_locator_list: Vec::new(),
                 default_multicast_locator_list: Vec::new(),
-                available_builtin_endpoints: BuiltinEndpointSet::default(),
+                available_builtin_endpoints: BuiltinEndpointSet::new(
+                    BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR,
+                ),
                 manual_liveliness_count: 0,
                 builtin_endpoint_qos: BuiltinEndpointQos::default(),
             },
