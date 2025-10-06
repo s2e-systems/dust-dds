@@ -443,12 +443,11 @@ impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParti
             self.dds_participant_data.user_data.into(),
         )
         .unwrap();
-
-        // data.set_value(
-        //     PID_DOMAIN_ID as u32,
-        //     self.participant_proxy.domain_id.into(),
-        // )
-        // .unwrap();
+        data.set_value(
+            PID_DOMAIN_ID as u32,
+            self.participant_proxy.domain_id.into(),
+        )
+        .unwrap();
         data.set_value(
             PID_DOMAIN_TAG as u32,
             self.participant_proxy.domain_tag.into(),
@@ -459,11 +458,9 @@ impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParti
             self.participant_proxy.protocol_version.into(),
         )
         .unwrap();
-        // data.set_value(
-        //     PID_PARTICIPANT_GUID as u32,
-        //     self.participant_proxy.guid_prefix.into(),
-        // )
-        // .unwrap();
+
+        // self.participant_proxy.guid_prefix is ommitted
+
         data.set_value(PID_VENDORID as u32, self.participant_proxy.vendor_id.into())
             .unwrap();
         data.set_value(
@@ -653,8 +650,8 @@ mod tests {
             0x02, 0x00, 8, 0x00, // PID_PARTICIPANT_LEASE_DURATION
             10, 0x00, 0x00, 0x00, // Duration: seconds
             11, 0x00, 0x00, 0x00, // Duration: fraction
-            // 0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
-            // 0x01, 0x00, 0x00, 0x00, // DomainId
+            0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
+            0x01, 0x00, 0x00, 0x00, // DomainId
             0x15, 0x00, 4, 0x00, // PID_PROTOCOL_VERSION, Length
             0x02, 0x04, 0x00, 0x00, // ProtocolVersion
             0x16, 0x00, 4, 0x00, // PID_VENDORID
