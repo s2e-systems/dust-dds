@@ -1,3 +1,26 @@
+use dust_dds::dds_async::data_writer::DataWriterAsync;
+use dust_dds::publication::data_writer_listener::DataWriterListener;
+use dust_dds::infrastructure::status::PublicationMatchedStatus;
+struct PubListener {
+    label: String,
+}
+
+impl<R: DdsRuntime, T: 'static> DataWriterListener<R, T> for PubListener {
+    fn on_publication_matched(
+        &mut self,
+        _the_writer: DataWriterAsync<R, T>,
+        status: PublicationMatchedStatus,
+    ) -> impl core::future::Future<Output = ()> + Send {
+        println!(
+            "\x1b[35m[Publisher - {}]\x1b[0m Publication matched: current_count = {}, total_count = {}",
+            self.label, status.current_count, status.total_count
+        );
+        if status.current_count == 0 {
+            println!("\x1b[35m[Publisher - {}]\x1b[0m All subscribers disconnected!", self.label);
+        }
+        core::future::ready(())
+    }
+}
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory, infrastructure::{
         qos::{DataReaderQos, QosKind}, qos_policy::{DurabilityQosPolicy, DurabilityQosPolicyKind, ReliabilityQosPolicy, ReliabilityQosPolicyKind}, status::{StatusKind, NO_STATUS}, time::{Duration, DurationKind}, type_support::DdsType
@@ -76,8 +99,14 @@ fn run_publisher(domain_id: i32, topic_name: &str) {
         .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
+    let pub_listener = PubListener { label: "main".to_string() };
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .create_datawriter(
+            &topic,
+            QosKind::Default,
+            Some(pub_listener),
+            &[StatusKind::PublicationMatched],
+        )
         .unwrap();
 
     for i in 0..50 {
