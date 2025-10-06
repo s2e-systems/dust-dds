@@ -29,16 +29,19 @@ struct Listener {
 
 impl<R: DdsRuntime> DataReaderListener<R, TestType> for Listener {
     async fn on_data_available(&mut self, the_reader: DataReaderAsync<R, TestType>) {
-
-        println!("Reading sample");
-
+        println!("Reading sample(s)");
         if let Ok(samples) = the_reader
-            .take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+            .take(10, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
             .await
         {
-            let sample = samples[0].data().unwrap();
-            println!("Read sample: {:?}", sample);
-            assert_eq!(sample.message, "Test", "Message mismatch!");
+            for (i, s) in samples.iter().enumerate() {
+                if let Ok(sample) = s.data() {
+                    println!("Read sample {}: {:?}", i, sample);
+                    assert_eq!(sample.message, "Test", "Message mismatch!");
+                } else if let Err(e) = s.data() {
+                    println!("Error reading sample {}: {:?}", i, e);
+                }
+            }
         }
     }
     async fn on_subscription_matched(
@@ -94,45 +97,58 @@ fn run_publisher(domain_id: i32, topic_name: &str) {
 }
 
 fn run_subscriber(domain_id: i32, topic_name: &str) {
-    let participant_factory = DomainParticipantFactory::get_instance();
-    let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
+    let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+    rt.block_on(async move {
+        println!("[Subscriber] Creating participant...");
+        let participant_factory = DomainParticipantFactory::get_instance();
+        let participant = participant_factory
+            .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+            .unwrap();
 
-    let topic = participant
-        .create_topic::<TestType>(
-            topic_name,
-            "TestType",
-            QosKind::Default,
-            NO_LISTENER,
-            NO_STATUS,
-        )
-        .unwrap();
+        println!("[Subscriber] Creating topic...");
+        let topic = participant
+            .create_topic::<TestType>(
+                topic_name,
+                "TestType",
+                QosKind::Default,
+                NO_LISTENER,
+                NO_STATUS,
+            )
+            .unwrap();
 
-    let subscriber = participant
-        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
+        println!("[Subscriber] Creating subscriber...");
+        let subscriber = participant
+            .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+            .unwrap();
 
-    let (sender, receiver) = sync_channel(0);
-    let listener = Listener { sender };
+        let (sender, receiver) = sync_channel(0);
+        let listener = Listener { sender };
 
-    let reader = subscriber
-        .create_datareader(
-            &topic,
-            QosKind::Default,
-            Some(listener),
-            &[StatusKind::DataAvailable, StatusKind::SubscriptionMatched],
-        )
-        .unwrap();
+        println!("[Subscriber] Creating datareader with listener...");
+        let reader = subscriber
+            .create_datareader(
+                &topic,
+                QosKind::Default,
+                Some(listener),
+                &[StatusKind::DataAvailable, StatusKind::SubscriptionMatched],
+            )
+            .unwrap();
+
+        println!("[Subscriber] Waiting for subscription match...");
+        let result = receiver.recv();
+        assert!(result.is_ok(), "{:?}", result.err());
+        println!("[Subscriber] Subscription matched! Waiting for data...");
 
 
-    let result = receiver.recv();
-    assert!(result.is_ok(), "{:?}", result.err());
+    // Give more time for the async listener to process data
+    std::thread::sleep(std::time::Duration::from_secs(5));
 
-    println!("Sample read successfully");
+        println!("[Subscriber] Sample read successfully");
 
-    // Clean up
-    subscriber.delete_datareader(&reader).unwrap();
+        // Clean up
+        subscriber.delete_datareader(&reader).unwrap();
+        println!("[Subscriber] Datareader deleted, exiting subscriber.");
+    });
 }
 
 #[test]
