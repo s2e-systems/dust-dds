@@ -494,8 +494,8 @@ impl<T: TypeSupport> XTypesBinding for Vec<T> {
     }
 }
 
-impl XTypesBinding for Option<i32> {
+impl<T: XTypesBinding> XTypesBinding for Option<T> {
     fn get_dynamic_type() -> DynamicType {
-        DynamicTypeBuilderFactory::get_primitive_type(TypeKind::INT32)
+        T::get_dynamic_type()
     }
 }
