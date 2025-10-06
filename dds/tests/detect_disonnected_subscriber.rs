@@ -96,16 +96,16 @@ fn run_publisher(domain_id: i32, topic_name: &str) {
     publisher.delete_datawriter(&writer).unwrap();
 }
 
-fn run_subscriber(domain_id: i32, topic_name: &str) {
+fn run_subscriber(domain_id: i32, topic_name: &str, label: &str) {
     let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
     rt.block_on(async move {
-        println!("[Subscriber] Creating participant...");
+        println!("[Subscriber-{label}] Creating participant...");
         let participant_factory = DomainParticipantFactory::get_instance();
         let participant = participant_factory
             .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
             .unwrap();
 
-        println!("[Subscriber] Creating topic...");
+        println!("[Subscriber-{label}] Creating topic...");
         let topic = participant
             .create_topic::<TestType>(
                 topic_name,
@@ -116,7 +116,7 @@ fn run_subscriber(domain_id: i32, topic_name: &str) {
             )
             .unwrap();
 
-        println!("[Subscriber] Creating subscriber...");
+        println!("[Subscriber-{label}] Creating subscriber...");
         let subscriber = participant
             .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
             .unwrap();
@@ -124,7 +124,7 @@ fn run_subscriber(domain_id: i32, topic_name: &str) {
         let (sender, receiver) = sync_channel(0);
         let listener = Listener { sender };
 
-        println!("[Subscriber] Creating datareader with listener...");
+        println!("[Subscriber-{label}] Creating datareader with listener...");
         let reader = subscriber
             .create_datareader(
                 &topic,
@@ -134,20 +134,19 @@ fn run_subscriber(domain_id: i32, topic_name: &str) {
             )
             .unwrap();
 
-        println!("[Subscriber] Waiting for subscription match...");
+        println!("[Subscriber-{label}] Waiting for subscription match...");
         let result = receiver.recv();
         assert!(result.is_ok(), "{:?}", result.err());
-        println!("[Subscriber] Subscription matched! Waiting for data...");
+        println!("[Subscriber-{label}] Subscription matched! Waiting for data...");
 
+        // Give more time for the async listener to process data
+        std::thread::sleep(std::time::Duration::from_secs(5));
 
-    // Give more time for the async listener to process data
-    std::thread::sleep(std::time::Duration::from_secs(5));
-
-        println!("[Subscriber] Sample read successfully");
+        println!("[Subscriber-{label}] Sample read successfully");
 
         // Clean up
         subscriber.delete_datareader(&reader).unwrap();
-        println!("[Subscriber] Datareader deleted, exiting subscriber.");
+        println!("[Subscriber-{label}] Datareader deleted, exiting subscriber.");
     });
 }
 
@@ -167,14 +166,30 @@ fn test_publisher_subscriber_threads() {
     // Wait a bit to ensure publisher starts first
     std::thread::sleep(std::time::Duration::from_secs(1));
 
-    // Start subscriber thread
-    let subscriber_thread = thread::spawn({
-        let topic_name = topic_name.to_string();
-        move || {
-            run_subscriber(domain_id, &topic_name);
-        }
+    // Start subscriber thread (first connection)
+    let topic_name1 = topic_name.to_string();
+    let subscriber1 = thread::spawn(move || {
+        println!("[Main] Starting subscriber (first connection)...");
+        run_subscriber(domain_id, &topic_name1, "1");
+        println!("[Main] Subscriber (first connection) finished (simulating disconnect)");
+    });
+
+    // Wait for the subscriber to process some data and "disconnect"
+    std::thread::sleep(std::time::Duration::from_secs(7));
+
+    // Simulate time before reconnect
+    println!("[Main] Simulating subscriber disconnection...");
+    subscriber1.join().unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(2));
+
+    // Start subscriber thread (reconnection)
+    let topic_name2 = topic_name.to_string();
+    let subscriber2 = thread::spawn(move || {
+        println!("[Main] Starting subscriber (reconnection)...");
+        run_subscriber(domain_id, &topic_name2, "2");
+        println!("[Main] Subscriber (reconnection) finished");
     });
 
     publisher_thread.join().unwrap();
-    subscriber_thread.join().unwrap();
+    subscriber2.join().unwrap();
 }
