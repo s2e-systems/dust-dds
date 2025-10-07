@@ -2716,6 +2716,10 @@ where
                 available_builtin_endpoints: BuiltinEndpointSet::default(),
                 manual_liveliness_count: 0,
                 builtin_endpoint_qos: BuiltinEndpointQos::default(),
+            };
+            let spdp_discovered_participant_data = SpdpDiscoveredParticipantData {
+                dds_participant_data: participant_builtin_topic_data,
+                participant_proxy,
                 lease_duration: Duration::new(100, 0),
                 discovered_participant_list: self
                     .domain_participant
@@ -2723,10 +2727,6 @@ where
                     .iter()
                     .map(|p| InstanceHandle::new(p.dds_participant_data.key().value))
                     .collect(),
-            };
-            let spdp_discovered_participant_data = SpdpDiscoveredParticipantData {
-                dds_participant_data: participant_builtin_topic_data,
-                participant_proxy,
             };
             let timestamp = self.get_current_time();
 
