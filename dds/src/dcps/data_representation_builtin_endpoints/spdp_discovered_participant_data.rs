@@ -298,11 +298,8 @@ impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParti
             PID_BUILTIN_ENDPOINT_QOS,
             BuiltinEndpointQos::default(),
         );
-        builder.add_member_with_default(
-            "lease_duration",
-            PID_PARTICIPANT_LEASE_DURATION,
-            DEFAULT_PARTICIPANT_LEASE_DURATION,
-        );
+        // of interoperability reasons the lease_duration is made mandatory
+        builder.add_member::<Duration>("lease_duration", PID_PARTICIPANT_LEASE_DURATION);
         builder.builder.build()
     }
 
@@ -626,6 +623,9 @@ mod tests {
 
         let expected = vec![
             // 0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+            0x02, 0x00, 8, 0x00, // PID_PARTICIPANT_LEASE_DURATION
+            100, 0x00, 0x00, 0x00, // Duration: seconds
+            0, 0x00, 0x00, 0x00, // Duration: fraction
             0x15, 0x00, 4, 0x00, // PID_PROTOCOL_VERSION, Length
             0x02, 0x04, 0x00, 0x00, // ProtocolVersion
             0x16, 0x00, 4, 0x00, // PID_VENDORID
