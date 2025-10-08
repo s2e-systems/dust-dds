@@ -2,11 +2,13 @@ use crate::xtypes::endianness::{self, CDR_LE, REPRESENTATION_OPTIONS};
 use dust_dds::{
     infrastructure::{
         error::DdsResult,
-        type_support::{DdsDeserialize, DdsSerialize},
+        type_support::{DdsDeserialize, TypeSupport},
     },
     xtypes::{
-        deserializer::XTypesDeserializer, error::XTypesError, serializer::XTypesSerializer,
-        xcdr_deserializer::Xcdr1BeDeserializer, xcdr_deserializer::Xcdr1LeDeserializer,
+        deserializer::XTypesDeserializer,
+        error::XTypesError,
+        serializer::XTypesSerializer,
+        xcdr_deserializer::{Xcdr1BeDeserializer, Xcdr1LeDeserializer},
         xcdr_serializer::Xcdr1LeSerializer,
     },
 };
@@ -242,6 +244,15 @@ pub struct PythonDdsData {
     pub data: Vec<u8>,
     pub key: Vec<u8>,
 }
+impl TypeSupport for PythonDdsData {
+    fn get_type() -> dust_dds::xtypes::dynamic_type::DynamicType {
+        todo!()
+    }
+
+    fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
+        todo!()
+    }
+}
 
 impl PythonDdsData {
     pub fn from_py_object(py_object: Py<PyAny>) -> PyResult<Self> {
@@ -423,12 +434,6 @@ impl PythonDdsData {
             }),
             _ => panic!("Unknown endianness"),
         }
-    }
-}
-
-impl DdsSerialize for PythonDdsData {
-    fn serialize_data(&self) -> DdsResult<Vec<u8>> {
-        Ok(self.data.clone())
     }
 }
 

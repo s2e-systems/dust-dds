@@ -22,6 +22,13 @@ impl TypeSupport for DurationKind {
     fn get_type() -> crate::xtypes::dynamic_type::DynamicType {
         Duration::get_type()
     }
+
+    fn create_dynamic_sample(self) -> crate::xtypes::dynamic_type::DynamicData {
+        match self {
+            DurationKind::Finite(duration) => duration.create_dynamic_sample(),
+            DurationKind::Infinite => DURATION_INFINITE.create_dynamic_sample(),
+        }
+    }
 }
 
 impl XTypesSerialize for DurationKind {

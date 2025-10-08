@@ -2,33 +2,6 @@ use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::{DeriveInput, Result};
 
-pub fn expand_dds_serialize_data(input: &DeriveInput) -> Result<TokenStream> {
-    match &input.data {
-        syn::Data::Struct(_) | syn::Data::Enum(_) => {
-            let serialize_function = quote! {
-                dust_dds::infrastructure::type_support::serialize_rtps_xtypes_xcdr1_le(
-                    self,
-            )};
-
-            let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
-            let ident = &input.ident;
-
-            Ok(quote! {
-                #[automatically_derived]
-                impl #impl_generics dust_dds::infrastructure::type_support::DdsSerialize for #ident #type_generics #where_clause {
-                    fn serialize_data(&self) -> dust_dds::infrastructure::error::DdsResult<Vec<u8>> {
-                        #serialize_function
-                    }
-                }
-            })
-        }
-        syn::Data::Union(data_union) => Err(syn::Error::new(
-            data_union.union_token.span,
-            "Union not supported",
-        )),
-    }
-}
-
 pub fn expand_dds_deserialize_data(input: &DeriveInput) -> Result<TokenStream> {
     match &input.data {
         syn::Data::Struct(_) | syn::Data::Enum(_) => {

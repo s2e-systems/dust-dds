@@ -372,12 +372,12 @@ pub enum AnnotationParameterValue {
     TkFloat64 {
         float64_value: f64,
     },
-    // TK_FLOAT128{
+    // TypeKind::FLOAT128{
     // float128_value: f128},
     TkChar8 {
         char_value: char,
     },
-    // TK_CHAR16 {
+    // TypeKind::CHAR16 {
     // wchar_value: char16},
     TkEnum {
         enumerated_value: i32,
@@ -385,7 +385,7 @@ pub enum AnnotationParameterValue {
     TkString8 {
         string8_value: String, /*string<ANNOTATION_STR_VALUE_MAX_LEN>  */
     },
-    // TK_STRING16:
+    // TypeKind::STRING16:
     // wstring<ANNOTATION_STR_VALUE_MAX_LEN> string16_value;
     // default:
     // ExtendedAnnotationParameterValue extended_value;

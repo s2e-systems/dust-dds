@@ -1,10 +1,7 @@
 use crate::derive::attributes::get_field_attributes;
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{
-    spanned::Spanned, DataEnum, DeriveInput, Expr, ExprLit, Fields, GenericArgument, Ident, Index,
-    Lit, PathArguments, Result,
-};
+use syn::{spanned::Spanned, DataEnum, DeriveInput, Fields, Index, Result};
 
 pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
     let input_attributes = get_input_attributes(input)?;
@@ -25,13 +22,13 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
     let is_nested = input_attributes.is_nested;
 
     let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
-    let get_type_quote = match &input.data {
+    let (get_type_quote, create_dynamic_sample_quote) = match &input.data {
         syn::Data::Struct(data_struct) => {
             let struct_builder = quote! {
                 extern crate alloc;
                 let mut builder = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
                     dust_dds::xtypes::dynamic_type::TypeDescriptor {
-                        kind: dust_dds::xtypes::dynamic_type::TK_STRUCTURE,
+                        kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
                         name: alloc::string::String::from(#type_name),
                         base_type: None,
                         discriminator_type: None,
@@ -65,37 +62,24 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     .as_ref()
                     .map(|i| i.to_string())
                     .unwrap_or(field_index.to_string());
-                let (is_optional, member_type) = match &field.ty {
-                    syn::Type::Path(field_type_path)
-                        if field_type_path.path.segments[0].ident == "Option" =>
-                    {
-                        if let PathArguments::AngleBracketed(angle_bracketed) =
-                            &field_type_path.path.segments[0].arguments
-                        {
-                            if let Some(GenericArgument::Type(inner_ty)) =
-                                angle_bracketed.args.first()
-                            {
-                                (true, quote!(#inner_ty))
-                            } else {
-                                (true, quote!(#field_type_path))
-                            }
-                        } else {
-                            (true, quote!(#field_type_path))
-                        }
-                    }
-                    _ => {
-                        let field_type = &field.ty;
-                        (false, quote!(#field_type))
-                    }
-                };
+
+                let member_type = &field.ty;
                 let is_key = field_attributes.key;
+                let is_optional = field_attributes.optional;
+                let default_value = match field_attributes.default_value {
+                    Some(expr) => quote! {Some(#expr.into())},
+                    None if is_optional => {
+                        quote! {Some(<#member_type as Default>::default().into())}
+                    }
+                    _ => quote! {None},
+                };
                 member_builder_seq.extend(
                     quote! {
                          builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
                             name: alloc::string::String::from(#field_name),
                             id: #member_id,
-                            r#type: <#member_type as dust_dds::xtypes::dynamic_type::XTypesBinding>::get_dynamic_type(),
-                            default_value: alloc::string::String::new(),
+                            r#type: <#member_type as dust_dds::xtypes::binding::XTypesBinding>::get_dynamic_type(),
+                            default_value: #default_value,
                             index: #index,
                             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                             label: alloc::vec::Vec::new(),
@@ -108,29 +92,23 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                         .unwrap();
                     },
                 );
-                match &field.ident {
-                    Some(field_ident) => {
-                        if is_optional {
-                            member_dynamic_sample_seq.push(quote! {
-                            if let Some(x) = self.#field_ident {
-                                dust_dds::xtypes::dynamic_type::XTypesBinding::insert_value(x, &mut data, #member_id).unwrap();
-                            }
-                        });
-                        } else {
+
+                if !field_attributes.non_serialized {
+                    match &field.ident {
+                        Some(field_ident) => {
                             member_sample_seq.extend(quote! {
-                            #field_ident: dust_dds::infrastructure::type_support::TypeSupport::create_sample(src.remove_value(#member_id)?)?,
-                        });
-                            member_dynamic_sample_seq.push(quote! {
-                            dust_dds::xtypes::dynamic_type::XTypesBinding::insert_value(self.#field_ident, &mut data, #member_id).unwrap();
-                        });
+                                #field_ident: dust_dds::infrastructure::type_support::TypeSupport::create_sample(src.remove_value(#member_id)?)?,
+                            });
+                            member_dynamic_sample_seq.push(
+                                    quote! {data.set_value(#member_id, self.#field_ident.into()).unwrap();});
                         }
-                    }
-                    None => {
-                        let index = Index::from(field_index);
-                        member_sample_seq.extend(quote! {  dust_dds::infrastructure::type_support::TypeSupport::create_sample(src.remove_value(#member_id)?)?,});
-                        member_dynamic_sample_seq.push(quote! {
-                            dust_dds::xtypes::dynamic_type::XTypesBinding::insert_value(self.#index, &mut data, #member_id).unwrap();
-                        })
+                        None => {
+                            let index = Index::from(field_index);
+                            member_sample_seq.extend(quote! {  dust_dds::infrastructure::type_support::TypeSupport::create_sample(src.remove_value(#member_id)?)?,});
+                            member_dynamic_sample_seq.push(quote! {
+                                data.set_value(#member_id, self.#index.into()).unwrap();
+                            })
+                        }
                     }
                 }
             }
@@ -148,7 +126,12 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 builder.build()
             };
 
-            Ok(get_type_quote)
+            let create_dynamic_sample_quote = quote! {
+                let mut data = dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type());
+                #(#member_dynamic_sample_seq)*
+                data
+            };
+            Ok((get_type_quote, create_dynamic_sample_quote))
         }
         syn::Data::Enum(data_enum) => {
             // Separate between Unions and Enumeration which are both
@@ -158,7 +141,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     extern crate alloc;
                     let mut builder = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
                         dust_dds::xtypes::dynamic_type::TypeDescriptor {
-                            kind: dust_dds::xtypes::dynamic_type::TK_UNION,
+                            kind: dust_dds::xtypes::dynamic_type::TypeKind::UNION,
                             name: alloc::string::String::from(#type_name),
                             base_type: None,
                             discriminator_type: None,
@@ -175,50 +158,20 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     builder.build()
                 };
 
-                Ok(get_type_quote)
+                let create_dynamic_sample_quote = quote! {todo!()};
+                Ok((get_type_quote, create_dynamic_sample_quote))
             } else {
                 // Note: Mapping has to be done with a match self strategy because the enum might not be copy so casting it using e.g. "self as i64" would
                 // be consuming it.
-                let discriminator_mapping = read_enum_variant_discriminant_mapping(data_enum);
-                let max_discriminator = *discriminator_mapping
-                    .iter()
-                    .map(|(_, v)| v)
-                    .max()
-                    .expect("Map contains at least a value");
+                let discriminator_type = quote! {dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::get_primitive_type(dust_dds::xtypes::dynamic_type::TypeKind::INT32)};
+                let discriminator_dynamic_value =
+                    quote! {data.set_int32_value(0, self as i32).unwrap();};
 
-                let (discriminator_type, _discriminator_dynamic_value) = if max_discriminator
-                    > 0usize
-                    && max_discriminator <= u8::MAX as usize
-                {
-                    (
-                        quote! {dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::get_primitive_type(dust_dds::xtypes::dynamic_type::TK_UINT8)},
-                        quote! {data.set_uint8_value(0, self as u8).unwrap();},
-                    )
-                } else if max_discriminator > u8::MAX as usize
-                    && max_discriminator <= u16::MAX as usize
-                {
-                    (
-                        quote! {dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::get_primitive_type(dust_dds::xtypes::dynamic_type::TK_UINT16)},
-                        quote! {data.set_uint16_value(0, self as u16).unwrap();},
-                    )
-                } else if max_discriminator > u16::MAX as usize
-                    && max_discriminator <= u32::MAX as usize
-                {
-                    (
-                        quote! {dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::get_primitive_type(dust_dds::xtypes::dynamic_type::TK_UINT32)},
-                        quote! {data.set_uint32_value(0, self as u32).unwrap();},
-                    )
-                } else {
-                    return Err(syn::Error::new(
-                        data_enum.enum_token.span,
-                        "Enum discriminant size above maximum of u32::MAX",
-                    ));
-                };
                 let enum_builder = quote! {
                     extern crate alloc;
                     let mut builder = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
                         dust_dds::xtypes::dynamic_type::TypeDescriptor {
-                            kind: dust_dds::xtypes::dynamic_type::TK_ENUM,
+                            kind: dust_dds::xtypes::dynamic_type::TypeKind::ENUM,
                             name: alloc::string::String::from(#type_name),
                             base_type: None,
                             discriminator_type: Some(#discriminator_type),
@@ -235,7 +188,12 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     builder.build()
                 };
 
-                Ok(get_type_quote)
+                let create_dynamic_sample_quote = quote! {
+                    let mut data = dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type());
+                    #discriminator_dynamic_value
+                    data
+                };
+                Ok((get_type_quote, create_dynamic_sample_quote))
             }
         }
         syn::Data::Union(data_union) => Err(syn::Error::new(
@@ -249,6 +207,10 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
             fn get_type() -> dust_dds::xtypes::dynamic_type::DynamicType
             {
                 #get_type_quote
+            }
+
+            fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
+                #create_dynamic_sample_quote
             }
         }
     })
@@ -307,33 +269,6 @@ fn get_input_attributes(input: &DeriveInput) -> Result<InputAttributes> {
         extensibility,
         is_nested,
     })
-}
-
-// The return of this function is a Vec instead of a HashMap so that the tests give
-// consistent results. Iterating over a HashMap gives different order of members every time.
-// The order is also important for the XML string generation.
-pub fn read_enum_variant_discriminant_mapping(data_enum: &DataEnum) -> Vec<(Ident, usize)> {
-    let mut map = Vec::new();
-    let mut discriminant = 0;
-    for variant in data_enum.variants.iter() {
-        if let Some((_, discriminant_expr)) = &variant.discriminant {
-            match discriminant_expr {
-                Expr::Lit(ExprLit { lit, .. }) => match lit {
-                    Lit::Int(lit_int) => {
-                        discriminant = lit_int
-                            .base10_parse()
-                            .expect("Integer should be verified by compiler")
-                    }
-                    _ => panic!("Only literal integer discrimimants are expected"),
-                },
-                _ => panic!("Only literal discrimimants are expected"),
-            }
-        }
-        map.push((variant.ident.clone(), discriminant));
-        discriminant += 1;
-    }
-
-    map
 }
 
 pub fn is_enum_xtypes_union(data_enum: &DataEnum) -> bool {

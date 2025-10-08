@@ -11,7 +11,7 @@ use crate::{
             PublicationMatchedStatus, StatusKind,
         },
         time::{Duration, Time},
-        type_support::DdsSerialize,
+        type_support::TypeSupport,
     },
     publication::{data_writer_listener::DataWriterListener, publisher::Publisher},
     runtime::DdsRuntime,
@@ -49,7 +49,7 @@ impl<R: DdsRuntime, Foo> DataWriter<R, Foo> {
 
 impl<R: DdsRuntime, Foo> DataWriter<R, Foo>
 where
-    Foo: DdsSerialize,
+    Foo: TypeSupport,
 {
     /// This operation informs the Service that the application will be modifying a particular instance.
     /// It gives an opportunity to the Service to pre-configure itself to improve performance. It takes
@@ -117,7 +117,7 @@ where
     #[tracing::instrument(skip(self, instance))]
     pub fn unregister_instance(
         &self,
-        instance: &Foo,
+        instance: Foo,
         handle: Option<InstanceHandle>,
     ) -> DdsResult<()> {
         R::block_on(self.writer_async.unregister_instance(instance, handle))
@@ -131,7 +131,7 @@ where
     #[tracing::instrument(skip(self, instance))]
     pub fn unregister_instance_w_timestamp(
         &self,
-        instance: &Foo,
+        instance: Foo,
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
@@ -156,7 +156,7 @@ where
     /// This operation does not register the instance in question. If the instance has not been previously registered, or if for any other
     /// reason the Service is unable to provide an [`InstanceHandle`], the operation will return [`None`].
     #[tracing::instrument(skip(self, instance))]
-    pub fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
+    pub fn lookup_instance(&self, instance: Foo) -> DdsResult<Option<InstanceHandle>> {
         R::block_on(self.writer_async.lookup_instance(instance))
     }
 
@@ -193,7 +193,7 @@ where
     /// is exceeded and the service determines that even waiting the [`ReliabilityQosPolicy::max_waiting_time`](crate::infrastructure::qos_policy::ReliabilityQosPolicy) has no
     /// chance of freeing the necessary resources. For example, if the only way to gain the necessary resources would be for the user to unregister an instance.
     #[tracing::instrument(skip(self, data))]
-    pub fn write(&self, data: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
+    pub fn write(&self, data: Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
         R::block_on(self.writer_async.write(data, handle))
     }
 
@@ -205,7 +205,7 @@ where
     #[tracing::instrument(skip(self, data))]
     pub fn write_w_timestamp(
         &self,
-        data: &Foo,
+        data: Foo,
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
@@ -225,7 +225,7 @@ where
     /// This operation may block and return [`DdsError::Timeout`](crate::infrastructure::error::DdsError) or
     /// [`DdsError::OutOfResources`](crate::infrastructure::error::DdsError) under the same circumstances described for [`DataWriter::write`].
     #[tracing::instrument(skip(self, data))]
-    pub fn dispose(&self, data: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
+    pub fn dispose(&self, data: Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
         R::block_on(self.writer_async.dispose(data, handle))
     }
 
@@ -237,7 +237,7 @@ where
     #[tracing::instrument(skip(self, data))]
     pub fn dispose_w_timestamp(
         &self,
-        data: &Foo,
+        data: Foo,
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {

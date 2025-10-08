@@ -17,7 +17,7 @@ use dust_dds::{
 
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 
-#[derive(Debug, PartialEq, DdsType)]
+#[derive(Clone, Debug, PartialEq, DdsType)]
 struct UserData {
     #[dust_dds(key)]
     id: u8,
@@ -103,7 +103,7 @@ async fn dust_dds_should_run_inside_tokio_runtime() {
         value: vec![8; 100],
     };
 
-    writer.write(&data, None).await.unwrap();
+    writer.write(data.clone(), None).await.unwrap();
 
     let cond = reader.get_statuscondition();
     cond.set_enabled_statuses(&[StatusKind::DataAvailable])

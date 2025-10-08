@@ -1,14 +1,8 @@
 use core::ops::Index;
 
-use crate::infrastructure::{
-    error::DdsResult,
-    type_support::{DdsDeserialize, DdsSerialize},
-};
+use crate::infrastructure::type_support::DdsDeserialize;
 
-use crate::xtypes::{
-    deserialize::XTypesDeserialize, serialize::XTypesSerialize, xcdr_serializer::Xcdr1BeSerializer,
-};
-use alloc::vec::Vec;
+use crate::xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize};
 use dust_dds_derive::TypeSupport;
 
 /// Type for the instance handle representing an Entity
@@ -23,7 +17,6 @@ use dust_dds_derive::TypeSupport;
     Ord,
     XTypesSerialize,
     XTypesDeserialize,
-    DdsSerialize,
     DdsDeserialize,
     TypeSupport,
 )]
@@ -33,21 +26,6 @@ impl InstanceHandle {
     /// InstanceHandle constructor
     pub const fn new(bytes: [u8; 16]) -> Self {
         InstanceHandle(bytes)
-    }
-
-    /// Construct InstanceHandle from key
-    pub fn try_from_key(foo_key: &impl XTypesSerialize) -> DdsResult<Self> {
-        let mut serialized_key = Vec::new();
-        let mut serializer = Xcdr1BeSerializer::new(&mut serialized_key);
-        XTypesSerialize::serialize(foo_key, &mut serializer)?;
-        let handle = if serialized_key.len() <= 16 {
-            let mut h = [0; 16];
-            h[..serialized_key.len()].clone_from_slice(serialized_key.as_slice());
-            h
-        } else {
-            <[u8; 16]>::from(md5::compute(serialized_key.as_slice()))
-        };
-        Ok(Self(handle))
     }
 }
 

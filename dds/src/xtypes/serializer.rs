@@ -26,6 +26,14 @@ pub trait SerializeMutableStruct {
         pid: u32,
         name: &str,
     ) -> Result<(), XTypesError>;
+    fn serialize_collection<T: XTypesSerialize>(
+        &mut self,
+        values: &[T],
+        pid: u32,
+        name: &str,
+    ) -> Result<(), XTypesError>{
+        self.serialize_field(&values, pid, name)
+    }
     fn end(self) -> Result<(), XTypesError>;
 }
 pub trait SerializeCollection {

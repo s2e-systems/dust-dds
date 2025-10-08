@@ -51,5 +51,5 @@ fn main() {
         msg: "Hello world!".to_string(),
     };
 
-    writer.write(&hello_world, None).unwrap();
+    writer.write(hello_world, None).unwrap();
 }
