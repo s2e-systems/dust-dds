@@ -144,7 +144,12 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
         };
 
         builder.add_key_member::<BuiltInTopicKey>("key", PID_ENDPOINT_GUID);
-        builder.add_member::<BuiltInTopicKey>("participant_key", PID_PARTICIPANT_GUID);
+        // for interoperability reasons this is omitted when default (as opposed to standard):
+        builder.add_member_with_default(
+            "participant_key",
+            PID_PARTICIPANT_GUID,
+            BuiltInTopicKey::default(),
+        );
 
         builder.add_member::<String>("topic_name", PID_TOPIC_NAME);
         builder.add_member::<String>("type_name", PID_TYPE_NAME);

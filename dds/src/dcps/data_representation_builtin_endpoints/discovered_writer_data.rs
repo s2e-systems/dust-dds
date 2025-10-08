@@ -133,7 +133,12 @@ impl TypeSupport for DiscoveredWriterData {
         };
 
         builder.add_key_member::<BuiltInTopicKey>("key", PID_ENDPOINT_GUID);
-        builder.add_member::<BuiltInTopicKey>("participant_key", PID_PARTICIPANT_GUID);
+        // for interoperability reasons this is omitted when default (as opposed to standard):
+        builder.add_member_with_default(
+            "participant_key",
+            PID_PARTICIPANT_GUID,
+            BuiltInTopicKey::default(),
+        );
 
         builder.add_member::<String>("topic_name", PID_TOPIC_NAME);
         builder.add_member::<String>("type_name", PID_TYPE_NAME);
@@ -260,8 +265,18 @@ impl TypeSupport for DiscoveredWriterData {
         )
         .unwrap();
         data.set_value(
+            PID_LIFESPAN as u32,
+            self.dds_publication_data.lifespan.into(),
+        )
+        .unwrap();
+        data.set_value(
             PID_OWNERSHIP as u32,
             self.dds_publication_data.ownership.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_OWNERSHIP_STRENGTH as u32,
+            self.dds_publication_data.ownership_strength.into(),
         )
         .unwrap();
         data.set_value(
@@ -274,7 +289,6 @@ impl TypeSupport for DiscoveredWriterData {
             self.dds_publication_data.user_data.into(),
         )
         .unwrap();
-
         data.set_value(
             PID_PRESENTATION as u32,
             self.dds_publication_data.presentation.into(),

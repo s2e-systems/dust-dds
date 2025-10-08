@@ -520,26 +520,10 @@ pub fn get_instance_handle_from_dynamic_data(
         length: 0,
     };
     dynamic_data.clear_nonkey_values()?;
+    dynamic_data.make_descriptor_extensibility_kind_final();
 
     let mut serializer = Xcdr2BeSerializer::new(&mut md5_collection);
     dynamic_data.serialize(&mut serializer)?;
-
-    //     let representation_identifier = [data[0], data[1]];
-    //     data = &data[4..];
-    //     match representation_identifier {
-    //         CDR_BE => push_to_key(dynamic_type, &mut s, &mut Xcdr1BeDeserializer::new(data))?,
-    //         CDR_LE => push_to_key(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?,
-    //         CDR2_BE | D_CDR2_BE => {
-    //             push_to_key(dynamic_type, &mut s, &mut Xcdr2BeDeserializer::new(data))?
-    //         }
-    //         CDR2_LE | D_CDR2_LE => {
-    //             push_to_key(dynamic_type, &mut s, &mut Xcdr2LeDeserializer::new(data))?
-    //         }
-    //         PL_CDR_BE => push_to_key_parameter_list_be(dynamic_type, &mut s, data)?,
-    //         PL_CDR_LE => push_to_key_parameter_list_le(dynamic_type, &mut s, data)?,
-    //         _ => panic!("representation_identifier not supported"),
-    //     }
-
     Ok(InstanceHandle::new(md5_collection.into_key()))
 }
 
