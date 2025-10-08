@@ -35,6 +35,17 @@ use std::{
 };
 
 include!(concat!(env!("OUT_DIR"), "/idl/shape.rs"));
+impl Clone for ShapeType {
+    fn clone(&self) -> Self {
+        Self {
+            color: self.color.clone(),
+            x: self.x,
+            y: self.y,
+            shapesize: self.shapesize,
+            additional_payload_size: self.additional_payload_size.clone(),
+        }
+    }
+}
 
 fn qos_policy_name(id: i32) -> String {
     match id {
@@ -574,7 +585,7 @@ fn run_publisher(
                 shape.shapesize
             );
         }
-        data_writer.write(shape, None).ok();
+        data_writer.write(shape.clone(), None).ok();
         std::thread::sleep(std::time::Duration::from_millis(
             options.write_period_ms as u64,
         ));
