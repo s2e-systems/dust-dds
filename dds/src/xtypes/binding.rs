@@ -304,12 +304,6 @@ impl<T: TypeSupport> From<Vec<T>> for DataKind {
     }
 }
 
-impl From<Option<i32>> for DataKind {
-    fn from(value: Option<i32>) -> Self {
-        Self::Int32(value.unwrap_or_default())
-    }
-}
-
 pub trait XTypesBinding {
     fn get_dynamic_type() -> DynamicType;
 }

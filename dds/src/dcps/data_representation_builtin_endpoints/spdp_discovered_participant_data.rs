@@ -250,7 +250,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParti
         };
         builder.add_key_member::<BuiltInTopicKey>("key", PID_PARTICIPANT_GUID);
         builder.add_member_with_default("user_data", PID_USER_DATA, UserDataQosPolicy::default());
-        builder.add_member_with_default("domain_id", PID_DOMAIN_ID, None);
+        builder.add_member::<DomainId>("domain_id", PID_DOMAIN_ID);
         builder.add_member_with_default(
             "domain_tag",
             PID_DOMAIN_TAG,
@@ -320,11 +320,10 @@ impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParti
             self.dds_participant_data.user_data.into(),
         )
         .unwrap();
-        data.set_value(
-            PID_DOMAIN_ID as u32,
-            self.participant_proxy.domain_id.into(),
-        )
-        .unwrap();
+        if let Some(domain_id) = self.participant_proxy.domain_id {
+            data.set_value(PID_DOMAIN_ID as u32, domain_id.into())
+                .unwrap();
+        }
         data.set_value(
             PID_DOMAIN_TAG as u32,
             self.participant_proxy.domain_tag.into(),
@@ -500,7 +499,7 @@ mod tests {
                 user_data: UserDataQosPolicy { value: vec![] },
             },
             participant_proxy: ParticipantProxy {
-                domain_id: Some(1),
+                domain_id: Some(0),
                 domain_tag: "ab".to_string(),
                 protocol_version: ProtocolVersion::new(2, 4),
                 guid_prefix: [8; 12],
@@ -528,7 +527,7 @@ mod tests {
             10, 0x00, 0x00, 0x00, // Duration: seconds
             11, 0x00, 0x00, 0x00, // Duration: fraction
             0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
-            0x01, 0x00, 0x00, 0x00, // DomainId
+            0x00, 0x00, 0x00, 0x00, // DomainId
             0x15, 0x00, 4, 0x00, // PID_PROTOCOL_VERSION, Length
             0x02, 0x04, 0x00, 0x00, // ProtocolVersion
             0x16, 0x00, 4, 0x00, // PID_VENDORID
@@ -605,7 +604,7 @@ mod tests {
                 user_data: UserDataQosPolicy::default(),
             },
             participant_proxy: ParticipantProxy {
-                domain_id: Some(0),
+                domain_id: None,
                 domain_tag: String::from(DEFAULT_DOMAIN_TAG),
                 protocol_version: PROTOCOLVERSION_2_4,
                 guid_prefix: GuidPrefix::default(),
