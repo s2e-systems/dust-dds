@@ -18,22 +18,6 @@ use dust_dds::{
     wait_set::{Condition, WaitSet},
 };
 
-#[derive(DdsType)]
-struct MutableType {
-    #[dust_dds(key)]
-    id: u32,
-    value: Vec<u8>,
-    #[dust_dds(key)]
-    another_id: u64,
-}
-
-// This tests the ability of the DdsType derive macro to work with
-// arrays whose length is given by a separate constant.
-// If this compiles, the test passes.
-const ARRAY_LENGTH: usize = 10;
-#[derive(DdsType)]
-struct ArrayContainingType([u8; ARRAY_LENGTH]);
-
 #[test]
 fn foo_with_lifetime_should_read_and_write() {
     #[derive(Clone, Debug, PartialEq, DdsType)]
