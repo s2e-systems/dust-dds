@@ -288,7 +288,7 @@ impl XTypesSerialize for DynamicData {
                                     appendable_serializer.serialize_field(values, member_name)?;
                                 }
                                 TypeKind::STRING8 => {
-                                    let value = self.get_string_value(member_id)?;
+                                    let value = self.get_string_values(member_id)?;
                                     appendable_serializer.serialize_field(value, member_name)?;
                                 }
                                 TypeKind::STRUCTURE => {

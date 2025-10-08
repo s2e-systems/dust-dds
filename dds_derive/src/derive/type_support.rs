@@ -1,9 +1,7 @@
 use crate::derive::attributes::get_field_attributes;
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{
-    spanned::Spanned, DataEnum, DeriveInput, Expr, ExprLit, Fields, Ident, Index, Lit, Result,
-};
+use syn::{spanned::Spanned, DataEnum, DeriveInput, Fields, Index, Result};
 
 pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
     let input_attributes = get_input_attributes(input)?;
@@ -165,41 +163,10 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
             } else {
                 // Note: Mapping has to be done with a match self strategy because the enum might not be copy so casting it using e.g. "self as i64" would
                 // be consuming it.
-                let discriminator_mapping = read_enum_variant_discriminant_mapping(data_enum);
-                let max_discriminator = *discriminator_mapping
-                    .iter()
-                    .map(|(_, v)| v)
-                    .max()
-                    .expect("Map contains at least a value");
+                let discriminator_type = quote! {dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::get_primitive_type(dust_dds::xtypes::dynamic_type::TypeKind::INT32)};
+                let discriminator_dynamic_value =
+                    quote! {data.set_int32_value(0, self as i32).unwrap();};
 
-                let (discriminator_type, discriminator_dynamic_value) = if max_discriminator
-                    > 0usize
-                    && max_discriminator <= u8::MAX as usize
-                {
-                    (
-                        quote! {dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::get_primitive_type(dust_dds::xtypes::dynamic_type::TypeKind::UINT8)},
-                        quote! {data.set_uint8_value(0, self as u8).unwrap();},
-                    )
-                } else if max_discriminator > u8::MAX as usize
-                    && max_discriminator <= u16::MAX as usize
-                {
-                    (
-                        quote! {dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::get_primitive_type(dust_dds::xtypes::dynamic_type::TypeKind::UINT16)},
-                        quote! {data.set_uint16_value(0, self as u16).unwrap();},
-                    )
-                } else if max_discriminator > u16::MAX as usize
-                    && max_discriminator <= u32::MAX as usize
-                {
-                    (
-                        quote! {dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::get_primitive_type(dust_dds::xtypes::dynamic_type::TypeKind::UINT32)},
-                        quote! {data.set_uint32_value(0, self as u32).unwrap();},
-                    )
-                } else {
-                    return Err(syn::Error::new(
-                        data_enum.enum_token.span,
-                        "Enum discriminant size above maximum of u32::MAX",
-                    ));
-                };
                 let enum_builder = quote! {
                     extern crate alloc;
                     let mut builder = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
@@ -302,33 +269,6 @@ fn get_input_attributes(input: &DeriveInput) -> Result<InputAttributes> {
         extensibility,
         is_nested,
     })
-}
-
-// The return of this function is a Vec instead of a HashMap so that the tests give
-// consistent results. Iterating over a HashMap gives different order of members every time.
-// The order is also important for the XML string generation.
-pub fn read_enum_variant_discriminant_mapping(data_enum: &DataEnum) -> Vec<(Ident, usize)> {
-    let mut map = Vec::new();
-    let mut discriminant = 0;
-    for variant in data_enum.variants.iter() {
-        if let Some((_, discriminant_expr)) = &variant.discriminant {
-            match discriminant_expr {
-                Expr::Lit(ExprLit { lit, .. }) => match lit {
-                    Lit::Int(lit_int) => {
-                        discriminant = lit_int
-                            .base10_parse()
-                            .expect("Integer should be verified by compiler")
-                    }
-                    _ => panic!("Only literal integer discrimimants are expected"),
-                },
-                _ => panic!("Only literal discrimimants are expected"),
-            }
-        }
-        map.push((variant.ident.clone(), discriminant));
-        discriminant += 1;
-    }
-
-    map
 }
 
 pub fn is_enum_xtypes_union(data_enum: &DataEnum) -> bool {
