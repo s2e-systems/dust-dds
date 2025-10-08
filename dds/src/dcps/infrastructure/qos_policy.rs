@@ -956,6 +956,11 @@ impl dust_dds::infrastructure::type_support::TypeSupport for ReliabilityQosPolic
         );
         builder.build()
     }
+
+    fn create_sample(_src: crate::xtypes::dynamic_type::DynamicData) -> Self {
+        todo!()
+    }
+
     fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
         let mut data =
             dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type());
@@ -1144,6 +1149,10 @@ impl TypeSupport for HistoryQosPolicyKind {
         builder.build()
     }
 
+    fn create_sample(_src: crate::xtypes::dynamic_type::DynamicData) -> Self {
+        todo!()
+    }
+
     fn create_dynamic_sample(self) -> crate::xtypes::dynamic_type::DynamicData {
         let mut data = DynamicDataFactory::create_data(Self::get_type());
         let value = match self {
@@ -1248,6 +1257,10 @@ impl dust_dds::infrastructure::type_support::TypeSupport for HistoryQosPolicy {
             })
             .unwrap();
         builder.build()
+    }
+
+    fn create_sample(_src: crate::xtypes::dynamic_type::DynamicData) -> Self {
+        todo!()
     }
 
     fn create_dynamic_sample(self) -> crate::xtypes::dynamic_type::DynamicData {

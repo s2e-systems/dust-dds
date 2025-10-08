@@ -300,6 +300,10 @@ impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParti
         builder.builder.build()
     }
 
+    fn create_sample(_src: crate::xtypes::dynamic_type::DynamicData) -> Self {
+        todo!()
+    }
+
     fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
         let mut data =
             dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type());

@@ -209,6 +209,10 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 #get_type_quote
             }
 
+            fn create_sample(_src: dust_dds::xtypes::dynamic_type::DynamicData) -> Self {
+                todo!()
+            }
+
             fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
                 #create_dynamic_sample_quote
             }
