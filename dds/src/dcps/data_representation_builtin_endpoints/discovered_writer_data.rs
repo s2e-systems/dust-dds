@@ -21,7 +21,7 @@ use crate::{
         },
         type_support::{DdsDeserialize, TypeSupport},
     },
-    transport::types::{EntityId, Guid, Locator},
+    transport::types::{EntityId, Guid, Locator, ENTITYID_UNKNOWN},
     xtypes::{
         binding::{DataKind, XTypesBinding},
         dynamic_type::DynamicTypeBuilder,
@@ -69,6 +69,26 @@ impl TypeSupport for DiscoveredWriterData {
                     .unwrap();
                 self.index += 1;
             }
+            fn add_key_member<T: XTypesBinding>(&mut self, name: &str, id: i16) {
+                self.builder
+                    .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+                        name: alloc::string::String::from(name),
+                        id: id as u32,
+                        r#type: T::get_dynamic_type(),
+                        default_value: None,
+                        index: self.index,
+                        try_construct_kind:
+                            dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+                        label: alloc::vec::Vec::new(),
+                        is_key: true,
+                        is_optional: true,
+                        is_must_understand: true,
+                        is_shared: false,
+                        is_default_label: false,
+                    })
+                    .unwrap();
+                self.index += 1;
+            }
             fn add_member_with_default<T: XTypesBinding + Into<DataKind>>(
                 &mut self,
                 name: &str,
@@ -105,17 +125,15 @@ impl TypeSupport for DiscoveredWriterData {
                     bound: alloc::vec::Vec::new(),
                     element_type: None,
                     key_element_type: None,
-                    extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
+                    extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Mutable,
                     is_nested: false,
                 },
             ),
             index: 0,
         };
 
-        // key
-        builder.add_member::<BuiltInTopicKey>("key", PID_ENDPOINT_GUID);
-        // key
-        builder.add_member::<BuiltInTopicKey>("participant_key", PID_PARTICIPANT_GUID);
+        builder.add_key_member::<BuiltInTopicKey>("key", PID_ENDPOINT_GUID);
+        builder.add_key_member::<BuiltInTopicKey>("participant_key", PID_PARTICIPANT_GUID);
 
         builder.add_member::<String>("topic_name", PID_TOPIC_NAME);
         builder.add_member::<String>("type_name", PID_TYPE_NAME);
@@ -174,6 +192,21 @@ impl TypeSupport for DiscoveredWriterData {
             "representation",
             PID_DATA_REPRESENTATION,
             DataRepresentationQosPolicy::default(),
+        );
+        builder.add_member_with_default(
+            "remote_group_entity_id",
+            PID_GROUP_ENTITYID,
+            ENTITYID_UNKNOWN,
+        );
+        builder.add_member_with_default(
+            "unicast_locator_list",
+            PID_UNICAST_LOCATOR,
+            Vec::<Locator>::default(),
+        );
+        builder.add_member_with_default(
+            "multicast_locator_list",
+            PID_MULTICAST_LOCATOR,
+            Vec::<Locator>::default(),
         );
 
         builder.builder.build()
@@ -391,25 +424,25 @@ mod tests {
         };
 
         let expected = vec![
-            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
-            0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
-            1, 0, 0, 0, // ,
-            2, 0, 0, 0, // ,
-            3, 0, 0, 0, // ,
-            4, 0, 0, 0, // ,
-            0x50, 0x00, 16, 0, //PID_PARTICIPANT_GUID, length
-            6, 0, 0, 0, // ,
-            7, 0, 0, 0, // ,
-            8, 0, 0, 0, // ,
-            9, 0, 0, 0, // ,
+            // 0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x05, 0x00, 0x08, 0x00, // PID_TOPIC_NAME, Length: 8
             3, 0x00, 0x00, 0x00, // string length (incl. terminator)
             b'a', b'b', 0, 0x00, // string + padding (1 byte)
             0x07, 0x00, 0x08, 0x00, // PID_TYPE_NAME, Length: 8
             3, 0x00, 0x00, 0x00, // string length (incl. terminator)
             b'c', b'd', 0, 0x00, // string + padding (1 byte)
+            0x50, 0x00, 16, 0, //PID_PARTICIPANT_GUID, length
+            6, 0, 0, 0, // ,
+            7, 0, 0, 0, // ,
+            8, 0, 0, 0, // ,
+            9, 0, 0, 0, // ,
             0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
             21, 22, 23, 0xc9, // u8[3], u8
+            0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
+            1, 0, 0, 0, // ,
+            2, 0, 0, 0, // ,
+            3, 0, 0, 0, // ,
+            4, 0, 0, 0, // ,
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
         let dynamic_sample = data.create_dynamic_sample();
