@@ -3,7 +3,6 @@ pub use super::{
     error::XTypesError, serializer::SerializeCollection, serializer::XTypesSerializer,
 };
 use alloc::{string::String, vec::Vec};
-pub use dust_dds_derive::XTypesSerialize;
 
 /// A trait to Write bytes into a potentially growing buffer
 pub trait Write {

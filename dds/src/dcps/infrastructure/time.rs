@@ -4,7 +4,6 @@ use crate::{
         deserialize::XTypesDeserialize,
         deserializer::{DeserializeFinalStruct, XTypesDeserializer},
         error::XTypesError,
-        serialize::{XTypesSerialize, XTypesSerializer},
     },
 };
 use core::ops::{Add, Sub};
@@ -31,17 +30,6 @@ impl TypeSupport for DurationKind {
     }
 }
 
-impl XTypesSerialize for DurationKind {
-    fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
-        XTypesSerialize::serialize(
-            match self {
-                DurationKind::Finite(d) => d,
-                DurationKind::Infinite => &DURATION_INFINITE,
-            },
-            serializer,
-        )
-    }
-}
 impl<'de> XTypesDeserialize<'de> for DurationKind {
     fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
         let mut f = deserializer.deserialize_final_struct()?;
@@ -75,9 +63,7 @@ impl PartialOrd<DurationKind> for DurationKind {
 }
 
 /// Structure representing a time interval with a nanosecond resolution.
-#[derive(
-    PartialOrd, PartialEq, Eq, Debug, Clone, Copy, XTypesSerialize, XTypesDeserialize, TypeSupport,
-)]
+#[derive(PartialOrd, PartialEq, Eq, Debug, Clone, Copy, XTypesDeserialize, TypeSupport)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct Duration {
     sec: i32,

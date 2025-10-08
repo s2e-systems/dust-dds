@@ -20,7 +20,7 @@ use crate::{
         },
         type_support::TypeSupport,
     },
-    xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize},
+    xtypes::deserialize::XTypesDeserialize,
 };
 use alloc::string::String;
 
@@ -37,7 +37,7 @@ pub const DCPS_TOPIC: &str = "DCPSTopic";
 pub const DCPS_PARTICIPANT: &str = "DCPSParticipant";
 
 /// Structure representing the instance handle (or key) of an entity.
-#[derive(Debug, PartialEq, Eq, Clone, Default, XTypesSerialize, XTypesDeserialize, TypeSupport)]
+#[derive(Debug, PartialEq, Eq, Clone, Default, XTypesDeserialize, TypeSupport)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct BuiltInTopicKey {
     /// InstanceHandle value as an array of 16 octets.
@@ -45,7 +45,7 @@ pub struct BuiltInTopicKey {
 }
 
 /// Structure representing a discovered [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant).
-#[derive(Debug, PartialEq, Eq, Clone, XTypesSerialize, XTypesDeserialize, TypeSupport)]
+#[derive(Debug, PartialEq, Eq, Clone, XTypesDeserialize, TypeSupport)]
 #[dust_dds(extensibility = "mutable")]
 pub struct ParticipantBuiltinTopicData {
     #[dust_dds(id=PID_PARTICIPANT_GUID as u32, key)]
