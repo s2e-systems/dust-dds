@@ -72,7 +72,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
                             dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                         label: alloc::vec::Vec::new(),
                         is_key: false,
-                        is_optional: true,
+                        is_optional: false,
                         is_must_understand: true,
                         is_shared: false,
                         is_default_label: false,
