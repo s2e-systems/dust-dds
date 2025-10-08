@@ -962,16 +962,47 @@ impl Default for PartitionQosPolicy {
 }
 
 /// Enumeration representing the different types of reliability QoS policies.
-#[derive(Debug, PartialEq, Eq, Clone, Copy, TypeSupport)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[repr(i32)]
 pub enum ReliabilityQosPolicyKind {
     /// Best-effort reliability.
-    BestEffort,
+    BestEffort = BEST_EFFORT,
     /// Reliable reliability.
-    Reliable,
+    Reliable = RELIABLE,
 }
 
 const BEST_EFFORT: i32 = 1;
 const RELIABLE: i32 = 2;
+
+impl dust_dds::infrastructure::type_support::TypeSupport for ReliabilityQosPolicyKind {
+    fn get_type() -> dust_dds::xtypes::dynamic_type::DynamicType {
+        extern crate alloc;
+        let builder = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
+            dust_dds::xtypes::dynamic_type::TypeDescriptor {
+                kind: dust_dds::xtypes::dynamic_type::TypeKind::ENUM,
+                name: alloc::string::String::from("ReliabilityQosPolicyKind"),
+                base_type: None,
+                discriminator_type: Some(
+                    dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::get_primitive_type(
+                        dust_dds::xtypes::dynamic_type::TypeKind::UINT8,
+                    ),
+                ),
+                bound: alloc::vec::Vec::new(),
+                element_type: None,
+                key_element_type: None,
+                extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
+                is_nested: false,
+            },
+        );
+        builder.build()
+    }
+    fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
+        let mut data =
+            dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type());
+        data.set_int32_value(0, self as i32).unwrap();
+        data
+    }
+}
 
 impl XTypesSerialize for ReliabilityQosPolicyKind {
     fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {

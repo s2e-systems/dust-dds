@@ -12,10 +12,14 @@ use super::{
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     infrastructure::{
-        error::DdsResult, qos_policy::DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+        error::DdsResult, qos_policy::{DeadlineQosPolicy, DurabilityQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS},
         type_support::DdsDeserialize,
     },
     transport::types::{EntityId, Guid, Locator},
+    xtypes::{
+        binding::{DataKind, XTypesBinding},
+        dynamic_type::DynamicTypeBuilder,
+    },
 };
 use alloc::vec::Vec;
 use dust_dds::infrastructure::type_support::TypeSupport;
@@ -23,7 +27,7 @@ use dust_dds::infrastructure::type_support::TypeSupport;
 #[derive(Debug, PartialEq, Eq, Clone, TypeSupport)]
 #[dust_dds(extensibility = "mutable")]
 pub struct ReaderProxy {
-    #[dust_dds(id=PID_ENDPOINT_GUID as u32)]
+    #[dust_dds(id=PID_ENDPOINT_GUID as u32, non_serialized)]
     pub remote_reader_guid: Guid,
     #[dust_dds(id=PID_GROUP_ENTITYID as u32)]
     pub remote_group_entity_id: EntityId,
@@ -35,11 +39,236 @@ pub struct ReaderProxy {
     pub expects_inline_qos: bool,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, TypeSupport)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DiscoveredReaderData {
-    #[dust_dds(key)]
     pub(crate) dds_subscription_data: SubscriptionBuiltinTopicData,
     pub(crate) reader_proxy: ReaderProxy,
+}
+
+impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderData {
+    fn get_type() -> dust_dds::xtypes::dynamic_type::DynamicType {
+        extern crate alloc;
+        struct ConvenienceDynamicTypeBuilder {
+            builder: DynamicTypeBuilder,
+            index: u32,
+        }
+        impl ConvenienceDynamicTypeBuilder {
+            fn add_member<T: XTypesBinding>(&mut self, name: &str, id: i16) {
+                self.builder
+                    .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+                        name: alloc::string::String::from(name),
+                        id: id as u32,
+                        r#type: T::get_dynamic_type(),
+                        default_value: None,
+                        index: self.index,
+                        try_construct_kind:
+                            dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+                        label: alloc::vec::Vec::new(),
+                        is_key: false,
+                        is_optional: true,
+                        is_must_understand: true,
+                        is_shared: false,
+                        is_default_label: false,
+                    })
+                    .unwrap();
+                self.index += 1;
+            }
+            fn add_member_with_default<T: XTypesBinding + Into<DataKind>>(
+                &mut self,
+                name: &str,
+                id: i16,
+                default: T,
+            ) {
+                self.builder
+                    .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+                        name: alloc::string::String::from(name),
+                        id: id as u32,
+                        r#type: T::get_dynamic_type(),
+                        default_value: Some(default.into()),
+                        index: self.index,
+                        try_construct_kind:
+                            dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+                        label: alloc::vec::Vec::new(),
+                        is_key: false,
+                        is_optional: true,
+                        is_must_understand: true,
+                        is_shared: false,
+                        is_default_label: false,
+                    })
+                    .unwrap();
+                self.index += 1;
+            }
+        }
+        let mut builder = ConvenienceDynamicTypeBuilder {
+            builder: dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
+                dust_dds::xtypes::dynamic_type::TypeDescriptor {
+                    kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
+                    name: alloc::string::String::from("DiscoveredReaderData"),
+                    base_type: None,
+                    discriminator_type: None,
+                    bound: alloc::vec::Vec::new(),
+                    element_type: None,
+                    key_element_type: None,
+                    extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
+                    is_nested: false,
+                },
+            ),
+            index: 0,
+        };
+
+        // key
+        builder.add_member("key", PID_ENDPOINT_GUID);
+        // key
+        builder.add_member("participant_key", PID_PARTICIPANT_GUID);
+
+        builder.add_member("topic_name", PID_TOPIC_NAME);
+        builder.add_member("type_name", PID_TYPE_NAME);
+        builder.add_member_with_default("durability", PID_DURABILITY, DurabilityQosPolicy::default());
+        builder.add_member_with_default("deadline", PID_DEADLINE, DeadlineQosPolicy::default());
+        builder.add_member_with_default("deadline", PID_DEADLINE, DeadlineQosPolicy::default());
+
+    // #[dust_dds(id=PID_LATENCY_BUDGET as u32, optional)]
+    // pub(crate) latency_budget: LatencyBudgetQosPolicy,
+    // #[dust_dds(id=PID_LIVELINESS as u32, optional)]
+    // pub(crate) liveliness: LivelinessQosPolicy,
+    // #[dust_dds(id=PID_RELIABILITY as u32, optional, default_value=DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS)]
+    // pub(crate) reliability: ReliabilityQosPolicy,
+    // #[dust_dds(id=PID_OWNERSHIP as u32, optional)]
+    // pub(crate) ownership: OwnershipQosPolicy,
+    // #[dust_dds(id=PID_DESTINATION_ORDER as u32, optional)]
+    // pub(crate) destination_order: DestinationOrderQosPolicy,
+    // #[dust_dds(id=PID_USER_DATA as u32, optional)]
+    // pub(crate) user_data: UserDataQosPolicy,
+    // #[dust_dds(id=PID_TIME_BASED_FILTER as u32, optional)]
+    // pub(crate) time_based_filter: TimeBasedFilterQosPolicy,
+    // #[dust_dds(id=PID_PRESENTATION as u32, optional)]
+    // pub(crate) presentation: PresentationQosPolicy,
+    // #[dust_dds(id=PID_PARTITION as u32, optional)]
+    // pub(crate) partition: PartitionQosPolicy,
+    // #[dust_dds(id=PID_TOPIC_DATA as u32, optional)]
+    // pub(crate) topic_data: TopicDataQosPolicy,
+    // #[dust_dds(id=PID_GROUP_DATA as u32, optional)]
+    // pub(crate) group_data: GroupDataQosPolicy,
+    // #[dust_dds(id=PID_DATA_REPRESENTATION as u32, optional)]
+    // pub(crate) representation: DataRepresentationQosPolicy,
+
+        builder.builder.build()
+    }
+    fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
+        let mut data =
+            dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type());
+        data.set_value(
+            PID_ENDPOINT_GUID as u32,
+            self.dds_subscription_data.key.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_PARTICIPANT_GUID as u32,
+            self.dds_subscription_data.participant_key.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_TOPIC_NAME as u32,
+            self.dds_subscription_data.topic_name.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_TYPE_NAME as u32,
+            self.dds_subscription_data.type_name.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_DURABILITY as u32,
+            self.dds_subscription_data.durability.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_DEADLINE as u32,
+            self.dds_subscription_data.deadline.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_LATENCY_BUDGET as u32,
+            self.dds_subscription_data.latency_budget.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_LIVELINESS as u32,
+            self.dds_subscription_data.liveliness.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_RELIABILITY as u32,
+            self.dds_subscription_data.reliability.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_OWNERSHIP as u32,
+            self.dds_subscription_data.ownership.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_DESTINATION_ORDER as u32,
+            self.dds_subscription_data.destination_order.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_USER_DATA as u32,
+            self.dds_subscription_data.user_data.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_TIME_BASED_FILTER as u32,
+            self.dds_subscription_data.time_based_filter.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_PRESENTATION as u32,
+            self.dds_subscription_data.presentation.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_PARTITION as u32,
+            self.dds_subscription_data.partition.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_TOPIC_DATA as u32,
+            self.dds_subscription_data.topic_data.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_GROUP_DATA as u32,
+            self.dds_subscription_data.group_data.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_DATA_REPRESENTATION as u32,
+            self.dds_subscription_data.representation.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_GROUP_ENTITYID as u32,
+            self.reader_proxy.remote_group_entity_id.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_UNICAST_LOCATOR as u32,
+            self.reader_proxy.unicast_locator_list.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_MULTICAST_LOCATOR as u32,
+            self.reader_proxy.multicast_locator_list.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_EXPECTS_INLINE_QOS as u32,
+            self.reader_proxy.expects_inline_qos.into(),
+        )
+        .unwrap();
+        data
+    }
 }
 
 impl<'de> DdsDeserialize<'de> for SubscriptionBuiltinTopicData {
@@ -107,74 +336,79 @@ mod tests {
             EntityId, Guid, BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_WITH_KEY,
             USER_DEFINED_UNKNOWN,
         },
+        xtypes::{pl_cdr_serializer::PlCdrLeSerializer, serialize::XTypesSerialize},
     };
 
-    // #[test]
-    // fn serialize_all_default() {
-    //     let data = DiscoveredReaderData {
-    //         dds_subscription_data: SubscriptionBuiltinTopicData {
-    //             key: BuiltInTopicKey {
-    //                 value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
-    //             },
-    //             participant_key: BuiltInTopicKey {
-    //                 value: [6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 0, 9, 0, 0, 0],
-    //             },
-    //             topic_name: "ab".to_string(),
-    //             type_name: "cd".to_string(),
-    //             durability: Default::default(),
-    //             deadline: Default::default(),
-    //             latency_budget: Default::default(),
-    //             liveliness: Default::default(),
-    //             reliability: DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-    //             ownership: Default::default(),
-    //             destination_order: Default::default(),
-    //             user_data: Default::default(),
-    //             time_based_filter: Default::default(),
-    //             presentation: Default::default(),
-    //             partition: Default::default(),
-    //             topic_data: Default::default(),
-    //             group_data: Default::default(),
-    //             representation: Default::default(),
-    //         },
-    //         reader_proxy: ReaderProxy {
-    //             remote_reader_guid: Guid::new(
-    //                 [5; 12],
-    //                 EntityId::new([11, 12, 13], USER_DEFINED_READER_WITH_KEY),
-    //             ),
-    //             remote_group_entity_id: EntityId::new([21, 22, 23], BUILT_IN_WRITER_WITH_KEY),
-    //             unicast_locator_list: vec![],
-    //             multicast_locator_list: vec![],
-    //             expects_inline_qos: false,
-    //         },
-    //     };
+    #[test]
+    fn serialize_all_default() {
+        let data = DiscoveredReaderData {
+            dds_subscription_data: SubscriptionBuiltinTopicData {
+                key: BuiltInTopicKey {
+                    value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
+                },
+                participant_key: BuiltInTopicKey {
+                    value: [6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 0, 9, 0, 0, 0],
+                },
+                topic_name: "ab".to_string(),
+                type_name: "cd".to_string(),
+                durability: Default::default(),
+                deadline: Default::default(),
+                latency_budget: Default::default(),
+                liveliness: Default::default(),
+                reliability: DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+                ownership: Default::default(),
+                destination_order: Default::default(),
+                user_data: Default::default(),
+                time_based_filter: Default::default(),
+                presentation: Default::default(),
+                partition: Default::default(),
+                topic_data: Default::default(),
+                group_data: Default::default(),
+                representation: Default::default(),
+            },
+            reader_proxy: ReaderProxy {
+                remote_reader_guid: Guid::new(
+                    [5; 12],
+                    EntityId::new([11, 12, 13], USER_DEFINED_READER_WITH_KEY),
+                ),
+                remote_group_entity_id: EntityId::new([21, 22, 23], BUILT_IN_WRITER_WITH_KEY),
+                unicast_locator_list: vec![],
+                multicast_locator_list: vec![],
+                expects_inline_qos: false,
+            },
+        };
 
-    //     let expected = vec![
-    //         0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
-    //         // SubscriptionBuiltinTopicData:
-    //         0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
-    //         1, 0, 0, 0, // ,
-    //         2, 0, 0, 0, // ,
-    //         3, 0, 0, 0, // ,
-    //         4, 0, 0, 0, // ,
-    //         0x50, 0x00, 16, 0, //PID_PARTICIPANT_GUID, length
-    //         6, 0, 0, 0, // ,
-    //         7, 0, 0, 0, // ,
-    //         8, 0, 0, 0, // ,
-    //         9, 0, 0, 0, // ,
-    //         0x05, 0x00, 0x08, 0x00, // PID_TOPIC_NAME, Length: 8
-    //         3, 0x00, 0x00, 0x00, // string length (incl. terminator)
-    //         b'a', b'b', 0, 0x00, // string + padding (1 byte)
-    //         0x07, 0x00, 0x08, 0x00, // PID_TYPE_NAME, Length: 8
-    //         3, 0x00, 0x00, 0x00, // string length (incl. terminator)
-    //         b'c', b'd', 0, 0x00, // string + padding (1 byte)
-    //         // ReaderProxy:
-    //         0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
-    //         21, 22, 23, 0xc2, //
-    //         0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
-    //     ];
-    //     let result = data.serialize_data().unwrap();
-    //     assert_eq!(result, expected);
-    // }
+        let expected = vec![
+            // 0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+            0x05, 0x00, 0x08, 0x00, // PID_TOPIC_NAME, Length: 8
+            3, 0x00, 0x00, 0x00, // string length (incl. terminator)
+            b'a', b'b', 0, 0x00, // string + padding (1 byte)
+            0x07, 0x00, 0x08, 0x00, // PID_TYPE_NAME, Length: 8
+            3, 0x00, 0x00, 0x00, // string length (incl. terminator)
+            b'c', b'd', 0, 0x00, // string + padding (1 byte)
+            0x50, 0x00, 16, 0, //PID_PARTICIPANT_GUID, length
+            6, 0, 0, 0, // ,
+            7, 0, 0, 0, // ,
+            8, 0, 0, 0, // ,
+            9, 0, 0, 0, // ,
+            0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
+            21, 22, 23, 0xc2, //
+            0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
+            1, 0, 0, 0, // ,
+            2, 0, 0, 0, // ,
+            3, 0, 0, 0, // ,
+            4, 0, 0, 0, // ,
+            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
+        ];
+        let dynamic_sample = data.create_dynamic_sample();
+
+        let mut buffer = vec![];
+        dynamic_sample
+            .serialize(&mut PlCdrLeSerializer::new(&mut buffer))
+            .unwrap();
+
+        assert_eq!(buffer, expected);
+    }
 
     #[test]
     fn deserialize_all_default() {
