@@ -9,34 +9,281 @@ use super::{
     payload_serializer_deserializer::parameter_list_deserializer::ParameterListCdrDeserializer,
 };
 use crate::{
-    builtin_topics::PublicationBuiltinTopicData,
+    builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData},
     infrastructure::{
         error::DdsResult,
-        qos_policy::DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
+        qos_policy::{
+            DataRepresentationQosPolicy, DeadlineQosPolicy, DestinationOrderQosPolicy,
+            DurabilityQosPolicy, GroupDataQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy,
+            LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy,
+            PartitionQosPolicy, PresentationQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
+            DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
+        },
         type_support::{DdsDeserialize, TypeSupport},
     },
     transport::types::{EntityId, Guid, Locator},
+    xtypes::{
+        binding::{DataKind, XTypesBinding},
+        dynamic_type::DynamicTypeBuilder,
+    },
 };
 use alloc::vec::Vec;
-
-#[derive(Debug, PartialEq, Eq, Clone, TypeSupport)]
-#[dust_dds(extensibility = "mutable")]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct WriterProxy {
-    #[dust_dds(id=PID_ENDPOINT_GUID as u32)]
     pub remote_writer_guid: Guid,
-    #[dust_dds(id=PID_GROUP_ENTITYID as u32)]
     pub remote_group_entity_id: EntityId,
-    #[dust_dds(id=PID_UNICAST_LOCATOR as u32)]
     pub unicast_locator_list: Vec<Locator>,
-    #[dust_dds(id=PID_MULTICAST_LOCATOR as u32)]
     pub multicast_locator_list: Vec<Locator>,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, TypeSupport)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DiscoveredWriterData {
-    #[dust_dds(key)]
     pub(crate) dds_publication_data: PublicationBuiltinTopicData,
     pub(crate) writer_proxy: WriterProxy,
+}
+impl TypeSupport for DiscoveredWriterData {
+    fn get_type() -> dust_dds::xtypes::dynamic_type::DynamicType {
+        extern crate alloc;
+        struct ConvenienceDynamicTypeBuilder {
+            builder: DynamicTypeBuilder,
+            index: u32,
+        }
+        impl ConvenienceDynamicTypeBuilder {
+            fn add_member<T: XTypesBinding>(&mut self, name: &str, id: i16) {
+                self.builder
+                    .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+                        name: alloc::string::String::from(name),
+                        id: id as u32,
+                        r#type: T::get_dynamic_type(),
+                        default_value: None,
+                        index: self.index,
+                        try_construct_kind:
+                            dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+                        label: alloc::vec::Vec::new(),
+                        is_key: false,
+                        is_optional: true,
+                        is_must_understand: true,
+                        is_shared: false,
+                        is_default_label: false,
+                    })
+                    .unwrap();
+                self.index += 1;
+            }
+            fn add_member_with_default<T: XTypesBinding + Into<DataKind>>(
+                &mut self,
+                name: &str,
+                id: i16,
+                default: T,
+            ) {
+                self.builder
+                    .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+                        name: alloc::string::String::from(name),
+                        id: id as u32,
+                        r#type: T::get_dynamic_type(),
+                        default_value: Some(default.into()),
+                        index: self.index,
+                        try_construct_kind:
+                            dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+                        label: alloc::vec::Vec::new(),
+                        is_key: false,
+                        is_optional: true,
+                        is_must_understand: true,
+                        is_shared: false,
+                        is_default_label: false,
+                    })
+                    .unwrap();
+                self.index += 1;
+            }
+        }
+        let mut builder = ConvenienceDynamicTypeBuilder {
+            builder: dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
+                dust_dds::xtypes::dynamic_type::TypeDescriptor {
+                    kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
+                    name: alloc::string::String::from("DiscoveredReaderData"),
+                    base_type: None,
+                    discriminator_type: None,
+                    bound: alloc::vec::Vec::new(),
+                    element_type: None,
+                    key_element_type: None,
+                    extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
+                    is_nested: false,
+                },
+            ),
+            index: 0,
+        };
+
+        // key
+        builder.add_member::<BuiltInTopicKey>("key", PID_ENDPOINT_GUID);
+        // key
+        builder.add_member::<BuiltInTopicKey>("participant_key", PID_PARTICIPANT_GUID);
+
+        builder.add_member::<String>("topic_name", PID_TOPIC_NAME);
+        builder.add_member::<String>("type_name", PID_TYPE_NAME);
+
+        builder.add_member_with_default(
+            "durability",
+            PID_DURABILITY,
+            DurabilityQosPolicy::default(),
+        );
+        builder.add_member_with_default("deadline", PID_DEADLINE, DeadlineQosPolicy::default());
+        builder.add_member_with_default(
+            "latency_budget",
+            PID_LATENCY_BUDGET,
+            LatencyBudgetQosPolicy::default(),
+        );
+        builder.add_member_with_default(
+            "liveliness",
+            PID_LIVELINESS,
+            LivelinessQosPolicy::default(),
+        );
+        builder.add_member_with_default(
+            "reliability",
+            PID_RELIABILITY,
+            DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
+        );
+        builder.add_member_with_default("lifespan", PID_LIFESPAN, LifespanQosPolicy::default());
+        builder.add_member_with_default("user_data", PID_USER_DATA, UserDataQosPolicy::default());
+        builder.add_member_with_default("ownership", PID_OWNERSHIP, OwnershipQosPolicy::default());
+        builder.add_member_with_default(
+            "ownership_strength",
+            PID_OWNERSHIP_STRENGTH,
+            OwnershipStrengthQosPolicy::default(),
+        );
+        builder.add_member_with_default(
+            "destination_order",
+            PID_DESTINATION_ORDER,
+            DestinationOrderQosPolicy::default(),
+        );
+        builder.add_member_with_default(
+            "presentation",
+            PID_PRESENTATION,
+            PresentationQosPolicy::default(),
+        );
+        builder.add_member_with_default("partition", PID_PARTITION, PartitionQosPolicy::default());
+        builder.add_member_with_default(
+            "topic_data",
+            PID_TOPIC_DATA,
+            TopicDataQosPolicy::default(),
+        );
+        builder.add_member_with_default(
+            "group_data",
+            PID_GROUP_DATA,
+            GroupDataQosPolicy::default(),
+        );
+        builder.add_member_with_default(
+            "representation",
+            PID_DATA_REPRESENTATION,
+            DataRepresentationQosPolicy::default(),
+        );
+
+        builder.builder.build()
+    }
+    fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
+        let mut data =
+            dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type());
+        data.set_value(
+            PID_ENDPOINT_GUID as u32,
+            self.dds_publication_data.key.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_PARTICIPANT_GUID as u32,
+            self.dds_publication_data.participant_key.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_TOPIC_NAME as u32,
+            self.dds_publication_data.topic_name.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_TYPE_NAME as u32,
+            self.dds_publication_data.type_name.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_DURABILITY as u32,
+            self.dds_publication_data.durability.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_DEADLINE as u32,
+            self.dds_publication_data.deadline.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_LATENCY_BUDGET as u32,
+            self.dds_publication_data.latency_budget.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_LIVELINESS as u32,
+            self.dds_publication_data.liveliness.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_RELIABILITY as u32,
+            self.dds_publication_data.reliability.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_OWNERSHIP as u32,
+            self.dds_publication_data.ownership.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_DESTINATION_ORDER as u32,
+            self.dds_publication_data.destination_order.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_USER_DATA as u32,
+            self.dds_publication_data.user_data.into(),
+        )
+        .unwrap();
+
+        data.set_value(
+            PID_PRESENTATION as u32,
+            self.dds_publication_data.presentation.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_PARTITION as u32,
+            self.dds_publication_data.partition.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_TOPIC_DATA as u32,
+            self.dds_publication_data.topic_data.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_GROUP_DATA as u32,
+            self.dds_publication_data.group_data.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_DATA_REPRESENTATION as u32,
+            self.dds_publication_data.representation.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_GROUP_ENTITYID as u32,
+            self.writer_proxy.remote_group_entity_id.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_UNICAST_LOCATOR as u32,
+            self.writer_proxy.unicast_locator_list.into(),
+        )
+        .unwrap();
+        data.set_value(
+            PID_MULTICAST_LOCATOR as u32,
+            self.writer_proxy.multicast_locator_list.into(),
+        )
+        .unwrap();
+        data
+    }
 }
 
 impl<'de> DdsDeserialize<'de> for PublicationBuiltinTopicData {
@@ -101,73 +348,78 @@ mod tests {
             EntityId, Guid, BUILT_IN_PARTICIPANT, BUILT_IN_READER_GROUP, BUILT_IN_WRITER_WITH_KEY,
             USER_DEFINED_UNKNOWN,
         },
+        xtypes::{pl_cdr_serializer::PlCdrLeSerializer, serialize::XTypesSerialize},
     };
 
-    // #[test]
-    // fn serialize_all_default() {
-    //     let data = DiscoveredWriterData {
-    //         dds_publication_data: PublicationBuiltinTopicData {
-    //             key: BuiltInTopicKey {
-    //                 value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
-    //             },
-    //             participant_key: BuiltInTopicKey {
-    //                 value: [6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 0, 9, 0, 0, 0],
-    //             },
-    //             topic_name: "ab".to_string(),
-    //             type_name: "cd".to_string(),
-    //             durability: Default::default(),
-    //             deadline: Default::default(),
-    //             latency_budget: Default::default(),
-    //             liveliness: Default::default(),
-    //             reliability: DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
-    //             lifespan: Default::default(),
-    //             user_data: Default::default(),
-    //             ownership: Default::default(),
-    //             ownership_strength: Default::default(),
-    //             destination_order: Default::default(),
-    //             presentation: Default::default(),
-    //             partition: Default::default(),
-    //             topic_data: Default::default(),
-    //             group_data: Default::default(),
-    //             representation: Default::default(),
-    //         },
-    //         writer_proxy: WriterProxy {
-    //             remote_writer_guid: Guid::new(
-    //                 [5; 12],
-    //                 EntityId::new([11, 12, 13], BUILT_IN_WRITER_WITH_KEY),
-    //             ),
-    //             remote_group_entity_id: EntityId::new([21, 22, 23], BUILT_IN_READER_GROUP),
-    //             unicast_locator_list: vec![],
-    //             multicast_locator_list: vec![],
-    //         },
-    //     };
+    #[test]
+    fn serialize_all_default() {
+        let data = DiscoveredWriterData {
+            dds_publication_data: PublicationBuiltinTopicData {
+                key: BuiltInTopicKey {
+                    value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
+                },
+                participant_key: BuiltInTopicKey {
+                    value: [6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 0, 9, 0, 0, 0],
+                },
+                topic_name: "ab".to_string(),
+                type_name: "cd".to_string(),
+                durability: Default::default(),
+                deadline: Default::default(),
+                latency_budget: Default::default(),
+                liveliness: Default::default(),
+                reliability: DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
+                lifespan: Default::default(),
+                user_data: Default::default(),
+                ownership: Default::default(),
+                ownership_strength: Default::default(),
+                destination_order: Default::default(),
+                presentation: Default::default(),
+                partition: Default::default(),
+                topic_data: Default::default(),
+                group_data: Default::default(),
+                representation: Default::default(),
+            },
+            writer_proxy: WriterProxy {
+                remote_writer_guid: Guid::new(
+                    [5; 12],
+                    EntityId::new([11, 12, 13], BUILT_IN_WRITER_WITH_KEY),
+                ),
+                remote_group_entity_id: EntityId::new([21, 22, 23], BUILT_IN_READER_GROUP),
+                unicast_locator_list: vec![],
+                multicast_locator_list: vec![],
+            },
+        };
 
-    //     let expected = vec![
-    //         0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
-    //         0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
-    //         1, 0, 0, 0, // ,
-    //         2, 0, 0, 0, // ,
-    //         3, 0, 0, 0, // ,
-    //         4, 0, 0, 0, // ,
-    //         0x50, 0x00, 16, 0, //PID_PARTICIPANT_GUID, length
-    //         6, 0, 0, 0, // ,
-    //         7, 0, 0, 0, // ,
-    //         8, 0, 0, 0, // ,
-    //         9, 0, 0, 0, // ,
-    //         0x05, 0x00, 0x08, 0x00, // PID_TOPIC_NAME, Length: 8
-    //         3, 0x00, 0x00, 0x00, // string length (incl. terminator)
-    //         b'a', b'b', 0, 0x00, // string + padding (1 byte)
-    //         0x07, 0x00, 0x08, 0x00, // PID_TYPE_NAME, Length: 8
-    //         3, 0x00, 0x00, 0x00, // string length (incl. terminator)
-    //         b'c', b'd', 0, 0x00, // string + padding (1 byte)
-    //         0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
-    //         21, 22, 23, 0xc9, // u8[3], u8
-    //         0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
-    //     ];
-    //     let result = data.serialize_data().unwrap();
-    //     assert_eq!(result, expected);
-    //     // assert_eq!(serialize_v1_le(&data), expected);
-    // }
+        let expected = vec![
+            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+            0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
+            1, 0, 0, 0, // ,
+            2, 0, 0, 0, // ,
+            3, 0, 0, 0, // ,
+            4, 0, 0, 0, // ,
+            0x50, 0x00, 16, 0, //PID_PARTICIPANT_GUID, length
+            6, 0, 0, 0, // ,
+            7, 0, 0, 0, // ,
+            8, 0, 0, 0, // ,
+            9, 0, 0, 0, // ,
+            0x05, 0x00, 0x08, 0x00, // PID_TOPIC_NAME, Length: 8
+            3, 0x00, 0x00, 0x00, // string length (incl. terminator)
+            b'a', b'b', 0, 0x00, // string + padding (1 byte)
+            0x07, 0x00, 0x08, 0x00, // PID_TYPE_NAME, Length: 8
+            3, 0x00, 0x00, 0x00, // string length (incl. terminator)
+            b'c', b'd', 0, 0x00, // string + padding (1 byte)
+            0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
+            21, 22, 23, 0xc9, // u8[3], u8
+            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
+        ];
+        let dynamic_sample = data.create_dynamic_sample();
+        let mut buffer = vec![];
+        dynamic_sample
+            .serialize(&mut PlCdrLeSerializer::new(&mut buffer))
+            .unwrap();
+
+        assert_eq!(buffer, expected);
+    }
 
     #[test]
     fn deserialize_all_default() {
