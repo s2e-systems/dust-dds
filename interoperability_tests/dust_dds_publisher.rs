@@ -69,7 +69,7 @@ fn main() {
     wait_set.wait(Duration::new(60, 0)).unwrap();
 
     let hello_world = hello_world::HelloWorldType { id: 8, msg: 'a' };
-    writer.write(&hello_world, None).unwrap();
+    writer.write(hello_world, None).unwrap();
 
     writer
         .wait_for_acknowledgments(Duration::new(30, 0))
