@@ -5986,6 +5986,16 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
             };
             let mut serializer = Xcdr1LeSerializer::new(&mut buffer);
             dynamic_data.serialize(&mut serializer)?;
+
+            let padding = match buffer.len() % 4 {
+                1 => &[0, 0, 0][..],
+                2 => &[0, 0][..],
+                3 => &[0][..],
+                _ => &[][..],
+            };
+            buffer.extend_from_slice(padding);
+            buffer[3] = padding.len() as u8;
+
             buffer
         } else if self.qos.representation.value[0] == XCDR2_DATA_REPRESENTATION {
             let mut buffer = match dynamic_data.type_ref().get_descriptor().extensibility_kind {
