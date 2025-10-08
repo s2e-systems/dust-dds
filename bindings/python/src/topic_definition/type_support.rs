@@ -249,6 +249,10 @@ impl TypeSupport for PythonDdsData {
         todo!()
     }
 
+    fn create_sample(_src: dust_dds::xtypes::dynamic_type::DynamicData) -> Self {
+        todo!()
+    }
+
     fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
         todo!()
     }
