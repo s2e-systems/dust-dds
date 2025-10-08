@@ -73,6 +73,10 @@ impl XTypesSerialize for DynamicData {
                         let member_type_kind = member_descriptor.r#type.get_kind();
                         let member_name = &member_descriptor.name;
                         match member_type_kind {
+                            TypeKind::BOOLEAN => {
+                                let value = self.get_boolean_value(member_id)?;
+                                final_serializer.serialize_field(value, member_name)?;
+                            }
                             TypeKind::UINT8 => {
                                 let value = self.get_uint8_value(member_id)?;
                                 final_serializer.serialize_field(value, member_name)?;
@@ -83,6 +87,10 @@ impl XTypesSerialize for DynamicData {
                             }
                             TypeKind::UINT32 => {
                                 let value = self.get_uint32_value(member_id)?;
+                                final_serializer.serialize_field(value, member_name)?;
+                            }
+                            TypeKind::UINT64 => {
+                                let value = self.get_uint64_value(member_id)?;
                                 final_serializer.serialize_field(value, member_name)?;
                             }
                             TypeKind::INT16 => {
