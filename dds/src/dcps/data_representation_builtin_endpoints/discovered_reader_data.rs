@@ -10,9 +10,16 @@ use super::{
     payload_serializer_deserializer::parameter_list_deserializer::ParameterListCdrDeserializer,
 };
 use crate::{
-    builtin_topics::SubscriptionBuiltinTopicData,
+    builtin_topics::{BuiltInTopicKey, SubscriptionBuiltinTopicData},
     infrastructure::{
-        error::DdsResult, qos_policy::{DeadlineQosPolicy, DurabilityQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS},
+        error::DdsResult,
+        qos_policy::{
+            DataRepresentationQosPolicy, DeadlineQosPolicy, DestinationOrderQosPolicy,
+            DurabilityQosPolicy, GroupDataQosPolicy, LatencyBudgetQosPolicy, LivelinessQosPolicy,
+            OwnershipQosPolicy, PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy,
+            TimeBasedFilterQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
+            DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+        },
         type_support::DdsDeserialize,
     },
     transport::types::{EntityId, Guid, Locator},
@@ -73,6 +80,26 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
                     .unwrap();
                 self.index += 1;
             }
+            fn add_key_member<T: XTypesBinding>(&mut self, name: &str, id: i16) {
+                self.builder
+                    .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+                        name: alloc::string::String::from(name),
+                        id: id as u32,
+                        r#type: T::get_dynamic_type(),
+                        default_value: None,
+                        index: self.index,
+                        try_construct_kind:
+                            dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+                        label: alloc::vec::Vec::new(),
+                        is_key: true,
+                        is_optional: true,
+                        is_must_understand: true,
+                        is_shared: false,
+                        is_default_label: false,
+                    })
+                    .unwrap();
+                self.index += 1;
+            }
             fn add_member_with_default<T: XTypesBinding + Into<DataKind>>(
                 &mut self,
                 name: &str,
@@ -116,41 +143,61 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
             index: 0,
         };
 
-        // key
-        builder.add_member("key", PID_ENDPOINT_GUID);
-        // key
-        builder.add_member("participant_key", PID_PARTICIPANT_GUID);
+        builder.add_key_member::<BuiltInTopicKey>("key", PID_ENDPOINT_GUID);
+        builder.add_key_member::<BuiltInTopicKey>("participant_key", PID_PARTICIPANT_GUID);
 
-        builder.add_member("topic_name", PID_TOPIC_NAME);
-        builder.add_member("type_name", PID_TYPE_NAME);
-        builder.add_member_with_default("durability", PID_DURABILITY, DurabilityQosPolicy::default());
+        builder.add_member::<String>("topic_name", PID_TOPIC_NAME);
+        builder.add_member::<String>("type_name", PID_TYPE_NAME);
+        builder.add_member_with_default(
+            "durability",
+            PID_DURABILITY,
+            DurabilityQosPolicy::default(),
+        );
         builder.add_member_with_default("deadline", PID_DEADLINE, DeadlineQosPolicy::default());
-        builder.add_member_with_default("deadline", PID_DEADLINE, DeadlineQosPolicy::default());
-
-    // #[dust_dds(id=PID_LATENCY_BUDGET as u32, optional)]
-    // pub(crate) latency_budget: LatencyBudgetQosPolicy,
-    // #[dust_dds(id=PID_LIVELINESS as u32, optional)]
-    // pub(crate) liveliness: LivelinessQosPolicy,
-    // #[dust_dds(id=PID_RELIABILITY as u32, optional, default_value=DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS)]
-    // pub(crate) reliability: ReliabilityQosPolicy,
-    // #[dust_dds(id=PID_OWNERSHIP as u32, optional)]
-    // pub(crate) ownership: OwnershipQosPolicy,
-    // #[dust_dds(id=PID_DESTINATION_ORDER as u32, optional)]
-    // pub(crate) destination_order: DestinationOrderQosPolicy,
-    // #[dust_dds(id=PID_USER_DATA as u32, optional)]
-    // pub(crate) user_data: UserDataQosPolicy,
-    // #[dust_dds(id=PID_TIME_BASED_FILTER as u32, optional)]
-    // pub(crate) time_based_filter: TimeBasedFilterQosPolicy,
-    // #[dust_dds(id=PID_PRESENTATION as u32, optional)]
-    // pub(crate) presentation: PresentationQosPolicy,
-    // #[dust_dds(id=PID_PARTITION as u32, optional)]
-    // pub(crate) partition: PartitionQosPolicy,
-    // #[dust_dds(id=PID_TOPIC_DATA as u32, optional)]
-    // pub(crate) topic_data: TopicDataQosPolicy,
-    // #[dust_dds(id=PID_GROUP_DATA as u32, optional)]
-    // pub(crate) group_data: GroupDataQosPolicy,
-    // #[dust_dds(id=PID_DATA_REPRESENTATION as u32, optional)]
-    // pub(crate) representation: DataRepresentationQosPolicy,
+        builder.add_member_with_default(
+            "latency_budget",
+            PID_LATENCY_BUDGET,
+            LatencyBudgetQosPolicy::default(),
+        );
+        builder.add_member_with_default("liveliness", PID_LIVELINESS, LivelinessQosPolicy::default());
+        builder.add_member_with_default(
+            "reliability",
+            PID_RELIABILITY,
+            DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+        );
+        builder.add_member_with_default("ownership", PID_OWNERSHIP, OwnershipQosPolicy::default());
+        builder.add_member_with_default(
+            "destination_order",
+            PID_DESTINATION_ORDER,
+            DestinationOrderQosPolicy::default(),
+        );
+        builder.add_member_with_default("user_data", PID_USER_DATA, UserDataQosPolicy::default());
+        builder.add_member_with_default(
+            "time_based_filter",
+            PID_TIME_BASED_FILTER,
+            TimeBasedFilterQosPolicy::default(),
+        );
+        builder.add_member_with_default(
+            "presentation",
+            PID_PRESENTATION,
+            PresentationQosPolicy::default(),
+        );
+        builder.add_member_with_default("partition", PID_PARTITION, PartitionQosPolicy::default());
+        builder.add_member_with_default(
+            "topic_data",
+            PID_TOPIC_DATA,
+            TopicDataQosPolicy::default(),
+        );
+        builder.add_member_with_default(
+            "group_data",
+            PID_GROUP_DATA,
+            GroupDataQosPolicy::default(),
+        );
+        builder.add_member_with_default(
+            "representation",
+            PID_DATA_REPRESENTATION,
+            DataRepresentationQosPolicy::default(),
+        );
 
         builder.builder.build()
     }

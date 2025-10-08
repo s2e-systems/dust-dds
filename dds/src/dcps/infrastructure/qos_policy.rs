@@ -984,7 +984,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for ReliabilityQosPolic
                 base_type: None,
                 discriminator_type: Some(
                     dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::get_primitive_type(
-                        dust_dds::xtypes::dynamic_type::TypeKind::UINT8,
+                        dust_dds::xtypes::dynamic_type::TypeKind::INT32,
                     ),
                 ),
                 bound: alloc::vec::Vec::new(),

@@ -50,8 +50,18 @@ impl XTypesSerialize for DynamicData {
                         let value = self.get_uint8_value(0)?;
                         serializer.serialize_uint8(*value)?;
                     }
+                    TypeKind::INT16 => {
+                        let value = self.get_int16_value(0)?;
+                        serializer.serialize_int16(*value)?;
+                    }
+                    TypeKind::INT32 => {
+                        let value = self.get_int32_value(0)?;
+                        serializer.serialize_int32(*value)?;
+                    }
                     discriminator_type => {
-                        todo!("Not implemented for discriminator of type {discriminator_type:?}")
+                        unimplemented!(
+                            "Not implemented for discriminator of type {discriminator_type:?}"
+                        )
                     }
                 }
             }
@@ -177,6 +187,10 @@ impl XTypesSerialize for DynamicData {
                         let member_type_kind = member_descriptor.r#type.get_kind();
                         let member_name = &member_descriptor.name;
                         match member_type_kind {
+                            TypeKind::BOOLEAN => {
+                                let value = self.get_boolean_value(member_id)?;
+                                appendable_serializer.serialize_field(value, member_name)?;
+                            }
                             TypeKind::UINT8 => {
                                 let value = self.get_uint8_value(member_id)?;
                                 appendable_serializer.serialize_field(value, member_name)?;
@@ -273,6 +287,10 @@ impl XTypesSerialize for DynamicData {
                                 TypeKind::INT64 => {
                                     let values = self.get_int64_values(member_id)?;
                                     appendable_serializer.serialize_field(values, member_name)?;
+                                }
+                                TypeKind::STRING8 => {
+                                    let value = self.get_string_value(member_id)?;
+                                    appendable_serializer.serialize_field(value, member_name)?;
                                 }
                                 TypeKind::STRUCTURE => {
                                     let values = self.get_complex_values(member_id)?;
