@@ -59,20 +59,6 @@ jobs:
           command: |
             echo $DOCKERHUB_ACCESS_TOKEN | docker login --username $DOCKERHUB_USERNAME --password-stdin
             docker push s2esystems/dust_dds_interoperability:1.85.0
-  build_and_push_android_docker_image:
-    docker:
-      - image: cimg/base:current
-    steps:
-      - checkout
-      - setup_remote_docker
-      - run:
-          name: Build Android Docker image
-          command: docker build --file .circleci/android/Dockerfile --tag s2esystems/dust_dds_android:1.85.0 .
-      - run:
-          name: Push Android image to DockerHub
-          command: |
-            echo $DOCKERHUB_ACCESS_TOKEN | docker login --username $DOCKERHUB_USERNAME --password-stdin
-            docker push s2esystems/dust_dds_android:1.85.0
 
   clippy:
     docker:

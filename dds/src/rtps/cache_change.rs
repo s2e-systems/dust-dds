@@ -1,5 +1,5 @@
 use super::error::RtpsError;
-use crate::xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize};
+use crate::xtypes::deserialize::XTypesDeserialize;
 use crate::{
     rtps_messages::{
         self,
@@ -14,7 +14,7 @@ use alloc::{sync::Arc, vec::Vec};
 pub const PID_KEY_HASH: ParameterId = 0x0070;
 pub const PID_STATUS_INFO: ParameterId = 0x0071;
 
-#[derive(Clone, Copy, PartialEq, Eq, XTypesSerialize, XTypesDeserialize, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, XTypesDeserialize, Debug)]
 struct StatusInfo(pub [u8; 4]);
 const STATUS_INFO_DISPOSED: StatusInfo = StatusInfo([0, 0, 0, 0b00000001]);
 const STATUS_INFO_UNREGISTERED: StatusInfo = StatusInfo([0, 0, 0, 0b0000010]);

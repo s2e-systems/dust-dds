@@ -29,14 +29,13 @@ use crate::{
         binding::{DataKind, XTypesBinding},
         deserialize::XTypesDeserialize,
         dynamic_type::DynamicTypeBuilder,
-        serialize::XTypesSerialize,
     },
 };
 use alloc::{string::String, vec::Vec};
 
 pub type Count = Long;
 
-#[derive(PartialEq, Eq, Debug, Clone, Copy, XTypesSerialize, XTypesDeserialize, TypeSupport)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy, XTypesDeserialize, TypeSupport)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct BuiltinEndpointSet(pub u32);
 
@@ -98,9 +97,7 @@ impl BuiltinEndpointSet {
     }
 }
 
-#[derive(
-    PartialEq, Eq, Debug, Default, Clone, Copy, XTypesSerialize, XTypesDeserialize, TypeSupport,
-)]
+#[derive(PartialEq, Eq, Debug, Default, Clone, Copy, XTypesDeserialize, TypeSupport)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct BuiltinEndpointQos(pub u32);
 

@@ -2,7 +2,7 @@ use core::ops::Index;
 
 use crate::infrastructure::type_support::DdsDeserialize;
 
-use crate::xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize};
+use crate::xtypes::deserialize::XTypesDeserialize;
 use dust_dds_derive::TypeSupport;
 
 /// Type for the instance handle representing an Entity
@@ -15,7 +15,6 @@ use dust_dds_derive::TypeSupport;
     Hash,
     PartialOrd,
     Ord,
-    XTypesSerialize,
     XTypesDeserialize,
     DdsDeserialize,
     TypeSupport,
