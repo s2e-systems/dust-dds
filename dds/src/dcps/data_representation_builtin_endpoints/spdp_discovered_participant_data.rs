@@ -476,8 +476,10 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
 mod tests {
     use super::*;
     use crate::{
-        builtin_topics::BuiltInTopicKey, infrastructure::qos_policy::UserDataQosPolicy,
-        rtps::types::PROTOCOLVERSION_2_4, xtypes::pl_cdr_serializer::PlCdrLeSerializer,
+        builtin_topics::BuiltInTopicKey,
+        infrastructure::qos_policy::UserDataQosPolicy,
+        rtps::types::PROTOCOLVERSION_2_4,
+        xtypes::{pl_cdr_serializer::PlCdrLeSerializer, serialize::XTypesSerialize},
     };
 
     #[test]
