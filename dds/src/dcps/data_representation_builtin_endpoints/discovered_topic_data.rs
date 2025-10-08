@@ -18,6 +18,7 @@ use crate::{
         type_support::{DdsDeserialize, TypeSupport},
     },
 };
+use alloc::string::String;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DiscoveredTopicData {

@@ -2,6 +2,7 @@ use crate::{
     infrastructure::type_support::TypeSupport,
     xtypes::dynamic_type::{DynamicData, DynamicType, DynamicTypeBuilderFactory, TypeKind},
 };
+use alloc::{vec::Vec, string::String, vec};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum DataKind {

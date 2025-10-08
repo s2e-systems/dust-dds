@@ -27,7 +27,8 @@ use crate::{
         dynamic_type::DynamicTypeBuilder,
     },
 };
-use alloc::vec::Vec;
+use alloc::{vec::Vec, string::String};
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct WriterProxy {
     pub remote_writer_guid: Guid,

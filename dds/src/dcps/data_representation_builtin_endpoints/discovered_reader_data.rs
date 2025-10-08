@@ -28,7 +28,7 @@ use crate::{
         dynamic_type::DynamicTypeBuilder,
     },
 };
-use alloc::vec::Vec;
+use alloc::{string::String, vec::Vec};
 use dust_dds::infrastructure::type_support::TypeSupport;
 
 #[derive(Debug, PartialEq, Eq, Clone, TypeSupport)]

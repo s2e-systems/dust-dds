@@ -3,6 +3,7 @@ use crate::xtypes::{
     serialize::{SerializeCollection, XTypesSerialize},
     serializer::{SerializeAppendableStruct, SerializeFinalStruct, SerializeMutableStruct},
 };
+use alloc::vec::Vec;
 
 impl MemberDescriptor {
     fn get_element_type(&self) -> TypeKind {
