@@ -9,7 +9,7 @@ use crate::{
         xcdr_deserializer::{
             Xcdr1BeDeserializer, Xcdr1LeDeserializer, Xcdr2BeDeserializer, Xcdr2LeDeserializer,
         },
-        xcdr_serializer::Xcdr2BeSerializer,
+        xcdr_serializer::{Xcdr1LeSerializer, Xcdr2BeSerializer},
     },
 };
 use alloc::{string::String, vec::Vec};
@@ -544,34 +544,22 @@ pub fn get_instance_handle_from_dynamic_data(
 }
 
 pub fn get_serialized_key_from_serialized_foo(
-    _data: &DynamicData,
+    mut dynamic_data: DynamicData,
 ) -> Result<Vec<u8>, XTypesError> {
-    todo!()
-    // let mut collection = Vec::new();
-    // {
-    //     let representation_identifier = [data[0], data[1]];
-    //     collection.extend_from_slice(&CDR_LE);
-    //     collection.extend_from_slice(&[0, 0]);
-    //     data = &data[4..];
+    dynamic_data.make_descriptor_extensibility_kind_final();
+    dynamic_data.clear_nonkey_values()?;
+    let mut serialized_key = Vec::new();
+    serialized_key.extend_from_slice(&CDR_LE);
+    serialized_key.extend_from_slice(&[0, 0]);
+    let mut serializer = Xcdr1LeSerializer::new(&mut serialized_key);
+    dynamic_data.serialize(&mut serializer)?;
 
-    //     let mut serializer = Xcdr1LeSerializer::new(&mut collection);
-    //     let mut s = serializer.serialize_final_struct()?;
+    let padding_len = serialized_key.len().div_ceil(4) * 4 - serialized_key.len();
+    const ZEROS: [u8; 4] = [0; 4];
+    serialized_key.extend_from_slice(&ZEROS[..padding_len]);
+    serialized_key[3] |= padding_len as u8;
 
-    //     match representation_identifier {
-    //         CDR_BE => push_to_key(dynamic_type, &mut s, &mut Xcdr1BeDeserializer::new(data))?,
-    //         CDR_LE => push_to_key(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?,
-    //         CDR2_BE => push_to_key(dynamic_type, &mut s, &mut Xcdr2BeDeserializer::new(data))?,
-    //         CDR2_LE => push_to_key(dynamic_type, &mut s, &mut Xcdr2LeDeserializer::new(data))?,
-    //         PL_CDR_BE => push_to_key_parameter_list_be(dynamic_type, &mut s, data)?,
-    //         PL_CDR_LE => push_to_key_parameter_list_le(dynamic_type, &mut s, data)?,
-    //         _ => panic!("representation_identifier not supported"),
-    //     }
-    // }
-    // let padding_len = collection.len().div_ceil(4) * 4 - collection.len();
-    // const ZEROS: [u8; 4] = [0; 4];
-    // collection.extend_from_slice(&ZEROS[..padding_len]);
-    // collection[3] |= padding_len as u8;
-    // Ok(collection)
+    Ok(serialized_key)
 }
 
 // #[cfg(test)]

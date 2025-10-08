@@ -13,6 +13,7 @@ use crate::{
             discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
             discovered_topic_data::DiscoveredTopicData,
             discovered_writer_data::{DiscoveredWriterData, WriterProxy},
+            parameter_id_values::PID_PARTICIPANT_GUID,
             spdp_discovered_participant_data::{
                 BuiltinEndpointQos, BuiltinEndpointSet, ParticipantProxy,
                 SpdpDiscoveredParticipantData,
@@ -82,7 +83,7 @@ use crate::{
         },
     },
     xtypes::{
-        dynamic_type::{DynamicData, DynamicType, ExtensibilityKind},
+        dynamic_type::{DynamicData, DynamicDataFactory, DynamicType, ExtensibilityKind},
         pl_cdr_serializer::PlCdrLeSerializer,
         serialize::XTypesSerialize,
         xcdr_serializer::{Xcdr1LeSerializer, Xcdr2LeSerializer},
@@ -1858,7 +1859,7 @@ where
         else {
             return Err(DdsError::AlreadyDeleted);
         };
-        let serialized_key = match get_serialized_key_from_serialized_foo(&dynamic_data) {
+        let serialized_key = match get_serialized_key_from_serialized_foo(dynamic_data) {
             Ok(k) => k,
             Err(e) => {
                 return Err(e.into());
@@ -2759,11 +2760,19 @@ where
                 .iter_mut()
                 .find(|x| x.topic_name == DCPS_PARTICIPANT)
             {
-                let key = InstanceHandle::new(self.transport.guid().into());
-                let serialized_data = key.create_dynamic_sample();
-                dw.dispose_w_timestamp(serialized_data, timestamp)
-                    .await
-                    .ok();
+                let mut dynamic_data =
+                    DynamicDataFactory::create_data(SpdpDiscoveredParticipantData::get_type());
+                dynamic_data
+                    .set_complex_value(
+                        PID_PARTICIPANT_GUID as u32,
+                        BuiltInTopicKey {
+                            value: self.transport.guid().into(),
+                        }
+                        .create_dynamic_sample(),
+                    )
+                    .unwrap();
+
+                dw.dispose_w_timestamp(dynamic_data, timestamp).await.ok();
             }
         }
     }
@@ -6112,7 +6121,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
         }
 
         self.last_change_sequence_number += 1;
-        let serialized_key = get_serialized_key_from_serialized_foo(&dynamic_data)?;
+        let serialized_key = get_serialized_key_from_serialized_foo(dynamic_data)?;
         let cache_change = CacheChange {
             kind: ChangeKind::NotAliveDisposed,
             writer_guid: self.transport_writer.guid(),

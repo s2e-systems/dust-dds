@@ -376,6 +376,10 @@ impl DynamicData {
         &self.type_ref
     }
 
+    pub(crate) fn make_descriptor_extensibility_kind_final(&mut self) {
+        self.type_ref.descriptor.extensibility_kind = ExtensibilityKind::Final
+    }
+
     pub fn get_descriptor(&self, id: MemberId) -> XTypesResult<&MemberDescriptor> {
         self.type_ref
             .member_list

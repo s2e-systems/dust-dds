@@ -16,7 +16,7 @@ use crate::{
         qos_policy::{
             DataRepresentationQosPolicy, DeadlineQosPolicy, DestinationOrderQosPolicy,
             DurabilityQosPolicy, GroupDataQosPolicy, LatencyBudgetQosPolicy, LivelinessQosPolicy,
-            OwnershipQosPolicy, PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy,
+            OwnershipQosPolicy, PartitionQosPolicy, PresentationQosPolicy,
             TimeBasedFilterQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
             DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
         },

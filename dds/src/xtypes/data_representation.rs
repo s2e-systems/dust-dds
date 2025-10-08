@@ -1,5 +1,4 @@
 use crate::xtypes::{
-    binding::DataKind,
     dynamic_type::{DynamicData, ExtensibilityKind, MemberDescriptor, TypeKind},
     serialize::{SerializeCollection, XTypesSerialize},
     serializer::{SerializeAppendableStruct, SerializeFinalStruct, SerializeMutableStruct},
