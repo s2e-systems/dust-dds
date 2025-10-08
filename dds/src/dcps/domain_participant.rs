@@ -13,7 +13,7 @@ use crate::{
             discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
             discovered_topic_data::DiscoveredTopicData,
             discovered_writer_data::{DiscoveredWriterData, WriterProxy},
-            parameter_id_values::PID_PARTICIPANT_GUID,
+            parameter_id_values::{PID_ENDPOINT_GUID, PID_PARTICIPANT_GUID},
             spdp_discovered_participant_data::{
                 BuiltinEndpointQos, BuiltinEndpointSet, ParticipantProxy,
                 SpdpDiscoveredParticipantData,
@@ -2870,11 +2870,19 @@ where
             .iter_mut()
             .find(|x| x.topic_name == DCPS_PUBLICATION)
         {
-            let key = InstanceHandle::new(data_writer.transport_writer.guid().into());
-            let serialized_data = key.create_dynamic_sample();
-            dw.dispose_w_timestamp(serialized_data, timestamp)
-                .await
-                .ok();
+            let mut dynamic_data =
+                DynamicDataFactory::create_data(DiscoveredWriterData::get_type());
+            dynamic_data
+                .set_complex_value(
+                    PID_ENDPOINT_GUID as u32,
+                    BuiltInTopicKey {
+                        value: data_writer.transport_writer.guid().into(),
+                    }
+                    .create_dynamic_sample(),
+                )
+                .unwrap();
+
+            dw.dispose_w_timestamp(dynamic_data, timestamp).await.ok();
         }
     }
 
@@ -2968,12 +2976,18 @@ where
             .iter_mut()
             .find(|x| x.topic_name == DCPS_SUBSCRIPTION)
         {
-            let guid = data_reader.transport_reader.guid();
-            let key = InstanceHandle::new(guid.into());
-            let serialized_data = key.create_dynamic_sample();
-            dw.dispose_w_timestamp(serialized_data, timestamp)
-                .await
-                .ok();
+            let mut dynamic_data =
+                DynamicDataFactory::create_data(DiscoveredReaderData::get_type());
+            dynamic_data
+                .set_complex_value(
+                    PID_ENDPOINT_GUID as u32,
+                    BuiltInTopicKey {
+                        value: data_reader.transport_reader.guid().into(),
+                    }
+                    .create_dynamic_sample(),
+                )
+                .unwrap();
+            dw.dispose_w_timestamp(dynamic_data, timestamp).await.ok();
         }
     }
 

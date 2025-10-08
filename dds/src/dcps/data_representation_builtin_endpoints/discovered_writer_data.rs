@@ -133,7 +133,7 @@ impl TypeSupport for DiscoveredWriterData {
         };
 
         builder.add_key_member::<BuiltInTopicKey>("key", PID_ENDPOINT_GUID);
-        builder.add_key_member::<BuiltInTopicKey>("participant_key", PID_PARTICIPANT_GUID);
+        builder.add_member::<BuiltInTopicKey>("participant_key", PID_PARTICIPANT_GUID);
 
         builder.add_member::<String>("topic_name", PID_TOPIC_NAME);
         builder.add_member::<String>("type_name", PID_TYPE_NAME);
