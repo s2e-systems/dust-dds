@@ -22,7 +22,7 @@ use crate::{
         },
         type_support::DdsDeserialize,
     },
-    transport::types::{EntityId, Guid, Locator},
+    transport::types::{EntityId, Guid, Locator, ENTITYID_UNKNOWN},
     xtypes::{
         binding::{DataKind, XTypesBinding},
         dynamic_type::DynamicTypeBuilder,
@@ -136,7 +136,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
                     bound: alloc::vec::Vec::new(),
                     element_type: None,
                     key_element_type: None,
-                    extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
+                    extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Mutable,
                     is_nested: false,
                 },
             ),
@@ -159,7 +159,11 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
             PID_LATENCY_BUDGET,
             LatencyBudgetQosPolicy::default(),
         );
-        builder.add_member_with_default("liveliness", PID_LIVELINESS, LivelinessQosPolicy::default());
+        builder.add_member_with_default(
+            "liveliness",
+            PID_LIVELINESS,
+            LivelinessQosPolicy::default(),
+        );
         builder.add_member_with_default(
             "reliability",
             PID_RELIABILITY,
@@ -198,7 +202,26 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
             PID_DATA_REPRESENTATION,
             DataRepresentationQosPolicy::default(),
         );
-
+        builder.add_member_with_default(
+            "remote_group_entity_id",
+            PID_GROUP_ENTITYID,
+            ENTITYID_UNKNOWN,
+        );
+        builder.add_member_with_default(
+            "unicast_locator_list",
+            PID_UNICAST_LOCATOR,
+            Vec::<Locator>::default(),
+        );
+        builder.add_member_with_default(
+            "multicast_locator_list",
+            PID_MULTICAST_LOCATOR,
+            Vec::<Locator>::default(),
+        );
+        builder.add_member_with_default(
+            "expects_inline_qos",
+            PID_EXPECTS_INLINE_QOS,
+            DEFAULT_EXPECTS_INLINE_QOS,
+        );
         builder.builder.build()
     }
     fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
