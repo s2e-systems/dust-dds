@@ -106,6 +106,10 @@ impl XTypesSerialize for DynamicData {
                                 let value = self.get_int64_value(member_id)?;
                                 final_serializer.serialize_field(value, member_name)?;
                             }
+                            TypeKind::CHAR8 => {
+                                let value = self.get_char8_value(member_id)?;
+                                final_serializer.serialize_field(value, member_name)?;
+                            }
                             TypeKind::STRING8 => {
                                 let value = self.get_string_value(member_id)?;
                                 final_serializer.serialize_field(value, member_name)?;
