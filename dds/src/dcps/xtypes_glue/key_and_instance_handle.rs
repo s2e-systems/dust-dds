@@ -54,116 +54,117 @@ fn deserialize_and_serialize_if_key_field<'a, T>(
 where
     for<'b> &'b mut T: XTypesDeserializer<'a>,
 {
-    match dynamic_type.get_kind() {
-        TypeKind::BOOLEAN => {
-            let v = de.deserialize_boolean()?;
-            if is_key_field {
-                serializer.serialize_field(&v, "")?;
-            }
-        }
-        TypeKind::INT8 => {
-            let v = de.deserialize_int8()?;
-            if is_key_field {
-                serializer.serialize_field(&v, "")?;
-            }
-        }
-        TypeKind::INT16 => {
-            let v = de.deserialize_int16()?;
-            if is_key_field {
-                serializer.serialize_field(&v, "")?;
-            }
-        }
-        TypeKind::INT32 => {
-            let v = de.deserialize_int32()?;
-            if is_key_field {
-                serializer.serialize_field(&v, "")?;
-            }
-        }
-        TypeKind::INT64 => {
-            let v = de.deserialize_int64()?;
-            if is_key_field {
-                serializer.serialize_field(&v, "")?;
-            }
-        }
-        TypeKind::UINT8 => {
-            let v = de.deserialize_uint8()?;
-            if is_key_field {
-                serializer.serialize_field(&v, "")?;
-            }
-        }
-        TypeKind::UINT16 => {
-            let v = de.deserialize_uint16()?;
-            if is_key_field {
-                serializer.serialize_field(&v, "")?;
-            }
-        }
-        TypeKind::UINT32 => {
-            let v = de.deserialize_uint32()?;
-            if is_key_field {
-                serializer.serialize_field(&v, "")?;
-            }
-        }
-        TypeKind::UINT64 => {
-            let v = de.deserialize_uint64()?;
-            if is_key_field {
-                serializer.serialize_field(&v, "")?;
-            }
-        }
-        TypeKind::FLOAT32 => {
-            let v = de.deserialize_float32()?;
-            if is_key_field {
-                serializer.serialize_field(&v, "")?;
-            }
-        }
-        TypeKind::FLOAT64 => {
-            let v = de.deserialize_float64()?;
-            if is_key_field {
-                serializer.serialize_field(&v, "")?;
-            }
-        }
-        TypeKind::CHAR8 => {
-            let v = de.deserialize_char8()?;
-            if is_key_field {
-                serializer.serialize_field(&v, "")?;
-            }
-        }
-        TypeKind::STRING8 => {
-            let v = de.deserialize_string()?;
-            if is_key_field {
-                serializer.serialize_field(&v, "")?;
-            }
-        }
-        TypeKind::SEQUENCE => {
-            let len = de.deserialize_sequence()?.len() as u32;
-            if is_key_field {
-                serializer.serialize_field(&len, "")?;
+    // match dynamic_type.get_kind() {
+    //     TypeKind::BOOLEAN => {
+    //         let v = de.deserialize_boolean()?;
+    //         if is_key_field {
+    //             serializer.serialize_field(&v, "")?;
+    //         }
+    //     }
+    //     TypeKind::INT8 => {
+    //         let v = de.deserialize_int8()?;
+    //         if is_key_field {
+    //             serializer.serialize_field(&v, "")?;
+    //         }
+    //     }
+    //     TypeKind::INT16 => {
+    //         let v = de.deserialize_int16()?;
+    //         if is_key_field {
+    //             serializer.serialize_field(&v, "")?;
+    //         }
+    //     }
+    //     TypeKind::INT32 => {
+    //         let v = de.deserialize_int32()?;
+    //         if is_key_field {
+    //             serializer.serialize_field(&v, "")?;
+    //         }
+    //     }
+    //     TypeKind::INT64 => {
+    //         let v = de.deserialize_int64()?;
+    //         if is_key_field {
+    //             serializer.serialize_field(&v, "")?;
+    //         }
+    //     }
+    //     TypeKind::UINT8 => {
+    //         let v = de.deserialize_uint8()?;
+    //         if is_key_field {
+    //             serializer.serialize_field(&v, "")?;
+    //         }
+    //     }
+    //     TypeKind::UINT16 => {
+    //         let v = de.deserialize_uint16()?;
+    //         if is_key_field {
+    //             serializer.serialize_field(&v, "")?;
+    //         }
+    //     }
+    //     TypeKind::UINT32 => {
+    //         let v = de.deserialize_uint32()?;
+    //         if is_key_field {
+    //             serializer.serialize_field(&v, "")?;
+    //         }
+    //     }
+    //     TypeKind::UINT64 => {
+    //         let v = de.deserialize_uint64()?;
+    //         if is_key_field {
+    //             serializer.serialize_field(&v, "")?;
+    //         }
+    //     }
+    //     TypeKind::FLOAT32 => {
+    //         let v = de.deserialize_float32()?;
+    //         if is_key_field {
+    //             serializer.serialize_field(&v, "")?;
+    //         }
+    //     }
+    //     TypeKind::FLOAT64 => {
+    //         let v = de.deserialize_float64()?;
+    //         if is_key_field {
+    //             serializer.serialize_field(&v, "")?;
+    //         }
+    //     }
+    //     TypeKind::CHAR8 => {
+    //         let v = de.deserialize_char8()?;
+    //         if is_key_field {
+    //             serializer.serialize_field(&v, "")?;
+    //         }
+    //     }
+    //     TypeKind::STRING8 => {
+    //         let v = de.deserialize_string()?;
+    //         if is_key_field {
+    //             serializer.serialize_field(&v, "")?;
+    //         }
+    //     }
+    //     TypeKind::SEQUENCE => {
+    //         let len = de.deserialize_sequence()?.len() as u32;
+    //         if is_key_field {
+    //             serializer.serialize_field(&len, "")?;
 
-                for _ in 0..len {
-                    deserialize_and_serialize_if_key_field(
-                        dynamic_type.get_descriptor().element_type.as_ref().unwrap(),
-                        is_key_field,
-                        de,
-                        serializer,
-                    )?;
-                }
-            }
-        }
-        TypeKind::ARRAY => {
-            for _ in 0..dynamic_type.get_descriptor().bound[0] {
-                deserialize_and_serialize_if_key_field(
-                    dynamic_type.get_descriptor().element_type.as_ref().unwrap(),
-                    is_key_field,
-                    de,
-                    serializer,
-                )?;
-            }
-        }
-        TypeKind::STRUCTURE => {
-            push_to_key(dynamic_type, serializer, de)?;
-        }
-        _ => todo!(),
-    }
-    Ok(())
+    //             for _ in 0..len {
+    //                 deserialize_and_serialize_if_key_field(
+    //                     dynamic_type.get_descriptor().element_type.as_ref().unwrap(),
+    //                     is_key_field,
+    //                     de,
+    //                     serializer,
+    //                 )?;
+    //             }
+    //         }
+    //     }
+    //     TypeKind::ARRAY => {
+    //         for _ in 0..dynamic_type.get_descriptor().bound[0] {
+    //             deserialize_and_serialize_if_key_field(
+    //                 dynamic_type.get_descriptor().element_type.as_ref().unwrap(),
+    //                 is_key_field,
+    //                 de,
+    //                 serializer,
+    //             )?;
+    //         }
+    //     }
+    //     TypeKind::STRUCTURE => {
+    //         push_to_key(dynamic_type, serializer, de)?;
+    //     }
+    //     _ => todo!(),
+    // }
+    // Ok(())
+    todo!()
 }
 
 fn deserialize_and_serialize_if_key_field_for_appendable_cdr<'a>(
@@ -172,116 +173,117 @@ fn deserialize_and_serialize_if_key_field_for_appendable_cdr<'a>(
     de: &mut impl DeserializeAppendableStruct<'a>,
     serializer: &mut impl SerializeFinalStruct,
 ) -> Result<(), XTypesError> {
-    let name = "";
-    match dynamic_type.get_kind() {
-        TypeKind::BOOLEAN => {
-            let v = de.deserialize_field::<bool>(name)?;
-            if is_key_field {
-                serializer.serialize_field(&v, "")?;
-            }
-        }
-        TypeKind::INT8 => {
-            let v = de.deserialize_field::<i8>(name)?;
-            if is_key_field {
-                serializer.serialize_field(&v, "")?;
-            }
-        }
-        TypeKind::INT16 => {
-            let v = de.deserialize_field::<i16>(name)?;
-            if is_key_field {
-                serializer.serialize_field(&v, "")?;
-            }
-        }
-        TypeKind::INT32 => {
-            let v = de.deserialize_field::<i32>(name)?;
-            if is_key_field {
-                serializer.serialize_field(&v, "")?;
-            }
-        }
-        TypeKind::INT64 => {
-            let v = de.deserialize_field::<i64>(name)?;
-            if is_key_field {
-                serializer.serialize_field(&v, "")?;
-            }
-        }
-        TypeKind::UINT8 => {
-            let v = de.deserialize_field::<u8>(name)?;
-            if is_key_field {
-                serializer.serialize_field(&v, "")?;
-            }
-        }
-        TypeKind::UINT16 => {
-            let v = de.deserialize_field::<u16>(name)?;
-            if is_key_field {
-                serializer.serialize_field(&v, "")?;
-            }
-        }
-        TypeKind::UINT32 => {
-            let v = de.deserialize_field::<u32>(name)?;
-            if is_key_field {
-                serializer.serialize_field(&v, "")?;
-            }
-        }
-        TypeKind::UINT64 => {
-            let v = de.deserialize_field::<u64>(name)?;
-            if is_key_field {
-                serializer.serialize_field(&v, "")?;
-            }
-        }
-        TypeKind::FLOAT32 => {
-            let v = de.deserialize_field::<f32>(name)?;
-            if is_key_field {
-                serializer.serialize_field(&v, "")?;
-            }
-        }
-        TypeKind::FLOAT64 => {
-            let v = de.deserialize_field::<f64>(name)?;
-            if is_key_field {
-                serializer.serialize_field(&v, "")?;
-            }
-        }
-        TypeKind::CHAR8 => {
-            let v = de.deserialize_field::<u8>(name)?;
-            if is_key_field {
-                serializer.serialize_field(&v, "")?;
-            }
-        }
-        TypeKind::STRING8 => {
-            let v = de.deserialize_field::<String>(name)?;
-            if is_key_field {
-                serializer.serialize_field(&v, "")?;
-            }
-        }
-        TypeKind::ARRAY => {
-            if is_key_field {
-                for _ in 0..dynamic_type.get_descriptor().bound[0] {
-                    deserialize_and_serialize_if_key_field_for_appendable_cdr(
-                        dynamic_type.get_descriptor().element_type.as_ref().unwrap(),
-                        is_key_field,
-                        de,
-                        serializer,
-                    )?;
-                }
-            }
-        }
-        TypeKind::SEQUENCE => {
-            let len = de.deserialize_field::<u32>(name)?;
-            if is_key_field {
-                serializer.serialize_field(&len, "")?;
+    // let name = "";
+    // match dynamic_type.get_kind() {
+    //     TypeKind::BOOLEAN => {
+    //         let v = de.deserialize_field::<bool>(name)?;
+    //         if is_key_field {
+    //             serializer.serialize_field(&v, "")?;
+    //         }
+    //     }
+    //     TypeKind::INT8 => {
+    //         let v = de.deserialize_field::<i8>(name)?;
+    //         if is_key_field {
+    //             serializer.serialize_field(&v, "")?;
+    //         }
+    //     }
+    //     TypeKind::INT16 => {
+    //         let v = de.deserialize_field::<i16>(name)?;
+    //         if is_key_field {
+    //             serializer.serialize_field(&v, "")?;
+    //         }
+    //     }
+    //     TypeKind::INT32 => {
+    //         let v = de.deserialize_field::<i32>(name)?;
+    //         if is_key_field {
+    //             serializer.serialize_field(&v, "")?;
+    //         }
+    //     }
+    //     TypeKind::INT64 => {
+    //         let v = de.deserialize_field::<i64>(name)?;
+    //         if is_key_field {
+    //             serializer.serialize_field(&v, "")?;
+    //         }
+    //     }
+    //     TypeKind::UINT8 => {
+    //         let v = de.deserialize_field::<u8>(name)?;
+    //         if is_key_field {
+    //             serializer.serialize_field(&v, "")?;
+    //         }
+    //     }
+    //     TypeKind::UINT16 => {
+    //         let v = de.deserialize_field::<u16>(name)?;
+    //         if is_key_field {
+    //             serializer.serialize_field(&v, "")?;
+    //         }
+    //     }
+    //     TypeKind::UINT32 => {
+    //         let v = de.deserialize_field::<u32>(name)?;
+    //         if is_key_field {
+    //             serializer.serialize_field(&v, "")?;
+    //         }
+    //     }
+    //     TypeKind::UINT64 => {
+    //         let v = de.deserialize_field::<u64>(name)?;
+    //         if is_key_field {
+    //             serializer.serialize_field(&v, "")?;
+    //         }
+    //     }
+    //     TypeKind::FLOAT32 => {
+    //         let v = de.deserialize_field::<f32>(name)?;
+    //         if is_key_field {
+    //             serializer.serialize_field(&v, "")?;
+    //         }
+    //     }
+    //     TypeKind::FLOAT64 => {
+    //         let v = de.deserialize_field::<f64>(name)?;
+    //         if is_key_field {
+    //             serializer.serialize_field(&v, "")?;
+    //         }
+    //     }
+    //     TypeKind::CHAR8 => {
+    //         let v = de.deserialize_field::<u8>(name)?;
+    //         if is_key_field {
+    //             serializer.serialize_field(&v, "")?;
+    //         }
+    //     }
+    //     TypeKind::STRING8 => {
+    //         let v = de.deserialize_field::<String>(name)?;
+    //         if is_key_field {
+    //             serializer.serialize_field(&v, "")?;
+    //         }
+    //     }
+    //     TypeKind::ARRAY => {
+    //         if is_key_field {
+    //             for _ in 0..dynamic_type.get_descriptor().bound[0] {
+    //                 deserialize_and_serialize_if_key_field_for_appendable_cdr(
+    //                     dynamic_type.get_descriptor().element_type.as_ref().unwrap(),
+    //                     is_key_field,
+    //                     de,
+    //                     serializer,
+    //                 )?;
+    //             }
+    //         }
+    //     }
+    //     TypeKind::SEQUENCE => {
+    //         let len = de.deserialize_field::<u32>(name)?;
+    //         if is_key_field {
+    //             serializer.serialize_field(&len, "")?;
 
-                for _ in 0..len {
-                    deserialize_and_serialize_if_key_field_for_appendable_cdr(
-                        dynamic_type.get_descriptor().element_type.as_ref().unwrap(),
-                        is_key_field,
-                        de,
-                        serializer,
-                    )?;
-                }
-            }
-        }
-        _ => todo!(),
-    }
-    Ok(())
+    //             for _ in 0..len {
+    //                 deserialize_and_serialize_if_key_field_for_appendable_cdr(
+    //                     dynamic_type.get_descriptor().element_type.as_ref().unwrap(),
+    //                     is_key_field,
+    //                     de,
+    //                     serializer,
+    //                 )?;
+    //             }
+    //         }
+    //     }
+    //     _ => todo!(),
+    // }
+    // Ok(())
+    todo!()
 }
 
 fn push_to_key<'a, T>(

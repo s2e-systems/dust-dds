@@ -30,18 +30,19 @@ impl ParameterListCdrSerializer {
     where
         T: XTypesSerialize,
     {
-        let data_len = Xcdr1LeSerializer::bytes_len(value)?;
-        let padded_length = (data_len + 3) & !3;
-        if padded_length > u16::MAX as usize {
-            return Err(RtpsError::InvalidData);
-        }
-        self.writer.write_all(&id.to_le_bytes())?;
-        self.writer
-            .write_all(&(padded_length as u16).to_le_bytes())?;
-        value.serialize(&mut Xcdr1LeSerializer::new(&mut self.writer))?;
-        const ZEROS: [u8; 4] = [0; 4];
-        self.writer.write_all(&ZEROS[..padded_length - data_len])?;
-        Ok(())
+        // let data_len = Xcdr1LeSerializer::bytes_len(value)?;
+        // let padded_length = (data_len + 3) & !3;
+        // if padded_length > u16::MAX as usize {
+        //     return Err(RtpsError::InvalidData);
+        // }
+        // self.writer.write_all(&id.to_le_bytes())?;
+        // self.writer
+        //     .write_all(&(padded_length as u16).to_le_bytes())?;
+        // value.serialize(&mut Xcdr1LeSerializer::new(&mut self.writer))?;
+        // const ZEROS: [u8; 4] = [0; 4];
+        // self.writer.write_all(&ZEROS[..padded_length - data_len])?;
+        // Ok(())
+        todo!()
     }
 
     pub fn write_with_default<T>(

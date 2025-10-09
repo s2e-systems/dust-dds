@@ -31,18 +31,17 @@ use crate::{
 use alloc::{string::String, vec::Vec};
 use dust_dds::infrastructure::type_support::TypeSupport;
 
-#[derive(Debug, PartialEq, Eq, Clone, TypeSupport)]
-#[dust_dds(extensibility = "mutable")]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ReaderProxy {
-    #[dust_dds(id=PID_ENDPOINT_GUID as u32, non_serialized)]
+    // #[dust_dds(id=PID_ENDPOINT_GUID as u32, non_serialized)]
     pub remote_reader_guid: Guid,
-    #[dust_dds(id=PID_GROUP_ENTITYID as u32)]
+    // #[dust_dds(id=PID_GROUP_ENTITYID as u32)]
     pub remote_group_entity_id: EntityId,
-    #[dust_dds(id=PID_UNICAST_LOCATOR as u32)]
+    // #[dust_dds(id=PID_UNICAST_LOCATOR as u32)]
     pub unicast_locator_list: Vec<Locator>,
-    #[dust_dds(id=PID_MULTICAST_LOCATOR as u32)]
+    // #[dust_dds(id=PID_MULTICAST_LOCATOR as u32)]
     pub multicast_locator_list: Vec<Locator>,
-    #[dust_dds(id=PID_EXPECTS_INLINE_QOS as u32)]
+    // #[dust_dds(id=PID_EXPECTS_INLINE_QOS as u32)]
     pub expects_inline_qos: bool,
 }
 
@@ -60,12 +59,12 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
             index: u32,
         }
         impl ConvenienceDynamicTypeBuilder {
-            fn add_member<T: XTypesBinding>(&mut self, name: &str, id: i16) {
+            fn add_member<T: TypeSupport>(&mut self, name: &str, id: i16) {
                 self.builder
                     .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
                         name: alloc::string::String::from(name),
                         id: id as u32,
-                        r#type: T::get_dynamic_type(),
+                        r#type: T::get_type(),
                         default_value: None,
                         index: self.index,
                         try_construct_kind:
@@ -80,12 +79,12 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
                     .unwrap();
                 self.index += 1;
             }
-            fn add_key_member<T: XTypesBinding>(&mut self, name: &str, id: i16) {
+            fn add_key_member<T: TypeSupport>(&mut self, name: &str, id: i16) {
                 self.builder
                     .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
                         name: alloc::string::String::from(name),
                         id: id as u32,
-                        r#type: T::get_dynamic_type(),
+                        r#type: T::get_type(),
                         default_value: None,
                         index: self.index,
                         try_construct_kind:
@@ -100,7 +99,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
                     .unwrap();
                 self.index += 1;
             }
-            fn add_member_with_default<T: XTypesBinding + Into<DataKind>>(
+            fn add_member_with_default<T: TypeSupport + Into<DataKind>>(
                 &mut self,
                 name: &str,
                 id: i16,
@@ -110,7 +109,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
                     .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
                         name: alloc::string::String::from(name),
                         id: id as u32,
-                        r#type: T::get_dynamic_type(),
+                        r#type: T::get_type(),
                         default_value: Some(default.into()),
                         index: self.index,
                         try_construct_kind:
@@ -230,119 +229,62 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
         builder.builder.build()
     }
     fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
-        let mut data =
-            dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type());
-        data.set_value(
-            PID_ENDPOINT_GUID as u32,
-            self.dds_subscription_data.key.into(),
-        )
-        .unwrap();
-        data.set_value(
-            PID_PARTICIPANT_GUID as u32,
-            self.dds_subscription_data.participant_key.into(),
-        )
-        .unwrap();
-        data.set_value(
-            PID_TOPIC_NAME as u32,
-            self.dds_subscription_data.topic_name.into(),
-        )
-        .unwrap();
-        data.set_value(
-            PID_TYPE_NAME as u32,
-            self.dds_subscription_data.type_name.into(),
-        )
-        .unwrap();
-        data.set_value(
-            PID_DURABILITY as u32,
-            self.dds_subscription_data.durability.into(),
-        )
-        .unwrap();
-        data.set_value(
-            PID_DEADLINE as u32,
-            self.dds_subscription_data.deadline.into(),
-        )
-        .unwrap();
-        data.set_value(
-            PID_LATENCY_BUDGET as u32,
-            self.dds_subscription_data.latency_budget.into(),
-        )
-        .unwrap();
-        data.set_value(
-            PID_LIVELINESS as u32,
-            self.dds_subscription_data.liveliness.into(),
-        )
-        .unwrap();
-        data.set_value(
-            PID_RELIABILITY as u32,
-            self.dds_subscription_data.reliability.into(),
-        )
-        .unwrap();
-        data.set_value(
-            PID_OWNERSHIP as u32,
-            self.dds_subscription_data.ownership.into(),
-        )
-        .unwrap();
-        data.set_value(
-            PID_DESTINATION_ORDER as u32,
-            self.dds_subscription_data.destination_order.into(),
-        )
-        .unwrap();
-        data.set_value(
-            PID_USER_DATA as u32,
-            self.dds_subscription_data.user_data.into(),
-        )
-        .unwrap();
-        data.set_value(
-            PID_TIME_BASED_FILTER as u32,
-            self.dds_subscription_data.time_based_filter.into(),
-        )
-        .unwrap();
-        data.set_value(
-            PID_PRESENTATION as u32,
-            self.dds_subscription_data.presentation.into(),
-        )
-        .unwrap();
-        data.set_value(
-            PID_PARTITION as u32,
-            self.dds_subscription_data.partition.into(),
-        )
-        .unwrap();
-        data.set_value(
-            PID_TOPIC_DATA as u32,
-            self.dds_subscription_data.topic_data.into(),
-        )
-        .unwrap();
-        data.set_value(
-            PID_GROUP_DATA as u32,
-            self.dds_subscription_data.group_data.into(),
-        )
-        .unwrap();
-        data.set_value(
-            PID_DATA_REPRESENTATION as u32,
-            self.dds_subscription_data.representation.into(),
-        )
-        .unwrap();
-        data.set_value(
-            PID_GROUP_ENTITYID as u32,
-            self.reader_proxy.remote_group_entity_id.into(),
-        )
-        .unwrap();
-        data.set_value(
-            PID_UNICAST_LOCATOR as u32,
-            self.reader_proxy.unicast_locator_list.into(),
-        )
-        .unwrap();
-        data.set_value(
-            PID_MULTICAST_LOCATOR as u32,
-            self.reader_proxy.multicast_locator_list.into(),
-        )
-        .unwrap();
-        data.set_value(
-            PID_EXPECTS_INLINE_QOS as u32,
-            self.reader_proxy.expects_inline_qos.into(),
-        )
-        .unwrap();
-        data
+        dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type())
+            .set_value(PID_ENDPOINT_GUID as u32, self.dds_subscription_data.key)
+            .set_value(
+                PID_PARTICIPANT_GUID as u32,
+                self.dds_subscription_data.participant_key,
+            )
+            .set_value(PID_TOPIC_NAME as u32, self.dds_subscription_data.topic_name)
+            .set_value(PID_TYPE_NAME as u32, self.dds_subscription_data.type_name)
+            .set_value(PID_DURABILITY as u32, self.dds_subscription_data.durability)
+            .set_value(PID_DEADLINE as u32, self.dds_subscription_data.deadline)
+            .set_value(
+                PID_LATENCY_BUDGET as u32,
+                self.dds_subscription_data.latency_budget,
+            )
+            .set_value(PID_LIVELINESS as u32, self.dds_subscription_data.liveliness)
+            .set_value(
+                PID_RELIABILITY as u32,
+                self.dds_subscription_data.reliability,
+            )
+            .set_value(PID_OWNERSHIP as u32, self.dds_subscription_data.ownership)
+            .set_value(
+                PID_DESTINATION_ORDER as u32,
+                self.dds_subscription_data.destination_order,
+            )
+            .set_value(PID_USER_DATA as u32, self.dds_subscription_data.user_data)
+            .set_value(
+                PID_TIME_BASED_FILTER as u32,
+                self.dds_subscription_data.time_based_filter,
+            )
+            .set_value(
+                PID_PRESENTATION as u32,
+                self.dds_subscription_data.presentation,
+            )
+            .set_value(PID_PARTITION as u32, self.dds_subscription_data.partition)
+            .set_value(PID_TOPIC_DATA as u32, self.dds_subscription_data.topic_data)
+            .set_value(PID_GROUP_DATA as u32, self.dds_subscription_data.group_data)
+            .set_value(
+                PID_DATA_REPRESENTATION as u32,
+                self.dds_subscription_data.representation,
+            )
+            .set_value(
+                PID_GROUP_ENTITYID as u32,
+                self.reader_proxy.remote_group_entity_id,
+            )
+            .set_value(
+                PID_UNICAST_LOCATOR as u32,
+                self.reader_proxy.unicast_locator_list,
+            )
+            .set_value(
+                PID_MULTICAST_LOCATOR as u32,
+                self.reader_proxy.multicast_locator_list,
+            )
+            .set_value(
+                PID_EXPECTS_INLINE_QOS as u32,
+                self.reader_proxy.expects_inline_qos,
+            )
     }
 }
 

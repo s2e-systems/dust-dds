@@ -121,21 +121,22 @@ impl<T: XTypesSerialize, const N: usize> XTypesSerialize for [T; N] {
     fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
         let mut s = serializer.serialize_array()?;
         for e in self {
-            s.serialize_element(e)?;
+            todo!()
+            //s.serialize_element(e)?;
         }
         Ok(())
     }
 }
 
-impl<T: XTypesSerialize> XTypesSerialize for &[T] {
-    fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
-        let mut s = serializer.serialize_sequence(self.len())?;
-        for e in self.iter() {
-            s.serialize_element(e)?;
-        }
-        Ok(())
-    }
-}
+// impl<T: XTypesSerialize> XTypesSerialize for &[T] {
+//     fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
+//         let mut s = serializer.serialize_sequence(self.len())?;
+//         for e in self.iter() {
+//             s.serialize_element(e)?;
+//         }
+//         Ok(())
+//     }
+// }
 
 impl XTypesSerialize for Bytes<'_> {
     fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
@@ -154,11 +155,12 @@ where
     T: XTypesSerialize,
 {
     fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
-        let mut s = serializer.serialize_sequence(self.len())?;
-        for e in self.iter() {
-            s.serialize_element(e)?;
-        }
-        Ok(())
+        todo!()
+        // let mut s = serializer.serialize_sequence(self.len())?;
+        // for e in self.iter() {
+        //     s.serialize_element(e)?;
+        // }
+        // Ok(())
     }
 }
 

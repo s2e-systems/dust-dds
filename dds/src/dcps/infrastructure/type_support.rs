@@ -1,11 +1,11 @@
 use crate::{
     infrastructure::error::DdsResult,
     xtypes::{
-        dynamic_type::{DynamicData, DynamicType},
-        xcdr_deserializer::{Xcdr2BeDeserializer, Xcdr2LeDeserializer},
+        binding::DataKind, dynamic_type::{DynamicData, DynamicType, DynamicTypeBuilderFactory, TypeKind}, xcdr_deserializer::{Xcdr2BeDeserializer, Xcdr2LeDeserializer}
     },
 };
 use alloc::vec::Vec;
+use dust_dds::xtypes::dynamic_type::DynamicDataFactory;
 pub use dust_dds_derive::{DdsDeserialize, TypeSupport};
 
 /// The TypeSupport trait represents a type that can be transmitted by DDS.
@@ -92,26 +92,28 @@ const REPRESENTATION_OPTIONS: RepresentationOptions = [0x00, 0x00];
 
 /// This is a helper function to serialize a type implementing [`XTypesSerialize`] using the XTypes defined XCDR1 representation with LittleEndian endianness.
 pub fn serialize_rtps_xtypes_xcdr1_le(value: &impl XTypesSerialize) -> DdsResult<Vec<u8>> {
-    let padded_length = (Xcdr1LeSerializer::bytes_len(value)? + 3) & !3;
-    let mut writer = Vec::with_capacity(padded_length + 4);
-    writer.extend_from_slice(&CDR_LE);
-    writer.extend_from_slice(&REPRESENTATION_OPTIONS);
-    let mut serializer = Xcdr1LeSerializer::new(&mut writer);
-    XTypesSerialize::serialize(value, &mut serializer)?;
-    pad(&mut writer);
-    Ok(writer)
+    // let padded_length = (Xcdr1LeSerializer::bytes_len(value)? + 3) & !3;
+    // let mut writer = Vec::with_capacity(padded_length + 4);
+    // writer.extend_from_slice(&CDR_LE);
+    // writer.extend_from_slice(&REPRESENTATION_OPTIONS);
+    // let mut serializer = Xcdr1LeSerializer::new(&mut writer);
+    // XTypesSerialize::serialize(value, &mut serializer)?;
+    // pad(&mut writer);
+    // Ok(writer)
+    todo!()
 }
 
 /// This is a helper function to serialize a type implementing [`XTypesSerialize`] using the XTypes defined XCDR1 representation with BigEndian endianness.
 pub fn serialize_rtps_xtypes_xcdr1_be(value: &impl XTypesSerialize) -> DdsResult<Vec<u8>> {
-    let padded_length = (Xcdr1BeSerializer::bytes_len(value)? + 3) & !3;
-    let mut writer = Vec::with_capacity(padded_length + 4);
-    writer.extend_from_slice(&CDR_BE);
-    writer.extend_from_slice(&REPRESENTATION_OPTIONS);
-    let mut serializer = Xcdr1BeSerializer::new(&mut writer);
-    XTypesSerialize::serialize(value, &mut serializer)?;
-    pad(&mut writer);
-    Ok(writer)
+    // let padded_length = (Xcdr1BeSerializer::bytes_len(value)? + 3) & !3;
+    // let mut writer = Vec::with_capacity(padded_length + 4);
+    // writer.extend_from_slice(&CDR_BE);
+    // writer.extend_from_slice(&REPRESENTATION_OPTIONS);
+    // let mut serializer = Xcdr1BeSerializer::new(&mut writer);
+    // XTypesSerialize::serialize(value, &mut serializer)?;
+    // pad(&mut writer);
+    // Ok(writer)
+    todo!()
 }
 
 fn pad(writer: &mut Vec<u8>) {
@@ -151,3 +153,141 @@ where
     }?;
     Ok(value)
 }
+
+trait CreateData: TypeSupport {
+    fn create_data() -> DynamicData {
+        DynamicDataFactory::create_data(Self::get_type())
+    }
+}
+impl<T: TypeSupport> CreateData for T {}
+
+impl TypeSupport for bool {
+    fn get_type() -> DynamicType {
+        DynamicTypeBuilderFactory::get_primitive_type(TypeKind::BOOLEAN)
+    }
+
+    fn create_dynamic_sample(self) -> DynamicData {
+        Self::create_data().set_boolean_value(0, self).unwrap()
+    }
+}
+
+impl TypeSupport for u8 {
+    fn get_type() -> DynamicType {
+        DynamicTypeBuilderFactory::get_primitive_type(TypeKind::UINT8)
+    }
+
+    fn create_dynamic_sample(self) -> DynamicData {
+        Self::create_data().set_uint8_value(0, self).unwrap()
+    }
+}
+
+impl TypeSupport for u16 {
+    fn get_type() -> DynamicType {
+        DynamicTypeBuilderFactory::get_primitive_type(TypeKind::UINT16)
+    }
+
+    fn create_dynamic_sample(self) -> DynamicData {
+        Self::create_data().set_uint16_value(0, self).unwrap()
+    }
+}
+
+impl TypeSupport for i32 {
+    fn get_type() -> DynamicType {
+        DynamicTypeBuilderFactory::get_primitive_type(TypeKind::INT32)
+    }
+
+    fn create_dynamic_sample(self) -> DynamicData {
+        Self::create_data().set_int32_value(0, self).unwrap()
+    }
+}
+
+impl TypeSupport for u32 {
+    fn get_type() -> DynamicType {
+        DynamicTypeBuilderFactory::get_primitive_type(TypeKind::UINT32)
+    }
+
+    fn create_dynamic_sample(self) -> DynamicData {
+        Self::create_data().set_uint32_value(0, self).unwrap()
+    }
+}
+
+impl TypeSupport for String {
+    fn get_type() -> DynamicType {
+        DynamicTypeBuilderFactory::get_primitive_type(TypeKind::STRING8)
+    }
+
+    fn create_dynamic_sample(self) -> DynamicData {
+        Self::create_data().set_string_value(0, self).unwrap()
+    }
+}
+
+// impl TypeSupport for Vec<String> {
+//     fn get_type() -> DynamicType {
+//         DynamicTypeBuilderFactory::get_primitive_type(TypeKind::SEQUENCE)
+//     }
+
+//     fn create_dynamic_sample(self) -> DynamicData {
+//         Self::create_data().set_string_values(0, self).unwrap()
+//     }
+// }
+
+// impl TypeSupport for Vec<u8> {
+//     fn get_type() -> DynamicType {
+//         DynamicTypeBuilderFactory::create_sequence_type(u8::get_type(), u32::MAX).build()
+//     }
+
+//     fn create_dynamic_sample(self) -> DynamicData {
+//         todo!()
+//     }
+// }
+
+// impl TypeSupport for Vec<u16> {
+//     fn get_type() -> DynamicType {
+//         DynamicTypeBuilderFactory::create_sequence_type(u16::get_type(), u32::MAX).build()
+//     }
+
+//     fn create_dynamic_sample(self) -> DynamicData {
+//         todo!()
+//     }
+// }
+
+impl TypeSupport for Vec<DataKind> {
+    fn get_type() -> DynamicType {
+        todo!()
+    }
+
+    fn create_dynamic_sample(self) -> DynamicData {
+        todo!()
+    }
+}
+
+impl<const N: usize> TypeSupport for [u8; N] {
+    fn get_type() -> DynamicType {
+        DynamicTypeBuilderFactory::create_sequence_type(u8::get_type(), u32::MAX).build()
+    }
+
+    fn create_dynamic_sample(self) -> DynamicData {
+        todo!()
+    }
+}
+
+impl<T: TypeSupport> TypeSupport for Vec<T> {
+    fn get_type() -> DynamicType {
+        todo!()
+    }
+
+    fn create_dynamic_sample(self) -> DynamicData {
+        todo!()
+    }
+}
+
+impl<T: TypeSupport> TypeSupport for Option<T> {
+    fn get_type() -> DynamicType {
+        todo!()
+    }
+
+    fn create_dynamic_sample(self) -> DynamicData {
+        todo!()
+    }
+}
+

@@ -1,43 +1,36 @@
-use super::{error::XTypesError, serialize::XTypesSerialize};
+use crate::xtypes::{binding::DataKind, dynamic_type::DynamicData, error::XTypesError};
 
 pub trait SerializeFinalStruct {
-    fn serialize_field<T: XTypesSerialize>(
+    fn serialize_field(&mut self, value: &DataKind, name: &str) -> Result<(), XTypesError>;
+    fn serialize_optional_field(
         &mut self,
-        value: &T,
-        name: &str,
-    ) -> Result<(), XTypesError>;
-    fn serialize_optional_field<T: XTypesSerialize>(
-        &mut self,
-        value: &Option<T>,
+        value: &Option<DynamicData>,
         name: &str,
     ) -> Result<(), XTypesError>;
 }
 pub trait SerializeAppendableStruct {
-    fn serialize_field<T: XTypesSerialize>(
-        &mut self,
-        value: &T,
-        name: &str,
-    ) -> Result<(), XTypesError>;
+    fn serialize_field(&mut self, value: &DataKind, name: &str) -> Result<(), XTypesError>;
 }
 pub trait SerializeMutableStruct {
-    fn serialize_field<T: XTypesSerialize>(
+    fn serialize_field(
         &mut self,
-        value: &T,
+        value: &DataKind,
         pid: u32,
         name: &str,
     ) -> Result<(), XTypesError>;
-    fn serialize_collection<T: XTypesSerialize>(
+    fn serialize_collection(
         &mut self,
-        values: &[T],
+        values: &[DynamicData],
         pid: u32,
         name: &str,
-    ) -> Result<(), XTypesError>{
-        self.serialize_field(&values, pid, name)
+    ) -> Result<(), XTypesError> {
+        todo!()
+        //self.serialize_field(values, pid, name)
     }
     fn end(self) -> Result<(), XTypesError>;
 }
 pub trait SerializeCollection {
-    fn serialize_element<T: XTypesSerialize>(&mut self, value: &T) -> Result<(), XTypesError>;
+    fn serialize_element(&mut self, value: &DynamicData) -> Result<(), XTypesError>;
 }
 
 /// A trait representing an object with the capability of serializing a value into a CDR format.
