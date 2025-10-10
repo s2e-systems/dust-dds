@@ -1,6 +1,5 @@
-use crate::xtypes::{binding::DataKind, error::XTypesResult, type_object::TypeObject};
-
 use super::error::XTypesError;
+use crate::xtypes::{data_representation::DataKind, error::XTypesResult, type_object::TypeObject};
 use alloc::{boxed::Box, collections::BTreeMap, string::String, vec, vec::Vec};
 
 pub type BoundSeq = Vec<u32>;

@@ -1,5 +1,3 @@
-use crate::xtypes::{binding::DataKind, dynamic_type::DynamicData};
-
 use super::{
     error::XTypesError,
     serialize::{Write, XTypesSerialize},
@@ -8,6 +6,7 @@ use super::{
         SerializeMutableStruct, XTypesSerializer,
     },
 };
+use crate::xtypes::{data_representation::DataKind, dynamic_type::DynamicData};
 
 const PID_SENTINEL: u16 = 1;
 

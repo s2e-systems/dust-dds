@@ -6,11 +6,10 @@ use crate::{
     },
     transport::types::{DurabilityKind, ReliabilityKind},
     xtypes::{
-        binding::{DataKind, XTypesBinding},
         bytes::ByteBuf,
         deserialize::XTypesDeserialize,
         deserializer::{DeserializeFinalStruct, XTypesDeserializer},
-        dynamic_type::{DynamicDataFactory, DynamicTypeBuilderFactory, TypeKind},
+        dynamic_type::{DynamicDataFactory, TypeKind},
         error::XTypesError,
     },
 };
@@ -38,7 +37,6 @@ impl TypeSupport for Length {
         todo!()
     }
 }
-
 
 // impl From<Length> for DataKind {
 //     fn from(value: Length) -> Self {

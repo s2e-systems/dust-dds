@@ -1,13 +1,11 @@
 use crate::{
     infrastructure::error::DdsResult,
     xtypes::{
-        binding::DataKind,
-        dynamic_type::{DynamicData, DynamicType, DynamicTypeBuilderFactory, TypeKind},
+        dynamic_type::{DynamicData, DynamicType},
         xcdr_deserializer::{Xcdr2BeDeserializer, Xcdr2LeDeserializer},
     },
 };
 use alloc::vec::Vec;
-use dust_dds::xtypes::dynamic_type::DynamicDataFactory;
 pub use dust_dds_derive::{DdsDeserialize, TypeSupport};
 
 /// The TypeSupport trait represents a type that can be transmitted by DDS.
@@ -42,7 +40,6 @@ use crate::xtypes::{
     error::XTypesError,
     serialize::XTypesSerialize,
     xcdr_deserializer::{Xcdr1BeDeserializer, Xcdr1LeDeserializer},
-    xcdr_serializer::{Xcdr1BeSerializer, Xcdr1LeSerializer},
 };
 /// This is a convenience derive to allow the user to easily derive all the different traits needed for a type to be used for
 /// communication with Dust DDS. If the individual traits are manually derived then this derive should not be used.

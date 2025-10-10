@@ -24,8 +24,7 @@ use crate::{
     },
     transport::types::{EntityId, Guid, Locator, ENTITYID_UNKNOWN},
     xtypes::{
-        binding::{DataKind, XTypesBinding},
-        dynamic_type::DynamicTypeBuilder,
+        binding::XTypesBinding, data_representation::DataKind, dynamic_type::DynamicTypeBuilder,
     },
 };
 use alloc::{string::String, vec::Vec};
