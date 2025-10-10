@@ -177,12 +177,6 @@ impl<T: TypeSupport> XTypesBinding for T {
     }
 }
 
-// impl<T: TypeSupport, const N: usize> XTypesBinding for [T; N] {
-//     fn get_dynamic_type() -> DynamicType {
-//         DynamicTypeBuilderFactory::create_array_type(T::get_type(), vec![N as u32]).build()
-//     }
-// }
-
 impl<T: TypeSupport> XTypesBinding for Vec<T> {
     fn get_dynamic_type() -> DynamicType {
         DynamicTypeBuilderFactory::create_sequence_type(T::get_type(), u32::MAX).build()

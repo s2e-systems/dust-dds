@@ -16,7 +16,8 @@ use crate::{
             DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
         },
         type_support::{DdsDeserialize, TypeSupport},
-    }, xtypes::binding::XTypesBinding,
+    },
+    xtypes::binding::XTypesBinding,
 };
 use alloc::string::String;
 
@@ -301,14 +302,8 @@ impl TypeSupport for DiscoveredTopicData {
     }
     fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
         dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type())
-            .set_value(
-                PID_ENDPOINT_GUID as u32,
-                self.topic_builtin_topic_data.key,
-            )
-            .set_value(
-                PID_TOPIC_NAME as u32,
-                self.topic_builtin_topic_data.name,
-            )
+            .set_value(PID_ENDPOINT_GUID as u32, self.topic_builtin_topic_data.key)
+            .set_value(PID_TOPIC_NAME as u32, self.topic_builtin_topic_data.name)
             .set_value(
                 PID_TYPE_NAME as u32,
                 self.topic_builtin_topic_data.type_name,
@@ -317,10 +312,7 @@ impl TypeSupport for DiscoveredTopicData {
                 PID_DURABILITY as u32,
                 self.topic_builtin_topic_data.durability,
             )
-            .set_value(
-                PID_DEADLINE as u32,
-                self.topic_builtin_topic_data.deadline,
-            )
+            .set_value(PID_DEADLINE as u32, self.topic_builtin_topic_data.deadline)
             .set_value(
                 PID_LATENCY_BUDGET as u32,
                 self.topic_builtin_topic_data.latency_budget,
@@ -337,18 +329,12 @@ impl TypeSupport for DiscoveredTopicData {
                 PID_TRANSPORT_PRIORITY as u32,
                 self.topic_builtin_topic_data.transport_priority,
             )
-            .set_value(
-                PID_LIFESPAN as u32,
-                self.topic_builtin_topic_data.lifespan,
-            )
+            .set_value(PID_LIFESPAN as u32, self.topic_builtin_topic_data.lifespan)
             .set_value(
                 PID_DESTINATION_ORDER as u32,
                 self.topic_builtin_topic_data.destination_order,
             )
-            .set_value(
-                PID_HISTORY as u32,
-                self.topic_builtin_topic_data.history,
-            )
+            .set_value(PID_HISTORY as u32, self.topic_builtin_topic_data.history)
             .set_value(
                 PID_RESOURCE_LIMITS as u32,
                 self.topic_builtin_topic_data.resource_limits,
@@ -380,9 +366,8 @@ impl<'de> DdsDeserialize<'de> for DiscoveredTopicData {
 mod tests {
     use super::*;
     use crate::{
-        builtin_topics::BuiltInTopicKey,
-        infrastructure::qos::TopicQos,
-        xtypes::{pl_cdr_serializer::PlCdrLeSerializer, serialize::XTypesSerialize},
+        builtin_topics::BuiltInTopicKey, infrastructure::qos::TopicQos,
+        xtypes::pl_cdr_serializer::PlCdrLeSerializer,
     };
 
     #[test]

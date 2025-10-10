@@ -335,7 +335,7 @@ mod tests {
             EntityId, Guid, BUILT_IN_PARTICIPANT, BUILT_IN_READER_GROUP, BUILT_IN_WRITER_WITH_KEY,
             USER_DEFINED_UNKNOWN,
         },
-        xtypes::{pl_cdr_serializer::PlCdrLeSerializer, serialize::XTypesSerialize},
+        xtypes::pl_cdr_serializer::PlCdrLeSerializer,
     };
 
     #[test]

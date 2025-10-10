@@ -131,8 +131,7 @@ impl<C: Write> SerializeFinalStruct for &mut PlCdrLeSerializer<'_, C> {
 }
 impl<C: Write> SerializeAppendableStruct for &mut PlCdrLeSerializer<'_, C> {
     fn serialize_field(&mut self, value: &DataKind, _name: &str) -> Result<(), XTypesError> {
-        // value.serialize(&mut **self)
-        todo!()
+        value.serialize(&mut **self)
     }
 }
 impl<C: Write> SerializeMutableStruct for &mut PlCdrLeSerializer<'_, C> {
@@ -266,7 +265,11 @@ impl<C: Write> XTypesSerializer for &mut PlCdrLeSerializer<'_, C> {
     }
 
     fn serialize_string_list(self, v: &[String]) -> Result<(), XTypesError> {
-        todo!()
+        self.serialize_uint32(into_u32(v.len())?)?;
+        for value in v {
+            self.serialize_string(value)?;
+        }
+        Ok(())
     }
 }
 

@@ -6,6 +6,7 @@ use crate::{
     },
     transport::types::{DurabilityKind, ReliabilityKind},
     xtypes::{
+        binding::XTypesBinding,
         bytes::ByteBuf,
         deserialize::XTypesDeserialize,
         deserializer::{DeserializeFinalStruct, XTypesDeserializer},
@@ -30,22 +31,19 @@ pub enum Length {
 
 impl TypeSupport for Length {
     fn get_type() -> crate::xtypes::dynamic_type::DynamicType {
-        todo!()
+        u32::get_dynamic_type()
     }
 
     fn create_dynamic_sample(self) -> crate::xtypes::dynamic_type::DynamicData {
-        todo!()
+        let value = match self {
+            Length::Limited(length) => length,
+            Length::Unlimited => LENGTH_UNLIMITED as u32,
+        };
+        DynamicDataFactory::create_data(Self::get_type())
+            .set_uint32_value(0, value)
+            .unwrap()
     }
 }
-
-// impl From<Length> for DataKind {
-//     fn from(value: Length) -> Self {
-//         match value {
-//             Length::Unlimited => DataKind::Int32(LENGTH_UNLIMITED),
-//             Length::Limited(l) => DataKind::Int32(l as i32),
-//         }
-//     }
-// }
 
 const LENGTH_UNLIMITED: i32 = -1;
 
@@ -1253,21 +1251,19 @@ impl dust_dds::infrastructure::type_support::TypeSupport for HistoryQosPolicy {
     }
 
     fn create_dynamic_sample(self) -> crate::xtypes::dynamic_type::DynamicData {
-        // let mut data = DynamicDataFactory::create_data(Self::get_type());
-        // match self.kind {
-        //     HistoryQosPolicyKind::KeepLast(depth) => {
-        //         data.set_complex_value(0, self.kind.create_dynamic_sample())
-        //             .unwrap();
-        //         data.set_int32_value(1, depth as i32).unwrap();
-        //     }
-        //     HistoryQosPolicyKind::KeepAll => {
-        //         data.set_complex_value(0, self.kind.create_dynamic_sample())
-        //             .unwrap();
-        //         data.set_int32_value(1, 0).unwrap();
-        //     }
-        // }
-        // data
-        todo!()
+        let mut data = DynamicDataFactory::create_data(Self::get_type());
+        match self.kind {
+            HistoryQosPolicyKind::KeepLast(depth) => {
+                data.set_complex_value(0, self.kind.create_dynamic_sample())
+                    .unwrap();
+                data.set_int32_value(1, depth as i32).unwrap()
+            }
+            HistoryQosPolicyKind::KeepAll => {
+                data.set_complex_value(0, self.kind.create_dynamic_sample())
+                    .unwrap();
+                data.set_int32_value(1, 0).unwrap()
+            }
+        }
     }
 }
 

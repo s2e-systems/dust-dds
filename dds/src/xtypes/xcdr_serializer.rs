@@ -280,74 +280,9 @@ impl Xcdr1LeSerializer<'_, ()> {
     }
 }
 
-fn serialize_data_kind<T>(value: &DataKind, serializer: &mut T) -> Result<(), XTypesError>
-where
-    for<'a> &'a mut T: XTypesSerializer,
-{
-    match value {
-        DataKind::UInt8(v) => serializer.serialize_uint8(*v),
-        DataKind::Int8(_) => todo!(),
-        DataKind::UInt16(_) => todo!(),
-        DataKind::Int16(_) => todo!(),
-        DataKind::Int32(_) => todo!(),
-        DataKind::UInt32(_) => todo!(),
-        DataKind::Int64(_) => todo!(),
-        DataKind::UInt64(_) => todo!(),
-        DataKind::Float32(_) => todo!(),
-        DataKind::Float64(_) => todo!(),
-        DataKind::Char8(_) => todo!(),
-        DataKind::Boolean(_) => todo!(),
-        DataKind::String(_) => todo!(),
-        DataKind::ComplexValue(dynamic_data) => dynamic_data.serialize(serializer),
-        DataKind::UInt8Array(items) => todo!(),
-        DataKind::Int8List(items) => todo!(),
-        DataKind::UInt16List(items) => todo!(),
-        DataKind::Int16List(items) => todo!(),
-        DataKind::Int32List(items) => todo!(),
-        DataKind::UInt32List(items) => todo!(),
-        DataKind::Int64List(items) => todo!(),
-        DataKind::UInt64List(items) => todo!(),
-        DataKind::Float32List(items) => todo!(),
-        DataKind::Float64List(items) => todo!(),
-        DataKind::Char8List(items) => todo!(),
-        DataKind::BooleanList(items) => todo!(),
-        DataKind::StringList(items) => todo!(),
-        DataKind::ComplexValueList(_) => todo!(),
-    }
-}
-
 impl<C: Write> SerializeFinalStruct for &mut Xcdr1LeSerializer<'_, C> {
     fn serialize_field(&mut self, value: &DataKind, _name: &str) -> Result<(), XTypesError> {
-        match value {
-            DataKind::UInt8(v) => self.serialize_uint8(*v),
-            DataKind::Int8(_) => todo!(),
-            DataKind::UInt16(_) => todo!(),
-            DataKind::Int16(_) => todo!(),
-            DataKind::Int32(_) => todo!(),
-            DataKind::UInt32(_) => todo!(),
-            DataKind::Int64(_) => todo!(),
-            DataKind::UInt64(_) => todo!(),
-            DataKind::Float32(_) => todo!(),
-            DataKind::Float64(_) => todo!(),
-            DataKind::Char8(_) => todo!(),
-            DataKind::Boolean(_) => todo!(),
-            DataKind::String(_) => todo!(),
-            DataKind::ComplexValue(dynamic_data) => dynamic_data.serialize(&mut **self),
-            DataKind::UInt8Array(items) => todo!(),
-            DataKind::Int8List(items) => todo!(),
-            DataKind::UInt16List(items) => todo!(),
-            DataKind::Int16List(items) => todo!(),
-            DataKind::Int32List(items) => todo!(),
-            DataKind::UInt32List(items) => todo!(),
-            DataKind::Int64List(items) => todo!(),
-            DataKind::UInt64List(items) => todo!(),
-            DataKind::Float32List(items) => todo!(),
-            DataKind::Float64List(items) => todo!(),
-            DataKind::Char8List(items) => todo!(),
-            DataKind::BooleanList(items) => todo!(),
-            DataKind::StringList(items) => todo!(),
-            DataKind::ComplexValueList(_) => todo!(),
-        }
+        todo!()
     }
 
     fn serialize_optional_field(

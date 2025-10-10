@@ -24,7 +24,7 @@ pub enum DataKind {
     Boolean(bool),
     String(String),
     ComplexValue(DynamicData),
-    UInt8Array(Vec<u8>),
+    UInt8List(Vec<u8>),
     Int8List(Vec<i8>),
     UInt16List(Vec<u16>),
     Int16List(Vec<i16>),
@@ -38,6 +38,9 @@ pub enum DataKind {
     BooleanList(Vec<bool>),
     StringList(Vec<String>),
     ComplexValueList(Vec<DynamicData>),
+    UInt8Array(Vec<u8>),
+    Int8Array(Vec<i8>),
+    ComplexValueArray(Vec<DynamicData>),
 }
 
 impl DataKind {
@@ -60,7 +63,7 @@ impl DataKind {
             DataKind::Boolean(v) => serializer.serialize_boolean(*v),
             DataKind::String(v) => serializer.serialize_string(v),
             DataKind::ComplexValue(dynamic_data) => dynamic_data.serialize_nested(serializer),
-            DataKind::UInt8Array(items) => serializer.serialize_byte_array(items),
+            DataKind::UInt8List(items) => todo!(),
             DataKind::Int8List(items) => todo!(),
             DataKind::UInt16List(items) => todo!(),
             DataKind::Int16List(items) => todo!(),
@@ -73,9 +76,10 @@ impl DataKind {
             DataKind::Char8List(items) => todo!(),
             DataKind::BooleanList(items) => todo!(),
             DataKind::StringList(items) => serializer.serialize_string_list(items),
-            DataKind::ComplexValueList(dynamic_datas) => {
-                serializer.serialize_sequence(dynamic_datas)
-            }
+            DataKind::ComplexValueList(items) => serializer.serialize_sequence(items),
+            DataKind::UInt8Array(items) => serializer.serialize_byte_array(items),
+            DataKind::Int8Array(items) => todo!(),
+            DataKind::ComplexValueArray(dynamic_datas) => todo!(),
         }
     }
 }
