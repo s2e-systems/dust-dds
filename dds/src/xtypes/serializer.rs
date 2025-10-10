@@ -41,10 +41,10 @@ pub trait XTypesSerializer {
     fn serialize_complex_value(self, vs: &DynamicData) -> Result<(), XTypesError>;
 
     /// Serializing a sequence with a dynamic length
-    fn serialize_sequence(self, vs: &[DynamicData]) -> Result<(), XTypesError>;
+    fn serialize_complex_value_list(self, vs: &[DynamicData]) -> Result<(), XTypesError>;
 
     /// Serializing a sequence with a static length
-    fn serialize_array(self, vs: &[DynamicData]) -> Result<(), XTypesError>;
+    fn serialize_complex_value_array(self, vs: &[DynamicData]) -> Result<(), XTypesError>;
 
     /// Serialize a [`bool`] value.
     fn serialize_boolean(self, v: bool) -> Result<(), XTypesError>;

@@ -180,10 +180,10 @@ impl<C: Write> XTypesSerializer for &mut Xcdr1BeSerializer<'_, C> {
         Ok(self)
     }
 
-    fn serialize_sequence(self, vs: &[DynamicData]) -> Result<(), XTypesError> {
+    fn serialize_complex_value_list(self, vs: &[DynamicData]) -> Result<(), XTypesError> {
         todo!()
     }
-    fn serialize_array(self, vs: &[DynamicData]) -> Result<(), XTypesError> {
+    fn serialize_complex_value_array(self, vs: &[DynamicData]) -> Result<(), XTypesError> {
         todo!()
     }
 
@@ -435,10 +435,10 @@ impl<C: Write> XTypesSerializer for &mut Xcdr1LeSerializer<'_, C> {
         Ok(self)
     }
 
-    fn serialize_sequence(self, vs: &[DynamicData]) -> Result<(), XTypesError> {
+    fn serialize_complex_value_list(self, vs: &[DynamicData]) -> Result<(), XTypesError> {
         todo!()
     }
-    fn serialize_array(self, vs: &[DynamicData]) -> Result<(), XTypesError> {
+    fn serialize_complex_value_array(self, vs: &[DynamicData]) -> Result<(), XTypesError> {
         todo!()
     }
 
@@ -753,10 +753,10 @@ impl<C: Write> XTypesSerializer for &mut Xcdr2BeSerializer<'_, C> {
         Ok(self)
     }
 
-    fn serialize_sequence(self, vs: &[DynamicData]) -> Result<(), XTypesError> {
+    fn serialize_complex_value_list(self, vs: &[DynamicData]) -> Result<(), XTypesError> {
         todo!()
     }
-    fn serialize_array(self, vs: &[DynamicData]) -> Result<(), XTypesError> {
+    fn serialize_complex_value_array(self, vs: &[DynamicData]) -> Result<(), XTypesError> {
         todo!()
     }
 
@@ -923,10 +923,10 @@ impl<C: Write> XTypesSerializer for &mut Xcdr2LeSerializer<'_, C> {
     fn serialize_mutable_struct(self) -> Result<impl SerializeMutableStruct, XTypesError> {
         Ok(self)
     }
-    fn serialize_sequence(self, vs: &[DynamicData]) -> Result<(), XTypesError> {
+    fn serialize_complex_value_list(self, vs: &[DynamicData]) -> Result<(), XTypesError> {
         todo!()
     }
-    fn serialize_array(self, vs: &[DynamicData]) -> Result<(), XTypesError> {
+    fn serialize_complex_value_array(self, vs: &[DynamicData]) -> Result<(), XTypesError> {
         todo!()
     }
 

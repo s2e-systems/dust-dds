@@ -10,6 +10,69 @@ use crate::{
 };
 use alloc::vec::Vec;
 
+impl DynamicData {
+    pub fn serialize(
+        &self,
+        serializer: impl XTypesSerializer,
+    ) -> Result<(), super::error::XTypesError> {
+        self.serialize_nested(serializer)
+    }
+
+    pub fn serialize_nested(
+        &self,
+        serializer: impl XTypesSerializer,
+    ) -> Result<(), super::error::XTypesError> {
+        match self.type_ref().get_kind() {
+            TypeKind::ENUM => {
+                self.get_value(0)?.serialize(serializer)?;
+            }
+            TypeKind::STRUCTURE => match self.type_ref().get_descriptor().extensibility_kind {
+                ExtensibilityKind::Final => {
+                    let mut final_serializer = serializer.serialize_final_struct()?;
+                    for field_index in 0..self.get_item_count() {
+                        let member_id = self.get_member_id_at_index(field_index)?;
+                        let member_descriptor = self.get_descriptor(member_id)?;
+                        final_serializer
+                            .serialize_field(self.get_value(member_id)?, &member_descriptor.name)?;
+                    }
+                }
+                ExtensibilityKind::Appendable => {
+                    let mut appendable_serializer = serializer.serialize_appendable_struct()?;
+                    for field_index in 0..self.get_item_count() {
+                        let member_id = self.get_member_id_at_index(field_index)?;
+                        let member_descriptor = self.get_descriptor(member_id)?;
+                        appendable_serializer
+                            .serialize_field(self.get_value(member_id)?, &member_descriptor.name)?;
+                    }
+                }
+                ExtensibilityKind::Mutable => {
+                    let mut mutable_serializer = serializer.serialize_mutable_struct()?;
+                    for field_index in 0..self.get_item_count() {
+                        let member_id = self.get_member_id_at_index(field_index)?;
+                        let member_descriptor = self.get_descriptor(member_id)?;
+                        let value = self.get_value(member_id)?;
+                        if member_descriptor.is_optional {
+                            if let Some(default_value) = &member_descriptor.default_value {
+                                if value == default_value {
+                                    continue;
+                                }
+                            }
+                        }
+                        mutable_serializer.serialize_field(
+                            value,
+                            member_id,
+                            &member_descriptor.name,
+                        )?;
+                    }
+                    mutable_serializer.end()?;
+                }
+            },
+            kind => todo!("Noy yet implemented for {kind:?}"),
+        }
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum DataKind {
     UInt8(u8),
@@ -89,7 +152,7 @@ impl DataKind {
             DataKind::Char8List(items) => serializer.serialize_char8_list(items),
             DataKind::BooleanList(items) => serializer.serialize_boolean_list(items),
             DataKind::StringList(items) => serializer.serialize_string_list(items),
-            DataKind::ComplexValueList(items) => serializer.serialize_sequence(items),
+            DataKind::ComplexValueList(items) => serializer.serialize_complex_value_list(items),
             DataKind::UInt8Array(items) => serializer.serialize_uint8_array(items),
             DataKind::Int8Array(items) => serializer.serialize_int8_array(items),
             DataKind::UInt16Array(items) => serializer.serialize_uint16_array(items),
@@ -103,7 +166,7 @@ impl DataKind {
             DataKind::Char8Array(items) => serializer.serialize_char8_array(items),
             DataKind::BooleanArray(items) => serializer.serialize_boolean_array(items),
             DataKind::StringArray(items) => serializer.serialize_string_array(items),
-            DataKind::ComplexValueArray(items) => serializer.serialize_array(items),
+            DataKind::ComplexValueArray(items) => serializer.serialize_complex_value_array(items),
         }
     }
 }
@@ -379,68 +442,5 @@ impl<T: TypeSupport> From<Vec<T>> for DataKind {
 impl<T: TypeSupport> From<T> for DataKind {
     fn from(value: T) -> Self {
         DataKind::ComplexValue(value.create_dynamic_sample())
-    }
-}
-
-impl DynamicData {
-    pub fn serialize<T>(&self, serializer: &mut T) -> Result<(), super::error::XTypesError>
-    where
-        for<'a> &'a mut T: XTypesSerializer,
-    {
-        self.serialize_nested(serializer)
-    }
-
-    pub fn serialize_nested<T>(&self, serializer: &mut T) -> Result<(), super::error::XTypesError>
-    where
-        for<'a> &'a mut T: XTypesSerializer,
-    {
-        match self.type_ref().get_kind() {
-            TypeKind::ENUM => {
-                self.get_value(0)?.serialize(&mut *serializer)?;
-            }
-            TypeKind::STRUCTURE => match self.type_ref().get_descriptor().extensibility_kind {
-                ExtensibilityKind::Final => {
-                    let mut final_serializer = serializer.serialize_final_struct()?;
-                    for field_index in 0..self.get_item_count() {
-                        let member_id = self.get_member_id_at_index(field_index)?;
-                        let member_descriptor = self.get_descriptor(member_id)?;
-                        final_serializer
-                            .serialize_field(self.get_value(member_id)?, &member_descriptor.name)?;
-                    }
-                }
-                ExtensibilityKind::Appendable => {
-                    let mut appendable_serializer = serializer.serialize_appendable_struct()?;
-                    for field_index in 0..self.get_item_count() {
-                        let member_id = self.get_member_id_at_index(field_index)?;
-                        let member_descriptor = self.get_descriptor(member_id)?;
-                        appendable_serializer
-                            .serialize_field(self.get_value(member_id)?, &member_descriptor.name)?;
-                    }
-                }
-                ExtensibilityKind::Mutable => {
-                    let mut mutable_serializer = serializer.serialize_mutable_struct()?;
-                    for field_index in 0..self.get_item_count() {
-                        let member_id = self.get_member_id_at_index(field_index)?;
-                        let member_descriptor = self.get_descriptor(member_id)?;
-                        let value = self.get_value(member_id)?;
-                        if member_descriptor.is_optional {
-                            if let Some(default_value) = &member_descriptor.default_value {
-                                if value == default_value {
-                                    continue;
-                                }
-                            }
-                        }
-                        mutable_serializer.serialize_field(
-                            value,
-                            member_id,
-                            &member_descriptor.name,
-                        )?;
-                    }
-                    mutable_serializer.end()?;
-                }
-            },
-            kind => todo!("Noy yet implemented for {kind:?}"),
-        }
-        Ok(())
     }
 }
