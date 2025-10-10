@@ -2,8 +2,7 @@ use super::{
     error::XTypesError,
     serialize::Write,
     serializer::{
-        SerializeAppendableStruct, SerializeFinalStruct,
-        SerializeMutableStruct, XTypesSerializer,
+        SerializeAppendableStruct, SerializeFinalStruct, SerializeMutableStruct, XTypesSerializer,
     },
 };
 use crate::xtypes::{data_representation::DataKind, dynamic_type::DynamicData};
@@ -112,12 +111,17 @@ impl Xcdr1BeSerializer<'_, ()> {
         value.serialize(&mut serializer)?;
         Ok(byte_counter.0)
     }
+    pub fn bytes_len_data_kind(value: &DataKind) -> Result<usize, XTypesError> {
+        let mut byte_counter = ByteCounter::new();
+        let mut serializer = Xcdr1BeSerializer::new(&mut byte_counter);
+        value.serialize(&mut serializer)?;
+        Ok(byte_counter.0)
+    }
 }
 
 impl<C: Write> SerializeFinalStruct for &mut Xcdr1BeSerializer<'_, C> {
     fn serialize_field(&mut self, value: &DataKind, _name: &str) -> Result<(), XTypesError> {
-        // value.serialize(&mut **self)
-        todo!()
+        value.serialize(&mut **self)
     }
 
     fn serialize_optional_field(
@@ -140,7 +144,7 @@ impl<C: Write> SerializeFinalStruct for &mut Xcdr1BeSerializer<'_, C> {
 }
 impl<C: Write> SerializeAppendableStruct for &mut Xcdr1BeSerializer<'_, C> {
     fn serialize_field(&mut self, value: &DataKind, _name: &str) -> Result<(), XTypesError> {
-        todo!()
+        value.serialize(&mut **self)
     }
 }
 impl<C: Write> SerializeMutableStruct for &mut Xcdr1BeSerializer<'_, C> {
@@ -150,13 +154,12 @@ impl<C: Write> SerializeMutableStruct for &mut Xcdr1BeSerializer<'_, C> {
         pid: u32,
         _name: &str,
     ) -> Result<(), XTypesError> {
-        todo!()
-        // let length = Xcdr1BeSerializer::bytes_len(value)? as u16;
-        // self.writer.write_slice(&(pid as u16).to_be_bytes());
-        // self.writer.write_slice(&length.to_be_bytes());
-        // value.serialize(&mut **self)?;
-        // self.writer.pad(4);
-        // Ok(())
+        let length = Xcdr1BeSerializer::bytes_len_data_kind(value)? as u16;
+        self.writer.write_slice(&(pid as u16).to_be_bytes());
+        self.writer.write_slice(&length.to_be_bytes());
+        value.serialize(&mut **self)?;
+        self.writer.pad(4);
+        Ok(())
     }
 
     fn end(self) -> Result<(), XTypesError> {
@@ -239,12 +242,11 @@ impl<C: Write> XTypesSerializer for &mut Xcdr1BeSerializer<'_, C> {
         Ok(())
     }
 
-    fn serialize_uint8_array(self, v: &[u8]) -> Result<(), XTypesError> {
-        self.writer.write_slice(v);
-        Ok(())
+    fn serialize_uint8_array(self, vs: &[u8]) -> Result<(), XTypesError> {
+        Ok(self.writer.write_slice(vs))
     }
 
-    fn serialize_string_list(self, v: &[String]) -> Result<(), XTypesError> {
+    fn serialize_string_list(self, vs: &[String]) -> Result<(), XTypesError> {
         todo!()
     }
 
@@ -368,7 +370,7 @@ impl Xcdr1LeSerializer<'_, ()> {
 
 impl<C: Write> SerializeFinalStruct for &mut Xcdr1LeSerializer<'_, C> {
     fn serialize_field(&mut self, value: &DataKind, _name: &str) -> Result<(), XTypesError> {
-        todo!()
+        value.serialize(&mut **self)
     }
 
     fn serialize_optional_field(
@@ -692,8 +694,7 @@ where
     for<'a> &'a mut S: XTypesSerializer,
 {
     fn serialize_field(&mut self, value: &DataKind, _name: &str) -> Result<(), XTypesError> {
-        todo!()
-        // value.serialize(&mut *self.serializer)
+        value.serialize(self.serializer)
     }
 
     fn serialize_optional_field(
@@ -1068,68 +1069,74 @@ impl<C: Write> XTypesSerializer for &mut Xcdr2LeSerializer<'_, C> {
 
 #[cfg(test)]
 mod tests {
+    use crate::infrastructure::type_support::TypeSupport;
+
     use super::*;
     extern crate std;
 
-    // #[test]
-    // fn round_up_to_multiples_2() {
-    //     assert_eq!(round_up_to_multiples(0, 2), 0);
-    //     assert_eq!(round_up_to_multiples(1, 2), 2);
-    //     assert_eq!(round_up_to_multiples(2, 2), 2);
-    //     assert_eq!(round_up_to_multiples(3, 2), 4);
-    //     assert_eq!(round_up_to_multiples(4, 2), 4);
-    // }
+    #[test]
+    fn round_up_to_multiples_2() {
+        assert_eq!(round_up_to_multiples(0, 2), 0);
+        assert_eq!(round_up_to_multiples(1, 2), 2);
+        assert_eq!(round_up_to_multiples(2, 2), 2);
+        assert_eq!(round_up_to_multiples(3, 2), 4);
+        assert_eq!(round_up_to_multiples(4, 2), 4);
+    }
 
-    // #[test]
-    // fn round_up_to_multiples_4() {
-    //     assert_eq!(round_up_to_multiples(0, 4), 0);
-    //     assert_eq!(round_up_to_multiples(1, 4), 4);
-    //     assert_eq!(round_up_to_multiples(2, 4), 4);
-    //     assert_eq!(round_up_to_multiples(3, 4), 4);
-    //     assert_eq!(round_up_to_multiples(4, 4), 4);
-    //     assert_eq!(round_up_to_multiples(5, 4), 8);
-    // }
-    // #[test]
-    // fn round_up_to_multiples_8() {
-    //     assert_eq!(round_up_to_multiples(0, 8), 0);
-    //     assert_eq!(round_up_to_multiples(1, 8), 8);
-    //     assert_eq!(round_up_to_multiples(2, 8), 8);
-    //     assert_eq!(round_up_to_multiples(3, 8), 8);
-    //     assert_eq!(round_up_to_multiples(4, 8), 8);
-    //     assert_eq!(round_up_to_multiples(5, 8), 8);
-    //     assert_eq!(round_up_to_multiples(6, 8), 8);
-    //     assert_eq!(round_up_to_multiples(7, 8), 8);
-    //     assert_eq!(round_up_to_multiples(8, 8), 8);
-    //     assert_eq!(round_up_to_multiples(9, 8), 16);
-    // }
+    #[test]
+    fn round_up_to_multiples_4() {
+        assert_eq!(round_up_to_multiples(0, 4), 0);
+        assert_eq!(round_up_to_multiples(1, 4), 4);
+        assert_eq!(round_up_to_multiples(2, 4), 4);
+        assert_eq!(round_up_to_multiples(3, 4), 4);
+        assert_eq!(round_up_to_multiples(4, 4), 4);
+        assert_eq!(round_up_to_multiples(5, 4), 8);
+    }
+    #[test]
+    fn round_up_to_multiples_8() {
+        assert_eq!(round_up_to_multiples(0, 8), 0);
+        assert_eq!(round_up_to_multiples(1, 8), 8);
+        assert_eq!(round_up_to_multiples(2, 8), 8);
+        assert_eq!(round_up_to_multiples(3, 8), 8);
+        assert_eq!(round_up_to_multiples(4, 8), 8);
+        assert_eq!(round_up_to_multiples(5, 8), 8);
+        assert_eq!(round_up_to_multiples(6, 8), 8);
+        assert_eq!(round_up_to_multiples(7, 8), 8);
+        assert_eq!(round_up_to_multiples(8, 8), 8);
+        assert_eq!(round_up_to_multiples(9, 8), 16);
+    }
 
-    // fn serialize_v1_be<T: XTypesSerialize>(v: &T) -> std::vec::Vec<u8> {
-    //     let mut buffer = std::vec::Vec::new();
-    //     v.serialize(&mut Xcdr1BeSerializer::new(&mut buffer))
-    //         .unwrap();
-    //     buffer
-    // }
+    fn serialize_v1_be<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
+        let mut buffer = std::vec::Vec::new();
+        v.create_dynamic_sample()
+            .serialize(&mut Xcdr1BeSerializer::new(&mut buffer))
+            .unwrap();
+        buffer
+    }
 
-    // fn serialize_v1_le<T: XTypesSerialize>(v: &T) -> std::vec::Vec<u8> {
-    //     let mut buffer = std::vec::Vec::new();
-    //     v.serialize(&mut Xcdr1LeSerializer::new(&mut buffer))
-    //         .unwrap();
-    //     buffer
-    // }
+    fn serialize_v1_le<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
+        let mut buffer = std::vec::Vec::new();
+        v.create_dynamic_sample()
+            .serialize(&mut Xcdr1LeSerializer::new(&mut buffer))
+            .unwrap();
+        buffer
+    }
 
-    // fn serialize_v2_be<T: XTypesSerialize>(v: &T) -> std::vec::Vec<u8> {
-    //     let mut buffer = std::vec::Vec::new();
-    //     v.serialize(&mut Xcdr2BeSerializer::new(&mut buffer))
-    //         .unwrap();
-    //     buffer
-    // }
+    fn serialize_v2_be<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
+        let mut buffer = std::vec::Vec::new();
+        v.create_dynamic_sample()
+            .serialize(&mut Xcdr2BeSerializer::new(&mut buffer))
+            .unwrap();
+        buffer
+    }
 
-    // fn serialize_v2_le<T: XTypesSerialize>(v: &T) -> std::vec::Vec<u8> {
-    //     let mut buffer = std::vec::Vec::new();
-    //     v.serialize(&mut Xcdr2LeSerializer::new(&mut buffer))
-    //         .unwrap();
-    //     buffer
-    // }
+    fn serialize_v2_le<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
+        let mut buffer = std::vec::Vec::new();
+        v.create_dynamic_sample()
+            .serialize(&mut Xcdr2LeSerializer::new(&mut buffer))
+            .unwrap();
+        buffer
+    }
 
     // #[test]
     // fn serialize_octet() {
@@ -1354,57 +1361,50 @@ mod tests {
     //     assert_eq!(serialize_v2_le(&v), vec![1, 2, 3, 4, 5]);
     // }
 
-    // //@extensibility(FINAL)
-    // struct FinalType {
-    //     field_u16: u16,
-    //     field_u64: u64,
-    // }
+    #[derive(TypeSupport, Clone)]
+    // #[dust_dds(extensibility = "final")]
+    struct FinalType {
+        field_u16: u16,
+        field_u64: u64,
+    }
 
-    // impl XTypesSerialize for FinalType {
-    //     fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
-    //         let mut serializer = serializer.serialize_final_struct()?;
-    //         serializer.serialize_field(&self.field_u16, "field_u16")?;
-    //         serializer.serialize_field(&self.field_u64, "field_u64")
-    //     }
-    // }
-
-    // #[test]
-    // fn serialize_final_struct() {
-    //     let v = FinalType {
-    //         field_u16: 7,
-    //         field_u64: 9,
-    //     };
-    //     // PLAIN_CDR:
-    //     assert_eq!(
-    //         serialize_v1_be(&v),
-    //         vec![
-    //             0, 7, 0, 0, 0, 0, 0, 0, // field_u16 | padding (6 bytes)
-    //             0, 0, 0, 0, 0, 0, 0, 9, // field_u64
-    //         ]
-    //     );
-    //     assert_eq!(
-    //         serialize_v1_le(&v),
-    //         vec![
-    //             7, 0, 0, 0, 0, 0, 0, 0, // field_u16 | padding (6 bytes)
-    //             9, 0, 0, 0, 0, 0, 0, 0, // field_u64
-    //         ]
-    //     );
-    //     // PLAIN_CDR2:
-    //     assert_eq!(
-    //         serialize_v2_be(&v),
-    //         vec![
-    //             0, 7, 0, 0, // field_u16 | padding (2 bytes)
-    //             0, 0, 0, 0, 0, 0, 0, 9, // field_u64
-    //         ]
-    //     );
-    //     assert_eq!(
-    //         serialize_v2_le(&v),
-    //         vec![
-    //             7, 0, 0, 0, // field_u16 | padding (2 bytes)
-    //             9, 0, 0, 0, 0, 0, 0, 0, // field_u64
-    //         ]
-    //     );
-    // }
+    #[test]
+    fn serialize_final_struct() {
+        let v = FinalType {
+            field_u16: 7,
+            field_u64: 9,
+        };
+        // PLAIN_CDR:
+        assert_eq!(
+            serialize_v1_be(v.clone()),
+            vec![
+                0, 7, 0, 0, 0, 0, 0, 0, // field_u16 | padding (6 bytes)
+                0, 0, 0, 0, 0, 0, 0, 9, // field_u64
+            ]
+        );
+        assert_eq!(
+            serialize_v1_le(v.clone()),
+            vec![
+                7, 0, 0, 0, 0, 0, 0, 0, // field_u16 | padding (6 bytes)
+                9, 0, 0, 0, 0, 0, 0, 0, // field_u64
+            ]
+        );
+        // PLAIN_CDR2:
+        assert_eq!(
+            serialize_v2_be(v.clone()),
+            vec![
+                0, 7, 0, 0, // field_u16 | padding (2 bytes)
+                0, 0, 0, 0, 0, 0, 0, 9, // field_u64
+            ]
+        );
+        assert_eq!(
+            serialize_v2_le(v.clone()),
+            vec![
+                7, 0, 0, 0, // field_u16 | padding (2 bytes)
+                9, 0, 0, 0, 0, 0, 0, 0, // field_u64
+            ]
+        );
+    }
 
     // //@extensibility(FINAL)
     // struct FinalOptionalType {
