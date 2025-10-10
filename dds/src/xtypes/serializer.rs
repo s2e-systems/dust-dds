@@ -48,11 +48,11 @@ pub trait XTypesSerializer {
     /// Start serializing a type with mutable extensibility.
     fn serialize_mutable_struct(self) -> Result<impl SerializeMutableStruct, XTypesError>;
 
-    /// Start serializing a sequence with a given length.
-    fn serialize_sequence(self, v: &[DynamicData]) -> Result<(), XTypesError>;
+    /// Serializing a sequence with a dynamic length
+    fn serialize_sequence(self, vs: &[DynamicData]) -> Result<(), XTypesError>;
 
-    /// Start serializing a sequence
-    fn serialize_array(self) -> Result<impl SerializeCollection, XTypesError>;
+    /// Serializing a sequence with a static length
+    fn serialize_array(self, vs: &[DynamicData]) -> Result<(), XTypesError>;
 
     /// Serialize a [`bool`] value.
     fn serialize_boolean(self, v: bool) -> Result<(), XTypesError>;
@@ -93,12 +93,82 @@ pub trait XTypesSerializer {
     /// Serialize a [`str`] value.
     fn serialize_string(self, v: &str) -> Result<(), XTypesError>;
 
-    /// Serialize a [`Vec<str>`] value.
-    fn serialize_string_list(self, v: &[String]) -> Result<(), XTypesError>;
+    /// Serialize a list of [`bool`] values.
+    fn serialize_boolean_list(self, vs: &[bool]) -> Result<(), XTypesError>;
 
-    /// Serialize a variable sized sequence of bytes.
-    fn serialize_byte_sequence(self, v: &[u8]) -> Result<(), XTypesError>;
+    /// Serialize a list of [`u8`] values.
+    fn serialize_uint8_list(self, vs: &[u8]) -> Result<(), XTypesError>;
 
-    /// Serialize an array of bytes.
-    fn serialize_byte_array(self, v: &[u8]) -> Result<(), XTypesError>;
+    /// Serialize a list of [`i8`] values.
+    fn serialize_int8_list(self, vs: &[i8]) -> Result<(), XTypesError>;
+
+    /// Serialize a list of [`i16`] values.
+    fn serialize_int16_list(self, vs: &[i16]) -> Result<(), XTypesError>;
+
+    /// Serialize a list of [`i32`] values.
+    fn serialize_int32_list(self, vs: &[i32]) -> Result<(), XTypesError>;
+
+    /// Serialize a list of [`i64`] values.
+    fn serialize_int64_list(self, vs: &[i64]) -> Result<(), XTypesError>;
+
+    /// Serialize a list of [`u16`] values.
+    fn serialize_uint16_list(self, vs: &[u16]) -> Result<(), XTypesError>;
+
+    /// Serialize a list of [`u32`] values.
+    fn serialize_uint32_list(self, vs: &[u32]) -> Result<(), XTypesError>;
+
+    /// Serialize a list of [`u64`] values.
+    fn serialize_uint64_list(self, vs: &[u64]) -> Result<(), XTypesError>;
+
+    /// Serialize a list of [`f32`] values.
+    fn serialize_float32_list(self, vs: &[f32]) -> Result<(), XTypesError>;
+
+    /// Serialize a list of [`f64`] values.
+    fn serialize_float64_list(self, vs: &[f64]) -> Result<(), XTypesError>;
+
+    /// Serialize a list of [`char`] values.
+    fn serialize_char8_list(self, vs: &[char]) -> Result<(), XTypesError>;
+
+    /// Serialize a list of [`String`] values.
+    fn serialize_string_list(self, vs: &[String]) -> Result<(), XTypesError>;
+
+
+    /// Serialize a list of [`bool`] values.
+    fn serialize_boolean_array(self, vs: &[bool]) -> Result<(), XTypesError>;
+
+    /// Serialize an array of [`u8`] values.
+    fn serialize_uint8_array(self, vs: &[u8]) -> Result<(), XTypesError>;
+
+    /// Serialize an array of [`i8`] values.
+    fn serialize_int8_array(self, vs: &[i8]) -> Result<(), XTypesError>;
+
+    /// Serialize an array of [`i16`] values.
+    fn serialize_int16_array(self, vs: &[i16]) -> Result<(), XTypesError>;
+
+    /// Serialize an array of [`i32`] values.
+    fn serialize_int32_array(self, vs: &[i32]) -> Result<(), XTypesError>;
+
+    /// Serialize an array of [`i64`] values.
+    fn serialize_int64_array(self, vs: &[i64]) -> Result<(), XTypesError>;
+
+    /// Serialize an array of [`u16`] values.
+    fn serialize_uint16_array(self, vs: &[u16]) -> Result<(), XTypesError>;
+
+    /// Serialize an array of [`u32`] values.
+    fn serialize_uint32_array(self, vs: &[u32]) -> Result<(), XTypesError>;
+
+    /// Serialize an array of [`u64`] values.
+    fn serialize_uint64_array(self, vs: &[u64]) -> Result<(), XTypesError>;
+
+    /// Serialize an array of [`f32`] values.
+    fn serialize_float32_array(self, vs: &[f32]) -> Result<(), XTypesError>;
+
+    /// Serialize an array of [`f64`] values.
+    fn serialize_float64_array(self, vs: &[f64]) -> Result<(), XTypesError>;
+
+    /// Serialize an array of [`char`] values.
+    fn serialize_char8_array(self, vs: &[char]) -> Result<(), XTypesError>;
+
+    /// Serialize an array of [`String`] values.
+    fn serialize_string_array(self, vs: &[String]) -> Result<(), XTypesError>;
 }
