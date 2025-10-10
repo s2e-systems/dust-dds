@@ -2,7 +2,7 @@ use crate::{
     infrastructure::type_support::TypeSupport,
     xtypes::{
         dynamic_type::{DynamicData, DynamicType, DynamicTypeBuilderFactory, TypeKind},
-        serialize::XTypesSerialize,
+        serialize::{SerializeCollection, XTypesSerialize},
         serializer::SerializeFinalStruct,
     },
 };
@@ -26,7 +26,7 @@ pub enum DataKind {
     Boolean(bool),
     String(String),
     ComplexValue(DynamicData),
-    UInt8List(Vec<u8>),
+    UInt8Array(Vec<u8>),
     Int8List(Vec<i8>),
     UInt16List(Vec<u16>),
     Int16List(Vec<i16>),
@@ -43,12 +43,10 @@ pub enum DataKind {
 }
 
 impl DataKind {
-    pub fn serialize<T>(
-        &self,
-        serializer: &mut T,
-    ) -> Result<(), super::error::XTypesError> where
-    for<'a> &'a mut T: XTypesSerializer {
-
+    pub fn serialize<T>(&self, serializer: &mut T) -> Result<(), super::error::XTypesError>
+    where
+        for<'a> &'a mut T: XTypesSerializer,
+    {
         match self {
             DataKind::UInt8(v) => serializer.serialize_uint8(*v),
             DataKind::Int8(_) => todo!(),
@@ -64,7 +62,7 @@ impl DataKind {
             DataKind::Boolean(v) => serializer.serialize_boolean(*v),
             DataKind::String(v) => serializer.serialize_string(v),
             DataKind::ComplexValue(dynamic_data) => dynamic_data.serialize(serializer),
-            DataKind::UInt8List(items) => serializer.serialize_byte_array(items),
+            DataKind::UInt8Array(items) => serializer.serialize_byte_array(items),
             DataKind::Int8List(items) => todo!(),
             DataKind::UInt16List(items) => todo!(),
             DataKind::Int16List(items) => todo!(),
@@ -76,12 +74,14 @@ impl DataKind {
             DataKind::Float64List(items) => todo!(),
             DataKind::Char8List(items) => todo!(),
             DataKind::BooleanList(items) => todo!(),
-            DataKind::StringList(items) => todo!(),
+            DataKind::StringList(items) => serializer.serialize_string_list(items),
             DataKind::ComplexValueList(dynamic_datas) => {
-                crate::xtypes::data_representation::serialize_dynamic_datas(
-                    dynamic_datas,
-                    serializer,
-                )
+                let mut collection_serializer =
+                    serializer.serialize_sequence(dynamic_datas.len())?;
+                for data in dynamic_datas {
+                    collection_serializer.serialize_element(data)?;
+                }
+                Ok(())
             }
         }
     }
@@ -173,7 +173,7 @@ impl From<String> for DataKind {
 
 impl<const N: usize> From<[u8; N]> for DataKind {
     fn from(value: [u8; N]) -> Self {
-        Self::UInt8List(value.to_vec())
+        Self::UInt8Array(value.to_vec())
     }
 }
 
@@ -262,7 +262,7 @@ impl<const N: usize, T: TypeSupport> From<[T; N]> for DataKind {
 
 impl From<Vec<u8>> for DataKind {
     fn from(value: Vec<u8>) -> Self {
-        Self::UInt8List(value)
+        Self::UInt8Array(value)
     }
 }
 
@@ -340,7 +340,7 @@ impl From<Vec<String>> for DataKind {
 
 impl From<&[u8]> for DataKind {
     fn from(value: &[u8]) -> Self {
-        Self::UInt8List(value.to_vec())
+        Self::UInt8Array(value.to_vec())
     }
 }
 

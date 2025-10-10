@@ -1,6 +1,6 @@
 use crate::xtypes::{
     dynamic_type::{DynamicData, ExtensibilityKind, MemberDescriptor, TypeKind},
-    serialize::{SerializeCollection, XTypesSerialize},
+    serialize::{SerializeCollection, XTypesSerialize, XTypesSerializer},
     serializer::{SerializeAppendableStruct, SerializeFinalStruct, SerializeMutableStruct},
 };
 use alloc::vec::Vec;
@@ -46,38 +46,13 @@ where
 }
 
 impl DynamicData {
-    pub fn serialize(
-        &self,
-        serializer: impl super::serialize::XTypesSerializer,
-    ) -> Result<(), super::error::XTypesError> {
+    pub fn serialize<T>(&self, serializer: &mut T) -> Result<(), super::error::XTypesError>
+    where
+        for<'a> &'a mut T: XTypesSerializer,
+    {
         match self.type_ref().get_kind() {
             TypeKind::ENUM => {
-                match self
-                    .type_ref()
-                    .get_descriptor()
-                    .discriminator_type
-                    .as_ref()
-                    .expect("Enumerations must have discriminator")
-                    .get_kind()
-                {
-                    TypeKind::UINT8 => {
-                        let value = self.get_uint8_value(0)?;
-                        serializer.serialize_uint8(*value)?;
-                    }
-                    TypeKind::INT16 => {
-                        let value = self.get_int16_value(0)?;
-                        serializer.serialize_int16(*value)?;
-                    }
-                    TypeKind::INT32 => {
-                        let value = self.get_int32_value(0)?;
-                        serializer.serialize_int32(*value)?;
-                    }
-                    discriminator_type => {
-                        unimplemented!(
-                            "Not implemented for discriminator of type {discriminator_type:?}"
-                        )
-                    }
-                }
+                self.get_value(0)?.serialize(&mut *serializer)?;
             }
             TypeKind::STRUCTURE => match self.type_ref().get_descriptor().extensibility_kind {
                 ExtensibilityKind::Final => {
@@ -85,12 +60,8 @@ impl DynamicData {
                     for field_index in 0..self.get_item_count() {
                         let member_id = self.get_member_id_at_index(field_index)?;
                         let member_descriptor = self.get_descriptor(member_id)?;
-                        let member_type_kind = member_descriptor.r#type.get_kind();
-                        let member_name = &member_descriptor.name;
-
-                        let value = self.get_value(member_id)?;
-
-                        final_serializer.serialize_field(value, member_name)?;
+                        final_serializer
+                            .serialize_field(self.get_value(member_id)?, &member_descriptor.name)?;
                     }
                 }
                 ExtensibilityKind::Appendable => {
@@ -98,10 +69,8 @@ impl DynamicData {
                     for field_index in 0..self.get_item_count() {
                         let member_id = self.get_member_id_at_index(field_index)?;
                         let member_descriptor = self.get_descriptor(member_id)?;
-                        let member_type_kind = member_descriptor.r#type.get_kind();
-                        let member_name = &member_descriptor.name;
-                        let value = self.get_value(member_id)?;
-                        appendable_serializer.serialize_field(value, member_name)?;
+                        appendable_serializer
+                            .serialize_field(self.get_value(member_id)?, &member_descriptor.name)?;
                     }
                 }
                 ExtensibilityKind::Mutable => {
@@ -132,42 +101,6 @@ impl DynamicData {
                     mutable_serializer.end()?;
                 }
             },
-            TypeKind::BOOLEAN => {
-                serializer.serialize_boolean(*self.get_boolean_value(0)?)?;
-            }
-            TypeKind::UINT8 => {
-                serializer.serialize_uint8(*self.get_uint8_value(0)?)?;
-            }
-            TypeKind::CHAR8 => {
-                serializer.serialize_char8(*self.get_char8_value(0)?)?;
-            }
-            TypeKind::INT16 => {
-                serializer.serialize_int16(*self.get_int16_value(0)?)?;
-            }
-            TypeKind::UINT16 => {
-                serializer.serialize_uint16(*self.get_uint16_value(0)?)?;
-            }
-            TypeKind::INT32 => {
-                serializer.serialize_int32(*self.get_int32_value(0)?)?;
-            }
-            TypeKind::UINT32 => {
-                serializer.serialize_uint32(*self.get_uint32_value(0)?)?;
-            }
-            TypeKind::INT64 => {
-                serializer.serialize_int64(*self.get_int64_value(0)?)?;
-            }
-            TypeKind::UINT64 => {
-                serializer.serialize_uint64(*self.get_uint64_value(0)?)?;
-            }
-            TypeKind::FLOAT32 => {
-                serializer.serialize_float32(*self.get_float32_value(0)?)?;
-            }
-            TypeKind::FLOAT64 => {
-                serializer.serialize_float64(*self.get_float64_value(0)?)?;
-            }
-            TypeKind::STRING8 => {
-                serializer.serialize_string(self.get_string_value(0)?)?;
-            }
             kind => todo!("Noy yet implemented for {kind:?}"),
         }
         Ok(())

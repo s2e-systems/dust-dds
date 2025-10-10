@@ -255,6 +255,10 @@ impl<C: Write> XTypesSerializer for &mut Xcdr1BeSerializer<'_, C> {
         self.writer.write_slice(v);
         Ok(())
     }
+
+    fn serialize_string_list(self, v: &[String]) -> Result<(), XTypesError> {
+        todo!()
+    }
 }
 
 pub struct Xcdr1LeSerializer<'a, C> {
@@ -297,7 +301,7 @@ where
         DataKind::Boolean(_) => todo!(),
         DataKind::String(_) => todo!(),
         DataKind::ComplexValue(dynamic_data) => dynamic_data.serialize(serializer),
-        DataKind::UInt8List(items) => todo!(),
+        DataKind::UInt8Array(items) => todo!(),
         DataKind::Int8List(items) => todo!(),
         DataKind::UInt16List(items) => todo!(),
         DataKind::Int16List(items) => todo!(),
@@ -331,7 +335,7 @@ impl<C: Write> SerializeFinalStruct for &mut Xcdr1LeSerializer<'_, C> {
             DataKind::Boolean(_) => todo!(),
             DataKind::String(_) => todo!(),
             DataKind::ComplexValue(dynamic_data) => dynamic_data.serialize(&mut **self),
-            DataKind::UInt8List(items) => todo!(),
+            DataKind::UInt8Array(items) => todo!(),
             DataKind::Int8List(items) => todo!(),
             DataKind::UInt16List(items) => todo!(),
             DataKind::Int16List(items) => todo!(),
@@ -482,6 +486,10 @@ impl<C: Write> XTypesSerializer for &mut Xcdr1LeSerializer<'_, C> {
     fn serialize_byte_array(self, v: &[u8]) -> Result<(), XTypesError> {
         self.writer.write_slice(v);
         Ok(())
+    }
+
+    fn serialize_string_list(self, v: &[String]) -> Result<(), XTypesError> {
+        todo!()
     }
 }
 
@@ -701,6 +709,10 @@ impl<C: Write> XTypesSerializer for &mut Xcdr2BeSerializer<'_, C> {
         self.writer.write_slice(v);
         Ok(())
     }
+
+    fn serialize_string_list(self, v: &[String]) -> Result<(), XTypesError> {
+        todo!()
+    }
 }
 
 impl<C: Write> XTypesSerializer for &mut Xcdr2LeSerializer<'_, C> {
@@ -771,6 +783,10 @@ impl<C: Write> XTypesSerializer for &mut Xcdr2LeSerializer<'_, C> {
     fn serialize_byte_array(self, v: &[u8]) -> Result<(), XTypesError> {
         self.writer.write_slice(v);
         Ok(())
+    }
+
+    fn serialize_string_list(self, v: &[String]) -> Result<(), XTypesError> {
+        todo!()
     }
 }
 

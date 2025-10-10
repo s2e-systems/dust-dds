@@ -852,7 +852,7 @@ impl DynamicData {
     }
 
     pub fn get_byte_values(&self, id: MemberId) -> XTypesResult<&Vec<u8>> {
-        if let DataKind::UInt8List(d) = self
+        if let DataKind::UInt8Array(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
@@ -864,7 +864,7 @@ impl DynamicData {
     }
 
     pub fn set_byte_values(&mut self, id: MemberId, value: Vec<u8>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, DataKind::UInt8List(value));
+        self.abstract_data.insert(id, DataKind::UInt8Array(value));
         Ok(())
     }
 
@@ -904,7 +904,7 @@ impl DynamicData {
 
     // Custom functions
     pub fn get_uint8_values(&self, id: MemberId) -> XTypesResult<&Vec<u8>> {
-        if let DataKind::UInt8List(d) = self
+        if let DataKind::UInt8Array(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
@@ -916,7 +916,7 @@ impl DynamicData {
     }
 
     pub fn set_uint8_values(&mut self, id: MemberId, value: Vec<u8>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, DataKind::UInt8List(value));
+        self.abstract_data.insert(id, DataKind::UInt8Array(value));
         Ok(())
     }
 

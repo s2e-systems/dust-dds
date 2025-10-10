@@ -89,6 +89,9 @@ pub trait XTypesSerializer {
     /// Serialize a [`str`] value.
     fn serialize_string(self, v: &str) -> Result<(), XTypesError>;
 
+    /// Serialize a [`Vec<str>`] value.
+    fn serialize_string_list(self, v: &[String]) -> Result<(), XTypesError>;
+
     /// Serialize a variable sized sequence of bytes.
     fn serialize_byte_sequence(self, v: &[u8]) -> Result<(), XTypesError>;
 
