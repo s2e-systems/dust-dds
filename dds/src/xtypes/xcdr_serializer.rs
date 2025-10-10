@@ -544,8 +544,11 @@ impl<C: Write> XTypesSerializer for &mut Xcdr1LeSerializer<'_, C> {
         todo!()
     }
 
-    fn serialize_int64_list(self, _vs: &[i64]) -> Result<(), XTypesError> {
-        todo!()
+    fn serialize_int64_list(self, vs: &[i64]) -> Result<(), XTypesError> {
+        for &v in vs {
+            self.serialize_int64(v)?;
+        }
+        Ok(())
     }
 
     fn serialize_uint16_list(self, _vs: &[u16]) -> Result<(), XTypesError> {
