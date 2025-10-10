@@ -249,11 +249,11 @@ impl From<String> for DataKind {
     }
 }
 
-// impl<T: TypeSupport> From<T> for DataKind {
-//     fn from(value: T) -> Self {
-//         Self::ComplexValue(value.create_dynamic_sample())
-//     }
-// }
+impl<T: TypeSupport> From<T> for DataKind {
+    fn from(value: T) -> Self {
+        Self::ComplexValue(value.create_dynamic_sample())
+    }
+}
 
 impl<const N: usize> From<[u8; N]> for DataKind {
     fn from(value: [u8; N]) -> Self {
@@ -263,79 +263,79 @@ impl<const N: usize> From<[u8; N]> for DataKind {
 
 impl<const N: usize> From<[i8; N]> for DataKind {
     fn from(value: [i8; N]) -> Self {
-        Self::Int8List(value.to_vec())
+        Self::Int8Array(value.to_vec())
     }
 }
 
 impl<const N: usize> From<[u16; N]> for DataKind {
     fn from(value: [u16; N]) -> Self {
-        Self::UInt16List(value.to_vec())
+        Self::UInt16Array(value.to_vec())
     }
 }
 
 impl<const N: usize> From<[i16; N]> for DataKind {
     fn from(value: [i16; N]) -> Self {
-        Self::Int16List(value.to_vec())
+        Self::Int16Array(value.to_vec())
     }
 }
 
 impl<const N: usize> From<[u32; N]> for DataKind {
     fn from(value: [u32; N]) -> Self {
-        Self::UInt32List(value.to_vec())
+        Self::UInt32Array(value.to_vec())
     }
 }
 
 impl<const N: usize> From<[i32; N]> for DataKind {
     fn from(value: [i32; N]) -> Self {
-        Self::Int32List(value.to_vec())
+        Self::Int32Array(value.to_vec())
     }
 }
 
 impl<const N: usize> From<[u64; N]> for DataKind {
     fn from(value: [u64; N]) -> Self {
-        Self::UInt64List(value.to_vec())
+        Self::UInt64Array(value.to_vec())
     }
 }
 
 impl<const N: usize> From<[i64; N]> for DataKind {
     fn from(value: [i64; N]) -> Self {
-        Self::Int64List(value.to_vec())
+        Self::Int64Array(value.to_vec())
     }
 }
 
 impl<const N: usize> From<[f32; N]> for DataKind {
     fn from(value: [f32; N]) -> Self {
-        Self::Float32List(value.to_vec())
+        Self::Float32Array(value.to_vec())
     }
 }
 
 impl<const N: usize> From<[f64; N]> for DataKind {
     fn from(value: [f64; N]) -> Self {
-        Self::Float64List(value.to_vec())
+        Self::Float64Array(value.to_vec())
     }
 }
 
 impl<const N: usize> From<[char; N]> for DataKind {
     fn from(value: [char; N]) -> Self {
-        Self::Char8List(value.to_vec())
+        Self::Char8Array(value.to_vec())
     }
 }
 
 impl<const N: usize> From<[bool; N]> for DataKind {
     fn from(value: [bool; N]) -> Self {
-        Self::BooleanList(value.to_vec())
+        Self::BooleanArray(value.to_vec())
     }
 }
 
 impl<const N: usize> From<[String; N]> for DataKind {
     fn from(value: [String; N]) -> Self {
-        Self::StringList(value.to_vec())
+        Self::StringArray(value.to_vec())
     }
 }
 
 impl<const N: usize, T: TypeSupport> From<[T; N]> for DataKind {
     fn from(value: [T; N]) -> Self {
-        Self::ComplexValueList(
+        Self::ComplexValueArray(
             value
                 .into_iter()
                 .map(TypeSupport::create_dynamic_sample)
@@ -346,7 +346,7 @@ impl<const N: usize, T: TypeSupport> From<[T; N]> for DataKind {
 
 impl From<Vec<u8>> for DataKind {
     fn from(value: Vec<u8>) -> Self {
-        Self::UInt8Array(value)
+        Self::UInt8List(value)
     }
 }
 
@@ -439,8 +439,4 @@ impl<T: TypeSupport> From<Vec<T>> for DataKind {
     }
 }
 
-impl<T: TypeSupport> From<T> for DataKind {
-    fn from(value: T) -> Self {
-        DataKind::ComplexValue(value.create_dynamic_sample())
-    }
-}
+

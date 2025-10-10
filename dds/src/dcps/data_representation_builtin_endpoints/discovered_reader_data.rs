@@ -28,7 +28,6 @@ use crate::{
     },
 };
 use alloc::{string::String, vec::Vec};
-use dust_dds::infrastructure::type_support::TypeSupport;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ReaderProxy {
@@ -348,6 +347,7 @@ mod tests {
     use super::*;
     use crate::{
         builtin_topics::BuiltInTopicKey,
+        infrastructure::type_support::TypeSupport,
         transport::types::{
             EntityId, Guid, BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_WITH_KEY,
             USER_DEFINED_UNKNOWN,

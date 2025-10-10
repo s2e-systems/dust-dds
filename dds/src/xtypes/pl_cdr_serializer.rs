@@ -171,7 +171,7 @@ impl<C: Write> XTypesSerializer for &mut PlCdrLeSerializer<'_, C> {
     }
 
     fn serialize_complex_value(self, v: &DynamicData) -> Result<(), XTypesError> {
-        v.serialize_nested(&mut *self)
+        v.serialize_nested(self)
     }
 
     fn serialize_complex_value_list(self, vs: &[DynamicData]) -> Result<(), XTypesError> {
@@ -243,20 +243,11 @@ impl<C: Write> XTypesSerializer for &mut PlCdrLeSerializer<'_, C> {
         Ok(())
     }
 
-    fn serialize_uint8_array(self, v: &[u8]) -> Result<(), XTypesError> {
-        self.writer.write_slice(v);
-        Ok(())
-    }
-
-    fn serialize_string_list(self, v: &[String]) -> Result<(), XTypesError> {
-        self.serialize_uint32(into_u32(v.len())?)?;
-        for value in v {
-            self.serialize_string(value)?;
-        }
-        Ok(())
-    }
-
     fn serialize_boolean_list(self, _vs: &[bool]) -> Result<(), XTypesError> {
+        unimplemented!()
+    }
+
+    fn serialize_uint8_list(self, _vs: &[u8]) -> Result<(), XTypesError> {
         unimplemented!()
     }
 
@@ -273,10 +264,6 @@ impl<C: Write> XTypesSerializer for &mut PlCdrLeSerializer<'_, C> {
     }
 
     fn serialize_int64_list(self, _vs: &[i64]) -> Result<(), XTypesError> {
-        unimplemented!()
-    }
-
-    fn serialize_uint8_list(self, _vs: &[u8]) -> Result<(), XTypesError> {
         unimplemented!()
     }
 
@@ -304,8 +291,21 @@ impl<C: Write> XTypesSerializer for &mut PlCdrLeSerializer<'_, C> {
         unimplemented!()
     }
 
+    fn serialize_string_list(self, v: &[String]) -> Result<(), XTypesError> {
+        self.serialize_uint32(into_u32(v.len())?)?;
+        for value in v {
+            self.serialize_string(value)?;
+        }
+        Ok(())
+    }
+
     fn serialize_boolean_array(self, _vs: &[bool]) -> Result<(), XTypesError> {
         unimplemented!()
+    }
+
+    fn serialize_uint8_array(self, v: &[u8]) -> Result<(), XTypesError> {
+        self.writer.write_slice(v);
+        Ok(())
     }
 
     fn serialize_int8_array(self, _vs: &[i8]) -> Result<(), XTypesError> {

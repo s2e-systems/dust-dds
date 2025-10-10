@@ -5,7 +5,6 @@ use crate::{
         xcdr_deserializer::{Xcdr2BeDeserializer, Xcdr2LeDeserializer},
     },
 };
-use alloc::vec::Vec;
 pub use dust_dds_derive::{DdsDeserialize, TypeSupport};
 
 /// The TypeSupport trait represents a type that can be transmitted by DDS.
@@ -76,7 +75,7 @@ use crate::xtypes::{
 pub use dust_dds_derive::DdsType;
 
 type RepresentationIdentifier = [u8; 2];
-type RepresentationOptions = [u8; 2];
+// type RepresentationOptions = [u8; 2];
 
 const CDR_BE: RepresentationIdentifier = [0x00, 0x00];
 const CDR_LE: RepresentationIdentifier = [0x00, 0x01];
@@ -86,7 +85,7 @@ const D_CDR2_BE: RepresentationIdentifier = [0x00, 0x08];
 const D_CDR2_LE: RepresentationIdentifier = [0x00, 0x09];
 const _PL_CDR_BE: RepresentationIdentifier = [0x00, 0x02];
 const _PL_CDR_LE: RepresentationIdentifier = [0x00, 0x03];
-const REPRESENTATION_OPTIONS: RepresentationOptions = [0x00, 0x00];
+// const REPRESENTATION_OPTIONS: RepresentationOptions = [0x00, 0x00];
 
 // /// This is a helper function to serialize a type implementing [`XTypesSerialize`] using the XTypes defined XCDR1 representation with LittleEndian endianness.
 // pub fn serialize_rtps_xtypes_xcdr1_le(value: &impl XTypesSerialize) -> DdsResult<Vec<u8>> {
@@ -112,16 +111,16 @@ const REPRESENTATION_OPTIONS: RepresentationOptions = [0x00, 0x00];
 //     Ok(writer)
 // }
 
-fn pad(writer: &mut Vec<u8>) {
-    let padding = match writer.len() % 4 {
-        1 => &[0, 0, 0][..],
-        2 => &[0, 0][..],
-        3 => &[0][..],
-        _ => &[][..],
-    };
-    writer.extend_from_slice(padding);
-    writer[3] = padding.len() as u8;
-}
+// fn pad(writer: &mut Vec<u8>) {
+//     let padding = match writer.len() % 4 {
+//         1 => &[0, 0, 0][..],
+//         2 => &[0, 0][..],
+//         3 => &[0][..],
+//         _ => &[][..],
+//     };
+//     writer.extend_from_slice(padding);
+//     writer[3] = padding.len() as u8;
+// }
 
 /// This is a helper function to deserialize a type implementing [`CdrDeserialize`] using the RTPS classic CDR representation.
 /// The representation endianness to be used is automatically determined from the representation identifier and options
@@ -149,3 +148,13 @@ where
     }?;
     Ok(value)
 }
+
+// impl<T: Into<DataKind>> TypeSupport for Option<T> {
+//     fn get_type() -> DynamicType {
+//         todo!()
+//     }
+
+//     fn create_dynamic_sample(self) -> DynamicData {
+//         todo!()
+//     }
+// }

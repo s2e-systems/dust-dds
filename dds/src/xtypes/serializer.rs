@@ -1,8 +1,4 @@
-use crate::xtypes::{
-    data_representation::DataKind,
-    dynamic_type::{DynamicData, DynamicType},
-    error::XTypesError,
-};
+use crate::xtypes::{data_representation::DataKind, dynamic_type::DynamicData, error::XTypesError};
 
 pub trait SerializeFinalStruct {
     fn serialize_field(&mut self, value: &DataKind, name: &str) -> Result<(), XTypesError>;
@@ -38,7 +34,7 @@ pub trait XTypesSerializer {
     fn serialize_mutable_struct(self) -> Result<impl SerializeMutableStruct, XTypesError>;
 
     /// Serializing a sequence with a dynamic length
-    fn serialize_complex_value(self, vs: &DynamicData) -> Result<(), XTypesError>;
+    fn serialize_complex_value(self, v: &DynamicData) -> Result<(), XTypesError>;
 
     /// Serializing a sequence with a dynamic length
     fn serialize_complex_value_list(self, vs: &[DynamicData]) -> Result<(), XTypesError>;
@@ -123,7 +119,6 @@ pub trait XTypesSerializer {
 
     /// Serialize a list of [`String`] values.
     fn serialize_string_list(self, vs: &[String]) -> Result<(), XTypesError>;
-
 
     /// Serialize a list of [`bool`] values.
     fn serialize_boolean_array(self, vs: &[bool]) -> Result<(), XTypesError>;
