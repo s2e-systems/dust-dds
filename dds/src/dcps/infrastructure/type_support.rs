@@ -1,7 +1,9 @@
 use crate::{
     infrastructure::error::DdsResult,
     xtypes::{
-        binding::DataKind, dynamic_type::{DynamicData, DynamicType, DynamicTypeBuilderFactory, TypeKind}, xcdr_deserializer::{Xcdr2BeDeserializer, Xcdr2LeDeserializer}
+        binding::DataKind,
+        dynamic_type::{DynamicData, DynamicType, DynamicTypeBuilderFactory, TypeKind},
+        xcdr_deserializer::{Xcdr2BeDeserializer, Xcdr2LeDeserializer},
     },
 };
 use alloc::vec::Vec;
@@ -161,63 +163,137 @@ trait CreateData: TypeSupport {
 }
 impl<T: TypeSupport> CreateData for T {}
 
-impl TypeSupport for bool {
+impl TypeSupport for &bool {
     fn get_type() -> DynamicType {
         DynamicTypeBuilderFactory::get_primitive_type(TypeKind::BOOLEAN)
     }
 
     fn create_dynamic_sample(self) -> DynamicData {
-        Self::create_data().set_boolean_value(0, self).unwrap()
+        Self::create_data().set_boolean_value(0, *self).unwrap()
     }
 }
 
-impl TypeSupport for u8 {
+impl TypeSupport for &u8 {
     fn get_type() -> DynamicType {
         DynamicTypeBuilderFactory::get_primitive_type(TypeKind::UINT8)
     }
 
     fn create_dynamic_sample(self) -> DynamicData {
-        Self::create_data().set_uint8_value(0, self).unwrap()
+        Self::create_data().set_uint8_value(0, *self).unwrap()
     }
 }
 
-impl TypeSupport for u16 {
+impl TypeSupport for &u16 {
     fn get_type() -> DynamicType {
         DynamicTypeBuilderFactory::get_primitive_type(TypeKind::UINT16)
     }
 
     fn create_dynamic_sample(self) -> DynamicData {
-        Self::create_data().set_uint16_value(0, self).unwrap()
+        Self::create_data().set_uint16_value(0, *self).unwrap()
     }
 }
 
-impl TypeSupport for i32 {
+impl TypeSupport for &i16 {
+    fn get_type() -> DynamicType {
+        DynamicTypeBuilderFactory::get_primitive_type(TypeKind::INT16)
+    }
+
+    fn create_dynamic_sample(self) -> DynamicData {
+        Self::create_data().set_int16_value(0, *self).unwrap()
+    }
+}
+
+impl TypeSupport for &i32 {
     fn get_type() -> DynamicType {
         DynamicTypeBuilderFactory::get_primitive_type(TypeKind::INT32)
     }
 
     fn create_dynamic_sample(self) -> DynamicData {
-        Self::create_data().set_int32_value(0, self).unwrap()
+        Self::create_data().set_int32_value(0, *self).unwrap()
     }
 }
 
-impl TypeSupport for u32 {
+impl TypeSupport for &u32 {
     fn get_type() -> DynamicType {
         DynamicTypeBuilderFactory::get_primitive_type(TypeKind::UINT32)
     }
 
     fn create_dynamic_sample(self) -> DynamicData {
-        Self::create_data().set_uint32_value(0, self).unwrap()
+        Self::create_data().set_uint32_value(0, *self).unwrap()
     }
 }
 
-impl TypeSupport for String {
+impl TypeSupport for &i64 {
+    fn get_type() -> DynamicType {
+        DynamicTypeBuilderFactory::get_primitive_type(TypeKind::INT64)
+    }
+
+    fn create_dynamic_sample(self) -> DynamicData {
+        Self::create_data().set_int64_value(0, *self).unwrap()
+    }
+}
+
+impl TypeSupport for &u64 {
+    fn get_type() -> DynamicType {
+        DynamicTypeBuilderFactory::get_primitive_type(TypeKind::UINT64)
+    }
+
+    fn create_dynamic_sample(self) -> DynamicData {
+        Self::create_data().set_uint64_value(0, *self).unwrap()
+    }
+}
+
+impl TypeSupport for &f32 {
+    fn get_type() -> DynamicType {
+        DynamicTypeBuilderFactory::get_primitive_type(TypeKind::FLOAT32)
+    }
+
+    fn create_dynamic_sample(self) -> DynamicData {
+        Self::create_data().set_float32_value(0, *self).unwrap()
+    }
+}
+
+impl TypeSupport for &f64 {
+    fn get_type() -> DynamicType {
+        DynamicTypeBuilderFactory::get_primitive_type(TypeKind::FLOAT64)
+    }
+
+    fn create_dynamic_sample(self) -> DynamicData {
+        Self::create_data().set_float64_value(0, *self).unwrap()
+    }
+}
+
+impl TypeSupport for &char {
+    fn get_type() -> DynamicType {
+        DynamicTypeBuilderFactory::get_primitive_type(TypeKind::CHAR8)
+    }
+
+    fn create_dynamic_sample(self) -> DynamicData {
+        Self::create_data().set_char8_value(0, *self).unwrap()
+    }
+}
+
+impl TypeSupport for &str {
     fn get_type() -> DynamicType {
         DynamicTypeBuilderFactory::get_primitive_type(TypeKind::STRING8)
     }
 
     fn create_dynamic_sample(self) -> DynamicData {
-        Self::create_data().set_string_value(0, self).unwrap()
+        Self::create_data()
+            .set_string_value(0, self.to_owned())
+            .unwrap()
+    }
+}
+
+impl TypeSupport for &String {
+    fn get_type() -> DynamicType {
+        DynamicTypeBuilderFactory::get_primitive_type(TypeKind::STRING8)
+    }
+
+    fn create_dynamic_sample(self) -> DynamicData {
+        Self::create_data()
+            .set_string_value(0, self.to_owned())
+            .unwrap()
     }
 }
 
@@ -251,43 +327,42 @@ impl TypeSupport for String {
 //     }
 // }
 
-impl TypeSupport for Vec<DataKind> {
-    fn get_type() -> DynamicType {
-        todo!()
-    }
+// impl TypeSupport for Vec<DataKind> {
+//     fn get_type() -> DynamicType {
+//         todo!()
+//     }
 
-    fn create_dynamic_sample(self) -> DynamicData {
-        todo!()
-    }
-}
+//     fn create_dynamic_sample(self) -> DynamicData {
+//         todo!()
+//     }
+// }
 
-impl<const N: usize> TypeSupport for [u8; N] {
-    fn get_type() -> DynamicType {
-        DynamicTypeBuilderFactory::create_sequence_type(u8::get_type(), u32::MAX).build()
-    }
+// impl<const N: usize> TypeSupport for [u8; N] {
+//     fn get_type() -> DynamicType {
+//         DynamicTypeBuilderFactory::create_sequence_type(<&u8>::get_type(), u32::MAX).build()
+//     }
 
-    fn create_dynamic_sample(self) -> DynamicData {
-        todo!()
-    }
-}
+//     fn create_dynamic_sample(self) -> DynamicData {
+//         todo!()
+//     }
+// }
 
-impl<T: TypeSupport> TypeSupport for Vec<T> {
-    fn get_type() -> DynamicType {
-        todo!()
-    }
+// impl<T: TypeSupport> TypeSupport for Vec<T> {
+//     fn get_type() -> DynamicType {
+//         DynamicTypeBuilderFactory::create_sequence_type(T::get_type(), u32::MAX).build()
+//     }
 
-    fn create_dynamic_sample(self) -> DynamicData {
-        todo!()
-    }
-}
+//     fn create_dynamic_sample(self) -> DynamicData {
+//         todo!()
+//     }
+// }
 
-impl<T: TypeSupport> TypeSupport for Option<T> {
-    fn get_type() -> DynamicType {
-        todo!()
-    }
+// impl<T: TypeSupport> TypeSupport for Option<T> {
+//     fn get_type() -> DynamicType {
+//         todo!()
+//     }
 
-    fn create_dynamic_sample(self) -> DynamicData {
-        todo!()
-    }
-}
-
+//     fn create_dynamic_sample(self) -> DynamicData {
+//         todo!()
+//     }
+// }

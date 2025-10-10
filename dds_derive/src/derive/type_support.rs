@@ -78,7 +78,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                          builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
                             name: alloc::string::String::from(#field_name),
                             id: #member_id,
-                            r#type: <#member_type as dust_dds::infrastructure::type_support::TypeSupport>::get_type(),
+                            r#type: <#member_type as dust_dds::xtypes::binding::XTypesBinding>::get_dynamic_type(),
                             default_value: #default_value,
                             index: #index,
                             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,

@@ -59,12 +59,12 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
             index: u32,
         }
         impl ConvenienceDynamicTypeBuilder {
-            fn add_member<T: TypeSupport>(&mut self, name: &str, id: i16) {
+            fn add_member<T: XTypesBinding>(&mut self, name: &str, id: i16) {
                 self.builder
                     .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
                         name: alloc::string::String::from(name),
                         id: id as u32,
-                        r#type: T::get_type(),
+                        r#type: T::get_dynamic_type(),
                         default_value: None,
                         index: self.index,
                         try_construct_kind:
@@ -79,12 +79,12 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
                     .unwrap();
                 self.index += 1;
             }
-            fn add_key_member<T: TypeSupport>(&mut self, name: &str, id: i16) {
+            fn add_key_member<T: XTypesBinding>(&mut self, name: &str, id: i16) {
                 self.builder
                     .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
                         name: alloc::string::String::from(name),
                         id: id as u32,
-                        r#type: T::get_type(),
+                        r#type: T::get_dynamic_type(),
                         default_value: None,
                         index: self.index,
                         try_construct_kind:
@@ -99,7 +99,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
                     .unwrap();
                 self.index += 1;
             }
-            fn add_member_with_default<T: TypeSupport + Into<DataKind>>(
+            fn add_member_with_default<T: XTypesBinding + Into<DataKind>>(
                 &mut self,
                 name: &str,
                 id: i16,
@@ -109,7 +109,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
                     .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
                         name: alloc::string::String::from(name),
                         id: id as u32,
-                        r#type: T::get_type(),
+                        r#type: T::get_dynamic_type(),
                         default_value: Some(default.into()),
                         index: self.index,
                         try_construct_kind:

@@ -39,11 +39,6 @@ impl TypeSupport for Length {
     }
 }
 
-impl XTypesBinding for Length {
-    fn get_dynamic_type() -> crate::xtypes::dynamic_type::DynamicType {
-        DynamicTypeBuilderFactory::get_primitive_type(TypeKind::INT32)
-    }
-}
 
 // impl From<Length> for DataKind {
 //     fn from(value: Length) -> Self {

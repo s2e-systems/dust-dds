@@ -93,5 +93,5 @@ pub trait XTypesSerializer {
     fn serialize_byte_sequence(self, v: &[u8]) -> Result<(), XTypesError>;
 
     /// Serialize an array of bytes.
-    fn serialize_byte_array<const N: usize>(self, v: &[u8; N]) -> Result<(), XTypesError>;
+    fn serialize_byte_array(self, v: &[u8]) -> Result<(), XTypesError>;
 }

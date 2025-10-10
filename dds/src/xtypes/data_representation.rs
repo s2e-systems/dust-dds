@@ -114,11 +114,41 @@ impl DynamicData {
                     mutable_serializer.end()?;
                 }
             },
+            TypeKind::BOOLEAN => {
+                serializer.serialize_boolean(*self.get_boolean_value(0)?)?;
+            }
             TypeKind::UINT8 => {
                 serializer.serialize_uint8(*self.get_uint8_value(0)?)?;
             }
+            TypeKind::CHAR8 => {
+                serializer.serialize_char8(*self.get_char8_value(0)?)?;
+            }
+            TypeKind::INT16 => {
+                serializer.serialize_int16(*self.get_int16_value(0)?)?;
+            }
             TypeKind::UINT16 => {
                 serializer.serialize_uint16(*self.get_uint16_value(0)?)?;
+            }
+            TypeKind::INT32 => {
+                serializer.serialize_int32(*self.get_int32_value(0)?)?;
+            }
+            TypeKind::UINT32 => {
+                serializer.serialize_uint32(*self.get_uint32_value(0)?)?;
+            }
+            TypeKind::INT64 => {
+                serializer.serialize_int64(*self.get_int64_value(0)?)?;
+            }
+            TypeKind::UINT64 => {
+                serializer.serialize_uint64(*self.get_uint64_value(0)?)?;
+            }
+            TypeKind::FLOAT32 => {
+                serializer.serialize_float32(*self.get_float32_value(0)?)?;
+            }
+            TypeKind::FLOAT64 => {
+                serializer.serialize_float64(*self.get_float64_value(0)?)?;
+            }
+            TypeKind::STRING8 => {
+                serializer.serialize_string(self.get_string_value(0)?)?;
             }
             kind => todo!("Noy yet implemented for {kind:?}"),
         }

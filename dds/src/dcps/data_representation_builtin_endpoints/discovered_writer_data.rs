@@ -22,7 +22,10 @@ use crate::{
         type_support::{DdsDeserialize, TypeSupport},
     },
     transport::types::{EntityId, Guid, Locator, ENTITYID_UNKNOWN},
-    xtypes::{binding::DataKind, dynamic_type::DynamicTypeBuilder},
+    xtypes::{
+        binding::{DataKind, XTypesBinding},
+        dynamic_type::DynamicTypeBuilder,
+    },
 };
 use alloc::{string::String, vec::Vec};
 
@@ -47,12 +50,12 @@ impl TypeSupport for DiscoveredWriterData {
             index: u32,
         }
         impl ConvenienceDynamicTypeBuilder {
-            fn add_member<T: TypeSupport>(&mut self, name: &str, id: i16) {
+            fn add_member<T: XTypesBinding>(&mut self, name: &str, id: i16) {
                 self.builder
                     .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
                         name: alloc::string::String::from(name),
                         id: id as u32,
-                        r#type: T::get_type(),
+                        r#type: T::get_dynamic_type(),
                         default_value: None,
                         index: self.index,
                         try_construct_kind:
@@ -67,12 +70,12 @@ impl TypeSupport for DiscoveredWriterData {
                     .unwrap();
                 self.index += 1;
             }
-            fn add_key_member<T: TypeSupport>(&mut self, name: &str, id: i16) {
+            fn add_key_member<T: XTypesBinding>(&mut self, name: &str, id: i16) {
                 self.builder
                     .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
                         name: alloc::string::String::from(name),
                         id: id as u32,
-                        r#type: T::get_type(),
+                        r#type: T::get_dynamic_type(),
                         default_value: None,
                         index: self.index,
                         try_construct_kind:
@@ -87,7 +90,7 @@ impl TypeSupport for DiscoveredWriterData {
                     .unwrap();
                 self.index += 1;
             }
-            fn add_member_with_default<T: TypeSupport + Into<DataKind>>(
+            fn add_member_with_default<T: XTypesBinding + Into<DataKind>>(
                 &mut self,
                 name: &str,
                 id: i16,
@@ -97,7 +100,7 @@ impl TypeSupport for DiscoveredWriterData {
                     .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
                         name: alloc::string::String::from(name),
                         id: id as u32,
-                        r#type: T::get_type(),
+                        r#type: T::get_dynamic_type(),
                         default_value: Some(default.into()),
                         index: self.index,
                         try_construct_kind:

@@ -519,9 +519,9 @@ impl DynamicData {
         }
     }
 
-    pub fn set_int16_value(&mut self, id: MemberId, value: i16) -> XTypesResult<()> {
+    pub fn set_int16_value(mut self, id: MemberId, value: i16) -> XTypesResult<Self> {
         self.abstract_data.insert(id, DataKind::Int16(value));
-        Ok(())
+        Ok(self)
     }
 
     pub fn get_uint16_value(&self, id: MemberId) -> XTypesResult<&u16> {
@@ -553,9 +553,9 @@ impl DynamicData {
         }
     }
 
-    pub fn set_int64_value(&mut self, id: MemberId, value: i64) -> XTypesResult<()> {
+    pub fn set_int64_value(mut self, id: MemberId, value: i64) -> XTypesResult<Self> {
         self.abstract_data.insert(id, DataKind::Int64(value));
-        Ok(())
+        Ok(self)
     }
 
     pub fn get_uint64_value(&self, id: MemberId) -> XTypesResult<&u64> {
@@ -570,9 +570,9 @@ impl DynamicData {
         }
     }
 
-    pub fn set_uint64_value(&mut self, id: MemberId, value: u64) -> XTypesResult<()> {
+    pub fn set_uint64_value(mut self, id: MemberId, value: u64) -> XTypesResult<Self> {
         self.abstract_data.insert(id, DataKind::UInt64(value));
-        Ok(())
+        Ok(self)
     }
 
     pub fn get_float32_value(&self, id: MemberId) -> XTypesResult<&f32> {
@@ -587,9 +587,9 @@ impl DynamicData {
         }
     }
 
-    pub fn set_float32_value(&mut self, id: MemberId, value: f32) -> XTypesResult<()> {
+    pub fn set_float32_value(mut self, id: MemberId, value: f32) -> XTypesResult<Self> {
         self.abstract_data.insert(id, DataKind::Float32(value));
-        Ok(())
+        Ok(self)
     }
 
     pub fn get_float64_value(&self, id: MemberId) -> XTypesResult<&f64> {
@@ -604,9 +604,9 @@ impl DynamicData {
         }
     }
 
-    pub fn set_float64_value(&mut self, id: MemberId, value: f64) -> XTypesResult<()> {
+    pub fn set_float64_value(mut self, id: MemberId, value: f64) -> XTypesResult<Self> {
         self.abstract_data.insert(id, DataKind::Float64(value));
-        Ok(())
+        Ok(self)
     }
 
     pub fn get_char8_value(&self, id: MemberId) -> XTypesResult<&char> {
@@ -621,9 +621,9 @@ impl DynamicData {
         }
     }
 
-    pub fn set_char8_value(&mut self, id: MemberId, value: char) -> XTypesResult<()> {
+    pub fn set_char8_value(mut self, id: MemberId, value: char) -> XTypesResult<Self> {
         self.abstract_data.insert(id, DataKind::Char8(value));
-        Ok(())
+        Ok(self)
     }
 
     pub fn get_byte_value(&self, id: MemberId) -> XTypesResult<&u8> {
