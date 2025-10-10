@@ -32,6 +32,19 @@ impl<'a, T: XTypesSerialize> XTypesSerialize for Array<'a, T> {
     }
 }
 
+pub fn serialize_dynamic_datas<T>(
+    datas: &Vec<DynamicData>,
+    serializer: &mut T,
+) -> Result<(), super::error::XTypesError>
+where
+    for<'a> &'a mut T: super::serialize::XTypesSerializer,
+{
+    for data in datas {
+        data.serialize(&mut *serializer)?;
+    }
+    Ok(())
+}
+
 impl DynamicData {
     pub fn serialize(
         &self,
@@ -108,8 +121,13 @@ impl DynamicData {
                             }
                         }
 
-                        let value = self.get_value(member_id)?;
-                        mutable_serializer.serialize_field(value, pid, member_name)?;
+                        if member_type_kind == TypeKind::SEQUENCE {
+                            let values = self.get_complex_values(member_id)?;
+                            mutable_serializer.serialize_collection(values, pid, member_name)?;
+                        } else {
+                            let value = self.get_value(member_id)?;
+                            mutable_serializer.serialize_field(value, pid, member_name)?;
+                        }
                     }
                     mutable_serializer.end()?;
                 }

@@ -3,9 +3,12 @@ use crate::{
     xtypes::{
         dynamic_type::{DynamicData, DynamicType, DynamicTypeBuilderFactory, TypeKind},
         serialize::XTypesSerialize,
+        serializer::SerializeFinalStruct,
     },
 };
 use alloc::{string::String, vec, vec::Vec};
+
+use super::serialize::XTypesSerializer;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum DataKind {
@@ -40,15 +43,17 @@ pub enum DataKind {
 }
 
 impl DataKind {
-    pub fn serialize(
+    pub fn serialize<T>(
         &self,
-        serializer: impl super::serialize::XTypesSerializer,
-    ) -> Result<(), super::error::XTypesError> {
+        serializer: &mut T,
+    ) -> Result<(), super::error::XTypesError> where
+    for<'a> &'a mut T: XTypesSerializer {
+
         match self {
             DataKind::UInt8(v) => serializer.serialize_uint8(*v),
             DataKind::Int8(_) => todo!(),
             DataKind::UInt16(v) => serializer.serialize_uint16(*v),
-            DataKind::Int16(v) =>serializer.serialize_int16(*v),
+            DataKind::Int16(v) => serializer.serialize_int16(*v),
             DataKind::Int32(v) => serializer.serialize_int32(*v),
             DataKind::UInt32(v) => serializer.serialize_uint32(*v),
             DataKind::Int64(_) => todo!(),
@@ -57,7 +62,7 @@ impl DataKind {
             DataKind::Float64(_) => todo!(),
             DataKind::Char8(_) => todo!(),
             DataKind::Boolean(v) => serializer.serialize_boolean(*v),
-            DataKind::String(_) => todo!(),
+            DataKind::String(v) => serializer.serialize_string(v),
             DataKind::ComplexValue(dynamic_data) => dynamic_data.serialize(serializer),
             DataKind::UInt8List(items) => serializer.serialize_byte_array(items),
             DataKind::Int8List(items) => todo!(),
@@ -72,7 +77,12 @@ impl DataKind {
             DataKind::Char8List(items) => todo!(),
             DataKind::BooleanList(items) => todo!(),
             DataKind::StringList(items) => todo!(),
-            DataKind::ComplexValueList(dynamic_datas) => todo!(),
+            DataKind::ComplexValueList(dynamic_datas) => {
+                crate::xtypes::data_representation::serialize_dynamic_datas(
+                    dynamic_datas,
+                    serializer,
+                )
+            }
         }
     }
 }

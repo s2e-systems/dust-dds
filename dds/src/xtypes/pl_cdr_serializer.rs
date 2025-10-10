@@ -157,11 +157,15 @@ impl<C: Write> SerializeMutableStruct for &mut PlCdrLeSerializer<'_, C> {
         pid: u32,
         name: &str,
     ) -> Result<(), XTypesError> {
-        todo!()
-        // for value in values {
-        //     SerializeMutableStruct::serialize_field(self, value, pid, name)?;
-        // }
-        // Ok(())
+        for value in values {
+            SerializeMutableStruct::serialize_field(
+                self,
+                &DataKind::ComplexValue(value.clone()),
+                pid,
+                name,
+            )?;
+        }
+        Ok(())
     }
     fn end(self) -> Result<(), XTypesError> {
         self.writer.write_slice(&PID_SENTINEL.to_le_bytes());
@@ -307,13 +311,19 @@ mod tests {
     #[test]
     fn serialize_ulong() {
         let v = 4294967200u32;
-        assert_eq!(test_serialize_type_support(&v), vec![0xa0, 0xff, 0xff, 0xff]);
+        assert_eq!(
+            test_serialize_type_support(&v),
+            vec![0xa0, 0xff, 0xff, 0xff]
+        );
     }
 
     #[test]
     fn serialize_long() {
         let v = -2147483600i32;
-        assert_eq!(test_serialize_type_support(&v), vec![0x30, 0x00, 0x00, 0x80,]);
+        assert_eq!(
+            test_serialize_type_support(&v),
+            vec![0x30, 0x00, 0x00, 0x80,]
+        );
     }
 
     #[test]
@@ -337,7 +347,10 @@ mod tests {
     #[test]
     fn serialize_float() {
         let v = core::f32::MIN_POSITIVE;
-        assert_eq!(test_serialize_type_support(&v), vec![0x00, 0x00, 0x80, 0x00]);
+        assert_eq!(
+            test_serialize_type_support(&v),
+            vec![0x00, 0x00, 0x80, 0x00]
+        );
     }
 
     #[test]
@@ -371,7 +384,10 @@ mod tests {
     #[test]
     fn serialize_empty_string() {
         let v = "";
-        assert_eq!(test_serialize_type_support(v), vec![0x01, 0x00, 0x00, 0x00, 0x00]);
+        assert_eq!(
+            test_serialize_type_support(v),
+            vec![0x01, 0x00, 0x00, 0x00, 0x00]
+        );
     }
 
     // #[test]
