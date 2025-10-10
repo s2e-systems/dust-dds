@@ -345,6 +345,10 @@ impl<C: Write> XTypesSerializer for &mut Xcdr1BeSerializer<'_, C> {
     fn serialize_string_array(self, vs: &[String]) -> Result<(), XTypesError> {
         todo!()
     }
+
+    fn serialize_complex_value(self, vs: &DynamicData) -> Result<(), XTypesError> {
+        todo!()
+    }
 }
 
 pub struct Xcdr1LeSerializer<'a, C> {
@@ -597,6 +601,10 @@ impl<C: Write> XTypesSerializer for &mut Xcdr1LeSerializer<'_, C> {
     fn serialize_string_array(self, vs: &[String]) -> Result<(), XTypesError> {
         todo!()
     }
+
+    fn serialize_complex_value(self, vs: &DynamicData) -> Result<(), XTypesError> {
+        todo!()
+    }
 }
 
 pub struct Xcdr2BeSerializer<'a, C> {
@@ -694,7 +702,7 @@ where
     for<'a> &'a mut S: XTypesSerializer,
 {
     fn serialize_field(&mut self, value: &DataKind, _name: &str) -> Result<(), XTypesError> {
-        value.serialize(self.serializer)
+        value.serialize(&mut *self.serializer)
     }
 
     fn serialize_optional_field(
@@ -899,6 +907,10 @@ impl<C: Write> XTypesSerializer for &mut Xcdr2BeSerializer<'_, C> {
     fn serialize_string_array(self, vs: &[String]) -> Result<(), XTypesError> {
         todo!()
     }
+
+    fn serialize_complex_value(self, vs: &DynamicData) -> Result<(), XTypesError> {
+        todo!()
+    }
 }
 
 impl<C: Write> XTypesSerializer for &mut Xcdr2LeSerializer<'_, C> {
@@ -1063,6 +1075,10 @@ impl<C: Write> XTypesSerializer for &mut Xcdr2LeSerializer<'_, C> {
     }
 
     fn serialize_string_array(self, vs: &[String]) -> Result<(), XTypesError> {
+        todo!()
+    }
+
+    fn serialize_complex_value(self, vs: &DynamicData) -> Result<(), XTypesError> {
         todo!()
     }
 }

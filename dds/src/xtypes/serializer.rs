@@ -38,6 +38,9 @@ pub trait XTypesSerializer {
     fn serialize_mutable_struct(self) -> Result<impl SerializeMutableStruct, XTypesError>;
 
     /// Serializing a sequence with a dynamic length
+    fn serialize_complex_value(self, vs: &DynamicData) -> Result<(), XTypesError>;
+
+    /// Serializing a sequence with a dynamic length
     fn serialize_sequence(self, vs: &[DynamicData]) -> Result<(), XTypesError>;
 
     /// Serializing a sequence with a static length

@@ -57,10 +57,10 @@ pub enum DataKind {
 }
 
 impl DataKind {
-    pub fn serialize<T>(&self, serializer: &mut T) -> Result<(), super::error::XTypesError>
-    where
-        for<'a> &'a mut T: XTypesSerializer,
-    {
+    pub fn serialize(
+        &self,
+        serializer: impl XTypesSerializer,
+    ) -> Result<(), super::error::XTypesError> {
         match self {
             DataKind::UInt8(v) => serializer.serialize_uint8(*v),
             DataKind::Int8(v) => serializer.serialize_int8(*v),
@@ -75,7 +75,7 @@ impl DataKind {
             DataKind::Char8(v) => serializer.serialize_char8(*v),
             DataKind::Boolean(v) => serializer.serialize_boolean(*v),
             DataKind::String(v) => serializer.serialize_string(v),
-            DataKind::ComplexValue(dynamic_data) => dynamic_data.serialize_nested(serializer),
+            DataKind::ComplexValue(v) => serializer.serialize_complex_value(v),
             DataKind::UInt8List(items) => serializer.serialize_uint8_list(items),
             DataKind::Int8List(items) => serializer.serialize_int8_list(items),
             DataKind::UInt16List(items) => serializer.serialize_uint16_list(items),
