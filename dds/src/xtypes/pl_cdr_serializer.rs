@@ -189,9 +189,12 @@ impl<C: Write> XTypesSerializer for &mut PlCdrLeSerializer<'_, C> {
     fn serialize_mutable_struct(self) -> Result<impl SerializeMutableStruct, XTypesError> {
         Ok(self)
     }
-    fn serialize_sequence(self, len: usize) -> Result<impl SerializeCollection, XTypesError> {
-        self.serialize_uint32(into_u32(len)?)?;
-        Ok(self)
+    fn serialize_sequence(self, v: &[DynamicData]) -> Result<(), XTypesError> {
+        self.serialize_uint32(into_u32(v.len())?)?;
+        for value in v {
+            value.serialize_nested(self)?;
+        }
+        Ok(())
     }
     fn serialize_array(self) -> Result<impl SerializeCollection, XTypesError> {
         Ok(self)

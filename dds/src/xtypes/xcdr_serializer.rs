@@ -182,9 +182,8 @@ impl<C: Write> XTypesSerializer for &mut Xcdr1BeSerializer<'_, C> {
     fn serialize_mutable_struct(self) -> Result<impl SerializeMutableStruct, XTypesError> {
         Ok(self)
     }
-    fn serialize_sequence(self, len: usize) -> Result<impl SerializeCollection, XTypesError> {
-        self.serialize_uint32(into_u32(len)?)?;
-        Ok(self)
+    fn serialize_sequence(self, v: &[DynamicData]) -> Result<(), XTypesError> {
+        todo!()
     }
     fn serialize_array(self) -> Result<impl SerializeCollection, XTypesError> {
         Ok(self)
@@ -414,9 +413,8 @@ impl<C: Write> XTypesSerializer for &mut Xcdr1LeSerializer<'_, C> {
     fn serialize_mutable_struct(self) -> Result<impl SerializeMutableStruct, XTypesError> {
         Ok(self)
     }
-    fn serialize_sequence(self, len: usize) -> Result<impl SerializeCollection, XTypesError> {
-        self.serialize_uint32(into_u32(len)?)?;
-        Ok(self)
+    fn serialize_sequence(self, v: &[DynamicData]) -> Result<(), XTypesError> {
+        todo!()
     }
     fn serialize_array(self) -> Result<impl SerializeCollection, XTypesError> {
         Ok(self)
@@ -650,9 +648,8 @@ impl<C: Write> XTypesSerializer for &mut Xcdr2BeSerializer<'_, C> {
     fn serialize_mutable_struct(self) -> Result<impl SerializeMutableStruct, XTypesError> {
         Ok(self)
     }
-    fn serialize_sequence(self, len: usize) -> Result<impl SerializeCollection, XTypesError> {
-        self.serialize_uint32(into_u32(len)?)?;
-        Ok(CollectionSerializer { serializer: self })
+    fn serialize_sequence(self, v: &[DynamicData]) -> Result<(), XTypesError> {
+        todo!()
     }
     fn serialize_array(self) -> Result<impl SerializeCollection, XTypesError> {
         Ok(CollectionSerializer { serializer: self })
@@ -725,9 +722,8 @@ impl<C: Write> XTypesSerializer for &mut Xcdr2LeSerializer<'_, C> {
     fn serialize_mutable_struct(self) -> Result<impl SerializeMutableStruct, XTypesError> {
         Ok(self)
     }
-    fn serialize_sequence(self, len: usize) -> Result<impl SerializeCollection, XTypesError> {
-        self.serialize_uint32(into_u32(len)?)?;
-        Ok(CollectionSerializer { serializer: self })
+    fn serialize_sequence(self, v: &[DynamicData]) -> Result<(), XTypesError> {
+        todo!()
     }
     fn serialize_array(self) -> Result<impl SerializeCollection, XTypesError> {
         Ok(CollectionSerializer { serializer: self })

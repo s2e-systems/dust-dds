@@ -61,7 +61,7 @@ impl DataKind {
             DataKind::Char8(_) => todo!(),
             DataKind::Boolean(v) => serializer.serialize_boolean(*v),
             DataKind::String(v) => serializer.serialize_string(v),
-            DataKind::ComplexValue(dynamic_data) => dynamic_data.serialize(serializer),
+            DataKind::ComplexValue(dynamic_data) => dynamic_data.serialize_nested(serializer),
             DataKind::UInt8Array(items) => serializer.serialize_byte_array(items),
             DataKind::Int8List(items) => todo!(),
             DataKind::UInt16List(items) => todo!(),
@@ -76,12 +76,7 @@ impl DataKind {
             DataKind::BooleanList(items) => todo!(),
             DataKind::StringList(items) => serializer.serialize_string_list(items),
             DataKind::ComplexValueList(dynamic_datas) => {
-                let mut collection_serializer =
-                    serializer.serialize_sequence(dynamic_datas.len())?;
-                for data in dynamic_datas {
-                    collection_serializer.serialize_element(data)?;
-                }
-                Ok(())
+                serializer.serialize_sequence(dynamic_datas)
             }
         }
     }

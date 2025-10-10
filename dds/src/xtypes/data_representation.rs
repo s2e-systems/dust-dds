@@ -32,21 +32,15 @@ impl<'a, T: XTypesSerialize> XTypesSerialize for Array<'a, T> {
     }
 }
 
-pub fn serialize_dynamic_datas<T>(
-    datas: &Vec<DynamicData>,
-    serializer: &mut T,
-) -> Result<(), super::error::XTypesError>
-where
-    for<'a> &'a mut T: super::serialize::XTypesSerializer,
-{
-    for data in datas {
-        data.serialize(&mut *serializer)?;
-    }
-    Ok(())
-}
-
 impl DynamicData {
     pub fn serialize<T>(&self, serializer: &mut T) -> Result<(), super::error::XTypesError>
+    where
+        for<'a> &'a mut T: XTypesSerializer,
+    {
+        self.serialize_nested(serializer)
+    }
+
+    pub fn serialize_nested<T>(&self, serializer: &mut T) -> Result<(), super::error::XTypesError>
     where
         for<'a> &'a mut T: XTypesSerializer,
     {
