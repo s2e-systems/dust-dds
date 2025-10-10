@@ -2,15 +2,14 @@ use super::{
     error::XTypesError,
     serialize::Write,
     serializer::{
-        SerializeAppendableStruct, SerializeFinalStruct,
-        SerializeMutableStruct, XTypesSerializer,
+        SerializeAppendableStruct, SerializeFinalStruct, SerializeMutableStruct, XTypesSerializer,
     },
 };
 use crate::xtypes::{data_representation::DataKind, dynamic_type::DynamicData};
 
 const PID_SENTINEL: u16 = 1;
 
-struct ByteCounter(usize);
+struct ByteCounter(u16);
 
 impl ByteCounter {
     pub fn new() -> Self {
@@ -20,7 +19,7 @@ impl ByteCounter {
 
 impl Write for ByteCounter {
     fn write(&mut self, buf: &[u8]) {
-        self.0 += buf.len();
+        self.0 += buf.len() as u16;
     }
 }
 
@@ -95,15 +94,6 @@ impl<'a, C: Write> PlCdrLeSerializer<'a, C> {
     }
 }
 
-impl PlCdrLeSerializer<'_, ()> {
-    pub fn bytes_len(value: &DataKind) -> Result<usize, XTypesError> {
-        let mut byte_counter = ByteCounter::new();
-        let mut serializer = PlCdrLeSerializer::new(&mut byte_counter);
-        value.serialize(&mut serializer)?;
-        Ok(byte_counter.0)
-    }
-}
-
 impl<C: Write> SerializeFinalStruct for &mut PlCdrLeSerializer<'_, C> {
     fn serialize_field(&mut self, value: &DataKind, _name: &str) -> Result<(), XTypesError> {
         value.serialize(&mut **self)
@@ -129,30 +119,39 @@ impl<C: Write> SerializeMutableStruct for &mut PlCdrLeSerializer<'_, C> {
         pid: u32,
         _name: &str,
     ) -> Result<(), XTypesError> {
-        let length = PlCdrLeSerializer::bytes_len(value)? as u16;
-        let padded_length = (length + 3) & !3;
-        self.writer.write_slice(&(pid as u16).to_le_bytes());
-        self.writer.write_slice(&padded_length.to_le_bytes());
-        value.serialize(&mut **self)?;
-        self.writer.pad(4);
-        Ok(())
-    }
-    fn serialize_collection(
-        &mut self,
-        values: &[DynamicData],
-        pid: u32,
-        name: &str,
-    ) -> Result<(), XTypesError> {
-        for value in values {
-            SerializeMutableStruct::serialize_field(
-                self,
-                &DataKind::ComplexValue(value.clone()),
-                pid,
-                name,
-            )?;
+        fn bytes_len_dynamic_data(value: &DynamicData) -> Result<u16, XTypesError> {
+            let mut byte_counter = ByteCounter::new();
+            let mut serializer = PlCdrLeSerializer::new(&mut byte_counter);
+            value.serialize(&mut serializer)?;
+            Ok(byte_counter.0)
+        }
+        fn bytes_len_data_kind(value: &DataKind) -> Result<u16, XTypesError> {
+            let mut byte_counter = ByteCounter::new();
+            let mut serializer = PlCdrLeSerializer::new(&mut byte_counter);
+            value.serialize(&mut serializer)?;
+            Ok(byte_counter.0)
+        }
+
+        if let DataKind::ComplexValueList(items) = value {
+            for item in items {
+                let length = bytes_len_dynamic_data(item)?;
+                let padded_length = (length + 3) & !3;
+                self.writer.write_slice(&(pid as u16).to_le_bytes());
+                self.writer.write_slice(&padded_length.to_le_bytes());
+                item.serialize(&mut **self)?;
+                self.writer.pad(4);
+            }
+        } else {
+            let length = bytes_len_data_kind(value)?;
+            let padded_length = (length + 3) & !3;
+            self.writer.write_slice(&(pid as u16).to_le_bytes());
+            self.writer.write_slice(&padded_length.to_le_bytes());
+            value.serialize(&mut **self)?;
+            self.writer.pad(4);
         }
         Ok(())
     }
+
     fn end(self) -> Result<(), XTypesError> {
         self.writer.write_slice(&PID_SENTINEL.to_le_bytes());
         self.writer.write_slice(&0u16.to_le_bytes());
@@ -253,7 +252,7 @@ impl<C: Write> XTypesSerializer for &mut PlCdrLeSerializer<'_, C> {
     }
 
     fn serialize_boolean_list(self, _vs: &[bool]) -> Result<(), XTypesError> {
-        todo!()
+        unimplemented!()
     }
 
     fn serialize_int8_list(self, _vs: &[i8]) -> Result<(), XTypesError> {
