@@ -1,6 +1,6 @@
 use super::{
     error::XTypesError,
-    serialize::{Write, XTypesSerialize},
+    serialize::Write,
     serializer::{
         SerializeAppendableStruct, SerializeCollection, SerializeFinalStruct,
         SerializeMutableStruct, XTypesSerializer,
@@ -529,12 +529,13 @@ where
         value: &Option<DynamicData>,
         _name: &str,
     ) -> Result<(), XTypesError> {
-        if let Some(value) = value {
-            true.serialize(&mut *self.serializer)?;
-            value.serialize(&mut *self.serializer)
-        } else {
-            false.serialize(&mut *self.serializer)
-        }
+        // if let Some(value) = value {
+        //     true.serialize(&mut *self.serializer)?;
+        //     value.serialize(&mut *self.serializer)
+        // } else {
+        //     false.serialize(&mut *self.serializer)
+        // }
+        todo!()
     }
 }
 

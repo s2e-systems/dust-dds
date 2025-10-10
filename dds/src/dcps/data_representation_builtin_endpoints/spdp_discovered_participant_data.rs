@@ -26,7 +26,8 @@ use crate::{
     },
     transport::types::{GuidPrefix, Locator, Long, ProtocolVersion, VendorId},
     xtypes::{
-        binding::XTypesBinding, data_representation::DataKind, deserialize::XTypesDeserialize, dynamic_type::DynamicTypeBuilder
+        binding::XTypesBinding, data_representation::DataKind, deserialize::XTypesDeserialize,
+        dynamic_type::DynamicTypeBuilder,
     },
 };
 use alloc::{string::String, vec::Vec};
@@ -440,10 +441,8 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
 mod tests {
     use super::*;
     use crate::{
-        builtin_topics::BuiltInTopicKey,
-        infrastructure::qos_policy::UserDataQosPolicy,
-        rtps::types::PROTOCOLVERSION_2_4,
-        xtypes::{pl_cdr_serializer::PlCdrLeSerializer, serialize::XTypesSerialize},
+        builtin_topics::BuiltInTopicKey, infrastructure::qos_policy::UserDataQosPolicy,
+        rtps::types::PROTOCOLVERSION_2_4, xtypes::pl_cdr_serializer::PlCdrLeSerializer,
     };
 
     #[test]

@@ -2,8 +2,10 @@ use crate::{
     infrastructure::type_support::TypeSupport,
     xtypes::{
         dynamic_type::{DynamicData, ExtensibilityKind, MemberDescriptor, TypeKind},
-        serialize::{SerializeCollection, XTypesSerialize, XTypesSerializer},
-        serializer::{SerializeAppendableStruct, SerializeFinalStruct, SerializeMutableStruct},
+        serializer::{
+            SerializeAppendableStruct, SerializeFinalStruct, SerializeMutableStruct,
+            XTypesSerializer,
+        },
     },
 };
 use alloc::vec::Vec;
@@ -366,22 +368,6 @@ impl MemberDescriptor {
             .as_ref()
             .expect("array type must have element type")
             .get_kind()
-    }
-}
-
-struct Array<'a, T>(&'a Vec<T>);
-impl<'a, T: XTypesSerialize> XTypesSerialize for Array<'a, T> {
-    fn serialize(
-        &self,
-        serializer: impl crate::xtypes::serialize::XTypesSerializer,
-    ) -> Result<(), crate::xtypes::error::XTypesError> {
-        let mut collection_serializer = serializer.serialize_array()?;
-        for e in self.0 {
-            todo!()
-            // collection_serializer.serialize_element(e)?;
-        }
-
-        Ok(())
     }
 }
 

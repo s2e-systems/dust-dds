@@ -1,6 +1,6 @@
 use super::{
     error::XTypesError,
-    serialize::{Write, XTypesSerialize},
+    serialize::Write,
     serializer::{
         SerializeAppendableStruct, SerializeCollection, SerializeFinalStruct,
         SerializeMutableStruct, XTypesSerializer,
@@ -279,12 +279,6 @@ mod tests {
     use crate::{infrastructure::type_support::TypeSupport, xtypes::binding::XTypesBinding};
     extern crate std;
 
-    fn test_serialize<T: XTypesSerialize>(v: &T) -> std::vec::Vec<u8> {
-        let mut buffer = std::vec::Vec::new();
-        v.serialize(&mut PlCdrLeSerializer::new(&mut buffer))
-            .unwrap();
-        buffer
-    }
     fn test_serialize_type_support<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
         let mut buffer = std::vec::Vec::new();
         v.create_dynamic_sample()

@@ -1,18 +1,18 @@
 use crate::{
     infrastructure::instance::InstanceHandle,
     xtypes::{
-        deserializer::{DeserializeAppendableStruct, DeserializeSequence, XTypesDeserializer},
-        dynamic_type::{DynamicData, DynamicType, MemberDescriptor, TypeKind},
+        deserializer::{DeserializeAppendableStruct, XTypesDeserializer},
+        dynamic_type::{DynamicData, DynamicType, MemberDescriptor},
         error::XTypesError,
-        serialize::{Write, XTypesSerialize, XTypesSerializer},
-        serializer::SerializeFinalStruct,
+        serialize::Write,
+        serializer::{SerializeFinalStruct, XTypesSerializer},
         xcdr_deserializer::{
             Xcdr1BeDeserializer, Xcdr1LeDeserializer, Xcdr2BeDeserializer, Xcdr2LeDeserializer,
         },
         xcdr_serializer::{Xcdr1LeSerializer, Xcdr2BeSerializer},
     },
 };
-use alloc::{string::String, vec::Vec};
+use alloc::vec::Vec;
 
 struct Md5 {
     key: [u8; 16],
