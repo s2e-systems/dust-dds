@@ -382,17 +382,6 @@ impl<T: TypeSupport> From<T> for DataKind {
     }
 }
 
-impl MemberDescriptor {
-    fn get_element_type(&self) -> TypeKind {
-        self.r#type
-            .get_descriptor()
-            .element_type
-            .as_ref()
-            .expect("array type must have element type")
-            .get_kind()
-    }
-}
-
 impl DynamicData {
     pub fn serialize<T>(&self, serializer: &mut T) -> Result<(), super::error::XTypesError>
     where
@@ -447,7 +436,7 @@ impl DynamicData {
 
                         if member_type_kind == TypeKind::SEQUENCE {
                             let values = self.get_complex_values(member_id)?;
-                            mutable_serializer.serialize_collection(values, pid, member_name)?;
+                            // mutable_serializer.serialize_collection(values, pid, member_name)?;
                         } else {
                             let value = self.get_value(member_id)?;
                             mutable_serializer.serialize_field(value, pid, member_name)?;

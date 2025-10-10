@@ -2,7 +2,7 @@ use super::{
     error::XTypesError,
     serialize::Write,
     serializer::{
-        SerializeAppendableStruct, SerializeCollection, SerializeFinalStruct,
+        SerializeAppendableStruct, SerializeFinalStruct,
         SerializeMutableStruct, XTypesSerializer,
     },
 };
@@ -111,22 +111,10 @@ impl<C: Write> SerializeFinalStruct for &mut PlCdrLeSerializer<'_, C> {
 
     fn serialize_optional_field(
         &mut self,
-        value: &Option<DynamicData>,
+        _value: &Option<DynamicData>,
         _name: &str,
     ) -> Result<(), XTypesError> {
-        // if let Some(value) = value {
-        //     let length = PlCdrLeSerializer::bytes_len(value)? as u16;
-        //     self.writer.pad(4);
-        //     self.writer.write_slice(&0_u16.to_le_bytes());
-        //     self.writer.write_slice(&length.to_le_bytes());
-        //     value.serialize(&mut **self)
-        // } else {
-        //     self.writer.pad(4);
-        //     self.writer.write_slice(&0_u16.to_le_bytes());
-        //     self.writer.write_slice(&0_u16.to_le_bytes());
-        //     Ok(())
-        // }
-        todo!()
+        unimplemented!()
     }
 }
 impl<C: Write> SerializeAppendableStruct for &mut PlCdrLeSerializer<'_, C> {
@@ -169,11 +157,6 @@ impl<C: Write> SerializeMutableStruct for &mut PlCdrLeSerializer<'_, C> {
         self.writer.write_slice(&PID_SENTINEL.to_le_bytes());
         self.writer.write_slice(&0u16.to_le_bytes());
         Ok(())
-    }
-}
-impl<C: Write> SerializeCollection for &mut PlCdrLeSerializer<'_, C> {
-    fn serialize_element(&mut self, value: &DynamicData) -> Result<(), XTypesError> {
-        value.serialize(&mut **self)
     }
 }
 
@@ -269,100 +252,100 @@ impl<C: Write> XTypesSerializer for &mut PlCdrLeSerializer<'_, C> {
         Ok(())
     }
 
-    fn serialize_boolean_list(self, vs: &[bool]) -> Result<(), XTypesError> {
+    fn serialize_boolean_list(self, _vs: &[bool]) -> Result<(), XTypesError> {
         todo!()
     }
 
-    fn serialize_int8_list(self, vs: &[i8]) -> Result<(), XTypesError> {
-        todo!()
+    fn serialize_int8_list(self, _vs: &[i8]) -> Result<(), XTypesError> {
+        unimplemented!()
     }
 
-    fn serialize_int16_list(self, vs: &[i16]) -> Result<(), XTypesError> {
-        todo!()
+    fn serialize_int16_list(self, _vs: &[i16]) -> Result<(), XTypesError> {
+        unimplemented!()
     }
 
-    fn serialize_int32_list(self, vs: &[i32]) -> Result<(), XTypesError> {
-        todo!()
+    fn serialize_int32_list(self, _vs: &[i32]) -> Result<(), XTypesError> {
+        unimplemented!()
     }
 
-    fn serialize_int64_list(self, vs: &[i64]) -> Result<(), XTypesError> {
-        todo!()
+    fn serialize_int64_list(self, _vs: &[i64]) -> Result<(), XTypesError> {
+        unimplemented!()
     }
 
-    fn serialize_uint8_list(self, vs: &[u8]) -> Result<(), XTypesError> {
-        todo!()
+    fn serialize_uint8_list(self, _vs: &[u8]) -> Result<(), XTypesError> {
+        unimplemented!()
     }
 
-    fn serialize_uint16_list(self, vs: &[u16]) -> Result<(), XTypesError> {
-        todo!()
+    fn serialize_uint16_list(self, _vs: &[u16]) -> Result<(), XTypesError> {
+        unimplemented!()
     }
 
-    fn serialize_uint32_list(self, vs: &[u32]) -> Result<(), XTypesError> {
-        todo!()
+    fn serialize_uint32_list(self, _vs: &[u32]) -> Result<(), XTypesError> {
+        unimplemented!()
     }
 
-    fn serialize_uint64_list(self, vs: &[u64]) -> Result<(), XTypesError> {
-        todo!()
+    fn serialize_uint64_list(self, _vs: &[u64]) -> Result<(), XTypesError> {
+        unimplemented!()
     }
 
-    fn serialize_float32_list(self, vs: &[f32]) -> Result<(), XTypesError> {
-        todo!()
+    fn serialize_float32_list(self, _vs: &[f32]) -> Result<(), XTypesError> {
+        unimplemented!()
     }
 
-    fn serialize_float64_list(self, vs: &[f64]) -> Result<(), XTypesError> {
-        todo!()
+    fn serialize_float64_list(self, _vs: &[f64]) -> Result<(), XTypesError> {
+        unimplemented!()
     }
 
-    fn serialize_char8_list(self, vs: &[char]) -> Result<(), XTypesError> {
-        todo!()
+    fn serialize_char8_list(self, _vs: &[char]) -> Result<(), XTypesError> {
+        unimplemented!()
     }
 
-    fn serialize_boolean_array(self, vs: &[bool]) -> Result<(), XTypesError> {
-        todo!()
+    fn serialize_boolean_array(self, _vs: &[bool]) -> Result<(), XTypesError> {
+        unimplemented!()
     }
 
-    fn serialize_int8_array(self, vs: &[i8]) -> Result<(), XTypesError> {
-        todo!()
+    fn serialize_int8_array(self, _vs: &[i8]) -> Result<(), XTypesError> {
+        unimplemented!()
     }
 
-    fn serialize_int16_array(self, vs: &[i16]) -> Result<(), XTypesError> {
-        todo!()
+    fn serialize_int16_array(self, _vs: &[i16]) -> Result<(), XTypesError> {
+        unimplemented!()
     }
 
-    fn serialize_int32_array(self, vs: &[i32]) -> Result<(), XTypesError> {
-        todo!()
+    fn serialize_int32_array(self, _vs: &[i32]) -> Result<(), XTypesError> {
+        unimplemented!()
     }
 
-    fn serialize_int64_array(self, vs: &[i64]) -> Result<(), XTypesError> {
-        todo!()
+    fn serialize_int64_array(self, _vs: &[i64]) -> Result<(), XTypesError> {
+        unimplemented!()
     }
 
-    fn serialize_uint16_array(self, vs: &[u16]) -> Result<(), XTypesError> {
-        todo!()
+    fn serialize_uint16_array(self, _vs: &[u16]) -> Result<(), XTypesError> {
+        unimplemented!()
     }
 
-    fn serialize_uint32_array(self, vs: &[u32]) -> Result<(), XTypesError> {
-        todo!()
+    fn serialize_uint32_array(self, _vs: &[u32]) -> Result<(), XTypesError> {
+        unimplemented!()
     }
 
-    fn serialize_uint64_array(self, vs: &[u64]) -> Result<(), XTypesError> {
-        todo!()
+    fn serialize_uint64_array(self, _vs: &[u64]) -> Result<(), XTypesError> {
+        unimplemented!()
     }
 
-    fn serialize_float32_array(self, vs: &[f32]) -> Result<(), XTypesError> {
-        todo!()
+    fn serialize_float32_array(self, _vs: &[f32]) -> Result<(), XTypesError> {
+        unimplemented!()
     }
 
-    fn serialize_float64_array(self, vs: &[f64]) -> Result<(), XTypesError> {
-        todo!()
+    fn serialize_float64_array(self, _vs: &[f64]) -> Result<(), XTypesError> {
+        unimplemented!()
     }
 
-    fn serialize_char8_array(self, vs: &[char]) -> Result<(), XTypesError> {
-        todo!()
+    fn serialize_char8_array(self, _vs: &[char]) -> Result<(), XTypesError> {
+        unimplemented!()
     }
 
-    fn serialize_string_array(self, vs: &[String]) -> Result<(), XTypesError> {
-        todo!()
+    fn serialize_string_array(self, _vs: &[String]) -> Result<(), XTypesError> {
+        unimplemented!()
     }
 }
 

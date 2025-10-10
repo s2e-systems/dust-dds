@@ -33,9 +33,6 @@ pub trait SerializeMutableStruct {
     }
     fn end(self) -> Result<(), XTypesError>;
 }
-pub trait SerializeCollection {
-    fn serialize_element(&mut self, value: &DynamicData) -> Result<(), XTypesError>;
-}
 
 /// A trait representing an object with the capability of serializing a value into a CDR format.
 pub trait XTypesSerializer {

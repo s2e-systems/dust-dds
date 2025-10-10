@@ -3,7 +3,6 @@ use crate::{
     xtypes::{
         deserialize::XTypesDeserialize,
         deserializer::{DeserializeFinalStruct, XTypesDeserializer},
-        dynamic_type::DynamicDataFactory,
         error::XTypesError,
     },
 };

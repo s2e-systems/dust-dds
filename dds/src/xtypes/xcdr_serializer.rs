@@ -2,7 +2,7 @@ use super::{
     error::XTypesError,
     serialize::Write,
     serializer::{
-        SerializeAppendableStruct, SerializeCollection, SerializeFinalStruct,
+        SerializeAppendableStruct, SerializeFinalStruct,
         SerializeMutableStruct, XTypesSerializer,
     },
 };
@@ -163,11 +163,6 @@ impl<C: Write> SerializeMutableStruct for &mut Xcdr1BeSerializer<'_, C> {
         self.writer.write_slice(&PID_SENTINEL.to_be_bytes());
         self.writer.write_slice(&0u16.to_be_bytes());
         Ok(())
-    }
-}
-impl<C: Write> SerializeCollection for &mut Xcdr1BeSerializer<'_, C> {
-    fn serialize_element(&mut self, value: &DynamicData) -> Result<(), XTypesError> {
-        value.serialize(&mut **self)
     }
 }
 
@@ -420,11 +415,6 @@ impl<C: Write> SerializeMutableStruct for &mut Xcdr1LeSerializer<'_, C> {
         self.writer.write_slice(&PID_SENTINEL.to_le_bytes());
         self.writer.write_slice(&0u16.to_le_bytes());
         Ok(())
-    }
-}
-impl<C: Write> SerializeCollection for &mut Xcdr1LeSerializer<'_, C> {
-    fn serialize_element(&mut self, value: &DynamicData) -> Result<(), XTypesError> {
-        value.serialize(&mut **self)
     }
 }
 
@@ -740,18 +730,6 @@ impl<C: Write> SerializeAppendableStruct for &mut Xcdr2LeSerializer<'_, C> {
         // value.serialize(&mut **self)?;
         // Ok(())
         todo!()
-    }
-}
-
-struct CollectionSerializer<'a, S> {
-    serializer: &'a mut S,
-}
-impl<S> SerializeCollection for CollectionSerializer<'_, S>
-where
-    for<'a> &'a mut S: XTypesSerializer,
-{
-    fn serialize_element(&mut self, value: &DynamicData) -> Result<(), XTypesError> {
-        value.serialize(&mut *self.serializer)
     }
 }
 
