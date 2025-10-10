@@ -85,7 +85,6 @@ use crate::{
     xtypes::{
         dynamic_type::{DynamicData, DynamicDataFactory, DynamicType, ExtensibilityKind},
         pl_cdr_serializer::PlCdrLeSerializer,
-        serialize::XTypesSerialize,
         xcdr_serializer::{Xcdr1LeSerializer, Xcdr2LeSerializer},
     },
 };

@@ -23,8 +23,7 @@ use crate::{
     },
     transport::types::{EntityId, Guid, Locator, ENTITYID_UNKNOWN},
     xtypes::{
-        binding::{DataKind, XTypesBinding},
-        dynamic_type::DynamicTypeBuilder,
+        binding::XTypesBinding, data_representation::DataKind, dynamic_type::DynamicTypeBuilder,
     },
 };
 use alloc::{string::String, vec::Vec};
@@ -223,119 +222,59 @@ impl TypeSupport for DiscoveredWriterData {
     }
 
     fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
-        let mut data =
-            dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type());
-        data.set_value(
-            PID_ENDPOINT_GUID as u32,
-            self.dds_publication_data.key.into(),
-        )
-        .unwrap();
-        data.set_value(
-            PID_PARTICIPANT_GUID as u32,
-            self.dds_publication_data.participant_key.into(),
-        )
-        .unwrap();
-        data.set_value(
-            PID_TOPIC_NAME as u32,
-            self.dds_publication_data.topic_name.into(),
-        )
-        .unwrap();
-        data.set_value(
-            PID_TYPE_NAME as u32,
-            self.dds_publication_data.type_name.into(),
-        )
-        .unwrap();
-        data.set_value(
-            PID_DURABILITY as u32,
-            self.dds_publication_data.durability.into(),
-        )
-        .unwrap();
-        data.set_value(
-            PID_DEADLINE as u32,
-            self.dds_publication_data.deadline.into(),
-        )
-        .unwrap();
-        data.set_value(
-            PID_LATENCY_BUDGET as u32,
-            self.dds_publication_data.latency_budget.into(),
-        )
-        .unwrap();
-        data.set_value(
-            PID_LIVELINESS as u32,
-            self.dds_publication_data.liveliness.into(),
-        )
-        .unwrap();
-        data.set_value(
-            PID_RELIABILITY as u32,
-            self.dds_publication_data.reliability.into(),
-        )
-        .unwrap();
-        data.set_value(
-            PID_LIFESPAN as u32,
-            self.dds_publication_data.lifespan.into(),
-        )
-        .unwrap();
-        data.set_value(
-            PID_OWNERSHIP as u32,
-            self.dds_publication_data.ownership.into(),
-        )
-        .unwrap();
-        data.set_value(
-            PID_OWNERSHIP_STRENGTH as u32,
-            self.dds_publication_data.ownership_strength.into(),
-        )
-        .unwrap();
-        data.set_value(
-            PID_DESTINATION_ORDER as u32,
-            self.dds_publication_data.destination_order.into(),
-        )
-        .unwrap();
-        data.set_value(
-            PID_USER_DATA as u32,
-            self.dds_publication_data.user_data.into(),
-        )
-        .unwrap();
-        data.set_value(
-            PID_PRESENTATION as u32,
-            self.dds_publication_data.presentation.into(),
-        )
-        .unwrap();
-        data.set_value(
-            PID_PARTITION as u32,
-            self.dds_publication_data.partition.into(),
-        )
-        .unwrap();
-        data.set_value(
-            PID_TOPIC_DATA as u32,
-            self.dds_publication_data.topic_data.into(),
-        )
-        .unwrap();
-        data.set_value(
-            PID_GROUP_DATA as u32,
-            self.dds_publication_data.group_data.into(),
-        )
-        .unwrap();
-        data.set_value(
-            PID_DATA_REPRESENTATION as u32,
-            self.dds_publication_data.representation.into(),
-        )
-        .unwrap();
-        data.set_value(
-            PID_GROUP_ENTITYID as u32,
-            self.writer_proxy.remote_group_entity_id.into(),
-        )
-        .unwrap();
-        data.set_value(
-            PID_UNICAST_LOCATOR as u32,
-            self.writer_proxy.unicast_locator_list.into(),
-        )
-        .unwrap();
-        data.set_value(
-            PID_MULTICAST_LOCATOR as u32,
-            self.writer_proxy.multicast_locator_list.into(),
-        )
-        .unwrap();
-        data
+        dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type())
+            .set_value(PID_ENDPOINT_GUID as u32, self.dds_publication_data.key)
+            .set_value(
+                PID_PARTICIPANT_GUID as u32,
+                self.dds_publication_data.participant_key,
+            )
+            .set_value(PID_TOPIC_NAME as u32, self.dds_publication_data.topic_name)
+            .set_value(PID_TYPE_NAME as u32, self.dds_publication_data.type_name)
+            .set_value(PID_DURABILITY as u32, self.dds_publication_data.durability)
+            .set_value(PID_DEADLINE as u32, self.dds_publication_data.deadline)
+            .set_value(
+                PID_LATENCY_BUDGET as u32,
+                self.dds_publication_data.latency_budget,
+            )
+            .set_value(PID_LIVELINESS as u32, self.dds_publication_data.liveliness)
+            .set_value(
+                PID_RELIABILITY as u32,
+                self.dds_publication_data.reliability,
+            )
+            .set_value(PID_LIFESPAN as u32, self.dds_publication_data.lifespan)
+            .set_value(PID_OWNERSHIP as u32, self.dds_publication_data.ownership)
+            .set_value(
+                PID_OWNERSHIP_STRENGTH as u32,
+                self.dds_publication_data.ownership_strength,
+            )
+            .set_value(
+                PID_DESTINATION_ORDER as u32,
+                self.dds_publication_data.destination_order,
+            )
+            .set_value(PID_USER_DATA as u32, self.dds_publication_data.user_data)
+            .set_value(
+                PID_PRESENTATION as u32,
+                self.dds_publication_data.presentation,
+            )
+            .set_value(PID_PARTITION as u32, self.dds_publication_data.partition)
+            .set_value(PID_TOPIC_DATA as u32, self.dds_publication_data.topic_data)
+            .set_value(PID_GROUP_DATA as u32, self.dds_publication_data.group_data)
+            .set_value(
+                PID_DATA_REPRESENTATION as u32,
+                self.dds_publication_data.representation,
+            )
+            .set_value(
+                PID_GROUP_ENTITYID as u32,
+                self.writer_proxy.remote_group_entity_id,
+            )
+            .set_value(
+                PID_UNICAST_LOCATOR as u32,
+                self.writer_proxy.unicast_locator_list,
+            )
+            .set_value(
+                PID_MULTICAST_LOCATOR as u32,
+                self.writer_proxy.multicast_locator_list,
+            )
     }
 }
 
@@ -401,7 +340,7 @@ mod tests {
             EntityId, Guid, BUILT_IN_PARTICIPANT, BUILT_IN_READER_GROUP, BUILT_IN_WRITER_WITH_KEY,
             USER_DEFINED_UNKNOWN,
         },
-        xtypes::{pl_cdr_serializer::PlCdrLeSerializer, serialize::XTypesSerialize},
+        xtypes::pl_cdr_serializer::PlCdrLeSerializer,
     };
 
     #[test]
