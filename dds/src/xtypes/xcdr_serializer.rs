@@ -527,7 +527,7 @@ impl<C: Write> XTypesSerializer for &mut Xcdr1LeSerializer<'_, C> {
     }
 
     fn serialize_uint8_list(self, vs: &[u8]) -> Result<(), XTypesError> {
-        self.serialize_uint32(vs.len() as u32)?;
+        self.serialize_uint32(into_u32(vs.len())?)?;
         self.writer.write_slice(vs);
         Ok(())
     }

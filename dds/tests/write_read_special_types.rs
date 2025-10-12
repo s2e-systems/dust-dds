@@ -19,7 +19,6 @@ use dust_dds::{
 };
 
 #[test]
-#[ignore = "DO_NOT_IGNORE"]
 fn foo_with_lifetime_should_read_and_write() {
     #[derive(Clone, Debug, PartialEq, DdsType)]
     struct BorrowedData<'a> {

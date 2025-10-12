@@ -8,8 +8,7 @@ use crate::{
         },
     },
 };
-use alloc::string::String;
-use alloc::vec::Vec;
+use alloc::{string::String, vec::Vec};
 
 impl DynamicData {
     pub fn serialize(
@@ -425,7 +424,7 @@ impl From<Vec<String>> for DataKind {
 
 impl From<&[u8]> for DataKind {
     fn from(value: &[u8]) -> Self {
-        Self::UInt8Array(value.to_vec())
+        Self::UInt8List(value.to_vec())
     }
 }
 
