@@ -247,8 +247,10 @@ impl<C: Write> XTypesSerializer for &mut PlCdrLeSerializer<'_, C> {
         unimplemented!()
     }
 
-    fn serialize_uint8_list(self, _vs: &[u8]) -> Result<(), XTypesError> {
-        unimplemented!()
+    fn serialize_uint8_list(self,vs: &[u8]) -> Result<(), XTypesError> {
+        self.serialize_uint32(into_u32(vs.len())?)?;
+        self.writer.write_slice(vs);
+        Ok(())
     }
 
     fn serialize_int8_list(self, _vs: &[i8]) -> Result<(), XTypesError> {
@@ -267,8 +269,12 @@ impl<C: Write> XTypesSerializer for &mut PlCdrLeSerializer<'_, C> {
         unimplemented!()
     }
 
-    fn serialize_uint16_list(self, _vs: &[u16]) -> Result<(), XTypesError> {
-        unimplemented!()
+    fn serialize_uint16_list(self, vs: &[u16]) -> Result<(), XTypesError> {
+        self.serialize_uint32(into_u32(vs.len())?)?;
+        for &v in vs {
+            self.serialize_uint16(v)?;
+        }
+        Ok(())
     }
 
     fn serialize_uint32_list(self, _vs: &[u32]) -> Result<(), XTypesError> {
@@ -291,10 +297,10 @@ impl<C: Write> XTypesSerializer for &mut PlCdrLeSerializer<'_, C> {
         unimplemented!()
     }
 
-    fn serialize_string_list(self, v: &[String]) -> Result<(), XTypesError> {
-        self.serialize_uint32(into_u32(v.len())?)?;
-        for value in v {
-            self.serialize_string(value)?;
+    fn serialize_string_list(self, vs: &[String]) -> Result<(), XTypesError> {
+        self.serialize_uint32(into_u32(vs.len())?)?;
+        for v in vs {
+            self.serialize_string(v)?;
         }
         Ok(())
     }
@@ -303,8 +309,8 @@ impl<C: Write> XTypesSerializer for &mut PlCdrLeSerializer<'_, C> {
         unimplemented!()
     }
 
-    fn serialize_uint8_array(self, v: &[u8]) -> Result<(), XTypesError> {
-        self.writer.write_slice(v);
+    fn serialize_uint8_array(self, vs: &[u8]) -> Result<(), XTypesError> {
+        self.writer.write_slice(vs);
         Ok(())
     }
 
@@ -324,8 +330,11 @@ impl<C: Write> XTypesSerializer for &mut PlCdrLeSerializer<'_, C> {
         unimplemented!()
     }
 
-    fn serialize_uint16_array(self, _vs: &[u16]) -> Result<(), XTypesError> {
-        unimplemented!()
+    fn serialize_uint16_array(self, vs: &[u16]) -> Result<(), XTypesError> {
+        for &v in vs {
+            self.serialize_uint16(v)?;
+        }
+        Ok(())
     }
 
     fn serialize_uint32_array(self, _vs: &[u32]) -> Result<(), XTypesError> {
