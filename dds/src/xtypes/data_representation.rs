@@ -8,6 +8,7 @@ use crate::{
         },
     },
 };
+use alloc::string::String;
 use alloc::vec::Vec;
 
 impl DynamicData {
@@ -438,5 +439,3 @@ impl<T: TypeSupport> From<Vec<T>> for DataKind {
         )
     }
 }
-
-

@@ -1,4 +1,5 @@
 use crate::xtypes::{data_representation::DataKind, dynamic_type::DynamicData, error::XTypesError};
+use alloc::string::String;
 
 pub trait SerializeFinalStruct {
     fn serialize_field(&mut self, value: &DataKind, name: &str) -> Result<(), XTypesError>;

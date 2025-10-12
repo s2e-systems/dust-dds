@@ -6,6 +6,7 @@ use super::{
     },
 };
 use crate::xtypes::{data_representation::DataKind, dynamic_type::DynamicData};
+use alloc::string::String;
 
 const PID_SENTINEL: u16 = 1;
 
@@ -529,7 +530,6 @@ impl<C: Write> XTypesSerializer for &mut Xcdr1LeSerializer<'_, C> {
         self.serialize_uint32(vs.len() as u32)?;
         self.writer.write_slice(vs);
         Ok(())
-
     }
 
     fn serialize_int8_list(self, _vs: &[i8]) -> Result<(), XTypesError> {

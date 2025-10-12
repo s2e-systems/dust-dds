@@ -12,7 +12,7 @@ use crate::{
         xcdr_serializer::{Xcdr1LeSerializer, Xcdr2BeSerializer},
     },
 };
-use alloc::vec::Vec;
+use alloc::{string::String, vec::Vec};
 
 struct Md5 {
     key: [u8; 16],
