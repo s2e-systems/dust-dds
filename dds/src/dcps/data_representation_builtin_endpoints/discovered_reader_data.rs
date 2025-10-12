@@ -31,15 +31,10 @@ use alloc::{string::String, vec::Vec};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ReaderProxy {
-    // #[dust_dds(id=PID_ENDPOINT_GUID as u32, non_serialized)]
     pub remote_reader_guid: Guid,
-    // #[dust_dds(id=PID_GROUP_ENTITYID as u32)]
     pub remote_group_entity_id: EntityId,
-    // #[dust_dds(id=PID_UNICAST_LOCATOR as u32)]
     pub unicast_locator_list: Vec<Locator>,
-    // #[dust_dds(id=PID_MULTICAST_LOCATOR as u32)]
     pub multicast_locator_list: Vec<Locator>,
-    // #[dust_dds(id=PID_EXPECTS_INLINE_QOS as u32)]
     pub expects_inline_qos: bool,
 }
 
