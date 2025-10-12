@@ -99,14 +99,14 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                             member_sample_seq.extend(quote! {
                                 #field_ident: dust_dds::infrastructure::type_support::TypeSupport::create_sample(src.remove_value(#member_id)?)?,
                             });
-                            member_dynamic_sample_seq.push(
-                                    quote! {data.set_value(#member_id, self.#field_ident.into()).unwrap();});
+                            member_dynamic_sample_seq
+                                .push(quote! {.set_value(#member_id, self.#field_ident)});
                         }
                         None => {
                             let index = Index::from(field_index);
                             member_sample_seq.extend(quote! {  dust_dds::infrastructure::type_support::TypeSupport::create_sample(src.remove_value(#member_id)?)?,});
                             member_dynamic_sample_seq.push(quote! {
-                                data.set_value(#member_id, self.#index.into()).unwrap();
+                                .set_value(#member_id, self.#index)
                             })
                         }
                     }
@@ -127,9 +127,8 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
             };
 
             let create_dynamic_sample_quote = quote! {
-                let mut data = dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type());
+                dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type())
                 #(#member_dynamic_sample_seq)*
-                data
             };
             Ok((get_type_quote, create_dynamic_sample_quote))
         }
@@ -165,7 +164,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 // be consuming it.
                 let discriminator_type = quote! {dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::get_primitive_type(dust_dds::xtypes::dynamic_type::TypeKind::INT32)};
                 let discriminator_dynamic_value =
-                    quote! {data.set_int32_value(0, self as i32).unwrap();};
+                    quote! {.set_int32_value(0, self as i32).unwrap()};
 
                 let enum_builder = quote! {
                     extern crate alloc;
@@ -189,9 +188,8 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 };
 
                 let create_dynamic_sample_quote = quote! {
-                    let mut data = dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type());
+                    dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type())
                     #discriminator_dynamic_value
-                    data
                 };
                 Ok((get_type_quote, create_dynamic_sample_quote))
             }

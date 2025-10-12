@@ -26,8 +26,7 @@ use crate::{
     },
     transport::types::{GuidPrefix, Locator, Long, ProtocolVersion, VendorId},
     xtypes::{
-        binding::{DataKind, XTypesBinding},
-        deserialize::XTypesDeserialize,
+        binding::XTypesBinding, data_representation::DataKind, deserialize::XTypesDeserialize,
         dynamic_type::DynamicTypeBuilder,
     },
 };
@@ -305,89 +304,55 @@ impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParti
     }
 
     fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
-        let mut data =
-            dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type());
-
-        data.set_value(
-            PID_PARTICIPANT_GUID as u32,
-            self.dds_participant_data.key.into(),
-        )
-        .unwrap();
-        data.set_value(
-            PID_USER_DATA as u32,
-            self.dds_participant_data.user_data.into(),
-        )
-        .unwrap();
+        let data =
+            dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type())
+                .set_value(PID_PARTICIPANT_GUID as u32, self.dds_participant_data.key)
+                .set_value(PID_USER_DATA as u32, self.dds_participant_data.user_data);
         if let Some(domain_id) = self.participant_proxy.domain_id {
-            data.set_value(PID_DOMAIN_ID as u32, domain_id.into())
-                .unwrap();
+            data.set_value(PID_DOMAIN_ID as u32, domain_id)
+        } else {
+            data
         }
-        data.set_value(
-            PID_DOMAIN_TAG as u32,
-            self.participant_proxy.domain_tag.into(),
-        )
-        .unwrap();
-        data.set_value(
+        .set_value(PID_DOMAIN_TAG as u32, self.participant_proxy.domain_tag)
+        .set_value(
             PID_PROTOCOL_VERSION as u32,
-            self.participant_proxy.protocol_version.into(),
+            self.participant_proxy.protocol_version,
         )
-        .unwrap();
-
         // self.participant_proxy.guid_prefix is ommitted
-
-        data.set_value(PID_VENDORID as u32, self.participant_proxy.vendor_id.into())
-            .unwrap();
-        data.set_value(
+        .set_value(PID_VENDORID as u32, self.participant_proxy.vendor_id)
+        .set_value(
             PID_EXPECTS_INLINE_QOS as u32,
-            self.participant_proxy.expects_inline_qos.into(),
+            self.participant_proxy.expects_inline_qos,
         )
-        .unwrap();
-        data.set_value(
+        .set_value(
             PID_METATRAFFIC_UNICAST_LOCATOR as u32,
-            self.participant_proxy
-                .metatraffic_unicast_locator_list
-                .into(),
+            self.participant_proxy.metatraffic_unicast_locator_list,
         )
-        .unwrap();
-        data.set_value(
+        .set_value(
             PID_METATRAFFIC_MULTICAST_LOCATOR as u32,
-            self.participant_proxy
-                .metatraffic_multicast_locator_list
-                .into(),
+            self.participant_proxy.metatraffic_multicast_locator_list,
         )
-        .unwrap();
-        data.set_value(
+        .set_value(
             PID_DEFAULT_UNICAST_LOCATOR as u32,
-            self.participant_proxy.default_unicast_locator_list.into(),
+            self.participant_proxy.default_unicast_locator_list,
         )
-        .unwrap();
-        data.set_value(
+        .set_value(
             PID_DEFAULT_MULTICAST_LOCATOR as u32,
-            self.participant_proxy.default_multicast_locator_list.into(),
+            self.participant_proxy.default_multicast_locator_list,
         )
-        .unwrap();
-        data.set_value(
+        .set_value(
             PID_BUILTIN_ENDPOINT_SET as u32,
-            self.participant_proxy.available_builtin_endpoints.into(),
+            self.participant_proxy.available_builtin_endpoints,
         )
-        .unwrap();
-        data.set_value(
+        .set_value(
             PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT as u32,
-            self.participant_proxy.manual_liveliness_count.into(),
+            self.participant_proxy.manual_liveliness_count,
         )
-        .unwrap();
-        data.set_value(
+        .set_value(
             PID_BUILTIN_ENDPOINT_QOS as u32,
-            self.participant_proxy.builtin_endpoint_qos.into(),
+            self.participant_proxy.builtin_endpoint_qos,
         )
-        .unwrap();
-
-        data.set_value(
-            PID_PARTICIPANT_LEASE_DURATION as u32,
-            self.lease_duration.into(),
-        )
-        .unwrap();
-        data
+        .set_value(PID_PARTICIPANT_LEASE_DURATION as u32, self.lease_duration)
     }
 }
 
@@ -480,10 +445,8 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
 mod tests {
     use super::*;
     use crate::{
-        builtin_topics::BuiltInTopicKey,
-        infrastructure::qos_policy::UserDataQosPolicy,
-        rtps::types::PROTOCOLVERSION_2_4,
-        xtypes::{pl_cdr_serializer::PlCdrLeSerializer, serialize::XTypesSerialize},
+        builtin_topics::BuiltInTopicKey, infrastructure::qos_policy::UserDataQosPolicy,
+        rtps::types::PROTOCOLVERSION_2_4, xtypes::pl_cdr_serializer::PlCdrLeSerializer,
     };
 
     #[test]

@@ -6,11 +6,11 @@ use crate::{
     },
     transport::types::{DurabilityKind, ReliabilityKind},
     xtypes::{
-        binding::{DataKind, XTypesBinding},
+        binding::XTypesBinding,
         bytes::ByteBuf,
         deserialize::XTypesDeserialize,
         deserializer::{DeserializeFinalStruct, XTypesDeserializer},
-        dynamic_type::{DynamicDataFactory, DynamicTypeBuilderFactory, TypeKind},
+        dynamic_type::{DynamicDataFactory, TypeKind},
         error::XTypesError,
     },
 };
@@ -29,18 +29,19 @@ pub enum Length {
     Limited(u32),
 }
 
-impl XTypesBinding for Length {
-    fn get_dynamic_type() -> crate::xtypes::dynamic_type::DynamicType {
-        DynamicTypeBuilderFactory::get_primitive_type(TypeKind::INT32)
+impl TypeSupport for Length {
+    fn get_type() -> crate::xtypes::dynamic_type::DynamicType {
+        u32::get_dynamic_type()
     }
-}
 
-impl From<Length> for DataKind {
-    fn from(value: Length) -> Self {
-        match value {
-            Length::Unlimited => DataKind::Int32(LENGTH_UNLIMITED),
-            Length::Limited(l) => DataKind::Int32(l as i32),
-        }
+    fn create_dynamic_sample(self) -> crate::xtypes::dynamic_type::DynamicData {
+        let value = match self {
+            Length::Limited(length) => length,
+            Length::Unlimited => LENGTH_UNLIMITED as u32,
+        };
+        DynamicDataFactory::create_data(Self::get_type())
+            .set_uint32_value(0, value)
+            .unwrap()
     }
 }
 
@@ -962,10 +963,9 @@ impl dust_dds::infrastructure::type_support::TypeSupport for ReliabilityQosPolic
     }
 
     fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
-        let mut data =
-            dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type());
-        data.set_int32_value(0, self as i32).unwrap();
-        data
+        dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type())
+            .set_int32_value(0, self as i32)
+            .unwrap()
     }
 }
 
@@ -1154,13 +1154,13 @@ impl TypeSupport for HistoryQosPolicyKind {
     }
 
     fn create_dynamic_sample(self) -> crate::xtypes::dynamic_type::DynamicData {
-        let mut data = DynamicDataFactory::create_data(Self::get_type());
         let value = match self {
             HistoryQosPolicyKind::KeepLast(_) => 0,
             HistoryQosPolicyKind::KeepAll => 1,
         };
-        data.set_uint8_value(0, value).unwrap();
-        data
+        DynamicDataFactory::create_data(Self::get_type())
+            .set_uint8_value(0, value)
+            .unwrap()
     }
 }
 
@@ -1269,15 +1269,14 @@ impl dust_dds::infrastructure::type_support::TypeSupport for HistoryQosPolicy {
             HistoryQosPolicyKind::KeepLast(depth) => {
                 data.set_complex_value(0, self.kind.create_dynamic_sample())
                     .unwrap();
-                data.set_int32_value(1, depth as i32).unwrap();
+                data.set_int32_value(1, depth as i32).unwrap()
             }
             HistoryQosPolicyKind::KeepAll => {
                 data.set_complex_value(0, self.kind.create_dynamic_sample())
                     .unwrap();
-                data.set_int32_value(1, 0).unwrap();
+                data.set_int32_value(1, 0).unwrap()
             }
         }
-        data
     }
 }
 

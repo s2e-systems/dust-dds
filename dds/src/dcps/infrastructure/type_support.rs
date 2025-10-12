@@ -5,7 +5,6 @@ use crate::{
         xcdr_deserializer::{Xcdr2BeDeserializer, Xcdr2LeDeserializer},
     },
 };
-use alloc::vec::Vec;
 pub use dust_dds_derive::{DdsDeserialize, TypeSupport};
 
 /// The TypeSupport trait represents a type that can be transmitted by DDS.
@@ -41,9 +40,7 @@ pub trait DdsDeserialize<'de>: Sized {
 use crate::xtypes::{
     deserialize::XTypesDeserialize,
     error::XTypesError,
-    serialize::XTypesSerialize,
     xcdr_deserializer::{Xcdr1BeDeserializer, Xcdr1LeDeserializer},
-    xcdr_serializer::{Xcdr1BeSerializer, Xcdr1LeSerializer},
 };
 /// This is a convenience derive to allow the user to easily derive all the different traits needed for a type to be used for
 /// communication with Dust DDS. If the individual traits are manually derived then this derive should not be used.
@@ -81,7 +78,7 @@ use crate::xtypes::{
 pub use dust_dds_derive::DdsType;
 
 type RepresentationIdentifier = [u8; 2];
-type RepresentationOptions = [u8; 2];
+// type RepresentationOptions = [u8; 2];
 
 const CDR_BE: RepresentationIdentifier = [0x00, 0x00];
 const CDR_LE: RepresentationIdentifier = [0x00, 0x01];
@@ -91,42 +88,6 @@ const D_CDR2_BE: RepresentationIdentifier = [0x00, 0x08];
 const D_CDR2_LE: RepresentationIdentifier = [0x00, 0x09];
 const _PL_CDR_BE: RepresentationIdentifier = [0x00, 0x02];
 const _PL_CDR_LE: RepresentationIdentifier = [0x00, 0x03];
-const REPRESENTATION_OPTIONS: RepresentationOptions = [0x00, 0x00];
-
-/// This is a helper function to serialize a type implementing [`XTypesSerialize`] using the XTypes defined XCDR1 representation with LittleEndian endianness.
-pub fn serialize_rtps_xtypes_xcdr1_le(value: &impl XTypesSerialize) -> DdsResult<Vec<u8>> {
-    let padded_length = (Xcdr1LeSerializer::bytes_len(value)? + 3) & !3;
-    let mut writer = Vec::with_capacity(padded_length + 4);
-    writer.extend_from_slice(&CDR_LE);
-    writer.extend_from_slice(&REPRESENTATION_OPTIONS);
-    let mut serializer = Xcdr1LeSerializer::new(&mut writer);
-    XTypesSerialize::serialize(value, &mut serializer)?;
-    pad(&mut writer);
-    Ok(writer)
-}
-
-/// This is a helper function to serialize a type implementing [`XTypesSerialize`] using the XTypes defined XCDR1 representation with BigEndian endianness.
-pub fn serialize_rtps_xtypes_xcdr1_be(value: &impl XTypesSerialize) -> DdsResult<Vec<u8>> {
-    let padded_length = (Xcdr1BeSerializer::bytes_len(value)? + 3) & !3;
-    let mut writer = Vec::with_capacity(padded_length + 4);
-    writer.extend_from_slice(&CDR_BE);
-    writer.extend_from_slice(&REPRESENTATION_OPTIONS);
-    let mut serializer = Xcdr1BeSerializer::new(&mut writer);
-    XTypesSerialize::serialize(value, &mut serializer)?;
-    pad(&mut writer);
-    Ok(writer)
-}
-
-fn pad(writer: &mut Vec<u8>) {
-    let padding = match writer.len() % 4 {
-        1 => &[0, 0, 0][..],
-        2 => &[0, 0][..],
-        3 => &[0][..],
-        _ => &[][..],
-    };
-    writer.extend_from_slice(padding);
-    writer[3] = padding.len() as u8;
-}
 
 /// This is a helper function to deserialize a type implementing [`CdrDeserialize`] using the RTPS classic CDR representation.
 /// The representation endianness to be used is automatically determined from the representation identifier and options

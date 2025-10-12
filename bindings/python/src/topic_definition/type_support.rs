@@ -308,7 +308,7 @@ impl PythonDdsData {
             } else if let Ok(py_type) = member_type.downcast::<PyType>() {
                 if py_type.py().get_type_bound::<PyBytes>().is(py_type) {
                     serializer
-                        .serialize_byte_sequence(member_data.extract()?)
+                        .serialize_uint8_list(member_data.extract()?)
                         .map_err(|e| PyTypeError::new_err(format!("XTypes error: {e:?}")))
                 } else if py_type.py().get_type_bound::<PyString>().is(py_type) {
                     serializer

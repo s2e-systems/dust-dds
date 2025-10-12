@@ -4,8 +4,8 @@ use crate::{
         deserializer::{DeserializeAppendableStruct, DeserializeSequence, XTypesDeserializer},
         dynamic_type::{DynamicData, DynamicType, MemberDescriptor, TypeKind},
         error::XTypesError,
-        serialize::{Write, XTypesSerialize, XTypesSerializer},
-        serializer::SerializeFinalStruct,
+        serialize::Write,
+        serializer::{SerializeFinalStruct, XTypesSerializer},
         xcdr_deserializer::{
             Xcdr1BeDeserializer, Xcdr1LeDeserializer, Xcdr2BeDeserializer, Xcdr2LeDeserializer,
         },
@@ -58,85 +58,85 @@ where
         TypeKind::BOOLEAN => {
             let v = de.deserialize_boolean()?;
             if is_key_field {
-                serializer.serialize_field(&v, "")?;
+                serializer.serialize_field(&v.into(), "")?;
             }
         }
         TypeKind::INT8 => {
             let v = de.deserialize_int8()?;
             if is_key_field {
-                serializer.serialize_field(&v, "")?;
+                serializer.serialize_field(&v.into(), "")?;
             }
         }
         TypeKind::INT16 => {
             let v = de.deserialize_int16()?;
             if is_key_field {
-                serializer.serialize_field(&v, "")?;
+                serializer.serialize_field(&v.into(), "")?;
             }
         }
         TypeKind::INT32 => {
             let v = de.deserialize_int32()?;
             if is_key_field {
-                serializer.serialize_field(&v, "")?;
+                serializer.serialize_field(&v.into(), "")?;
             }
         }
         TypeKind::INT64 => {
             let v = de.deserialize_int64()?;
             if is_key_field {
-                serializer.serialize_field(&v, "")?;
+                serializer.serialize_field(&v.into(), "")?;
             }
         }
         TypeKind::UINT8 => {
             let v = de.deserialize_uint8()?;
             if is_key_field {
-                serializer.serialize_field(&v, "")?;
+                serializer.serialize_field(&v.into(), "")?;
             }
         }
         TypeKind::UINT16 => {
             let v = de.deserialize_uint16()?;
             if is_key_field {
-                serializer.serialize_field(&v, "")?;
+                serializer.serialize_field(&v.into(), "")?;
             }
         }
         TypeKind::UINT32 => {
             let v = de.deserialize_uint32()?;
             if is_key_field {
-                serializer.serialize_field(&v, "")?;
+                serializer.serialize_field(&v.into(), "")?;
             }
         }
         TypeKind::UINT64 => {
             let v = de.deserialize_uint64()?;
             if is_key_field {
-                serializer.serialize_field(&v, "")?;
+                serializer.serialize_field(&v.into(), "")?;
             }
         }
         TypeKind::FLOAT32 => {
             let v = de.deserialize_float32()?;
             if is_key_field {
-                serializer.serialize_field(&v, "")?;
+                serializer.serialize_field(&v.into(), "")?;
             }
         }
         TypeKind::FLOAT64 => {
             let v = de.deserialize_float64()?;
             if is_key_field {
-                serializer.serialize_field(&v, "")?;
+                serializer.serialize_field(&v.into(), "")?;
             }
         }
         TypeKind::CHAR8 => {
             let v = de.deserialize_char8()?;
             if is_key_field {
-                serializer.serialize_field(&v, "")?;
+                serializer.serialize_field(&v.into(), "")?;
             }
         }
         TypeKind::STRING8 => {
-            let v = de.deserialize_string()?;
+            let v = String::from(de.deserialize_string()?);
             if is_key_field {
-                serializer.serialize_field(&v, "")?;
+                serializer.serialize_field(&v.into(), "")?;
             }
         }
         TypeKind::SEQUENCE => {
             let len = de.deserialize_sequence()?.len() as u32;
             if is_key_field {
-                serializer.serialize_field(&len, "")?;
+                serializer.serialize_field(&len.into(), "")?;
 
                 for _ in 0..len {
                     deserialize_and_serialize_if_key_field(
@@ -177,79 +177,79 @@ fn deserialize_and_serialize_if_key_field_for_appendable_cdr<'a>(
         TypeKind::BOOLEAN => {
             let v = de.deserialize_field::<bool>(name)?;
             if is_key_field {
-                serializer.serialize_field(&v, "")?;
+                serializer.serialize_field(&v.into(), "")?;
             }
         }
         TypeKind::INT8 => {
             let v = de.deserialize_field::<i8>(name)?;
             if is_key_field {
-                serializer.serialize_field(&v, "")?;
+                serializer.serialize_field(&v.into(), "")?;
             }
         }
         TypeKind::INT16 => {
             let v = de.deserialize_field::<i16>(name)?;
             if is_key_field {
-                serializer.serialize_field(&v, "")?;
+                serializer.serialize_field(&v.into(), "")?;
             }
         }
         TypeKind::INT32 => {
             let v = de.deserialize_field::<i32>(name)?;
             if is_key_field {
-                serializer.serialize_field(&v, "")?;
+                serializer.serialize_field(&v.into(), "")?;
             }
         }
         TypeKind::INT64 => {
             let v = de.deserialize_field::<i64>(name)?;
             if is_key_field {
-                serializer.serialize_field(&v, "")?;
+                serializer.serialize_field(&v.into(), "")?;
             }
         }
         TypeKind::UINT8 => {
             let v = de.deserialize_field::<u8>(name)?;
             if is_key_field {
-                serializer.serialize_field(&v, "")?;
+                serializer.serialize_field(&v.into(), "")?;
             }
         }
         TypeKind::UINT16 => {
             let v = de.deserialize_field::<u16>(name)?;
             if is_key_field {
-                serializer.serialize_field(&v, "")?;
+                serializer.serialize_field(&v.into(), "")?;
             }
         }
         TypeKind::UINT32 => {
             let v = de.deserialize_field::<u32>(name)?;
             if is_key_field {
-                serializer.serialize_field(&v, "")?;
+                serializer.serialize_field(&v.into(), "")?;
             }
         }
         TypeKind::UINT64 => {
             let v = de.deserialize_field::<u64>(name)?;
             if is_key_field {
-                serializer.serialize_field(&v, "")?;
+                serializer.serialize_field(&v.into(), "")?;
             }
         }
         TypeKind::FLOAT32 => {
             let v = de.deserialize_field::<f32>(name)?;
             if is_key_field {
-                serializer.serialize_field(&v, "")?;
+                serializer.serialize_field(&v.into(), "")?;
             }
         }
         TypeKind::FLOAT64 => {
             let v = de.deserialize_field::<f64>(name)?;
             if is_key_field {
-                serializer.serialize_field(&v, "")?;
+                serializer.serialize_field(&v.into(), "")?;
             }
         }
         TypeKind::CHAR8 => {
             let v = de.deserialize_field::<u8>(name)?;
             if is_key_field {
-                serializer.serialize_field(&v, "")?;
+                serializer.serialize_field(&v.into(), "")?;
             }
         }
         TypeKind::STRING8 => {
             let v = de.deserialize_field::<String>(name)?;
             if is_key_field {
-                serializer.serialize_field(&v, "")?;
+                serializer.serialize_field(&v.into(), "")?;
             }
         }
         TypeKind::ARRAY => {
@@ -267,7 +267,7 @@ fn deserialize_and_serialize_if_key_field_for_appendable_cdr<'a>(
         TypeKind::SEQUENCE => {
             let len = de.deserialize_field::<u32>(name)?;
             if is_key_field {
-                serializer.serialize_field(&len, "")?;
+                serializer.serialize_field(&len.into(), "")?;
 
                 for _ in 0..len {
                     deserialize_and_serialize_if_key_field_for_appendable_cdr(
