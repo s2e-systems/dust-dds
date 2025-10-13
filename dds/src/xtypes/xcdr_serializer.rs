@@ -10,8 +10,7 @@ use crate::xtypes::{
     data_representation::DataKind,
     dynamic_type::DynamicData,
     serializer::{
-        BigEndian, LittleEndian, TryWriteAsBytes, WithLength, WriteAsBytes, Writer, WriterV1,
-        WriterV2,
+        BigEndian, LittleEndian, TryWriteAsBytes, WriteAsBytes, Writer, WriterV1, WriterV2,
     },
 };
 use alloc::string::String;
@@ -32,72 +31,11 @@ impl Write for ByteCounter {
     }
 }
 
-fn round_up_to_multiples(position: usize, alignment: usize) -> usize {
-    position.div_ceil(alignment) * alignment
-}
-
-struct CollectionWriter<'a, C> {
-    collection: &'a mut C,
-    position: usize,
-}
-
-impl<'a, C: Write> CollectionWriter<'a, C> {
-    fn new(collection: &'a mut C) -> Self {
-        Self {
-            collection,
-            position: 0,
-        }
-    }
-
-    fn write_slice(&mut self, data: &[u8]) {
-        self.collection.write(data);
-        self.position += data.len();
-    }
-
-    fn pad(&mut self, alignment: usize) {
-        const ZEROS: [u8; 8] = [0; 8];
-        let alignment = round_up_to_multiples(self.position, alignment) - self.position;
-        self.write_slice(&ZEROS[..alignment]);
-    }
-}
-
-fn extend_with_padding_v1<const N: usize, C: Write>(
-    writer: &mut CollectionWriter<'_, C>,
-    data: &[u8; N],
-) -> Result<(), XTypesError> {
-    writer.pad(N);
-    writer.write_slice(data);
-    Ok(())
-}
-
-fn extend_with_padding_v2<const N: usize, C: Write>(
-    writer: &mut CollectionWriter<'_, C>,
-    data: &[u8; N],
-) -> Result<(), XTypesError> {
-    writer.pad(core::cmp::min(N, 4));
-    writer.write_slice(data);
-    Ok(())
-}
-
-fn into_u8(v: char) -> Result<u8, XTypesError> {
-    if !v.is_ascii() {
-        Err(XTypesError::InvalidData)
-    } else {
-        Ok(v as u8)
-    }
-}
 fn into_u32(v: usize) -> Result<u32, XTypesError> {
     if v > u32::MAX as usize {
         Err(XTypesError::InvalidData)
     } else {
         Ok(v as u32)
-    }
-}
-fn str_len(v: &str) -> Result<u32, XTypesError> {
-    if !v.is_ascii() {
-        Err(XTypesError::InvalidData)
-    } else {
-        into_u32(v.len() + 1)
     }
 }
 
@@ -197,14 +135,12 @@ impl<C: Write> XTypesSerializer for &mut Xcdr1BeSerializer<'_, C> {
         v.serialize_nested(self)
     }
     fn serialize_complex_value_list(self, v: &[DynamicData]) -> Result<(), XTypesError> {
-        // self.serialize_uint32(into_u32(vs.len())?)?;
-        // for v in vs {
-        //     v.serialize_nested(&mut *self)?;
-        // }
-        // Ok(())
-        todo!()
+        self.serialize_uint32(into_u32(v.len())?);
+        for vi in v {
+            vi.serialize_nested(&mut *self)?;
+        }
+        Ok(())
     }
-
     fn serialize_complex_value_array(self, v: &[DynamicData]) -> Result<(), XTypesError> {
         for vi in v {
             vi.serialize_nested(&mut *self)?;
@@ -213,159 +149,121 @@ impl<C: Write> XTypesSerializer for &mut Xcdr1BeSerializer<'_, C> {
     }
 
     fn serialize_boolean(self, v: bool) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_int8(self, v: i8) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_int16(self, v: i16) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_int32(self, v: i32) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_int64(self, v: i64) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_uint8(self, v: u8) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_uint16(self, v: u16) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_uint32(self, v: u32) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_uint64(self, v: u64) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_float32(self, v: f32) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_float64(self, v: f64) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_char8(self, v: char) -> Result<(), XTypesError> {
-        todo!()
+        TryWriteAsBytes::<Self::Endianness>::try_write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_string(self, v: &str) -> Result<(), XTypesError> {
         TryWriteAsBytes::<Self::Endianness>::try_write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_boolean_list(self, v: &[bool]) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_uint8_list(self, v: Bytes) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_int8_list(self, v: &[i8]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_int16_list(self, v: &[i16]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_int32_list(self, v: &[i32]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_int64_list(self, v: &[i64]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_uint16_list(self, v: &[u16]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_uint32_list(self, v: &[u32]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_uint64_list(self, v: &[u64]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_float32_list(self, v: &[f32]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_float64_list(self, v: &[f64]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_char8_list(self, v: &[char]) -> Result<(), XTypesError> {
-        todo!()
+        TryWriteAsBytes::<Self::Endianness>::try_write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_string_list(self, v: &[String]) -> Result<(), XTypesError> {
-        todo!()
+        TryWriteAsBytes::<Self::Endianness>::try_write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_boolean_array(self, v: &[bool]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_uint8_array(self, v: Bytes) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_int8_array(self, v: &[i8]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_int16_array(self, v: &[i16]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_int32_array(self, v: &[i32]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_int64_array(self, v: &[i64]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_uint16_array(self, v: &[u16]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_uint32_array(self, v: &[u32]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_uint64_array(self, v: &[u64]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_float32_array(self, v: &[f32]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_float64_array(self, v: &[f64]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_char8_array(self, v: &[char]) -> Result<(), XTypesError> {
-        todo!()
+        TryWriteAsBytes::<Self::Endianness>::try_write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_string_array(self, v: &[String]) -> Result<(), XTypesError> {
-        todo!()
+        TryWriteAsBytes::<Self::Endianness>::try_write_as_bytes(v, &mut self.writer)
     }
 }
 
@@ -466,14 +364,12 @@ impl<C: Write> XTypesSerializer for &mut Xcdr1LeSerializer<'_, C> {
         v.serialize_nested(self)
     }
     fn serialize_complex_value_list(self, v: &[DynamicData]) -> Result<(), XTypesError> {
-        // self.serialize_uint32(into_u32(vs.len())?)?;
-        // for v in vs {
-        //     v.serialize_nested(&mut *self)?;
-        // }
-        // Ok(())
-        todo!()
+        self.serialize_uint32(into_u32(v.len())?);
+        for vi in v {
+            vi.serialize_nested(&mut *self)?;
+        }
+        Ok(())
     }
-
     fn serialize_complex_value_array(self, v: &[DynamicData]) -> Result<(), XTypesError> {
         for vi in v {
             vi.serialize_nested(&mut *self)?;
@@ -482,159 +378,121 @@ impl<C: Write> XTypesSerializer for &mut Xcdr1LeSerializer<'_, C> {
     }
 
     fn serialize_boolean(self, v: bool) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_int8(self, v: i8) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_int16(self, v: i16) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_int32(self, v: i32) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_int64(self, v: i64) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_uint8(self, v: u8) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_uint16(self, v: u16) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_uint32(self, v: u32) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_uint64(self, v: u64) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_float32(self, v: f32) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_float64(self, v: f64) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_char8(self, v: char) -> Result<(), XTypesError> {
         TryWriteAsBytes::<Self::Endianness>::try_write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_string(self, v: &str) -> Result<(), XTypesError> {
         TryWriteAsBytes::<Self::Endianness>::try_write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_boolean_list(self, v: &[bool]) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_uint8_list(self, v: Bytes) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_int8_list(self, v: &[i8]) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_int16_list(self, v: &[i16]) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_int32_list(self, v: &[i32]) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_int64_list(self, v: &[i64]) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_uint16_list(self, v: &[u16]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_uint32_list(self, v: &[u32]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_uint64_list(self, v: &[u64]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_float32_list(self, v: &[f32]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_float64_list(self, v: &[f64]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_char8_list(self, v: &[char]) -> Result<(), XTypesError> {
-        todo!()
+        TryWriteAsBytes::<Self::Endianness>::try_write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_string_list(self, v: &[String]) -> Result<(), XTypesError> {
-        todo!()
+        TryWriteAsBytes::<Self::Endianness>::try_write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_boolean_array(self, v: &[bool]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_uint8_array(self, v: Bytes) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_int8_array(self, v: &[i8]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_int16_array(self, v: &[i16]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_int32_array(self, v: &[i32]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_int64_array(self, v: &[i64]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_uint16_array(self, v: &[u16]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_uint32_array(self, v: &[u32]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_uint64_array(self, v: &[u64]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_float32_array(self, v: &[f32]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_float64_array(self, v: &[f64]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_char8_array(self, v: &[char]) -> Result<(), XTypesError> {
-        todo!()
+        TryWriteAsBytes::<Self::Endianness>::try_write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_string_array(self, v: &[String]) -> Result<(), XTypesError> {
-        todo!()
+        TryWriteAsBytes::<Self::Endianness>::try_write_as_bytes(v, &mut self.writer)
     }
 }
 
@@ -800,163 +658,135 @@ impl<C: Write> XTypesSerializer for &mut Xcdr2BeSerializer<'_, C> {
         v.serialize_nested(self)
     }
     fn serialize_complex_value_list(self, v: &[DynamicData]) -> Result<(), XTypesError> {
-        // self.serialize_uint32(into_u32(vs.len())?);
-        // for v in vs {
-        //     v.serialize_nested(&mut *self)?;
-        // }
-        // Ok(())
-        todo!()
+        self.serialize_uint32(into_u32(v.len())?);
+        for vi in v {
+            vi.serialize_nested(&mut *self)?;
+        }
+        Ok(())
     }
-
     fn serialize_complex_value_array(self, v: &[DynamicData]) -> Result<(), XTypesError> {
         for vi in v {
             vi.serialize_nested(&mut *self)?;
         }
         Ok(())
     }
+
     fn serialize_boolean(self, v: bool) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
     fn serialize_int8(self, v: i8) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
     fn serialize_int16(self, v: i16) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
     fn serialize_int32(self, v: i32) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
     fn serialize_int64(self, v: i64) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
     fn serialize_uint8(self, v: u8) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
     fn serialize_uint16(self, v: u16) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
     fn serialize_uint32(self, v: u32) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
     fn serialize_uint64(self, v: u64) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
     fn serialize_float32(self, v: f32) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
     fn serialize_float64(self, v: f64) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
     fn serialize_char8(self, v: char) -> Result<(), XTypesError> {
         TryWriteAsBytes::<Self::Endianness>::try_write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_string(self, v: &str) -> Result<(), XTypesError> {
         TryWriteAsBytes::<Self::Endianness>::try_write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_boolean_list(self, v: &[bool]) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_uint8_list(self, v: Bytes) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_int8_list(self, v: &[i8]) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_int16_list(self, v: &[i16]) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_int32_list(self, v: &[i32]) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_int64_list(self, v: &[i64]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_uint16_list(self, v: &[u16]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_uint32_list(self, v: &[u32]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_uint64_list(self, v: &[u64]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_float32_list(self, v: &[f32]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_float64_list(self, v: &[f64]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_char8_list(self, v: &[char]) -> Result<(), XTypesError> {
-        todo!()
+        TryWriteAsBytes::<Self::Endianness>::try_write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_string_list(self, v: &[String]) -> Result<(), XTypesError> {
-        todo!()
+        TryWriteAsBytes::<Self::Endianness>::try_write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_boolean_array(self, v: &[bool]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_uint8_array(self, v: Bytes) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_int8_array(self, v: &[i8]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_int16_array(self, v: &[i16]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_int32_array(self, v: &[i32]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_int64_array(self, v: &[i64]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_uint16_array(self, v: &[u16]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_uint32_array(self, v: &[u32]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_uint64_array(self, v: &[u64]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_float32_array(self, v: &[f32]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_float64_array(self, v: &[f64]) {
-        todo!()
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_char8_array(self, v: &[char]) -> Result<(), XTypesError> {
-        todo!()
+        TryWriteAsBytes::<Self::Endianness>::try_write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_string_array(self, v: &[String]) -> Result<(), XTypesError> {
-        todo!()
+        TryWriteAsBytes::<Self::Endianness>::try_write_as_bytes(v, &mut self.writer)
     }
 }
 
@@ -972,56 +802,56 @@ impl<C: Write> XTypesSerializer for &mut Xcdr2LeSerializer<'_, C> {
     fn serialize_mutable_struct(self) -> Result<impl SerializeMutableStruct, XTypesError> {
         Ok(self)
     }
+
     fn serialize_complex_value(self, v: &DynamicData) -> Result<(), XTypesError> {
         v.serialize_nested(self)
     }
     fn serialize_complex_value_list(self, v: &[DynamicData]) -> Result<(), XTypesError> {
-        // self.serialize_uint32(into_u32(vs.len())?)?;
-        // for v in vs {
-        //     v.serialize_nested(&mut *self)?;
-        // }
-        // Ok(())
-        todo!()
+        self.serialize_uint32(into_u32(v.len())?);
+        for vi in v {
+            vi.serialize_nested(&mut *self)?;
+        }
+        Ok(())
     }
-
     fn serialize_complex_value_array(self, v: &[DynamicData]) -> Result<(), XTypesError> {
         for vi in v {
             vi.serialize_nested(&mut *self)?;
         }
         Ok(())
     }
+
     fn serialize_boolean(self, v: bool) {
-        self.serialize_uint8(v as u8)
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
     fn serialize_int8(self, v: i8) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
     fn serialize_int16(self, v: i16) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
     fn serialize_int32(self, v: i32) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
     fn serialize_int64(self, v: i64) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
     fn serialize_uint8(self, v: u8) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
     fn serialize_uint16(self, v: u16) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
     fn serialize_uint32(self, v: u32) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
     fn serialize_uint64(self, v: u64) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
     fn serialize_float32(self, v: f32) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
     fn serialize_float64(self, v: f64) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
     fn serialize_char8(self, v: char) -> Result<(), XTypesError> {
         TryWriteAsBytes::<Self::Endianness>::try_write_as_bytes(v, &mut self.writer)
@@ -1030,93 +860,80 @@ impl<C: Write> XTypesSerializer for &mut Xcdr2LeSerializer<'_, C> {
         TryWriteAsBytes::<Self::Endianness>::try_write_as_bytes(v, &mut self.writer)
     }
     fn serialize_boolean_list(self, v: &[bool]) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
     fn serialize_uint8_list(self, v: Bytes) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
     fn serialize_int8_list(self, v: &[i8]) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
     fn serialize_int16_list(self, v: &[i16]) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
     fn serialize_int32_list(self, v: &[i32]) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
     fn serialize_int64_list(self, v: &[i64]) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
     fn serialize_uint16_list(self, v: &[u16]) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
     fn serialize_uint32_list(self, v: &[u32]) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
     fn serialize_uint64_list(self, v: &[u64]) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
     fn serialize_float32_list(self, v: &[f32]) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
     fn serialize_float64_list(self, v: &[f64]) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
     fn serialize_char8_list(self, v: &[char]) -> Result<(), XTypesError> {
         TryWriteAsBytes::<Self::Endianness>::try_write_as_bytes(v, &mut self.writer)
     }
     fn serialize_string_list(self, v: &[String]) -> Result<(), XTypesError> {
-        todo!()
+        TryWriteAsBytes::<Self::Endianness>::try_write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_boolean_array(self, v: &[bool]) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_uint8_array(self, v: Bytes) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_int8_array(self, v: &[i8]) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_int16_array(self, v: &[i16]) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_int32_array(self, v: &[i32]) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_int64_array(self, v: &[i64]) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_uint16_array(self, v: &[u16]) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_uint32_array(self, v: &[u32]) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_uint64_array(self, v: &[u64]) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_float32_array(self, v: &[f32]) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_float64_array(self, v: &[f64]) {
-        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_char8_array(self, v: &[char]) -> Result<(), XTypesError> {
         TryWriteAsBytes::<Self::Endianness>::try_write_as_bytes(v, &mut self.writer)
     }
-
     fn serialize_string_array(self, v: &[String]) -> Result<(), XTypesError> {
         TryWriteAsBytes::<Self::Endianness>::try_write_as_bytes(v, &mut self.writer)
     }
@@ -1129,37 +946,37 @@ mod tests {
     use super::*;
     extern crate std;
 
-    #[test]
-    fn round_up_to_multiples_2() {
-        assert_eq!(round_up_to_multiples(0, 2), 0);
-        assert_eq!(round_up_to_multiples(1, 2), 2);
-        assert_eq!(round_up_to_multiples(2, 2), 2);
-        assert_eq!(round_up_to_multiples(3, 2), 4);
-        assert_eq!(round_up_to_multiples(4, 2), 4);
-    }
+    // #[test]
+    // fn round_up_to_multiples_2() {
+    //     assert_eq!(round_up_to_multiples(0, 2), 0);
+    //     assert_eq!(round_up_to_multiples(1, 2), 2);
+    //     assert_eq!(round_up_to_multiples(2, 2), 2);
+    //     assert_eq!(round_up_to_multiples(3, 2), 4);
+    //     assert_eq!(round_up_to_multiples(4, 2), 4);
+    // }
 
-    #[test]
-    fn round_up_to_multiples_4() {
-        assert_eq!(round_up_to_multiples(0, 4), 0);
-        assert_eq!(round_up_to_multiples(1, 4), 4);
-        assert_eq!(round_up_to_multiples(2, 4), 4);
-        assert_eq!(round_up_to_multiples(3, 4), 4);
-        assert_eq!(round_up_to_multiples(4, 4), 4);
-        assert_eq!(round_up_to_multiples(5, 4), 8);
-    }
-    #[test]
-    fn round_up_to_multiples_8() {
-        assert_eq!(round_up_to_multiples(0, 8), 0);
-        assert_eq!(round_up_to_multiples(1, 8), 8);
-        assert_eq!(round_up_to_multiples(2, 8), 8);
-        assert_eq!(round_up_to_multiples(3, 8), 8);
-        assert_eq!(round_up_to_multiples(4, 8), 8);
-        assert_eq!(round_up_to_multiples(5, 8), 8);
-        assert_eq!(round_up_to_multiples(6, 8), 8);
-        assert_eq!(round_up_to_multiples(7, 8), 8);
-        assert_eq!(round_up_to_multiples(8, 8), 8);
-        assert_eq!(round_up_to_multiples(9, 8), 16);
-    }
+    // #[test]
+    // fn round_up_to_multiples_4() {
+    //     assert_eq!(round_up_to_multiples(0, 4), 0);
+    //     assert_eq!(round_up_to_multiples(1, 4), 4);
+    //     assert_eq!(round_up_to_multiples(2, 4), 4);
+    //     assert_eq!(round_up_to_multiples(3, 4), 4);
+    //     assert_eq!(round_up_to_multiples(4, 4), 4);
+    //     assert_eq!(round_up_to_multiples(5, 4), 8);
+    // }
+    // #[test]
+    // fn round_up_to_multiples_8() {
+    //     assert_eq!(round_up_to_multiples(0, 8), 0);
+    //     assert_eq!(round_up_to_multiples(1, 8), 8);
+    //     assert_eq!(round_up_to_multiples(2, 8), 8);
+    //     assert_eq!(round_up_to_multiples(3, 8), 8);
+    //     assert_eq!(round_up_to_multiples(4, 8), 8);
+    //     assert_eq!(round_up_to_multiples(5, 8), 8);
+    //     assert_eq!(round_up_to_multiples(6, 8), 8);
+    //     assert_eq!(round_up_to_multiples(7, 8), 8);
+    //     assert_eq!(round_up_to_multiples(8, 8), 8);
+    //     assert_eq!(round_up_to_multiples(9, 8), 16);
+    // }
 
     fn serialize_v1_be<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
         let mut buffer = std::vec::Vec::new();

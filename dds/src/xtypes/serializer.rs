@@ -89,26 +89,26 @@ impl<E: Endianness> WriteAsBytes<E> for &str {
     }
 }
 
-trait ByteLength {
-    fn bytes_length(&self) -> usize;
+trait Length {
+    fn length(&self) -> usize;
 }
-impl ByteLength for &str {
-    fn bytes_length(&self) -> usize {
+impl Length for &str {
+    fn length(&self) -> usize {
         self.len()
     }
 }
 pub struct WithLength<T>(T);
 
-impl<T: ByteLength + WriteAsBytes<BigEndian>> TryWriteAsBytes<BigEndian> for WithLength<T> {
+impl<T: Length + WriteAsBytes<BigEndian>> TryWriteAsBytes<BigEndian> for WithLength<T> {
     fn try_write_as_bytes<C: Write>(self, writer: &mut C) -> Result<(), XTypesError> {
-        WriteAsBytes::<BigEndian>::write_as_bytes(into_u32(self.0.bytes_length())?, writer);
+        WriteAsBytes::<BigEndian>::write_as_bytes(into_u32(self.0.length())?, writer);
         WriteAsBytes::<BigEndian>::write_as_bytes(self.0, writer);
         Ok(())
     }
 }
-impl<T: ByteLength + WriteAsBytes<LittleEndian>> TryWriteAsBytes<LittleEndian> for WithLength<T> {
+impl<T: Length + WriteAsBytes<LittleEndian>> TryWriteAsBytes<LittleEndian> for WithLength<T> {
     fn try_write_as_bytes<C: Write>(self, writer: &mut C) -> Result<(), XTypesError> {
-        WriteAsBytes::<LittleEndian>::write_as_bytes(into_u32(self.0.bytes_length())?, writer);
+        WriteAsBytes::<LittleEndian>::write_as_bytes(into_u32(self.0.length())?, writer);
         WriteAsBytes::<LittleEndian>::write_as_bytes(self.0, writer);
         Ok(())
     }
@@ -257,6 +257,14 @@ impl TryWriteAsBytes<LittleEndian> for &[String] {
     fn try_write_as_bytes<C: Write>(self, writer: &mut C) -> Result<(), XTypesError>{
         for v in self.iter().cloned() {
             TryWriteAsBytes::<LittleEndian>::try_write_as_bytes(v.as_str(), writer)?;
+        }
+        Ok(())
+    }
+}
+impl TryWriteAsBytes<BigEndian> for &[String] {
+    fn try_write_as_bytes<C: Write>(self, writer: &mut C) -> Result<(), XTypesError>{
+        for v in self.iter().cloned() {
+            TryWriteAsBytes::<BigEndian>::try_write_as_bytes(v.as_str(), writer)?;
         }
         Ok(())
     }
