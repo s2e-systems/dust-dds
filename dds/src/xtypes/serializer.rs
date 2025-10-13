@@ -1,5 +1,6 @@
 use crate::xtypes::{
-    bytes::Bytes, data_representation::DataKind, dynamic_type::DynamicData, error::XTypesError, serialize::Write
+    bytes::Bytes, data_representation::DataKind, dynamic_type::DynamicData, error::XTypesError,
+    serialize::Write,
 };
 use alloc::string::String;
 
@@ -181,7 +182,6 @@ impl WriteAsBytes<LittleEndian> for f64 {
     }
 }
 
-
 impl WriteAsBytes<BigEndian> for i64 {
     fn write_as_bytes<C: Write>(self, writer: &mut C) {
         writer.write(&self.to_be_bytes())
@@ -244,8 +244,19 @@ where
         }
     }
 }
-impl<E:Endianness> TryWriteAsBytes<E> for &[char] {
-    fn try_write_as_bytes<C: Write>(self, writer: &mut C) -> Result<(), XTypesError>{
+impl<E, T> WriteAsBytes<E> for Vec<T>
+where
+    E: Endianness,
+    T: WriteAsBytes<E> + Copy,
+{
+    fn write_as_bytes<C: Write>(self, writer: &mut C) {
+        for v in self.iter() {
+            v.write_as_bytes(writer);
+        }
+    }
+}
+impl<E: Endianness> TryWriteAsBytes<E> for &[char] {
+    fn try_write_as_bytes<C: Write>(self, writer: &mut C) -> Result<(), XTypesError> {
         for &v in self.iter() {
             TryWriteAsBytes::<E>::try_write_as_bytes(v, writer)?;
         }
@@ -254,7 +265,7 @@ impl<E:Endianness> TryWriteAsBytes<E> for &[char] {
 }
 
 impl TryWriteAsBytes<LittleEndian> for &[String] {
-    fn try_write_as_bytes<C: Write>(self, writer: &mut C) -> Result<(), XTypesError>{
+    fn try_write_as_bytes<C: Write>(self, writer: &mut C) -> Result<(), XTypesError> {
         for v in self.iter().cloned() {
             TryWriteAsBytes::<LittleEndian>::try_write_as_bytes(v.as_str(), writer)?;
         }
@@ -262,7 +273,7 @@ impl TryWriteAsBytes<LittleEndian> for &[String] {
     }
 }
 impl TryWriteAsBytes<BigEndian> for &[String] {
-    fn try_write_as_bytes<C: Write>(self, writer: &mut C) -> Result<(), XTypesError>{
+    fn try_write_as_bytes<C: Write>(self, writer: &mut C) -> Result<(), XTypesError> {
         for v in self.iter().cloned() {
             TryWriteAsBytes::<BigEndian>::try_write_as_bytes(v.as_str(), writer)?;
         }
@@ -347,7 +358,7 @@ pub trait SerializeMutableStruct {
 }
 
 /// A trait representing an object with the capability of serializing a value into a CDR format.
-pub trait XTypesSerializer: Sized {
+pub trait XTypesSerializer {
     type Endianness: Endianness;
 
     /// Start serializing a type with final extensibility.
@@ -358,6 +369,13 @@ pub trait XTypesSerializer: Sized {
 
     /// Start serializing a type with mutable extensibility.
     fn serialize_mutable_struct(self) -> Result<impl SerializeMutableStruct, XTypesError>;
+
+    fn serialize_data_kind(self, v: DataKind) -> Result<(), XTypesError>
+    where
+        Self: Sized,
+    {
+        Ok(())
+    }
 
     /// Serializing a sequence with a dynamic length
     fn serialize_complex_value(self, v: &DynamicData) -> Result<(), XTypesError>;

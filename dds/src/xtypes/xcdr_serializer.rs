@@ -1,3 +1,5 @@
+use core::marker::PhantomData;
+
 use super::{
     error::XTypesError,
     serialize::Write,
@@ -8,9 +10,10 @@ use super::{
 use crate::xtypes::{
     bytes::Bytes,
     data_representation::DataKind,
-    dynamic_type::DynamicData,
+    dynamic_type::{DynamicData, ExtensibilityKind, TypeKind},
     serializer::{
-        BigEndian, LittleEndian, TryWriteAsBytes, WriteAsBytes, Writer, WriterV1, WriterV2,
+        BigEndian, Endianness, LittleEndian, TryWriteAsBytes, WriteAsBytes, Writer, WriterV1,
+        WriterV2,
     },
 };
 use alloc::string::String;
@@ -347,6 +350,116 @@ impl<C: Write> SerializeMutableStruct for &mut Xcdr1LeSerializer<'_, C> {
     }
 }
 
+trait SerializeDataKindT {
+    type Endianness: Endianness;
+    fn serialize_data_kind<C: Write>(writer: &mut C, v: DataKind);
+}
+
+fn serialize_nested(
+    dynamic_data: &DynamicData,
+    serializer: impl XTypesSerializer,
+) -> Result<(), super::error::XTypesError> {
+    match dynamic_data.type_ref().get_kind() {
+        TypeKind::ENUM => {
+            dynamic_data.get_value(0)?.serialize(serializer)?;
+        }
+        TypeKind::STRUCTURE => match dynamic_data.type_ref().get_descriptor().extensibility_kind {
+            ExtensibilityKind::Final => {
+                let mut final_serializer = serializer.serialize_final_struct()?;
+                for field_index in 0..dynamic_data.get_item_count() {
+                    let member_id = dynamic_data.get_member_id_at_index(field_index)?;
+                    let member_descriptor = dynamic_data.get_descriptor(member_id)?;
+                    final_serializer.serialize_field(
+                        dynamic_data.get_value(member_id)?,
+                        &member_descriptor.name,
+                    )?;
+                }
+            }
+            ExtensibilityKind::Appendable => {
+                let mut appendable_serializer = serializer.serialize_appendable_struct()?;
+                for field_index in 0..dynamic_data.get_item_count() {
+                    let member_id = dynamic_data.get_member_id_at_index(field_index)?;
+                    let member_descriptor = dynamic_data.get_descriptor(member_id)?;
+                    appendable_serializer.serialize_field(
+                        dynamic_data.get_value(member_id)?,
+                        &member_descriptor.name,
+                    )?;
+                }
+            }
+            ExtensibilityKind::Mutable => {
+                let mut mutable_serializer = serializer.serialize_mutable_struct()?;
+                for field_index in 0..dynamic_data.get_item_count() {
+                    let member_id = dynamic_data.get_member_id_at_index(field_index)?;
+                    let member_descriptor = dynamic_data.get_descriptor(member_id)?;
+                    let value = dynamic_data.get_value(member_id)?;
+                    if member_descriptor.is_optional {
+                        if let Some(default_value) = &member_descriptor.default_value {
+                            if value == default_value {
+                                continue;
+                            }
+                        }
+                    }
+                    mutable_serializer.serialize_field(
+                        value,
+                        member_id,
+                        &member_descriptor.name,
+                    )?;
+                }
+                mutable_serializer.end()?;
+            }
+        },
+        kind => todo!("Noy yet implemented for {kind:?}"),
+    }
+    Ok(())
+}
+struct SerializeDataKind<E>(PhantomData<E>);
+impl SerializeDataKindT for SerializeDataKind<LittleEndian> {
+    type Endianness = LittleEndian;
+    fn serialize_data_kind<C: Write>(writer: &mut C, v: DataKind) {
+        match v {
+            DataKind::Int32(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, writer);
+            }
+            DataKind::UInt32(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, writer);
+            }
+            DataKind::ComplexValue(v) => {}
+            _ => (),
+        }
+    }
+}
+impl SerializeDataKindT for SerializeDataKind<BigEndian> {
+    type Endianness = BigEndian;
+    fn serialize_data_kind<C: Write>(writer: &mut C, v: DataKind) {
+        match v {
+            DataKind::Int32(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, writer);
+            }
+            DataKind::UInt32(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, writer);
+            }
+            _ => (),
+        }
+    }
+}
+
+fn serialize_data_kind_le<C: Write>(
+    v: DataKind,
+    writer: &mut C,
+    serializer: &impl XTypesSerializer,
+) -> Result<(), XTypesError> {
+    match v {
+        DataKind::Int32(v) => WriteAsBytes::<LittleEndian>::write_as_bytes(v, writer),
+        DataKind::UInt32(v) => WriteAsBytes::<LittleEndian>::write_as_bytes(v, writer),
+        DataKind::UInt32List(v) => WriteAsBytes::<LittleEndian>::write_as_bytes(v, writer),
+        DataKind::Int16List(v) => WriteAsBytes::<LittleEndian>::write_as_bytes(v, writer),
+        DataKind::ComplexValue(v) => v.serialize_nested(serializer)?,
+        // DataKind::ComplexValueList(v) => v.serialize_nested(serializer)?,
+        _ => (),
+    }
+    Ok(())
+}
+
 impl<C: Write> XTypesSerializer for &mut Xcdr1LeSerializer<'_, C> {
     type Endianness = LittleEndian;
 
@@ -358,6 +471,19 @@ impl<C: Write> XTypesSerializer for &mut Xcdr1LeSerializer<'_, C> {
     }
     fn serialize_mutable_struct(self) -> Result<impl SerializeMutableStruct, XTypesError> {
         Ok(self)
+    }
+
+    fn serialize_data_kind(self, v: DataKind) -> Result<(), XTypesError> {
+        match v {
+            DataKind::Int32(v) => WriteAsBytes::<LittleEndian>::write_as_bytes(v, &mut self.writer),
+            DataKind::UInt32(v) => WriteAsBytes::<LittleEndian>::write_as_bytes(v, &mut self.writer),
+            DataKind::UInt32List(v) => WriteAsBytes::<LittleEndian>::write_as_bytes(v, &mut self.writer),
+            DataKind::Int16List(v) => WriteAsBytes::<LittleEndian>::write_as_bytes(v, &mut self.writer),
+            DataKind::ComplexValue(v) => v.serialize_nested(self)?,
+            // DataKind::ComplexValueList(v) => v.serialize_nested(serializer)?,
+            _ => (),
+        };
+        Ok(())
     }
 
     fn serialize_complex_value(self, v: &DynamicData) -> Result<(), XTypesError> {
