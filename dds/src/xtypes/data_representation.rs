@@ -1,8 +1,9 @@
 use crate::{
     infrastructure::type_support::TypeSupport,
     xtypes::{
-        deserializer::XTypesDeserializer,
+        deserializer::{DeserializeMutableStruct, XTypesDeserializer},
         dynamic_type::{DynamicData, DynamicDataFactory, DynamicType, ExtensibilityKind, TypeKind},
+        error::XTypesResult,
         serializer::{
             SerializeAppendableStruct, SerializeFinalStruct, SerializeMutableStruct,
             XTypesSerializer,
@@ -73,7 +74,10 @@ impl DynamicData {
         Ok(())
     }
 
-    fn deserialize<'a>(r#type: DynamicType, deserializer: impl XTypesDeserializer<'a>) -> Self {
+    pub fn deserialize<'a>(
+        r#type: DynamicType,
+        deserializer: impl XTypesDeserializer<'a>,
+    ) -> XTypesResult<Self> {
         let data = DynamicDataFactory::create_data(r#type);
         match data.type_ref().get_kind() {
             TypeKind::ENUM => {
@@ -101,11 +105,18 @@ impl DynamicData {
                     // }
                 }
                 ExtensibilityKind::Mutable => {
+                    let mut deserializer = deserializer.deserialize_mutable_struct()?;
+                    for field_index in 0..data.get_item_count() {
+                        let member_id = data.get_member_id_at_index(field_index)?;
+                        let member_descriptor = data.get_descriptor(member_id)?;
+                        // member_descriptor.r#type
+                        // match deserializer.deserialize_field(member_id, &member_descriptor.name) {
+                        //     Ok(x) => data.set_value(id, value)
+                        // }
+                    }
                     todo!()
                     //     let mut mutable_serializer = serializer.serialize_mutable_struct()?;
                     //     for field_index in 0..self.get_item_count() {
-                    //         let member_id = self.get_member_id_at_index(field_index)?;
-                    //         let member_descriptor = self.get_descriptor(member_id)?;
                     //         let value = self.get_value(member_id)?;
                     //         if member_descriptor.is_optional {
                     //             if let Some(default_value) = &member_descriptor.default_value {
@@ -126,7 +137,7 @@ impl DynamicData {
             kind => todo!("Not yet implemented for {kind:?}"),
         }
 
-        data
+        Ok(data)
     }
 }
 

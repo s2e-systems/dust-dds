@@ -83,8 +83,10 @@ use crate::{
         },
     },
     xtypes::{
+        binding::XTypesBinding,
         dynamic_type::{DynamicData, DynamicDataFactory, DynamicType, ExtensibilityKind},
         pl_cdr_serializer::PlCdrLeSerializer,
+        xcdr_deserializer::Xcdr1LeDeserializer,
         xcdr_serializer::{Xcdr1LeSerializer, Xcdr2LeSerializer},
     },
 };
@@ -3948,13 +3950,14 @@ where
     ) {
         match cache_change.kind {
             ChangeKind::Alive => {
-                if let Ok(discovered_participant_data) =
-                    SpdpDiscoveredParticipantData::deserialize_data(
-                        cache_change.data_value.as_ref(),
-                    )
-                {
-                    self.add_discovered_participant(discovered_participant_data)
-                        .await;
+                if let Ok(discovered_participant_dynamic_data) = DynamicData::deserialize(
+                    SpdpDiscoveredParticipantData::get_dynamic_type(),
+                    &mut Xcdr1LeDeserializer::new(cache_change.data_value.as_ref()),
+                ) {
+                    self.add_discovered_participant(SpdpDiscoveredParticipantData::create_sample(
+                        discovered_participant_dynamic_data,
+                    ))
+                    .await;
                 }
             }
             ChangeKind::NotAliveDisposed => {

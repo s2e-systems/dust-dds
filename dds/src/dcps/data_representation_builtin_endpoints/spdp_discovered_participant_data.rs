@@ -398,55 +398,60 @@ impl<'de> DdsDeserialize<'de> for TopicBuiltinTopicData {
     }
 }
 
-impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
-    fn deserialize_data(serialized_data: &'de [u8]) -> DdsResult<Self> {
-        let pl_deserializer = ParameterListCdrDeserializer::new(serialized_data)?;
-        let domain_id = pl_deserializer.read(PID_DOMAIN_ID).ok();
-        Ok(Self {
-            dds_participant_data: ParticipantBuiltinTopicData::deserialize_data(serialized_data)?,
-            participant_proxy: ParticipantProxy {
-                domain_id: domain_id.unwrap_or_default(),
-                domain_tag: pl_deserializer
-                    .read_with_default(PID_DOMAIN_TAG, Default::default())?,
-                protocol_version: pl_deserializer.read(PID_PROTOCOL_VERSION)?,
-                guid_prefix: pl_deserializer.read(PID_PARTICIPANT_GUID)?,
-                vendor_id: pl_deserializer.read(PID_VENDORID)?,
-                expects_inline_qos: pl_deserializer
-                    .read_with_default(PID_EXPECTS_INLINE_QOS, DEFAULT_EXPECTS_INLINE_QOS)?,
-                metatraffic_unicast_locator_list: pl_deserializer
-                    .read_collection(PID_METATRAFFIC_UNICAST_LOCATOR)?,
-                metatraffic_multicast_locator_list: pl_deserializer
-                    .read_collection(PID_METATRAFFIC_MULTICAST_LOCATOR)?,
-                default_unicast_locator_list: pl_deserializer
-                    .read_collection(PID_DEFAULT_UNICAST_LOCATOR)?,
-                default_multicast_locator_list: pl_deserializer
-                    .read_collection(PID_DEFAULT_MULTICAST_LOCATOR)?,
-                available_builtin_endpoints: pl_deserializer.read(PID_BUILTIN_ENDPOINT_SET)?,
-                // Default value is a deviation from the standard and is used for interoperability reasons:
-                manual_liveliness_count: pl_deserializer.read_with_default(
-                    PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
-                    Default::default(),
-                )?,
-                // Default value is a deviation from the standard and is used for interoperability reasons:
-                builtin_endpoint_qos: pl_deserializer
-                    .read_with_default(PID_BUILTIN_ENDPOINT_QOS, Default::default())?,
-            },
-            lease_duration: pl_deserializer.read_with_default(
-                PID_PARTICIPANT_LEASE_DURATION,
-                DEFAULT_PARTICIPANT_LEASE_DURATION,
-            )?,
-            discovered_participant_list: pl_deserializer
-                .read_collection(PID_DISCOVERED_PARTICIPANT)?,
-        })
-    }
-}
+// impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
+//     fn deserialize_data(serialized_data: &'de [u8]) -> DdsResult<Self> {
+//         let pl_deserializer = ParameterListCdrDeserializer::new(serialized_data)?;
+//         let domain_id = pl_deserializer.read(PID_DOMAIN_ID).ok();
+//         Ok(Self {
+//             dds_participant_data: ParticipantBuiltinTopicData::deserialize_data(serialized_data)?,
+//             participant_proxy: ParticipantProxy {
+//                 domain_id: domain_id.unwrap_or_default(),
+//                 domain_tag: pl_deserializer
+//                     .read_with_default(PID_DOMAIN_TAG, Default::default())?,
+//                 protocol_version: pl_deserializer.read(PID_PROTOCOL_VERSION)?,
+//                 guid_prefix: pl_deserializer.read(PID_PARTICIPANT_GUID)?,
+//                 vendor_id: pl_deserializer.read(PID_VENDORID)?,
+//                 expects_inline_qos: pl_deserializer
+//                     .read_with_default(PID_EXPECTS_INLINE_QOS, DEFAULT_EXPECTS_INLINE_QOS)?,
+//                 metatraffic_unicast_locator_list: pl_deserializer
+//                     .read_collection(PID_METATRAFFIC_UNICAST_LOCATOR)?,
+//                 metatraffic_multicast_locator_list: pl_deserializer
+//                     .read_collection(PID_METATRAFFIC_MULTICAST_LOCATOR)?,
+//                 default_unicast_locator_list: pl_deserializer
+//                     .read_collection(PID_DEFAULT_UNICAST_LOCATOR)?,
+//                 default_multicast_locator_list: pl_deserializer
+//                     .read_collection(PID_DEFAULT_MULTICAST_LOCATOR)?,
+//                 available_builtin_endpoints: pl_deserializer.read(PID_BUILTIN_ENDPOINT_SET)?,
+//                 // Default value is a deviation from the standard and is used for interoperability reasons:
+//                 manual_liveliness_count: pl_deserializer.read_with_default(
+//                     PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
+//                     Default::default(),
+//                 )?,
+//                 // Default value is a deviation from the standard and is used for interoperability reasons:
+//                 builtin_endpoint_qos: pl_deserializer
+//                     .read_with_default(PID_BUILTIN_ENDPOINT_QOS, Default::default())?,
+//             },
+//             lease_duration: pl_deserializer.read_with_default(
+//                 PID_PARTICIPANT_LEASE_DURATION,
+//                 DEFAULT_PARTICIPANT_LEASE_DURATION,
+//             )?,
+//             discovered_participant_list: pl_deserializer
+//                 .read_collection(PID_DISCOVERED_PARTICIPANT)?,
+//         })
+//     }
+// }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{
-        builtin_topics::BuiltInTopicKey, infrastructure::qos_policy::UserDataQosPolicy,
-        rtps::types::PROTOCOLVERSION_2_4, xtypes::pl_cdr_serializer::PlCdrLeSerializer,
+        builtin_topics::BuiltInTopicKey,
+        infrastructure::qos_policy::UserDataQosPolicy,
+        rtps::types::PROTOCOLVERSION_2_4,
+        xtypes::{
+            dynamic_type::DynamicData, pl_cdr_serializer::PlCdrLeSerializer,
+            xcdr_deserializer::Xcdr1LeDeserializer,
+        },
     };
 
     #[test]
@@ -727,7 +732,12 @@ mod tests {
             11, 0x00, 0x00, 0x00, // Duration: fraction
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ][..];
-        let result = SpdpDiscoveredParticipantData::deserialize_data(&mut data).unwrap();
+        let dynamic_data = DynamicData::deserialize(
+            SpdpDiscoveredParticipantData::get_dynamic_type(),
+            &mut Xcdr1LeDeserializer::new(data),
+        )
+        .unwrap();
+        let result = SpdpDiscoveredParticipantData::create_sample(dynamic_data);
         assert_eq!(result, expected);
     }
 }
