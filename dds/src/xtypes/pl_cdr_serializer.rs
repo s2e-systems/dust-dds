@@ -5,7 +5,12 @@ use super::{
         SerializeAppendableStruct, SerializeFinalStruct, SerializeMutableStruct, XTypesSerializer,
     },
 };
-use crate::xtypes::{data_representation::DataKind, dynamic_type::DynamicData};
+use crate::xtypes::{
+    bytes::Bytes,
+    data_representation::DataKind,
+    dynamic_type::DynamicData,
+    serializer::{LittleEndian, TryWriteAsBytes, WriteAsBytes, Writer, WriterV1},
+};
 use alloc::string::String;
 
 const PID_SENTINEL: u16 = 1;
@@ -84,13 +89,15 @@ fn str_len(v: &str) -> Result<u32, XTypesError> {
     }
 }
 pub struct PlCdrLeSerializer<'a, C> {
-    writer: CollectionWriter<'a, C>,
+    writer: WriterV1<'a, C>,
 }
 
 impl<'a, C: Write> PlCdrLeSerializer<'a, C> {
     pub fn new(collection: &'a mut C) -> Self {
         Self {
-            writer: CollectionWriter::new(collection),
+            writer: WriterV1 {
+                writer: Writer::new(collection),
+            },
         }
     }
 }
@@ -137,30 +144,32 @@ impl<C: Write> SerializeMutableStruct for &mut PlCdrLeSerializer<'_, C> {
             for item in items {
                 let length = bytes_len_dynamic_data(item)?;
                 let padded_length = (length + 3) & !3;
-                self.writer.write_slice(&(pid as u16).to_le_bytes());
-                self.writer.write_slice(&padded_length.to_le_bytes());
+                self.writer.writer.write_slice(&(pid as u16).to_le_bytes());
+                self.writer.writer.write_slice(&padded_length.to_le_bytes());
                 item.serialize(&mut **self)?;
-                self.writer.pad(4);
+                self.writer.writer.pad(4);
             }
         } else {
             let length = bytes_len_data_kind(value)?;
             let padded_length = (length + 3) & !3;
-            self.writer.write_slice(&(pid as u16).to_le_bytes());
-            self.writer.write_slice(&padded_length.to_le_bytes());
+            self.writer.writer.write_slice(&(pid as u16).to_le_bytes());
+            self.writer.writer.write_slice(&padded_length.to_le_bytes());
             value.serialize(&mut **self)?;
-            self.writer.pad(4);
+            self.writer.writer.pad(4);
         }
         Ok(())
     }
 
     fn end(self) -> Result<(), XTypesError> {
-        self.writer.write_slice(&PID_SENTINEL.to_le_bytes());
-        self.writer.write_slice(&0u16.to_le_bytes());
+        self.writer.writer.write_slice(&PID_SENTINEL.to_le_bytes());
+        self.writer.writer.write_slice(&0u16.to_le_bytes());
         Ok(())
     }
 }
 
 impl<C: Write> XTypesSerializer for &mut PlCdrLeSerializer<'_, C> {
+    type Endianness = LittleEndian;
+
     fn serialize_final_struct(self) -> Result<impl SerializeFinalStruct, XTypesError> {
         Ok(self)
     }
@@ -175,190 +184,174 @@ impl<C: Write> XTypesSerializer for &mut PlCdrLeSerializer<'_, C> {
         v.serialize_nested(self)
     }
 
-    fn serialize_complex_value_list(self, vs: &[DynamicData]) -> Result<(), XTypesError> {
-        self.serialize_uint32(into_u32(vs.len())?)?;
-        for v in vs {
-            v.serialize_nested(&mut *self)?;
+    fn serialize_complex_value_list(self, v: &[DynamicData]) -> Result<(), XTypesError> {
+        // self.serialize_uint32(into_u32(vs.len())?)?;
+        // for v in vs {
+        //     v.serialize_nested(&mut *self)?;
+        // }
+        // Ok(())
+        todo!()
+    }
+    fn serialize_complex_value_array(self, v: &[DynamicData]) -> Result<(), XTypesError> {
+        for vi in v {
+            vi.serialize_nested(&mut *self)?;
         }
         Ok(())
     }
-    fn serialize_complex_value_array(self, vs: &[DynamicData]) -> Result<(), XTypesError> {
-        for v in vs {
-            v.serialize_nested(&mut *self)?;
-        }
-        Ok(())
+
+    fn serialize_boolean(self, v: bool) {
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
     }
 
-    fn serialize_boolean(self, v: bool) -> Result<(), XTypesError> {
-        extend_with_padding_v1(&mut self.writer, &[v as u8])
+    fn serialize_int8(self, v: i8) {
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
     }
 
-    fn serialize_int8(self, v: i8) -> Result<(), XTypesError> {
-        extend_with_padding_v1(&mut self.writer, &v.to_le_bytes())
+    fn serialize_int16(self, v: i16) {
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
     }
 
-    fn serialize_int16(self, v: i16) -> Result<(), XTypesError> {
-        extend_with_padding_v1(&mut self.writer, &v.to_le_bytes())
+    fn serialize_int32(self, v: i32) {
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
     }
 
-    fn serialize_int32(self, v: i32) -> Result<(), XTypesError> {
-        extend_with_padding_v1(&mut self.writer, &v.to_le_bytes())
+    fn serialize_int64(self, v: i64) {
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
     }
 
-    fn serialize_int64(self, v: i64) -> Result<(), XTypesError> {
-        extend_with_padding_v1(&mut self.writer, &v.to_le_bytes())
+    fn serialize_uint8(self, v: u8) {
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
     }
 
-    fn serialize_uint8(self, v: u8) -> Result<(), XTypesError> {
-        extend_with_padding_v1(&mut self.writer, &v.to_le_bytes())
+    fn serialize_uint16(self, v: u16) {
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
     }
 
-    fn serialize_uint16(self, v: u16) -> Result<(), XTypesError> {
-        extend_with_padding_v1(&mut self.writer, &v.to_le_bytes())
+    fn serialize_uint32(self, v: u32) {
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
     }
 
-    fn serialize_uint32(self, v: u32) -> Result<(), XTypesError> {
-        extend_with_padding_v1(&mut self.writer, &v.to_le_bytes())
+    fn serialize_uint64(self, v: u64) {
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
     }
 
-    fn serialize_uint64(self, v: u64) -> Result<(), XTypesError> {
-        extend_with_padding_v1(&mut self.writer, &v.to_le_bytes())
+    fn serialize_float32(self, v: f32) {
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
     }
 
-    fn serialize_float32(self, v: f32) -> Result<(), XTypesError> {
-        extend_with_padding_v1(&mut self.writer, &v.to_le_bytes())
-    }
-
-    fn serialize_float64(self, v: f64) -> Result<(), XTypesError> {
-        extend_with_padding_v1(&mut self.writer, &v.to_le_bytes())
+    fn serialize_float64(self, v: f64) {
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
     }
 
     fn serialize_char8(self, v: char) -> Result<(), XTypesError> {
-        extend_with_padding_v1(&mut self.writer, &into_u8(v)?.to_le_bytes())
+        TryWriteAsBytes::<Self::Endianness>::try_write_as_bytes(v, &mut self.writer)
     }
 
     fn serialize_string(self, v: &str) -> Result<(), XTypesError> {
-        self.serialize_uint32(str_len(v)?)?;
-        self.writer.write_slice(v.as_bytes());
-        self.writer.write_slice(&[0]);
-        Ok(())
+        TryWriteAsBytes::<Self::Endianness>::try_write_as_bytes(v, &mut self.writer)
     }
 
-    fn serialize_boolean_list(self, _vs: &[bool]) -> Result<(), XTypesError> {
+    fn serialize_boolean_list(self, v: &[bool]) {
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+    }
+
+    fn serialize_uint8_list(self, v: Bytes) {
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+    }
+
+    fn serialize_int8_list(self, _v: &[i8]) {
         unimplemented!()
     }
 
-    fn serialize_uint8_list(self, vs: &[u8]) -> Result<(), XTypesError> {
-        self.serialize_uint32(into_u32(vs.len())?)?;
-        self.writer.write_slice(vs);
-        Ok(())
-    }
-
-    fn serialize_int8_list(self, _vs: &[i8]) -> Result<(), XTypesError> {
+    fn serialize_int16_list(self, _v: &[i16]) {
         unimplemented!()
     }
 
-    fn serialize_int16_list(self, _vs: &[i16]) -> Result<(), XTypesError> {
+    fn serialize_int32_list(self, _v: &[i32]) {
         unimplemented!()
     }
 
-    fn serialize_int32_list(self, _vs: &[i32]) -> Result<(), XTypesError> {
+    fn serialize_int64_list(self, _v: &[i64]) {
         unimplemented!()
     }
 
-    fn serialize_int64_list(self, _vs: &[i64]) -> Result<(), XTypesError> {
+    fn serialize_uint16_list(self, v: &[u16]) {
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+    }
+
+    fn serialize_uint32_list(self, _v: &[u32]) {
         unimplemented!()
     }
 
-    fn serialize_uint16_list(self, vs: &[u16]) -> Result<(), XTypesError> {
-        self.serialize_uint32(into_u32(vs.len())?)?;
-        for &v in vs {
-            self.serialize_uint16(v)?;
-        }
-        Ok(())
-    }
-
-    fn serialize_uint32_list(self, _vs: &[u32]) -> Result<(), XTypesError> {
+    fn serialize_uint64_list(self, _v: &[u64]) {
         unimplemented!()
     }
 
-    fn serialize_uint64_list(self, _vs: &[u64]) -> Result<(), XTypesError> {
+    fn serialize_float32_list(self, _v: &[f32]) {
         unimplemented!()
     }
 
-    fn serialize_float32_list(self, _vs: &[f32]) -> Result<(), XTypesError> {
+    fn serialize_float64_list(self, _v: &[f64]) {
         unimplemented!()
     }
 
-    fn serialize_float64_list(self, _vs: &[f64]) -> Result<(), XTypesError> {
+    fn serialize_char8_list(self, _v: &[char]) -> Result<(), XTypesError> {
         unimplemented!()
     }
 
-    fn serialize_char8_list(self, _vs: &[char]) -> Result<(), XTypesError> {
+    fn serialize_string_list(self, v: &[String]) -> Result<(), XTypesError> {
+        TryWriteAsBytes::<Self::Endianness>::try_write_as_bytes(v, &mut self.writer)
+    }
+
+    fn serialize_boolean_array(self, _v: &[bool]) {
         unimplemented!()
     }
 
-    fn serialize_string_list(self, vs: &[String]) -> Result<(), XTypesError> {
-        self.serialize_uint32(into_u32(vs.len())?)?;
-        for v in vs {
-            self.serialize_string(v)?;
-        }
-        Ok(())
+    fn serialize_uint8_array(self, v: Bytes) {
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
     }
 
-    fn serialize_boolean_array(self, _vs: &[bool]) -> Result<(), XTypesError> {
+    fn serialize_int8_array(self, _v: &[i8]) {
         unimplemented!()
     }
 
-    fn serialize_uint8_array(self, vs: &[u8]) -> Result<(), XTypesError> {
-        self.writer.write_slice(vs);
-        Ok(())
-    }
-
-    fn serialize_int8_array(self, _vs: &[i8]) -> Result<(), XTypesError> {
+    fn serialize_int16_array(self, _v: &[i16]) {
         unimplemented!()
     }
 
-    fn serialize_int16_array(self, _vs: &[i16]) -> Result<(), XTypesError> {
+    fn serialize_int32_array(self, _v: &[i32]) {
         unimplemented!()
     }
 
-    fn serialize_int32_array(self, _vs: &[i32]) -> Result<(), XTypesError> {
+    fn serialize_int64_array(self, _v: &[i64]) {
         unimplemented!()
     }
 
-    fn serialize_int64_array(self, _vs: &[i64]) -> Result<(), XTypesError> {
+    fn serialize_uint16_array(self, v: &[u16]) {
+        WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
+    }
+
+    fn serialize_uint32_array(self, _v: &[u32]) {
         unimplemented!()
     }
 
-    fn serialize_uint16_array(self, vs: &[u16]) -> Result<(), XTypesError> {
-        for &v in vs {
-            self.serialize_uint16(v)?;
-        }
-        Ok(())
-    }
-
-    fn serialize_uint32_array(self, _vs: &[u32]) -> Result<(), XTypesError> {
+    fn serialize_uint64_array(self, _v: &[u64]) {
         unimplemented!()
     }
 
-    fn serialize_uint64_array(self, _vs: &[u64]) -> Result<(), XTypesError> {
+    fn serialize_float32_array(self, _v: &[f32]) {
         unimplemented!()
     }
 
-    fn serialize_float32_array(self, _vs: &[f32]) -> Result<(), XTypesError> {
+    fn serialize_float64_array(self, _v: &[f64]) {
         unimplemented!()
     }
 
-    fn serialize_float64_array(self, _vs: &[f64]) -> Result<(), XTypesError> {
+    fn serialize_char8_array(self, _v: &[char]) -> Result<(), XTypesError> {
         unimplemented!()
     }
 
-    fn serialize_char8_array(self, _vs: &[char]) -> Result<(), XTypesError> {
-        unimplemented!()
-    }
-
-    fn serialize_string_array(self, _vs: &[String]) -> Result<(), XTypesError> {
+    fn serialize_string_array(self, _v: &[String]) -> Result<(), XTypesError> {
         unimplemented!()
     }
 }

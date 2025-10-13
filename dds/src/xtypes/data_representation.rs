@@ -1,11 +1,10 @@
 use crate::{
     infrastructure::type_support::TypeSupport,
     xtypes::{
-        dynamic_type::{DynamicData, ExtensibilityKind, TypeKind},
-        serializer::{
+        bytes::Bytes, dynamic_type::{DynamicData, ExtensibilityKind, TypeKind}, serializer::{
             SerializeAppendableStruct, SerializeFinalStruct, SerializeMutableStruct,
             XTypesSerializer,
-        },
+        }
     },
 };
 use alloc::{string::String, vec::Vec};
@@ -135,11 +134,11 @@ impl DataKind {
             DataKind::UInt64(v) => serializer.serialize_uint64(*v),
             DataKind::Float32(v) => serializer.serialize_float32(*v),
             DataKind::Float64(v) => serializer.serialize_float64(*v),
-            DataKind::Char8(v) => serializer.serialize_char8(*v),
+            DataKind::Char8(v) => serializer.serialize_char8(*v)?,
             DataKind::Boolean(v) => serializer.serialize_boolean(*v),
-            DataKind::String(v) => serializer.serialize_string(v),
-            DataKind::ComplexValue(v) => serializer.serialize_complex_value(v),
-            DataKind::UInt8List(items) => serializer.serialize_uint8_list(items),
+            DataKind::String(v) => serializer.serialize_string(v)?,
+            DataKind::ComplexValue(v) => serializer.serialize_complex_value(v)?,
+            DataKind::UInt8List(items) => serializer.serialize_uint8_list(Bytes(items)),
             DataKind::Int8List(items) => serializer.serialize_int8_list(items),
             DataKind::UInt16List(items) => serializer.serialize_uint16_list(items),
             DataKind::Int16List(items) => serializer.serialize_int16_list(items),
@@ -149,11 +148,11 @@ impl DataKind {
             DataKind::UInt64List(items) => serializer.serialize_uint64_list(items),
             DataKind::Float32List(items) => serializer.serialize_float32_list(items),
             DataKind::Float64List(items) => serializer.serialize_float64_list(items),
-            DataKind::Char8List(items) => serializer.serialize_char8_list(items),
+            DataKind::Char8List(items) => serializer.serialize_char8_list(items)?,
             DataKind::BooleanList(items) => serializer.serialize_boolean_list(items),
-            DataKind::StringList(items) => serializer.serialize_string_list(items),
-            DataKind::ComplexValueList(items) => serializer.serialize_complex_value_list(items),
-            DataKind::UInt8Array(items) => serializer.serialize_uint8_array(items),
+            DataKind::StringList(items) => serializer.serialize_string_list(items)?,
+            DataKind::ComplexValueList(items) => serializer.serialize_complex_value_list(items)?,
+            DataKind::UInt8Array(items) => serializer.serialize_uint8_array(Bytes(items)),
             DataKind::Int8Array(items) => serializer.serialize_int8_array(items),
             DataKind::UInt16Array(items) => serializer.serialize_uint16_array(items),
             DataKind::Int16Array(items) => serializer.serialize_int16_array(items),
@@ -163,11 +162,12 @@ impl DataKind {
             DataKind::UInt64Array(items) => serializer.serialize_uint64_array(items),
             DataKind::Float32Array(items) => serializer.serialize_float32_array(items),
             DataKind::Float64Array(items) => serializer.serialize_float64_array(items),
-            DataKind::Char8Array(items) => serializer.serialize_char8_array(items),
+            DataKind::Char8Array(items) => serializer.serialize_char8_array(items)?,
             DataKind::BooleanArray(items) => serializer.serialize_boolean_array(items),
-            DataKind::StringArray(items) => serializer.serialize_string_array(items),
-            DataKind::ComplexValueArray(items) => serializer.serialize_complex_value_array(items),
-        }
+            DataKind::StringArray(items) => serializer.serialize_string_array(items)?,
+            DataKind::ComplexValueArray(items) => serializer.serialize_complex_value_array(items)?,
+        };
+        Ok(())
     }
 }
 

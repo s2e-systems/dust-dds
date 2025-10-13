@@ -43,6 +43,10 @@ impl TypeSupport for Length {
             .set_uint32_value(0, value)
             .unwrap()
     }
+
+    fn create_sample(src: crate::xtypes::dynamic_type::DynamicData) -> Self {
+        todo!()
+    }
 }
 
 const LENGTH_UNLIMITED: i32 = -1;
