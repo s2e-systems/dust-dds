@@ -1,7 +1,8 @@
 use crate::{
     infrastructure::type_support::TypeSupport,
     xtypes::{
-        dynamic_type::{DynamicData, ExtensibilityKind, TypeKind},
+        deserializer::XTypesDeserializer,
+        dynamic_type::{DynamicData, DynamicDataFactory, DynamicType, ExtensibilityKind, TypeKind},
         serializer::{
             SerializeAppendableStruct, SerializeFinalStruct, SerializeMutableStruct,
             XTypesSerializer,
@@ -67,9 +68,65 @@ impl DynamicData {
                     mutable_serializer.end()?;
                 }
             },
-            kind => todo!("Noy yet implemented for {kind:?}"),
+            kind => todo!("Not yet implemented for {kind:?}"),
         }
         Ok(())
+    }
+
+    fn deserialize<'a>(r#type: DynamicType, deserializer: impl XTypesDeserializer<'a>) -> Self {
+        let data = DynamicDataFactory::create_data(r#type);
+        match data.type_ref().get_kind() {
+            TypeKind::ENUM => {
+                todo!()
+            }
+            TypeKind::STRUCTURE => match data.type_ref().get_descriptor().extensibility_kind {
+                ExtensibilityKind::Final => {
+                    todo!()
+                    // let mut final_serializer = serializer.serialize_final_struct()?;
+                    // for field_index in 0..self.get_item_count() {
+                    //     let member_id = self.get_member_id_at_index(field_index)?;
+                    //     let member_descriptor = self.get_descriptor(member_id)?;
+                    //     final_serializer
+                    //         .serialize_field(self.get_value(member_id)?, &member_descriptor.name)?;
+                    // }
+                }
+                ExtensibilityKind::Appendable => {
+                    todo!()
+                    // let mut appendable_serializer = serializer.serialize_appendable_struct()?;
+                    // for field_index in 0..self.get_item_count() {
+                    //     let member_id = self.get_member_id_at_index(field_index)?;
+                    //     let member_descriptor = self.get_descriptor(member_id)?;
+                    //     appendable_serializer
+                    //         .serialize_field(self.get_value(member_id)?, &member_descriptor.name)?;
+                    // }
+                }
+                ExtensibilityKind::Mutable => {
+                    todo!()
+                    //     let mut mutable_serializer = serializer.serialize_mutable_struct()?;
+                    //     for field_index in 0..self.get_item_count() {
+                    //         let member_id = self.get_member_id_at_index(field_index)?;
+                    //         let member_descriptor = self.get_descriptor(member_id)?;
+                    //         let value = self.get_value(member_id)?;
+                    //         if member_descriptor.is_optional {
+                    //             if let Some(default_value) = &member_descriptor.default_value {
+                    //                 if value == default_value {
+                    //                     continue;
+                    //                 }
+                    //             }
+                    //         }
+                    //         mutable_serializer.serialize_field(
+                    //             value,
+                    //             member_id,
+                    //             &member_descriptor.name,
+                    //         )?;
+                    //     }
+                    //     mutable_serializer.end()?;
+                }
+            },
+            kind => todo!("Not yet implemented for {kind:?}"),
+        }
+
+        data
     }
 }
 
