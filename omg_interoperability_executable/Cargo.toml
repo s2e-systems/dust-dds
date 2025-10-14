@@ -1,13 +1,17 @@
 [package]
 name = "dust_dds_shape_main_linux"
 version = "0.1.0"
-authors = [
-	"Joao Rebelo <jrebelo@s2e-systems.com>",
-	"Stefan Kimmer <skimmer@s2e-systems.com>",
-]
-license = "Apache-2.0"
-edition = "2021"
 description = "OMG DDS_RTPS Interoperability"
+readme = true
+publish = false
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [dependencies]
 dust_dds = { path = "../dds" }
@@ -16,4 +20,4 @@ rand = "0.8.5"
 ctrlc = "3.4"
 
 [build-dependencies]
-dust_dds_gen = { path = "../dds_gen"}
+dust_dds_gen = { path = "../dds_gen" }

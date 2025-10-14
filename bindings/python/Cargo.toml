@@ -1,9 +1,18 @@
 [package]
 name = "dust_dds_python"
 version = "0.13.0"
-edition = "2021"
+description = "Dust DDS Python bindings"
+readme = true
+publish = false
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
 name = "dust_dds"
 crate-type = ["cdylib"]

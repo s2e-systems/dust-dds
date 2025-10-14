@@ -1,8 +1,17 @@
 [package]
 name = "dust_dds-fuzz"
 version = "0.0.0"
+description = "Dust DDS fuzzing"
+readme = true
 publish = false
-edition = "2021"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [package.metadata]
 cargo-fuzz = true
@@ -10,7 +19,6 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = "=0.4.7"
 dust_dds = { path = "../dds" }
-
 
 [[bin]]
 name = "fuzz_ack_nack_submessage"
