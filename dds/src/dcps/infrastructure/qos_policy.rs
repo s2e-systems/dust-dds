@@ -44,7 +44,7 @@ impl TypeSupport for Length {
             .unwrap()
     }
 
-    fn create_sample(src: crate::xtypes::dynamic_type::DynamicData) -> Self {
+    fn create_sample(_src: crate::xtypes::dynamic_type::DynamicData) -> Self {
         todo!()
     }
 }

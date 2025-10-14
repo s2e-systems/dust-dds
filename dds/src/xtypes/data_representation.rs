@@ -4,7 +4,7 @@ use crate::{
         bytes::Bytes, dynamic_type::{DynamicData, ExtensibilityKind, TypeKind}, serializer::{
             SerializeAppendableStruct, SerializeFinalStruct, SerializeMutableStruct,
             XTypesSerializer,
-        }
+        }, xcdr_serializer::serialize_nested
     },
 };
 use alloc::{string::String, vec::Vec};
@@ -14,61 +14,7 @@ impl DynamicData {
         &self,
         serializer: impl XTypesSerializer,
     ) -> Result<(), super::error::XTypesError> {
-        self.serialize_nested(serializer)
-    }
-
-    pub fn serialize_nested(
-        &self,
-        serializer: impl XTypesSerializer,
-    ) -> Result<(), super::error::XTypesError> {
-        match self.type_ref().get_kind() {
-            TypeKind::ENUM => {
-                self.get_value(0)?.serialize(serializer)?;
-            }
-            TypeKind::STRUCTURE => match self.type_ref().get_descriptor().extensibility_kind {
-                ExtensibilityKind::Final => {
-                    let mut final_serializer = serializer.serialize_final_struct()?;
-                    for field_index in 0..self.get_item_count() {
-                        let member_id = self.get_member_id_at_index(field_index)?;
-                        let member_descriptor = self.get_descriptor(member_id)?;
-                        final_serializer
-                            .serialize_field(self.get_value(member_id)?, &member_descriptor.name)?;
-                    }
-                }
-                ExtensibilityKind::Appendable => {
-                    let mut appendable_serializer = serializer.serialize_appendable_struct()?;
-                    for field_index in 0..self.get_item_count() {
-                        let member_id = self.get_member_id_at_index(field_index)?;
-                        let member_descriptor = self.get_descriptor(member_id)?;
-                        appendable_serializer
-                            .serialize_field(self.get_value(member_id)?, &member_descriptor.name)?;
-                    }
-                }
-                ExtensibilityKind::Mutable => {
-                    let mut mutable_serializer = serializer.serialize_mutable_struct()?;
-                    for field_index in 0..self.get_item_count() {
-                        let member_id = self.get_member_id_at_index(field_index)?;
-                        let member_descriptor = self.get_descriptor(member_id)?;
-                        let value = self.get_value(member_id)?;
-                        if member_descriptor.is_optional {
-                            if let Some(default_value) = &member_descriptor.default_value {
-                                if value == default_value {
-                                    continue;
-                                }
-                            }
-                        }
-                        mutable_serializer.serialize_field(
-                            value,
-                            member_id,
-                            &member_descriptor.name,
-                        )?;
-                    }
-                    mutable_serializer.end()?;
-                }
-            },
-            kind => todo!("Noy yet implemented for {kind:?}"),
-        }
-        Ok(())
+        serialize_nested(self, serializer)
     }
 }
 
@@ -116,59 +62,6 @@ pub enum DataKind {
     BooleanArray(Vec<bool>),
     StringArray(Vec<String>),
     ComplexValueArray(Vec<DynamicData>),
-}
-
-impl DataKind {
-    pub fn serialize(
-        &self,
-        serializer: impl XTypesSerializer,
-    ) -> Result<(), super::error::XTypesError> {
-        match self {
-            DataKind::UInt8(v) => serializer.serialize_uint8(*v),
-            DataKind::Int8(v) => serializer.serialize_int8(*v),
-            DataKind::UInt16(v) => serializer.serialize_uint16(*v),
-            DataKind::Int16(v) => serializer.serialize_int16(*v),
-            DataKind::Int32(v) => serializer.serialize_int32(*v),
-            DataKind::UInt32(v) => serializer.serialize_uint32(*v),
-            DataKind::Int64(v) => serializer.serialize_int64(*v),
-            DataKind::UInt64(v) => serializer.serialize_uint64(*v),
-            DataKind::Float32(v) => serializer.serialize_float32(*v),
-            DataKind::Float64(v) => serializer.serialize_float64(*v),
-            DataKind::Char8(v) => serializer.serialize_char8(*v)?,
-            DataKind::Boolean(v) => serializer.serialize_boolean(*v),
-            DataKind::String(v) => serializer.serialize_string(v)?,
-            DataKind::ComplexValue(v) => serializer.serialize_complex_value(v)?,
-            DataKind::UInt8List(items) => serializer.serialize_uint8_list(Bytes(items)),
-            DataKind::Int8List(items) => serializer.serialize_int8_list(items),
-            DataKind::UInt16List(items) => serializer.serialize_uint16_list(items),
-            DataKind::Int16List(items) => serializer.serialize_int16_list(items),
-            DataKind::Int32List(items) => serializer.serialize_int32_list(items),
-            DataKind::UInt32List(items) => serializer.serialize_uint32_list(items),
-            DataKind::Int64List(items) => serializer.serialize_int64_list(items),
-            DataKind::UInt64List(items) => serializer.serialize_uint64_list(items),
-            DataKind::Float32List(items) => serializer.serialize_float32_list(items),
-            DataKind::Float64List(items) => serializer.serialize_float64_list(items),
-            DataKind::Char8List(items) => serializer.serialize_char8_list(items)?,
-            DataKind::BooleanList(items) => serializer.serialize_boolean_list(items),
-            DataKind::StringList(items) => serializer.serialize_string_list(items)?,
-            DataKind::ComplexValueList(items) => serializer.serialize_complex_value_list(items)?,
-            DataKind::UInt8Array(items) => serializer.serialize_uint8_array(Bytes(items)),
-            DataKind::Int8Array(items) => serializer.serialize_int8_array(items),
-            DataKind::UInt16Array(items) => serializer.serialize_uint16_array(items),
-            DataKind::Int16Array(items) => serializer.serialize_int16_array(items),
-            DataKind::Int32Array(items) => serializer.serialize_int32_array(items),
-            DataKind::UInt32Array(items) => serializer.serialize_uint32_array(items),
-            DataKind::Int64Array(items) => serializer.serialize_int64_array(items),
-            DataKind::UInt64Array(items) => serializer.serialize_uint64_array(items),
-            DataKind::Float32Array(items) => serializer.serialize_float32_array(items),
-            DataKind::Float64Array(items) => serializer.serialize_float64_array(items),
-            DataKind::Char8Array(items) => serializer.serialize_char8_array(items)?,
-            DataKind::BooleanArray(items) => serializer.serialize_boolean_array(items),
-            DataKind::StringArray(items) => serializer.serialize_string_array(items)?,
-            DataKind::ComplexValueArray(items) => serializer.serialize_complex_value_array(items)?,
-        };
-        Ok(())
-    }
 }
 
 impl From<u8> for DataKind {
