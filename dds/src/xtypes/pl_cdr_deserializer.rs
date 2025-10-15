@@ -6,8 +6,11 @@ use crate::{
         types::ParameterId,
     },
     xtypes::{
+        data_representation::DataKind,
         deserialize::XTypesDeserialize,
         deserializer::XTypesDeserializer,
+        dynamic_type::DynamicType,
+        error::XTypesResult,
         xcdr_deserializer::{Xcdr1BeDeserializer, Xcdr1LeDeserializer},
     },
 };
@@ -240,6 +243,9 @@ impl<'de> XTypesDeserializer<'de> for &mut PlCdrDeserializer {
     fn deserialize_byte_array<const N: usize>(
         self,
     ) -> Result<&'de [u8; N], super::error::XTypesError> {
+        todo!()
+    }
+    fn deserialize_data_kind(self, dynamic_type: &DynamicType) -> XTypesResult<DataKind> {
         todo!()
     }
 }

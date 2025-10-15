@@ -1,4 +1,8 @@
-use crate::xtypes::{data_representation::DataKind, dynamic_type::MemberDescriptor};
+use crate::xtypes::{
+    data_representation::DataKind,
+    dynamic_type::{DynamicType, MemberDescriptor},
+    error::XTypesResult,
+};
 
 use super::{deserialize::XTypesDeserialize, error::XTypesError};
 
@@ -91,4 +95,6 @@ pub trait XTypesDeserializer<'de>: Sized {
 
     /// Deserialize an array of bytes by borrowing.
     fn deserialize_byte_array<const N: usize>(self) -> Result<&'de [u8; N], XTypesError>;
+
+    fn deserialize_data_kind(self, dynamic_type: &DynamicType) -> XTypesResult<DataKind>;
 }

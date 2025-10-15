@@ -418,8 +418,7 @@ impl<'de> DeserializeFinalStruct<'de> for PlainCdrBeDecoder<'_, 'de> {
         &mut self,
         descriptor: &MemberDescriptor,
     ) -> Result<DataKind, XTypesError> {
-        todo!()
-        // T::deserialize(&mut *self.deserializer)
+        self.deserializer.deserialize_data_kind(&descriptor.r#type)
     }
 
     fn deserialize_optional_field(
@@ -455,8 +454,7 @@ impl<'de> DeserializeFinalStruct<'de> for PlainCdrLeDecoder<'_, 'de> {
         &mut self,
         descriptor: &MemberDescriptor,
     ) -> Result<DataKind, XTypesError> {
-        todo!()
-        // T::deserialize(&mut *self.deserializer)
+        self.deserializer.deserialize_data_kind(&descriptor.r#type)
     }
 
     fn deserialize_optional_field(
@@ -581,6 +579,40 @@ impl<'de> XTypesDeserializer<'de> for &mut Xcdr1BeDeserializer<'de> {
     fn deserialize_byte_array<const N: usize>(self) -> Result<&'de [u8; N], XTypesError> {
         self.reader.read()
     }
+
+    fn deserialize_data_kind(self, dynamic_type: &DynamicType) -> XTypesResult<DataKind> {
+        let data = match dynamic_type.get_kind() {
+            TypeKind::NONE => todo!(),
+            TypeKind::BOOLEAN => todo!(),
+            TypeKind::BYTE => todo!(),
+            TypeKind::INT16 => todo!(),
+            TypeKind::INT32 => todo!(),
+            TypeKind::INT64 => todo!(),
+            TypeKind::UINT16 => DataKind::UInt16(self.deserialize_uint16()?),
+            TypeKind::UINT32 => todo!(),
+            TypeKind::UINT64 => DataKind::UInt64(self.deserialize_uint64()?),
+            TypeKind::FLOAT32 => todo!(),
+            TypeKind::FLOAT64 => todo!(),
+            TypeKind::FLOAT128 => todo!(),
+            TypeKind::INT8 => todo!(),
+            TypeKind::UINT8 => todo!(),
+            TypeKind::CHAR8 => todo!(),
+            TypeKind::CHAR16 => todo!(),
+            TypeKind::STRING8 => todo!(),
+            TypeKind::STRING16 => todo!(),
+            TypeKind::ALIAS => todo!(),
+            TypeKind::ENUM => todo!(),
+            TypeKind::BITMASK => todo!(),
+            TypeKind::ANNOTATION => todo!(),
+            TypeKind::STRUCTURE => todo!(),
+            TypeKind::UNION => todo!(),
+            TypeKind::BITSET => todo!(),
+            TypeKind::SEQUENCE => todo!(),
+            TypeKind::ARRAY => todo!(),
+            TypeKind::MAP => todo!(),
+        };
+        Ok(data)
+    }
 }
 
 impl<'de> XTypesDeserializer<'de> for &mut Xcdr1LeDeserializer<'de> {
@@ -653,12 +685,47 @@ impl<'de> XTypesDeserializer<'de> for &mut Xcdr1LeDeserializer<'de> {
         )
         .map_err(|_| XTypesError::InvalidData)
     }
+
     fn deserialize_byte_sequence(self) -> Result<&'de [u8], XTypesError> {
         let length = self.deserialize_uint32()? as usize;
         self.reader.read_all(length)
     }
     fn deserialize_byte_array<const N: usize>(self) -> Result<&'de [u8; N], XTypesError> {
         self.reader.read()
+    }
+    fn deserialize_data_kind(self, dynamic_type: &DynamicType) -> XTypesResult<DataKind> {
+        let data = match dynamic_type.get_kind() {
+            TypeKind::NONE => todo!(),
+            TypeKind::BOOLEAN => todo!(),
+            TypeKind::BYTE => todo!(),
+            TypeKind::INT16 => todo!(),
+            TypeKind::INT32 => todo!(),
+            TypeKind::INT64 => todo!(),
+            TypeKind::UINT16 => DataKind::UInt16(self.deserialize_uint16()?),
+            TypeKind::UINT32 => todo!(),
+            TypeKind::UINT64 => DataKind::UInt64(self.deserialize_uint64()?),
+            TypeKind::FLOAT32 => todo!(),
+            TypeKind::FLOAT64 => todo!(),
+            TypeKind::FLOAT128 => todo!(),
+            TypeKind::INT8 => todo!(),
+            TypeKind::UINT8 => todo!(),
+            TypeKind::CHAR8 => todo!(),
+            TypeKind::CHAR16 => todo!(),
+            TypeKind::STRING8 => todo!(),
+            TypeKind::STRING16 => todo!(),
+            TypeKind::ALIAS => todo!(),
+            TypeKind::ENUM => todo!(),
+            TypeKind::BITMASK => todo!(),
+            TypeKind::ANNOTATION => todo!(),
+            TypeKind::STRUCTURE => todo!(),
+            TypeKind::UNION => todo!(),
+            TypeKind::BITSET => todo!(),
+            TypeKind::SEQUENCE => todo!(),
+            TypeKind::ARRAY => todo!(),
+            TypeKind::MAP => todo!(),
+        };
+
+        Ok(data)
     }
 }
 
@@ -739,6 +806,9 @@ impl<'de> XTypesDeserializer<'de> for &mut Xcdr2BeDeserializer<'de> {
     }
     fn deserialize_byte_array<const N: usize>(self) -> Result<&'de [u8; N], XTypesError> {
         self.reader.read()
+    }
+    fn deserialize_data_kind(self, dynamic_type: &DynamicType) -> XTypesResult<DataKind> {
+        todo!()
     }
 }
 
@@ -821,6 +891,9 @@ impl<'de> XTypesDeserializer<'de> for &mut Xcdr2LeDeserializer<'de> {
     }
     fn deserialize_byte_array<const N: usize>(self) -> Result<&'de [u8; N], XTypesError> {
         self.reader.read()
+    }
+    fn deserialize_data_kind(self, dynamic_type: &DynamicType) -> XTypesResult<DataKind> {
+        todo!()
     }
 }
 
