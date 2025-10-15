@@ -1,7 +1,11 @@
 use crate::xtypes::{
-    bytes::Bytes, data_representation::DataKind, error::XTypesError, serialize::Write,
+    bytes::Bytes,
+    data_representation::DataKind,
+    dynamic_type::{DynamicData, MemberDescriptor, TypeKind},
+    error::XTypesError,
+    serialize::Write,
 };
-use alloc::{vec::Vec, string::ToString};
+use alloc::{string::ToString, vec::Vec};
 pub struct Writer<'a, W> {
     buffer: &'a mut W,
     position: usize,
@@ -214,7 +218,7 @@ where
 }
 
 pub trait SerializeFinalStruct {
-    fn serialize_field(&mut self, value: &DataKind, name: &str) -> Result<(), XTypesError>;
+    fn serialize_field(&mut self, value: &DynamicData) -> Result<(), XTypesError>;
 }
 pub trait SerializeAppendableStruct {
     fn serialize_field(&mut self, value: &DataKind, name: &str) -> Result<(), XTypesError>;
@@ -243,6 +247,52 @@ pub trait XTypesSerializer {
     /// Start serializing a type with mutable extensibility.
     fn serialize_mutable_struct(self) -> Result<impl SerializeMutableStruct, XTypesError>;
 
-    /// Serializing data
-    fn serialize_data_kind(self, v: &DataKind) -> Result<(), XTypesError>;
+    fn serialize_complex(&mut self, dynamic_data: &DynamicData) -> Result<(), XTypesError>
+    where
+        Self: Sized,
+    {
+        for field_index in 0..dynamic_data.get_item_count() {
+            let member_id = dynamic_data.get_member_id_at_index(field_index)?;
+            let member_descriptor = dynamic_data.get_descriptor(member_id)?;
+            match member_descriptor.r#type.get_kind() {
+                TypeKind::NONE => todo!(),
+                TypeKind::BOOLEAN => todo!(),
+                TypeKind::BYTE => todo!(),
+                TypeKind::INT16 => self.serialize_i16(dynamic_data.get_int16_value(member_id)?),
+                TypeKind::INT32 => self.serialize_i32(dynamic_data.get_int32_value(member_id)?),
+                TypeKind::INT64 => todo!(),
+                TypeKind::UINT16 => todo!(),
+                TypeKind::UINT32 => todo!(),
+                TypeKind::UINT64 => todo!(),
+                TypeKind::FLOAT32 => todo!(),
+                TypeKind::FLOAT64 => todo!(),
+                TypeKind::FLOAT128 => todo!(),
+                TypeKind::INT8 => todo!(),
+                TypeKind::UINT8 => todo!(),
+                TypeKind::CHAR8 => todo!(),
+                TypeKind::CHAR16 => todo!(),
+                TypeKind::STRING8 => {
+                    self.serialize_string(dynamic_data.get_string_value(member_id)?)
+                }
+                TypeKind::STRING16 => todo!(),
+                TypeKind::ALIAS => todo!(),
+                TypeKind::ENUM => todo!(),
+                TypeKind::BITMASK => todo!(),
+                TypeKind::ANNOTATION => todo!(),
+                TypeKind::STRUCTURE => {
+                    self.serialize_complex(dynamic_data.get_complex_value(member_id)?)?
+                }
+                TypeKind::UNION => todo!(),
+                TypeKind::BITSET => todo!(),
+                TypeKind::SEQUENCE => todo!(),
+                TypeKind::ARRAY => todo!(),
+                TypeKind::MAP => todo!(),
+            }
+        }
+        Ok(())
+    }
+    fn serialize_string(&mut self, v: &String);
+    fn serialize_u32(&mut self, v: &u32);
+    fn serialize_i32(&mut self, v: &i32);
+    fn serialize_i16(&mut self, v: &i16);
 }
