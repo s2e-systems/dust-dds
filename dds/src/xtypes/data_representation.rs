@@ -1,10 +1,7 @@
 use crate::{
     infrastructure::type_support::TypeSupport,
     xtypes::{
-        bytes::Bytes, dynamic_type::{DynamicData, ExtensibilityKind, TypeKind}, serializer::{
-            SerializeAppendableStruct, SerializeFinalStruct, SerializeMutableStruct,
-            XTypesSerializer,
-        }, xcdr_serializer::serialize_nested
+        dynamic_type::DynamicData, serializer::XTypesSerializer, xcdr_serializer::serialize_nested,
     },
 };
 use alloc::{string::String, vec::Vec};

@@ -216,6 +216,7 @@ where
 
 pub trait SerializeFinalStruct {
     fn serialize_field(&mut self, value: &DataKind, name: &str) -> Result<(), XTypesError>;
+
 }
 pub trait SerializeAppendableStruct {
     fn serialize_field(&mut self, value: &DataKind, name: &str) -> Result<(), XTypesError>;
@@ -244,8 +245,5 @@ pub trait XTypesSerializer {
     /// Start serializing a type with mutable extensibility.
     fn serialize_mutable_struct(self) -> Result<impl SerializeMutableStruct, XTypesError>;
 
-    fn seralize_sequence(&mut self, values: &Vec<DataKind>);
-    fn seralize_array(&mut self, values: &Vec<DataKind>);
-
-    fn serialize_data_kind(self, v: &DataKind);
+    fn serialize_data_kind(self, v: &DataKind)-> Result<(), XTypesError>;
 }
