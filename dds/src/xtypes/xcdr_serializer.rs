@@ -71,24 +71,6 @@ impl<C: Write> SerializeFinalStruct for &mut Xcdr1BeSerializer<'_, C> {
         self.serialize_data_kind(value);
         Ok(())
     }
-
-    fn serialize_optional_field(
-        &mut self,
-        value: &Option<DynamicData>,
-        _name: &str,
-    ) -> Result<(), XTypesError> {
-        self.writer.writer.pad(4);
-        if let Some(value) = value {
-            let length = Xcdr1BeSerializer::bytes_len(value)? as u16;
-            self.writer.writer.write_slice(&0_u16.to_be_bytes());
-            self.writer.writer.write_slice(&length.to_be_bytes());
-            value.serialize(&mut **self)
-        } else {
-            self.writer.writer.write_slice(&0_u16.to_be_bytes());
-            self.writer.writer.write_slice(&0_u16.to_be_bytes());
-            Ok(())
-        }
-    }
 }
 impl<C: Write> SerializeAppendableStruct for &mut Xcdr1BeSerializer<'_, C> {
     fn serialize_field(&mut self, value: &DataKind, _name: &str) -> Result<(), XTypesError> {
@@ -222,25 +204,6 @@ impl<C: Write> SerializeFinalStruct for &mut Xcdr1LeSerializer<'_, C> {
     fn serialize_field(&mut self, value: &DataKind, _name: &str) -> Result<(), XTypesError> {
         self.serialize_data_kind(value);
         Ok(())
-    }
-
-    fn serialize_optional_field(
-        &mut self,
-        value: &Option<DynamicData>,
-        _name: &str,
-    ) -> Result<(), XTypesError> {
-        if let Some(value) = value {
-            let length = Xcdr1LeSerializer::bytes_len(value)? as u16;
-            self.writer.writer.pad(4);
-            self.writer.writer.write_slice(&0_u16.to_le_bytes());
-            self.writer.writer.write_slice(&length.to_le_bytes());
-            value.serialize(&mut **self)
-        } else {
-            self.writer.writer.pad(4);
-            self.writer.writer.write_slice(&0_u16.to_le_bytes());
-            self.writer.writer.write_slice(&0_u16.to_le_bytes());
-            Ok(())
-        }
     }
 }
 impl<C: Write> SerializeAppendableStruct for &mut Xcdr1LeSerializer<'_, C> {
@@ -386,7 +349,10 @@ impl<C: Write> XTypesSerializer for &mut Xcdr1LeSerializer<'_, C> {
             }
             DataKind::String(v) => {
                 self.serialize_data_kind(&DataKind::UInt32(v.len() as u32 + 1));
-                WriteAsBytes::<Self::Endianness>::write_as_bytes(v.as_str(), &mut self.writer.writer);
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(
+                    v.as_str(),
+                    &mut self.writer.writer,
+                );
             }
             DataKind::ComplexValue(dynamic_data) => {
                 serialize_nested(dynamic_data, &mut *self).expect("all good")
@@ -511,24 +477,6 @@ where
     fn serialize_field(&mut self, value: &DataKind, _name: &str) -> Result<(), XTypesError> {
         self.serializer.serialize_data_kind(value);
         Ok(())
-    }
-
-    fn serialize_optional_field(
-        &mut self,
-        value: &Option<DynamicData>,
-        _name: &str,
-    ) -> Result<(), XTypesError> {
-        if let Some(_value) = value {
-            self.serializer
-                .serialize_data_kind(&DataKind::Boolean(true));
-            // self.serializer
-            //     .serialize_data_kind(&DataKind::ComplexValue(value))
-            todo!()
-        } else {
-            self.serializer
-                .serialize_data_kind(&DataKind::Boolean(false));
-            Ok(())
-        }
     }
 }
 

@@ -47,14 +47,6 @@ impl<C: Write> SerializeFinalStruct for &mut PlCdrLeSerializer<'_, C> {
         self.serialize_data_kind(value);
         Ok(())
     }
-
-    fn serialize_optional_field(
-        &mut self,
-        _value: &Option<DynamicData>,
-        _name: &str,
-    ) -> Result<(), XTypesError> {
-        unimplemented!()
-    }
 }
 impl<C: Write> SerializeAppendableStruct for &mut PlCdrLeSerializer<'_, C> {
     fn serialize_field(&mut self, value: &DataKind, _name: &str) -> Result<(), XTypesError> {

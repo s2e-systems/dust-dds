@@ -216,11 +216,6 @@ where
 
 pub trait SerializeFinalStruct {
     fn serialize_field(&mut self, value: &DataKind, name: &str) -> Result<(), XTypesError>;
-    fn serialize_optional_field(
-        &mut self,
-        value: &Option<DynamicData>,
-        name: &str,
-    ) -> Result<(), XTypesError>;
 }
 pub trait SerializeAppendableStruct {
     fn serialize_field(&mut self, value: &DataKind, name: &str) -> Result<(), XTypesError>;
