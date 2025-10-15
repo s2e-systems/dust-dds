@@ -51,21 +51,6 @@ impl<'a, W: Write> Write for WriterV2<'a, W> {
     }
 }
 
-fn into_u32(v: usize) -> Result<u32, XTypesError> {
-    if v > u32::MAX as usize {
-        Err(XTypesError::InvalidData)
-    } else {
-        Ok(v as u32)
-    }
-}
-fn str_len(v: &str) -> Result<u32, XTypesError> {
-    if !v.is_ascii() {
-        Err(XTypesError::InvalidData)
-    } else {
-        into_u32(v.len() + 1)
-    }
-}
-
 pub trait Endianness {}
 pub struct BigEndian;
 pub struct LittleEndian;
@@ -263,6 +248,9 @@ pub trait XTypesSerializer {
 
     /// Start serializing a type with mutable extensibility.
     fn serialize_mutable_struct(self) -> Result<impl SerializeMutableStruct, XTypesError>;
+
+    fn seralize_sequence(&mut self, values: &Vec<DataKind>);
+    fn seralize_array(&mut self, values: &Vec<DataKind>);
 
     fn serialize_data_kind(self, v: &DataKind);
 }

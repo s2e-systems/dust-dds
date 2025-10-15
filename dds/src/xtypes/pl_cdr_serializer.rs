@@ -82,28 +82,36 @@ impl<C: Write> SerializeMutableStruct for &mut PlCdrLeSerializer<'_, C> {
             Ok(byte_counter.0)
         }
 
-        if let DataKind::ComplexValueList(items) = value {
-            for item in items {
-                let length = bytes_len_dynamic_data(item)?;
-                let padded_length = (length + 3) & !3;
+        match value {
+            DataKind::Sequence(items) if matches!(&items[0], DataKind::ComplexValue(_)) => {
+                if matches!(&items[0], DataKind::ComplexValue(_)) {
+                    for item in items {
+                        if let DataKind::ComplexValue(item) = item {
+                            let length = bytes_len_dynamic_data(item)?;
+                            let padded_length = (length + 3) & !3;
 
+                            self.cdr1_le_serializer
+                                .serialize_data_kind(&DataKind::UInt16(pid as u16));
+                            self.cdr1_le_serializer
+                                .serialize_data_kind(&DataKind::UInt16(padded_length));
+                            item.serialize(&mut **self)?;
+                            self.cdr1_le_serializer.writer.writer.pad(4);
+                        }
+                    }
+                }
+            }
+            _ => {
+                let length = bytes_len_data_kind(value)?;
+                let padded_length = (length + 3) & !3;
                 self.cdr1_le_serializer
                     .serialize_data_kind(&DataKind::UInt16(pid as u16));
                 self.cdr1_le_serializer
                     .serialize_data_kind(&DataKind::UInt16(padded_length));
-                item.serialize(&mut **self)?;
+                self.serialize_data_kind(value);
                 self.cdr1_le_serializer.writer.writer.pad(4);
             }
-        } else {
-            let length = bytes_len_data_kind(value)?;
-            let padded_length = (length + 3) & !3;
-            self.cdr1_le_serializer
-                .serialize_data_kind(&DataKind::UInt16(pid as u16));
-            self.cdr1_le_serializer
-                .serialize_data_kind(&DataKind::UInt16(padded_length));
-            self.serialize_data_kind(value);
-            self.cdr1_le_serializer.writer.writer.pad(4);
         }
+
         Ok(())
     }
 
@@ -129,6 +137,13 @@ impl<C: Write> XTypesSerializer for &mut PlCdrLeSerializer<'_, C> {
         Ok(self)
     }
 
+    fn seralize_sequence(&mut self, values: &Vec<DataKind>) {
+        (&mut self.cdr1_le_serializer).seralize_sequence(values)
+    }
+
+    fn seralize_array(&mut self, values: &Vec<DataKind>) {
+        (&mut self.cdr1_le_serializer).seralize_array(values)
+    }
     fn serialize_data_kind(self, v: &DataKind) {
         self.cdr1_le_serializer.serialize_data_kind(v);
     }
@@ -230,18 +245,17 @@ mod tests {
         );
     }
 
-
     #[test]
     fn serialize_string() {
-    #[derive(TypeSupport)]
-    #[dust_dds(extensibility = "mutable")]
-    struct StringData {
-        #[dust_dds(id = 41)]
-        name: String
-    }
+        #[derive(TypeSupport)]
+        #[dust_dds(extensibility = "mutable")]
+        struct StringData {
+            #[dust_dds(id = 41)]
+            name: String,
+        }
 
         let v = StringData {
-            name: "one".to_string()
+            name: "one".to_string(),
         };
         assert_eq!(
             test_serialize_type_support(v),
@@ -256,15 +270,15 @@ mod tests {
 
     #[test]
     fn serialize_string_list() {
-    #[derive(TypeSupport)]
-    #[dust_dds(extensibility = "mutable")]
-    struct StringList {
-        #[dust_dds(id = 41)]
-        name: Vec<String>
-    }
+        #[derive(TypeSupport)]
+        #[dust_dds(extensibility = "mutable")]
+        struct StringList {
+            #[dust_dds(id = 41)]
+            name: Vec<String>,
+        }
 
         let v = StringList {
-            name: vec!["one".to_string(), "two".to_string()]
+            name: vec!["one".to_string(), "two".to_string()],
         };
         assert_eq!(
             test_serialize_type_support(v),

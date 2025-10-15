@@ -131,42 +131,61 @@ impl<C: Write> XTypesSerializer for &mut Xcdr1BeSerializer<'_, C> {
         Ok(self)
     }
 
-    fn serialize_data_kind(self, v: &DataKind) {
+    fn seralize_sequence(&mut self, values: &Vec<DataKind>) {
+        self.serialize_data_kind(&DataKind::UInt32(values.len() as u32));
+        self.seralize_array(values);
+    }
+    fn seralize_array(&mut self, values: &Vec<DataKind>) {
+        for value in values {
+            self.serialize_data_kind(value);
+        }
+    }
+    fn serialize_data_kind(mut self, v: &DataKind) {
         match v {
+            DataKind::UInt8(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
+            }
+            DataKind::Int8(v) => WriteAsBytes::<LittleEndian>::write_as_bytes(v, &mut self.writer),
+            DataKind::UInt16(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
+            }
+            DataKind::Int16(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
+            }
+            DataKind::Int32(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
+            }
+            DataKind::UInt32(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
+            }
+            DataKind::Int64(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
+            }
+            DataKind::UInt64(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
+            }
+            DataKind::Float32(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
+            }
+            DataKind::Float64(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
+            }
+            DataKind::Boolean(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
+            }
             DataKind::String(v) => {
                 self.serialize_data_kind(&DataKind::UInt32(v.len() as u32 + 1));
                 WriteAsBytes::<Self::Endianness>::write_as_bytes(v.as_str(), &mut self.writer);
             }
+            DataKind::ComplexValue(dynamic_data) => {
+                serialize_nested(dynamic_data, &mut *self).expect("all good")
+            }
+            DataKind::Sequence(v) => self.seralize_sequence(v),
+            DataKind::Array(v) => self.seralize_sequence(v),
             DataKind::Char8(v) => {
-                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
             }
-            DataKind::BooleanList(v) => serialize_list_xcdr1_be(v, &mut *self),
-            DataKind::Int8List(v) => serialize_list_xcdr1_be(v, &mut *self),
-            DataKind::UInt8List(v) => serialize_list_xcdr1_be(v, &mut *self),
-            DataKind::Int16List(v) => serialize_list_xcdr1_be(v, &mut *self),
-            DataKind::UInt16List(v) => serialize_list_xcdr1_be(v, &mut *self),
-            DataKind::Int32List(v) => serialize_list_xcdr1_be(v, &mut *self),
-            DataKind::UInt32List(v) => serialize_list_xcdr1_be(v, &mut *self),
-            DataKind::Int64List(v) => serialize_list_xcdr1_be(v, &mut *self),
-            DataKind::UInt64List(v) => serialize_list_xcdr1_be(v, &mut *self),
-            DataKind::Float32List(v) => serialize_list_xcdr1_be(v, &mut *self),
-            DataKind::Float64List(v) => serialize_list_xcdr1_be(v, &mut *self),
-            DataKind::Char8List(v) => {
-                self.serialize_data_kind(&DataKind::UInt32(v.len() as u32));
-                for v in v.iter().cloned() {
-                    self.serialize_data_kind(&DataKind::Char8(v));
-                }
-            }
-            DataKind::StringList(v) => {
-                self.serialize_data_kind(&DataKind::UInt32(v.len() as u32));
-                for v in v.iter().cloned() {
-                    self.serialize_data_kind(&DataKind::String(v));
-                }
-            }
-            _ => (),
         };
-        serialize_complex_data_kind(v, self).expect("complex data should not fail");
-        serialize_data_kind_be(v, &mut self.writer);
     }
 }
 
@@ -310,127 +329,6 @@ pub fn serialize_nested(
     Ok(())
 }
 
-fn serialize_complex_data_kind<T>(v: &DataKind, serializer: &mut T) -> Result<(), XTypesError>
-where
-    for<'a> &'a mut T: XTypesSerializer,
-{
-    Ok(match v {
-        DataKind::ComplexValue(v) => serialize_nested(v, serializer)?,
-        DataKind::ComplexValueList(v) => {
-            serializer.serialize_data_kind(&DataKind::UInt32(v.len() as u32));
-            for vi in v {
-                serialize_nested(vi, &mut *serializer)?;
-            }
-        }
-        DataKind::ComplexValueArray(v) => {
-            for vi in v {
-                serialize_nested(vi, &mut *serializer)?;
-            }
-        }
-
-        _ => (),
-    })
-}
-fn serialize_data_kind_le<C: Write>(v: &DataKind, writer: &mut C) {
-    match v {
-        DataKind::UInt8(v) => WriteAsBytes::<LittleEndian>::write_as_bytes(v, writer),
-        DataKind::Int8(v) => WriteAsBytes::<LittleEndian>::write_as_bytes(v, writer),
-        DataKind::UInt16(v) => WriteAsBytes::<LittleEndian>::write_as_bytes(v, writer),
-        DataKind::Int16(v) => WriteAsBytes::<LittleEndian>::write_as_bytes(v, writer),
-        DataKind::Int32(v) => WriteAsBytes::<LittleEndian>::write_as_bytes(v, writer),
-        DataKind::UInt32(v) => WriteAsBytes::<LittleEndian>::write_as_bytes(v, writer),
-        DataKind::Int64(v) => WriteAsBytes::<LittleEndian>::write_as_bytes(v, writer),
-        DataKind::UInt64(v) => WriteAsBytes::<LittleEndian>::write_as_bytes(v, writer),
-        DataKind::Float32(v) => WriteAsBytes::<LittleEndian>::write_as_bytes(v, writer),
-        DataKind::Float64(v) => WriteAsBytes::<LittleEndian>::write_as_bytes(v, writer),
-        DataKind::Boolean(v) => WriteAsBytes::<LittleEndian>::write_as_bytes(v, writer),
-        DataKind::UInt8Array(v) => WriteAsBytes::<LittleEndian>::write_as_bytes(v, writer),
-        DataKind::Int8Array(v) => WriteAsBytes::<LittleEndian>::write_as_bytes(v, writer),
-        DataKind::UInt16Array(v) => WriteAsBytes::<LittleEndian>::write_as_bytes(v, writer),
-        DataKind::Int16Array(v) => WriteAsBytes::<LittleEndian>::write_as_bytes(v, writer),
-        DataKind::Int32Array(v) => WriteAsBytes::<LittleEndian>::write_as_bytes(v, writer),
-        DataKind::UInt32Array(v) => WriteAsBytes::<LittleEndian>::write_as_bytes(v, writer),
-        DataKind::Int64Array(v) => WriteAsBytes::<LittleEndian>::write_as_bytes(v, writer),
-        DataKind::UInt64Array(v) => WriteAsBytes::<LittleEndian>::write_as_bytes(v, writer),
-        DataKind::Float32Array(v) => WriteAsBytes::<LittleEndian>::write_as_bytes(v, writer),
-        DataKind::Float64Array(v) => WriteAsBytes::<LittleEndian>::write_as_bytes(v, writer),
-        DataKind::Char8Array(v) => WriteAsBytes::<LittleEndian>::write_as_bytes(v, writer),
-        DataKind::BooleanArray(v) => WriteAsBytes::<LittleEndian>::write_as_bytes(v, writer),
-        DataKind::ComplexValue(_)
-        | DataKind::ComplexValueList(_)
-        | DataKind::ComplexValueArray(_) => (),
-        _ => (),
-    };
-}
-fn serialize_data_kind_be<C: Write>(v: &DataKind, writer: &mut C) {
-    match v {
-        DataKind::UInt8(v) => WriteAsBytes::<BigEndian>::write_as_bytes(v, writer),
-        DataKind::Int8(v) => WriteAsBytes::<BigEndian>::write_as_bytes(v, writer),
-        DataKind::UInt16(v) => WriteAsBytes::<BigEndian>::write_as_bytes(v, writer),
-        DataKind::Int16(v) => WriteAsBytes::<BigEndian>::write_as_bytes(v, writer),
-        DataKind::Int32(v) => WriteAsBytes::<BigEndian>::write_as_bytes(v, writer),
-        DataKind::UInt32(v) => WriteAsBytes::<BigEndian>::write_as_bytes(v, writer),
-        DataKind::Int64(v) => WriteAsBytes::<BigEndian>::write_as_bytes(v, writer),
-        DataKind::UInt64(v) => WriteAsBytes::<BigEndian>::write_as_bytes(v, writer),
-        DataKind::Float32(v) => WriteAsBytes::<BigEndian>::write_as_bytes(v, writer),
-        DataKind::Float64(v) => WriteAsBytes::<BigEndian>::write_as_bytes(v, writer),
-        DataKind::Boolean(v) => WriteAsBytes::<BigEndian>::write_as_bytes(v, writer),
-        DataKind::UInt8Array(v) => WriteAsBytes::<BigEndian>::write_as_bytes(v, writer),
-        DataKind::Int8Array(v) => WriteAsBytes::<BigEndian>::write_as_bytes(v, writer),
-        DataKind::UInt16Array(v) => WriteAsBytes::<BigEndian>::write_as_bytes(v, writer),
-        DataKind::Int16Array(v) => WriteAsBytes::<BigEndian>::write_as_bytes(v, writer),
-        DataKind::Int32Array(v) => WriteAsBytes::<BigEndian>::write_as_bytes(v, writer),
-        DataKind::UInt32Array(v) => WriteAsBytes::<BigEndian>::write_as_bytes(v, writer),
-        DataKind::Int64Array(v) => WriteAsBytes::<BigEndian>::write_as_bytes(v, writer),
-        DataKind::UInt64Array(v) => WriteAsBytes::<BigEndian>::write_as_bytes(v, writer),
-        DataKind::Float32Array(v) => WriteAsBytes::<BigEndian>::write_as_bytes(v, writer),
-        DataKind::Float64Array(v) => WriteAsBytes::<BigEndian>::write_as_bytes(v, writer),
-        DataKind::Char8Array(v) => WriteAsBytes::<BigEndian>::write_as_bytes(v, writer),
-        DataKind::BooleanArray(v) => WriteAsBytes::<BigEndian>::write_as_bytes(v, writer),
-        DataKind::ComplexValue(_)
-        | DataKind::ComplexValueList(_)
-        | DataKind::ComplexValueArray(_) => (),
-        _ => (),
-    };
-}
-
-fn serialize_list_xcdr1_le<C: Write, T: WriteAsBytes<LittleEndian>>(
-    v: &Vec<T>,
-    serializer: &mut Xcdr1LeSerializer<'_, C>,
-) {
-    serializer.serialize_data_kind(&DataKind::UInt32(v.len() as u32));
-    for v in v.iter() {
-        v.write_as_bytes(&mut serializer.writer);
-    }
-}
-fn serialize_list_xcdr1_be<C: Write, T: WriteAsBytes<BigEndian>>(
-    v: &Vec<T>,
-    serializer: &mut Xcdr1BeSerializer<'_, C>,
-) {
-    serializer.serialize_data_kind(&DataKind::UInt32(v.len() as u32));
-    for v in v.iter() {
-        v.write_as_bytes(&mut serializer.writer);
-    }
-}
-fn serialize_list_xcdr2_le<C: Write, T: WriteAsBytes<LittleEndian>>(
-    v: &Vec<T>,
-    serializer: &mut Xcdr2LeSerializer<'_, C>,
-) {
-    serializer.serialize_data_kind(&DataKind::UInt32(v.len() as u32));
-    for v in v.iter() {
-        v.write_as_bytes(&mut serializer.writer);
-    }
-}
-fn serialize_list_xcdr2_be<C: Write, T: WriteAsBytes<LittleEndian>>(
-    v: &Vec<T>,
-    serializer: &mut Xcdr2BeSerializer<'_, C>,
-) {
-    serializer.serialize_data_kind(&DataKind::UInt32(v.len() as u32));
-    for v in v.iter() {
-        v.write_as_bytes(&mut serializer.writer);
-    }
-}
-
 impl<C: Write> XTypesSerializer for &mut Xcdr1LeSerializer<'_, C> {
     type Endianness = LittleEndian;
 
@@ -444,45 +342,61 @@ impl<C: Write> XTypesSerializer for &mut Xcdr1LeSerializer<'_, C> {
         Ok(self)
     }
 
-    fn serialize_data_kind(self, v: &DataKind) {
+    fn seralize_sequence(&mut self, values: &Vec<DataKind>) {
+        self.serialize_data_kind(&DataKind::UInt32(values.len() as u32));
+        self.seralize_array(values);
+    }
+    fn seralize_array(&mut self, values: &Vec<DataKind>) {
+        for value in values {
+            self.serialize_data_kind(value);
+        }
+    }
+    fn serialize_data_kind(mut self, v: &DataKind) {
         match v {
+            DataKind::UInt8(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
+            }
+            DataKind::Int8(v) => WriteAsBytes::<LittleEndian>::write_as_bytes(v, &mut self.writer),
+            DataKind::UInt16(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
+            }
+            DataKind::Int16(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
+            }
+            DataKind::Int32(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
+            }
+            DataKind::UInt32(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
+            }
+            DataKind::Int64(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
+            }
+            DataKind::UInt64(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
+            }
+            DataKind::Float32(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
+            }
+            DataKind::Float64(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
+            }
+            DataKind::Boolean(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
+            }
             DataKind::String(v) => {
                 self.serialize_data_kind(&DataKind::UInt32(v.len() as u32 + 1));
-                WriteAsBytes::<Self::Endianness>::write_as_bytes(
-                    v.as_str(),
-                    &mut self.writer.writer,
-                );
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v.as_str(), &mut self.writer.writer);
             }
+            DataKind::ComplexValue(dynamic_data) => {
+                serialize_nested(dynamic_data, &mut *self).expect("all good")
+            }
+            DataKind::Sequence(v) => self.seralize_sequence(v),
+            DataKind::Array(v) => self.seralize_array(v),
             DataKind::Char8(v) => {
-                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
             }
-            DataKind::BooleanList(v) => serialize_list_xcdr1_le(v, &mut *self),
-            DataKind::Int8List(v) => serialize_list_xcdr1_le(v, &mut *self),
-            DataKind::UInt8List(v) => serialize_list_xcdr1_le(v, &mut *self),
-            DataKind::Int16List(v) => serialize_list_xcdr1_le(v, &mut *self),
-            DataKind::UInt16List(v) => serialize_list_xcdr1_le(v, &mut *self),
-            DataKind::Int32List(v) => serialize_list_xcdr1_le(v, &mut *self),
-            DataKind::UInt32List(v) => serialize_list_xcdr1_le(v, &mut *self),
-            DataKind::Int64List(v) => serialize_list_xcdr1_le(v, &mut *self),
-            DataKind::UInt64List(v) => serialize_list_xcdr1_le(v, &mut *self),
-            DataKind::Float32List(v) => serialize_list_xcdr1_le(v, &mut *self),
-            DataKind::Float64List(v) => serialize_list_xcdr1_le(v, &mut *self),
-            DataKind::Char8List(v) => {
-                self.serialize_data_kind(&DataKind::UInt32(v.len() as u32));
-                for v in v.iter().cloned() {
-                    self.serialize_data_kind(&DataKind::Char8(v));
-                }
-            }
-            DataKind::StringList(v) => {
-                self.serialize_data_kind(&DataKind::UInt32(v.len() as u32));
-                for v in v.iter().cloned() {
-                    self.serialize_data_kind(&DataKind::String(v));
-                }
-            }
-            _ => (),
         };
-        serialize_complex_data_kind(v, self).expect("complex data should not fail");
-        serialize_data_kind_le(v, &mut self.writer);
     }
 }
 
@@ -651,42 +565,61 @@ impl<C: Write> XTypesSerializer for &mut Xcdr2BeSerializer<'_, C> {
         Ok(self)
     }
 
-    fn serialize_data_kind(self, v: &DataKind) {
+    fn seralize_sequence(&mut self, values: &Vec<DataKind>) {
+        self.serialize_data_kind(&DataKind::UInt32(values.len() as u32));
+        self.seralize_array(values);
+    }
+    fn seralize_array(&mut self, values: &Vec<DataKind>) {
+        for value in values {
+            self.serialize_data_kind(value);
+        }
+    }
+    fn serialize_data_kind(mut self, v: &DataKind) {
         match v {
+            DataKind::UInt8(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
+            }
+            DataKind::Int8(v) => WriteAsBytes::<LittleEndian>::write_as_bytes(v, &mut self.writer),
+            DataKind::UInt16(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
+            }
+            DataKind::Int16(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
+            }
+            DataKind::Int32(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
+            }
+            DataKind::UInt32(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
+            }
+            DataKind::Int64(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
+            }
+            DataKind::UInt64(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
+            }
+            DataKind::Float32(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
+            }
+            DataKind::Float64(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
+            }
+            DataKind::Boolean(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
+            }
             DataKind::String(v) => {
                 self.serialize_data_kind(&DataKind::UInt32(v.len() as u32 + 1));
                 WriteAsBytes::<Self::Endianness>::write_as_bytes(v.as_str(), &mut self.writer);
             }
+            DataKind::ComplexValue(dynamic_data) => {
+                serialize_nested(dynamic_data, &mut *self).expect("all good")
+            }
+            DataKind::Sequence(v) => self.seralize_sequence(v),
+            DataKind::Array(v) => self.seralize_array(v),
             DataKind::Char8(v) => {
-                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
             }
-            DataKind::BooleanList(v) => serialize_list_xcdr2_be(v, &mut *self),
-            DataKind::Int8List(v) => serialize_list_xcdr2_be(v, &mut *self),
-            DataKind::UInt8List(v) => serialize_list_xcdr2_be(v, &mut *self),
-            DataKind::Int16List(v) => serialize_list_xcdr2_be(v, &mut *self),
-            DataKind::UInt16List(v) => serialize_list_xcdr2_be(v, &mut *self),
-            DataKind::Int32List(v) => serialize_list_xcdr2_be(v, &mut *self),
-            DataKind::UInt32List(v) => serialize_list_xcdr2_be(v, &mut *self),
-            DataKind::Int64List(v) => serialize_list_xcdr2_be(v, &mut *self),
-            DataKind::UInt64List(v) => serialize_list_xcdr2_be(v, &mut *self),
-            DataKind::Float32List(v) => serialize_list_xcdr2_be(v, &mut *self),
-            DataKind::Float64List(v) => serialize_list_xcdr2_be(v, &mut *self),
-            DataKind::Char8List(v) => {
-                self.serialize_data_kind(&DataKind::UInt32(v.len() as u32));
-                for v in v.iter().cloned() {
-                    self.serialize_data_kind(&DataKind::Char8(v));
-                }
-            }
-            DataKind::StringList(v) => {
-                self.serialize_data_kind(&DataKind::UInt32(v.len() as u32));
-                for v in v.iter().cloned() {
-                    self.serialize_data_kind(&DataKind::String(v));
-                }
-            }
-            _ => (),
         };
-        serialize_complex_data_kind(v, self).expect("complex data should not fail");
-        serialize_data_kind_be(v, &mut self.writer);
     }
 }
 
@@ -703,42 +636,61 @@ impl<C: Write> XTypesSerializer for &mut Xcdr2LeSerializer<'_, C> {
         Ok(self)
     }
 
-    fn serialize_data_kind(self, v: &DataKind) {
+    fn seralize_sequence(&mut self, values: &Vec<DataKind>) {
+        self.serialize_data_kind(&DataKind::UInt32(values.len() as u32));
+        self.seralize_array(values);
+    }
+    fn seralize_array(&mut self, values: &Vec<DataKind>) {
+        for value in values {
+            self.serialize_data_kind(value);
+        }
+    }
+    fn serialize_data_kind(mut self, v: &DataKind) {
         match v {
+            DataKind::UInt8(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
+            }
+            DataKind::Int8(v) => WriteAsBytes::<LittleEndian>::write_as_bytes(v, &mut self.writer),
+            DataKind::UInt16(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
+            }
+            DataKind::Int16(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
+            }
+            DataKind::Int32(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
+            }
+            DataKind::UInt32(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
+            }
+            DataKind::Int64(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
+            }
+            DataKind::UInt64(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
+            }
+            DataKind::Float32(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
+            }
+            DataKind::Float64(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
+            }
+            DataKind::Boolean(v) => {
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
+            }
             DataKind::String(v) => {
                 self.serialize_data_kind(&DataKind::UInt32(v.len() as u32 + 1));
                 WriteAsBytes::<Self::Endianness>::write_as_bytes(v.as_str(), &mut self.writer);
             }
+            DataKind::ComplexValue(dynamic_data) => {
+                serialize_nested(dynamic_data, &mut *self).expect("all good")
+            }
+            DataKind::Sequence(v) => self.seralize_sequence(v),
+            DataKind::Array(v) => self.seralize_array(v),
             DataKind::Char8(v) => {
-                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer);
+                WriteAsBytes::<Self::Endianness>::write_as_bytes(v, &mut self.writer)
             }
-            DataKind::BooleanList(v) => serialize_list_xcdr2_le(v, &mut *self),
-            DataKind::Int8List(v) => serialize_list_xcdr2_le(v, &mut *self),
-            DataKind::UInt8List(v) => serialize_list_xcdr2_le(v, &mut *self),
-            DataKind::Int16List(v) => serialize_list_xcdr2_le(v, &mut *self),
-            DataKind::UInt16List(v) => serialize_list_xcdr2_le(v, &mut *self),
-            DataKind::Int32List(v) => serialize_list_xcdr2_le(v, &mut *self),
-            DataKind::UInt32List(v) => serialize_list_xcdr2_le(v, &mut *self),
-            DataKind::Int64List(v) => serialize_list_xcdr2_le(v, &mut *self),
-            DataKind::UInt64List(v) => serialize_list_xcdr2_le(v, &mut *self),
-            DataKind::Float32List(v) => serialize_list_xcdr2_le(v, &mut *self),
-            DataKind::Float64List(v) => serialize_list_xcdr2_le(v, &mut *self),
-            DataKind::Char8List(v) => {
-                self.serialize_data_kind(&DataKind::UInt32(v.len() as u32));
-                for v in v.iter().cloned() {
-                    self.serialize_data_kind(&DataKind::Char8(v));
-                }
-            }
-            DataKind::StringList(v) => {
-                self.serialize_data_kind(&DataKind::UInt32(v.len() as u32));
-                for v in v.iter().cloned() {
-                    self.serialize_data_kind(&DataKind::String(v));
-                }
-            }
-            _ => (),
         };
-        serialize_complex_data_kind(v, self).expect("complex data should not fail");
-        serialize_data_kind_le(v, &mut self.writer);
     }
 }
 

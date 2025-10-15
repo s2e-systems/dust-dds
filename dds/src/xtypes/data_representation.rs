@@ -36,34 +36,8 @@ pub enum DataKind {
     Boolean(bool),
     String(String),
     ComplexValue(DynamicData),
-    UInt8List(Vec<u8>),
-    Int8List(Vec<i8>),
-    UInt16List(Vec<u16>),
-    Int16List(Vec<i16>),
-    Int32List(Vec<i32>),
-    UInt32List(Vec<u32>),
-    Int64List(Vec<i64>),
-    UInt64List(Vec<u64>),
-    Float32List(Vec<f32>),
-    Float64List(Vec<f64>),
-    Char8List(Vec<char>),
-    BooleanList(Vec<bool>),
-    StringList(Vec<String>),
-    ComplexValueList(Vec<DynamicData>),
-    UInt8Array(Vec<u8>),
-    Int8Array(Vec<i8>),
-    UInt16Array(Vec<u16>),
-    Int16Array(Vec<i16>),
-    Int32Array(Vec<i32>),
-    UInt32Array(Vec<u32>),
-    Int64Array(Vec<i64>),
-    UInt64Array(Vec<u64>),
-    Float32Array(Vec<f32>),
-    Float64Array(Vec<f64>),
-    Char8Array(Vec<char>),
-    BooleanArray(Vec<bool>),
-    StringArray(Vec<String>),
-    ComplexValueArray(Vec<DynamicData>),
+    Sequence(Vec<DataKind>),
+    Array(Vec<DataKind>),
 }
 
 impl From<u8> for DataKind {
@@ -150,186 +124,20 @@ impl<T: TypeSupport> From<T> for DataKind {
     }
 }
 
-impl<const N: usize> From<[u8; N]> for DataKind {
-    fn from(value: [u8; N]) -> Self {
-        Self::UInt8Array(value.to_vec())
-    }
-}
-
-impl<const N: usize> From<[i8; N]> for DataKind {
-    fn from(value: [i8; N]) -> Self {
-        Self::Int8Array(value.to_vec())
-    }
-}
-
-impl<const N: usize> From<[u16; N]> for DataKind {
-    fn from(value: [u16; N]) -> Self {
-        Self::UInt16Array(value.to_vec())
-    }
-}
-
-impl<const N: usize> From<[i16; N]> for DataKind {
-    fn from(value: [i16; N]) -> Self {
-        Self::Int16Array(value.to_vec())
-    }
-}
-
-impl<const N: usize> From<[u32; N]> for DataKind {
-    fn from(value: [u32; N]) -> Self {
-        Self::UInt32Array(value.to_vec())
-    }
-}
-
-impl<const N: usize> From<[i32; N]> for DataKind {
-    fn from(value: [i32; N]) -> Self {
-        Self::Int32Array(value.to_vec())
-    }
-}
-
-impl<const N: usize> From<[u64; N]> for DataKind {
-    fn from(value: [u64; N]) -> Self {
-        Self::UInt64Array(value.to_vec())
-    }
-}
-
-impl<const N: usize> From<[i64; N]> for DataKind {
-    fn from(value: [i64; N]) -> Self {
-        Self::Int64Array(value.to_vec())
-    }
-}
-
-impl<const N: usize> From<[f32; N]> for DataKind {
-    fn from(value: [f32; N]) -> Self {
-        Self::Float32Array(value.to_vec())
-    }
-}
-
-impl<const N: usize> From<[f64; N]> for DataKind {
-    fn from(value: [f64; N]) -> Self {
-        Self::Float64Array(value.to_vec())
-    }
-}
-
-impl<const N: usize> From<[char; N]> for DataKind {
-    fn from(value: [char; N]) -> Self {
-        Self::Char8Array(value.to_vec())
-    }
-}
-
-impl<const N: usize> From<[bool; N]> for DataKind {
-    fn from(value: [bool; N]) -> Self {
-        Self::BooleanArray(value.to_vec())
-    }
-}
-
-impl<const N: usize> From<[String; N]> for DataKind {
-    fn from(value: [String; N]) -> Self {
-        Self::StringArray(value.to_vec())
-    }
-}
-
-impl<const N: usize, T: TypeSupport> From<[T; N]> for DataKind {
+impl<const N: usize, T: Into<DataKind>> From<[T; N]> for DataKind {
     fn from(value: [T; N]) -> Self {
-        Self::ComplexValueArray(
-            value
-                .into_iter()
-                .map(TypeSupport::create_dynamic_sample)
-                .collect(),
-        )
+        Self::Array(value.into_iter().map(T::into).collect())
     }
 }
 
-impl From<Vec<u8>> for DataKind {
-    fn from(value: Vec<u8>) -> Self {
-        Self::UInt8List(value)
-    }
-}
-
-impl From<Vec<i8>> for DataKind {
-    fn from(value: Vec<i8>) -> Self {
-        Self::Int8List(value)
-    }
-}
-
-impl From<Vec<u16>> for DataKind {
-    fn from(value: Vec<u16>) -> Self {
-        Self::UInt16List(value)
-    }
-}
-
-impl From<Vec<i16>> for DataKind {
-    fn from(value: Vec<i16>) -> Self {
-        Self::Int16List(value)
-    }
-}
-
-impl From<Vec<u32>> for DataKind {
-    fn from(value: Vec<u32>) -> Self {
-        Self::UInt32List(value)
-    }
-}
-
-impl From<Vec<i32>> for DataKind {
-    fn from(value: Vec<i32>) -> Self {
-        Self::Int32List(value)
-    }
-}
-
-impl From<Vec<u64>> for DataKind {
-    fn from(value: Vec<u64>) -> Self {
-        Self::UInt64List(value)
-    }
-}
-
-impl From<Vec<i64>> for DataKind {
-    fn from(value: Vec<i64>) -> Self {
-        Self::Int64List(value)
-    }
-}
-
-impl From<Vec<f32>> for DataKind {
-    fn from(value: Vec<f32>) -> Self {
-        Self::Float32List(value)
-    }
-}
-
-impl From<Vec<f64>> for DataKind {
-    fn from(value: Vec<f64>) -> Self {
-        Self::Float64List(value)
-    }
-}
-
-impl From<Vec<char>> for DataKind {
-    fn from(value: Vec<char>) -> Self {
-        Self::Char8List(value)
-    }
-}
-
-impl From<Vec<bool>> for DataKind {
-    fn from(value: Vec<bool>) -> Self {
-        Self::BooleanList(value)
-    }
-}
-
-impl From<Vec<String>> for DataKind {
-    fn from(value: Vec<String>) -> Self {
-        Self::StringList(value)
+impl<T: Into<DataKind>> From<Vec<T>> for DataKind {
+    fn from(value: Vec<T>) -> Self {
+        Self::Sequence(value.into_iter().map(T::into).collect())
     }
 }
 
 impl From<&[u8]> for DataKind {
     fn from(value: &[u8]) -> Self {
-        Self::UInt8List(value.to_vec())
-    }
-}
-
-impl<T: TypeSupport> From<Vec<T>> for DataKind {
-    fn from(value: Vec<T>) -> Self {
-        Self::ComplexValueList(
-            value
-                .into_iter()
-                .map(TypeSupport::create_dynamic_sample)
-                .collect(),
-        )
+        value.to_vec().into()
     }
 }
