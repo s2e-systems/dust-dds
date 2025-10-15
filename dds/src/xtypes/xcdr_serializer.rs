@@ -26,7 +26,7 @@ impl ByteCounter {
 }
 
 impl Write for ByteCounter {
-    fn write(&mut self, buf: &[u8]) {
+    fn write(&mut self, buf: &[u8], pad: usize) {
         self.0 += buf.len();
     }
 }
@@ -63,7 +63,7 @@ impl Xcdr1BeSerializer<'_, ()> {
     pub fn bytes_len_data_kind(value: &DataKind) -> Result<usize, XTypesError> {
         let mut byte_counter = ByteCounter::new();
         let mut serializer = Xcdr1BeSerializer::new(&mut byte_counter);
-        serialize_complex_data_kind(value, &mut serializer)?;
+        serializer.serialize_data_kind(value)?;
         Ok(byte_counter.0)
     }
 }
@@ -138,7 +138,7 @@ impl<C: Write> XTypesSerializer for &mut Xcdr1BeSerializer<'_, C> {
 }
 
 pub struct Xcdr1LeSerializer<'a, C> {
-    writer: WriterV1<'a, C>,
+    pub writer: WriterV1<'a, C>,
 }
 
 impl<'a, C: Write> Xcdr1LeSerializer<'a, C> {
@@ -161,7 +161,7 @@ impl Xcdr1LeSerializer<'_, ()> {
     pub fn bytes_len_data_kind(value: &DataKind) -> Result<usize, XTypesError> {
         let mut byte_counter = ByteCounter::new();
         let mut serializer = Xcdr1LeSerializer::new(&mut byte_counter);
-        serialize_complex_data_kind(value, &mut serializer)?;
+        serializer.serialize_data_kind(value)?;
         Ok(byte_counter.0)
     }
 }
@@ -223,8 +223,7 @@ pub fn serialize_nested(
 ) -> Result<(), super::error::XTypesError> {
     match dynamic_data.type_ref().get_kind() {
         TypeKind::ENUM => {
-            // serialize_complex_data_kind(dynamic_data.get_value(0)?, &mut serializer)?;
-            todo!()
+            serializer.serialize_data_kind(dynamic_data.get_value(0)?)?;
         }
         TypeKind::STRUCTURE => match dynamic_data.type_ref().get_descriptor().extensibility_kind {
             ExtensibilityKind::Final => {
@@ -390,8 +389,6 @@ fn serialize_data_kind_be<C: Write>(v: &DataKind, writer: &mut C) -> Result<(), 
     };
     Ok(())
 }
-
-
 
 impl<C: Write> XTypesSerializer for &mut Xcdr1LeSerializer<'_, C> {
     type Endianness = LittleEndian;
@@ -805,42 +802,45 @@ mod tests {
     //     assert_eq!(serialize_v2_le(&v), vec![0x01]);
     // }
 
-    // #[test]
-    // fn serialize_string() {
-    //     let v = "Hola";
-    //     assert_eq!(
-    //         serialize_v1_be(&v),
-    //         vec![
-    //             0, 0, 0, 5, //length
-    //             b'H', b'o', b'l', b'a', // str
-    //             0x00, // terminating 0
-    //         ]
-    //     );
-    //     assert_eq!(
-    //         serialize_v1_le(&v),
-    //         vec![
-    //             5, 0, 0, 0, //length
-    //             b'H', b'o', b'l', b'a', // str
-    //             0x00, // terminating 0
-    //         ]
-    //     );
-    //     assert_eq!(
-    //         serialize_v2_be(&v),
-    //         vec![
-    //             0, 0, 0, 5, //length
-    //             b'H', b'o', b'l', b'a', // str
-    //             0x00, // terminating 0
-    //         ]
-    //     );
-    //     assert_eq!(
-    //         serialize_v2_le(&v),
-    //         vec![
-    //             5, 0, 0, 0, //length
-    //             b'H', b'o', b'l', b'a', // str
-    //             0x00, // terminating 0
-    //         ]
-    //     );
-    // }
+    #[test]
+    fn serialize_string() {
+        #[derive(TypeSupport, Clone)]
+        struct StringData(String);
+
+        let v = StringData(String::from("Hola"));
+        assert_eq!(
+            serialize_v1_be(v.clone()),
+            vec![
+                0, 0, 0, 5, //length
+                b'H', b'o', b'l', b'a', // str
+                0x00, // terminating 0
+            ]
+        );
+        assert_eq!(
+            serialize_v1_le(v.clone()),
+            vec![
+                5, 0, 0, 0, //length
+                b'H', b'o', b'l', b'a', // str
+                0x00, // terminating 0
+            ]
+        );
+        assert_eq!(
+            serialize_v2_be(v.clone()),
+            vec![
+                0, 0, 0, 5, //length
+                b'H', b'o', b'l', b'a', // str
+                0x00, // terminating 0
+            ]
+        );
+        assert_eq!(
+            serialize_v2_le(v.clone()),
+            vec![
+                5, 0, 0, 0, //length
+                b'H', b'o', b'l', b'a', // str
+                0x00, // terminating 0
+            ]
+        );
+    }
 
     // #[test]
     // fn serialize_empty_string() {

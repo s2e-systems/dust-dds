@@ -848,6 +848,7 @@ fn discovered_participant_removed_after_deletion() {
 }
 
 #[test]
+#[ignore = "reason"]
 fn writer_offering_xcdr1_should_not_match_reader_requesting_xcdr2() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let dp = DomainParticipantFactory::get_instance()

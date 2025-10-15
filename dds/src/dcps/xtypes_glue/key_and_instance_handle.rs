@@ -35,7 +35,7 @@ impl Md5 {
 }
 
 impl Write for Md5 {
-    fn write(&mut self, buf: &[u8]) {
+    fn write(&mut self, buf: &[u8], pad: usize) {
         let total_new_length = self.length + buf.len();
         if total_new_length <= self.key.len() {
             self.key[self.length..total_new_length].copy_from_slice(buf);

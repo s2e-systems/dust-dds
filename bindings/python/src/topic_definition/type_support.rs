@@ -265,63 +265,64 @@ impl PythonDdsData {
             member_type: &Bound<PyAny>,
             serializer: &mut Xcdr1LeSerializer<'_, Vec<u8>>,
         ) -> PyResult<()> {
-            if let Ok(member_type_kind) = member_type.extract::<TypeKind>() {
-                match member_type_kind {
-                    TypeKind::boolean => serializer.serialize_boolean(member_data.extract()?),
-                    TypeKind::byte => serializer.serialize_uint8(member_data.extract()?),
-                    TypeKind::char8 => serializer.serialize_char8(member_data.extract()?),
-                    TypeKind::char16 => serializer.serialize_char8(member_data.extract()?),
-                    TypeKind::int8 => serializer.serialize_int8(member_data.extract()?),
-                    TypeKind::uint8 => serializer.serialize_uint8(member_data.extract()?),
-                    TypeKind::int16 => serializer.serialize_int16(member_data.extract()?),
-                    TypeKind::uint16 => serializer.serialize_uint16(member_data.extract()?),
-                    TypeKind::int32 => serializer.serialize_int32(member_data.extract()?),
-                    TypeKind::uint32 => serializer.serialize_uint32(member_data.extract()?),
-                    TypeKind::int64 => serializer.serialize_int64(member_data.extract()?),
-                    TypeKind::uint64 => serializer.serialize_uint64(member_data.extract()?),
-                    TypeKind::float32 => serializer.serialize_float32(member_data.extract()?),
-                    TypeKind::float64 => serializer.serialize_float64(member_data.extract()?),
-                    TypeKind::float128 => Err(XTypesError::InvalidData),
-                }
-                .map_err(|e| PyTypeError::new_err(format!("XTypes error: {e:?}")))
-            } else if is_list(member_type)? {
-                let typing_module = PyModule::import_bound(member_type.py(), "typing")?;
-                let get_args_attr = typing_module.getattr("get_args")?;
-                let type_args = get_args_attr.call1((member_type,))?;
-                let type_args = type_args.downcast::<PyTuple>()?;
-                let member_type = type_args.get_item(0)?;
-                let sequence: &Bound<PySequence> = member_data.downcast::<PySequence>()?;
-                let sequence_len = sequence.len()?;
-                if type_args.len() != 1 {
-                    return Err(PyTypeError::new_err(
-                        "Expected list generic with arguments [Type]",
-                    ));
-                }
-                serializer
-                    .serialize_uint32(sequence_len as u32)
-                    .map_err(|e| PyTypeError::new_err(format!("XTypes error: {e:?}")))?;
-                for index in 0..sequence_len {
-                    serialize_data_member(&sequence.get_item(index)?, &member_type, serializer)?;
-                }
+            // if let Ok(member_type_kind) = member_type.extract::<TypeKind>() {
+            //     match member_type_kind {
+            //         TypeKind::boolean => serializer.serialize_boolean(member_data.extract()?),
+            //         TypeKind::byte => serializer.serialize_uint8(member_data.extract()?),
+            //         TypeKind::char8 => serializer.serialize_char8(member_data.extract()?),
+            //         TypeKind::char16 => serializer.serialize_char8(member_data.extract()?),
+            //         TypeKind::int8 => serializer.serialize_int8(member_data.extract()?),
+            //         TypeKind::uint8 => serializer.serialize_uint8(member_data.extract()?),
+            //         TypeKind::int16 => serializer.serialize_int16(member_data.extract()?),
+            //         TypeKind::uint16 => serializer.serialize_uint16(member_data.extract()?),
+            //         TypeKind::int32 => serializer.serialize_int32(member_data.extract()?),
+            //         TypeKind::uint32 => serializer.serialize_uint32(member_data.extract()?),
+            //         TypeKind::int64 => serializer.serialize_int64(member_data.extract()?),
+            //         TypeKind::uint64 => serializer.serialize_uint64(member_data.extract()?),
+            //         TypeKind::float32 => serializer.serialize_float32(member_data.extract()?),
+            //         TypeKind::float64 => serializer.serialize_float64(member_data.extract()?),
+            //         TypeKind::float128 => Err(XTypesError::InvalidData),
+            //     }
+            //     .map_err(|e| PyTypeError::new_err(format!("XTypes error: {e:?}")))
+            // } else if is_list(member_type)? {
+            //     let typing_module = PyModule::import_bound(member_type.py(), "typing")?;
+            //     let get_args_attr = typing_module.getattr("get_args")?;
+            //     let type_args = get_args_attr.call1((member_type,))?;
+            //     let type_args = type_args.downcast::<PyTuple>()?;
+            //     let member_type = type_args.get_item(0)?;
+            //     let sequence: &Bound<PySequence> = member_data.downcast::<PySequence>()?;
+            //     let sequence_len = sequence.len()?;
+            //     if type_args.len() != 1 {
+            //         return Err(PyTypeError::new_err(
+            //             "Expected list generic with arguments [Type]",
+            //         ));
+            //     }
+            //     serializer
+            //         .serialize_uint32(sequence_len as u32)
+            //         .map_err(|e| PyTypeError::new_err(format!("XTypes error: {e:?}")))?;
+            //     for index in 0..sequence_len {
+            //         serialize_data_member(&sequence.get_item(index)?, &member_type, serializer)?;
+            //     }
 
-                Ok(())
-            } else if let Ok(py_type) = member_type.downcast::<PyType>() {
-                if py_type.py().get_type_bound::<PyBytes>().is(py_type) {
-                    serializer
-                        .serialize_uint8_list(member_data.extract()?)
-                        .map_err(|e| PyTypeError::new_err(format!("XTypes error: {e:?}")))
-                } else if py_type.py().get_type_bound::<PyString>().is(py_type) {
-                    serializer
-                        .serialize_string(member_data.extract()?)
-                        .map_err(|e| PyTypeError::new_err(format!("XTypes error: {e:?}")))
-                } else {
-                    serialize_data(member_type.py(), member_data.clone().unbind(), serializer)
-                }
-            } else {
-                Err(PyTypeError::new_err(format!(
-                    "Unsupported Dust DDS representation for Python Type {member_type}"
-                )))
-            }
+            //     Ok(())
+            // } else if let Ok(py_type) = member_type.downcast::<PyType>() {
+            //     if py_type.py().get_type_bound::<PyBytes>().is(py_type) {
+            //         serializer
+            //             .serialize_uint8_list(member_data.extract()?)
+            //             .map_err(|e| PyTypeError::new_err(format!("XTypes error: {e:?}")))
+            //     } else if py_type.py().get_type_bound::<PyString>().is(py_type) {
+            //         serializer
+            //             .serialize_string(member_data.extract()?)
+            //             .map_err(|e| PyTypeError::new_err(format!("XTypes error: {e:?}")))
+            //     } else {
+            //         serialize_data(member_type.py(), member_data.clone().unbind(), serializer)
+            //     }
+            // } else {
+            //     Err(PyTypeError::new_err(format!(
+            //         "Unsupported Dust DDS representation for Python Type {member_type}"
+            //     )))
+            // }
+            todo!()
         }
 
         fn serialize_data(
