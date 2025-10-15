@@ -56,6 +56,12 @@ impl<'a, W: Write> Write for WriterV2<'a, W> {
 }
 
 pub trait Endianness {
+    fn write_i8<C: Write>(v: i8, writer: &mut C) {
+        writer.write(&[v as u8]);
+    }
+    fn write_u8<C: Write>(v: u8, writer: &mut C) {
+        writer.write(&[v]);
+    }
     fn write_i16<C: Write>(v: i16, writer: &mut C);
     fn write_u16<C: Write>(v: u16, writer: &mut C);
     fn write_i32<C: Write>(v: i32, writer: &mut C);
@@ -63,7 +69,8 @@ pub trait Endianness {
     fn write_i64<C: Write>(v: i64, writer: &mut C);
     fn write_u64<C: Write>(v: u64, writer: &mut C);
     fn write_str<C: Write>(v: &str, writer: &mut C) {
-        writer.write(&v.as_bytes())
+        writer.write(&v.as_bytes());
+        writer.write(&[0])
     }
 }
 pub struct BigEndian;
@@ -266,19 +273,13 @@ where
 }
 
 pub trait SerializeFinalStruct {
-    fn serialize_field(&mut self, value: &DynamicData) -> Result<(), XTypesError>;
+    fn serialize_members(&mut self, v: &DynamicData) -> Result<(), XTypesError>;
 }
 pub trait SerializeAppendableStruct {
-    fn serialize_field(&mut self, value: &DynamicData, name: &str) -> Result<(), XTypesError>;
+    fn serialize_members(&mut self, v: &DynamicData) -> Result<(), XTypesError>;
 }
 pub trait SerializeMutableStruct {
-    fn serialize_field(
-        &mut self,
-        value: &DynamicData,
-        pid: u32,
-        name: &str,
-    ) -> Result<(), XTypesError>;
-
+    fn serialize_members(&mut self, value: &DynamicData) -> Result<(), XTypesError>;
     fn end(self) -> Result<(), XTypesError>;
 }
 
@@ -295,41 +296,47 @@ pub trait XTypesSerializer: Sized {
     /// Start serializing a type with mutable extensibility.
     fn serialize_mutable_struct(self) -> Result<impl SerializeMutableStruct, XTypesError>;
 
-    fn serialize_complex(&mut self, dynamic_data: &DynamicData) -> Result<(), XTypesError> {
-        for field_index in 0..dynamic_data.get_item_count() {
-            let member_id = dynamic_data.get_member_id_at_index(field_index)?;
-            let member_descriptor = dynamic_data.get_descriptor(member_id)?;
+    fn serialize_sequence(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
+        // self.serialize_u32(v.len() as u32);
+        // for vi in v {
+        //     self.serialize_complex(vi)?;
+        // }
+        todo!();
+        Ok(())
+    }
+
+    fn serialize_complex(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
+        for field_index in 0..v.get_item_count() {
+            let member_id = v.get_member_id_at_index(field_index)?;
+            let member_descriptor = v.get_descriptor(member_id)?;
+
             match member_descriptor.r#type.get_kind() {
                 TypeKind::NONE => todo!(),
                 TypeKind::BOOLEAN => todo!(),
                 TypeKind::BYTE => todo!(),
-                TypeKind::INT16 => self.serialize_i16(*dynamic_data.get_int16_value(member_id)?),
-                TypeKind::INT32 => self.serialize_i32(*dynamic_data.get_int32_value(member_id)?),
+                TypeKind::INT16 => self.serialize_i16(*v.get_int16_value(member_id)?),
+                TypeKind::INT32 => self.serialize_i32(*v.get_int32_value(member_id)?),
                 TypeKind::INT64 => todo!(),
-                TypeKind::UINT16 => self.serialize_u16(*dynamic_data.get_uint16_value(member_id)?),
+                TypeKind::UINT16 => self.serialize_u16(*v.get_uint16_value(member_id)?),
                 TypeKind::UINT32 => todo!(),
-                TypeKind::UINT64 => self.serialize_u64(*dynamic_data.get_uint64_value(member_id)?),
+                TypeKind::UINT64 => self.serialize_u64(*v.get_uint64_value(member_id)?),
                 TypeKind::FLOAT32 => todo!(),
                 TypeKind::FLOAT64 => todo!(),
                 TypeKind::FLOAT128 => todo!(),
-                TypeKind::INT8 => todo!(),
-                TypeKind::UINT8 => todo!(),
+                TypeKind::INT8 => self.serialize_i8(*v.get_int8_value(member_id)?),
+                TypeKind::UINT8 => self.serialize_u8(*v.get_uint8_value(member_id)?),
                 TypeKind::CHAR8 => todo!(),
                 TypeKind::CHAR16 => todo!(),
-                TypeKind::STRING8 => {
-                    self.serialize_string(dynamic_data.get_string_value(member_id)?)
-                }
+                TypeKind::STRING8 => self.serialize_string(v.get_string_value(member_id)?),
                 TypeKind::STRING16 => todo!(),
                 TypeKind::ALIAS => todo!(),
                 TypeKind::ENUM => todo!(),
                 TypeKind::BITMASK => todo!(),
                 TypeKind::ANNOTATION => todo!(),
-                TypeKind::STRUCTURE => {
-                    self.serialize_complex(dynamic_data.get_complex_value(member_id)?)?
-                }
+                TypeKind::STRUCTURE => self.serialize_complex(v.get_complex_value(member_id)?)?,
                 TypeKind::UNION => todo!(),
                 TypeKind::BITSET => todo!(),
-                TypeKind::SEQUENCE => todo!(),
+                TypeKind::SEQUENCE => self.serialize_sequence(v)?,
                 TypeKind::ARRAY => todo!(),
                 TypeKind::MAP => todo!(),
             }
@@ -339,6 +346,12 @@ pub trait XTypesSerializer: Sized {
     fn serialize_string(&mut self, v: &str) {
         self.serialize_u32(v.len() as u32 + 1);
         Self::Endianness::write_str(v, self.writer());
+    }
+    fn serialize_u8(&mut self, v: u8) {
+        Self::Endianness::write_u8(v, self.writer());
+    }
+    fn serialize_i8(&mut self, v: i8) {
+        Self::Endianness::write_i8(v, self.writer());
     }
     fn serialize_u16(&mut self, v: u16) {
         Self::Endianness::write_u16(v, self.writer());

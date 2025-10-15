@@ -62,7 +62,7 @@ impl Xcdr1BeSerializer<'_, ()> {
 }
 
 impl<C: Write> SerializeFinalStruct for &mut Xcdr1BeSerializer<'_, C> {
-    fn serialize_field(&mut self, dynamic_data: &DynamicData) -> Result<(), XTypesError> {
+    fn serialize_members(&mut self, dynamic_data: &DynamicData) -> Result<(), XTypesError> {
         self.serialize_complex(dynamic_data)
     }
 }
@@ -70,23 +70,16 @@ impl<C: Write> SerializeFinalStruct for &mut Xcdr1BeSerializer<'_, C> {
 impl<C: Write> Xcdr1BeSerializer<'_, C> {}
 
 impl<C: Write> SerializeAppendableStruct for &mut Xcdr1BeSerializer<'_, C> {
-    fn serialize_field(&mut self, value: &DynamicData, _name: &str) -> Result<(), XTypesError> {
-        // self.serialize_data_kind(value)
-        todo!()
+    fn serialize_members(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
+        self.serialize_complex(v)
     }
 }
 impl<C: Write> SerializeMutableStruct for &mut Xcdr1BeSerializer<'_, C> {
-    fn serialize_field(
-        &mut self,
-        value: &DynamicData,
-        pid: u32,
-        _name: &str,
-    ) -> Result<(), XTypesError> {
-        let length = Xcdr1BeSerializer::bytes_len(value)? as u16;
-        self.writer.writer.write_slice(&(pid as u16).to_be_bytes());
-        self.writer.writer.write_slice(&length.to_be_bytes());
-        // self.serialize_data_kind(value)?;
-        todo!();
+    fn serialize_members(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
+        // let length = Xcdr1BeSerializer::bytes_len(value)? as u16;
+        // self.writer.writer.write_slice(&(pid as u16).to_be_bytes());
+        // self.writer.writer.write_slice(&length.to_be_bytes());
+        self.serialize_complex(v)?;
         self.writer.writer.pad(4);
         Ok(())
     }
@@ -147,29 +140,24 @@ impl Xcdr1LeSerializer<'_, ()> {
 }
 
 impl<C: Write> SerializeFinalStruct for &mut Xcdr1LeSerializer<'_, C> {
-    fn serialize_field(&mut self, value: &DynamicData) -> Result<(), XTypesError> {
-        self.serialize_complex(value)
+    fn serialize_members(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
+        self.serialize_complex(v)
     }
 }
 impl<C: Write> SerializeAppendableStruct for &mut Xcdr1LeSerializer<'_, C> {
-    fn serialize_field(&mut self, value: &DynamicData, _name: &str) -> Result<(), XTypesError> {
-        self.serialize_complex(value)
+    fn serialize_members(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
+        self.serialize_complex(v)
     }
 }
 impl<C: Write> SerializeMutableStruct for &mut Xcdr1LeSerializer<'_, C> {
-    fn serialize_field(
-        &mut self,
-        value: &DynamicData,
-        pid: u32,
-        _name: &str,
-    ) -> Result<(), XTypesError> {
-        let length = Xcdr1LeSerializer::bytes_len(value)? as u16;
-        self.writer.writer.write_slice(&(pid as u16).to_le_bytes());
-        self.writer.writer.write_slice(&length.to_le_bytes());
+    fn serialize_members(&mut self, value: &DynamicData) -> Result<(), XTypesError> {
+        // let length = Xcdr1LeSerializer::bytes_len(value)? as u16;
+        // self.writer.writer.write_slice(&(pid as u16).to_le_bytes());
+        // self.writer.writer.write_slice(&length.to_le_bytes());
         // self.serialize_data_kind(value)?;
+        // self.writer.writer.pad(4);
+        // Ok(())
         todo!();
-        self.writer.writer.pad(4);
-        Ok(())
     }
 
     fn end(self) -> Result<(), XTypesError> {
@@ -191,35 +179,32 @@ pub fn serialize_nested(
         TypeKind::STRUCTURE => match dynamic_data.type_ref().get_descriptor().extensibility_kind {
             ExtensibilityKind::Final => {
                 let mut final_serializer = serializer.serialize_final_struct()?;
-                final_serializer.serialize_field(dynamic_data)?;
+                final_serializer.serialize_members(dynamic_data)?;
             }
             ExtensibilityKind::Appendable => {
                 let mut appendable_serializer = serializer.serialize_appendable_struct()?;
-                for field_index in 0..dynamic_data.get_item_count() {
-                    let member_id = dynamic_data.get_member_id_at_index(field_index)?;
-                    let member_descriptor = dynamic_data.get_descriptor(member_id)?;
-                    appendable_serializer.serialize_field(dynamic_data, &member_descriptor.name)?;
-                }
+                appendable_serializer.serialize_members(dynamic_data)?;
             }
             ExtensibilityKind::Mutable => {
                 let mut mutable_serializer = serializer.serialize_mutable_struct()?;
-                for field_index in 0..dynamic_data.get_item_count() {
-                    let member_id = dynamic_data.get_member_id_at_index(field_index)?;
-                    let member_descriptor = dynamic_data.get_descriptor(member_id)?;
-                    let value = dynamic_data.get_value(member_id)?;
-                    if member_descriptor.is_optional {
-                        if let Some(default_value) = &member_descriptor.default_value {
-                            if value == default_value {
-                                continue;
-                            }
-                        }
-                    }
-                    mutable_serializer.serialize_field(
-                        dynamic_data,
-                        member_id,
-                        &member_descriptor.name,
-                    )?;
-                }
+                mutable_serializer.serialize_members(dynamic_data)?;
+                // for field_index in 0..dynamic_data.get_item_count() {
+                //     let member_id = dynamic_data.get_member_id_at_index(field_index)?;
+                //     let member_descriptor = dynamic_data.get_descriptor(member_id)?;
+                //     let value = dynamic_data.get_value(member_id)?;
+                //     if member_descriptor.is_optional {
+                //         if let Some(default_value) = &member_descriptor.default_value {
+                //             if value == default_value {
+                //                 continue;
+                //             }
+                //         }
+                //     }
+                //     mutable_serializer.serialize_field(
+                //         dynamic_data,
+                //         member_id,
+                //         &member_descriptor.name,
+                //     )?;
+                // }
                 mutable_serializer.end()?;
             }
         },
@@ -308,19 +293,14 @@ impl Xcdr2LeSerializer<'_, ()> {
 }
 
 impl<C: Write> SerializeMutableStruct for &mut Xcdr2BeSerializer<'_, C> {
-    fn serialize_field(
-        &mut self,
-        value: &DynamicData,
-        pid: u32,
-        _name: &str,
-    ) -> Result<(), XTypesError> {
-        let length = Xcdr2BeSerializer::bytes_len(value)? as u16;
-        self.writer.writer.write_slice(&(pid as u16).to_be_bytes());
-        self.writer.writer.write_slice(&length.to_be_bytes());
+    fn serialize_members(&mut self, value: &DynamicData) -> Result<(), XTypesError> {
+        // let length = Xcdr2BeSerializer::bytes_len(value)? as u16;
+        // self.writer.writer.write_slice(&(pid as u16).to_be_bytes());
+        // self.writer.writer.write_slice(&length.to_be_bytes());
         // self.serialize_data_kind(value)?;
+        // self.writer.writer.pad(4);
+        // Ok(())
         todo!();
-        self.writer.writer.pad(4);
-        Ok(())
     }
     fn end(self) -> Result<(), XTypesError> {
         self.writer.writer.write_slice(&PID_SENTINEL.to_be_bytes());
@@ -330,19 +310,14 @@ impl<C: Write> SerializeMutableStruct for &mut Xcdr2BeSerializer<'_, C> {
 }
 
 impl<C: Write> SerializeMutableStruct for &mut Xcdr2LeSerializer<'_, C> {
-    fn serialize_field(
-        &mut self,
-        value: &DynamicData,
-        pid: u32,
-        _name: &str,
-    ) -> Result<(), XTypesError> {
-        let length = Xcdr2LeSerializer::bytes_len(value)? as u16;
-        self.writer.writer.write_slice(&(pid as u16).to_le_bytes());
-        self.writer.writer.write_slice(&length.to_le_bytes());
+    fn serialize_members(&mut self, value: &DynamicData) -> Result<(), XTypesError> {
+        // let length = Xcdr2LeSerializer::bytes_len(value)? as u16;
+        // self.writer.writer.write_slice(&(pid as u16).to_le_bytes());
+        // self.writer.writer.write_slice(&length.to_le_bytes());
         // self.serialize_data_kind(value)?;
+        // self.writer.writer.pad(4);
+        // Ok(())
         todo!();
-        self.writer.writer.pad(4);
-        Ok(())
     }
     fn end(self) -> Result<(), XTypesError> {
         self.writer.writer.write_slice(&PID_SENTINEL.to_le_bytes());
@@ -359,29 +334,28 @@ impl<S> SerializeFinalStruct for PlainCdr2Encoder<'_, S>
 where
     for<'a> &'a mut S: XTypesSerializer,
 {
-    fn serialize_field(&mut self, value: &DynamicData) -> Result<(), XTypesError> {
-        self.serializer.serialize_complex(value)
+    fn serialize_members(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
+        self.serializer.serialize_complex(v)
     }
 }
 
 impl<C: Write> SerializeAppendableStruct for &mut Xcdr2BeSerializer<'_, C> {
-    fn serialize_field(&mut self, value: &DynamicData, _name: &str) -> Result<(), XTypesError> {
-        let length = Xcdr2BeSerializer::bytes_len(value)? as u32;
+    fn serialize_members(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
+        // let length = Xcdr2BeSerializer::bytes_len(v)? as u32;
+        let length = 4;
         // DHEADER
         self.serialize_u32(length);
-        // self.serialize_complex(dynamic_data)?;
-        todo!()
+        self.serialize_complex(v)
     }
 }
 
 impl<C: Write> SerializeAppendableStruct for &mut Xcdr2LeSerializer<'_, C> {
-    fn serialize_field(&mut self, value: &DynamicData, _name: &str) -> Result<(), XTypesError> {
-        let length = Xcdr2LeSerializer::bytes_len(value)? as u32;
+    fn serialize_members(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
+        // let length = Xcdr2LeSerializer::bytes_len(v)? as u32;
         // DHEADER
-        self.serialize_u32(length);
-        // self.serialize_data_kind(value)?;
-        todo!();
-        Ok(())
+        // self.serialize_u32(length);
+        self.serialize_complex(v)
+        // todo!();
     }
 }
 impl<C: Write> XTypesSerializer for &mut Xcdr2BeSerializer<'_, C> {

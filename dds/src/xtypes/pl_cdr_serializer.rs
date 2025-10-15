@@ -39,23 +39,17 @@ impl<'a, C: Write> PlCdrLeSerializer<'a, C> {
 }
 
 impl<C: Write> SerializeFinalStruct for &mut PlCdrLeSerializer<'_, C> {
-    fn serialize_field(&mut self, value: &DynamicData) -> Result<(), XTypesError> {
-        // self.serialize_data_kind(value)
-        todo!()
+    fn serialize_members(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
+        self.serialize_complex(v)
     }
 }
 impl<C: Write> SerializeAppendableStruct for &mut PlCdrLeSerializer<'_, C> {
-    fn serialize_field(&mut self, value: &DynamicData, _name: &str) -> Result<(), XTypesError> {
-        self.serialize_complex(value)
+    fn serialize_members(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
+        self.serialize_complex(v)
     }
 }
 impl<C: Write> SerializeMutableStruct for &mut PlCdrLeSerializer<'_, C> {
-    fn serialize_field(
-        &mut self,
-        value: &DynamicData,
-        pid: u32,
-        _name: &str,
-    ) -> Result<(), XTypesError> {
+    fn serialize_members(&mut self, value: &DynamicData) -> Result<(), XTypesError> {
         fn bytes_len_dynamic_data(value: &DynamicData) -> Result<u16, XTypesError> {
             let mut byte_counter = ByteCounter::new();
             let mut serializer = PlCdrLeSerializer::new(&mut byte_counter);
