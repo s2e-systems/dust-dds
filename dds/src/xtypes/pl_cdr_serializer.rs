@@ -129,24 +129,8 @@ impl<C: Write> XTypesSerializer for &mut PlCdrLeSerializer<'_, C> {
         Ok(self)
     }
 
-    fn serialize_complex(&mut self, dynamic_data: &DynamicData) -> Result<(), XTypesError> {
-        todo!()
-    }
-
-    fn serialize_string(&mut self, v: &String) {
-        todo!()
-    }
-
-    fn serialize_u32(&mut self, v: &u32) {
-        todo!()
-    }
-
-    fn serialize_i32(&mut self, v: &i32) {
-        todo!()
-    }
-
-    fn serialize_i16(&mut self, v: &i16) {
-        todo!()
+    fn writer(&mut self) -> &mut impl Write {
+        &mut self.cdr1_le_serializer.writer
     }
 }
 

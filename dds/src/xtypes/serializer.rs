@@ -55,12 +55,60 @@ impl<'a, W: Write> Write for WriterV2<'a, W> {
     }
 }
 
-pub trait Endianness {}
+pub trait Endianness {
+    fn write_i16<C: Write>(v: i16, writer: &mut C);
+    fn write_u16<C: Write>(v: u16, writer: &mut C);
+    fn write_i32<C: Write>(v: i32, writer: &mut C);
+    fn write_u32<C: Write>(v: u32, writer: &mut C);
+    fn write_i64<C: Write>(v: i64, writer: &mut C);
+    fn write_u64<C: Write>(v: u64, writer: &mut C);
+    fn write_str<C: Write>(v: &str, writer: &mut C) {
+        writer.write(&v.as_bytes())
+    }
+}
 pub struct BigEndian;
 pub struct LittleEndian;
 
-impl Endianness for LittleEndian {}
-impl Endianness for BigEndian {}
+impl Endianness for LittleEndian {
+    fn write_i16<C: Write>(v: i16, writer: &mut C) {
+        writer.write(&v.to_le_bytes())
+    }
+    fn write_u16<C: Write>(v: u16, writer: &mut C) {
+        writer.write(&v.to_le_bytes())
+    }
+    fn write_i32<C: Write>(v: i32, writer: &mut C) {
+        writer.write(&v.to_le_bytes())
+    }
+    fn write_u32<C: Write>(v: u32, writer: &mut C) {
+        writer.write(&v.to_le_bytes())
+    }
+    fn write_i64<C: Write>(v: i64, writer: &mut C) {
+        writer.write(&v.to_le_bytes())
+    }
+    fn write_u64<C: Write>(v: u64, writer: &mut C) {
+        writer.write(&v.to_le_bytes())
+    }
+}
+impl Endianness for BigEndian {
+    fn write_i16<C: Write>(v: i16, writer: &mut C) {
+        writer.write(&v.to_be_bytes())
+    }
+    fn write_u16<C: Write>(v: u16, writer: &mut C) {
+        writer.write(&v.to_be_bytes())
+    }
+    fn write_i32<C: Write>(v: i32, writer: &mut C) {
+        writer.write(&v.to_be_bytes())
+    }
+    fn write_u32<C: Write>(v: u32, writer: &mut C) {
+        writer.write(&v.to_be_bytes())
+    }
+    fn write_i64<C: Write>(v: i64, writer: &mut C) {
+        writer.write(&v.to_be_bytes())
+    }
+    fn write_u64<C: Write>(v: u64, writer: &mut C) {
+        writer.write(&v.to_be_bytes())
+    }
+}
 
 pub trait WriteAsBytes<E> {
     fn write_as_bytes<C: Write>(&self, writer: &mut C);
@@ -70,7 +118,7 @@ impl<E: Endianness> WriteAsBytes<E> for char {
         writer.write(self.to_string().as_bytes());
     }
 }
-impl<E: Endianness> WriteAsBytes<E> for str {
+impl<E: Endianness> WriteAsBytes<E> for String {
     fn write_as_bytes<C: Write>(&self, writer: &mut C) {
         writer.write(self.as_bytes());
         writer.write(&[0]);
@@ -255,12 +303,12 @@ pub trait XTypesSerializer: Sized {
                 TypeKind::NONE => todo!(),
                 TypeKind::BOOLEAN => todo!(),
                 TypeKind::BYTE => todo!(),
-                TypeKind::INT16 => self.serialize_i16(dynamic_data.get_int16_value(member_id)?),
-                TypeKind::INT32 => self.serialize_i32(dynamic_data.get_int32_value(member_id)?),
+                TypeKind::INT16 => self.serialize_i16(*dynamic_data.get_int16_value(member_id)?),
+                TypeKind::INT32 => self.serialize_i32(*dynamic_data.get_int32_value(member_id)?),
                 TypeKind::INT64 => todo!(),
-                TypeKind::UINT16 => self.serialize_u16(dynamic_data.get_uint16_value(member_id)?),
+                TypeKind::UINT16 => self.serialize_u16(*dynamic_data.get_uint16_value(member_id)?),
                 TypeKind::UINT32 => todo!(),
-                TypeKind::UINT64 => self.serialize_u64(dynamic_data.get_uint64_value(member_id)?),
+                TypeKind::UINT64 => self.serialize_u64(*dynamic_data.get_uint64_value(member_id)?),
                 TypeKind::FLOAT32 => todo!(),
                 TypeKind::FLOAT64 => todo!(),
                 TypeKind::FLOAT128 => todo!(),
@@ -288,10 +336,25 @@ pub trait XTypesSerializer: Sized {
         }
         Ok(())
     }
-    fn serialize_string(&mut self, v: &String);
-    fn serialize_u16(&mut self, v: &u16){todo!()}
-    fn serialize_i16(&mut self, v: &i16);
-    fn serialize_u32(&mut self, v: &u32);
-    fn serialize_i32(&mut self, v: &i32);
-    fn serialize_u64(&mut self, v: &u64){todo!()}
+    fn serialize_string(&mut self, v: &str) {
+        self.serialize_u32(v.len() as u32 + 1);
+        Self::Endianness::write_str(v, self.writer());
+    }
+    fn serialize_u16(&mut self, v: u16) {
+        Self::Endianness::write_u16(v, self.writer());
+    }
+    fn serialize_i16(&mut self, v: i16) {
+        Self::Endianness::write_i16(v, self.writer());
+    }
+    fn serialize_u32(&mut self, v: u32) {
+        Self::Endianness::write_u32(v, self.writer());
+    }
+    fn serialize_i32(&mut self, v: i32) {
+        Self::Endianness::write_i32(v, self.writer());
+    }
+    fn serialize_u64(&mut self, v: u64) {
+        Self::Endianness::write_u64(v, self.writer());
+    }
+
+    fn writer(&mut self) -> &mut impl Write;
 }
