@@ -14,7 +14,9 @@ impl DynamicData {
         &self,
         serializer: impl XTypesSerializer,
     ) -> Result<(), super::error::XTypesError> {
+        // todo header CDR type
         serialize_nested(self, serializer)
+        // sentinel ?
     }
 }
 

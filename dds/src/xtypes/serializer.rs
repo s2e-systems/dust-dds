@@ -2,8 +2,6 @@ use crate::xtypes::{
     bytes::Bytes, data_representation::DataKind, dynamic_type::DynamicData, error::XTypesError,
     serialize::Write,
 };
-use alloc::string::String;
-
 pub struct Writer<'a, W> {
     buffer: &'a mut W,
     position: usize,
@@ -18,7 +16,7 @@ impl<'a, W: Write> Writer<'a, W> {
     }
 
     pub fn write_slice(&mut self, data: &[u8]) {
-        self.buffer.write(data, 0);
+        self.buffer.write(data);
         self.position += data.len();
     }
 
@@ -28,13 +26,17 @@ impl<'a, W: Write> Writer<'a, W> {
         self.write_slice(&ZEROS[..alignment]);
     }
 }
-
+impl<'a, W: Write> Write for Writer<'a, W> {
+    fn write(&mut self, buf: &[u8]) {
+        self.write_slice(buf);
+    }
+}
 pub struct WriterV1<'a, W> {
     pub writer: Writer<'a, W>,
 }
 impl<'a, W: Write> Write for WriterV1<'a, W> {
-    fn write(&mut self, buf: &[u8], pad: usize) {
-        self.writer.pad(pad);
+    fn write(&mut self, buf: &[u8]) {
+        self.writer.pad(buf.len());
         self.writer.write_slice(buf);
     }
 }
@@ -43,8 +45,8 @@ pub struct WriterV2<'a, W> {
 }
 
 impl<'a, W: Write> Write for WriterV2<'a, W> {
-    fn write(&mut self, buf: &[u8], pad: usize){
-        self.writer.pad(core::cmp::min(pad, 4));
+    fn write(&mut self, buf: &[u8]){
+        self.writer.pad(core::cmp::min(buf.len(), 4));
         self.writer.write_slice(buf);
     }
 }
@@ -71,145 +73,127 @@ pub struct LittleEndian;
 impl Endianness for LittleEndian {}
 impl Endianness for BigEndian {}
 
-pub trait TryWriteAsBytes<E> {
-    fn try_write_as_bytes<C: Write>(&self, writer: &mut C) -> Result<(), XTypesError>;
-}
 pub trait WriteAsBytes<E> {
     fn write_as_bytes<C: Write>(&self, writer: &mut C);
 }
-impl<E: Endianness> TryWriteAsBytes<E> for char {
-    fn try_write_as_bytes<C: Write>(&self, writer: &mut C) -> Result<(), XTypesError> {
-        writer.write(self.to_string().as_bytes(), 1);
-        Ok(())
+impl<E: Endianness> WriteAsBytes<E> for char {
+    fn write_as_bytes<C: Write>(&self, writer: &mut C) {
+        writer.write(self.to_string().as_bytes());
     }
 }
 impl<E:Endianness> WriteAsBytes<E> for str {
     fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(self.as_bytes(), 1);
-        writer.write(&[0], 1);
+        writer.write(self.as_bytes());
+        writer.write(&[0]);
     }
 }
 
-impl TryWriteAsBytes<LittleEndian> for String {
-    fn try_write_as_bytes<C: Write>(&self, writer: &mut C) -> Result<(), XTypesError> {
-        WriteAsBytes::<LittleEndian>::write_as_bytes(&into_u32(self.len() + 1)?, writer);
-        WriteAsBytes::<LittleEndian>::write_as_bytes(self.as_str(), writer);
-        Ok(())
-    }
-}
-impl TryWriteAsBytes<BigEndian> for String {
-    fn try_write_as_bytes<C: Write>(&self, writer: &mut C) -> Result<(), XTypesError> {
-        WriteAsBytes::<BigEndian>::write_as_bytes(&into_u32(self.len() + 1)?, writer);
-        WriteAsBytes::<BigEndian>::write_as_bytes(self.as_str(), writer);
-        Ok(())
-    }
-}
 
 impl<E: Endianness> WriteAsBytes<E> for bool {
     fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(&[*self as u8], 1)
+        writer.write(&[*self as u8])
     }
 }
 
 impl WriteAsBytes<LittleEndian> for i64 {
     fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(&self.to_le_bytes(), 8)
+        writer.write(&self.to_le_bytes())
     }
 }
 impl WriteAsBytes<LittleEndian> for u64 {
     fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(&self.to_le_bytes(), 8)
+        writer.write(&self.to_le_bytes())
     }
 }
 impl WriteAsBytes<LittleEndian> for u32 {
     fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(&self.to_le_bytes(), 4)
+        writer.write(&self.to_le_bytes())
     }
 }
 impl WriteAsBytes<LittleEndian> for i32 {
     fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(&self.to_le_bytes(), 4)
+        writer.write(&self.to_le_bytes())
     }
 }
 impl WriteAsBytes<LittleEndian> for i16 {
     fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(&self.to_le_bytes(), 2)
+        writer.write(&self.to_le_bytes())
     }
 }
 impl WriteAsBytes<LittleEndian> for u16 {
     fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(&self.to_le_bytes(), 2)
+        writer.write(&self.to_le_bytes())
     }
 }
 impl WriteAsBytes<LittleEndian> for i8 {
     fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(&self.to_le_bytes(), 1)
+        writer.write(&self.to_le_bytes())
     }
 }
 impl WriteAsBytes<LittleEndian> for u8 {
     fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(&self.to_le_bytes(), 1)
+        writer.write(&self.to_le_bytes())
     }
 }
 impl WriteAsBytes<LittleEndian> for f32 {
     fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(&self.to_le_bytes(), 4)
+        writer.write(&self.to_le_bytes())
     }
 }
 impl WriteAsBytes<LittleEndian> for f64 {
     fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(&self.to_le_bytes(), 8)
+        writer.write(&self.to_le_bytes())
     }
 }
 
 impl WriteAsBytes<BigEndian> for i64 {
     fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(&self.to_be_bytes(), 8)
+        writer.write(&self.to_be_bytes())
     }
 }
 impl WriteAsBytes<BigEndian> for u64 {
     fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(&self.to_be_bytes(), 8)
+        writer.write(&self.to_be_bytes())
     }
 }
 impl WriteAsBytes<BigEndian> for i32 {
     fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(&self.to_be_bytes(), 4)
+        writer.write(&self.to_be_bytes())
     }
 }
 impl WriteAsBytes<BigEndian> for u32 {
     fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(&self.to_be_bytes(), 4)
+        writer.write(&self.to_be_bytes())
     }
 }
 impl WriteAsBytes<BigEndian> for i16 {
     fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(&self.to_be_bytes(), 2)
+        writer.write(&self.to_be_bytes())
     }
 }
 impl WriteAsBytes<BigEndian> for u16 {
     fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(&self.to_be_bytes(), 2)
+        writer.write(&self.to_be_bytes())
     }
 }
 impl WriteAsBytes<BigEndian> for i8 {
     fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(&self.to_be_bytes(), 1)
+        writer.write(&self.to_be_bytes())
     }
 }
 impl WriteAsBytes<BigEndian> for u8 {
     fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(&self.to_be_bytes(), 1)
+        writer.write(&self.to_be_bytes())
     }
 }
 impl WriteAsBytes<BigEndian> for f32 {
     fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(&self.to_be_bytes(), 4)
+        writer.write(&self.to_be_bytes())
     }
 }
 impl WriteAsBytes<BigEndian> for f64 {
     fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(&self.to_be_bytes(), 8)
+        writer.write(&self.to_be_bytes())
     }
 }
 
@@ -235,40 +219,13 @@ where
         }
     }
 }
-impl<E: Endianness> TryWriteAsBytes<E> for Vec<char> {
-    fn try_write_as_bytes<C: Write>(&self, writer: &mut C) -> Result<(), XTypesError> {
-        for v in self.iter() {
-            TryWriteAsBytes::<E>::try_write_as_bytes(v, writer)?;
-        }
-        Ok(())
-    }
-}
-
-impl TryWriteAsBytes<LittleEndian> for Vec<String> {
-    fn try_write_as_bytes<C: Write>(&self, writer: &mut C) -> Result<(), XTypesError> {
-        WriteAsBytes::<LittleEndian>::write_as_bytes(&into_u32(self.len())?, writer);
-        for v in self.iter() {
-            TryWriteAsBytes::<LittleEndian>::try_write_as_bytes(v, writer)?;
-        }
-        Ok(())
-    }
-}
-impl TryWriteAsBytes<BigEndian> for Vec<String> {
-    fn try_write_as_bytes<C: Write>(&self, writer: &mut C) -> Result<(), XTypesError> {
-        WriteAsBytes::<BigEndian>::write_as_bytes(&into_u32(self.len())?, writer);
-        for v in self.iter() {
-            TryWriteAsBytes::<BigEndian>::try_write_as_bytes(v, writer)?;
-        }
-        Ok(())
-    }
-}
 
 impl<'a, E> WriteAsBytes<E> for Bytes<'a>
 where
     E: Endianness,
 {
     fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(self.0, 1);
+        writer.write(self.0);
     }
 }
 
@@ -307,5 +264,5 @@ pub trait XTypesSerializer {
     /// Start serializing a type with mutable extensibility.
     fn serialize_mutable_struct(self) -> Result<impl SerializeMutableStruct, XTypesError>;
 
-    fn serialize_data_kind(self, v: &DataKind) -> Result<(), XTypesError>;
+    fn serialize_data_kind(self, v: &DataKind);
 }

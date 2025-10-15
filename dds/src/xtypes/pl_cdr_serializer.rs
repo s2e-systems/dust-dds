@@ -9,7 +9,7 @@ use crate::xtypes::{
     bytes::Bytes,
     data_representation::DataKind,
     dynamic_type::DynamicData,
-    serializer::{LittleEndian, TryWriteAsBytes, WriteAsBytes, Writer, WriterV1},
+    serializer::{LittleEndian, WriteAsBytes, Writer, WriterV1},
     xcdr_serializer::Xcdr1LeSerializer,
 };
 use alloc::string::String;
@@ -25,7 +25,7 @@ impl ByteCounter {
 }
 
 impl Write for ByteCounter {
-    fn write(&mut self, buf: &[u8], pad: usize) {
+    fn write(&mut self, buf: &[u8]) {
         self.0 += buf.len() as u16;
     }
 }
@@ -44,7 +44,8 @@ impl<'a, C: Write> PlCdrLeSerializer<'a, C> {
 
 impl<C: Write> SerializeFinalStruct for &mut PlCdrLeSerializer<'_, C> {
     fn serialize_field(&mut self, value: &DataKind, _name: &str) -> Result<(), XTypesError> {
-        self.serialize_data_kind(value)
+        self.serialize_data_kind(value);
+        Ok(())
     }
 
     fn serialize_optional_field(
@@ -57,7 +58,8 @@ impl<C: Write> SerializeFinalStruct for &mut PlCdrLeSerializer<'_, C> {
 }
 impl<C: Write> SerializeAppendableStruct for &mut PlCdrLeSerializer<'_, C> {
     fn serialize_field(&mut self, value: &DataKind, _name: &str) -> Result<(), XTypesError> {
-        self.serialize_data_kind(value)
+        self.serialize_data_kind(value);
+        Ok(())
     }
 }
 impl<C: Write> SerializeMutableStruct for &mut PlCdrLeSerializer<'_, C> {
@@ -76,7 +78,7 @@ impl<C: Write> SerializeMutableStruct for &mut PlCdrLeSerializer<'_, C> {
         fn bytes_len_data_kind(value: &DataKind) -> Result<u16, XTypesError> {
             let mut byte_counter = ByteCounter::new();
             let mut serializer = PlCdrLeSerializer::new(&mut byte_counter);
-            serializer.serialize_data_kind(value)?;
+            serializer.serialize_data_kind(value);
             Ok(byte_counter.0)
         }
 
@@ -86,9 +88,9 @@ impl<C: Write> SerializeMutableStruct for &mut PlCdrLeSerializer<'_, C> {
                 let padded_length = (length + 3) & !3;
 
                 self.cdr1_le_serializer
-                    .serialize_data_kind(&DataKind::UInt16(pid as u16))?;
+                    .serialize_data_kind(&DataKind::UInt16(pid as u16));
                 self.cdr1_le_serializer
-                    .serialize_data_kind(&DataKind::UInt16(padded_length))?;
+                    .serialize_data_kind(&DataKind::UInt16(padded_length));
                 item.serialize(&mut **self)?;
                 self.cdr1_le_serializer.writer.writer.pad(4);
             }
@@ -96,10 +98,10 @@ impl<C: Write> SerializeMutableStruct for &mut PlCdrLeSerializer<'_, C> {
             let length = bytes_len_data_kind(value)?;
             let padded_length = (length + 3) & !3;
             self.cdr1_le_serializer
-                .serialize_data_kind(&DataKind::UInt16(pid as u16))?;
+                .serialize_data_kind(&DataKind::UInt16(pid as u16));
             self.cdr1_le_serializer
-                .serialize_data_kind(&DataKind::UInt16(padded_length))?;
-            self.serialize_data_kind(value)?;
+                .serialize_data_kind(&DataKind::UInt16(padded_length));
+            self.serialize_data_kind(value);
             self.cdr1_le_serializer.writer.writer.pad(4);
         }
         Ok(())
@@ -107,9 +109,9 @@ impl<C: Write> SerializeMutableStruct for &mut PlCdrLeSerializer<'_, C> {
 
     fn end(self) -> Result<(), XTypesError> {
         self.cdr1_le_serializer
-            .serialize_data_kind(&DataKind::UInt16(PID_SENTINEL))?;
+            .serialize_data_kind(&DataKind::UInt16(PID_SENTINEL));
         self.cdr1_le_serializer
-            .serialize_data_kind(&DataKind::UInt16(0))?;
+            .serialize_data_kind(&DataKind::UInt16(0));
         Ok(())
     }
 }
@@ -127,8 +129,8 @@ impl<C: Write> XTypesSerializer for &mut PlCdrLeSerializer<'_, C> {
         Ok(self)
     }
 
-    fn serialize_data_kind(self, v: &DataKind) -> Result<(), XTypesError> {
-        self.cdr1_le_serializer.serialize_data_kind(v)
+    fn serialize_data_kind(self, v: &DataKind) {
+        self.cdr1_le_serializer.serialize_data_kind(v);
     }
 }
 
