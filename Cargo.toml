@@ -1,5 +1,4 @@
 [workspace]
-
 members = [
     "dds",
     "dds_derive",
@@ -20,4 +19,18 @@ default-members = [
     "bindings/python",
     "nostd_test_project",
 ]
-resolver = "2"
+resolver = "3"
+
+[workspace.package]
+edition = "2021"
+rust-version = "1.85"
+license = "Apache-2.0"
+authors = [
+    "Joao Rebelo <jrebelo@s2e-systems.com>",
+    "Stefan Kimmer <skimmer@s2e-systems.com>",
+    "Pierre Martinet <pmartinet@s2e-systems.com>",
+]
+homepage = "https://s2e-systems.com/products/dust-dds"
+repository = "https://github.com/s2e-systems/dust-dds.git"
+keywords = ["dds", "rtps", "middleware", "network", "udp"]
+categories = ["api-bindings", "network-programming"]
