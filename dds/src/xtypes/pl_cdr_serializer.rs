@@ -45,16 +45,14 @@ impl<C: Write> SerializeFinalStruct for &mut PlCdrLeSerializer<'_, C> {
     }
 }
 impl<C: Write> SerializeAppendableStruct for &mut PlCdrLeSerializer<'_, C> {
-    fn serialize_field(&mut self, value: &DataKind, _name: &str) -> Result<(), XTypesError> {
-        // self.serialize_data_kind(value)?;
-        todo!();
-        Ok(())
+    fn serialize_field(&mut self, value: &DynamicData, _name: &str) -> Result<(), XTypesError> {
+        self.serialize_complex(value)
     }
 }
 impl<C: Write> SerializeMutableStruct for &mut PlCdrLeSerializer<'_, C> {
     fn serialize_field(
         &mut self,
-        value: &DataKind,
+        value: &DynamicData,
         pid: u32,
         _name: &str,
     ) -> Result<(), XTypesError> {
@@ -72,37 +70,38 @@ impl<C: Write> SerializeMutableStruct for &mut PlCdrLeSerializer<'_, C> {
             Ok(byte_counter.0)
         }
 
-        match value {
-            DataKind::Sequence(items) if matches!(&items[0], DataKind::ComplexValue(_)) => {
-                if matches!(&items[0], DataKind::ComplexValue(_)) {
-                    for item in items {
-                        if let DataKind::ComplexValue(item) = item {
-                            let length = bytes_len_dynamic_data(item)?;
-                            let padded_length = (length + 3) & !3;
+        // match value {
+        //     DataKind::Sequence(items) if matches!(&items[0], DataKind::ComplexValue(_)) => {
+        //         if matches!(&items[0], DataKind::ComplexValue(_)) {
+        //             for item in items {
+        //                 if let DataKind::ComplexValue(item) = item {
+        //                     let length = bytes_len_dynamic_data(item)?;
+        //                     let padded_length = (length + 3) & !3;
 
-                            // self.cdr1_le_serializer
-                            //     .serialize_data_kind(&DataKind::UInt16(pid as u16))?;
-                            // self.cdr1_le_serializer
-                            //     .serialize_data_kind(&DataKind::UInt16(padded_length))?;
-                            // item.serialize(&mut **self)?;
-                            // self.cdr1_le_serializer.writer.writer.pad(4);
-                            todo!()
-                        }
-                    }
-                }
-            }
-            _ => {
-                let length = bytes_len_data_kind(value)?;
-                let padded_length = (length + 3) & !3;
-                // self.cdr1_le_serializer
-                //     .serialize_data_kind(&DataKind::UInt16(pid as u16))?;
-                // self.cdr1_le_serializer
-                //     .serialize_data_kind(&DataKind::UInt16(padded_length))?;
-                // self.serialize_data_kind(value)?;
-                // self.cdr1_le_serializer.writer.writer.pad(4);
-                todo!();
-            }
-        }
+        //                     // self.cdr1_le_serializer
+        //                     //     .serialize_data_kind(&DataKind::UInt16(pid as u16))?;
+        //                     // self.cdr1_le_serializer
+        //                     //     .serialize_data_kind(&DataKind::UInt16(padded_length))?;
+        //                     // item.serialize(&mut **self)?;
+        //                     // self.cdr1_le_serializer.writer.writer.pad(4);
+        //                     todo!()
+        //                 }
+        //             }
+        //         }
+        //     }
+        //     _ => {
+        //         let length = bytes_len_data_kind(value)?;
+        //         let padded_length = (length + 3) & !3;
+        //         // self.cdr1_le_serializer
+        //         //     .serialize_data_kind(&DataKind::UInt16(pid as u16))?;
+        //         // self.cdr1_le_serializer
+        //         //     .serialize_data_kind(&DataKind::UInt16(padded_length))?;
+        //         // self.serialize_data_kind(value)?;
+        //         // self.cdr1_le_serializer.writer.writer.pad(4);
+        //         todo!();
+        //     }
+        // }
+        todo!();
 
         Ok(())
     }

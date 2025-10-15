@@ -221,12 +221,12 @@ pub trait SerializeFinalStruct {
     fn serialize_field(&mut self, value: &DynamicData) -> Result<(), XTypesError>;
 }
 pub trait SerializeAppendableStruct {
-    fn serialize_field(&mut self, value: &DataKind, name: &str) -> Result<(), XTypesError>;
+    fn serialize_field(&mut self, value: &DynamicData, name: &str) -> Result<(), XTypesError>;
 }
 pub trait SerializeMutableStruct {
     fn serialize_field(
         &mut self,
-        value: &DataKind,
+        value: &DynamicData,
         pid: u32,
         name: &str,
     ) -> Result<(), XTypesError>;
@@ -235,7 +235,7 @@ pub trait SerializeMutableStruct {
 }
 
 /// A trait representing an object with the capability of serializing a value into a CDR format.
-pub trait XTypesSerializer {
+pub trait XTypesSerializer: Sized {
     type Endianness: Endianness;
 
     /// Start serializing a type with final extensibility.
@@ -247,10 +247,7 @@ pub trait XTypesSerializer {
     /// Start serializing a type with mutable extensibility.
     fn serialize_mutable_struct(self) -> Result<impl SerializeMutableStruct, XTypesError>;
 
-    fn serialize_complex(&mut self, dynamic_data: &DynamicData) -> Result<(), XTypesError>
-    where
-        Self: Sized,
-    {
+    fn serialize_complex(&mut self, dynamic_data: &DynamicData) -> Result<(), XTypesError> {
         for field_index in 0..dynamic_data.get_item_count() {
             let member_id = dynamic_data.get_member_id_at_index(field_index)?;
             let member_descriptor = dynamic_data.get_descriptor(member_id)?;
@@ -261,9 +258,9 @@ pub trait XTypesSerializer {
                 TypeKind::INT16 => self.serialize_i16(dynamic_data.get_int16_value(member_id)?),
                 TypeKind::INT32 => self.serialize_i32(dynamic_data.get_int32_value(member_id)?),
                 TypeKind::INT64 => todo!(),
-                TypeKind::UINT16 => todo!(),
+                TypeKind::UINT16 => self.serialize_u16(dynamic_data.get_uint16_value(member_id)?),
                 TypeKind::UINT32 => todo!(),
-                TypeKind::UINT64 => todo!(),
+                TypeKind::UINT64 => self.serialize_u64(dynamic_data.get_uint64_value(member_id)?),
                 TypeKind::FLOAT32 => todo!(),
                 TypeKind::FLOAT64 => todo!(),
                 TypeKind::FLOAT128 => todo!(),
@@ -292,7 +289,9 @@ pub trait XTypesSerializer {
         Ok(())
     }
     fn serialize_string(&mut self, v: &String);
+    fn serialize_u16(&mut self, v: &u16){todo!()}
+    fn serialize_i16(&mut self, v: &i16);
     fn serialize_u32(&mut self, v: &u32);
     fn serialize_i32(&mut self, v: &i32);
-    fn serialize_i16(&mut self, v: &i16);
+    fn serialize_u64(&mut self, v: &u64){todo!()}
 }
