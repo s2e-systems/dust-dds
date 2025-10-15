@@ -629,38 +629,6 @@ mod tests {
     use super::*;
     extern crate std;
 
-    // #[test]
-    // fn round_up_to_multiples_2() {
-    //     assert_eq!(round_up_to_multiples(0, 2), 0);
-    //     assert_eq!(round_up_to_multiples(1, 2), 2);
-    //     assert_eq!(round_up_to_multiples(2, 2), 2);
-    //     assert_eq!(round_up_to_multiples(3, 2), 4);
-    //     assert_eq!(round_up_to_multiples(4, 2), 4);
-    // }
-
-    // #[test]
-    // fn round_up_to_multiples_4() {
-    //     assert_eq!(round_up_to_multiples(0, 4), 0);
-    //     assert_eq!(round_up_to_multiples(1, 4), 4);
-    //     assert_eq!(round_up_to_multiples(2, 4), 4);
-    //     assert_eq!(round_up_to_multiples(3, 4), 4);
-    //     assert_eq!(round_up_to_multiples(4, 4), 4);
-    //     assert_eq!(round_up_to_multiples(5, 4), 8);
-    // }
-    // #[test]
-    // fn round_up_to_multiples_8() {
-    //     assert_eq!(round_up_to_multiples(0, 8), 0);
-    //     assert_eq!(round_up_to_multiples(1, 8), 8);
-    //     assert_eq!(round_up_to_multiples(2, 8), 8);
-    //     assert_eq!(round_up_to_multiples(3, 8), 8);
-    //     assert_eq!(round_up_to_multiples(4, 8), 8);
-    //     assert_eq!(round_up_to_multiples(5, 8), 8);
-    //     assert_eq!(round_up_to_multiples(6, 8), 8);
-    //     assert_eq!(round_up_to_multiples(7, 8), 8);
-    //     assert_eq!(round_up_to_multiples(8, 8), 8);
-    //     assert_eq!(round_up_to_multiples(9, 8), 16);
-    // }
-
     fn serialize_v1_be<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
         let mut buffer = std::vec::Vec::new();
         v.create_dynamic_sample()

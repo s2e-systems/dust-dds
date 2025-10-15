@@ -280,32 +280,4 @@ mod tests {
         basic: MutableBasicType,
         time: MutableTimeType,
     }
-
-    #[test]
-    #[ignore = "reason"]
-    fn serialize_mutable_nested_struct() {
-        let v = NestedFinal {
-            basic: MutableBasicType {
-                field_u16: 7,
-                field_u8: 8,
-            },
-            time: MutableTimeType {
-                field_time: Time { sec: 5, nanosec: 6 },
-            },
-        };
-        assert_eq!(
-            test_serialize_type_support(v),
-            vec![
-                10, 0, 4, 0, // PID | length
-                7, 0, 0, 0, // field_u16 | padding (2 bytes)
-                20, 0, 4, 0, // PID | length
-                8, 0, 0, 0, // field_u8 | padding (3 bytes)
-                1, 0, 0, 0, // Sentinel
-                30, 0, 8, 0, // PID | length
-                5, 0, 0, 0, // Time: sec
-                6, 0, 0, 0, // Time: nanosec
-                1, 0, 0, 0, // Sentinel
-            ]
-        );
-    }
 }
