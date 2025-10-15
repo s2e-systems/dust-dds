@@ -9,7 +9,6 @@ use crate::xtypes::{
     data_representation::DataKind, dynamic_type::DynamicData, serializer::LittleEndian,
     xcdr_serializer::Xcdr1LeSerializer,
 };
-use alloc::string::String;
 
 const PID_SENTINEL: u16 = 1;
 

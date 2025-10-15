@@ -1,7 +1,8 @@
 use crate::{
     infrastructure::type_support::TypeSupport,
     xtypes::{
-        dynamic_type::DynamicData, serializer::XTypesSerializer, xcdr_serializer::serialize_nested,
+        dynamic_type::DynamicData, error::XTypesError, serializer::XTypesSerializer,
+        xcdr_serializer::serialize_nested,
     },
 };
 use alloc::{string::String, vec::Vec};
@@ -136,5 +137,159 @@ impl<T: Into<DataKind>> From<Vec<T>> for DataKind {
 impl From<&[u8]> for DataKind {
     fn from(value: &[u8]) -> Self {
         value.to_vec().into()
+    }
+}
+
+impl TryFrom<DataKind> for u8 {
+    type Error = XTypesError;
+
+    fn try_from(value: DataKind) -> Result<Self, Self::Error> {
+        match value {
+            DataKind::UInt8(x) => Ok(x),
+            _ => Err(XTypesError::InvalidType),
+        }
+    }
+}
+
+impl TryFrom<DataKind> for i8 {
+    type Error = XTypesError;
+
+    fn try_from(value: DataKind) -> Result<Self, Self::Error> {
+        match value {
+            DataKind::Int8(x) => Ok(x),
+            _ => Err(XTypesError::InvalidType),
+        }
+    }
+}
+
+impl TryFrom<DataKind> for u16 {
+    type Error = XTypesError;
+
+    fn try_from(value: DataKind) -> Result<Self, Self::Error> {
+        match value {
+            DataKind::UInt16(x) => Ok(x),
+            _ => Err(XTypesError::InvalidType),
+        }
+    }
+}
+
+impl TryFrom<DataKind> for i16 {
+    type Error = XTypesError;
+
+    fn try_from(value: DataKind) -> Result<Self, Self::Error> {
+        match value {
+            DataKind::Int16(x) => Ok(x),
+            _ => Err(XTypesError::InvalidType),
+        }
+    }
+}
+
+impl TryFrom<DataKind> for u32 {
+    type Error = XTypesError;
+
+    fn try_from(value: DataKind) -> Result<Self, Self::Error> {
+        match value {
+            DataKind::UInt32(x) => Ok(x),
+            _ => Err(XTypesError::InvalidType),
+        }
+    }
+}
+
+impl TryFrom<DataKind> for i32 {
+    type Error = XTypesError;
+
+    fn try_from(value: DataKind) -> Result<Self, Self::Error> {
+        match value {
+            DataKind::Int32(x) => Ok(x),
+            _ => Err(XTypesError::InvalidType),
+        }
+    }
+}
+
+impl TryFrom<DataKind> for u64 {
+    type Error = XTypesError;
+
+    fn try_from(value: DataKind) -> Result<Self, Self::Error> {
+        match value {
+            DataKind::UInt64(x) => Ok(x),
+            _ => Err(XTypesError::InvalidType),
+        }
+    }
+}
+
+impl TryFrom<DataKind> for i64 {
+    type Error = XTypesError;
+
+    fn try_from(value: DataKind) -> Result<Self, Self::Error> {
+        match value {
+            DataKind::Int64(x) => Ok(x),
+            _ => Err(XTypesError::InvalidType),
+        }
+    }
+}
+
+impl TryFrom<DataKind> for f32 {
+    type Error = XTypesError;
+
+    fn try_from(value: DataKind) -> Result<Self, Self::Error> {
+        match value {
+            DataKind::Float32(x) => Ok(x),
+            _ => Err(XTypesError::InvalidType),
+        }
+    }
+}
+
+impl TryFrom<DataKind> for f64 {
+    type Error = XTypesError;
+
+    fn try_from(value: DataKind) -> Result<Self, Self::Error> {
+        match value {
+            DataKind::Float64(x) => Ok(x),
+            _ => Err(XTypesError::InvalidType),
+        }
+    }
+}
+
+impl TryFrom<DataKind> for char {
+    type Error = XTypesError;
+
+    fn try_from(value: DataKind) -> Result<Self, Self::Error> {
+        match value {
+            DataKind::Char8(x) => Ok(x),
+            _ => Err(XTypesError::InvalidType),
+        }
+    }
+}
+
+impl TryFrom<DataKind> for bool {
+    type Error = XTypesError;
+
+    fn try_from(value: DataKind) -> Result<Self, Self::Error> {
+        match value {
+            DataKind::Boolean(x) => Ok(x),
+            _ => Err(XTypesError::InvalidType),
+        }
+    }
+}
+
+impl TryFrom<DataKind> for String {
+    type Error = XTypesError;
+
+    fn try_from(value: DataKind) -> Result<Self, Self::Error> {
+        match value {
+            DataKind::String(x) => Ok(x),
+            _ => Err(XTypesError::InvalidType),
+        }
+    }
+}
+
+impl TryFrom<DataKind> for DynamicData {
+    type Error = XTypesError;
+
+    fn try_from(value: DataKind) -> Result<Self, Self::Error> {
+        match value {
+            DataKind::ComplexValue(x) => Ok(x),
+            _ => Err(XTypesError::InvalidType),
+        }
     }
 }

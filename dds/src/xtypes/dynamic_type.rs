@@ -698,16 +698,15 @@ impl DynamicData {
     }
 
     pub fn get_int32_values(&mut self, id: MemberId) -> XTypesResult<Vec<i32>> {
-        todo!()
-        // if let DataKind::List(d) = self
-        //     .abstract_data
-        //     .remove(&id)
-        //     .ok_or(XTypesError::InvalidIndex)?
-        // {
-        //     d.into_iter().map(TryInto::try_into).collect()
-        // } else {
-        //     Err(XTypesError::InvalidType)
-        // }
+        if let DataKind::Sequence(d) = self
+            .abstract_data
+            .remove(&id)
+            .ok_or(XTypesError::InvalidIndex)?
+        {
+            d.into_iter().map(TryInto::try_into).collect()
+        } else {
+            Err(XTypesError::InvalidType)
+        }
     }
 
     pub fn set_int32_values(&mut self, id: MemberId, value: Vec<i32>) -> XTypesResult<()> {
@@ -715,17 +714,16 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn get_uint32_values(&self, id: MemberId) -> XTypesResult<&Vec<u32>> {
-        todo!()
-        // if let DataKind::UInt32List(d) = self
-        //     .abstract_data
-        //     .get(&id)
-        //     .ok_or(XTypesError::InvalidIndex)?
-        // {
-        //     Ok(d)
-        // } else {
-        //     Err(XTypesError::InvalidType)
-        // }
+    pub fn get_uint32_values(&mut self, id: MemberId) -> XTypesResult<Vec<u32>> {
+        if let DataKind::Sequence(d) = self
+            .abstract_data
+            .remove(&id)
+            .ok_or(XTypesError::InvalidIndex)?
+        {
+            d.into_iter().map(TryInto::try_into).collect()
+        } else {
+            Err(XTypesError::InvalidType)
+        }
     }
 
     pub fn set_uint32_values(&mut self, id: MemberId, value: Vec<u32>) -> XTypesResult<()> {
@@ -733,17 +731,16 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn get_int16_values(&self, id: MemberId) -> XTypesResult<&Vec<i16>> {
-        todo!()
-        // if let DataKind::Int16List(d) = self
-        //     .abstract_data
-        //     .get(&id)
-        //     .ok_or(XTypesError::InvalidIndex)?
-        // {
-        //     Ok(d)
-        // } else {
-        //     Err(XTypesError::InvalidType)
-        // }
+    pub fn get_int16_values(&mut self, id: MemberId) -> XTypesResult<Vec<i16>> {
+        if let DataKind::Sequence(d) = self
+            .abstract_data
+            .remove(&id)
+            .ok_or(XTypesError::InvalidIndex)?
+        {
+            d.into_iter().map(TryInto::try_into).collect()
+        } else {
+            Err(XTypesError::InvalidType)
+        }
     }
 
     pub fn set_int16_values(&mut self, id: MemberId, value: Vec<i16>) -> XTypesResult<()> {
@@ -751,17 +748,16 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn get_uint16_values(&self, id: MemberId) -> XTypesResult<&Vec<u16>> {
-        todo!()
-        // if let DataKind::List(d) = self
-        //     .abstract_data
-        //     .get(&id)
-        //     .ok_or(XTypesError::InvalidIndex)?
-        // {
-        //     Ok(d)
-        // } else {
-        //     Err(XTypesError::InvalidType)
-        // }
+    pub fn get_uint16_values(&mut self, id: MemberId) -> XTypesResult<Vec<u16>> {
+        if let DataKind::Sequence(d) = self
+            .abstract_data
+            .remove(&id)
+            .ok_or(XTypesError::InvalidIndex)?
+        {
+            d.into_iter().map(TryInto::try_into).collect()
+        } else {
+            Err(XTypesError::InvalidType)
+        }
     }
 
     pub fn set_uint16_values(&mut self, id: MemberId, value: Vec<u16>) -> XTypesResult<()> {
@@ -769,17 +765,16 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn get_int64_values(&self, id: MemberId) -> XTypesResult<&Vec<i64>> {
-        todo!()
-        // if let DataKind::List(d) = self
-        //     .abstract_data
-        //     .get(&id)
-        //     .ok_or(XTypesError::InvalidIndex)?
-        // {
-        //     Ok(d)
-        // } else {
-        //     Err(XTypesError::InvalidType)
-        // }
+    pub fn get_int64_values(&mut self, id: MemberId) -> XTypesResult<Vec<i64>> {
+        if let DataKind::Sequence(d) = self
+            .abstract_data
+            .remove(&id)
+            .ok_or(XTypesError::InvalidIndex)?
+        {
+            d.into_iter().map(TryInto::try_into).collect()
+        } else {
+            Err(XTypesError::InvalidType)
+        }
     }
 
     pub fn set_int64_values(&mut self, id: MemberId, value: Vec<i64>) -> XTypesResult<()> {
@@ -787,17 +782,16 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn get_uint64_values(&self, id: MemberId) -> XTypesResult<&Vec<u64>> {
-        todo!()
-        // if let DataKind::List(d) = self
-        //     .abstract_data
-        //     .get(&id)
-        //     .ok_or(XTypesError::InvalidIndex)?
-        // {
-        //     Ok(d)
-        // } else {
-        //     Err(XTypesError::InvalidType)
-        // }
+    pub fn get_uint64_values(&mut self, id: MemberId) -> XTypesResult<Vec<u64>> {
+        if let DataKind::Sequence(d) = self
+            .abstract_data
+            .remove(&id)
+            .ok_or(XTypesError::InvalidIndex)?
+        {
+            d.into_iter().map(TryInto::try_into).collect()
+        } else {
+            Err(XTypesError::InvalidType)
+        }
     }
 
     pub fn set_uint64_values(&mut self, id: MemberId, value: Vec<u64>) -> XTypesResult<()> {
@@ -805,17 +799,16 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn get_float32_values(&self, id: MemberId) -> XTypesResult<&Vec<f32>> {
-        todo!()
-        // if let DataKind::List(d) = self
-        //     .abstract_data
-        //     .get(&id)
-        //     .ok_or(XTypesError::InvalidIndex)?
-        // {
-        //     Ok(d)
-        // } else {
-        //     Err(XTypesError::InvalidType)
-        // }
+    pub fn get_float32_values(&mut self, id: MemberId) -> XTypesResult<Vec<f32>> {
+        if let DataKind::Sequence(d) = self
+            .abstract_data
+            .remove(&id)
+            .ok_or(XTypesError::InvalidIndex)?
+        {
+            d.into_iter().map(TryInto::try_into).collect()
+        } else {
+            Err(XTypesError::InvalidType)
+        }
     }
 
     pub fn set_float32_values(&mut self, id: MemberId, value: Vec<f32>) -> XTypesResult<()> {
@@ -823,17 +816,16 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn get_float64_values(&self, id: MemberId) -> XTypesResult<&Vec<f64>> {
-        todo!()
-        // if let DataKind::List(d) = self
-        //     .abstract_data
-        //     .get(&id)
-        //     .ok_or(XTypesError::InvalidIndex)?
-        // {
-        //     Ok(d)
-        // } else {
-        //     Err(XTypesError::InvalidType)
-        // }
+    pub fn get_float64_values(&mut self, id: MemberId) -> XTypesResult<Vec<f64>> {
+        if let DataKind::Sequence(d) = self
+            .abstract_data
+            .remove(&id)
+            .ok_or(XTypesError::InvalidIndex)?
+        {
+            d.into_iter().map(TryInto::try_into).collect()
+        } else {
+            Err(XTypesError::InvalidType)
+        }
     }
 
     pub fn set_float64_values(&mut self, id: MemberId, value: Vec<f64>) -> XTypesResult<()> {
@@ -841,17 +833,16 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn get_char8_values(&self, id: MemberId) -> XTypesResult<&Vec<char>> {
-        todo!()
-        // if let DataKind::Char8List(d) = self
-        //     .abstract_data
-        //     .get(&id)
-        //     .ok_or(XTypesError::InvalidIndex)?
-        // {
-        //     Ok(d)
-        // } else {
-        //     Err(XTypesError::InvalidType)
-        // }
+    pub fn get_char8_values(&mut self, id: MemberId) -> XTypesResult<Vec<char>> {
+        if let DataKind::Sequence(d) = self
+            .abstract_data
+            .remove(&id)
+            .ok_or(XTypesError::InvalidIndex)?
+        {
+            d.into_iter().map(TryInto::try_into).collect()
+        } else {
+            Err(XTypesError::InvalidType)
+        }
     }
 
     pub fn set_char8_values(&mut self, id: MemberId, value: Vec<char>) -> XTypesResult<()> {
@@ -859,17 +850,16 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn get_byte_values(&self, id: MemberId) -> XTypesResult<&Vec<u8>> {
-        todo!()
-        // if let DataKind::UInt8Array(d) = self
-        //     .abstract_data
-        //     .get(&id)
-        //     .ok_or(XTypesError::InvalidIndex)?
-        // {
-        //     Ok(d)
-        // } else {
-        //     Err(XTypesError::InvalidType)
-        // }
+    pub fn get_byte_values(&mut self, id: MemberId) -> XTypesResult<Vec<u8>> {
+        if let DataKind::Sequence(d) = self
+            .abstract_data
+            .remove(&id)
+            .ok_or(XTypesError::InvalidIndex)?
+        {
+            d.into_iter().map(TryInto::try_into).collect()
+        } else {
+            Err(XTypesError::InvalidType)
+        }
     }
 
     pub fn set_byte_values(&mut self, id: MemberId, value: Vec<u8>) -> XTypesResult<()> {
@@ -877,17 +867,16 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn get_boolean_values(&self, id: MemberId) -> XTypesResult<&Vec<bool>> {
-        todo!()
-        // if let DataKind::BooleanList(d) = self
-        //     .abstract_data
-        //     .get(&id)
-        //     .ok_or(XTypesError::InvalidIndex)?
-        // {
-        //     Ok(d)
-        // } else {
-        //     Err(XTypesError::InvalidType)
-        // }
+    pub fn get_boolean_values(&mut self, id: MemberId) -> XTypesResult<Vec<bool>> {
+        if let DataKind::Sequence(d) = self
+            .abstract_data
+            .remove(&id)
+            .ok_or(XTypesError::InvalidIndex)?
+        {
+            d.into_iter().map(TryInto::try_into).collect()
+        } else {
+            Err(XTypesError::InvalidType)
+        }
     }
 
     pub fn set_boolean_values(&mut self, id: MemberId, value: Vec<bool>) -> XTypesResult<()> {
@@ -895,17 +884,16 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn get_string_values(&self, id: MemberId) -> XTypesResult<&Vec<String>> {
-        todo!()
-        // if let DataKind::StringList(d) = self
-        //     .abstract_data
-        //     .get(&id)
-        //     .ok_or(XTypesError::InvalidIndex)?
-        // {
-        //     Ok(d)
-        // } else {
-        //     Err(XTypesError::InvalidType)
-        // }
+    pub fn get_string_values(&mut self, id: MemberId) -> XTypesResult<Vec<String>> {
+        if let DataKind::Sequence(d) = self
+            .abstract_data
+            .remove(&id)
+            .ok_or(XTypesError::InvalidIndex)?
+        {
+            d.into_iter().map(TryInto::try_into).collect()
+        } else {
+            Err(XTypesError::InvalidType)
+        }
     }
 
     pub fn set_string_values(mut self, id: MemberId, value: Vec<String>) -> XTypesResult<Self> {
@@ -914,17 +902,16 @@ impl DynamicData {
     }
 
     // Custom functions
-    pub fn get_uint8_values(&self, id: MemberId) -> XTypesResult<&Vec<u8>> {
-        todo!()
-        // if let DataKind::UInt8Array(d) = self
-        //     .abstract_data
-        //     .get(&id)
-        //     .ok_or(XTypesError::InvalidIndex)?
-        // {
-        //     Ok(d)
-        // } else {
-        //     Err(XTypesError::InvalidType)
-        // }
+    pub fn get_uint8_values(&mut self, id: MemberId) -> XTypesResult<Vec<u8>> {
+        if let DataKind::Sequence(d) = self
+            .abstract_data
+            .remove(&id)
+            .ok_or(XTypesError::InvalidIndex)?
+        {
+            d.into_iter().map(TryInto::try_into).collect()
+        } else {
+            Err(XTypesError::InvalidType)
+        }
     }
 
     pub fn set_uint8_values(&mut self, id: MemberId, value: Vec<u8>) -> XTypesResult<()> {
@@ -937,17 +924,16 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn get_complex_values(&self, id: MemberId) -> XTypesResult<&Vec<DynamicData>> {
-        todo!()
-        // if let DataKind::ComplexValueList(d) = self
-        //     .abstract_data
-        //     .get(&id)
-        //     .ok_or(XTypesError::InvalidIndex)?
-        // {
-        //     Ok(d)
-        // } else {
-        //     Err(XTypesError::InvalidType)
-        // }
+    pub fn get_complex_values(&mut self, id: MemberId) -> XTypesResult<Vec<DynamicData>> {
+        if let DataKind::Sequence(d) = self
+            .abstract_data
+            .remove(&id)
+            .ok_or(XTypesError::InvalidIndex)?
+        {
+            d.into_iter().map(TryInto::try_into).collect()
+        } else {
+            Err(XTypesError::InvalidType)
+        }
     }
 
     pub fn set_complex_values(
@@ -955,9 +941,16 @@ impl DynamicData {
         id: MemberId,
         value: Vec<DynamicData>,
     ) -> XTypesResult<()> {
-        // self.abstract_data.insert(id, value.into());
-        // Ok(())
-        todo!()
+        self.abstract_data.insert(
+            id,
+            DataKind::Sequence(
+                value
+                    .into_iter()
+                    .map(|x| DataKind::ComplexValue(x))
+                    .collect(),
+            ),
+        );
+        Ok(())
     }
 
     pub fn set_value<T: Into<DataKind>>(mut self, id: MemberId, value: T) -> Self {

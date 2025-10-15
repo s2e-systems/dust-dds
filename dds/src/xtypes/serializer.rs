@@ -1,6 +1,5 @@
 use crate::xtypes::{
-    bytes::Bytes, data_representation::DataKind, dynamic_type::DynamicData, error::XTypesError,
-    serialize::Write,
+    bytes::Bytes, data_representation::DataKind, error::XTypesError, serialize::Write,
 };
 pub struct Writer<'a, W> {
     buffer: &'a mut W,
@@ -45,7 +44,7 @@ pub struct WriterV2<'a, W> {
 }
 
 impl<'a, W: Write> Write for WriterV2<'a, W> {
-    fn write(&mut self, buf: &[u8]){
+    fn write(&mut self, buf: &[u8]) {
         self.writer.pad(core::cmp::min(buf.len(), 4));
         self.writer.write_slice(buf);
     }
@@ -66,13 +65,12 @@ impl<E: Endianness> WriteAsBytes<E> for char {
         writer.write(self.to_string().as_bytes());
     }
 }
-impl<E:Endianness> WriteAsBytes<E> for str {
+impl<E: Endianness> WriteAsBytes<E> for str {
     fn write_as_bytes<C: Write>(&self, writer: &mut C) {
         writer.write(self.as_bytes());
         writer.write(&[0]);
     }
 }
-
 
 impl<E: Endianness> WriteAsBytes<E> for bool {
     fn write_as_bytes<C: Write>(&self, writer: &mut C) {
@@ -216,7 +214,6 @@ where
 
 pub trait SerializeFinalStruct {
     fn serialize_field(&mut self, value: &DataKind, name: &str) -> Result<(), XTypesError>;
-
 }
 pub trait SerializeAppendableStruct {
     fn serialize_field(&mut self, value: &DataKind, name: &str) -> Result<(), XTypesError>;
@@ -245,5 +242,5 @@ pub trait XTypesSerializer {
     /// Start serializing a type with mutable extensibility.
     fn serialize_mutable_struct(self) -> Result<impl SerializeMutableStruct, XTypesError>;
 
-    fn serialize_data_kind(self, v: &DataKind)-> Result<(), XTypesError>;
+    fn serialize_data_kind(self, v: &DataKind) -> Result<(), XTypesError>;
 }
