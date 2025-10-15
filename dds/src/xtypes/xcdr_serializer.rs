@@ -692,141 +692,6 @@ mod tests {
         buffer
     }
 
-    // #[test]
-    // fn serialize_octet() {
-    //     let v = 0x20u8;
-    //     assert_eq!(serialize_v1_be(&v), vec![0x20]);
-    //     assert_eq!(serialize_v1_le(&v), vec![0x20]);
-    //     assert_eq!(serialize_v2_be(&v), vec![0x20]);
-    //     assert_eq!(serialize_v2_le(&v), vec![0x20]);
-    // }
-
-    // #[test]
-    // fn serialize_char() {
-    //     let v = 'Z';
-    //     assert_eq!(serialize_v1_be(&v), vec![0x5a]);
-    //     assert_eq!(serialize_v1_le(&v), vec![0x5a]);
-    //     assert_eq!(serialize_v2_be(&v), vec![0x5a]);
-    //     assert_eq!(serialize_v2_le(&v), vec![0x5a]);
-    // }
-
-    // #[test]
-    // fn serialize_ushort() {
-    //     let v = 65500u16;
-    //     assert_eq!(serialize_v1_be(&v), vec![0xff, 0xdc]);
-    //     assert_eq!(serialize_v1_le(&v), vec![0xdc, 0xff]);
-    //     assert_eq!(serialize_v2_be(&v), vec![0xff, 0xdc]);
-    //     assert_eq!(serialize_v2_le(&v), vec![0xdc, 0xff]);
-    // }
-
-    // #[test]
-    // fn serialize_short() {
-    //     let v = -32700i16;
-    //     assert_eq!(serialize_v1_be(&v), vec![0x80, 0x44]);
-    //     assert_eq!(serialize_v1_le(&v), vec![0x44, 0x80]);
-    //     assert_eq!(serialize_v2_be(&v), vec![0x80, 0x44]);
-    //     assert_eq!(serialize_v2_le(&v), vec![0x44, 0x80]);
-    // }
-
-    // #[test]
-    // fn serialize_ulong() {
-    //     let v = 4294967200u32;
-    //     assert_eq!(serialize_v1_be(&v), vec![0xff, 0xff, 0xff, 0xa0]);
-    //     assert_eq!(serialize_v1_le(&v), vec![0xa0, 0xff, 0xff, 0xff]);
-    //     assert_eq!(serialize_v2_be(&v), vec![0xff, 0xff, 0xff, 0xa0]);
-    //     assert_eq!(serialize_v2_le(&v), vec![0xa0, 0xff, 0xff, 0xff]);
-    // }
-
-    // #[test]
-    // fn serialize_long() {
-    //     let v = -2147483600i32;
-    //     assert_eq!(serialize_v1_be(&v), vec![0x80, 0x00, 0x00, 0x30]);
-    //     assert_eq!(serialize_v1_le(&v), vec![0x30, 0x00, 0x00, 0x80]);
-    //     assert_eq!(serialize_v2_be(&v), vec![0x80, 0x00, 0x00, 0x30]);
-    //     assert_eq!(serialize_v2_le(&v), vec![0x30, 0x00, 0x00, 0x80]);
-    // }
-
-    // #[test]
-    // fn serialize_ulonglong() {
-    //     let v = 18446744073709551600u64;
-    //     assert_eq!(
-    //         serialize_v1_be(&v),
-    //         vec![0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xf0]
-    //     );
-    //     assert_eq!(
-    //         serialize_v1_le(&v),
-    //         vec![0xf0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff]
-    //     );
-    //     assert_eq!(
-    //         serialize_v2_be(&v),
-    //         vec![0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xf0]
-    //     );
-    //     assert_eq!(
-    //         serialize_v2_le(&v),
-    //         vec![0xf0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff]
-    //     );
-    // }
-
-    // #[test]
-    // fn serialize_longlong() {
-    //     let v = -9223372036800i64;
-    //     assert_eq!(
-    //         serialize_v1_be(&v),
-    //         vec![0xff, 0xff, 0xf7, 0x9c, 0x84, 0x2f, 0xa5, 0x40]
-    //     );
-    //     assert_eq!(
-    //         serialize_v1_le(&v),
-    //         vec![0x40, 0xa5, 0x2f, 0x84, 0x9c, 0xf7, 0xff, 0xff]
-    //     );
-    //     assert_eq!(
-    //         serialize_v2_be(&v),
-    //         vec![0xff, 0xff, 0xf7, 0x9c, 0x84, 0x2f, 0xa5, 0x40]
-    //     );
-    //     assert_eq!(
-    //         serialize_v2_le(&v),
-    //         vec![0x40, 0xa5, 0x2f, 0x84, 0x9c, 0xf7, 0xff, 0xff]
-    //     );
-    // }
-
-    // #[test]
-    // fn serialize_float() {
-    //     let v = core::f32::MIN_POSITIVE;
-    //     assert_eq!(serialize_v1_be(&v), vec![0x00, 0x80, 0x00, 0x00]);
-    //     assert_eq!(serialize_v1_le(&v), vec![0x00, 0x00, 0x80, 0x00]);
-    //     assert_eq!(serialize_v2_be(&v), vec![0x00, 0x80, 0x00, 0x00]);
-    //     assert_eq!(serialize_v2_le(&v), vec![0x00, 0x00, 0x80, 0x00]);
-    // }
-
-    // #[test]
-    // fn serialize_double() {
-    //     let v = core::f64::MIN_POSITIVE;
-    //     assert_eq!(
-    //         serialize_v1_be(&v),
-    //         vec![0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
-    //     );
-    //     assert_eq!(
-    //         serialize_v1_le(&v),
-    //         vec![0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00]
-    //     );
-    //     assert_eq!(
-    //         serialize_v2_be(&v),
-    //         vec![0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
-    //     );
-    //     assert_eq!(
-    //         serialize_v2_le(&v),
-    //         vec![0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00]
-    //     );
-    // }
-
-    // #[test]
-    // fn serialize_bool() {
-    //     let v = true;
-    //     assert_eq!(serialize_v1_be(&v), vec![0x01]);
-    //     assert_eq!(serialize_v1_le(&v), vec![0x01]);
-    //     assert_eq!(serialize_v2_be(&v), vec![0x01]);
-    //     assert_eq!(serialize_v2_le(&v), vec![0x01]);
-    // }
-
     #[test]
     fn serialize_string() {
         #[derive(TypeSupport, Clone)]
@@ -866,57 +731,6 @@ mod tests {
             ]
         );
     }
-
-    // #[test]
-    // fn serialize_empty_string() {
-    //     let v = "";
-    //     assert_eq!(serialize_v1_be(&v), vec![0x00, 0x00, 0x00, 0x01, 0x00]);
-    //     assert_eq!(serialize_v1_le(&v), vec![0x01, 0x00, 0x00, 0x00, 0x00]);
-    //     assert_eq!(serialize_v2_be(&v), vec![0x00, 0x00, 0x00, 0x01, 0x00]);
-    //     assert_eq!(serialize_v2_le(&v), vec![0x01, 0x00, 0x00, 0x00, 0x00]);
-    // }
-
-    // #[test]
-    // fn serialize_byte_slice() {
-    //     let v = &[1u8, 2, 3, 4, 5][..];
-    //     assert_eq!(
-    //         serialize_v1_be(&v),
-    //         vec![
-    //             0, 0, 0, 5, // length
-    //             1, 2, 3, 4, 5 // data
-    //         ]
-    //     );
-    //     assert_eq!(
-    //         serialize_v1_le(&v),
-    //         vec![
-    //             5, 0, 0, 0, // length
-    //             1, 2, 3, 4, 5 // data
-    //         ]
-    //     );
-    //     assert_eq!(
-    //         serialize_v2_be(&v),
-    //         vec![
-    //             0, 0, 0, 5, // length
-    //             1, 2, 3, 4, 5 // data
-    //         ]
-    //     );
-    //     assert_eq!(
-    //         serialize_v2_le(&v),
-    //         vec![
-    //             5, 0, 0, 0, // length
-    //             1, 2, 3, 4, 5 // data
-    //         ]
-    //     );
-    // }
-
-    // #[test]
-    // fn serialize_byte_array() {
-    //     let v = [1u8, 2, 3, 4, 5];
-    //     assert_eq!(serialize_v1_be(&v), vec![1, 2, 3, 4, 5]);
-    //     assert_eq!(serialize_v1_le(&v), vec![1, 2, 3, 4, 5]);
-    //     assert_eq!(serialize_v2_be(&v), vec![1, 2, 3, 4, 5]);
-    //     assert_eq!(serialize_v2_le(&v), vec![1, 2, 3, 4, 5]);
-    // }
 
     #[derive(TypeSupport, Clone)]
     struct FinalType {
@@ -965,7 +779,8 @@ mod tests {
     // #[derive(TypeSupport, Clone)]
     // struct FinalOptionalType {
     //     field: u8,
-    //     optional_field: Option<i32>,
+    //     #[dust_dds(optional)]
+    //     optional_field: i32,
     // }
 
     // #[test]
@@ -1007,6 +822,7 @@ mod tests {
     //         ]
     //     );
     // }
+
     // #[test]
     // fn serialize_final_optional_struct_none() {
     //     let none = FinalOptionalType {
