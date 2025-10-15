@@ -133,23 +133,13 @@ impl<C: Write> SerializeMutableStruct for &mut PlCdrLeSerializer<'_, C> {
             Ok(byte_counter.0)
         }
 
-        if let DataKind::ComplexValueList(items) = value {
-            for item in items {
-                let length = bytes_len_dynamic_data(item)?;
-                let padded_length = (length + 3) & !3;
-                self.writer.write_slice(&(pid as u16).to_le_bytes());
-                self.writer.write_slice(&padded_length.to_le_bytes());
-                item.serialize(&mut **self)?;
-                self.writer.pad(4);
-            }
-        } else {
-            let length = bytes_len_data_kind(value)?;
-            let padded_length = (length + 3) & !3;
-            self.writer.write_slice(&(pid as u16).to_le_bytes());
-            self.writer.write_slice(&padded_length.to_le_bytes());
-            value.serialize(&mut **self)?;
-            self.writer.pad(4);
-        }
+        let length = bytes_len_data_kind(value)?;
+        let padded_length = (length + 3) & !3;
+        self.writer.write_slice(&(pid as u16).to_le_bytes());
+        self.writer.write_slice(&padded_length.to_le_bytes());
+        value.serialize(&mut **self)?;
+        self.writer.pad(4);
+
         Ok(())
     }
 
