@@ -1,24 +1,8 @@
 use core::ops::Index;
-
-use crate::infrastructure::type_support::DdsDeserialize;
-
-use crate::xtypes::deserialize::XTypesDeserialize;
 use dust_dds_derive::TypeSupport;
 
 /// Type for the instance handle representing an Entity
-#[derive(
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Debug,
-    Hash,
-    PartialOrd,
-    Ord,
-    XTypesDeserialize,
-    DdsDeserialize,
-    TypeSupport,
-)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, PartialOrd, Ord, TypeSupport)]
 pub struct InstanceHandle([u8; 16]);
 
 impl InstanceHandle {

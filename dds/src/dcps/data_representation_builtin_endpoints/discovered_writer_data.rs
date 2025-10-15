@@ -1,12 +1,9 @@
-use super::{
-    parameter_id_values::{
-        PID_DATA_REPRESENTATION, PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY,
-        PID_ENDPOINT_GUID, PID_GROUP_DATA, PID_GROUP_ENTITYID, PID_LATENCY_BUDGET, PID_LIFESPAN,
-        PID_LIVELINESS, PID_MULTICAST_LOCATOR, PID_OWNERSHIP, PID_OWNERSHIP_STRENGTH,
-        PID_PARTICIPANT_GUID, PID_PARTITION, PID_PRESENTATION, PID_RELIABILITY, PID_TOPIC_DATA,
-        PID_TOPIC_NAME, PID_TYPE_NAME, PID_UNICAST_LOCATOR, PID_USER_DATA,
-    },
-    payload_serializer_deserializer::parameter_list_deserializer::ParameterListCdrDeserializer,
+use super::parameter_id_values::{
+    PID_DATA_REPRESENTATION, PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY,
+    PID_ENDPOINT_GUID, PID_GROUP_DATA, PID_GROUP_ENTITYID, PID_LATENCY_BUDGET, PID_LIFESPAN,
+    PID_LIVELINESS, PID_MULTICAST_LOCATOR, PID_OWNERSHIP, PID_OWNERSHIP_STRENGTH,
+    PID_PARTICIPANT_GUID, PID_PARTITION, PID_PRESENTATION, PID_RELIABILITY, PID_TOPIC_DATA,
+    PID_TOPIC_NAME, PID_TYPE_NAME, PID_UNICAST_LOCATOR, PID_USER_DATA,
 };
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData},
@@ -19,7 +16,7 @@ use crate::{
             PartitionQosPolicy, PresentationQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
             DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
         },
-        type_support::{DdsDeserialize, TypeSupport},
+        type_support::TypeSupport,
     },
     transport::types::{EntityId, Guid, Locator, ENTITYID_UNKNOWN},
     xtypes::{
@@ -222,112 +219,61 @@ impl TypeSupport for DiscoveredWriterData {
     }
 
     fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
-        dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type())
-            .set_value(PID_ENDPOINT_GUID as u32, self.dds_publication_data.key)
-            .set_value(
-                PID_PARTICIPANT_GUID as u32,
-                self.dds_publication_data.participant_key,
-            )
-            .set_value(PID_TOPIC_NAME as u32, self.dds_publication_data.topic_name)
-            .set_value(PID_TYPE_NAME as u32, self.dds_publication_data.type_name)
-            .set_value(PID_DURABILITY as u32, self.dds_publication_data.durability)
-            .set_value(PID_DEADLINE as u32, self.dds_publication_data.deadline)
-            .set_value(
-                PID_LATENCY_BUDGET as u32,
-                self.dds_publication_data.latency_budget,
-            )
-            .set_value(PID_LIVELINESS as u32, self.dds_publication_data.liveliness)
-            .set_value(
-                PID_RELIABILITY as u32,
-                self.dds_publication_data.reliability,
-            )
-            .set_value(PID_LIFESPAN as u32, self.dds_publication_data.lifespan)
-            .set_value(PID_OWNERSHIP as u32, self.dds_publication_data.ownership)
-            .set_value(
-                PID_OWNERSHIP_STRENGTH as u32,
-                self.dds_publication_data.ownership_strength,
-            )
-            .set_value(
-                PID_DESTINATION_ORDER as u32,
-                self.dds_publication_data.destination_order,
-            )
-            .set_value(PID_USER_DATA as u32, self.dds_publication_data.user_data)
-            .set_value(
-                PID_PRESENTATION as u32,
-                self.dds_publication_data.presentation,
-            )
-            .set_value(PID_PARTITION as u32, self.dds_publication_data.partition)
-            .set_value(PID_TOPIC_DATA as u32, self.dds_publication_data.topic_data)
-            .set_value(PID_GROUP_DATA as u32, self.dds_publication_data.group_data)
-            .set_value(
-                PID_DATA_REPRESENTATION as u32,
-                self.dds_publication_data.representation,
-            )
-            .set_value(
-                PID_GROUP_ENTITYID as u32,
-                self.writer_proxy.remote_group_entity_id,
-            )
-            .set_value(
-                PID_UNICAST_LOCATOR as u32,
-                self.writer_proxy.unicast_locator_list,
-            )
-            .set_value(
-                PID_MULTICAST_LOCATOR as u32,
-                self.writer_proxy.multicast_locator_list,
-            )
-    }
-}
-
-impl<'de> DdsDeserialize<'de> for PublicationBuiltinTopicData {
-    fn deserialize_data(serialized_data: &'de [u8]) -> DdsResult<Self> {
-        let pl_deserializer = ParameterListCdrDeserializer::new(serialized_data)?;
-        Ok(Self {
-            key: pl_deserializer.read(PID_ENDPOINT_GUID)?,
-            // Default value is a deviation from the standard and is used for interoperability reasons:
-            participant_key: pl_deserializer
-                .read_with_default(PID_PARTICIPANT_GUID, Default::default())?,
-            topic_name: pl_deserializer.read(PID_TOPIC_NAME)?,
-            type_name: pl_deserializer.read(PID_TYPE_NAME)?,
-            durability: pl_deserializer.read_with_default(PID_DURABILITY, Default::default())?,
-            deadline: pl_deserializer.read_with_default(PID_DEADLINE, Default::default())?,
-            latency_budget: pl_deserializer
-                .read_with_default(PID_LATENCY_BUDGET, Default::default())?,
-            liveliness: pl_deserializer.read_with_default(PID_LIVELINESS, Default::default())?,
-            reliability: pl_deserializer
-                .read_with_default(PID_RELIABILITY, DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER)?,
-            lifespan: pl_deserializer.read_with_default(PID_LIFESPAN, Default::default())?,
-            user_data: pl_deserializer.read_with_default(PID_USER_DATA, Default::default())?,
-            ownership: pl_deserializer.read_with_default(PID_OWNERSHIP, Default::default())?,
-            ownership_strength: pl_deserializer
-                .read_with_default(PID_OWNERSHIP_STRENGTH, Default::default())?,
-            destination_order: pl_deserializer
-                .read_with_default(PID_DESTINATION_ORDER, Default::default())?,
-            presentation: pl_deserializer
-                .read_with_default(PID_PRESENTATION, Default::default())?,
-            partition: pl_deserializer.read_with_default(PID_PARTITION, Default::default())?,
-            topic_data: pl_deserializer.read_with_default(PID_TOPIC_DATA, Default::default())?,
-            group_data: pl_deserializer.read_with_default(PID_GROUP_DATA, Default::default())?,
-
-            representation: pl_deserializer
-                .read_with_default(PID_DATA_REPRESENTATION, Default::default())?,
-        })
-    }
-}
-
-impl<'de> DdsDeserialize<'de> for DiscoveredWriterData {
-    fn deserialize_data(serialized_data: &'de [u8]) -> DdsResult<Self> {
-        let pl_deserializer = ParameterListCdrDeserializer::new(serialized_data)?;
-
-        Ok(Self {
-            dds_publication_data: PublicationBuiltinTopicData::deserialize_data(serialized_data)?,
-            writer_proxy: WriterProxy {
-                remote_writer_guid: pl_deserializer.read(PID_ENDPOINT_GUID)?,
-                remote_group_entity_id: pl_deserializer
-                    .read_with_default(PID_GROUP_ENTITYID, Default::default())?,
-                unicast_locator_list: pl_deserializer.read_collection(PID_UNICAST_LOCATOR)?,
-                multicast_locator_list: pl_deserializer.read_collection(PID_MULTICAST_LOCATOR)?,
-            },
-        })
+        let mut data =
+            dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type());
+        data.set_value(PID_ENDPOINT_GUID as u32, self.dds_publication_data.key);
+        data.set_value(
+            PID_PARTICIPANT_GUID as u32,
+            self.dds_publication_data.participant_key,
+        );
+        data.set_value(PID_TOPIC_NAME as u32, self.dds_publication_data.topic_name);
+        data.set_value(PID_TYPE_NAME as u32, self.dds_publication_data.type_name);
+        data.set_value(PID_DURABILITY as u32, self.dds_publication_data.durability);
+        data.set_value(PID_DEADLINE as u32, self.dds_publication_data.deadline);
+        data.set_value(
+            PID_LATENCY_BUDGET as u32,
+            self.dds_publication_data.latency_budget,
+        );
+        data.set_value(PID_LIVELINESS as u32, self.dds_publication_data.liveliness);
+        data.set_value(
+            PID_RELIABILITY as u32,
+            self.dds_publication_data.reliability,
+        );
+        data.set_value(PID_LIFESPAN as u32, self.dds_publication_data.lifespan);
+        data.set_value(PID_OWNERSHIP as u32, self.dds_publication_data.ownership);
+        data.set_value(
+            PID_OWNERSHIP_STRENGTH as u32,
+            self.dds_publication_data.ownership_strength,
+        );
+        data.set_value(
+            PID_DESTINATION_ORDER as u32,
+            self.dds_publication_data.destination_order,
+        );
+        data.set_value(PID_USER_DATA as u32, self.dds_publication_data.user_data);
+        data.set_value(
+            PID_PRESENTATION as u32,
+            self.dds_publication_data.presentation,
+        );
+        data.set_value(PID_PARTITION as u32, self.dds_publication_data.partition);
+        data.set_value(PID_TOPIC_DATA as u32, self.dds_publication_data.topic_data);
+        data.set_value(PID_GROUP_DATA as u32, self.dds_publication_data.group_data);
+        data.set_value(
+            PID_DATA_REPRESENTATION as u32,
+            self.dds_publication_data.representation,
+        );
+        data.set_value(
+            PID_GROUP_ENTITYID as u32,
+            self.writer_proxy.remote_group_entity_id,
+        );
+        data.set_value(
+            PID_UNICAST_LOCATOR as u32,
+            self.writer_proxy.unicast_locator_list,
+        );
+        data.set_value(
+            PID_MULTICAST_LOCATOR as u32,
+            self.writer_proxy.multicast_locator_list,
+        );
+        data
     }
 }
 
@@ -475,7 +421,8 @@ mod tests {
             b'c', b'd', 0, 0x00, // string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ][..];
-        let result = DiscoveredWriterData::deserialize_data(&mut data).unwrap();
-        assert_eq!(result, expected);
+        todo!()
+        // let result = DiscoveredWriterData::deserialize_data(&mut data).unwrap();
+        // assert_eq!(result, expected);
     }
 }

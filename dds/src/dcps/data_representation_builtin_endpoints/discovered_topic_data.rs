@@ -15,7 +15,7 @@ use crate::{
             TopicDataQosPolicy, TransportPriorityQosPolicy,
             DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
         },
-        type_support::{DdsDeserialize, TypeSupport},
+        type_support::TypeSupport,
     },
     xtypes::binding::XTypesBinding,
 };
@@ -306,64 +306,58 @@ impl TypeSupport for DiscoveredTopicData {
     }
 
     fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
-        dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type())
-            .set_value(PID_ENDPOINT_GUID as u32, self.topic_builtin_topic_data.key)
-            .set_value(PID_TOPIC_NAME as u32, self.topic_builtin_topic_data.name)
-            .set_value(
-                PID_TYPE_NAME as u32,
-                self.topic_builtin_topic_data.type_name,
-            )
-            .set_value(
-                PID_DURABILITY as u32,
-                self.topic_builtin_topic_data.durability,
-            )
-            .set_value(PID_DEADLINE as u32, self.topic_builtin_topic_data.deadline)
-            .set_value(
-                PID_LATENCY_BUDGET as u32,
-                self.topic_builtin_topic_data.latency_budget,
-            )
-            .set_value(
-                PID_LIVELINESS as u32,
-                self.topic_builtin_topic_data.liveliness,
-            )
-            .set_value(
-                PID_RELIABILITY as u32,
-                self.topic_builtin_topic_data.reliability,
-            )
-            .set_value(
-                PID_TRANSPORT_PRIORITY as u32,
-                self.topic_builtin_topic_data.transport_priority,
-            )
-            .set_value(PID_LIFESPAN as u32, self.topic_builtin_topic_data.lifespan)
-            .set_value(
-                PID_DESTINATION_ORDER as u32,
-                self.topic_builtin_topic_data.destination_order,
-            )
-            .set_value(PID_HISTORY as u32, self.topic_builtin_topic_data.history)
-            .set_value(
-                PID_RESOURCE_LIMITS as u32,
-                self.topic_builtin_topic_data.resource_limits,
-            )
-            .set_value(
-                PID_OWNERSHIP as u32,
-                self.topic_builtin_topic_data.ownership,
-            )
-            .set_value(
-                PID_TOPIC_DATA as u32,
-                self.topic_builtin_topic_data.topic_data,
-            )
-            .set_value(
-                PID_DATA_REPRESENTATION as u32,
-                self.topic_builtin_topic_data.representation,
-            )
-    }
-}
-
-impl<'de> DdsDeserialize<'de> for DiscoveredTopicData {
-    fn deserialize_data(serialized_data: &'de [u8]) -> DdsResult<Self> {
-        Ok(Self {
-            topic_builtin_topic_data: TopicBuiltinTopicData::deserialize_data(serialized_data)?,
-        })
+        let mut data =
+            dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type());
+        data.set_value(PID_ENDPOINT_GUID as u32, self.topic_builtin_topic_data.key);
+        data.set_value(PID_TOPIC_NAME as u32, self.topic_builtin_topic_data.name);
+        data.set_value(
+            PID_TYPE_NAME as u32,
+            self.topic_builtin_topic_data.type_name,
+        );
+        data.set_value(
+            PID_DURABILITY as u32,
+            self.topic_builtin_topic_data.durability,
+        );
+        data.set_value(PID_DEADLINE as u32, self.topic_builtin_topic_data.deadline);
+        data.set_value(
+            PID_LATENCY_BUDGET as u32,
+            self.topic_builtin_topic_data.latency_budget,
+        );
+        data.set_value(
+            PID_LIVELINESS as u32,
+            self.topic_builtin_topic_data.liveliness,
+        );
+        data.set_value(
+            PID_RELIABILITY as u32,
+            self.topic_builtin_topic_data.reliability,
+        );
+        data.set_value(
+            PID_TRANSPORT_PRIORITY as u32,
+            self.topic_builtin_topic_data.transport_priority,
+        );
+        data.set_value(PID_LIFESPAN as u32, self.topic_builtin_topic_data.lifespan);
+        data.set_value(
+            PID_DESTINATION_ORDER as u32,
+            self.topic_builtin_topic_data.destination_order,
+        );
+        data.set_value(PID_HISTORY as u32, self.topic_builtin_topic_data.history);
+        data.set_value(
+            PID_RESOURCE_LIMITS as u32,
+            self.topic_builtin_topic_data.resource_limits,
+        );
+        data.set_value(
+            PID_OWNERSHIP as u32,
+            self.topic_builtin_topic_data.ownership,
+        );
+        data.set_value(
+            PID_TOPIC_DATA as u32,
+            self.topic_builtin_topic_data.topic_data,
+        );
+        data.set_value(
+            PID_DATA_REPRESENTATION as u32,
+            self.topic_builtin_topic_data.representation,
+        );
+        data
     }
 }
 
@@ -465,7 +459,8 @@ mod tests {
             b'c', b'd', 0, 0x00, // DomainTag: string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ][..];
-        let result = DiscoveredTopicData::deserialize_data(&mut data).unwrap();
-        assert_eq!(result, expected);
+        todo!()
+        // let result = DiscoveredTopicData::deserialize_data(&mut data).unwrap();
+        // assert_eq!(result, expected);
     }
 }

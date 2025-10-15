@@ -5,7 +5,6 @@ use super::{
 };
 use alloc::{string::String, vec::Vec};
 
-pub use dust_dds_derive::XTypesDeserialize;
 
 /// A trait representing a structure that can be deserialized from a CDR format.
 pub trait XTypesDeserialize<'de>: Sized {

@@ -11,7 +11,7 @@ use dust_dds::{
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         status::{StatusKind, NO_STATUS},
         time::{Duration, DurationKind},
-        type_support::{DdsDeserialize, DdsType},
+        type_support::DdsType,
     },
     listener::NO_LISTENER,
     rtps::types::{PROTOCOLVERSION, VENDOR_ID_S2E},
@@ -63,14 +63,8 @@ struct KeyedData {
     value: u32,
 }
 
+#[derive(DdsType)]
 struct DynamicType<'a>(&'a [u8]);
-impl<'de> DdsDeserialize<'de> for DynamicType<'de> {
-    fn deserialize_data(
-        serialized_data: &'de [u8],
-    ) -> dust_dds::infrastructure::error::DdsResult<Self> {
-        Ok(Self(serialized_data))
-    }
-}
 
 impl<'a> DynamicType<'a> {
     fn metatraffic_unicast_locator_port(&self) -> u32 {

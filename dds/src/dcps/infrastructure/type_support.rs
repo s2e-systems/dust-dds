@@ -5,7 +5,7 @@ use crate::{
         xcdr_deserializer::{Xcdr2BeDeserializer, Xcdr2LeDeserializer},
     },
 };
-pub use dust_dds_derive::{DdsDeserialize, TypeSupport};
+pub use dust_dds_derive::TypeSupport;
 
 /// The TypeSupport trait represents a type that can be transmitted by DDS.
 pub trait TypeSupport {
@@ -22,19 +22,6 @@ pub trait TypeSupport {
 
     /// Create a 'DynamicData' object with the contents of an input sample of the TypeSupport’s data type.
     fn create_dynamic_sample(self) -> DynamicData;
-}
-
-/// This trait describes how the bytes can be deserialize to construct the data structure.
-///
-/// This trait is typically used when reading the data from the samples from the DataReader.
-/// The `'de` lifetime of this trait is the lifetime of data that may be borrowed from the input when deserializing.
-///
-/// ## Derivable
-///
-/// This trait can be automatically derived if the struct implements `XTypesDeserialize`.
-pub trait DdsDeserialize<'de>: Sized {
-    /// Method to deserialize the bytes into an instance of the type.
-    fn deserialize_data(serialized_data: &'de [u8]) -> DdsResult<Self>;
 }
 
 use crate::xtypes::{

@@ -450,9 +450,9 @@ impl DynamicData {
         }
     }
 
-    pub fn set_int32_value(mut self, id: MemberId, value: i32) -> XTypesResult<Self> {
+    pub fn set_int32_value(&mut self, id: MemberId, value: i32) -> XTypesResult<()> {
         self.abstract_data.insert(id, DataKind::Int32(value));
-        Ok(self)
+        Ok(())
     }
 
     pub fn get_uint32_value(&self, id: MemberId) -> XTypesResult<&u32> {
@@ -467,9 +467,9 @@ impl DynamicData {
         }
     }
 
-    pub fn set_uint32_value(mut self, id: MemberId, value: u32) -> XTypesResult<Self> {
+    pub fn set_uint32_value(&mut self, id: MemberId, value: u32) -> XTypesResult<()> {
         self.abstract_data.insert(id, DataKind::UInt32(value));
-        Ok(self)
+        Ok(())
     }
 
     pub fn get_int8_value(&self, id: MemberId) -> XTypesResult<&i8> {
@@ -501,9 +501,9 @@ impl DynamicData {
         }
     }
 
-    pub fn set_uint8_value(mut self, id: MemberId, value: u8) -> XTypesResult<Self> {
+    pub fn set_uint8_value(&mut self, id: MemberId, value: u8) -> XTypesResult<()> {
         self.abstract_data.insert(id, DataKind::UInt8(value));
-        Ok(self)
+        Ok(())
     }
 
     pub fn get_int16_value(&self, id: MemberId) -> XTypesResult<&i16> {
@@ -518,9 +518,9 @@ impl DynamicData {
         }
     }
 
-    pub fn set_int16_value(mut self, id: MemberId, value: i16) -> XTypesResult<Self> {
+    pub fn set_int16_value(&mut self, id: MemberId, value: i16) -> XTypesResult<()> {
         self.abstract_data.insert(id, DataKind::Int16(value));
-        Ok(self)
+        Ok(())
     }
 
     pub fn get_uint16_value(&self, id: MemberId) -> XTypesResult<&u16> {
@@ -535,9 +535,9 @@ impl DynamicData {
         }
     }
 
-    pub fn set_uint16_value(mut self, id: MemberId, value: u16) -> XTypesResult<Self> {
+    pub fn set_uint16_value(&mut self, id: MemberId, value: u16) -> XTypesResult<()> {
         self.abstract_data.insert(id, DataKind::UInt16(value));
-        Ok(self)
+        Ok(())
     }
 
     pub fn get_int64_value(&self, id: MemberId) -> XTypesResult<&i64> {
@@ -552,9 +552,9 @@ impl DynamicData {
         }
     }
 
-    pub fn set_int64_value(mut self, id: MemberId, value: i64) -> XTypesResult<Self> {
+    pub fn set_int64_value(&mut self, id: MemberId, value: i64) -> XTypesResult<()> {
         self.abstract_data.insert(id, DataKind::Int64(value));
-        Ok(self)
+        Ok(())
     }
 
     pub fn get_uint64_value(&self, id: MemberId) -> XTypesResult<&u64> {
@@ -569,9 +569,9 @@ impl DynamicData {
         }
     }
 
-    pub fn set_uint64_value(mut self, id: MemberId, value: u64) -> XTypesResult<Self> {
+    pub fn set_uint64_value(&mut self, id: MemberId, value: u64) -> XTypesResult<()> {
         self.abstract_data.insert(id, DataKind::UInt64(value));
-        Ok(self)
+        Ok(())
     }
 
     pub fn get_float32_value(&self, id: MemberId) -> XTypesResult<&f32> {
@@ -586,9 +586,9 @@ impl DynamicData {
         }
     }
 
-    pub fn set_float32_value(mut self, id: MemberId, value: f32) -> XTypesResult<Self> {
+    pub fn set_float32_value(&mut self, id: MemberId, value: f32) -> XTypesResult<()> {
         self.abstract_data.insert(id, DataKind::Float32(value));
-        Ok(self)
+        Ok(())
     }
 
     pub fn get_float64_value(&self, id: MemberId) -> XTypesResult<&f64> {
@@ -603,9 +603,9 @@ impl DynamicData {
         }
     }
 
-    pub fn set_float64_value(mut self, id: MemberId, value: f64) -> XTypesResult<Self> {
+    pub fn set_float64_value(&mut self, id: MemberId, value: f64) -> XTypesResult<()> {
         self.abstract_data.insert(id, DataKind::Float64(value));
-        Ok(self)
+        Ok(())
     }
 
     pub fn get_char8_value(&self, id: MemberId) -> XTypesResult<&char> {
@@ -620,9 +620,9 @@ impl DynamicData {
         }
     }
 
-    pub fn set_char8_value(mut self, id: MemberId, value: char) -> XTypesResult<Self> {
+    pub fn set_char8_value(&mut self, id: MemberId, value: char) -> XTypesResult<()> {
         self.abstract_data.insert(id, DataKind::Char8(value));
-        Ok(self)
+        Ok(())
     }
 
     pub fn get_byte_value(&self, id: MemberId) -> XTypesResult<&u8> {
@@ -654,9 +654,9 @@ impl DynamicData {
         }
     }
 
-    pub fn set_boolean_value(mut self, id: MemberId, value: bool) -> XTypesResult<Self> {
+    pub fn set_boolean_value(&mut self, id: MemberId, value: bool) -> XTypesResult<()> {
         self.abstract_data.insert(id, DataKind::Boolean(value));
-        Ok(self)
+        Ok(())
     }
 
     pub fn get_string_value(&self, id: MemberId) -> XTypesResult<&String> {
@@ -671,9 +671,9 @@ impl DynamicData {
         }
     }
 
-    pub fn set_string_value(mut self, id: MemberId, value: String) -> XTypesResult<Self> {
+    pub fn set_string_value(&mut self, id: MemberId, value: String) -> XTypesResult<()> {
         self.abstract_data.insert(id, DataKind::String(value));
-        Ok(self)
+        Ok(())
     }
 
     pub fn get_complex_value(&self, id: MemberId) -> XTypesResult<&DynamicData> {
@@ -896,9 +896,9 @@ impl DynamicData {
         }
     }
 
-    pub fn set_string_values(mut self, id: MemberId, value: Vec<String>) -> XTypesResult<Self> {
+    pub fn set_string_values(&mut self, id: MemberId, value: Vec<String>) -> XTypesResult<()> {
         self.abstract_data.insert(id, value.into());
-        Ok(self)
+        Ok(())
     }
 
     // Custom functions
@@ -943,19 +943,13 @@ impl DynamicData {
     ) -> XTypesResult<()> {
         self.abstract_data.insert(
             id,
-            DataKind::Sequence(
-                value
-                    .into_iter()
-                    .map(DataKind::ComplexValue)
-                    .collect(),
-            ),
+            DataKind::Sequence(value.into_iter().map(DataKind::ComplexValue).collect()),
         );
         Ok(())
     }
 
-    pub fn set_value<T: Into<DataKind>>(mut self, id: MemberId, value: T) -> Self {
+    pub fn set_value<T: Into<DataKind>>(&mut self, id: MemberId, value: T) {
         self.abstract_data.insert(id, value.into());
-        self
     }
 
     pub fn get_value(&self, id: MemberId) -> XTypesResult<&DataKind> {

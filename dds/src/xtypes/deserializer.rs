@@ -1,15 +1,19 @@
+use crate::xtypes::{data_representation::DataKind, dynamic_type::MemberDescriptor};
+
 use super::{deserialize::XTypesDeserialize, error::XTypesError};
 
 pub trait DeserializeFinalStruct<'a> {
-    fn deserialize_field<T: XTypesDeserialize<'a>>(&mut self, name: &str) -> Result<T, XTypesError>;
-    fn deserialize_optional_field<T: XTypesDeserialize<'a>>(
+    fn deserialize_field(&mut self, descriptor: &MemberDescriptor)
+        -> Result<DataKind, XTypesError>;
+    fn deserialize_optional_field(
         &mut self,
-        name: &str,
-    ) -> Result<Option<T>, XTypesError>;
+        descriptor: &MemberDescriptor,
+    ) -> Result<Option<DataKind>, XTypesError>;
 }
 
 pub trait DeserializeAppendableStruct<'a> {
-    fn deserialize_field<T: XTypesDeserialize<'a>>(&mut self, name: &str) -> Result<T, XTypesError>;
+    fn deserialize_field<T: XTypesDeserialize<'a>>(&mut self, name: &str)
+        -> Result<T, XTypesError>;
 }
 
 pub trait DeserializeMutableStruct<'a> {

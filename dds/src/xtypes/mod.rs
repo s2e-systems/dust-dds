@@ -5,6 +5,7 @@ pub mod deserialize;
 pub mod deserializer;
 pub mod dynamic_type;
 pub mod error;
+pub mod pl_cdr_deserializer;
 pub mod pl_cdr_serializer;
 pub mod serialize;
 pub mod serializer;

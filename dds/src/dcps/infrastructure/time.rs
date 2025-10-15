@@ -1,11 +1,4 @@
-use crate::{
-    infrastructure::type_support::TypeSupport,
-    xtypes::{
-        deserialize::XTypesDeserialize,
-        deserializer::{DeserializeFinalStruct, XTypesDeserializer},
-        error::XTypesError,
-    },
-};
+use crate::infrastructure::type_support::TypeSupport;
 use core::ops::{Add, Sub};
 
 /// Enumeration representing whether a duration is finite or infinite
@@ -35,16 +28,6 @@ impl TypeSupport for DurationKind {
     }
 }
 
-impl<'de> XTypesDeserialize<'de> for DurationKind {
-    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
-        let mut f = deserializer.deserialize_final_struct()?;
-        Ok(match f.deserialize_field::<Duration>("duration_kind")? {
-            DURATION_INFINITE => DurationKind::Infinite,
-            duration => DurationKind::Finite(duration),
-        })
-    }
-}
-
 const DURATION_INFINITE_SEC: i32 = 0x7fffffff;
 const DURATION_INFINITE_NSEC: u32 = 0xffffffff;
 const DURATION_INFINITE: Duration = Duration {
@@ -68,7 +51,7 @@ impl PartialOrd<DurationKind> for DurationKind {
 }
 
 /// Structure representing a time interval with a nanosecond resolution.
-#[derive(PartialOrd, PartialEq, Eq, Debug, Clone, Copy, XTypesDeserialize, TypeSupport)]
+#[derive(PartialOrd, PartialEq, Eq, Debug, Clone, Copy, TypeSupport)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct Duration {
     sec: i32,

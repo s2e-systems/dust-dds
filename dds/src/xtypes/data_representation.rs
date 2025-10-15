@@ -1,20 +1,40 @@
 use crate::{
     infrastructure::type_support::TypeSupport,
     xtypes::{
-        dynamic_type::DynamicData, error::XTypesError, serializer::XTypesSerializer,
+        dynamic_type::{DynamicData, DynamicType},
+        error::{XTypesError, XTypesResult},
+        serializer::XTypesSerializer,
+        xcdr_deserializer::{deserialize_nested, Xcdr1LeDeserializer},
         xcdr_serializer::serialize_nested,
     },
 };
 use alloc::{string::String, vec::Vec};
 
 impl DynamicData {
-    pub fn serialize(
-        &self,
-        serializer: impl XTypesSerializer,
-    ) -> Result<(), super::error::XTypesError> {
+    pub fn serialize(&self, serializer: impl XTypesSerializer) -> XTypesResult<()> {
         // todo header CDR type
         serialize_nested(self, serializer)
         // sentinel ?
+    }
+
+    pub fn deserialize<'de>(dynamic_type: DynamicType, buffer: &[u8]) -> XTypesResult<Self> {
+        type RepresentationIdentifier = [u8; 2];
+        const CDR_BE: RepresentationIdentifier = [0x00, 0x00];
+        const CDR_LE: RepresentationIdentifier = [0x00, 0x01];
+        const CDR2_BE: RepresentationIdentifier = [0x00, 0x06];
+        const CDR2_LE: RepresentationIdentifier = [0x00, 0x07];
+        const D_CDR2_BE: RepresentationIdentifier = [0x00, 0x08];
+        const D_CDR2_LE: RepresentationIdentifier = [0x00, 0x09];
+        const PL_CDR_BE: RepresentationIdentifier = [0x00, 0x02];
+        const PL_CDR_LE: RepresentationIdentifier = [0x00, 0x03];
+
+        if buffer.len() < 4 {
+            return Err(XTypesError::InvalidData);
+        }
+        match [buffer[0], buffer[1]] {
+            CDR_LE => deserialize_nested(dynamic_type, &mut Xcdr1LeDeserializer::new(&buffer[4..])),
+            _ => return Err(XTypesError::InvalidData),
+        }
     }
 }
 
