@@ -946,7 +946,7 @@ impl DynamicData {
             DataKind::Sequence(
                 value
                     .into_iter()
-                    .map(|x| DataKind::ComplexValue(x))
+                    .map(DataKind::ComplexValue)
                     .collect(),
             ),
         );
