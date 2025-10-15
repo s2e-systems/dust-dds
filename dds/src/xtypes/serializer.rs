@@ -1,6 +1,7 @@
 use crate::xtypes::{
     bytes::Bytes, data_representation::DataKind, error::XTypesError, serialize::Write,
 };
+use alloc::{vec::Vec, string::ToString};
 pub struct Writer<'a, W> {
     buffer: &'a mut W,
     position: usize,

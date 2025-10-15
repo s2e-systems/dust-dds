@@ -10,6 +10,7 @@ use crate::xtypes::{
     dynamic_type::{DynamicData, ExtensibilityKind, TypeKind},
     serializer::{BigEndian, LittleEndian, WriteAsBytes, Writer, WriterV1, WriterV2},
 };
+use alloc::vec::Vec;
 
 const PID_SENTINEL: u16 = 1;
 
