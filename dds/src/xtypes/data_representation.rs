@@ -106,15 +106,18 @@ impl DynamicData {
                 }
                 ExtensibilityKind::Mutable => {
                     let mut deserializer = deserializer.deserialize_mutable_struct()?;
-                    for field_index in 0..data.get_item_count() {
-                        let member_id = data.get_member_id_at_index(field_index)?;
-                        let member_descriptor = data.get_descriptor(member_id)?;
-                        // member_descriptor.r#type
+                    for field_index in 0..data.type_ref().get_member_count() {
+                        let dynamic_type_member =
+                            data.type_ref().get_member_by_index(field_index)?;
+                        let member_descriptor = dynamic_type_member.get_descriptor()?;
+                        match &member_descriptor.r#type.get_kind() {
+                            type_kind => todo!("Not implemented for {type_kind:?}"),
+                        }
                         // match deserializer.deserialize_field(member_id, &member_descriptor.name) {
                         //     Ok(x) => data.set_value(id, value)
                         // }
                     }
-                    todo!()
+                    // todo!()
                     //     let mut mutable_serializer = serializer.serialize_mutable_struct()?;
                     //     for field_index in 0..self.get_item_count() {
                     //         let value = self.get_value(member_id)?;

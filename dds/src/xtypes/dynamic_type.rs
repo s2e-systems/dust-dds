@@ -642,10 +642,10 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn get_boolean_value(&self, id: MemberId) -> XTypesResult<&bool> {
+    pub fn get_boolean_value(&mut self, id: MemberId) -> XTypesResult<bool> {
         if let DataKind::Boolean(d) = self
             .abstract_data
-            .get(&id)
+            .remove(&id)
             .ok_or(XTypesError::InvalidIndex)?
         {
             Ok(d)
@@ -659,10 +659,10 @@ impl DynamicData {
         Ok(self)
     }
 
-    pub fn get_string_value(&self, id: MemberId) -> XTypesResult<&String> {
+    pub fn get_string_value(&mut self, id: MemberId) -> XTypesResult<String> {
         if let DataKind::String(d) = self
             .abstract_data
-            .get(&id)
+            .remove(&id)
             .ok_or(XTypesError::InvalidIndex)?
         {
             Ok(d)
@@ -850,10 +850,10 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn get_byte_values(&self, id: MemberId) -> XTypesResult<&Vec<u8>> {
+    pub fn get_byte_values(&mut self, id: MemberId) -> XTypesResult<Vec<u8>> {
         if let DataKind::UInt8Array(d) = self
             .abstract_data
-            .get(&id)
+            .remove(&id)
             .ok_or(XTypesError::InvalidIndex)?
         {
             Ok(d)

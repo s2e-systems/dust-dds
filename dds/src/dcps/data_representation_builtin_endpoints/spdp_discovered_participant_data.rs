@@ -299,8 +299,36 @@ impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParti
         builder.builder.build()
     }
 
-    fn create_sample(_src: crate::xtypes::dynamic_type::DynamicData) -> Self {
-        todo!()
+    fn create_sample(src: crate::xtypes::dynamic_type::DynamicData) -> Self {
+        Self {
+            dds_participant_data: ParticipantBuiltinTopicData {
+                key: todo!(),
+                user_data: todo!(),
+            },
+            participant_proxy: ParticipantProxy {
+                domain_id: todo!(),
+                domain_tag: src.get_string_value(PID_DOMAIN_TAG as u32).unwrap(),
+                protocol_version: todo!(),
+                guid_prefix: todo!(),
+                vendor_id: src
+                    .get_byte_values(PID_VENDORID as u32)
+                    .unwrap()
+                    .try_into()
+                    .unwrap(),
+                expects_inline_qos: src
+                    .get_boolean_value(PID_EXPECTS_INLINE_QOS as u32)
+                    .unwrap(),
+                metatraffic_unicast_locator_list: todo!(),
+                metatraffic_multicast_locator_list: todo!(),
+                default_unicast_locator_list: todo!(),
+                default_multicast_locator_list: todo!(),
+                available_builtin_endpoints: todo!(),
+                manual_liveliness_count: todo!(),
+                builtin_endpoint_qos: todo!(),
+            },
+            lease_duration: todo!(),
+            discovered_participant_list: todo!(),
+        }
     }
 
     fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
@@ -668,7 +696,7 @@ mod tests {
             discovered_participant_list: vec![],
         };
 
-        let mut data = &[
+        let data = &[
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
             0x01, 0x00, 0x00, 0x00, // DomainId
