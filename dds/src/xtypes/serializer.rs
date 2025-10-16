@@ -1,11 +1,10 @@
 use crate::xtypes::{
-    bytes::Bytes,
-    data_representation::DataKind,
-    dynamic_type::{DynamicData, MemberDescriptor, TypeKind},
+    dynamic_type::{DynamicData, TypeKind},
     error::XTypesError,
     serialize::Write,
 };
 use alloc::{string::ToString, vec::Vec};
+
 pub struct Writer<'a, W> {
     buffer: &'a mut W,
     pub position: usize,
@@ -73,6 +72,9 @@ pub trait Endianness {
     fn write_u64<C: Write>(v: u64, writer: &mut C);
     fn write_f32<C: Write>(v: f32, writer: &mut C);
     fn write_f64<C: Write>(v: f64, writer: &mut C);
+    fn write_char<C: Write>(v: char, writer: &mut C) {
+        writer.write(v.to_string().as_bytes());
+    }
     fn write_str<C: Write>(v: &str, writer: &mut C) {
         writer.write(&v.as_bytes());
         writer.write(&[0])
@@ -139,186 +141,20 @@ impl Endianness for BigEndian {
     }
 }
 
-pub trait WriteAsBytes<E> {
-    fn write_as_bytes<C: Write>(&self, writer: &mut C);
-}
-impl<E: Endianness> WriteAsBytes<E> for char {
-    fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(self.to_string().as_bytes());
-    }
-}
-impl<E: Endianness> WriteAsBytes<E> for String {
-    fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(self.as_bytes());
-        writer.write(&[0]);
-    }
-}
-
-impl<E: Endianness> WriteAsBytes<E> for bool {
-    fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(&[*self as u8])
-    }
-}
-
-impl WriteAsBytes<LittleEndian> for i64 {
-    fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(&self.to_le_bytes())
-    }
-}
-impl WriteAsBytes<LittleEndian> for u64 {
-    fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(&self.to_le_bytes())
-    }
-}
-impl WriteAsBytes<LittleEndian> for u32 {
-    fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(&self.to_le_bytes())
-    }
-}
-impl WriteAsBytes<LittleEndian> for i32 {
-    fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(&self.to_le_bytes())
-    }
-}
-impl WriteAsBytes<LittleEndian> for i16 {
-    fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(&self.to_le_bytes())
-    }
-}
-impl WriteAsBytes<LittleEndian> for u16 {
-    fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(&self.to_le_bytes())
-    }
-}
-impl WriteAsBytes<LittleEndian> for i8 {
-    fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(&self.to_le_bytes())
-    }
-}
-impl WriteAsBytes<LittleEndian> for u8 {
-    fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(&self.to_le_bytes())
-    }
-}
-impl WriteAsBytes<LittleEndian> for f32 {
-    fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(&self.to_le_bytes())
-    }
-}
-impl WriteAsBytes<LittleEndian> for f64 {
-    fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(&self.to_le_bytes())
-    }
-}
-
-impl WriteAsBytes<BigEndian> for i64 {
-    fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(&self.to_be_bytes())
-    }
-}
-impl WriteAsBytes<BigEndian> for u64 {
-    fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(&self.to_be_bytes())
-    }
-}
-impl WriteAsBytes<BigEndian> for i32 {
-    fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(&self.to_be_bytes())
-    }
-}
-impl WriteAsBytes<BigEndian> for u32 {
-    fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(&self.to_be_bytes())
-    }
-}
-impl WriteAsBytes<BigEndian> for i16 {
-    fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(&self.to_be_bytes())
-    }
-}
-impl WriteAsBytes<BigEndian> for u16 {
-    fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(&self.to_be_bytes())
-    }
-}
-impl WriteAsBytes<BigEndian> for i8 {
-    fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(&self.to_be_bytes())
-    }
-}
-impl WriteAsBytes<BigEndian> for u8 {
-    fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(&self.to_be_bytes())
-    }
-}
-impl WriteAsBytes<BigEndian> for f32 {
-    fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(&self.to_be_bytes())
-    }
-}
-impl WriteAsBytes<BigEndian> for f64 {
-    fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(&self.to_be_bytes())
-    }
-}
-
-impl<E, T> WriteAsBytes<E> for &[T]
-where
-    E: Endianness,
-    T: WriteAsBytes<E> + Copy,
-{
-    fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        for v in self.iter() {
-            v.write_as_bytes(writer);
-        }
-    }
-}
-impl<E, T> WriteAsBytes<E> for Vec<T>
-where
-    E: Endianness,
-    T: WriteAsBytes<E> + Copy,
-{
-    fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        for v in self.iter() {
-            v.write_as_bytes(writer);
-        }
-    }
-}
-
-impl<'a, E> WriteAsBytes<E> for Bytes<'a>
-where
-    E: Endianness,
-{
-    fn write_as_bytes<C: Write>(&self, writer: &mut C) {
-        writer.write(self.0);
-    }
-}
-
-pub trait SerializeFinalStruct {
-    fn serialize_members(&mut self, v: &DynamicData) -> Result<(), XTypesError>;
-}
-pub trait SerializeAppendableStruct {
-    fn serialize_members(&mut self, v: &DynamicData) -> Result<(), XTypesError>;
-}
-pub trait SerializeMutableStruct {
-    fn serialize_mutable_member(&mut self, value: &DynamicData) -> Result<(), XTypesError>;
-    fn end(self) -> Result<(), XTypesError>;
-}
-
 /// A trait representing an object with the capability of serializing a value into a CDR format.
-pub trait XTypesSerializer: Sized {
+pub trait XTypesSerializer {
     type Endianness: Endianness;
 
     /// Start serializing a type with final extensibility.
-    fn serialize_final_struct(self) -> Result<impl SerializeFinalStruct, XTypesError>;
+    fn serialize_final_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError>;
 
     /// Start serializing a type with appendable extensibility.
-    fn serialize_appendable_struct(self) -> Result<impl SerializeAppendableStruct, XTypesError>;
+    fn serialize_appendable_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError>;
 
     /// Start serializing a type with mutable extensibility.
-    fn serialize_mutable_struct(self) -> Result<impl SerializeMutableStruct, XTypesError>;
+    fn serialize_mutable_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError>;
 
-    fn serialize_sequence(self, v: &DynamicData) -> Result<(), XTypesError> {
+    fn serialize_sequence(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
         // self.serialize_u32(v.len() as u32);
         // for vi in v {
         //     self.serialize_complex(vi)?;
@@ -327,92 +163,92 @@ pub trait XTypesSerializer: Sized {
         todo!();
     }
     fn serialize_dynamic_data_member(
-        self,
+        &mut self,
         v: &DynamicData,
         member_id: u32,
     ) -> Result<(), XTypesError> {
         let member_descriptor = v.get_descriptor(member_id)?;
         match member_descriptor.r#type.get_kind() {
-                TypeKind::NONE => todo!(),
-                TypeKind::BOOLEAN => self.serialize_bool(*v.get_boolean_value(member_id)?),
-                TypeKind::BYTE => todo!(),
-                TypeKind::INT16 => self.serialize_i16(*v.get_int16_value(member_id)?),
-                TypeKind::INT32 => self.serialize_i32(*v.get_int32_value(member_id)?),
-                TypeKind::INT64 => self.serialize_i64(*v.get_int64_value(member_id)?),
-                TypeKind::UINT16 => self.serialize_u16(*v.get_uint16_value(member_id)?),
-                TypeKind::UINT32 => self.serialize_u32(*v.get_uint32_value(member_id)?),
-                TypeKind::UINT64 => self.serialize_u64(*v.get_uint64_value(member_id)?),
-                TypeKind::FLOAT32 => self.serialize_f32(*v.get_float32_value(member_id)?),
-                TypeKind::FLOAT64 => self.serialize_f64(*v.get_float64_value(member_id)?),
-                TypeKind::FLOAT128 => unimplemented!("not supported by Rust"),
-                TypeKind::INT8 => self.serialize_i8(*v.get_int8_value(member_id)?),
-                TypeKind::UINT8 => self.serialize_u8(*v.get_uint8_value(member_id)?),
-                TypeKind::CHAR8 => self.serialize_char(*v.get_char8_value(member_id)?),
-                TypeKind::CHAR16 => todo!(),
-                TypeKind::STRING8 => self.serialize_string(v.get_string_value(member_id)?),
-                TypeKind::STRING16 => todo!(),
-                TypeKind::ALIAS => todo!(),
-                TypeKind::ENUM => todo!(),
-                TypeKind::BITMASK => todo!(),
-                TypeKind::ANNOTATION => todo!(),
-                TypeKind::STRUCTURE => self.serialize_complex(v.get_complex_value(member_id)?)?,
-                TypeKind::UNION => todo!(),
-                TypeKind::BITSET => todo!(),
-                TypeKind::SEQUENCE => self.serialize_sequence(v)?,
-                TypeKind::ARRAY => todo!(),
-                TypeKind::MAP => todo!(),
+            TypeKind::NONE => todo!(),
+            TypeKind::BOOLEAN => self.serialize_bool(*v.get_boolean_value(member_id)?),
+            TypeKind::BYTE => todo!(),
+            TypeKind::INT16 => self.serialize_i16(*v.get_int16_value(member_id)?),
+            TypeKind::INT32 => self.serialize_i32(*v.get_int32_value(member_id)?),
+            TypeKind::INT64 => self.serialize_i64(*v.get_int64_value(member_id)?),
+            TypeKind::UINT16 => self.serialize_u16(*v.get_uint16_value(member_id)?),
+            TypeKind::UINT32 => self.serialize_u32(*v.get_uint32_value(member_id)?),
+            TypeKind::UINT64 => self.serialize_u64(*v.get_uint64_value(member_id)?),
+            TypeKind::FLOAT32 => self.serialize_f32(*v.get_float32_value(member_id)?),
+            TypeKind::FLOAT64 => self.serialize_f64(*v.get_float64_value(member_id)?),
+            TypeKind::FLOAT128 => unimplemented!("not supported by Rust"),
+            TypeKind::INT8 => self.serialize_i8(*v.get_int8_value(member_id)?),
+            TypeKind::UINT8 => self.serialize_u8(*v.get_uint8_value(member_id)?),
+            TypeKind::CHAR8 => self.serialize_char(*v.get_char8_value(member_id)?),
+            TypeKind::CHAR16 => todo!(),
+            TypeKind::STRING8 => self.serialize_string(v.get_string_value(member_id)?),
+            TypeKind::STRING16 => todo!(),
+            TypeKind::ALIAS => todo!(),
+            TypeKind::ENUM => todo!(),
+            TypeKind::BITMASK => todo!(),
+            TypeKind::ANNOTATION => todo!(),
+            TypeKind::STRUCTURE => self.serialize_complex(v.get_complex_value(member_id)?)?,
+            TypeKind::UNION => todo!(),
+            TypeKind::BITSET => todo!(),
+            TypeKind::SEQUENCE => self.serialize_sequence(v)?,
+            TypeKind::ARRAY => todo!(),
+            TypeKind::MAP => todo!(),
         }
         Ok(())
     }
 
-    fn serialize_complex(self, v: &DynamicData) -> Result<(), XTypesError> {
+    fn serialize_complex(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
         match v.type_ref().get_descriptor().extensibility_kind {
-            super::dynamic_type::ExtensibilityKind::Final => self.serialize_final_struct()?.serialize_members(v),
-            super::dynamic_type::ExtensibilityKind::Appendable => self.serialize_appendable_struct()?.serialize_members(v),
-            super::dynamic_type::ExtensibilityKind::Mutable => self.serialize_mutable_struct()?.serialize_mutable_member(v),
+            super::dynamic_type::ExtensibilityKind::Final => self.serialize_final_struct(v),
+            super::dynamic_type::ExtensibilityKind::Appendable => {
+                self.serialize_appendable_struct(v)
+            }
+            super::dynamic_type::ExtensibilityKind::Mutable => self.serialize_mutable_struct(v),
         }
     }
-    fn serialize_string(self, v: &str) {
+    fn serialize_string(&mut self, v: &str) {
         self.serialize_u32(v.len() as u32 + 1);
-        // Self::Endianness::write_str(v, self.writer());
-        todo!()
+        Self::Endianness::write_str(v, self.writer());
     }
-    fn serialize_char(mut self, v: char) {
-        Self::Endianness::write_slice_u8(v.to_string().as_bytes(), self.writer());
+    fn serialize_char(&mut self, v: char) {
+        Self::Endianness::write_char(v, self.writer());
     }
-    fn serialize_bool(mut self, v: bool) {
+    fn serialize_bool(&mut self, v: bool) {
         Self::Endianness::write_bool(v, self.writer());
     }
-    fn serialize_i8(mut self, v: i8) {
+    fn serialize_i8(&mut self, v: i8) {
         Self::Endianness::write_i8(v, self.writer());
     }
-    fn serialize_u8(mut self, v: u8) {
+    fn serialize_u8(&mut self, v: u8) {
         Self::Endianness::write_u8(v, self.writer());
     }
-    fn serialize_i16(mut self, v: i16) {
+    fn serialize_i16(&mut self, v: i16) {
         Self::Endianness::write_i16(v, self.writer());
     }
-    fn serialize_u16(mut self, v: u16) {
+    fn serialize_u16(&mut self, v: u16) {
         Self::Endianness::write_u16(v, self.writer());
     }
-    fn serialize_i32(mut self, v: i32) {
+    fn serialize_i32(&mut self, v: i32) {
         Self::Endianness::write_i32(v, self.writer());
     }
-    fn serialize_u32(mut self, v: u32) {
+    fn serialize_u32(&mut self, v: u32) {
         Self::Endianness::write_u32(v, self.writer());
     }
-    fn serialize_i64(mut self, v: i64) {
+    fn serialize_i64(&mut self, v: i64) {
         Self::Endianness::write_i64(v, self.writer());
     }
-    fn serialize_u64(mut self, v: u64) {
+    fn serialize_u64(&mut self, v: u64) {
         Self::Endianness::write_u64(v, self.writer());
     }
-    fn serialize_f32(mut self, v: f32) {
+    fn serialize_f32(&mut self, v: f32) {
         Self::Endianness::write_f32(v, self.writer());
     }
-    fn serialize_f64(mut self, v: f64) {
+    fn serialize_f64(&mut self, v: f64) {
         Self::Endianness::write_f64(v, self.writer());
     }
-
     fn writer(&mut self) -> &mut impl Write;
 }

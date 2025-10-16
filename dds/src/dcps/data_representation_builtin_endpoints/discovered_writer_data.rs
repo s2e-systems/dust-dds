@@ -407,7 +407,7 @@ mod tests {
         let dynamic_sample = data.create_dynamic_sample();
         let mut buffer = vec![];
         dynamic_sample
-            .serialize(&mut PlCdrLeSerializer::new(&mut buffer))
+            .serialize(PlCdrLeSerializer::new(&mut buffer))
             .unwrap();
 
         assert_eq!(buffer, expected);

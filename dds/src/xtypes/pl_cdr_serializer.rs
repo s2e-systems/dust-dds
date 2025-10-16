@@ -1,13 +1,6 @@
-use super::{
-    error::XTypesError,
-    serialize::Write,
-    serializer::{
-        SerializeAppendableStruct, SerializeFinalStruct, SerializeMutableStruct, XTypesSerializer,
-    },
-};
+use super::{error::XTypesError, serialize::Write, serializer::XTypesSerializer};
 use crate::xtypes::{
-    data_representation::DataKind, dynamic_type::DynamicData, serializer::LittleEndian,
-    xcdr_serializer::Xcdr1LeSerializer,
+    dynamic_type::DynamicData, serializer::LittleEndian, xcdr_serializer::Xcdr1LeSerializer,
 };
 
 const PID_SENTINEL: u16 = 1;
@@ -38,93 +31,23 @@ impl<'a, C: Write> PlCdrLeSerializer<'a, C> {
     }
 }
 
-impl<C: Write> SerializeFinalStruct for &mut PlCdrLeSerializer<'_, C> {
-    fn serialize_members(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
-        self.serialize_complex(v)
-    }
-}
-impl<C: Write> SerializeAppendableStruct for &mut PlCdrLeSerializer<'_, C> {
-    fn serialize_members(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
-        self.serialize_complex(v)
-    }
-}
-impl<C: Write> SerializeMutableStruct for &mut PlCdrLeSerializer<'_, C> {
-    fn serialize_mutable_member(&mut self, value: &DynamicData) -> Result<(), XTypesError> {
-        fn bytes_len_dynamic_data(value: &DynamicData) -> Result<u16, XTypesError> {
-            let mut byte_counter = ByteCounter::new();
-            let mut serializer = PlCdrLeSerializer::new(&mut byte_counter);
-            value.serialize(&mut serializer)?;
-            Ok(byte_counter.0)
-        }
-        fn bytes_len_data_kind(value: &DataKind) -> Result<u16, XTypesError> {
-            let mut byte_counter = ByteCounter::new();
-            let mut serializer = PlCdrLeSerializer::new(&mut byte_counter);
-            // serializer.serialize_data_kind(value)?;
-            todo!();
-            Ok(byte_counter.0)
-        }
-
-        // match value {
-        //     DataKind::Sequence(items) if matches!(&items[0], DataKind::ComplexValue(_)) => {
-        //         if matches!(&items[0], DataKind::ComplexValue(_)) {
-        //             for item in items {
-        //                 if let DataKind::ComplexValue(item) = item {
-        //                     let length = bytes_len_dynamic_data(item)?;
-        //                     let padded_length = (length + 3) & !3;
-
-        //                     // self.cdr1_le_serializer
-        //                     //     .serialize_data_kind(&DataKind::UInt16(pid as u16))?;
-        //                     // self.cdr1_le_serializer
-        //                     //     .serialize_data_kind(&DataKind::UInt16(padded_length))?;
-        //                     // item.serialize(&mut **self)?;
-        //                     // self.cdr1_le_serializer.writer.writer.pad(4);
-        //                     todo!()
-        //                 }
-        //             }
-        //         }
-        //     }
-        //     _ => {
-        //         let length = bytes_len_data_kind(value)?;
-        //         let padded_length = (length + 3) & !3;
-        //         // self.cdr1_le_serializer
-        //         //     .serialize_data_kind(&DataKind::UInt16(pid as u16))?;
-        //         // self.cdr1_le_serializer
-        //         //     .serialize_data_kind(&DataKind::UInt16(padded_length))?;
-        //         // self.serialize_data_kind(value)?;
-        //         // self.cdr1_le_serializer.writer.writer.pad(4);
-        //         todo!();
-        //     }
-        // }
-        todo!();
-
-        Ok(())
-    }
-
-    fn end(self) -> Result<(), XTypesError> {
-        // self.cdr1_le_serializer
-        //     .serialize_data_kind(&DataKind::UInt16(PID_SENTINEL))?;
-        // self.cdr1_le_serializer
-        //     .serialize_data_kind(&DataKind::UInt16(0))?;
-        todo!();
-        Ok(())
-    }
-}
-
-impl<C: Write> XTypesSerializer for &mut PlCdrLeSerializer<'_, C> {
+impl<C: Write> XTypesSerializer for PlCdrLeSerializer<'_, C> {
     type Endianness = LittleEndian;
-
-    fn serialize_final_struct(self) -> Result<impl SerializeFinalStruct, XTypesError> {
-        Ok(self)
-    }
-    fn serialize_appendable_struct(self) -> Result<impl SerializeAppendableStruct, XTypesError> {
-        Ok(self)
-    }
-    fn serialize_mutable_struct(self) -> Result<impl SerializeMutableStruct, XTypesError> {
-        Ok(self)
-    }
 
     fn writer(&mut self) -> &mut impl Write {
         &mut self.cdr1_le_serializer.writer
+    }
+
+    fn serialize_final_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
+        todo!()
+    }
+
+    fn serialize_appendable_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
+        todo!()
+    }
+
+    fn serialize_mutable_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
+        todo!()
     }
 }
 
@@ -137,7 +60,7 @@ mod tests {
     fn test_serialize_type_support<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
         let mut buffer = std::vec::Vec::new();
         v.create_dynamic_sample()
-            .serialize(&mut PlCdrLeSerializer::new(&mut buffer))
+            .serialize(PlCdrLeSerializer::new(&mut buffer))
             .unwrap();
         buffer
     }

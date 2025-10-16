@@ -5984,7 +5984,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
                 ExtensibilityKind::Mutable => vec![0x00, 0x03, 0, 0],
             };
             let mut serializer = Xcdr1LeSerializer::new(&mut buffer);
-            dynamic_data.serialize(&mut serializer)?;
+            dynamic_data.serialize(serializer)?;
 
             let padding = match buffer.len() % 4 {
                 1 => &[0, 0, 0][..],
@@ -6003,12 +6003,12 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
                 ExtensibilityKind::Mutable => todo!(),
             };
             let mut serializer = Xcdr2LeSerializer::new(&mut buffer);
-            dynamic_data.serialize(&mut serializer)?;
+            dynamic_data.serialize(serializer)?;
             buffer
         } else if self.qos.representation.value[0] == BUILT_IN_DATA_REPRESENTATION {
             let mut buffer = vec![0x00, 0x03, 0, 0];
             let mut serializer = PlCdrLeSerializer::new(&mut buffer);
-            dynamic_data.serialize(&mut serializer)?;
+            dynamic_data.serialize(serializer)?;
             buffer
         } else {
             panic!("Invalid data representation")

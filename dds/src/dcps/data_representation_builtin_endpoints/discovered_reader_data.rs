@@ -420,7 +420,7 @@ mod tests {
 
         let mut buffer = vec![];
         dynamic_sample
-            .serialize(&mut PlCdrLeSerializer::new(&mut buffer))
+            .serialize(PlCdrLeSerializer::new(&mut buffer))
             .unwrap();
 
         assert_eq!(buffer, expected);
@@ -499,7 +499,7 @@ mod tests {
 
         let mut buffer = vec![];
         dynamic_sample
-            .serialize(&mut PlCdrLeSerializer::new(&mut buffer))
+            .serialize(PlCdrLeSerializer::new(&mut buffer))
             .unwrap();
 
         assert_eq!(buffer, expected);
