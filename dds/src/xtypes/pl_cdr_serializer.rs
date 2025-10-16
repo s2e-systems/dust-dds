@@ -49,7 +49,7 @@ impl<C: Write> SerializeAppendableStruct for &mut PlCdrLeSerializer<'_, C> {
     }
 }
 impl<C: Write> SerializeMutableStruct for &mut PlCdrLeSerializer<'_, C> {
-    fn serialize_members(&mut self, value: &DynamicData) -> Result<(), XTypesError> {
+    fn serialize_mutable_member(&mut self, value: &DynamicData) -> Result<(), XTypesError> {
         fn bytes_len_dynamic_data(value: &DynamicData) -> Result<u16, XTypesError> {
             let mut byte_counter = ByteCounter::new();
             let mut serializer = PlCdrLeSerializer::new(&mut byte_counter);
