@@ -365,8 +365,13 @@ impl TypeSupport for DiscoveredTopicData {
 mod tests {
     use super::*;
     use crate::{
-        builtin_topics::BuiltInTopicKey, infrastructure::qos::TopicQos,
-        xtypes::pl_cdr_serializer::PlCdrLeSerializer,
+        builtin_topics::BuiltInTopicKey,
+        dcps::data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+        infrastructure::qos::TopicQos,
+        xtypes::{
+            dynamic_type::DynamicData, pl_cdr_deserializer::PlCdrDeserializer,
+            pl_cdr_serializer::PlCdrLeSerializer,
+        },
     };
 
     #[test]
@@ -444,7 +449,7 @@ mod tests {
             },
         };
 
-        let mut data = &[
+        let data = &[
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
             1, 0, 0, 0, // ,
@@ -459,8 +464,8 @@ mod tests {
             b'c', b'd', 0, 0x00, // DomainTag: string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ][..];
-        todo!()
-        // let result = DiscoveredTopicData::deserialize_data(&mut data).unwrap();
-        // assert_eq!(result, expected);
+        let dynamic_data = DynamicData::deserialize(DiscoveredTopicData::get_type(), data).unwrap();
+        let result = DiscoveredTopicData::create_sample(dynamic_data);
+        assert_eq!(result, expected);
     }
 }

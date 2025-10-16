@@ -1,9 +1,6 @@
 use crate::xtypes::endianness::{self, CDR_LE, REPRESENTATION_OPTIONS};
 use dust_dds::{
-    infrastructure::{
-        error::DdsResult,
-        type_support::{DdsDeserialize, TypeSupport},
-    },
+    infrastructure::{error::DdsResult, type_support::TypeSupport},
     xtypes::{
         deserializer::XTypesDeserializer,
         error::XTypesError,
@@ -65,23 +62,24 @@ fn deserialize_into_py_object<'de, D: XTypesDeserializer<'de>>(
     type_kind: TypeKind,
     deserializer: D,
 ) -> Result<PyObject, XTypesError> {
-    match type_kind {
-        TypeKind::boolean => Ok(deserializer.deserialize_boolean()?.into_py(py)),
-        TypeKind::byte => Ok(deserializer.deserialize_uint8()?.into_py(py)),
-        TypeKind::char8 => Ok(deserializer.deserialize_char8()?.into_py(py)),
-        TypeKind::char16 => Ok(deserializer.deserialize_char8()?.into_py(py)),
-        TypeKind::int8 => Ok(deserializer.deserialize_int8()?.into_py(py)),
-        TypeKind::uint8 => Ok(deserializer.deserialize_uint8()?.into_py(py)),
-        TypeKind::int16 => Ok(deserializer.deserialize_int16()?.into_py(py)),
-        TypeKind::uint16 => Ok(deserializer.deserialize_uint16()?.into_py(py)),
-        TypeKind::int32 => Ok(deserializer.deserialize_int32()?.into_py(py)),
-        TypeKind::uint32 => Ok(deserializer.deserialize_uint32()?.into_py(py)),
-        TypeKind::int64 => Ok(deserializer.deserialize_int64()?.into_py(py)),
-        TypeKind::uint64 => Ok(deserializer.deserialize_uint64()?.into_py(py)),
-        TypeKind::float32 => Ok(deserializer.deserialize_float32()?.into_py(py)),
-        TypeKind::float64 => Ok(deserializer.deserialize_float64()?.into_py(py)),
-        TypeKind::float128 => Err(XTypesError::InvalidData),
-    }
+    todo!()
+    // match type_kind {
+    //     TypeKind::boolean => Ok(deserializer.deserialize_boolean()?.into_py(py)),
+    //     TypeKind::byte => Ok(deserializer.deserialize_uint8()?.into_py(py)),
+    //     TypeKind::char8 => Ok(deserializer.deserialize_char8()?.into_py(py)),
+    //     TypeKind::char16 => Ok(deserializer.deserialize_char8()?.into_py(py)),
+    //     TypeKind::int8 => Ok(deserializer.deserialize_int8()?.into_py(py)),
+    //     TypeKind::uint8 => Ok(deserializer.deserialize_uint8()?.into_py(py)),
+    //     TypeKind::int16 => Ok(deserializer.deserialize_int16()?.into_py(py)),
+    //     TypeKind::uint16 => Ok(deserializer.deserialize_uint16()?.into_py(py)),
+    //     TypeKind::int32 => Ok(deserializer.deserialize_int32()?.into_py(py)),
+    //     TypeKind::uint32 => Ok(deserializer.deserialize_uint32()?.into_py(py)),
+    //     TypeKind::int64 => Ok(deserializer.deserialize_int64()?.into_py(py)),
+    //     TypeKind::uint64 => Ok(deserializer.deserialize_uint64()?.into_py(py)),
+    //     TypeKind::float32 => Ok(deserializer.deserialize_float32()?.into_py(py)),
+    //     TypeKind::float64 => Ok(deserializer.deserialize_float64()?.into_py(py)),
+    //     TypeKind::float128 => Err(XTypesError::InvalidData),
+    // }
 }
 
 #[allow(dead_code)]
@@ -298,13 +296,10 @@ impl PythonDdsData {
     }
 
     pub fn into_py_object(self, type_: &Py<PyAny>) -> PyResult<Py<PyAny>> {
-        fn deserialize_data_member<'de, D>(
+        fn deserialize_data_member<'de>(
             member_type: &Bound<PyAny>,
-            deserializer: &mut D,
-        ) -> PyResult<Py<PyAny>>
-        where
-            for<'a> &'a mut D: XTypesDeserializer<'de>,
-        {
+            deserializer: &mut impl XTypesDeserializer<'de>,
+        ) -> PyResult<Py<PyAny>> {
             let py = member_type.py();
             if let Ok(member_type_kind) = member_type.extract::<TypeKind>() {
                 deserialize_into_py_object(py, member_type_kind, deserializer)
@@ -381,14 +376,5 @@ impl PythonDdsData {
             }),
             _ => panic!("Unknown endianness"),
         }
-    }
-}
-
-impl<'de> DdsDeserialize<'de> for PythonDdsData {
-    fn deserialize_data(serialized_data: &'de [u8]) -> DdsResult<Self> {
-        Ok(Self {
-            data: serialized_data.to_vec(),
-            key: Vec::new(),
-        })
     }
 }

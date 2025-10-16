@@ -22,8 +22,7 @@ use crate::{
     },
     transport::types::{GuidPrefix, Locator, Long, ProtocolVersion, VendorId},
     xtypes::{
-        binding::XTypesBinding, data_representation::DataKind, deserialize::XTypesDeserialize,
-        dynamic_type::DynamicTypeBuilder,
+        binding::XTypesBinding, data_representation::DataKind, dynamic_type::DynamicTypeBuilder,
     },
 };
 use alloc::{string::String, vec::Vec};

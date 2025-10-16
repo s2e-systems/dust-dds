@@ -3,6 +3,7 @@ use crate::{
     xtypes::{
         dynamic_type::{DynamicData, DynamicType},
         error::{XTypesError, XTypesResult},
+        pl_cdr_deserializer::PlCdrDeserializer,
         serializer::XTypesSerializer,
         xcdr_deserializer::{deserialize_nested, Xcdr1LeDeserializer},
         xcdr_serializer::serialize_nested,
@@ -32,7 +33,8 @@ impl DynamicData {
             return Err(XTypesError::InvalidData);
         }
         match [buffer[0], buffer[1]] {
-            CDR_LE => deserialize_nested(dynamic_type, &mut Xcdr1LeDeserializer::new(&buffer[4..])),
+            // CDR_LE => deserialize_nested(dynamic_type, &mut Xcdr1LeDeserializer::new(&buffer[4..])),
+            // PL_CDR_LE => deserialize_nested(dynamic_type, &mut PlCdrDeserializer {}),
             _ => return Err(XTypesError::InvalidData),
         }
     }
