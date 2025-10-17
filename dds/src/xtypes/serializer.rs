@@ -194,24 +194,31 @@ pub trait EndiannessWriter {
         Self::Endianness::write_i16(v, self.writer())
     }
     fn write_u16(&mut self, v: u16) {
+        Self::Padding::pad(2, self.writer());
         Self::Endianness::write_u16(v, self.writer())
     }
     fn write_i32(&mut self, v: i32) {
+        Self::Padding::pad(4, self.writer());
         Self::Endianness::write_i32(v, self.writer())
     }
     fn write_u32(&mut self, v: u32) {
+        Self::Padding::pad(4, self.writer());
         Self::Endianness::write_u32(v, self.writer())
     }
     fn write_i64(&mut self, v: i64) {
+        Self::Padding::pad(8, self.writer());
         Self::Endianness::write_i64(v, self.writer())
     }
     fn write_u64(&mut self, v: u64) {
+        Self::Padding::pad(8, self.writer());
         Self::Endianness::write_u64(v, self.writer())
     }
     fn write_f32(&mut self, v: f32) {
+        Self::Padding::pad(4, self.writer());
         Self::Endianness::write_f32(v, self.writer())
     }
     fn write_f64(&mut self, v: f64) {
+        Self::Padding::pad(8, self.writer());
         Self::Endianness::write_f64(v, self.writer())
     }
     fn write_char(&mut self, v: char) {
@@ -245,9 +252,64 @@ impl<W: Write> EndiannessWriter for WriterLe<W> {
 trait WriteBasicType {
     fn write_basic_type(self, writer: &mut impl EndiannessWriter);
 }
+impl WriteBasicType for bool {
+    fn write_basic_type(self, writer: &mut impl EndiannessWriter) {
+        writer.write_bool(self);
+    }
+}
+impl WriteBasicType for i8 {
+    fn write_basic_type(self, writer: &mut impl EndiannessWriter) {
+        writer.write_i8(self);
+    }
+}
+impl WriteBasicType for u8 {
+    fn write_basic_type(self, writer: &mut impl EndiannessWriter) {
+        writer.write_u8(self);
+    }
+}
+impl WriteBasicType for i16 {
+    fn write_basic_type(self, writer: &mut impl EndiannessWriter) {
+        writer.write_i16(self);
+    }
+}
 impl WriteBasicType for u16 {
     fn write_basic_type(self, writer: &mut impl EndiannessWriter) {
         writer.write_u16(self);
+    }
+}
+impl WriteBasicType for i32 {
+    fn write_basic_type(self, writer: &mut impl EndiannessWriter) {
+        writer.write_i32(self);
+    }
+}
+impl WriteBasicType for u32 {
+    fn write_basic_type(self, writer: &mut impl EndiannessWriter) {
+        writer.write_u32(self);
+    }
+}
+impl WriteBasicType for i64 {
+    fn write_basic_type(self, writer: &mut impl EndiannessWriter) {
+        writer.write_i64(self);
+    }
+}
+impl WriteBasicType for u64 {
+    fn write_basic_type(self, writer: &mut impl EndiannessWriter) {
+        writer.write_u64(self);
+    }
+}
+impl WriteBasicType for f32 {
+    fn write_basic_type(self, writer: &mut impl EndiannessWriter) {
+        writer.write_f32(self);
+    }
+}
+impl WriteBasicType for f64 {
+    fn write_basic_type(self, writer: &mut impl EndiannessWriter) {
+        writer.write_f64(self);
+    }
+}
+impl WriteBasicType for char {
+    fn write_basic_type(self, writer: &mut impl EndiannessWriter) {
+        writer.write_char(self);
     }
 }
 impl WriteBasicType for &[u8] {
@@ -375,22 +437,20 @@ pub trait XTypesSerializer<C> {
         let member_descriptor = v.get_descriptor(member_id)?;
         match member_descriptor.r#type.get_kind() {
             TypeKind::NONE => todo!(),
-            TypeKind::BOOLEAN => self.serialize_bool(*v.get_boolean_value(member_id)?),
+            TypeKind::BOOLEAN => v.get_boolean_value(member_id)?.write_basic_type(self.writer()),
             TypeKind::BYTE => todo!(),
-            TypeKind::INT16 => self.serialize_i16(*v.get_int16_value(member_id)?),
-            TypeKind::INT32 => self.serialize_i32(*v.get_int32_value(member_id)?),
-            TypeKind::INT64 => self.serialize_i64(*v.get_int64_value(member_id)?),
-            TypeKind::UINT16 => (*v.get_uint16_value(member_id)?).write_basic_type(self.writer()),
-            TypeKind::UINT32 => self.serialize_u32(*v.get_uint32_value(member_id)?),
-            TypeKind::UINT64 => self.serialize_u64(*v.get_uint64_value(member_id)?),
-            TypeKind::FLOAT32 => self.serialize_f32(*v.get_float32_value(member_id)?),
-            TypeKind::FLOAT64 => self.serialize_f64(*v.get_float64_value(member_id)?),
+            TypeKind::INT16 => v.get_int16_value(member_id)?.write_basic_type(self.writer()),
+            TypeKind::INT32 => v.get_int32_value(member_id)?.write_basic_type(self.writer()),
+            TypeKind::INT64 => v.get_int64_value(member_id)?.write_basic_type(self.writer()),
+            TypeKind::UINT16 => v.get_uint16_value(member_id)?.write_basic_type(self.writer()),
+            TypeKind::UINT32 => v.get_uint32_value(member_id)?.write_basic_type(self.writer()),
+            TypeKind::UINT64 => v.get_uint64_value(member_id)?.write_basic_type(self.writer()),
+            TypeKind::FLOAT32 => v.get_float32_value(member_id)?.write_basic_type(self.writer()),
+            TypeKind::FLOAT64 => v.get_float64_value(member_id)?.write_basic_type(self.writer()),
             TypeKind::FLOAT128 => unimplemented!("not supported by Rust"),
-            TypeKind::INT8 => self.serialize_i8(*v.get_int8_value(member_id)?),
-            TypeKind::UINT8 => {
-                todo!()
-            } //self.serialize_u8(*v.get_uint8_value(member_id)?),
-            TypeKind::CHAR8 => self.serialize_char(*v.get_char8_value(member_id)?),
+            TypeKind::INT8 => v.get_int8_value(member_id)?.write_basic_type(self.writer()),
+            TypeKind::UINT8 => v.get_uint8_value(member_id)?.write_basic_type(self.writer()),
+            TypeKind::CHAR8 => v.get_char8_value(member_id)?.write_basic_type(self.writer()),
             TypeKind::CHAR16 => todo!(),
             TypeKind::STRING8 => self.serialize_str(v.get_string_value(member_id)?),
             TypeKind::STRING16 => todo!(),
