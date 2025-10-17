@@ -33,6 +33,10 @@ impl Write for ByteCounter {
     fn write(&mut self, buf: &[u8]) {
         self.0 += buf.len();
     }
+
+    fn pos(&self) -> usize {
+        self.0
+    }
 }
 
 pub struct Xcdr1BeSerializer<'a, C> {

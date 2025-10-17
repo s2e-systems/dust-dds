@@ -5,7 +5,7 @@ use crate::xtypes::{
 
 const PID_SENTINEL: u16 = 1;
 
-struct ByteCounter(u16);
+struct ByteCounter(usize);
 impl ByteCounter {
     pub fn new() -> Self {
         Self(0)
@@ -13,14 +13,17 @@ impl ByteCounter {
 }
 impl Write for ByteCounter {
     fn write(&mut self, buf: &[u8]) {
-        self.0 += buf.len() as u16;
+        self.0 += buf.len();
+    }
+    fn pos(&self) -> usize {
+        self.0
     }
 }
 fn count_bytes_xdr1_le(v: &DynamicData, member_id: u32) -> Result<u16, XTypesError> {
     let mut byte_counter = ByteCounter::new();
     let mut byte_conter_serializer = Xcdr1LeSerializer::new(&mut byte_counter);
     byte_conter_serializer.serialize_dynamic_data_member(v, member_id)?;
-    Ok(byte_counter.0)
+    Ok(byte_counter.0 as u16)
 }
 
 

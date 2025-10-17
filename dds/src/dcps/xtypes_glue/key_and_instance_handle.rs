@@ -35,6 +35,9 @@ impl Write for Md5 {
         self.context.consume(buf);
         self.length += buf.len();
     }
+    fn pos(&self) -> usize {
+        self.length
+    }
 }
 
 // fn deserialize_and_serialize_if_key_field<'a, T>(
