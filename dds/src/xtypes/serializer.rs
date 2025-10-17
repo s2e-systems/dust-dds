@@ -93,7 +93,6 @@ pub trait Endianness {
     }
     fn write_str<C: Write>(v: &str, writer: &mut C) {
         writer.write(&v.as_bytes());
-        writer.write(&[0])
     }
     fn write_slice_u8<C: Write>(v: &[u8], writer: &mut C) {
         writer.write(v);
@@ -399,18 +398,18 @@ pub trait XTypesSerializer<C> {
             TypeKind::INT8 => todo!(),
             TypeKind::UINT8 => {
                 let list = v.get_uint8_values(member_id)?;
-                self.serialize_u32(list.len() as u32);
+                self.writer().write_u32(list.len() as u32);
                 for v in list {
-                    self.serialize_u8(v);
+                    self.writer().write_u8(v);
                 }
             }
             TypeKind::CHAR8 => todo!(),
             TypeKind::CHAR16 => todo!(),
             TypeKind::STRING8 => {
                 let list = v.get_string_values(member_id)?;
-                self.serialize_u32(list.len() as u32);
+                self.writer().write_u32(list.len() as u32);
                 for v in list {
-                    self.serialize_str(v.as_str());
+                    self.serialize_string(v.as_str());
                 }
             }
             TypeKind::STRING16 => todo!(),
@@ -452,7 +451,7 @@ pub trait XTypesSerializer<C> {
             TypeKind::UINT8 => v.get_uint8_value(member_id)?.write_basic_type(self.writer()),
             TypeKind::CHAR8 => v.get_char8_value(member_id)?.write_basic_type(self.writer()),
             TypeKind::CHAR16 => todo!(),
-            TypeKind::STRING8 => self.serialize_str(v.get_string_value(member_id)?),
+            TypeKind::STRING8 => self.serialize_string(v.get_string_value(member_id)?),
             TypeKind::STRING16 => todo!(),
             TypeKind::ALIAS => todo!(),
             TypeKind::ENUM => todo!(),
@@ -475,46 +474,11 @@ pub trait XTypesSerializer<C> {
             ExtensibilityKind::Mutable => self.serialize_mutable_struct(v),
         }
     }
-    fn serialize_str(&mut self, v: &str) {
-        // self.serialize_u32(v.len() as u32 + 1);
-        // Self::Endianness::write_str(v, self.writer());
-        todo!()
+    fn serialize_string(&mut self, v: &str) {
+        self.writer().write_u32(v.len() as u32 + 1);
+        self.writer().write_str(v);
+        self.writer().write_u8(0);
     }
-    fn serialize_char(&mut self, v: char) {
-        todo!()
-    }
-    fn serialize_bool(&mut self, v: bool) {
-        todo!()
-    }
-    fn serialize_i8(&mut self, v: i8) {
-        todo!()
-    }
-    fn serialize_u8(&mut self, v: u8) {
-        todo!()
-    }
-    fn serialize_i16(&mut self, v: i16) {
-        todo!()
-    }
-    fn serialize_u16(&mut self, v: u16) {
-        todo!()
-    }
-    fn serialize_i32(&mut self, v: i32) {
-        todo!()
-    }
-    fn serialize_u32(&mut self, v: u32) {
-        todo!()
-    }
-    fn serialize_i64(&mut self, v: i64) {
-        todo!()
-    }
-    fn serialize_u64(&mut self, v: u64) {
-        todo!()
-    }
-    fn serialize_f32(&mut self, v: f32) {
-        todo!()
-    }
-    fn serialize_f64(&mut self, v: f64) {
-        todo!()
-    }
+
     fn writer(&mut self) -> &mut impl EndiannessWriter;
 }

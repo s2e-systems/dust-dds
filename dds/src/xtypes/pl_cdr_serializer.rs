@@ -64,14 +64,14 @@ impl<C: Write> XTypesSerializer<C> for PlCdrLeSerializer<C> {
             let member_id = v.get_member_id_at_index(field_index)?;
             let length = count_bytes_xdr1_le(v, member_id)?;
             let padded_length = (length + 3) & !3;
-            self.serialize_u16(member_id as u16);
-            self.serialize_u16(padded_length as u16);
+            self.writer().write_u16(member_id as u16);
+            self.writer().write_u16(padded_length as u16);
             self.serialize_dynamic_data_member(v, member_id)?;
             // self.cdr1_le_serializer.writer.writer.pad(4);
             todo!()
         }
-        self.serialize_u16(PID_SENTINEL);
-        self.serialize_u16(0);
+        self.writer().write_u16(PID_SENTINEL);
+        self.writer().write_u16(0);
         Ok(())
     }
 }

@@ -77,14 +77,14 @@ impl<C: Write> XTypesSerializer<C> for Xcdr1BeSerializer<C> {
         for field_index in 0..v.get_item_count() {
             let member_id = v.get_member_id_at_index(field_index)?;
             let length = count_bytes_xdr1_be(v, member_id)?;
-            self.serialize_u16(member_id as u16);
-            self.serialize_u16(length as u16);
+            self.writer().write_u16(member_id as u16);
+            self.writer().write_u16(length as u16);
             self.serialize_dynamic_data_member(v, member_id)?;
             // self.writer.writer.pad(4);
             todo!()
         }
-        self.serialize_u16(PID_SENTINEL);
-        self.serialize_u16(0);
+        self.writer().write_u16(PID_SENTINEL);
+        self.writer().write_u16(0);
         Ok(())
     }
 
@@ -115,14 +115,14 @@ impl<C: Write> XTypesSerializer<C> for Xcdr1LeSerializer<C> {
         for field_index in 0..v.get_item_count() {
             let member_id = v.get_member_id_at_index(field_index)?;
             let length = count_bytes_xdr1_le(v, member_id)?;
-            self.serialize_u16(member_id as u16);
-            self.serialize_u16(length as u16);
+            self.writer().write_u16(member_id as u16);
+            self.writer().write_u16(length as u16);
             self.serialize_dynamic_data_member(v, member_id)?;
             // self.writer.writer.pad(4);
             todo!()
         }
-        self.serialize_u16(PID_SENTINEL);
-        self.serialize_u16(0);
+        self.writer().write_u16(PID_SENTINEL);
+        self.writer().write_u16(0);
         Ok(())
     }
     fn writer(&mut self) -> &mut impl EndiannessWriter {
