@@ -5,6 +5,8 @@ use crate::xtypes::{
 };
 use alloc::{string::ToString, vec::Vec};
 
+use super::dynamic_type::ExtensibilityKind;
+
 pub struct Writer<'a, W> {
     buffer: &'a mut W,
     pub position: usize,
@@ -146,10 +148,22 @@ pub trait XTypesSerializer {
     type Endianness: Endianness;
 
     /// Start serializing a type with final extensibility.
-    fn serialize_final_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError>;
+    fn serialize_final_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
+        for field_index in 0..v.get_item_count() {
+            let member_id = v.get_member_id_at_index(field_index)?;
+            self.serialize_dynamic_data_member(v, member_id)?;
+        }
+        Ok(())
+    }
 
     /// Start serializing a type with appendable extensibility.
-    fn serialize_appendable_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError>;
+    fn serialize_appendable_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
+        for field_index in 0..v.get_item_count() {
+            let member_id = v.get_member_id_at_index(field_index)?;
+            self.serialize_dynamic_data_member(v, member_id)?;
+        }
+        Ok(())
+    }
 
     /// Start serializing a type with mutable extensibility.
     fn serialize_mutable_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError>;
@@ -203,11 +217,9 @@ pub trait XTypesSerializer {
 
     fn serialize_complex(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
         match v.type_ref().get_descriptor().extensibility_kind {
-            super::dynamic_type::ExtensibilityKind::Final => self.serialize_final_struct(v),
-            super::dynamic_type::ExtensibilityKind::Appendable => {
-                self.serialize_appendable_struct(v)
-            }
-            super::dynamic_type::ExtensibilityKind::Mutable => self.serialize_mutable_struct(v),
+            ExtensibilityKind::Final => self.serialize_final_struct(v),
+            ExtensibilityKind::Appendable => self.serialize_appendable_struct(v),
+            ExtensibilityKind::Mutable => self.serialize_mutable_struct(v),
         }
     }
     fn serialize_string(&mut self, v: &str) {

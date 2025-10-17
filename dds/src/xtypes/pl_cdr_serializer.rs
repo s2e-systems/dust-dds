@@ -6,18 +6,23 @@ use crate::xtypes::{
 const PID_SENTINEL: u16 = 1;
 
 struct ByteCounter(u16);
-
 impl ByteCounter {
     pub fn new() -> Self {
         Self(0)
     }
 }
-
 impl Write for ByteCounter {
     fn write(&mut self, buf: &[u8]) {
         self.0 += buf.len() as u16;
     }
 }
+fn count_bytes_xdr1_le(v: &DynamicData, member_id: u32) -> Result<u16, XTypesError> {
+    let mut byte_counter = ByteCounter::new();
+    let mut byte_conter_serializer = Xcdr1LeSerializer::new(&mut byte_counter);
+    byte_conter_serializer.serialize_dynamic_data_member(v, member_id)?;
+    Ok(byte_counter.0)
+}
+
 
 pub struct PlCdrLeSerializer<'a, C> {
     cdr1_le_serializer: Xcdr1LeSerializer<'a, C>,
@@ -39,15 +44,26 @@ impl<C: Write> XTypesSerializer for PlCdrLeSerializer<'_, C> {
     }
 
     fn serialize_final_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
-        todo!()
+        self.cdr1_le_serializer.serialize_final_struct(v)
     }
 
     fn serialize_appendable_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
-        todo!()
+        self.cdr1_le_serializer.serialize_appendable_struct(v)
     }
 
     fn serialize_mutable_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
-        todo!()
+        for field_index in 0..v.get_item_count() {
+            let member_id = v.get_member_id_at_index(field_index)?;
+            let length = count_bytes_xdr1_le(v, member_id)?;
+            let padded_length = (length + 3) & !3;
+            self.serialize_u16(member_id as u16);
+            self.serialize_u16(padded_length as u16);
+            self.serialize_dynamic_data_member(v, member_id)?;
+            self.cdr1_le_serializer.writer.writer.pad(4);
+        }
+        self.serialize_u16(PID_SENTINEL);
+        self.serialize_u16(0);
+        Ok(())
     }
 }
 
