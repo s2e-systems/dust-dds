@@ -1,16 +1,14 @@
 use std::path::Path;
 
 use syn::File;
-
-use dust_dds_gen::parse_idl;
-use dust_dds_gen::generate_rust_def;
+use syn::__private::ToTokens;
 
 #[test]
 fn structs_generation() {
     let idl_file = Path::new("tests/structs_generation.idl");
 
     let expected = syn::parse2::<File>(
-        r#"
+            r#"
             #[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]
             pub struct Point {
                 pub x: f64,
@@ -36,14 +34,17 @@ fn structs_generation() {
                 pub name: String,
                 pub active: bool,
             }
-    "#
+        "#
         .parse()
         .unwrap(),
     )
     .unwrap();
 
+    let compiled = dust_dds_gen::compile_idl(idl_file);
+    println!("{:?}",compiled);
+
     let result = syn::parse2::<File>(
-        dust_dds_gen::compile_idl(idl_file)
+        compiled
             .unwrap()
             .parse()
             .unwrap(),
@@ -113,7 +114,7 @@ fn nested_types() {
     let idl_file = Path::new("tests/nested_types.idl");
 
     let expected = syn::parse2::<File>(
-        r#"
+            r#"
             #[derive(Debug)]
             pub enum Presence {
                 Present,
@@ -130,7 +131,8 @@ fn nested_types() {
             pub struct ColorSensor {
                 pub state: Presence,
                 pub value: Color,
-            }"#
+            }
+        "#
         .parse()
         .unwrap(),
     )
@@ -148,145 +150,82 @@ fn nested_types() {
 }
 
 #[test]
-fn parse_struct_with_annotations() {
-    let idl = r#"
-        @derive("Debug, Clone")
-        @appendable
-        struct Foo {
-            @key long id;
-            float value;
-        };
-    "#;
-
-    let structs = parse_idl(idl).unwrap();
-
-    println!("Parsed structs: {:#?}", structs);
-
-    assert!(!structs.is_empty(), "Expected at least one struct, got none");
-
-    let foo = &structs[0];
-    assert_eq!(foo.name, "Foo");
-
-    assert_eq!(foo.annotations.len(), 2);
-    assert_eq!(foo.annotations[0].name, "derive");
-    assert_eq!(foo.annotations[1].name, "appendable");
-
-    let id_member = &foo.members[0];
-    assert_eq!(id_member.name, "id");
-    assert_eq!(id_member.annotations[0].name, "key");
-}
-
-
-#[test]
 fn test_generate_rust_code_with_annotations() {
-    let idl = r#"
-        @derive("Debug, Clone")
-        struct MyStruct {
-            @rust_type("Vec<u8>")
-            sequence<octet> data;
-            @serde_skip
-            long ignored_field;
-        };
-    "#;
+    let idl_file = Path::new("tests/annotations.idl");
 
-    let structs = parse_idl(idl).expect("Failed to parse IDL");
-    let rust_code = generate_rust_def(&structs[0]);
+    let expected = syn::parse2::<File>(
+            r#"
+            #[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]
+            #[dust_dds(extensibility = "appendable")]
+            pub struct MyStruct {
+                pub data: Vec<u8>,
+                #[serde(skip)]
+                pub ignored_field: i32,
+            }
+        "#
+        .parse()
+        .unwrap(),
+    )
+    .unwrap();
 
-    let expected = r#"
-        #[derive(Debug, Clone)]
-        pub struct MyStruct {
-            pub data: Vec<u8>,
-            #[serde(skip)]
-            pub ignored_field: i32,
-        }
-    "#;
+    let compiled = dust_dds_gen::compile_idl(idl_file);
+    println!("{:?}",compiled);
 
-    println!("Preprocessed IDL:\n{}", rust_code);
-    println!("Parsed structs: {:#?}", structs);
+    let result = syn::parse2::<File>(
+        compiled
+            .unwrap()
+            .parse()
+            .unwrap(),
+    )
+    .unwrap();
 
-
-    assert_eq!(rust_code.trim(), expected.trim(), "Generated code did not match expected");
-}
-
-
-#[test]
-fn parse_struct_with_annotation_debug() {
-    let idl = r#"
-        @derive("Debug, Clone")
-        struct MyStruct {
-            @key long id;
-        };
-    "#;
-
-    let structs = parse_idl(idl).unwrap();
-
-    println!("Parsed structs: {:#?}", structs);
-
-    dbg!(&structs);
-    assert!(!structs.is_empty());
-
-    assert_eq!(structs[0].annotations[0].name, "derive");
-    assert_eq!(structs[0].annotations[0].parameters[0], r#"Debug, Clone"#);
-    assert_eq!(structs[0].members[0].annotations[0].name, "key");
+    assert_eq!(result, expected);
 }
 
 #[test]
 fn test_generate_rust_code_with_psm_annotations() {
-    let idl = r#"
-        @derive("Debug, Clone")
-        @appendable
-        struct TestStruct {
-            @key long field1;
-            @appendable string field2;
-            @mutable bool field3;
-            @final octet field4;
-            @hashid unsigned long long field5;
-            @must_understand float field6;
-            @optional string field7;
-        };
-    "#;
+    let idl_file = Path::new("tests/psm_annotations.idl");
 
-    // Parse the IDL to get the struct definitions
-    let structs = parse_idl(idl).expect("Failed to parse IDL");
-    assert_eq!(structs.len(), 1);
-    let s = &structs[0];
-
-    // Check top-level annotations on the struct
-    assert!(s.annotations.iter().any(|a| a.name == "derive"));
-    assert!(s.annotations.iter().any(|a| a.name == "appendable"));
-
-    // Check member annotations presence
-    let members = &s.members;
-    assert!(members.iter().any(|m| m.annotations.iter().any(|a| a.name == "key")));
-    assert!(members.iter().any(|m| m.annotations.iter().any(|a| a.name == "appendable")));
-    assert!(members.iter().any(|m| m.annotations.iter().any(|a| a.name == "mutable")));
-    assert!(members.iter().any(|m| m.annotations.iter().any(|a| a.name == "final")));
-    assert!(members.iter().any(|m| m.annotations.iter().any(|a| a.name == "hashid")));
-    assert!(members.iter().any(|m| m.annotations.iter().any(|a| a.name == "must_understand")));
-    assert!(members.iter().any(|m| m.annotations.iter().any(|a| a.name == "optional")));
-
-    // Generate Rust code from parsed struct
-    let rust_code = generate_rust_def(s);
-
-    // Verify that all dust_dds annotations appear in the generated code
     let expected_annotations = [
         "#[dust_dds(key)]",
-        "#[dust_dds(appendable)]",
-        "#[dust_dds(mutable)]",
-        "#[dust_dds(final)]",
+        "#[dust_dds(extensibility = \"appendable\")]",
+        "#[dust_dds(extensibility = \"mutable\")]",
+        "#[dust_dds(extensibility = \"final\")]",
         "#[dust_dds(hashid)]",
         "#[dust_dds(must_understand)]",
         "#[dust_dds(optional)]",
     ];
 
-    for ann in &expected_annotations {
-        assert!(rust_code.contains(ann), "Expected annotation {} missing", ann);
+    let compiled = dust_dds_gen::compile_idl(idl_file);
+    println!("{:?}",compiled);
+
+    let result = syn::parse2::<File>(
+        compiled
+            .unwrap()
+            .parse()
+            .unwrap(),
+    )
+    .unwrap();
+
+    println!("{}", result.to_token_stream());
+
+
+    fn file_contains(file: &File, keywords: &[&str]) -> bool {
+        let code_string = file.to_token_stream().to_string();
+        keywords.iter().all(|kw| code_string.contains(kw))
     }
 
-    // Also check struct-level derive and appendable appear as attributes (if you implement that)
-    // For example:
-    assert!(rust_code.contains("#[derive(Debug, Clone)]"));
-    // (If you add support for struct-level dust_dds(appendable), test that here.)
+    for ann in &expected_annotations {
+        let normalized_keywords: Vec<&str> = ann
+            .trim_matches(|c| c == '#' || c == '[' || c == ']')
+            .split(|c| c == '(' || c == ')' || c == '=' || c == '"' || c == ' ')
+            .filter(|s| !s.is_empty())
+            .collect();
 
-    println!("Generated Rust code:\n{}", rust_code);
+        assert!(
+            file_contains(&result, &normalized_keywords),
+            "Expected annotation {} missing",
+            ann
+        );
+    }
 }

@@ -1,0 +1,8 @@
+@derive("Debug, Clone")
+@appendable
+struct MyStruct {
+    @rust_type("Vec<u8>")
+    sequence<octet> data;
+    @serde_skip
+    long ignored_field;
+};

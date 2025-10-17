@@ -30,11 +30,11 @@ pub fn get_input_extensibility(input: &DeriveInput) -> Result<Extensibility> {
                 if ident == "extensibility" {
                     let format_str: syn::LitStr = meta.value()?.parse()?;
                     extensibility = parse_extensibility(&format_str.value(), format_str.span())?;
-                } else if ident.eq_ignore_ascii_case("final") {
+                } else if ident.to_string().eq_ignore_ascii_case("final") {
                     extensibility = Extensibility::Final;
-                } else if ident.eq_ignore_ascii_case("appendable") {
+                } else if ident.to_string().eq_ignore_ascii_case("appendable") {
                     extensibility = Extensibility::Appendable;
-                } else if ident.eq_ignore_ascii_case("mutable") {
+                } else if ident.to_string().eq_ignore_ascii_case("mutable") {
                     extensibility = Extensibility::Mutable;
                 }
             }
@@ -64,7 +64,7 @@ pub fn get_field_attributes(field: &Field) -> Result<FieldAttributes> {
             if let Some(ident) = meta.path.get_ident() {
                 if ident == "key" {
                     attrs.key = true;
-                } else if ident.eq_ignore_ascii_case("optional") {
+                } else if ident.to_string().eq_ignore_ascii_case("optional") {
                     attrs.optional = true;
                 } else if ident == "id" {
                     let expr: Expr = meta.value()?.parse()?;
@@ -99,4 +99,3 @@ pub fn get_field_attributes(field: &Field) -> Result<FieldAttributes> {
 
     Ok(attrs)
 }
-```
