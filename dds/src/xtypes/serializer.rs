@@ -1,11 +1,21 @@
+use super::dynamic_type::ExtensibilityKind;
 use crate::xtypes::{
     dynamic_type::{DynamicData, TypeKind},
     error::XTypesError,
-    serialize::Write,
 };
 use alloc::{string::ToString, vec::Vec};
 
-use super::dynamic_type::ExtensibilityKind;
+/// A trait to Write bytes into a potentially growing buffer
+pub trait Write {
+    fn write(&mut self, buf: &[u8]);
+    // fn pos(&self) -> usize;
+}
+
+impl Write for Vec<u8> {
+    fn write(&mut self, buf: &[u8]) {
+        self.extend_from_slice(buf)
+    }
+}
 
 pub struct Writer<'a, W> {
     buffer: &'a mut W,
@@ -41,7 +51,6 @@ pub struct WriterV1<'a, W> {
 }
 impl<'a, W: Write> Write for WriterV1<'a, W> {
     fn write(&mut self, buf: &[u8]) {
-        self.writer.pad(buf.len());
         self.writer.write_slice(buf);
     }
 }
@@ -51,37 +60,54 @@ pub struct WriterV2<'a, W> {
 
 impl<'a, W: Write> Write for WriterV2<'a, W> {
     fn write(&mut self, buf: &[u8]) {
-        self.writer.pad(core::cmp::min(buf.len(), 4));
         self.writer.write_slice(buf);
     }
 }
 
+pub trait PaddedWrite: Write {
+    fn padded_write(&mut self, buf: &[u8]);
+}
+
+impl<'a, W: Write> PaddedWrite for WriterV2<'a, W> {
+    fn padded_write(&mut self, buf: &[u8]) {
+        self.writer.write_slice(buf);
+        self.writer.pad(core::cmp::min(buf.len(), 4));
+    }
+}
+
+impl<'a, W: Write> PaddedWrite for WriterV1<'a, W> {
+    fn padded_write(&mut self, buf: &[u8]) {
+        self.writer.write_slice(buf);
+        self.writer.pad(buf.len());
+    }
+}
+
 pub trait Endianness {
-    fn write_bool<C: Write>(v: bool, writer: &mut C) {
+    fn write_bool<C: PaddedWrite>(v: bool, writer: &mut C) {
         writer.write(&[v as u8]);
     }
-    fn write_i8<C: Write>(v: i8, writer: &mut C) {
+    fn write_i8<C: PaddedWrite>(v: i8, writer: &mut C) {
         writer.write(&[v as u8]);
     }
-    fn write_u8<C: Write>(v: u8, writer: &mut C) {
+    fn write_u8<C: PaddedWrite>(v: u8, writer: &mut C) {
         writer.write(&[v]);
     }
-    fn write_i16<C: Write>(v: i16, writer: &mut C);
-    fn write_u16<C: Write>(v: u16, writer: &mut C);
-    fn write_i32<C: Write>(v: i32, writer: &mut C);
-    fn write_u32<C: Write>(v: u32, writer: &mut C);
-    fn write_i64<C: Write>(v: i64, writer: &mut C);
-    fn write_u64<C: Write>(v: u64, writer: &mut C);
-    fn write_f32<C: Write>(v: f32, writer: &mut C);
-    fn write_f64<C: Write>(v: f64, writer: &mut C);
-    fn write_char<C: Write>(v: char, writer: &mut C) {
+    fn write_i16<C: PaddedWrite>(v: i16, writer: &mut C);
+    fn write_u16<C: PaddedWrite>(v: u16, writer: &mut C);
+    fn write_i32<C: PaddedWrite>(v: i32, writer: &mut C);
+    fn write_u32<C: PaddedWrite>(v: u32, writer: &mut C);
+    fn write_i64<C: PaddedWrite>(v: i64, writer: &mut C);
+    fn write_u64<C: PaddedWrite>(v: u64, writer: &mut C);
+    fn write_f32<C: PaddedWrite>(v: f32, writer: &mut C);
+    fn write_f64<C: PaddedWrite>(v: f64, writer: &mut C);
+    fn write_char<C: PaddedWrite>(v: char, writer: &mut C) {
         writer.write(v.to_string().as_bytes());
     }
-    fn write_str<C: Write>(v: &str, writer: &mut C) {
+    fn write_str<C: PaddedWrite>(v: &str, writer: &mut C) {
         writer.write(&v.as_bytes());
         writer.write(&[0])
     }
-    fn write_slice_u8<C: Write>(v: &[u8], writer: &mut C) {
+    fn write_slice_u8<C: PaddedWrite>(v: &[u8], writer: &mut C) {
         writer.write(v);
     }
 }
@@ -89,57 +115,55 @@ pub struct BigEndian;
 pub struct LittleEndian;
 
 impl Endianness for LittleEndian {
-    fn write_i16<C: Write>(v: i16, writer: &mut C) {
-        writer.write(&v.to_le_bytes())
+    fn write_i16<C: PaddedWrite>(v: i16, writer: &mut C) {
+        writer.padded_write(&v.to_le_bytes())
     }
-    fn write_u16<C: Write>(v: u16, writer: &mut C) {
-        writer.write(&v.to_le_bytes())
+    fn write_u16<C: PaddedWrite>(v: u16, writer: &mut C) {
+        writer.padded_write(&v.to_le_bytes())
     }
-    fn write_i32<C: Write>(v: i32, writer: &mut C) {
-        writer.write(&v.to_le_bytes())
+    fn write_i32<C: PaddedWrite>(v: i32, writer: &mut C) {
+        writer.padded_write(&v.to_le_bytes())
     }
-    fn write_u32<C: Write>(v: u32, writer: &mut C) {
-        writer.write(&v.to_le_bytes())
+    fn write_u32<C: PaddedWrite>(v: u32, writer: &mut C) {
+        writer.padded_write(&v.to_le_bytes())
     }
-    fn write_i64<C: Write>(v: i64, writer: &mut C) {
-        writer.write(&v.to_le_bytes())
+    fn write_i64<C: PaddedWrite>(v: i64, writer: &mut C) {
+        writer.padded_write(&v.to_le_bytes())
     }
-    fn write_u64<C: Write>(v: u64, writer: &mut C) {
-        writer.write(&v.to_le_bytes())
+    fn write_u64<C: PaddedWrite>(v: u64, writer: &mut C) {
+        writer.padded_write(&v.to_le_bytes())
     }
-    fn write_f32<C: Write>(v: f32, writer: &mut C) {
-        writer.write(&v.to_le_bytes())
+    fn write_f32<C: PaddedWrite>(v: f32, writer: &mut C) {
+        writer.padded_write(&v.to_le_bytes())
     }
-    fn write_f64<C: Write>(v: f64, writer: &mut C) {
-        writer.write(&v.to_le_bytes())
+    fn write_f64<C: PaddedWrite>(v: f64, writer: &mut C) {
+        writer.padded_write(&v.to_le_bytes())
     }
 }
 impl Endianness for BigEndian {
-    fn write_i16<C: Write>(v: i16, writer: &mut C) {
-        writer.write(&v.to_be_bytes())
+    fn write_i16<C: PaddedWrite>(v: i16, writer: &mut C) {
+        writer.padded_write(&v.to_be_bytes())
     }
-    fn write_u16<C: Write>(v: u16, writer: &mut C) {
-        writer.write(&v.to_be_bytes())
+    fn write_u16<C: PaddedWrite>(v: u16, writer: &mut C) {
+        writer.padded_write(&v.to_be_bytes())
     }
-    fn write_i32<C: Write>(v: i32, writer: &mut C) {
-        writer.write(&v.to_be_bytes())
+    fn write_i32<C: PaddedWrite>(v: i32, writer: &mut C) {
+        writer.padded_write(&v.to_be_bytes())
     }
-    fn write_u32<C: Write>(v: u32, writer: &mut C) {
-        writer.write(&v.to_be_bytes())
+    fn write_u32<C: PaddedWrite>(v: u32, writer: &mut C) {
+        writer.padded_write(&v.to_be_bytes())
     }
-    fn write_i64<C: Write>(v: i64, writer: &mut C) {
-        writer.write(&v.to_be_bytes())
+    fn write_i64<C: PaddedWrite>(v: i64, writer: &mut C) {
+        writer.padded_write(&v.to_be_bytes())
     }
-    fn write_u64<C: Write>(v: u64, writer: &mut C) {
-        writer.write(&v.to_be_bytes())
+    fn write_u64<C: PaddedWrite>(v: u64, writer: &mut C) {
+        writer.padded_write(&v.to_be_bytes())
     }
-
-    fn write_f32<C: Write>(v: f32, writer: &mut C) {
-        writer.write(&v.to_be_bytes())
+    fn write_f32<C: PaddedWrite>(v: f32, writer: &mut C) {
+        writer.padded_write(&v.to_be_bytes())
     }
-
-    fn write_f64<C: Write>(v: f64, writer: &mut C) {
-        writer.write(&v.to_be_bytes())
+    fn write_f64<C: PaddedWrite>(v: f64, writer: &mut C) {
+        writer.padded_write(&v.to_be_bytes())
     }
 }
 
@@ -262,5 +286,5 @@ pub trait XTypesSerializer {
     fn serialize_f64(&mut self, v: f64) {
         Self::Endianness::write_f64(v, self.writer());
     }
-    fn writer(&mut self) -> &mut impl Write;
+    fn writer(&mut self) -> &mut impl PaddedWrite;
 }

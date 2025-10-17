@@ -1,12 +1,7 @@
 use crate::{
     infrastructure::instance::InstanceHandle,
     xtypes::{
-        deserializer::{DeserializeAppendableStruct, XTypesDeserializer},
-        dynamic_type::{DynamicData, DynamicType, MemberDescriptor},
-        error::XTypesError,
-        serialize::Write,
-        xcdr_deserializer::{Xcdr1BeDeserializer, Xcdr1LeDeserializer},
-        xcdr_serializer::{Xcdr1LeSerializer, Xcdr2BeSerializer},
+        deserializer::{DeserializeAppendableStruct, XTypesDeserializer}, dynamic_type::{DynamicData, DynamicType, MemberDescriptor}, error::XTypesError, serializer::Write, xcdr_deserializer::{Xcdr1BeDeserializer, Xcdr1LeDeserializer}, xcdr_serializer::{Xcdr1LeSerializer, Xcdr2BeSerializer}
     },
 };
 use alloc::{string::String, vec::Vec};

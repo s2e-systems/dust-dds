@@ -1,9 +1,8 @@
-use super::{error::XTypesError, serialize::Write, serializer::XTypesSerializer};
+use super::{error::XTypesError, serializer::XTypesSerializer};
 use crate::xtypes::{
     dynamic_type::{DynamicData, TypeKind},
-    serializer::{BigEndian, LittleEndian, Writer, WriterV1, WriterV2},
+    serializer::{BigEndian, LittleEndian, PaddedWrite, Write, Writer, WriterV1, WriterV2},
 };
-use alloc::vec::Vec;
 
 const PID_SENTINEL: u16 = 1;
 
@@ -80,7 +79,7 @@ impl<C: Write> XTypesSerializer for Xcdr1BeSerializer<'_, C> {
         self.serialize_u16(0);
         Ok(())
     }
-    fn writer(&mut self) -> &mut impl Write {
+    fn writer(&mut self) -> &mut impl PaddedWrite {
         &mut self.writer
     }
 }
@@ -115,7 +114,7 @@ impl<C: Write> XTypesSerializer for Xcdr1LeSerializer<'_, C> {
         self.serialize_u16(0);
         Ok(())
     }
-    fn writer(&mut self) -> &mut impl Write {
+    fn writer(&mut self) -> &mut impl PaddedWrite {
         &mut self.writer
     }
 }
@@ -155,7 +154,7 @@ struct PlainCdr2Encoder<'a, S> {
 impl<C: Write> XTypesSerializer for Xcdr2BeSerializer<'_, C> {
     type Endianness = BigEndian;
 
-    fn writer(&mut self) -> &mut impl Write {
+    fn writer(&mut self) -> &mut impl PaddedWrite {
         &mut self.writer
     }
 
@@ -175,7 +174,7 @@ impl<C: Write> XTypesSerializer for Xcdr2BeSerializer<'_, C> {
 impl<C: Write> XTypesSerializer for Xcdr2LeSerializer<'_, C> {
     type Endianness = LittleEndian;
 
-    fn writer(&mut self) -> &mut impl Write {
+    fn writer(&mut self) -> &mut impl PaddedWrite {
         &mut self.writer
     }
 

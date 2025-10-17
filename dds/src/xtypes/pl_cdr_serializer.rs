@@ -1,6 +1,6 @@
-use super::{error::XTypesError, serialize::Write, serializer::XTypesSerializer};
+use super::{error::XTypesError, serializer::XTypesSerializer};
 use crate::xtypes::{
-    dynamic_type::DynamicData, serializer::LittleEndian, xcdr_serializer::Xcdr1LeSerializer,
+    dynamic_type::DynamicData, serializer::{LittleEndian, PaddedWrite, Write}, xcdr_serializer::Xcdr1LeSerializer,
 };
 
 const PID_SENTINEL: u16 = 1;
@@ -39,7 +39,7 @@ impl<'a, C: Write> PlCdrLeSerializer<'a, C> {
 impl<C: Write> XTypesSerializer for PlCdrLeSerializer<'_, C> {
     type Endianness = LittleEndian;
 
-    fn writer(&mut self) -> &mut impl Write {
+    fn writer(&mut self) -> &mut impl PaddedWrite {
         &mut self.cdr1_le_serializer.writer
     }
 
