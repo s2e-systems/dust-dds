@@ -164,7 +164,7 @@ impl<R: DdsRuntime> Topic<R> {
 impl<R: DdsRuntime> Topic<R> {
     #[doc(hidden)]
     #[tracing::instrument(skip(self))]
-    pub fn get_type_support(&self) -> DdsResult<Arc<dyn DynamicType + Send + Sync>> {
+    pub fn get_type_support(&self) -> DdsResult<Arc<DynamicType>> {
         R::block_on(self.topic_async.get_type_support())
     }
 }

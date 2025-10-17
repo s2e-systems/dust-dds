@@ -35,6 +35,17 @@ use std::{
 };
 
 include!(concat!(env!("OUT_DIR"), "/idl/shape.rs"));
+impl Clone for ShapeType {
+    fn clone(&self) -> Self {
+        Self {
+            color: self.color.clone(),
+            x: self.x,
+            y: self.y,
+            shapesize: self.shapesize,
+            additional_payload_size: self.additional_payload_size.clone(),
+        }
+    }
+}
 
 fn qos_policy_name(id: i32) -> String {
     match id {
@@ -543,7 +554,7 @@ fn run_publisher(
         x: random::<i32>() % da_width,
         y: random::<i32>() % da_height,
         shapesize: options.shapesize,
-        additional_payload_size: vec![]
+        additional_payload_size: vec![],
     };
 
     // get random non-zero velocity.
@@ -564,7 +575,6 @@ fn run_publisher(
         }
 
         move_shape(&mut shape, &mut x_vel, &mut y_vel, da_width, da_height);
-        data_writer.write(&shape, None).ok();
         if options.print_writer_samples {
             println!(
                 "{:10} {:10} {:03} {:03} [{:}]",
@@ -575,6 +585,7 @@ fn run_publisher(
                 shape.shapesize
             );
         }
+        data_writer.write(shape.clone(), None).ok();
         std::thread::sleep(std::time::Duration::from_millis(
             options.write_period_ms as u64,
         ));

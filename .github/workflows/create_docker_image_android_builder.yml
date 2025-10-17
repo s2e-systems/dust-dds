@@ -1,0 +1,24 @@
+name: Create Docker Image Android Buidler
+
+on:
+  workflow_dispatch:
+
+jobs:
+  create_docker_image_android_builder:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.github_token }}
+      - name: Build Docker image
+        run: docker build . --file .github/resources/Dockerfile.android_builder --tag ghcr.io/${{ github.repository }}:android-builder
+
+      - name: Push Docker image
+        run: docker push ghcr.io/${{ github.repository }}:android-builder

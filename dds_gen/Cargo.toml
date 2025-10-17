@@ -10,6 +10,7 @@ license = "Apache-2.0"
 edition = "2021"
 readme = "README.md"
 description = "OMG IDL compiler for Dust DDS"
+rust-version = "1.85"
 homepage = "https://s2e-systems.com/products/dust-dds"
 repository = "https://github.com/s2e-systems/dust-dds"
 keywords = ["dds", "idl", "middleware"]

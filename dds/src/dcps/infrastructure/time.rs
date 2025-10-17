@@ -1,8 +1,10 @@
-use crate::xtypes::{
-    deserialize::XTypesDeserialize,
-    deserializer::{DeserializeFinalStruct, XTypesDeserializer},
-    error::XTypesError,
-    serialize::{XTypesSerialize, XTypesSerializer},
+use crate::{
+    infrastructure::type_support::TypeSupport,
+    xtypes::{
+        deserialize::XTypesDeserialize,
+        deserializer::{DeserializeFinalStruct, XTypesDeserializer},
+        error::XTypesError,
+    },
 };
 use core::ops::{Add, Sub};
 
@@ -14,17 +16,25 @@ pub enum DurationKind {
     /// Infinite duration
     Infinite,
 }
-impl XTypesSerialize for DurationKind {
-    fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
-        XTypesSerialize::serialize(
-            match self {
-                DurationKind::Finite(d) => d,
-                DurationKind::Infinite => &DURATION_INFINITE,
-            },
-            serializer,
-        )
+
+impl TypeSupport for DurationKind {
+    fn get_type() -> crate::xtypes::dynamic_type::DynamicType {
+        Duration::get_type()
+    }
+
+    fn create_sample(_src: crate::xtypes::dynamic_type::DynamicData) -> Self {
+        todo!()
+    }
+
+    fn create_dynamic_sample(self) -> crate::xtypes::dynamic_type::DynamicData {
+        let value = match self {
+            DurationKind::Finite(duration) => duration,
+            DurationKind::Infinite => DURATION_INFINITE,
+        };
+        value.create_dynamic_sample()
     }
 }
+
 impl<'de> XTypesDeserialize<'de> for DurationKind {
     fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
         let mut f = deserializer.deserialize_final_struct()?;
@@ -58,7 +68,8 @@ impl PartialOrd<DurationKind> for DurationKind {
 }
 
 /// Structure representing a time interval with a nanosecond resolution.
-#[derive(PartialOrd, PartialEq, Eq, Debug, Clone, Copy, XTypesSerialize, XTypesDeserialize)]
+#[derive(PartialOrd, PartialEq, Eq, Debug, Clone, Copy, XTypesDeserialize, TypeSupport)]
+#[dust_dds(extensibility = "final", nested)]
 pub struct Duration {
     sec: i32,
     nanosec: u32,

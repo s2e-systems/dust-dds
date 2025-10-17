@@ -31,8 +31,9 @@ use crate::{
             PublisherQos, QosKind, SubscriberQos, TopicQos,
         },
         qos_policy::{
-            DurabilityQosPolicy, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
-            ReliabilityQosPolicy, ReliabilityQosPolicyKind,
+            DataRepresentationQosPolicy, DurabilityQosPolicy, DurabilityQosPolicyKind,
+            HistoryQosPolicy, HistoryQosPolicyKind, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
+            BUILT_IN_DATA_REPRESENTATION,
         },
         status::StatusKind,
         time::{Duration, DurationKind},
@@ -195,6 +196,9 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                     kind: ReliabilityQosPolicyKind::Reliable,
                     max_blocking_time: DurationKind::Finite(Duration::new(0, 0)),
                 },
+                representation: DataRepresentationQosPolicy {
+                    value: vec![BUILT_IN_DATA_REPRESENTATION],
+                },
                 ..Default::default()
             }
         }
@@ -334,6 +338,9 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             reliability: ReliabilityQosPolicy {
                 kind: ReliabilityQosPolicyKind::BestEffort,
                 max_blocking_time: DurationKind::Finite(Duration::new(0, 0)),
+            },
+            representation: DataRepresentationQosPolicy {
+                value: vec![BUILT_IN_DATA_REPRESENTATION],
             },
             ..Default::default()
         };

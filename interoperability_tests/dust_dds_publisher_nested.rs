@@ -75,7 +75,7 @@ fn main() {
         value_list: vec![30, 40, 50],
         last: 60,
     };
-    writer.write(&data, None).unwrap();
+    writer.write(data, None).unwrap();
 
     writer
         .wait_for_acknowledgments(Duration::new(30, 0))
