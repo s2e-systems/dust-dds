@@ -1,70 +1,60 @@
-import java.util.Properties
-import java.io.FileInputStream
-
 plugins {
-    id("com.android.application") version "8.9.2"
-    id("org.mozilla.rust-android-gradle.rust-android") version "0.9.6"
+    id("com.android.application") version "8.13.0"
 }
 
 android {
     signingConfigs {
         create("release") {
-            val keystorePropertiesFile = rootProject.file("keystore.properties")
-            val keystoreProperties = Properties()
-            if (keystorePropertiesFile.exists()) {
-                keystoreProperties.load(FileInputStream(keystorePropertiesFile))
-
-                keyAlias = keystoreProperties["keyAlias"] as String
-                keyPassword = keystoreProperties["keyPassword"] as String
-                storeFile = file(keystoreProperties["storeFile"] as String)
-                storePassword = keystoreProperties["storePassword"] as String
-            }
+            keyAlias = "key1"
+            keyPassword = System.getenv("ANDROID_RELEASE_KEY_PASSWORD")
+            storeFile = file("keystore.jks")
+            storePassword = System.getenv("ANDROID_RELEASE_STORE_PASSWORD")
         }
     }
     namespace = "com.s2e_systems.dustddsshapesdemo"
-    ndkVersion = "29.0.13113456 rc1"
+    ndkVersion = "29.0.14033849"
     compileSdk = 36
 
     defaultConfig {
         applicationId = "com.s2e_systems.dustddsshapesdemo"
         minSdk = 26
         targetSdk = 36
-        versionCode = 6
+        versionCode = 9
         versionName = "1.0.13"
     }
 
     buildTypes {
         getByName("release") {
             isDebuggable = false
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
             )
             signingConfig = signingConfigs.getByName("release")
         }
     }
-
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
-    }
+    sourceSets["main"].jniLibs.srcDirs(layout.buildDirectory.dir("rustJniLibs"))
 }
 
-apply(plugin = "org.mozilla.rust-android-gradle.rust-android")
-
-cargo {
-    module = "."
-    targets = listOf("x86", "x86_64", "arm", "arm64")
-    libname = "shapes_demo_app"
-    verbose = true
-    prebuiltToolchains = true
-    targetDirectory = "../../../target"
-    profile = "release"
+val cargoBuild by tasks.registering(Exec::class) {
+    // The --platform should be "android.compileSdk", but the NDK did not include a prebuilt
+    // for API level (compileSdk) 36
+    val outputDir = layout.buildDirectory.dir("rustJniLibs")
+    commandLine(
+        "cargo", "ndk",
+        "--target", "arm64-v8a",
+        "--target", "armeabi-v7a",
+        "--target", "x86_64",
+        "--target", "x86",
+        "--platform", 35,
+        "--output-dir", outputDir.get().asFile.absolutePath,
+        "build", "--release",
+        "--package", "shapes_demo_app"
+    )
 }
 
-dependencies {
-    tasks.named("preBuild").configure {
-        dependsOn("cargoBuild")
-    }
+tasks.named("preBuild") {
+    dependsOn(cargoBuild)
 }
+

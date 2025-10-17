@@ -37,7 +37,7 @@ struct KeyedData {
     value: u32,
 }
 
-#[derive(Debug, PartialEq, DdsType)]
+#[derive(Clone, Debug, PartialEq, DdsType)]
 struct LargeData {
     #[dust_dds(key)]
     id: u8,
@@ -114,7 +114,7 @@ fn large_data_should_be_fragmented() {
         value: vec![8; 15000],
     };
 
-    writer.write(&even_data, None).unwrap();
+    writer.write(even_data.clone(), None).unwrap();
 
     let cond = reader.get_statuscondition();
     cond.set_enabled_statuses(&[StatusKind::DataAvailable])
@@ -137,7 +137,7 @@ fn large_data_should_be_fragmented() {
         value: vec![8; 15001],
     };
 
-    writer.write(&odd_data, None).unwrap();
+    writer.write(odd_data.clone(), None).unwrap();
 
     let cond = reader.get_statuscondition();
     cond.set_enabled_statuses(&[StatusKind::DataAvailable])
@@ -227,7 +227,7 @@ fn large_data_should_be_fragmented_reliable() {
         value: vec![8; 15000],
     };
 
-    writer.write(&data, None).unwrap();
+    writer.write(data.clone(), None).unwrap();
 
     writer
         .wait_for_acknowledgments(Duration::new(10, 0))
@@ -295,11 +295,11 @@ fn writer_with_keep_last_1_should_send_only_last_sample_to_reader() {
     let data4 = KeyedData { id: 1, value: 4 };
     let data5 = KeyedData { id: 1, value: 5 };
 
-    writer.write(&data1, None).unwrap();
-    writer.write(&data2, None).unwrap();
-    writer.write(&data3, None).unwrap();
-    writer.write(&data4, None).unwrap();
-    writer.write(&data5, None).unwrap();
+    writer.write(data1, None).unwrap();
+    writer.write(data2, None).unwrap();
+    writer.write(data3, None).unwrap();
+    writer.write(data4, None).unwrap();
+    writer.write(data5.clone(), None).unwrap();
 
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -399,11 +399,11 @@ fn writer_with_keep_last_3_should_send_last_3_samples_to_reader() {
     let data4 = KeyedData { id: 1, value: 4 };
     let data5 = KeyedData { id: 1, value: 5 };
 
-    writer.write(&data1, None).unwrap();
-    writer.write(&data2, None).unwrap();
-    writer.write(&data3, None).unwrap();
-    writer.write(&data4, None).unwrap();
-    writer.write(&data5, None).unwrap();
+    writer.write(data1, None).unwrap();
+    writer.write(data2, None).unwrap();
+    writer.write(data3.clone(), None).unwrap();
+    writer.write(data4.clone(), None).unwrap();
+    writer.write(data5.clone(), None).unwrap();
 
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -528,11 +528,11 @@ fn samples_are_taken() {
     let data4 = KeyedData { id: 4, value: 30 };
     let data5 = KeyedData { id: 5, value: 40 };
 
-    writer.write(&data1, None).unwrap();
-    writer.write(&data2, None).unwrap();
-    writer.write(&data3, None).unwrap();
-    writer.write(&data4, None).unwrap();
-    writer.write(&data5, None).unwrap();
+    writer.write(data1.clone(), None).unwrap();
+    writer.write(data2.clone(), None).unwrap();
+    writer.write(data3.clone(), None).unwrap();
+    writer.write(data4.clone(), None).unwrap();
+    writer.write(data5.clone(), None).unwrap();
 
     writer
         .wait_for_acknowledgments(Duration::new(10, 0))
@@ -628,17 +628,18 @@ fn wait_for_samples_to_be_taken_best_effort() {
     let data4 = KeyedData { id: 4, value: 30 };
     let data5 = KeyedData { id: 5, value: 40 };
 
-    writer.write(&data1, None).unwrap();
-    writer.write(&data2, None).unwrap();
-    writer.write(&data3, None).unwrap();
-    writer.write(&data4, None).unwrap();
-    writer.write(&data5, None).unwrap();
+    writer.write(data1.clone(), None).unwrap();
+    writer.write(data2.clone(), None).unwrap();
+    writer.write(data3.clone(), None).unwrap();
+    writer.write(data4.clone(), None).unwrap();
+    writer.write(data5.clone(), None).unwrap();
 
     let start_time = std::time::Instant::now();
     let mut samples = Vec::new();
     while start_time.elapsed() < std::time::Duration::from_secs(10) {
-        if let Ok(sample) = reader.take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE) {
-            samples.push(sample[0].data().unwrap())
+        if let Ok(mut sample) = reader.take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        {
+            samples.push(sample.remove(0))
         }
 
         if samples.len() >= 5 {
@@ -647,11 +648,11 @@ fn wait_for_samples_to_be_taken_best_effort() {
     }
 
     assert_eq!(samples.len(), 5);
-    assert_eq!(samples[0], data1);
-    assert_eq!(samples[1], data2);
-    assert_eq!(samples[2], data3);
-    assert_eq!(samples[3], data4);
-    assert_eq!(samples[4], data5);
+    assert_eq!(samples[0].data().unwrap(), data1);
+    assert_eq!(samples[1].data().unwrap(), data2);
+    assert_eq!(samples[2].data().unwrap(), data3);
+    assert_eq!(samples[3].data().unwrap(), data4);
+    assert_eq!(samples[4].data().unwrap(), data5);
 }
 
 #[test]
@@ -726,11 +727,11 @@ fn read_only_unread_samples() {
     let data4 = KeyedData { id: 4, value: 30 };
     let data5 = KeyedData { id: 5, value: 40 };
 
-    writer.write(&data1, None).unwrap();
-    writer.write(&data2, None).unwrap();
-    writer.write(&data3, None).unwrap();
-    writer.write(&data4, None).unwrap();
-    writer.write(&data5, None).unwrap();
+    writer.write(data1.clone(), None).unwrap();
+    writer.write(data2.clone(), None).unwrap();
+    writer.write(data3.clone(), None).unwrap();
+    writer.write(data4.clone(), None).unwrap();
+    writer.write(data5.clone(), None).unwrap();
 
     writer
         .wait_for_acknowledgments(Duration::new(10, 0))
@@ -770,7 +771,7 @@ fn read_only_unread_samples() {
     assert_eq!(samples2[0].data().unwrap(), data4);
     assert_eq!(samples2[1].data().unwrap(), data5);
 
-    assert_eq!(samples3, Err(DdsError::NoData));
+    assert!(matches!(samples3, Err(DdsError::NoData)));
 }
 
 #[test]
@@ -843,9 +844,9 @@ fn read_next_sample() {
     let data2 = KeyedData { id: 2, value: 10 };
     let data3 = KeyedData { id: 3, value: 20 };
 
-    writer.write(&data1, None).unwrap();
-    writer.write(&data2, None).unwrap();
-    writer.write(&data3, None).unwrap();
+    writer.write(data1.clone(), None).unwrap();
+    writer.write(data2.clone(), None).unwrap();
+    writer.write(data3.clone(), None).unwrap();
 
     writer
         .wait_for_acknowledgments(Duration::new(10, 0))
@@ -854,7 +855,7 @@ fn read_next_sample() {
     assert_eq!(reader.read_next_sample().unwrap().data().unwrap(), data1);
     assert_eq!(reader.read_next_sample().unwrap().data().unwrap(), data2);
     assert_eq!(reader.read_next_sample().unwrap().data().unwrap(), data3);
-    assert_eq!(reader.read_next_sample(), Err(DdsError::NoData));
+    assert!(matches!(reader.read_next_sample(), Err(DdsError::NoData)));
 }
 
 #[test]
@@ -927,9 +928,9 @@ fn take_next_sample() {
     let data2 = KeyedData { id: 2, value: 10 };
     let data3 = KeyedData { id: 3, value: 20 };
 
-    writer.write(&data1, None).unwrap();
-    writer.write(&data2, None).unwrap();
-    writer.write(&data3, None).unwrap();
+    writer.write(data1.clone(), None).unwrap();
+    writer.write(data2.clone(), None).unwrap();
+    writer.write(data3.clone(), None).unwrap();
 
     writer
         .wait_for_acknowledgments(Duration::new(10, 0))
@@ -938,7 +939,7 @@ fn take_next_sample() {
     assert_eq!(reader.take_next_sample().unwrap().data().unwrap(), data1);
     assert_eq!(reader.take_next_sample().unwrap().data().unwrap(), data2);
     assert_eq!(reader.take_next_sample().unwrap().data().unwrap(), data3);
-    assert_eq!(reader.take_next_sample(), Err(DdsError::NoData));
+    assert!(matches!(reader.take_next_sample(), Err(DdsError::NoData)));
 }
 
 #[test]
@@ -1011,13 +1012,13 @@ fn each_key_sample_is_read() {
     let data2 = KeyedData { id: 2, value: 10 };
     let data3 = KeyedData { id: 3, value: 20 };
 
-    writer.write(&data1, None).unwrap();
-    writer.write(&data2, None).unwrap();
-    writer.write(&data3, None).unwrap();
+    writer.write(data1.clone(), None).unwrap();
+    writer.write(data2.clone(), None).unwrap();
+    writer.write(data3.clone(), None).unwrap();
 
-    let data1_handle = writer.lookup_instance(&data1).unwrap();
-    let data2_handle = writer.lookup_instance(&data2).unwrap();
-    let data3_handle = writer.lookup_instance(&data3).unwrap();
+    let data1_handle = writer.lookup_instance(data1.clone()).unwrap();
+    let data2_handle = writer.lookup_instance(data2.clone()).unwrap();
+    let data3_handle = writer.lookup_instance(data3.clone()).unwrap();
 
     writer
         .wait_for_acknowledgments(Duration::new(1, 0))
@@ -1117,11 +1118,11 @@ fn read_specific_instance() {
     let data2 = KeyedData { id: 2, value: 10 };
     let data3 = KeyedData { id: 3, value: 20 };
 
-    writer.write(&data1, None).unwrap();
-    writer.write(&data2, None).unwrap();
-    writer.write(&data3, None).unwrap();
+    writer.write(data1.clone(), None).unwrap();
+    writer.write(data2, None).unwrap();
+    writer.write(data3, None).unwrap();
 
-    let data1_handle = writer.lookup_instance(&data1).unwrap();
+    let data1_handle = writer.lookup_instance(data1.clone()).unwrap();
 
     writer
         .wait_for_acknowledgments(Duration::new(10, 0))
@@ -1211,9 +1212,9 @@ fn read_next_instance() {
     let data2 = KeyedData { id: 2, value: 10 };
     let data3 = KeyedData { id: 3, value: 20 };
 
-    writer.write(&data1, None).unwrap();
-    writer.write(&data2, None).unwrap();
-    writer.write(&data3, None).unwrap();
+    writer.write(data1.clone(), None).unwrap();
+    writer.write(data2.clone(), None).unwrap();
+    writer.write(data3.clone(), None).unwrap();
 
     writer
         .wait_for_acknowledgments(Duration::new(10, 0))
@@ -1260,7 +1261,7 @@ fn read_next_instance() {
     assert_eq!(samples1[0].data().unwrap(), data1);
     assert_eq!(samples2[0].data().unwrap(), data2);
     assert_eq!(samples3[0].data().unwrap(), data3);
-    assert_eq!(samples4, Err(DdsError::NoData));
+    assert!(matches!(samples4, Err(DdsError::NoData)));
 }
 
 #[test]
@@ -1333,9 +1334,9 @@ fn take_next_instance() {
     let data2 = KeyedData { id: 2, value: 10 };
     let data3 = KeyedData { id: 3, value: 20 };
 
-    writer.write(&data1, None).unwrap();
-    writer.write(&data2, None).unwrap();
-    writer.write(&data3, None).unwrap();
+    writer.write(data1.clone(), None).unwrap();
+    writer.write(data2.clone(), None).unwrap();
+    writer.write(data3.clone(), None).unwrap();
 
     writer
         .wait_for_acknowledgments(Duration::new(10, 0))
@@ -1382,7 +1383,7 @@ fn take_next_instance() {
     assert_eq!(samples1[0].data().unwrap(), data1);
     assert_eq!(samples2[0].data().unwrap(), data2);
     assert_eq!(samples3[0].data().unwrap(), data3);
-    assert_eq!(samples4, Err(DdsError::NoData));
+    assert!(matches!(samples4, Err(DdsError::NoData)));
 }
 
 #[test]
@@ -1455,10 +1456,10 @@ fn take_specific_instance() {
     let data2 = KeyedData { id: 2, value: 10 };
     let data3 = KeyedData { id: 3, value: 20 };
 
-    writer.write(&data1, None).unwrap();
-    writer.write(&data2, None).unwrap();
-    writer.write(&data3, None).unwrap();
-    let data1_handle = writer.lookup_instance(&data1).unwrap();
+    writer.write(data1.clone(), None).unwrap();
+    writer.write(data2, None).unwrap();
+    writer.write(data3, None).unwrap();
+    let data1_handle = writer.lookup_instance(data1.clone()).unwrap();
 
     writer
         .wait_for_acknowledgments(Duration::new(10, 0))
@@ -1548,15 +1549,15 @@ fn take_specific_unknown_instance() {
     let data2 = KeyedData { id: 2, value: 10 };
     let data3 = KeyedData { id: 3, value: 20 };
 
-    writer.write(&data1, None).unwrap();
-    writer.write(&data2, None).unwrap();
-    writer.write(&data3, None).unwrap();
+    writer.write(data1, None).unwrap();
+    writer.write(data2, None).unwrap();
+    writer.write(data3, None).unwrap();
 
     writer
         .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
-    assert_eq!(
+    assert!(matches!(
         reader.take_instance(
             3,
             InstanceHandle::new([99; 16]),
@@ -1565,7 +1566,7 @@ fn take_specific_unknown_instance() {
             ANY_INSTANCE_STATE,
         ),
         Err(DdsError::BadParameter)
-    );
+    ));
 }
 
 #[test]
@@ -1644,8 +1645,8 @@ fn write_read_disposed_samples() {
 
     let data1 = KeyedData { id: 1, value: 1 };
 
-    writer.write(&data1, None).unwrap();
-    writer.dispose(&data1, None).unwrap();
+    writer.write(data1.clone(), None).unwrap();
+    writer.dispose(data1, None).unwrap();
 
     writer
         .wait_for_acknowledgments(Duration::new(10, 0))
@@ -1749,8 +1750,8 @@ fn write_read_disposed_samples_when_writer_is_immediately_deleted() {
 
     let data1 = KeyedData { id: 1, value: 1 };
 
-    writer.write(&data1, None).unwrap();
-    writer.dispose(&data1, None).unwrap();
+    writer.write(data1.clone(), None).unwrap();
+    writer.dispose(data1, None).unwrap();
     publisher.delete_datawriter(&writer).unwrap();
 
     let start_loop_time = std::time::Instant::now();
@@ -1847,7 +1848,7 @@ fn write_read_sample_view_state() {
 
     let data1 = KeyedData { id: 1, value: 1 };
 
-    writer.write(&data1, None).unwrap();
+    writer.write(data1, None).unwrap();
 
     writer
         .wait_for_acknowledgments(Duration::new(10, 0))
@@ -1860,8 +1861,8 @@ fn write_read_sample_view_state() {
     let data1_2 = KeyedData { id: 1, value: 2 };
     let data2 = KeyedData { id: 2, value: 1 };
 
-    writer.write(&data1_2, None).unwrap();
-    writer.write(&data2, None).unwrap();
+    writer.write(data1_2, None).unwrap();
+    writer.write(data2, None).unwrap();
 
     writer
         .wait_for_acknowledgments(Duration::new(1, 0))
@@ -2029,22 +2030,22 @@ fn reader_with_minimum_time_separation_qos() {
     let data2_3 = KeyedData { id: 2, value: 30 };
 
     writer
-        .write_w_timestamp(&data1_1, None, Time::new(1, 0))
+        .write_w_timestamp(data1_1.clone(), None, Time::new(1, 0))
         .unwrap();
     writer
-        .write_w_timestamp(&data1_2, None, Time::new(2, 0))
+        .write_w_timestamp(data1_2, None, Time::new(2, 0))
         .unwrap();
     writer
-        .write_w_timestamp(&data1_3, None, Time::new(3, 0))
+        .write_w_timestamp(data1_3.clone(), None, Time::new(3, 0))
         .unwrap();
     writer
-        .write_w_timestamp(&data2_1, None, Time::new(4, 0))
+        .write_w_timestamp(data2_1.clone(), None, Time::new(4, 0))
         .unwrap();
     writer
-        .write_w_timestamp(&data2_2, None, Time::new(5, 0))
+        .write_w_timestamp(data2_2, None, Time::new(5, 0))
         .unwrap();
     writer
-        .write_w_timestamp(&data2_3, None, Time::new(6, 0))
+        .write_w_timestamp(data2_3.clone(), None, Time::new(6, 0))
         .unwrap();
 
     writer
@@ -2106,8 +2107,8 @@ fn transient_local_writer_reader_wait_for_historical_data() {
         .unwrap();
     let data1 = KeyedData { id: 1, value: 1 };
     let data2 = KeyedData { id: 2, value: 2 };
-    writer.write(&data1, None).unwrap();
-    writer.write(&data2, None).unwrap();
+    writer.write(data1.clone(), None).unwrap();
+    writer.write(data2.clone(), None).unwrap();
 
     let subscriber = participant
         .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
@@ -2204,7 +2205,7 @@ fn volatile_writer_reader_receives_only_new_samples() {
         .unwrap();
 
     let data1 = KeyedData { id: 1, value: 1 };
-    writer.write(&data1, None).unwrap();
+    writer.write(data1, None).unwrap();
 
     let subscriber = participant
         .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
@@ -2242,7 +2243,7 @@ fn volatile_writer_reader_receives_only_new_samples() {
     wait_set.wait(Duration::new(5, 0)).unwrap();
 
     let data2 = KeyedData { id: 2, value: 10 };
-    writer.write(&data2, None).unwrap();
+    writer.write(data2.clone(), None).unwrap();
 
     writer
         .wait_for_acknowledgments(Duration::new(10, 0))
@@ -2323,7 +2324,7 @@ fn write_read_unkeyed_topic() {
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
-    writer.write(&UserData(8), None).unwrap();
+    writer.write(UserData(8), None).unwrap();
 
     writer
         .wait_for_acknowledgments(Duration::new(5, 0))
@@ -2414,9 +2415,9 @@ fn data_reader_resource_limits() {
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
-    writer.write(&UserData(1), None).unwrap();
-    writer.write(&UserData(2), None).unwrap();
-    writer.write(&UserData(3), None).unwrap();
+    writer.write(UserData(1), None).unwrap();
+    writer.write(UserData(2), None).unwrap();
+    writer.write(UserData(3), None).unwrap();
 
     let reader_cond = reader.get_statuscondition();
     reader_cond
@@ -2518,13 +2519,13 @@ fn data_reader_order_by_source_timestamp() {
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
     writer
-        .write_w_timestamp(&UserData(1), None, Time::new(30, 0))
+        .write_w_timestamp(UserData(1), None, Time::new(30, 0))
         .unwrap();
     writer
-        .write_w_timestamp(&UserData(2), None, Time::new(20, 0))
+        .write_w_timestamp(UserData(2), None, Time::new(20, 0))
         .unwrap();
     writer
-        .write_w_timestamp(&UserData(3), None, Time::new(10, 0))
+        .write_w_timestamp(UserData(3), None, Time::new(10, 0))
         .unwrap();
 
     writer
@@ -2610,7 +2611,7 @@ fn data_reader_publication_handle_sample_info() {
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
-    writer.write(&UserData(1), None).unwrap();
+    writer.write(UserData(1), None).unwrap();
 
     writer
         .wait_for_acknowledgments(Duration::new(10, 0))
@@ -2706,7 +2707,7 @@ fn volatile_writer_with_reader_new_reader_receives_only_new_samples() {
     writer.get_publication_matched_status().unwrap(); // To reset wait_set for subsequent calls
 
     let data1 = KeyedData { id: 1, value: 1 };
-    writer.write(&data1, None).unwrap();
+    writer.write(data1, None).unwrap();
 
     writer
         .wait_for_acknowledgments(Duration::new(3, 0))
@@ -2725,7 +2726,7 @@ fn volatile_writer_with_reader_new_reader_receives_only_new_samples() {
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let data2 = KeyedData { id: 2, value: 10 };
-    writer.write(&data2, None).unwrap();
+    writer.write(data2.clone(), None).unwrap();
 
     writer
         .wait_for_acknowledgments(Duration::new(10, 0))
@@ -2818,8 +2819,8 @@ fn write_read_unregistered_samples_are_also_disposed() {
 
     let data1 = KeyedData { id: 1, value: 1 };
 
-    writer.write(&data1, None).unwrap();
-    writer.unregister_instance(&data1, None).unwrap();
+    writer.write(data1.clone(), None).unwrap();
+    writer.unregister_instance(data1, None).unwrap();
 
     writer
         .wait_for_acknowledgments(Duration::new(10, 0))
@@ -2888,10 +2889,10 @@ fn transient_local_writer_does_not_deliver_lifespan_expired_data_at_write() {
     let data1 = KeyedData { id: 1, value: 1 };
     let data2 = KeyedData { id: 2, value: 2 };
     writer
-        .write_w_timestamp(&data1, None, Time::new(0, 0))
+        .write_w_timestamp(data1, None, Time::new(0, 0))
         .unwrap();
     writer
-        .write_w_timestamp(&data2, None, Time::new(i32::MAX, 0))
+        .write_w_timestamp(data2.clone(), None, Time::new(i32::MAX, 0))
         .unwrap(); // Never stale sample
 
     let subscriber = participant
@@ -2989,9 +2990,9 @@ fn transient_local_writer_does_not_deliver_lifespan_expired_data_after_write() {
         .unwrap();
     let data1 = KeyedData { id: 1, value: 1 };
     let data2 = KeyedData { id: 2, value: 2 };
-    writer.write(&data1, None).unwrap();
+    writer.write(data1, None).unwrap();
     writer
-        .write_w_timestamp(&data2, None, Time::new(i32::MAX, 0))
+        .write_w_timestamp(data2.clone(), None, Time::new(i32::MAX, 0))
         .unwrap(); // Never stale sample
 
     std::thread::sleep(std::time::Duration::from_millis(LIFESPAN_MS as u64 * 2));
@@ -3087,7 +3088,7 @@ fn reader_joining_after_writer_writes_many_samples() {
 
     for value in 0..500 {
         let data = KeyedData { id: 1, value };
-        writer.write(&data, None).unwrap();
+        writer.write(data, None).unwrap();
     }
 
     let reader_qos = DataReaderQos {
@@ -3117,7 +3118,7 @@ fn reader_joining_after_writer_writes_many_samples() {
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let new_data = KeyedData { id: 1, value: 1000 };
-    writer.write(&new_data, None).unwrap();
+    writer.write(new_data.clone(), None).unwrap();
     writer
         .wait_for_acknowledgments(Duration::new(20, 0))
         .unwrap();
@@ -3248,13 +3249,13 @@ fn reader_with_exclusive_ownership_should_not_read_samples_from_second_weaker_wr
     wait_set.wait(Duration::new(5, 0)).unwrap();
 
     let data1 = KeyedData { id: 1, value: 10 };
-    writer1.write(&data1, None).unwrap();
+    writer1.write(data1.clone(), None).unwrap();
     writer1
         .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
     let data2 = KeyedData { id: 1, value: 20 };
-    writer2.write(&data2, None).unwrap();
+    writer2.write(data2, None).unwrap();
     writer2
         .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
@@ -3387,13 +3388,13 @@ fn reader_with_exclusive_ownership_should_read_samples_from_second_writer_with_h
     wait_set.wait(Duration::new(5, 0)).unwrap();
 
     let data1 = KeyedData { id: 1, value: 10 };
-    writer1.write(&data1, None).unwrap();
+    writer1.write(data1.clone(), None).unwrap();
     writer1
         .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
     let data2 = KeyedData { id: 1, value: 20 };
-    writer2.write(&data2, None).unwrap();
+    writer2.write(data2.clone(), None).unwrap();
     writer2
         .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
@@ -3535,7 +3536,7 @@ fn reader_with_exclusive_ownership_should_read_samples_from_second_writer_after_
     wait_set.wait(Duration::new(5, 0)).unwrap();
 
     let data1 = KeyedData { id: 1, value: 10 };
-    writer1.write(&data1, None).unwrap();
+    writer1.write(data1.clone(), None).unwrap();
     writer1
         .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
@@ -3550,7 +3551,7 @@ fn reader_with_exclusive_ownership_should_read_samples_from_second_writer_after_
     wait_set.wait(Duration::new(5, 0)).unwrap();
 
     let data2 = KeyedData { id: 1, value: 20 };
-    writer2.write(&data2, None).unwrap();
+    writer2.write(data2.clone(), None).unwrap();
     writer2
         .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
@@ -3684,18 +3685,18 @@ fn reader_with_exclusive_ownership_should_read_samples_from_second_weaker_writer
     wait_set.wait(Duration::new(5, 0)).unwrap();
 
     let data1 = KeyedData { id: 1, value: 10 };
-    writer1.write(&data1, None).unwrap();
+    writer1.write(data1.clone(), None).unwrap();
     writer1
         .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
-    writer1.unregister_instance(&data1, None).unwrap();
+    writer1.unregister_instance(data1.clone(), None).unwrap();
     writer1
         .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
     let data2 = KeyedData { id: 1, value: 20 };
-    writer2.write(&data2, None).unwrap();
+    writer2.write(data2.clone(), None).unwrap();
     writer2
         .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
@@ -3709,3 +3710,105 @@ fn reader_with_exclusive_ownership_should_read_samples_from_second_weaker_writer
     assert_eq!(samples[2].data().unwrap(), data2);
 }
 
+#[test]
+fn samples_are_transfered_between_two_participants() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+
+    let participant1 = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic = participant1
+        .create_topic::<KeyedData>(
+            "MyTopic",
+            "KeyedData",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let publisher = participant1
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+    let writer = publisher
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let participant2 = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let subscriber = participant2
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+    let topic = participant2
+        .create_topic::<KeyedData>(
+            "MyTopic",
+            "KeyedData",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+    let reader = subscriber
+        .create_datareader::<KeyedData>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let cond = writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(100, 0)).unwrap();
+
+    let cond = reader.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    let data = KeyedData { id: 1, value: 1 };
+
+    writer.write(data.clone(), None).unwrap();
+
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    let samples = reader
+        .take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+
+    assert_eq!(samples.len(), 1);
+    assert_eq!(samples[0].data().unwrap(), data);
+}

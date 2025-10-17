@@ -1,6 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use dust_dds::{
-    runtime::DdsRuntime,
     dds_async::data_reader::DataReaderAsync,
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
@@ -12,6 +11,7 @@ use dust_dds::{
         type_support::DdsType,
     },
     listener::NO_LISTENER,
+    runtime::DdsRuntime,
     subscription::data_reader_listener::DataReaderListener,
     wait_set::{Condition, WaitSet},
     xtypes::bytes::ByteBuf,
@@ -75,7 +75,7 @@ pub fn best_effort_write_only(c: &mut Criterion) {
 
     c.bench_function("best_effort_write_only", |b| {
         b.iter(|| {
-            writer.write(&KeyedData { id: 1, value: 1 }, None).unwrap();
+            writer.write(KeyedData { id: 1, value: 1 }, None).unwrap();
         })
     });
 }
@@ -117,7 +117,7 @@ pub fn best_effort_read_only(c: &mut Criterion) {
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
-    writer.write(&KeyedData { id: 1, value: 1 }, None).unwrap();
+    writer.write(KeyedData { id: 1, value: 1 }, None).unwrap();
 
     c.bench_function("best_effort_read_only", |b| {
         b.iter(|| {
@@ -200,7 +200,7 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
 
     c.bench_function("best_effort_write_and_receive", |b| {
         b.iter(|| {
-            writer.write(&KeyedData { id: 1, value: 7 }, None).unwrap();
+            writer.write(KeyedData { id: 1, value: 7 }, None).unwrap();
             receiver
                 .recv_timeout(std::time::Duration::from_secs(10))
                 .unwrap();
@@ -285,14 +285,17 @@ fn best_effort_write_and_receive_frag(c: &mut Criterion) {
         .unwrap();
     wait_set2.wait(Duration::new(20, 0)).unwrap();
 
-    let large_data_sample = LargeKeyedData {
-        id: 1,
-        value: ByteBuf(vec![7; 32000]),
-    };
-
     c.bench_function("best_effort_write_and_receive_frag", |b| {
         b.iter(|| {
-            writer.write(&large_data_sample, None).unwrap();
+            writer
+                .write(
+                    LargeKeyedData {
+                        id: 1,
+                        value: ByteBuf(vec![7; 32000]),
+                    },
+                    None,
+                )
+                .unwrap();
             receiver
                 .recv_timeout(std::time::Duration::from_secs(10))
                 .unwrap();

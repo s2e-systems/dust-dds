@@ -37,7 +37,7 @@ struct ShapeWriter {
 impl ShapeWriter {
     fn write(&self) {
         let data = self.shape.gui_shape().as_shape_type();
-        self.writer.write(&data, None).ok();
+        self.writer.write(data, None).ok();
     }
     fn color(&self) -> String {
         self.shape.gui_shape().as_shape_type().color.clone()
@@ -370,16 +370,23 @@ impl eframe::App for ShapesDemoApp {
                                         &shape_writer.writer.get_qos().unwrap().reliability.kind,
                                     ));
                                     ui.end_row();
-                                    let instance = &ShapeType {
-                                        color: shape_writer.color(),
-                                        x: Default::default(),
-                                        y: Default::default(),
-                                        shapesize: Default::default(),
-                                    };
+
                                     if dispose_button.clicked() {
+                                        let instance = ShapeType {
+                                            color: shape_writer.color(),
+                                            x: Default::default(),
+                                            y: Default::default(),
+                                            shapesize: Default::default(),
+                                        };
                                         shape_writer.writer.dispose(instance, None).unwrap();
                                     };
                                     if unregister_button.clicked() {
+                                        let instance = ShapeType {
+                                            color: shape_writer.color(),
+                                            x: Default::default(),
+                                            y: Default::default(),
+                                            shapesize: Default::default(),
+                                        };
                                         shape_writer
                                             .writer
                                             .unregister_instance(instance, None)

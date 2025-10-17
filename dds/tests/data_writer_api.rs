@@ -59,9 +59,9 @@ fn data_writer_write_more_than_max_instances_should_fail() {
         .unwrap();
     let data_instance1 = KeyedData { id: 1, value: 0 };
     let data_instance2 = KeyedData { id: 2, value: 0 };
-    data_writer.write(&data_instance1, None).unwrap();
+    data_writer.write(data_instance1, None).unwrap();
 
-    let result = data_writer.write(&data_instance2, None);
+    let result = data_writer.write(data_instance2, None);
     assert_eq!(result, Err(DdsError::OutOfResources));
 }
 
@@ -107,9 +107,9 @@ fn data_writer_write_more_than_max_samples_per_instances_should_fail() {
         .unwrap();
     let data1_instance1 = KeyedData { id: 1, value: 0 };
     let data2_instance1 = KeyedData { id: 1, value: 1 };
-    data_writer.write(&data1_instance1, None).unwrap();
+    data_writer.write(data1_instance1, None).unwrap();
 
-    let result = data_writer.write(&data2_instance1, None);
+    let result = data_writer.write(data2_instance1, None);
     assert_eq!(result, Err(DdsError::OutOfResources));
 }
 
@@ -153,9 +153,9 @@ fn data_writer_write_more_than_max_samples_should_fail() {
     let data_instance1 = KeyedData { id: 1, value: 0 };
     let data_instance2 = KeyedData { id: 2, value: 0 };
     let data_instance3 = KeyedData { id: 3, value: 0 };
-    data_writer.write(&data_instance1, None).unwrap();
-    data_writer.write(&data_instance2, None).unwrap();
+    data_writer.write(data_instance1, None).unwrap();
+    data_writer.write(data_instance2, None).unwrap();
 
-    let result = data_writer.write(&data_instance3, None);
+    let result = data_writer.write(data_instance3, None);
     assert_eq!(result, Err(DdsError::OutOfResources));
 }

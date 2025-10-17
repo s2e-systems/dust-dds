@@ -1,32 +1,28 @@
-use super::infrastructure::error::DdsResult;
-use super::{
-    data_representation_builtin_endpoints::{
-        parameter_id_values::{
-            PID_DATA_REPRESENTATION, PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY,
-            PID_ENDPOINT_GUID, PID_GROUP_DATA, PID_HISTORY, PID_LATENCY_BUDGET, PID_LIFESPAN,
-            PID_LIVELINESS, PID_OWNERSHIP, PID_OWNERSHIP_STRENGTH, PID_PARTICIPANT_GUID,
-            PID_PARTITION, PID_PRESENTATION, PID_RELIABILITY, PID_RESOURCE_LIMITS,
-            PID_TIME_BASED_FILTER, PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TRANSPORT_PRIORITY,
-            PID_TYPE_NAME, PID_USER_DATA,
-        },
-        payload_serializer_deserializer::parameter_list_serializer::ParameterListCdrSerializer,
+use super::infrastructure::qos_policy::{
+    DataRepresentationQosPolicy, DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
+    GroupDataQosPolicy, HistoryQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy,
+    LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy, PartitionQosPolicy,
+    PresentationQosPolicy, ReliabilityQosPolicy, ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy,
+    TopicDataQosPolicy, TransportPriorityQosPolicy, UserDataQosPolicy,
+};
+use crate::{
+    dcps::data_representation_builtin_endpoints::parameter_id_values::{
+        PID_DATA_REPRESENTATION, PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY,
+        PID_ENDPOINT_GUID, PID_GROUP_DATA, PID_HISTORY, PID_LATENCY_BUDGET, PID_LIFESPAN,
+        PID_LIVELINESS, PID_OWNERSHIP, PID_OWNERSHIP_STRENGTH, PID_PARTICIPANT_GUID, PID_PARTITION,
+        PID_PRESENTATION, PID_RELIABILITY, PID_RESOURCE_LIMITS, PID_TIME_BASED_FILTER,
+        PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TRANSPORT_PRIORITY, PID_TYPE_NAME, PID_USER_DATA,
     },
     infrastructure::{
         qos_policy::{
-            DataRepresentationQosPolicy, DeadlineQosPolicy, DestinationOrderQosPolicy,
-            DurabilityQosPolicy, GroupDataQosPolicy, HistoryQosPolicy, LatencyBudgetQosPolicy,
-            LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy,
-            PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy,
-            ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy,
-            TransportPriorityQosPolicy, UserDataQosPolicy,
             DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
             DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
         },
-        type_support::DdsSerialize,
+        type_support::TypeSupport,
     },
+    xtypes::deserialize::XTypesDeserialize,
 };
-use crate::xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize};
-use alloc::{string::String, vec::Vec};
+use alloc::string::String;
 
 /// Topic name of the built-in publication discovery topic
 pub const DCPS_PUBLICATION: &str = "DCPSPublication";
@@ -41,16 +37,20 @@ pub const DCPS_TOPIC: &str = "DCPSTopic";
 pub const DCPS_PARTICIPANT: &str = "DCPSParticipant";
 
 /// Structure representing the instance handle (or key) of an entity.
-#[derive(Debug, PartialEq, Eq, Clone, Default, XTypesSerialize, XTypesDeserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Default, XTypesDeserialize, TypeSupport)]
+#[dust_dds(extensibility = "final", nested)]
 pub struct BuiltInTopicKey {
     /// InstanceHandle value as an array of 16 octets.
     pub value: [u8; 16], // Originally in the DDS idl [i32;3]
 }
 
 /// Structure representing a discovered [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant).
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, XTypesDeserialize, TypeSupport)]
+#[dust_dds(extensibility = "mutable")]
 pub struct ParticipantBuiltinTopicData {
+    #[dust_dds(id = 0x0050, key)]
     pub(crate) key: BuiltInTopicKey,
+    #[dust_dds(id = 0x002C, optional)]
     pub(crate) user_data: UserDataQosPolicy,
 }
 
@@ -67,77 +67,41 @@ impl ParticipantBuiltinTopicData {
 }
 
 /// Structure representing a discovered [`Topic`](crate::topic_definition::topic::Topic).
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, TypeSupport)]
+#[dust_dds(extensibility = "mutable")]
 pub struct TopicBuiltinTopicData {
+    #[dust_dds(id = 0x005A, key)]
     pub(crate) key: BuiltInTopicKey,
+    #[dust_dds(id = 0x0005)]
     pub(crate) name: String,
+    #[dust_dds(id = 0x0007)]
     pub(crate) type_name: String,
+    #[dust_dds(id = 0x0029, optional)]
     pub(crate) durability: DurabilityQosPolicy,
+    #[dust_dds(id = 0x0023, optional)]
     pub(crate) deadline: DeadlineQosPolicy,
+    #[dust_dds(id = 0x0025, optional)]
     pub(crate) latency_budget: LatencyBudgetQosPolicy,
+    #[dust_dds(id = 0x0027, optional)]
     pub(crate) liveliness: LivelinessQosPolicy,
+    #[dust_dds(id = 0x002B, optional, default_value=DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS)]
     pub(crate) reliability: ReliabilityQosPolicy,
+    #[dust_dds(id = 0x004A, optional)]
     pub(crate) transport_priority: TransportPriorityQosPolicy,
+    #[dust_dds(id = 0x0049, optional)]
     pub(crate) lifespan: LifespanQosPolicy,
+    #[dust_dds(id = 0x002A, optional)]
     pub(crate) destination_order: DestinationOrderQosPolicy,
+    #[dust_dds(id = 0x0022, optional)]
     pub(crate) history: HistoryQosPolicy,
+    #[dust_dds(id = 0x0021, optional)]
     pub(crate) resource_limits: ResourceLimitsQosPolicy,
+    #[dust_dds(id = 0x0032, optional)]
     pub(crate) ownership: OwnershipQosPolicy,
+    #[dust_dds(id = 0x0035, optional)]
     pub(crate) topic_data: TopicDataQosPolicy,
+    #[dust_dds(id = 0x0073, optional)]
     pub(crate) representation: DataRepresentationQosPolicy,
-}
-
-impl DdsSerialize for TopicBuiltinTopicData {
-    fn serialize_data(&self) -> DdsResult<Vec<u8>> {
-        let mut serializer = ParameterListCdrSerializer::default();
-        serializer.write_header()?;
-
-        // topic_builtin_topic_data: TopicBuiltinTopicData:
-
-        serializer.write(PID_ENDPOINT_GUID, &self.key)?;
-        serializer.write(PID_TOPIC_NAME, &self.name)?;
-        serializer.write(PID_TYPE_NAME, &self.type_name)?;
-        serializer.write_with_default(PID_DURABILITY, &self.durability, &Default::default())?;
-        serializer.write_with_default(PID_DEADLINE, &self.deadline, &Default::default())?;
-        serializer.write_with_default(
-            PID_LATENCY_BUDGET,
-            &self.latency_budget,
-            &Default::default(),
-        )?;
-        serializer.write_with_default(PID_LIVELINESS, &self.liveliness, &Default::default())?;
-        serializer.write_with_default(
-            PID_RELIABILITY,
-            &self.reliability,
-            &DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-        )?;
-        serializer.write_with_default(
-            PID_TRANSPORT_PRIORITY,
-            &self.transport_priority,
-            &Default::default(),
-        )?;
-        serializer.write_with_default(PID_LIFESPAN, &self.lifespan, &Default::default())?;
-        serializer.write_with_default(
-            PID_DESTINATION_ORDER,
-            &self.destination_order,
-            &Default::default(),
-        )?;
-        serializer.write_with_default(PID_HISTORY, &self.history, &Default::default())?;
-        serializer.write_with_default(
-            PID_RESOURCE_LIMITS,
-            &self.resource_limits,
-            &Default::default(),
-        )?;
-        serializer.write_with_default(PID_OWNERSHIP, &self.ownership, &Default::default())?;
-        serializer.write_with_default(PID_TOPIC_DATA, &self.topic_data, &Default::default())?;
-        serializer.write_with_default(
-            PID_DATA_REPRESENTATION,
-            &self.representation,
-            &Default::default(),
-        )?;
-
-        serializer.write_sentinel()?;
-        Ok(serializer.writer)
-    }
 }
 
 impl TopicBuiltinTopicData {
@@ -223,85 +187,47 @@ impl TopicBuiltinTopicData {
 }
 
 /// Structure representing a discovered [`DataWriter`](crate::publication::data_writer::DataWriter).
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, TypeSupport)]
+#[dust_dds(extensibility = "mutable")]
 pub struct PublicationBuiltinTopicData {
+    #[dust_dds(id = 0x005A, key)]
     pub(crate) key: BuiltInTopicKey,
+    #[dust_dds(id = 0x0050, key)]
     pub(crate) participant_key: BuiltInTopicKey,
+    #[dust_dds(id = 0x0005)]
     pub(crate) topic_name: String,
+    #[dust_dds(id = 0x0007)]
     pub(crate) type_name: String,
+    #[dust_dds(id = 0x0029, optional)]
     pub(crate) durability: DurabilityQosPolicy,
+    #[dust_dds(id = 0x0023, optional)]
     pub(crate) deadline: DeadlineQosPolicy,
+    #[dust_dds(id = 0x0025, optional)]
     pub(crate) latency_budget: LatencyBudgetQosPolicy,
+    #[dust_dds(id = 0x0027, optional)]
     pub(crate) liveliness: LivelinessQosPolicy,
+    #[dust_dds(id = 0x002B, optional, default_value=DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER)]
     pub(crate) reliability: ReliabilityQosPolicy,
+    #[dust_dds(id = 0x0049, optional)]
     pub(crate) lifespan: LifespanQosPolicy,
+    #[dust_dds(id = 0x002C, optional)]
     pub(crate) user_data: UserDataQosPolicy,
+    #[dust_dds(id = 0x0032, optional)]
     pub(crate) ownership: OwnershipQosPolicy,
+    #[dust_dds(id = 0x001F, optional)]
     pub(crate) ownership_strength: OwnershipStrengthQosPolicy,
+    #[dust_dds(id = 0x002A, optional)]
     pub(crate) destination_order: DestinationOrderQosPolicy,
+    #[dust_dds(id = 0x0028, optional)]
     pub(crate) presentation: PresentationQosPolicy,
+    #[dust_dds(id = 0x002D, optional)]
     pub(crate) partition: PartitionQosPolicy,
+    #[dust_dds(id = 0x0035, optional)]
     pub(crate) topic_data: TopicDataQosPolicy,
+    #[dust_dds(id = 0x002F, optional)]
     pub(crate) group_data: GroupDataQosPolicy,
+    #[dust_dds(id = 0x0073, optional)]
     pub(crate) representation: DataRepresentationQosPolicy,
-}
-
-impl DdsSerialize for PublicationBuiltinTopicData {
-    fn serialize_data(&self) -> DdsResult<Vec<u8>> {
-        let mut serializer = ParameterListCdrSerializer::default();
-        serializer.write_header()?;
-
-        // dds_publication_data: PublicationBuiltinTopicData:
-
-        serializer.write(PID_ENDPOINT_GUID, &self.key)?;
-        // Default value is a deviation from the standard and is used for interoperability reasons:
-        serializer.write_with_default(
-            PID_PARTICIPANT_GUID,
-            &self.participant_key,
-            &Default::default(),
-        )?;
-        serializer.write(PID_TOPIC_NAME, &self.topic_name)?;
-        serializer.write(PID_TYPE_NAME, &self.type_name)?;
-        serializer.write_with_default(PID_DURABILITY, &self.durability, &Default::default())?;
-        serializer.write_with_default(PID_DEADLINE, &self.deadline, &Default::default())?;
-        serializer.write_with_default(
-            PID_LATENCY_BUDGET,
-            &self.latency_budget,
-            &Default::default(),
-        )?;
-        serializer.write_with_default(PID_LIVELINESS, &self.liveliness, &Default::default())?;
-        serializer.write_with_default(
-            PID_RELIABILITY,
-            &self.reliability,
-            &DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
-        )?;
-        serializer.write_with_default(PID_LIFESPAN, &self.lifespan, &Default::default())?;
-        serializer.write_with_default(PID_USER_DATA, &self.user_data, &Default::default())?;
-        serializer.write_with_default(PID_OWNERSHIP, &self.ownership, &Default::default())?;
-        serializer.write_with_default(
-            PID_OWNERSHIP_STRENGTH,
-            &self.ownership_strength,
-            &Default::default(),
-        )?;
-        serializer.write_with_default(
-            PID_DESTINATION_ORDER,
-            &self.destination_order,
-            &Default::default(),
-        )?;
-        serializer.write_with_default(PID_PRESENTATION, &self.presentation, &Default::default())?;
-        serializer.write_with_default(PID_PARTITION, &self.partition, &Default::default())?;
-        serializer.write_with_default(PID_TOPIC_DATA, &self.topic_data, &Default::default())?;
-        serializer.write_with_default(PID_GROUP_DATA, &self.group_data, &Default::default())?;
-
-        serializer.write_with_default(
-            PID_DATA_REPRESENTATION,
-            &self.representation,
-            &Default::default(),
-        )?;
-
-        serializer.write_sentinel()?;
-        Ok(serializer.writer)
-    }
 }
 
 impl PublicationBuiltinTopicData {
@@ -402,81 +328,45 @@ impl PublicationBuiltinTopicData {
 }
 
 /// Structure representing a discovered [`DataReader`](crate::subscription::data_reader::DataReader).
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, TypeSupport)]
+#[dust_dds(extensibility = "mutable")]
 pub struct SubscriptionBuiltinTopicData {
+    #[dust_dds(id = 0x005A, key)]
     pub(crate) key: BuiltInTopicKey,
+    #[dust_dds(id = 0x0050, key)]
     pub(crate) participant_key: BuiltInTopicKey,
+    #[dust_dds(id = 0x0005)]
     pub(crate) topic_name: String,
+    #[dust_dds(id = 0x0007)]
     pub(crate) type_name: String,
+    #[dust_dds(id = 0x0029, optional)]
     pub(crate) durability: DurabilityQosPolicy,
+    #[dust_dds(id = 0x0023, optional)]
     pub(crate) deadline: DeadlineQosPolicy,
+    #[dust_dds(id = 0x0025, optional)]
     pub(crate) latency_budget: LatencyBudgetQosPolicy,
+    #[dust_dds(id = 0x0027, optional)]
     pub(crate) liveliness: LivelinessQosPolicy,
+    #[dust_dds(id = 0x002B, optional, default_value=DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS)]
     pub(crate) reliability: ReliabilityQosPolicy,
+    #[dust_dds(id = 0x0032, optional)]
     pub(crate) ownership: OwnershipQosPolicy,
+    #[dust_dds(id = 0x002A, optional)]
     pub(crate) destination_order: DestinationOrderQosPolicy,
+    #[dust_dds(id = 0x002C, optional)]
     pub(crate) user_data: UserDataQosPolicy,
+    #[dust_dds(id = 0x002E, optional)]
     pub(crate) time_based_filter: TimeBasedFilterQosPolicy,
+    #[dust_dds(id = 0x0028, optional)]
     pub(crate) presentation: PresentationQosPolicy,
+    #[dust_dds(id = 0x002D, optional)]
     pub(crate) partition: PartitionQosPolicy,
+    #[dust_dds(id = 0x0035, optional)]
     pub(crate) topic_data: TopicDataQosPolicy,
+    #[dust_dds(id = 0x002F, optional)]
     pub(crate) group_data: GroupDataQosPolicy,
+    #[dust_dds(id = 0x0073, optional)]
     pub(crate) representation: DataRepresentationQosPolicy,
-}
-
-impl DdsSerialize for SubscriptionBuiltinTopicData {
-    fn serialize_data(&self) -> DdsResult<Vec<u8>> {
-        let mut serializer = ParameterListCdrSerializer::default();
-        serializer.write_header()?;
-
-        // subscription_builtin_topic_data: SubscriptionBuiltinTopicData:
-        serializer.write(PID_ENDPOINT_GUID, &self.key)?;
-        // Default value is a deviation from the standard and is used for interoperability reasons:
-        serializer.write_with_default(
-            PID_PARTICIPANT_GUID,
-            &self.participant_key,
-            &Default::default(),
-        )?;
-        serializer.write(PID_TOPIC_NAME, &self.topic_name)?;
-        serializer.write(PID_TYPE_NAME, &self.type_name)?;
-        serializer.write_with_default(PID_DURABILITY, &self.durability, &Default::default())?;
-        serializer.write_with_default(PID_DEADLINE, &self.deadline, &Default::default())?;
-        serializer.write_with_default(
-            PID_LATENCY_BUDGET,
-            &self.latency_budget,
-            &Default::default(),
-        )?;
-        serializer.write_with_default(PID_LIVELINESS, &self.liveliness, &Default::default())?;
-        serializer.write_with_default(
-            PID_RELIABILITY,
-            &self.reliability,
-            &DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-        )?;
-        serializer.write_with_default(PID_OWNERSHIP, &self.ownership, &Default::default())?;
-        serializer.write_with_default(
-            PID_DESTINATION_ORDER,
-            &self.destination_order,
-            &Default::default(),
-        )?;
-        serializer.write_with_default(PID_USER_DATA, &self.user_data, &Default::default())?;
-        serializer.write_with_default(
-            PID_TIME_BASED_FILTER,
-            &self.time_based_filter,
-            &Default::default(),
-        )?;
-        serializer.write_with_default(PID_PRESENTATION, &self.presentation, &Default::default())?;
-        serializer.write_with_default(PID_PARTITION, &self.partition, &Default::default())?;
-        serializer.write_with_default(PID_TOPIC_DATA, &self.topic_data, &Default::default())?;
-        serializer.write_with_default(PID_GROUP_DATA, &self.group_data, &Default::default())?;
-        serializer.write_with_default(
-            PID_DATA_REPRESENTATION,
-            &self.representation,
-            &Default::default(),
-        )?;
-
-        serializer.write_sentinel()?;
-        Ok(serializer.writer)
-    }
 }
 
 impl SubscriptionBuiltinTopicData {

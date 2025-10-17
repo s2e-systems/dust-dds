@@ -258,7 +258,7 @@ fn writer_should_send_heartbeat_periodically() {
     waitset_writer.wait(Duration::new(10, 0)).unwrap();
 
     // Send data with the writer
-    writer.write(&KeyedData { id: 1, value: 2 }, None).unwrap();
+    writer.write(KeyedData { id: 1, value: 2 }, None).unwrap();
 
     let mut buffer = [0; 65535];
     mock_reader_socket.set_nonblocking(false).unwrap();
@@ -444,7 +444,7 @@ fn writer_should_not_send_heartbeat_after_acknack() {
     waitset_writer.wait(Duration::new(10, 0)).unwrap();
 
     // Send data with the writer
-    writer.write(&KeyedData { id: 1, value: 2 }, None).unwrap();
+    writer.write(KeyedData { id: 1, value: 2 }, None).unwrap();
 
     let mut buffer = [0; 65535];
     mock_reader_socket.set_nonblocking(false).unwrap();
@@ -652,7 +652,7 @@ fn writer_should_resend_data_after_acknack_request() {
     waitset_writer.wait(Duration::new(10, 0)).unwrap();
 
     // Send data with the writer
-    writer.write(&KeyedData { id: 1, value: 2 }, None).unwrap();
+    writer.write(KeyedData { id: 1, value: 2 }, None).unwrap();
 
     let mut buffer = [0; 65535];
     mock_reader_socket.set_nonblocking(false).unwrap();
@@ -832,7 +832,7 @@ fn volatile_writer_should_send_gap_submessage_after_discovery() {
     assert!(participant.get_discovered_participants().unwrap().len() == 1);
 
     // Send data with the writer before discovery
-    writer.write(&KeyedData { id: 1, value: 2 }, None).unwrap();
+    writer.write(KeyedData { id: 1, value: 2 }, None).unwrap();
 
     let dcps_participant_reader = builtin_subscriber
         .lookup_datareader::<DynamicType>(DCPS_PARTICIPANT)
@@ -1020,7 +1020,7 @@ fn transient_local_writer_should_send_data_submessage_after_discovery() {
     assert!(participant.get_discovered_participants().unwrap().len() == 1);
 
     // Send data with the writer before discovery
-    writer.write(&KeyedData { id: 1, value: 2 }, None).unwrap();
+    writer.write(KeyedData { id: 1, value: 2 }, None).unwrap();
 
     let dcps_participant_reader = builtin_subscriber
         .lookup_datareader::<DynamicType>(DCPS_PARTICIPANT)
@@ -1237,10 +1237,10 @@ fn reliable_writer_should_not_remove_unacked_sample_from_history() {
     waitset_writer.wait(Duration::new(10, 0)).unwrap();
 
     // Send data with the writer
-    writer.write(&KeyedData { id: 1, value: 2 }, None).unwrap();
+    writer.write(KeyedData { id: 1, value: 2 }, None).unwrap();
     // Second send fails because sample is not acknowledged
     assert_eq!(
-        writer.write(&KeyedData { id: 1, value: 2 }, None),
+        writer.write(KeyedData { id: 1, value: 2 }, None),
         Err(DdsError::Timeout)
     );
 }

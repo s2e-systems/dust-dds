@@ -68,17 +68,29 @@ fn main() {
 
     wait_set.wait(Duration::new(60, 0)).unwrap();
 
-    let dispose_msg = dispose_data::DisposeDataType {
-        name: "Very Long Name".to_string(),
-        value: 1,
-    };
-    writer.write(&dispose_msg, None).unwrap();
+    writer
+        .write(
+            dispose_data::DisposeDataType {
+                name: "Very Long Name".to_string(),
+                value: 1,
+            },
+            None,
+        )
+        .unwrap();
 
     writer
         .wait_for_acknowledgments(Duration::new(30, 0))
         .unwrap();
 
-    writer.dispose(&dispose_msg, None).unwrap();
+    writer
+        .dispose(
+            dispose_data::DisposeDataType {
+                name: "Very Long Name".to_string(),
+                value: 1,
+            },
+            None,
+        )
+        .unwrap();
 
     writer
         .wait_for_acknowledgments(Duration::new(30, 0))

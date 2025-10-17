@@ -215,7 +215,7 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         qos: QosKind<TopicQos>,
         a_listener: Option<impl TopicListener<R> + Send + 'static>,
         mask: &[StatusKind],
-        dynamic_type_representation: Arc<dyn DynamicType + Send + Sync>,
+        dynamic_type_representation: Arc<DynamicType>,
     ) -> DdsResult<TopicDescriptionAsync<R>> {
         let (reply_sender, reply_receiver) = R::oneshot();
         let status_condition = Actor::spawn(DcpsStatusCondition::default(), &self.spawner_handle);

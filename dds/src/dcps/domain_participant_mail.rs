@@ -25,7 +25,7 @@ use crate::{
     },
     runtime::{DdsRuntime, OneshotSend},
     transport::{interface::TransportParticipantFactory, types::CacheChange},
-    xtypes::dynamic_type::DynamicType,
+    xtypes::dynamic_type::{DynamicData, DynamicType},
 };
 use alloc::{boxed::Box, string::String, sync::Arc, vec::Vec};
 use core::{future::Future, pin::Pin};
@@ -61,7 +61,7 @@ pub enum ParticipantServiceMail<R: DdsRuntime> {
         status_condition: Actor<R, DcpsStatusCondition<R>>,
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         mask: Vec<StatusKind>,
-        type_support: Arc<dyn DynamicType + Send + Sync>,
+        type_support: Arc<DynamicType>,
         reply_sender: R::OneshotSender<DdsResult<InstanceHandle>>,
     },
     DeleteUserDefinedTopic {
@@ -82,7 +82,7 @@ pub enum ParticipantServiceMail<R: DdsRuntime> {
     },
     FindTopic {
         topic_name: String,
-        type_support: Arc<dyn DynamicType + Send + Sync>,
+        type_support: Arc<DynamicType>,
         status_condition: Actor<R, DcpsStatusCondition<R>>,
         #[allow(clippy::type_complexity)]
         reply_sender: R::OneshotSender<
@@ -202,7 +202,7 @@ pub enum TopicServiceMail<R: DdsRuntime> {
     },
     GetTypeSupport {
         topic_name: String,
-        reply_sender: R::OneshotSender<DdsResult<Arc<dyn DynamicType + Send + Sync>>>,
+        reply_sender: R::OneshotSender<DdsResult<Arc<DynamicType>>>,
     },
 }
 
@@ -330,28 +330,28 @@ pub enum WriterServiceMail<R: DdsRuntime> {
     UnregisterInstance {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        serialized_data: Vec<u8>,
+        dynamic_data: DynamicData,
         timestamp: Time,
         reply_sender: R::OneshotSender<DdsResult<()>>,
     },
     LookupInstance {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        serialized_data: Vec<u8>,
+        dynamic_data: DynamicData,
         reply_sender: R::OneshotSender<DdsResult<Option<InstanceHandle>>>,
     },
     WriteWTimestamp {
         participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        serialized_data: Vec<u8>,
+        dynamic_data: DynamicData,
         timestamp: Time,
         reply_sender: R::OneshotSender<DdsResult<()>>,
     },
     DisposeWTimestamp {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        serialized_data: Vec<u8>,
+        dynamic_data: DynamicData,
         timestamp: Time,
         reply_sender: R::OneshotSender<DdsResult<()>>,
     },
@@ -867,14 +867,14 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsDomainParticipant<R, T> 
             WriterServiceMail::UnregisterInstance {
                 publisher_handle,
                 data_writer_handle,
-                serialized_data,
+                dynamic_data,
                 timestamp,
                 reply_sender,
             } => reply_sender.send(
                 self.unregister_instance(
                     publisher_handle,
                     data_writer_handle,
-                    serialized_data,
+                    dynamic_data,
                     timestamp,
                 )
                 .await,
@@ -882,18 +882,18 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsDomainParticipant<R, T> 
             WriterServiceMail::LookupInstance {
                 publisher_handle,
                 data_writer_handle,
-                serialized_data,
+                dynamic_data,
                 reply_sender,
             } => reply_sender.send(self.lookup_instance(
                 publisher_handle,
                 data_writer_handle,
-                serialized_data,
+                dynamic_data,
             )),
             WriterServiceMail::WriteWTimestamp {
                 participant_address,
                 publisher_handle,
                 data_writer_handle,
-                serialized_data,
+                dynamic_data,
                 timestamp,
                 reply_sender,
             } => reply_sender.send(
@@ -901,7 +901,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsDomainParticipant<R, T> 
                     participant_address,
                     publisher_handle,
                     data_writer_handle,
-                    serialized_data,
+                    dynamic_data,
                     timestamp,
                 )
                 .await,
@@ -909,14 +909,14 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsDomainParticipant<R, T> 
             WriterServiceMail::DisposeWTimestamp {
                 publisher_handle,
                 data_writer_handle,
-                serialized_data,
+                dynamic_data,
                 timestamp,
                 reply_sender,
             } => reply_sender.send(
                 self.dispose_w_timestamp(
                     publisher_handle,
                     data_writer_handle,
-                    serialized_data,
+                    dynamic_data,
                     timestamp,
                 )
                 .await,

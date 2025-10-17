@@ -2,11 +2,13 @@ use crate::xtypes::endianness::{self, CDR_LE, REPRESENTATION_OPTIONS};
 use dust_dds::{
     infrastructure::{
         error::DdsResult,
-        type_support::{DdsDeserialize, DdsSerialize},
+        type_support::{DdsDeserialize, TypeSupport},
     },
     xtypes::{
-        deserializer::XTypesDeserializer, error::XTypesError, serializer::XTypesSerializer,
-        xcdr_deserializer::Xcdr1BeDeserializer, xcdr_deserializer::Xcdr1LeDeserializer,
+        deserializer::XTypesDeserializer,
+        error::XTypesError,
+        serializer::XTypesSerializer,
+        xcdr_deserializer::{Xcdr1BeDeserializer, Xcdr1LeDeserializer},
         xcdr_serializer::Xcdr1LeSerializer,
     },
 };
@@ -83,31 +85,11 @@ fn deserialize_into_py_object<'de, D: XTypesDeserializer<'de>>(
     }
 }
 
+#[allow(dead_code)]
 pub struct PythonTypeRepresentation(dust_dds::xtypes::type_object::CompleteTypeObject);
-impl dust_dds::xtypes::dynamic_type::DynamicType for PythonTypeRepresentation {
-    fn get_descriptor(
-        &self,
-    ) -> Result<dust_dds::xtypes::dynamic_type::TypeDescriptor, XTypesError> {
-        self.0.get_descriptor()
-    }
-
-    fn get_name(&self) -> dust_dds::xtypes::dynamic_type::ObjectName {
-        self.0.get_name()
-    }
-
-    fn get_kind(&self) -> dust_dds::xtypes::type_object::TypeKind {
-        self.0.get_kind()
-    }
-
-    fn get_member_count(&self) -> u32 {
-        self.0.get_member_count()
-    }
-
-    fn get_member_by_index(
-        &self,
-        index: u32,
-    ) -> Result<&dyn dust_dds::xtypes::dynamic_type::DynamicTypeMember, XTypesError> {
-        self.0.get_member_by_index(index)
+impl From<PythonTypeRepresentation> for dust_dds::xtypes::dynamic_type::DynamicType {
+    fn from(_value: PythonTypeRepresentation) -> Self {
+        todo!()
     }
 }
 
@@ -262,6 +244,19 @@ pub struct PythonDdsData {
     pub data: Vec<u8>,
     pub key: Vec<u8>,
 }
+impl TypeSupport for PythonDdsData {
+    fn get_type() -> dust_dds::xtypes::dynamic_type::DynamicType {
+        todo!()
+    }
+
+    fn create_sample(_src: dust_dds::xtypes::dynamic_type::DynamicData) -> Self {
+        todo!()
+    }
+
+    fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
+        todo!()
+    }
+}
 
 impl PythonDdsData {
     pub fn from_py_object(py_object: Py<PyAny>) -> PyResult<Self> {
@@ -313,7 +308,7 @@ impl PythonDdsData {
             } else if let Ok(py_type) = member_type.downcast::<PyType>() {
                 if py_type.py().get_type_bound::<PyBytes>().is(py_type) {
                     serializer
-                        .serialize_byte_sequence(member_data.extract()?)
+                        .serialize_uint8_list(member_data.extract()?)
                         .map_err(|e| PyTypeError::new_err(format!("XTypes error: {e:?}")))
                 } else if py_type.py().get_type_bound::<PyString>().is(py_type) {
                     serializer
@@ -443,12 +438,6 @@ impl PythonDdsData {
             }),
             _ => panic!("Unknown endianness"),
         }
-    }
-}
-
-impl DdsSerialize for PythonDdsData {
-    fn serialize_data(&self) -> DdsResult<Vec<u8>> {
-        Ok(self.data.clone())
     }
 }
 

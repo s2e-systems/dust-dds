@@ -22,7 +22,7 @@ use crate::{
             PublicationMatchedStatus, StatusKind,
         },
         time::{Duration, Time},
-        type_support::DdsSerialize,
+        type_support::TypeSupport,
     },
     publication::data_writer_listener::DataWriterListener,
     runtime::{ChannelSend, DdsRuntime, OneshotReceive},
@@ -84,7 +84,7 @@ impl<R: DdsRuntime, Foo> DataWriterAsync<R, Foo> {
 
 impl<R: DdsRuntime, Foo> DataWriterAsync<R, Foo>
 where
-    Foo: DdsSerialize,
+    Foo: TypeSupport,
 {
     /// Async version of [`register_instance`](crate::publication::data_writer::DataWriter::register_instance).
     #[tracing::instrument(skip(self, instance))]
@@ -112,7 +112,7 @@ where
     #[tracing::instrument(skip(self, instance))]
     pub async fn unregister_instance(
         &self,
-        instance: &Foo,
+        instance: Foo,
         handle: Option<InstanceHandle>,
     ) -> DdsResult<()> {
         let timestamp = self
@@ -128,18 +128,18 @@ where
     #[tracing::instrument(skip(self, instance))]
     pub async fn unregister_instance_w_timestamp(
         &self,
-        instance: &Foo,
+        instance: Foo,
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = R::oneshot();
-        let serialized_data = instance.serialize_data()?;
+        let dynamic_data = instance.create_dynamic_sample();
         self.participant_address()
             .send(DcpsDomainParticipantMail::Writer(
                 WriterServiceMail::UnregisterInstance {
                     publisher_handle: self.publisher.get_instance_handle().await,
                     data_writer_handle: self.handle,
-                    serialized_data,
+                    dynamic_data,
                     timestamp,
                     reply_sender,
                 },
@@ -160,15 +160,15 @@ where
 
     /// Async version of [`lookup_instance`](crate::publication::data_writer::DataWriter::lookup_instance).
     #[tracing::instrument(skip(self, instance))]
-    pub async fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
+    pub async fn lookup_instance(&self, instance: Foo) -> DdsResult<Option<InstanceHandle>> {
         let (reply_sender, reply_receiver) = R::oneshot();
-        let serialized_data = instance.serialize_data()?;
+        let dynamic_data = instance.create_dynamic_sample();
         self.participant_address()
             .send(DcpsDomainParticipantMail::Writer(
                 WriterServiceMail::LookupInstance {
                     publisher_handle: self.publisher.get_instance_handle().await,
                     data_writer_handle: self.handle,
-                    serialized_data,
+                    dynamic_data,
                     reply_sender,
                 },
             ))
@@ -178,7 +178,7 @@ where
 
     /// Async version of [`write`](crate::publication::data_writer::DataWriter::write).
     #[tracing::instrument(skip(self, data))]
-    pub async fn write(&self, data: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
+    pub async fn write(&self, data: Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
         let timestamp = self
             .get_publisher()
             .get_participant()
@@ -191,19 +191,19 @@ where
     #[tracing::instrument(skip(self, data))]
     pub async fn write_w_timestamp(
         &self,
-        data: &Foo,
+        data: Foo,
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = R::oneshot();
-        let serialized_data = data.serialize_data()?;
+        let dynamic_data = data.create_dynamic_sample();
         self.participant_address()
             .send(DcpsDomainParticipantMail::Writer(
                 WriterServiceMail::WriteWTimestamp {
                     participant_address: self.participant_address().clone(),
                     publisher_handle: self.publisher.get_instance_handle().await,
                     data_writer_handle: self.handle,
-                    serialized_data,
+                    dynamic_data,
                     timestamp,
                     reply_sender,
                 },
@@ -214,7 +214,7 @@ where
 
     /// Async version of [`dispose`](crate::publication::data_writer::DataWriter::dispose).
     #[tracing::instrument(skip(self, data))]
-    pub async fn dispose(&self, data: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
+    pub async fn dispose(&self, data: Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
         let timestamp = self
             .get_publisher()
             .get_participant()
@@ -227,18 +227,18 @@ where
     #[tracing::instrument(skip(self, data))]
     pub async fn dispose_w_timestamp(
         &self,
-        data: &Foo,
+        data: Foo,
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = R::oneshot();
-        let serialized_data = data.serialize_data()?;
+        let dynamic_data = data.create_dynamic_sample();
         self.participant_address()
             .send(DcpsDomainParticipantMail::Writer(
                 WriterServiceMail::DisposeWTimestamp {
                     publisher_handle: self.publisher.get_instance_handle().await,
                     data_writer_handle: self.handle,
-                    serialized_data,
+                    dynamic_data,
                     timestamp,
                     reply_sender,
                 },

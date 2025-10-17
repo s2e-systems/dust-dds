@@ -1,4 +1,4 @@
-use crate::parser::{IdlPair, Rule, StructDef, Annotation};
+use crate::parser::{IdlPair, Rule, StructDef};
 
 pub fn generate_rust_source(pair: IdlPair, writer: &mut String) {
     match pair.as_rule() {
@@ -290,41 +290,204 @@ fn struct_def(pair: IdlPair, writer: &mut String) {
         .find(|p| p.as_rule() == Rule::identifier)
         .expect("Identifier must exist according to the grammar");
 
-    writer.push_str("#[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]\n");
+    // Collect annotations for the struct
+    let mut annotations = Vec::new();
     for annotation_appl in inner_pairs
         .clone()
         .filter(|p| p.as_rule() == Rule::annotation_appl)
     {
         let inner_pairs = annotation_appl.into_inner();
-
         let scoped_name = inner_pairs
             .clone()
             .find(|p| p.as_rule() == Rule::scoped_name)
             .expect("Must have a scoped name according to the grammar");
-
         let identifier = scoped_name
             .into_inner()
             .next()
             .expect("Must have an identifier according to the grammar");
+        let params: Vec<String> = inner_pairs
+            .clone()
+            .filter(|p| p.as_rule() == Rule::annotation_appl_param)
+            .map(|p| p.as_str().to_string())
+            .collect();
+        annotations.push((identifier.as_str().to_string(), params));
+    }
 
-        match identifier.as_str() {
+    let has_derive = annotations.iter().any(|(ann_name, _)| ann_name == "derive");
+    if !has_derive {
+        writer.push_str(&format!("#[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]\n"));
+    }
+    for (ann_name, ann_params) in &annotations {
+        match ann_name.as_str() {
+            "derive" => {
+                println!("{} params: {:?}", ann_name, ann_params);
+                if !ann_params.is_empty() {
+                    let joined = ann_params.join(", ");
+                    writer.push_str(&format!(
+                        "#[derive({}, dust_dds::infrastructure::type_support::DdsType)]\n",
+                        joined
+                    ));
+                } else {
+                    writer.push_str("#[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]\n");
+                }
+            },
+            "repr" => {
+                if let Some(param) = ann_params.first() {
+                    let trimmed = strip_quotes(param);
+                    writer.push_str(&format!("#[repr({})]\n", trimmed));
+                }
+            }
             "final" => writer.push_str("#[dust_dds(extensibility = \"final\")]\n"),
             "appendable" => writer.push_str("#[dust_dds(extensibility = \"appendable\")]\n"),
             "mutable" => writer.push_str("#[dust_dds(extensibility = \"mutable\")]\n"),
-            _ => (),
+            _ => println!("Unknown struct annotation: {}", ann_name),
         }
     }
-    writer.push_str("pub struct ");
-    generate_rust_source(identifier, writer);
 
-    writer.push_str(" {");
+    writer.push_str(&format!("pub struct {} {{", identifier.as_str()));
 
     for member in inner_pairs.filter(|p| p.as_rule() == Rule::member) {
-        generate_rust_source(member, writer);
+        let member_pairs = member.into_inner();
+        let type_spec = member_pairs
+            .clone()
+            .find(|p| p.as_rule() == Rule::type_spec)
+            .expect("Type spec must exist according to grammar");
+        let declarators = member_pairs
+            .clone()
+            .find(|p| p.as_rule() == Rule::declarators)
+            .expect("Declarator must exist according to grammar");
+
+        // Collect member annotations
+        let mut member_annotations = Vec::new();
+        for annotation_appl in member_pairs
+            .clone()
+            .filter(|p| p.as_rule() == Rule::annotation_appl)
+        {
+            let inner_pairs = annotation_appl.into_inner();
+            let scoped_name = inner_pairs
+                .clone()
+                .find(|p| p.as_rule() == Rule::scoped_name)
+                .expect("Must have a scoped name according to the grammar");
+            let identifier = scoped_name
+                .into_inner()
+                .next()
+                .expect("Must have an identifier according to the grammar");
+            let params: Vec<String> = inner_pairs
+                .clone()
+                .filter(|p| p.as_rule() == Rule::annotation_appl_param)
+                .map(|p| p.as_str().to_string())
+                .collect();
+            member_annotations.push((identifier.as_str().to_string(), params));
+        }
+
+        // Handle member-level annotations
+        for (ann_name, ann_params) in &member_annotations {
+            match ann_name.as_str() {
+                "serde_skip" => writer.push_str("#[serde(skip)]\n"),
+                "serde_rename" => {
+                    if let Some(param) = ann_params.first() {
+                        let trimmed = strip_quotes(param);
+                        writer.push_str(&format!("#[serde(rename = \"{}\")]\n", trimmed));
+                    }
+                }
+                "key" => writer.push_str("#[dust_dds(key)]\n"),
+                "appendable" => writer.push_str("#[dust_dds(appendable)]\n"),
+                "mutable" => writer.push_str("#[dust_dds(mutable)]\n"),
+                "final" => writer.push_str("#[dust_dds(final)]\n"),
+                "hashid" => writer.push_str("#[dust_dds(hashid)]\n"),
+                "must_understand" => writer.push_str("#[dust_dds(must_understand)]\n"),
+                "Optional" | "optional" => writer.push_str("#[dust_dds(optional)]\n"),
+                _ => {}
+            }
+        }
+
+        for declarator in declarators.into_inner() {
+            let array_or_simple_declarator = declarator
+                .into_inner()
+                .next()
+                .expect("Must have an element according to the grammar");
+            writer.push_str("pub ");
+            match array_or_simple_declarator.as_rule() {
+                Rule::array_declarator => {
+                    let array_declarator = array_or_simple_declarator.into_inner();
+                    let identifier = array_declarator
+                        .clone()
+                        .find(|p| p.as_rule() == Rule::identifier)
+                        .expect("Identifier must exist according to grammar");
+                    let fixed_array_size = array_declarator
+                        .clone()
+                        .find(|p| p.as_rule() == Rule::fixed_array_size)
+                        .expect("Fixed array size must exist according to grammar");
+                    generate_rust_source(identifier, writer);
+                    writer.push(':');
+                    writer.push('[');
+                    let type_spec_str = type_spec.as_str();
+                    let rust_type = map_idl_type(type_spec_str, &member_annotations);
+                    writer.push_str(&rust_type);
+                    writer.push(';');
+                    let size_str = fixed_array_size.as_str();
+                    let evaluated_size = evaluate_array_size(size_str);
+                    writer.push_str(&evaluated_size);
+                    writer.push(']');
+                }
+                Rule::simple_declarator => {
+                    generate_rust_source(array_or_simple_declarator, writer);
+                    writer.push(':');
+                    let type_spec_str = type_spec.as_str();
+                    println!("struct_def: type_spec_str = '{}'", type_spec_str);
+                    // Handle sequence and bounded string types
+                    let rust_type = if type_spec_str.starts_with("sequence<") {
+                        let inner_type = type_spec_str
+                            .strip_prefix("sequence<")
+                            .and_then(|s| s.strip_suffix('>'))
+                            .map(|s| {
+                                let trimmed = s.split(',').next().unwrap_or(s).trim();
+                                if trimmed.starts_with("sequence<") && trimmed.ends_with(">") {
+                                    println!("Ends with >");
+                                    let inner_inner_type = trimmed
+                                        .strip_prefix("sequence<")
+                                        .and_then(|s| s.strip_suffix('>'))
+                                        .map(|s| s.split(',').next().unwrap_or(s).trim())
+                                        .unwrap_or(trimmed);
+                                    
+                                    println!("Trimmed sequence: {:?}", trimmed);
+                                    println!("Inner_inner type sequence: {:?}", inner_inner_type);
+                                    println!("Inner_inner type sequence strip: {:?}", inner_inner_type.strip_prefix("sequence<"));
+                                    format!("Vec<{}>", map_idl_type(inner_inner_type, &member_annotations))
+                                } else if trimmed.starts_with("sequence<") && trimmed.ends_with("") {
+                                    println!("Ends with nothing");
+                                    let inner_inner_type = trimmed
+                                        .strip_prefix("sequence<")
+                                        .unwrap_or(trimmed);
+                                    
+                                    println!("Trimmed sequence: {:?}", trimmed);
+                                    println!("Inner_inner type sequence: {:?}", inner_inner_type);
+                                    println!("Inner_inner type sequence strip: {:?}", inner_inner_type.strip_prefix("sequence<"));
+                                    format!("Vec<{}>", map_idl_type(inner_inner_type, &member_annotations))
+                                } else {
+                                    println!("Trimmed sequence: {:?}", trimmed);
+                                    map_idl_type(trimmed, &member_annotations)
+                                }
+                            })
+                            .unwrap_or_else(|| map_idl_type(type_spec_str, &member_annotations));
+                        format!("Vec<{}>", inner_type)
+                    } else if type_spec_str.starts_with("string<") || type_spec_str.starts_with("wstring<") {
+                        "String".to_string()
+                    } else {
+                        map_idl_type(type_spec_str, &member_annotations)
+                    };
+                    println!("struct_def: rust_type = '{}'", rust_type);
+                    writer.push_str(&rust_type);
+                }
+                _ => panic!("Not allowed by the grammar"),
+            }
+            writer.push(',');
+        }
     }
 
     writer.push_str("}\n");
 }
+
 
 fn enum_dcl(pair: IdlPair, writer: &mut String) {
     let inner_pairs = pair.into_inner();
@@ -833,15 +996,47 @@ fn boolean(_pair: IdlPair, writer: &mut String) {
     writer.push_str("bool");
 }
 
+fn evaluate_array_size(size_str: &str) -> String {
+    let size_str = size_str.trim().trim_matches(|c| c == '[' || c == ']');
+    println!("Evaluating array size: '{}'", size_str);
+    size_str.to_string() // Return the expression unchanged
+}
+
 fn strip_quotes(s: &str) -> &str {
     s.strip_prefix('"').and_then(|s| s.strip_suffix('"')).unwrap_or(s)
 }
 
-fn map_idl_type(idl_type: &str, annotations: &[Annotation]) -> String {
-    for ann in annotations {
-        if ann.name == "rust_type" {
-            if let Some(value) = ann.parameters.get(0) {
+fn map_idl_type(idl_type: &str, annotations: &Vec<(String, Vec<String>)>) -> String {
+    for (name, parameters) in annotations {
+        if name == "rust_type" {
+            if let Some(value) = parameters.first() {
                 return strip_quotes(value).to_string();
+            }
+        }
+    }
+
+    let idl_type = idl_type.trim();
+
+    if idl_type.is_empty() {
+        return "/* empty type */".to_string();
+    }
+
+    if idl_type.starts_with("sequence<") && idl_type.ends_with('>') {
+        let inner_type = &idl_type["sequence<".len()..idl_type.len() - 1].trim();
+        if inner_type.is_empty() {
+            return "Vec<()>".to_string(); // or handle as error
+        }
+        return format!("Vec<{}>", map_idl_type(inner_type, annotations));
+    }
+
+    if let Some(pos) = idl_type.find('[') {
+        if idl_type.ends_with(']') {
+            let base = &idl_type[..pos].trim();
+            let size_str = &idl_type[pos + 1..idl_type.len() - 1];
+            if let Ok(size) = size_str.parse::<usize>() {
+                return format!("[{}; {}]", map_idl_type(base, annotations), size);
+            } else {
+                return "/* unknown fixed array size */".to_string();
             }
         }
     }
@@ -851,15 +1046,28 @@ fn map_idl_type(idl_type: &str, annotations: &[Annotation]) -> String {
         "unsigned long" => "u32".to_string(),
         "short" => "i16".to_string(),
         "unsigned short" => "u16".to_string(),
+        "int8" => "i8".to_string(),
+        "int16" => "i16".to_string(),
+        "int32" => "i32".to_string(),
+        "int64" => "i64".to_string(),
+        "uint8" => "u8".to_string(),
+        "uint16" => "u16".to_string(),
+        "uint32" => "u32".to_string(),
+        "uint64" => "u64".to_string(),
         "long long" => "i64".to_string(),
         "unsigned long long" => "u64".to_string(),
+        "string" => "String".to_string(),
+        "wstring" => "String".to_string(),
         "octet" => "u8".to_string(),
         "float" => "f32".to_string(),
         "double" => "f64".to_string(),
         "boolean" => "bool".to_string(),
         "char" => "char".to_string(),
-        "string" => "String".to_string(),
-        _ => idl_type.to_string(),
+        "wchar" => "char".to_string(),
+        _ => {
+            eprintln!("Warning: unmapped IDL type '{}'", idl_type);
+            idl_type.to_string()
+        }
     }
 }
 
@@ -870,90 +1078,181 @@ pub fn generate_rust_def(s: &StructDef) -> String {
     for ann in &s.annotations {
         match ann.name.as_str() {
             "derive" => {
-                if let Some(value) = ann.parameters.get(0) {
+                if let Some(value) = ann.parameters.first() {
                     let trimmed = strip_quotes(value);
                     code.push_str(&format!("#[derive({})]\n", trimmed));
                 }
             },
             "repr" => {
-                if let Some(param) = ann.parameters.get(0) {
+                if let Some(param) = ann.parameters.first() {
                     let trimmed = strip_quotes(param);
                     code.push_str(&format!("#[repr({})]\n", trimmed));
                 }
             },
+            "final" => code.push_str("#[dust_dds(extensibility = \"final\")]\n"),
+            "appendable" => code.push_str("#[dust_dds(extensibility = \"appendable\")]\n"),
+            "mutable" => code.push_str("#[dust_dds(extensibility = \"mutable\")]\n"),
             _ => {}
         }
     }
 
-    code.push_str(&format!("        pub struct {} {{\n", s.name));
+    if !s.annotations.iter().any(|ann| ann.name == "derive") {
+        code.push_str("#[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]\n");
+    }
+
+    code.push_str(&format!("pub struct {} {{\n", s.name));
 
     for member in &s.members {
         // Member-level annotations
         for ann in &member.annotations {
             match ann.name.as_str() {
-                "serde_skip" => code.push_str("            #[serde(skip)]\n"),
+                "serde_skip" => code.push_str("#[serde(skip)]\n"),
                 "serde_rename" => {
-                    if let Some(param) = ann.parameters.get(0) {
+                    if let Some(param) = ann.parameters.first() {
                         let trimmed = strip_quotes(param);
-                        code.push_str(&format!("            #[serde(rename = \"{}\")]\n", trimmed));
+                        code.push_str(&format!("#[serde(rename = \"{}\")]\n", trimmed));
                     }
                 },
                 "key" => {
-                    code.push_str("            #[dust_dds(key)]\n");
+                    code.push_str("#[dust_dds(key)]\n");
                 },
                 "appendable" => {
-                    code.push_str("            #[dust_dds(appendable)]\n");
+                    code.push_str("#[dust_dds(extensibility = appendable)]\n");
                 },
                 "mutable" => {
-                    code.push_str("            #[dust_dds(mutable)]\n");
+                    code.push_str("#[dust_dds(extensibility = mutable)]\n");
                 },
                 "final" => {
-                    code.push_str("            #[dust_dds(final)]\n");
+                    code.push_str("#[dust_dds(extensibility = final)]\n");
                 },
                 "hashid" => {
-                    code.push_str("            #[dust_dds(hashid)]\n");
+                    code.push_str("#[dust_dds(hashid)]\n");
                 },
                 "must_understand" => {
-                    code.push_str("            #[dust_dds(must_understand)]\n");
+                    code.push_str("#[dust_dds(must_understand)]\n");
                 },
                 "Optional" | "optional" => {
-                    code.push_str("            #[dust_dds(optional)]\n");
+                    code.push_str("#[dust_dds(optional)]\n");
                 },
                 _ => {}
             }
         }
 
-        let rust_type = map_idl_type(&member.idl_type, &member.annotations);
-        code.push_str(&format!("            pub {}: {},\n", member.name, rust_type));
+        let member_annotations: Vec<(String, Vec<String>)> = member
+            .annotations
+            .iter()
+            .map(|ann| (ann.name.clone(), ann.parameters.clone()))
+            .collect();
+
+        let field_type = if member.idl_type.starts_with("sequence<") {
+            // Extract inner type from sequence<T> or sequence<T, N>
+            let inner_type = member
+                .idl_type
+                .strip_prefix("sequence<")
+                .and_then(|s| s.strip_suffix('>'))
+                .map(|s| {
+                    // Handle bounds (e.g., sequence<short, 128>) by taking the type before the comma
+                    let trimmed = s.split(',').next().unwrap_or(s).trim();
+                    if trimmed.starts_with("sequence<") {
+                        // Handle nested sequences
+                        let inner_inner_type = trimmed
+                            .strip_prefix("sequence<")
+                            .and_then(|s| s.strip_suffix('>'))
+                            .map(|s| s.split(',').next().unwrap_or(s).trim())
+                            .unwrap_or(trimmed);
+                        format!("Vec<{}>", map_idl_type(inner_inner_type, &member_annotations))
+                    } else {
+                        map_idl_type(trimmed, &member_annotations)
+                    }
+                })
+                .unwrap_or_else(|| map_idl_type(&member.idl_type, &member_annotations));
+            format!("Vec<{}>", inner_type)
+        } else if member.idl_type.starts_with("string<") || member.idl_type.starts_with("wstring<") {
+            // Handle bounded strings
+            "String".to_string()
+        } else {
+            // Handle non-sequence, non-bounded types
+            let rust_type = map_idl_type(&member.idl_type, &member_annotations);
+            match &member.array_size {
+                Some(size) => format!("[{}; {}]", rust_type, size),
+                None => rust_type,
+            }
+        };
+            
+        code.push_str(&format!("pub {}: {},", member.name, field_type));
     }
 
-    code.push_str("        }\n");
+    code.push_str("}\n");
     code
+}
+
+pub fn generate_rust_code(
+    parsed_idl_result: Result<(Vec<StructDef>, IdlPair), Box<pest::error::Error<Rule>>>,
+    output: &mut String,
+) -> Result<(), Box<pest::error::Error<Rule>>> {
+    match parsed_idl_result {
+        Ok((structs, idl_pair)) => {
+            // Check if only structs are present
+            let only_structs = idl_pair
+                .clone()
+                .into_inner()
+                .all(|def| {
+                    if def.as_rule() == Rule::definition {
+                        let inner = def.into_inner().next().unwrap();
+                        inner.as_rule() == Rule::type_dcl
+                            && inner
+                                .clone()
+                                .into_inner()
+                                .next()
+                                .unwrap()
+                                .as_rule()
+                                == Rule::constr_type_dcl
+                            && inner
+                                .into_inner()
+                                .next()
+                                .unwrap()
+                                .as_rule()
+                                == Rule::struct_dcl
+                    } else {
+                        false
+                    }
+                });
+
+            if only_structs {
+                // Use generate_rust_def for efficiency if only structs
+                println!("OnlyStructs. Using generate_rust_def");
+                for struct_def in structs {
+                    output.push_str(&generate_rust_def(&struct_def));
+                }
+            } else {
+                // Use generate_rust_source for full IDL processing
+                println!("Using generate_rust_source");
+                generate_rust_source(idl_pair, output);
+            }
+            Ok(())
+        }
+        Err(e) => Err(e),
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use pest::Parser;
-
-    use crate::parser::IdlParser;
+    pub use crate::parse_idl;
 
     use super::*;
 
     #[test]
     fn parse_struct() {
         let mut out = String::new();
-        let p = IdlParser::parse(
-            Rule::struct_def,
-            "struct MyStruct {
+        let p = parse_idl(
+            "@derive(\"Debug, Clone\")
+            struct MyStruct {
             long a;
             long long b, c;
             octet xary[32], yary[64];
         };",
-        )
-        .unwrap()
-        .next()
-        .unwrap();
-        generate_rust_source(p, &mut out);
+        Rule::struct_def).unwrap();
+        let _ = generate_rust_code(Ok(p), &mut out);
         println!("RESULT: {}", out);
         assert_eq!(
             "#[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]\npub struct MyStruct {pub a:i32,pub b:i64,pub c:i64,pub xary:[u8;32],pub yary:[u8;64],}\n",
@@ -964,11 +1263,8 @@ mod tests {
     #[test]
     fn parse_appendable_struct() {
         let mut out = String::new();
-        let p = IdlParser::parse(Rule::struct_def, "@appendable struct MyStruct { long a; };")
-            .unwrap()
-            .next()
-            .unwrap();
-        generate_rust_source(p, &mut out);
+        let p = parse_idl("@derive(\"Debug, Clone\") @appendable struct MyStruct { long a; };", Rule::struct_def).unwrap();
+        let _ = generate_rust_code(Ok(p), &mut out);
         println!("RESULT: {}", out);
         assert_eq!(
             &out,
@@ -979,11 +1275,8 @@ mod tests {
     #[test]
     fn parse_member_with_key() {
         let mut out = String::new();
-        let p = IdlParser::parse(Rule::member, "@key long a;")
-            .unwrap()
-            .next()
-            .unwrap();
-        generate_rust_source(p, &mut out);
+        let p = parse_idl("@key long a;", Rule::member).unwrap();
+        let _ = generate_rust_code(Ok(p), &mut out);
         println!("RESULT: {}", out);
         assert_eq!("#[dust_dds(key)]pub a:i32,", &out);
     }
@@ -991,11 +1284,8 @@ mod tests {
     #[test]
     fn parse_member_sequence_type() {
         let mut out = String::new();
-        let p = IdlParser::parse(Rule::member, "sequence<octet> a;")
-            .unwrap()
-            .next()
-            .unwrap();
-        generate_rust_source(p, &mut out);
+        let p = parse_idl("sequence<octet> a;", Rule::member).unwrap();
+        let _ = generate_rust_code(Ok(p), &mut out);
         println!("RESULT: {}", out);
         assert_eq!("pub a:Vec<u8>,", &out);
     }
@@ -1003,11 +1293,8 @@ mod tests {
     #[test]
     fn parse_member_sequence_of_sequence_type() {
         let mut out = String::new();
-        let p = IdlParser::parse(Rule::member, "sequence<sequence<octet>> a;")
-            .unwrap()
-            .next()
-            .unwrap();
-        generate_rust_source(p, &mut out);
+        let p = parse_idl("sequence<sequence<octet>> a;", Rule::member).unwrap();
+        let _ = generate_rust_code(Ok(p), &mut out);
         println!("RESULT: {}", out);
         assert_eq!("pub a:Vec<Vec<u8>>,", &out);
     }
@@ -1015,14 +1302,9 @@ mod tests {
     #[test]
     fn parse_enum() {
         let mut out = String::new();
-        let p = IdlParser::parse(
-            Rule::enum_dcl,
-            "enum Suits { Spades, Hearts, Diamonds, Clubs };",
-        )
-        .unwrap()
-        .next()
-        .unwrap();
-        generate_rust_source(p, &mut out);
+        let p = parse_idl(
+            "enum Suits { Spades, Hearts, Diamonds, Clubs };", Rule::enum_dcl).unwrap();
+        let _ = generate_rust_code(Ok(p), &mut out);
         println!("RESULT: {}", out);
         assert_eq!(
             "#[derive(Debug)]\npub enum Suits{Spades,Hearts,Diamonds,Clubs,}",
@@ -1033,12 +1315,9 @@ mod tests {
     #[test]
     fn parse_const_with_literals() {
         let mut out = String::new();
-        let p = IdlParser::parse(Rule::specification, r#"const string a = 'a';"#)
-            .unwrap()
-            .next()
-            .unwrap();
+        let p = parse_idl(r#"const string a = 'a';"#, Rule::specification).unwrap();
 
-        generate_rust_source(p, &mut out);
+        let _ = generate_rust_code(Ok(p), &mut out);
         assert_eq!("pub const a:String='a';\n", &out);
     }
 
@@ -1046,12 +1325,9 @@ mod tests {
     fn parse_typedef() {
         let mut out = String::new();
 
-        let p = IdlParser::parse(Rule::typedef_dcl, r#"typedef long Name;"#)
-            .unwrap()
-            .next()
-            .unwrap();
+        let p = parse_idl(r#"typedef long Name;"#, Rule::typedef_dcl).unwrap();
 
-        generate_rust_source(p, &mut out);
+        let _ = generate_rust_code(Ok(p), &mut out);
         assert_eq!("pub type Name=i32;\n", &out);
     }
 
@@ -1059,12 +1335,9 @@ mod tests {
     fn parse_interface_export() {
         let mut out = String::new();
 
-        let p = IdlParser::parse(Rule::export, r#"short op(out string s);"#)
-            .unwrap()
-            .next()
-            .unwrap();
+        let p = parse_idl(r#"short op(out string s);"#, Rule::export).unwrap();
 
-        generate_rust_source(p, &mut out);
+        let _ = generate_rust_code(Ok(p), &mut out);
         assert_eq!("fn op(s:&mut String,)->i16;\n", &out);
     }
 
@@ -1072,18 +1345,14 @@ mod tests {
     fn parse_interface() {
         let mut out = String::new();
 
-        let p = IdlParser::parse(
-            Rule::interface_def,
+        let p = parse_idl(
             "interface MyInterface {
                 void op(out string s, inout short a, in char u);
                 unsigned short sum(in unsigned short a, in unsigned short b);
             };",
-        )
-        .unwrap()
-        .next()
-        .unwrap();
+            Rule::interface_def).unwrap();
 
-        generate_rust_source(p, &mut out);
+        let _ = generate_rust_code(Ok(p), &mut out);
         assert_eq!(
             "pub trait MyInterface{fn op(s:&mut String,a:&mut i16,u:&char,);\nfn sum(a:&u16,b:&u16,)->u16;\n}\n",
             &out
