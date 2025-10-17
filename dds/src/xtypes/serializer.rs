@@ -160,23 +160,23 @@ fn pad_writer(alignment: usize, writer: &mut impl Write) {
     let padding = writer.pos().div_ceil(alignment) * alignment - writer.pos();
     writer.write(&ZEROS[..padding]);
 }
-trait Padding {
+pub trait Padding {
     fn pad(alignment: usize, writer: &mut impl Write);
 }
-struct PaddingV1;
+pub struct PaddingV1;
 impl Padding for PaddingV1 {
     fn pad(alignment: usize, writer: &mut impl Write) {
         pad_writer(alignment, writer)
     }
 }
-struct PaddingV2;
+pub struct PaddingV2;
 impl Padding for PaddingV2 {
     fn pad(alignment: usize, writer: &mut impl Write) {
         pad_writer(core::cmp::min(alignment, 4), writer)
     }
 }
 
-trait EndiannessWriter: Sized {
+pub trait EndiannessWriter {
     type Endianness: Endianness;
     type Padding: Padding;
     fn writer(&mut self) -> &mut impl Write;
@@ -225,7 +225,7 @@ trait EndiannessWriter: Sized {
     }
 }
 
-struct WriterBe<W>(W);
+pub struct WriterBe<W>(pub W);
 impl<W: Write> EndiannessWriter for WriterBe<W> {
     type Endianness = BigEndian;
     type Padding = PaddingV1;
@@ -233,7 +233,7 @@ impl<W: Write> EndiannessWriter for WriterBe<W> {
         &mut self.0
     }
 }
-struct WriterLe<W>(W);
+pub struct WriterLe<W>(pub W);
 impl<W: Write> EndiannessWriter for WriterLe<W> {
     type Endianness = LittleEndian;
     type Padding = PaddingV1;
@@ -287,8 +287,9 @@ impl<'a, W: Write> PaddedWrite for WriterV1<'a, W> {
 }
 
 /// A trait representing an object with the capability of serializing a value into a CDR format.
-pub trait XTypesSerializer: Sized {
+pub trait XTypesSerializer<C> {
     type Endianness: Endianness;
+    fn into_inner(self) -> C;
 
     /// Start serializing a type with final extensibility.
     fn serialize_final_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
@@ -379,7 +380,7 @@ pub trait XTypesSerializer: Sized {
             TypeKind::INT16 => self.serialize_i16(*v.get_int16_value(member_id)?),
             TypeKind::INT32 => self.serialize_i32(*v.get_int32_value(member_id)?),
             TypeKind::INT64 => self.serialize_i64(*v.get_int64_value(member_id)?),
-            TypeKind::UINT16 => todo!(),
+            TypeKind::UINT16 => (*v.get_uint16_value(member_id)?).write_basic_type(self.writer()),
             TypeKind::UINT32 => self.serialize_u32(*v.get_uint32_value(member_id)?),
             TypeKind::UINT64 => self.serialize_u64(*v.get_uint64_value(member_id)?),
             TypeKind::FLOAT32 => self.serialize_f32(*v.get_float32_value(member_id)?),
@@ -415,44 +416,45 @@ pub trait XTypesSerializer: Sized {
         }
     }
     fn serialize_str(&mut self, v: &str) {
-        self.serialize_u32(v.len() as u32 + 1);
-        Self::Endianness::write_str(v, self.writer());
+        // self.serialize_u32(v.len() as u32 + 1);
+        // Self::Endianness::write_str(v, self.writer());
+        todo!()
     }
     fn serialize_char(&mut self, v: char) {
-        Self::Endianness::write_char(v, self.writer());
+        todo!()
     }
     fn serialize_bool(&mut self, v: bool) {
-        Self::Endianness::write_bool(v, self.writer());
+        todo!()
     }
     fn serialize_i8(&mut self, v: i8) {
-        Self::Endianness::write_i8(v, self.writer());
+        todo!()
     }
     fn serialize_u8(&mut self, v: u8) {
-        Self::Endianness::write_u8(v, self.writer());
+        todo!()
     }
     fn serialize_i16(&mut self, v: i16) {
-        Self::Endianness::write_i16(v, self.writer());
+        todo!()
     }
     fn serialize_u16(&mut self, v: u16) {
-        Self::Endianness::write_u16(v, self.writer());
+        todo!()
     }
     fn serialize_i32(&mut self, v: i32) {
-        Self::Endianness::write_i32(v, self.writer());
+        todo!()
     }
     fn serialize_u32(&mut self, v: u32) {
-        Self::Endianness::write_u32(v, self.writer());
+        todo!()
     }
     fn serialize_i64(&mut self, v: i64) {
-        Self::Endianness::write_i64(v, self.writer());
+        todo!()
     }
     fn serialize_u64(&mut self, v: u64) {
-        Self::Endianness::write_u64(v, self.writer());
+        todo!()
     }
     fn serialize_f32(&mut self, v: f32) {
-        Self::Endianness::write_f32(v, self.writer());
+        todo!()
     }
     fn serialize_f64(&mut self, v: f64) {
-        Self::Endianness::write_f64(v, self.writer());
+        todo!()
     }
-    fn writer(&mut self) -> &mut impl PaddedWrite;
+    fn writer(&mut self) -> &mut impl EndiannessWriter;
 }

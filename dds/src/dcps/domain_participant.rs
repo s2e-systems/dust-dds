@@ -5976,40 +5976,43 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
             }
         }
 
-        let serialized_data = if self.qos.representation.value.is_empty()
+        let serialized_data: Vec<u8> = if self.qos.representation.value.is_empty()
             || self.qos.representation.value[0] == XCDR_DATA_REPRESENTATION
         {
             let mut buffer = match dynamic_data.type_ref().get_descriptor().extensibility_kind {
                 ExtensibilityKind::Final | ExtensibilityKind::Appendable => vec![0x00, 0x01, 0, 0],
                 ExtensibilityKind::Mutable => vec![0x00, 0x03, 0, 0],
             };
-            let mut serializer = Xcdr1LeSerializer::new(&mut buffer);
+            let mut serializer = Xcdr1LeSerializer::new(buffer);
             dynamic_data.serialize(serializer)?;
 
-            let padding = match buffer.len() % 4 {
-                1 => &[0, 0, 0][..],
-                2 => &[0, 0][..],
-                3 => &[0][..],
-                _ => &[][..],
-            };
-            buffer.extend_from_slice(padding);
-            buffer[3] = padding.len() as u8;
+            // let padding = match buffer.len() % 4 {
+            //     1 => &[0, 0, 0][..],
+            //     2 => &[0, 0][..],
+            //     3 => &[0][..],
+            //     _ => &[][..],
+            // };
+            // buffer.extend_from_slice(padding);
+            // buffer[3] = padding.len() as u8;
 
-            buffer
+            // buffer
+            todo!()
         } else if self.qos.representation.value[0] == XCDR2_DATA_REPRESENTATION {
             let mut buffer = match dynamic_data.type_ref().get_descriptor().extensibility_kind {
                 ExtensibilityKind::Final => vec![0x00, 0x07, 0, 0],
                 ExtensibilityKind::Appendable => vec![0x00, 0x09, 0, 0],
                 ExtensibilityKind::Mutable => todo!(),
             };
-            let mut serializer = Xcdr2LeSerializer::new(&mut buffer);
+            let mut serializer = Xcdr2LeSerializer::new(buffer);
             dynamic_data.serialize(serializer)?;
-            buffer
+            // buffer
+            todo!()
         } else if self.qos.representation.value[0] == BUILT_IN_DATA_REPRESENTATION {
             let mut buffer = vec![0x00, 0x03, 0, 0];
-            let mut serializer = PlCdrLeSerializer::new(&mut buffer);
+            let mut serializer = PlCdrLeSerializer::new(buffer);
             dynamic_data.serialize(serializer)?;
-            buffer
+            // buffer
+            todo!()
         } else {
             panic!("Invalid data representation")
         };

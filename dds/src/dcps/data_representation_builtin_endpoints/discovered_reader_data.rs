@@ -24,7 +24,7 @@ use crate::{
     },
     transport::types::{EntityId, Guid, Locator, ENTITYID_UNKNOWN},
     xtypes::{
-        binding::XTypesBinding, data_representation::DataKind, dynamic_type::DynamicTypeBuilder,
+        binding::XTypesBinding, data_representation::DataKind, dynamic_type::DynamicTypeBuilder, serializer::XTypesSerializer
     },
 };
 use alloc::{string::String, vec::Vec};
@@ -418,12 +418,11 @@ mod tests {
         ];
         let dynamic_sample = data.create_dynamic_sample();
 
-        let mut buffer = vec![];
-        dynamic_sample
-            .serialize(PlCdrLeSerializer::new(&mut buffer))
-            .unwrap();
-
-        assert_eq!(buffer, expected);
+        let result = dynamic_sample
+            .serialize(PlCdrLeSerializer::new(Vec::new()))
+            .unwrap()
+            .into_inner();
+        assert_eq!(result, expected);
     }
 
     #[test]
@@ -496,13 +495,11 @@ mod tests {
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
         let dynamic_sample = data.create_dynamic_sample();
-
-        let mut buffer = vec![];
-        dynamic_sample
-            .serialize(PlCdrLeSerializer::new(&mut buffer))
-            .unwrap();
-
-        assert_eq!(buffer, expected);
+        let result = dynamic_sample
+            .serialize(PlCdrLeSerializer::new(Vec::new()))
+            .unwrap()
+            .into_inner();
+        assert_eq!(result, expected);
     }
 
     #[test]

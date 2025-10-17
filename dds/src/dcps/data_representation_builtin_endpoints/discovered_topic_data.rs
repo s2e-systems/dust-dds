@@ -372,7 +372,7 @@ mod tests {
     use super::*;
     use crate::{
         builtin_topics::BuiltInTopicKey, infrastructure::qos::TopicQos,
-        xtypes::pl_cdr_serializer::PlCdrLeSerializer,
+        xtypes::{pl_cdr_serializer::PlCdrLeSerializer, serializer::XTypesSerializer},
     };
 
     #[test]
@@ -416,12 +416,11 @@ mod tests {
             4, 0, 0, 0, // ,
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
-        let dynamic_data = data.create_dynamic_sample();
-        let mut buffer = Vec::new();
-        let mut serializer = PlCdrLeSerializer::new(&mut buffer);
-        dynamic_data.serialize(serializer).unwrap();
-
-        assert_eq!(buffer, expected);
+        let dynamic_sample = data.create_dynamic_sample();
+        let result = dynamic_sample
+            .serialize(PlCdrLeSerializer::new(Vec::new()))
+            .unwrap().into_inner();
+        assert_eq!(result, expected);
     }
 
     #[test]

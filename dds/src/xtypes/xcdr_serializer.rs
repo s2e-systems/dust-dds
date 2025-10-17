@@ -1,15 +1,18 @@
 use super::{error::XTypesError, serializer::XTypesSerializer};
 use crate::xtypes::{
     dynamic_type::{DynamicData, TypeKind},
-    serializer::{BigEndian, LittleEndian, PaddedWrite, Write, Writer, WriterV1, WriterV2},
+    serializer::{
+        BigEndian, EndiannessWriter, LittleEndian, PaddedWrite, Write, Writer, WriterBe, WriterLe,
+        WriterV1, WriterV2,
+    },
 };
 
 const PID_SENTINEL: u16 = 1;
 
-pub fn serialize_nested(
+pub fn serialize_nested<C>(
     dynamic_data: &DynamicData,
-    mut serializer: impl XTypesSerializer,
-) -> Result<(), super::error::XTypesError> {
+    mut serializer: impl XTypesSerializer<C>,
+) -> Result<impl XTypesSerializer<C>, super::error::XTypesError> {
     match dynamic_data.type_ref().get_kind() {
         TypeKind::ENUM => {
             // serializer.serialize_data_kind(dynamic_data.get_value(0)?)?;
@@ -18,7 +21,7 @@ pub fn serialize_nested(
         TypeKind::STRUCTURE => serializer.serialize_complex(dynamic_data)?,
         kind => unimplemented!("Should not reach for {kind:?}"),
     }
-    Ok(())
+    Ok(serializer)
 }
 
 struct ByteCounter(usize);
@@ -39,35 +42,35 @@ impl Write for ByteCounter {
     }
 }
 
-pub struct Xcdr1BeSerializer<'a, C> {
-    writer: WriterV1<'a, C>,
+pub struct Xcdr1BeSerializer<C> {
+    writer: WriterBe<C>,
 }
 
-impl<'a, C: Write> Xcdr1BeSerializer<'a, C> {
-    pub fn new(collection: &'a mut C) -> Self {
+impl<C: Write> Xcdr1BeSerializer<C> {
+    pub fn new(collection: C) -> Self {
         Self {
-            writer: WriterV1 {
-                writer: Writer::new(collection),
-            },
+            writer: WriterBe(collection),
         }
     }
 }
 
 fn count_bytes_xdr1_be(v: &DynamicData, member_id: u32) -> Result<usize, XTypesError> {
     let mut byte_counter = ByteCounter::new();
-    let mut byte_conter_serializer = Xcdr1BeSerializer::new(&mut byte_counter);
-    byte_conter_serializer.serialize_dynamic_data_member(v, member_id)?;
-    Ok(byte_counter.0)
+    let mut byte_conter_serializer = Xcdr1BeSerializer::new(byte_counter);
+    // byte_conter_serializer.serialize_dynamic_data_member(v, member_id)?;
+    // Ok(byte_counter.0)
+    todo!()
 }
 
 fn count_bytes_xdr1_le(v: &DynamicData, member_id: u32) -> Result<usize, XTypesError> {
     let mut byte_counter = ByteCounter::new();
-    let mut byte_conter_serializer = Xcdr1LeSerializer::new(&mut byte_counter);
-    byte_conter_serializer.serialize_dynamic_data_member(v, member_id)?;
-    Ok(byte_counter.0)
+    let mut byte_conter_serializer = Xcdr1LeSerializer::new(byte_counter);
+    // byte_conter_serializer.serialize_dynamic_data_member(v, member_id)?;
+    // Ok(byte_counter.0)
+    todo!()
 }
 
-impl<C: Write> XTypesSerializer for Xcdr1BeSerializer<'_, C> {
+impl<C: Write> XTypesSerializer<C> for Xcdr1BeSerializer<C> {
     type Endianness = BigEndian;
 
     fn serialize_mutable_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
@@ -77,32 +80,35 @@ impl<C: Write> XTypesSerializer for Xcdr1BeSerializer<'_, C> {
             self.serialize_u16(member_id as u16);
             self.serialize_u16(length as u16);
             self.serialize_dynamic_data_member(v, member_id)?;
-            self.writer.writer.pad(4);
+            // self.writer.writer.pad(4);
+            todo!()
         }
         self.serialize_u16(PID_SENTINEL);
         self.serialize_u16(0);
         Ok(())
     }
-    fn writer(&mut self) -> &mut impl PaddedWrite {
+
+    fn writer(&mut self) -> &mut impl EndiannessWriter {
         &mut self.writer
+    }
+    fn into_inner(self) -> C {
+        self.writer.0
     }
 }
 
-pub struct Xcdr1LeSerializer<'a, C> {
-    pub writer: WriterV1<'a, C>,
+pub struct Xcdr1LeSerializer<C> {
+    pub writer: WriterLe<C>,
 }
 
-impl<'a, C: Write> Xcdr1LeSerializer<'a, C> {
-    pub fn new(collection: &'a mut C) -> Self {
+impl<C: Write> Xcdr1LeSerializer<C> {
+    pub fn new(collection: C) -> Self {
         Self {
-            writer: WriterV1 {
-                writer: Writer::new(collection),
-            },
+            writer: WriterLe(collection),
         }
     }
 }
 
-impl<C: Write> XTypesSerializer for Xcdr1LeSerializer<'_, C> {
+impl<C: Write> XTypesSerializer<C> for Xcdr1LeSerializer<C> {
     type Endianness = LittleEndian;
 
     fn serialize_mutable_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
@@ -112,41 +118,41 @@ impl<C: Write> XTypesSerializer for Xcdr1LeSerializer<'_, C> {
             self.serialize_u16(member_id as u16);
             self.serialize_u16(length as u16);
             self.serialize_dynamic_data_member(v, member_id)?;
-            self.writer.writer.pad(4);
+            // self.writer.writer.pad(4);
+            todo!()
         }
         self.serialize_u16(PID_SENTINEL);
         self.serialize_u16(0);
         Ok(())
     }
-    fn writer(&mut self) -> &mut impl PaddedWrite {
+    fn writer(&mut self) -> &mut impl EndiannessWriter {
         &mut self.writer
+    }
+    fn into_inner(self) -> C {
+        self.writer.0
     }
 }
 
-pub struct Xcdr2BeSerializer<'a, C> {
-    writer: WriterV2<'a, C>,
+pub struct Xcdr2BeSerializer<C> {
+    writer: WriterBe<C>,
 }
 
-impl<'a, C: Write> Xcdr2BeSerializer<'a, C> {
-    pub fn new(collection: &'a mut C) -> Self {
+impl<C: Write> Xcdr2BeSerializer<C> {
+    pub fn new(collection: C) -> Self {
         Self {
-            writer: WriterV2 {
-                writer: Writer::new(collection),
-            },
+            writer: WriterBe(collection),
         }
     }
 }
 
-pub struct Xcdr2LeSerializer<'a, C> {
-    writer: WriterV2<'a, C>,
+pub struct Xcdr2LeSerializer<C> {
+    writer: WriterLe<C>,
 }
 
-impl<'a, C: Write> Xcdr2LeSerializer<'a, C> {
-    pub fn new(collection: &'a mut C) -> Self {
+impl<C: Write> Xcdr2LeSerializer<C> {
+    pub fn new(collection: C) -> Self {
         Self {
-            writer: WriterV2 {
-                writer: Writer::new(collection),
-            },
+            writer: WriterLe(collection),
         }
     }
 }
@@ -155,10 +161,10 @@ struct PlainCdr2Encoder<'a, S> {
     serializer: &'a mut S,
 }
 
-impl<C: Write> XTypesSerializer for Xcdr2BeSerializer<'_, C> {
+impl<C: Write> XTypesSerializer<C> for Xcdr2BeSerializer<C> {
     type Endianness = BigEndian;
 
-    fn writer(&mut self) -> &mut impl PaddedWrite {
+    fn writer(&mut self) -> &mut impl EndiannessWriter {
         &mut self.writer
     }
 
@@ -172,13 +178,17 @@ impl<C: Write> XTypesSerializer for Xcdr2BeSerializer<'_, C> {
 
     fn serialize_mutable_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
         todo!()
+    }
+
+    fn into_inner(self) -> C {
+        self.writer.0
     }
 }
 
-impl<C: Write> XTypesSerializer for Xcdr2LeSerializer<'_, C> {
+impl<C: Write> XTypesSerializer<C> for Xcdr2LeSerializer<C> {
     type Endianness = LittleEndian;
 
-    fn writer(&mut self) -> &mut impl PaddedWrite {
+    fn writer(&mut self) -> &mut impl EndiannessWriter {
         &mut self.writer
     }
 
@@ -192,6 +202,9 @@ impl<C: Write> XTypesSerializer for Xcdr2LeSerializer<'_, C> {
 
     fn serialize_mutable_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
         todo!()
+    }
+    fn into_inner(self) -> C {
+        self.writer.0
     }
 }
 
@@ -203,36 +216,34 @@ mod tests {
     extern crate std;
 
     fn serialize_v1_be<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
-        let mut buffer = std::vec::Vec::new();
         v.create_dynamic_sample()
-            .serialize(Xcdr1BeSerializer::new(&mut buffer))
-            .unwrap();
-        buffer
+            .serialize(Xcdr1BeSerializer::new(Vec::new()))
+            .unwrap().into_inner()
     }
 
-    fn serialize_v1_le<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
-        let mut buffer = std::vec::Vec::new();
-        v.create_dynamic_sample()
-            .serialize(Xcdr1LeSerializer::new(&mut buffer))
-            .unwrap();
-        buffer
-    }
+    // fn serialize_v1_le<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
+    //     let mut buffer = std::vec::Vec::new();
+    //     v.create_dynamic_sample()
+    //         .serialize(Xcdr1LeSerializer::new(buffer))
+    //         .unwrap();
+    //     buffer
+    // }
 
-    fn serialize_v2_be<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
-        let mut buffer = std::vec::Vec::new();
-        v.create_dynamic_sample()
-            .serialize(Xcdr2BeSerializer::new(&mut buffer))
-            .unwrap();
-        buffer
-    }
+    // fn serialize_v2_be<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
+    //     let mut buffer = std::vec::Vec::new();
+    //     v.create_dynamic_sample()
+    //         .serialize(Xcdr2BeSerializer::new(buffer))
+    //         .unwrap();
+    //     buffer
+    // }
 
-    fn serialize_v2_le<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
-        let mut buffer = std::vec::Vec::new();
-        v.create_dynamic_sample()
-            .serialize(Xcdr2LeSerializer::new(&mut buffer))
-            .unwrap();
-        buffer
-    }
+    // fn serialize_v2_le<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
+    //     let mut buffer = std::vec::Vec::new();
+    //     v.create_dynamic_sample()
+    //         .serialize(Xcdr2LeSerializer::new(buffer))
+    //         .unwrap();
+    //     buffer
+    // }
 
     #[test]
     fn serialize_basic_types_struct() {
@@ -368,7 +379,6 @@ mod tests {
         // );
     }
 
-
     #[test]
     fn serialize_string_list() {
         #[derive(TypeSupport)]
@@ -380,12 +390,12 @@ mod tests {
             name: vec!["one".to_string(), "two".to_string()],
         };
         assert_eq!(
-            serialize_v1_le(v),
+            serialize_v1_be(v),
             vec![
-                2, 0, 0, 0, // vec length
-                4, 0, 0, 0, // String length
+                0, 0, 0, 2, // vec length
+                0, 0, 0, 4, // String length
                 b'o', b'n', b'e', 0, // String
-                4, 0, 0, 0, // String length
+                0, 0, 0, 4, // String length
                 b't', b'w', b'o', 0, // String
             ]
         );

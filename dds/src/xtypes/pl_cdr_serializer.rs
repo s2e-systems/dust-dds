@@ -1,6 +1,8 @@
 use super::{error::XTypesError, serializer::XTypesSerializer};
 use crate::xtypes::{
-    dynamic_type::DynamicData, serializer::{LittleEndian, PaddedWrite, Write}, xcdr_serializer::Xcdr1LeSerializer,
+    dynamic_type::DynamicData,
+    serializer::{EndiannessWriter, LittleEndian, PaddedWrite, Write},
+    xcdr_serializer::Xcdr1LeSerializer,
 };
 
 const PID_SENTINEL: u16 = 1;
@@ -21,28 +23,31 @@ impl Write for ByteCounter {
 }
 fn count_bytes_xdr1_le(v: &DynamicData, member_id: u32) -> Result<u16, XTypesError> {
     let mut byte_counter = ByteCounter::new();
-    let mut byte_conter_serializer = Xcdr1LeSerializer::new(&mut byte_counter);
-    byte_conter_serializer.serialize_dynamic_data_member(v, member_id)?;
-    Ok(byte_counter.0 as u16)
+    let mut byte_conter_serializer = Xcdr1LeSerializer::new(byte_counter);
+    // byte_conter_serializer.serialize_dynamic_data_member(v, member_id)?;
+    // Ok(byte_counter.0 as u16)
+    todo!()
 }
 
-
-pub struct PlCdrLeSerializer<'a, C> {
-    cdr1_le_serializer: Xcdr1LeSerializer<'a, C>,
+pub struct PlCdrLeSerializer<C> {
+    cdr1_le_serializer: Xcdr1LeSerializer<C>,
 }
 
-impl<'a, C: Write> PlCdrLeSerializer<'a, C> {
-    pub fn new(collection: &'a mut C) -> Self {
+impl<C: Write> PlCdrLeSerializer<C> {
+    pub fn new(collection: C) -> Self {
         Self {
             cdr1_le_serializer: Xcdr1LeSerializer::new(collection),
         }
     }
 }
 
-impl<C: Write> XTypesSerializer for PlCdrLeSerializer<'_, C> {
+impl<C: Write> XTypesSerializer<C> for PlCdrLeSerializer<C> {
     type Endianness = LittleEndian;
 
-    fn writer(&mut self) -> &mut impl PaddedWrite {
+    fn into_inner(self) -> C {
+        self.cdr1_le_serializer.into_inner()
+    }
+    fn writer(&mut self) -> &mut impl EndiannessWriter {
         &mut self.cdr1_le_serializer.writer
     }
 
@@ -62,7 +67,8 @@ impl<C: Write> XTypesSerializer for PlCdrLeSerializer<'_, C> {
             self.serialize_u16(member_id as u16);
             self.serialize_u16(padded_length as u16);
             self.serialize_dynamic_data_member(v, member_id)?;
-            self.cdr1_le_serializer.writer.writer.pad(4);
+            // self.cdr1_le_serializer.writer.writer.pad(4);
+            todo!()
         }
         self.serialize_u16(PID_SENTINEL);
         self.serialize_u16(0);
@@ -77,11 +83,10 @@ mod tests {
     extern crate std;
 
     fn test_serialize_type_support<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
-        let mut buffer = std::vec::Vec::new();
         v.create_dynamic_sample()
-            .serialize(PlCdrLeSerializer::new(&mut buffer))
-            .unwrap();
-        buffer
+            .serialize(PlCdrLeSerializer::new(Vec::new()))
+            .unwrap()
+            .into_inner()
     }
 
     #[derive(TypeSupport)]

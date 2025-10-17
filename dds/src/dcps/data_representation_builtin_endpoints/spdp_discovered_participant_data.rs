@@ -446,7 +446,7 @@ mod tests {
     use super::*;
     use crate::{
         builtin_topics::BuiltInTopicKey, infrastructure::qos_policy::UserDataQosPolicy,
-        rtps::types::PROTOCOLVERSION_2_4, xtypes::pl_cdr_serializer::PlCdrLeSerializer,
+        rtps::types::PROTOCOLVERSION_2_4, xtypes::{pl_cdr_serializer::PlCdrLeSerializer, serializer::XTypesSerializer},
     };
 
     #[test]
@@ -549,12 +549,10 @@ mod tests {
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ];
         let dynamic_sample = data.create_dynamic_sample();
-
-        let mut buffer = vec![];
-        dynamic_sample
-            .serialize(PlCdrLeSerializer::new(&mut buffer))
-            .unwrap();
-        assert_eq!(buffer, expected);
+        let result = dynamic_sample
+            .serialize(PlCdrLeSerializer::new(Vec::new()))
+            .unwrap().into_inner();
+        assert_eq!(result, expected);
     }
 
     #[test]
@@ -606,12 +604,10 @@ mod tests {
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ];
         let dynamic_sample = data.create_dynamic_sample();
-
-        let mut buffer = vec![];
-        dynamic_sample
-            .serialize(PlCdrLeSerializer::new(&mut buffer))
-            .unwrap();
-        assert_eq!(buffer, expected);
+        let result = dynamic_sample
+            .serialize(PlCdrLeSerializer::new(Vec::new()))
+            .unwrap().into_inner();
+        assert_eq!(result, expected);
     }
 
     #[test]

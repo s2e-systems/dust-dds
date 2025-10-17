@@ -456,7 +456,7 @@ pub fn get_instance_handle_from_serialized_key(
     {
         let representation_identifier = [data[0], data[1]];
         data = &data[4..];
-        let mut serializer = Xcdr2BeSerializer::new(&mut md5_collection);
+        let mut serializer = Xcdr2BeSerializer::new(md5_collection);
         todo!()
         // let mut s = serializer.serialize_final_struct()?;
         // match representation_identifier {
@@ -490,7 +490,7 @@ pub fn get_instance_handle_from_serialized_foo(
     {
         let representation_identifier = [data[0], data[1]];
         data = &data[4..];
-        let mut serializer = Xcdr2BeSerializer::new(&mut md5_collection);
+        let mut serializer = Xcdr2BeSerializer::new(md5_collection);
         // let mut s = serializer.serialize_final_struct()?;
         // match representation_identifier {
         //     CDR_BE => push_to_key(dynamic_type, &mut s, &mut Xcdr1BeDeserializer::new(data))?,
@@ -521,9 +521,10 @@ pub fn get_instance_handle_from_dynamic_data(
     dynamic_data.clear_nonkey_values()?;
     dynamic_data.make_descriptor_extensibility_kind_final();
 
-    let mut serializer = Xcdr2BeSerializer::new(&mut md5_collection);
+    let mut serializer = Xcdr2BeSerializer::new(md5_collection);
     dynamic_data.serialize(serializer)?;
-    Ok(InstanceHandle::new(md5_collection.into_key()))
+    // Ok(InstanceHandle::new(md5_collection.into_key()))
+    todo!()
 }
 
 pub fn get_serialized_key_from_serialized_foo(
@@ -534,15 +535,16 @@ pub fn get_serialized_key_from_serialized_foo(
     let mut serialized_key = Vec::new();
     serialized_key.extend_from_slice(&CDR_LE);
     serialized_key.extend_from_slice(&[0, 0]);
-    let mut serializer = Xcdr1LeSerializer::new(&mut serialized_key);
+    let mut serializer = Xcdr1LeSerializer::new(serialized_key);
     dynamic_data.serialize(serializer)?;
 
-    let padding_len = serialized_key.len().div_ceil(4) * 4 - serialized_key.len();
-    const ZEROS: [u8; 4] = [0; 4];
-    serialized_key.extend_from_slice(&ZEROS[..padding_len]);
-    serialized_key[3] |= padding_len as u8;
+    // let padding_len = serialized_key.len().div_ceil(4) * 4 - serialized_key.len();
+    // const ZEROS: [u8; 4] = [0; 4];
+    // serialized_key.extend_from_slice(&ZEROS[..padding_len]);
+    // serialized_key[3] |= padding_len as u8;
 
-    Ok(serialized_key)
+    // Ok(serialized_key)
+    todo!()
 }
 
 // #[cfg(test)]
