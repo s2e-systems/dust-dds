@@ -697,13 +697,13 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn get_int32_values(&mut self, id: MemberId) -> XTypesResult<Vec<i32>> {
+    pub fn get_int32_values(&self, id: MemberId) -> XTypesResult<Vec<i32>> {
         if let DataKind::Sequence(d) = self
             .abstract_data
-            .remove(&id)
+            .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
         {
-            d.into_iter().map(TryInto::try_into).collect()
+            d.into_iter().cloned().map(TryInto::try_into).collect()
         } else {
             Err(XTypesError::InvalidType)
         }
@@ -714,13 +714,13 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn get_uint32_values(&mut self, id: MemberId) -> XTypesResult<Vec<u32>> {
+    pub fn get_uint32_values(&self, id: MemberId) -> XTypesResult<Vec<u32>> {
         if let DataKind::Sequence(d) = self
             .abstract_data
-            .remove(&id)
+            .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
         {
-            d.into_iter().map(TryInto::try_into).collect()
+            d.into_iter().cloned().map(TryInto::try_into).collect()
         } else {
             Err(XTypesError::InvalidType)
         }
@@ -731,13 +731,13 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn get_int16_values(&mut self, id: MemberId) -> XTypesResult<Vec<i16>> {
+    pub fn get_int16_values(&self, id: MemberId) -> XTypesResult<Vec<i16>> {
         if let DataKind::Sequence(d) = self
             .abstract_data
-            .remove(&id)
+            .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
         {
-            d.into_iter().map(TryInto::try_into).collect()
+            d.into_iter().cloned().map(TryInto::try_into).collect()
         } else {
             Err(XTypesError::InvalidType)
         }
@@ -748,13 +748,13 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn get_uint16_values(&mut self, id: MemberId) -> XTypesResult<Vec<u16>> {
+    pub fn get_uint16_values(&self, id: MemberId) -> XTypesResult<Vec<u16>> {
         if let DataKind::Sequence(d) = self
             .abstract_data
-            .remove(&id)
+            .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
         {
-            d.into_iter().map(TryInto::try_into).collect()
+            d.into_iter().cloned().map(TryInto::try_into).collect()
         } else {
             Err(XTypesError::InvalidType)
         }
@@ -765,13 +765,13 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn get_int64_values(&mut self, id: MemberId) -> XTypesResult<Vec<i64>> {
+    pub fn get_int64_values(&self, id: MemberId) -> XTypesResult<Vec<i64>> {
         if let DataKind::Sequence(d) = self
             .abstract_data
-            .remove(&id)
+            .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
         {
-            d.into_iter().map(TryInto::try_into).collect()
+            d.into_iter().cloned().map(TryInto::try_into).collect()
         } else {
             Err(XTypesError::InvalidType)
         }
@@ -782,13 +782,13 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn get_uint64_values(&mut self, id: MemberId) -> XTypesResult<Vec<u64>> {
+    pub fn get_uint64_values(&self, id: MemberId) -> XTypesResult<Vec<u64>> {
         if let DataKind::Sequence(d) = self
             .abstract_data
-            .remove(&id)
+            .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
         {
-            d.into_iter().map(TryInto::try_into).collect()
+            d.into_iter().cloned().map(TryInto::try_into).collect()
         } else {
             Err(XTypesError::InvalidType)
         }
@@ -799,13 +799,13 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn get_float32_values(&mut self, id: MemberId) -> XTypesResult<Vec<f32>> {
+    pub fn get_float32_values(&self, id: MemberId) -> XTypesResult<Vec<f32>> {
         if let DataKind::Sequence(d) = self
             .abstract_data
-            .remove(&id)
+            .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
         {
-            d.into_iter().map(TryInto::try_into).collect()
+            d.into_iter().cloned().map(TryInto::try_into).collect()
         } else {
             Err(XTypesError::InvalidType)
         }
@@ -816,13 +816,13 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn get_float64_values(&mut self, id: MemberId) -> XTypesResult<Vec<f64>> {
+    pub fn get_float64_values(&self, id: MemberId) -> XTypesResult<Vec<f64>> {
         if let DataKind::Sequence(d) = self
             .abstract_data
-            .remove(&id)
+            .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
         {
-            d.into_iter().map(TryInto::try_into).collect()
+            d.into_iter().cloned().map(TryInto::try_into).collect()
         } else {
             Err(XTypesError::InvalidType)
         }
@@ -833,13 +833,13 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn get_char8_values(&mut self, id: MemberId) -> XTypesResult<Vec<char>> {
+    pub fn get_char8_values(&self, id: MemberId) -> XTypesResult<Vec<char>> {
         if let DataKind::Sequence(d) = self
             .abstract_data
-            .remove(&id)
+            .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
         {
-            d.into_iter().map(TryInto::try_into).collect()
+            d.into_iter().cloned().map(TryInto::try_into).collect()
         } else {
             Err(XTypesError::InvalidType)
         }
@@ -850,13 +850,13 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn get_byte_values(&mut self, id: MemberId) -> XTypesResult<Vec<u8>> {
+    pub fn get_byte_values(&self, id: MemberId) -> XTypesResult<Vec<u8>> {
         if let DataKind::Sequence(d) = self
             .abstract_data
-            .remove(&id)
+            .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
         {
-            d.into_iter().map(TryInto::try_into).collect()
+            d.into_iter().cloned().map(TryInto::try_into).collect()
         } else {
             Err(XTypesError::InvalidType)
         }
@@ -867,13 +867,13 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn get_boolean_values(&mut self, id: MemberId) -> XTypesResult<Vec<bool>> {
+    pub fn get_boolean_values(&self, id: MemberId) -> XTypesResult<Vec<bool>> {
         if let DataKind::Sequence(d) = self
             .abstract_data
-            .remove(&id)
+            .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
         {
-            d.into_iter().map(TryInto::try_into).collect()
+            d.into_iter().cloned().map(TryInto::try_into).collect()
         } else {
             Err(XTypesError::InvalidType)
         }
@@ -884,13 +884,13 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn get_string_values(&mut self, id: MemberId) -> XTypesResult<Vec<String>> {
+    pub fn get_string_values(&self, id: MemberId) -> XTypesResult<Vec<String>> {
         if let DataKind::Sequence(d) = self
             .abstract_data
-            .remove(&id)
+            .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
         {
-            d.into_iter().map(TryInto::try_into).collect()
+            d.into_iter().cloned().map(TryInto::try_into).collect()
         } else {
             Err(XTypesError::InvalidType)
         }
@@ -902,13 +902,13 @@ impl DynamicData {
     }
 
     // Custom functions
-    pub fn get_uint8_values(&mut self, id: MemberId) -> XTypesResult<Vec<u8>> {
+    pub fn get_uint8_values(&self, id: MemberId) -> XTypesResult<Vec<u8>> {
         if let DataKind::Sequence(d) = self
             .abstract_data
-            .remove(&id)
+            .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
         {
-            d.into_iter().map(TryInto::try_into).collect()
+            d.into_iter().cloned().map(TryInto::try_into).collect()
         } else {
             Err(XTypesError::InvalidType)
         }
@@ -924,13 +924,13 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn get_complex_values(&mut self, id: MemberId) -> XTypesResult<Vec<DynamicData>> {
+    pub fn get_complex_values(&self, id: MemberId) -> XTypesResult<Vec<DynamicData>> {
         if let DataKind::Sequence(d) = self
             .abstract_data
-            .remove(&id)
+            .get(&id)
             .ok_or(XTypesError::InvalidIndex)?
         {
-            d.into_iter().map(TryInto::try_into).collect()
+            d.into_iter().cloned().map(TryInto::try_into).collect()
         } else {
             Err(XTypesError::InvalidType)
         }

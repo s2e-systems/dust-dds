@@ -364,6 +364,29 @@ mod tests {
         // );
     }
 
+
+    #[test]
+    fn serialize_string_list() {
+        #[derive(TypeSupport)]
+        struct StringList {
+            name: Vec<String>,
+        }
+
+        let v = StringList {
+            name: vec!["one".to_string(), "two".to_string()],
+        };
+        assert_eq!(
+            serialize_v1_le(v),
+            vec![
+                2, 0, 0, 0, // vec length
+                4, 0, 0, 0, // String length
+                b'o', b'n', b'e', 0, // String
+                4, 0, 0, 0, // String length
+                b't', b'w', b'o', 0, // String
+            ]
+        );
+    }
+
     #[derive(TypeSupport, Clone)]
     struct FinalType {
         field_u16: u16,

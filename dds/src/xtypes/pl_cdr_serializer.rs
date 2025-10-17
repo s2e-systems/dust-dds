@@ -201,7 +201,7 @@ mod tests {
         assert_eq!(
             test_serialize_type_support(v),
             vec![
-                0x29, 0x00, 20, 0, // PID, length
+                41, 0x00, 20, 0, // PID, length
                 2, 0, 0, 0, // vec length
                 4, 0, 0, 0, // String length
                 b'o', b'n', b'e', 0, // String

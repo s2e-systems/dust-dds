@@ -8,7 +8,6 @@ use alloc::{string::ToString, vec::Vec};
 /// A trait to Write bytes into a potentially growing buffer
 pub trait Write {
     fn write(&mut self, buf: &[u8]);
-    // fn pos(&self) -> usize;
 }
 
 impl Write for Vec<u8> {
@@ -70,15 +69,15 @@ pub trait PaddedWrite: Write {
 
 impl<'a, W: Write> PaddedWrite for WriterV2<'a, W> {
     fn padded_write(&mut self, buf: &[u8]) {
-        self.writer.write_slice(buf);
         self.writer.pad(core::cmp::min(buf.len(), 4));
+        self.writer.write_slice(buf);
     }
 }
 
 impl<'a, W: Write> PaddedWrite for WriterV1<'a, W> {
     fn padded_write(&mut self, buf: &[u8]) {
-        self.writer.write_slice(buf);
         self.writer.pad(buf.len());
+        self.writer.write_slice(buf);
     }
 }
 
@@ -193,13 +192,60 @@ pub trait XTypesSerializer {
     fn serialize_mutable_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError>;
 
     fn serialize_sequence(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
-        // self.serialize_u32(v.len() as u32);
-        // for vi in v {
-        //     self.serialize_complex(vi)?;
-        // }
-        // Ok(())
-        todo!();
+        let member_id = v.get_member_id_at_index(0)?;
+        let member_descriptor = v.get_descriptor(member_id)?;
+        let element_type = member_descriptor
+            .r#type
+            .get_descriptor()
+            .element_type
+            .as_ref()
+            .expect("sequence has element type");
+        match element_type.get_descriptor().kind {
+            TypeKind::NONE => todo!(),
+            TypeKind::BOOLEAN => todo!(),
+            TypeKind::BYTE => todo!(),
+            TypeKind::INT16 => todo!(),
+            TypeKind::INT32 => todo!(),
+            TypeKind::INT64 => todo!(),
+            TypeKind::UINT16 => todo!(),
+            TypeKind::UINT32 => todo!(),
+            TypeKind::UINT64 => todo!(),
+            TypeKind::FLOAT32 => todo!(),
+            TypeKind::FLOAT64 => todo!(),
+            TypeKind::FLOAT128 => todo!(),
+            TypeKind::INT8 => todo!(),
+            TypeKind::UINT8 => {
+                let list = v.get_uint8_values(member_id)?;
+                self.serialize_u32(list.len() as u32);
+                for v in list {
+                    self.serialize_u8(v);
+                }
+            }
+            TypeKind::CHAR8 => todo!(),
+            TypeKind::CHAR16 => todo!(),
+            TypeKind::STRING8 => {
+                let list = v.get_string_values(member_id)?;
+                self.serialize_u32(list.len() as u32);
+                for v in list {
+                    self.serialize_str(v.as_str());
+                }
+            }
+            TypeKind::STRING16 => todo!(),
+            TypeKind::ALIAS => todo!(),
+            TypeKind::ENUM => todo!(),
+            TypeKind::BITMASK => todo!(),
+            TypeKind::ANNOTATION => todo!(),
+            TypeKind::STRUCTURE => todo!(),
+            TypeKind::UNION => todo!(),
+            TypeKind::BITSET => todo!(),
+            TypeKind::SEQUENCE => todo!(),
+            TypeKind::ARRAY => todo!(),
+            TypeKind::MAP => todo!(),
+        }
+
+        Ok(())
     }
+
     fn serialize_dynamic_data_member(
         &mut self,
         v: &DynamicData,
@@ -223,7 +269,7 @@ pub trait XTypesSerializer {
             TypeKind::UINT8 => self.serialize_u8(*v.get_uint8_value(member_id)?),
             TypeKind::CHAR8 => self.serialize_char(*v.get_char8_value(member_id)?),
             TypeKind::CHAR16 => todo!(),
-            TypeKind::STRING8 => self.serialize_string(v.get_string_value(member_id)?),
+            TypeKind::STRING8 => self.serialize_str(v.get_string_value(member_id)?),
             TypeKind::STRING16 => todo!(),
             TypeKind::ALIAS => todo!(),
             TypeKind::ENUM => todo!(),
@@ -246,7 +292,7 @@ pub trait XTypesSerializer {
             ExtensibilityKind::Mutable => self.serialize_mutable_struct(v),
         }
     }
-    fn serialize_string(&mut self, v: &str) {
+    fn serialize_str(&mut self, v: &str) {
         self.serialize_u32(v.len() as u32 + 1);
         Self::Endianness::write_str(v, self.writer());
     }
