@@ -887,7 +887,7 @@ mod tests {
         let entity_id = EntityId::new([5, 6, 7], 8);
         let mut writer = block_on(async { participant.create_stateless_writer(entity_id).await });
         for locator in participant.default_unicast_locator_list() {
-            writer.add_reader_locator(locator.clone());
+            writer.add_reader_locator(*locator);
         }
 
         let cache_change = CacheChange {

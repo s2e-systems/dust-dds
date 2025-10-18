@@ -346,8 +346,8 @@ mod tests {
             result,
             expected,
             "\n\n L: {} \n\n R: {}",
-            result.clone().into_token_stream().to_string(),
-            expected.clone().into_token_stream().to_string()
+            result.clone().into_token_stream(),
+            expected.clone().into_token_stream()
         );
     }
 

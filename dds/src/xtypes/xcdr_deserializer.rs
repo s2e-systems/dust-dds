@@ -921,7 +921,7 @@ mod tests {
     }
     #[test]
     fn deserialize_f32() {
-        let expected = Ok(core::f32::MIN_POSITIVE);
+        let expected = Ok(f32::MIN_POSITIVE);
         assert_eq!(deserialize_v1_be(&[0x00, 0x80, 0x00, 0x00]), expected);
         assert_eq!(deserialize_v1_le(&[0x00, 0x00, 0x80, 0x00]), expected);
         assert_eq!(deserialize_v2_be(&[0x00, 0x80, 0x00, 0x00]), expected);
@@ -929,7 +929,7 @@ mod tests {
     }
     #[test]
     fn deserialize_f64() {
-        let expected = Ok(core::f64::MIN_POSITIVE);
+        let expected = Ok(f64::MIN_POSITIVE);
         assert_eq!(deserialize_v1_be(&[0, 0x10, 0, 0, 0, 0, 0, 0]), expected);
         assert_eq!(deserialize_v1_le(&[0, 0, 0, 0, 0, 0, 0x10, 0]), expected);
         assert_eq!(deserialize_v2_be(&[0, 0x10, 0, 0, 0, 0, 0, 0]), expected);

@@ -663,7 +663,7 @@ mod tests {
             discovered_participant_list: vec![],
         };
 
-        let mut data = &[
+        let data = &[
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
             0x01, 0x00, 0x00, 0x00, // DomainId
@@ -727,7 +727,7 @@ mod tests {
             11, 0x00, 0x00, 0x00, // Duration: fraction
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ][..];
-        let result = SpdpDiscoveredParticipantData::deserialize_data(&mut data).unwrap();
+        let result = SpdpDiscoveredParticipantData::deserialize_data(data).unwrap();
         assert_eq!(result, expected);
     }
 }

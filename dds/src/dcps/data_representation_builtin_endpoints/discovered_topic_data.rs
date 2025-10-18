@@ -450,7 +450,7 @@ mod tests {
             },
         };
 
-        let mut data = &[
+        let data = &[
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
             1, 0, 0, 0, // ,
@@ -465,7 +465,7 @@ mod tests {
             b'c', b'd', 0, 0x00, // DomainTag: string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ][..];
-        let result = DiscoveredTopicData::deserialize_data(&mut data).unwrap();
+        let result = DiscoveredTopicData::deserialize_data(data).unwrap();
         assert_eq!(result, expected);
     }
 }

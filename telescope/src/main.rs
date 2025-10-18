@@ -56,13 +56,13 @@ impl ParameterList {
         let mut current_pid = [0, 0];
         let mut length = [0, 0];
         let mut representation_identifier = [0, 0];
-        reader.read(&mut representation_identifier)?;
+        reader.read_exact(&mut representation_identifier)?;
         reader.consume(2);
 
         let mut list = Vec::new();
         loop {
-            reader.read(&mut current_pid)?;
-            reader.read(&mut length)?;
+            reader.read_exact(&mut current_pid)?;
+            reader.read_exact(&mut length)?;
 
             match representation_identifier {
                 PL_CDR_BE => {
@@ -97,12 +97,12 @@ impl ParameterList {
         let mut current_pid = [0, 0];
         let mut length = [0, 0];
         let mut representation_identifier = [0, 0];
-        reader.read(&mut representation_identifier)?;
+        reader.read_exact(&mut representation_identifier)?;
         reader.consume(2);
 
         loop {
-            reader.read(&mut current_pid)?;
-            reader.read(&mut length)?;
+            reader.read_exact(&mut current_pid)?;
+            reader.read_exact(&mut length)?;
 
             match representation_identifier {
                 PL_CDR_BE => {

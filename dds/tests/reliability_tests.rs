@@ -79,8 +79,8 @@ impl<'a> DynamicType<'a> {
         let mut pid = [0, 0];
         let mut length = [0, 0];
         loop {
-            reader.read(&mut pid).unwrap();
-            reader.read(&mut length).unwrap();
+            reader.read_exact(&mut pid).unwrap();
+            reader.read_exact(&mut length).unwrap();
             if i16::from_le_bytes(pid) == PID_METATRAFFIC_UNICAST_LOCATOR {
                 return u32::from_le_bytes([reader[4], reader[5], reader[6], reader[7]]);
             } else {
@@ -95,8 +95,8 @@ impl<'a> DynamicType<'a> {
         let mut pid = [0, 0];
         let mut length = [0, 0];
         loop {
-            reader.read(&mut pid).unwrap();
-            reader.read(&mut length).unwrap();
+            reader.read_exact(&mut pid).unwrap();
+            reader.read_exact(&mut length).unwrap();
             if i16::from_le_bytes(pid) == PID_DEFAULT_UNICAST_LOCATOR {
                 return u32::from_le_bytes([reader[4], reader[5], reader[6], reader[7]]);
             } else {
@@ -223,7 +223,11 @@ fn writer_should_send_heartbeat_periodically() {
 
     let start_time = std::time::Instant::now();
     while start_time.elapsed() < std::time::Duration::from_secs(10) {
-        if participant.get_discovered_participants().unwrap().len() >= 1 {
+        if !participant
+            .get_discovered_participants()
+            .unwrap()
+            .is_empty()
+        {
             break;
         }
     }
@@ -272,14 +276,12 @@ fn writer_should_send_heartbeat_periodically() {
     assert!(
         submessages
             .iter()
-            .find(|s| matches!(s, RtpsSubmessageReadKind::Data(_)))
-            .is_some()
+            .any(|s| matches!(&s, RtpsSubmessageReadKind::Data(_)))
     );
     assert!(
         submessages
             .iter()
-            .find(|s| matches!(s, RtpsSubmessageReadKind::Heartbeat(_)))
-            .is_some()
+            .any(|s| matches!(&s, RtpsSubmessageReadKind::Heartbeat(_)))
     );
 
     // Default heartbeat period is 200ms
@@ -293,8 +295,7 @@ fn writer_should_send_heartbeat_periodically() {
         received_heartbeat
             .submessages()
             .iter()
-            .find(|s| matches!(s, RtpsSubmessageReadKind::Heartbeat(_)))
-            .is_some()
+            .any(|s| matches!(&s, RtpsSubmessageReadKind::Heartbeat(_)))
     );
 }
 
@@ -415,7 +416,11 @@ fn writer_should_not_send_heartbeat_after_acknack() {
 
     let start_time = std::time::Instant::now();
     while start_time.elapsed() < std::time::Duration::from_secs(10) {
-        if participant.get_discovered_participants().unwrap().len() >= 1 {
+        if !participant
+            .get_discovered_participants()
+            .unwrap()
+            .is_empty()
+        {
             break;
         }
     }
@@ -619,7 +624,11 @@ fn writer_should_resend_data_after_acknack_request() {
 
     let start_time = std::time::Instant::now();
     while start_time.elapsed() < std::time::Duration::from_secs(10) {
-        if participant.get_discovered_participants().unwrap().len() >= 1 {
+        if !participant
+            .get_discovered_participants()
+            .unwrap()
+            .is_empty()
+        {
             break;
         }
     }
@@ -706,14 +715,12 @@ fn writer_should_resend_data_after_acknack_request() {
     assert!(
         submessages
             .iter()
-            .find(|s| matches!(s, RtpsSubmessageReadKind::Data(_)))
-            .is_some()
+            .any(|s| matches!(&s, RtpsSubmessageReadKind::Data(_)))
     );
     assert!(
         submessages
             .iter()
-            .find(|s| matches!(s, RtpsSubmessageReadKind::Heartbeat(_)))
-            .is_some()
+            .any(|s| matches!(&s, RtpsSubmessageReadKind::Heartbeat(_)))
     );
 }
 
@@ -835,7 +842,11 @@ fn volatile_writer_should_send_gap_submessage_after_discovery() {
 
     let start_time = std::time::Instant::now();
     while start_time.elapsed() < std::time::Duration::from_secs(10) {
-        if participant.get_discovered_participants().unwrap().len() >= 1 {
+        if !participant
+            .get_discovered_participants()
+            .unwrap()
+            .is_empty()
+        {
             break;
         }
     }
@@ -884,8 +895,7 @@ fn volatile_writer_should_send_gap_submessage_after_discovery() {
         received_gap
             .submessages()
             .iter()
-            .find(|s| matches!(s, RtpsSubmessageReadKind::Gap(_)))
-            .is_some()
+            .any(|s| matches!(&s, RtpsSubmessageReadKind::Gap(_)))
     );
 
     // Default heartbeat period is 200ms
@@ -899,8 +909,7 @@ fn volatile_writer_should_send_gap_submessage_after_discovery() {
         received_heartbeat
             .submessages()
             .iter()
-            .find(|s| matches!(s, RtpsSubmessageReadKind::Heartbeat(_)))
-            .is_some()
+            .any(|s| matches!(&s, RtpsSubmessageReadKind::Heartbeat(_)))
     );
 }
 
@@ -1027,7 +1036,11 @@ fn transient_local_writer_should_send_data_submessage_after_discovery() {
 
     let start_time = std::time::Instant::now();
     while start_time.elapsed() < std::time::Duration::from_secs(10) {
-        if participant.get_discovered_participants().unwrap().len() >= 1 {
+        if !participant
+            .get_discovered_participants()
+            .unwrap()
+            .is_empty()
+        {
             break;
         }
     }
@@ -1076,14 +1089,12 @@ fn transient_local_writer_should_send_data_submessage_after_discovery() {
     assert!(
         submessages
             .iter()
-            .find(|s| matches!(s, RtpsSubmessageReadKind::Data(_)))
-            .is_some()
+            .any(|s| matches!(&s, RtpsSubmessageReadKind::Data(_)))
     );
     assert!(
         submessages
             .iter()
-            .find(|s| matches!(s, RtpsSubmessageReadKind::Heartbeat(_)))
-            .is_some()
+            .any(|s| matches!(&s, RtpsSubmessageReadKind::Heartbeat(_)))
     );
 
     // Default heartbeat period is 200ms
@@ -1097,8 +1108,7 @@ fn transient_local_writer_should_send_data_submessage_after_discovery() {
     assert!(
         submessages
             .iter()
-            .find(|s| matches!(s, RtpsSubmessageReadKind::Heartbeat(_)))
-            .is_some()
+            .any(|s| matches!(&s, RtpsSubmessageReadKind::Heartbeat(_)))
     );
 }
 
@@ -1222,7 +1232,11 @@ fn reliable_writer_should_not_remove_unacked_sample_from_history() {
 
     let start_time = std::time::Instant::now();
     while start_time.elapsed() < std::time::Duration::from_secs(10) {
-        if participant.get_discovered_participants().unwrap().len() >= 1 {
+        if !participant
+            .get_discovered_participants()
+            .unwrap()
+            .is_empty()
+        {
             break;
         }
     }

@@ -274,10 +274,4 @@ mod tests {
             ]
         );
     }
-
-    #[derive(TypeSupport)]
-    struct NestedFinal {
-        basic: MutableBasicType,
-        time: MutableTimeType,
-    }
 }
