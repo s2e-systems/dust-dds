@@ -2,8 +2,7 @@ use super::{error::XTypesError, serializer::XTypesSerializer};
 use crate::xtypes::{
     dynamic_type::{DynamicData, TypeKind},
     serializer::{
-        BigEndian, EndiannessWriter, LittleEndian, PaddedWrite, Write, Writer, WriterBe, WriterLe,
-        WriterV1, WriterV2,
+        BigEndian, EndiannessWriter, LittleEndian, PaddedWrite, Padding, PaddingV1, Write, Writer, WriterBe, WriterLe, WriterV1, WriterV2
     },
 };
 
@@ -55,11 +54,9 @@ impl<C: Write> Xcdr1BeSerializer<C> {
 }
 
 fn count_bytes_xdr1_be(v: &DynamicData, member_id: u32) -> Result<usize, XTypesError> {
-    let mut byte_counter = ByteCounter::new();
-    let mut byte_conter_serializer = Xcdr1BeSerializer::new(byte_counter);
-    // byte_conter_serializer.serialize_dynamic_data_member(v, member_id)?;
-    // Ok(byte_counter.0)
-    todo!()
+    let mut byte_conter_serializer = Xcdr1BeSerializer::new(ByteCounter::new());
+    byte_conter_serializer.serialize_dynamic_data_member(v, member_id)?;
+    Ok(byte_conter_serializer.into_inner().0)
 }
 
 fn count_bytes_xdr1_le(v: &DynamicData, member_id: u32) -> Result<usize, XTypesError> {
@@ -80,8 +77,7 @@ impl<C: Write> XTypesSerializer<C> for Xcdr1BeSerializer<C> {
             self.writer().write_u16(member_id as u16);
             self.writer().write_u16(length as u16);
             self.serialize_dynamic_data_member(v, member_id)?;
-            // self.writer.writer.pad(4);
-            todo!()
+            self.writer().pad(4);
         }
         self.writer().write_u16(PID_SENTINEL);
         self.writer().write_u16(0);
@@ -118,8 +114,7 @@ impl<C: Write> XTypesSerializer<C> for Xcdr1LeSerializer<C> {
             self.writer().write_u16(member_id as u16);
             self.writer().write_u16(length as u16);
             self.serialize_dynamic_data_member(v, member_id)?;
-            // self.writer.writer.pad(4);
-            todo!()
+            self.writer().pad(4);
         }
         self.writer().write_u16(PID_SENTINEL);
         self.writer().write_u16(0);

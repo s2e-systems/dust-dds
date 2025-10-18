@@ -179,6 +179,9 @@ pub trait EndiannessWriter {
     type Endianness: Endianness;
     type Padding: Padding;
     fn writer(&mut self) -> &mut impl Write;
+    fn pad(&mut self, alignment: usize) {
+        Self::Padding::pad(alignment, self.writer());
+    }
     fn write_bool(&mut self, v: bool) {
         Self::Endianness::write_bool(v, self.writer())
     }
