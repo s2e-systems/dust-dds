@@ -1,19 +1,19 @@
 use std::{
-    sync::mpsc::{sync_channel, SyncSender},
+    sync::mpsc::{SyncSender, sync_channel},
     time::Duration,
 };
 
 use dust_dds::{
-    runtime::DdsRuntime,
     dds_async::data_reader::DataReaderAsync,
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         qos::QosKind,
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-        status::{StatusKind, NO_STATUS},
+        status::{NO_STATUS, StatusKind},
         type_support::DdsType,
     },
     listener::NO_LISTENER,
+    runtime::DdsRuntime,
     subscription::data_reader_listener::DataReaderListener,
 };
 

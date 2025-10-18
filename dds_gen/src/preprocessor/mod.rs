@@ -151,8 +151,7 @@ mod tests {
     #[test]
     fn preprocessor_file_with_include() {
         let idl_file = Path::new("src/preprocessor/test_resources/file_with_include.idl");
-        let expected =
-            "struct SimpleStruct {\nlong i;\n};\nstruct SimpleStruct {\nlong i;\n};\n\nstruct OtherStruct {\nlong i;\n};\n";
+        let expected = "struct SimpleStruct {\nlong i;\n};\nstruct SimpleStruct {\nlong i;\n};\n\nstruct OtherStruct {\nlong i;\n};\n";
         let output = Preprocessor::parse(idl_file).unwrap();
 
         assert_eq!(output, expected);

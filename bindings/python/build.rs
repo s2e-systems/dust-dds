@@ -4,7 +4,7 @@ use std::{
     path::Path,
 };
 
-use syn::{visit::Visit, Attribute, Ident, ImplItemFn};
+use syn::{Attribute, Ident, ImplItemFn, visit::Visit};
 
 fn write_type(pyi_file: &mut fs::File, type_path: &syn::Type) {
     match type_path {

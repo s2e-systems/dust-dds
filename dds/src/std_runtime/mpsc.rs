@@ -7,8 +7,8 @@ use std::{
 };
 
 use crate::{
-    runtime::{ChannelReceive, ChannelSend},
     infrastructure::error::{DdsError, DdsResult},
+    runtime::{ChannelReceive, ChannelSend},
 };
 
 pub fn mpsc_channel<T>() -> (MpscSender<T>, MpscReceiver<T>) {
@@ -126,13 +126,13 @@ impl<T> Future for MpscReceiverFuture<T> {
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let mut inner_lock = self.inner.lock().expect("Mutex shouldn't be poisoned");
-        if let Some(value) = inner_lock.data.pop_front() {
-            Poll::Ready(Some(value))
-        } else if inner_lock.is_closed {
-            Poll::Ready(None)
-        } else {
-            inner_lock.waker.replace(cx.waker().clone());
-            Poll::Pending
+        match inner_lock.data.pop_front() {
+            Some(value) => Poll::Ready(Some(value)),
+            None if inner_lock.is_closed => Poll::Ready(None),
+            None => {
+                inner_lock.waker.replace(cx.waker().clone());
+                Poll::Pending
+            }
         }
     }
 }

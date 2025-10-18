@@ -20,7 +20,7 @@ use crate::{
         domain::DomainId,
         error::DdsResult,
         instance::InstanceHandle,
-        qos_policy::{UserDataQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS},
+        qos_policy::{DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS, UserDataQosPolicy},
         time::Duration,
         type_support::{DdsDeserialize, TypeSupport},
     },

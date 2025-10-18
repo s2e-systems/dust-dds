@@ -7,7 +7,7 @@ use crate::{
             TransportStatefulReader, TransportStatefulWriter, TransportStatelessReader,
             TransportStatelessWriter,
         },
-        types::{CacheChange, ReaderProxy, WriterProxy, LOCATOR_KIND_UDP_V6},
+        types::{CacheChange, LOCATOR_KIND_UDP_V6, ReaderProxy, WriterProxy},
     },
 };
 use async_lock::Mutex;
@@ -25,8 +25,8 @@ use dust_dds::{
         types::{PROTOCOLVERSION, VENDOR_ID_S2E},
     },
     transport::types::{
-        EntityId, Guid, GuidPrefix, Locator, ProtocolVersion, ReliabilityKind, VendorId,
-        ENTITYID_PARTICIPANT, LOCATOR_KIND_UDP_V4,
+        ENTITYID_PARTICIPANT, EntityId, Guid, GuidPrefix, LOCATOR_KIND_UDP_V4, Locator,
+        ProtocolVersion, ReliabilityKind, VendorId,
     },
 };
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
@@ -34,8 +34,8 @@ use socket2::Socket;
 use std::{
     net::{ToSocketAddrs, UdpSocket},
     sync::{
-        mpsc::{channel, Sender},
         Arc,
+        mpsc::{Sender, channel},
     },
 };
 
@@ -334,11 +334,13 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
         let chanel_message_sender_clone = chanel_message_sender.clone();
         std::thread::Builder::new()
             .name("Regular poke".to_string())
-            .spawn(move || loop {
-                std::thread::sleep(std::time::Duration::from_millis(50));
-                chanel_message_sender_clone
-                    .send(ChannelMessageKind::Poke)
-                    .expect("chanel_message sender alive");
+            .spawn(move || {
+                loop {
+                    std::thread::sleep(std::time::Duration::from_millis(50));
+                    chanel_message_sender_clone
+                        .send(ChannelMessageKind::Poke)
+                        .expect("chanel_message sender alive");
+                }
             })
             .expect("failed to spawn thread");
 
@@ -841,7 +843,7 @@ mod tests {
     use super::*;
     use crate::transport::types::{DurabilityKind, ENTITYID_UNKNOWN};
     use dust_dds::transport::types::ChangeKind;
-    use std::sync::mpsc::{sync_channel, SyncSender};
+    use std::sync::mpsc::{SyncSender, sync_channel};
 
     #[test]
     fn basic_transport_stateless_reader_writer_usage() {

@@ -87,13 +87,13 @@ impl<T> Future for OneshotReceiver<T> {
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let mut inner_lock = self.inner.lock().expect("Mutex shouldn't be poisoned");
-        if let Some(value) = inner_lock.data.take() {
-            Poll::Ready(Ok(value))
-        } else if !inner_lock.has_sender {
-            Poll::Ready(Err(OneshotRecvError::SenderDropped))
-        } else {
-            inner_lock.waker.replace(cx.waker().clone());
-            Poll::Pending
+        match inner_lock.data.take() {
+            Some(value) => Poll::Ready(Ok(value)),
+            None if !inner_lock.has_sender => Poll::Ready(Err(OneshotRecvError::SenderDropped)),
+            None => {
+                inner_lock.waker.replace(cx.waker().clone());
+                Poll::Pending
+            }
         }
     }
 }

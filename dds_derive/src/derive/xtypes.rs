@@ -1,12 +1,12 @@
 use super::{
-    attributes::{get_field_attributes, get_input_extensibility, Extensibility},
+    attributes::{Extensibility, get_field_attributes, get_input_extensibility},
     enum_support::{
-        get_enum_bitbound, is_enum_xtypes_union, read_enum_variant_discriminant_mapping, BitBound,
+        BitBound, get_enum_bitbound, is_enum_xtypes_union, read_enum_variant_discriminant_mapping,
     },
 };
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
-use syn::{spanned::Spanned, DeriveInput, Fields, Index, Result};
+use syn::{DeriveInput, Fields, Index, Result, spanned::Spanned};
 
 fn get_discriminant_type(max_discriminant: &usize) -> TokenStream {
     match get_enum_bitbound(max_discriminant) {

@@ -6,10 +6,10 @@ use dust_dds::{
         qos::{DataReaderQos, DataWriterQos, PublisherQos, QosKind, SubscriberQos},
         qos_policy::{
             DataRepresentationQosPolicy, OwnershipQosPolicy, OwnershipQosPolicyKind,
-            PartitionQosPolicy, UserDataQosPolicy, XCDR2_DATA_REPRESENTATION,
-            XCDR_DATA_REPRESENTATION,
+            PartitionQosPolicy, UserDataQosPolicy, XCDR_DATA_REPRESENTATION,
+            XCDR2_DATA_REPRESENTATION,
         },
-        status::{StatusKind, NO_STATUS},
+        status::{NO_STATUS, StatusKind},
         time::Duration,
         type_support::DdsType,
     },

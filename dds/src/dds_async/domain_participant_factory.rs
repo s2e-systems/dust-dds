@@ -6,7 +6,7 @@ use crate::{
         domain_participant_factory::DcpsParticipantFactory,
         domain_participant_factory_mail::DcpsParticipantFactoryMail,
         domain_participant_mail::{
-            DiscoveryServiceMail, DcpsDomainParticipantMail, ParticipantServiceMail,
+            DcpsDomainParticipantMail, DiscoveryServiceMail, ParticipantServiceMail,
         },
         listeners::domain_participant_listener::DcpsDomainParticipantListener,
     },
@@ -141,9 +141,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantFactoryAsyn
     pub async fn get_default_participant_qos(&self) -> DdsResult<DomainParticipantQos> {
         let (reply_sender, reply_receiver) = R::oneshot();
         self.domain_participant_factory_actor
-            .send_actor_mail(DcpsParticipantFactoryMail::GetDefaultParticipantQos {
-                reply_sender,
-            })
+            .send_actor_mail(DcpsParticipantFactoryMail::GetDefaultParticipantQos { reply_sender })
             .await;
         reply_receiver.receive().await
     }

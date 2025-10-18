@@ -4,7 +4,7 @@ use dust_dds::{
     infrastructure::{
         qos::{DataReaderQos, DataWriterQos, QosKind},
         qos_policy::{DeadlineQosPolicy, ReliabilityQosPolicy, ReliabilityQosPolicyKind},
-        status::{StatusKind, NO_STATUS},
+        status::{NO_STATUS, StatusKind},
         time::{Duration, DurationKind},
         type_support::DdsType,
     },

@@ -1,5 +1,4 @@
 use dust_dds::{
-    runtime::DdsRuntime,
     dds_async::data_reader::DataReaderAsync,
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
@@ -7,11 +6,12 @@ use dust_dds::{
         qos_policy::{
             HistoryQosPolicy, HistoryQosPolicyKind, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
         },
-        status::{StatusKind, SubscriptionMatchedStatus, NO_STATUS},
+        status::{NO_STATUS, StatusKind, SubscriptionMatchedStatus},
         time::{Duration, DurationKind},
         type_support::DdsType,
     },
     listener::NO_LISTENER,
+    runtime::DdsRuntime,
     subscription::data_reader_listener::DataReaderListener,
     wait_set::{Condition, WaitSet},
 };

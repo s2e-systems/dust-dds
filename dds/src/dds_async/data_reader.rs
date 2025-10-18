@@ -15,8 +15,8 @@ use crate::{
         instance::InstanceHandle,
         qos::{DataReaderQos, QosKind},
         sample_info::{
-            InstanceStateKind, Sample, SampleStateKind, ViewStateKind, ANY_INSTANCE_STATE,
-            ANY_VIEW_STATE,
+            ANY_INSTANCE_STATE, ANY_VIEW_STATE, InstanceStateKind, Sample, SampleStateKind,
+            ViewStateKind,
         },
         status::{
             LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
@@ -451,12 +451,14 @@ impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
     pub async fn set_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = R::oneshot();
         self.participant_address()
-            .send(DcpsDomainParticipantMail::Reader(ReaderServiceMail::SetQos {
-                subscriber_handle: self.subscriber.get_instance_handle().await,
-                data_reader_handle: self.handle,
-                qos,
-                reply_sender,
-            }))
+            .send(DcpsDomainParticipantMail::Reader(
+                ReaderServiceMail::SetQos {
+                    subscriber_handle: self.subscriber.get_instance_handle().await,
+                    data_reader_handle: self.handle,
+                    qos,
+                    reply_sender,
+                },
+            ))
             .await?;
         reply_receiver.receive().await?
     }
@@ -466,11 +468,13 @@ impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
     pub async fn get_qos(&self) -> DdsResult<DataReaderQos> {
         let (reply_sender, reply_receiver) = R::oneshot();
         self.participant_address()
-            .send(DcpsDomainParticipantMail::Reader(ReaderServiceMail::GetQos {
-                subscriber_handle: self.subscriber.get_instance_handle().await,
-                data_reader_handle: self.handle,
-                reply_sender,
-            }))
+            .send(DcpsDomainParticipantMail::Reader(
+                ReaderServiceMail::GetQos {
+                    subscriber_handle: self.subscriber.get_instance_handle().await,
+                    data_reader_handle: self.handle,
+                    reply_sender,
+                },
+            ))
             .await?;
         reply_receiver.receive().await?
     }
@@ -495,12 +499,14 @@ impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
     pub async fn enable(&self) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = R::oneshot();
         self.participant_address()
-            .send(DcpsDomainParticipantMail::Reader(ReaderServiceMail::Enable {
-                subscriber_handle: self.subscriber.get_instance_handle().await,
-                data_reader_handle: self.handle,
-                participant_address: self.participant_address().clone(),
-                reply_sender,
-            }))
+            .send(DcpsDomainParticipantMail::Reader(
+                ReaderServiceMail::Enable {
+                    subscriber_handle: self.subscriber.get_instance_handle().await,
+                    data_reader_handle: self.handle,
+                    participant_address: self.participant_address().clone(),
+                    reply_sender,
+                },
+            ))
             .await?;
         reply_receiver.receive().await?
     }

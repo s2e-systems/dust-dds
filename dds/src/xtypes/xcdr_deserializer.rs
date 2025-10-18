@@ -1255,14 +1255,14 @@ mod tests {
         // PLAIN_CDR2:
         assert_eq!(
             deserialize_v2_be(&[
-            6, 0, // u8 | boolean for option
-        ]),
+                6, 0, // u8 | boolean for option
+            ]),
             none
         );
         assert_eq!(
             deserialize_v2_le(&[
-            6, 0, // u8 | boolean for option
-        ]),
+                6, 0, // u8 | boolean for option
+            ]),
             none
         );
     }

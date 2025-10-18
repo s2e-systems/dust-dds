@@ -76,8 +76,8 @@ impl<R: DdsRuntime> SubscriberAsync<R> {
             self.participant.spawner_handle(),
         );
         let reader_status_condition_address = status_condition.address();
-        let listener_sender = a_listener
-            .map(|l| DcpsDataReaderListener::spawn(l, self.participant.spawner_handle()));
+        let listener_sender =
+            a_listener.map(|l| DcpsDataReaderListener::spawn(l, self.participant.spawner_handle()));
         let (reply_sender, reply_receiver) = R::oneshot();
         self.participant_address()
             .send(DcpsDomainParticipantMail::Subscriber(
@@ -128,31 +128,31 @@ impl<R: DdsRuntime> SubscriberAsync<R> {
         &self,
         topic_name: &str,
     ) -> DdsResult<Option<DataReaderAsync<R, Foo>>> {
-        if let Some(topic) = self.participant.lookup_topicdescription(topic_name).await? {
-            let (reply_sender, reply_receiver) = R::oneshot();
-            self.participant_address()
-                .send(DcpsDomainParticipantMail::Subscriber(
-                    SubscriberServiceMail::LookupDataReader {
-                        subscriber_handle: self.handle,
-                        topic_name: String::from(topic_name),
-                        reply_sender,
-                    },
-                ))
-                .await?;
-            if let Some((reader_handle, reader_status_condition_address)) =
-                reply_receiver.receive().await??
-            {
-                Ok(Some(DataReaderAsync::new(
-                    reader_handle,
-                    reader_status_condition_address,
-                    self.clone(),
-                    topic,
-                )))
-            } else {
-                Ok(None)
+        match self.participant.lookup_topicdescription(topic_name).await? {
+            Some(topic) => {
+                let (reply_sender, reply_receiver) = R::oneshot();
+                self.participant_address()
+                    .send(DcpsDomainParticipantMail::Subscriber(
+                        SubscriberServiceMail::LookupDataReader {
+                            subscriber_handle: self.handle,
+                            topic_name: String::from(topic_name),
+                            reply_sender,
+                        },
+                    ))
+                    .await?;
+                match reply_receiver.receive().await?? {
+                    Some((reader_handle, reader_status_condition_address)) => {
+                        Ok(Some(DataReaderAsync::new(
+                            reader_handle,
+                            reader_status_condition_address,
+                            self.clone(),
+                            topic,
+                        )))
+                    }
+                    None => Ok(None),
+                }
             }
-        } else {
-            Err(DdsError::BadParameter)
+            None => Err(DdsError::BadParameter),
         }
     }
 
@@ -260,8 +260,8 @@ impl<R: DdsRuntime> SubscriberAsync<R> {
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = R::oneshot();
-        let listener_sender = a_listener
-            .map(|l| DcpsSubscriberListener::spawn(l, self.participant.spawner_handle()));
+        let listener_sender =
+            a_listener.map(|l| DcpsSubscriberListener::spawn(l, self.participant.spawner_handle()));
         self.participant_address()
             .send(DcpsDomainParticipantMail::Subscriber(
                 SubscriberServiceMail::SetListener {

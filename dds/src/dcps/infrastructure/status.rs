@@ -1,6 +1,6 @@
 use super::{
-    instance::{InstanceHandle, HANDLE_NIL},
-    qos_policy::{QosPolicyId, INVALID_QOS_POLICY_ID},
+    instance::{HANDLE_NIL, InstanceHandle},
+    qos_policy::{INVALID_QOS_POLICY_ID, QosPolicyId},
 };
 use alloc::vec::Vec;
 

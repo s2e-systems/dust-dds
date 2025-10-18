@@ -15,7 +15,7 @@ use dust_dds::{
             UserDataQosPolicy,
         },
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-        status::{StatusKind, NO_STATUS},
+        status::{NO_STATUS, StatusKind},
         time::{Duration, DurationKind},
         type_support::DdsType,
     },
@@ -271,45 +271,53 @@ fn not_allowed_to_create_topic_with_builtin_topic_name() {
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
-    assert!(participant
-        .create_topic::<TestType>(
-            "DCPSParticipant",
-            "TestType",
-            QosKind::Default,
-            NO_LISTENER,
-            NO_STATUS
-        )
-        .is_err());
+    assert!(
+        participant
+            .create_topic::<TestType>(
+                "DCPSParticipant",
+                "TestType",
+                QosKind::Default,
+                NO_LISTENER,
+                NO_STATUS
+            )
+            .is_err()
+    );
 
-    assert!(participant
-        .create_topic::<TestType>(
-            "DCPSTopic",
-            "TestType",
-            QosKind::Default,
-            NO_LISTENER,
-            NO_STATUS
-        )
-        .is_err());
+    assert!(
+        participant
+            .create_topic::<TestType>(
+                "DCPSTopic",
+                "TestType",
+                QosKind::Default,
+                NO_LISTENER,
+                NO_STATUS
+            )
+            .is_err()
+    );
 
-    assert!(participant
-        .create_topic::<TestType>(
-            "DCPSPublication",
-            "TestType",
-            QosKind::Default,
-            NO_LISTENER,
-            NO_STATUS
-        )
-        .is_err());
+    assert!(
+        participant
+            .create_topic::<TestType>(
+                "DCPSPublication",
+                "TestType",
+                QosKind::Default,
+                NO_LISTENER,
+                NO_STATUS
+            )
+            .is_err()
+    );
 
-    assert!(participant
-        .create_topic::<TestType>(
-            "DCPSSubscription",
-            "TestType",
-            QosKind::Default,
-            NO_LISTENER,
-            NO_STATUS
-        )
-        .is_err());
+    assert!(
+        participant
+            .create_topic::<TestType>(
+                "DCPSSubscription",
+                "TestType",
+                QosKind::Default,
+                NO_LISTENER,
+                NO_STATUS
+            )
+            .is_err()
+    );
 }
 
 #[test]
@@ -524,19 +532,25 @@ fn builtin_topic_access() {
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
-    assert!(participant
-        .lookup_topicdescription("DCPSParticipant")
-        .is_ok());
+    assert!(
+        participant
+            .lookup_topicdescription("DCPSParticipant")
+            .is_ok()
+    );
 
     assert!(participant.lookup_topicdescription("DCPSTopic").is_ok());
 
-    assert!(participant
-        .lookup_topicdescription("DCPSPublication")
-        .is_ok());
+    assert!(
+        participant
+            .lookup_topicdescription("DCPSPublication")
+            .is_ok()
+    );
 
-    assert!(participant
-        .lookup_topicdescription("DCPSSubscription")
-        .is_ok());
+    assert!(
+        participant
+            .lookup_topicdescription("DCPSSubscription")
+            .is_ok()
+    );
 }
 
 #[test]
@@ -549,19 +563,25 @@ fn builtin_topics_accessible_after_delete_contained_entities() {
 
     participant.delete_contained_entities().unwrap();
 
-    assert!(participant
-        .lookup_topicdescription("DCPSParticipant")
-        .is_ok());
+    assert!(
+        participant
+            .lookup_topicdescription("DCPSParticipant")
+            .is_ok()
+    );
 
     assert!(participant.lookup_topicdescription("DCPSTopic").is_ok());
 
-    assert!(participant
-        .lookup_topicdescription("DCPSPublication")
-        .is_ok());
+    assert!(
+        participant
+            .lookup_topicdescription("DCPSPublication")
+            .is_ok()
+    );
 
-    assert!(participant
-        .lookup_topicdescription("DCPSSubscription")
-        .is_ok());
+    assert!(
+        participant
+            .lookup_topicdescription("DCPSSubscription")
+            .is_ok()
+    );
 }
 
 #[test]
@@ -574,21 +594,29 @@ fn builtin_reader_access() {
 
     let builtin_subscriber = participant.get_builtin_subscriber();
 
-    assert!(builtin_subscriber
-        .lookup_datareader::<ParticipantBuiltinTopicData>("DCPSParticipant")
-        .is_ok());
+    assert!(
+        builtin_subscriber
+            .lookup_datareader::<ParticipantBuiltinTopicData>("DCPSParticipant")
+            .is_ok()
+    );
 
-    assert!(builtin_subscriber
-        .lookup_datareader::<TopicBuiltinTopicData>("DCPSTopic")
-        .is_ok());
+    assert!(
+        builtin_subscriber
+            .lookup_datareader::<TopicBuiltinTopicData>("DCPSTopic")
+            .is_ok()
+    );
 
-    assert!(builtin_subscriber
-        .lookup_datareader::<PublicationBuiltinTopicData>("DCPSPublication")
-        .is_ok());
+    assert!(
+        builtin_subscriber
+            .lookup_datareader::<PublicationBuiltinTopicData>("DCPSPublication")
+            .is_ok()
+    );
 
-    assert!(builtin_subscriber
-        .lookup_datareader::<SubscriptionBuiltinTopicData>("DCPSSubscription")
-        .is_ok());
+    assert!(
+        builtin_subscriber
+            .lookup_datareader::<SubscriptionBuiltinTopicData>("DCPSSubscription")
+            .is_ok()
+    );
 }
 
 #[test]

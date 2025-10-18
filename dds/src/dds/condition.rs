@@ -1,7 +1,7 @@
 use crate::{
-    runtime::DdsRuntime,
     dds_async::condition::StatusConditionAsync,
     infrastructure::{error::DdsResult, status::StatusKind},
+    runtime::DdsRuntime,
 };
 use alloc::vec::Vec;
 

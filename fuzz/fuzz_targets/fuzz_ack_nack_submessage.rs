@@ -3,7 +3,7 @@
 use dust_dds::rtps_messages::{
     overall_structure::SubmessageHeaderRead, submessages::ack_nack::AckNackSubmessage,
 };
-use libfuzzer_sys::{fuzz_target, Corpus};
+use libfuzzer_sys::{Corpus, fuzz_target};
 
 fuzz_target!(|data: &[u8]| -> Corpus {
     if data.len() > 4 {

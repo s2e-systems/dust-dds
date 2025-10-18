@@ -1,8 +1,8 @@
 use core::future::Future;
 
 use crate::{
-    runtime::{ChannelReceive, ChannelSend, DdsRuntime, Spawner},
     infrastructure::error::{DdsError, DdsResult},
+    runtime::{ChannelReceive, ChannelSend, DdsRuntime, Spawner},
 };
 
 pub trait MailHandler {

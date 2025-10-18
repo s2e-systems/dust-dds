@@ -12,10 +12,10 @@ use dust_dds::{
             ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy, WriterDataLifecycleQosPolicy,
         },
         sample_info::{
-            InstanceStateKind, SampleStateKind, ViewStateKind, ANY_INSTANCE_STATE,
-            ANY_SAMPLE_STATE, ANY_VIEW_STATE,
+            ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE, InstanceStateKind,
+            SampleStateKind, ViewStateKind,
         },
-        status::{StatusKind, NO_STATUS},
+        status::{NO_STATUS, StatusKind},
         time::{Duration, DurationKind, Time},
         type_support::DdsType,
     },
@@ -2622,9 +2622,11 @@ fn data_reader_publication_handle_sample_info() {
         .unwrap();
 
     assert_eq!(samples.len(), 1);
-    assert!(reader
-        .get_matched_publication_data(samples[0].sample_info().publication_handle)
-        .is_ok());
+    assert!(
+        reader
+            .get_matched_publication_data(samples[0].sample_info().publication_handle)
+            .is_ok()
+    );
 }
 
 #[test]
@@ -3269,8 +3271,8 @@ fn reader_with_exclusive_ownership_should_not_read_samples_from_second_weaker_wr
 }
 
 #[test]
-fn reader_with_exclusive_ownership_should_read_samples_from_second_writer_with_higher_ownership_strength(
-) {
+fn reader_with_exclusive_ownership_should_read_samples_from_second_writer_with_higher_ownership_strength()
+ {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()

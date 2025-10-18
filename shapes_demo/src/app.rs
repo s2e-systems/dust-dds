@@ -15,7 +15,7 @@ use dust_dds::{
             HistoryQosPolicyKind, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
             WriterDataLifecycleQosPolicy,
         },
-        sample_info::{InstanceStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
+        sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE, InstanceStateKind},
         status::NO_STATUS,
         time::DurationKind,
     },
@@ -114,12 +114,14 @@ impl Planner {
     fn start(&mut self) {
         let writer_list_clone = self.writer_list.clone();
         let rate_clone = self.rate.clone();
-        std::thread::spawn(move || loop {
-            let rate = *rate_clone.lock().unwrap();
-            for writer in writer_list_clone.lock().unwrap().iter() {
-                writer.write()
+        std::thread::spawn(move || {
+            loop {
+                let rate = *rate_clone.lock().unwrap();
+                for writer in writer_list_clone.lock().unwrap().iter() {
+                    writer.write()
+                }
+                std::thread::sleep(std::time::Duration::from_millis(rate));
             }
-            std::thread::sleep(std::time::Duration::from_millis(rate));
         });
     }
 }

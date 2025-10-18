@@ -1,7 +1,8 @@
 use super::{deserialize::XTypesDeserialize, error::XTypesError};
 
 pub trait DeserializeFinalStruct<'a> {
-    fn deserialize_field<T: XTypesDeserialize<'a>>(&mut self, name: &str) -> Result<T, XTypesError>;
+    fn deserialize_field<T: XTypesDeserialize<'a>>(&mut self, name: &str)
+    -> Result<T, XTypesError>;
     fn deserialize_optional_field<T: XTypesDeserialize<'a>>(
         &mut self,
         name: &str,
@@ -9,7 +10,8 @@ pub trait DeserializeFinalStruct<'a> {
 }
 
 pub trait DeserializeAppendableStruct<'a> {
-    fn deserialize_field<T: XTypesDeserialize<'a>>(&mut self, name: &str) -> Result<T, XTypesError>;
+    fn deserialize_field<T: XTypesDeserialize<'a>>(&mut self, name: &str)
+    -> Result<T, XTypesError>;
 }
 
 pub trait DeserializeMutableStruct<'a> {

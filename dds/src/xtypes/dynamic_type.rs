@@ -943,12 +943,7 @@ impl DynamicData {
     ) -> XTypesResult<()> {
         self.abstract_data.insert(
             id,
-            DataKind::Sequence(
-                value
-                    .into_iter()
-                    .map(DataKind::ComplexValue)
-                    .collect(),
-            ),
+            DataKind::Sequence(value.into_iter().map(DataKind::ComplexValue).collect()),
         );
         Ok(())
     }

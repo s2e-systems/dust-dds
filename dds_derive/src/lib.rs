@@ -4,7 +4,7 @@ use derive::{
     xtypes::expand_xtypes_deserialize,
 };
 use proc_macro::TokenStream;
-use syn::{parse_macro_input, DeriveInput};
+use syn::{DeriveInput, parse_macro_input};
 
 #[proc_macro_derive(XTypesDeserialize, attributes(dust_dds))]
 pub fn derive_xtypes_deserialize(input: TokenStream) -> TokenStream {

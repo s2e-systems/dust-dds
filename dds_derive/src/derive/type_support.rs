@@ -1,7 +1,7 @@
 use crate::derive::attributes::get_field_attributes;
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{spanned::Spanned, DataEnum, DeriveInput, Fields, Index, Result};
+use syn::{DataEnum, DeriveInput, Fields, Index, Result, spanned::Spanned};
 
 pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
     let input_attributes = get_input_attributes(input)?;

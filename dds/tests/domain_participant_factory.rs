@@ -54,9 +54,11 @@ fn create_delete_participant() {
     let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-    assert!(domain_participant_factory
-        .delete_participant(&participant)
-        .is_ok())
+    assert!(
+        domain_participant_factory
+            .delete_participant(&participant)
+            .is_ok()
+    )
 }
 
 #[test]
@@ -89,9 +91,11 @@ fn not_allowed_to_delete_participant_with_entities() {
         .create_datawriter::<KeyedData>(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
-    assert!(domain_participant_factory
-        .delete_participant(&participant)
-        .is_err());
+    assert!(
+        domain_participant_factory
+            .delete_participant(&participant)
+            .is_err()
+    );
 }
 
 #[test]
@@ -126,7 +130,9 @@ fn allowed_to_delete_participant_after_delete_contained_entities() {
 
     participant.delete_contained_entities().unwrap();
 
-    assert!(domain_participant_factory
-        .delete_participant(&participant)
-        .is_ok());
+    assert!(
+        domain_participant_factory
+            .delete_participant(&participant)
+            .is_ok()
+    );
 }

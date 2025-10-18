@@ -176,7 +176,7 @@ impl RtpsWriterProxy {
         self.first_available_seq_num = first_available_seq_num;
     }
 
-    pub fn missing_changes(&self) -> impl Iterator<Item = SequenceNumber> {
+    pub fn missing_changes(&self) -> impl Iterator<Item = SequenceNumber> + use<> {
         // The changes with status 'MISSING' represent the set of changes available in the HistoryCache of the RTPS Writer
         // represented by the RTPS WriterProxy that have not been received by the RTPS Reader.
         // return { change IN this.changes_from_writer SUCH-THAT change.status == MISSING};

@@ -11,7 +11,7 @@ use dust_dds::{
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use socket2::Socket;
 use std::{
-    collections::{hash_map::Entry, HashMap},
+    collections::{HashMap, hash_map::Entry},
     io::{BufRead, Read},
     net::{Ipv4Addr, SocketAddr, UdpSocket},
 };

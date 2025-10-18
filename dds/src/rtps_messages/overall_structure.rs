@@ -13,8 +13,8 @@ use super::{
         info_timestamp::InfoTimestampSubmessage, nack_frag::NackFragSubmessage, pad::PadSubmessage,
     },
     types::{
-        ProtocolId, SubmessageFlag, SubmessageKind, ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT,
-        HEARTBEAT_FRAG, INFO_DST, INFO_REPLY, INFO_SRC, INFO_TS, NACK_FRAG, PAD,
+        ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT, HEARTBEAT_FRAG, INFO_DST, INFO_REPLY, INFO_SRC,
+        INFO_TS, NACK_FRAG, PAD, ProtocolId, SubmessageFlag, SubmessageKind,
     },
 };
 use alloc::{sync::Arc, vec::Vec};
@@ -416,7 +416,6 @@ impl TryFrom<&[u8]> for RtpsMessageRead {
                             _ => Err(RtpsMessageError::UnknownMessage),
                         };
                         if let Ok(submessage) = submessage {
-
                             // DATA and DATA_FRAG submessages can have a length of 0 meaning use everything until the end
                             // of the buffer
                             if submessage_length == 0
@@ -613,8 +612,8 @@ mod tests {
         assert_eq!(
             write_into_bytes_vec(data),
             vec![
-            1, 2, 3, 0x04, //value (long)
-        ]
+                1, 2, 3, 0x04, //value (long)
+            ]
         );
     }
 

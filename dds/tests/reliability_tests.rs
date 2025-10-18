@@ -9,7 +9,7 @@ use dust_dds::{
             ReliabilityQosPolicy, ReliabilityQosPolicyKind,
         },
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-        status::{StatusKind, NO_STATUS},
+        status::{NO_STATUS, StatusKind},
         time::{Duration, DurationKind},
         type_support::{DdsDeserialize, DdsType},
     },
@@ -23,7 +23,7 @@ use dust_dds::{
         submessages::{ack_nack::AckNackSubmessage, data::DataSubmessage},
     },
     transport::types::{
-        EntityId, BUILT_IN_READER_WITH_KEY, BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_WITH_KEY,
+        BUILT_IN_READER_WITH_KEY, BUILT_IN_WRITER_WITH_KEY, EntityId, USER_DEFINED_READER_WITH_KEY,
     },
     wait_set::{Condition, WaitSet},
 };
@@ -269,14 +269,18 @@ fn writer_should_send_heartbeat_periodically() {
 
     let received_data_heartbeat = RtpsMessageRead::try_from(buffer.as_slice()).unwrap();
     let submessages = received_data_heartbeat.submessages();
-    assert!(submessages
-        .iter()
-        .find(|s| matches!(s, RtpsSubmessageReadKind::Data(_)))
-        .is_some());
-    assert!(submessages
-        .iter()
-        .find(|s| matches!(s, RtpsSubmessageReadKind::Heartbeat(_)))
-        .is_some());
+    assert!(
+        submessages
+            .iter()
+            .find(|s| matches!(s, RtpsSubmessageReadKind::Data(_)))
+            .is_some()
+    );
+    assert!(
+        submessages
+            .iter()
+            .find(|s| matches!(s, RtpsSubmessageReadKind::Heartbeat(_)))
+            .is_some()
+    );
 
     // Default heartbeat period is 200ms
     let mut buffer = [0; 65535];
@@ -285,11 +289,13 @@ fn writer_should_send_heartbeat_periodically() {
         .unwrap();
     mock_reader_socket.recv(&mut buffer).unwrap();
     let received_heartbeat = RtpsMessageRead::try_from(buffer.as_slice()).unwrap();
-    assert!(received_heartbeat
-        .submessages()
-        .iter()
-        .find(|s| matches!(s, RtpsSubmessageReadKind::Heartbeat(_)))
-        .is_some());
+    assert!(
+        received_heartbeat
+            .submessages()
+            .iter()
+            .find(|s| matches!(s, RtpsSubmessageReadKind::Heartbeat(_)))
+            .is_some()
+    );
 }
 
 #[test]
@@ -697,14 +703,18 @@ fn writer_should_resend_data_after_acknack_request() {
     mock_reader_socket.recv(&mut buffer).unwrap();
     let received_data_heartbeat = RtpsMessageRead::try_from(buffer.as_slice()).unwrap();
     let submessages = received_data_heartbeat.submessages();
-    assert!(submessages
-        .iter()
-        .find(|s| matches!(s, RtpsSubmessageReadKind::Data(_)))
-        .is_some());
-    assert!(submessages
-        .iter()
-        .find(|s| matches!(s, RtpsSubmessageReadKind::Heartbeat(_)))
-        .is_some());
+    assert!(
+        submessages
+            .iter()
+            .find(|s| matches!(s, RtpsSubmessageReadKind::Data(_)))
+            .is_some()
+    );
+    assert!(
+        submessages
+            .iter()
+            .find(|s| matches!(s, RtpsSubmessageReadKind::Heartbeat(_)))
+            .is_some()
+    );
 }
 
 #[test]
@@ -870,11 +880,13 @@ fn volatile_writer_should_send_gap_submessage_after_discovery() {
     mock_reader_socket.recv(&mut buffer).unwrap();
 
     let received_gap = RtpsMessageRead::try_from(buffer.as_slice()).unwrap();
-    assert!(received_gap
-        .submessages()
-        .iter()
-        .find(|s| matches!(s, RtpsSubmessageReadKind::Gap(_)))
-        .is_some());
+    assert!(
+        received_gap
+            .submessages()
+            .iter()
+            .find(|s| matches!(s, RtpsSubmessageReadKind::Gap(_)))
+            .is_some()
+    );
 
     // Default heartbeat period is 200ms
     let mut buffer = [0; 65535];
@@ -883,11 +895,13 @@ fn volatile_writer_should_send_gap_submessage_after_discovery() {
         .unwrap();
     mock_reader_socket.recv(&mut buffer).unwrap();
     let received_heartbeat = RtpsMessageRead::try_from(buffer.as_slice()).unwrap();
-    assert!(received_heartbeat
-        .submessages()
-        .iter()
-        .find(|s| matches!(s, RtpsSubmessageReadKind::Heartbeat(_)))
-        .is_some());
+    assert!(
+        received_heartbeat
+            .submessages()
+            .iter()
+            .find(|s| matches!(s, RtpsSubmessageReadKind::Heartbeat(_)))
+            .is_some()
+    );
 }
 
 #[test]
@@ -1059,14 +1073,18 @@ fn transient_local_writer_should_send_data_submessage_after_discovery() {
 
     let received_data_heartbeat = RtpsMessageRead::try_from(buffer.as_slice()).unwrap();
     let submessages = received_data_heartbeat.submessages();
-    assert!(submessages
-        .iter()
-        .find(|s| matches!(s, RtpsSubmessageReadKind::Data(_)))
-        .is_some());
-    assert!(submessages
-        .iter()
-        .find(|s| matches!(s, RtpsSubmessageReadKind::Heartbeat(_)))
-        .is_some());
+    assert!(
+        submessages
+            .iter()
+            .find(|s| matches!(s, RtpsSubmessageReadKind::Data(_)))
+            .is_some()
+    );
+    assert!(
+        submessages
+            .iter()
+            .find(|s| matches!(s, RtpsSubmessageReadKind::Heartbeat(_)))
+            .is_some()
+    );
 
     // Default heartbeat period is 200ms
     let mut buffer = [0; 65535];
@@ -1076,10 +1094,12 @@ fn transient_local_writer_should_send_data_submessage_after_discovery() {
     mock_reader_socket.recv(&mut buffer).unwrap();
     let received_heartbeat = RtpsMessageRead::try_from(buffer.as_slice()).unwrap();
     let submessages = received_heartbeat.submessages();
-    assert!(submessages
-        .iter()
-        .find(|s| matches!(s, RtpsSubmessageReadKind::Heartbeat(_)))
-        .is_some());
+    assert!(
+        submessages
+            .iter()
+            .find(|s| matches!(s, RtpsSubmessageReadKind::Heartbeat(_)))
+            .is_some()
+    );
 }
 
 #[test]

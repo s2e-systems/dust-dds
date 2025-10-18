@@ -43,7 +43,7 @@ impl Submessage for PadSubmessage {
 mod tests {
     use super::*;
     use crate::rtps_messages::overall_structure::{
-        write_submessage_into_bytes_vec, SubmessageHeaderRead,
+        SubmessageHeaderRead, write_submessage_into_bytes_vec,
     };
 
     #[test]
