@@ -18,7 +18,7 @@ name = "dust_dds"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = "0.21.1"
+pyo3 = "0.27.0"
 dust_dds = { path = "../../dds" }
 
 [build-dependencies]

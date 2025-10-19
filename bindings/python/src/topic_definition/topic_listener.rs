@@ -2,7 +2,6 @@ use pyo3::prelude::*;
 
 use crate::{infrastructure::status::InconsistentTopicStatus, topic_definition::topic::Topic};
 
-#[derive(Clone)]
 pub struct TopicListener(Py<PyAny>);
 impl From<Py<PyAny>> for TopicListener {
     fn from(value: Py<PyAny>) -> Self {
@@ -22,7 +21,7 @@ impl dust_dds::topic_definition::topic_listener::TopicListener<dust_dds::std_run
             Topic::from(the_topic),
             InconsistentTopicStatus::from(status),
         );
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             self.0
                 .bind(py)
                 .call_method("on_inconsistent_topic", args, None)

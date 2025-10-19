@@ -117,13 +117,14 @@ impl DataReader {
             .0
             .read(max_samples, &sample_states, &view_states, &instance_states)
         {
-            Ok(s) => Ok(s
-                .into_iter()
-                .map(|s| Sample {
-                    sample: s,
-                    type_: type_.clone(),
-                })
-                .collect()),
+            Ok(s) => Python::attach(|py| {
+                Ok(s.into_iter()
+                    .map(|s| Sample {
+                        sample: s,
+                        type_: type_.clone_ref(py),
+                    })
+                    .collect())
+            }),
             Err(dust_dds::infrastructure::error::DdsError::NoData) => Ok(Vec::new()),
             Err(e) => Err(PyTypeError::new_err(format!("{e:?}"))),
         }
@@ -160,13 +161,14 @@ impl DataReader {
             .0
             .take(max_samples, &sample_states, &view_states, &instance_states)
         {
-            Ok(s) => Ok(s
-                .into_iter()
-                .map(|s| Sample {
-                    sample: s,
-                    type_: type_.clone(),
-                })
-                .collect()),
+            Ok(s) => Python::attach(|py| {
+                Ok(s.into_iter()
+                    .map(|s| Sample {
+                        sample: s,
+                        type_: type_.clone_ref(py),
+                    })
+                    .collect())
+            }),
             Err(dust_dds::infrastructure::error::DdsError::NoData) => Ok(Vec::new()),
             Err(e) => Err(PyTypeError::new_err(format!("{e:?}"))),
         }
@@ -178,7 +180,7 @@ impl DataReader {
         match self.0.read_next_sample() {
             Ok(s) => Ok(Sample {
                 sample: s,
-                type_: type_.clone(),
+                type_: Python::attach(|py| type_.clone_ref(py)),
             }),
             Err(e) => Err(PyTypeError::new_err(format!("{e:?}"))),
         }
@@ -188,9 +190,11 @@ impl DataReader {
         let type_ = DomainParticipant::get_type(&self.0.get_topicdescription().get_type_name())
             .ok_or(PyTypeError::new_err("Type information not found"))?;
         match self.0.take_next_sample() {
-            Ok(s) => Ok(Sample {
-                sample: s,
-                type_: type_.clone(),
+            Ok(s) => Python::attach(|py| {
+                Ok(Sample {
+                    sample: s,
+                    type_: type_.clone_ref(py),
+                })
             }),
             Err(e) => Err(PyTypeError::new_err(format!("{e:?}"))),
         }
@@ -232,13 +236,14 @@ impl DataReader {
             &view_states,
             &instance_states,
         ) {
-            Ok(s) => Ok(s
-                .into_iter()
-                .map(|s| Sample {
-                    sample: s,
-                    type_: type_.clone(),
-                })
-                .collect()),
+            Ok(s) => Python::attach(|py| {
+                Ok(s.into_iter()
+                    .map(|s| Sample {
+                        sample: s,
+                        type_: type_.clone_ref(py),
+                    })
+                    .collect())
+            }),
             Err(dust_dds::infrastructure::error::DdsError::NoData) => Ok(Vec::new()),
             Err(e) => Err(PyTypeError::new_err(format!("{e:?}"))),
         }
@@ -280,13 +285,14 @@ impl DataReader {
             &view_states,
             &instance_states,
         ) {
-            Ok(s) => Ok(s
-                .into_iter()
-                .map(|s| Sample {
-                    sample: s,
-                    type_: type_.clone(),
-                })
-                .collect()),
+            Ok(s) => Python::attach(|py| {
+                Ok(s.into_iter()
+                    .map(|s| Sample {
+                        sample: s,
+                        type_: type_.clone_ref(py),
+                    })
+                    .collect())
+            }),
             Err(dust_dds::infrastructure::error::DdsError::NoData) => Ok(Vec::new()),
             Err(e) => Err(PyTypeError::new_err(format!("{e:?}"))),
         }
@@ -328,13 +334,14 @@ impl DataReader {
             &view_states,
             &instance_states,
         ) {
-            Ok(s) => Ok(s
-                .into_iter()
-                .map(|s| Sample {
-                    sample: s,
-                    type_: type_.clone(),
-                })
-                .collect()),
+            Ok(s) => Python::attach(|py| {
+                Ok(s.into_iter()
+                    .map(|s| Sample {
+                        sample: s,
+                        type_: type_.clone_ref(py),
+                    })
+                    .collect())
+            }),
             Err(dust_dds::infrastructure::error::DdsError::NoData) => Ok(Vec::new()),
             Err(e) => Err(PyTypeError::new_err(format!("{e:?}"))),
         }
@@ -376,13 +383,14 @@ impl DataReader {
             &view_states,
             &instance_states,
         ) {
-            Ok(s) => Ok(s
-                .into_iter()
-                .map(|s| Sample {
-                    sample: s,
-                    type_: type_.clone(),
-                })
-                .collect()),
+            Ok(s) => Python::attach(|py| {
+                Ok(s.into_iter()
+                    .map(|s| Sample {
+                        sample: s,
+                        type_: type_.clone_ref(py),
+                    })
+                    .collect())
+            }),
             Err(dust_dds::infrastructure::error::DdsError::NoData) => Ok(Vec::new()),
             Err(e) => Err(PyTypeError::new_err(format!("{e:?}"))),
         }

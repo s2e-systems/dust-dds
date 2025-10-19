@@ -59,7 +59,12 @@ impl
 
 impl DomainParticipant {
     pub fn get_type(type_name: &str) -> Option<Py<PyAny>> {
-        TYPE_REGISTRY.get()?.lock().unwrap().get(type_name).cloned()
+        TYPE_REGISTRY
+            .get()?
+            .lock()
+            .unwrap()
+            .get(type_name)
+            .map(|r#type| Python::attach(|py| r#type.clone_ref(py)))
     }
 }
 
@@ -149,13 +154,13 @@ impl DomainParticipant {
             .map(dust_dds::infrastructure::status::StatusKind::from)
             .collect();
 
-        let type_name = Python::with_gil(|py| type_.getattr(py, "__name__"))?.to_string();
+        let type_name = Python::attach(|py| type_.getattr(py, "__name__"))?.to_string();
 
         TYPE_REGISTRY
             .get_or_init(|| Mutex::new(HashMap::new()))
             .lock()
             .unwrap()
-            .insert(type_name.clone(), type_.clone());
+            .insert(type_name.clone(), Python::attach(|py| type_.clone_ref(py)));
 
         let dynamic_type_representation =
             Arc::new(dust_dds::xtypes::dynamic_type::DynamicType::from(

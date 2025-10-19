@@ -10,7 +10,6 @@ use crate::{
 
 use super::data_writer::DataWriter;
 
-#[derive(Clone)]
 pub struct DataWriterListener(Py<PyAny>);
 impl From<Py<PyAny>> for DataWriterListener {
     fn from(value: Py<PyAny>) -> Self {
@@ -36,7 +35,7 @@ impl
             DataWriter::from(the_writer),
             LivelinessLostStatus::from(status),
         );
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             self.0
                 .bind(py)
                 .call_method("on_liveliness_lost", args, None)
@@ -56,7 +55,7 @@ impl
             DataWriter::from(the_writer),
             OfferedDeadlineMissedStatus::from(status),
         );
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             self.0
                 .bind(py)
                 .call_method("on_offered_deadline_missed", args, None)
@@ -76,7 +75,7 @@ impl
             DataWriter::from(the_writer),
             OfferedIncompatibleQosStatus::from(status),
         );
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             self.0
                 .bind(py)
                 .call_method("on_offered_incompatible_qos", args, None)
@@ -96,7 +95,7 @@ impl
             DataWriter::from(the_writer),
             PublicationMatchedStatus::from(status),
         );
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             self.0
                 .bind(py)
                 .call_method("on_publication_matched", args, None)
