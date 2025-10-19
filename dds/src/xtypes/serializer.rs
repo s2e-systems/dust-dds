@@ -540,5 +540,9 @@ pub trait XTypesSerializer<C> {
         self.writer().write_u8(0);
     }
 
+    fn serialize_writable(&mut self, v: impl WriteBasicType) {
+        v.write_basic_type(self.writer());
+    }
+
     fn writer(&mut self) -> &mut impl EndiannessWriter;
 }
