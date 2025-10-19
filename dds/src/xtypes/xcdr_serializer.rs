@@ -61,11 +61,9 @@ fn count_bytes_xdr1_be(v: &DynamicData, member_id: u32) -> Result<usize, XTypesE
 }
 
 fn count_bytes_xdr1_le(v: &DynamicData, member_id: u32) -> Result<usize, XTypesError> {
-    let mut byte_counter = ByteCounter::new();
-    let mut byte_conter_serializer = Xcdr1LeSerializer::new(byte_counter);
-    // byte_conter_serializer.serialize_dynamic_data_member(v, member_id)?;
-    // Ok(byte_counter.0)
-    todo!()
+    let mut byte_conter_serializer = Xcdr1LeSerializer::new(ByteCounter::new());
+    byte_conter_serializer.serialize_dynamic_data_member(v, member_id)?;
+    Ok(byte_conter_serializer.into_inner().0)
 }
 
 impl<C: Write> XTypesSerializer<C> for Xcdr1BeSerializer<C> {
