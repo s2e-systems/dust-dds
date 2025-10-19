@@ -344,7 +344,7 @@ impl DynamicType {
     pub fn get_member_by_index(&self, index: u32) -> Result<&DynamicTypeMember, XTypesError> {
         self.member_list
             .get(index as usize)
-            .ok_or(XTypesError::InvalidIndex)
+            .ok_or(XTypesError::InvalidIndex(index))
     }
 
     // fn get_annotation_count(&self) -> u32;
@@ -385,7 +385,7 @@ impl DynamicData {
             .iter()
             .find(|m| m.get_id() == id)
             .map(|m| &m.descriptor)
-            .ok_or(XTypesError::InvalidIndex)
+            .ok_or(XTypesError::InvalidId(id))
     }
 
     pub fn set_descriptor(&mut self, _id: MemberId, _value: MemberDescriptor) -> XTypesResult<()> {
@@ -405,7 +405,7 @@ impl DynamicData {
             .keys()
             .nth(index as usize)
             .cloned()
-            .ok_or(XTypesError::InvalidIndex)
+            .ok_or(XTypesError::InvalidIndex(index))
     }
 
     pub fn get_item_count(&self) -> u32 {
@@ -434,7 +434,7 @@ impl DynamicData {
     pub fn clear_value(&mut self, id: MemberId) -> XTypesResult<()> {
         self.abstract_data
             .remove(&id)
-            .ok_or(XTypesError::InvalidIndex)?;
+            .ok_or(XTypesError::InvalidId(id))?;
         Ok(())
     }
 
@@ -442,7 +442,7 @@ impl DynamicData {
         if let DataKind::Int32(d) = self
             .abstract_data
             .get(&id)
-            .ok_or(XTypesError::InvalidIndex)?
+            .ok_or(XTypesError::InvalidId(id))?
         {
             Ok(d)
         } else {
@@ -459,7 +459,7 @@ impl DynamicData {
         if let DataKind::UInt32(d) = self
             .abstract_data
             .get(&id)
-            .ok_or(XTypesError::InvalidIndex)?
+            .ok_or(XTypesError::InvalidId(id))?
         {
             Ok(d)
         } else {
@@ -476,7 +476,7 @@ impl DynamicData {
         if let DataKind::Int8(d) = self
             .abstract_data
             .get(&id)
-            .ok_or(XTypesError::InvalidIndex)?
+            .ok_or(XTypesError::InvalidId(id))?
         {
             Ok(d)
         } else {
@@ -493,7 +493,7 @@ impl DynamicData {
         if let DataKind::UInt8(d) = self
             .abstract_data
             .get(&id)
-            .ok_or(XTypesError::InvalidIndex)?
+            .ok_or(XTypesError::InvalidId(id))?
         {
             Ok(d)
         } else {
@@ -510,7 +510,7 @@ impl DynamicData {
         if let DataKind::Int16(d) = self
             .abstract_data
             .get(&id)
-            .ok_or(XTypesError::InvalidIndex)?
+            .ok_or(XTypesError::InvalidId(id))?
         {
             Ok(d)
         } else {
@@ -527,7 +527,7 @@ impl DynamicData {
         if let DataKind::UInt16(d) = self
             .abstract_data
             .get(&id)
-            .ok_or(XTypesError::InvalidIndex)?
+            .ok_or(XTypesError::InvalidId(id))?
         {
             Ok(d)
         } else {
@@ -544,7 +544,7 @@ impl DynamicData {
         if let DataKind::Int64(d) = self
             .abstract_data
             .get(&id)
-            .ok_or(XTypesError::InvalidIndex)?
+            .ok_or(XTypesError::InvalidId(id))?
         {
             Ok(d)
         } else {
@@ -561,7 +561,7 @@ impl DynamicData {
         if let DataKind::UInt64(d) = self
             .abstract_data
             .get(&id)
-            .ok_or(XTypesError::InvalidIndex)?
+            .ok_or(XTypesError::InvalidId(id))?
         {
             Ok(d)
         } else {
@@ -578,7 +578,7 @@ impl DynamicData {
         if let DataKind::Float32(d) = self
             .abstract_data
             .get(&id)
-            .ok_or(XTypesError::InvalidIndex)?
+            .ok_or(XTypesError::InvalidId(id))?
         {
             Ok(d)
         } else {
@@ -595,7 +595,7 @@ impl DynamicData {
         if let DataKind::Float64(d) = self
             .abstract_data
             .get(&id)
-            .ok_or(XTypesError::InvalidIndex)?
+            .ok_or(XTypesError::InvalidId(id))?
         {
             Ok(d)
         } else {
@@ -612,7 +612,7 @@ impl DynamicData {
         if let DataKind::Char8(d) = self
             .abstract_data
             .get(&id)
-            .ok_or(XTypesError::InvalidIndex)?
+            .ok_or(XTypesError::InvalidId(id))?
         {
             Ok(d)
         } else {
@@ -629,7 +629,7 @@ impl DynamicData {
         if let DataKind::UInt8(d) = self
             .abstract_data
             .get(&id)
-            .ok_or(XTypesError::InvalidIndex)?
+            .ok_or(XTypesError::InvalidId(id))?
         {
             Ok(d)
         } else {
@@ -646,7 +646,7 @@ impl DynamicData {
         if let DataKind::Boolean(d) = self
             .abstract_data
             .get(&id)
-            .ok_or(XTypesError::InvalidIndex)?
+            .ok_or(XTypesError::InvalidId(id))?
         {
             Ok(d)
         } else {
@@ -663,7 +663,7 @@ impl DynamicData {
         if let DataKind::String(d) = self
             .abstract_data
             .get(&id)
-            .ok_or(XTypesError::InvalidIndex)?
+            .ok_or(XTypesError::InvalidId(id))?
         {
             Ok(d)
         } else {
@@ -680,7 +680,7 @@ impl DynamicData {
         if let DataKind::ComplexValue(d) = self
             .abstract_data
             .get(&id)
-            .ok_or(XTypesError::InvalidIndex)?
+            .ok_or(XTypesError::InvalidId(id))?
         {
             Ok(d)
         } else {
@@ -689,7 +689,7 @@ impl DynamicData {
     }
 
     pub fn get_data_kind(&self, id: MemberId) -> XTypesResult<&DataKind> {
-        self.abstract_data.get(&id).ok_or(XTypesError::InvalidIndex)
+        self.abstract_data.get(&id).ok_or(XTypesError::InvalidId(id))
     }
 
     pub fn set_complex_value(&mut self, id: MemberId, value: DynamicData) -> XTypesResult<()> {
@@ -701,7 +701,7 @@ impl DynamicData {
         if let DataKind::Sequence(d) = self
             .abstract_data
             .get(&id)
-            .ok_or(XTypesError::InvalidIndex)?
+            .ok_or(XTypesError::InvalidId(id))?
         {
             d.into_iter().cloned().map(TryInto::try_into).collect()
         } else {
@@ -718,7 +718,7 @@ impl DynamicData {
         if let DataKind::Sequence(d) = self
             .abstract_data
             .get(&id)
-            .ok_or(XTypesError::InvalidIndex)?
+            .ok_or(XTypesError::InvalidId(id))?
         {
             d.into_iter().cloned().map(TryInto::try_into).collect()
         } else {
@@ -735,7 +735,7 @@ impl DynamicData {
         if let DataKind::Sequence(d) = self
             .abstract_data
             .get(&id)
-            .ok_or(XTypesError::InvalidIndex)?
+            .ok_or(XTypesError::InvalidId(id))?
         {
             d.into_iter().cloned().map(TryInto::try_into).collect()
         } else {
@@ -752,7 +752,7 @@ impl DynamicData {
         if let DataKind::Sequence(d) = self
             .abstract_data
             .get(&id)
-            .ok_or(XTypesError::InvalidIndex)?
+            .ok_or(XTypesError::InvalidId(id))?
         {
             d.into_iter().cloned().map(TryInto::try_into).collect()
         } else {
@@ -769,7 +769,7 @@ impl DynamicData {
         if let DataKind::Sequence(d) = self
             .abstract_data
             .get(&id)
-            .ok_or(XTypesError::InvalidIndex)?
+            .ok_or(XTypesError::InvalidId(id))?
         {
             d.into_iter().cloned().map(TryInto::try_into).collect()
         } else {
@@ -786,7 +786,7 @@ impl DynamicData {
         if let DataKind::Sequence(d) = self
             .abstract_data
             .get(&id)
-            .ok_or(XTypesError::InvalidIndex)?
+            .ok_or(XTypesError::InvalidId(id))?
         {
             d.into_iter().cloned().map(TryInto::try_into).collect()
         } else {
@@ -803,7 +803,7 @@ impl DynamicData {
         if let DataKind::Sequence(d) = self
             .abstract_data
             .get(&id)
-            .ok_or(XTypesError::InvalidIndex)?
+            .ok_or(XTypesError::InvalidId(id))?
         {
             d.into_iter().cloned().map(TryInto::try_into).collect()
         } else {
@@ -820,7 +820,7 @@ impl DynamicData {
         if let DataKind::Sequence(d) = self
             .abstract_data
             .get(&id)
-            .ok_or(XTypesError::InvalidIndex)?
+            .ok_or(XTypesError::InvalidId(id))?
         {
             d.into_iter().cloned().map(TryInto::try_into).collect()
         } else {
@@ -837,7 +837,7 @@ impl DynamicData {
         if let DataKind::Sequence(d) = self
             .abstract_data
             .get(&id)
-            .ok_or(XTypesError::InvalidIndex)?
+            .ok_or(XTypesError::InvalidId(id))?
         {
             d.into_iter().cloned().map(TryInto::try_into).collect()
         } else {
@@ -854,7 +854,7 @@ impl DynamicData {
         if let DataKind::Sequence(d) = self
             .abstract_data
             .get(&id)
-            .ok_or(XTypesError::InvalidIndex)?
+            .ok_or(XTypesError::InvalidId(id))?
         {
             d.into_iter().cloned().map(TryInto::try_into).collect()
         } else {
@@ -871,7 +871,7 @@ impl DynamicData {
         if let DataKind::Sequence(d) = self
             .abstract_data
             .get(&id)
-            .ok_or(XTypesError::InvalidIndex)?
+            .ok_or(XTypesError::InvalidId(id))?
         {
             d.into_iter().cloned().map(TryInto::try_into).collect()
         } else {
@@ -888,7 +888,7 @@ impl DynamicData {
         if let DataKind::Sequence(d) = self
             .abstract_data
             .get(&id)
-            .ok_or(XTypesError::InvalidIndex)?
+            .ok_or(XTypesError::InvalidId(id))?
         {
             d.into_iter().cloned().map(TryInto::try_into).collect()
         } else {
@@ -903,10 +903,10 @@ impl DynamicData {
 
     // Custom functions
     pub fn get_uint8_values(&self, id: MemberId) -> XTypesResult<Vec<u8>> {
-        if let DataKind::Sequence(d) = self
+        if let DataKind::Sequence(d) | DataKind::Array(d) = self
             .abstract_data
             .get(&id)
-            .ok_or(XTypesError::InvalidIndex)?
+            .ok_or(XTypesError::InvalidId(id))?
         {
             d.into_iter().cloned().map(TryInto::try_into).collect()
         } else {
@@ -928,7 +928,7 @@ impl DynamicData {
         if let DataKind::Sequence(d) = self
             .abstract_data
             .get(&id)
-            .ok_or(XTypesError::InvalidIndex)?
+            .ok_or(XTypesError::InvalidId(id))?
         {
             d.into_iter().cloned().map(TryInto::try_into).collect()
         } else {
@@ -959,6 +959,6 @@ impl DynamicData {
     }
 
     pub fn get_value(&self, id: MemberId) -> XTypesResult<&DataKind> {
-        self.abstract_data.get(&id).ok_or(XTypesError::InvalidIndex)
+        self.abstract_data.get(&id).ok_or(XTypesError::InvalidId(id))
     }
 }

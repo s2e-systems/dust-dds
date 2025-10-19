@@ -2,7 +2,8 @@ use super::{error::XTypesError, serializer::XTypesSerializer};
 use crate::xtypes::{
     dynamic_type::{DynamicData, TypeKind},
     serializer::{
-        BigEndian, EndiannessWriter, LittleEndian, PaddedWrite, Padding, PaddingV1, Write, Writer, WriterBe, WriterLe, WriterV1, WriterV2
+        BigEndian, EndiannessWriter, LittleEndian, Padding, PaddingV1, Write, Writer, WriterBe,
+        WriterLe, WriterV1, WriterV2,
     },
 };
 
@@ -68,8 +69,6 @@ fn count_bytes_xdr1_le(v: &DynamicData, member_id: u32) -> Result<usize, XTypesE
 }
 
 impl<C: Write> XTypesSerializer<C> for Xcdr1BeSerializer<C> {
-    type Endianness = BigEndian;
-
     fn serialize_mutable_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
         for field_index in 0..v.get_item_count() {
             let member_id = v.get_member_id_at_index(field_index)?;
@@ -105,8 +104,6 @@ impl<C: Write> Xcdr1LeSerializer<C> {
 }
 
 impl<C: Write> XTypesSerializer<C> for Xcdr1LeSerializer<C> {
-    type Endianness = LittleEndian;
-
     fn serialize_mutable_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
         for field_index in 0..v.get_item_count() {
             let member_id = v.get_member_id_at_index(field_index)?;
@@ -157,8 +154,6 @@ struct PlainCdr2Encoder<'a, S> {
 }
 
 impl<C: Write> XTypesSerializer<C> for Xcdr2BeSerializer<C> {
-    type Endianness = BigEndian;
-
     fn writer(&mut self) -> &mut impl EndiannessWriter {
         &mut self.writer
     }
@@ -181,8 +176,6 @@ impl<C: Write> XTypesSerializer<C> for Xcdr2BeSerializer<C> {
 }
 
 impl<C: Write> XTypesSerializer<C> for Xcdr2LeSerializer<C> {
-    type Endianness = LittleEndian;
-
     fn writer(&mut self) -> &mut impl EndiannessWriter {
         &mut self.writer
     }
@@ -213,7 +206,8 @@ mod tests {
     fn serialize_v1_be<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
         v.create_dynamic_sample()
             .serialize(Xcdr1BeSerializer::new(Vec::new()))
-            .unwrap().into_inner()
+            .unwrap()
+            .into_inner()
     }
 
     // fn serialize_v1_le<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
@@ -332,6 +326,61 @@ mod tests {
         //         b'a', // f12: char
         //     ]
         // );
+    }
+
+    #[test]
+    fn serialize_u8_array() {
+        #[derive(TypeSupport)]
+        #[dust_dds(extensibility = "mutable")]
+        struct U8Array {
+            #[dust_dds(id = 41)]
+            version: [u8; 2],
+        }
+
+        let v = U8Array { version: [1, 2] };
+        assert_eq!(
+            serialize_v1_be(v),
+            vec![
+                0x00, 41, 0, 2, // PID, length
+                1, 2, 0, 0, // version | padding (2 bytres)
+                0, 1, 0, 0, // Sentinel
+            ]
+        );
+    }
+
+    #[test]
+    fn serialize_locator() {
+        #[derive(TypeSupport)]
+        #[dust_dds(extensibility = "mutable")]
+        pub struct LocatorContainer {
+            #[dust_dds(id = 73)]
+            locator: Locator,
+        }
+        #[derive(TypeSupport)]
+        #[dust_dds(extensibility = "final", nested)]
+        pub struct Locator {
+            kind: i32,
+            address1: [u8; 2],
+            address2: [u8; 3],
+        }
+
+        let v = LocatorContainer {
+            locator: Locator {
+                kind: 1,
+                address1: [3, 4],
+                address2: [5, 6, 7],
+            },
+        };
+        assert_eq!(
+            serialize_v1_be(v),
+            vec![
+                0, 73, 0, 9, // PID | length
+                0, 0, 0, 1, // kind
+                3, 4, 5, 6, // address1 and 2
+                7, 0, 0, 0, // address2 | pading (3 bytes)
+                0, 1, 0, 0
+            ]
+        );
     }
 
     #[test]

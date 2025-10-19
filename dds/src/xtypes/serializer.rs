@@ -251,7 +251,7 @@ impl<W: Write> EndiannessWriter for WriterLe<W> {
     }
 }
 
-trait WriteBasicType {
+trait WriteBasicType: Copy {
     fn write_basic_type(self, writer: &mut impl EndiannessWriter);
 }
 impl WriteBasicType for bool {
@@ -320,39 +320,15 @@ impl WriteBasicType for &[u8] {
     }
 }
 
-#[test]
-fn my_test() {
-    let mut writer_be = WriterBe(Vec::new());
-    7u16.write_basic_type(&mut writer_be);
-    assert_eq!(writer_be.0, [0, 7]);
-    let mut writer_le = WriterLe(Vec::new());
-    7u16.write_basic_type(&mut writer_le);
-    assert_eq!(writer_le.0, [7, 0]);
-    [8u8, 9].write_basic_type(&mut writer_le);
-    assert_eq!(writer_le.0, [7, 0, 8, 9]);
-}
-
-pub trait PaddedWrite: Write {
-    fn padded_write(&mut self, buf: &[u8]);
-}
-
-impl<'a, W: Write> PaddedWrite for WriterV2<'a, W> {
-    fn padded_write(&mut self, buf: &[u8]) {
-        self.writer.pad(core::cmp::min(buf.len(), 4));
-        self.writer.write_slice(buf);
-    }
-}
-
-impl<'a, W: Write> PaddedWrite for WriterV1<'a, W> {
-    fn padded_write(&mut self, buf: &[u8]) {
-        self.writer.pad(buf.len());
-        self.writer.write_slice(buf);
+fn serialize_sequence(v: &[impl WriteBasicType], writer: &mut impl EndiannessWriter) {
+    writer.write_u32(v.len() as u32);
+    for vi in v.iter() {
+        vi.write_basic_type(writer);
     }
 }
 
 /// A trait representing an object with the capability of serializing a value into a CDR format.
 pub trait XTypesSerializer<C> {
-    type Endianness: Endianness;
     fn into_inner(self) -> C;
 
     /// Start serializing a type with final extensibility.
@@ -376,8 +352,7 @@ pub trait XTypesSerializer<C> {
     /// Start serializing a type with mutable extensibility.
     fn serialize_mutable_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError>;
 
-    fn serialize_sequence(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
-        let member_id = v.get_member_id_at_index(0)?;
+    fn serialize_sequence(&mut self, v: &DynamicData, member_id: u32) -> Result<(), XTypesError> {
         let member_descriptor = v.get_descriptor(member_id)?;
         let element_type = member_descriptor
             .r#type
@@ -385,6 +360,60 @@ pub trait XTypesSerializer<C> {
             .element_type
             .as_ref()
             .expect("sequence has element type");
+        match element_type.get_descriptor().kind {
+            TypeKind::NONE => todo!(),
+            TypeKind::BOOLEAN => todo!(),
+            TypeKind::BYTE => todo!(),
+            TypeKind::INT16 => todo!(),
+            TypeKind::INT32 => todo!(),
+            TypeKind::INT64 => todo!(),
+            TypeKind::UINT16 => serialize_sequence(&v.get_uint16_values(member_id)?, self.writer()),
+            TypeKind::UINT32 => todo!(),
+            TypeKind::UINT64 => todo!(),
+            TypeKind::FLOAT32 => todo!(),
+            TypeKind::FLOAT64 => todo!(),
+            TypeKind::FLOAT128 => todo!(),
+            TypeKind::INT8 => todo!(),
+            TypeKind::UINT8 => serialize_sequence(&v.get_uint8_values(member_id)?, self.writer()),
+            TypeKind::CHAR8 => todo!(),
+            TypeKind::CHAR16 => todo!(),
+            TypeKind::STRING8 => {
+                let list = v.get_string_values(member_id)?;
+                self.writer().write_u32(list.len() as u32);
+                for v in list {
+                    self.serialize_string(v.as_str());
+                }
+            }
+            TypeKind::STRING16 => todo!(),
+            TypeKind::ALIAS => todo!(),
+            TypeKind::ENUM => todo!(),
+            TypeKind::BITMASK => todo!(),
+            TypeKind::ANNOTATION => todo!(),
+            TypeKind::STRUCTURE => {
+                let list = v.get_complex_values(member_id)?;
+                self.writer().write_u32(list.len() as u32);
+                for v in &list {
+                    self.serialize_complex(v)?;
+                }
+            }
+            TypeKind::UNION => todo!(),
+            TypeKind::BITSET => todo!(),
+            TypeKind::SEQUENCE => todo!(),
+            TypeKind::ARRAY => todo!(),
+            TypeKind::MAP => todo!(),
+        }
+
+        Ok(())
+    }
+
+    fn serialize_array(&mut self, v: &DynamicData, member_id: u32) -> Result<(), XTypesError> {
+        let member_descriptor = v.get_descriptor(member_id)?;
+        let element_type = member_descriptor
+            .r#type
+            .get_descriptor()
+            .element_type
+            .as_ref()
+            .expect("array has element type");
         match element_type.get_descriptor().kind {
             TypeKind::NONE => todo!(),
             TypeKind::BOOLEAN => todo!(),
@@ -400,18 +429,14 @@ pub trait XTypesSerializer<C> {
             TypeKind::FLOAT128 => todo!(),
             TypeKind::INT8 => todo!(),
             TypeKind::UINT8 => {
-                let list = v.get_uint8_values(member_id)?;
-                self.writer().write_u32(list.len() as u32);
-                for v in list {
+                for v in v.get_uint8_values(member_id)? {
                     self.writer().write_u8(v);
                 }
             }
             TypeKind::CHAR8 => todo!(),
             TypeKind::CHAR16 => todo!(),
             TypeKind::STRING8 => {
-                let list = v.get_string_values(member_id)?;
-                self.writer().write_u32(list.len() as u32);
-                for v in list {
+                for v in v.get_string_values(member_id)? {
                     self.serialize_string(v.as_str());
                 }
             }
@@ -420,7 +445,11 @@ pub trait XTypesSerializer<C> {
             TypeKind::ENUM => todo!(),
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
-            TypeKind::STRUCTURE => todo!(),
+            TypeKind::STRUCTURE => {
+                for v in &v.get_complex_values(member_id)? {
+                    self.serialize_complex(v)?;
+                }
+            }
             TypeKind::UNION => todo!(),
             TypeKind::BITSET => todo!(),
             TypeKind::SEQUENCE => todo!(),
@@ -428,6 +457,12 @@ pub trait XTypesSerializer<C> {
             TypeKind::MAP => todo!(),
         }
 
+        Ok(())
+    }
+
+    fn serialize_enum(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
+        let _discriminator_type = v.type_ref().get_descriptor().discriminator_type.as_ref();
+        self.writer().write_i32(*v.get_int32_value(0)?);
         Ok(())
     }
 
@@ -439,32 +474,54 @@ pub trait XTypesSerializer<C> {
         let member_descriptor = v.get_descriptor(member_id)?;
         match member_descriptor.r#type.get_kind() {
             TypeKind::NONE => todo!(),
-            TypeKind::BOOLEAN => v.get_boolean_value(member_id)?.write_basic_type(self.writer()),
+            TypeKind::BOOLEAN => v
+                .get_boolean_value(member_id)?
+                .write_basic_type(self.writer()),
             TypeKind::BYTE => todo!(),
-            TypeKind::INT16 => v.get_int16_value(member_id)?.write_basic_type(self.writer()),
-            TypeKind::INT32 => v.get_int32_value(member_id)?.write_basic_type(self.writer()),
-            TypeKind::INT64 => v.get_int64_value(member_id)?.write_basic_type(self.writer()),
-            TypeKind::UINT16 => v.get_uint16_value(member_id)?.write_basic_type(self.writer()),
-            TypeKind::UINT32 => v.get_uint32_value(member_id)?.write_basic_type(self.writer()),
-            TypeKind::UINT64 => v.get_uint64_value(member_id)?.write_basic_type(self.writer()),
-            TypeKind::FLOAT32 => v.get_float32_value(member_id)?.write_basic_type(self.writer()),
-            TypeKind::FLOAT64 => v.get_float64_value(member_id)?.write_basic_type(self.writer()),
+            TypeKind::INT16 => v
+                .get_int16_value(member_id)?
+                .write_basic_type(self.writer()),
+            TypeKind::INT32 => v
+                .get_int32_value(member_id)?
+                .write_basic_type(self.writer()),
+            TypeKind::INT64 => v
+                .get_int64_value(member_id)?
+                .write_basic_type(self.writer()),
+            TypeKind::UINT16 => v
+                .get_uint16_value(member_id)?
+                .write_basic_type(self.writer()),
+            TypeKind::UINT32 => v
+                .get_uint32_value(member_id)?
+                .write_basic_type(self.writer()),
+            TypeKind::UINT64 => v
+                .get_uint64_value(member_id)?
+                .write_basic_type(self.writer()),
+            TypeKind::FLOAT32 => v
+                .get_float32_value(member_id)?
+                .write_basic_type(self.writer()),
+            TypeKind::FLOAT64 => v
+                .get_float64_value(member_id)?
+                .write_basic_type(self.writer()),
             TypeKind::FLOAT128 => unimplemented!("not supported by Rust"),
             TypeKind::INT8 => v.get_int8_value(member_id)?.write_basic_type(self.writer()),
-            TypeKind::UINT8 => v.get_uint8_value(member_id)?.write_basic_type(self.writer()),
-            TypeKind::CHAR8 => v.get_char8_value(member_id)?.write_basic_type(self.writer()),
+            TypeKind::UINT8 => v
+                .get_uint8_value(member_id)?
+                .write_basic_type(self.writer()),
+            TypeKind::CHAR8 => v
+                .get_char8_value(member_id)?
+                .write_basic_type(self.writer()),
             TypeKind::CHAR16 => todo!(),
             TypeKind::STRING8 => self.serialize_string(v.get_string_value(member_id)?),
             TypeKind::STRING16 => todo!(),
             TypeKind::ALIAS => todo!(),
-            TypeKind::ENUM => todo!(),
+            TypeKind::ENUM => self.serialize_enum(v.get_complex_value(member_id)?)?,
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
             TypeKind::STRUCTURE => self.serialize_complex(v.get_complex_value(member_id)?)?,
             TypeKind::UNION => todo!(),
             TypeKind::BITSET => todo!(),
-            TypeKind::SEQUENCE => self.serialize_sequence(v)?,
-            TypeKind::ARRAY => todo!(),
+            TypeKind::SEQUENCE => self.serialize_sequence(v, member_id)?,
+            TypeKind::ARRAY => self.serialize_array(v, member_id)?,
             TypeKind::MAP => todo!(),
         }
         Ok(())

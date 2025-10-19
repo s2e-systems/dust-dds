@@ -1,8 +1,6 @@
 use super::{error::XTypesError, serializer::XTypesSerializer};
 use crate::xtypes::{
-    dynamic_type::DynamicData,
-    serializer::{EndiannessWriter, LittleEndian, PaddedWrite, Write},
-    xcdr_serializer::Xcdr1LeSerializer,
+    data_representation::DataKind, dynamic_type::{DynamicData, TypeKind}, serializer::{EndiannessWriter, LittleEndian, Write}, xcdr_serializer::Xcdr1LeSerializer
 };
 
 const PID_SENTINEL: u16 = 1;
@@ -22,11 +20,16 @@ impl Write for ByteCounter {
     }
 }
 fn count_bytes_xdr1_le(v: &DynamicData, member_id: u32) -> Result<u16, XTypesError> {
-    let mut byte_counter = ByteCounter::new();
-    let mut byte_conter_serializer = Xcdr1LeSerializer::new(byte_counter);
-    // byte_conter_serializer.serialize_dynamic_data_member(v, member_id)?;
-    // Ok(byte_counter.0 as u16)
-    todo!()
+    let mut byte_conter_serializer = Xcdr1LeSerializer::new(ByteCounter::new());
+    byte_conter_serializer.serialize_dynamic_data_member(v, member_id)?;
+    let length = byte_conter_serializer.into_inner().0 as u16;
+    Ok((length + 3) & !3)
+}
+fn count_bytes_xdr1_le_complex(v: &DynamicData) -> Result<u16, XTypesError> {
+    let mut byte_conter_serializer = Xcdr1LeSerializer::new(ByteCounter::new());
+    byte_conter_serializer.serialize_complex(v)?;
+    let length = byte_conter_serializer.into_inner().0 as u16;
+    Ok((length + 3) & !3)
 }
 
 pub struct PlCdrLeSerializer<C> {
@@ -42,8 +45,6 @@ impl<C: Write> PlCdrLeSerializer<C> {
 }
 
 impl<C: Write> XTypesSerializer<C> for PlCdrLeSerializer<C> {
-    type Endianness = LittleEndian;
-
     fn into_inner(self) -> C {
         self.cdr1_le_serializer.into_inner()
     }
@@ -62,13 +63,46 @@ impl<C: Write> XTypesSerializer<C> for PlCdrLeSerializer<C> {
     fn serialize_mutable_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
         for field_index in 0..v.get_item_count() {
             let member_id = v.get_member_id_at_index(field_index)?;
-            let length = count_bytes_xdr1_le(v, member_id)?;
-            let padded_length = (length + 3) & !3;
-            self.writer().write_u16(member_id as u16);
-            self.writer().write_u16(padded_length as u16);
-            self.serialize_dynamic_data_member(v, member_id)?;
-            // self.cdr1_le_serializer.writer.writer.pad(4);
-            todo!()
+            let member_descriptor = v.get_descriptor(member_id)?;
+            if member_descriptor.is_optional {
+                if let Some(default_value) = &member_descriptor.default_value {
+                    if v.get_value(member_id)? == default_value {
+                        continue;
+                    }
+                }
+            }
+
+            let element_type = member_descriptor
+                .r#type
+                .get_descriptor()
+                .element_type
+                .as_ref();
+            if let Some(element_type) = element_type {
+                // Sequence
+                if element_type.get_kind() == TypeKind::STRUCTURE {
+                    for vi in &v.get_complex_values(member_id)? {
+                        let padded_length = count_bytes_xdr1_le_complex(vi)?;
+                        self.writer().write_u16(member_id as u16);
+                        self.writer().write_u16(padded_length as u16);
+                        self.serialize_complex(vi)?
+                    }
+
+                    self.writer().pad(4);
+                } else {
+                    let padded_length = count_bytes_xdr1_le(v, member_id)?;
+                    self.writer().write_u16(member_id as u16);
+                    self.writer().write_u16(padded_length as u16);
+                    self.serialize_dynamic_data_member(v, member_id)?;
+                    self.writer().pad(4);
+                }
+            } else {
+                // Structure
+                let padded_length = count_bytes_xdr1_le(v, member_id)?;
+                self.writer().write_u16(member_id as u16);
+                self.writer().write_u16(padded_length as u16);
+                self.serialize_dynamic_data_member(v, member_id)?;
+                self.writer().pad(4);
+            }
         }
         self.writer().write_u16(PID_SENTINEL);
         self.writer().write_u16(0);
@@ -220,9 +254,57 @@ mod tests {
         );
     }
 
-    #[derive(TypeSupport)]
-    struct NestedFinal {
-        basic: MutableBasicType,
-        time: MutableTimeType,
+    #[test]
+    fn serialize_u8_array() {
+        #[derive(TypeSupport)]
+        #[dust_dds(extensibility = "mutable")]
+        struct U8Array {
+            #[dust_dds(id = 41)]
+            version: [u8; 2],
+        }
+
+        let v = U8Array { version: [1, 2] };
+        assert_eq!(
+            test_serialize_type_support(v),
+            vec![
+                41, 0x00, 4, 0, // PID, length
+                1, 2, 0, 0, // version | padding (2 bytres)
+                1, 0, 0, 0, // Sentinel
+            ]
+        );
+    }
+
+    #[test]
+    fn serialize_locator() {
+        #[derive(TypeSupport)]
+        pub struct Locator {
+            kind: i32,
+            port: u32,
+            address: [u8; 4],
+        }
+        #[derive(TypeSupport)]
+        #[dust_dds(extensibility = "mutable")]
+        pub struct LocatorContainer {
+            #[dust_dds(id = 41)]
+            locator: Locator,
+        }
+
+        let v = LocatorContainer {
+            locator: Locator {
+                kind: 1,
+                port: 2,
+                address: [7; 4],
+            },
+        };
+        assert_eq!(
+            test_serialize_type_support(v),
+            vec![
+                41, 0x00, 12, 0, // PID, length
+                1, 0, 0, 0, // kind
+                2, 0, 0, 0, // port
+                7, 7, 7, 7, // address
+                1, 0, 0, 0, // Sentinel
+            ]
+        );
     }
 }
