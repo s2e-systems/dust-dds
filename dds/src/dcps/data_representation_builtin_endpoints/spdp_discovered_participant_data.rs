@@ -355,7 +355,7 @@ mod tests {
     use super::*;
     use crate::{
         builtin_topics::BuiltInTopicKey, infrastructure::qos_policy::UserDataQosPolicy,
-        rtps::types::PROTOCOLVERSION_2_4, xtypes::pl_cdr_serializer::PlCdrLeSerializer,
+        rtps::types::PROTOCOLVERSION_2_4, xtypes::{pl_cdr_serializer::PlCdrLeSerializer, serializer::XTypesSerializer},
     };
 
     #[test]
@@ -368,7 +368,7 @@ mod tests {
                 key: BuiltInTopicKey {
                     value: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0xc1],
                 },
-                user_data: UserDataQosPolicy { value: vec![] },
+                user_data: UserDataQosPolicy { value: vec![97, 53] },
             },
             participant_proxy: ParticipantProxy {
                 domain_id: Some(0),
@@ -398,45 +398,48 @@ mod tests {
             0x02, 0x00, 8, 0x00, // PID_PARTICIPANT_LEASE_DURATION
             10, 0x00, 0x00, 0x00, // Duration: seconds
             11, 0x00, 0x00, 0x00, // Duration: fraction
-            0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
+            15, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
             0x00, 0x00, 0x00, 0x00, // DomainId
-            0x15, 0x00, 4, 0x00, // PID_PROTOCOL_VERSION, Length
+            21, 0x00, 4, 0x00, // PID_PROTOCOL_VERSION, Length
             0x02, 0x04, 0x00, 0x00, // ProtocolVersion
-            0x16, 0x00, 4, 0x00, // PID_VENDORID
+            22, 0x00, 4, 0x00, // PID_VENDORID
             73, 74, 0x00, 0x00, // VendorId
-            0x31, 0x00, 24, 0x00, // PID_DEFAULT_UNICAST_LOCATOR
+            44, 0x00, 8, 0x00, // PID_USER_DATA, Length
+            2, 0, 0, 0, // sequence length
+            97, 53, 0, 0, // data, padding (2 bytes)
+            49, 0x00, 24, 0x00, // PID_DEFAULT_UNICAST_LOCATOR
             11, 0x00, 0x00, 0x00, // Locator{kind
             12, 0x00, 0x00, 0x00, // port,
             0x01, 0x01, 0x01, 0x01, //
             0x01, 0x01, 0x01, 0x01, // address
             0x01, 0x01, 0x01, 0x01, //
             0x01, 0x01, 0x01, 0x01, // }
-            0x32, 0x00, 24, 0x00, // PID_METATRAFFIC_UNICAST_LOCATOR
+            50, 0x00, 24, 0x00, // PID_METATRAFFIC_UNICAST_LOCATOR
             11, 0x00, 0x00, 0x00, // Locator{kind
             12, 0x00, 0x00, 0x00, // port,
             0x01, 0x01, 0x01, 0x01, //
             0x01, 0x01, 0x01, 0x01, // address
             0x01, 0x01, 0x01, 0x01, //
             0x01, 0x01, 0x01, 0x01, // }
-            0x32, 0x00, 24, 0x00, // PID_METATRAFFIC_UNICAST_LOCATOR
+            50, 0x00, 24, 0x00, // PID_METATRAFFIC_UNICAST_LOCATOR
             21, 0x00, 0x00, 0x00, // Locator{kind
             22, 0x00, 0x00, 0x00, // port,
             0x02, 0x02, 0x02, 0x02, //
             0x02, 0x02, 0x02, 0x02, // address
             0x02, 0x02, 0x02, 0x02, //
             0x02, 0x02, 0x02, 0x02, // }
-            0x33, 0x00, 24, 0x00, // PID_METATRAFFIC_MULTICAST_LOCATOR
+            51, 0x00, 24, 0x00, // PID_METATRAFFIC_MULTICAST_LOCATOR
             11, 0x00, 0x00, 0x00, // Locator{kind
             12, 0x00, 0x00, 0x00, // port,
             0x01, 0x01, 0x01, 0x01, //
             0x01, 0x01, 0x01, 0x01, // address
             0x01, 0x01, 0x01, 0x01, //
             0x01, 0x01, 0x01, 0x01, // }
-            0x34, 0x00, 4, 0x00, // PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT
+            52, 0x00, 4, 0x00, // PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT
             0x02, 0x00, 0x00, 0x00, // Count
             0x43, 0x00, 0x04, 0x00, // PID_EXPECTS_INLINE_QOS, Length: 4,
             0x01, 0x00, 0x00, 0x00, // True
-            0x48, 0x00, 24, 0x00, // PID_DEFAULT_MULTICAST_LOCATOR
+            72, 0x00, 24, 0x00, // PID_DEFAULT_MULTICAST_LOCATOR
             11, 0x00, 0x00, 0x00, // Locator{kind
             12, 0x00, 0x00, 0x00, // port,
             0x01, 0x01, 0x01, 0x01, //
@@ -448,9 +451,9 @@ mod tests {
             8, 8, 8, 8, // GuidPrefix
             8, 8, 8, 8, // GuidPrefix
             0, 0, 1, 0xc1, // EntityId
-            0x58, 0x00, 4, 0x00, // PID_BUILTIN_ENDPOINT_SET
+            88, 0x00, 4, 0x00, // PID_BUILTIN_ENDPOINT_SET
             0x02, 0x00, 0x00, 0x00, //
-            0x77, 0x00, 4, 0x00, // PID_BUILTIN_ENDPOINT_QOS
+            119, 0x00, 4, 0x00, // PID_BUILTIN_ENDPOINT_QOS
             0x00, 0x00, 0x00, 0x20, //
             0x14, 0x40, 0x08, 0x00, // PID_DOMAIN_TAG, Length: 8
             3, 0x00, 0x00, 0x00, // DomainTag: string length (incl. terminator)
@@ -458,12 +461,10 @@ mod tests {
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ];
         let dynamic_sample = data.create_dynamic_sample();
-
-        let mut buffer = vec![];
-        dynamic_sample
-            .serialize(&mut PlCdrLeSerializer::new(&mut buffer))
-            .unwrap();
-        assert_eq!(buffer, expected);
+        let result = dynamic_sample
+            .serialize(PlCdrLeSerializer::new(Vec::new()))
+            .unwrap().into_inner();
+        assert_eq!(result, expected);
     }
 
     #[test]
@@ -510,17 +511,15 @@ mod tests {
             8, 8, 8, 8, // GuidPrefix
             8, 8, 8, 8, // GuidPrefix
             0, 0, 1, 0xc1, // EntityId
-            0x58, 0x00, 4, 0x00, // PID_BUILTIN_ENDPOINT_SET
+            88, 0x00, 4, 0x00, // PID_BUILTIN_ENDPOINT_SET
             0x02, 0x00, 0x00, 0x00, //
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ];
         let dynamic_sample = data.create_dynamic_sample();
-
-        let mut buffer = vec![];
-        dynamic_sample
-            .serialize(&mut PlCdrLeSerializer::new(&mut buffer))
-            .unwrap();
-        assert_eq!(buffer, expected);
+        let result = dynamic_sample
+            .serialize(PlCdrLeSerializer::new(Vec::new()))
+            .unwrap().into_inner();
+        assert_eq!(result, expected);
     }
 
     #[test]
@@ -590,21 +589,21 @@ mod tests {
             73, 74, 0x00, 0x00, // VendorId
             0x43, 0x00, 0x04, 0x00, // PID_EXPECTS_INLINE_QOS, Length: 4,
             0x01, 0x00, 0x00, 0x00, // True
-            0x32, 0x00, 24, 0x00, // PID_METATRAFFIC_UNICAST_LOCATOR
+            50, 0x00, 24, 0x00, // PID_METATRAFFIC_UNICAST_LOCATOR
             11, 0x00, 0x00, 0x00, // Locator{kind
             12, 0x00, 0x00, 0x00, // port,
             0x01, 0x01, 0x01, 0x01, //
             0x01, 0x01, 0x01, 0x01, // address
             0x01, 0x01, 0x01, 0x01, //
             0x01, 0x01, 0x01, 0x01, // }
-            0x32, 0x00, 24, 0x00, // PID_METATRAFFIC_UNICAST_LOCATOR
+            50, 0x00, 24, 0x00, // PID_METATRAFFIC_UNICAST_LOCATOR
             21, 0x00, 0x00, 0x00, // Locator{kind
             22, 0x00, 0x00, 0x00, // port,
             0x02, 0x02, 0x02, 0x02, //
             0x02, 0x02, 0x02, 0x02, // address
             0x02, 0x02, 0x02, 0x02, //
             0x02, 0x02, 0x02, 0x02, // }
-            0x33, 0x00, 24, 0x00, // PID_METATRAFFIC_MULTICAST_LOCATOR
+            51, 0x00, 24, 0x00, // PID_METATRAFFIC_MULTICAST_LOCATOR
             11, 0x00, 0x00, 0x00, // Locator{kind
             12, 0x00, 0x00, 0x00, // port,
             0x01, 0x01, 0x01, 0x01, //
@@ -618,18 +617,18 @@ mod tests {
             0x01, 0x01, 0x01, 0x01, // address
             0x01, 0x01, 0x01, 0x01, //
             0x01, 0x01, 0x01, 0x01, // }
-            0x48, 0x00, 24, 0x00, // PID_DEFAULT_MULTICAST_LOCATOR
+            72, 0x00, 24, 0x00, // PID_DEFAULT_MULTICAST_LOCATOR
             11, 0x00, 0x00, 0x00, // Locator{kind
             12, 0x00, 0x00, 0x00, // port,
             0x01, 0x01, 0x01, 0x01, //
             0x01, 0x01, 0x01, 0x01, // address
             0x01, 0x01, 0x01, 0x01, //
             0x01, 0x01, 0x01, 0x01, // }
-            0x58, 0x00, 4, 0x00, // PID_BUILTIN_ENDPOINT_SET
+            88, 0x00, 4, 0x00, // PID_BUILTIN_ENDPOINT_SET
             0x02, 0x00, 0x00, 0x00, //
             0x34, 0x00, 4, 0x00, // PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT
             0x02, 0x00, 0x00, 0x00, // Count
-            0x77, 0x00, 4, 0x00, // PID_BUILTIN_ENDPOINT_QOS
+            119, 0x00, 4, 0x00, // PID_BUILTIN_ENDPOINT_QOS
             0x00, 0x00, 0x00, 0x20, //
             0x02, 0x00, 8, 0x00, // PID_PARTICIPANT_LEASE_DURATION
             10, 0x00, 0x00, 0x00, // Duration: seconds

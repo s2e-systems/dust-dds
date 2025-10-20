@@ -12,7 +12,10 @@ use crate::{
 use alloc::{string::String, vec::Vec};
 
 impl DynamicData {
-    pub fn serialize(&self, serializer: impl XTypesSerializer) -> XTypesResult<()> {
+    pub fn serialize<C>(
+        &self,
+        serializer: impl XTypesSerializer<C>,
+    ) -> Result<impl XTypesSerializer<C>, super::error::XTypesError> {
         // todo header CDR type
         serialize_nested(self, serializer)
         // sentinel ?
