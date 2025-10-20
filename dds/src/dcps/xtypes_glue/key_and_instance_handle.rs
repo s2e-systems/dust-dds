@@ -165,7 +165,6 @@ where
         }
         _ => todo!(),
     }
-    todo!();
     Ok(())
 }
 
@@ -555,10 +554,13 @@ pub fn get_serialized_key_from_serialized_foo(
     let mut serialized_key = Vec::new();
     serialized_key.extend_from_slice(&CDR_LE);
     serialized_key.extend_from_slice(&[0, 0]);
-    let serializer = Xcdr1LeSerializer::new(serialized_key);
+    let serializer = Xcdr1LeSerializer::new(Vec::new());
     let serializer = dynamic_data.serialize(serializer)?;
 
-    let mut serialized_key = serializer.into_inner();
+    let mut serialized_key = Vec::new();
+    serialized_key.extend_from_slice(&CDR_LE);
+    serialized_key.extend_from_slice(&[0, 0]);
+    serialized_key.extend_from_slice(&serializer.into_inner());
     let padding_len = serialized_key.len().div_ceil(4) * 4 - serialized_key.len();
     const ZEROS: [u8; 4] = [0; 4];
     serialized_key.extend_from_slice(&ZEROS[..padding_len]);

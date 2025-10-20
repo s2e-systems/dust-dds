@@ -14,8 +14,7 @@ pub fn serialize_nested<C>(
 ) -> Result<impl XTypesSerializer<C>, super::error::XTypesError> {
     match dynamic_data.type_ref().get_kind() {
         TypeKind::ENUM => {
-            // serializer.serialize_data_kind(dynamic_data.get_value(0)?)?;
-            todo!()
+            serializer.serialize_enum(dynamic_data)?;
         }
         TypeKind::STRUCTURE => serializer.serialize_complex(dynamic_data)?,
         kind => unimplemented!("Should not reach for {kind:?}"),
@@ -463,28 +462,28 @@ mod tests {
                 0, 0, 0, 0, 0, 0, 0, 9, // field_u64
             ]
         );
-        // assert_eq!(
-        //     serialize_v1_le(v.clone()),
-        //     vec![
-        //         7, 0, 0, 0, 0, 0, 0, 0, // field_u16 | padding (6 bytes)
-        //         9, 0, 0, 0, 0, 0, 0, 0, // field_u64
-        //     ]
-        // );
-        // // PLAIN_CDR2:
-        // assert_eq!(
-        //     serialize_v2_be(v.clone()),
-        //     vec![
-        //         0, 7, 0, 0, // field_u16 | padding (2 bytes)
-        //         0, 0, 0, 0, 0, 0, 0, 9, // field_u64
-        //     ]
-        // );
-        // assert_eq!(
-        //     serialize_v2_le(v.clone()),
-        //     vec![
-        //         7, 0, 0, 0, // field_u16 | padding (2 bytes)
-        //         9, 0, 0, 0, 0, 0, 0, 0, // field_u64
-        //     ]
-        // );
+        assert_eq!(
+            serialize_v1_le(v.clone()),
+            vec![
+                7, 0, 0, 0, 0, 0, 0, 0, // field_u16 | padding (6 bytes)
+                9, 0, 0, 0, 0, 0, 0, 0, // field_u64
+            ]
+        );
+        // PLAIN_CDR2:
+        assert_eq!(
+            serialize_v2_be(v.clone()),
+            vec![
+                0, 7, 0, 0, // field_u16 | padding (2 bytes)
+                0, 0, 0, 0, 0, 0, 0, 9, // field_u64
+            ]
+        );
+        assert_eq!(
+            serialize_v2_le(v.clone()),
+            vec![
+                7, 0, 0, 0, // field_u16 | padding (2 bytes)
+                9, 0, 0, 0, 0, 0, 0, 0, // field_u64
+            ]
+        );
     }
 
     #[derive(TypeSupport, Clone)]
