@@ -348,8 +348,7 @@ impl<'de> XTypesDeserializer<'de> for Xcdr1BeDeserializer<'de> {
         todo!()
     }
     fn deserialize_uint8(&mut self) -> Result<u8, XTypesError> {
-        // Ok(u8::from_be_bytes(read_with_padding_v1(&mut self.reader)?))
-        todo!()
+        <ReaderBe1<'_> as PadEndiannessRead>::read_u8(&mut self.reader.0)
     }
     fn deserialize_uint16(&mut self) -> Result<u16, XTypesError> {
         // Ok(u16::from_be_bytes(read_with_padding_v1(&mut self.reader)?))
@@ -360,8 +359,7 @@ impl<'de> XTypesDeserializer<'de> for Xcdr1BeDeserializer<'de> {
         todo!()
     }
     fn deserialize_uint64(&mut self) -> Result<u64, XTypesError> {
-        // Ok(u64::from_be_bytes(read_with_padding_v1(&mut self.reader)?))
-        todo!()
+        <ReaderBe1<'_> as PadEndiannessRead>::read_u64(&mut self.reader.0)
     }
     fn deserialize_float32(&mut self) -> Result<f32, XTypesError> {
         // Ok(f32::from_be_bytes(read_with_padding_v1(&mut self.reader)?))
