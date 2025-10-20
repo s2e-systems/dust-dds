@@ -6,6 +6,131 @@ use crate::xtypes::{
 
 use super::error::XTypesError;
 
+pub trait Read {
+    fn read_exact(&mut self, size: usize) -> XTypesResult<&[u8]>;
+
+    fn pos(&self) -> usize;
+
+    fn read_exact_array<const N: usize>(&mut self) -> XTypesResult<&[u8; N]> {
+        self.read_exact(N)?
+            .try_into()
+            .map_err(|_e| XTypesError::InvalidData)
+    }
+}
+
+impl Read for &[u8] {
+    fn read_exact(&mut self, size: usize) -> XTypesResult<&[u8]> {
+        todo!()
+    }
+
+    fn pos(&self) -> usize {
+        todo!()
+    }
+}
+
+pub trait EndiannessRead {
+    fn read_bool<R: Read>(reader: &mut R) -> XTypesResult<bool> {
+        let buf = reader.read_exact(1)?;
+        match buf[0] {
+            0 => Ok(false),
+            1 => Ok(true),
+            _ => Err(XTypesError::InvalidData),
+        }
+    }
+
+    fn read_i8<R: Read>(reader: &mut R) -> XTypesResult<i8> {
+        Ok(reader.read_exact(1)?[0] as i8)
+    }
+
+    fn read_u8<R: Read>(reader: &mut R) -> XTypesResult<u8> {
+        Ok(reader.read_exact(1)?[0])
+    }
+
+    fn read_i16<R: Read>(reader: &mut R) -> XTypesResult<i16>;
+    fn read_u16<R: Read>(reader: &mut R) -> XTypesResult<u16>;
+    // fn write_i32<C: Write>(v: i32, writer: &mut C);
+    // fn write_u32<C: Write>(v: u32, writer: &mut C);
+    // fn write_i64<C: Write>(v: i64, writer: &mut C);
+    // fn write_u64<C: Write>(v: u64, writer: &mut C);
+    // fn write_f32<C: Write>(v: f32, writer: &mut C);
+    // fn write_f64<C: Write>(v: f64, writer: &mut C);
+    // fn write_char<C: Write>(v: char, writer: &mut C) {
+    //     writer.write(v.to_string().as_bytes());
+    // }
+    // fn write_str<C: Write>(v: &str, writer: &mut C) {
+    //     writer.write(v.as_bytes());
+    // }
+    // fn write_slice_u8<C: Write>(v: &[u8], writer: &mut C) {
+    //     writer.write(v);
+    // }
+}
+
+pub struct BigEndian;
+
+impl EndiannessRead for BigEndian {
+    fn read_i16<R: Read>(reader: &mut R) -> XTypesResult<i16> {
+        Ok(i16::from_be_bytes(*reader.read_exact_array::<2>()?))
+    }
+
+    fn read_u16<R: Read>(reader: &mut R) -> XTypesResult<u16> {
+        Ok(u16::from_be_bytes(*reader.read_exact_array::<2>()?))
+    }
+}
+
+pub struct LittleEndian;
+
+impl EndiannessRead for LittleEndian {
+    fn read_i16<R: Read>(reader: &mut R) -> XTypesResult<i16> {
+        Ok(i16::from_le_bytes(*reader.read_exact_array::<2>()?))
+    }
+
+    fn read_u16<R: Read>(reader: &mut R) -> XTypesResult<u16> {
+        Ok(u16::from_le_bytes(*reader.read_exact_array::<2>()?))
+    }
+}
+
+pub trait PaddingRead {
+    fn pad(alignment: usize, reader: &mut impl Read) -> XTypesResult<()>;
+}
+
+pub struct PaddingV1;
+
+impl PaddingRead for PaddingV1 {
+    fn pad(alignment: usize, reader: &mut impl Read) -> XTypesResult<()> {
+        let mask = alignment - 1;
+        let pad_length = ((reader.pos() + mask) & !mask) - reader.pos();
+        reader.read_exact(pad_length)?;
+        Ok(())
+    }
+}
+
+pub trait PadEndiannessRead {
+    type Endianness: EndiannessRead;
+    type Padding: PaddingRead;
+
+    fn read_bool<R: Read>(reader: &mut R) -> XTypesResult<bool> {
+        Self::Endianness::read_bool(reader)
+    }
+
+    fn read_i8<R: Read>(reader: &mut R) -> XTypesResult<i8> {
+        Self::Endianness::read_i8(reader)
+    }
+
+    fn read_u8<R: Read>(reader: &mut R) -> XTypesResult<u8> {
+        Self::Endianness::read_u8(reader)
+    }
+
+    fn read_i16<R: Read>(reader: &mut R) -> XTypesResult<i16> {
+        Self::Padding::pad(2, reader);
+        Self::Endianness::read_i16(reader)
+    }
+
+    fn read_u16<R: Read>(reader: &mut R) -> XTypesResult<u16> {
+        Self::Padding::pad(2, reader);
+        Self::Endianness::read_u16(reader)
+    }
+}
+
 /// A trait representing an object with the capability of deserializing a value from a CDR format.
 pub trait XTypesDeserializer<'de>: Sized {
     fn deserialize_final_struct(&mut self, v: &mut DynamicData) -> Result<(), XTypesError>;

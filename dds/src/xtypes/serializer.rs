@@ -70,7 +70,7 @@ impl<'a, W: Write> Write for WriterV2<'a, W> {
     }
 }
 
-pub trait Endianness {
+pub trait EndiannessWrite {
     fn write_bool<C: Write>(v: bool, writer: &mut C) {
         writer.write(&[v as u8]);
     }
@@ -99,7 +99,7 @@ pub trait Endianness {
     }
 }
 pub struct BigEndian;
-impl Endianness for BigEndian {
+impl EndiannessWrite for BigEndian {
     fn write_i16<C: Write>(v: i16, writer: &mut C) {
         writer.write(&v.to_be_bytes())
     }
@@ -127,7 +127,7 @@ impl Endianness for BigEndian {
 }
 
 pub struct LittleEndian;
-impl Endianness for LittleEndian {
+impl EndiannessWrite for LittleEndian {
     fn write_i16<C: Write>(v: i16, writer: &mut C) {
         writer.write(&v.to_le_bytes())
     }
@@ -159,25 +159,25 @@ fn pad_writer(alignment: usize, writer: &mut impl Write) {
     let padding = writer.pos().div_ceil(alignment) * alignment - writer.pos();
     writer.write(&ZEROS[..padding]);
 }
-pub trait Padding {
+pub trait PaddingWrite {
     fn pad(alignment: usize, writer: &mut impl Write);
 }
 pub struct PaddingV1;
-impl Padding for PaddingV1 {
+impl PaddingWrite for PaddingV1 {
     fn pad(alignment: usize, writer: &mut impl Write) {
         pad_writer(alignment, writer)
     }
 }
 pub struct PaddingV2;
-impl Padding for PaddingV2 {
+impl PaddingWrite for PaddingV2 {
     fn pad(alignment: usize, writer: &mut impl Write) {
         pad_writer(core::cmp::min(alignment, 4), writer)
     }
 }
 
 pub trait PadEndiannessWrite {
-    type Endianness: Endianness;
-    type Padding: Padding;
+    type Endianness: EndiannessWrite;
+    type Padding: PaddingWrite;
     fn writer(&mut self) -> &mut impl Write;
     fn pad(&mut self, alignment: usize) {
         Self::Padding::pad(alignment, self.writer());
@@ -392,8 +392,12 @@ pub trait XTypesSerializer<C> {
             TypeKind::UINT16 => serialize_sequence(&v.get_uint16_values(member_id)?, self.writer()),
             TypeKind::UINT32 => serialize_sequence(&v.get_uint32_values(member_id)?, self.writer()),
             TypeKind::UINT64 => serialize_sequence(&v.get_uint64_values(member_id)?, self.writer()),
-            TypeKind::FLOAT32 => serialize_sequence(&v.get_float32_values(member_id)?, self.writer()),
-            TypeKind::FLOAT64 => serialize_sequence(&v.get_float64_values(member_id)?, self.writer()),
+            TypeKind::FLOAT32 => {
+                serialize_sequence(&v.get_float32_values(member_id)?, self.writer())
+            }
+            TypeKind::FLOAT64 => {
+                serialize_sequence(&v.get_float64_values(member_id)?, self.writer())
+            }
             TypeKind::FLOAT128 => todo!(),
             TypeKind::INT8 => serialize_sequence(&v.get_int8_values(member_id)?, self.writer()),
             TypeKind::UINT8 => {

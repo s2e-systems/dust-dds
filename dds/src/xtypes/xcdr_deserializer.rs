@@ -1,5 +1,6 @@
 use crate::xtypes::{
     data_representation::DataKind,
+    deserializer::{BigEndian, PadEndiannessRead, PaddingV1, Read},
     dynamic_type::{
         DynamicData, DynamicDataFactory, DynamicType, ExtensibilityKind, MemberDescriptor,
     },
@@ -67,13 +68,13 @@ pub fn deserialize_nested<'de>(
 const PID_SENTINEL: u16 = 1;
 
 pub struct Xcdr1BeDeserializer<'a> {
-    reader: Reader<'a>,
+    reader: ReaderBe1<'a>,
 }
 
 impl<'a> Xcdr1BeDeserializer<'a> {
     pub fn new(buffer: &'a [u8]) -> Self {
         Self {
-            reader: Reader::new(buffer),
+            reader: ReaderBe1(Reader::new(buffer)),
         }
     }
 }
@@ -114,9 +115,26 @@ impl<'a> Xcdr2LeDeserializer<'a> {
     }
 }
 
+struct ReaderBe1<'a>(Reader<'a>);
+
+impl<'a> PadEndiannessRead for ReaderBe1<'a> {
+    type Endianness = BigEndian;
+    type Padding = PaddingV1;
+}
+
 struct Reader<'a> {
     buffer: &'a [u8],
     pos: usize,
+}
+
+impl<'a> Read for Reader<'a> {
+    fn read_exact(&mut self, size: usize) -> XTypesResult<&[u8]> {
+        self.read_all(size)
+    }
+
+    fn pos(&self) -> usize {
+        self.pos
+    }
 }
 
 impl<'a> Reader<'a> {
@@ -232,45 +250,6 @@ fn into_bool(v: u8) -> Result<bool, XTypesError> {
     }
 }
 
-struct DelimitedCdrDecoder<'a, D> {
-    deserializer: &'a mut D,
-}
-
-struct PlCdrBeDecoder<'a> {
-    buffer: &'a [u8],
-}
-
-struct PlCdrLeDecoder<'a> {
-    buffer: &'a [u8],
-}
-
-struct PlCdr2BeDecoder<'a> {
-    buffer: &'a [u8],
-}
-
-struct PlCdr2LeDecoder<'a> {
-    buffer: &'a [u8],
-}
-
-struct ArrayDecoder<'a, D> {
-    deserializer: &'a mut D,
-}
-
-struct SequenceDecoder<'a, D> {
-    deserializer: &'a mut D,
-    len: usize,
-}
-
-struct PlainCdrBeDecoder<'a, 'de> {
-    deserializer: &'a mut Xcdr1BeDeserializer<'de>,
-}
-struct PlainCdrLeDecoder<'a, 'de> {
-    deserializer: &'a mut Xcdr1LeDeserializer<'de>,
-}
-struct PlainCdr2Decoder<'a, D> {
-    deserializer: &'a mut D,
-}
-
 impl<'de> XTypesDeserializer<'de> for Xcdr1BeDeserializer<'de> {
     fn deserialize_final_struct(&mut self, v: &mut DynamicData) -> Result<(), XTypesError> {
         for field_index in 0..v.type_ref().get_member_count() {
@@ -354,37 +333,47 @@ impl<'de> XTypesDeserializer<'de> for Xcdr1BeDeserializer<'de> {
         into_bool(self.deserialize_uint8()?)
     }
     fn deserialize_int8(&mut self) -> Result<i8, XTypesError> {
-        Ok(i8::from_be_bytes(read_with_padding_v1(&mut self.reader)?))
+        <ReaderBe1<'_> as PadEndiannessRead>::read_i8(&mut self.reader.0)
     }
     fn deserialize_int16(&mut self) -> Result<i16, XTypesError> {
-        Ok(i16::from_be_bytes(read_with_padding_v1(&mut self.reader)?))
+        // Ok(i16::from_be_bytes(read_with_padding_v1(&mut self.reader)?))
+        todo!()
     }
     fn deserialize_int32(&mut self) -> Result<i32, XTypesError> {
-        Ok(i32::from_be_bytes(read_with_padding_v1(&mut self.reader)?))
+        // Ok(i32::from_be_bytes(read_with_padding_v1(&mut self.reader)?))
+        todo!()
     }
     fn deserialize_int64(&mut self) -> Result<i64, XTypesError> {
-        Ok(i64::from_be_bytes(read_with_padding_v1(&mut self.reader)?))
+        // Ok(i64::from_be_bytes(read_with_padding_v1(&mut self.reader)?))
+        todo!()
     }
     fn deserialize_uint8(&mut self) -> Result<u8, XTypesError> {
-        Ok(u8::from_be_bytes(read_with_padding_v1(&mut self.reader)?))
+        // Ok(u8::from_be_bytes(read_with_padding_v1(&mut self.reader)?))
+        todo!()
     }
     fn deserialize_uint16(&mut self) -> Result<u16, XTypesError> {
-        Ok(u16::from_be_bytes(read_with_padding_v1(&mut self.reader)?))
+        // Ok(u16::from_be_bytes(read_with_padding_v1(&mut self.reader)?))
+        <ReaderBe1<'_> as PadEndiannessRead>::read_u16(&mut self.reader.0)
     }
     fn deserialize_uint32(&mut self) -> Result<u32, XTypesError> {
-        Ok(u32::from_be_bytes(read_with_padding_v1(&mut self.reader)?))
+        // Ok(u32::from_be_bytes(read_with_padding_v1(&mut self.reader)?))
+        todo!()
     }
     fn deserialize_uint64(&mut self) -> Result<u64, XTypesError> {
-        Ok(u64::from_be_bytes(read_with_padding_v1(&mut self.reader)?))
+        // Ok(u64::from_be_bytes(read_with_padding_v1(&mut self.reader)?))
+        todo!()
     }
     fn deserialize_float32(&mut self) -> Result<f32, XTypesError> {
-        Ok(f32::from_be_bytes(read_with_padding_v1(&mut self.reader)?))
+        // Ok(f32::from_be_bytes(read_with_padding_v1(&mut self.reader)?))
+        todo!()
     }
     fn deserialize_float64(&mut self) -> Result<f64, XTypesError> {
-        Ok(f64::from_be_bytes(read_with_padding_v1(&mut self.reader)?))
+        // Ok(f64::from_be_bytes(read_with_padding_v1(&mut self.reader)?))
+        todo!()
     }
     fn deserialize_char8(&mut self) -> Result<char, XTypesError> {
-        Ok(self.deserialize_uint8()? as char)
+        // Ok(self.deserialize_uint8()? as char)
+        todo!()
     }
     fn deserialize_string(&mut self) -> Result<&'de str, XTypesError> {
         str::from_utf8(
@@ -396,12 +385,14 @@ impl<'de> XTypesDeserializer<'de> for Xcdr1BeDeserializer<'de> {
         .map_err(|_| XTypesError::InvalidData)
     }
     fn deserialize_byte_sequence(&mut self) -> Result<&'de [u8], XTypesError> {
-        let length = self.deserialize_uint32()? as usize;
-        self.reader.read_all(length)
+        // let length = self.deserialize_uint32()? as usize;
+        // self.reader.read_all(length)
+        todo!()
     }
 
     fn deserialize_byte_array<const N: usize>(&mut self) -> Result<&'de [u8; N], XTypesError> {
-        self.reader.read()
+        // self.reader.read()
+        todo!()
     }
 
     fn deserialize_data_kind(&mut self, dynamic_type: &DynamicType) -> XTypesResult<DataKind> {
@@ -828,12 +819,7 @@ mod tests {
         dynamic_type: DynamicType,
         data: &'de [u8],
     ) -> Result<DynamicData, XTypesError> {
-        deserialize_nested(
-            dynamic_type,
-            &mut Xcdr1BeDeserializer {
-                reader: Reader::new(data),
-            },
-        )
+        deserialize_nested(dynamic_type, &mut Xcdr1BeDeserializer::new(data))
     }
     fn deserialize_v1_le<'de>(
         dynamic_type: DynamicType,
