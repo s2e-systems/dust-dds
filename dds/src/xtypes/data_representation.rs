@@ -165,6 +165,12 @@ impl From<&[u8]> for DataKind {
     }
 }
 
+impl From<&str> for DataKind {
+    fn from(value: &str) -> Self {
+        value.to_string().into()
+    }
+}
+
 impl TryFrom<DataKind> for u8 {
     type Error = XTypesError;
 

@@ -1,9 +1,6 @@
 use crate::xtypes::{
-    data_representation::DataKind,
-    deserializer::{BigEndian, LittleEndian, PadEndiannessRead, PaddingV1, Read},
-    dynamic_type::{
-        DynamicData, DynamicDataFactory, DynamicType, ExtensibilityKind, MemberDescriptor,
-    },
+    deserializer::{EndiannessRead, Read},
+    dynamic_type::{DynamicData, DynamicDataFactory, DynamicType, ExtensibilityKind},
     error::XTypesResult,
 };
 
@@ -93,20 +90,6 @@ impl<'a, E> Xcdr2Deserializer<'a, E> {
             endianness,
         }
     }
-}
-
-struct ReaderBe1;
-
-impl PadEndiannessRead for ReaderBe1 {
-    type Endianness = BigEndian;
-    type Padding = PaddingV1;
-}
-
-struct ReaderLe1;
-
-impl PadEndiannessRead for ReaderLe1 {
-    type Endianness = LittleEndian;
-    type Padding = PaddingV1;
 }
 
 struct Reader<'a> {
@@ -229,37 +212,64 @@ fn seek_to_optional_pid_le(reader: &mut Reader, pid: u16) -> Result<bool, XTypes
     }
 }
 
-impl<'de, E: PadEndiannessRead> XTypesDeserializer<'de> for Xcdr1Deserializer<'de, E> {
+impl<'de, E: EndiannessRead> XTypesDeserializer<'de> for Xcdr1Deserializer<'de, E> {
     fn deserialize_final_struct(&mut self, v: &mut DynamicData) -> Result<(), XTypesError> {
         for field_index in 0..v.type_ref().get_member_count() {
             let type_member = v.type_ref().get_member_by_index(field_index)?;
             match type_member.get_descriptor()?.r#type.get_kind() {
                 TypeKind::NONE => todo!(),
-                TypeKind::BOOLEAN => todo!(),
+                TypeKind::BOOLEAN => {
+                    let value = E::read_bool(&mut self.reader)?;
+                    v.set_boolean_value(type_member.get_id(), value)?;
+                }
                 TypeKind::BYTE => todo!(),
                 TypeKind::INT16 => todo!(),
                 TypeKind::INT32 => todo!(),
                 TypeKind::INT64 => todo!(),
                 TypeKind::UINT16 => {
-                    let value = <E as PadEndiannessRead>::read_u16(&mut self.reader)?;
+                    self.reader.seek_padding(2);
+                    let value = E::read_u16(&mut self.reader)?;
                     v.set_uint16_value(type_member.get_id(), value)?;
                 }
-                TypeKind::UINT32 => todo!(),
+                TypeKind::UINT32 => {
+                    self.reader.seek_padding(4);
+                    let value = E::read_u32(&mut self.reader)?;
+                    v.set_uint32_value(type_member.get_id(), value)?;
+                }
                 TypeKind::UINT64 => {
-                    let value = <E as PadEndiannessRead>::read_u64(&mut self.reader)?;
+                    self.reader.seek_padding(8);
+                    let value = E::read_u64(&mut self.reader)?;
                     v.set_uint64_value(type_member.get_id(), value)?;
                 }
-                TypeKind::FLOAT32 => todo!(),
-                TypeKind::FLOAT64 => todo!(),
+                TypeKind::FLOAT32 => {
+                    self.reader.seek_padding(4);
+                    let value = E::read_f32(&mut self.reader)?;
+                    v.set_float32_value(type_member.get_id(), value)?;
+                }
+                TypeKind::FLOAT64 => {
+                    self.reader.seek_padding(8);
+                    let value = E::read_f64(&mut self.reader)?;
+                    v.set_float64_value(type_member.get_id(), value)?;
+                }
                 TypeKind::FLOAT128 => todo!(),
-                TypeKind::INT8 => todo!(),
+                TypeKind::INT8 => {
+                    let value = E::read_i8(&mut self.reader)?;
+                    v.set_int8_value(type_member.get_id(), value)?;
+                }
                 TypeKind::UINT8 => {
-                    let value = <E as PadEndiannessRead>::read_u8(&mut self.reader)?;
+                    let value = E::read_u8(&mut self.reader)?;
                     v.set_uint8_value(type_member.get_id(), value)?;
                 }
                 TypeKind::CHAR8 => todo!(),
                 TypeKind::CHAR16 => todo!(),
-                TypeKind::STRING8 => todo!(),
+                TypeKind::STRING8 => {
+                    self.reader.seek_padding(4);
+                    let length = E::read_u32(&mut self.reader)? as usize;
+                    let bytes = self.reader.read_all(length - 1)?.to_vec();
+                    let _ = self.reader.read_exact(1); // Read the terminating 0
+                    let value = String::from_utf8(bytes).map_err(|_| XTypesError::InvalidData)?;
+                    v.set_string_value(type_member.get_id(), value)?;
+                }
                 TypeKind::STRING16 => todo!(),
                 TypeKind::ALIAS => todo!(),
                 TypeKind::ENUM => todo!(),
@@ -274,14 +284,61 @@ impl<'de, E: PadEndiannessRead> XTypesDeserializer<'de> for Xcdr1Deserializer<'d
                 }
                 TypeKind::UNION => todo!(),
                 TypeKind::BITSET => todo!(),
-                TypeKind::SEQUENCE => todo!(),
+                TypeKind::SEQUENCE => {
+                    self.reader.seek_padding(4);
+                    let length = E::read_u32(&mut self.reader)? as usize;
+
+                    match type_member
+                        .get_descriptor()?
+                        .r#type
+                        .get_descriptor()
+                        .element_type
+                        .as_ref()
+                        .unwrap()
+                        .get_kind()
+                    {
+                        TypeKind::NONE => todo!(),
+                        TypeKind::BOOLEAN => {
+                            let mut value = Vec::with_capacity(length);
+                            for _ in 0..length {
+                                value.push(E::read_bool(&mut self.reader)?);
+                            }
+                            v.set_boolean_values(type_member.get_id(), value)?;
+                        }
+                        TypeKind::BYTE => todo!(),
+                        TypeKind::INT16 => todo!(),
+                        TypeKind::INT32 => todo!(),
+                        TypeKind::INT64 => todo!(),
+                        TypeKind::UINT16 => todo!(),
+                        TypeKind::UINT32 => todo!(),
+                        TypeKind::UINT64 => todo!(),
+                        TypeKind::FLOAT32 => todo!(),
+                        TypeKind::FLOAT64 => todo!(),
+                        TypeKind::FLOAT128 => todo!(),
+                        TypeKind::INT8 => todo!(),
+                        TypeKind::UINT8 => {
+                            let value = self.reader.read_exact(length as usize)?.to_vec();
+                            v.set_uint8_values(type_member.get_id(), value)?;
+                        }
+                        TypeKind::CHAR8 => todo!(),
+                        TypeKind::CHAR16 => todo!(),
+                        TypeKind::STRING8 => todo!(),
+                        TypeKind::STRING16 => todo!(),
+                        TypeKind::ALIAS => todo!(),
+                        TypeKind::ENUM => todo!(),
+                        TypeKind::BITMASK => todo!(),
+                        TypeKind::ANNOTATION => todo!(),
+                        TypeKind::STRUCTURE => todo!(),
+                        TypeKind::UNION => todo!(),
+                        TypeKind::BITSET => todo!(),
+                        TypeKind::SEQUENCE => todo!(),
+                        TypeKind::ARRAY => todo!(),
+                        TypeKind::MAP => todo!(),
+                    }
+                }
                 TypeKind::ARRAY => todo!(),
                 TypeKind::MAP => todo!(),
             }
-            // let member_value =
-            //     final_deserializer.deserialize_field(type_member.get_descriptor()?)?;
-            //             let member_id = type_member.get_id();
-            //             dynamic_data.set_value(member_id, member_value);
         }
         Ok(())
     }
@@ -377,7 +434,13 @@ impl<'de, E> XTypesDeserializer<'de> for &mut Xcdr2Deserializer<'de, E> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{infrastructure::type_support::TypeSupport, xtypes::bytes::Bytes};
+    use crate::{
+        infrastructure::type_support::TypeSupport,
+        xtypes::{
+            bytes::Bytes,
+            deserializer::{BigEndian, LittleEndian},
+        },
+    };
 
     use super::*;
 
@@ -431,13 +494,16 @@ mod tests {
         dynamic_type: DynamicType,
         data: &'de [u8],
     ) -> Result<DynamicData, XTypesError> {
-        deserialize_nested(dynamic_type, &mut Xcdr1Deserializer::new(data, ReaderBe1))
+        deserialize_nested(dynamic_type, &mut Xcdr1Deserializer::new(data, BigEndian))
     }
     fn deserialize_v1_le<'de>(
         dynamic_type: DynamicType,
         data: &'de [u8],
     ) -> Result<DynamicData, XTypesError> {
-        deserialize_nested(dynamic_type, &mut Xcdr1Deserializer::new(data, ReaderLe1))
+        deserialize_nested(
+            dynamic_type,
+            &mut Xcdr1Deserializer::new(data, LittleEndian),
+        )
     }
     // fn deserialize_v2_be<'de, T: XTypesDeserialize<'de>>(
     //     data: &'de [u8],
@@ -708,74 +774,73 @@ mod tests {
         // );
     }
 
-    // #[derive(Debug, PartialEq)]
-    // //@extensibility(FINAL)
-    // struct TypeWithStr<'a> {
-    //     field_str: &'a str,
-    //     field_u16: u16,
-    //     field_slice: Bytes<'a>,
-    // }
-    // impl<'de> XTypesDeserialize<'de> for TypeWithStr<'de> {
-    //     fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
-    //         let mut deserializer = deserializer.deserialize_final_struct()?;
-    //         Ok(Self {
-    //             field_str: deserializer.deserialize_field("field_str")?,
-    //             field_u16: deserializer.deserialize_field("field_u16")?,
-    //             field_slice: deserializer.deserialize_field("field_slice")?,
-    //         })
-    //     }
-    // }
+    #[derive(Debug, PartialEq, TypeSupport)]
+    //@extensibility(FINAL)
+    struct TypeWithStr<'a> {
+        field_str: &'a str,
+        field_u16: u16,
+        field_slice: Bytes<'a>,
+    }
 
-    // #[test]
-    // fn deserialize_struct_with_str() {
-    //     let expected = Ok(TypeWithStr {
-    //         field_str: "xt",
-    //         field_u16: 9,
-    //         field_slice: Bytes(&[10, 11]),
-    //     });
-    //     // PLAIN_CDR:
-    //     assert_eq!(
-    //         deserialize_v1_be(&[
-    //             0, 0, 0, 3, // field_str: length
-    //             b'x', b't', 0, 0, //field_str: data | padding (1 bytes)
-    //             0, 9, 0, 0, // field_u16 | padding (2 bytes)
-    //             0, 0, 0, 2, // field_slice: length
-    //             10, 11, //field_slice: data
-    //         ]),
-    //         expected
-    //     );
-    //     assert_eq!(
-    //         deserialize_v1_le(&[
-    //             3, 0, 0, 0, // field_str: length
-    //             b'x', b't', 0, 0, //field_str: data | padding (1 bytes)
-    //             9, 0, 0, 0, // field_u16 | padding (2 bytes)
-    //             2, 0, 0, 0, // field_slice: length
-    //             10, 11, //field_slice: data
-    //         ]),
-    //         expected
-    //     );
-    //     // PLAIN_CDR2:
-    //     assert_eq!(
-    //         deserialize_v2_be(&[
-    //             0, 0, 0, 3, // field_str: length
-    //             b'x', b't', 0, 0, //field_str: data | padding (1 bytes)
-    //             0, 9, 0, 0, // field_u16 | padding (2 bytes)
-    //             0, 0, 0, 2, // field_slice: length
-    //             10, 11, //field_slice: data
-    //         ]),
-    //         expected
-    //     );
-    //     assert_eq!(
-    //         deserialize_v2_le(&[
-    //             3, 0, 0, 0, // field_str: length
-    //             b'x', b't', 0, 0, //field_str: data | padding (1 bytes)
-    //             9, 0, 0, 0, // field_u16 | padding (2 bytes)
-    //             2, 0, 0, 0, // field_slice: length
-    //             10, 11, //field_slice: data
-    //         ]),
-    //         expected
-    //     );
-    // }
+    #[test]
+    fn deserialize_struct_with_str() {
+        let expected = TypeWithStr {
+            field_str: "xt",
+            field_u16: 9,
+            field_slice: Bytes(&[10, 11]),
+        }
+        .create_dynamic_sample();
+        // PLAIN_CDR:
+        assert_eq!(
+            deserialize_v1_be(
+                TypeWithStr::get_type(),
+                &[
+                    0, 0, 0, 3, // field_str: length
+                    b'x', b't', 0, 0, //field_str: data | padding (1 bytes)
+                    0, 9, 0, 0, // field_u16 | padding (2 bytes)
+                    0, 0, 0, 2, // field_slice: length
+                    10, 11, //field_slice: data
+                ]
+            )
+            .unwrap(),
+            expected
+        );
+        assert_eq!(
+            deserialize_v1_le(
+                TypeWithStr::get_type(),
+                &[
+                    3, 0, 0, 0, // field_str: length
+                    b'x', b't', 0, 0, //field_str: data | padding (1 bytes)
+                    9, 0, 0, 0, // field_u16 | padding (2 bytes)
+                    2, 0, 0, 0, // field_slice: length
+                    10, 11, //field_slice: data
+                ]
+            )
+            .unwrap(),
+            expected
+        );
+        // // PLAIN_CDR2:
+        // assert_eq!(
+        //     deserialize_v2_be(&[
+        //         0, 0, 0, 3, // field_str: length
+        //         b'x', b't', 0, 0, //field_str: data | padding (1 bytes)
+        //         0, 9, 0, 0, // field_u16 | padding (2 bytes)
+        //         0, 0, 0, 2, // field_slice: length
+        //         10, 11, //field_slice: data
+        //     ]),
+        //     expected
+        // );
+        // assert_eq!(
+        //     deserialize_v2_le(&[
+        //         3, 0, 0, 0, // field_str: length
+        //         b'x', b't', 0, 0, //field_str: data | padding (1 bytes)
+        //         9, 0, 0, 0, // field_u16 | padding (2 bytes)
+        //         2, 0, 0, 0, // field_slice: length
+        //         10, 11, //field_slice: data
+        //     ]),
+        //     expected
+        // );
+    }
 
     #[derive(Debug, PartialEq, TypeSupport)]
     //@extensibility(FINAL)

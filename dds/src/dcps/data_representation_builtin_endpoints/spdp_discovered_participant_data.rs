@@ -355,7 +355,7 @@ mod tests {
     use super::*;
     use crate::{
         builtin_topics::BuiltInTopicKey, infrastructure::qos_policy::UserDataQosPolicy,
-        rtps::types::PROTOCOLVERSION_2_4, xtypes::{pl_cdr_serializer::PlCdrLeSerializer, serializer::XTypesSerializer},
+        rtps::types::PROTOCOLVERSION_2_4, xtypes::{dynamic_type::DynamicData, pl_cdr_serializer::PlCdrLeSerializer, serializer::XTypesSerializer},
     };
 
     #[test]
