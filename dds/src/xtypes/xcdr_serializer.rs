@@ -1,7 +1,7 @@
 use super::{error::XTypesError, serializer::XTypesSerializer};
 use crate::xtypes::{
     dynamic_type::{DynamicData, TypeKind},
-    serializer::{EndiannessWriter, Write, WriterBe1, WriterBe2, WriterLe1, WriterLe2},
+    serializer::{PadEndiannessWrite, Write, WriterBe1, WriterBe2, WriterLe1, WriterLe2},
 };
 
 const PID_SENTINEL: u16 = 1;
@@ -77,7 +77,7 @@ impl<C: Write> XTypesSerializer<C> for Xcdr1BeSerializer<C> {
         Ok(())
     }
 
-    fn writer(&mut self) -> &mut impl EndiannessWriter {
+    fn writer(&mut self) -> &mut impl PadEndiannessWrite {
         &mut self.writer
     }
     fn into_inner(self) -> C {
@@ -111,7 +111,7 @@ impl<C: Write> XTypesSerializer<C> for Xcdr1LeSerializer<C> {
         self.writer().write_u16(0);
         Ok(())
     }
-    fn writer(&mut self) -> &mut impl EndiannessWriter {
+    fn writer(&mut self) -> &mut impl PadEndiannessWrite {
         &mut self.writer
     }
     fn into_inner(self) -> C {
@@ -144,7 +144,7 @@ impl<C: Write> Xcdr2LeSerializer<C> {
 }
 
 impl<C: Write> XTypesSerializer<C> for Xcdr2BeSerializer<C> {
-    fn writer(&mut self) -> &mut impl EndiannessWriter {
+    fn writer(&mut self) -> &mut impl PadEndiannessWrite {
         &mut self.writer
     }
 
@@ -159,6 +159,18 @@ impl<C: Write> XTypesSerializer<C> for Xcdr2BeSerializer<C> {
         }
         self.writer().write_u16(PID_SENTINEL);
         self.writer().write_u16(0);
+        Ok(())
+    }
+
+    fn serialize_appendable_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
+        for field_index in 0..v.get_item_count() {
+            let member_id = v.get_member_id_at_index(field_index)?;
+            // DHEADER
+            let length = count_bytes_xdr1_le(v, member_id)? as u32;
+            self.writer().write_u32(length);
+            // Value
+            self.serialize_dynamic_data_member(v, member_id)?;
+        }
         Ok(())
     }
 
@@ -168,7 +180,7 @@ impl<C: Write> XTypesSerializer<C> for Xcdr2BeSerializer<C> {
 }
 
 impl<C: Write> XTypesSerializer<C> for Xcdr2LeSerializer<C> {
-    fn writer(&mut self) -> &mut impl EndiannessWriter {
+    fn writer(&mut self) -> &mut impl PadEndiannessWrite {
         &mut self.writer
     }
 
@@ -185,6 +197,19 @@ impl<C: Write> XTypesSerializer<C> for Xcdr2LeSerializer<C> {
         self.writer().write_u16(0);
         Ok(())
     }
+
+    fn serialize_appendable_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
+        for field_index in 0..v.get_item_count() {
+            let member_id = v.get_member_id_at_index(field_index)?;
+            // DHEADER
+            let length = count_bytes_xdr1_le(v, member_id)? as u32;
+            self.writer().write_u32(length);
+            // Value
+            self.serialize_dynamic_data_member(v, member_id)?;
+        }
+        Ok(())
+    }
+
     fn into_inner(self) -> C {
         self.writer.0
     }

@@ -175,7 +175,7 @@ impl Padding for PaddingV2 {
     }
 }
 
-pub trait EndiannessWriter {
+pub trait PadEndiannessWrite {
     type Endianness: Endianness;
     type Padding: Padding;
     fn writer(&mut self) -> &mut impl Write;
@@ -235,7 +235,7 @@ pub trait EndiannessWriter {
 }
 
 pub struct WriterBe1<W>(pub W);
-impl<W: Write> EndiannessWriter for WriterBe1<W> {
+impl<W: Write> PadEndiannessWrite for WriterBe1<W> {
     type Endianness = BigEndian;
     type Padding = PaddingV1;
     fn writer(&mut self) -> &mut impl Write {
@@ -243,7 +243,7 @@ impl<W: Write> EndiannessWriter for WriterBe1<W> {
     }
 }
 pub struct WriterLe1<W>(pub W);
-impl<W: Write> EndiannessWriter for WriterLe1<W> {
+impl<W: Write> PadEndiannessWrite for WriterLe1<W> {
     type Endianness = LittleEndian;
     type Padding = PaddingV1;
     fn writer(&mut self) -> &mut impl Write {
@@ -251,7 +251,7 @@ impl<W: Write> EndiannessWriter for WriterLe1<W> {
     }
 }
 pub struct WriterBe2<W>(pub W);
-impl<W: Write> EndiannessWriter for WriterBe2<W> {
+impl<W: Write> PadEndiannessWrite for WriterBe2<W> {
     type Endianness = BigEndian;
     type Padding = PaddingV2;
     fn writer(&mut self) -> &mut impl Write {
@@ -259,7 +259,7 @@ impl<W: Write> EndiannessWriter for WriterBe2<W> {
     }
 }
 pub struct WriterLe2<W>(pub W);
-impl<W: Write> EndiannessWriter for WriterLe2<W> {
+impl<W: Write> PadEndiannessWrite for WriterLe2<W> {
     type Endianness = LittleEndian;
     type Padding = PaddingV2;
     fn writer(&mut self) -> &mut impl Write {
@@ -268,75 +268,75 @@ impl<W: Write> EndiannessWriter for WriterLe2<W> {
 }
 
 pub trait WriteBasicType: Copy {
-    fn write_basic_type(self, writer: &mut impl EndiannessWriter);
+    fn write_basic_type(self, writer: &mut impl PadEndiannessWrite);
 }
 impl WriteBasicType for bool {
-    fn write_basic_type(self, writer: &mut impl EndiannessWriter) {
+    fn write_basic_type(self, writer: &mut impl PadEndiannessWrite) {
         writer.write_bool(self);
     }
 }
 impl WriteBasicType for i8 {
-    fn write_basic_type(self, writer: &mut impl EndiannessWriter) {
+    fn write_basic_type(self, writer: &mut impl PadEndiannessWrite) {
         writer.write_i8(self);
     }
 }
 impl WriteBasicType for u8 {
-    fn write_basic_type(self, writer: &mut impl EndiannessWriter) {
+    fn write_basic_type(self, writer: &mut impl PadEndiannessWrite) {
         writer.write_u8(self);
     }
 }
 impl WriteBasicType for i16 {
-    fn write_basic_type(self, writer: &mut impl EndiannessWriter) {
+    fn write_basic_type(self, writer: &mut impl PadEndiannessWrite) {
         writer.write_i16(self);
     }
 }
 impl WriteBasicType for u16 {
-    fn write_basic_type(self, writer: &mut impl EndiannessWriter) {
+    fn write_basic_type(self, writer: &mut impl PadEndiannessWrite) {
         writer.write_u16(self);
     }
 }
 impl WriteBasicType for i32 {
-    fn write_basic_type(self, writer: &mut impl EndiannessWriter) {
+    fn write_basic_type(self, writer: &mut impl PadEndiannessWrite) {
         writer.write_i32(self);
     }
 }
 impl WriteBasicType for u32 {
-    fn write_basic_type(self, writer: &mut impl EndiannessWriter) {
+    fn write_basic_type(self, writer: &mut impl PadEndiannessWrite) {
         writer.write_u32(self);
     }
 }
 impl WriteBasicType for i64 {
-    fn write_basic_type(self, writer: &mut impl EndiannessWriter) {
+    fn write_basic_type(self, writer: &mut impl PadEndiannessWrite) {
         writer.write_i64(self);
     }
 }
 impl WriteBasicType for u64 {
-    fn write_basic_type(self, writer: &mut impl EndiannessWriter) {
+    fn write_basic_type(self, writer: &mut impl PadEndiannessWrite) {
         writer.write_u64(self);
     }
 }
 impl WriteBasicType for f32 {
-    fn write_basic_type(self, writer: &mut impl EndiannessWriter) {
+    fn write_basic_type(self, writer: &mut impl PadEndiannessWrite) {
         writer.write_f32(self);
     }
 }
 impl WriteBasicType for f64 {
-    fn write_basic_type(self, writer: &mut impl EndiannessWriter) {
+    fn write_basic_type(self, writer: &mut impl PadEndiannessWrite) {
         writer.write_f64(self);
     }
 }
 impl WriteBasicType for char {
-    fn write_basic_type(self, writer: &mut impl EndiannessWriter) {
+    fn write_basic_type(self, writer: &mut impl PadEndiannessWrite) {
         writer.write_char(self);
     }
 }
 impl WriteBasicType for &[u8] {
-    fn write_basic_type(self, writer: &mut impl EndiannessWriter) {
+    fn write_basic_type(self, writer: &mut impl PadEndiannessWrite) {
         writer.write_slice_u8(self);
     }
 }
 
-fn serialize_sequence(v: &[impl WriteBasicType], writer: &mut impl EndiannessWriter) {
+fn serialize_sequence(v: &[impl WriteBasicType], writer: &mut impl PadEndiannessWrite) {
     writer.write_u32(v.len() as u32);
     for vi in v.iter() {
         vi.write_basic_type(writer);
@@ -560,5 +560,5 @@ pub trait XTypesSerializer<C> {
         v.write_basic_type(self.writer());
     }
 
-    fn writer(&mut self) -> &mut impl EndiannessWriter;
+    fn writer(&mut self) -> &mut impl PadEndiannessWrite;
 }
