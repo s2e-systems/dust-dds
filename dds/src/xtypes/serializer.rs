@@ -382,19 +382,25 @@ pub trait XTypesSerializer<C> {
             .expect("sequence has element type");
         match element_type.get_descriptor().kind {
             TypeKind::NONE => todo!(),
-            TypeKind::BOOLEAN => serialize_sequence(&v.get_boolean_values(member_id)?, self.writer()),
+            TypeKind::BOOLEAN => {
+                serialize_sequence(&v.get_boolean_values(member_id)?, self.writer())
+            }
             TypeKind::BYTE => todo!(),
-            TypeKind::INT16 => todo!(),
-            TypeKind::INT32 => todo!(),
-            TypeKind::INT64 => todo!(),
+            TypeKind::INT16 => serialize_sequence(&v.get_int16_values(member_id)?, self.writer()),
+            TypeKind::INT32 => serialize_sequence(&v.get_int32_values(member_id)?, self.writer()),
+            TypeKind::INT64 => serialize_sequence(&v.get_int64_values(member_id)?, self.writer()),
             TypeKind::UINT16 => serialize_sequence(&v.get_uint16_values(member_id)?, self.writer()),
-            TypeKind::UINT32 => todo!(),
-            TypeKind::UINT64 => todo!(),
-            TypeKind::FLOAT32 => todo!(),
-            TypeKind::FLOAT64 => todo!(),
+            TypeKind::UINT32 => serialize_sequence(&v.get_uint32_values(member_id)?, self.writer()),
+            TypeKind::UINT64 => serialize_sequence(&v.get_uint64_values(member_id)?, self.writer()),
+            TypeKind::FLOAT32 => serialize_sequence(&v.get_float32_values(member_id)?, self.writer()),
+            TypeKind::FLOAT64 => serialize_sequence(&v.get_float64_values(member_id)?, self.writer()),
             TypeKind::FLOAT128 => todo!(),
-            TypeKind::INT8 => todo!(),
-            TypeKind::UINT8 => serialize_sequence(&v.get_uint8_values(member_id)?, self.writer()),
+            TypeKind::INT8 => serialize_sequence(&v.get_int8_values(member_id)?, self.writer()),
+            TypeKind::UINT8 => {
+                let list = v.get_uint8_values(member_id)?;
+                self.writer().write_u32(list.len() as u32);
+                self.writer().write_slice_u8(&list);
+            }
             TypeKind::CHAR8 => todo!(),
             TypeKind::CHAR16 => todo!(),
             TypeKind::STRING8 => {

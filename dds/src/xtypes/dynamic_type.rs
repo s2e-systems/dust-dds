@@ -689,7 +689,9 @@ impl DynamicData {
     }
 
     pub fn get_data_kind(&self, id: MemberId) -> XTypesResult<&DataKind> {
-        self.abstract_data.get(&id).ok_or(XTypesError::InvalidId(id))
+        self.abstract_data
+            .get(&id)
+            .ok_or(XTypesError::InvalidId(id))
     }
 
     pub fn set_complex_value(&mut self, id: MemberId, value: DynamicData) -> XTypesResult<()> {
@@ -698,7 +700,7 @@ impl DynamicData {
     }
 
     pub fn get_int32_values(&self, id: MemberId) -> XTypesResult<Vec<i32>> {
-        if let DataKind::Sequence(d) = self
+        if let DataKind::Sequence(d) | DataKind::Array(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
@@ -715,7 +717,7 @@ impl DynamicData {
     }
 
     pub fn get_uint32_values(&self, id: MemberId) -> XTypesResult<Vec<u32>> {
-        if let DataKind::Sequence(d) = self
+        if let DataKind::Sequence(d) | DataKind::Array(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
@@ -732,7 +734,7 @@ impl DynamicData {
     }
 
     pub fn get_int16_values(&self, id: MemberId) -> XTypesResult<Vec<i16>> {
-        if let DataKind::Sequence(d) = self
+        if let DataKind::Sequence(d) | DataKind::Array(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
@@ -749,7 +751,7 @@ impl DynamicData {
     }
 
     pub fn get_uint16_values(&self, id: MemberId) -> XTypesResult<Vec<u16>> {
-        if let DataKind::Sequence(d) = self
+        if let DataKind::Sequence(d) | DataKind::Array(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
@@ -766,7 +768,7 @@ impl DynamicData {
     }
 
     pub fn get_int64_values(&self, id: MemberId) -> XTypesResult<Vec<i64>> {
-        if let DataKind::Sequence(d) = self
+        if let DataKind::Sequence(d) | DataKind::Array(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
@@ -783,7 +785,7 @@ impl DynamicData {
     }
 
     pub fn get_uint64_values(&self, id: MemberId) -> XTypesResult<Vec<u64>> {
-        if let DataKind::Sequence(d) = self
+        if let DataKind::Sequence(d) | DataKind::Array(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
@@ -800,7 +802,7 @@ impl DynamicData {
     }
 
     pub fn get_float32_values(&self, id: MemberId) -> XTypesResult<Vec<f32>> {
-        if let DataKind::Sequence(d) = self
+        if let DataKind::Sequence(d) | DataKind::Array(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
@@ -817,7 +819,7 @@ impl DynamicData {
     }
 
     pub fn get_float64_values(&self, id: MemberId) -> XTypesResult<Vec<f64>> {
-        if let DataKind::Sequence(d) = self
+        if let DataKind::Sequence(d) | DataKind::Array(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
@@ -834,7 +836,7 @@ impl DynamicData {
     }
 
     pub fn get_char8_values(&self, id: MemberId) -> XTypesResult<Vec<char>> {
-        if let DataKind::Sequence(d) = self
+        if let DataKind::Sequence(d) | DataKind::Array(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
@@ -851,7 +853,7 @@ impl DynamicData {
     }
 
     pub fn get_byte_values(&self, id: MemberId) -> XTypesResult<Vec<u8>> {
-        if let DataKind::Sequence(d) = self
+        if let DataKind::Sequence(d) | DataKind::Array(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
@@ -868,7 +870,7 @@ impl DynamicData {
     }
 
     pub fn get_boolean_values(&self, id: MemberId) -> XTypesResult<Vec<bool>> {
-        if let DataKind::Sequence(d) = self
+        if let DataKind::Sequence(d) | DataKind::Array(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
@@ -885,7 +887,7 @@ impl DynamicData {
     }
 
     pub fn get_string_values(&self, id: MemberId) -> XTypesResult<Vec<String>> {
-        if let DataKind::Sequence(d) = self
+        if let DataKind::Sequence(d) | DataKind::Array(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
@@ -914,6 +916,18 @@ impl DynamicData {
         }
     }
 
+    pub fn get_int8_values(&self, id: MemberId) -> XTypesResult<Vec<i8>> {
+        if let DataKind::Sequence(d) | DataKind::Array(d) = self
+            .abstract_data
+            .get(&id)
+            .ok_or(XTypesError::InvalidId(id))?
+        {
+            d.iter().cloned().map(TryInto::try_into).collect()
+        } else {
+            Err(XTypesError::InvalidType)
+        }
+    }
+
     pub fn set_uint8_values(&mut self, id: MemberId, value: Vec<u8>) -> XTypesResult<()> {
         self.abstract_data.insert(id, value.into());
         Ok(())
@@ -925,7 +939,7 @@ impl DynamicData {
     }
 
     pub fn get_complex_values(&self, id: MemberId) -> XTypesResult<Vec<DynamicData>> {
-        if let DataKind::Sequence(d) = self
+        if let DataKind::Sequence(d) | DataKind::Array(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
@@ -943,12 +957,7 @@ impl DynamicData {
     ) -> XTypesResult<()> {
         self.abstract_data.insert(
             id,
-            DataKind::Sequence(
-                value
-                    .into_iter()
-                    .map(DataKind::ComplexValue)
-                    .collect(),
-            ),
+            DataKind::Sequence(value.into_iter().map(DataKind::ComplexValue).collect()),
         );
         Ok(())
     }
@@ -959,6 +968,8 @@ impl DynamicData {
     }
 
     pub fn get_value(&self, id: MemberId) -> XTypesResult<&DataKind> {
-        self.abstract_data.get(&id).ok_or(XTypesError::InvalidId(id))
+        self.abstract_data
+            .get(&id)
+            .ok_or(XTypesError::InvalidId(id))
     }
 }
