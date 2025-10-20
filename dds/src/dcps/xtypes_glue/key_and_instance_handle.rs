@@ -54,7 +54,7 @@ fn deserialize_and_serialize_if_key_field<'a, T, W: Write>(
     serializer: &mut impl XTypesSerializer<W>,
 ) -> Result<(), XTypesError>
 where
-    for<'b> &'b mut T: XTypesDeserializer<'a>,
+    T: XTypesDeserializer<'a>,
 {
     // match dynamic_type.get_kind() {
     //     TypeKind::BOOLEAN => {
@@ -333,7 +333,7 @@ fn push_to_key_for_key<'a, T, W: Write>(
     de: &mut T,
 ) -> Result<(), XTypesError>
 where
-    for<'b> &'b mut T: XTypesDeserializer<'a>,
+    T: XTypesDeserializer<'a>,
 {
     for member_descriptor in dynamic_type.into_iter() {
         let member_descriptor = member_descriptor?;

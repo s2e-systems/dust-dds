@@ -1,12 +1,14 @@
 use crate::xtypes::{
-    data_representation::DataKind, dynamic_type::DynamicType, error::XTypesResult,
+    data_representation::DataKind,
+    dynamic_type::{DynamicData, DynamicType},
+    error::XTypesResult,
 };
 
 use super::error::XTypesError;
 
 /// A trait representing an object with the capability of deserializing a value from a CDR format.
 pub trait XTypesDeserializer<'de>: Sized {
-    fn deserialize_final_struct(&mut self) -> Result<(), XTypesError>;
+    fn deserialize_final_struct(&mut self, v: &mut DynamicData) -> Result<(), XTypesError>;
     fn deserialize_appendable_struct(&mut self) -> Result<(), XTypesError>;
     fn deserialize_mutable_struct(&mut self) -> Result<(), XTypesError>;
     fn deserialize_array(&mut self) -> Result<(), XTypesError>;

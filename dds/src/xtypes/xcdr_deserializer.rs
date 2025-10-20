@@ -39,15 +39,7 @@ pub fn deserialize_nested<'de>(
         TypeKind::ANNOTATION => todo!(),
         TypeKind::STRUCTURE => match dynamic_data.type_ref().get_descriptor().extensibility_kind {
             ExtensibilityKind::Final => {
-                todo!()
-                // let mut final_deserializer = deserializer.deserialize_final_struct()?;
-                // for field_index in 0..dynamic_data.type_ref().get_member_count() {
-                //     let type_member = dynamic_data.type_ref().get_member_by_index(field_index)?;
-                //     let member_value =
-                //         final_deserializer.deserialize_field(type_member.get_descriptor()?)?;
-                //     let member_id = type_member.get_id();
-                //     dynamic_data.set_value(member_id, member_value);
-                // }
+                deserializer.deserialize_final_struct(&mut dynamic_data)?;
             }
             ExtensibilityKind::Appendable => todo!(),
             ExtensibilityKind::Mutable => {
@@ -280,9 +272,60 @@ struct PlainCdr2Decoder<'a, D> {
 }
 
 impl<'de> XTypesDeserializer<'de> for Xcdr1BeDeserializer<'de> {
-    fn deserialize_final_struct(&mut self) -> Result<(), XTypesError> {
-        // Ok(PlainCdrBeDecoder { deserializer: self })
-        todo!()
+    fn deserialize_final_struct(&mut self, v: &mut DynamicData) -> Result<(), XTypesError> {
+        for field_index in 0..v.type_ref().get_member_count() {
+            let type_member = v.type_ref().get_member_by_index(field_index)?;
+            match type_member.get_descriptor()?.r#type.get_kind() {
+                TypeKind::NONE => todo!(),
+                TypeKind::BOOLEAN => todo!(),
+                TypeKind::BYTE => todo!(),
+                TypeKind::INT16 => todo!(),
+                TypeKind::INT32 => todo!(),
+                TypeKind::INT64 => todo!(),
+                TypeKind::UINT16 => {
+                    let value = self.deserialize_uint16()?;
+                    v.set_uint16_value(type_member.get_id(), value)?;
+                }
+                TypeKind::UINT32 => todo!(),
+                TypeKind::UINT64 => {
+                    let value = self.deserialize_uint64()?;
+                    v.set_uint64_value(type_member.get_id(), value)?;
+                }
+                TypeKind::FLOAT32 => todo!(),
+                TypeKind::FLOAT64 => todo!(),
+                TypeKind::FLOAT128 => todo!(),
+                TypeKind::INT8 => todo!(),
+                TypeKind::UINT8 => {
+                    let value = self.deserialize_uint8()?;
+                    v.set_uint8_value(type_member.get_id(), value)?;
+                }
+                TypeKind::CHAR8 => todo!(),
+                TypeKind::CHAR16 => todo!(),
+                TypeKind::STRING8 => todo!(),
+                TypeKind::STRING16 => todo!(),
+                TypeKind::ALIAS => todo!(),
+                TypeKind::ENUM => todo!(),
+                TypeKind::BITMASK => todo!(),
+                TypeKind::ANNOTATION => todo!(),
+                TypeKind::STRUCTURE => {
+                    let mut value = DynamicDataFactory::create_data(
+                        type_member.get_descriptor()?.r#type.clone(),
+                    );
+                    self.deserialize_final_struct(&mut value)?;
+                    v.set_complex_value(type_member.get_id(), value)?;
+                }
+                TypeKind::UNION => todo!(),
+                TypeKind::BITSET => todo!(),
+                TypeKind::SEQUENCE => todo!(),
+                TypeKind::ARRAY => todo!(),
+                TypeKind::MAP => todo!(),
+            }
+            // let member_value =
+            //     final_deserializer.deserialize_field(type_member.get_descriptor()?)?;
+            //             let member_id = type_member.get_id();
+            //             dynamic_data.set_value(member_id, member_value);
+        }
+        Ok(())
     }
     fn deserialize_appendable_struct(&mut self) -> Result<(), XTypesError> {
         // Ok(PlainCdrBeDecoder { deserializer: self })
@@ -396,10 +439,52 @@ impl<'de> XTypesDeserializer<'de> for Xcdr1BeDeserializer<'de> {
     }
 }
 
-impl<'de> XTypesDeserializer<'de> for &mut Xcdr1LeDeserializer<'de> {
-    fn deserialize_final_struct(&mut self) -> Result<(), XTypesError> {
-        // Ok(PlainCdrLeDecoder { deserializer: self })
-        todo!()
+impl<'de> XTypesDeserializer<'de> for Xcdr1LeDeserializer<'de> {
+    fn deserialize_final_struct(&mut self, v: &mut DynamicData) -> Result<(), XTypesError> {
+        for field_index in 0..v.type_ref().get_member_count() {
+            let type_member = v.type_ref().get_member_by_index(field_index)?;
+            match type_member.get_descriptor()?.r#type.get_kind() {
+                TypeKind::NONE => todo!(),
+                TypeKind::BOOLEAN => todo!(),
+                TypeKind::BYTE => todo!(),
+                TypeKind::INT16 => todo!(),
+                TypeKind::INT32 => todo!(),
+                TypeKind::INT64 => todo!(),
+                TypeKind::UINT16 => {
+                    let value = self.deserialize_uint16()?;
+                    v.set_uint16_value(type_member.get_id(), value)?;
+                }
+                TypeKind::UINT32 => todo!(),
+                TypeKind::UINT64 => {
+                    let value = self.deserialize_uint64()?;
+                    v.set_uint64_value(type_member.get_id(), value)?;
+                }
+                TypeKind::FLOAT32 => todo!(),
+                TypeKind::FLOAT64 => todo!(),
+                TypeKind::FLOAT128 => todo!(),
+                TypeKind::INT8 => todo!(),
+                TypeKind::UINT8 => todo!(),
+                TypeKind::CHAR8 => todo!(),
+                TypeKind::CHAR16 => todo!(),
+                TypeKind::STRING8 => todo!(),
+                TypeKind::STRING16 => todo!(),
+                TypeKind::ALIAS => todo!(),
+                TypeKind::ENUM => todo!(),
+                TypeKind::BITMASK => todo!(),
+                TypeKind::ANNOTATION => todo!(),
+                TypeKind::STRUCTURE => todo!(),
+                TypeKind::UNION => todo!(),
+                TypeKind::BITSET => todo!(),
+                TypeKind::SEQUENCE => todo!(),
+                TypeKind::ARRAY => todo!(),
+                TypeKind::MAP => todo!(),
+            }
+            // let member_value =
+            //     final_deserializer.deserialize_field(type_member.get_descriptor()?)?;
+            //             let member_id = type_member.get_id();
+            //             dynamic_data.set_value(member_id, member_value);
+        }
+        Ok(())
     }
     fn deserialize_appendable_struct(&mut self) -> Result<(), XTypesError> {
         // Ok(PlainCdrLeDecoder { deserializer: self })
@@ -514,7 +599,7 @@ impl<'de> XTypesDeserializer<'de> for &mut Xcdr1LeDeserializer<'de> {
 }
 
 impl<'de> XTypesDeserializer<'de> for &mut Xcdr2BeDeserializer<'de> {
-    fn deserialize_final_struct(&mut self) -> Result<(), XTypesError> {
+    fn deserialize_final_struct(&mut self, v: &mut DynamicData) -> Result<(), XTypesError> {
         // Ok(PlainCdr2Decoder { deserializer: self })
         todo!()
     }
@@ -600,7 +685,7 @@ impl<'de> XTypesDeserializer<'de> for &mut Xcdr2BeDeserializer<'de> {
 }
 
 impl<'de> XTypesDeserializer<'de> for &mut Xcdr2LeDeserializer<'de> {
-    fn deserialize_final_struct(&mut self) -> Result<(), XTypesError> {
+    fn deserialize_final_struct(&mut self, v: &mut DynamicData) -> Result<(), XTypesError> {
         // Ok(PlainCdr2Decoder { deserializer: self })
         todo!()
     }
@@ -743,25 +828,23 @@ mod tests {
         dynamic_type: DynamicType,
         data: &'de [u8],
     ) -> Result<DynamicData, XTypesError> {
-        todo!()
-        // deserialize_nested(
-        //     dynamic_type,
-        //     &mut Xcdr1BeDeserializer {
-        //         reader: Reader::new(data),
-        //     },
-        // )
+        deserialize_nested(
+            dynamic_type,
+            &mut Xcdr1BeDeserializer {
+                reader: Reader::new(data),
+            },
+        )
     }
     fn deserialize_v1_le<'de>(
         dynamic_type: DynamicType,
         data: &'de [u8],
     ) -> Result<DynamicData, XTypesError> {
-        // deserialize_nested(
-        //     dynamic_type,
-        //     &mut Xcdr1LeDeserializer {
-        //         reader: Reader::new(data),
-        //     },
-        // )
-        todo!()
+        deserialize_nested(
+            dynamic_type,
+            &mut Xcdr1LeDeserializer {
+                reader: Reader::new(data),
+            },
+        )
     }
     // fn deserialize_v2_be<'de, T: XTypesDeserialize<'de>>(
     //     data: &'de [u8],
@@ -1101,21 +1184,12 @@ mod tests {
     //     );
     // }
 
-    // #[derive(Debug, PartialEq)]
-    // //@extensibility(FINAL)
-    // struct NestedFinalType {
-    //     field_nested: FinalType,
-    //     field_u8: u8,
-    // }
-    // impl<'de> XTypesDeserialize<'de> for NestedFinalType {
-    //     fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
-    //         let mut deserializer = deserializer.deserialize_final_struct()?;
-    //         Ok(Self {
-    //             field_nested: deserializer.deserialize_field("field_nested")?,
-    //             field_u8: deserializer.deserialize_field("field_u8")?,
-    //         })
-    //     }
-    // }
+    #[derive(Debug, PartialEq, TypeSupport)]
+    //@extensibility(FINAL)
+    struct NestedFinalType {
+        field_nested: FinalType,
+        field_u8: u8,
+    }
 
     // #[derive(Debug, PartialEq)]
     // //@extensibility(FINAL)
@@ -1206,50 +1280,59 @@ mod tests {
     //     );
     // }
 
-    // #[test]
-    // fn deserialize_nested_final_struct() {
-    //     let expected = Ok(NestedFinalType {
-    //         field_nested: FinalType {
-    //             field_u16: 7,
-    //             field_u64: 9,
-    //         },
-    //         field_u8: 10,
-    //     });
-    //     // PLAIN_CDR:
-    //     assert_eq!(
-    //         deserialize_v1_be::<NestedFinalType>(&[
-    //             0, 7, 0, 0, 0, 0, 0, 0, // nested FinalType (u16) | padding (6 bytes)
-    //             0, 0, 0, 0, 0, 0, 0, 9,  // nested FinalType (u64)
-    //             10, //u8
-    //         ]),
-    //         expected
-    //     );
-    //     assert_eq!(
-    //         deserialize_v1_le::<NestedFinalType>(&[
-    //             7, 0, 0, 0, 0, 0, 0, 0, // nested FinalType (u16) | padding (6 bytes)
-    //             9, 0, 0, 0, 0, 0, 0, 0,  // nested FinalType (u64)
-    //             10, //u8
-    //         ]),
-    //         expected
-    //     );
-    //     //PLAIN_CDR2:
-    //     assert_eq!(
-    //         deserialize_v2_le::<NestedFinalType>(&[
-    //             7, 0, 0, 0, // nested FinalType (u16) | padding (2 bytes)
-    //             9, 0, 0, 0, 0, 0, 0, 0,  // nested FinalType (u64)
-    //             10, //u8
-    //         ]),
-    //         expected
-    //     );
-    //     assert_eq!(
-    //         deserialize_v2_be::<NestedFinalType>(&[
-    //             0, 7, 0, 0, // nested FinalType (u16) | padding
-    //             0, 0, 0, 0, 0, 0, 0, 9,  // nested FinalType (u64)
-    //             10, //u8
-    //         ]),
-    //         expected
-    //     );
-    // }
+    #[test]
+    fn deserialize_nested_final_struct() {
+        let expected = NestedFinalType {
+            field_nested: FinalType {
+                field_u16: 7,
+                field_u64: 9,
+            },
+            field_u8: 10,
+        }
+        .create_dynamic_sample();
+        // PLAIN_CDR:
+        assert_eq!(
+            deserialize_v1_be(
+                NestedFinalType::get_type(),
+                &[
+                    0, 7, 0, 0, 0, 0, 0, 0, // nested FinalType (u16) | padding (6 bytes)
+                    0, 0, 0, 0, 0, 0, 0, 9,  // nested FinalType (u64)
+                    10, //u8
+                ]
+            )
+            .unwrap(),
+            expected
+        );
+        // assert_eq!(
+        //     deserialize_v1_le(
+        //         NestedFinalType::get_type(),
+        //         &[
+        //             7, 0, 0, 0, 0, 0, 0, 0, // nested FinalType (u16) | padding (6 bytes)
+        //             9, 0, 0, 0, 0, 0, 0, 0,  // nested FinalType (u64)
+        //             10, //u8
+        //         ]
+        //     )
+        //     .unwrap(),
+        //     expected
+        // );
+        //     //PLAIN_CDR2:
+        //     assert_eq!(
+        //         deserialize_v2_le::<NestedFinalType>(&[
+        //             7, 0, 0, 0, // nested FinalType (u16) | padding (2 bytes)
+        //             9, 0, 0, 0, 0, 0, 0, 0,  // nested FinalType (u64)
+        //             10, //u8
+        //         ]),
+        //         expected
+        //     );
+        //     assert_eq!(
+        //         deserialize_v2_be::<NestedFinalType>(&[
+        //             0, 7, 0, 0, // nested FinalType (u16) | padding
+        //             0, 0, 0, 0, 0, 0, 0, 9,  // nested FinalType (u64)
+        //             10, //u8
+        //         ]),
+        //         expected
+        //     );
+    }
 
     // #[derive(Debug, PartialEq)]
     // // @extensibility(APPENDABLE) @nested

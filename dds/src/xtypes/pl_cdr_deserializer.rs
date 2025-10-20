@@ -6,7 +6,9 @@ use crate::{
         types::ParameterId,
     },
     xtypes::{
-        data_representation::DataKind, deserializer::XTypesDeserializer, dynamic_type::DynamicType,
+        data_representation::DataKind,
+        deserializer::XTypesDeserializer,
+        dynamic_type::{DynamicData, DynamicType},
         error::XTypesResult,
     },
 };
@@ -143,7 +145,10 @@ impl<'de> ParameterListCdrDeserializer<'de> {
 pub struct PlCdrDeserializer {}
 
 impl<'de> XTypesDeserializer<'de> for &mut PlCdrDeserializer {
-    fn deserialize_final_struct(&mut self) -> Result<(), super::error::XTypesError> {
+    fn deserialize_final_struct(
+        &mut self,
+        v: &mut DynamicData,
+    ) -> Result<(), super::error::XTypesError> {
         todo!()
         // Ok(self)
     }
