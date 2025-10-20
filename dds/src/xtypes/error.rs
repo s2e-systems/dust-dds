@@ -6,7 +6,8 @@ pub enum XTypesError {
     InvalidData,
     InvalidType,
     PidNotFound(u16),
-    InvalidIndex,
+    InvalidId(u32),
+    InvalidIndex(u32),
     /// An operation was invoked on an inappropriate object or
     /// at an inappropriate time (as determined by policies set by the
     /// specification or the Service implementation). There is no
