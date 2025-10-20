@@ -1,4 +1,4 @@
-use crate::xtypes::endianness::{self, CDR_LE, REPRESENTATION_OPTIONS};
+use crate::xtypes::endianness::{self};
 use dust_dds::{
     infrastructure::{
         error::DdsResult,
@@ -7,9 +7,7 @@ use dust_dds::{
     xtypes::{
         deserializer::XTypesDeserializer,
         error::XTypesError,
-        serializer::XTypesSerializer,
         xcdr_deserializer::{Xcdr1BeDeserializer, Xcdr1LeDeserializer},
-        xcdr_serializer::Xcdr1Serializer,
     },
 };
 use pyo3::{
@@ -259,7 +257,7 @@ impl TypeSupport for PythonDdsData {
 }
 
 impl PythonDdsData {
-    pub fn from_py_object(py_object: Py<PyAny>) -> PyResult<Self> {
+    pub fn from_py_object(_py_object: Py<PyAny>) -> PyResult<Self> {
         // fn serialize_data_member(
         //     _member_data: &Bound<PyAny>,
         //     _member_type: &Bound<PyAny>,
