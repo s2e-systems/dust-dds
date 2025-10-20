@@ -1,6 +1,8 @@
 use super::{error::XTypesError, serializer::XTypesSerializer};
 use crate::xtypes::{
-    data_representation::DataKind, dynamic_type::{DynamicData, TypeKind}, serializer::{EndiannessWriter, LittleEndian, Write}, xcdr_serializer::Xcdr1LeSerializer
+    dynamic_type::{DynamicData, TypeKind},
+    serializer::{EndiannessWriter, Write},
+    xcdr_serializer::Xcdr1LeSerializer,
 };
 
 const PID_SENTINEL: u16 = 1;

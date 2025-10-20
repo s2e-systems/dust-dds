@@ -92,7 +92,7 @@ pub trait Endianness {
         writer.write(v.to_string().as_bytes());
     }
     fn write_str<C: Write>(v: &str, writer: &mut C) {
-        writer.write(&v.as_bytes());
+        writer.write(v.as_bytes());
     }
     fn write_slice_u8<C: Write>(v: &[u8], writer: &mut C) {
         writer.write(v);
@@ -267,7 +267,7 @@ impl<W: Write> EndiannessWriter for WriterLe2<W> {
     }
 }
 
-trait WriteBasicType: Copy {
+pub trait WriteBasicType: Copy {
     fn write_basic_type(self, writer: &mut impl EndiannessWriter);
 }
 impl WriteBasicType for bool {

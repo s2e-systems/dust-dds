@@ -1,9 +1,7 @@
 use super::{error::XTypesError, serializer::XTypesSerializer};
 use crate::xtypes::{
     dynamic_type::{DynamicData, TypeKind},
-    serializer::{
-        BigEndian, EndiannessWriter, LittleEndian, Padding, PaddingV1, Write, Writer, WriterBe1, WriterBe2, WriterLe1, WriterLe2, WriterV1, WriterV2
-    },
+    serializer::{EndiannessWriter, Write, WriterBe1, WriterBe2, WriterLe1, WriterLe2},
 };
 
 const PID_SENTINEL: u16 = 1;
@@ -143,10 +141,6 @@ impl<C: Write> Xcdr2LeSerializer<C> {
             writer: WriterLe2(collection),
         }
     }
-}
-
-struct PlainCdr2Encoder<'a, S> {
-    serializer: &'a mut S,
 }
 
 impl<C: Write> XTypesSerializer<C> for Xcdr2BeSerializer<C> {
@@ -510,31 +504,31 @@ mod tests {
                 10, //u8
             ]
         );
-        // assert_eq!(
-        //     serialize_v1_le(v.clone()),
-        //     vec![
-        //         7, 0, 0, 0, 0, 0, 0, 0, // nested FinalType (u16) | padding (6 bytes)
-        //         9, 0, 0, 0, 0, 0, 0, 0,  // u64
-        //         10, //u8
-        //     ]
-        // );
-        // // PLAIN_CDR2:
-        // assert_eq!(
-        //     serialize_v2_le(v.clone()),
-        //     vec![
-        //         7, 0, 0, 0, // nested FinalType (u16) | padding (2 bytes)
-        //         9, 0, 0, 0, 0, 0, 0, 0,  // u64
-        //         10, //u8
-        //     ]
-        // );
-        // assert_eq!(
-        //     serialize_v2_be(v.clone()),
-        //     vec![
-        //         0, 7, 0, 0, // nested FinalType (u16) | padding
-        //         0, 0, 0, 0, 0, 0, 0, 9,  // u64
-        //         10, //u8
-        //     ]
-        // );
+        assert_eq!(
+            serialize_v1_le(v.clone()),
+            vec![
+                7, 0, 0, 0, 0, 0, 0, 0, // nested FinalType (u16) | padding (6 bytes)
+                9, 0, 0, 0, 0, 0, 0, 0,  // u64
+                10, //u8
+            ]
+        );
+        // PLAIN_CDR2:
+        assert_eq!(
+            serialize_v2_le(v.clone()),
+            vec![
+                7, 0, 0, 0, // nested FinalType (u16) | padding (2 bytes)
+                9, 0, 0, 0, 0, 0, 0, 0,  // u64
+                10, //u8
+            ]
+        );
+        assert_eq!(
+            serialize_v2_be(v.clone()),
+            vec![
+                0, 7, 0, 0, // nested FinalType (u16) | padding
+                0, 0, 0, 0, 0, 0, 0, 9,  // u64
+                10, //u8
+            ]
+        );
     }
 
     #[derive(TypeSupport, Clone)]
@@ -548,22 +542,22 @@ mod tests {
         let v = AppendableType { value: 7 };
         // PLAIN_CDR:
         assert_eq!(serialize_v1_be(v.clone()), vec![0, 7]);
-        // assert_eq!(serialize_v1_le(v.clone()), vec![7, 0]);
-        // // DELIMITED_CDR:
-        // assert_eq!(
-        //     serialize_v2_be(v.clone()),
-        //     vec![
-        //         0, 0, 0, 2, // DHEADER
-        //         0, 7 // value
-        //     ]
-        // );
-        // assert_eq!(
-        //     serialize_v2_le(v.clone()),
-        //     vec![
-        //         2, 0, 0, 0, // DHEADER
-        //         7, 0 // value
-        //     ]
-        // );
+        assert_eq!(serialize_v1_le(v.clone()), vec![7, 0]);
+        // DELIMITED_CDR:
+        assert_eq!(
+            serialize_v2_be(v.clone()),
+            vec![
+                0, 0, 0, 2, // DHEADER
+                0, 7 // value
+            ]
+        );
+        assert_eq!(
+            serialize_v2_le(v.clone()),
+            vec![
+                2, 0, 0, 0, // DHEADER
+                7, 0 // value
+            ]
+        );
     }
 
     #[derive(TypeSupport, Clone)]
@@ -592,37 +586,37 @@ mod tests {
                 0, 1, 0, 0, // Sentinel
             ]
         );
-        // assert_eq!(
-        //     serialize_v1_le(v.clone()),
-        //     vec![
-        //         0x050, 0x00, 2, 0, // PID | length
-        //         8, 0, 0, 0, // participant_key | padding (2 bytes)
-        //         0x05A, 0x00, 1, 0, // PID | length
-        //         7, 0, 0, 0, // key | padding
-        //         1, 0, 0, 0, // Sentinel
-        //     ]
-        // );
-        // // PL_CDR2:
-        // assert_eq!(
-        //     serialize_v2_be(v.clone()),
-        //     vec![
-        //         0x00, 0x050, 0, 2, // PID | length
-        //         0, 8, 0, 0, // participant_key | padding (2 bytes)
-        //         0x00, 0x05A, 0, 1, // PID | length
-        //         7, 0, 0, 0, // key | padding
-        //         0, 1, 0, 0, // Sentinel
-        //     ]
-        // );
-        // assert_eq!(
-        //     serialize_v2_le(v.clone()),
-        //     vec![
-        //         0x050, 0x00, 2, 0, // PID | length
-        //         8, 0, 0, 0, // participant_key | padding (2 bytes)
-        //         0x05A, 0x00, 1, 0, // PID | length
-        //         7, 0, 0, 0, // key | padding
-        //         1, 0, 0, 0, // Sentinel
-        //     ]
-        // );
+        assert_eq!(
+            serialize_v1_le(v.clone()),
+            vec![
+                0x050, 0x00, 2, 0, // PID | length
+                8, 0, 0, 0, // participant_key | padding (2 bytes)
+                0x05A, 0x00, 1, 0, // PID | length
+                7, 0, 0, 0, // key | padding
+                1, 0, 0, 0, // Sentinel
+            ]
+        );
+        // PL_CDR2:
+        assert_eq!(
+            serialize_v2_be(v.clone()),
+            vec![
+                0x00, 0x050, 0, 2, // PID | length
+                0, 8, 0, 0, // participant_key | padding (2 bytes)
+                0x00, 0x05A, 0, 1, // PID | length
+                7, 0, 0, 0, // key | padding
+                0, 1, 0, 0, // Sentinel
+            ]
+        );
+        assert_eq!(
+            serialize_v2_le(v.clone()),
+            vec![
+                0x050, 0x00, 2, 0, // PID | length
+                8, 0, 0, 0, // participant_key | padding (2 bytes)
+                0x05A, 0x00, 1, 0, // PID | length
+                7, 0, 0, 0, // key | padding
+                1, 0, 0, 0, // Sentinel
+            ]
+        );
     }
 
     #[derive(TypeSupport, Clone)]
@@ -668,55 +662,55 @@ mod tests {
                 0, 1, 0, 0, // Sentinel
             ]
         );
-        // assert_eq!(
-        //     serialize_v1_le(v.clone()),
-        //     vec![
-        //         0x060, 0x00, 1, 0, // PID | length
-        //         5, 0, 0, 0, // field_primitive | padding (3 bytes)
-        //         0x061, 0x00, 20, 0, // PID | length
-        //         0x050, 0x00, 2, 0, // field_mutable: PID | length
-        //         8, 0, 0, 0, // field_mutable: participant_key | padding (2 bytes)
-        //         0x05A, 0x00, 1, 0, // field_mutable: PID | length
-        //         7, 0, 0, 0, // field_mutable: key | padding (3 bytes)
-        //         1, 0, 0, 0, // field_mutable: Sentinel
-        //         0x062, 0x00, 2, 0, // field_mutable: PID | length
-        //         9, 0, 0, 0, // field_final: primitive | padding (2 bytes)
-        //         1, 0, 0, 0, // Sentinel
-        //     ]
-        // );
-        // // PL_CDR2:
-        // assert_eq!(
-        //     serialize_v2_be(v.clone()),
-        //     vec![
-        //         0x00, 0x060, 0, 1, // PID | length
-        //         5, 0, 0, 0, // field_primitive | padding (3 bytes)
-        //         0x00, 0x061, 0, 20, // PID | length
-        //         0x00, 0x050, 0, 2, // field_mutable: PID | length
-        //         0, 8, 0, 0, // field_mutable: participant_key | padding (2 bytes)
-        //         0x00, 0x05A, 0, 1, // field_mutable: PID | length
-        //         7, 0, 0, 0, // field_mutable: key | padding (3 bytes)
-        //         0, 1, 0, 0, // field_mutable: Sentinel
-        //         0x00, 0x062, 0, 2, // field_mutable: PID | length
-        //         0, 9, 0, 0, // field_final: primitive | padding (2 bytes)
-        //         0, 1, 0, 0, // Sentinel
-        //     ]
-        // );
-        // assert_eq!(
-        //     serialize_v2_le(v.clone()),
-        //     vec![
-        //         0x060, 0x00, 1, 0, // PID | length
-        //         5, 0, 0, 0, // field_primitive | padding (3 bytes)
-        //         0x061, 0x00, 20, 0, // PID | length
-        //         0x050, 0x00, 2, 0, // field_mutable: PID | length
-        //         8, 0, 0, 0, // field_mutable: participant_key | padding (2 bytes)
-        //         0x05A, 0x00, 1, 0, // field_mutable: PID | length
-        //         7, 0, 0, 0, // field_mutable: key | padding (3 bytes)
-        //         1, 0, 0, 0, // field_mutable: Sentinel
-        //         0x062, 0x00, 2, 0, // field_mutable: PID | length
-        //         9, 0, 0, 0, // field_final: primitive | padding (2 bytes)
-        //         1, 0, 0, 0, // Sentinel
-        //     ]
-        // );
+        assert_eq!(
+            serialize_v1_le(v.clone()),
+            vec![
+                0x060, 0x00, 1, 0, // PID | length
+                5, 0, 0, 0, // field_primitive | padding (3 bytes)
+                0x061, 0x00, 20, 0, // PID | length
+                0x050, 0x00, 2, 0, // field_mutable: PID | length
+                8, 0, 0, 0, // field_mutable: participant_key | padding (2 bytes)
+                0x05A, 0x00, 1, 0, // field_mutable: PID | length
+                7, 0, 0, 0, // field_mutable: key | padding (3 bytes)
+                1, 0, 0, 0, // field_mutable: Sentinel
+                0x062, 0x00, 2, 0, // field_mutable: PID | length
+                9, 0, 0, 0, // field_final: primitive | padding (2 bytes)
+                1, 0, 0, 0, // Sentinel
+            ]
+        );
+        // PL_CDR2:
+        assert_eq!(
+            serialize_v2_be(v.clone()),
+            vec![
+                0x00, 0x060, 0, 1, // PID | length
+                5, 0, 0, 0, // field_primitive | padding (3 bytes)
+                0x00, 0x061, 0, 20, // PID | length
+                0x00, 0x050, 0, 2, // field_mutable: PID | length
+                0, 8, 0, 0, // field_mutable: participant_key | padding (2 bytes)
+                0x00, 0x05A, 0, 1, // field_mutable: PID | length
+                7, 0, 0, 0, // field_mutable: key | padding (3 bytes)
+                0, 1, 0, 0, // field_mutable: Sentinel
+                0x00, 0x062, 0, 2, // field_mutable: PID | length
+                0, 9, 0, 0, // field_final: primitive | padding (2 bytes)
+                0, 1, 0, 0, // Sentinel
+            ]
+        );
+        assert_eq!(
+            serialize_v2_le(v.clone()),
+            vec![
+                0x060, 0x00, 1, 0, // PID | length
+                5, 0, 0, 0, // field_primitive | padding (3 bytes)
+                0x061, 0x00, 20, 0, // PID | length
+                0x050, 0x00, 2, 0, // field_mutable: PID | length
+                8, 0, 0, 0, // field_mutable: participant_key | padding (2 bytes)
+                0x05A, 0x00, 1, 0, // field_mutable: PID | length
+                7, 0, 0, 0, // field_mutable: key | padding (3 bytes)
+                1, 0, 0, 0, // field_mutable: Sentinel
+                0x062, 0x00, 2, 0, // field_mutable: PID | length
+                9, 0, 0, 0, // field_final: primitive | padding (2 bytes)
+                1, 0, 0, 0, // Sentinel
+            ]
+        );
     }
 
     // #[derive(TypeSupport, Clone)]

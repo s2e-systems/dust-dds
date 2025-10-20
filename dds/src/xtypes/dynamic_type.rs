@@ -703,7 +703,7 @@ impl DynamicData {
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.into_iter().cloned().map(TryInto::try_into).collect()
+            d.iter().cloned().map(TryInto::try_into).collect()
         } else {
             Err(XTypesError::InvalidType)
         }
@@ -720,7 +720,7 @@ impl DynamicData {
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.into_iter().cloned().map(TryInto::try_into).collect()
+            d.iter().cloned().map(TryInto::try_into).collect()
         } else {
             Err(XTypesError::InvalidType)
         }
@@ -737,7 +737,7 @@ impl DynamicData {
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.into_iter().cloned().map(TryInto::try_into).collect()
+            d.iter().cloned().map(TryInto::try_into).collect()
         } else {
             Err(XTypesError::InvalidType)
         }
@@ -754,7 +754,7 @@ impl DynamicData {
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.into_iter().cloned().map(TryInto::try_into).collect()
+            d.iter().cloned().map(TryInto::try_into).collect()
         } else {
             Err(XTypesError::InvalidType)
         }
@@ -771,7 +771,7 @@ impl DynamicData {
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.into_iter().cloned().map(TryInto::try_into).collect()
+            d.iter().cloned().map(TryInto::try_into).collect()
         } else {
             Err(XTypesError::InvalidType)
         }
@@ -788,7 +788,7 @@ impl DynamicData {
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.into_iter().cloned().map(TryInto::try_into).collect()
+            d.iter().cloned().map(TryInto::try_into).collect()
         } else {
             Err(XTypesError::InvalidType)
         }
@@ -805,7 +805,7 @@ impl DynamicData {
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.into_iter().cloned().map(TryInto::try_into).collect()
+            d.iter().cloned().map(TryInto::try_into).collect()
         } else {
             Err(XTypesError::InvalidType)
         }
@@ -822,7 +822,7 @@ impl DynamicData {
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.into_iter().cloned().map(TryInto::try_into).collect()
+            d.iter().cloned().map(TryInto::try_into).collect()
         } else {
             Err(XTypesError::InvalidType)
         }
@@ -839,7 +839,7 @@ impl DynamicData {
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.into_iter().cloned().map(TryInto::try_into).collect()
+            d.iter().cloned().map(TryInto::try_into).collect()
         } else {
             Err(XTypesError::InvalidType)
         }
@@ -856,7 +856,7 @@ impl DynamicData {
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.into_iter().cloned().map(TryInto::try_into).collect()
+            d.iter().cloned().map(TryInto::try_into).collect()
         } else {
             Err(XTypesError::InvalidType)
         }
@@ -873,7 +873,7 @@ impl DynamicData {
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.into_iter().cloned().map(TryInto::try_into).collect()
+            d.iter().cloned().map(TryInto::try_into).collect()
         } else {
             Err(XTypesError::InvalidType)
         }
@@ -890,7 +890,7 @@ impl DynamicData {
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.into_iter().cloned().map(TryInto::try_into).collect()
+            d.iter().cloned().map(TryInto::try_into).collect()
         } else {
             Err(XTypesError::InvalidType)
         }
@@ -908,7 +908,7 @@ impl DynamicData {
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.into_iter().cloned().map(TryInto::try_into).collect()
+            d.iter().cloned().map(TryInto::try_into).collect()
         } else {
             Err(XTypesError::InvalidType)
         }
@@ -930,7 +930,7 @@ impl DynamicData {
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.into_iter().cloned().map(TryInto::try_into).collect()
+            d.iter().cloned().map(TryInto::try_into).collect()
         } else {
             Err(XTypesError::InvalidType)
         }
