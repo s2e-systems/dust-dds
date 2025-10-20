@@ -338,6 +338,10 @@ impl WriteBasicType for &[u8] {
 
 fn serialize_sequence(v: &[impl WriteBasicType], writer: &mut impl PadEndiannessWrite) {
     writer.write_u32(v.len() as u32);
+    serialize_array(v, writer);
+}
+
+fn serialize_array(v: &[impl WriteBasicType], writer: &mut impl PadEndiannessWrite) {
     for vi in v.iter() {
         vi.write_basic_type(writer);
     }
@@ -378,7 +382,7 @@ pub trait XTypesSerializer<C> {
             .expect("sequence has element type");
         match element_type.get_descriptor().kind {
             TypeKind::NONE => todo!(),
-            TypeKind::BOOLEAN => todo!(),
+            TypeKind::BOOLEAN => serialize_sequence(&v.get_boolean_values(member_id)?, self.writer()),
             TypeKind::BYTE => todo!(),
             TypeKind::INT16 => todo!(),
             TypeKind::INT32 => todo!(),
@@ -444,11 +448,9 @@ pub trait XTypesSerializer<C> {
             TypeKind::FLOAT64 => todo!(),
             TypeKind::FLOAT128 => todo!(),
             TypeKind::INT8 => todo!(),
-            TypeKind::UINT8 => {
-                for v in v.get_uint8_values(member_id)? {
-                    self.writer().write_u8(v);
-                }
-            }
+            TypeKind::UINT8 => self
+                .writer()
+                .write_slice_u8(&v.get_uint8_values(member_id)?),
             TypeKind::CHAR8 => todo!(),
             TypeKind::CHAR16 => todo!(),
             TypeKind::STRING8 => {
