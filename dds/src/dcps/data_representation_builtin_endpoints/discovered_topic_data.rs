@@ -367,7 +367,10 @@ mod tests {
     use crate::{
         builtin_topics::BuiltInTopicKey,
         infrastructure::qos::TopicQos,
-        xtypes::{pl_cdr_serializer::PlCdrLeSerializer, serializer::XTypesSerializer},
+        xtypes::{
+            dynamic_type::DynamicData, pl_cdr_serializer::PlCdrLeSerializer,
+            serializer::XTypesSerializer,
+        },
     };
 
     #[test]
