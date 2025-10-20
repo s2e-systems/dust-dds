@@ -47,6 +47,12 @@ impl<C: Write> XTypesSerializer<C, LittleEndian> for PlCdrSerializer<C> {
     fn into_inner(self) -> C {
         self.cdr1_le_serializer.into_inner()
     }
+    fn serialize_i32(&mut self, v: i32) {
+        self.cdr1_le_serializer.serialize_i32(v)
+    }
+    fn serialize_u32(&mut self, v: u32) {
+        self.cdr1_le_serializer.serialize_u32(v)
+    }
     fn serialize_final_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
         self.cdr1_le_serializer.serialize_final_struct(v)
     }
@@ -77,7 +83,10 @@ impl<C: Write> XTypesSerializer<C, LittleEndian> for PlCdrSerializer<C> {
                 if element_type.get_kind() == TypeKind::STRUCTURE {
                     for vi in &v.get_complex_values(member_id)? {
                         let padded_length = count_bytes_xdr1_complex(vi)?;
-                        LittleEndian::write_u16(member_id as u16, &mut self.cdr1_le_serializer.writer);
+                        LittleEndian::write_u16(
+                            member_id as u16,
+                            &mut self.cdr1_le_serializer.writer,
+                        );
                         LittleEndian::write_u16(padded_length, &mut self.cdr1_le_serializer.writer);
                         self.serialize_complex(vi)?
                     }

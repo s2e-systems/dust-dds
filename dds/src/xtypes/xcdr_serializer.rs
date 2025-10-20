@@ -64,6 +64,14 @@ impl<C: Write, E: EndiannessWrite> XTypesSerializer<C, E> for Xcdr1Serializer<C,
     fn into_inner(self) -> C {
         self.writer.buffer
     }
+    fn serialize_i32(&mut self, v: i32) {
+        self.writer.pad(4);
+        E::write_i32(v, &mut self.writer);
+    }
+    fn serialize_u32(&mut self, v: u32) {
+        self.writer.pad(4);
+        E::write_u32(v, &mut self.writer);
+    }
 
     fn serialize_mutable_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
         for field_index in 0..v.get_item_count() {
@@ -180,6 +188,15 @@ impl<C: Write, E> Xcdr2Serializer<C, E> {
 impl<C: Write, E: EndiannessWrite> XTypesSerializer<C, E> for Xcdr2Serializer<C, E> {
     fn into_inner(self) -> C {
         self.writer.buffer
+    }
+
+    fn serialize_i32(&mut self, v: i32) {
+        self.writer.pad(4);
+        E::write_i32(v, &mut self.writer);
+    }
+    fn serialize_u32(&mut self, v: u32) {
+        self.writer.pad(4);
+        E::write_u32(v, &mut self.writer);
     }
 
     fn serialize_appendable_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
