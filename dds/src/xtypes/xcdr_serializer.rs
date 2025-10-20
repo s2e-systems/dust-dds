@@ -2,8 +2,7 @@ use super::{error::XTypesError, serializer::XTypesSerializer};
 use crate::xtypes::{
     dynamic_type::{DynamicData, TypeKind},
     serializer::{
-        BigEndian, EndiannessWriter, LittleEndian, Padding, PaddingV1, Write, Writer, WriterBe,
-        WriterLe, WriterV1, WriterV2,
+        BigEndian, EndiannessWriter, LittleEndian, Padding, PaddingV1, Write, Writer, WriterBe1, WriterBe2, WriterLe1, WriterLe2, WriterV1, WriterV2
     },
 };
 
@@ -43,13 +42,13 @@ impl Write for ByteCounter {
 }
 
 pub struct Xcdr1BeSerializer<C> {
-    writer: WriterBe<C>,
+    writer: WriterBe1<C>,
 }
 
 impl<C: Write> Xcdr1BeSerializer<C> {
     pub fn new(collection: C) -> Self {
         Self {
-            writer: WriterBe(collection),
+            writer: WriterBe1(collection),
         }
     }
 }
@@ -90,13 +89,13 @@ impl<C: Write> XTypesSerializer<C> for Xcdr1BeSerializer<C> {
 }
 
 pub struct Xcdr1LeSerializer<C> {
-    pub writer: WriterLe<C>,
+    pub writer: WriterLe1<C>,
 }
 
 impl<C: Write> Xcdr1LeSerializer<C> {
     pub fn new(collection: C) -> Self {
         Self {
-            writer: WriterLe(collection),
+            writer: WriterLe1(collection),
         }
     }
 }
@@ -124,25 +123,25 @@ impl<C: Write> XTypesSerializer<C> for Xcdr1LeSerializer<C> {
 }
 
 pub struct Xcdr2BeSerializer<C> {
-    writer: WriterBe<C>,
+    writer: WriterBe2<C>,
 }
 
 impl<C: Write> Xcdr2BeSerializer<C> {
     pub fn new(collection: C) -> Self {
         Self {
-            writer: WriterBe(collection),
+            writer: WriterBe2(collection),
         }
     }
 }
 
 pub struct Xcdr2LeSerializer<C> {
-    writer: WriterLe<C>,
+    writer: WriterLe2<C>,
 }
 
 impl<C: Write> Xcdr2LeSerializer<C> {
     pub fn new(collection: C) -> Self {
         Self {
-            writer: WriterLe(collection),
+            writer: WriterLe2(collection),
         }
     }
 }
@@ -156,16 +155,18 @@ impl<C: Write> XTypesSerializer<C> for Xcdr2BeSerializer<C> {
         &mut self.writer
     }
 
-    fn serialize_final_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
-        todo!()
-    }
-
-    fn serialize_appendable_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
-        todo!()
-    }
-
     fn serialize_mutable_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
-        todo!()
+        for field_index in 0..v.get_item_count() {
+            let member_id = v.get_member_id_at_index(field_index)?;
+            let length = count_bytes_xdr1_le(v, member_id)?;
+            self.writer().write_u16(member_id as u16);
+            self.writer().write_u16(length as u16);
+            self.serialize_dynamic_data_member(v, member_id)?;
+            self.writer().pad(4);
+        }
+        self.writer().write_u16(PID_SENTINEL);
+        self.writer().write_u16(0);
+        Ok(())
     }
 
     fn into_inner(self) -> C {
@@ -178,16 +179,18 @@ impl<C: Write> XTypesSerializer<C> for Xcdr2LeSerializer<C> {
         &mut self.writer
     }
 
-    fn serialize_final_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
-        todo!()
-    }
-
-    fn serialize_appendable_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
-        todo!()
-    }
-
     fn serialize_mutable_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
-        todo!()
+        for field_index in 0..v.get_item_count() {
+            let member_id = v.get_member_id_at_index(field_index)?;
+            let length = count_bytes_xdr1_le(v, member_id)?;
+            self.writer().write_u16(member_id as u16);
+            self.writer().write_u16(length as u16);
+            self.serialize_dynamic_data_member(v, member_id)?;
+            self.writer().pad(4);
+        }
+        self.writer().write_u16(PID_SENTINEL);
+        self.writer().write_u16(0);
+        Ok(())
     }
     fn into_inner(self) -> C {
         self.writer.0
@@ -208,29 +211,26 @@ mod tests {
             .into_inner()
     }
 
-    // fn serialize_v1_le<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
-    //     let mut buffer = std::vec::Vec::new();
-    //     v.create_dynamic_sample()
-    //         .serialize(Xcdr1LeSerializer::new(buffer))
-    //         .unwrap();
-    //     buffer
-    // }
+    fn serialize_v1_le<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
+        v.create_dynamic_sample()
+            .serialize(Xcdr1LeSerializer::new(Vec::new()))
+            .unwrap()
+            .into_inner()
+    }
 
-    // fn serialize_v2_be<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
-    //     let mut buffer = std::vec::Vec::new();
-    //     v.create_dynamic_sample()
-    //         .serialize(Xcdr2BeSerializer::new(buffer))
-    //         .unwrap();
-    //     buffer
-    // }
+    fn serialize_v2_be<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
+        v.create_dynamic_sample()
+            .serialize(Xcdr2BeSerializer::new(Vec::new()))
+            .unwrap()
+            .into_inner()
+    }
 
-    // fn serialize_v2_le<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
-    //     let mut buffer = std::vec::Vec::new();
-    //     v.create_dynamic_sample()
-    //         .serialize(Xcdr2LeSerializer::new(buffer))
-    //         .unwrap();
-    //     buffer
-    // }
+    fn serialize_v2_le<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
+        v.create_dynamic_sample()
+            .serialize(Xcdr2LeSerializer::new(Vec::new()))
+            .unwrap()
+            .into_inner()
+    }
 
     #[test]
     fn serialize_basic_types_struct() {
@@ -277,53 +277,53 @@ mod tests {
                 b'a', // f12: char
             ]
         );
-        // assert_eq!(
-        //     serialize_v1_le(v.clone()),
-        //     vec![
-        //         1, 2, 3, 0, 4, 0, 0, 0, // f1: bool | f2: i8 | f3: i16 | f4: i32
-        //         5, 0, 0, 0, 0, 0, 0, 0, // f5: i64
-        //         6, 0, 7, 0, 8, 0, 0, 0, // f6: u8 | padding (1 byte) | f7: u16 | f8: u32
-        //         9, 0, 0, 0, 0, 0, 0, 0, // f9: u64
-        //         0x00, 0x00, 0x80, 0x3F, 0, 0, 0, 0, // f10: f32 | padding (4 bytes)
-        //         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF0, 0x3F, // f11: f64
-        //         b'a', // f12: char
-        //     ]
-        // );
-        // //PLAIN_CDR2:
-        // assert_eq!(
-        //     serialize_v2_be(v.clone()),
-        //     vec![
-        //         1, 2, 0, 3, // f1: bool | f2: i8 | f3: i16
-        //         0, 0, 0, 4, // f4: i32
-        //         0, 0, 0, 0, // f5-1: i64
-        //         0, 0, 0, 5, // f5-2: i64
-        //         6, 0, 0, 7, // f6: u8 | padding (1 byte) | f7: u16
-        //         0, 0, 0, 8, // f8: u32
-        //         0, 0, 0, 0, // f9-1: u64
-        //         0, 0, 0, 9, // f9-2: u64
-        //         0x3F, 0x80, 0x00, 0x00, // f10: f32
-        //         0x3F, 0xF0, 0x00, 0x00, // f11-1: f64
-        //         0x00, 0x00, 0x00, 0x00, // f11-2: f64
-        //         b'a', // f12: char
-        //     ]
-        // );
-        // assert_eq!(
-        //     serialize_v2_le(v.clone()),
-        //     vec![
-        //         1, 2, 3, 0, // f1: bool | f2: i8 | f3: i16
-        //         4, 0, 0, 0, // f4: i32
-        //         5, 0, 0, 0, // f5-1: i64
-        //         0, 0, 0, 0, // f5-2: i64
-        //         6, 0, 7, 0, // f6: u8 | padding (1 byte) | f7: u16
-        //         8, 0, 0, 0, // f8: u32
-        //         9, 0, 0, 0, // f9-1: u64
-        //         0, 0, 0, 0, // f9-2: u64
-        //         0x00, 0x00, 0x80, 0x3F, // f10: f32
-        //         0x00, 0x00, 0x00, 0x00, // f11-1: f64
-        //         0x00, 0x00, 0xF0, 0x3F, // f11-2: f64
-        //         b'a', // f12: char
-        //     ]
-        // );
+        assert_eq!(
+            serialize_v1_le(v.clone()),
+            vec![
+                1, 2, 3, 0, 4, 0, 0, 0, // f1: bool | f2: i8 | f3: i16 | f4: i32
+                5, 0, 0, 0, 0, 0, 0, 0, // f5: i64
+                6, 0, 7, 0, 8, 0, 0, 0, // f6: u8 | padding (1 byte) | f7: u16 | f8: u32
+                9, 0, 0, 0, 0, 0, 0, 0, // f9: u64
+                0x00, 0x00, 0x80, 0x3F, 0, 0, 0, 0, // f10: f32 | padding (4 bytes)
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF0, 0x3F, // f11: f64
+                b'a', // f12: char
+            ]
+        );
+        //PLAIN_CDR2:
+        assert_eq!(
+            serialize_v2_be(v.clone()),
+            vec![
+                1, 2, 0, 3, // f1: bool | f2: i8 | f3: i16
+                0, 0, 0, 4, // f4: i32
+                0, 0, 0, 0, // f5-1: i64
+                0, 0, 0, 5, // f5-2: i64
+                6, 0, 0, 7, // f6: u8 | padding (1 byte) | f7: u16
+                0, 0, 0, 8, // f8: u32
+                0, 0, 0, 0, // f9-1: u64
+                0, 0, 0, 9, // f9-2: u64
+                0x3F, 0x80, 0x00, 0x00, // f10: f32
+                0x3F, 0xF0, 0x00, 0x00, // f11-1: f64
+                0x00, 0x00, 0x00, 0x00, // f11-2: f64
+                b'a', // f12: char
+            ]
+        );
+        assert_eq!(
+            serialize_v2_le(v.clone()),
+            vec![
+                1, 2, 3, 0, // f1: bool | f2: i8 | f3: i16
+                4, 0, 0, 0, // f4: i32
+                5, 0, 0, 0, // f5-1: i64
+                0, 0, 0, 0, // f5-2: i64
+                6, 0, 7, 0, // f6: u8 | padding (1 byte) | f7: u16
+                8, 0, 0, 0, // f8: u32
+                9, 0, 0, 0, // f9-1: u64
+                0, 0, 0, 0, // f9-2: u64
+                0x00, 0x00, 0x80, 0x3F, // f10: f32
+                0x00, 0x00, 0x00, 0x00, // f11-1: f64
+                0x00, 0x00, 0xF0, 0x3F, // f11-2: f64
+                b'a', // f12: char
+            ]
+        );
     }
 
     #[test]
@@ -395,30 +395,30 @@ mod tests {
                 0x00, // terminating 0
             ]
         );
-        // assert_eq!(
-        //     serialize_v1_le(v.clone()),
-        //     vec![
-        //         5, 0, 0, 0, //length
-        //         b'H', b'o', b'l', b'a', // str
-        //         0x00, // terminating 0
-        //     ]
-        // );
-        // assert_eq!(
-        //     serialize_v2_be(v.clone()),
-        //     vec![
-        //         0, 0, 0, 5, //length
-        //         b'H', b'o', b'l', b'a', // str
-        //         0x00, // terminating 0
-        //     ]
-        // );
-        // assert_eq!(
-        //     serialize_v2_le(v.clone()),
-        //     vec![
-        //         5, 0, 0, 0, //length
-        //         b'H', b'o', b'l', b'a', // str
-        //         0x00, // terminating 0
-        //     ]
-        // );
+        assert_eq!(
+            serialize_v1_le(v.clone()),
+            vec![
+                5, 0, 0, 0, //length
+                b'H', b'o', b'l', b'a', // str
+                0x00, // terminating 0
+            ]
+        );
+        assert_eq!(
+            serialize_v2_be(v.clone()),
+            vec![
+                0, 0, 0, 5, //length
+                b'H', b'o', b'l', b'a', // str
+                0x00, // terminating 0
+            ]
+        );
+        assert_eq!(
+            serialize_v2_le(v.clone()),
+            vec![
+                5, 0, 0, 0, //length
+                b'H', b'o', b'l', b'a', // str
+                0x00, // terminating 0
+            ]
+        );
     }
 
     #[test]

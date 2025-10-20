@@ -6671,6 +6671,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
         cache_change: CacheChange,
         reception_timestamp: Time,
     ) -> DdsResult<ReaderSample> {
+
         let instance_handle = {
             match cache_change.kind {
                 ChangeKind::Alive | ChangeKind::AliveFiltered => {

@@ -234,18 +234,34 @@ pub trait EndiannessWriter {
     }
 }
 
-pub struct WriterBe<W>(pub W);
-impl<W: Write> EndiannessWriter for WriterBe<W> {
+pub struct WriterBe1<W>(pub W);
+impl<W: Write> EndiannessWriter for WriterBe1<W> {
     type Endianness = BigEndian;
     type Padding = PaddingV1;
     fn writer(&mut self) -> &mut impl Write {
         &mut self.0
     }
 }
-pub struct WriterLe<W>(pub W);
-impl<W: Write> EndiannessWriter for WriterLe<W> {
+pub struct WriterLe1<W>(pub W);
+impl<W: Write> EndiannessWriter for WriterLe1<W> {
     type Endianness = LittleEndian;
     type Padding = PaddingV1;
+    fn writer(&mut self) -> &mut impl Write {
+        &mut self.0
+    }
+}
+pub struct WriterBe2<W>(pub W);
+impl<W: Write> EndiannessWriter for WriterBe2<W> {
+    type Endianness = BigEndian;
+    type Padding = PaddingV2;
+    fn writer(&mut self) -> &mut impl Write {
+        &mut self.0
+    }
+}
+pub struct WriterLe2<W>(pub W);
+impl<W: Write> EndiannessWriter for WriterLe2<W> {
+    type Endianness = LittleEndian;
+    type Padding = PaddingV2;
     fn writer(&mut self) -> &mut impl Write {
         &mut self.0
     }
