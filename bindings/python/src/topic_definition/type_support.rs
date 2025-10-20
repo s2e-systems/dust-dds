@@ -9,7 +9,7 @@ use dust_dds::{
         error::XTypesError,
         serializer::XTypesSerializer,
         xcdr_deserializer::{Xcdr1BeDeserializer, Xcdr1LeDeserializer},
-        xcdr_serializer::Xcdr1LeSerializer,
+        xcdr_serializer::Xcdr1Serializer,
     },
 };
 use pyo3::{
@@ -260,42 +260,43 @@ impl TypeSupport for PythonDdsData {
 
 impl PythonDdsData {
     pub fn from_py_object(py_object: Py<PyAny>) -> PyResult<Self> {
-        fn serialize_data_member(
-            _member_data: &Bound<PyAny>,
-            _member_type: &Bound<PyAny>,
-            _serializer: &mut Xcdr1LeSerializer<Vec<u8>>,
-        ) -> PyResult<()> {
-            todo!()
-        }
+        // fn serialize_data_member(
+        //     _member_data: &Bound<PyAny>,
+        //     _member_type: &Bound<PyAny>,
+        //     _serializer: &mut Xcdr1LeSerializer<Vec<u8>>,
+        // ) -> PyResult<()> {
+        //     todo!()
+        // }
 
-        fn serialize_data(
-            py: Python<'_>,
-            data: Py<PyAny>,
-            serializer: &mut Xcdr1LeSerializer<Vec<u8>>,
-        ) -> PyResult<()> {
-            let annotations = data
-                .getattr(py, "__class__")
-                .and_then(|c| c.getattr(py, "__annotations__"))?;
-            let annotation_dict = annotations
-                .downcast_bound::<PyDict>(py)
-                .map_err(PyErr::from)?;
-            for (member_name, member_type) in annotation_dict {
-                let attribute = data.getattr(py, member_name.downcast::<PyString>()?)?;
-                serialize_data_member(attribute.bind(py), &member_type, serializer)?;
-            }
-            Ok(())
-        }
+        // fn serialize_data(
+        //     py: Python<'_>,
+        //     data: Py<PyAny>,
+        //     serializer: &mut Xcdr1LeSerializer<Vec<u8>>,
+        // ) -> PyResult<()> {
+        //     let annotations = data
+        //         .getattr(py, "__class__")
+        //         .and_then(|c| c.getattr(py, "__annotations__"))?;
+        //     let annotation_dict = annotations
+        //         .downcast_bound::<PyDict>(py)
+        //         .map_err(PyErr::from)?;
+        //     for (member_name, member_type) in annotation_dict {
+        //         let attribute = data.getattr(py, member_name.downcast::<PyString>()?)?;
+        //         serialize_data_member(attribute.bind(py), &member_type, serializer)?;
+        //     }
+        //     Ok(())
+        // }
 
-        let mut buffer = Vec::new();
-        buffer.extend(&CDR_LE);
-        buffer.extend(&REPRESENTATION_OPTIONS);
-        let mut serializer = Xcdr1LeSerializer::new(buffer);
-        Python::with_gil(|py| serialize_data(py, py_object, &mut serializer))?;
+        // let mut buffer = Vec::new();
+        // buffer.extend(&CDR_LE);
+        // buffer.extend(&REPRESENTATION_OPTIONS);
+        // let mut serializer = Xcdr1LeSerializer::new(buffer);
+        // Python::with_gil(|py| serialize_data(py, py_object, &mut serializer))?;
 
-        Ok(PythonDdsData {
-            data: serializer.into_inner(),
-            key: Vec::new(),
-        })
+        // Ok(PythonDdsData {
+        //     data: serializer.into_inner(),
+        //     key: Vec::new(),
+        // })
+        todo!()
     }
 
     pub fn into_py_object(self, type_: &Py<PyAny>) -> PyResult<Py<PyAny>> {

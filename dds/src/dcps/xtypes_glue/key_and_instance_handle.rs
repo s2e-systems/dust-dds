@@ -4,11 +4,11 @@ use crate::{
         deserializer::{DeserializeAppendableStruct, DeserializeSequence, XTypesDeserializer},
         dynamic_type::{DynamicData, DynamicType, MemberDescriptor, TypeKind},
         error::XTypesError,
-        serializer::{Write, XTypesSerializer},
+        serializer::{BigEndian, EndiannessWrite, LittleEndian, Write, XTypesSerializer},
         xcdr_deserializer::{
             Xcdr1BeDeserializer, Xcdr1LeDeserializer, Xcdr2BeDeserializer, Xcdr2LeDeserializer,
         },
-        xcdr_serializer::{Xcdr1LeSerializer, Xcdr2BeSerializer},
+        xcdr_serializer::{Xcdr1Serializer, Xcdr2Serializer},
     },
 };
 use alloc::{string::String, vec::Vec};
@@ -42,16 +42,13 @@ impl Write for Md5 {
         self.context.consume(buf);
         self.length += buf.len();
     }
-    fn pos(&self) -> usize {
-        self.length
-    }
 }
 
-fn deserialize_and_serialize_if_key_field<'a, T, W: Write>(
+fn deserialize_and_serialize_if_key_field<'a, T, W: Write, E: EndiannessWrite>(
     dynamic_type: &DynamicType,
     is_key_field: bool,
     de: &mut T,
-    serializer: &mut impl XTypesSerializer<W>,
+    serializer: &mut impl XTypesSerializer<W, E>,
 ) -> Result<(), XTypesError>
 where
     for<'b> &'b mut T: XTypesDeserializer<'a>,
@@ -168,11 +165,11 @@ where
     Ok(())
 }
 
-fn deserialize_and_serialize_if_key_field_for_appendable_cdr<'a, W: Write>(
+fn deserialize_and_serialize_if_key_field_for_appendable_cdr<'a, W: Write, E: EndiannessWrite>(
     dynamic_type: &DynamicType,
     is_key_field: bool,
     de: &mut impl DeserializeAppendableStruct<'a>,
-    serializer: &mut impl XTypesSerializer<W>,
+    serializer: &mut impl XTypesSerializer<W, E>,
 ) -> Result<(), XTypesError> {
     let name = "";
     match dynamic_type.get_kind() {
@@ -286,9 +283,9 @@ fn deserialize_and_serialize_if_key_field_for_appendable_cdr<'a, W: Write>(
     Ok(())
 }
 
-fn push_to_key<'a, T, W: Write>(
+fn push_to_key<'a, T, W: Write, E: EndiannessWrite>(
     dynamic_type: &DynamicType,
-    serializer: &mut impl XTypesSerializer<W>,
+    serializer: &mut impl XTypesSerializer<W, E>,
     de: &mut T,
 ) -> Result<(), XTypesError>
 where
@@ -324,9 +321,9 @@ where
     Ok(())
 }
 
-fn push_to_key_for_key<'a, T, W: Write>(
+fn push_to_key_for_key<'a, T, W: Write, E: EndiannessWrite>(
     dynamic_type: &DynamicType,
-    serializer: &mut impl XTypesSerializer<W>,
+    serializer: &mut impl XTypesSerializer<W, E>,
     de: &mut T,
 ) -> Result<(), XTypesError>
 where
@@ -407,9 +404,9 @@ impl<'a> IntoIterator for &'a DynamicType {
     }
 }
 
-fn push_to_key_parameter_list_le<W: Write>(
+fn push_to_key_parameter_list_le<W: Write, E: EndiannessWrite>(
     dynamic_type: &DynamicType,
-    serializer: &mut impl XTypesSerializer<W>,
+    serializer: &mut impl XTypesSerializer<W, E>,
     data: &[u8],
 ) -> Result<(), XTypesError> {
     for descriptor in dynamic_type.into_iter() {
@@ -423,9 +420,9 @@ fn push_to_key_parameter_list_le<W: Write>(
     Ok(())
 }
 
-fn push_to_key_parameter_list_be<W: Write>(
+fn push_to_key_parameter_list_be<W: Write, E: EndiannessWrite>(
     dynamic_type: &DynamicType,
-    serializer: &mut impl XTypesSerializer<W>,
+    serializer: &mut impl XTypesSerializer<W, E>,
     data: &[u8],
 ) -> Result<(), XTypesError> {
     for descriptor in dynamic_type.into_iter() {
@@ -461,7 +458,7 @@ pub fn get_instance_handle_from_serialized_key(
 
     let representation_identifier = [data[0], data[1]];
     data = &data[4..];
-    let mut serializer = Xcdr2BeSerializer::new(md5_collection);
+    let mut serializer = Xcdr2Serializer::new(md5_collection, BigEndian);
 
     match representation_identifier {
         CDR_BE => push_to_key_for_key(
@@ -502,7 +499,7 @@ pub fn get_instance_handle_from_serialized_foo(
 
     let representation_identifier = [data[0], data[1]];
     data = &data[4..];
-    let mut serializer = Xcdr2BeSerializer::new(md5_collection);
+    let mut serializer = Xcdr2Serializer::new(md5_collection, BigEndian);
     match representation_identifier {
         CDR_BE => push_to_key(
             dynamic_type,
@@ -542,7 +539,7 @@ pub fn get_instance_handle_from_dynamic_data(
     dynamic_data.clear_nonkey_values()?;
     dynamic_data.make_descriptor_extensibility_kind_final();
 
-    let serializer = dynamic_data.serialize(Xcdr2BeSerializer::new(md5_collection))?;
+    let serializer = dynamic_data.serialize(Xcdr2Serializer::new(md5_collection, BigEndian))?;
     Ok(InstanceHandle::new(serializer.into_inner().into_key()))
 }
 
@@ -554,7 +551,7 @@ pub fn get_serialized_key_from_serialized_foo(
     let mut serialized_key = Vec::new();
     serialized_key.extend_from_slice(&CDR_LE);
     serialized_key.extend_from_slice(&[0, 0]);
-    let serializer = Xcdr1LeSerializer::new(Vec::new());
+    let serializer = Xcdr1Serializer::new(Vec::new(), LittleEndian);
     let serializer = dynamic_data.serialize(serializer)?;
 
     let mut serialized_key = Vec::new();
