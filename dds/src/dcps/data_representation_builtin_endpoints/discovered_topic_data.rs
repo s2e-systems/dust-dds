@@ -365,7 +365,8 @@ impl TypeSupport for DiscoveredTopicData {
 mod tests {
     use super::*;
     use crate::{
-        builtin_topics::BuiltInTopicKey, infrastructure::qos::TopicQos,
+        builtin_topics::BuiltInTopicKey,
+        infrastructure::qos::TopicQos,
         xtypes::{pl_cdr_serializer::PlCdrLeSerializer, serializer::XTypesSerializer},
     };
 
@@ -413,7 +414,8 @@ mod tests {
         let dynamic_sample = data.create_dynamic_sample();
         let result = dynamic_sample
             .serialize(PlCdrLeSerializer::new(Vec::new()))
-            .unwrap().into_inner();
+            .unwrap()
+            .into_inner();
         assert_eq!(result, expected);
     }
 
