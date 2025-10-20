@@ -5,7 +5,7 @@ use crate::{
         error::{XTypesError, XTypesResult},
         pl_cdr_deserializer::PlCdrDeserializer,
         serializer::XTypesSerializer,
-        xcdr_deserializer::{deserialize_nested, Xcdr1LeDeserializer},
+        xcdr_deserializer::{deserialize_nested, Xcdr1Deserializer},
         xcdr_serializer::serialize_nested,
     },
 };

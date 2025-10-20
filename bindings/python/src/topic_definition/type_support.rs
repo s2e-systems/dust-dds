@@ -2,11 +2,8 @@ use crate::xtypes::endianness::{self, CDR_LE, REPRESENTATION_OPTIONS};
 use dust_dds::{
     infrastructure::{error::DdsResult, type_support::TypeSupport},
     xtypes::{
-        deserializer::XTypesDeserializer,
-        error::XTypesError,
-        serializer::XTypesSerializer,
-        xcdr_deserializer::{Xcdr1BeDeserializer, Xcdr1LeDeserializer},
-        xcdr_serializer::Xcdr1LeSerializer,
+        deserializer::XTypesDeserializer, error::XTypesError, serializer::XTypesSerializer,
+        xcdr_deserializer::Xcdr1Deserializer, xcdr_serializer::Xcdr1LeSerializer,
     },
 };
 use pyo3::{

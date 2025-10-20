@@ -5,9 +5,7 @@ use crate::{
         dynamic_type::{DynamicData, DynamicType, MemberDescriptor, TypeKind},
         error::XTypesError,
         serializer::{Write, XTypesSerializer},
-        xcdr_deserializer::{
-            Xcdr1BeDeserializer, Xcdr1LeDeserializer, Xcdr2BeDeserializer, Xcdr2LeDeserializer,
-        },
+        xcdr_deserializer::{Xcdr1Deserializer, Xcdr2Deserializer},
         xcdr_serializer::{Xcdr1LeSerializer, Xcdr2BeSerializer},
     },
 };
@@ -419,8 +417,9 @@ fn push_to_key_parameter_list_le<W: Write>(
         let descriptor = descriptor?;
         if descriptor.is_key {
             let buffer = go_to_pid_le(data, descriptor.id)?;
-            let mut de = Xcdr1LeDeserializer::new(buffer);
-            deserialize_and_serialize_if_key_field(&descriptor.r#type, true, &mut de, serializer)?;
+            // let mut de = Xcdr1Deserializer::new(buffer, ReaderL);
+            // deserialize_and_serialize_if_key_field(&descriptor.r#type, true, &mut de, serializer)?;
+            todo!()
         }
     }
     Ok(())

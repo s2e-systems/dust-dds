@@ -173,54 +173,6 @@ impl<'de> XTypesDeserializer<'de> for &mut PlCdrDeserializer {
         // Ok(self)
     }
 
-    fn deserialize_boolean(&mut self) -> Result<bool, super::error::XTypesError> {
-        todo!()
-    }
-
-    fn deserialize_int8(&mut self) -> Result<i8, super::error::XTypesError> {
-        todo!()
-    }
-
-    fn deserialize_int16(&mut self) -> Result<i16, super::error::XTypesError> {
-        todo!()
-    }
-
-    fn deserialize_int32(&mut self) -> Result<i32, super::error::XTypesError> {
-        todo!()
-    }
-
-    fn deserialize_int64(&mut self) -> Result<i64, super::error::XTypesError> {
-        todo!()
-    }
-
-    fn deserialize_uint8(&mut self) -> Result<u8, super::error::XTypesError> {
-        todo!()
-    }
-
-    fn deserialize_uint16(&mut self) -> Result<u16, super::error::XTypesError> {
-        todo!()
-    }
-
-    fn deserialize_uint32(&mut self) -> Result<u32, super::error::XTypesError> {
-        todo!()
-    }
-
-    fn deserialize_uint64(&mut self) -> Result<u64, super::error::XTypesError> {
-        todo!()
-    }
-
-    fn deserialize_float32(&mut self) -> Result<f32, super::error::XTypesError> {
-        todo!()
-    }
-
-    fn deserialize_float64(&mut self) -> Result<f64, super::error::XTypesError> {
-        todo!()
-    }
-
-    fn deserialize_char8(&mut self) -> Result<char, super::error::XTypesError> {
-        todo!()
-    }
-
     fn deserialize_string(&mut self) -> Result<&'de str, super::error::XTypesError> {
         todo!()
     }
@@ -232,9 +184,6 @@ impl<'de> XTypesDeserializer<'de> for &mut PlCdrDeserializer {
     fn deserialize_byte_array<const N: usize>(
         &mut self,
     ) -> Result<&'de [u8; N], super::error::XTypesError> {
-        todo!()
-    }
-    fn deserialize_data_kind(&mut self, dynamic_type: &DynamicType) -> XTypesResult<DataKind> {
         todo!()
     }
 }

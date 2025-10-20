@@ -5,7 +5,7 @@ use dust_dds::{
     xtypes::{
         deserialize::XTypesDeserialize,
         error::XTypesError,
-        xcdr_deserializer::{Xcdr1BeDeserializer, Xcdr1LeDeserializer},
+        xcdr_deserializer::{Xcdr1BeDeserializer, Xcdr1Deserializer},
     },
 };
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
@@ -78,7 +78,7 @@ impl ParameterList {
                 PL_CDR_LE => {
                     let current_pid = ParameterId::from_le_bytes(current_pid);
                     if current_pid == PID {
-                        list.push(T::deserialize(&mut Xcdr1LeDeserializer::new(reader))?);
+                        list.push(T::deserialize(&mut Xcdr1Deserializer::new(reader))?);
                     } else if current_pid == PID_SENTINEL {
                         return Ok(list);
                     } else {
@@ -118,7 +118,7 @@ impl ParameterList {
                 PL_CDR_LE => {
                     let current_pid = ParameterId::from_le_bytes(current_pid);
                     if current_pid == PID {
-                        return Ok(T::deserialize(&mut Xcdr1LeDeserializer::new(reader))?);
+                        return Ok(T::deserialize(&mut Xcdr1Deserializer::new(reader))?);
                     } else if current_pid == PID_SENTINEL {
                         return Err(Error::InvalidData);
                     } else {

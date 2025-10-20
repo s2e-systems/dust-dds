@@ -1,6 +1,6 @@
 use crate::xtypes::{
     data_representation::DataKind,
-    deserializer::{BigEndian, PadEndiannessRead, PaddingV1, Read},
+    deserializer::{BigEndian, LittleEndian, PadEndiannessRead, PaddingV1, Read},
     dynamic_type::{
         DynamicData, DynamicDataFactory, DynamicType, ExtensibilityKind, MemberDescriptor,
     },
@@ -67,58 +67,45 @@ pub fn deserialize_nested<'de>(
 
 const PID_SENTINEL: u16 = 1;
 
-pub struct Xcdr1BeDeserializer<'a> {
-    reader: ReaderBe1<'a>,
-}
-
-impl<'a> Xcdr1BeDeserializer<'a> {
-    pub fn new(buffer: &'a [u8]) -> Self {
-        Self {
-            reader: ReaderBe1(Reader::new(buffer)),
-        }
-    }
-}
-
-pub struct Xcdr1LeDeserializer<'a> {
+pub struct Xcdr1Deserializer<'a, E> {
     reader: Reader<'a>,
+    endianness: E,
 }
 
-impl<'a> Xcdr1LeDeserializer<'a> {
-    pub fn new(buffer: &'a [u8]) -> Self {
+impl<'a, E> Xcdr1Deserializer<'a, E> {
+    pub fn new(buffer: &'a [u8], endianness: E) -> Self {
         Self {
             reader: Reader::new(buffer),
+            endianness,
         }
     }
 }
 
-pub struct Xcdr2BeDeserializer<'a> {
+pub struct Xcdr2Deserializer<'a, E> {
     reader: Reader<'a>,
+    endianness: E,
 }
 
-impl<'a> Xcdr2BeDeserializer<'a> {
-    pub fn new(buffer: &'a [u8]) -> Self {
+impl<'a, E> Xcdr2Deserializer<'a, E> {
+    pub fn new(buffer: &'a [u8], endianness: E) -> Self {
         Self {
             reader: Reader::new(buffer),
+            endianness,
         }
     }
 }
 
-pub struct Xcdr2LeDeserializer<'a> {
-    reader: Reader<'a>,
-}
+struct ReaderBe1;
 
-impl<'a> Xcdr2LeDeserializer<'a> {
-    pub fn new(buffer: &'a [u8]) -> Self {
-        Self {
-            reader: Reader::new(buffer),
-        }
-    }
-}
-
-struct ReaderBe1<'a>(Reader<'a>);
-
-impl<'a> PadEndiannessRead for ReaderBe1<'a> {
+impl PadEndiannessRead for ReaderBe1 {
     type Endianness = BigEndian;
+    type Padding = PaddingV1;
+}
+
+struct ReaderLe1;
+
+impl PadEndiannessRead for ReaderLe1 {
+    type Endianness = LittleEndian;
     type Padding = PaddingV1;
 }
 
@@ -242,15 +229,7 @@ fn seek_to_optional_pid_le(reader: &mut Reader, pid: u16) -> Result<bool, XTypes
     }
 }
 
-fn into_bool(v: u8) -> Result<bool, XTypesError> {
-    match v {
-        0 => Ok(false),
-        1 => Ok(true),
-        _ => Err(XTypesError::InvalidData),
-    }
-}
-
-impl<'de> XTypesDeserializer<'de> for Xcdr1BeDeserializer<'de> {
+impl<'de, E: PadEndiannessRead> XTypesDeserializer<'de> for Xcdr1Deserializer<'de, E> {
     fn deserialize_final_struct(&mut self, v: &mut DynamicData) -> Result<(), XTypesError> {
         for field_index in 0..v.type_ref().get_member_count() {
             let type_member = v.type_ref().get_member_by_index(field_index)?;
@@ -262,12 +241,12 @@ impl<'de> XTypesDeserializer<'de> for Xcdr1BeDeserializer<'de> {
                 TypeKind::INT32 => todo!(),
                 TypeKind::INT64 => todo!(),
                 TypeKind::UINT16 => {
-                    let value = self.deserialize_uint16()?;
+                    let value = <E as PadEndiannessRead>::read_u16(&mut self.reader)?;
                     v.set_uint16_value(type_member.get_id(), value)?;
                 }
                 TypeKind::UINT32 => todo!(),
                 TypeKind::UINT64 => {
-                    let value = self.deserialize_uint64()?;
+                    let value = <E as PadEndiannessRead>::read_u64(&mut self.reader)?;
                     v.set_uint64_value(type_member.get_id(), value)?;
                 }
                 TypeKind::FLOAT32 => todo!(),
@@ -275,7 +254,7 @@ impl<'de> XTypesDeserializer<'de> for Xcdr1BeDeserializer<'de> {
                 TypeKind::FLOAT128 => todo!(),
                 TypeKind::INT8 => todo!(),
                 TypeKind::UINT8 => {
-                    let value = self.deserialize_uint8()?;
+                    let value = <E as PadEndiannessRead>::read_u8(&mut self.reader)?;
                     v.set_uint8_value(type_member.get_id(), value)?;
                 }
                 TypeKind::CHAR8 => todo!(),
@@ -293,175 +272,6 @@ impl<'de> XTypesDeserializer<'de> for Xcdr1BeDeserializer<'de> {
                     self.deserialize_final_struct(&mut value)?;
                     v.set_complex_value(type_member.get_id(), value)?;
                 }
-                TypeKind::UNION => todo!(),
-                TypeKind::BITSET => todo!(),
-                TypeKind::SEQUENCE => todo!(),
-                TypeKind::ARRAY => todo!(),
-                TypeKind::MAP => todo!(),
-            }
-            // let member_value =
-            //     final_deserializer.deserialize_field(type_member.get_descriptor()?)?;
-            //             let member_id = type_member.get_id();
-            //             dynamic_data.set_value(member_id, member_value);
-        }
-        Ok(())
-    }
-    fn deserialize_appendable_struct(&mut self) -> Result<(), XTypesError> {
-        // Ok(PlainCdrBeDecoder { deserializer: self })
-        todo!()
-    }
-    fn deserialize_mutable_struct(&mut self) -> Result<(), XTypesError> {
-        // Ok(PlCdrBeDecoder {
-        //     buffer: self.reader.buffer(),
-        // })
-        todo!()
-    }
-    fn deserialize_array(&mut self) -> Result<(), XTypesError> {
-        // Ok(ArrayDecoder { deserializer: self })
-        todo!()
-    }
-    fn deserialize_sequence(&mut self) -> Result<(), XTypesError> {
-        // let len = self.deserialize_uint32()? as usize;
-        // Ok(SequenceDecoder {
-        //     deserializer: self,
-        //     len,
-        // })
-        todo!()
-    }
-
-    fn deserialize_boolean(&mut self) -> Result<bool, XTypesError> {
-        into_bool(self.deserialize_uint8()?)
-    }
-    fn deserialize_int8(&mut self) -> Result<i8, XTypesError> {
-        <ReaderBe1<'_> as PadEndiannessRead>::read_i8(&mut self.reader.0)
-    }
-    fn deserialize_int16(&mut self) -> Result<i16, XTypesError> {
-        // Ok(i16::from_be_bytes(read_with_padding_v1(&mut self.reader)?))
-        todo!()
-    }
-    fn deserialize_int32(&mut self) -> Result<i32, XTypesError> {
-        // Ok(i32::from_be_bytes(read_with_padding_v1(&mut self.reader)?))
-        todo!()
-    }
-    fn deserialize_int64(&mut self) -> Result<i64, XTypesError> {
-        // Ok(i64::from_be_bytes(read_with_padding_v1(&mut self.reader)?))
-        todo!()
-    }
-    fn deserialize_uint8(&mut self) -> Result<u8, XTypesError> {
-        <ReaderBe1<'_> as PadEndiannessRead>::read_u8(&mut self.reader.0)
-    }
-    fn deserialize_uint16(&mut self) -> Result<u16, XTypesError> {
-        // Ok(u16::from_be_bytes(read_with_padding_v1(&mut self.reader)?))
-        <ReaderBe1<'_> as PadEndiannessRead>::read_u16(&mut self.reader.0)
-    }
-    fn deserialize_uint32(&mut self) -> Result<u32, XTypesError> {
-        // Ok(u32::from_be_bytes(read_with_padding_v1(&mut self.reader)?))
-        todo!()
-    }
-    fn deserialize_uint64(&mut self) -> Result<u64, XTypesError> {
-        <ReaderBe1<'_> as PadEndiannessRead>::read_u64(&mut self.reader.0)
-    }
-    fn deserialize_float32(&mut self) -> Result<f32, XTypesError> {
-        // Ok(f32::from_be_bytes(read_with_padding_v1(&mut self.reader)?))
-        todo!()
-    }
-    fn deserialize_float64(&mut self) -> Result<f64, XTypesError> {
-        // Ok(f64::from_be_bytes(read_with_padding_v1(&mut self.reader)?))
-        todo!()
-    }
-    fn deserialize_char8(&mut self) -> Result<char, XTypesError> {
-        // Ok(self.deserialize_uint8()? as char)
-        todo!()
-    }
-    fn deserialize_string(&mut self) -> Result<&'de str, XTypesError> {
-        str::from_utf8(
-            self.deserialize_byte_sequence()?
-                .split_last()
-                .ok_or(XTypesError::InvalidData)?
-                .1,
-        )
-        .map_err(|_| XTypesError::InvalidData)
-    }
-    fn deserialize_byte_sequence(&mut self) -> Result<&'de [u8], XTypesError> {
-        // let length = self.deserialize_uint32()? as usize;
-        // self.reader.read_all(length)
-        todo!()
-    }
-
-    fn deserialize_byte_array<const N: usize>(&mut self) -> Result<&'de [u8; N], XTypesError> {
-        // self.reader.read()
-        todo!()
-    }
-
-    fn deserialize_data_kind(&mut self, dynamic_type: &DynamicType) -> XTypesResult<DataKind> {
-        let data = match dynamic_type.get_kind() {
-            TypeKind::NONE => todo!(),
-            TypeKind::BOOLEAN => todo!(),
-            TypeKind::BYTE => todo!(),
-            TypeKind::INT16 => todo!(),
-            TypeKind::INT32 => todo!(),
-            TypeKind::INT64 => todo!(),
-            TypeKind::UINT16 => DataKind::UInt16(self.deserialize_uint16()?),
-            TypeKind::UINT32 => todo!(),
-            TypeKind::UINT64 => DataKind::UInt64(self.deserialize_uint64()?),
-            TypeKind::FLOAT32 => todo!(),
-            TypeKind::FLOAT64 => todo!(),
-            TypeKind::FLOAT128 => todo!(),
-            TypeKind::INT8 => todo!(),
-            TypeKind::UINT8 => todo!(),
-            TypeKind::CHAR8 => todo!(),
-            TypeKind::CHAR16 => todo!(),
-            TypeKind::STRING8 => todo!(),
-            TypeKind::STRING16 => todo!(),
-            TypeKind::ALIAS => todo!(),
-            TypeKind::ENUM => todo!(),
-            TypeKind::BITMASK => todo!(),
-            TypeKind::ANNOTATION => todo!(),
-            TypeKind::STRUCTURE => todo!(),
-            TypeKind::UNION => todo!(),
-            TypeKind::BITSET => todo!(),
-            TypeKind::SEQUENCE => todo!(),
-            TypeKind::ARRAY => todo!(),
-            TypeKind::MAP => todo!(),
-        };
-        Ok(data)
-    }
-}
-
-impl<'de> XTypesDeserializer<'de> for Xcdr1LeDeserializer<'de> {
-    fn deserialize_final_struct(&mut self, v: &mut DynamicData) -> Result<(), XTypesError> {
-        for field_index in 0..v.type_ref().get_member_count() {
-            let type_member = v.type_ref().get_member_by_index(field_index)?;
-            match type_member.get_descriptor()?.r#type.get_kind() {
-                TypeKind::NONE => todo!(),
-                TypeKind::BOOLEAN => todo!(),
-                TypeKind::BYTE => todo!(),
-                TypeKind::INT16 => todo!(),
-                TypeKind::INT32 => todo!(),
-                TypeKind::INT64 => todo!(),
-                TypeKind::UINT16 => {
-                    let value = self.deserialize_uint16()?;
-                    v.set_uint16_value(type_member.get_id(), value)?;
-                }
-                TypeKind::UINT32 => todo!(),
-                TypeKind::UINT64 => {
-                    let value = self.deserialize_uint64()?;
-                    v.set_uint64_value(type_member.get_id(), value)?;
-                }
-                TypeKind::FLOAT32 => todo!(),
-                TypeKind::FLOAT64 => todo!(),
-                TypeKind::FLOAT128 => todo!(),
-                TypeKind::INT8 => todo!(),
-                TypeKind::UINT8 => todo!(),
-                TypeKind::CHAR8 => todo!(),
-                TypeKind::CHAR16 => todo!(),
-                TypeKind::STRING8 => todo!(),
-                TypeKind::STRING16 => todo!(),
-                TypeKind::ALIAS => todo!(),
-                TypeKind::ENUM => todo!(),
-                TypeKind::BITMASK => todo!(),
-                TypeKind::ANNOTATION => todo!(),
-                TypeKind::STRUCTURE => todo!(),
                 TypeKind::UNION => todo!(),
                 TypeKind::BITSET => todo!(),
                 TypeKind::SEQUENCE => todo!(),
@@ -497,43 +307,6 @@ impl<'de> XTypesDeserializer<'de> for Xcdr1LeDeserializer<'de> {
         // })
         todo!()
     }
-
-    fn deserialize_boolean(&mut self) -> Result<bool, XTypesError> {
-        into_bool(self.deserialize_uint8()?)
-    }
-    fn deserialize_uint8(&mut self) -> Result<u8, XTypesError> {
-        Ok(u8::from_le_bytes(read_with_padding_v1(&mut self.reader)?))
-    }
-    fn deserialize_uint16(&mut self) -> Result<u16, XTypesError> {
-        Ok(u16::from_le_bytes(read_with_padding_v1(&mut self.reader)?))
-    }
-    fn deserialize_uint32(&mut self) -> Result<u32, XTypesError> {
-        Ok(u32::from_le_bytes(read_with_padding_v1(&mut self.reader)?))
-    }
-    fn deserialize_uint64(&mut self) -> Result<u64, XTypesError> {
-        Ok(u64::from_le_bytes(read_with_padding_v1(&mut self.reader)?))
-    }
-    fn deserialize_int8(&mut self) -> Result<i8, XTypesError> {
-        Ok(i8::from_le_bytes(read_with_padding_v1(&mut self.reader)?))
-    }
-    fn deserialize_int16(&mut self) -> Result<i16, XTypesError> {
-        Ok(i16::from_le_bytes(read_with_padding_v1(&mut self.reader)?))
-    }
-    fn deserialize_int32(&mut self) -> Result<i32, XTypesError> {
-        Ok(i32::from_le_bytes(read_with_padding_v1(&mut self.reader)?))
-    }
-    fn deserialize_int64(&mut self) -> Result<i64, XTypesError> {
-        Ok(i64::from_le_bytes(read_with_padding_v1(&mut self.reader)?))
-    }
-    fn deserialize_float32(&mut self) -> Result<f32, XTypesError> {
-        Ok(f32::from_le_bytes(read_with_padding_v1(&mut self.reader)?))
-    }
-    fn deserialize_float64(&mut self) -> Result<f64, XTypesError> {
-        Ok(f64::from_le_bytes(read_with_padding_v1(&mut self.reader)?))
-    }
-    fn deserialize_char8(&mut self) -> Result<char, XTypesError> {
-        Ok(self.deserialize_uint8()? as char)
-    }
     fn deserialize_string(&mut self) -> Result<&'de str, XTypesError> {
         str::from_utf8(
             self.deserialize_byte_sequence()?
@@ -545,49 +318,16 @@ impl<'de> XTypesDeserializer<'de> for Xcdr1LeDeserializer<'de> {
     }
 
     fn deserialize_byte_sequence(&mut self) -> Result<&'de [u8], XTypesError> {
-        let length = self.deserialize_uint32()? as usize;
-        self.reader.read_all(length)
+        // let length = self.deserialize_uint32()? as usize;
+        // self.reader.read_all(length)
+        todo!()
     }
     fn deserialize_byte_array<const N: usize>(&mut self) -> Result<&'de [u8; N], XTypesError> {
         self.reader.read()
     }
-    fn deserialize_data_kind(&mut self, dynamic_type: &DynamicType) -> XTypesResult<DataKind> {
-        let data = match dynamic_type.get_kind() {
-            TypeKind::NONE => todo!(),
-            TypeKind::BOOLEAN => todo!(),
-            TypeKind::BYTE => todo!(),
-            TypeKind::INT16 => todo!(),
-            TypeKind::INT32 => todo!(),
-            TypeKind::INT64 => todo!(),
-            TypeKind::UINT16 => DataKind::UInt16(self.deserialize_uint16()?),
-            TypeKind::UINT32 => todo!(),
-            TypeKind::UINT64 => DataKind::UInt64(self.deserialize_uint64()?),
-            TypeKind::FLOAT32 => todo!(),
-            TypeKind::FLOAT64 => todo!(),
-            TypeKind::FLOAT128 => todo!(),
-            TypeKind::INT8 => todo!(),
-            TypeKind::UINT8 => todo!(),
-            TypeKind::CHAR8 => todo!(),
-            TypeKind::CHAR16 => todo!(),
-            TypeKind::STRING8 => todo!(),
-            TypeKind::STRING16 => todo!(),
-            TypeKind::ALIAS => todo!(),
-            TypeKind::ENUM => todo!(),
-            TypeKind::BITMASK => todo!(),
-            TypeKind::ANNOTATION => todo!(),
-            TypeKind::STRUCTURE => todo!(),
-            TypeKind::UNION => todo!(),
-            TypeKind::BITSET => todo!(),
-            TypeKind::SEQUENCE => todo!(),
-            TypeKind::ARRAY => todo!(),
-            TypeKind::MAP => todo!(),
-        };
-
-        Ok(data)
-    }
 }
 
-impl<'de> XTypesDeserializer<'de> for &mut Xcdr2BeDeserializer<'de> {
+impl<'de, E> XTypesDeserializer<'de> for &mut Xcdr2Deserializer<'de, E> {
     fn deserialize_final_struct(&mut self, v: &mut DynamicData) -> Result<(), XTypesError> {
         // Ok(PlainCdr2Decoder { deserializer: self })
         todo!()
@@ -616,42 +356,6 @@ impl<'de> XTypesDeserializer<'de> for &mut Xcdr2BeDeserializer<'de> {
         todo!()
     }
 
-    fn deserialize_boolean(&mut self) -> Result<bool, XTypesError> {
-        into_bool(self.deserialize_uint8()?)
-    }
-    fn deserialize_int8(&mut self) -> Result<i8, XTypesError> {
-        Ok(i8::from_be_bytes(read_with_padding_v2(&mut self.reader)?))
-    }
-    fn deserialize_int16(&mut self) -> Result<i16, XTypesError> {
-        Ok(i16::from_be_bytes(read_with_padding_v2(&mut self.reader)?))
-    }
-    fn deserialize_int32(&mut self) -> Result<i32, XTypesError> {
-        Ok(i32::from_be_bytes(read_with_padding_v2(&mut self.reader)?))
-    }
-    fn deserialize_int64(&mut self) -> Result<i64, XTypesError> {
-        Ok(i64::from_be_bytes(read_with_padding_v2(&mut self.reader)?))
-    }
-    fn deserialize_uint8(&mut self) -> Result<u8, XTypesError> {
-        Ok(u8::from_be_bytes(read_with_padding_v2(&mut self.reader)?))
-    }
-    fn deserialize_uint16(&mut self) -> Result<u16, XTypesError> {
-        Ok(u16::from_be_bytes(read_with_padding_v2(&mut self.reader)?))
-    }
-    fn deserialize_uint32(&mut self) -> Result<u32, XTypesError> {
-        Ok(u32::from_be_bytes(read_with_padding_v2(&mut self.reader)?))
-    }
-    fn deserialize_uint64(&mut self) -> Result<u64, XTypesError> {
-        Ok(u64::from_be_bytes(read_with_padding_v2(&mut self.reader)?))
-    }
-    fn deserialize_float32(&mut self) -> Result<f32, XTypesError> {
-        Ok(f32::from_be_bytes(read_with_padding_v2(&mut self.reader)?))
-    }
-    fn deserialize_float64(&mut self) -> Result<f64, XTypesError> {
-        Ok(f64::from_be_bytes(read_with_padding_v2(&mut self.reader)?))
-    }
-    fn deserialize_char8(&mut self) -> Result<char, XTypesError> {
-        Ok(self.deserialize_uint8()? as char)
-    }
     fn deserialize_string(&mut self) -> Result<&'de str, XTypesError> {
         str::from_utf8(
             self.deserialize_byte_sequence()?
@@ -662,102 +366,12 @@ impl<'de> XTypesDeserializer<'de> for &mut Xcdr2BeDeserializer<'de> {
         .map_err(|_| XTypesError::InvalidData)
     }
     fn deserialize_byte_sequence(&mut self) -> Result<&'de [u8], XTypesError> {
-        let length = self.deserialize_uint32()? as usize;
-        self.reader.read_all(length)
+        todo!()
+        // let length = self.deserialize_uint32()? as usize;
+        // self.reader.read_all(length)
     }
     fn deserialize_byte_array<const N: usize>(&mut self) -> Result<&'de [u8; N], XTypesError> {
         self.reader.read()
-    }
-    fn deserialize_data_kind(&mut self, dynamic_type: &DynamicType) -> XTypesResult<DataKind> {
-        todo!()
-    }
-}
-
-impl<'de> XTypesDeserializer<'de> for &mut Xcdr2LeDeserializer<'de> {
-    fn deserialize_final_struct(&mut self, v: &mut DynamicData) -> Result<(), XTypesError> {
-        // Ok(PlainCdr2Decoder { deserializer: self })
-        todo!()
-    }
-    fn deserialize_appendable_struct(&mut self) -> Result<(), XTypesError> {
-        // let _dheader = self.deserialize_uint32()?;
-        // Ok(DelimitedCdrDecoder {
-        //     deserializer: &mut *self,
-        // })
-        todo!()
-    }
-    fn deserialize_mutable_struct(&mut self) -> Result<(), XTypesError> {
-        // Ok(PlCdr2LeDecoder {
-        //     buffer: self.reader.buffer(),
-        // })
-        todo!()
-    }
-    fn deserialize_array(&mut self) -> Result<(), XTypesError> {
-        // Ok(ArrayDecoder { deserializer: self })
-        todo!()
-    }
-    fn deserialize_sequence(&mut self) -> Result<(), XTypesError> {
-        // let len = self.deserialize_uint32()? as usize;
-        // Ok(SequenceDecoder {
-        //     deserializer: self,
-        //     len,
-        // })
-        todo!()
-    }
-
-    fn deserialize_boolean(&mut self) -> Result<bool, XTypesError> {
-        into_bool(self.deserialize_uint8()?)
-    }
-    fn deserialize_uint8(&mut self) -> Result<u8, XTypesError> {
-        Ok(u8::from_le_bytes(read_with_padding_v2(&mut self.reader)?))
-    }
-    fn deserialize_uint16(&mut self) -> Result<u16, XTypesError> {
-        Ok(u16::from_le_bytes(read_with_padding_v2(&mut self.reader)?))
-    }
-    fn deserialize_uint32(&mut self) -> Result<u32, XTypesError> {
-        Ok(u32::from_le_bytes(read_with_padding_v2(&mut self.reader)?))
-    }
-    fn deserialize_uint64(&mut self) -> Result<u64, XTypesError> {
-        Ok(u64::from_le_bytes(read_with_padding_v2(&mut self.reader)?))
-    }
-    fn deserialize_int8(&mut self) -> Result<i8, XTypesError> {
-        Ok(i8::from_le_bytes(read_with_padding_v2(&mut self.reader)?))
-    }
-    fn deserialize_int16(&mut self) -> Result<i16, XTypesError> {
-        Ok(i16::from_le_bytes(read_with_padding_v2(&mut self.reader)?))
-    }
-    fn deserialize_int32(&mut self) -> Result<i32, XTypesError> {
-        Ok(i32::from_le_bytes(read_with_padding_v2(&mut self.reader)?))
-    }
-    fn deserialize_int64(&mut self) -> Result<i64, XTypesError> {
-        Ok(i64::from_le_bytes(read_with_padding_v2(&mut self.reader)?))
-    }
-    fn deserialize_float32(&mut self) -> Result<f32, XTypesError> {
-        Ok(f32::from_le_bytes(read_with_padding_v2(&mut self.reader)?))
-    }
-    fn deserialize_float64(&mut self) -> Result<f64, XTypesError> {
-        Ok(f64::from_le_bytes(read_with_padding_v2(&mut self.reader)?))
-    }
-    fn deserialize_char8(&mut self) -> Result<char, XTypesError> {
-        Ok(self.deserialize_uint8()? as char)
-    }
-    fn deserialize_string(&mut self) -> Result<&'de str, XTypesError> {
-        str::from_utf8(
-            self.deserialize_byte_sequence()?
-                .split_last()
-                .ok_or(XTypesError::InvalidData)?
-                .1,
-        )
-        .map_err(|_| XTypesError::InvalidData)
-    }
-    fn deserialize_byte_sequence(&mut self) -> Result<&'de [u8], XTypesError> {
-        let length = self.deserialize_uint32()? as usize;
-        self.reader.read_all(length)
-    }
-    fn deserialize_byte_array<const N: usize>(&mut self) -> Result<&'de [u8; N], XTypesError> {
-        self.reader.read()
-    }
-    fn deserialize_data_kind(&mut self, dynamic_type: &DynamicType) -> XTypesResult<DataKind> {
-        todo!()
     }
 }
 
@@ -817,18 +431,13 @@ mod tests {
         dynamic_type: DynamicType,
         data: &'de [u8],
     ) -> Result<DynamicData, XTypesError> {
-        deserialize_nested(dynamic_type, &mut Xcdr1BeDeserializer::new(data))
+        deserialize_nested(dynamic_type, &mut Xcdr1Deserializer::new(data, ReaderBe1))
     }
     fn deserialize_v1_le<'de>(
         dynamic_type: DynamicType,
         data: &'de [u8],
     ) -> Result<DynamicData, XTypesError> {
-        deserialize_nested(
-            dynamic_type,
-            &mut Xcdr1LeDeserializer {
-                reader: Reader::new(data),
-            },
-        )
+        deserialize_nested(dynamic_type, &mut Xcdr1Deserializer::new(data, ReaderLe1))
     }
     // fn deserialize_v2_be<'de, T: XTypesDeserialize<'de>>(
     //     data: &'de [u8],
