@@ -360,7 +360,7 @@ pub trait XTypesSerializer<C, E: EndiannessWrite> {
         }
     }
     fn serialize_string(&mut self, v: &str) {
-        E::write_u32(v.len() as u32 + 1, self.writer());
+        self.serialize_u32(v.len() as u32 + 1);
         E::write_str(v, self.writer());
         E::write_u8(0, self.writer());
     }
