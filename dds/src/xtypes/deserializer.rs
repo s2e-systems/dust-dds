@@ -1,6 +1,22 @@
-use crate::xtypes::{dynamic_type::DynamicData, error::XTypesResult};
+use crate::xtypes::{
+    data_representation::endianness::EndiannessRead, dynamic_type::DynamicData, error::XTypesResult,
+};
 
 use super::error::XTypesError;
+
+pub trait PlainCdrDeserializer {
+    fn read_u32(&mut self) -> XTypesResult<u32>;
+}
+
+pub trait PlainCdrDecode: Sized {
+    fn decode(reader: &mut impl PlainCdrDeserializer) -> XTypesResult<Self>;
+}
+
+impl PlainCdrDecode for u32 {
+    fn decode(reader: &mut impl PlainCdrDeserializer) -> XTypesResult<Self> {
+        reader.read_u32()
+    }
+}
 
 /// A trait representing an object with the capability of deserializing a value from a CDR format.
 pub trait XTypesDeserializer<'de>: Sized {
