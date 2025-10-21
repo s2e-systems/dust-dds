@@ -3,7 +3,7 @@ use crate::xtypes::{
     dynamic_type::{DynamicData, TypeKind},
     error::XTypesError,
 };
-use alloc::{string::ToString, vec::Vec};
+use alloc::{string::{String, ToString}, vec::Vec};
 
 /// A trait to Write bytes into a potentially growing buffer
 pub trait Write {
