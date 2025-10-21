@@ -315,24 +315,24 @@ pub trait XTypesSerializer<W: Write, E: EndiannessWrite, V: EncodingVersion> {
         let member_descriptor = v.get_descriptor(member_id)?;
         match member_descriptor.r#type.get_kind() {
             TypeKind::NONE => todo!(),
-            TypeKind::BOOLEAN => v.get_boolean_value(member_id)?.serialize(&mut self.writer()),
+            TypeKind::BOOLEAN => v.get_boolean_value(member_id)?.serialize(self.writer()),
             TypeKind::BYTE => todo!(),
             TypeKind::INT16 => {
-                v.get_int16_value(member_id)?.serialize(&mut self.writer());
+                v.get_int16_value(member_id)?.serialize(self.writer());
             }
             TypeKind::INT32 => {
-                v.get_int32_value(member_id)?.serialize(&mut self.writer());
+                v.get_int32_value(member_id)?.serialize(self.writer());
             }
-            TypeKind::INT64 => v.get_int64_value(member_id)?.serialize(&mut self.writer()),
-            TypeKind::UINT16 => v.get_uint16_value(member_id)?.serialize(&mut self.writer()),
-            TypeKind::UINT32 => v.get_uint32_value(member_id)?.serialize(&mut self.writer()),
-            TypeKind::UINT64 => v.get_uint64_value(member_id)?.serialize(&mut self.writer()),
-            TypeKind::FLOAT32 => v.get_float32_value(member_id)?.serialize(&mut self.writer()),
-            TypeKind::FLOAT64 => v.get_float64_value(member_id)?.serialize(&mut self.writer()),
+            TypeKind::INT64 => v.get_int64_value(member_id)?.serialize(self.writer()),
+            TypeKind::UINT16 => v.get_uint16_value(member_id)?.serialize(self.writer()),
+            TypeKind::UINT32 => v.get_uint32_value(member_id)?.serialize(self.writer()),
+            TypeKind::UINT64 => v.get_uint64_value(member_id)?.serialize(self.writer()),
+            TypeKind::FLOAT32 => v.get_float32_value(member_id)?.serialize(self.writer()),
+            TypeKind::FLOAT64 => v.get_float64_value(member_id)?.serialize(self.writer()),
             TypeKind::FLOAT128 => unimplemented!("not supported by Rust"),
-            TypeKind::INT8 => v.get_int8_value(member_id)?.serialize(&mut self.writer()),
-            TypeKind::UINT8 => v.get_uint8_value(member_id)?.serialize(&mut self.writer()),
-            TypeKind::CHAR8 => v.get_char8_value(member_id)?.serialize(&mut self.writer()),
+            TypeKind::INT8 => v.get_int8_value(member_id)?.serialize(self.writer()),
+            TypeKind::UINT8 => v.get_uint8_value(member_id)?.serialize(self.writer()),
+            TypeKind::CHAR8 => v.get_char8_value(member_id)?.serialize(self.writer()),
             TypeKind::CHAR16 => todo!(),
             TypeKind::STRING8 => self.serialize_string(v.get_string_value(member_id)?),
             TypeKind::STRING16 => todo!(),
