@@ -19,9 +19,7 @@ use crate::{
         type_support::TypeSupport,
     },
     transport::types::{EntityId, Guid, Locator, ENTITYID_UNKNOWN},
-    xtypes::{
-        binding::XTypesBinding, data_representation::DataKind, dynamic_type::DynamicTypeBuilder,
-    },
+    xtypes::{binding::XTypesBinding, data_storage::DataStorage, dynamic_type::DynamicTypeBuilder},
 };
 use alloc::{string::String, vec::Vec};
 
@@ -86,7 +84,7 @@ impl TypeSupport for DiscoveredWriterData {
                     .unwrap();
                 self.index += 1;
             }
-            fn add_member_with_default<T: XTypesBinding + Into<DataKind>>(
+            fn add_member_with_default<T: XTypesBinding + Into<DataStorage>>(
                 &mut self,
                 name: &str,
                 id: i16,
@@ -353,7 +351,8 @@ mod tests {
         let dynamic_sample = data.create_dynamic_sample();
         let result = dynamic_sample
             .serialize(PlCdrLeSerializer::new(Vec::new()))
-            .unwrap().into_inner();
+            .unwrap()
+            .into_inner();
         assert_eq!(result, expected);
     }
 

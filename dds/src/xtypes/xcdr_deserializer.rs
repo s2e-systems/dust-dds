@@ -1,5 +1,5 @@
 use crate::xtypes::{
-    deserializer::{EndiannessRead, Read},
+    data_representation::{endianness::EndiannessRead, read_write::Read},
     dynamic_type::{DynamicData, DynamicDataFactory, DynamicType, ExtensibilityKind},
     error::XTypesResult,
 };
@@ -100,10 +100,6 @@ struct Reader<'a> {
 impl<'a> Read for Reader<'a> {
     fn read_exact(&mut self, size: usize) -> XTypesResult<&[u8]> {
         self.read_all(size)
-    }
-
-    fn pos(&self) -> usize {
-        self.pos
     }
 }
 
@@ -438,7 +434,7 @@ mod tests {
         infrastructure::type_support::TypeSupport,
         xtypes::{
             bytes::Bytes,
-            deserializer::{BigEndian, LittleEndian},
+            data_representation::endianness::{BigEndian, LittleEndian},
         },
     };
 

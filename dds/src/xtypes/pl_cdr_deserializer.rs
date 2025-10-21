@@ -5,12 +5,7 @@ use crate::{
         overall_structure::{BufRead, Read},
         types::ParameterId,
     },
-    xtypes::{
-        data_representation::DataKind,
-        deserializer::XTypesDeserializer,
-        dynamic_type::{DynamicData, DynamicType},
-        error::XTypesResult,
-    },
+    xtypes::{deserializer::XTypesDeserializer, dynamic_type::DynamicData},
 };
 use alloc::vec::Vec;
 
@@ -30,7 +25,7 @@ struct Parameter<'de> {
 }
 
 impl<'de> Parameter<'de> {
-    fn deserialize(&self, endianness: CdrEndianness) -> Result<DataKind, RtpsError> {
+    fn deserialize(&self, endianness: CdrEndianness) -> Result<(), RtpsError> {
         todo!()
         // Ok(match endianness {
         //     CdrEndianness::BigEndian => T::deserialize(&mut Xcdr1BeDeserializer::new(self.data))?,
@@ -103,7 +98,7 @@ impl<'de> ParameterListCdrDeserializer<'de> {
         }
     }
 
-    pub fn read(&self, pid: ParameterId) -> Result<DataKind, RtpsError> {
+    pub fn read(&self, pid: ParameterId) -> Result<(), RtpsError> {
         todo!()
         // let mut iterator = self.iter();
         // while let Some(parameter) = iterator.next()? {
@@ -114,7 +109,7 @@ impl<'de> ParameterListCdrDeserializer<'de> {
         // Err(RtpsError::ParameterNotFound)
     }
 
-    pub fn read_collection(&self, pid: ParameterId) -> Result<Vec<DataKind>, RtpsError> {
+    pub fn read_collection(&self, pid: ParameterId) -> Result<Vec<()>, RtpsError> {
         // let mut collection = Vec::new();
         // let mut iterator = self.iter();
         // while let Some(parameter) = iterator.next()? {
@@ -126,11 +121,7 @@ impl<'de> ParameterListCdrDeserializer<'de> {
         todo!()
     }
 
-    pub fn read_with_default(
-        &self,
-        pid: ParameterId,
-        default: DataKind,
-    ) -> Result<DataKind, RtpsError> {
+    pub fn read_with_default(&self, pid: ParameterId, default: ()) -> Result<(), RtpsError> {
         todo!()
         // let mut iterator = self.iter();
         // while let Some(parameter) = iterator.next()? {

@@ -21,9 +21,7 @@ use crate::{
         type_support::TypeSupport,
     },
     transport::types::{GuidPrefix, Locator, Long, ProtocolVersion, VendorId},
-    xtypes::{
-        binding::XTypesBinding, data_representation::DataKind, dynamic_type::DynamicTypeBuilder,
-    },
+    xtypes::{binding::XTypesBinding, data_storage::DataStorage, dynamic_type::DynamicTypeBuilder},
 };
 use alloc::{string::String, vec::Vec};
 
@@ -197,7 +195,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParti
                     .unwrap();
                 self.index += 1;
             }
-            fn add_member_with_default<T: XTypesBinding + Into<DataKind>>(
+            fn add_member_with_default<T: XTypesBinding + Into<DataStorage>>(
                 &mut self,
                 name: &str,
                 id: i16,
@@ -354,8 +352,13 @@ impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParti
 mod tests {
     use super::*;
     use crate::{
-        builtin_topics::BuiltInTopicKey, infrastructure::qos_policy::UserDataQosPolicy,
-        rtps::types::PROTOCOLVERSION_2_4, xtypes::{dynamic_type::DynamicData, pl_cdr_serializer::PlCdrLeSerializer, serializer::XTypesSerializer},
+        builtin_topics::BuiltInTopicKey,
+        infrastructure::qos_policy::UserDataQosPolicy,
+        rtps::types::PROTOCOLVERSION_2_4,
+        xtypes::{
+            dynamic_type::DynamicData, pl_cdr_serializer::PlCdrLeSerializer,
+            serializer::XTypesSerializer,
+        },
     };
 
     #[test]
@@ -368,7 +371,9 @@ mod tests {
                 key: BuiltInTopicKey {
                     value: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0xc1],
                 },
-                user_data: UserDataQosPolicy { value: vec![97, 53] },
+                user_data: UserDataQosPolicy {
+                    value: vec![97, 53],
+                },
             },
             participant_proxy: ParticipantProxy {
                 domain_id: Some(0),
@@ -463,7 +468,8 @@ mod tests {
         let dynamic_sample = data.create_dynamic_sample();
         let result = dynamic_sample
             .serialize(PlCdrLeSerializer::new(Vec::new()))
-            .unwrap().into_inner();
+            .unwrap()
+            .into_inner();
         assert_eq!(result, expected);
     }
 
@@ -518,7 +524,8 @@ mod tests {
         let dynamic_sample = data.create_dynamic_sample();
         let result = dynamic_sample
             .serialize(PlCdrLeSerializer::new(Vec::new()))
-            .unwrap().into_inner();
+            .unwrap()
+            .into_inner();
         assert_eq!(result, expected);
     }
 

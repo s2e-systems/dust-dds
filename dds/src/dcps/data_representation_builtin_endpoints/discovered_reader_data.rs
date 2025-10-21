@@ -18,9 +18,7 @@ use crate::{
         },
     },
     transport::types::{EntityId, Guid, Locator, ENTITYID_UNKNOWN},
-    xtypes::{
-        binding::XTypesBinding, data_representation::DataKind, dynamic_type::DynamicTypeBuilder,
-    },
+    xtypes::{binding::XTypesBinding, data_storage::DataStorage, dynamic_type::DynamicTypeBuilder},
 };
 use alloc::{string::String, vec::Vec};
 
@@ -87,7 +85,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
                     .unwrap();
                 self.index += 1;
             }
-            fn add_member_with_default<T: XTypesBinding + Into<DataKind>>(
+            fn add_member_with_default<T: XTypesBinding + Into<DataStorage>>(
                 &mut self,
                 name: &str,
                 id: i16,
