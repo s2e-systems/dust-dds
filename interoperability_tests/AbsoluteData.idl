@@ -1,0 +1,15 @@
+@derive("Clone, Serialize")
+@final
+struct AbsoluteDataStruct {
+    @key
+    @serde_rename("id_field")
+    long id;
+    @optional
+    string name;
+    short values[10];
+};
+module AbsoluteModule {
+    struct AnotherStruct {
+        long data;
+    };
+};

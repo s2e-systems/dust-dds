@@ -1,0 +1,11 @@
+@derive("Debug, Clone")
+@appendable
+struct TestStruct {
+    @key int16 field1;
+    @appendable string field2;
+    @mutable bool field3;
+    @final octet field4;
+    @hashid unsigned long long field5;
+    @must_understand float field6;
+    @optional string field7;
+};

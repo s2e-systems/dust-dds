@@ -1,9 +1,11 @@
+@derive("Debug, Clone")
 @appendable
 struct Point {
     double x;
     double y;
 };
 
+@derive("Debug, Clone")
 @mutable
 struct Data {
     @key int16 id;

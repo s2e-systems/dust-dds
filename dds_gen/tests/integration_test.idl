@@ -1,0 +1,15 @@
+@derive("Clone, Serialize")
+@final
+struct MyStruct {
+    @key
+    @serde_rename("id_field")
+    long id;
+    @optional
+    string name;
+    short[10] values;
+};
+module MyModule {
+    struct AnotherStruct {
+        long data;
+    };
+};
