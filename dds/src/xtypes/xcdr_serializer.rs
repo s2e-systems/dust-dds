@@ -1,15 +1,15 @@
 use super::{error::XTypesError, serializer::XTypesSerializer};
 use crate::xtypes::{
     dynamic_type::{DynamicData, TypeKind},
-    serializer::{PadEndiannessWrite, Write, WriterBe1, WriterBe2, WriterLe1, WriterLe2},
+    serializer::{EndiannessWrite, LittleEndian, Write, WriteBasicType, Writer},
 };
 
 const PID_SENTINEL: u16 = 1;
 
-pub fn serialize_nested<C>(
+pub fn serialize_nested<C, E: EndiannessWrite>(
     dynamic_data: &DynamicData,
-    mut serializer: impl XTypesSerializer<C>,
-) -> Result<impl XTypesSerializer<C>, super::error::XTypesError> {
+    mut serializer: impl XTypesSerializer<C, E>,
+) -> Result<impl XTypesSerializer<C, E>, super::error::XTypesError> {
     match dynamic_data.type_ref().get_kind() {
         TypeKind::ENUM => {
             serializer.serialize_enum(dynamic_data)?;
@@ -32,220 +32,313 @@ impl Write for ByteCounter {
     fn write(&mut self, buf: &[u8]) {
         self.0 += buf.len();
     }
-
-    fn pos(&self) -> usize {
-        self.0
-    }
 }
 
-pub struct Xcdr1BeSerializer<C> {
-    writer: WriterBe1<C>,
+pub struct Xcdr1Serializer<C, E> {
+    pub writer: Writer<C>,
+    _endianess: E,
 }
 
-impl<C: Write> Xcdr1BeSerializer<C> {
-    pub fn new(collection: C) -> Self {
+impl<C: Write, E> Xcdr1Serializer<C, E> {
+    pub fn new(buffer: C, endianess: E) -> Self {
         Self {
-            writer: WriterBe1(collection),
+            writer: Writer::new(buffer),
+            _endianess: endianess,
         }
     }
 }
 
-fn count_bytes_xdr1_be(v: &DynamicData, member_id: u32) -> Result<usize, XTypesError> {
-    let mut byte_conter_serializer = Xcdr1BeSerializer::new(ByteCounter::new());
+fn count_bytes_xdr1(v: &DynamicData, member_id: u32) -> Result<usize, XTypesError> {
+    let mut byte_conter_serializer = Xcdr1Serializer::new(ByteCounter::new(), LittleEndian);
     byte_conter_serializer.serialize_dynamic_data_member(v, member_id)?;
     Ok(byte_conter_serializer.into_inner().0)
 }
 
-fn count_bytes_xdr1_le(v: &DynamicData, member_id: u32) -> Result<usize, XTypesError> {
-    let mut byte_conter_serializer = Xcdr1LeSerializer::new(ByteCounter::new());
+fn count_bytes_xdr2(v: &DynamicData, member_id: u32) -> Result<usize, XTypesError> {
+    let mut byte_conter_serializer = Xcdr2Serializer::new(ByteCounter::new(), LittleEndian);
     byte_conter_serializer.serialize_dynamic_data_member(v, member_id)?;
     Ok(byte_conter_serializer.into_inner().0)
 }
 
-impl<C: Write> XTypesSerializer<C> for Xcdr1BeSerializer<C> {
-    fn serialize_mutable_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
-        for field_index in 0..v.get_item_count() {
-            let member_id = v.get_member_id_at_index(field_index)?;
-            let length = count_bytes_xdr1_be(v, member_id)?;
-            self.writer().write_u16(member_id as u16);
-            self.writer().write_u16(length as u16);
-            self.serialize_dynamic_data_member(v, member_id)?;
-            self.writer().pad(4);
-        }
-        self.writer().write_u16(PID_SENTINEL);
-        self.writer().write_u16(0);
-        Ok(())
-    }
-
-    fn writer(&mut self) -> &mut impl PadEndiannessWrite {
-        &mut self.writer
-    }
+impl<C: Write, E: EndiannessWrite> XTypesSerializer<C, E> for Xcdr1Serializer<C, E> {
     fn into_inner(self) -> C {
-        self.writer.0
+        self.writer.buffer
     }
-}
-
-pub struct Xcdr1LeSerializer<C> {
-    pub writer: WriterLe1<C>,
-}
-
-impl<C: Write> Xcdr1LeSerializer<C> {
-    pub fn new(collection: C) -> Self {
-        Self {
-            writer: WriterLe1(collection),
-        }
+    fn serialize_i32(&mut self, v: i32) {
+        self.writer.pad(4);
+        E::write_i32(v, &mut self.writer);
     }
-}
+    fn serialize_u32(&mut self, v: u32) {
+        self.writer.pad(4);
+        E::write_u32(v, &mut self.writer);
+    }
 
-impl<C: Write> XTypesSerializer<C> for Xcdr1LeSerializer<C> {
     fn serialize_mutable_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
         for field_index in 0..v.get_item_count() {
             let member_id = v.get_member_id_at_index(field_index)?;
-            let length = count_bytes_xdr1_le(v, member_id)?;
-            self.writer().write_u16(member_id as u16);
-            self.writer().write_u16(length as u16);
+            let length = count_bytes_xdr1(v, member_id)?;
+            E::write_u16(member_id as u16, &mut self.writer);
+            E::write_u16(length as u16, &mut self.writer);
             self.serialize_dynamic_data_member(v, member_id)?;
-            self.writer().pad(4);
+            self.writer.pad(4);
         }
-        self.writer().write_u16(PID_SENTINEL);
-        self.writer().write_u16(0);
+        E::write_u16(PID_SENTINEL, &mut self.writer);
+        E::write_u16(0, &mut self.writer);
         Ok(())
     }
-    fn writer(&mut self) -> &mut impl PadEndiannessWrite {
+
+    fn serialize_dynamic_data_member(
+        &mut self,
+        v: &DynamicData,
+        member_id: u32,
+    ) -> Result<(), XTypesError> {
+        let member_descriptor = v.get_descriptor(member_id)?;
+        match member_descriptor.r#type.get_kind() {
+            TypeKind::NONE => todo!(),
+            TypeKind::BOOLEAN => v
+                .get_boolean_value(member_id)?
+                .write_basic_type::<E>(&mut self.writer),
+            TypeKind::BYTE => todo!(),
+            TypeKind::INT16 => {
+                self.writer.pad(2);
+                v.get_int16_value(member_id)?
+                    .write_basic_type::<E>(&mut self.writer)
+            }
+            TypeKind::INT32 => {
+                self.writer.pad(4);
+                v.get_int32_value(member_id)?
+                    .write_basic_type::<E>(&mut self.writer)
+            }
+            TypeKind::INT64 => {
+                self.writer.pad(8);
+                v.get_int64_value(member_id)?
+                    .write_basic_type::<E>(&mut self.writer)
+            }
+            TypeKind::UINT16 => {
+                self.writer.pad(2);
+                v.get_uint16_value(member_id)?
+                    .write_basic_type::<E>(&mut self.writer)
+            }
+            TypeKind::UINT32 => {
+                self.writer.pad(4);
+                v.get_uint32_value(member_id)?
+                    .write_basic_type::<E>(&mut self.writer)
+            }
+            TypeKind::UINT64 => {
+                self.writer.pad(8);
+                v.get_uint64_value(member_id)?
+                    .write_basic_type::<E>(&mut self.writer)
+            }
+            TypeKind::FLOAT32 => {
+                self.writer.pad(4);
+                v.get_float32_value(member_id)?
+                    .write_basic_type::<E>(&mut self.writer)
+            }
+            TypeKind::FLOAT64 => {
+                self.writer.pad(8);
+                v.get_float64_value(member_id)?
+                    .write_basic_type::<E>(&mut self.writer)
+            }
+            TypeKind::FLOAT128 => unimplemented!("not supported by Rust"),
+            TypeKind::INT8 => v
+                .get_int8_value(member_id)?
+                .write_basic_type::<E>(&mut self.writer),
+            TypeKind::UINT8 => v
+                .get_uint8_value(member_id)?
+                .write_basic_type::<E>(&mut self.writer),
+            TypeKind::CHAR8 => v
+                .get_char8_value(member_id)?
+                .write_basic_type::<E>(&mut self.writer),
+            TypeKind::CHAR16 => todo!(),
+            TypeKind::STRING8 => self.serialize_string(v.get_string_value(member_id)?),
+            TypeKind::STRING16 => todo!(),
+            TypeKind::ALIAS => todo!(),
+            TypeKind::ENUM => self.serialize_enum(v.get_complex_value(member_id)?)?,
+            TypeKind::BITMASK => todo!(),
+            TypeKind::ANNOTATION => todo!(),
+            TypeKind::STRUCTURE => self.serialize_complex(v.get_complex_value(member_id)?)?,
+            TypeKind::UNION => todo!(),
+            TypeKind::BITSET => todo!(),
+            TypeKind::SEQUENCE => self.serialize_sequence(v, member_id)?,
+            TypeKind::ARRAY => self.serialize_array(v, member_id)?,
+            TypeKind::MAP => todo!(),
+        }
+        Ok(())
+    }
+
+    fn writer(&mut self) -> &mut impl Write {
         &mut self.writer
     }
+}
+
+pub struct Xcdr2Serializer<C, E> {
+    writer: Writer<C>,
+    _endianess: E,
+}
+
+impl<C: Write, E> Xcdr2Serializer<C, E> {
+    pub fn new(buffer: C, endianess: E) -> Self {
+        Self {
+            writer: Writer::new(buffer),
+            _endianess: endianess,
+        }
+    }
+}
+
+impl<C: Write, E: EndiannessWrite> XTypesSerializer<C, E> for Xcdr2Serializer<C, E> {
     fn into_inner(self) -> C {
-        self.writer.0
-    }
-}
-
-pub struct Xcdr2BeSerializer<C> {
-    writer: WriterBe2<C>,
-}
-
-impl<C: Write> Xcdr2BeSerializer<C> {
-    pub fn new(collection: C) -> Self {
-        Self {
-            writer: WriterBe2(collection),
-        }
-    }
-}
-
-pub struct Xcdr2LeSerializer<C> {
-    writer: WriterLe2<C>,
-}
-
-impl<C: Write> Xcdr2LeSerializer<C> {
-    pub fn new(collection: C) -> Self {
-        Self {
-            writer: WriterLe2(collection),
-        }
-    }
-}
-
-impl<C: Write> XTypesSerializer<C> for Xcdr2BeSerializer<C> {
-    fn writer(&mut self) -> &mut impl PadEndiannessWrite {
-        &mut self.writer
+        self.writer.buffer
     }
 
-    fn serialize_mutable_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
-        for field_index in 0..v.get_item_count() {
-            let member_id = v.get_member_id_at_index(field_index)?;
-            let length = count_bytes_xdr1_le(v, member_id)?;
-            self.writer().write_u16(member_id as u16);
-            self.writer().write_u16(length as u16);
-            self.serialize_dynamic_data_member(v, member_id)?;
-            self.writer().pad(4);
-        }
-        self.writer().write_u16(PID_SENTINEL);
-        self.writer().write_u16(0);
-        Ok(())
+    fn serialize_i32(&mut self, v: i32) {
+        self.writer.pad(4);
+        E::write_i32(v, &mut self.writer);
+    }
+    fn serialize_u32(&mut self, v: u32) {
+        self.writer.pad(4);
+        E::write_u32(v, &mut self.writer);
     }
 
     fn serialize_appendable_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
         for field_index in 0..v.get_item_count() {
             let member_id = v.get_member_id_at_index(field_index)?;
             // DHEADER
-            let length = count_bytes_xdr1_le(v, member_id)? as u32;
-            self.writer().write_u32(length);
+            let length = count_bytes_xdr1(v, member_id)? as u32;
+            E::write_u32(length, &mut self.writer);
             // Value
             self.serialize_dynamic_data_member(v, member_id)?;
         }
         Ok(())
-    }
-
-    fn into_inner(self) -> C {
-        self.writer.0
-    }
-}
-
-impl<C: Write> XTypesSerializer<C> for Xcdr2LeSerializer<C> {
-    fn writer(&mut self) -> &mut impl PadEndiannessWrite {
-        &mut self.writer
     }
 
     fn serialize_mutable_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
         for field_index in 0..v.get_item_count() {
             let member_id = v.get_member_id_at_index(field_index)?;
-            let length = count_bytes_xdr1_le(v, member_id)?;
-            self.writer().write_u16(member_id as u16);
-            self.writer().write_u16(length as u16);
+            let length = count_bytes_xdr2(v, member_id)?;
+            E::write_u16(member_id as u16, &mut self.writer);
+            E::write_u16(length as u16, &mut self.writer);
             self.serialize_dynamic_data_member(v, member_id)?;
-            self.writer().pad(4);
+            self.writer.pad(4);
         }
-        self.writer().write_u16(PID_SENTINEL);
-        self.writer().write_u16(0);
+        E::write_u16(PID_SENTINEL, &mut self.writer);
+        E::write_u16(0, &mut self.writer);
         Ok(())
     }
 
-    fn serialize_appendable_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
-        for field_index in 0..v.get_item_count() {
-            let member_id = v.get_member_id_at_index(field_index)?;
-            // DHEADER
-            let length = count_bytes_xdr1_le(v, member_id)? as u32;
-            self.writer().write_u32(length);
-            // Value
-            self.serialize_dynamic_data_member(v, member_id)?;
+    fn serialize_dynamic_data_member(
+        &mut self,
+        v: &DynamicData,
+        member_id: u32,
+    ) -> Result<(), XTypesError> {
+        let member_descriptor = v.get_descriptor(member_id)?;
+        match member_descriptor.r#type.get_kind() {
+            TypeKind::NONE => todo!(),
+            TypeKind::BOOLEAN => v
+                .get_boolean_value(member_id)?
+                .write_basic_type::<E>(&mut self.writer),
+            TypeKind::BYTE => todo!(),
+            TypeKind::INT16 => {
+                self.writer.pad(2);
+                v.get_int16_value(member_id)?
+                    .write_basic_type::<E>(&mut self.writer)
+            }
+            TypeKind::INT32 => {
+                self.writer.pad(4);
+                v.get_int32_value(member_id)?
+                    .write_basic_type::<E>(&mut self.writer)
+            }
+            TypeKind::INT64 => {
+                self.writer.pad(4);
+                v.get_int64_value(member_id)?
+                    .write_basic_type::<E>(&mut self.writer)
+            }
+            TypeKind::UINT16 => {
+                self.writer.pad(2);
+                v.get_uint16_value(member_id)?
+                    .write_basic_type::<E>(&mut self.writer)
+            }
+            TypeKind::UINT32 => {
+                self.writer.pad(4);
+                v.get_uint32_value(member_id)?
+                    .write_basic_type::<E>(&mut self.writer)
+            }
+            TypeKind::UINT64 => {
+                self.writer.pad(4);
+                v.get_uint64_value(member_id)?
+                    .write_basic_type::<E>(&mut self.writer)
+            }
+            TypeKind::FLOAT32 => {
+                self.writer.pad(4);
+                v.get_float32_value(member_id)?
+                    .write_basic_type::<E>(&mut self.writer)
+            }
+            TypeKind::FLOAT64 => {
+                self.writer.pad(4);
+                v.get_float64_value(member_id)?
+                    .write_basic_type::<E>(&mut self.writer)
+            }
+            TypeKind::FLOAT128 => unimplemented!("not supported by Rust"),
+            TypeKind::INT8 => v
+                .get_int8_value(member_id)?
+                .write_basic_type::<E>(&mut self.writer),
+            TypeKind::UINT8 => v
+                .get_uint8_value(member_id)?
+                .write_basic_type::<E>(&mut self.writer),
+            TypeKind::CHAR8 => v
+                .get_char8_value(member_id)?
+                .write_basic_type::<E>(&mut self.writer),
+            TypeKind::CHAR16 => todo!(),
+            TypeKind::STRING8 => self.serialize_string(v.get_string_value(member_id)?),
+            TypeKind::STRING16 => todo!(),
+            TypeKind::ALIAS => todo!(),
+            TypeKind::ENUM => self.serialize_enum(v.get_complex_value(member_id)?)?,
+            TypeKind::BITMASK => todo!(),
+            TypeKind::ANNOTATION => todo!(),
+            TypeKind::STRUCTURE => self.serialize_complex(v.get_complex_value(member_id)?)?,
+            TypeKind::UNION => todo!(),
+            TypeKind::BITSET => todo!(),
+            TypeKind::SEQUENCE => self.serialize_sequence(v, member_id)?,
+            TypeKind::ARRAY => self.serialize_array(v, member_id)?,
+            TypeKind::MAP => todo!(),
         }
         Ok(())
     }
 
-    fn into_inner(self) -> C {
-        self.writer.0
+    fn writer(&mut self) -> &mut impl Write {
+        &mut self.writer
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::infrastructure::type_support::TypeSupport;
-
     use super::*;
+    use crate::{infrastructure::type_support::TypeSupport, xtypes::serializer::BigEndian};
     extern crate std;
 
     fn serialize_v1_be<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
         v.create_dynamic_sample()
-            .serialize(Xcdr1BeSerializer::new(Vec::new()))
+            .serialize(Xcdr1Serializer::new(Vec::new(), BigEndian))
             .unwrap()
             .into_inner()
     }
 
     fn serialize_v1_le<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
         v.create_dynamic_sample()
-            .serialize(Xcdr1LeSerializer::new(Vec::new()))
+            .serialize(Xcdr1Serializer::new(Vec::new(), LittleEndian))
             .unwrap()
             .into_inner()
     }
 
     fn serialize_v2_be<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
         v.create_dynamic_sample()
-            .serialize(Xcdr2BeSerializer::new(Vec::new()))
+            .serialize(Xcdr2Serializer::new(Vec::new(), BigEndian))
             .unwrap()
             .into_inner()
     }
 
     fn serialize_v2_le<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
         v.create_dynamic_sample()
-            .serialize(Xcdr2LeSerializer::new(Vec::new()))
+            .serialize(Xcdr2Serializer::new(Vec::new(), LittleEndian))
             .unwrap()
             .into_inner()
     }

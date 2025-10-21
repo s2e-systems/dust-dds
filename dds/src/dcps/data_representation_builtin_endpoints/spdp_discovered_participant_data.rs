@@ -446,7 +446,7 @@ mod tests {
     use super::*;
     use crate::{
         builtin_topics::BuiltInTopicKey, infrastructure::qos_policy::UserDataQosPolicy,
-        rtps::types::PROTOCOLVERSION_2_4, xtypes::{pl_cdr_serializer::PlCdrLeSerializer, serializer::XTypesSerializer},
+        rtps::types::PROTOCOLVERSION_2_4, xtypes::{pl_cdr_serializer::PlCdrSerializer, serializer::XTypesSerializer},
     };
 
     #[test]
@@ -553,7 +553,7 @@ mod tests {
         ];
         let dynamic_sample = data.create_dynamic_sample();
         let result = dynamic_sample
-            .serialize(PlCdrLeSerializer::new(Vec::new()))
+            .serialize(PlCdrSerializer::new(Vec::new()))
             .unwrap().into_inner();
         assert_eq!(result, expected);
     }
@@ -608,7 +608,7 @@ mod tests {
         ];
         let dynamic_sample = data.create_dynamic_sample();
         let result = dynamic_sample
-            .serialize(PlCdrLeSerializer::new(Vec::new()))
+            .serialize(PlCdrSerializer::new(Vec::new()))
             .unwrap().into_inner();
         assert_eq!(result, expected);
     }

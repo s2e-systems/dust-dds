@@ -84,9 +84,9 @@ use crate::{
     },
     xtypes::{
         dynamic_type::{DynamicData, DynamicDataFactory, DynamicType, ExtensibilityKind},
-        pl_cdr_serializer::PlCdrLeSerializer,
-        serializer::XTypesSerializer,
-        xcdr_serializer::{Xcdr1LeSerializer, Xcdr2LeSerializer},
+        pl_cdr_serializer::PlCdrSerializer,
+        serializer::{LittleEndian, XTypesSerializer},
+        xcdr_serializer::{Xcdr1Serializer, Xcdr2Serializer},
     },
 };
 use alloc::{
@@ -5984,7 +5984,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
                 ExtensibilityKind::Final | ExtensibilityKind::Appendable => vec![0x00, 0x01, 0, 0],
                 ExtensibilityKind::Mutable => vec![0x00, 0x03, 0, 0],
             };
-            let serializer = Xcdr1LeSerializer::new(Vec::new());
+            let serializer = Xcdr1Serializer::new(Vec::new(), LittleEndian);
             buffer.extend_from_slice(&dynamic_data.serialize(serializer)?.into_inner());
 
             let padding = match buffer.len() % 4 {
@@ -6003,11 +6003,11 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
                 ExtensibilityKind::Appendable => vec![0x00, 0x09, 0, 0],
                 ExtensibilityKind::Mutable => todo!(),
             };
-            let serializer = Xcdr2LeSerializer::new(Vec::new());
+            let serializer = Xcdr2Serializer::new(Vec::new(), LittleEndian);
             buffer.extend_from_slice(&dynamic_data.serialize(serializer)?.into_inner());
             buffer
         } else if self.qos.representation.value[0] == BUILT_IN_DATA_REPRESENTATION {
-            let serializer = PlCdrLeSerializer::new(Vec::new());
+            let serializer = PlCdrSerializer::new(Vec::new());
             let mut buffer = vec![0x00, 0x03, 0, 0];
             buffer.extend_from_slice(&dynamic_data.serialize(serializer)?.into_inner());
             buffer

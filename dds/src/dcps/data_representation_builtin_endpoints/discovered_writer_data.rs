@@ -340,7 +340,7 @@ mod tests {
             EntityId, Guid, BUILT_IN_PARTICIPANT, BUILT_IN_READER_GROUP, BUILT_IN_WRITER_WITH_KEY,
             USER_DEFINED_UNKNOWN,
         },
-        xtypes::{pl_cdr_serializer::PlCdrLeSerializer, serializer::XTypesSerializer},
+        xtypes::{pl_cdr_serializer::PlCdrSerializer, serializer::XTypesSerializer},
     };
 
     #[test]
@@ -406,7 +406,7 @@ mod tests {
         ];
         let dynamic_sample = data.create_dynamic_sample();
         let result = dynamic_sample
-            .serialize(PlCdrLeSerializer::new(Vec::new()))
+            .serialize(PlCdrSerializer::new(Vec::new()))
             .unwrap().into_inner();
         assert_eq!(result, expected);
     }
