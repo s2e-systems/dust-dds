@@ -215,6 +215,25 @@ pub trait XTypesDeserialize {
         Ok(values)
     }
 
+    fn deserialize_complex_sequence(
+        &mut self,
+        member: &DynamicTypeMember,
+    ) -> XTypesResult<Vec<DynamicData>> {
+        let mut sequence_of_dynamic_data = Vec::new();
+        let element_type = member
+            .get_descriptor()?
+            .r#type
+            .get_descriptor()
+            .element_type
+            .as_ref()
+            .expect("must have element type");
+        let length = self.deserialize_primitive_type::<u32>()?;
+        for _ in 0..length {
+            sequence_of_dynamic_data.push(self.deserialize_complex_value(element_type)?);
+        }
+        Ok(sequence_of_dynamic_data)
+    }
+
     fn deserialize_sequence(
         &mut self,
         member: &DynamicTypeMember,
@@ -256,7 +275,8 @@ pub trait XTypesDeserialize {
             TypeKind::ENUM => todo!(),
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
-            TypeKind::STRUCTURE => todo!(),
+            TypeKind::STRUCTURE => dynamic_data
+                .set_complex_values(member.get_id(), self.deserialize_complex_sequence(member)?),
             TypeKind::UNION => todo!(),
             TypeKind::BITSET => todo!(),
             TypeKind::SEQUENCE => todo!(),
