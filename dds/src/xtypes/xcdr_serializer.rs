@@ -1,7 +1,10 @@
 use super::{error::XTypesError, serializer::XTypesSerializer};
 use crate::xtypes::{
     dynamic_type::{DynamicData, TypeKind},
-    serializer::{EncodingVersion, EncodingVersion1, EncodingVersion2, EndiannessWrite, LittleEndian, PlainCdrSerialize, Write, Writer},
+    serializer::{
+        EncodingVersion, EncodingVersion1, EncodingVersion2, EndiannessWrite, LittleEndian,
+        PlainCdrSerialize, Write, Writer,
+    },
 };
 
 const PID_SENTINEL: u16 = 1;
@@ -48,7 +51,7 @@ impl<W: Write, E> Xcdr1Serializer<W, E> {
 
 fn count_bytes_xdr1(v: &DynamicData, member_id: u32) -> Result<usize, XTypesError> {
     let mut byte_conter_serializer = Xcdr1Serializer::new(ByteCounter::new(), LittleEndian);
-    byte_conter_serializer.serialize_dynamic_data_member(v, member_id)?;
+    byte_conter_serializer.serialize_dynamic_data_member(v, member_id);
     Ok(byte_conter_serializer.into_inner().0)
 }
 
@@ -58,10 +61,13 @@ fn count_bytes_xdr2(v: &DynamicData, member_id: u32) -> Result<usize, XTypesErro
     Ok(byte_conter_serializer.into_inner().0)
 }
 
-impl<W: Write, E: EndiannessWrite> XTypesSerializer<W, E, EncodingVersion1> for Xcdr1Serializer<W, E> {
+impl<W: Write, E: EndiannessWrite> XTypesSerializer<W, E, EncodingVersion1>
+    for Xcdr1Serializer<W, E>
+{
     fn into_inner(self) -> W {
         self.writer.buffer
     }
+
     fn serialize_mutable_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
         for field_index in 0..v.get_item_count() {
             let member_id = v.get_member_id_at_index(field_index)?;
@@ -75,9 +81,8 @@ impl<W: Write, E: EndiannessWrite> XTypesSerializer<W, E, EncodingVersion1> for 
         PlainCdrSerialize::serialize(0u16, &mut self.writer);
         Ok(())
     }
-
-    fn writer(&mut self) -> &mut Writer<W, E, EncodingVersion1> {
-        &mut self.writer
+    fn serialize_writable(&mut self, v: impl PlainCdrSerialize) {
+        v.serialize(&mut self.writer);
     }
 }
 
@@ -93,9 +98,15 @@ impl<C: Write, E> Xcdr2Serializer<C, E> {
     }
 }
 
-impl<W: Write, E: EndiannessWrite> XTypesSerializer<W, E, EncodingVersion2> for Xcdr2Serializer<W, E> {
+impl<W: Write, E: EndiannessWrite> XTypesSerializer<W, E, EncodingVersion2>
+    for Xcdr2Serializer<W, E>
+{
     fn into_inner(self) -> W {
         self.writer.buffer
+    }
+
+    fn serialize_writable(&mut self, v: impl PlainCdrSerialize) {
+        v.serialize(&mut self.writer);
     }
 
     fn serialize_appendable_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
@@ -122,10 +133,6 @@ impl<W: Write, E: EndiannessWrite> XTypesSerializer<W, E, EncodingVersion2> for 
         PlainCdrSerialize::serialize(PID_SENTINEL, &mut self.writer);
         PlainCdrSerialize::serialize(0u16, &mut self.writer);
         Ok(())
-    }
-
-    fn writer(&mut self) -> &mut Writer<W, E, EncodingVersion2> {
-        &mut self.writer
     }
 }
 

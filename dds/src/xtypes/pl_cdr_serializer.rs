@@ -116,8 +116,8 @@ impl<W: Write> XTypesSerializer<W, LittleEndian, EncodingVersion1> for PlCdrSeri
             .serialize_dynamic_data_member(v, member_id)
     }
 
-    fn writer(&mut self) -> &mut Writer<W, LittleEndian, EncodingVersion1> {
-        &mut self.cdr1_le_serializer.writer
+    fn serialize_writable(&mut self, v: impl super::serializer::PlainCdrSerialize) {
+        v.serialize(&mut self.cdr1_le_serializer.writer);
     }
 }
 
