@@ -1,3 +1,5 @@
+use core::usize;
+
 use crate::xtypes::{
     data_representation::{
         deserialize::XTypesDeserialize, endianness::EndiannessRead, read_write::Read,
@@ -138,8 +140,11 @@ impl<'a, E: EndiannessRead, V: CdrVersion> CdrReader<'a, E, V> {
         self.seek(((self.pos + mask) & !mask) - self.pos)
     }
 
+    pub fn set_position(&mut self, pos: usize) {
+        self.pos = pos;
+    }
+
     pub fn seek_to_pid_le(&mut self, pid: u16) -> XTypesResult<bool> {
-        self.pos = 0;
         const PID_SENTINEL: u16 = 1;
         loop {
             let current_pid = E::read_u16(self)?;
@@ -247,6 +252,7 @@ impl<'a, E: EndiannessRead> XTypesDeserialize for Cdr1Deserializer<'a, E> {
             let member_descriptor = member.get_descriptor()?;
             let pid = member.get_id() as u16;
 
+            self.reader.set_position(0);
             if self.reader.seek_to_pid_le(pid)? {
                 self.deserialize_final_member(member, dynamic_data)?;
             } else {
@@ -311,8 +317,22 @@ impl<'a, E: EndiannessRead> XTypesDeserialize for PlCdr1Deserializer<'a, E> {
             let member_descriptor = member.get_descriptor()?;
             let pid = member.get_id() as u16;
 
+            self.cdr1_deserializer.reader.set_position(0);
             if member_descriptor.r#type.get_kind() == TypeKind::SEQUENCE {
-                todo!()
+                let mut sequence = Vec::new();
+                while self.cdr1_deserializer.reader.seek_to_pid_le(pid)? {
+                    sequence.push(
+                        self.deserialize_complex_value(
+                            member_descriptor
+                                .r#type
+                                .get_descriptor()
+                                .element_type
+                                .as_ref()
+                                .expect("must have element_type"),
+                        )?,
+                    );
+                }
+                dynamic_data.set_complex_values(pid as u32, sequence)?;
             } else {
                 if self.cdr1_deserializer.reader.seek_to_pid_le(pid)? {
                     self.deserialize_final_member(member, dynamic_data)?;
