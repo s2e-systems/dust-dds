@@ -351,27 +351,30 @@ mod tests {
             .unwrap(),
             expected
         );
-        // assert_eq!(
-        //     deserialize_v1_le(&[
-        //         5, 0, 0, 0, // length
-        //         1, 2, 3, 4, 5 // data
-        //     ]),
-        //     expected
-        // );
-        // assert_eq!(
-        //     deserialize_v2_be(&[
-        //         0, 0, 0, 5, // length
-        //         1, 2, 3, 4, 5 // data
-        //     ]),
-        //     expected
-        // );
-        // assert_eq!(
-        //     deserialize_v2_le(&[
-        //         5, 0, 0, 0, // length
-        //         1, 2, 3, 4, 5 // data
-        //     ]),
-        //     expected
-        // );
+        assert_eq!(
+            DynamicData::xcdr_deserialize(
+                ByteArray::get_type(),
+                &mut Cdr1Deserializer::new(&[1, 2], LittleEndian)
+            )
+            .unwrap(),
+            expected
+        );
+        assert_eq!(
+            DynamicData::xcdr_deserialize(
+                ByteArray::get_type(),
+                &mut Cdr2Deserializer::new(&[1, 2], BigEndian)
+            )
+            .unwrap(),
+            expected
+        );
+        assert_eq!(
+            DynamicData::xcdr_deserialize(
+                ByteArray::get_type(),
+                &mut Cdr2Deserializer::new(&[1, 2], LittleEndian)
+            )
+            .unwrap(),
+            expected
+        );
     }
 
     // #[test]

@@ -20,7 +20,6 @@ pub enum DataStorage {
     String(String),
     ComplexValue(DynamicData),
     Sequence(Vec<DataStorage>),
-    Array(Vec<DataStorage>),
 }
 
 impl From<u8> for DataStorage {
@@ -109,7 +108,7 @@ impl<T: TypeSupport> From<T> for DataStorage {
 
 impl<const N: usize, T: Into<DataStorage>> From<[T; N]> for DataStorage {
     fn from(value: [T; N]) -> Self {
-        Self::Array(value.into_iter().map(T::into).collect())
+        Self::Sequence(value.into_iter().map(T::into).collect())
     }
 }
 

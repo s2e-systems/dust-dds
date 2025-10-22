@@ -707,7 +707,7 @@ impl DynamicData {
     }
 
     pub fn get_int32_values(&self, id: MemberId) -> XTypesResult<Vec<i32>> {
-        if let DataStorage::Sequence(d) | DataStorage::Array(d) = self
+        if let DataStorage::Sequence(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
@@ -724,7 +724,7 @@ impl DynamicData {
     }
 
     pub fn get_uint32_values(&self, id: MemberId) -> XTypesResult<Vec<u32>> {
-        if let DataStorage::Sequence(d) | DataStorage::Array(d) = self
+        if let DataStorage::Sequence(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
@@ -741,7 +741,7 @@ impl DynamicData {
     }
 
     pub fn get_int16_values(&self, id: MemberId) -> XTypesResult<Vec<i16>> {
-        if let DataStorage::Sequence(d) | DataStorage::Array(d) = self
+        if let DataStorage::Sequence(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
@@ -758,7 +758,7 @@ impl DynamicData {
     }
 
     pub fn get_uint16_values(&self, id: MemberId) -> XTypesResult<Vec<u16>> {
-        if let DataStorage::Sequence(d) | DataStorage::Array(d) = self
+        if let DataStorage::Sequence(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
@@ -775,7 +775,7 @@ impl DynamicData {
     }
 
     pub fn get_int64_values(&self, id: MemberId) -> XTypesResult<Vec<i64>> {
-        if let DataStorage::Sequence(d) | DataStorage::Array(d) = self
+        if let DataStorage::Sequence(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
@@ -792,7 +792,7 @@ impl DynamicData {
     }
 
     pub fn get_uint64_values(&self, id: MemberId) -> XTypesResult<Vec<u64>> {
-        if let DataStorage::Sequence(d) | DataStorage::Array(d) = self
+        if let DataStorage::Sequence(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
@@ -809,7 +809,7 @@ impl DynamicData {
     }
 
     pub fn get_float32_values(&self, id: MemberId) -> XTypesResult<Vec<f32>> {
-        if let DataStorage::Sequence(d) | DataStorage::Array(d) = self
+        if let DataStorage::Sequence(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
@@ -826,7 +826,7 @@ impl DynamicData {
     }
 
     pub fn get_float64_values(&self, id: MemberId) -> XTypesResult<Vec<f64>> {
-        if let DataStorage::Sequence(d) | DataStorage::Array(d) = self
+        if let DataStorage::Sequence(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
@@ -843,7 +843,7 @@ impl DynamicData {
     }
 
     pub fn get_char8_values(&self, id: MemberId) -> XTypesResult<Vec<char>> {
-        if let DataStorage::Sequence(d) | DataStorage::Array(d) = self
+        if let DataStorage::Sequence(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
@@ -860,7 +860,7 @@ impl DynamicData {
     }
 
     pub fn get_byte_values(&self, id: MemberId) -> XTypesResult<Vec<u8>> {
-        if let DataStorage::Sequence(d) | DataStorage::Array(d) = self
+        if let DataStorage::Sequence(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
@@ -877,7 +877,7 @@ impl DynamicData {
     }
 
     pub fn get_boolean_values(&self, id: MemberId) -> XTypesResult<Vec<bool>> {
-        if let DataStorage::Sequence(d) | DataStorage::Array(d) = self
+        if let DataStorage::Sequence(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
@@ -894,7 +894,7 @@ impl DynamicData {
     }
 
     pub fn get_string_values(&self, id: MemberId) -> XTypesResult<Vec<String>> {
-        if let DataStorage::Sequence(d) | DataStorage::Array(d) = self
+        if let DataStorage::Sequence(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
@@ -912,7 +912,7 @@ impl DynamicData {
 
     // Custom functions
     pub fn get_uint8_values(&self, id: MemberId) -> XTypesResult<Vec<u8>> {
-        if let DataStorage::Sequence(d) | DataStorage::Array(d) = self
+        if let DataStorage::Sequence(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
@@ -924,7 +924,7 @@ impl DynamicData {
     }
 
     pub fn get_int8_values(&self, id: MemberId) -> XTypesResult<Vec<i8>> {
-        if let DataStorage::Sequence(d) | DataStorage::Array(d) = self
+        if let DataStorage::Sequence(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
@@ -946,7 +946,7 @@ impl DynamicData {
     }
 
     pub fn get_complex_values(&self, id: MemberId) -> XTypesResult<Vec<DynamicData>> {
-        if let DataStorage::Sequence(d) | DataStorage::Array(d) = self
+        if let DataStorage::Sequence(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
