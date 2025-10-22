@@ -367,7 +367,9 @@ mod tests {
         builtin_topics::BuiltInTopicKey,
         infrastructure::qos::TopicQos,
         xtypes::{
-            dynamic_type::DynamicData, pl_cdr_serializer::PlCdrSerializer,
+            data_representation::{cdr_reader::PlCdr1Deserializer, endianness::LittleEndian},
+            dynamic_type::DynamicData,
+            pl_cdr_serializer::PlCdrSerializer,
             serializer::XTypesSerializer,
         },
     };
@@ -445,10 +447,10 @@ mod tests {
                 topic_data: topic_qos.topic_data,
                 representation: topic_qos.representation,
             },
-        };
+        }
+        .create_dynamic_sample();
 
-        let data = &[
-            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+        let data = [
             0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
             1, 0, 0, 0, // ,
             2, 0, 0, 0, // ,
@@ -461,9 +463,14 @@ mod tests {
             3, 0x00, 0x00, 0x00, // DomainTag: string length (incl. terminator)
             b'c', b'd', 0, 0x00, // DomainTag: string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
-        ][..];
-        let dynamic_data = DynamicData::deserialize(DiscoveredTopicData::get_type(), data).unwrap();
-        let result = DiscoveredTopicData::create_sample(dynamic_data);
-        assert_eq!(result, expected);
+        ];
+        assert_eq!(
+            DynamicData::xcdr_deserialize(
+                DiscoveredTopicData::get_type(),
+                &mut PlCdr1Deserializer::new(&data, LittleEndian)
+            )
+            .unwrap(),
+            expected
+        );
     }
 }

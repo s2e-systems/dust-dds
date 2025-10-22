@@ -283,7 +283,12 @@ mod tests {
             EntityId, Guid, BUILT_IN_PARTICIPANT, BUILT_IN_READER_GROUP, BUILT_IN_WRITER_WITH_KEY,
             USER_DEFINED_UNKNOWN,
         },
-        xtypes::{pl_cdr_serializer::PlCdrSerializer, serializer::XTypesSerializer},
+        xtypes::{
+            data_representation::{cdr_reader::PlCdr1Deserializer, endianness::LittleEndian},
+            dynamic_type::DynamicData,
+            pl_cdr_serializer::PlCdrSerializer,
+            serializer::XTypesSerializer,
+        },
     };
 
     #[test]
@@ -393,10 +398,10 @@ mod tests {
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
             },
-        };
+        }
+        .create_dynamic_sample();
 
-        let mut data = &[
-            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+        let data = [
             0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
             21, 22, 23, 0xc1, // u8[3], u8
             0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
@@ -416,9 +421,14 @@ mod tests {
             3, 0x00, 0x00, 0x00, // string length (incl. terminator)
             b'c', b'd', 0, 0x00, // string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
-        ][..];
-        todo!()
-        // let result = DiscoveredWriterData::deserialize_data(&mut data).unwrap();
-        // assert_eq!(result, expected);
+        ];
+        assert_eq!(
+            DynamicData::xcdr_deserialize(
+                DiscoveredWriterData::get_type(),
+                &mut PlCdr1Deserializer::new(&data, LittleEndian)
+            )
+            .unwrap(),
+            expected
+        );
     }
 }
