@@ -1,9 +1,7 @@
-use tracing::debug;
-
 use crate::xtypes::{
     data_representation::deserialize::XTypesDeserialize,
-    dynamic_type::{DynamicData, DynamicDataFactory, DynamicType, ExtensibilityKind, TypeKind},
-    error::{XTypesError, XTypesResult},
+    dynamic_type::{DynamicData, DynamicDataFactory, DynamicType},
+    error::XTypesResult,
 };
 
 impl DynamicData {
@@ -272,4 +270,132 @@ mod tests {
             expected
         );
     }
+
+    #[test]
+    fn deserialize_string() {
+        #[derive(Debug, PartialEq, TypeSupport)]
+        struct FinalString(String);
+        let expected = FinalString(String::from("Hola")).create_dynamic_sample();
+        assert_eq!(
+            DynamicData::xcdr_deserialize(
+                FinalString::get_type(),
+                &mut Cdr1Deserializer::new(
+                    &[
+                        0, 0, 0, 5, //length
+                        b'H', b'o', b'l', b'a', // str
+                        0x00, // terminating 0
+                    ],
+                    BigEndian
+                )
+            )
+            .unwrap(),
+            expected
+        );
+        assert_eq!(
+            DynamicData::xcdr_deserialize(
+                FinalString::get_type(),
+                &mut Cdr1Deserializer::new(
+                    &[
+                        5, 0, 0, 0, //length
+                        b'H', b'o', b'l', b'a', // str
+                        0x00, // terminating 0
+                    ],
+                    LittleEndian
+                )
+            )
+            .unwrap(),
+            expected
+        );
+        assert_eq!(
+            DynamicData::xcdr_deserialize(
+                FinalString::get_type(),
+                &mut Cdr2Deserializer::new(
+                    &[
+                        0, 0, 0, 5, //length
+                        b'H', b'o', b'l', b'a', // str
+                        0x00, // terminating 0
+                    ],
+                    BigEndian
+                )
+            )
+            .unwrap(),
+            expected
+        );
+        assert_eq!(
+            DynamicData::xcdr_deserialize(
+                FinalString::get_type(),
+                &mut Cdr2Deserializer::new(
+                    &[
+                        5, 0, 0, 0, //length
+                        b'H', b'o', b'l', b'a', // str
+                        0x00, // terminating 0
+                    ],
+                    LittleEndian
+                )
+            )
+            .unwrap(),
+            expected
+        );
+    }
+
+    #[test]
+    fn deserialize_bytes() {
+        #[derive(Debug, PartialEq, TypeSupport)]
+        struct ByteArray([u8; 2]);
+        let expected = ByteArray([1u8, 2]).create_dynamic_sample();
+        assert_eq!(
+            DynamicData::xcdr_deserialize(
+                ByteArray::get_type(),
+                &mut Cdr1Deserializer::new(&[1, 2], BigEndian)
+            )
+            .unwrap(),
+            expected
+        );
+        // assert_eq!(
+        //     deserialize_v1_le(&[
+        //         5, 0, 0, 0, // length
+        //         1, 2, 3, 4, 5 // data
+        //     ]),
+        //     expected
+        // );
+        // assert_eq!(
+        //     deserialize_v2_be(&[
+        //         0, 0, 0, 5, // length
+        //         1, 2, 3, 4, 5 // data
+        //     ]),
+        //     expected
+        // );
+        // assert_eq!(
+        //     deserialize_v2_le(&[
+        //         5, 0, 0, 0, // length
+        //         1, 2, 3, 4, 5 // data
+        //     ]),
+        //     expected
+        // );
+    }
+
+    // #[test]
+    // fn deserialize_byte_array() {
+    //     let expected = Ok(&[1u8, 2, 3, 4, 5]);
+    //     assert_eq!(deserialize_v1_be(&[1, 2, 3, 4, 5, 77]), expected);
+    //     assert_eq!(deserialize_v1_le(&[1, 2, 3, 4, 5, 77]), expected);
+    //     assert_eq!(deserialize_v2_be(&[1, 2, 3, 4, 5, 77]), expected);
+    //     assert_eq!(deserialize_v2_le(&[1, 2, 3, 4, 5, 77]), expected);
+    // }
+
+    // #[test]
+    // fn deserialize_sequence() {
+    //     #[derive(Debug, PartialEq, TypeSupport)]
+    //     struct Atype(u8);
+    //     impl<'de> XTypesDeserialize<'de> for Atype {
+    //         fn deserialize(
+    //             deserializer: impl XTypesDeserializer<'de>,
+    //         ) -> Result<Self, XTypesError> {
+    //             Ok(Atype(deserializer.deserialize_uint8()?))
+    //         }
+    //     }
+
+    //     let expected = Ok([Atype(1), Atype(2)]);
+    //     assert_eq!(deserialize_v1_be(&[1, 2, 77]), expected);
+    // }
 }

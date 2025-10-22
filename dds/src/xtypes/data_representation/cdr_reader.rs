@@ -2,7 +2,7 @@ use crate::xtypes::{
     data_representation::{
         deserialize::XTypesDeserialize, endianness::EndiannessRead, read_write::Read,
     },
-    dynamic_type::{DynamicData, DynamicDataFactory, DynamicType, DynamicTypeMember, TypeKind},
+    dynamic_type::{DynamicData, DynamicType, DynamicTypeMember, TypeKind},
     error::{XTypesError, XTypesResult},
 };
 
@@ -239,56 +239,6 @@ impl<'a, E: EndiannessRead> XTypesDeserialize for Cdr1Deserializer<'a, E> {
     fn deserialize_primitive_type<T: CdrPrimitiveTypeDeserialize>(&mut self) -> XTypesResult<T> {
         T::deserialize(&mut self.reader)
     }
-
-    fn deserialize_sequence(
-        &mut self,
-        member: &DynamicTypeMember,
-        dynamic_data: &mut DynamicData,
-    ) -> XTypesResult<()> {
-        let sequence_type = member
-            .get_descriptor()?
-            .r#type
-            .get_descriptor()
-            .element_type
-            .as_ref()
-            .expect("Sequence must have element type");
-        match sequence_type.get_kind() {
-            TypeKind::NONE => todo!(),
-            TypeKind::BOOLEAN => todo!(),
-            TypeKind::BYTE => todo!(),
-            TypeKind::INT16 => todo!(),
-            TypeKind::INT32 => todo!(),
-            TypeKind::INT64 => todo!(),
-            TypeKind::UINT16 => todo!(),
-            TypeKind::UINT32 => dynamic_data.set_uint32_values(
-                member.get_id(),
-                self.deserialize_primitive_type_sequence::<u32>()?,
-            ),
-            TypeKind::UINT64 => todo!(),
-            TypeKind::FLOAT32 => todo!(),
-            TypeKind::FLOAT64 => todo!(),
-            TypeKind::FLOAT128 => todo!(),
-            TypeKind::INT8 => todo!(),
-            TypeKind::UINT8 => dynamic_data.set_uint8_values(
-                member.get_id(),
-                self.deserialize_primitive_type_sequence::<u8>()?,
-            ),
-            TypeKind::CHAR8 => todo!(),
-            TypeKind::CHAR16 => todo!(),
-            TypeKind::STRING8 => todo!(),
-            TypeKind::STRING16 => todo!(),
-            TypeKind::ALIAS => todo!(),
-            TypeKind::ENUM => todo!(),
-            TypeKind::BITMASK => todo!(),
-            TypeKind::ANNOTATION => todo!(),
-            TypeKind::STRUCTURE => todo!(),
-            TypeKind::UNION => todo!(),
-            TypeKind::BITSET => todo!(),
-            TypeKind::SEQUENCE => todo!(),
-            TypeKind::ARRAY => todo!(),
-            TypeKind::MAP => todo!(),
-        }
-    }
 }
 
 pub struct Cdr2Deserializer<'a, E: EndiannessRead> {
@@ -322,55 +272,5 @@ impl<'a, E: EndiannessRead> XTypesDeserialize for Cdr2Deserializer<'a, E> {
 
     fn deserialize_primitive_type<T: CdrPrimitiveTypeDeserialize>(&mut self) -> XTypesResult<T> {
         T::deserialize(&mut self.reader)
-    }
-
-    fn deserialize_sequence(
-        &mut self,
-        member: &DynamicTypeMember,
-        dynamic_data: &mut DynamicData,
-    ) -> XTypesResult<()> {
-        let sequence_type = member
-            .get_descriptor()?
-            .r#type
-            .get_descriptor()
-            .element_type
-            .as_ref()
-            .expect("Sequence must have element type");
-        match sequence_type.get_kind() {
-            TypeKind::NONE => todo!(),
-            TypeKind::BOOLEAN => todo!(),
-            TypeKind::BYTE => todo!(),
-            TypeKind::INT16 => todo!(),
-            TypeKind::INT32 => todo!(),
-            TypeKind::INT64 => todo!(),
-            TypeKind::UINT16 => todo!(),
-            TypeKind::UINT32 => dynamic_data.set_uint32_values(
-                member.get_id(),
-                self.deserialize_primitive_type_sequence::<u32>()?,
-            ),
-            TypeKind::UINT64 => todo!(),
-            TypeKind::FLOAT32 => todo!(),
-            TypeKind::FLOAT64 => todo!(),
-            TypeKind::FLOAT128 => todo!(),
-            TypeKind::INT8 => todo!(),
-            TypeKind::UINT8 => dynamic_data.set_uint8_values(
-                member.get_id(),
-                self.deserialize_primitive_type_sequence::<u8>()?,
-            ),
-            TypeKind::CHAR8 => todo!(),
-            TypeKind::CHAR16 => todo!(),
-            TypeKind::STRING8 => todo!(),
-            TypeKind::STRING16 => todo!(),
-            TypeKind::ALIAS => todo!(),
-            TypeKind::ENUM => todo!(),
-            TypeKind::BITMASK => todo!(),
-            TypeKind::ANNOTATION => todo!(),
-            TypeKind::STRUCTURE => todo!(),
-            TypeKind::UNION => todo!(),
-            TypeKind::BITSET => todo!(),
-            TypeKind::SEQUENCE => todo!(),
-            TypeKind::ARRAY => todo!(),
-            TypeKind::MAP => todo!(),
-        }
     }
 }

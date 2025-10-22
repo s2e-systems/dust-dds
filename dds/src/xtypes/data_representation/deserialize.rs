@@ -74,6 +74,16 @@ pub trait XTypesDeserialize {
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()>;
 
+    fn deserialize_string(&mut self) -> Result<String, XTypesError> {
+        let length = self.deserialize_primitive_type::<u32>()?;
+        let mut values = Vec::with_capacity(length as usize);
+        for _ in 0..length - 1 {
+            values.push(self.deserialize_primitive_type::<u8>()?);
+        }
+        self.deserialize_primitive_type::<u8>()?;
+        String::from_utf8(values).map_err(|_| XTypesError::InvalidData)
+    }
+
     fn deserialize_primitive_type<T: CdrPrimitiveTypeDeserialize>(&mut self) -> XTypesResult<T>;
 
     fn deserialize_final_member(
@@ -115,7 +125,9 @@ pub trait XTypesDeserialize {
             }
             TypeKind::CHAR8 => todo!(),
             TypeKind::CHAR16 => todo!(),
-            TypeKind::STRING8 => todo!(),
+            TypeKind::STRING8 => {
+                dynamic_data.set_string_value(member.get_id(), self.deserialize_string()?)
+            }
             TypeKind::STRING16 => todo!(),
             TypeKind::ALIAS => todo!(),
             TypeKind::ENUM => todo!(),
@@ -128,26 +140,128 @@ pub trait XTypesDeserialize {
             TypeKind::UNION => todo!(),
             TypeKind::BITSET => todo!(),
             TypeKind::SEQUENCE => self.deserialize_sequence(&member, dynamic_data),
-            TypeKind::ARRAY => todo!(),
+            TypeKind::ARRAY => self.deserialize_array(&member, dynamic_data),
             TypeKind::MAP => todo!(),
         }
         // self.deserialize_primitive_type()
+    }
+
+    fn deserialize_array(
+        &mut self,
+        member: &DynamicTypeMember,
+        dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()> {
+        let sequence_type = member
+            .get_descriptor()?
+            .r#type
+            .get_descriptor()
+            .element_type
+            .as_ref()
+            .expect("Sequence must have element type");
+        let bound = member.get_descriptor()?.r#type.get_descriptor().bound[0];
+        match sequence_type.get_kind() {
+            TypeKind::NONE => todo!(),
+            TypeKind::BOOLEAN => todo!(),
+            TypeKind::BYTE => todo!(),
+            TypeKind::INT16 => todo!(),
+            TypeKind::INT32 => todo!(),
+            TypeKind::INT64 => todo!(),
+            TypeKind::UINT16 => todo!(),
+            TypeKind::UINT32 => dynamic_data.set_uint32_values(
+                member.get_id(),
+                self.deserialize_primitive_type_array::<u32>(bound)?,
+            ),
+            TypeKind::UINT64 => todo!(),
+            TypeKind::FLOAT32 => todo!(),
+            TypeKind::FLOAT64 => todo!(),
+            TypeKind::FLOAT128 => todo!(),
+            TypeKind::INT8 => todo!(),
+            TypeKind::UINT8 => dynamic_data.set_uint8_values(
+                member.get_id(),
+                self.deserialize_primitive_type_array::<u8>(bound)?,
+            ),
+            TypeKind::CHAR8 => todo!(),
+            TypeKind::CHAR16 => todo!(),
+            TypeKind::STRING8 => todo!(),
+            TypeKind::STRING16 => todo!(),
+            TypeKind::ALIAS => todo!(),
+            TypeKind::ENUM => todo!(),
+            TypeKind::BITMASK => todo!(),
+            TypeKind::ANNOTATION => todo!(),
+            TypeKind::STRUCTURE => todo!(),
+            TypeKind::UNION => todo!(),
+            TypeKind::BITSET => todo!(),
+            TypeKind::SEQUENCE => todo!(),
+            TypeKind::ARRAY => todo!(),
+            TypeKind::MAP => todo!(),
+        }
+    }
+
+    fn deserialize_primitive_type_sequence<T: CdrPrimitiveTypeDeserialize>(
+        &mut self,
+    ) -> XTypesResult<Vec<T>> {
+        let length = self.deserialize_primitive_type::<u32>()?;
+        self.deserialize_primitive_type_array(length)
+    }
+
+    fn deserialize_primitive_type_array<T: CdrPrimitiveTypeDeserialize>(
+        &mut self,
+        length: u32,
+    ) -> XTypesResult<Vec<T>> {
+        let mut values = Vec::with_capacity(length as usize);
+        for _ in 0..length {
+            values.push(self.deserialize_primitive_type::<T>()?);
+        }
+        Ok(values)
     }
 
     fn deserialize_sequence(
         &mut self,
         member: &DynamicTypeMember,
         dynamic_data: &mut DynamicData,
-    ) -> XTypesResult<()>;
-
-    fn deserialize_primitive_type_sequence<T: CdrPrimitiveTypeDeserialize>(
-        &mut self,
-    ) -> XTypesResult<Vec<T>> {
-        let length = self.deserialize_primitive_type::<u32>()?;
-        let mut values = Vec::with_capacity(length as usize);
-        for _ in 0..length {
-            values.push(self.deserialize_primitive_type::<T>()?);
+    ) -> XTypesResult<()> {
+        let sequence_type = member
+            .get_descriptor()?
+            .r#type
+            .get_descriptor()
+            .element_type
+            .as_ref()
+            .expect("Sequence must have element type");
+        match sequence_type.get_kind() {
+            TypeKind::NONE => todo!(),
+            TypeKind::BOOLEAN => todo!(),
+            TypeKind::BYTE => todo!(),
+            TypeKind::INT16 => todo!(),
+            TypeKind::INT32 => todo!(),
+            TypeKind::INT64 => todo!(),
+            TypeKind::UINT16 => todo!(),
+            TypeKind::UINT32 => dynamic_data.set_uint32_values(
+                member.get_id(),
+                self.deserialize_primitive_type_sequence::<u32>()?,
+            ),
+            TypeKind::UINT64 => todo!(),
+            TypeKind::FLOAT32 => todo!(),
+            TypeKind::FLOAT64 => todo!(),
+            TypeKind::FLOAT128 => todo!(),
+            TypeKind::INT8 => todo!(),
+            TypeKind::UINT8 => dynamic_data.set_uint8_values(
+                member.get_id(),
+                self.deserialize_primitive_type_sequence::<u8>()?,
+            ),
+            TypeKind::CHAR8 => todo!(),
+            TypeKind::CHAR16 => todo!(),
+            TypeKind::STRING8 => todo!(),
+            TypeKind::STRING16 => todo!(),
+            TypeKind::ALIAS => todo!(),
+            TypeKind::ENUM => todo!(),
+            TypeKind::BITMASK => todo!(),
+            TypeKind::ANNOTATION => todo!(),
+            TypeKind::STRUCTURE => todo!(),
+            TypeKind::UNION => todo!(),
+            TypeKind::BITSET => todo!(),
+            TypeKind::SEQUENCE => todo!(),
+            TypeKind::ARRAY => todo!(),
+            TypeKind::MAP => todo!(),
         }
-        Ok(values)
     }
 }
