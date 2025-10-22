@@ -17,7 +17,7 @@ impl CdrVersion for CdrVersion1 {
 
 pub struct CdrVersion2;
 impl CdrVersion for CdrVersion2 {
-    const MAX_ALIGN: usize = 8;
+    const MAX_ALIGN: usize = 4;
 }
 
 trait CdrPrimitiveTypeDeserializer {
@@ -137,17 +137,6 @@ impl<'a, E: EndiannessRead, V: CdrVersion> CdrReader<'a, E, V> {
         let mask = alignment - 1;
         self.seek(((self.pos + mask) & !mask) - self.pos)
     }
-
-    fn deserialize_primitive_type_sequence<T: CdrPrimitiveTypeDeserialize>(
-        &mut self,
-    ) -> XTypesResult<Vec<T>> {
-        let length = u32::deserialize(self)?;
-        let mut values = Vec::with_capacity(length as usize);
-        for _ in 0..length {
-            values.push(T::deserialize(self)?);
-        }
-        Ok(values)
-    }
 }
 
 impl<'a, E: EndiannessRead, V: CdrVersion> Read for CdrReader<'a, E, V> {
@@ -228,41 +217,63 @@ impl<'a, E: EndiannessRead> Cdr1Deserializer<'a, E> {
             reader: CdrReader::new(buffer, endianness, CdrVersion1),
         }
     }
+}
 
-    fn deserialize_type_kind(
+impl<'a, E: EndiannessRead> XTypesDeserialize for Cdr1Deserializer<'a, E> {
+    fn deserialize_appendable_struct(
         &mut self,
-        id: u32,
+        dynamic_type: &DynamicType,
+        dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()> {
+        todo!()
+    }
+
+    fn deserialize_mutable_struct(
+        &mut self,
+        dynamic_type: &DynamicType,
+        dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()> {
+        Err(XTypesError::IllegalOperation)
+    }
+
+    fn deserialize_primitive_type<T: CdrPrimitiveTypeDeserialize>(&mut self) -> XTypesResult<T> {
+        T::deserialize(&mut self.reader)
+    }
+
+    fn deserialize_sequence(
+        &mut self,
         member: &DynamicTypeMember,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
-        match member.get_descriptor()?.r#type.get_kind() {
+        let sequence_type = member
+            .get_descriptor()?
+            .r#type
+            .get_descriptor()
+            .element_type
+            .as_ref()
+            .expect("Sequence must have element type");
+        match sequence_type.get_kind() {
             TypeKind::NONE => todo!(),
-            TypeKind::BOOLEAN => {
-                dynamic_data.set_boolean_value(id, self.reader.deserialize_boolean()?)?
-            }
+            TypeKind::BOOLEAN => todo!(),
             TypeKind::BYTE => todo!(),
-            TypeKind::INT16 => dynamic_data.set_int16_value(id, self.reader.deserialize_i16()?)?,
-            TypeKind::INT32 => dynamic_data.set_int32_value(id, self.reader.deserialize_i32()?)?,
-            TypeKind::INT64 => dynamic_data.set_int64_value(id, self.reader.deserialize_i64()?)?,
-            TypeKind::UINT16 => {
-                dynamic_data.set_uint16_value(id, self.reader.deserialize_u16()?)?
-            }
-            TypeKind::UINT32 => {
-                dynamic_data.set_uint32_value(id, self.reader.deserialize_u32()?)?
-            }
-            TypeKind::UINT64 => {
-                dynamic_data.set_uint64_value(id, self.reader.deserialize_u64()?)?
-            }
-            TypeKind::FLOAT32 => {
-                dynamic_data.set_float32_value(id, self.reader.deserialize_f32()?)?
-            }
-            TypeKind::FLOAT64 => {
-                dynamic_data.set_float64_value(id, self.reader.deserialize_f64()?)?
-            }
+            TypeKind::INT16 => todo!(),
+            TypeKind::INT32 => todo!(),
+            TypeKind::INT64 => todo!(),
+            TypeKind::UINT16 => todo!(),
+            TypeKind::UINT32 => dynamic_data.set_uint32_values(
+                member.get_id(),
+                self.deserialize_primitive_type_sequence::<u32>()?,
+            ),
+            TypeKind::UINT64 => todo!(),
+            TypeKind::FLOAT32 => todo!(),
+            TypeKind::FLOAT64 => todo!(),
             TypeKind::FLOAT128 => todo!(),
-            TypeKind::INT8 => dynamic_data.set_int8_value(id, self.reader.deserialize_i8()?)?,
-            TypeKind::UINT8 => dynamic_data.set_uint8_value(id, self.reader.deserialize_u8()?)?,
-            TypeKind::CHAR8 => dynamic_data.set_char8_value(id, self.reader.deserialize_char()?)?,
+            TypeKind::INT8 => todo!(),
+            TypeKind::UINT8 => dynamic_data.set_uint8_values(
+                member.get_id(),
+                self.deserialize_primitive_type_sequence::<u8>()?,
+            ),
+            TypeKind::CHAR8 => todo!(),
             TypeKind::CHAR16 => todo!(),
             TypeKind::STRING8 => todo!(),
             TypeKind::STRING16 => todo!(),
@@ -270,110 +281,13 @@ impl<'a, E: EndiannessRead> Cdr1Deserializer<'a, E> {
             TypeKind::ENUM => todo!(),
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
-            TypeKind::STRUCTURE => {
-                let value =
-                    self.deserialize_final_struct(member.get_descriptor()?.r#type.clone())?;
-                dynamic_data.set_complex_value(id, value)?;
-            }
+            TypeKind::STRUCTURE => todo!(),
             TypeKind::UNION => todo!(),
             TypeKind::BITSET => todo!(),
-            TypeKind::SEQUENCE => {
-                let sequence_type = member
-                    .get_descriptor()?
-                    .r#type
-                    .get_descriptor()
-                    .element_type
-                    .as_ref()
-                    .expect("Sequence must have element type");
-                match sequence_type.get_kind() {
-                    TypeKind::NONE => todo!(),
-                    TypeKind::BOOLEAN => todo!(),
-                    TypeKind::BYTE => todo!(),
-                    TypeKind::INT16 => todo!(),
-                    TypeKind::INT32 => todo!(),
-                    TypeKind::INT64 => todo!(),
-                    TypeKind::UINT16 => todo!(),
-                    TypeKind::UINT32 => {
-                        dynamic_data.set_uint32_values(
-                            id,
-                            self.reader.deserialize_primitive_type_sequence::<u32>()?,
-                        )?;
-                    }
-                    TypeKind::UINT64 => todo!(),
-                    TypeKind::FLOAT32 => todo!(),
-                    TypeKind::FLOAT64 => todo!(),
-                    TypeKind::FLOAT128 => todo!(),
-                    TypeKind::INT8 => todo!(),
-                    TypeKind::UINT8 => todo!(),
-                    TypeKind::CHAR8 => todo!(),
-                    TypeKind::CHAR16 => todo!(),
-                    TypeKind::STRING8 => todo!(),
-                    TypeKind::STRING16 => todo!(),
-                    TypeKind::ALIAS => todo!(),
-                    TypeKind::ENUM => todo!(),
-                    TypeKind::BITMASK => todo!(),
-                    TypeKind::ANNOTATION => todo!(),
-                    TypeKind::STRUCTURE => {
-                        dynamic_data.set_complex_values(
-                            id,
-                            self.deserialize_type_sequence(
-                                member.get_descriptor()?.r#type.clone(),
-                            )?,
-                        )?;
-                    }
-                    TypeKind::UNION => todo!(),
-                    TypeKind::BITSET => todo!(),
-                    TypeKind::SEQUENCE => todo!(),
-                    TypeKind::ARRAY => todo!(),
-                    TypeKind::MAP => todo!(),
-                }
-            }
+            TypeKind::SEQUENCE => todo!(),
             TypeKind::ARRAY => todo!(),
             TypeKind::MAP => todo!(),
         }
-        Ok(())
-    }
-
-    fn deserialize_final_member(
-        &mut self,
-        member: &DynamicTypeMember,
-        dynamic_data: &mut DynamicData,
-    ) -> XTypesResult<()> {
-        todo!()
-    }
-
-    fn deserialize_type_sequence(&mut self, r#type: DynamicType) -> XTypesResult<Vec<DynamicData>> {
-        let length = self.reader.deserialize_u32()?;
-        let values = Vec::with_capacity(length as usize);
-        for _ in 0..length {
-            todo!("Deserialize each element into a vec")
-        }
-        Ok(values)
-    }
-}
-
-impl<'a, E: EndiannessRead> XTypesDeserialize for Cdr1Deserializer<'a, E> {
-    fn deserialize_final_struct(&mut self, dynamic_type: DynamicType) -> XTypesResult<DynamicData> {
-        let mut dynamic_data = DynamicDataFactory::create_data(dynamic_type.clone());
-        for member_index in 0..dynamic_type.get_member_count() {
-            let member = dynamic_type.get_member_by_index(member_index)?;
-            self.deserialize_final_member(member, &mut dynamic_data)?;
-        }
-        Ok(dynamic_data)
-    }
-
-    fn deserialize_appendable_struct(
-        &mut self,
-        dynamic_type: DynamicType,
-    ) -> XTypesResult<DynamicData> {
-        self.deserialize_final_struct(dynamic_type)
-    }
-
-    fn deserialize_mutable_struct(
-        &mut self,
-        _dynamic_type: DynamicType,
-    ) -> XTypesResult<DynamicData> {
-        Err(XTypesError::IllegalOperation)
     }
 }
 
@@ -390,126 +304,73 @@ impl<'a, E: EndiannessRead> Cdr2Deserializer<'a, E> {
 }
 
 impl<'a, E: EndiannessRead> XTypesDeserialize for Cdr2Deserializer<'a, E> {
-    fn deserialize_final_struct(&mut self, dynamic_type: DynamicType) -> XTypesResult<DynamicData> {
-        let mut dynamic_data = DynamicDataFactory::create_data(dynamic_type);
-        for member_index in 0..dynamic_data.type_ref().get_member_count() {
-            let member = dynamic_data.type_ref().get_member_by_index(member_index)?;
-            match member.get_descriptor()?.r#type.get_kind() {
-                TypeKind::NONE => todo!(),
-                TypeKind::BOOLEAN => dynamic_data
-                    .set_boolean_value(member.get_id(), self.reader.deserialize_boolean()?)?,
-                TypeKind::BYTE => todo!(),
-                TypeKind::INT16 => {
-                    dynamic_data.set_int16_value(member.get_id(), self.reader.deserialize_i16()?)?
-                }
-                TypeKind::INT32 => {
-                    dynamic_data.set_int32_value(member.get_id(), self.reader.deserialize_i32()?)?
-                }
-                TypeKind::INT64 => {
-                    dynamic_data.set_int64_value(member.get_id(), self.reader.deserialize_i64()?)?
-                }
-                TypeKind::UINT16 => dynamic_data
-                    .set_uint16_value(member.get_id(), self.reader.deserialize_u16()?)?,
-                TypeKind::UINT32 => dynamic_data
-                    .set_uint32_value(member.get_id(), self.reader.deserialize_u32()?)?,
-                TypeKind::UINT64 => dynamic_data
-                    .set_uint64_value(member.get_id(), self.reader.deserialize_u64()?)?,
-                TypeKind::FLOAT32 => dynamic_data
-                    .set_float32_value(member.get_id(), self.reader.deserialize_f32()?)?,
-                TypeKind::FLOAT64 => dynamic_data
-                    .set_float64_value(member.get_id(), self.reader.deserialize_f64()?)?,
-                TypeKind::FLOAT128 => todo!(),
-                TypeKind::INT8 => {
-                    dynamic_data.set_int8_value(member.get_id(), self.reader.deserialize_i8()?)?
-                }
-                TypeKind::UINT8 => {
-                    dynamic_data.set_uint8_value(member.get_id(), self.reader.deserialize_u8()?)?
-                }
-                TypeKind::CHAR8 => dynamic_data
-                    .set_char8_value(member.get_id(), self.reader.deserialize_char()?)?,
-                TypeKind::CHAR16 => todo!(),
-                TypeKind::STRING8 => todo!(),
-                TypeKind::STRING16 => todo!(),
-                TypeKind::ALIAS => todo!(),
-                TypeKind::ENUM => todo!(),
-                TypeKind::BITMASK => todo!(),
-                TypeKind::ANNOTATION => todo!(),
-                TypeKind::STRUCTURE => {
-                    let value =
-                        self.deserialize_final_struct(member.get_descriptor()?.r#type.clone())?;
-                    dynamic_data.set_complex_value(member.get_id(), value)?;
-                }
-                TypeKind::UNION => todo!(),
-                TypeKind::BITSET => todo!(),
-                TypeKind::SEQUENCE => {
-                    let sequence_type = member
-                        .get_descriptor()?
-                        .r#type
-                        .get_descriptor()
-                        .element_type
-                        .as_ref()
-                        .expect("Sequence must have element type");
-                    match sequence_type.get_kind() {
-                        TypeKind::NONE => todo!(),
-                        TypeKind::BOOLEAN => todo!(),
-                        TypeKind::BYTE => todo!(),
-                        TypeKind::INT16 => todo!(),
-                        TypeKind::INT32 => todo!(),
-                        TypeKind::INT64 => todo!(),
-                        TypeKind::UINT16 => todo!(),
-                        TypeKind::UINT32 => {
-                            dynamic_data.set_uint32_values(
-                                member.get_id(),
-                                todo!(), // self.deserialize_primitive_type_sequence::<u32>()?,
-                            )?;
-                        }
-                        TypeKind::UINT64 => todo!(),
-                        TypeKind::FLOAT32 => todo!(),
-                        TypeKind::FLOAT64 => todo!(),
-                        TypeKind::FLOAT128 => todo!(),
-                        TypeKind::INT8 => todo!(),
-                        TypeKind::UINT8 => todo!(),
-                        TypeKind::CHAR8 => todo!(),
-                        TypeKind::CHAR16 => todo!(),
-                        TypeKind::STRING8 => todo!(),
-                        TypeKind::STRING16 => todo!(),
-                        TypeKind::ALIAS => todo!(),
-                        TypeKind::ENUM => todo!(),
-                        TypeKind::BITMASK => todo!(),
-                        TypeKind::ANNOTATION => todo!(),
-                        TypeKind::STRUCTURE => {
-                            dynamic_data.set_complex_values(
-                                member.get_id(),
-                                todo!(), // self.deserialize_type_sequence(
-                                         //     member.get_descriptor()?.r#type.clone(),
-                                         // )?,
-                            )?;
-                        }
-                        TypeKind::UNION => todo!(),
-                        TypeKind::BITSET => todo!(),
-                        TypeKind::SEQUENCE => todo!(),
-                        TypeKind::ARRAY => todo!(),
-                        TypeKind::MAP => todo!(),
-                    }
-                }
-                TypeKind::ARRAY => todo!(),
-                TypeKind::MAP => todo!(),
-            }
-        }
-        Ok(dynamic_data)
-    }
-
     fn deserialize_appendable_struct(
         &mut self,
-        dynamic_type: DynamicType,
-    ) -> XTypesResult<DynamicData> {
+        dynamic_type: &DynamicType,
+        dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()> {
         todo!()
     }
 
     fn deserialize_mutable_struct(
         &mut self,
-        dynamic_type: DynamicType,
-    ) -> XTypesResult<DynamicData> {
+        dynamic_type: &DynamicType,
+        dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()> {
         todo!()
+    }
+
+    fn deserialize_primitive_type<T: CdrPrimitiveTypeDeserialize>(&mut self) -> XTypesResult<T> {
+        T::deserialize(&mut self.reader)
+    }
+
+    fn deserialize_sequence(
+        &mut self,
+        member: &DynamicTypeMember,
+        dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()> {
+        let sequence_type = member
+            .get_descriptor()?
+            .r#type
+            .get_descriptor()
+            .element_type
+            .as_ref()
+            .expect("Sequence must have element type");
+        match sequence_type.get_kind() {
+            TypeKind::NONE => todo!(),
+            TypeKind::BOOLEAN => todo!(),
+            TypeKind::BYTE => todo!(),
+            TypeKind::INT16 => todo!(),
+            TypeKind::INT32 => todo!(),
+            TypeKind::INT64 => todo!(),
+            TypeKind::UINT16 => todo!(),
+            TypeKind::UINT32 => dynamic_data.set_uint32_values(
+                member.get_id(),
+                self.deserialize_primitive_type_sequence::<u32>()?,
+            ),
+            TypeKind::UINT64 => todo!(),
+            TypeKind::FLOAT32 => todo!(),
+            TypeKind::FLOAT64 => todo!(),
+            TypeKind::FLOAT128 => todo!(),
+            TypeKind::INT8 => todo!(),
+            TypeKind::UINT8 => dynamic_data.set_uint8_values(
+                member.get_id(),
+                self.deserialize_primitive_type_sequence::<u8>()?,
+            ),
+            TypeKind::CHAR8 => todo!(),
+            TypeKind::CHAR16 => todo!(),
+            TypeKind::STRING8 => todo!(),
+            TypeKind::STRING16 => todo!(),
+            TypeKind::ALIAS => todo!(),
+            TypeKind::ENUM => todo!(),
+            TypeKind::BITMASK => todo!(),
+            TypeKind::ANNOTATION => todo!(),
+            TypeKind::STRUCTURE => todo!(),
+            TypeKind::UNION => todo!(),
+            TypeKind::BITSET => todo!(),
+            TypeKind::SEQUENCE => todo!(),
+            TypeKind::ARRAY => todo!(),
+            TypeKind::MAP => todo!(),
+        }
     }
 }

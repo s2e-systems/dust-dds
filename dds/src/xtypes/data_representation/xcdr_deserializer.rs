@@ -2,7 +2,7 @@ use tracing::debug;
 
 use crate::xtypes::{
     data_representation::deserialize::XTypesDeserialize,
-    dynamic_type::{DynamicData, DynamicType, ExtensibilityKind, TypeKind},
+    dynamic_type::{DynamicData, DynamicDataFactory, DynamicType, ExtensibilityKind, TypeKind},
     error::{XTypesError, XTypesResult},
 };
 
@@ -11,28 +11,9 @@ impl DynamicData {
         dynamic_type: DynamicType,
         deserializer: &mut impl XTypesDeserialize,
     ) -> XTypesResult<Self> {
-        // Deserialize the top-level which must be either a struct, an enum or a union.
-        // No other types are supported at this stage because this is what we can get from DDS
-        match dynamic_type.get_descriptor().kind {
-            TypeKind::STRUCTURE => {
-                // Extensibility kind must match the representation
-                match dynamic_type.get_descriptor().extensibility_kind {
-                    ExtensibilityKind::Final => deserializer.deserialize_final_struct(dynamic_type),
-                    ExtensibilityKind::Appendable => {
-                        deserializer.deserialize_appendable_struct(dynamic_type)
-                    }
-                    ExtensibilityKind::Mutable => {
-                        deserializer.deserialize_mutable_struct(dynamic_type)
-                    }
-                }
-            }
-            //     TypeKind::ENUM => todo!(),
-            //     TypeKind::UNION => todo!(),
-            kind => {
-                debug!("Expected structure, enum or union. Got kind {kind:?} ");
-                return Err(XTypesError::InvalidType);
-            }
-        }
+        let mut dynamic_data = DynamicDataFactory::create_data(dynamic_type.clone());
+        deserializer.deserialize_structure(&dynamic_type, &mut dynamic_data)?;
+        Ok(dynamic_data)
     }
 }
 
