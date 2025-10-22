@@ -419,14 +419,13 @@ mod tests {
         );
     }
 
-    #[derive(TypeSupport, Clone)]
-    struct NestedFinalType {
-        field_nested: FinalType,
-        field_u8: u8,
-    }
-
     #[test]
     fn serialize_nested_final_struct() {
+        #[derive(TypeSupport, Clone)]
+        struct NestedFinalType {
+            field_nested: FinalType,
+            field_u8: u8,
+        }
         let v = NestedFinalType {
             field_nested: FinalType {
                 field_u16: 7,
