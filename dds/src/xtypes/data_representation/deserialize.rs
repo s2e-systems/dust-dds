@@ -66,13 +66,17 @@ pub trait XTypesDeserialize {
         &mut self,
         dynamic_type: &DynamicType,
         dynamic_data: &mut DynamicData,
-    ) -> XTypesResult<()>;
+    ) -> XTypesResult<()> {
+        todo!()
+    }
 
     fn deserialize_mutable_struct(
         &mut self,
         dynamic_type: &DynamicType,
         dynamic_data: &mut DynamicData,
-    ) -> XTypesResult<()>;
+    ) -> XTypesResult<()> {
+        todo!()
+    }
 
     fn deserialize_string(&mut self) -> Result<String, XTypesError> {
         let length = self.deserialize_primitive_type::<u32>()?;
@@ -94,7 +98,9 @@ pub trait XTypesDeserialize {
         let member_descriptor = member.get_descriptor()?;
         match member_descriptor.r#type.get_kind() {
             TypeKind::NONE => todo!(),
-            TypeKind::BOOLEAN => todo!(),
+            TypeKind::BOOLEAN => {
+                dynamic_data.set_boolean_value(member.get_id(), self.deserialize_primitive_type()?)
+            }
             TypeKind::BYTE => todo!(),
             TypeKind::INT16 => {
                 dynamic_data.set_int16_value(member.get_id(), self.deserialize_primitive_type()?)

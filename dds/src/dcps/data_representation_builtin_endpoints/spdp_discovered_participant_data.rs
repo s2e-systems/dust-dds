@@ -356,8 +356,7 @@ mod tests {
         infrastructure::qos_policy::UserDataQosPolicy,
         rtps::types::PROTOCOLVERSION_2_4,
         xtypes::{
-            dynamic_type::DynamicData, pl_cdr_serializer::PlCdrSerializer,
-            serializer::XTypesSerializer,
+            data_representation::{cdr_reader::{Cdr1Deserializer, PlCdr1Deserializer}, endianness::LittleEndian}, dynamic_type::DynamicData, pl_cdr_serializer::PlCdrSerializer, serializer::XTypesSerializer
         },
     };
 
@@ -400,7 +399,7 @@ mod tests {
 
         let expected = vec![
             // 0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
-            0x02, 0x00, 8, 0x00, // PID_PARTICIPANT_LEASE_DURATION
+            2, 0x00, 8, 0x00, // PID_PARTICIPANT_LEASE_DURATION
             10, 0x00, 0x00, 0x00, // Duration: seconds
             11, 0x00, 0x00, 0x00, // Duration: fraction
             15, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
@@ -576,25 +575,25 @@ mod tests {
             },
             lease_duration,
             discovered_participant_list: vec![],
-        };
+        }
+        .create_dynamic_sample();
 
-        let mut data = &[
-            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
-            0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
+        let data = [
+            15, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
             0x01, 0x00, 0x00, 0x00, // DomainId
             0x14, 0x40, 0x08, 0x00, // PID_DOMAIN_TAG, Length: 8
             3, 0x00, 0x00, 0x00, // DomainTag: string length (incl. terminator)
             b'a', b'b', 0, 0x00, // DomainTag: string + padding (1 byte)
-            0x15, 0x00, 4, 0x00, // PID_PROTOCOL_VERSION, Length
+            21, 0x00, 4, 0x00, // PID_PROTOCOL_VERSION, Length
             0x02, 0x04, 0x00, 0x00, // ProtocolVersion
-            0x50, 0x00, 16, 0x00, // PID_PARTICIPANT_GUID, Length
+            80, 0x00, 16, 0x00, // PID_PARTICIPANT_GUID, Length
             8, 8, 8, 8, // GuidPrefix
             8, 8, 8, 8, // GuidPrefix
             8, 8, 8, 8, // GuidPrefix
             0, 0, 1, 0xc1, // EntityId,
-            0x16, 0x00, 4, 0x00, // PID_VENDORID
+            22, 0x00, 4, 0x00, // PID_VENDORID
             73, 74, 0x00, 0x00, // VendorId
-            0x43, 0x00, 0x04, 0x00, // PID_EXPECTS_INLINE_QOS, Length: 4,
+            67, 0x00, 0x04, 0x00, // PID_EXPECTS_INLINE_QOS, Length: 4,
             0x01, 0x00, 0x00, 0x00, // True
             50, 0x00, 24, 0x00, // PID_METATRAFFIC_UNICAST_LOCATOR
             11, 0x00, 0x00, 0x00, // Locator{kind
@@ -617,7 +616,7 @@ mod tests {
             0x01, 0x01, 0x01, 0x01, // address
             0x01, 0x01, 0x01, 0x01, //
             0x01, 0x01, 0x01, 0x01, // }
-            0x31, 0x00, 24, 0x00, // PID_DEFAULT_UNICAST_LOCATOR
+            49, 0x00, 24, 0x00, // PID_DEFAULT_UNICAST_LOCATOR
             11, 0x00, 0x00, 0x00, // Locator{kind
             12, 0x00, 0x00, 0x00, // port,
             0x01, 0x01, 0x01, 0x01, //
@@ -637,13 +636,19 @@ mod tests {
             0x02, 0x00, 0x00, 0x00, // Count
             119, 0x00, 4, 0x00, // PID_BUILTIN_ENDPOINT_QOS
             0x00, 0x00, 0x00, 0x20, //
-            0x02, 0x00, 8, 0x00, // PID_PARTICIPANT_LEASE_DURATION
+            2, 0x00, 8, 0x00, // PID_PARTICIPANT_LEASE_DURATION
             10, 0x00, 0x00, 0x00, // Duration: seconds
             11, 0x00, 0x00, 0x00, // Duration: fraction
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
-        ][..];
-        todo!()
-        // let result = SpdpDiscoveredParticipantData::deserialize_data(&mut data).unwrap();
-        // assert_eq!(result, expected);
+        ];
+
+        assert_eq!(
+            DynamicData::xcdr_deserialize(
+                SpdpDiscoveredParticipantData::get_type(),
+                &mut PlCdr1Deserializer::new(&data, LittleEndian)
+            )
+            .unwrap(),
+            expected
+        );
     }
 }

@@ -137,6 +137,23 @@ impl<'a, E: EndiannessRead, V: CdrVersion> CdrReader<'a, E, V> {
         let mask = alignment - 1;
         self.seek(((self.pos + mask) & !mask) - self.pos)
     }
+
+    pub fn seek_to_pid_le(&mut self, pid: u16) -> XTypesResult<bool> {
+        self.pos = 0;
+        const PID_SENTINEL: u16 = 1;
+        loop {
+            let current_pid = E::read_u16(self)?;
+            let length = E::read_u16(self)? as usize;
+            if current_pid == pid {
+                return Ok(true);
+            } else if current_pid == PID_SENTINEL {
+                return Ok(false);
+            } else {
+                self.seek(length);
+                self.seek_padding(4);
+            }
+        }
+    }
 }
 
 impl<'a, E: EndiannessRead, V: CdrVersion> Read for CdrReader<'a, E, V> {
@@ -220,20 +237,32 @@ impl<'a, E: EndiannessRead> Cdr1Deserializer<'a, E> {
 }
 
 impl<'a, E: EndiannessRead> XTypesDeserialize for Cdr1Deserializer<'a, E> {
-    fn deserialize_appendable_struct(
-        &mut self,
-        dynamic_type: &DynamicType,
-        dynamic_data: &mut DynamicData,
-    ) -> XTypesResult<()> {
-        todo!()
-    }
-
     fn deserialize_mutable_struct(
         &mut self,
         dynamic_type: &DynamicType,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
-        Err(XTypesError::IllegalOperation)
+        for member_index in 0..dynamic_type.get_member_count() {
+            let member = dynamic_type.get_member_by_index(member_index)?;
+            let member_descriptor = member.get_descriptor()?;
+            let pid = member.get_id() as u16;
+
+            if self.reader.seek_to_pid_le(pid)? {
+                self.deserialize_final_member(member, dynamic_data)?;
+            } else {
+                if member_descriptor.is_optional {
+                    let default_value = member_descriptor
+                        .default_value
+                        .as_ref()
+                        .cloned()
+                        .expect("default value must exist for optional type");
+                    dynamic_data.set_value(pid as u32, default_value);
+                } else {
+                    return Err(XTypesError::PidNotFound(pid));
+                }
+            }
+        }
+        Ok(())
     }
 
     fn deserialize_primitive_type<T: CdrPrimitiveTypeDeserialize>(&mut self) -> XTypesResult<T> {
@@ -254,23 +283,57 @@ impl<'a, E: EndiannessRead> Cdr2Deserializer<'a, E> {
 }
 
 impl<'a, E: EndiannessRead> XTypesDeserialize for Cdr2Deserializer<'a, E> {
-    fn deserialize_appendable_struct(
-        &mut self,
-        dynamic_type: &DynamicType,
-        dynamic_data: &mut DynamicData,
-    ) -> XTypesResult<()> {
-        todo!()
+    fn deserialize_primitive_type<T: CdrPrimitiveTypeDeserialize>(&mut self) -> XTypesResult<T> {
+        T::deserialize(&mut self.reader)
     }
+}
 
+pub struct PlCdr1Deserializer<'a, E: EndiannessRead> {
+    cdr1_deserializer: Cdr1Deserializer<'a, E>,
+}
+
+impl<'a, E: EndiannessRead> PlCdr1Deserializer<'a, E> {
+    pub fn new(buffer: &'a [u8], endianness: E) -> Self {
+        Self {
+            cdr1_deserializer: Cdr1Deserializer::new(buffer, endianness),
+        }
+    }
+}
+
+impl<'a, E: EndiannessRead> XTypesDeserialize for PlCdr1Deserializer<'a, E> {
     fn deserialize_mutable_struct(
         &mut self,
         dynamic_type: &DynamicType,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
-        todo!()
+        for member_index in 0..dynamic_type.get_member_count() {
+            let member = dynamic_type.get_member_by_index(member_index)?;
+            let member_descriptor = member.get_descriptor()?;
+            let pid = member.get_id() as u16;
+
+            if member_descriptor.r#type.get_kind() == TypeKind::SEQUENCE {
+                todo!()
+            } else {
+                if self.cdr1_deserializer.reader.seek_to_pid_le(pid)? {
+                    self.deserialize_final_member(member, dynamic_data)?;
+                } else {
+                    if member_descriptor.is_optional {
+                        let default_value = member_descriptor
+                            .default_value
+                            .as_ref()
+                            .cloned()
+                            .expect("default value must exist for optional type");
+                        dynamic_data.set_value(pid as u32, default_value);
+                    } else {
+                        return Err(XTypesError::PidNotFound(pid));
+                    }
+                }
+            }
+        }
+        Ok(())
     }
 
     fn deserialize_primitive_type<T: CdrPrimitiveTypeDeserialize>(&mut self) -> XTypesResult<T> {
-        T::deserialize(&mut self.reader)
+        T::deserialize(&mut self.cdr1_deserializer.reader)
     }
 }
