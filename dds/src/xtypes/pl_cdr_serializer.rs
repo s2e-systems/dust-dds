@@ -1,7 +1,7 @@
 use super::{error::XTypesError, serializer::XTypesSerializer};
 use crate::xtypes::{
     dynamic_type::{DynamicData, TypeKind},
-    serializer::{EncodingVersion1, EndiannessWrite, LittleEndian, Write, Writer},
+    serializer::{EndiannessWrite, LittleEndian, Write},
     xcdr_serializer::Xcdr1Serializer,
 };
 
@@ -43,7 +43,7 @@ impl<C: Write> PlCdrSerializer<C> {
     }
 }
 
-impl<W: Write> XTypesSerializer<W, LittleEndian, EncodingVersion1> for PlCdrSerializer<W> {
+impl<W: Write> XTypesSerializer<W> for PlCdrSerializer<W> {
     fn into_inner(self) -> W {
         self.cdr1_le_serializer.into_inner()
     }

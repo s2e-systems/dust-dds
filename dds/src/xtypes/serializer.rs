@@ -39,7 +39,7 @@ pub struct Writer<W, E, V> {
     _encoding_version: V,
 }
 
-impl<W: Write, E, V> Writer<W, E, V> {
+impl<W: Write, E, V: EncodingVersion> Writer<W, E, V> {
     pub fn new(buffer: W, endianness: E, encoding_version: V) -> Self {
         Self {
             buffer,
@@ -56,12 +56,13 @@ impl<W: Write, E, V> Writer<W, E, V> {
 
     pub fn pad(&mut self, alignment: usize) {
         const ZEROS: [u8; 8] = [0; 8];
+        let alignment = core::cmp::min(alignment, V::MAX_ALIGN);
         let alignment = self.position.div_ceil(alignment) * alignment - self.position;
         self.write_slice(&ZEROS[..alignment]);
     }
 }
 
-impl<W: Write, E, V> Write for Writer<W, E, V> {
+impl<W: Write, E, V: EncodingVersion> Write for Writer<W, E, V> {
     fn write(&mut self, buf: &[u8]) {
         self.write_slice(buf);
     }
@@ -102,7 +103,7 @@ impl PlainCdrSerialize for i16 {
         self,
         writer: &mut Writer<W, E, V>,
     ) {
-        writer.pad(core::cmp::min(i16::BITS as usize / 8, V::MAX_ALIGN));
+        writer.pad(i16::BITS as usize / 8);
         E::write_i16(self, writer);
     }
 }
@@ -111,7 +112,7 @@ impl PlainCdrSerialize for u16 {
         self,
         writer: &mut Writer<W, E, V>,
     ) {
-        writer.pad(core::cmp::min(u16::BITS as usize / 8, V::MAX_ALIGN));
+        writer.pad(u16::BITS as usize / 8);
         E::write_u16(self, writer);
     }
 }
@@ -120,7 +121,7 @@ impl PlainCdrSerialize for i32 {
         self,
         writer: &mut Writer<W, E, V>,
     ) {
-        writer.pad(core::cmp::min(i32::BITS as usize / 8, V::MAX_ALIGN));
+        writer.pad(i32::BITS as usize / 8);
         E::write_i32(self, writer);
     }
 }
@@ -129,7 +130,7 @@ impl PlainCdrSerialize for u32 {
         self,
         writer: &mut Writer<W, E, V>,
     ) {
-        writer.pad(core::cmp::min(u32::BITS as usize / 8, V::MAX_ALIGN));
+        writer.pad(u32::BITS as usize / 8);
         E::write_u32(self, writer);
     }
 }
@@ -138,7 +139,7 @@ impl PlainCdrSerialize for i64 {
         self,
         writer: &mut Writer<W, E, V>,
     ) {
-        writer.pad(core::cmp::min(i64::BITS as usize / 8, V::MAX_ALIGN));
+        writer.pad(i64::BITS as usize / 8);
         E::write_i64(self, writer);
     }
 }
@@ -147,7 +148,7 @@ impl PlainCdrSerialize for u64 {
         self,
         writer: &mut Writer<W, E, V>,
     ) {
-        writer.pad(core::cmp::min(u64::BITS as usize / 8, V::MAX_ALIGN));
+        writer.pad(u64::BITS as usize / 8);
         E::write_u64(self, writer);
     }
 }
@@ -156,7 +157,7 @@ impl PlainCdrSerialize for f32 {
         self,
         writer: &mut Writer<W, E, V>,
     ) {
-        writer.pad(core::cmp::min(32 / 8, V::MAX_ALIGN));
+        writer.pad(32 / 8);
         E::write_f32(self, writer);
     }
 }
@@ -165,7 +166,7 @@ impl PlainCdrSerialize for f64 {
         self,
         writer: &mut Writer<W, E, V>,
     ) {
-        writer.pad(core::cmp::min(64 / 8, V::MAX_ALIGN));
+        writer.pad(64 / 8);
         E::write_f64(self, writer);
     }
 }
@@ -270,7 +271,7 @@ impl EndiannessWrite for LittleEndian {
 }
 
 /// A trait representing an object with the capability of serializing a value into a CDR format.
-pub trait XTypesSerializer<W: Write, E: EndiannessWrite, V: EncodingVersion> {
+pub trait XTypesSerializer<W> {
     fn into_inner(self) -> W;
     fn serialize_final_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
         self.serialize_all_dynamic_data_members(v)

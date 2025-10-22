@@ -4,7 +4,7 @@ use crate::{
         deserializer::{DeserializeAppendableStruct, DeserializeSequence, XTypesDeserializer},
         dynamic_type::{DynamicData, DynamicType, MemberDescriptor, TypeKind},
         error::XTypesError,
-        serializer::{BigEndian, EncodingVersion, EndiannessWrite, LittleEndian, Write, XTypesSerializer},
+        serializer::{BigEndian, LittleEndian, Write, XTypesSerializer},
         xcdr_deserializer::{
             Xcdr1BeDeserializer, Xcdr1LeDeserializer, Xcdr2BeDeserializer, Xcdr2LeDeserializer,
         },
@@ -44,11 +44,11 @@ impl Write for Md5 {
     }
 }
 
-fn deserialize_and_serialize_if_key_field<'a, T, W: Write, E: EndiannessWrite, V: EncodingVersion>(
+fn deserialize_and_serialize_if_key_field<'a, T, W: Write>(
     dynamic_type: &DynamicType,
     is_key_field: bool,
     de: &mut T,
-    serializer: &mut impl XTypesSerializer<W, E, V>,
+    serializer: &mut impl XTypesSerializer<W>,
 ) -> Result<(), XTypesError>
 where
     for<'b> &'b mut T: XTypesDeserializer<'a>,
@@ -165,11 +165,11 @@ where
     Ok(())
 }
 
-fn deserialize_and_serialize_if_key_field_for_appendable_cdr<'a, W: Write, E: EndiannessWrite, V: EncodingVersion>(
+fn deserialize_and_serialize_if_key_field_for_appendable_cdr<'a, W: Write>(
     dynamic_type: &DynamicType,
     is_key_field: bool,
     de: &mut impl DeserializeAppendableStruct<'a>,
-    serializer: &mut impl XTypesSerializer<W, E, V>,
+    serializer: &mut impl XTypesSerializer<W>,
 ) -> Result<(), XTypesError> {
     let name = "";
     match dynamic_type.get_kind() {
@@ -283,9 +283,9 @@ fn deserialize_and_serialize_if_key_field_for_appendable_cdr<'a, W: Write, E: En
     Ok(())
 }
 
-fn push_to_key<'a, T, W: Write, E: EndiannessWrite, V: EncodingVersion>(
+fn push_to_key<'a, T, W: Write>(
     dynamic_type: &DynamicType,
-    serializer: &mut impl XTypesSerializer<W, E, V>,
+    serializer: &mut impl XTypesSerializer<W>,
     de: &mut T,
 ) -> Result<(), XTypesError>
 where
@@ -321,9 +321,9 @@ where
     Ok(())
 }
 
-fn push_to_key_for_key<'a, T, W: Write, E: EndiannessWrite, V: EncodingVersion>(
+fn push_to_key_for_key<'a, T, W: Write>(
     dynamic_type: &DynamicType,
-    serializer: &mut impl XTypesSerializer<W, E, V>,
+    serializer: &mut impl XTypesSerializer<W>,
     de: &mut T,
 ) -> Result<(), XTypesError>
 where
@@ -404,9 +404,9 @@ impl<'a> IntoIterator for &'a DynamicType {
     }
 }
 
-fn push_to_key_parameter_list_le<W: Write, E: EndiannessWrite, V: EncodingVersion>(
+fn push_to_key_parameter_list_le<W: Write>(
     dynamic_type: &DynamicType,
-    serializer: &mut impl XTypesSerializer<W, E, V>,
+    serializer: &mut impl XTypesSerializer<W>,
     data: &[u8],
 ) -> Result<(), XTypesError> {
     for descriptor in dynamic_type.into_iter() {
@@ -420,9 +420,9 @@ fn push_to_key_parameter_list_le<W: Write, E: EndiannessWrite, V: EncodingVersio
     Ok(())
 }
 
-fn push_to_key_parameter_list_be<W: Write, E: EndiannessWrite, V: EncodingVersion>(
+fn push_to_key_parameter_list_be<W: Write>(
     dynamic_type: &DynamicType,
-    serializer: &mut impl XTypesSerializer<W, E, V>,
+    serializer: &mut impl XTypesSerializer<W>,
     data: &[u8],
 ) -> Result<(), XTypesError> {
     for descriptor in dynamic_type.into_iter() {

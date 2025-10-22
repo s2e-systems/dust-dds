@@ -2,17 +2,17 @@ use super::{error::XTypesError, serializer::XTypesSerializer};
 use crate::xtypes::{
     dynamic_type::{DynamicData, TypeKind},
     serializer::{
-        EncodingVersion, EncodingVersion1, EncodingVersion2, EndiannessWrite, LittleEndian,
-        PlainCdrSerialize, Write, Writer,
+        EncodingVersion1, EncodingVersion2, EndiannessWrite, LittleEndian, PlainCdrSerialize,
+        Write, Writer,
     },
 };
 
 const PID_SENTINEL: u16 = 1;
 
-pub fn serialize_nested<W: Write, E: EndiannessWrite, V: EncodingVersion>(
+pub fn serialize_nested<W: Write>(
     dynamic_data: &DynamicData,
-    mut serializer: impl XTypesSerializer<W, E, V>,
-) -> Result<impl XTypesSerializer<W, E, V>, super::error::XTypesError> {
+    mut serializer: impl XTypesSerializer<W>,
+) -> Result<impl XTypesSerializer<W>, super::error::XTypesError> {
     match dynamic_data.type_ref().get_kind() {
         TypeKind::ENUM => {
             serializer.serialize_enum(dynamic_data)?;
@@ -51,7 +51,7 @@ impl<W: Write, E> Xcdr1Serializer<W, E> {
 
 fn count_bytes_xdr1(v: &DynamicData, member_id: u32) -> Result<usize, XTypesError> {
     let mut byte_conter_serializer = Xcdr1Serializer::new(ByteCounter::new(), LittleEndian);
-    byte_conter_serializer.serialize_dynamic_data_member(v, member_id);
+    byte_conter_serializer.serialize_dynamic_data_member(v, member_id)?;
     Ok(byte_conter_serializer.into_inner().0)
 }
 
@@ -61,9 +61,7 @@ fn count_bytes_xdr2(v: &DynamicData, member_id: u32) -> Result<usize, XTypesErro
     Ok(byte_conter_serializer.into_inner().0)
 }
 
-impl<W: Write, E: EndiannessWrite> XTypesSerializer<W, E, EncodingVersion1>
-    for Xcdr1Serializer<W, E>
-{
+impl<W: Write, E: EndiannessWrite> XTypesSerializer<W> for Xcdr1Serializer<W, E> {
     fn into_inner(self) -> W {
         self.writer.buffer
     }
@@ -72,13 +70,13 @@ impl<W: Write, E: EndiannessWrite> XTypesSerializer<W, E, EncodingVersion1>
         for field_index in 0..v.get_item_count() {
             let member_id = v.get_member_id_at_index(field_index)?;
             let length = count_bytes_xdr1(v, member_id)?;
-            PlainCdrSerialize::serialize(member_id as u16, &mut self.writer);
-            PlainCdrSerialize::serialize(length as u16, &mut self.writer);
+            self.serialize_writable(member_id as u16);
+            self.serialize_writable(length as u16);
             self.serialize_dynamic_data_member(v, member_id)?;
             self.writer.pad(4);
         }
-        PlainCdrSerialize::serialize(PID_SENTINEL, &mut self.writer);
-        PlainCdrSerialize::serialize(0u16, &mut self.writer);
+        self.serialize_writable(PID_SENTINEL);
+        self.serialize_writable(0u16);
         Ok(())
     }
     fn serialize_writable(&mut self, v: impl PlainCdrSerialize) {
@@ -98,9 +96,7 @@ impl<C: Write, E> Xcdr2Serializer<C, E> {
     }
 }
 
-impl<W: Write, E: EndiannessWrite> XTypesSerializer<W, E, EncodingVersion2>
-    for Xcdr2Serializer<W, E>
-{
+impl<W: Write, E: EndiannessWrite> XTypesSerializer<W> for Xcdr2Serializer<W, E> {
     fn into_inner(self) -> W {
         self.writer.buffer
     }
@@ -125,13 +121,13 @@ impl<W: Write, E: EndiannessWrite> XTypesSerializer<W, E, EncodingVersion2>
         for field_index in 0..v.get_item_count() {
             let member_id = v.get_member_id_at_index(field_index)?;
             let length = count_bytes_xdr2(v, member_id)?;
-            PlainCdrSerialize::serialize(member_id as u16, &mut self.writer);
-            PlainCdrSerialize::serialize(length as u16, &mut self.writer);
+            self.serialize_writable(member_id as u16);
+            self.serialize_writable(length as u16);
             self.serialize_dynamic_data_member(v, member_id)?;
             self.writer.pad(4);
         }
-        PlainCdrSerialize::serialize(PID_SENTINEL, &mut self.writer);
-        PlainCdrSerialize::serialize(0u16, &mut self.writer);
+        self.serialize_writable(PID_SENTINEL);
+        self.serialize_writable(0u16);
         Ok(())
     }
 }

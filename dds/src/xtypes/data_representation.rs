@@ -3,17 +3,17 @@ use crate::{
     xtypes::{
         dynamic_type::DynamicData,
         error::XTypesError,
-        serializer::{EncodingVersion, EndiannessWrite, Write, XTypesSerializer},
+        serializer::{Write, XTypesSerializer},
         xcdr_serializer::serialize_nested,
     },
 };
 use alloc::{string::String, vec::Vec};
 
 impl DynamicData {
-    pub fn serialize<W: Write, E: EndiannessWrite, V: EncodingVersion>(
+    pub fn serialize<W: Write>(
         &self,
-        serializer: impl XTypesSerializer<W, E, V>,
-    ) -> Result<impl XTypesSerializer<W, E, V>, super::error::XTypesError> {
+        serializer: impl XTypesSerializer<W>,
+    ) -> Result<impl XTypesSerializer<W>, super::error::XTypesError> {
         // todo header CDR type
         serialize_nested(self, serializer)
         // sentinel ?
