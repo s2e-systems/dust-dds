@@ -4,9 +4,9 @@ use crate::{
         deserializer::XTypesDeserializer,
         dynamic_type::{DynamicData, DynamicType, MemberDescriptor, TypeKind},
         error::XTypesError,
-        serializer::{Write, XTypesSerializer},
+        serializer::{BigEndian, LittleEndian, Write, XTypesSerializer},
         xcdr_deserializer::{Xcdr1Deserializer, Xcdr2Deserializer},
-        xcdr_serializer::{Xcdr1LeSerializer, Xcdr2BeSerializer},
+        xcdr_serializer::{Xcdr1Serializer, Xcdr2Serializer},
     },
 };
 use alloc::{string::String, vec::Vec};
@@ -39,9 +39,6 @@ impl Write for Md5 {
         }
         self.context.consume(buf);
         self.length += buf.len();
-    }
-    fn pos(&self) -> usize {
-        self.length
     }
 }
 
@@ -456,15 +453,15 @@ pub fn get_instance_handle_from_serialized_key(
     mut data: &[u8],
     dynamic_type: &DynamicType,
 ) -> Result<InstanceHandle, XTypesError> {
-    // let md5_collection = Md5 {
-    //     key: [0; 16],
-    //     context: md5::Context::new(),
-    //     length: 0,
-    // };
+    let md5_collection = Md5 {
+        key: [0; 16],
+        context: md5::Context::new(),
+        length: 0,
+    };
 
-    // let representation_identifier = [data[0], data[1]];
-    // data = &data[4..];
-    // let mut serializer = Xcdr2BeSerializer::new(md5_collection);
+    let representation_identifier = [data[0], data[1]];
+    data = &data[4..];
+    let mut serializer = Xcdr2Serializer::new(md5_collection, BigEndian);
 
     // match representation_identifier {
     //     CDR_BE => push_to_key_for_key(
@@ -547,7 +544,7 @@ pub fn get_instance_handle_from_dynamic_data(
     dynamic_data.clear_nonkey_values()?;
     dynamic_data.make_descriptor_extensibility_kind_final();
 
-    let serializer = dynamic_data.serialize(Xcdr2BeSerializer::new(md5_collection))?;
+    let serializer = dynamic_data.serialize(Xcdr2Serializer::new(md5_collection, BigEndian))?;
     Ok(InstanceHandle::new(serializer.into_inner().into_key()))
 }
 
@@ -559,7 +556,7 @@ pub fn get_serialized_key_from_serialized_foo(
     let mut serialized_key = Vec::new();
     serialized_key.extend_from_slice(&CDR_LE);
     serialized_key.extend_from_slice(&[0, 0]);
-    let serializer = Xcdr1LeSerializer::new(Vec::new());
+    let serializer = Xcdr1Serializer::new(Vec::new(), LittleEndian);
     let serializer = dynamic_data.serialize(serializer)?;
 
     let mut serialized_key = Vec::new();

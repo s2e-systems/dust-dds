@@ -1,7 +1,10 @@
 use super::error::XTypesError;
 use crate::xtypes::{
-    data_storage::DataStorage, error::XTypesResult, serializer::XTypesSerializer,
-    type_object::TypeObject, xcdr_serializer::serialize_nested,
+    data_storage::DataStorage,
+    error::XTypesResult,
+    serializer::{Write, XTypesSerializer},
+    type_object::TypeObject,
+    xcdr_serializer::serialize_nested,
 };
 use alloc::{boxed::Box, collections::BTreeMap, string::String, vec, vec::Vec};
 
@@ -978,7 +981,7 @@ impl DynamicData {
 }
 
 impl DynamicData {
-    pub fn serialize<C>(
+    pub fn serialize<C: Write>(
         &self,
         serializer: impl XTypesSerializer<C>,
     ) -> Result<impl XTypesSerializer<C>, super::error::XTypesError> {

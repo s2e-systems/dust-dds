@@ -356,7 +356,7 @@ mod tests {
         infrastructure::qos_policy::UserDataQosPolicy,
         rtps::types::PROTOCOLVERSION_2_4,
         xtypes::{
-            dynamic_type::DynamicData, pl_cdr_serializer::PlCdrLeSerializer,
+            dynamic_type::DynamicData, pl_cdr_serializer::PlCdrSerializer,
             serializer::XTypesSerializer,
         },
     };
@@ -467,7 +467,7 @@ mod tests {
         ];
         let dynamic_sample = data.create_dynamic_sample();
         let result = dynamic_sample
-            .serialize(PlCdrLeSerializer::new(Vec::new()))
+            .serialize(PlCdrSerializer::new(Vec::new()))
             .unwrap()
             .into_inner();
         assert_eq!(result, expected);
@@ -523,7 +523,7 @@ mod tests {
         ];
         let dynamic_sample = data.create_dynamic_sample();
         let result = dynamic_sample
-            .serialize(PlCdrLeSerializer::new(Vec::new()))
+            .serialize(PlCdrSerializer::new(Vec::new()))
             .unwrap()
             .into_inner();
         assert_eq!(result, expected);

@@ -42,7 +42,7 @@ mod tests {
         infrastructure::type_support::TypeSupport,
         xtypes::{
             data_representation::{
-                cdr_reader::{Cdr1Deserializer, PlainCdr2Deserializer},
+                cdr_reader::{Cdr1Deserializer, Cdr2Deserializer},
                 endianness::{BigEndian, LittleEndian},
             },
             dynamic_type::DynamicData,
@@ -92,7 +92,7 @@ mod tests {
         assert_eq!(
             DynamicData::xcdr_deserialize(
                 FinalType::get_type(),
-                &mut PlainCdr2Deserializer::new(
+                &mut Cdr2Deserializer::new(
                     &[
                         0, 7, 0, 0, // field_u16 | padding (2 bytes)
                         0, 0, 0, 0, 0, 0, 0, 9, // field_u64
@@ -106,7 +106,7 @@ mod tests {
         assert_eq!(
             DynamicData::xcdr_deserialize(
                 FinalType::get_type(),
-                &mut PlainCdr2Deserializer::new(
+                &mut Cdr2Deserializer::new(
                     &[
                         7, 0, 0, 0, // field_u16 | padding (2 bytes)
                         9, 0, 0, 0, 0, 0, 0, 0, // field_u64
@@ -177,7 +177,7 @@ mod tests {
         assert_eq!(
             DynamicData::xcdr_deserialize(
                 NestedFinalType::get_type(),
-                &mut PlainCdr2Deserializer::new(
+                &mut Cdr2Deserializer::new(
                     &[
                         0, 7, 0, 0, // nested FinalType (u16) | padding
                         0, 0, 0, 0, 0, 0, 0, 9,  // nested FinalType (u64)
@@ -193,7 +193,7 @@ mod tests {
         assert_eq!(
             DynamicData::xcdr_deserialize(
                 NestedFinalType::get_type(),
-                &mut PlainCdr2Deserializer::new(
+                &mut Cdr2Deserializer::new(
                     &[
                         7, 0, 0, 0, // nested FinalType (u16) | padding (2 bytes)
                         9, 0, 0, 0, 0, 0, 0, 0,  // nested FinalType (u64)
@@ -259,7 +259,7 @@ mod tests {
         assert_eq!(
             DynamicData::xcdr_deserialize(
                 FinalTypeWithSequence::get_type(),
-                &mut PlainCdr2Deserializer::new(
+                &mut Cdr2Deserializer::new(
                     &[
                         0, 7, 0, 0, // field_u16 | padding (2 bytes)
                         0, 0, 0, 0, 0, 0, 0, 9, // field_u64
@@ -276,7 +276,7 @@ mod tests {
         assert_eq!(
             DynamicData::xcdr_deserialize(
                 FinalTypeWithSequence::get_type(),
-                &mut PlainCdr2Deserializer::new(
+                &mut Cdr2Deserializer::new(
                     &[
                         7, 0, 0, 0, // field_u16 | padding (2 bytes)
                         9, 0, 0, 0, 0, 0, 0, 0, // field_u64

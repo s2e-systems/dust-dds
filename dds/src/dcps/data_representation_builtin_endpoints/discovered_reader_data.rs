@@ -7,15 +7,12 @@ use super::parameter_id_values::{
 };
 use crate::{
     builtin_topics::{BuiltInTopicKey, SubscriptionBuiltinTopicData},
-    infrastructure::{
-        error::DdsResult,
-        qos_policy::{
-            DataRepresentationQosPolicy, DeadlineQosPolicy, DestinationOrderQosPolicy,
-            DurabilityQosPolicy, GroupDataQosPolicy, LatencyBudgetQosPolicy, LivelinessQosPolicy,
-            OwnershipQosPolicy, PartitionQosPolicy, PresentationQosPolicy,
-            TimeBasedFilterQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
-            DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-        },
+    infrastructure::qos_policy::{
+        DataRepresentationQosPolicy, DeadlineQosPolicy, DestinationOrderQosPolicy,
+        DurabilityQosPolicy, GroupDataQosPolicy, LatencyBudgetQosPolicy, LivelinessQosPolicy,
+        OwnershipQosPolicy, PartitionQosPolicy, PresentationQosPolicy, TimeBasedFilterQosPolicy,
+        TopicDataQosPolicy, UserDataQosPolicy,
+        DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
     },
     transport::types::{EntityId, Guid, Locator, ENTITYID_UNKNOWN},
     xtypes::{binding::XTypesBinding, data_storage::DataStorage, dynamic_type::DynamicTypeBuilder},
@@ -291,7 +288,7 @@ mod tests {
             EntityId, Guid, BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_WITH_KEY,
             USER_DEFINED_UNKNOWN,
         },
-        xtypes::{pl_cdr_serializer::PlCdrLeSerializer, serializer::XTypesSerializer},
+        xtypes::{pl_cdr_serializer::PlCdrSerializer, serializer::XTypesSerializer},
     };
 
     #[test]
@@ -358,7 +355,7 @@ mod tests {
         let dynamic_sample = data.create_dynamic_sample();
 
         let result = dynamic_sample
-            .serialize(PlCdrLeSerializer::new(Vec::new()))
+            .serialize(PlCdrSerializer::new(Vec::new()))
             .unwrap()
             .into_inner();
         assert_eq!(result, expected);
@@ -435,7 +432,7 @@ mod tests {
         ];
         let dynamic_sample = data.create_dynamic_sample();
         let result = dynamic_sample
-            .serialize(PlCdrLeSerializer::new(Vec::new()))
+            .serialize(PlCdrSerializer::new(Vec::new()))
             .unwrap()
             .into_inner();
         assert_eq!(result, expected);
