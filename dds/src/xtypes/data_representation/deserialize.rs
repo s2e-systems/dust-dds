@@ -41,7 +41,24 @@ pub trait XTypesDeserialize {
                     }
                 }
             }
-            //     TypeKind::ENUM => todo!(),
+            TypeKind::ENUM => {
+                let discriminator_type = dynamic_type
+                    .get_descriptor()
+                    .discriminator_type
+                    .as_ref()
+                    .ok_or(XTypesError::InvalidType)?;
+                match discriminator_type.get_kind() {
+                    TypeKind::INT8 => {
+                        let value = self.deserialize_primitive_type::<i8>()?;
+                        dynamic_data.set_int8_value(0, value)
+                    }
+                    TypeKind::INT32 => {
+                        let value = self.deserialize_primitive_type::<i32>()?;
+                        dynamic_data.set_int32_value(0, value)
+                    }
+                    d => panic!("Invalid discriminator {d:?}"),
+                }
+            }
             //     TypeKind::UNION => todo!(),
             kind => {
                 debug!("Expected structure, enum or union. Got kind {kind:?} ");
@@ -136,25 +153,10 @@ pub trait XTypesDeserialize {
             }
             TypeKind::STRING16 => todo!(),
             TypeKind::ALIAS => todo!(),
-            TypeKind::ENUM => {
-                let discriminator_type = member_descriptor
-                    .r#type
-                    .get_descriptor()
-                    .discriminator_type
-                    .as_ref()
-                    .ok_or(XTypesError::InvalidType)?;
-                match discriminator_type.get_kind() {
-                    TypeKind::INT8 => {
-                        let value = self.deserialize_primitive_type::<i8>()?;
-                        dynamic_data.set_int8_value(member.get_id(), value)
-                    }
-                    TypeKind::INT32 => {
-                        let value = self.deserialize_primitive_type::<i32>()?;
-                        dynamic_data.set_int32_value(member.get_id(), value)
-                    }
-                    d => panic!("Invalid discriminator {d:?}"),
-                }
-            }
+            TypeKind::ENUM => dynamic_data.set_complex_value(
+                member.get_id(),
+                self.deserialize_complex_value(&member_descriptor.r#type)?,
+            ),
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
             TypeKind::STRUCTURE => dynamic_data.set_complex_value(
@@ -239,6 +241,15 @@ pub trait XTypesDeserialize {
         Ok(values)
     }
 
+    fn deserialize_string_sequence(&mut self) -> XTypesResult<Vec<String>> {
+        let mut sequence_of_string = Vec::new();
+        let length = self.deserialize_primitive_type::<u32>()?;
+        for _ in 0..length {
+            sequence_of_string.push(self.deserialize_string()?);
+        }
+        Ok(sequence_of_string)
+    }
+
     fn deserialize_complex_sequence(
         &mut self,
         member: &DynamicTypeMember,
@@ -293,7 +304,9 @@ pub trait XTypesDeserialize {
             ),
             TypeKind::CHAR8 => todo!(),
             TypeKind::CHAR16 => todo!(),
-            TypeKind::STRING8 => todo!(),
+            TypeKind::STRING8 => {
+                dynamic_data.set_string_values(member.get_id(), self.deserialize_string_sequence()?)
+            }
             TypeKind::STRING16 => todo!(),
             TypeKind::ALIAS => todo!(),
             TypeKind::ENUM => todo!(),
