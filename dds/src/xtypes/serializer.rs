@@ -19,7 +19,7 @@ impl Write for Vec<u8> {
     }
 }
 
-trait EncodingVersion {
+pub trait EncodingVersion {
     const MAX_ALIGN: usize;
 }
 struct EncodingVersion1;
@@ -32,7 +32,7 @@ impl EncodingVersion for EncodingVersion2 {
     const MAX_ALIGN: usize = 4;
 }
 
-struct Writer<W, E, V> {
+pub struct Writer<W, E, V> {
     buffer: W,
     position: usize,
     _endianness: E,
@@ -68,7 +68,7 @@ impl<W: Write, E, V: EncodingVersion> Write for Writer<W, E, V> {
     }
 }
 
-trait PlainCdrSerialize {
+pub trait PlainCdrSerialize {
     fn serialize<W: Write, E: EndiannessWrite, V: EncodingVersion>(
         self,
         writer: &mut Writer<W, E, V>,
@@ -186,7 +186,7 @@ impl PlainCdrSerialize for &[u8] {
         E::write_slice_u8(self, writer);
     }
 }
-trait EndiannessWrite {
+pub trait EndiannessWrite {
     fn write_bool<C: Write>(v: bool, writer: &mut C) {
         writer.write(&[v as u8]);
     }
@@ -206,9 +206,6 @@ trait EndiannessWrite {
     fn write_f64<C: Write>(v: f64, writer: &mut C);
     fn write_char<C: Write>(v: char, writer: &mut C) {
         writer.write(v.to_string().as_bytes());
-    }
-    fn write_str<C: Write>(v: &str, writer: &mut C) {
-        writer.write(v.as_bytes());
     }
     fn write_slice_u8<C: Write>(v: &[u8], writer: &mut C) {
         writer.write(v);
@@ -684,7 +681,7 @@ impl<W: Write, E: EndiannessWrite> XTypesSerializer<W> for Xcdr2Serializer<W, E>
         for field_index in 0..v.get_item_count() {
             let member_id = v.get_member_id_at_index(field_index)?;
             // DHEADER
-            let length = count_bytes_cdr1(v, member_id)? as u32;
+            let length = count_bytes_cdr2(v, member_id)? as u32;
             length.serialize(&mut self.writer);
             // Value
             self.serialize_dynamic_data_member(v, member_id)?;
