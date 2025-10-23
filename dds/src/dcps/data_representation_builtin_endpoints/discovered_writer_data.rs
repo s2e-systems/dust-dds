@@ -18,7 +18,11 @@ use crate::{
         type_support::TypeSupport,
     },
     transport::types::{EntityId, Guid, Locator, ENTITYID_UNKNOWN},
-    xtypes::{binding::XTypesBinding, data_storage::DataStorage, dynamic_type::DynamicTypeBuilder},
+    xtypes::{
+        binding::XTypesBinding,
+        data_storage::{DataStorage, DataStorageMapping},
+        dynamic_type::DynamicTypeBuilder,
+    },
 };
 use alloc::{string::String, vec::Vec};
 
@@ -83,7 +87,7 @@ impl TypeSupport for DiscoveredWriterData {
                     .unwrap();
                 self.index += 1;
             }
-            fn add_member_with_default<T: XTypesBinding + Into<DataStorage>>(
+            fn add_member_with_default<T: XTypesBinding + DataStorageMapping>(
                 &mut self,
                 name: &str,
                 id: i16,
@@ -94,7 +98,7 @@ impl TypeSupport for DiscoveredWriterData {
                         name: alloc::string::String::from(name),
                         id: id as u32,
                         r#type: T::get_dynamic_type(),
-                        default_value: Some(default.into()),
+                        default_value: Some(default.into_storage()),
                         index: self.index,
                         try_construct_kind:
                             dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
@@ -218,57 +222,93 @@ impl TypeSupport for DiscoveredWriterData {
     fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
         let mut data =
             dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type());
-        data.set_value(PID_ENDPOINT_GUID as u32, self.dds_publication_data.key);
+        data.set_value(
+            PID_ENDPOINT_GUID as u32,
+            self.dds_publication_data.key.into_storage(),
+        );
         data.set_value(
             PID_PARTICIPANT_GUID as u32,
-            self.dds_publication_data.participant_key,
+            self.dds_publication_data.participant_key.into_storage(),
         );
-        data.set_value(PID_TOPIC_NAME as u32, self.dds_publication_data.topic_name);
-        data.set_value(PID_TYPE_NAME as u32, self.dds_publication_data.type_name);
-        data.set_value(PID_DURABILITY as u32, self.dds_publication_data.durability);
-        data.set_value(PID_DEADLINE as u32, self.dds_publication_data.deadline);
+        data.set_value(
+            PID_TOPIC_NAME as u32,
+            self.dds_publication_data.topic_name.into_storage(),
+        );
+        data.set_value(
+            PID_TYPE_NAME as u32,
+            self.dds_publication_data.type_name.into_storage(),
+        );
+        data.set_value(
+            PID_DURABILITY as u32,
+            self.dds_publication_data.durability.into_storage(),
+        );
+        data.set_value(
+            PID_DEADLINE as u32,
+            self.dds_publication_data.deadline.into_storage(),
+        );
         data.set_value(
             PID_LATENCY_BUDGET as u32,
-            self.dds_publication_data.latency_budget,
+            self.dds_publication_data.latency_budget.into_storage(),
         );
-        data.set_value(PID_LIVELINESS as u32, self.dds_publication_data.liveliness);
+        data.set_value(
+            PID_LIVELINESS as u32,
+            self.dds_publication_data.liveliness.into_storage(),
+        );
         data.set_value(
             PID_RELIABILITY as u32,
-            self.dds_publication_data.reliability,
+            self.dds_publication_data.reliability.into_storage(),
         );
-        data.set_value(PID_LIFESPAN as u32, self.dds_publication_data.lifespan);
-        data.set_value(PID_OWNERSHIP as u32, self.dds_publication_data.ownership);
+        data.set_value(
+            PID_LIFESPAN as u32,
+            self.dds_publication_data.lifespan.into_storage(),
+        );
+        data.set_value(
+            PID_OWNERSHIP as u32,
+            self.dds_publication_data.ownership.into_storage(),
+        );
         data.set_value(
             PID_OWNERSHIP_STRENGTH as u32,
-            self.dds_publication_data.ownership_strength,
+            self.dds_publication_data.ownership_strength.into_storage(),
         );
         data.set_value(
             PID_DESTINATION_ORDER as u32,
-            self.dds_publication_data.destination_order,
+            self.dds_publication_data.destination_order.into_storage(),
         );
-        data.set_value(PID_USER_DATA as u32, self.dds_publication_data.user_data);
+        data.set_value(
+            PID_USER_DATA as u32,
+            self.dds_publication_data.user_data.into_storage(),
+        );
         data.set_value(
             PID_PRESENTATION as u32,
-            self.dds_publication_data.presentation,
+            self.dds_publication_data.presentation.into_storage(),
         );
-        data.set_value(PID_PARTITION as u32, self.dds_publication_data.partition);
-        data.set_value(PID_TOPIC_DATA as u32, self.dds_publication_data.topic_data);
-        data.set_value(PID_GROUP_DATA as u32, self.dds_publication_data.group_data);
+        data.set_value(
+            PID_PARTITION as u32,
+            self.dds_publication_data.partition.into_storage(),
+        );
+        data.set_value(
+            PID_TOPIC_DATA as u32,
+            self.dds_publication_data.topic_data.into_storage(),
+        );
+        data.set_value(
+            PID_GROUP_DATA as u32,
+            self.dds_publication_data.group_data.into_storage(),
+        );
         data.set_value(
             PID_DATA_REPRESENTATION as u32,
-            self.dds_publication_data.representation,
+            self.dds_publication_data.representation.into_storage(),
         );
         data.set_value(
             PID_GROUP_ENTITYID as u32,
-            self.writer_proxy.remote_group_entity_id,
+            self.writer_proxy.remote_group_entity_id.into_storage(),
         );
         data.set_value(
             PID_UNICAST_LOCATOR as u32,
-            self.writer_proxy.unicast_locator_list,
+            self.writer_proxy.unicast_locator_list.into_storage(),
         );
         data.set_value(
             PID_MULTICAST_LOCATOR as u32,
-            self.writer_proxy.multicast_locator_list,
+            self.writer_proxy.multicast_locator_list.into_storage(),
         );
         data
     }

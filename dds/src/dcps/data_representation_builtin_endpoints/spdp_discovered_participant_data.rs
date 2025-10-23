@@ -21,7 +21,11 @@ use crate::{
         type_support::TypeSupport,
     },
     transport::types::{GuidPrefix, Locator, Long, ProtocolVersion, VendorId},
-    xtypes::{binding::XTypesBinding, data_storage::DataStorage, dynamic_type::DynamicTypeBuilder},
+    xtypes::{
+        binding::XTypesBinding,
+        data_storage::{DataStorage, DataStorageMapping},
+        dynamic_type::DynamicTypeBuilder,
+    },
 };
 use alloc::{string::String, vec::Vec};
 
@@ -108,34 +112,20 @@ impl BuiltinEndpointQos {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, TypeSupport)]
-#[dust_dds(extensibility = "mutable")]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ParticipantProxy {
-    #[dust_dds(id = PID_DOMAIN_ID as u32, non_serialized)]
     pub(crate) domain_id: Option<DomainId>,
-    #[dust_dds(id = PID_DOMAIN_TAG as u32, optional)]
     pub(crate) domain_tag: String,
-    #[dust_dds(id = PID_PROTOCOL_VERSION as u32)]
     pub(crate) protocol_version: ProtocolVersion,
-    #[dust_dds(id = PID_PARTICIPANT_GUID as u32, non_serialized)]
     pub(crate) guid_prefix: GuidPrefix,
-    #[dust_dds(id = PID_VENDORID as u32)]
     pub(crate) vendor_id: VendorId,
-    #[dust_dds(id = PID_EXPECTS_INLINE_QOS as u32, optional, default_value=DEFAULT_EXPECTS_INLINE_QOS)]
     pub(crate) expects_inline_qos: bool,
-    #[dust_dds(id = PID_METATRAFFIC_UNICAST_LOCATOR as u32, optional)]
     pub(crate) metatraffic_unicast_locator_list: Vec<Locator>,
-    #[dust_dds(id = PID_METATRAFFIC_MULTICAST_LOCATOR as u32, optional)]
     pub(crate) metatraffic_multicast_locator_list: Vec<Locator>,
-    #[dust_dds(id = PID_DEFAULT_UNICAST_LOCATOR as u32, optional)]
     pub(crate) default_unicast_locator_list: Vec<Locator>,
-    #[dust_dds(id = PID_DEFAULT_MULTICAST_LOCATOR as u32, optional)]
     pub(crate) default_multicast_locator_list: Vec<Locator>,
-    #[dust_dds(id = PID_BUILTIN_ENDPOINT_SET as u32, optional)]
     pub(crate) available_builtin_endpoints: BuiltinEndpointSet,
-    #[dust_dds(id = PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT as u32)]
     pub(crate) manual_liveliness_count: Count,
-    #[dust_dds(id = PID_BUILTIN_ENDPOINT_QOS as u32)]
     pub(crate) builtin_endpoint_qos: BuiltinEndpointQos,
 }
 
@@ -195,7 +185,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParti
                     .unwrap();
                 self.index += 1;
             }
-            fn add_member_with_default<T: XTypesBinding + Into<DataStorage>>(
+            fn add_member_with_default<T: XTypesBinding + DataStorageMapping>(
                 &mut self,
                 name: &str,
                 id: i16,
@@ -206,7 +196,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParti
                         name: alloc::string::String::from(name),
                         id: id as u32,
                         r#type: T::get_dynamic_type(),
-                        default_value: Some(default.into()),
+                        default_value: Some(default.into_storage()),
                         index: self.index,
                         try_construct_kind:
                             dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
@@ -292,58 +282,97 @@ impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParti
         builder.builder.build()
     }
 
-    fn create_sample(_src: crate::xtypes::dynamic_type::DynamicData) -> Self {
-        todo!()
+    fn create_sample(src: crate::xtypes::dynamic_type::DynamicData) -> Self {
+        Self {
+            dds_participant_data: ParticipantBuiltinTopicData {
+                key: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_PARTICIPANT_GUID as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Type must match"),
+                user_data: todo!(),
+            },
+            participant_proxy: todo!(),
+            lease_duration: todo!(),
+            discovered_participant_list: todo!(),
+        }
     }
 
     fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
         let mut data =
             dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type());
-        data.set_value(PID_PARTICIPANT_GUID as u32, self.dds_participant_data.key);
-        data.set_value(PID_USER_DATA as u32, self.dds_participant_data.user_data);
+        data.set_value(
+            PID_PARTICIPANT_GUID as u32,
+            self.dds_participant_data.key.into_storage(),
+        );
+        data.set_value(
+            PID_USER_DATA as u32,
+            self.dds_participant_data.user_data.into_storage(),
+        );
         if let Some(domain_id) = self.participant_proxy.domain_id {
-            data.set_value(PID_DOMAIN_ID as u32, domain_id);
+            data.set_value(PID_DOMAIN_ID as u32, domain_id.into_storage());
         }
-        data.set_value(PID_DOMAIN_TAG as u32, self.participant_proxy.domain_tag);
+        data.set_value(
+            PID_DOMAIN_TAG as u32,
+            self.participant_proxy.domain_tag.into_storage(),
+        );
         data.set_value(
             PID_PROTOCOL_VERSION as u32,
-            self.participant_proxy.protocol_version,
+            self.participant_proxy.protocol_version.into_storage(),
         );
         // self.participant_proxy.guid_prefix is ommitted
-        data.set_value(PID_VENDORID as u32, self.participant_proxy.vendor_id);
+        data.set_value(
+            PID_VENDORID as u32,
+            self.participant_proxy.vendor_id.into_storage(),
+        );
         data.set_value(
             PID_EXPECTS_INLINE_QOS as u32,
-            self.participant_proxy.expects_inline_qos,
+            self.participant_proxy.expects_inline_qos.into_storage(),
         );
         data.set_value(
             PID_METATRAFFIC_UNICAST_LOCATOR as u32,
-            self.participant_proxy.metatraffic_unicast_locator_list,
+            self.participant_proxy
+                .metatraffic_unicast_locator_list
+                .into_storage(),
         );
         data.set_value(
             PID_METATRAFFIC_MULTICAST_LOCATOR as u32,
-            self.participant_proxy.metatraffic_multicast_locator_list,
+            self.participant_proxy
+                .metatraffic_multicast_locator_list
+                .into_storage(),
         );
         data.set_value(
             PID_DEFAULT_UNICAST_LOCATOR as u32,
-            self.participant_proxy.default_unicast_locator_list,
+            self.participant_proxy
+                .default_unicast_locator_list
+                .into_storage(),
         );
         data.set_value(
             PID_DEFAULT_MULTICAST_LOCATOR as u32,
-            self.participant_proxy.default_multicast_locator_list,
+            self.participant_proxy
+                .default_multicast_locator_list
+                .into_storage(),
         );
         data.set_value(
             PID_BUILTIN_ENDPOINT_SET as u32,
-            self.participant_proxy.available_builtin_endpoints,
+            self.participant_proxy
+                .available_builtin_endpoints
+                .into_storage(),
         );
         data.set_value(
             PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT as u32,
-            self.participant_proxy.manual_liveliness_count,
+            self.participant_proxy
+                .manual_liveliness_count
+                .into_storage(),
         );
         data.set_value(
             PID_BUILTIN_ENDPOINT_QOS as u32,
-            self.participant_proxy.builtin_endpoint_qos,
+            self.participant_proxy.builtin_endpoint_qos.into_storage(),
         );
-        data.set_value(PID_PARTICIPANT_LEASE_DURATION as u32, self.lease_duration);
+        data.set_value(
+            PID_PARTICIPANT_LEASE_DURATION as u32,
+            self.lease_duration.into_storage(),
+        );
         data
     }
 }
@@ -356,7 +385,10 @@ mod tests {
         infrastructure::qos_policy::UserDataQosPolicy,
         rtps::types::PROTOCOLVERSION_2_4,
         xtypes::{
-            data_representation::{cdr_reader::{Cdr1Deserializer, PlCdr1Deserializer}, endianness::LittleEndian}, dynamic_type::DynamicData, pl_cdr_serializer::PlCdrSerializer, serializer::XTypesSerializer
+            data_representation::{cdr_reader::PlCdr1Deserializer, endianness::LittleEndian},
+            dynamic_type::DynamicData,
+            pl_cdr_serializer::PlCdrSerializer,
+            serializer::XTypesSerializer,
         },
     };
 

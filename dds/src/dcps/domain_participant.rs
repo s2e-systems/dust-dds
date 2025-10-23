@@ -6686,6 +6686,11 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
         cache_change: CacheChange,
         reception_timestamp: Time,
     ) -> DdsResult<ReaderSample> {
+        let data_value = DynamicData::deserialize(
+            self.type_support.as_ref().clone(),
+            cache_change.data_value.as_ref(),
+        )?;
+
         let instance_handle = {
             match cache_change.kind {
                 ChangeKind::Alive | ChangeKind::AliveFiltered => {
@@ -6752,10 +6757,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
             writer_guid: cache_change.writer_guid.into(),
             instance_handle,
             source_timestamp: cache_change.source_timestamp.map(Into::into),
-            data_value: DynamicData::deserialize(
-                self.type_support.as_ref().clone(),
-                cache_change.data_value.as_ref(),
-            )?,
+            data_value,
             sample_state: SampleStateKind::NotRead,
             disposed_generation_count: instance.most_recent_disposed_generation_count,
             no_writers_generation_count: instance.most_recent_no_writers_generation_count,

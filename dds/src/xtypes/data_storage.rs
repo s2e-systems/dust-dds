@@ -1,6 +1,9 @@
 use crate::{
     infrastructure::type_support::TypeSupport,
-    xtypes::{dynamic_type::DynamicData, error::XTypesError},
+    xtypes::{
+        dynamic_type::DynamicData,
+        error::{XTypesError, XTypesResult},
+    },
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -22,263 +25,244 @@ pub enum DataStorage {
     Sequence(Vec<DataStorage>),
 }
 
-impl From<u8> for DataStorage {
-    fn from(value: u8) -> Self {
-        Self::UInt8(value)
-    }
+pub trait DataStorageMapping: Sized {
+    fn into_storage(self) -> DataStorage;
+
+    fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self>;
 }
 
-impl From<i8> for DataStorage {
-    fn from(value: i8) -> Self {
-        Self::Int8(value)
+impl DataStorageMapping for u8 {
+    fn into_storage(self) -> DataStorage {
+        DataStorage::UInt8(self)
     }
-}
 
-impl From<u16> for DataStorage {
-    fn from(value: u16) -> Self {
-        Self::UInt16(value)
-    }
-}
-
-impl From<i16> for DataStorage {
-    fn from(value: i16) -> Self {
-        Self::Int16(value)
-    }
-}
-
-impl From<u32> for DataStorage {
-    fn from(value: u32) -> Self {
-        Self::UInt32(value)
-    }
-}
-
-impl From<i32> for DataStorage {
-    fn from(value: i32) -> Self {
-        Self::Int32(value)
-    }
-}
-
-impl From<u64> for DataStorage {
-    fn from(value: u64) -> Self {
-        Self::UInt64(value)
-    }
-}
-
-impl From<i64> for DataStorage {
-    fn from(value: i64) -> Self {
-        Self::Int64(value)
-    }
-}
-
-impl From<f32> for DataStorage {
-    fn from(value: f32) -> Self {
-        Self::Float32(value)
-    }
-}
-
-impl From<f64> for DataStorage {
-    fn from(value: f64) -> Self {
-        Self::Float64(value)
-    }
-}
-
-impl From<char> for DataStorage {
-    fn from(value: char) -> Self {
-        Self::Char8(value)
-    }
-}
-
-impl From<bool> for DataStorage {
-    fn from(value: bool) -> Self {
-        Self::Boolean(value)
-    }
-}
-
-impl From<String> for DataStorage {
-    fn from(value: String) -> Self {
-        Self::String(value)
-    }
-}
-
-impl<T: TypeSupport> From<T> for DataStorage {
-    fn from(value: T) -> Self {
-        Self::ComplexValue(value.create_dynamic_sample())
-    }
-}
-
-impl<const N: usize, T: Into<DataStorage>> From<[T; N]> for DataStorage {
-    fn from(value: [T; N]) -> Self {
-        Self::Sequence(value.into_iter().map(T::into).collect())
-    }
-}
-
-impl<T: Into<DataStorage>> From<Vec<T>> for DataStorage {
-    fn from(value: Vec<T>) -> Self {
-        Self::Sequence(value.into_iter().map(T::into).collect())
-    }
-}
-
-impl From<&[u8]> for DataStorage {
-    fn from(value: &[u8]) -> Self {
-        value.to_vec().into()
-    }
-}
-
-impl From<&str> for DataStorage {
-    fn from(value: &str) -> Self {
-        value.to_string().into()
-    }
-}
-
-impl TryFrom<DataStorage> for u8 {
-    type Error = XTypesError;
-
-    fn try_from(value: DataStorage) -> Result<Self, Self::Error> {
-        match value {
+    fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
+        match data_storage {
             DataStorage::UInt8(x) => Ok(x),
             _ => Err(XTypesError::InvalidType),
         }
     }
 }
 
-impl TryFrom<DataStorage> for i8 {
-    type Error = XTypesError;
+impl DataStorageMapping for i8 {
+    fn into_storage(self) -> DataStorage {
+        DataStorage::Int8(self)
+    }
 
-    fn try_from(value: DataStorage) -> Result<Self, Self::Error> {
-        match value {
+    fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
+        match data_storage {
             DataStorage::Int8(x) => Ok(x),
             _ => Err(XTypesError::InvalidType),
         }
     }
 }
 
-impl TryFrom<DataStorage> for u16 {
-    type Error = XTypesError;
+impl DataStorageMapping for u16 {
+    fn into_storage(self) -> DataStorage {
+        DataStorage::UInt16(self)
+    }
 
-    fn try_from(value: DataStorage) -> Result<Self, Self::Error> {
-        match value {
+    fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
+        match data_storage {
             DataStorage::UInt16(x) => Ok(x),
             _ => Err(XTypesError::InvalidType),
         }
     }
 }
 
-impl TryFrom<DataStorage> for i16 {
-    type Error = XTypesError;
+impl DataStorageMapping for i16 {
+    fn into_storage(self) -> DataStorage {
+        DataStorage::Int16(self)
+    }
 
-    fn try_from(value: DataStorage) -> Result<Self, Self::Error> {
-        match value {
+    fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
+        match data_storage {
             DataStorage::Int16(x) => Ok(x),
             _ => Err(XTypesError::InvalidType),
         }
     }
 }
 
-impl TryFrom<DataStorage> for u32 {
-    type Error = XTypesError;
+impl DataStorageMapping for u32 {
+    fn into_storage(self) -> DataStorage {
+        DataStorage::UInt32(self)
+    }
 
-    fn try_from(value: DataStorage) -> Result<Self, Self::Error> {
-        match value {
+    fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
+        match data_storage {
             DataStorage::UInt32(x) => Ok(x),
             _ => Err(XTypesError::InvalidType),
         }
     }
 }
 
-impl TryFrom<DataStorage> for i32 {
-    type Error = XTypesError;
+impl DataStorageMapping for i32 {
+    fn into_storage(self) -> DataStorage {
+        DataStorage::Int32(self)
+    }
 
-    fn try_from(value: DataStorage) -> Result<Self, Self::Error> {
-        match value {
+    fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
+        match data_storage {
             DataStorage::Int32(x) => Ok(x),
             _ => Err(XTypesError::InvalidType),
         }
     }
 }
 
-impl TryFrom<DataStorage> for u64 {
-    type Error = XTypesError;
+impl DataStorageMapping for u64 {
+    fn into_storage(self) -> DataStorage {
+        DataStorage::UInt64(self)
+    }
 
-    fn try_from(value: DataStorage) -> Result<Self, Self::Error> {
-        match value {
+    fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
+        match data_storage {
             DataStorage::UInt64(x) => Ok(x),
             _ => Err(XTypesError::InvalidType),
         }
     }
 }
 
-impl TryFrom<DataStorage> for i64 {
-    type Error = XTypesError;
+impl DataStorageMapping for i64 {
+    fn into_storage(self) -> DataStorage {
+        DataStorage::Int64(self)
+    }
 
-    fn try_from(value: DataStorage) -> Result<Self, Self::Error> {
-        match value {
+    fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
+        match data_storage {
             DataStorage::Int64(x) => Ok(x),
             _ => Err(XTypesError::InvalidType),
         }
     }
 }
 
-impl TryFrom<DataStorage> for f32 {
-    type Error = XTypesError;
+impl DataStorageMapping for f32 {
+    fn into_storage(self) -> DataStorage {
+        DataStorage::Float32(self)
+    }
 
-    fn try_from(value: DataStorage) -> Result<Self, Self::Error> {
-        match value {
+    fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
+        match data_storage {
             DataStorage::Float32(x) => Ok(x),
             _ => Err(XTypesError::InvalidType),
         }
     }
 }
 
-impl TryFrom<DataStorage> for f64 {
-    type Error = XTypesError;
+impl DataStorageMapping for f64 {
+    fn into_storage(self) -> DataStorage {
+        DataStorage::Float64(self)
+    }
 
-    fn try_from(value: DataStorage) -> Result<Self, Self::Error> {
-        match value {
+    fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
+        match data_storage {
             DataStorage::Float64(x) => Ok(x),
             _ => Err(XTypesError::InvalidType),
         }
     }
 }
 
-impl TryFrom<DataStorage> for char {
-    type Error = XTypesError;
-
-    fn try_from(value: DataStorage) -> Result<Self, Self::Error> {
-        match value {
-            DataStorage::Char8(x) => Ok(x),
-            _ => Err(XTypesError::InvalidType),
-        }
+impl DataStorageMapping for bool {
+    fn into_storage(self) -> DataStorage {
+        DataStorage::Boolean(self)
     }
-}
 
-impl TryFrom<DataStorage> for bool {
-    type Error = XTypesError;
-
-    fn try_from(value: DataStorage) -> Result<Self, Self::Error> {
-        match value {
+    fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
+        match data_storage {
             DataStorage::Boolean(x) => Ok(x),
             _ => Err(XTypesError::InvalidType),
         }
     }
 }
 
-impl TryFrom<DataStorage> for String {
-    type Error = XTypesError;
+impl DataStorageMapping for char {
+    fn into_storage(self) -> DataStorage {
+        DataStorage::Char8(self)
+    }
 
-    fn try_from(value: DataStorage) -> Result<Self, Self::Error> {
-        match value {
+    fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
+        match data_storage {
+            DataStorage::Char8(x) => Ok(x),
+            _ => Err(XTypesError::InvalidType),
+        }
+    }
+}
+
+impl DataStorageMapping for String {
+    fn into_storage(self) -> DataStorage {
+        DataStorage::String(self)
+    }
+
+    fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
+        match data_storage {
             DataStorage::String(x) => Ok(x),
             _ => Err(XTypesError::InvalidType),
         }
     }
 }
 
-impl TryFrom<DataStorage> for DynamicData {
-    type Error = XTypesError;
+impl DataStorageMapping for DynamicData {
+    fn into_storage(self) -> DataStorage {
+        DataStorage::ComplexValue(self)
+    }
 
-    fn try_from(value: DataStorage) -> Result<Self, Self::Error> {
-        match value {
+    fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
+        match data_storage {
             DataStorage::ComplexValue(x) => Ok(x),
+            _ => Err(XTypesError::InvalidType),
+        }
+    }
+}
+
+impl<T: DataStorageMapping> DataStorageMapping for Vec<T> {
+    fn into_storage(self) -> DataStorage {
+        DataStorage::Sequence(
+            self.into_iter()
+                .map(DataStorageMapping::into_storage)
+                .collect(),
+        )
+    }
+
+    fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
+        match data_storage {
+            DataStorage::Sequence(x) => Ok(x
+                .into_iter()
+                .map(|x| DataStorageMapping::try_from_storage(x).unwrap())
+                .collect()),
+            _ => Err(XTypesError::InvalidType),
+        }
+    }
+}
+
+impl<T: DataStorageMapping, const N: usize> DataStorageMapping for [T; N] {
+    fn into_storage(self) -> DataStorage {
+        DataStorage::Sequence(
+            self.into_iter()
+                .map(DataStorageMapping::into_storage)
+                .collect(),
+        )
+    }
+
+    fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
+        match data_storage {
+            DataStorage::Sequence(x) => Self::try_from(
+                x.into_iter()
+                    .map(|x| DataStorageMapping::try_from_storage(x).unwrap())
+                    .collect::<Vec<T>>(),
+            )
+            .map_err(|_| XTypesError::InvalidType),
+            _ => Err(XTypesError::InvalidType),
+        }
+    }
+}
+
+impl<T: TypeSupport> DataStorageMapping for T {
+    fn into_storage(self) -> DataStorage {
+        DataStorage::ComplexValue(T::create_dynamic_sample(self))
+    }
+
+    fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
+        match data_storage {
+            DataStorage::ComplexValue(x) => Ok(T::create_sample(x)),
             _ => Err(XTypesError::InvalidType),
         }
     }

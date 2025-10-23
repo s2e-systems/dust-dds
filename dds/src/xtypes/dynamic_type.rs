@@ -1,6 +1,10 @@
 use super::error::XTypesError;
 use crate::xtypes::{
-    data_storage::DataStorage,
+    data_representation::{
+        cdr_reader::{Cdr1Deserializer, PlCdr1Deserializer},
+        endianness::LittleEndian,
+    },
+    data_storage::{DataStorage, DataStorageMapping},
     error::XTypesResult,
     serializer::{Write, XTypesSerializer},
     type_object::TypeObject,
@@ -661,7 +665,7 @@ impl DynamicData {
     }
 
     pub fn set_boolean_value(&mut self, id: MemberId, value: bool) -> XTypesResult<()> {
-        self.abstract_data.insert(id, DataStorage::Boolean(value));
+        self.abstract_data.insert(id, value.into_storage());
         Ok(())
     }
 
@@ -712,14 +716,17 @@ impl DynamicData {
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.iter().cloned().map(TryInto::try_into).collect()
+            d.iter()
+                .cloned()
+                .map(DataStorageMapping::try_from_storage)
+                .collect()
         } else {
             Err(XTypesError::InvalidType)
         }
     }
 
     pub fn set_int32_values(&mut self, id: MemberId, value: Vec<i32>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, value.into());
+        self.abstract_data.insert(id, value.into_storage());
         Ok(())
     }
 
@@ -729,14 +736,17 @@ impl DynamicData {
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.iter().cloned().map(TryInto::try_into).collect()
+            d.iter()
+                .cloned()
+                .map(DataStorageMapping::try_from_storage)
+                .collect()
         } else {
             Err(XTypesError::InvalidType)
         }
     }
 
     pub fn set_uint32_values(&mut self, id: MemberId, value: Vec<u32>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, value.into());
+        self.abstract_data.insert(id, value.into_storage());
         Ok(())
     }
 
@@ -746,14 +756,17 @@ impl DynamicData {
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.iter().cloned().map(TryInto::try_into).collect()
+            d.iter()
+                .cloned()
+                .map(DataStorageMapping::try_from_storage)
+                .collect()
         } else {
             Err(XTypesError::InvalidType)
         }
     }
 
     pub fn set_int16_values(&mut self, id: MemberId, value: Vec<i16>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, value.into());
+        self.abstract_data.insert(id, value.into_storage());
         Ok(())
     }
 
@@ -763,14 +776,17 @@ impl DynamicData {
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.iter().cloned().map(TryInto::try_into).collect()
+            d.iter()
+                .cloned()
+                .map(DataStorageMapping::try_from_storage)
+                .collect()
         } else {
             Err(XTypesError::InvalidType)
         }
     }
 
     pub fn set_uint16_values(&mut self, id: MemberId, value: Vec<u16>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, value.into());
+        self.abstract_data.insert(id, value.into_storage());
         Ok(())
     }
 
@@ -780,14 +796,17 @@ impl DynamicData {
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.iter().cloned().map(TryInto::try_into).collect()
+            d.iter()
+                .cloned()
+                .map(DataStorageMapping::try_from_storage)
+                .collect()
         } else {
             Err(XTypesError::InvalidType)
         }
     }
 
     pub fn set_int64_values(&mut self, id: MemberId, value: Vec<i64>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, value.into());
+        self.abstract_data.insert(id, value.into_storage());
         Ok(())
     }
 
@@ -797,14 +816,17 @@ impl DynamicData {
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.iter().cloned().map(TryInto::try_into).collect()
+            d.iter()
+                .cloned()
+                .map(DataStorageMapping::try_from_storage)
+                .collect()
         } else {
             Err(XTypesError::InvalidType)
         }
     }
 
     pub fn set_uint64_values(&mut self, id: MemberId, value: Vec<u64>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, value.into());
+        self.abstract_data.insert(id, value.into_storage());
         Ok(())
     }
 
@@ -814,14 +836,17 @@ impl DynamicData {
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.iter().cloned().map(TryInto::try_into).collect()
+            d.iter()
+                .cloned()
+                .map(DataStorageMapping::try_from_storage)
+                .collect()
         } else {
             Err(XTypesError::InvalidType)
         }
     }
 
     pub fn set_float32_values(&mut self, id: MemberId, value: Vec<f32>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, value.into());
+        self.abstract_data.insert(id, value.into_storage());
         Ok(())
     }
 
@@ -831,14 +856,17 @@ impl DynamicData {
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.iter().cloned().map(TryInto::try_into).collect()
+            d.iter()
+                .cloned()
+                .map(DataStorageMapping::try_from_storage)
+                .collect()
         } else {
             Err(XTypesError::InvalidType)
         }
     }
 
     pub fn set_float64_values(&mut self, id: MemberId, value: Vec<f64>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, value.into());
+        self.abstract_data.insert(id, value.into_storage());
         Ok(())
     }
 
@@ -848,14 +876,17 @@ impl DynamicData {
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.iter().cloned().map(TryInto::try_into).collect()
+            d.iter()
+                .cloned()
+                .map(DataStorageMapping::try_from_storage)
+                .collect()
         } else {
             Err(XTypesError::InvalidType)
         }
     }
 
     pub fn set_char8_values(&mut self, id: MemberId, value: Vec<char>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, value.into());
+        self.abstract_data.insert(id, value.into_storage());
         Ok(())
     }
 
@@ -865,14 +896,17 @@ impl DynamicData {
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.iter().cloned().map(TryInto::try_into).collect()
+            d.iter()
+                .cloned()
+                .map(DataStorageMapping::try_from_storage)
+                .collect()
         } else {
             Err(XTypesError::InvalidType)
         }
     }
 
     pub fn set_byte_values(&mut self, id: MemberId, value: Vec<u8>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, value.into());
+        self.abstract_data.insert(id, value.into_storage());
         Ok(())
     }
 
@@ -882,14 +916,17 @@ impl DynamicData {
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.iter().cloned().map(TryInto::try_into).collect()
+            d.iter()
+                .cloned()
+                .map(DataStorageMapping::try_from_storage)
+                .collect()
         } else {
             Err(XTypesError::InvalidType)
         }
     }
 
     pub fn set_boolean_values(&mut self, id: MemberId, value: Vec<bool>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, value.into());
+        self.abstract_data.insert(id, value.into_storage());
         Ok(())
     }
 
@@ -899,14 +936,17 @@ impl DynamicData {
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.iter().cloned().map(TryInto::try_into).collect()
+            d.iter()
+                .cloned()
+                .map(DataStorageMapping::try_from_storage)
+                .collect()
         } else {
             Err(XTypesError::InvalidType)
         }
     }
 
     pub fn set_string_values(&mut self, id: MemberId, value: Vec<String>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, value.into());
+        self.abstract_data.insert(id, value.into_storage());
         Ok(())
     }
 
@@ -917,7 +957,10 @@ impl DynamicData {
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.iter().cloned().map(TryInto::try_into).collect()
+            d.iter()
+                .cloned()
+                .map(DataStorageMapping::try_from_storage)
+                .collect()
         } else {
             Err(XTypesError::InvalidType)
         }
@@ -929,19 +972,22 @@ impl DynamicData {
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.iter().cloned().map(TryInto::try_into).collect()
+            d.iter()
+                .cloned()
+                .map(DataStorageMapping::try_from_storage)
+                .collect()
         } else {
             Err(XTypesError::InvalidType)
         }
     }
 
     pub fn set_uint8_values(&mut self, id: MemberId, value: Vec<u8>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, value.into());
+        self.abstract_data.insert(id, value.into_storage());
         Ok(())
     }
 
     pub fn set_int8_values(&mut self, id: MemberId, value: Vec<i8>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, value.into());
+        self.abstract_data.insert(id, value.into_storage());
         Ok(())
     }
 
@@ -951,7 +997,10 @@ impl DynamicData {
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.iter().cloned().map(TryInto::try_into).collect()
+            d.iter()
+                .cloned()
+                .map(DataStorageMapping::try_from_storage)
+                .collect()
         } else {
             Err(XTypesError::InvalidType)
         }
@@ -969,13 +1018,14 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn set_value<T: Into<DataStorage>>(&mut self, id: MemberId, value: T) {
-        self.abstract_data.insert(id, value.into());
+    pub fn set_value(&mut self, id: MemberId, value: DataStorage) {
+        self.abstract_data.insert(id, value);
     }
 
-    pub fn get_value(&self, id: MemberId) -> XTypesResult<&DataStorage> {
+    pub fn get_value(&self, id: MemberId) -> XTypesResult<DataStorage> {
         self.abstract_data
             .get(&id)
+            .cloned()
             .ok_or(XTypesError::InvalidId(id))
     }
 }
@@ -1005,8 +1055,14 @@ impl DynamicData {
             return Err(XTypesError::InvalidData);
         }
         match [buffer[0], buffer[1]] {
-            // CDR_LE => deserialize_nested(dynamic_type, &mut Xcdr1LeDeserializer::new(&buffer[4..])),
-            // PL_CDR_LE => deserialize_nested(dynamic_type, &mut PlCdrDeserializer {}),
+            CDR_LE => DynamicData::xcdr_deserialize(
+                dynamic_type,
+                &mut Cdr1Deserializer::new(&buffer[4..], LittleEndian),
+            ),
+            PL_CDR_LE => DynamicData::xcdr_deserialize(
+                dynamic_type,
+                &mut PlCdr1Deserializer::new(&buffer[4..], LittleEndian),
+            ),
             _ => return Err(XTypesError::InvalidData),
         }
     }

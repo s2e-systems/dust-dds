@@ -62,7 +62,7 @@ impl<W: Write> XTypesSerializer<W> for PlCdrSerializer<W> {
             let member_descriptor = v.get_descriptor(member_id)?;
             if member_descriptor.is_optional {
                 if let Some(default_value) = &member_descriptor.default_value {
-                    if v.get_value(member_id)? == default_value {
+                    if &v.get_value(member_id)? == default_value {
                         continue;
                     }
                 }

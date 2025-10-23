@@ -16,7 +16,7 @@ use crate::{
         },
         type_support::TypeSupport,
     },
-    xtypes::binding::XTypesBinding,
+    xtypes::{binding::XTypesBinding, data_storage::DataStorageMapping},
 };
 use alloc::string::String;
 
@@ -94,7 +94,7 @@ impl TypeSupport for DiscoveredTopicData {
                 name: alloc::string::String::from("durability"),
                 id: PID_DURABILITY as u32,
                 r#type: <DurabilityQosPolicy as XTypesBinding>::get_dynamic_type(),
-                default_value: Some(<DurabilityQosPolicy as Default>::default().into()),
+                default_value: Some(<DurabilityQosPolicy as Default>::default().into_storage()),
                 index: 3u32,
                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
@@ -110,7 +110,7 @@ impl TypeSupport for DiscoveredTopicData {
                 name: alloc::string::String::from("deadline"),
                 id: PID_DEADLINE as u32,
                 r#type: <DeadlineQosPolicy as XTypesBinding>::get_dynamic_type(),
-                default_value: Some(<DeadlineQosPolicy as Default>::default().into()),
+                default_value: Some(<DeadlineQosPolicy as Default>::default().into_storage()),
                 index: 4u32,
                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
@@ -126,7 +126,7 @@ impl TypeSupport for DiscoveredTopicData {
                 name: alloc::string::String::from("latency_budget"),
                 id: PID_LATENCY_BUDGET as u32,
                 r#type: <LatencyBudgetQosPolicy as XTypesBinding>::get_dynamic_type(),
-                default_value: Some(<LatencyBudgetQosPolicy as Default>::default().into()),
+                default_value: Some(<LatencyBudgetQosPolicy as Default>::default().into_storage()),
                 index: 5u32,
                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
@@ -142,7 +142,7 @@ impl TypeSupport for DiscoveredTopicData {
                 name: alloc::string::String::from("liveliness"),
                 id: PID_LIVELINESS as u32,
                 r#type: <LivelinessQosPolicy as XTypesBinding>::get_dynamic_type(),
-                default_value: Some(<LivelinessQosPolicy as Default>::default().into()),
+                default_value: Some(<LivelinessQosPolicy as Default>::default().into_storage()),
                 index: 6u32,
                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
@@ -158,7 +158,9 @@ impl TypeSupport for DiscoveredTopicData {
                 name: alloc::string::String::from("reliability"),
                 id: PID_RELIABILITY as u32,
                 r#type: <ReliabilityQosPolicy as XTypesBinding>::get_dynamic_type(),
-                default_value: Some(DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS.into()),
+                default_value: Some(
+                    DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS.into_storage(),
+                ),
                 index: 7u32,
                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
@@ -174,7 +176,9 @@ impl TypeSupport for DiscoveredTopicData {
                 name: alloc::string::String::from("transport_priority"),
                 id: PID_TRANSPORT_PRIORITY as u32,
                 r#type: <TransportPriorityQosPolicy as XTypesBinding>::get_dynamic_type(),
-                default_value: Some(<TransportPriorityQosPolicy as Default>::default().into()),
+                default_value: Some(
+                    <TransportPriorityQosPolicy as Default>::default().into_storage(),
+                ),
                 index: 8u32,
                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
@@ -190,7 +194,7 @@ impl TypeSupport for DiscoveredTopicData {
                 name: alloc::string::String::from("lifespan"),
                 id: PID_LIFESPAN as u32,
                 r#type: <LifespanQosPolicy as XTypesBinding>::get_dynamic_type(),
-                default_value: Some(<LifespanQosPolicy as Default>::default().into()),
+                default_value: Some(<LifespanQosPolicy as Default>::default().into_storage()),
                 index: 9u32,
                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
@@ -206,7 +210,9 @@ impl TypeSupport for DiscoveredTopicData {
                 name: alloc::string::String::from("destination_order"),
                 id: PID_DESTINATION_ORDER as u32,
                 r#type: <DestinationOrderQosPolicy as XTypesBinding>::get_dynamic_type(),
-                default_value: Some(<DestinationOrderQosPolicy as Default>::default().into()),
+                default_value: Some(
+                    <DestinationOrderQosPolicy as Default>::default().into_storage(),
+                ),
                 index: 10u32,
                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
@@ -222,7 +228,7 @@ impl TypeSupport for DiscoveredTopicData {
                 name: alloc::string::String::from("history"),
                 id: PID_HISTORY as u32,
                 r#type: <HistoryQosPolicy as XTypesBinding>::get_dynamic_type(),
-                default_value: Some(<HistoryQosPolicy as Default>::default().into()),
+                default_value: Some(<HistoryQosPolicy as Default>::default().into_storage()),
                 index: 11u32,
                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
@@ -238,7 +244,7 @@ impl TypeSupport for DiscoveredTopicData {
                 name: alloc::string::String::from("resource_limits"),
                 id: PID_RESOURCE_LIMITS as u32,
                 r#type: <ResourceLimitsQosPolicy as XTypesBinding>::get_dynamic_type(),
-                default_value: Some(<ResourceLimitsQosPolicy as Default>::default().into()),
+                default_value: Some(<ResourceLimitsQosPolicy as Default>::default().into_storage()),
                 index: 12u32,
                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
@@ -254,7 +260,7 @@ impl TypeSupport for DiscoveredTopicData {
                 name: alloc::string::String::from("ownership"),
                 id: PID_OWNERSHIP as u32,
                 r#type: <OwnershipQosPolicy as XTypesBinding>::get_dynamic_type(),
-                default_value: Some(<OwnershipQosPolicy as Default>::default().into()),
+                default_value: Some(<OwnershipQosPolicy as Default>::default().into_storage()),
                 index: 13u32,
                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
@@ -270,7 +276,7 @@ impl TypeSupport for DiscoveredTopicData {
                 name: alloc::string::String::from("topic_data"),
                 id: PID_TOPIC_DATA as u32,
                 r#type: <TopicDataQosPolicy as XTypesBinding>::get_dynamic_type(),
-                default_value: Some(<TopicDataQosPolicy as Default>::default().into()),
+                default_value: Some(<TopicDataQosPolicy as Default>::default().into_storage()),
                 index: 14u32,
                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
@@ -286,7 +292,9 @@ impl TypeSupport for DiscoveredTopicData {
                 name: alloc::string::String::from("representation"),
                 id: PID_DATA_REPRESENTATION as u32,
                 r#type: <DataRepresentationQosPolicy as XTypesBinding>::get_dynamic_type(),
-                default_value: Some(<DataRepresentationQosPolicy as Default>::default().into()),
+                default_value: Some(
+                    <DataRepresentationQosPolicy as Default>::default().into_storage(),
+                ),
                 index: 15u32,
                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
@@ -307,54 +315,73 @@ impl TypeSupport for DiscoveredTopicData {
     fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
         let mut data =
             dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type());
-        data.set_value(PID_ENDPOINT_GUID as u32, self.topic_builtin_topic_data.key);
-        data.set_value(PID_TOPIC_NAME as u32, self.topic_builtin_topic_data.name);
+        data.set_value(
+            PID_ENDPOINT_GUID as u32,
+            self.topic_builtin_topic_data.key.into_storage(),
+        );
+        data.set_value(
+            PID_TOPIC_NAME as u32,
+            self.topic_builtin_topic_data.name.into_storage(),
+        );
         data.set_value(
             PID_TYPE_NAME as u32,
-            self.topic_builtin_topic_data.type_name,
+            self.topic_builtin_topic_data.type_name.into_storage(),
         );
         data.set_value(
             PID_DURABILITY as u32,
-            self.topic_builtin_topic_data.durability,
+            self.topic_builtin_topic_data.durability.into_storage(),
         );
-        data.set_value(PID_DEADLINE as u32, self.topic_builtin_topic_data.deadline);
+        data.set_value(
+            PID_DEADLINE as u32,
+            self.topic_builtin_topic_data.deadline.into_storage(),
+        );
         data.set_value(
             PID_LATENCY_BUDGET as u32,
-            self.topic_builtin_topic_data.latency_budget,
+            self.topic_builtin_topic_data.latency_budget.into_storage(),
         );
         data.set_value(
             PID_LIVELINESS as u32,
-            self.topic_builtin_topic_data.liveliness,
+            self.topic_builtin_topic_data.liveliness.into_storage(),
         );
         data.set_value(
             PID_RELIABILITY as u32,
-            self.topic_builtin_topic_data.reliability,
+            self.topic_builtin_topic_data.reliability.into_storage(),
         );
         data.set_value(
             PID_TRANSPORT_PRIORITY as u32,
-            self.topic_builtin_topic_data.transport_priority,
+            self.topic_builtin_topic_data
+                .transport_priority
+                .into_storage(),
         );
-        data.set_value(PID_LIFESPAN as u32, self.topic_builtin_topic_data.lifespan);
+        data.set_value(
+            PID_LIFESPAN as u32,
+            self.topic_builtin_topic_data.lifespan.into_storage(),
+        );
         data.set_value(
             PID_DESTINATION_ORDER as u32,
-            self.topic_builtin_topic_data.destination_order,
+            self.topic_builtin_topic_data
+                .destination_order
+                .into_storage(),
         );
-        data.set_value(PID_HISTORY as u32, self.topic_builtin_topic_data.history);
+        data.set_value(
+            PID_HISTORY as u32,
+            self.topic_builtin_topic_data.history.into_storage(),
+        );
         data.set_value(
             PID_RESOURCE_LIMITS as u32,
-            self.topic_builtin_topic_data.resource_limits,
+            self.topic_builtin_topic_data.resource_limits.into_storage(),
         );
         data.set_value(
             PID_OWNERSHIP as u32,
-            self.topic_builtin_topic_data.ownership,
+            self.topic_builtin_topic_data.ownership.into_storage(),
         );
         data.set_value(
             PID_TOPIC_DATA as u32,
-            self.topic_builtin_topic_data.topic_data,
+            self.topic_builtin_topic_data.topic_data.into_storage(),
         );
         data.set_value(
             PID_DATA_REPRESENTATION as u32,
-            self.topic_builtin_topic_data.representation,
+            self.topic_builtin_topic_data.representation.into_storage(),
         );
         data
     }

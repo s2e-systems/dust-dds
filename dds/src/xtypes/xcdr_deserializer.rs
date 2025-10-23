@@ -433,7 +433,7 @@ mod tests {
     use crate::{
         infrastructure::type_support::TypeSupport,
         xtypes::{
-            bytes::Bytes,
+            bytes::ByteBuf,
             data_representation::endianness::{BigEndian, LittleEndian},
         },
     };
@@ -772,24 +772,24 @@ mod tests {
 
     #[derive(Debug, PartialEq, TypeSupport)]
     //@extensibility(FINAL)
-    struct TypeWithStr<'a> {
-        field_str: &'a str,
+    struct TypeWithString {
+        field_str: String,
         field_u16: u16,
-        field_slice: Bytes<'a>,
+        field_slice: ByteBuf,
     }
 
     #[test]
     fn deserialize_struct_with_str() {
-        let expected = TypeWithStr {
-            field_str: "xt",
+        let expected = TypeWithString {
+            field_str: String::from("xt"),
             field_u16: 9,
-            field_slice: Bytes(&[10, 11]),
+            field_slice: ByteBuf(vec![10, 11]),
         }
         .create_dynamic_sample();
         // PLAIN_CDR:
         assert_eq!(
             deserialize_v1_be(
-                TypeWithStr::get_type(),
+                TypeWithString::get_type(),
                 &[
                     0, 0, 0, 3, // field_str: length
                     b'x', b't', 0, 0, //field_str: data | padding (1 bytes)
@@ -803,7 +803,7 @@ mod tests {
         );
         assert_eq!(
             deserialize_v1_le(
-                TypeWithStr::get_type(),
+                TypeWithString::get_type(),
                 &[
                     3, 0, 0, 0, // field_str: length
                     b'x', b't', 0, 0, //field_str: data | padding (1 bytes)
