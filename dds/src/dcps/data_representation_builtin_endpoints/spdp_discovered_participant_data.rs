@@ -452,7 +452,7 @@ mod tests {
         xtypes::{
             data_representation::{cdr_reader::PlCdr1Deserializer, endianness::LittleEndian},
             dynamic_type::DynamicData,
-            serializer::{PlCdrSerializer, XTypesSerializer},
+            serializer::{PlCdrSerializer, XTypesSerialize},
         },
     };
 

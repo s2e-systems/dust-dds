@@ -267,11 +267,56 @@ impl EndiannessWrite for LittleEndian {
     }
 }
 
-/// A trait representing an object with the capability of serializing a value into a CDR format.
-pub trait XTypesSerializer<W> {
+pub trait XTypesSerialize<W> {
+    fn serialize(&mut self, dynamic_data: &DynamicData) -> XTypesResult<()>;
     fn into_inner(self) -> W;
+}
 
+impl<W: Write> XTypesSerialize<W> for Xcdr1Serializer<W, LittleEndian> {
     fn serialize(&mut self, dynamic_data: &DynamicData) -> XTypesResult<()> {
+        self.serialize_dynamic_data(dynamic_data)
+    }
+    fn into_inner(self) -> W {
+        self.writer.buffer
+    }
+}
+impl<W: Write> XTypesSerialize<W> for Xcdr1Serializer<W, BigEndian> {
+    fn serialize(&mut self, dynamic_data: &DynamicData) -> XTypesResult<()> {
+        self.serialize_dynamic_data(dynamic_data)
+    }
+    fn into_inner(self) -> W {
+        self.writer.buffer
+    }
+}
+impl<W: Write> XTypesSerialize<W> for Xcdr2Serializer<W, LittleEndian> {
+    fn serialize(&mut self, dynamic_data: &DynamicData) -> XTypesResult<()> {
+        self.serialize_dynamic_data(dynamic_data)
+    }
+    fn into_inner(self) -> W {
+        self.writer.buffer
+    }
+}
+impl<W: Write> XTypesSerialize<W> for Xcdr2Serializer<W, BigEndian> {
+    fn serialize(&mut self, dynamic_data: &DynamicData) -> XTypesResult<()> {
+        self.serialize_dynamic_data(dynamic_data)
+    }
+    fn into_inner(self) -> W {
+        self.writer.buffer
+    }
+}
+impl<W: Write> XTypesSerialize<W> for PlCdrSerializer<W> {
+    fn serialize(&mut self, dynamic_data: &DynamicData) -> XTypesResult<()> {
+       self.serialize_dynamic_data(dynamic_data)
+    }
+    fn into_inner(self) -> W {
+        self.cdr1_le_serializer.into_inner()
+    }
+}
+
+/// A trait representing an object with the capability of serializing a value into a CDR format.
+pub trait XTypesSerializer {
+
+    fn serialize_dynamic_data(&mut self, dynamic_data: &DynamicData) -> XTypesResult<()> {
         // todo header CDR type
         match dynamic_data.type_ref().get_kind() {
             TypeKind::ENUM => {
@@ -484,7 +529,6 @@ pub trait XTypesSerializer<W> {
 
 const PID_SENTINEL: u16 = 1;
 
-
 fn count_bytes_cdr1(v: &DynamicData, member_id: u32) -> Result<usize, XTypesError> {
     let mut byte_conter_serializer = Xcdr1Serializer::new(ByteCounter::new(), LittleEndian);
     byte_conter_serializer.serialize_dynamic_data_member(v, member_id)?;
@@ -516,7 +560,6 @@ fn count_bytes_xdr2(v: &DynamicData, member_id: u32) -> Result<usize, XTypesErro
     Ok(byte_conter_serializer.into_inner().0)
 }
 
-
 pub struct PlCdrSerializer<C> {
     cdr1_le_serializer: Xcdr1Serializer<C, LittleEndian>,
 }
@@ -529,11 +572,7 @@ impl<C: Write> PlCdrSerializer<C> {
     }
 }
 
-impl<W: Write> XTypesSerializer<W> for PlCdrSerializer<W> {
-    fn into_inner(self) -> W {
-        self.cdr1_le_serializer.into_inner()
-    }
-
+impl<W: Write> XTypesSerializer for PlCdrSerializer<W> {
     fn serialize_final_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
         self.cdr1_le_serializer.serialize_final_struct(v)
     }
@@ -633,11 +672,7 @@ impl<W: Write, E> Xcdr1Serializer<W, E> {
     }
 }
 
-impl<W: Write, E: EndiannessWrite> XTypesSerializer<W> for Xcdr1Serializer<W, E> {
-    fn into_inner(self) -> W {
-        self.writer.buffer
-    }
-
+impl<W: Write, E: EndiannessWrite> XTypesSerializer for Xcdr1Serializer<W, E> {
     fn serialize_mutable_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
         for field_index in 0..v.get_item_count() {
             let member_id = v.get_member_id_at_index(field_index)?;
@@ -668,11 +703,7 @@ impl<C: Write, E> Xcdr2Serializer<C, E> {
     }
 }
 
-impl<W: Write, E: EndiannessWrite> XTypesSerializer<W> for Xcdr2Serializer<W, E> {
-    fn into_inner(self) -> W {
-        self.writer.buffer
-    }
-
+impl<W: Write, E: EndiannessWrite> XTypesSerializer for Xcdr2Serializer<W, E> {
     fn serialize_writable(&mut self, v: impl PlainCdrSerialize) {
         v.serialize(&mut self.writer);
     }

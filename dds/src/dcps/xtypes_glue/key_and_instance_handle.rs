@@ -4,7 +4,7 @@ use crate::{
         dynamic_type::DynamicData,
         error::XTypesError,
         serializer::{
-            BigEndian, LittleEndian, Write, XTypesSerializer, Xcdr1Serializer, Xcdr2Serializer,
+            BigEndian, LittleEndian, Write, XTypesSerialize, Xcdr1Serializer, Xcdr2Serializer,
         },
     },
 };
