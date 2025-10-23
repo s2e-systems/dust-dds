@@ -1,7 +1,6 @@
 mod utils;
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 use dust_dds::{
-    dds_async::domain_participant_factory::DomainParticipantFactoryAsync,
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         qos::{DataReaderQos, DataWriterQos, QosKind},
@@ -12,9 +11,6 @@ use dust_dds::{
         type_support::DdsType,
     },
     listener::NO_LISTENER,
-    publication::data_writer_listener::DataWriterListener,
-    runtime::DdsRuntime,
-    subscription::data_reader_listener::DataReaderListener,
     wait_set::{Condition, WaitSet},
 };
 
@@ -508,9 +504,9 @@ fn foo_xtypes_union_should_read_and_write() {
     #[derive(Clone, Debug, PartialEq, DdsType)]
     #[repr(u8)]
     enum MyEnum {
-        VariantA(MyInnerType) = 5,
+        _VariantA(MyInnerType) = 5,
         VariantB { a: u32, b: i16 } = 6,
-        VariantC = 7,
+        _VariantC = 7,
     }
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
