@@ -84,9 +84,9 @@ use crate::{
     xtypes::{
         binding::XTypesBinding,
         dynamic_type::{DynamicData, DynamicDataFactory, DynamicType, ExtensibilityKind},
-        pl_cdr_serializer::PlCdrSerializer,
-        serializer::{LittleEndian, XTypesSerializer},
-        xcdr_serializer::{Xcdr1Serializer, Xcdr2Serializer},
+        serializer::{
+            LittleEndian, PlCdrSerializer, XTypesSerializer, Xcdr1Serializer, Xcdr2Serializer,
+        },
     },
 };
 use alloc::{

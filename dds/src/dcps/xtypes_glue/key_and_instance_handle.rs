@@ -3,8 +3,9 @@ use crate::{
     xtypes::{
         dynamic_type::DynamicData,
         error::XTypesError,
-        serializer::{BigEndian, LittleEndian, Write, XTypesSerializer},
-        xcdr_serializer::{Xcdr1Serializer, Xcdr2Serializer},
+        serializer::{
+            BigEndian, LittleEndian, Write, XTypesSerializer, Xcdr1Serializer, Xcdr2Serializer,
+        },
     },
 };
 use alloc::vec::Vec;

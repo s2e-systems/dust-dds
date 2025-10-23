@@ -6,9 +6,8 @@ use crate::xtypes::{
     },
     data_storage::{DataStorage, DataStorageMapping},
     error::XTypesResult,
-    serializer::{Write, XTypesSerializer},
+    serializer::{serialize_nested, Write, XTypesSerializer},
     type_object::TypeObject,
-    xcdr_serializer::serialize_nested,
 };
 use alloc::{boxed::Box, collections::BTreeMap, string::String, vec, vec::Vec};
 
