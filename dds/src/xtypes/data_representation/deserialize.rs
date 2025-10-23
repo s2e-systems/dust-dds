@@ -67,7 +67,7 @@ pub trait XTypesDeserialize {
         dynamic_type: &DynamicType,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
-        todo!()
+        self.deserialize_final_struct(dynamic_type, dynamic_data)
     }
 
     fn deserialize_mutable_struct(
@@ -136,7 +136,25 @@ pub trait XTypesDeserialize {
             }
             TypeKind::STRING16 => todo!(),
             TypeKind::ALIAS => todo!(),
-            TypeKind::ENUM => todo!(),
+            TypeKind::ENUM => {
+                let discriminator_type = member_descriptor
+                    .r#type
+                    .get_descriptor()
+                    .discriminator_type
+                    .as_ref()
+                    .ok_or(XTypesError::InvalidType)?;
+                match discriminator_type.get_kind() {
+                    TypeKind::INT8 => {
+                        let value = self.deserialize_primitive_type::<i8>()?;
+                        dynamic_data.set_int8_value(member.get_id(), value)
+                    }
+                    TypeKind::INT32 => {
+                        let value = self.deserialize_primitive_type::<i32>()?;
+                        dynamic_data.set_int32_value(member.get_id(), value)
+                    }
+                    d => panic!("Invalid discriminator {d:?}"),
+                }
+            }
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
             TypeKind::STRUCTURE => dynamic_data.set_complex_value(

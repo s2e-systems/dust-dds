@@ -15,8 +15,12 @@ impl TypeSupport for DurationKind {
         Duration::get_type()
     }
 
-    fn create_sample(_src: crate::xtypes::dynamic_type::DynamicData) -> Self {
-        todo!()
+    fn create_sample(src: crate::xtypes::dynamic_type::DynamicData) -> Self {
+        let duration = Duration::create_sample(src);
+        match duration {
+            DURATION_INFINITE => DurationKind::Infinite,
+            d => DurationKind::Finite(d),
+        }
     }
 
     fn create_dynamic_sample(self) -> crate::xtypes::dynamic_type::DynamicData {

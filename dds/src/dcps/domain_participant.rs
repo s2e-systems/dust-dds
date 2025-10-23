@@ -30,8 +30,8 @@ use crate::{
         status_condition::DcpsStatusCondition,
         status_condition_mail::DcpsStatusConditionMail,
         xtypes_glue::key_and_instance_handle::{
-            get_instance_handle_from_dynamic_data, get_instance_handle_from_serialized_foo,
-            get_instance_handle_from_serialized_key, get_serialized_key_from_serialized_foo,
+            get_instance_handle_from_dynamic_data, get_instance_handle_from_serialized_key,
+            get_serialized_key_from_serialized_foo,
         },
     },
     dds_async::{
@@ -5967,7 +5967,8 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
             // If the history Qos guarantess that the number of samples
             // is below the limit there is no need to check
             match self.qos.history.kind {
-                HistoryQosPolicyKind::KeepLast(depth) if depth <= max_samples_per_instance => {}
+                HistoryQosPolicyKind::KeepLast(depth)
+                    if depth as i32 <= max_samples_per_instance => {}
                 _ => {
                     if let Some(s) = self
                         .instance_samples
@@ -6686,30 +6687,17 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
         cache_change: CacheChange,
         reception_timestamp: Time,
     ) -> DdsResult<ReaderSample> {
-        let data_value = DynamicData::deserialize(
-            self.type_support.as_ref().clone(),
-            cache_change.data_value.as_ref(),
-        )?;
-
-        let instance_handle = {
-            match cache_change.kind {
-                ChangeKind::Alive | ChangeKind::AliveFiltered => {
-                    get_instance_handle_from_serialized_foo(
-                        cache_change.data_value.as_ref(),
-                        self.type_support.as_ref(),
-                    )?
-                }
-                ChangeKind::NotAliveDisposed
-                | ChangeKind::NotAliveUnregistered
-                | ChangeKind::NotAliveDisposedUnregistered => match cache_change.instance_handle {
-                    Some(i) => InstanceHandle::new(i),
-                    None => get_instance_handle_from_serialized_key(
-                        cache_change.data_value.as_ref(),
-                        self.type_support.as_ref(),
-                    )?,
-                },
-            }
+        let data_value = match cache_change.kind {
+            ChangeKind::Alive | ChangeKind::AliveFiltered => DynamicData::deserialize(
+                self.type_support.as_ref().clone(),
+                cache_change.data_value.as_ref(),
+            )?,
+            ChangeKind::NotAliveDisposed
+            | ChangeKind::NotAliveUnregistered
+            | ChangeKind::NotAliveDisposedUnregistered => todo!(),
         };
+
+        let instance_handle = get_instance_handle_from_dynamic_data(data_value.clone())?;
 
         // Update the state of the instance before creating since this has direct impact on
         // the information that is store on the sample

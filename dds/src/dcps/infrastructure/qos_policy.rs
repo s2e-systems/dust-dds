@@ -22,30 +22,34 @@ pub enum Length {
     /// Unlimited length.
     Unlimited,
     /// Limited length with the corresponding associated value.
-    Limited(u32),
+    Limited(i32),
 }
 
 impl TypeSupport for Length {
     fn get_type() -> crate::xtypes::dynamic_type::DynamicType {
-        u32::get_dynamic_type()
+        i32::get_dynamic_type()
     }
 
     fn create_dynamic_sample(self) -> crate::xtypes::dynamic_type::DynamicData {
         let value = match self {
             Length::Limited(length) => length,
-            Length::Unlimited => LENGTH_UNLIMITED as u32,
+            Length::Unlimited => LENGTH_UNLIMITED,
         };
         let mut data = DynamicDataFactory::create_data(Self::get_type());
-        data.set_uint32_value(0, value).unwrap();
+        data.set_int32_value(0, value).unwrap();
         data
     }
 
-    fn create_sample(_src: crate::xtypes::dynamic_type::DynamicData) -> Self {
-        todo!()
+    fn create_sample(src: crate::xtypes::dynamic_type::DynamicData) -> Self {
+        let value = src.get_int32_value(0).cloned().unwrap();
+        match value {
+            LENGTH_UNLIMITED => Length::Unlimited,
+            v => Length::Limited(v),
+        }
     }
 }
 
-const LENGTH_UNLIMITED: i32 = -1;
+const LENGTH_UNLIMITED: i32 = i32::MAX;
 
 impl PartialOrd for Length {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
@@ -888,52 +892,52 @@ impl Default for PartitionQosPolicy {
 }
 
 /// Enumeration representing the different types of reliability QoS policies.
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, TypeSupport)]
 #[repr(i32)]
 pub enum ReliabilityQosPolicyKind {
     /// Best-effort reliability.
-    BestEffort = BEST_EFFORT,
+    BestEffort = 1,
     /// Reliable reliability.
-    Reliable = RELIABLE,
+    Reliable = 2,
 }
 
-const BEST_EFFORT: i32 = 1;
-const RELIABLE: i32 = 2;
+// const BEST_EFFORT: i32 = 1;
+// const RELIABLE: i32 = 2;
 
-impl dust_dds::infrastructure::type_support::TypeSupport for ReliabilityQosPolicyKind {
-    fn get_type() -> dust_dds::xtypes::dynamic_type::DynamicType {
-        extern crate alloc;
-        let builder = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
-            dust_dds::xtypes::dynamic_type::TypeDescriptor {
-                kind: dust_dds::xtypes::dynamic_type::TypeKind::ENUM,
-                name: alloc::string::String::from("ReliabilityQosPolicyKind"),
-                base_type: None,
-                discriminator_type: Some(
-                    dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::get_primitive_type(
-                        dust_dds::xtypes::dynamic_type::TypeKind::INT32,
-                    ),
-                ),
-                bound: alloc::vec::Vec::new(),
-                element_type: None,
-                key_element_type: None,
-                extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
-                is_nested: false,
-            },
-        );
-        builder.build()
-    }
+// impl dust_dds::infrastructure::type_support::TypeSupport for ReliabilityQosPolicyKind {
+//     fn get_type() -> dust_dds::xtypes::dynamic_type::DynamicType {
+//         extern crate alloc;
+//         let builder = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
+//             dust_dds::xtypes::dynamic_type::TypeDescriptor {
+//                 kind: dust_dds::xtypes::dynamic_type::TypeKind::ENUM,
+//                 name: alloc::string::String::from("ReliabilityQosPolicyKind"),
+//                 base_type: None,
+//                 discriminator_type: Some(
+//                     dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::get_primitive_type(
+//                         dust_dds::xtypes::dynamic_type::TypeKind::INT32,
+//                     ),
+//                 ),
+//                 bound: alloc::vec::Vec::new(),
+//                 element_type: None,
+//                 key_element_type: None,
+//                 extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
+//                 is_nested: false,
+//             },
+//         );
+//         builder.build()
+//     }
 
-    fn create_sample(_src: crate::xtypes::dynamic_type::DynamicData) -> Self {
-        todo!()
-    }
+//     fn create_sample(src: crate::xtypes::dynamic_type::DynamicData) -> Self {
+//         let discriminator = src.get_int32_value(0).ex
+//     }
 
-    fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
-        let mut data =
-            dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type());
-        data.set_int32_value(0, self as i32).unwrap();
-        data
-    }
-}
+//     fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
+//         let mut data =
+//             dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type());
+//         data.set_int32_value(0, self as i32).unwrap();
+//         data
+//     }
+// }
 
 impl PartialOrd for ReliabilityQosPolicyKind {
     fn partial_cmp(&self, other: &ReliabilityQosPolicyKind) -> Option<Ordering> {
@@ -1105,8 +1109,13 @@ impl TypeSupport for HistoryQosPolicyKind {
         builder.build()
     }
 
-    fn create_sample(_src: crate::xtypes::dynamic_type::DynamicData) -> Self {
-        todo!()
+    fn create_sample(src: crate::xtypes::dynamic_type::DynamicData) -> Self {
+        let discriminant = src.get_uint8_value(0).unwrap();
+        match discriminant {
+            0 => Self::KeepLast(1),
+            1 => Self::KeepAll,
+            d => panic!("Discriminant not valid {d:?}"),
+        }
     }
 
     fn create_dynamic_sample(self) -> crate::xtypes::dynamic_type::DynamicData {
@@ -1202,8 +1211,18 @@ impl dust_dds::infrastructure::type_support::TypeSupport for HistoryQosPolicy {
         builder.build()
     }
 
-    fn create_sample(_src: crate::xtypes::dynamic_type::DynamicData) -> Self {
-        todo!()
+    fn create_sample(src: crate::xtypes::dynamic_type::DynamicData) -> Self {
+        let kind = src.get_complex_value(0).cloned().unwrap();
+        let depth = src.get_int32_value(1).unwrap();
+        let qos_policy_kind = HistoryQosPolicyKind::create_sample(kind);
+        match qos_policy_kind {
+            HistoryQosPolicyKind::KeepLast(_) => HistoryQosPolicy {
+                kind: HistoryQosPolicyKind::KeepLast(*depth as u32),
+            },
+            HistoryQosPolicyKind::KeepAll => HistoryQosPolicy {
+                kind: HistoryQosPolicyKind::KeepAll,
+            },
+        }
     }
 
     fn create_dynamic_sample(self) -> crate::xtypes::dynamic_type::DynamicData {

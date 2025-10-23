@@ -1,4 +1,6 @@
-use crate::derive::attributes::get_field_attributes;
+use crate::derive::{
+    attributes::get_field_attributes, enum_support::read_enum_variant_discriminant_mapping,
+};
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{spanned::Spanned, DataEnum, DeriveInput, Fields, Index, Result};
@@ -41,7 +43,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
             };
 
             let mut member_builder_seq = quote! {};
-            let mut member_sample_seq = quote! {};
+            let mut member_sample_seq = Vec::new();
             let mut member_dynamic_sample_seq = Vec::new();
 
             for (field_index, field) in data_struct.fields.iter().enumerate() {
@@ -98,15 +100,15 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 if !field_attributes.non_serialized {
                     match &field.ident {
                         Some(field_ident) => {
-                            member_sample_seq.extend(quote! {
-                                #field_ident: dust_dds::infrastructure::type_support::TypeSupport::create_sample(src.remove_value(#member_id)?)?,
+                            member_sample_seq.push(quote! {
+                                #field_ident: dust_dds::xtypes::data_storage::DataStorageMapping::try_from_storage(src.get_value(#member_id).expect("Must exist")).expect("Must match"),
                             });
                             member_dynamic_sample_seq
                                 .push(quote! {data.set_value(#member_id, dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(self.#field_ident));});
                         }
                         None => {
                             let index = Index::from(field_index);
-                            member_sample_seq.extend(quote! {  dust_dds::infrastructure::type_support::TypeSupport::create_sample(src.remove_value(#member_id)?)?,});
+                            member_sample_seq.push(quote! { dust_dds::xtypes::data_storage::DataStorageMapping::try_from_storage(src.get_value(#member_id).expect("Must exist")).expect("Must match"),});
                             member_dynamic_sample_seq.push(quote! {
                                 data.set_value(#member_id, dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(self.#index));
                             })
@@ -114,7 +116,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     }
                 }
             }
-            let _is_tuple = data_struct
+            let is_tuple = data_struct
                 .fields
                 .iter()
                 .next()
@@ -133,10 +135,16 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 #(#member_dynamic_sample_seq)*
                 data
             };
-            let create_sample_quote = quote! {
-                todo!()
+            let create_sample_quote = if is_tuple {
+                quote! {Self(#(#member_sample_seq)*)}
+            } else {
+                quote! {Self{#(#member_sample_seq)*}}
             };
-            Ok((get_type_quote, create_dynamic_sample_quote, create_sample_quote))
+            Ok((
+                get_type_quote,
+                create_dynamic_sample_quote,
+                create_sample_quote,
+            ))
         }
         syn::Data::Enum(data_enum) => {
             // Separate between Unions and Enumeration which are both
@@ -167,7 +175,11 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 let create_sample_quote = quote! {
                     todo!()
                 };
-                Ok((get_type_quote, create_dynamic_sample_quote, create_sample_quote))
+                Ok((
+                    get_type_quote,
+                    create_dynamic_sample_quote,
+                    create_sample_quote,
+                ))
             } else {
                 // Note: Mapping has to be done with a match self strategy because the enum might not be copy so casting it using e.g. "self as i64" would
                 // be consuming it.
@@ -201,10 +213,25 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     #discriminator_dynamic_value
                     data
                 };
+                let enum_variant_mapping = read_enum_variant_discriminant_mapping(data_enum);
+                let mut create_sample_quote_variants = Vec::new();
+                for (variant_ident, variant_discriminant) in enum_variant_mapping {
+                    let d = Index::from(variant_discriminant);
+                    create_sample_quote_variants.push(quote! {#d => Self::#variant_ident,});
+                }
                 let create_sample_quote = quote! {
-                    todo!()
+                        let discriminator = src.get_int32_value(0).expect("Must exist");
+                        match discriminator {
+                            #(#create_sample_quote_variants)*
+                            d => panic!("Invalid discriminator {d:?}"),
+                        }
                 };
-                Ok((get_type_quote, create_dynamic_sample_quote, create_sample_quote))
+
+                Ok((
+                    get_type_quote,
+                    create_dynamic_sample_quote,
+                    create_sample_quote,
+                ))
             }
         }
         syn::Data::Union(data_union) => Err(syn::Error::new(
@@ -220,7 +247,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 #get_type_quote
             }
 
-            fn create_sample(_src: dust_dds::xtypes::dynamic_type::DynamicData) -> Self {
+            fn create_sample(src: dust_dds::xtypes::dynamic_type::DynamicData) -> Self {
                 #create_sample_quote
             }
 

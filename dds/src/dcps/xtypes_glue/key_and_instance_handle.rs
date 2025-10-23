@@ -2,14 +2,13 @@ use crate::{
     infrastructure::instance::InstanceHandle,
     xtypes::{
         deserializer::XTypesDeserializer,
-        dynamic_type::{DynamicData, DynamicType, MemberDescriptor, TypeKind},
-        error::XTypesError,
+        dynamic_type::{DynamicData, DynamicType, MemberDescriptor},
+        error::{XTypesError, XTypesResult},
         serializer::{BigEndian, LittleEndian, Write, XTypesSerializer},
-        xcdr_deserializer::{Xcdr1Deserializer, Xcdr2Deserializer},
         xcdr_serializer::{Xcdr1Serializer, Xcdr2Serializer},
     },
 };
-use alloc::{string::String, vec::Vec};
+use alloc::vec::Vec;
 
 struct Md5 {
     key: [u8; 16],
@@ -487,48 +486,6 @@ pub fn get_instance_handle_from_serialized_key(
     //     _ => return Err(XTypesError::InvalidData),
     // }
 
-    // Ok(InstanceHandle::new(serializer.into_inner().into_key()))
-    todo!()
-}
-
-pub fn get_instance_handle_from_serialized_foo(
-    mut data: &[u8],
-    dynamic_type: &DynamicType,
-) -> Result<InstanceHandle, XTypesError> {
-    // let md5_collection = Md5 {
-    //     key: [0; 16],
-    //     context: md5::Context::new(),
-    //     length: 0,
-    // };
-
-    // let representation_identifier = [data[0], data[1]];
-    // data = &data[4..];
-    // let mut serializer = Xcdr2BeSerializer::new(md5_collection);
-    // match representation_identifier {
-    //     CDR_BE => push_to_key(
-    //         dynamic_type,
-    //         &mut serializer,
-    //         &mut Xcdr1BeDeserializer::new(data),
-    //     )?,
-    //     CDR_LE => push_to_key(
-    //         dynamic_type,
-    //         &mut serializer,
-    //         &mut Xcdr1LeDeserializer::new(data),
-    //     )?,
-    //     CDR2_BE | D_CDR2_BE => push_to_key(
-    //         dynamic_type,
-    //         &mut serializer,
-    //         &mut Xcdr2BeDeserializer::new(data),
-    //     )?,
-    //     CDR2_LE | D_CDR2_LE => push_to_key(
-    //         dynamic_type,
-    //         &mut serializer,
-    //         &mut Xcdr2LeDeserializer::new(data),
-    //     )?,
-    //     PL_CDR_BE => push_to_key_parameter_list_be(dynamic_type, &mut serializer, data)?,
-    //     PL_CDR_LE => push_to_key_parameter_list_le(dynamic_type, &mut serializer, data)?,
-    //     _ => panic!("representation_identifier not supported"),
-    // }
     // Ok(InstanceHandle::new(serializer.into_inner().into_key()))
     todo!()
 }

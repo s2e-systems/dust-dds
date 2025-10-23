@@ -290,11 +290,85 @@ impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParti
                         .expect("Must exist"),
                 )
                 .expect("Type must match"),
-                user_data: todo!(),
+                user_data: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_USER_DATA as u32).expect("Must exist"),
+                )
+                .expect("Type must match"),
             },
-            participant_proxy: todo!(),
-            lease_duration: todo!(),
-            discovered_participant_list: todo!(),
+            participant_proxy: ParticipantProxy {
+                domain_id: None,
+                domain_tag: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_DOMAIN_TAG as u32).expect("Must exist"),
+                )
+                .expect("Type must match"),
+                protocol_version: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_PROTOCOL_VERSION as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Type must match"),
+                guid_prefix: <BuiltInTopicKey>::try_from_storage(
+                    src.get_value(PID_PARTICIPANT_GUID as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Type must match")
+                .value[0..12]
+                    .try_into()
+                    .expect("Must match"),
+                vendor_id: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_VENDORID as u32).expect("Must exist"),
+                )
+                .expect("Type must match"),
+                expects_inline_qos: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_EXPECTS_INLINE_QOS as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Type must match"),
+                metatraffic_unicast_locator_list: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_METATRAFFIC_UNICAST_LOCATOR as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Type must match"),
+                metatraffic_multicast_locator_list: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_METATRAFFIC_MULTICAST_LOCATOR as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Type must match"),
+                default_unicast_locator_list: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_DEFAULT_UNICAST_LOCATOR as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Type must match"),
+                default_multicast_locator_list: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_DEFAULT_MULTICAST_LOCATOR as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Type must match"),
+                available_builtin_endpoints: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_BUILTIN_ENDPOINT_SET as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Type must match"),
+                manual_liveliness_count: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Type must match"),
+                builtin_endpoint_qos: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_BUILTIN_ENDPOINT_QOS as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Type must match"),
+            },
+            lease_duration: DataStorageMapping::try_from_storage(
+                src.get_value(PID_PARTICIPANT_LEASE_DURATION as u32)
+                    .expect("Must exist"),
+            )
+            .expect("Type must match"),
+            discovered_participant_list: vec![], // DataStorageMapping::try_from_storage(
+                                                 //     src.get_value(PID_DISCOVERED_PARTICIPANT as u32)
+                                                 //         .expect("Must exist"),
+                                                 // )
+                                                 // .expect("Type must match"),
         }
     }
 
