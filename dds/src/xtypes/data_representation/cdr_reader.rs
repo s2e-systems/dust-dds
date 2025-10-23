@@ -5,6 +5,7 @@ use crate::xtypes::{
     dynamic_type::{DynamicData, DynamicType, TypeKind},
     error::{XTypesError, XTypesResult},
 };
+use alloc::vec::Vec;
 
 pub trait CdrVersion {
     const MAX_ALIGN: usize;

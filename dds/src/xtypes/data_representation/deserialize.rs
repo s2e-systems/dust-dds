@@ -1,5 +1,3 @@
-use tracing::debug;
-
 use crate::xtypes::{
     data_representation::cdr_reader::CdrPrimitiveTypeDeserialize,
     dynamic_type::{
@@ -8,6 +6,8 @@ use crate::xtypes::{
     },
     error::{XTypesError, XTypesResult},
 };
+use alloc::{string::String, vec::Vec};
+use tracing::debug;
 
 pub trait XTypesDeserialize {
     fn deserialize_complex_value(

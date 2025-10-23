@@ -5,6 +5,7 @@ use crate::{
         error::{XTypesError, XTypesResult},
     },
 };
+use alloc::{string::String, vec::Vec};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum DataStorage {
