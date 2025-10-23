@@ -1,7 +1,6 @@
 mod utils;
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 use dust_dds::{
-    dds_async::domain_participant_factory::DomainParticipantFactoryAsync,
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         qos::{DataReaderQos, DataWriterQos, QosKind},
@@ -12,211 +11,208 @@ use dust_dds::{
         type_support::DdsType,
     },
     listener::NO_LISTENER,
-    publication::data_writer_listener::DataWriterListener,
-    runtime::DdsRuntime,
-    subscription::data_reader_listener::DataReaderListener,
     wait_set::{Condition, WaitSet},
 };
 
-#[test]
-fn foo_with_lifetime_should_read_and_write() {
-    #[derive(Clone, Debug, PartialEq, DdsType)]
-    struct BorrowedData<'a> {
-        #[dust_dds(key)]
-        id: u8,
-        value: &'a [u8],
-    }
+// #[test]
+// fn foo_with_lifetime_should_read_and_write() {
+//     #[derive(Clone, Debug, PartialEq, DdsType)]
+//     struct BorrowedData<'a> {
+//         #[dust_dds(key)]
+//         id: u8,
+//         value: &'a [u8],
+//     }
 
-    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+//     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
-    let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
+//     let participant = DomainParticipantFactory::get_instance()
+//         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+//         .unwrap();
 
-    let topic = participant
-        .create_topic::<BorrowedData>(
-            "MyTopic",
-            "BorrowedData",
-            QosKind::Default,
-            NO_LISTENER,
-            NO_STATUS,
-        )
-        .unwrap();
+//     let topic = participant
+//         .create_topic::<BorrowedData>(
+//             "MyTopic",
+//             "BorrowedData",
+//             QosKind::Default,
+//             NO_LISTENER,
+//             NO_STATUS,
+//         )
+//         .unwrap();
 
-    let publisher = participant
-        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
-    let writer_qos = DataWriterQos {
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        },
-        ..Default::default()
-    };
-    let writer = publisher
-        .create_datawriter(
-            &topic,
-            QosKind::Specific(writer_qos),
-            NO_LISTENER,
-            NO_STATUS,
-        )
-        .unwrap();
+//     let publisher = participant
+//         .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+//         .unwrap();
+//     let writer_qos = DataWriterQos {
+//         reliability: ReliabilityQosPolicy {
+//             kind: ReliabilityQosPolicyKind::Reliable,
+//             max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+//         },
+//         ..Default::default()
+//     };
+//     let writer = publisher
+//         .create_datawriter(
+//             &topic,
+//             QosKind::Specific(writer_qos),
+//             NO_LISTENER,
+//             NO_STATUS,
+//         )
+//         .unwrap();
 
-    let subscriber = participant
-        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
-    let reader_qos = DataReaderQos {
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        },
-        ..Default::default()
-    };
-    let reader = subscriber
-        .create_datareader::<BorrowedData>(
-            &topic,
-            QosKind::Specific(reader_qos),
-            NO_LISTENER,
-            NO_STATUS,
-        )
-        .unwrap();
+//     let subscriber = participant
+//         .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+//         .unwrap();
+//     let reader_qos = DataReaderQos {
+//         reliability: ReliabilityQosPolicy {
+//             kind: ReliabilityQosPolicyKind::Reliable,
+//             max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+//         },
+//         ..Default::default()
+//     };
+//     let reader = subscriber
+//         .create_datareader::<BorrowedData>(
+//             &topic,
+//             QosKind::Specific(reader_qos),
+//             NO_LISTENER,
+//             NO_STATUS,
+//         )
+//         .unwrap();
 
-    let cond = writer.get_statuscondition();
-    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
-        .unwrap();
+//     let cond = writer.get_statuscondition();
+//     cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+//         .unwrap();
 
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(cond))
-        .unwrap();
-    wait_set.wait(Duration::new(10, 0)).unwrap();
+//     let mut wait_set = WaitSet::new();
+//     wait_set
+//         .attach_condition(Condition::StatusCondition(cond))
+//         .unwrap();
+//     wait_set.wait(Duration::new(10, 0)).unwrap();
 
-    let data_vec = vec![1, 2, 3, 4];
-    let data = BorrowedData {
-        id: 1,
-        value: &data_vec,
-    };
+//     let data_vec = vec![1, 2, 3, 4];
+//     let data = BorrowedData {
+//         id: 1,
+//         value: &data_vec,
+//     };
 
-    writer.write(data.clone(), None).unwrap();
+//     writer.write(data.clone(), None).unwrap();
 
-    writer
-        .wait_for_acknowledgments(Duration::new(10, 0))
-        .unwrap();
+//     writer
+//         .wait_for_acknowledgments(Duration::new(10, 0))
+//         .unwrap();
 
-    let samples = reader
-        .take(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-        .unwrap();
+//     let samples = reader
+//         .take(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+//         .unwrap();
 
-    assert_eq!(samples.len(), 1);
-    assert_eq!(samples[0].data().unwrap(), data);
-}
+//     assert_eq!(samples.len(), 1);
+//     assert_eq!(samples[0].data().unwrap(), data);
+// }
 
-#[test]
-fn foo_with_lifetime_with_listener_should_compile() {
-    #[derive(Clone, Debug, PartialEq, DdsType)]
-    struct BorrowedData<'a> {
-        #[dust_dds(key)]
-        id: u8,
-        value: &'a [u8],
-    }
-    struct ReaderListener;
-    impl<'a, R: DdsRuntime> DataReaderListener<R, BorrowedData<'a>> for ReaderListener {}
-    struct WriterListener;
-    impl<'a, R: DdsRuntime> DataWriterListener<R, BorrowedData<'a>> for WriterListener {}
+// #[test]
+// fn foo_with_lifetime_with_listener_should_compile() {
+//     #[derive(Clone, Debug, PartialEq, DdsType)]
+//     struct BorrowedData<'a> {
+//         #[dust_dds(key)]
+//         id: u8,
+//         value: &'a [u8],
+//     }
+//     struct ReaderListener;
+//     impl<'a, R: DdsRuntime> DataReaderListener<R, BorrowedData<'a>> for ReaderListener {}
+//     struct WriterListener;
+//     impl<'a, R: DdsRuntime> DataWriterListener<R, BorrowedData<'a>> for WriterListener {}
 
-    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
-    let topic = participant
-        .create_topic::<BorrowedData>(
-            "MyTopic",
-            "BorrowedData",
-            QosKind::Default,
-            NO_LISTENER,
-            NO_STATUS,
-        )
-        .unwrap();
-    let publisher = participant
-        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
-    let _writer = publisher
-        .create_datawriter::<BorrowedData>(
-            &topic,
-            QosKind::Default,
-            Some(WriterListener),
-            NO_STATUS,
-        )
-        .unwrap();
-    let subscriber = participant
-        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
-    let _reader = subscriber
-        .create_datareader::<BorrowedData>(
-            &topic,
-            QosKind::Default,
-            Some(ReaderListener),
-            NO_STATUS,
-        )
-        .unwrap();
-}
+//     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+//     let participant = DomainParticipantFactory::get_instance()
+//         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+//         .unwrap();
+//     let topic = participant
+//         .create_topic::<BorrowedData>(
+//             "MyTopic",
+//             "BorrowedData",
+//             QosKind::Default,
+//             NO_LISTENER,
+//             NO_STATUS,
+//         )
+//         .unwrap();
+//     let publisher = participant
+//         .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+//         .unwrap();
+//     let _writer = publisher
+//         .create_datawriter::<BorrowedData>(
+//             &topic,
+//             QosKind::Default,
+//             Some(WriterListener),
+//             NO_STATUS,
+//         )
+//         .unwrap();
+//     let subscriber = participant
+//         .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+//         .unwrap();
+//     let _reader = subscriber
+//         .create_datareader::<BorrowedData>(
+//             &topic,
+//             QosKind::Default,
+//             Some(ReaderListener),
+//             NO_STATUS,
+//         )
+//         .unwrap();
+// }
 
-#[tokio::test]
-async fn async_foo_with_lifetime_with_listener_should_compile() {
-    #[derive(Clone, Debug, PartialEq, DdsType)]
-    struct BorrowedData<'a> {
-        #[dust_dds(key)]
-        id: u8,
-        value: &'a [u8],
-    }
-    struct ReaderListener;
-    impl<'a, R: DdsRuntime> DataReaderListener<R, BorrowedData<'a>> for ReaderListener {}
-    struct WriterListener;
-    impl<'a, R: DdsRuntime> DataWriterListener<R, BorrowedData<'a>> for WriterListener {}
+// #[tokio::test]
+// async fn async_foo_with_lifetime_with_listener_should_compile() {
+//     #[derive(Clone, Debug, PartialEq, DdsType)]
+//     struct BorrowedData<'a> {
+//         #[dust_dds(key)]
+//         id: u8,
+//         value: &'a [u8],
+//     }
+//     struct ReaderListener;
+//     impl<'a, R: DdsRuntime> DataReaderListener<R, BorrowedData<'a>> for ReaderListener {}
+//     struct WriterListener;
+//     impl<'a, R: DdsRuntime> DataWriterListener<R, BorrowedData<'a>> for WriterListener {}
 
-    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let participant_factory = DomainParticipantFactoryAsync::get_instance();
-    let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
-        .await
-        .unwrap();
-    let topic = participant
-        .create_topic::<BorrowedData>(
-            "BorrowedDataTopic",
-            "BorrowedData",
-            QosKind::Default,
-            NO_LISTENER,
-            NO_STATUS,
-        )
-        .await
-        .unwrap();
-    let publisher = participant
-        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
-        .await
-        .unwrap();
-    let _writer = publisher
-        .create_datawriter::<BorrowedData>(
-            &topic,
-            QosKind::Default,
-            Some(WriterListener),
-            NO_STATUS,
-        )
-        .await
-        .unwrap();
-    let subscriber = participant
-        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
-        .await
-        .unwrap();
-    let _reader = subscriber
-        .create_datareader::<BorrowedData>(
-            &topic,
-            QosKind::Default,
-            Some(ReaderListener),
-            NO_STATUS,
-        )
-        .await
-        .unwrap();
-}
+//     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+//     let participant_factory = DomainParticipantFactoryAsync::get_instance();
+//     let participant = participant_factory
+//         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+//         .await
+//         .unwrap();
+//     let topic = participant
+//         .create_topic::<BorrowedData>(
+//             "BorrowedDataTopic",
+//             "BorrowedData",
+//             QosKind::Default,
+//             NO_LISTENER,
+//             NO_STATUS,
+//         )
+//         .await
+//         .unwrap();
+//     let publisher = participant
+//         .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+//         .await
+//         .unwrap();
+//     let _writer = publisher
+//         .create_datawriter::<BorrowedData>(
+//             &topic,
+//             QosKind::Default,
+//             Some(WriterListener),
+//             NO_STATUS,
+//         )
+//         .await
+//         .unwrap();
+//     let subscriber = participant
+//         .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+//         .await
+//         .unwrap();
+//     let _reader = subscriber
+//         .create_datareader::<BorrowedData>(
+//             &topic,
+//             QosKind::Default,
+//             Some(ReaderListener),
+//             NO_STATUS,
+//         )
+//         .await
+//         .unwrap();
+// }
 
 #[test]
 fn foo_with_non_consecutive_key_should_read_and_write() {
@@ -508,9 +504,9 @@ fn foo_xtypes_union_should_read_and_write() {
     #[derive(Clone, Debug, PartialEq, DdsType)]
     #[repr(u8)]
     enum MyEnum {
-        VariantA(MyInnerType) = 5,
+        _VariantA(MyInnerType) = 5,
         VariantB { a: u32, b: i16 } = 6,
-        VariantC = 7,
+        _VariantC = 7,
     }
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();

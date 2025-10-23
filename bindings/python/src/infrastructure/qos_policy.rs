@@ -6,7 +6,7 @@ use super::time::DurationKind;
 #[derive(Clone)]
 pub enum Length {
     Unlimited {},
-    Limited { length: u32 },
+    Limited { length: i32 },
 }
 
 impl From<Length> for dust_dds::infrastructure::qos_policy::Length {

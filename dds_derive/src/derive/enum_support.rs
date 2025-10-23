@@ -1,10 +1,4 @@
-use syn::{DataEnum, Expr, ExprLit, Fields, Ident, Lit};
-
-pub enum BitBound {
-    Bit8,
-    Bit16,
-    Bit32,
-}
+use syn::{DataEnum, Expr, ExprLit, Ident, Lit};
 
 // The return of this function is a Vec instead of a HashMap so that the tests give
 // consistent results. Iterating over a HashMap gives different order of members every time.
@@ -31,23 +25,4 @@ pub fn read_enum_variant_discriminant_mapping(data_enum: &DataEnum) -> Vec<(Iden
     }
 
     map
-}
-
-pub fn get_enum_bitbound(max_discriminant: &usize) -> BitBound {
-    if max_discriminant >= &0 && max_discriminant <= &(u8::MAX as usize) {
-        BitBound::Bit8
-    } else if max_discriminant > &(u8::MAX as usize) && max_discriminant <= &(u16::MAX as usize) {
-        BitBound::Bit16
-    } else if max_discriminant > &(u16::MAX as usize) && max_discriminant <= &(u32::MAX as usize) {
-        BitBound::Bit32
-    } else {
-        panic!("Enum discriminant value outside of supported range")
-    }
-}
-
-pub fn is_enum_xtypes_union(data_enum: &DataEnum) -> bool {
-    data_enum
-        .variants
-        .iter()
-        .any(|v| !matches!(&v.fields, Fields::Unit))
 }

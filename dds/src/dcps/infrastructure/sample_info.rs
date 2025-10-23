@@ -1,23 +1,22 @@
-use super::{
-    error::{DdsError, DdsResult},
-    type_support::DdsDeserialize,
+use super::error::{DdsError, DdsResult};
+use crate::{
+    infrastructure::{instance::InstanceHandle, time::Time, type_support::TypeSupport},
+    xtypes::dynamic_type::DynamicData,
 };
-use crate::infrastructure::{instance::InstanceHandle, time::Time};
-use alloc::sync::Arc;
 use core::marker::PhantomData;
 
 /// A [`Sample`] contains the data and [`SampleInfo`] read by the [`DataReader`].
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq)]
 pub struct Sample<Foo> {
     /// Data received by the [`DataReader`]. A sample might contain no valid data in which case this field is [`None`].
-    data: Option<Arc<[u8]>>,
+    data: Option<DynamicData>,
     /// Information of the sample received by the [`DataReader`].
     sample_info: SampleInfo,
     phantom: PhantomData<Foo>,
 }
 
 impl<Foo> Sample<Foo> {
-    pub(crate) fn new(data: Option<Arc<[u8]>>, sample_info: SampleInfo) -> Self {
+    pub(crate) fn new(data: Option<DynamicData>, sample_info: SampleInfo) -> Self {
         Self {
             data,
             sample_info,
@@ -26,14 +25,14 @@ impl<Foo> Sample<Foo> {
     }
 }
 
-impl<'de, Foo> Sample<Foo>
+impl<Foo> Sample<Foo>
 where
-    Foo: DdsDeserialize<'de>,
+    Foo: TypeSupport,
 {
     /// Get the Foo value associated with this sample.
-    pub fn data(&'de self) -> DdsResult<Foo> {
+    pub fn data(&self) -> DdsResult<Foo> {
         match self.data.as_ref() {
-            Some(data) => Ok(Foo::deserialize_data(data.as_ref())?),
+            Some(data) => Ok(Foo::create_sample(data.clone())),
             None => Err(DdsError::NoData),
         }
     }

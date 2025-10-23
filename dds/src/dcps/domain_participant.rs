@@ -30,8 +30,7 @@ use crate::{
         status_condition::DcpsStatusCondition,
         status_condition_mail::DcpsStatusConditionMail,
         xtypes_glue::key_and_instance_handle::{
-            get_instance_handle_from_dynamic_data, get_instance_handle_from_serialized_foo,
-            get_instance_handle_from_serialized_key, get_serialized_key_from_serialized_foo,
+            get_instance_handle_from_dynamic_data, get_serialized_key_from_dynamic_data,
         },
     },
     dds_async::{
@@ -65,7 +64,7 @@ use crate::{
             StatusKind, SubscriptionMatchedStatus,
         },
         time::{Duration, DurationKind, Time},
-        type_support::{DdsDeserialize, TypeSupport},
+        type_support::TypeSupport,
     },
     runtime::{ChannelSend, Clock, DdsRuntime, OneshotReceive, Spawner, Timer},
     transport::{
@@ -83,6 +82,7 @@ use crate::{
         },
     },
     xtypes::{
+        binding::XTypesBinding,
         dynamic_type::{DynamicData, DynamicDataFactory, DynamicType, ExtensibilityKind},
         pl_cdr_serializer::PlCdrSerializer,
         serializer::{LittleEndian, XTypesSerializer},
@@ -1859,14 +1859,9 @@ where
         else {
             return Err(DdsError::AlreadyDeleted);
         };
-        let serialized_key = match get_serialized_key_from_serialized_foo(dynamic_data) {
-            Ok(k) => k,
-            Err(e) => {
-                return Err(e.into());
-            }
-        };
+
         data_writer
-            .unregister_w_timestamp(serialized_key, timestamp)
+            .unregister_w_timestamp(dynamic_data, timestamp)
             .await
     }
 
@@ -2224,7 +2219,7 @@ where
         view_states: Vec<ViewStateKind>,
         instance_states: Vec<InstanceStateKind>,
         specific_instance_handle: Option<InstanceHandle>,
-    ) -> DdsResult<Vec<(Option<Arc<[u8]>>, SampleInfo)>> {
+    ) -> DdsResult<Vec<(Option<DynamicData>, SampleInfo)>> {
         let subscriber = if subscriber_handle == self.domain_participant.instance_handle {
             Some(&mut self.domain_participant.builtin_subscriber)
         } else {
@@ -2268,7 +2263,7 @@ where
         view_states: Vec<ViewStateKind>,
         instance_states: Vec<InstanceStateKind>,
         specific_instance_handle: Option<InstanceHandle>,
-    ) -> DdsResult<Vec<(Option<Arc<[u8]>>, SampleInfo)>> {
+    ) -> DdsResult<Vec<(Option<DynamicData>, SampleInfo)>> {
         let Some(subscriber) = self
             .domain_participant
             .user_defined_subscriber_list
@@ -2306,7 +2301,7 @@ where
         sample_states: Vec<SampleStateKind>,
         view_states: Vec<ViewStateKind>,
         instance_states: Vec<InstanceStateKind>,
-    ) -> DdsResult<Vec<(Option<Arc<[u8]>>, SampleInfo)>> {
+    ) -> DdsResult<Vec<(Option<DynamicData>, SampleInfo)>> {
         let Some(subscriber) = self
             .domain_participant
             .user_defined_subscriber_list
@@ -2344,7 +2339,7 @@ where
         sample_states: Vec<SampleStateKind>,
         view_states: Vec<ViewStateKind>,
         instance_states: Vec<InstanceStateKind>,
-    ) -> DdsResult<Vec<(Option<Arc<[u8]>>, SampleInfo)>> {
+    ) -> DdsResult<Vec<(Option<DynamicData>, SampleInfo)>> {
         let Some(subscriber) = self
             .domain_participant
             .user_defined_subscriber_list
@@ -3949,19 +3944,23 @@ where
     ) {
         match cache_change.kind {
             ChangeKind::Alive => {
-                if let Ok(discovered_participant_data) =
-                    SpdpDiscoveredParticipantData::deserialize_data(
-                        cache_change.data_value.as_ref(),
-                    )
-                {
+                if let Ok(dynamic_data) = DynamicData::deserialize(
+                    SpdpDiscoveredParticipantData::get_type(),
+                    cache_change.data_value.as_ref(),
+                ) {
+                    let discovered_participant_data =
+                        SpdpDiscoveredParticipantData::create_sample(dynamic_data);
+
                     self.add_discovered_participant(discovered_participant_data)
                         .await;
                 }
             }
             ChangeKind::NotAliveDisposed => {
-                if let Ok(discovered_participant_handle) =
-                    InstanceHandle::deserialize_data(cache_change.data_value.as_ref())
-                {
+                if let Ok(dynamic_data) = DynamicData::deserialize(
+                    InstanceHandle::get_type(),
+                    cache_change.data_value.as_ref(),
+                ) {
+                    let discovered_participant_handle = InstanceHandle::create_sample(dynamic_data);
                     self.remove_discovered_participant(discovered_participant_handle);
                 }
             }
@@ -3992,9 +3991,11 @@ where
     ) {
         match cache_change.kind {
             ChangeKind::Alive => {
-                if let Ok(discovered_writer_data) =
-                    DiscoveredWriterData::deserialize_data(cache_change.data_value.as_ref())
-                {
+                if let Ok(dynamic_data) = DynamicData::deserialize(
+                    DiscoveredWriterData::get_type(),
+                    cache_change.data_value.as_ref(),
+                ) {
+                    let discovered_writer_data = DiscoveredWriterData::create_sample(dynamic_data);
                     let publication_builtin_topic_data =
                         &discovered_writer_data.dds_publication_data;
                     if self
@@ -4046,9 +4047,11 @@ where
                 }
             }
             ChangeKind::NotAliveDisposed | ChangeKind::NotAliveDisposedUnregistered => {
-                if let Ok(discovered_writer_handle) =
-                    InstanceHandle::deserialize_data(cache_change.data_value.as_ref())
-                {
+                if let Ok(dynamic_data) = DynamicData::deserialize(
+                    InstanceHandle::get_type(),
+                    cache_change.data_value.as_ref(),
+                ) {
+                    let discovered_writer_handle = InstanceHandle::create_sample(dynamic_data);
                     self.domain_participant
                         .remove_discovered_writer(&discovered_writer_handle);
 
@@ -4094,9 +4097,11 @@ where
     ) {
         match cache_change.kind {
             ChangeKind::Alive => {
-                if let Ok(discovered_reader_data) =
-                    DiscoveredReaderData::deserialize_data(cache_change.data_value.as_ref())
-                {
+                if let Ok(dynamic_data) = DynamicData::deserialize(
+                    DiscoveredReaderData::get_type(),
+                    cache_change.data_value.as_ref(),
+                ) {
+                    let discovered_reader_data = DiscoveredReaderData::create_sample(dynamic_data);
                     if self
                         .domain_participant
                         .find_topic(&discovered_reader_data.dds_subscription_data.topic_name)
@@ -4178,9 +4183,11 @@ where
                 }
             }
             ChangeKind::NotAliveDisposed | ChangeKind::NotAliveDisposedUnregistered => {
-                if let Ok(discovered_reader_handle) =
-                    InstanceHandle::deserialize_data(cache_change.data_value.as_ref())
-                {
+                if let Ok(dynamic_data) = DynamicData::deserialize(
+                    InstanceHandle::get_dynamic_type(),
+                    cache_change.data_value.as_ref(),
+                ) {
+                    let discovered_reader_handle = InstanceHandle::create_sample(dynamic_data);
                     self.domain_participant
                         .remove_discovered_reader(&discovered_reader_handle);
 
@@ -4223,9 +4230,13 @@ where
     pub async fn add_builtin_topics_detector_cache_change(&mut self, cache_change: CacheChange) {
         match cache_change.kind {
             ChangeKind::Alive => {
-                if let Ok(topic_builtin_topic_data) =
-                    TopicBuiltinTopicData::deserialize_data(cache_change.data_value.as_ref())
-                {
+                if let Ok(dynamic_data) = DynamicData::deserialize(
+                    TopicBuiltinTopicData::get_type(),
+                    cache_change.data_value.as_ref(),
+                ) {
+                    let topic_builtin_topic_data =
+                        TopicBuiltinTopicData::create_sample(dynamic_data);
+
                     self.domain_participant
                         .add_discovered_topic(topic_builtin_topic_data.clone());
                     for topic in self.domain_participant.topic_list.iter_mut() {
@@ -5950,7 +5961,8 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
             // If the history Qos guarantess that the number of samples
             // is below the limit there is no need to check
             match self.qos.history.kind {
-                HistoryQosPolicyKind::KeepLast(depth) if depth <= max_samples_per_instance => {}
+                HistoryQosPolicyKind::KeepLast(depth)
+                    if depth as i32 <= max_samples_per_instance => {}
                 _ => {
                     if let Some(s) = self
                         .instance_samples
@@ -6145,7 +6157,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
         }
 
         self.last_change_sequence_number += 1;
-        let serialized_key = get_serialized_key_from_serialized_foo(dynamic_data)?;
+        let serialized_key = get_serialized_key_from_dynamic_data(dynamic_data)?;
         let cache_change = CacheChange {
             kind: ChangeKind::NotAliveDisposed,
             writer_guid: self.transport_writer.guid(),
@@ -6164,7 +6176,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
 
     pub async fn unregister_w_timestamp(
         &mut self,
-        serialized_key: Vec<u8>,
+        dynamic_data: DynamicData,
         timestamp: Time,
     ) -> DdsResult<()> {
         if !self.enabled {
@@ -6190,8 +6202,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
             return Err(DdsError::IllegalOperation);
         }
 
-        let instance_handle =
-            get_instance_handle_from_serialized_key(&serialized_key, self.type_support.as_ref())?;
+        let instance_handle = get_instance_handle_from_dynamic_data(dynamic_data.clone())?;
         if !self.registered_instance_list.contains(&instance_handle) {
             return Err(DdsError::BadParameter);
         }
@@ -6205,7 +6216,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
         }
 
         self.last_change_sequence_number += 1;
-
+        let serialized_key = get_serialized_key_from_dynamic_data(dynamic_data)?;
         let cache_change = CacheChange {
             kind: ChangeKind::NotAliveDisposed,
             writer_guid: self.transport_writer.guid(),
@@ -6329,7 +6340,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
     }
 }
 
-type SampleList = Vec<(Option<Arc<[u8]>>, SampleInfo)>;
+type SampleList = Vec<(Option<DynamicData>, SampleInfo)>;
 
 pub enum AddChangeResult {
     Added(InstanceHandle),
@@ -6408,7 +6419,7 @@ pub struct ReaderSample {
     pub writer_guid: [u8; 16],
     pub instance_handle: InstanceHandle,
     pub source_timestamp: Option<Time>,
-    pub data_value: Arc<[u8]>,
+    pub data_value: DynamicData,
     pub sample_state: SampleStateKind,
     pub disposed_generation_count: i32,
     pub no_writers_generation_count: i32,
@@ -6417,7 +6428,7 @@ pub struct ReaderSample {
 
 pub struct IndexedSample {
     pub index: usize,
-    pub sample: (Option<Arc<[u8]>>, SampleInfo),
+    pub sample: (Option<DynamicData>, SampleInfo),
 }
 
 pub enum TransportReaderKind<T: TransportParticipantFactory> {
@@ -6669,24 +6680,35 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
         cache_change: CacheChange,
         reception_timestamp: Time,
     ) -> DdsResult<ReaderSample> {
-        let instance_handle = {
-            match cache_change.kind {
-                ChangeKind::Alive | ChangeKind::AliveFiltered => {
-                    get_instance_handle_from_serialized_foo(
-                        cache_change.data_value.as_ref(),
-                        self.type_support.as_ref(),
-                    )?
-                }
-                ChangeKind::NotAliveDisposed
-                | ChangeKind::NotAliveUnregistered
-                | ChangeKind::NotAliveDisposedUnregistered => match cache_change.instance_handle {
-                    Some(i) => InstanceHandle::new(i),
-                    None => get_instance_handle_from_serialized_key(
-                        cache_change.data_value.as_ref(),
-                        self.type_support.as_ref(),
-                    )?,
-                },
+        let (data_value, instance_handle) = match cache_change.kind {
+            ChangeKind::Alive | ChangeKind::AliveFiltered => {
+                let data_value = DynamicData::deserialize(
+                    self.type_support.as_ref().clone(),
+                    cache_change.data_value.as_ref(),
+                )?;
+                let instance_handle = get_instance_handle_from_dynamic_data(data_value.clone())?;
+                (data_value, instance_handle)
             }
+            ChangeKind::NotAliveDisposed
+            | ChangeKind::NotAliveUnregistered
+            | ChangeKind::NotAliveDisposedUnregistered => match cache_change.instance_handle {
+                Some(i) => {
+                    let mut key_holder = self.type_support.as_ref().clone();
+                    key_holder.clear_nonkey_members();
+                    let data_value = DynamicDataFactory::create_data(key_holder);
+                    let instance_handle = InstanceHandle::new(i);
+                    (data_value, instance_handle)
+                }
+                None => {
+                    let mut key_holder = self.type_support.as_ref().clone();
+                    key_holder.clear_nonkey_members();
+                    let data_value =
+                        DynamicData::deserialize(key_holder, cache_change.data_value.as_ref())?;
+                    let instance_handle =
+                        get_instance_handle_from_dynamic_data(data_value.clone())?;
+                    (data_value, instance_handle)
+                }
+            },
         };
 
         // Update the state of the instance before creating since this has direct impact on
@@ -6735,7 +6757,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
             writer_guid: cache_change.writer_guid.into(),
             instance_handle,
             source_timestamp: cache_change.source_timestamp.map(Into::into),
-            data_value: cache_change.data_value.clone(),
+            data_value,
             sample_state: SampleStateKind::NotRead,
             disposed_generation_count: instance.most_recent_disposed_generation_count,
             no_writers_generation_count: instance.most_recent_no_writers_generation_count,

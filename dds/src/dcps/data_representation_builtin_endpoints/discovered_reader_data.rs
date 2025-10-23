@@ -1,30 +1,22 @@
-use super::{
-    parameter_id_values::{
-        DEFAULT_EXPECTS_INLINE_QOS, PID_DATA_REPRESENTATION, PID_DEADLINE, PID_DESTINATION_ORDER,
-        PID_DURABILITY, PID_ENDPOINT_GUID, PID_EXPECTS_INLINE_QOS, PID_GROUP_DATA,
-        PID_GROUP_ENTITYID, PID_LATENCY_BUDGET, PID_LIVELINESS, PID_MULTICAST_LOCATOR,
-        PID_OWNERSHIP, PID_PARTICIPANT_GUID, PID_PARTITION, PID_PRESENTATION, PID_RELIABILITY,
-        PID_TIME_BASED_FILTER, PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TYPE_NAME, PID_UNICAST_LOCATOR,
-        PID_USER_DATA,
-    },
-    payload_serializer_deserializer::parameter_list_deserializer::ParameterListCdrDeserializer,
+use super::parameter_id_values::{
+    DEFAULT_EXPECTS_INLINE_QOS, PID_DATA_REPRESENTATION, PID_DEADLINE, PID_DESTINATION_ORDER,
+    PID_DURABILITY, PID_ENDPOINT_GUID, PID_EXPECTS_INLINE_QOS, PID_GROUP_DATA, PID_GROUP_ENTITYID,
+    PID_LATENCY_BUDGET, PID_LIVELINESS, PID_MULTICAST_LOCATOR, PID_OWNERSHIP, PID_PARTICIPANT_GUID,
+    PID_PARTITION, PID_PRESENTATION, PID_RELIABILITY, PID_TIME_BASED_FILTER, PID_TOPIC_DATA,
+    PID_TOPIC_NAME, PID_TYPE_NAME, PID_UNICAST_LOCATOR, PID_USER_DATA,
 };
 use crate::{
     builtin_topics::{BuiltInTopicKey, SubscriptionBuiltinTopicData},
-    infrastructure::{
-        error::DdsResult,
-        qos_policy::{
-            DataRepresentationQosPolicy, DeadlineQosPolicy, DestinationOrderQosPolicy,
-            DurabilityQosPolicy, GroupDataQosPolicy, LatencyBudgetQosPolicy, LivelinessQosPolicy,
-            OwnershipQosPolicy, PartitionQosPolicy, PresentationQosPolicy,
-            TimeBasedFilterQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
-            DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-        },
-        type_support::DdsDeserialize,
+    infrastructure::qos_policy::{
+        DataRepresentationQosPolicy, DeadlineQosPolicy, DestinationOrderQosPolicy,
+        DurabilityQosPolicy, GroupDataQosPolicy, LatencyBudgetQosPolicy, LivelinessQosPolicy,
+        OwnershipQosPolicy, PartitionQosPolicy, PresentationQosPolicy, TimeBasedFilterQosPolicy,
+        TopicDataQosPolicy, UserDataQosPolicy,
+        DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
     },
     transport::types::{EntityId, Guid, Locator, ENTITYID_UNKNOWN},
     xtypes::{
-        binding::XTypesBinding, data_representation::DataKind, dynamic_type::DynamicTypeBuilder,
+        binding::XTypesBinding, data_storage::DataStorageMapping, dynamic_type::DynamicTypeBuilder,
     },
 };
 use alloc::{string::String, vec::Vec};
@@ -84,7 +76,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
                             dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                         label: alloc::vec::Vec::new(),
                         is_key: true,
-                        is_optional: true,
+                        is_optional: false,
                         is_must_understand: true,
                         is_shared: false,
                         is_default_label: false,
@@ -92,7 +84,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
                     .unwrap();
                 self.index += 1;
             }
-            fn add_member_with_default<T: XTypesBinding + Into<DataKind>>(
+            fn add_member_with_default<T: XTypesBinding + DataStorageMapping>(
                 &mut self,
                 name: &str,
                 id: i16,
@@ -103,7 +95,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
                         name: alloc::string::String::from(name),
                         id: id as u32,
                         r#type: T::get_dynamic_type(),
-                        default_value: Some(default.into()),
+                        default_value: Some(default.into_storage()),
                         index: self.index,
                         try_construct_kind:
                             dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
@@ -222,123 +214,213 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
         builder.builder.build()
     }
 
-    fn create_sample(_src: crate::xtypes::dynamic_type::DynamicData) -> Self {
-        todo!()
+    fn create_sample(src: crate::xtypes::dynamic_type::DynamicData) -> Self {
+        let key = BuiltInTopicKey::try_from_storage(
+            src.get_value(PID_ENDPOINT_GUID as u32).expect("Must exist"),
+        )
+        .expect("Must match");
+        let remote_reader_guid = Guid::new(
+            key.value[0..12].try_into().expect("Must match"),
+            EntityId::new(
+                key.value[12..15].try_into().expect("Must match"),
+                key.value[15],
+            ),
+        );
+        Self {
+            dds_subscription_data: SubscriptionBuiltinTopicData {
+                key,
+                participant_key: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_PARTICIPANT_GUID as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Must match"),
+                topic_name: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_TOPIC_NAME as u32).expect("Must exist"),
+                )
+                .expect("Must match"),
+                type_name: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_TYPE_NAME as u32).expect("Must exist"),
+                )
+                .expect("Must match"),
+                durability: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_DURABILITY as u32).expect("Must exist"),
+                )
+                .expect("Must match"),
+                deadline: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_DEADLINE as u32).expect("Must exist"),
+                )
+                .expect("Must match"),
+                latency_budget: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_LATENCY_BUDGET as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Must match"),
+                liveliness: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_LIVELINESS as u32).expect("Must exist"),
+                )
+                .expect("Must match"),
+                reliability: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_RELIABILITY as u32).expect("Must exist"),
+                )
+                .expect("Must match"),
+                time_based_filter: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_TIME_BASED_FILTER as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Must match"),
+                user_data: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_USER_DATA as u32).expect("Must exist"),
+                )
+                .expect("Must match"),
+                ownership: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_OWNERSHIP as u32).expect("Must exist"),
+                )
+                .expect("Must match"),
+                destination_order: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_DESTINATION_ORDER as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Must match"),
+                presentation: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_PRESENTATION as u32).expect("Must exist"),
+                )
+                .expect("Must match"),
+                partition: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_PARTITION as u32).expect("Must exist"),
+                )
+                .expect("Must match"),
+                topic_data: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_TOPIC_DATA as u32).expect("Must exist"),
+                )
+                .expect("Must match"),
+                group_data: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_GROUP_DATA as u32).expect("Must exist"),
+                )
+                .expect("Must match"),
+                representation: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_DATA_REPRESENTATION as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Must match"),
+            },
+            reader_proxy: ReaderProxy {
+                remote_reader_guid,
+                remote_group_entity_id: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_GROUP_ENTITYID as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Must match"),
+                unicast_locator_list: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_UNICAST_LOCATOR as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Must match"),
+                multicast_locator_list: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_MULTICAST_LOCATOR as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Must match"),
+                expects_inline_qos: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_EXPECTS_INLINE_QOS as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Must match"),
+            },
+        }
     }
 
     fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
-        dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type())
-            .set_value(PID_ENDPOINT_GUID as u32, self.dds_subscription_data.key)
-            .set_value(
-                PID_PARTICIPANT_GUID as u32,
-                self.dds_subscription_data.participant_key,
-            )
-            .set_value(PID_TOPIC_NAME as u32, self.dds_subscription_data.topic_name)
-            .set_value(PID_TYPE_NAME as u32, self.dds_subscription_data.type_name)
-            .set_value(PID_DURABILITY as u32, self.dds_subscription_data.durability)
-            .set_value(PID_DEADLINE as u32, self.dds_subscription_data.deadline)
-            .set_value(
-                PID_LATENCY_BUDGET as u32,
-                self.dds_subscription_data.latency_budget,
-            )
-            .set_value(PID_LIVELINESS as u32, self.dds_subscription_data.liveliness)
-            .set_value(
-                PID_RELIABILITY as u32,
-                self.dds_subscription_data.reliability,
-            )
-            .set_value(PID_OWNERSHIP as u32, self.dds_subscription_data.ownership)
-            .set_value(
-                PID_DESTINATION_ORDER as u32,
-                self.dds_subscription_data.destination_order,
-            )
-            .set_value(PID_USER_DATA as u32, self.dds_subscription_data.user_data)
-            .set_value(
-                PID_TIME_BASED_FILTER as u32,
-                self.dds_subscription_data.time_based_filter,
-            )
-            .set_value(
-                PID_PRESENTATION as u32,
-                self.dds_subscription_data.presentation,
-            )
-            .set_value(PID_PARTITION as u32, self.dds_subscription_data.partition)
-            .set_value(PID_TOPIC_DATA as u32, self.dds_subscription_data.topic_data)
-            .set_value(PID_GROUP_DATA as u32, self.dds_subscription_data.group_data)
-            .set_value(
-                PID_DATA_REPRESENTATION as u32,
-                self.dds_subscription_data.representation,
-            )
-            .set_value(
-                PID_GROUP_ENTITYID as u32,
-                self.reader_proxy.remote_group_entity_id,
-            )
-            .set_value(
-                PID_UNICAST_LOCATOR as u32,
-                self.reader_proxy.unicast_locator_list,
-            )
-            .set_value(
-                PID_MULTICAST_LOCATOR as u32,
-                self.reader_proxy.multicast_locator_list,
-            )
-            .set_value(
-                PID_EXPECTS_INLINE_QOS as u32,
-                self.reader_proxy.expects_inline_qos,
-            )
-    }
-}
-
-impl<'de> DdsDeserialize<'de> for SubscriptionBuiltinTopicData {
-    fn deserialize_data(serialized_data: &'de [u8]) -> DdsResult<Self> {
-        let pl_deserializer = ParameterListCdrDeserializer::new(serialized_data)?;
-
-        Ok(Self {
-            key: pl_deserializer.read(PID_ENDPOINT_GUID)?,
-            // Default value is a deviation from the standard and is used for interoperability reasons:
-            participant_key: pl_deserializer
-                .read_with_default(PID_PARTICIPANT_GUID, Default::default())?,
-            topic_name: pl_deserializer.read(PID_TOPIC_NAME)?,
-            type_name: pl_deserializer.read(PID_TYPE_NAME)?,
-            durability: pl_deserializer.read_with_default(PID_DURABILITY, Default::default())?,
-            deadline: pl_deserializer.read_with_default(PID_DEADLINE, Default::default())?,
-            latency_budget: pl_deserializer
-                .read_with_default(PID_LATENCY_BUDGET, Default::default())?,
-            liveliness: pl_deserializer.read_with_default(PID_LIVELINESS, Default::default())?,
-            reliability: pl_deserializer.read_with_default(
-                PID_RELIABILITY,
-                DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-            )?,
-            ownership: pl_deserializer.read_with_default(PID_OWNERSHIP, Default::default())?,
-            destination_order: pl_deserializer
-                .read_with_default(PID_DESTINATION_ORDER, Default::default())?,
-            user_data: pl_deserializer.read_with_default(PID_USER_DATA, Default::default())?,
-            time_based_filter: pl_deserializer
-                .read_with_default(PID_TIME_BASED_FILTER, Default::default())?,
-            presentation: pl_deserializer
-                .read_with_default(PID_PRESENTATION, Default::default())?,
-            partition: pl_deserializer.read_with_default(PID_PARTITION, Default::default())?,
-            topic_data: pl_deserializer.read_with_default(PID_TOPIC_DATA, Default::default())?,
-            group_data: pl_deserializer.read_with_default(PID_GROUP_DATA, Default::default())?,
-            representation: pl_deserializer
-                .read_with_default(PID_DATA_REPRESENTATION, Default::default())?,
-        })
-    }
-}
-
-impl<'de> DdsDeserialize<'de> for DiscoveredReaderData {
-    fn deserialize_data(serialized_data: &'de [u8]) -> DdsResult<Self> {
-        let pl_deserializer = ParameterListCdrDeserializer::new(serialized_data)?;
-
-        Ok(Self {
-            dds_subscription_data: SubscriptionBuiltinTopicData::deserialize_data(serialized_data)?,
-            reader_proxy: ReaderProxy {
-                remote_reader_guid: pl_deserializer.read(PID_ENDPOINT_GUID)?,
-                remote_group_entity_id: pl_deserializer
-                    .read_with_default(PID_GROUP_ENTITYID, Default::default())?,
-                unicast_locator_list: pl_deserializer.read_collection(PID_UNICAST_LOCATOR)?,
-                multicast_locator_list: pl_deserializer.read_collection(PID_MULTICAST_LOCATOR)?,
-                expects_inline_qos: pl_deserializer
-                    .read_with_default(PID_EXPECTS_INLINE_QOS, DEFAULT_EXPECTS_INLINE_QOS)?,
-            },
-        })
+        let mut data =
+            dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type());
+        data.set_value(
+            PID_ENDPOINT_GUID as u32,
+            self.dds_subscription_data.key.into_storage(),
+        );
+        data.set_value(
+            PID_PARTICIPANT_GUID as u32,
+            self.dds_subscription_data.participant_key.into_storage(),
+        );
+        data.set_value(
+            PID_TOPIC_NAME as u32,
+            self.dds_subscription_data.topic_name.into_storage(),
+        );
+        data.set_value(
+            PID_TYPE_NAME as u32,
+            self.dds_subscription_data.type_name.into_storage(),
+        );
+        data.set_value(
+            PID_DURABILITY as u32,
+            self.dds_subscription_data.durability.into_storage(),
+        );
+        data.set_value(
+            PID_DEADLINE as u32,
+            self.dds_subscription_data.deadline.into_storage(),
+        );
+        data.set_value(
+            PID_LATENCY_BUDGET as u32,
+            self.dds_subscription_data.latency_budget.into_storage(),
+        );
+        data.set_value(
+            PID_LIVELINESS as u32,
+            self.dds_subscription_data.liveliness.into_storage(),
+        );
+        data.set_value(
+            PID_RELIABILITY as u32,
+            self.dds_subscription_data.reliability.into_storage(),
+        );
+        data.set_value(
+            PID_OWNERSHIP as u32,
+            self.dds_subscription_data.ownership.into_storage(),
+        );
+        data.set_value(
+            PID_DESTINATION_ORDER as u32,
+            self.dds_subscription_data.destination_order.into_storage(),
+        );
+        data.set_value(
+            PID_USER_DATA as u32,
+            self.dds_subscription_data.user_data.into_storage(),
+        );
+        data.set_value(
+            PID_TIME_BASED_FILTER as u32,
+            self.dds_subscription_data.time_based_filter.into_storage(),
+        );
+        data.set_value(
+            PID_PRESENTATION as u32,
+            self.dds_subscription_data.presentation.into_storage(),
+        );
+        data.set_value(
+            PID_PARTITION as u32,
+            self.dds_subscription_data.partition.into_storage(),
+        );
+        data.set_value(
+            PID_TOPIC_DATA as u32,
+            self.dds_subscription_data.topic_data.into_storage(),
+        );
+        data.set_value(
+            PID_GROUP_DATA as u32,
+            self.dds_subscription_data.group_data.into_storage(),
+        );
+        data.set_value(
+            PID_DATA_REPRESENTATION as u32,
+            self.dds_subscription_data.representation.into_storage(),
+        );
+        data.set_value(
+            PID_GROUP_ENTITYID as u32,
+            self.reader_proxy.remote_group_entity_id.into_storage(),
+        );
+        data.set_value(
+            PID_UNICAST_LOCATOR as u32,
+            self.reader_proxy.unicast_locator_list.into_storage(),
+        );
+        data.set_value(
+            PID_MULTICAST_LOCATOR as u32,
+            self.reader_proxy.multicast_locator_list.into_storage(),
+        );
+        data.set_value(
+            PID_EXPECTS_INLINE_QOS as u32,
+            self.reader_proxy.expects_inline_qos.into_storage(),
+        );
+        data
     }
 }
 
@@ -352,7 +434,12 @@ mod tests {
             EntityId, Guid, BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_WITH_KEY,
             USER_DEFINED_UNKNOWN,
         },
-        xtypes::{pl_cdr_serializer::PlCdrSerializer, serializer::XTypesSerializer},
+        xtypes::{
+            data_representation::{cdr_reader::PlCdr1Deserializer, endianness::LittleEndian},
+            dynamic_type::DynamicData,
+            pl_cdr_serializer::PlCdrSerializer,
+            serializer::XTypesSerializer,
+        },
     };
 
     #[test]
@@ -539,10 +626,10 @@ mod tests {
                 group_data: Default::default(),
                 representation: Default::default(),
             },
-        };
+        }
+        .create_dynamic_sample();
 
-        let mut data = &[
-            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+        let data = [
             0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
             21, 22, 23, 0xc2, // u8[3], u8
             0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
@@ -562,8 +649,15 @@ mod tests {
             3, 0x00, 0x00, 0x00, // string length (incl. terminator)
             b'c', b'd', 0, 0x00, // string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
-        ][..];
-        let result = DiscoveredReaderData::deserialize_data(&mut data).unwrap();
-        assert_eq!(result, expected);
+        ];
+
+        assert_eq!(
+            DynamicData::xcdr_deserialize(
+                DiscoveredReaderData::get_type(),
+                &mut PlCdr1Deserializer::new(&data, LittleEndian)
+            )
+            .unwrap(),
+            expected
+        );
     }
 }

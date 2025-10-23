@@ -7,7 +7,6 @@ use crate::{
         PID_TRANSPORT_PRIORITY, PID_TYPE_NAME,
     },
     infrastructure::{
-        error::DdsResult,
         qos_policy::{
             DataRepresentationQosPolicy, DeadlineQosPolicy, DestinationOrderQosPolicy,
             DurabilityQosPolicy, HistoryQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy,
@@ -15,9 +14,9 @@ use crate::{
             TopicDataQosPolicy, TransportPriorityQosPolicy,
             DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
         },
-        type_support::{DdsDeserialize, TypeSupport},
+        type_support::TypeSupport,
     },
-    xtypes::binding::XTypesBinding,
+    xtypes::{binding::XTypesBinding, data_storage::DataStorageMapping},
 };
 use alloc::string::String;
 
@@ -95,7 +94,7 @@ impl TypeSupport for DiscoveredTopicData {
                 name: alloc::string::String::from("durability"),
                 id: PID_DURABILITY as u32,
                 r#type: <DurabilityQosPolicy as XTypesBinding>::get_dynamic_type(),
-                default_value: Some(<DurabilityQosPolicy as Default>::default().into()),
+                default_value: Some(<DurabilityQosPolicy as Default>::default().into_storage()),
                 index: 3u32,
                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
@@ -111,7 +110,7 @@ impl TypeSupport for DiscoveredTopicData {
                 name: alloc::string::String::from("deadline"),
                 id: PID_DEADLINE as u32,
                 r#type: <DeadlineQosPolicy as XTypesBinding>::get_dynamic_type(),
-                default_value: Some(<DeadlineQosPolicy as Default>::default().into()),
+                default_value: Some(<DeadlineQosPolicy as Default>::default().into_storage()),
                 index: 4u32,
                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
@@ -127,7 +126,7 @@ impl TypeSupport for DiscoveredTopicData {
                 name: alloc::string::String::from("latency_budget"),
                 id: PID_LATENCY_BUDGET as u32,
                 r#type: <LatencyBudgetQosPolicy as XTypesBinding>::get_dynamic_type(),
-                default_value: Some(<LatencyBudgetQosPolicy as Default>::default().into()),
+                default_value: Some(<LatencyBudgetQosPolicy as Default>::default().into_storage()),
                 index: 5u32,
                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
@@ -143,7 +142,7 @@ impl TypeSupport for DiscoveredTopicData {
                 name: alloc::string::String::from("liveliness"),
                 id: PID_LIVELINESS as u32,
                 r#type: <LivelinessQosPolicy as XTypesBinding>::get_dynamic_type(),
-                default_value: Some(<LivelinessQosPolicy as Default>::default().into()),
+                default_value: Some(<LivelinessQosPolicy as Default>::default().into_storage()),
                 index: 6u32,
                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
@@ -159,7 +158,9 @@ impl TypeSupport for DiscoveredTopicData {
                 name: alloc::string::String::from("reliability"),
                 id: PID_RELIABILITY as u32,
                 r#type: <ReliabilityQosPolicy as XTypesBinding>::get_dynamic_type(),
-                default_value: Some(DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS.into()),
+                default_value: Some(
+                    DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS.into_storage(),
+                ),
                 index: 7u32,
                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
@@ -175,7 +176,9 @@ impl TypeSupport for DiscoveredTopicData {
                 name: alloc::string::String::from("transport_priority"),
                 id: PID_TRANSPORT_PRIORITY as u32,
                 r#type: <TransportPriorityQosPolicy as XTypesBinding>::get_dynamic_type(),
-                default_value: Some(<TransportPriorityQosPolicy as Default>::default().into()),
+                default_value: Some(
+                    <TransportPriorityQosPolicy as Default>::default().into_storage(),
+                ),
                 index: 8u32,
                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
@@ -191,7 +194,7 @@ impl TypeSupport for DiscoveredTopicData {
                 name: alloc::string::String::from("lifespan"),
                 id: PID_LIFESPAN as u32,
                 r#type: <LifespanQosPolicy as XTypesBinding>::get_dynamic_type(),
-                default_value: Some(<LifespanQosPolicy as Default>::default().into()),
+                default_value: Some(<LifespanQosPolicy as Default>::default().into_storage()),
                 index: 9u32,
                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
@@ -207,7 +210,9 @@ impl TypeSupport for DiscoveredTopicData {
                 name: alloc::string::String::from("destination_order"),
                 id: PID_DESTINATION_ORDER as u32,
                 r#type: <DestinationOrderQosPolicy as XTypesBinding>::get_dynamic_type(),
-                default_value: Some(<DestinationOrderQosPolicy as Default>::default().into()),
+                default_value: Some(
+                    <DestinationOrderQosPolicy as Default>::default().into_storage(),
+                ),
                 index: 10u32,
                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
@@ -223,7 +228,7 @@ impl TypeSupport for DiscoveredTopicData {
                 name: alloc::string::String::from("history"),
                 id: PID_HISTORY as u32,
                 r#type: <HistoryQosPolicy as XTypesBinding>::get_dynamic_type(),
-                default_value: Some(<HistoryQosPolicy as Default>::default().into()),
+                default_value: Some(<HistoryQosPolicy as Default>::default().into_storage()),
                 index: 11u32,
                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
@@ -239,7 +244,7 @@ impl TypeSupport for DiscoveredTopicData {
                 name: alloc::string::String::from("resource_limits"),
                 id: PID_RESOURCE_LIMITS as u32,
                 r#type: <ResourceLimitsQosPolicy as XTypesBinding>::get_dynamic_type(),
-                default_value: Some(<ResourceLimitsQosPolicy as Default>::default().into()),
+                default_value: Some(<ResourceLimitsQosPolicy as Default>::default().into_storage()),
                 index: 12u32,
                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
@@ -255,7 +260,7 @@ impl TypeSupport for DiscoveredTopicData {
                 name: alloc::string::String::from("ownership"),
                 id: PID_OWNERSHIP as u32,
                 r#type: <OwnershipQosPolicy as XTypesBinding>::get_dynamic_type(),
-                default_value: Some(<OwnershipQosPolicy as Default>::default().into()),
+                default_value: Some(<OwnershipQosPolicy as Default>::default().into_storage()),
                 index: 13u32,
                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
@@ -271,7 +276,7 @@ impl TypeSupport for DiscoveredTopicData {
                 name: alloc::string::String::from("topic_data"),
                 id: PID_TOPIC_DATA as u32,
                 r#type: <TopicDataQosPolicy as XTypesBinding>::get_dynamic_type(),
-                default_value: Some(<TopicDataQosPolicy as Default>::default().into()),
+                default_value: Some(<TopicDataQosPolicy as Default>::default().into_storage()),
                 index: 14u32,
                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
@@ -287,7 +292,9 @@ impl TypeSupport for DiscoveredTopicData {
                 name: alloc::string::String::from("representation"),
                 id: PID_DATA_REPRESENTATION as u32,
                 r#type: <DataRepresentationQosPolicy as XTypesBinding>::get_dynamic_type(),
-                default_value: Some(<DataRepresentationQosPolicy as Default>::default().into()),
+                default_value: Some(
+                    <DataRepresentationQosPolicy as Default>::default().into_storage(),
+                ),
                 index: 15u32,
                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                 label: alloc::vec::Vec::new(),
@@ -301,69 +308,154 @@ impl TypeSupport for DiscoveredTopicData {
         builder.build()
     }
 
-    fn create_sample(_src: crate::xtypes::dynamic_type::DynamicData) -> Self {
-        todo!()
+    fn create_sample(src: crate::xtypes::dynamic_type::DynamicData) -> Self {
+        Self {
+            topic_builtin_topic_data: TopicBuiltinTopicData {
+                key: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_ENDPOINT_GUID as u32).expect("Must exist"),
+                )
+                .expect("Must match"),
+                type_name: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_TYPE_NAME as u32).expect("Must exist"),
+                )
+                .expect("Must match"),
+                name: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_TOPIC_NAME as u32).expect("Must exist"),
+                )
+                .expect("Must match"),
+                durability: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_DURABILITY as u32).expect("Must exist"),
+                )
+                .expect("Must match"),
+                deadline: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_DEADLINE as u32).expect("Must exist"),
+                )
+                .expect("Must match"),
+                latency_budget: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_LATENCY_BUDGET as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Must match"),
+                liveliness: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_LIVELINESS as u32).expect("Must exist"),
+                )
+                .expect("Must match"),
+                reliability: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_RELIABILITY as u32).expect("Must exist"),
+                )
+                .expect("Must match"),
+                destination_order: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_DESTINATION_ORDER as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Must match"),
+                topic_data: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_TOPIC_DATA as u32).expect("Must exist"),
+                )
+                .expect("Must match"),
+                representation: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_DATA_REPRESENTATION as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Must match"),
+                transport_priority: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_TRANSPORT_PRIORITY as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Must match"),
+                lifespan: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_LIFESPAN as u32).expect("Must exist"),
+                )
+                .expect("Must match"),
+                history: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_HISTORY as u32).expect("Must exist"),
+                )
+                .expect("Must match"),
+                resource_limits: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_RESOURCE_LIMITS as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Must match"),
+                ownership: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_OWNERSHIP as u32).expect("Must exist"),
+                )
+                .expect("Must match"),
+            },
+        }
     }
 
     fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
-        dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type())
-            .set_value(PID_ENDPOINT_GUID as u32, self.topic_builtin_topic_data.key)
-            .set_value(PID_TOPIC_NAME as u32, self.topic_builtin_topic_data.name)
-            .set_value(
-                PID_TYPE_NAME as u32,
-                self.topic_builtin_topic_data.type_name,
-            )
-            .set_value(
-                PID_DURABILITY as u32,
-                self.topic_builtin_topic_data.durability,
-            )
-            .set_value(PID_DEADLINE as u32, self.topic_builtin_topic_data.deadline)
-            .set_value(
-                PID_LATENCY_BUDGET as u32,
-                self.topic_builtin_topic_data.latency_budget,
-            )
-            .set_value(
-                PID_LIVELINESS as u32,
-                self.topic_builtin_topic_data.liveliness,
-            )
-            .set_value(
-                PID_RELIABILITY as u32,
-                self.topic_builtin_topic_data.reliability,
-            )
-            .set_value(
-                PID_TRANSPORT_PRIORITY as u32,
-                self.topic_builtin_topic_data.transport_priority,
-            )
-            .set_value(PID_LIFESPAN as u32, self.topic_builtin_topic_data.lifespan)
-            .set_value(
-                PID_DESTINATION_ORDER as u32,
-                self.topic_builtin_topic_data.destination_order,
-            )
-            .set_value(PID_HISTORY as u32, self.topic_builtin_topic_data.history)
-            .set_value(
-                PID_RESOURCE_LIMITS as u32,
-                self.topic_builtin_topic_data.resource_limits,
-            )
-            .set_value(
-                PID_OWNERSHIP as u32,
-                self.topic_builtin_topic_data.ownership,
-            )
-            .set_value(
-                PID_TOPIC_DATA as u32,
-                self.topic_builtin_topic_data.topic_data,
-            )
-            .set_value(
-                PID_DATA_REPRESENTATION as u32,
-                self.topic_builtin_topic_data.representation,
-            )
-    }
-}
-
-impl<'de> DdsDeserialize<'de> for DiscoveredTopicData {
-    fn deserialize_data(serialized_data: &'de [u8]) -> DdsResult<Self> {
-        Ok(Self {
-            topic_builtin_topic_data: TopicBuiltinTopicData::deserialize_data(serialized_data)?,
-        })
+        let mut data =
+            dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type());
+        data.set_value(
+            PID_ENDPOINT_GUID as u32,
+            self.topic_builtin_topic_data.key.into_storage(),
+        );
+        data.set_value(
+            PID_TOPIC_NAME as u32,
+            self.topic_builtin_topic_data.name.into_storage(),
+        );
+        data.set_value(
+            PID_TYPE_NAME as u32,
+            self.topic_builtin_topic_data.type_name.into_storage(),
+        );
+        data.set_value(
+            PID_DURABILITY as u32,
+            self.topic_builtin_topic_data.durability.into_storage(),
+        );
+        data.set_value(
+            PID_DEADLINE as u32,
+            self.topic_builtin_topic_data.deadline.into_storage(),
+        );
+        data.set_value(
+            PID_LATENCY_BUDGET as u32,
+            self.topic_builtin_topic_data.latency_budget.into_storage(),
+        );
+        data.set_value(
+            PID_LIVELINESS as u32,
+            self.topic_builtin_topic_data.liveliness.into_storage(),
+        );
+        data.set_value(
+            PID_RELIABILITY as u32,
+            self.topic_builtin_topic_data.reliability.into_storage(),
+        );
+        data.set_value(
+            PID_TRANSPORT_PRIORITY as u32,
+            self.topic_builtin_topic_data
+                .transport_priority
+                .into_storage(),
+        );
+        data.set_value(
+            PID_LIFESPAN as u32,
+            self.topic_builtin_topic_data.lifespan.into_storage(),
+        );
+        data.set_value(
+            PID_DESTINATION_ORDER as u32,
+            self.topic_builtin_topic_data
+                .destination_order
+                .into_storage(),
+        );
+        data.set_value(
+            PID_HISTORY as u32,
+            self.topic_builtin_topic_data.history.into_storage(),
+        );
+        data.set_value(
+            PID_RESOURCE_LIMITS as u32,
+            self.topic_builtin_topic_data.resource_limits.into_storage(),
+        );
+        data.set_value(
+            PID_OWNERSHIP as u32,
+            self.topic_builtin_topic_data.ownership.into_storage(),
+        );
+        data.set_value(
+            PID_TOPIC_DATA as u32,
+            self.topic_builtin_topic_data.topic_data.into_storage(),
+        );
+        data.set_value(
+            PID_DATA_REPRESENTATION as u32,
+            self.topic_builtin_topic_data.representation.into_storage(),
+        );
+        data
     }
 }
 
@@ -371,8 +463,14 @@ impl<'de> DdsDeserialize<'de> for DiscoveredTopicData {
 mod tests {
     use super::*;
     use crate::{
-        builtin_topics::BuiltInTopicKey, infrastructure::qos::TopicQos,
-        xtypes::{pl_cdr_serializer::PlCdrSerializer, serializer::XTypesSerializer},
+        builtin_topics::BuiltInTopicKey,
+        infrastructure::qos::TopicQos,
+        xtypes::{
+            data_representation::{cdr_reader::PlCdr1Deserializer, endianness::LittleEndian},
+            dynamic_type::DynamicData,
+            pl_cdr_serializer::PlCdrSerializer,
+            serializer::XTypesSerializer,
+        },
     };
 
     #[test]
@@ -419,7 +517,8 @@ mod tests {
         let dynamic_sample = data.create_dynamic_sample();
         let result = dynamic_sample
             .serialize(PlCdrSerializer::new(Vec::new()))
-            .unwrap().into_inner();
+            .unwrap()
+            .into_inner();
         assert_eq!(result, expected);
     }
 
@@ -447,10 +546,10 @@ mod tests {
                 topic_data: topic_qos.topic_data,
                 representation: topic_qos.representation,
             },
-        };
+        }
+        .create_dynamic_sample();
 
-        let mut data = &[
-            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+        let data = [
             0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
             1, 0, 0, 0, // ,
             2, 0, 0, 0, // ,
@@ -463,8 +562,14 @@ mod tests {
             3, 0x00, 0x00, 0x00, // DomainTag: string length (incl. terminator)
             b'c', b'd', 0, 0x00, // DomainTag: string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
-        ][..];
-        let result = DiscoveredTopicData::deserialize_data(&mut data).unwrap();
-        assert_eq!(result, expected);
+        ];
+        assert_eq!(
+            DynamicData::xcdr_deserialize(
+                DiscoveredTopicData::get_type(),
+                &mut PlCdr1Deserializer::new(&data, LittleEndian)
+            )
+            .unwrap(),
+            expected
+        );
     }
 }

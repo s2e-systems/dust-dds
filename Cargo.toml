@@ -6,7 +6,6 @@ members = [
     "interoperability_tests",
     "shapes_demo",
     "shapes_demo/android",
-    "telescope",
     "fuzz",
     "bindings/python",
     "omg_interoperability_executable",

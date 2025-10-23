@@ -1,40 +1,27 @@
-use super::{
-    parameter_id_values::{
-        DEFAULT_EXPECTS_INLINE_QOS, DEFAULT_PARTICIPANT_LEASE_DURATION, PID_BUILTIN_ENDPOINT_QOS,
-        PID_BUILTIN_ENDPOINT_SET, PID_DATA_REPRESENTATION, PID_DEADLINE,
-        PID_DEFAULT_MULTICAST_LOCATOR, PID_DEFAULT_UNICAST_LOCATOR, PID_DESTINATION_ORDER,
-        PID_DISCOVERED_PARTICIPANT, PID_DOMAIN_ID, PID_DOMAIN_TAG, PID_DURABILITY,
-        PID_ENDPOINT_GUID, PID_EXPECTS_INLINE_QOS, PID_HISTORY, PID_LATENCY_BUDGET, PID_LIFESPAN,
-        PID_LIVELINESS, PID_METATRAFFIC_MULTICAST_LOCATOR, PID_METATRAFFIC_UNICAST_LOCATOR,
-        PID_OWNERSHIP, PID_PARTICIPANT_GUID, PID_PARTICIPANT_LEASE_DURATION,
-        PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_RELIABILITY,
-        PID_RESOURCE_LIMITS, PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TRANSPORT_PRIORITY, PID_TYPE_NAME,
-        PID_USER_DATA, PID_VENDORID,
-    },
-    payload_serializer_deserializer::parameter_list_deserializer::ParameterListCdrDeserializer,
+use super::parameter_id_values::{
+    DEFAULT_EXPECTS_INLINE_QOS, PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET,
+    PID_DEFAULT_MULTICAST_LOCATOR, PID_DEFAULT_UNICAST_LOCATOR, PID_DOMAIN_ID, PID_DOMAIN_TAG,
+    PID_EXPECTS_INLINE_QOS, PID_METATRAFFIC_MULTICAST_LOCATOR, PID_METATRAFFIC_UNICAST_LOCATOR,
+    PID_PARTICIPANT_GUID, PID_PARTICIPANT_LEASE_DURATION, PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
+    PID_PROTOCOL_VERSION, PID_USER_DATA, PID_VENDORID,
 };
 use crate::{
-    builtin_topics::{BuiltInTopicKey, ParticipantBuiltinTopicData, TopicBuiltinTopicData},
+    builtin_topics::{BuiltInTopicKey, ParticipantBuiltinTopicData},
     dcps::data_representation_builtin_endpoints::parameter_id_values::DEFAULT_DOMAIN_TAG,
     infrastructure::{
-        domain::DomainId,
-        error::DdsResult,
-        instance::InstanceHandle,
-        qos_policy::{UserDataQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS},
-        time::Duration,
-        type_support::{DdsDeserialize, TypeSupport},
+        domain::DomainId, instance::InstanceHandle, qos_policy::UserDataQosPolicy, time::Duration,
+        type_support::TypeSupport,
     },
     transport::types::{GuidPrefix, Locator, Long, ProtocolVersion, VendorId},
     xtypes::{
-        binding::XTypesBinding, data_representation::DataKind, deserialize::XTypesDeserialize,
-        dynamic_type::DynamicTypeBuilder,
+        binding::XTypesBinding, data_storage::DataStorageMapping, dynamic_type::DynamicTypeBuilder,
     },
 };
-use alloc::{string::String, vec::Vec};
+use alloc::{string::String, vec, vec::Vec};
 
 pub type Count = Long;
 
-#[derive(PartialEq, Eq, Debug, Clone, Copy, XTypesDeserialize, TypeSupport)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy, TypeSupport)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct BuiltinEndpointSet(pub u32);
 
@@ -96,7 +83,7 @@ impl BuiltinEndpointSet {
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Default, Clone, Copy, XTypesDeserialize, TypeSupport)]
+#[derive(PartialEq, Eq, Debug, Default, Clone, Copy, TypeSupport)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct BuiltinEndpointQos(pub u32);
 
@@ -115,34 +102,20 @@ impl BuiltinEndpointQos {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, TypeSupport)]
-#[dust_dds(extensibility = "mutable")]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ParticipantProxy {
-    #[dust_dds(id = PID_DOMAIN_ID as u32, non_serialized)]
     pub(crate) domain_id: Option<DomainId>,
-    #[dust_dds(id = PID_DOMAIN_TAG as u32, optional)]
     pub(crate) domain_tag: String,
-    #[dust_dds(id = PID_PROTOCOL_VERSION as u32)]
     pub(crate) protocol_version: ProtocolVersion,
-    #[dust_dds(id = PID_PARTICIPANT_GUID as u32, non_serialized)]
     pub(crate) guid_prefix: GuidPrefix,
-    #[dust_dds(id = PID_VENDORID as u32)]
     pub(crate) vendor_id: VendorId,
-    #[dust_dds(id = PID_EXPECTS_INLINE_QOS as u32, optional, default_value=DEFAULT_EXPECTS_INLINE_QOS)]
     pub(crate) expects_inline_qos: bool,
-    #[dust_dds(id = PID_METATRAFFIC_UNICAST_LOCATOR as u32, optional)]
     pub(crate) metatraffic_unicast_locator_list: Vec<Locator>,
-    #[dust_dds(id = PID_METATRAFFIC_MULTICAST_LOCATOR as u32, optional)]
     pub(crate) metatraffic_multicast_locator_list: Vec<Locator>,
-    #[dust_dds(id = PID_DEFAULT_UNICAST_LOCATOR as u32, optional)]
     pub(crate) default_unicast_locator_list: Vec<Locator>,
-    #[dust_dds(id = PID_DEFAULT_MULTICAST_LOCATOR as u32, optional)]
     pub(crate) default_multicast_locator_list: Vec<Locator>,
-    #[dust_dds(id = PID_BUILTIN_ENDPOINT_SET as u32, optional)]
     pub(crate) available_builtin_endpoints: BuiltinEndpointSet,
-    #[dust_dds(id = PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT as u32)]
     pub(crate) manual_liveliness_count: Count,
-    #[dust_dds(id = PID_BUILTIN_ENDPOINT_QOS as u32)]
     pub(crate) builtin_endpoint_qos: BuiltinEndpointQos,
 }
 
@@ -194,7 +167,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParti
                             dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                         label: alloc::vec::Vec::new(),
                         is_key: true,
-                        is_optional: true,
+                        is_optional: false,
                         is_must_understand: true,
                         is_shared: false,
                         is_default_label: false,
@@ -202,7 +175,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParti
                     .unwrap();
                 self.index += 1;
             }
-            fn add_member_with_default<T: XTypesBinding + Into<DataKind>>(
+            fn add_member_with_default<T: XTypesBinding + DataStorageMapping>(
                 &mut self,
                 name: &str,
                 id: i16,
@@ -213,7 +186,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParti
                         name: alloc::string::String::from(name),
                         id: id as u32,
                         r#type: T::get_dynamic_type(),
-                        default_value: Some(default.into()),
+                        default_value: Some(default.into_storage()),
                         index: self.index,
                         try_construct_kind:
                             dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
@@ -246,7 +219,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParti
         };
         builder.add_key_member::<BuiltInTopicKey>("key", PID_PARTICIPANT_GUID);
         builder.add_member_with_default("user_data", PID_USER_DATA, UserDataQosPolicy::default());
-        builder.add_member::<DomainId>("domain_id", PID_DOMAIN_ID);
+        builder.add_member_with_default::<DomainId>("domain_id", PID_DOMAIN_ID, -1);
         builder.add_member_with_default(
             "domain_tag",
             PID_DOMAIN_TAG,
@@ -299,145 +272,172 @@ impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParti
         builder.builder.build()
     }
 
-    fn create_sample(_src: crate::xtypes::dynamic_type::DynamicData) -> Self {
-        todo!()
+    fn create_sample(src: crate::xtypes::dynamic_type::DynamicData) -> Self {
+        Self {
+            dds_participant_data: ParticipantBuiltinTopicData {
+                key: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_PARTICIPANT_GUID as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Type must match"),
+                user_data: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_USER_DATA as u32).expect("Must exist"),
+                )
+                .expect("Type must match"),
+            },
+            participant_proxy: ParticipantProxy {
+                domain_id: None,
+                domain_tag: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_DOMAIN_TAG as u32).expect("Must exist"),
+                )
+                .expect("Type must match"),
+                protocol_version: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_PROTOCOL_VERSION as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Type must match"),
+                guid_prefix: <BuiltInTopicKey>::try_from_storage(
+                    src.get_value(PID_PARTICIPANT_GUID as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Type must match")
+                .value[0..12]
+                    .try_into()
+                    .expect("Must match"),
+                vendor_id: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_VENDORID as u32).expect("Must exist"),
+                )
+                .expect("Type must match"),
+                expects_inline_qos: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_EXPECTS_INLINE_QOS as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Type must match"),
+                metatraffic_unicast_locator_list: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_METATRAFFIC_UNICAST_LOCATOR as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Type must match"),
+                metatraffic_multicast_locator_list: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_METATRAFFIC_MULTICAST_LOCATOR as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Type must match"),
+                default_unicast_locator_list: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_DEFAULT_UNICAST_LOCATOR as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Type must match"),
+                default_multicast_locator_list: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_DEFAULT_MULTICAST_LOCATOR as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Type must match"),
+                available_builtin_endpoints: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_BUILTIN_ENDPOINT_SET as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Type must match"),
+                manual_liveliness_count: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Type must match"),
+                builtin_endpoint_qos: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_BUILTIN_ENDPOINT_QOS as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Type must match"),
+            },
+            lease_duration: DataStorageMapping::try_from_storage(
+                src.get_value(PID_PARTICIPANT_LEASE_DURATION as u32)
+                    .expect("Must exist"),
+            )
+            .expect("Type must match"),
+            discovered_participant_list: vec![], // DataStorageMapping::try_from_storage(
+                                                 //     src.get_value(PID_DISCOVERED_PARTICIPANT as u32)
+                                                 //         .expect("Must exist"),
+                                                 // )
+                                                 // .expect("Type must match"),
+        }
     }
 
     fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
-        let data =
-            dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type())
-                .set_value(PID_PARTICIPANT_GUID as u32, self.dds_participant_data.key)
-                .set_value(PID_USER_DATA as u32, self.dds_participant_data.user_data);
+        let mut data =
+            dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type());
+        data.set_value(
+            PID_PARTICIPANT_GUID as u32,
+            self.dds_participant_data.key.into_storage(),
+        );
+        data.set_value(
+            PID_USER_DATA as u32,
+            self.dds_participant_data.user_data.into_storage(),
+        );
         if let Some(domain_id) = self.participant_proxy.domain_id {
-            data.set_value(PID_DOMAIN_ID as u32, domain_id)
-        } else {
-            data
+            data.set_value(PID_DOMAIN_ID as u32, domain_id.into_storage());
         }
-        .set_value(PID_DOMAIN_TAG as u32, self.participant_proxy.domain_tag)
-        .set_value(
+        data.set_value(
+            PID_DOMAIN_TAG as u32,
+            self.participant_proxy.domain_tag.into_storage(),
+        );
+        data.set_value(
             PID_PROTOCOL_VERSION as u32,
-            self.participant_proxy.protocol_version,
-        )
+            self.participant_proxy.protocol_version.into_storage(),
+        );
         // self.participant_proxy.guid_prefix is ommitted
-        .set_value(PID_VENDORID as u32, self.participant_proxy.vendor_id)
-        .set_value(
+        data.set_value(
+            PID_VENDORID as u32,
+            self.participant_proxy.vendor_id.into_storage(),
+        );
+        data.set_value(
             PID_EXPECTS_INLINE_QOS as u32,
-            self.participant_proxy.expects_inline_qos,
-        )
-        .set_value(
+            self.participant_proxy.expects_inline_qos.into_storage(),
+        );
+        data.set_value(
             PID_METATRAFFIC_UNICAST_LOCATOR as u32,
-            self.participant_proxy.metatraffic_unicast_locator_list,
-        )
-        .set_value(
+            self.participant_proxy
+                .metatraffic_unicast_locator_list
+                .into_storage(),
+        );
+        data.set_value(
             PID_METATRAFFIC_MULTICAST_LOCATOR as u32,
-            self.participant_proxy.metatraffic_multicast_locator_list,
-        )
-        .set_value(
+            self.participant_proxy
+                .metatraffic_multicast_locator_list
+                .into_storage(),
+        );
+        data.set_value(
             PID_DEFAULT_UNICAST_LOCATOR as u32,
-            self.participant_proxy.default_unicast_locator_list,
-        )
-        .set_value(
+            self.participant_proxy
+                .default_unicast_locator_list
+                .into_storage(),
+        );
+        data.set_value(
             PID_DEFAULT_MULTICAST_LOCATOR as u32,
-            self.participant_proxy.default_multicast_locator_list,
-        )
-        .set_value(
+            self.participant_proxy
+                .default_multicast_locator_list
+                .into_storage(),
+        );
+        data.set_value(
             PID_BUILTIN_ENDPOINT_SET as u32,
-            self.participant_proxy.available_builtin_endpoints,
-        )
-        .set_value(
+            self.participant_proxy
+                .available_builtin_endpoints
+                .into_storage(),
+        );
+        data.set_value(
             PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT as u32,
-            self.participant_proxy.manual_liveliness_count,
-        )
-        .set_value(
+            self.participant_proxy
+                .manual_liveliness_count
+                .into_storage(),
+        );
+        data.set_value(
             PID_BUILTIN_ENDPOINT_QOS as u32,
-            self.participant_proxy.builtin_endpoint_qos,
-        )
-        .set_value(PID_PARTICIPANT_LEASE_DURATION as u32, self.lease_duration)
-    }
-}
-
-impl<'de> DdsDeserialize<'de> for ParticipantBuiltinTopicData {
-    fn deserialize_data(serialized_data: &'de [u8]) -> DdsResult<Self> {
-        let pl_deserializer = ParameterListCdrDeserializer::new(serialized_data)?;
-        Ok(Self {
-            key: pl_deserializer.read(PID_PARTICIPANT_GUID)?,
-            user_data: pl_deserializer.read_with_default(PID_USER_DATA, Default::default())?,
-        })
-    }
-}
-
-impl<'de> DdsDeserialize<'de> for TopicBuiltinTopicData {
-    fn deserialize_data(serialized_data: &'de [u8]) -> DdsResult<Self> {
-        let pl_deserializer = ParameterListCdrDeserializer::new(serialized_data)?;
-        Ok(Self {
-            key: pl_deserializer.read(PID_ENDPOINT_GUID)?,
-            name: pl_deserializer.read(PID_TOPIC_NAME)?,
-            type_name: pl_deserializer.read(PID_TYPE_NAME)?,
-            durability: pl_deserializer.read_with_default(PID_DURABILITY, Default::default())?,
-            deadline: pl_deserializer.read_with_default(PID_DEADLINE, Default::default())?,
-            latency_budget: pl_deserializer
-                .read_with_default(PID_LATENCY_BUDGET, Default::default())?,
-            liveliness: pl_deserializer.read_with_default(PID_LIVELINESS, Default::default())?,
-            reliability: pl_deserializer.read_with_default(
-                PID_RELIABILITY,
-                DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-            )?,
-            transport_priority: pl_deserializer
-                .read_with_default(PID_TRANSPORT_PRIORITY, Default::default())?,
-            lifespan: pl_deserializer.read_with_default(PID_LIFESPAN, Default::default())?,
-            destination_order: pl_deserializer
-                .read_with_default(PID_DESTINATION_ORDER, Default::default())?,
-            history: pl_deserializer.read_with_default(PID_HISTORY, Default::default())?,
-            resource_limits: pl_deserializer
-                .read_with_default(PID_RESOURCE_LIMITS, Default::default())?,
-            ownership: pl_deserializer.read_with_default(PID_OWNERSHIP, Default::default())?,
-            topic_data: pl_deserializer.read_with_default(PID_TOPIC_DATA, Default::default())?,
-            representation: pl_deserializer
-                .read_with_default(PID_DATA_REPRESENTATION, Default::default())?,
-        })
-    }
-}
-
-impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
-    fn deserialize_data(serialized_data: &'de [u8]) -> DdsResult<Self> {
-        let pl_deserializer = ParameterListCdrDeserializer::new(serialized_data)?;
-        let domain_id = pl_deserializer.read(PID_DOMAIN_ID).ok();
-        Ok(Self {
-            dds_participant_data: ParticipantBuiltinTopicData::deserialize_data(serialized_data)?,
-            participant_proxy: ParticipantProxy {
-                domain_id: domain_id.unwrap_or_default(),
-                domain_tag: pl_deserializer
-                    .read_with_default(PID_DOMAIN_TAG, Default::default())?,
-                protocol_version: pl_deserializer.read(PID_PROTOCOL_VERSION)?,
-                guid_prefix: pl_deserializer.read(PID_PARTICIPANT_GUID)?,
-                vendor_id: pl_deserializer.read(PID_VENDORID)?,
-                expects_inline_qos: pl_deserializer
-                    .read_with_default(PID_EXPECTS_INLINE_QOS, DEFAULT_EXPECTS_INLINE_QOS)?,
-                metatraffic_unicast_locator_list: pl_deserializer
-                    .read_collection(PID_METATRAFFIC_UNICAST_LOCATOR)?,
-                metatraffic_multicast_locator_list: pl_deserializer
-                    .read_collection(PID_METATRAFFIC_MULTICAST_LOCATOR)?,
-                default_unicast_locator_list: pl_deserializer
-                    .read_collection(PID_DEFAULT_UNICAST_LOCATOR)?,
-                default_multicast_locator_list: pl_deserializer
-                    .read_collection(PID_DEFAULT_MULTICAST_LOCATOR)?,
-                available_builtin_endpoints: pl_deserializer.read(PID_BUILTIN_ENDPOINT_SET)?,
-                // Default value is a deviation from the standard and is used for interoperability reasons:
-                manual_liveliness_count: pl_deserializer.read_with_default(
-                    PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
-                    Default::default(),
-                )?,
-                // Default value is a deviation from the standard and is used for interoperability reasons:
-                builtin_endpoint_qos: pl_deserializer
-                    .read_with_default(PID_BUILTIN_ENDPOINT_QOS, Default::default())?,
-            },
-            lease_duration: pl_deserializer.read_with_default(
-                PID_PARTICIPANT_LEASE_DURATION,
-                DEFAULT_PARTICIPANT_LEASE_DURATION,
-            )?,
-            discovered_participant_list: pl_deserializer
-                .read_collection(PID_DISCOVERED_PARTICIPANT)?,
-        })
+            self.participant_proxy.builtin_endpoint_qos.into_storage(),
+        );
+        data.set_value(
+            PID_PARTICIPANT_LEASE_DURATION as u32,
+            self.lease_duration.into_storage(),
+        );
+        data
     }
 }
 
@@ -445,8 +445,16 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
 mod tests {
     use super::*;
     use crate::{
-        builtin_topics::BuiltInTopicKey, infrastructure::qos_policy::UserDataQosPolicy,
-        rtps::types::PROTOCOLVERSION_2_4, xtypes::{pl_cdr_serializer::PlCdrSerializer, serializer::XTypesSerializer},
+        builtin_topics::BuiltInTopicKey,
+        dcps::data_representation_builtin_endpoints::parameter_id_values::DEFAULT_PARTICIPANT_LEASE_DURATION,
+        infrastructure::qos_policy::UserDataQosPolicy,
+        rtps::types::PROTOCOLVERSION_2_4,
+        xtypes::{
+            data_representation::{cdr_reader::PlCdr1Deserializer, endianness::LittleEndian},
+            dynamic_type::DynamicData,
+            pl_cdr_serializer::PlCdrSerializer,
+            serializer::XTypesSerializer,
+        },
     };
 
     #[test]
@@ -459,7 +467,9 @@ mod tests {
                 key: BuiltInTopicKey {
                     value: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0xc1],
                 },
-                user_data: UserDataQosPolicy { value: vec![97, 53] },
+                user_data: UserDataQosPolicy {
+                    value: vec![97, 53],
+                },
             },
             participant_proxy: ParticipantProxy {
                 domain_id: Some(0),
@@ -486,7 +496,7 @@ mod tests {
 
         let expected = vec![
             // 0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
-            0x02, 0x00, 8, 0x00, // PID_PARTICIPANT_LEASE_DURATION
+            2, 0x00, 8, 0x00, // PID_PARTICIPANT_LEASE_DURATION
             10, 0x00, 0x00, 0x00, // Duration: seconds
             11, 0x00, 0x00, 0x00, // Duration: fraction
             15, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
@@ -554,7 +564,8 @@ mod tests {
         let dynamic_sample = data.create_dynamic_sample();
         let result = dynamic_sample
             .serialize(PlCdrSerializer::new(Vec::new()))
-            .unwrap().into_inner();
+            .unwrap()
+            .into_inner();
         assert_eq!(result, expected);
     }
 
@@ -609,7 +620,8 @@ mod tests {
         let dynamic_sample = data.create_dynamic_sample();
         let result = dynamic_sample
             .serialize(PlCdrSerializer::new(Vec::new()))
-            .unwrap().into_inner();
+            .unwrap()
+            .into_inner();
         assert_eq!(result, expected);
     }
 
@@ -660,25 +672,25 @@ mod tests {
             },
             lease_duration,
             discovered_participant_list: vec![],
-        };
+        }
+        .create_dynamic_sample();
 
-        let mut data = &[
-            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
-            0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
+        let data = [
+            15, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
             0x01, 0x00, 0x00, 0x00, // DomainId
             0x14, 0x40, 0x08, 0x00, // PID_DOMAIN_TAG, Length: 8
             3, 0x00, 0x00, 0x00, // DomainTag: string length (incl. terminator)
             b'a', b'b', 0, 0x00, // DomainTag: string + padding (1 byte)
-            0x15, 0x00, 4, 0x00, // PID_PROTOCOL_VERSION, Length
+            21, 0x00, 4, 0x00, // PID_PROTOCOL_VERSION, Length
             0x02, 0x04, 0x00, 0x00, // ProtocolVersion
-            0x50, 0x00, 16, 0x00, // PID_PARTICIPANT_GUID, Length
+            80, 0x00, 16, 0x00, // PID_PARTICIPANT_GUID, Length
             8, 8, 8, 8, // GuidPrefix
             8, 8, 8, 8, // GuidPrefix
             8, 8, 8, 8, // GuidPrefix
             0, 0, 1, 0xc1, // EntityId,
-            0x16, 0x00, 4, 0x00, // PID_VENDORID
+            22, 0x00, 4, 0x00, // PID_VENDORID
             73, 74, 0x00, 0x00, // VendorId
-            0x43, 0x00, 0x04, 0x00, // PID_EXPECTS_INLINE_QOS, Length: 4,
+            67, 0x00, 0x04, 0x00, // PID_EXPECTS_INLINE_QOS, Length: 4,
             0x01, 0x00, 0x00, 0x00, // True
             50, 0x00, 24, 0x00, // PID_METATRAFFIC_UNICAST_LOCATOR
             11, 0x00, 0x00, 0x00, // Locator{kind
@@ -701,7 +713,7 @@ mod tests {
             0x01, 0x01, 0x01, 0x01, // address
             0x01, 0x01, 0x01, 0x01, //
             0x01, 0x01, 0x01, 0x01, // }
-            0x31, 0x00, 24, 0x00, // PID_DEFAULT_UNICAST_LOCATOR
+            49, 0x00, 24, 0x00, // PID_DEFAULT_UNICAST_LOCATOR
             11, 0x00, 0x00, 0x00, // Locator{kind
             12, 0x00, 0x00, 0x00, // port,
             0x01, 0x01, 0x01, 0x01, //
@@ -721,12 +733,19 @@ mod tests {
             0x02, 0x00, 0x00, 0x00, // Count
             119, 0x00, 4, 0x00, // PID_BUILTIN_ENDPOINT_QOS
             0x00, 0x00, 0x00, 0x20, //
-            0x02, 0x00, 8, 0x00, // PID_PARTICIPANT_LEASE_DURATION
+            2, 0x00, 8, 0x00, // PID_PARTICIPANT_LEASE_DURATION
             10, 0x00, 0x00, 0x00, // Duration: seconds
             11, 0x00, 0x00, 0x00, // Duration: fraction
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
-        ][..];
-        let result = SpdpDiscoveredParticipantData::deserialize_data(&mut data).unwrap();
-        assert_eq!(result, expected);
+        ];
+
+        assert_eq!(
+            DynamicData::xcdr_deserialize(
+                SpdpDiscoveredParticipantData::get_type(),
+                &mut PlCdr1Deserializer::new(&data, LittleEndian)
+            )
+            .unwrap(),
+            expected
+        );
     }
 }

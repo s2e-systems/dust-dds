@@ -7,11 +7,7 @@ use crate::{
     transport::types::{DurabilityKind, ReliabilityKind},
     xtypes::{
         binding::XTypesBinding,
-        bytes::ByteBuf,
-        deserialize::XTypesDeserialize,
-        deserializer::{DeserializeFinalStruct, XTypesDeserializer},
         dynamic_type::{DynamicDataFactory, TypeKind},
-        error::XTypesError,
     },
 };
 use alloc::{string::String, vec::Vec};
@@ -26,40 +22,34 @@ pub enum Length {
     /// Unlimited length.
     Unlimited,
     /// Limited length with the corresponding associated value.
-    Limited(u32),
+    Limited(i32),
 }
 
 impl TypeSupport for Length {
     fn get_type() -> crate::xtypes::dynamic_type::DynamicType {
-        u32::get_dynamic_type()
+        i32::get_dynamic_type()
     }
 
     fn create_dynamic_sample(self) -> crate::xtypes::dynamic_type::DynamicData {
         let value = match self {
             Length::Limited(length) => length,
-            Length::Unlimited => LENGTH_UNLIMITED as u32,
+            Length::Unlimited => LENGTH_UNLIMITED,
         };
-        DynamicDataFactory::create_data(Self::get_type())
-            .set_uint32_value(0, value)
-            .unwrap()
+        let mut data = DynamicDataFactory::create_data(Self::get_type());
+        data.set_int32_value(0, value).unwrap();
+        data
     }
 
-    fn create_sample(_src: crate::xtypes::dynamic_type::DynamicData) -> Self {
-        todo!()
-    }
-}
-
-const LENGTH_UNLIMITED: i32 = -1;
-
-impl<'de> XTypesDeserialize<'de> for Length {
-    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
-        match XTypesDeserialize::deserialize(deserializer)? {
-            LENGTH_UNLIMITED => Ok(Length::Unlimited),
-            value @ 0..=i32::MAX => Ok(Length::Limited(value as u32)),
-            _ => Err(XTypesError::InvalidData),
+    fn create_sample(src: crate::xtypes::dynamic_type::DynamicData) -> Self {
+        let value = src.get_int32_value(0).cloned().unwrap();
+        match value {
+            LENGTH_UNLIMITED => Length::Unlimited,
+            v => Length::Limited(v),
         }
     }
 }
+
+const LENGTH_UNLIMITED: i32 = i32::MAX;
 
 impl PartialOrd for Length {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
@@ -221,14 +211,6 @@ impl UserDataQosPolicy {
     }
 }
 
-impl<'de> XTypesDeserialize<'de> for UserDataQosPolicy {
-    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
-        let mut d = deserializer.deserialize_final_struct()?;
-        Ok(Self {
-            value: d.deserialize_field::<ByteBuf>("value")?.0,
-        })
-    }
-}
 impl QosPolicy for UserDataQosPolicy {
     fn name(&self) -> &str {
         USERDATA_QOS_POLICY_NAME
@@ -261,15 +243,6 @@ impl Default for TopicDataQosPolicy {
     }
 }
 
-impl<'de> XTypesDeserialize<'de> for TopicDataQosPolicy {
-    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
-        let mut d = deserializer.deserialize_final_struct()?;
-        Ok(Self {
-            value: d.deserialize_field::<ByteBuf>("value")?.0,
-        })
-    }
-}
-
 impl QosPolicy for TopicDataQosPolicy {
     fn name(&self) -> &str {
         TOPICDATA_QOS_POLICY_NAME
@@ -295,14 +268,6 @@ impl GroupDataQosPolicy {
     }
 }
 
-impl<'de> XTypesDeserialize<'de> for GroupDataQosPolicy {
-    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
-        let mut d = deserializer.deserialize_final_struct()?;
-        Ok(Self {
-            value: d.deserialize_field::<ByteBuf>("value")?.0,
-        })
-    }
-}
 impl QosPolicy for GroupDataQosPolicy {
     fn name(&self) -> &str {
         GROUPDATA_QOS_POLICY_NAME
@@ -324,7 +289,7 @@ impl Default for GroupDataQosPolicy {
 /// expected that during transport configuration the application would provide a mapping between the values of the
 /// [`TransportPriorityQosPolicy`] set on [`DataWriter`](crate::publication::data_writer::DataWriter) and the values meaningful to each transport.
 /// This mapping would then be used by the infrastructure when propagating the data written by the [`DataWriter`](crate::publication::data_writer::DataWriter).
-#[derive(Debug, PartialEq, Eq, Clone, XTypesDeserialize, TypeSupport)]
+#[derive(Debug, PartialEq, Eq, Clone, TypeSupport)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct TransportPriorityQosPolicy {
     /// Transport priority value
@@ -362,7 +327,7 @@ impl Default for TransportPriorityQosPolicy {
 /// This QoS relies on the sender and receiving applications having their clocks sufficiently synchronized. If this is not the case
 /// and the Service can detect it, the [`DataReader`](crate::subscription::data_reader::DataReader) is allowed to use the reception timestamp instead of the source timestamp in its
 /// computation of the 'expiration time.'
-#[derive(Debug, PartialEq, Eq, Clone, XTypesDeserialize, TypeSupport)]
+#[derive(Debug, PartialEq, Eq, Clone, TypeSupport)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct LifespanQosPolicy {
     /// Lifespan duration
@@ -389,7 +354,7 @@ impl Default for LifespanQosPolicy {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy, XTypesDeserialize, TypeSupport)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, TypeSupport)]
 /// Enumeration representing the different types of Durability QoS policies.
 pub enum DurabilityQosPolicyKind {
     /// Volatile durability QoS policy
@@ -446,7 +411,7 @@ impl PartialOrd for DurabilityQosPolicyKind {
 /// The value offered is considered compatible with the value requested if and only if the *offered kind >= requested
 /// kind* is true. For the purposes of this inequality, the values of [`DurabilityQosPolicyKind`] kind are considered ordered such
 /// that *Volatile < TransientLocal*.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Clone, XTypesDeserialize, TypeSupport)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Clone, TypeSupport)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct DurabilityQosPolicy {
     /// DurabilityQosPolicy kind to be used for this policy
@@ -473,7 +438,7 @@ impl Default for DurabilityQosPolicy {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy, XTypesDeserialize, TypeSupport)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, TypeSupport)]
 /// Enumeration representing the different types of Presentation QoS policy access scope.
 pub enum PresentationQosPolicyAccessScopeKind {
     /// Access scope per instance
@@ -534,7 +499,7 @@ impl PartialOrd for PresentationQosPolicyAccessScopeKind {
 ///    GROUP.
 /// 2. Requested coherent_access is FALSE, or else both offered and requested coherent_access are TRUE.
 /// 3. Requested ordered_access is FALSE, or else both offered and requested ordered _access are TRUE.
-#[derive(Debug, PartialEq, Eq, Clone, XTypesDeserialize, TypeSupport)]
+#[derive(Debug, PartialEq, Eq, Clone, TypeSupport)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct PresentationQosPolicy {
     /// Presentation access scope kind to be used for this policy
@@ -581,7 +546,7 @@ impl Default for PresentationQosPolicy {
 /// requested deadline period* is true.
 /// The setting of the [`DeadlineQosPolicy`] policy must be set consistently with that of the [`TimeBasedFilterQosPolicy`]. For these two policies
 /// to be consistent the settings must be such that *deadline period >= minimum_separation*.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Clone, XTypesDeserialize, TypeSupport)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Clone, TypeSupport)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct DeadlineQosPolicy {
     /// Deadline period value
@@ -614,7 +579,7 @@ impl Default for DeadlineQosPolicy {
 /// This policy is considered a hint. There is no specified mechanism as to how the service should take advantage of this hint.
 /// The value offered is considered compatible with the value requested if and only if the *offered duration <=
 /// requested duration* is true.
-#[derive(PartialOrd, PartialEq, Eq, Debug, Clone, XTypesDeserialize, TypeSupport)]
+#[derive(PartialOrd, PartialEq, Eq, Debug, Clone, TypeSupport)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct LatencyBudgetQosPolicy {
     /// Latency budget duration value
@@ -642,7 +607,7 @@ impl Default for LatencyBudgetQosPolicy {
 }
 
 /// Enumeration representing the different types of Ownership QoS policies.
-#[derive(Debug, PartialEq, Eq, Clone, Copy, XTypesDeserialize, TypeSupport)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, TypeSupport)]
 pub enum OwnershipQosPolicyKind {
     /// Shared ownership QoS policy
     Shared,
@@ -659,7 +624,7 @@ pub enum OwnershipQosPolicyKind {
 /// In any case there is no *filtering* of modifications made based on the identity of the DataWriter that causes the
 /// modification.
 
-#[derive(Debug, PartialEq, Eq, Clone, XTypesDeserialize, TypeSupport)]
+#[derive(Debug, PartialEq, Eq, Clone, TypeSupport)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct OwnershipQosPolicy {
     /// Kind of ownership QoS associated with this policy
@@ -715,7 +680,7 @@ impl Default for OwnershipQosPolicy {
 /// Exclusive ownership is on an instance-by-instance basis. That is, a subscriber can receive values written by a lower
 /// strength DataWriter as long as they affect instances whose values have not been set by the higher-strength
 /// DataWriter.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Clone, XTypesDeserialize, TypeSupport)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Clone, TypeSupport)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct OwnershipStrengthQosPolicy {
     /// Ownership strength value
@@ -741,7 +706,7 @@ impl Default for OwnershipStrengthQosPolicy {
 }
 
 /// Enumeration representing the different types of Liveliness QoS policies.
-#[derive(Debug, PartialEq, Eq, Clone, Copy, XTypesDeserialize, TypeSupport)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, TypeSupport)]
 pub enum LivelinessQosPolicyKind {
     /// Automatic liveliness
     Automatic,
@@ -798,7 +763,7 @@ impl PartialOrd for LivelinessQosPolicyKind {
 /// Changes in liveliness must be detected by the Service with a time-granularity greater or equal to the [`LivelinessQosPolicy::lease_duration`]. This
 /// ensures that the value of the LivelinessChangedStatus is updated at least once during each [`LivelinessQosPolicy::lease_duration`] and the related
 /// Listeners and WaitSets are notified within a [`LivelinessQosPolicy::lease_duration`] from the time the liveliness changed.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Clone, XTypesDeserialize, TypeSupport)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Clone, TypeSupport)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct LivelinessQosPolicy {
     /// Kind of liveliness QoS associated with this policy
@@ -850,7 +815,7 @@ impl Default for LivelinessQosPolicy {
 /// the [`TimeBasedFilterQosPolicy::minimum_separation`], the system should guarantee delivery the last sample to the [`DataReader`](crate::subscription::data_reader::DataReader).
 /// The setting of the  [`TimeBasedFilterQosPolicy::minimum_separation`] minimum_separation must be consistent with the [`DeadlineQosPolicy::period`]. For these
 /// two QoS policies to be consistent they must verify that *[`DeadlineQosPolicy::period`] >= [`TimeBasedFilterQosPolicy::minimum_separation`]*.
-#[derive(Debug, PartialEq, Eq, Clone, XTypesDeserialize, TypeSupport)]
+#[derive(Debug, PartialEq, Eq, Clone, TypeSupport)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct TimeBasedFilterQosPolicy {
     /// Minimum separation between samples
@@ -901,7 +866,7 @@ impl Default for TimeBasedFilterQosPolicy {
 /// Entity can be in multiple partitions. Finally, as far as the DDS Service is concerned, each unique data instance is identified by
 /// the tuple (domainId, Topic, key). Therefore two Entity objects in different domains cannot refer to the same data instance. On
 /// the other hand, the same data-instance can be made available (published) or requested (subscribed) on one or more partitions.
-#[derive(Debug, PartialEq, Eq, Clone, XTypesDeserialize, TypeSupport)]
+#[derive(Debug, PartialEq, Eq, Clone, TypeSupport)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct PartitionQosPolicy {
     /// Name of the partition
@@ -927,61 +892,52 @@ impl Default for PartitionQosPolicy {
 }
 
 /// Enumeration representing the different types of reliability QoS policies.
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, TypeSupport)]
 #[repr(i32)]
 pub enum ReliabilityQosPolicyKind {
     /// Best-effort reliability.
-    BestEffort = BEST_EFFORT,
+    BestEffort = 1,
     /// Reliable reliability.
-    Reliable = RELIABLE,
+    Reliable = 2,
 }
 
-const BEST_EFFORT: i32 = 1;
-const RELIABLE: i32 = 2;
+// const BEST_EFFORT: i32 = 1;
+// const RELIABLE: i32 = 2;
 
-impl dust_dds::infrastructure::type_support::TypeSupport for ReliabilityQosPolicyKind {
-    fn get_type() -> dust_dds::xtypes::dynamic_type::DynamicType {
-        extern crate alloc;
-        let builder = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
-            dust_dds::xtypes::dynamic_type::TypeDescriptor {
-                kind: dust_dds::xtypes::dynamic_type::TypeKind::ENUM,
-                name: alloc::string::String::from("ReliabilityQosPolicyKind"),
-                base_type: None,
-                discriminator_type: Some(
-                    dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::get_primitive_type(
-                        dust_dds::xtypes::dynamic_type::TypeKind::INT32,
-                    ),
-                ),
-                bound: alloc::vec::Vec::new(),
-                element_type: None,
-                key_element_type: None,
-                extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
-                is_nested: false,
-            },
-        );
-        builder.build()
-    }
+// impl dust_dds::infrastructure::type_support::TypeSupport for ReliabilityQosPolicyKind {
+//     fn get_type() -> dust_dds::xtypes::dynamic_type::DynamicType {
+//         extern crate alloc;
+//         let builder = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
+//             dust_dds::xtypes::dynamic_type::TypeDescriptor {
+//                 kind: dust_dds::xtypes::dynamic_type::TypeKind::ENUM,
+//                 name: alloc::string::String::from("ReliabilityQosPolicyKind"),
+//                 base_type: None,
+//                 discriminator_type: Some(
+//                     dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::get_primitive_type(
+//                         dust_dds::xtypes::dynamic_type::TypeKind::INT32,
+//                     ),
+//                 ),
+//                 bound: alloc::vec::Vec::new(),
+//                 element_type: None,
+//                 key_element_type: None,
+//                 extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
+//                 is_nested: false,
+//             },
+//         );
+//         builder.build()
+//     }
 
-    fn create_sample(_src: crate::xtypes::dynamic_type::DynamicData) -> Self {
-        todo!()
-    }
+//     fn create_sample(src: crate::xtypes::dynamic_type::DynamicData) -> Self {
+//         let discriminator = src.get_int32_value(0).ex
+//     }
 
-    fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
-        dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type())
-            .set_int32_value(0, self as i32)
-            .unwrap()
-    }
-}
-
-impl<'de> XTypesDeserialize<'de> for ReliabilityQosPolicyKind {
-    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
-        match i32::deserialize(deserializer)? {
-            BEST_EFFORT => Ok(Self::BestEffort),
-            RELIABLE => Ok(Self::Reliable),
-            _ => Err(XTypesError::InvalidData),
-        }
-    }
-}
+//     fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
+//         let mut data =
+//             dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type());
+//         data.set_int32_value(0, self as i32).unwrap();
+//         data
+//     }
+// }
 
 impl PartialOrd for ReliabilityQosPolicyKind {
     fn partial_cmp(&self, other: &ReliabilityQosPolicyKind) -> Option<Ordering> {
@@ -1023,7 +979,7 @@ impl PartialOrd for ReliabilityQosPolicyKind {
 /// The value offered is considered compatible with the value requested if and only if the inequality *offered kind >= requested
 /// kind* is true. For the purposes of this inequality, the values of [`ReliabilityQosPolicyKind`] are considered ordered such
 /// that *BestEffort < Reliable*.
-#[derive(Debug, PartialEq, Eq, Clone, XTypesDeserialize, TypeSupport)]
+#[derive(Debug, PartialEq, Eq, Clone, TypeSupport)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct ReliabilityQosPolicy {
     /// Kind of reliability QoS
@@ -1059,7 +1015,7 @@ pub(crate) const DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER: ReliabilityQosPolic
     };
 
 /// Enumeration representing the different types of destination order QoS policies.
-#[derive(Debug, PartialEq, Eq, Clone, Copy, XTypesDeserialize, TypeSupport)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, TypeSupport)]
 pub enum DestinationOrderQosPolicyKind {
     /// Ordered by reception timestamp.
     ByReceptionTimestamp,
@@ -1094,7 +1050,7 @@ impl PartialOrd for DestinationOrderQosPolicyKind {
 /// The value offered is considered compatible with the value requested if and only if the inequality *offered kind >= requested
 /// kind* is true. For the purposes of this inequality, the values of [`DestinationOrderQosPolicyKind`] kind are considered
 /// ordered such that *DestinationOrderQosPolicyKind::ByReceptionTimestamp < DestinationOrderQosPolicyKind::BySourceTimestamp*.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Clone, XTypesDeserialize, TypeSupport)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Clone, TypeSupport)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct DestinationOrderQosPolicy {
     /// Kind of destination order QoS associated with this policy.
@@ -1153,8 +1109,13 @@ impl TypeSupport for HistoryQosPolicyKind {
         builder.build()
     }
 
-    fn create_sample(_src: crate::xtypes::dynamic_type::DynamicData) -> Self {
-        todo!()
+    fn create_sample(src: crate::xtypes::dynamic_type::DynamicData) -> Self {
+        let discriminant = src.get_uint8_value(0).unwrap();
+        match discriminant {
+            0 => Self::KeepLast(1),
+            1 => Self::KeepAll,
+            d => panic!("Discriminant not valid {d:?}"),
+        }
     }
 
     fn create_dynamic_sample(self) -> crate::xtypes::dynamic_type::DynamicData {
@@ -1162,22 +1123,9 @@ impl TypeSupport for HistoryQosPolicyKind {
             HistoryQosPolicyKind::KeepLast(_) => 0,
             HistoryQosPolicyKind::KeepAll => 1,
         };
-        DynamicDataFactory::create_data(Self::get_type())
-            .set_uint8_value(0, value)
-            .unwrap()
-    }
-}
-
-impl<'de> XTypesDeserialize<'de> for HistoryQosPolicyKind {
-    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
-        let mut f = deserializer.deserialize_final_struct()?;
-        let descriminant = f.deserialize_field::<u8>("discriminant")?;
-        let length = f.deserialize_field("length")?;
-        match descriminant {
-            0 => Ok(Self::KeepLast(length)),
-            1 => Ok(Self::KeepAll),
-            _ => Err(XTypesError::InvalidData),
-        }
+        let mut data = DynamicDataFactory::create_data(Self::get_type());
+        data.set_uint8_value(0, value).unwrap();
+        data
     }
 }
 
@@ -1195,7 +1143,7 @@ impl<'de> XTypesDeserialize<'de> for HistoryQosPolicyKind {
 /// [`ReliabilityQosPolicyKind::Reliable`], then the Service will block the [`DataWriter`](crate::publication::data_writer::DataWriter) until it can deliver the necessary old values to all subscribers.
 /// The setting of [`HistoryQosPolicy`] depth must be consistent with the [`ResourceLimitsQosPolicy::max_samples_per_instance`]. For these two
 /// QoS to be consistent, they must verify that *depth <= max_samples_per_instance*.
-#[derive(Debug, PartialEq, Eq, Clone, XTypesDeserialize)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct HistoryQosPolicy {
     /// Kind of history QoS associated with this policy.
     pub kind: HistoryQosPolicyKind,
@@ -1263,8 +1211,18 @@ impl dust_dds::infrastructure::type_support::TypeSupport for HistoryQosPolicy {
         builder.build()
     }
 
-    fn create_sample(_src: crate::xtypes::dynamic_type::DynamicData) -> Self {
-        todo!()
+    fn create_sample(src: crate::xtypes::dynamic_type::DynamicData) -> Self {
+        let kind = src.get_complex_value(0).cloned().unwrap();
+        let depth = src.get_int32_value(1).unwrap();
+        let qos_policy_kind = HistoryQosPolicyKind::create_sample(kind);
+        match qos_policy_kind {
+            HistoryQosPolicyKind::KeepLast(_) => HistoryQosPolicy {
+                kind: HistoryQosPolicyKind::KeepLast(*depth as u32),
+            },
+            HistoryQosPolicyKind::KeepAll => HistoryQosPolicy {
+                kind: HistoryQosPolicyKind::KeepAll,
+            },
+        }
     }
 
     fn create_dynamic_sample(self) -> crate::xtypes::dynamic_type::DynamicData {
@@ -1273,14 +1231,15 @@ impl dust_dds::infrastructure::type_support::TypeSupport for HistoryQosPolicy {
             HistoryQosPolicyKind::KeepLast(depth) => {
                 data.set_complex_value(0, self.kind.create_dynamic_sample())
                     .unwrap();
-                data.set_int32_value(1, depth as i32).unwrap()
+                data.set_int32_value(1, depth as i32).unwrap();
             }
             HistoryQosPolicyKind::KeepAll => {
                 data.set_complex_value(0, self.kind.create_dynamic_sample())
                     .unwrap();
-                data.set_int32_value(1, 0).unwrap()
+                data.set_int32_value(1, 0).unwrap();
             }
         }
+        data
     }
 }
 
@@ -1315,7 +1274,7 @@ impl Default for HistoryQosPolicy {
 /// The setting of [`ResourceLimitsQosPolicy::max_samples_per_instance`] must be consistent with the
 /// [`HistoryQosPolicy`] depth. For these two QoS to be consistent, they must verify
 /// that *HistoryQosPolicy depth <= [`ResourceLimitsQosPolicy::max_samples_per_instance`]*.
-#[derive(Debug, PartialEq, Eq, Clone, XTypesDeserialize, TypeSupport)]
+#[derive(Debug, PartialEq, Eq, Clone, TypeSupport)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct ResourceLimitsQosPolicy {
     /// Maximum number of samples limit.
@@ -1512,7 +1471,7 @@ type DataRepresentationIdSeq = Vec<DataRepresentationId>;
 
 /// This policy is a DDS-XTypes extension and represents the standard data Representations available.
 /// [`DataWriter`](crate::publication::data_writer::DataWriter) and [`DataReader`](crate::subscription::data_reader::DataReader) must be able to negotiate which data representation(s) to use.
-#[derive(Debug, PartialEq, Eq, Clone, XTypesDeserialize, TypeSupport)]
+#[derive(Debug, PartialEq, Eq, Clone, TypeSupport)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct DataRepresentationQosPolicy {
     /// List of data representation values

@@ -61,6 +61,12 @@ impl XTypesBinding for String {
     }
 }
 
+impl XTypesBinding for &'_ str {
+    fn get_dynamic_type() -> DynamicType {
+        DynamicTypeBuilderFactory::create_string_type(u32::MAX).build()
+    }
+}
+
 impl XTypesBinding for bool {
     fn get_dynamic_type() -> DynamicType {
         DynamicTypeBuilderFactory::get_primitive_type(TypeKind::BOOLEAN)
