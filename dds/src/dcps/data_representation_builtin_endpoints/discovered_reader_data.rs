@@ -478,7 +478,8 @@ mod tests {
                 multicast_locator_list: vec![],
                 expects_inline_qos: false,
             },
-        };
+        }
+        .create_dynamic_sample();
 
         let expected = vec![
             // 0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
@@ -502,13 +503,9 @@ mod tests {
             4, 0, 0, 0, // ,
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
-        let dynamic_sample = data.create_dynamic_sample();
-
-        let result = dynamic_sample
-            .serialize(PlCdrSerializer::new(Vec::new()))
-            .unwrap()
-            .into_inner();
-        assert_eq!(result, expected);
+        let mut serializer = PlCdrSerializer::new(Vec::new());
+        serializer.serialize(&data).unwrap();
+        assert_eq!(serializer.into_inner(), expected);
     }
 
     #[test]
@@ -550,7 +547,8 @@ mod tests {
                 multicast_locator_list: vec![],
                 expects_inline_qos: false,
             },
-        };
+        }
+        .create_dynamic_sample();
 
         let expected = vec![
             // 0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
@@ -580,12 +578,9 @@ mod tests {
             4, 0, 0, 0, // ,
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
-        let dynamic_sample = data.create_dynamic_sample();
-        let result = dynamic_sample
-            .serialize(PlCdrSerializer::new(Vec::new()))
-            .unwrap()
-            .into_inner();
-        assert_eq!(result, expected);
+        let mut serializer = PlCdrSerializer::new(Vec::new());
+        serializer.serialize(&data).unwrap();
+        assert_eq!(serializer.into_inner(), expected);
     }
 
     #[test]

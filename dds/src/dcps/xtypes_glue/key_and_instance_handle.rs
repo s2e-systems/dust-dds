@@ -51,8 +51,9 @@ pub fn get_instance_handle_from_dynamic_data(
     };
     dynamic_data.clear_nonkey_values()?;
     dynamic_data.make_descriptor_extensibility_kind_final();
+    let mut serializer = Xcdr2Serializer::new(md5_collection, BigEndian);
+    serializer.serialize(&dynamic_data)?;
 
-    let serializer = dynamic_data.serialize(Xcdr2Serializer::new(md5_collection, BigEndian))?;
     Ok(InstanceHandle::new(serializer.into_inner().into_key()))
 }
 
@@ -67,8 +68,8 @@ pub fn get_serialized_key_from_dynamic_data(
     let mut serialized_key = Vec::new();
     serialized_key.extend_from_slice(&CDR_LE);
     serialized_key.extend_from_slice(&[0, 0]);
-    let serializer = Xcdr1Serializer::new(Vec::new(), LittleEndian);
-    let serializer = dynamic_data.serialize(serializer)?;
+    let mut serializer = Xcdr1Serializer::new(Vec::new(), LittleEndian);
+    serializer.serialize(&dynamic_data)?;
 
     let mut serialized_key = Vec::new();
     serialized_key.extend_from_slice(&CDR_LE);

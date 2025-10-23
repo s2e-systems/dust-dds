@@ -84,9 +84,7 @@ use crate::{
     xtypes::{
         binding::XTypesBinding,
         dynamic_type::{DynamicData, DynamicDataFactory, DynamicType, ExtensibilityKind},
-        serializer::{
-            LittleEndian, PlCdrSerializer, XTypesSerializer, Xcdr1Serializer, Xcdr2Serializer,
-        },
+        serializer::{LittleEndian, PlCdrSerializer, XTypesSerializer, Xcdr1Serializer, Xcdr2Serializer},
     },
 };
 use alloc::{
@@ -5996,8 +5994,9 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
                 ExtensibilityKind::Final | ExtensibilityKind::Appendable => vec![0x00, 0x01, 0, 0],
                 ExtensibilityKind::Mutable => vec![0x00, 0x03, 0, 0],
             };
-            let serializer = Xcdr1Serializer::new(Vec::new(), LittleEndian);
-            buffer.extend_from_slice(&dynamic_data.serialize(serializer)?.into_inner());
+            let mut serializer = Xcdr1Serializer::new(Vec::new(), LittleEndian);
+            serializer.serialize(&dynamic_data)?;
+            buffer.extend_from_slice(&serializer.into_inner());
 
             let padding = match buffer.len() % 4 {
                 1 => &[0, 0, 0][..],
@@ -6015,13 +6014,15 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
                 ExtensibilityKind::Appendable => vec![0x00, 0x09, 0, 0],
                 ExtensibilityKind::Mutable => todo!(),
             };
-            let serializer = Xcdr2Serializer::new(Vec::new(), LittleEndian);
-            buffer.extend_from_slice(&dynamic_data.serialize(serializer)?.into_inner());
+            let mut serializer = Xcdr2Serializer::new(Vec::new(), LittleEndian);
+            serializer.serialize(&dynamic_data)?;
+            buffer.extend_from_slice(&serializer.into_inner());
             buffer
         } else if self.qos.representation.value[0] == BUILT_IN_DATA_REPRESENTATION {
-            let serializer = PlCdrSerializer::new(Vec::new());
+            let mut serializer = PlCdrSerializer::new(Vec::new());
+            serializer.serialize(&dynamic_data)?;
             let mut buffer = vec![0x00, 0x03, 0, 0];
-            buffer.extend_from_slice(&dynamic_data.serialize(serializer)?.into_inner());
+            buffer.extend_from_slice(&serializer.into_inner());
             buffer
         } else {
             panic!("Invalid data representation")

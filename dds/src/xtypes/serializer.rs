@@ -19,28 +19,28 @@ impl Write for Vec<u8> {
     }
 }
 
-pub trait EncodingVersion {
+trait EncodingVersion {
     const MAX_ALIGN: usize;
 }
-pub struct EncodingVersion1;
+struct EncodingVersion1;
 impl EncodingVersion for EncodingVersion1 {
     const MAX_ALIGN: usize = 8;
 }
 
-pub struct EncodingVersion2;
+struct EncodingVersion2;
 impl EncodingVersion for EncodingVersion2 {
     const MAX_ALIGN: usize = 4;
 }
 
-pub struct Writer<W, E, V> {
-    pub buffer: W,
+struct Writer<W, E, V> {
+    buffer: W,
     position: usize,
     _endianness: E,
     _encoding_version: V,
 }
 
 impl<W: Write, E, V: EncodingVersion> Writer<W, E, V> {
-    pub fn new(buffer: W, endianness: E, encoding_version: V) -> Self {
+    fn new(buffer: W, endianness: E, encoding_version: V) -> Self {
         Self {
             buffer,
             position: 0,
@@ -49,12 +49,12 @@ impl<W: Write, E, V: EncodingVersion> Writer<W, E, V> {
         }
     }
 
-    pub fn write_slice(&mut self, data: &[u8]) {
+    fn write_slice(&mut self, data: &[u8]) {
         self.buffer.write(data);
         self.position += data.len();
     }
 
-    pub fn pad(&mut self, alignment: usize) {
+    fn pad(&mut self, alignment: usize) {
         const ZEROS: [u8; 8] = [0; 8];
         let alignment = core::cmp::min(alignment, V::MAX_ALIGN);
         let alignment = self.position.div_ceil(alignment) * alignment - self.position;
@@ -68,7 +68,7 @@ impl<W: Write, E, V: EncodingVersion> Write for Writer<W, E, V> {
     }
 }
 
-pub trait PlainCdrSerialize {
+trait PlainCdrSerialize {
     fn serialize<W: Write, E: EndiannessWrite, V: EncodingVersion>(
         self,
         writer: &mut Writer<W, E, V>,
@@ -186,7 +186,7 @@ impl PlainCdrSerialize for &[u8] {
         E::write_slice_u8(self, writer);
     }
 }
-pub trait EndiannessWrite {
+trait EndiannessWrite {
     fn write_bool<C: Write>(v: bool, writer: &mut C) {
         writer.write(&[v as u8]);
     }
@@ -273,6 +273,20 @@ impl EndiannessWrite for LittleEndian {
 /// A trait representing an object with the capability of serializing a value into a CDR format.
 pub trait XTypesSerializer<W> {
     fn into_inner(self) -> W;
+
+    fn serialize(&mut self, dynamic_data: &DynamicData) -> XTypesResult<()> {
+        // todo header CDR type
+        match dynamic_data.type_ref().get_kind() {
+            TypeKind::ENUM => {
+                self.serialize_enum(dynamic_data)?;
+            }
+            TypeKind::STRUCTURE => self.serialize_complex(dynamic_data)?,
+            kind => unimplemented!("Should not reach for {kind:?}"),
+        }
+        // sentinel ?
+        Ok(())
+    }
+
     fn serialize_final_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
         self.serialize_all_dynamic_data_members(v)
     }
@@ -473,13 +487,26 @@ pub trait XTypesSerializer<W> {
 
 const PID_SENTINEL: u16 = 1;
 
-fn count_bytes_xdr1(v: &DynamicData, member_id: u32) -> Result<u16, XTypesError> {
+
+fn count_bytes_cdr1(v: &DynamicData, member_id: u32) -> Result<usize, XTypesError> {
+    let mut byte_conter_serializer = Xcdr1Serializer::new(ByteCounter::new(), LittleEndian);
+    byte_conter_serializer.serialize_dynamic_data_member(v, member_id)?;
+    Ok(byte_conter_serializer.into_inner().0)
+}
+
+fn count_bytes_cdr2(v: &DynamicData, member_id: u32) -> Result<usize, XTypesError> {
+    let mut byte_conter_serializer = Xcdr2Serializer::new(ByteCounter::new(), LittleEndian);
+    byte_conter_serializer.serialize_dynamic_data_member(v, member_id)?;
+    Ok(byte_conter_serializer.into_inner().0)
+}
+
+fn count_bytes_pl_cdr(v: &DynamicData, member_id: u32) -> Result<u16, XTypesError> {
     let mut byte_conter_serializer = Xcdr1Serializer::new(ByteCounter::new(), LittleEndian);
     byte_conter_serializer.serialize_dynamic_data_member(v, member_id)?;
     let length = byte_conter_serializer.into_inner().0 as u16;
     Ok((length + 3) & !3)
 }
-fn count_bytes_xdr1_complex(v: &DynamicData) -> Result<u16, XTypesError> {
+fn count_bytes_pl_cdr_complex(v: &DynamicData) -> Result<u16, XTypesError> {
     let mut byte_conter_serializer = Xcdr1Serializer::new(ByteCounter::new(), LittleEndian);
     byte_conter_serializer.serialize_complex(v)?;
     let length = byte_conter_serializer.into_inner().0 as u16;
@@ -491,6 +518,7 @@ fn count_bytes_xdr2(v: &DynamicData, member_id: u32) -> Result<usize, XTypesErro
     byte_conter_serializer.serialize_dynamic_data_member(v, member_id)?;
     Ok(byte_conter_serializer.into_inner().0)
 }
+
 
 pub struct PlCdrSerializer<C> {
     cdr1_le_serializer: Xcdr1Serializer<C, LittleEndian>,
@@ -538,7 +566,7 @@ impl<W: Write> XTypesSerializer<W> for PlCdrSerializer<W> {
                 // Sequence
                 if element_type.get_kind() == TypeKind::STRUCTURE {
                     for vi in &v.get_complex_values(member_id)? {
-                        let padded_length = count_bytes_xdr1_complex(vi)?;
+                        let padded_length = count_bytes_pl_cdr_complex(vi)?;
                         LittleEndian::write_u16(
                             member_id as u16,
                             &mut self.cdr1_le_serializer.writer,
@@ -548,7 +576,7 @@ impl<W: Write> XTypesSerializer<W> for PlCdrSerializer<W> {
                     }
                     self.cdr1_le_serializer.writer.pad(4);
                 } else {
-                    let padded_length = count_bytes_xdr1(v, member_id)?;
+                    let padded_length = count_bytes_pl_cdr(v, member_id)?;
                     LittleEndian::write_u16(member_id as u16, &mut self.cdr1_le_serializer.writer);
                     LittleEndian::write_u16(padded_length, &mut self.cdr1_le_serializer.writer);
                     self.serialize_dynamic_data_member(v, member_id)?;
@@ -556,7 +584,7 @@ impl<W: Write> XTypesSerializer<W> for PlCdrSerializer<W> {
                 }
             } else {
                 // Structure
-                let padded_length = count_bytes_xdr1(v, member_id)?;
+                let padded_length = count_bytes_pl_cdr(v, member_id)?;
                 LittleEndian::write_u16(member_id as u16, &mut self.cdr1_le_serializer.writer);
                 LittleEndian::write_u16(padded_length, &mut self.cdr1_le_serializer.writer);
                 self.serialize_dynamic_data_member(v, member_id)?;
@@ -582,25 +610,10 @@ impl<W: Write> XTypesSerializer<W> for PlCdrSerializer<W> {
     }
 }
 
-
-pub fn serialize_nested<W: Write>(
-    dynamic_data: &DynamicData,
-    mut serializer: impl XTypesSerializer<W>,
-) -> Result<impl XTypesSerializer<W>, super::error::XTypesError> {
-    match dynamic_data.type_ref().get_kind() {
-        TypeKind::ENUM => {
-            serializer.serialize_enum(dynamic_data)?;
-        }
-        TypeKind::STRUCTURE => serializer.serialize_complex(dynamic_data)?,
-        kind => unimplemented!("Should not reach for {kind:?}"),
-    }
-    Ok(serializer)
-}
-
 struct ByteCounter(usize);
 
 impl ByteCounter {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self(0)
     }
 }
@@ -612,7 +625,7 @@ impl Write for ByteCounter {
 }
 
 pub struct Xcdr1Serializer<W, E> {
-    pub writer: Writer<W, E, EncodingVersion1>,
+    writer: Writer<W, E, EncodingVersion1>,
 }
 
 impl<W: Write, E> Xcdr1Serializer<W, E> {
@@ -631,7 +644,7 @@ impl<W: Write, E: EndiannessWrite> XTypesSerializer<W> for Xcdr1Serializer<W, E>
     fn serialize_mutable_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
         for field_index in 0..v.get_item_count() {
             let member_id = v.get_member_id_at_index(field_index)?;
-            let length = count_bytes_xdr1(v, member_id)?;
+            let length = count_bytes_cdr1(v, member_id)?;
             self.serialize_writable(member_id as u16);
             self.serialize_writable(length as u16);
             self.serialize_dynamic_data_member(v, member_id)?;
@@ -671,7 +684,7 @@ impl<W: Write, E: EndiannessWrite> XTypesSerializer<W> for Xcdr2Serializer<W, E>
         for field_index in 0..v.get_item_count() {
             let member_id = v.get_member_id_at_index(field_index)?;
             // DHEADER
-            let length = count_bytes_xdr1(v, member_id)? as u32;
+            let length = count_bytes_cdr1(v, member_id)? as u32;
             length.serialize(&mut self.writer);
             // Value
             self.serialize_dynamic_data_member(v, member_id)?;
@@ -701,31 +714,27 @@ mod tests {
     extern crate std;
 
     fn serialize_v1_be<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
-        v.create_dynamic_sample()
-            .serialize(Xcdr1Serializer::new(Vec::new(), BigEndian))
-            .unwrap()
-            .into_inner()
+        let mut serializer = Xcdr1Serializer::new(Vec::new(), BigEndian);
+        serializer.serialize(&v.create_dynamic_sample()).unwrap();
+        serializer.into_inner()
     }
 
     fn serialize_v1_le<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
-        v.create_dynamic_sample()
-            .serialize(Xcdr1Serializer::new(Vec::new(), LittleEndian))
-            .unwrap()
-            .into_inner()
+        let mut serializer = Xcdr1Serializer::new(Vec::new(), LittleEndian);
+        serializer.serialize(&v.create_dynamic_sample()).unwrap();
+        serializer.into_inner()
     }
 
     fn serialize_v2_be<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
-        v.create_dynamic_sample()
-            .serialize(Xcdr2Serializer::new(Vec::new(), BigEndian))
-            .unwrap()
-            .into_inner()
+        let mut serializer = Xcdr2Serializer::new(Vec::new(), BigEndian);
+        serializer.serialize(&v.create_dynamic_sample()).unwrap();
+        serializer.into_inner()
     }
 
     fn serialize_v2_le<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
-        v.create_dynamic_sample()
-            .serialize(Xcdr2Serializer::new(Vec::new(), LittleEndian))
-            .unwrap()
-            .into_inner()
+        let mut serializer = Xcdr2Serializer::new(Vec::new(), LittleEndian);
+        serializer.serialize(&v.create_dynamic_sample()).unwrap();
+        serializer.into_inner()
     }
 
     #[test]
@@ -844,13 +853,13 @@ mod tests {
     fn serialize_locator() {
         #[derive(TypeSupport)]
         #[dust_dds(extensibility = "mutable")]
-        pub struct LocatorContainer {
+        struct LocatorContainer {
             #[dust_dds(id = 73)]
             locator: Locator,
         }
         #[derive(TypeSupport)]
         #[dust_dds(extensibility = "final", nested)]
-        pub struct Locator {
+        struct Locator {
             kind: i32,
             address1: [u8; 2],
             address2: [u8; 3],
@@ -1298,18 +1307,16 @@ mod tests {
     // }
 }
 
-
 #[cfg(test)]
-mod rtps_built_in_tests {
+mod rtps_pl_tests {
     use super::*;
     use crate::infrastructure::type_support::TypeSupport;
     extern crate std;
 
     fn test_serialize_type_support<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
-        v.create_dynamic_sample()
-            .serialize(PlCdrSerializer::new(Vec::new()))
-            .unwrap()
-            .into_inner()
+        let mut serializer = PlCdrSerializer::new(Vec::new());
+        serializer.serialize(&v.create_dynamic_sample()).unwrap();
+        serializer.into_inner()
     }
 
     #[derive(TypeSupport)]
@@ -1466,14 +1473,14 @@ mod rtps_built_in_tests {
     #[test]
     fn serialize_locator() {
         #[derive(TypeSupport)]
-        pub struct Locator {
+        struct Locator {
             kind: i32,
             port: u32,
             address: [u8; 4],
         }
         #[derive(TypeSupport)]
         #[dust_dds(extensibility = "mutable")]
-        pub struct LocatorContainer {
+        struct LocatorContainer {
             #[dust_dds(id = 41)]
             locator: Locator,
         }

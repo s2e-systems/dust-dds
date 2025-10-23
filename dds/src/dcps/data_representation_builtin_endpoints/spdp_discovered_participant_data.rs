@@ -491,7 +491,8 @@ mod tests {
             },
             lease_duration: Duration::new(10, 11),
             discovered_participant_list: vec![],
-        };
+        }
+        .create_dynamic_sample();
 
         let expected = vec![
             // 0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
@@ -560,12 +561,9 @@ mod tests {
             b'a', b'b', 0, 0x00, // DomainTag: string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ];
-        let dynamic_sample = data.create_dynamic_sample();
-        let result = dynamic_sample
-            .serialize(PlCdrSerializer::new(Vec::new()))
-            .unwrap()
-            .into_inner();
-        assert_eq!(result, expected);
+        let mut serializer = PlCdrSerializer::new(Vec::new());
+        serializer.serialize(&data).unwrap();
+        assert_eq!(serializer.into_inner(), expected);
     }
 
     #[test]
@@ -596,7 +594,8 @@ mod tests {
             },
             lease_duration: DEFAULT_PARTICIPANT_LEASE_DURATION,
             discovered_participant_list: Vec::new(),
-        };
+        }
+        .create_dynamic_sample();
 
         let expected = vec![
             // 0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
@@ -616,12 +615,9 @@ mod tests {
             0x02, 0x00, 0x00, 0x00, //
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ];
-        let dynamic_sample = data.create_dynamic_sample();
-        let result = dynamic_sample
-            .serialize(PlCdrSerializer::new(Vec::new()))
-            .unwrap()
-            .into_inner();
-        assert_eq!(result, expected);
+        let mut serializer = PlCdrSerializer::new(Vec::new());
+        serializer.serialize(&data).unwrap();
+        assert_eq!(serializer.into_inner(), expected);
     }
 
     #[test]

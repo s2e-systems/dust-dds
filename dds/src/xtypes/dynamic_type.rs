@@ -6,7 +6,7 @@ use crate::xtypes::{
     },
     data_storage::{DataStorage, DataStorageMapping},
     error::XTypesResult,
-    serializer::{serialize_nested, Write, XTypesSerializer},
+    serializer::XTypesSerializer,
     type_object::TypeObject,
 };
 use alloc::{boxed::Box, collections::BTreeMap, string::String, vec, vec::Vec};
@@ -1037,15 +1037,6 @@ impl DynamicData {
 }
 
 impl DynamicData {
-    pub fn serialize<C: Write>(
-        &self,
-        serializer: impl XTypesSerializer<C>,
-    ) -> Result<impl XTypesSerializer<C>, super::error::XTypesError> {
-        // todo header CDR type
-        serialize_nested(self, serializer)
-        // sentinel ?
-    }
-
     pub fn deserialize(dynamic_type: DynamicType, buffer: &[u8]) -> XTypesResult<Self> {
         type RepresentationIdentifier = [u8; 2];
         // const CDR_BE: RepresentationIdentifier = [0x00, 0x00];
