@@ -62,7 +62,7 @@ pub trait XTypesDeserialize {
             //     TypeKind::UNION => todo!(),
             kind => {
                 debug!("Expected structure, enum or union. Got kind {kind:?} ");
-                return Err(XTypesError::InvalidType);
+                Err(XTypesError::InvalidType)
             }
         }
     }
@@ -163,8 +163,8 @@ pub trait XTypesDeserialize {
             ),
             TypeKind::UNION => todo!(),
             TypeKind::BITSET => todo!(),
-            TypeKind::SEQUENCE => self.deserialize_sequence(&member, dynamic_data),
-            TypeKind::ARRAY => self.deserialize_array(&member, dynamic_data),
+            TypeKind::SEQUENCE => self.deserialize_sequence(member, dynamic_data),
+            TypeKind::ARRAY => self.deserialize_array(member, dynamic_data),
             TypeKind::MAP => todo!(),
         }
         // self.deserialize_primitive_type()

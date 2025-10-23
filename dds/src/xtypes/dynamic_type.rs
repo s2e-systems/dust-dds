@@ -363,7 +363,7 @@ impl DynamicType {
     // DDS::ReturnCode_t get_verbatim_text(inout VerbatimTextDescriptor descriptor, in unsigned long idx);
 
     pub(crate) fn clear_nonkey_members(&mut self) {
-        self.member_list.retain(|m| m.descriptor.is_key == true);
+        self.member_list.retain(|m| m.descriptor.is_key);
         for m in self.member_list.iter_mut() {
             m.descriptor.r#type.clear_nonkey_members();
         }
@@ -1047,7 +1047,7 @@ impl DynamicData {
         // sentinel ?
     }
 
-    pub fn deserialize<'de>(dynamic_type: DynamicType, buffer: &[u8]) -> XTypesResult<Self> {
+    pub fn deserialize(dynamic_type: DynamicType, buffer: &[u8]) -> XTypesResult<Self> {
         type RepresentationIdentifier = [u8; 2];
         // const CDR_BE: RepresentationIdentifier = [0x00, 0x00];
         const CDR_LE: RepresentationIdentifier = [0x00, 0x01];
@@ -1070,7 +1070,7 @@ impl DynamicData {
                 dynamic_type,
                 &mut PlCdr1Deserializer::new(&buffer[4..], LittleEndian),
             ),
-            _ => return Err(XTypesError::InvalidData),
+            _ => Err(XTypesError::InvalidData),
         }
     }
 }
