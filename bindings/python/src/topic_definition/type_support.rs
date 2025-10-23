@@ -1,15 +1,11 @@
-use crate::xtypes::endianness::{self};
 use dust_dds::{
-    infrastructure::{error::DdsResult, type_support::TypeSupport},
-    xtypes::{
-        deserializer::XTypesDeserializer, error::XTypesError, serializer::XTypesSerializer,
-        xcdr_deserializer::Xcdr1Deserializer,
-    },
+    infrastructure::type_support::TypeSupport,
+    xtypes::{deserializer::XTypesDeserializer, error::XTypesError},
 };
 use pyo3::{
     exceptions::PyTypeError,
     prelude::*,
-    types::{PyBytes, PyDict, PyList, PyString, PyTuple, PyType},
+    types::{PyBytes, PyDict, PyList, PyString, PyType},
 };
 
 #[allow(non_camel_case_types)]
@@ -55,10 +51,10 @@ impl From<TypeKind> for dust_dds::xtypes::type_object::TypeIdentifier {
     }
 }
 
-fn deserialize_into_py_object<'de, D: XTypesDeserializer<'de>>(
-    py: Python<'_>,
-    type_kind: TypeKind,
-    deserializer: D,
+fn _deserialize_into_py_object<'de, D: XTypesDeserializer<'de>>(
+    _py: Python<'_>,
+    _type_kind: TypeKind,
+    _deserializer: D,
 ) -> Result<PyObject, XTypesError> {
     todo!()
     // match type_kind {
@@ -294,10 +290,10 @@ impl PythonDdsData {
         todo!()
     }
 
-    pub fn into_py_object(self, type_: &Py<PyAny>) -> PyResult<Py<PyAny>> {
-        fn deserialize_data_member<'de>(
-            member_type: &Bound<PyAny>,
-            deserializer: &mut impl XTypesDeserializer<'de>,
+    pub fn into_py_object(self, _type_: &Py<PyAny>) -> PyResult<Py<PyAny>> {
+        fn _deserialize_data_member<'de>(
+            _member_type: &Bound<PyAny>,
+            _deserializer: &mut impl XTypesDeserializer<'de>,
         ) -> PyResult<Py<PyAny>> {
             // let py = member_type.py();
             // if let Ok(member_type_kind) = member_type.extract::<TypeKind>() {
@@ -338,10 +334,10 @@ impl PythonDdsData {
             // }
             todo!()
         }
-        fn deserialize_data<'de, D>(
-            py: Python<'_>,
-            type_: Py<PyType>,
-            deserializer: &mut D,
+        fn _deserialize_data<'de, D>(
+            _py: Python<'_>,
+            _type_: Py<PyType>,
+            _deserializer: &mut D,
         ) -> PyResult<Py<PyAny>>
         where
             for<'a> &'a mut D: XTypesDeserializer<'de>,

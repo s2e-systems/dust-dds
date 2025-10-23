@@ -91,9 +91,7 @@ pub trait XTypesDeserialize {
         &mut self,
         dynamic_type: &DynamicType,
         dynamic_data: &mut DynamicData,
-    ) -> XTypesResult<()> {
-        todo!()
-    }
+    ) -> XTypesResult<()>;
 
     fn deserialize_string(&mut self) -> Result<String, XTypesError> {
         let length = self.deserialize_primitive_type::<u32>()?;

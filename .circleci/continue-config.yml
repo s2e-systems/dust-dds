@@ -284,15 +284,6 @@ jobs:
           name: Build
           command: cargo build --package dust_dds_shapes_demo
 
-  telescope_build:
-    docker:
-      - image: cimg/rust:1.87.0
-    steps:
-      - checkout
-      - run:
-          name: Build
-          command: cargo build --package dust_dds_telescope
-
 workflows:
   build_and_run_tests:
     jobs:
@@ -304,7 +295,6 @@ workflows:
       - clippy
       - multi_machine_tests
       - shapes_demo_build
-      - telescope_build
 
   build_docker_image_and_run_interoperability_tests:
     when: << pipeline.parameters.build_docker_image >>

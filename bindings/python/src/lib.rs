@@ -4,7 +4,6 @@ mod infrastructure;
 mod publication;
 mod subscription;
 mod topic_definition;
-mod xtypes;
 
 use infrastructure::qos_policy::{
     DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,

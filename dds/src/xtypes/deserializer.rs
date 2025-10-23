@@ -1,6 +1,4 @@
-use crate::xtypes::{
-    data_representation::endianness::EndiannessRead, dynamic_type::DynamicData, error::XTypesResult,
-};
+use crate::xtypes::{dynamic_type::DynamicData, error::XTypesResult};
 
 use super::error::XTypesError;
 

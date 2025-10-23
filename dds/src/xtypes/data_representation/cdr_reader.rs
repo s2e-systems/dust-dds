@@ -4,7 +4,7 @@ use crate::xtypes::{
     data_representation::{
         deserialize::XTypesDeserialize, endianness::EndiannessRead, read_write::Read,
     },
-    dynamic_type::{DynamicData, DynamicType, DynamicTypeMember, TypeKind},
+    dynamic_type::{DynamicData, DynamicType, TypeKind},
     error::{XTypesError, XTypesResult},
 };
 
@@ -22,7 +22,7 @@ impl CdrVersion for CdrVersion2 {
     const MAX_ALIGN: usize = 4;
 }
 
-trait CdrPrimitiveTypeDeserializer {
+pub trait CdrPrimitiveTypeDeserializer {
     fn deserialize_u8(&mut self) -> XTypesResult<u8>;
     fn deserialize_u16(&mut self) -> XTypesResult<u16>;
     fn deserialize_u32(&mut self) -> XTypesResult<u32>;
@@ -291,6 +291,14 @@ impl<'a, E: EndiannessRead> Cdr2Deserializer<'a, E> {
 impl<'a, E: EndiannessRead> XTypesDeserialize for Cdr2Deserializer<'a, E> {
     fn deserialize_primitive_type<T: CdrPrimitiveTypeDeserialize>(&mut self) -> XTypesResult<T> {
         T::deserialize(&mut self.reader)
+    }
+
+    fn deserialize_mutable_struct(
+        &mut self,
+        _dynamic_type: &DynamicType,
+        _dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()> {
+        todo!()
     }
 }
 

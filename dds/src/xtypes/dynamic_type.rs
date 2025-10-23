@@ -1049,13 +1049,13 @@ impl DynamicData {
 
     pub fn deserialize<'de>(dynamic_type: DynamicType, buffer: &[u8]) -> XTypesResult<Self> {
         type RepresentationIdentifier = [u8; 2];
-        const CDR_BE: RepresentationIdentifier = [0x00, 0x00];
+        // const CDR_BE: RepresentationIdentifier = [0x00, 0x00];
         const CDR_LE: RepresentationIdentifier = [0x00, 0x01];
-        const CDR2_BE: RepresentationIdentifier = [0x00, 0x06];
-        const CDR2_LE: RepresentationIdentifier = [0x00, 0x07];
-        const D_CDR2_BE: RepresentationIdentifier = [0x00, 0x08];
-        const D_CDR2_LE: RepresentationIdentifier = [0x00, 0x09];
-        const PL_CDR_BE: RepresentationIdentifier = [0x00, 0x02];
+        // const CDR2_BE: RepresentationIdentifier = [0x00, 0x06];
+        // const CDR2_LE: RepresentationIdentifier = [0x00, 0x07];
+        // const D_CDR2_BE: RepresentationIdentifier = [0x00, 0x08];
+        // const D_CDR2_LE: RepresentationIdentifier = [0x00, 0x09];
+        // const PL_CDR_BE: RepresentationIdentifier = [0x00, 0x02];
         const PL_CDR_LE: RepresentationIdentifier = [0x00, 0x03];
 
         if buffer.len() < 4 {
