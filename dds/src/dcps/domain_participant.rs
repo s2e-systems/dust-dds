@@ -6680,21 +6680,36 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
         cache_change: CacheChange,
         reception_timestamp: Time,
     ) -> DdsResult<ReaderSample> {
-        let data_value = match cache_change.kind {
-            ChangeKind::Alive | ChangeKind::AliveFiltered => DynamicData::deserialize(
-                self.type_support.as_ref().clone(),
-                cache_change.data_value.as_ref(),
-            )?,
+        let (data_value, instance_handle) = match cache_change.kind {
+            ChangeKind::Alive | ChangeKind::AliveFiltered => {
+                let data_value = DynamicData::deserialize(
+                    self.type_support.as_ref().clone(),
+                    cache_change.data_value.as_ref(),
+                )?;
+                let instance_handle = get_instance_handle_from_dynamic_data(data_value.clone())?;
+                (data_value, instance_handle)
+            }
             ChangeKind::NotAliveDisposed
             | ChangeKind::NotAliveUnregistered
-            | ChangeKind::NotAliveDisposedUnregistered => {
-                let mut key_holder = self.type_support.as_ref().clone();
-                key_holder.clear_nonkey_members();
-                DynamicData::deserialize(key_holder, cache_change.data_value.as_ref())?
-            }
+            | ChangeKind::NotAliveDisposedUnregistered => match cache_change.instance_handle {
+                Some(i) => {
+                    let mut key_holder = self.type_support.as_ref().clone();
+                    key_holder.clear_nonkey_members();
+                    let data_value = DynamicDataFactory::create_data(key_holder);
+                    let instance_handle = InstanceHandle::new(i);
+                    (data_value, instance_handle)
+                }
+                None => {
+                    let mut key_holder = self.type_support.as_ref().clone();
+                    key_holder.clear_nonkey_members();
+                    let data_value =
+                        DynamicData::deserialize(key_holder, cache_change.data_value.as_ref())?;
+                    let instance_handle =
+                        get_instance_handle_from_dynamic_data(data_value.clone())?;
+                    (data_value, instance_handle)
+                }
+            },
         };
-
-        let instance_handle = get_instance_handle_from_dynamic_data(data_value.clone())?;
 
         // Update the state of the instance before creating since this has direct impact on
         // the information that is store on the sample
