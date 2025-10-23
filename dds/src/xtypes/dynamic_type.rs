@@ -361,6 +361,13 @@ impl DynamicType {
     // DDS::ReturnCode_t get_annotation(inout AnnotationDescriptor descriptor, in unsigned long idx);
     // unsigned long get_verbatim_text_count();
     // DDS::ReturnCode_t get_verbatim_text(inout VerbatimTextDescriptor descriptor, in unsigned long idx);
+
+    pub(crate) fn clear_nonkey_members(&mut self) {
+        self.member_list.retain(|m| m.descriptor.is_key == true);
+        for m in self.member_list.iter_mut() {
+            m.descriptor.r#type.clear_nonkey_members();
+        }
+    }
 }
 
 pub struct DynamicDataFactory;

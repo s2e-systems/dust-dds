@@ -6694,7 +6694,11 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
             )?,
             ChangeKind::NotAliveDisposed
             | ChangeKind::NotAliveUnregistered
-            | ChangeKind::NotAliveDisposedUnregistered => todo!(),
+            | ChangeKind::NotAliveDisposedUnregistered => {
+                let mut key_holder = self.type_support.as_ref().clone();
+                key_holder.clear_nonkey_members();
+                DynamicData::deserialize(key_holder, cache_change.data_value.as_ref())?
+            }
         };
 
         let instance_handle = get_instance_handle_from_dynamic_data(data_value.clone())?;

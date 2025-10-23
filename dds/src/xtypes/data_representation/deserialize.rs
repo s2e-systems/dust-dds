@@ -288,7 +288,10 @@ pub trait XTypesDeserialize {
             TypeKind::INT16 => todo!(),
             TypeKind::INT32 => todo!(),
             TypeKind::INT64 => todo!(),
-            TypeKind::UINT16 => todo!(),
+            TypeKind::UINT16 => dynamic_data.set_uint16_values(
+                member.get_id(),
+                self.deserialize_primitive_type_sequence::<u16>()?,
+            ),
             TypeKind::UINT32 => dynamic_data.set_uint32_values(
                 member.get_id(),
                 self.deserialize_primitive_type_sequence::<u32>()?,

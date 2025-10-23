@@ -16,9 +16,7 @@ use crate::{
     },
     transport::types::{EntityId, Guid, Locator, ENTITYID_UNKNOWN},
     xtypes::{
-        binding::XTypesBinding,
-        data_storage::{DataStorage, DataStorageMapping},
-        dynamic_type::DynamicTypeBuilder,
+        binding::XTypesBinding, data_storage::DataStorageMapping, dynamic_type::DynamicTypeBuilder,
     },
 };
 use alloc::{string::String, vec::Vec};
@@ -216,8 +214,119 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
         builder.builder.build()
     }
 
-    fn create_sample(_src: crate::xtypes::dynamic_type::DynamicData) -> Self {
-        todo!()
+    fn create_sample(src: crate::xtypes::dynamic_type::DynamicData) -> Self {
+        let key = BuiltInTopicKey::try_from_storage(
+            src.get_value(PID_ENDPOINT_GUID as u32).expect("Must exist"),
+        )
+        .expect("Must match");
+        let remote_reader_guid = Guid::new(
+            key.value[0..12].try_into().expect("Must match"),
+            EntityId::new(
+                key.value[12..15].try_into().expect("Must match"),
+                key.value[15],
+            ),
+        );
+        Self {
+            dds_subscription_data: SubscriptionBuiltinTopicData {
+                key,
+                participant_key: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_PARTICIPANT_GUID as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Must match"),
+                topic_name: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_TOPIC_NAME as u32).expect("Must exist"),
+                )
+                .expect("Must match"),
+                type_name: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_TYPE_NAME as u32).expect("Must exist"),
+                )
+                .expect("Must match"),
+                durability: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_DURABILITY as u32).expect("Must exist"),
+                )
+                .expect("Must match"),
+                deadline: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_DEADLINE as u32).expect("Must exist"),
+                )
+                .expect("Must match"),
+                latency_budget: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_LATENCY_BUDGET as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Must match"),
+                liveliness: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_LIVELINESS as u32).expect("Must exist"),
+                )
+                .expect("Must match"),
+                reliability: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_RELIABILITY as u32).expect("Must exist"),
+                )
+                .expect("Must match"),
+                time_based_filter: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_TIME_BASED_FILTER as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Must match"),
+                user_data: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_USER_DATA as u32).expect("Must exist"),
+                )
+                .expect("Must match"),
+                ownership: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_OWNERSHIP as u32).expect("Must exist"),
+                )
+                .expect("Must match"),
+                destination_order: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_DESTINATION_ORDER as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Must match"),
+                presentation: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_PRESENTATION as u32).expect("Must exist"),
+                )
+                .expect("Must match"),
+                partition: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_PARTITION as u32).expect("Must exist"),
+                )
+                .expect("Must match"),
+                topic_data: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_TOPIC_DATA as u32).expect("Must exist"),
+                )
+                .expect("Must match"),
+                group_data: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_GROUP_DATA as u32).expect("Must exist"),
+                )
+                .expect("Must match"),
+                representation: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_DATA_REPRESENTATION as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Must match"),
+            },
+            reader_proxy: ReaderProxy {
+                remote_reader_guid,
+                remote_group_entity_id: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_GROUP_ENTITYID as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Must match"),
+                unicast_locator_list: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_UNICAST_LOCATOR as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Must match"),
+                multicast_locator_list: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_MULTICAST_LOCATOR as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Must match"),
+                expects_inline_qos: DataStorageMapping::try_from_storage(
+                    src.get_value(PID_EXPECTS_INLINE_QOS as u32)
+                        .expect("Must exist"),
+                )
+                .expect("Must match"),
+            },
+        }
     }
 
     fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
