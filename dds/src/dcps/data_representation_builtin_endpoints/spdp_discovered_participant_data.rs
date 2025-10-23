@@ -219,7 +219,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParti
         };
         builder.add_key_member::<BuiltInTopicKey>("key", PID_PARTICIPANT_GUID);
         builder.add_member_with_default("user_data", PID_USER_DATA, UserDataQosPolicy::default());
-        builder.add_member::<DomainId>("domain_id", PID_DOMAIN_ID);
+        builder.add_member_with_default::<DomainId>("domain_id", PID_DOMAIN_ID, -1);
         builder.add_member_with_default(
             "domain_tag",
             PID_DOMAIN_TAG,
