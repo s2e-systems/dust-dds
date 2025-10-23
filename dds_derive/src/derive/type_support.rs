@@ -22,7 +22,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
     let is_nested = input_attributes.is_nested;
 
     let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
-    let (get_type_quote, create_dynamic_sample_quote) = match &input.data {
+    let (get_type_quote, create_dynamic_sample_quote, create_sample_quote) = match &input.data {
         syn::Data::Struct(data_struct) => {
             let struct_builder = quote! {
                 extern crate alloc;
@@ -133,7 +133,10 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 #(#member_dynamic_sample_seq)*
                 data
             };
-            Ok((get_type_quote, create_dynamic_sample_quote))
+            let create_sample_quote = quote! {
+                todo!()
+            };
+            Ok((get_type_quote, create_dynamic_sample_quote, create_sample_quote))
         }
         syn::Data::Enum(data_enum) => {
             // Separate between Unions and Enumeration which are both
@@ -161,7 +164,10 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 };
 
                 let create_dynamic_sample_quote = quote! {todo!()};
-                Ok((get_type_quote, create_dynamic_sample_quote))
+                let create_sample_quote = quote! {
+                    todo!()
+                };
+                Ok((get_type_quote, create_dynamic_sample_quote, create_sample_quote))
             } else {
                 // Note: Mapping has to be done with a match self strategy because the enum might not be copy so casting it using e.g. "self as i64" would
                 // be consuming it.
@@ -195,7 +201,10 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     #discriminator_dynamic_value
                     data
                 };
-                Ok((get_type_quote, create_dynamic_sample_quote))
+                let create_sample_quote = quote! {
+                    todo!()
+                };
+                Ok((get_type_quote, create_dynamic_sample_quote, create_sample_quote))
             }
         }
         syn::Data::Union(data_union) => Err(syn::Error::new(
@@ -212,7 +221,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
             }
 
             fn create_sample(_src: dust_dds::xtypes::dynamic_type::DynamicData) -> Self {
-                todo!()
+                #create_sample_quote
             }
 
             fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
