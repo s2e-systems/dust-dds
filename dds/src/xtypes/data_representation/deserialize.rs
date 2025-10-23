@@ -135,8 +135,12 @@ pub trait XTypesDeserialize {
             TypeKind::UINT64 => {
                 dynamic_data.set_uint64_value(member.get_id(), self.deserialize_primitive_type()?)
             }
-            TypeKind::FLOAT32 => todo!(),
-            TypeKind::FLOAT64 => todo!(),
+            TypeKind::FLOAT32 => {
+                dynamic_data.set_float32_value(member.get_id(), self.deserialize_primitive_type()?)
+            }
+            TypeKind::FLOAT64 => {
+                dynamic_data.set_float64_value(member.get_id(), self.deserialize_primitive_type()?)
+            }
             TypeKind::FLOAT128 => todo!(),
             TypeKind::INT8 => {
                 dynamic_data.set_int8_value(member.get_id(), self.deserialize_primitive_type()?)
@@ -144,7 +148,9 @@ pub trait XTypesDeserialize {
             TypeKind::UINT8 => {
                 dynamic_data.set_uint8_value(member.get_id(), self.deserialize_primitive_type()?)
             }
-            TypeKind::CHAR8 => todo!(),
+            TypeKind::CHAR8 => {
+                dynamic_data.set_char8_value(member.get_id(), self.deserialize_primitive_type()?)
+            }
             TypeKind::CHAR16 => todo!(),
             TypeKind::STRING8 => {
                 dynamic_data.set_string_value(member.get_id(), self.deserialize_string()?)
@@ -185,26 +191,56 @@ pub trait XTypesDeserialize {
         let bound = member.get_descriptor()?.r#type.get_descriptor().bound[0];
         match sequence_type.get_kind() {
             TypeKind::NONE => todo!(),
-            TypeKind::BOOLEAN => todo!(),
+            TypeKind::BOOLEAN => dynamic_data.set_boolean_values(
+                member.get_id(),
+                self.deserialize_primitive_type_array(bound)?,
+            ),
             TypeKind::BYTE => todo!(),
-            TypeKind::INT16 => todo!(),
-            TypeKind::INT32 => todo!(),
-            TypeKind::INT64 => todo!(),
-            TypeKind::UINT16 => todo!(),
+            TypeKind::INT16 => dynamic_data.set_int16_values(
+                member.get_id(),
+                self.deserialize_primitive_type_array(bound)?,
+            ),
+            TypeKind::INT32 => dynamic_data.set_int32_values(
+                member.get_id(),
+                self.deserialize_primitive_type_array(bound)?,
+            ),
+            TypeKind::INT64 => dynamic_data.set_int64_values(
+                member.get_id(),
+                self.deserialize_primitive_type_array(bound)?,
+            ),
+            TypeKind::UINT16 => dynamic_data.set_uint16_values(
+                member.get_id(),
+                self.deserialize_primitive_type_array(bound)?,
+            ),
             TypeKind::UINT32 => dynamic_data.set_uint32_values(
                 member.get_id(),
-                self.deserialize_primitive_type_array::<u32>(bound)?,
+                self.deserialize_primitive_type_array(bound)?,
             ),
-            TypeKind::UINT64 => todo!(),
-            TypeKind::FLOAT32 => todo!(),
-            TypeKind::FLOAT64 => todo!(),
+            TypeKind::UINT64 => dynamic_data.set_uint64_values(
+                member.get_id(),
+                self.deserialize_primitive_type_array(bound)?,
+            ),
+            TypeKind::FLOAT32 => dynamic_data.set_float32_values(
+                member.get_id(),
+                self.deserialize_primitive_type_array(bound)?,
+            ),
+            TypeKind::FLOAT64 => dynamic_data.set_float64_values(
+                member.get_id(),
+                self.deserialize_primitive_type_array(bound)?,
+            ),
             TypeKind::FLOAT128 => todo!(),
-            TypeKind::INT8 => todo!(),
+            TypeKind::INT8 => dynamic_data.set_int8_values(
+                member.get_id(),
+                self.deserialize_primitive_type_array(bound)?,
+            ),
             TypeKind::UINT8 => dynamic_data.set_uint8_values(
                 member.get_id(),
-                self.deserialize_primitive_type_array::<u8>(bound)?,
+                self.deserialize_primitive_type_array(bound)?,
             ),
-            TypeKind::CHAR8 => todo!(),
+            TypeKind::CHAR8 => dynamic_data.set_char8_values(
+                member.get_id(),
+                self.deserialize_primitive_type_array(bound)?,
+            ),
             TypeKind::CHAR16 => todo!(),
             TypeKind::STRING8 => todo!(),
             TypeKind::STRING16 => todo!(),
@@ -281,29 +317,32 @@ pub trait XTypesDeserialize {
             .expect("Sequence must have element type");
         match sequence_type.get_kind() {
             TypeKind::NONE => todo!(),
-            TypeKind::BOOLEAN => todo!(),
+            TypeKind::BOOLEAN => dynamic_data
+                .set_boolean_values(member.get_id(), self.deserialize_primitive_type_sequence()?),
             TypeKind::BYTE => todo!(),
-            TypeKind::INT16 => todo!(),
-            TypeKind::INT32 => todo!(),
-            TypeKind::INT64 => todo!(),
-            TypeKind::UINT16 => dynamic_data.set_uint16_values(
-                member.get_id(),
-                self.deserialize_primitive_type_sequence::<u16>()?,
-            ),
-            TypeKind::UINT32 => dynamic_data.set_uint32_values(
-                member.get_id(),
-                self.deserialize_primitive_type_sequence::<u32>()?,
-            ),
-            TypeKind::UINT64 => todo!(),
-            TypeKind::FLOAT32 => todo!(),
-            TypeKind::FLOAT64 => todo!(),
+            TypeKind::INT16 => dynamic_data
+                .set_int16_values(member.get_id(), self.deserialize_primitive_type_sequence()?),
+            TypeKind::INT32 => dynamic_data
+                .set_int32_values(member.get_id(), self.deserialize_primitive_type_sequence()?),
+            TypeKind::INT64 => dynamic_data
+                .set_int64_values(member.get_id(), self.deserialize_primitive_type_sequence()?),
+            TypeKind::UINT16 => dynamic_data
+                .set_uint16_values(member.get_id(), self.deserialize_primitive_type_sequence()?),
+            TypeKind::UINT32 => dynamic_data
+                .set_uint32_values(member.get_id(), self.deserialize_primitive_type_sequence()?),
+            TypeKind::UINT64 => dynamic_data
+                .set_uint64_values(member.get_id(), self.deserialize_primitive_type_sequence()?),
+            TypeKind::FLOAT32 => dynamic_data
+                .set_float32_values(member.get_id(), self.deserialize_primitive_type_sequence()?),
+            TypeKind::FLOAT64 => dynamic_data
+                .set_float64_values(member.get_id(), self.deserialize_primitive_type_sequence()?),
             TypeKind::FLOAT128 => todo!(),
-            TypeKind::INT8 => todo!(),
-            TypeKind::UINT8 => dynamic_data.set_uint8_values(
-                member.get_id(),
-                self.deserialize_primitive_type_sequence::<u8>()?,
-            ),
-            TypeKind::CHAR8 => todo!(),
+            TypeKind::INT8 => dynamic_data
+                .set_int8_values(member.get_id(), self.deserialize_primitive_type_sequence()?),
+            TypeKind::UINT8 => dynamic_data
+                .set_uint8_values(member.get_id(), self.deserialize_primitive_type_sequence()?),
+            TypeKind::CHAR8 => dynamic_data
+                .set_char8_values(member.get_id(), self.deserialize_primitive_type_sequence()?),
             TypeKind::CHAR16 => todo!(),
             TypeKind::STRING8 => {
                 dynamic_data.set_string_values(member.get_id(), self.deserialize_string_sequence()?)
