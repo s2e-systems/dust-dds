@@ -30,8 +30,7 @@ use crate::{
         status_condition::DcpsStatusCondition,
         status_condition_mail::DcpsStatusConditionMail,
         xtypes_glue::key_and_instance_handle::{
-            get_instance_handle_from_dynamic_data, get_instance_handle_from_serialized_key,
-            get_serialized_key_from_serialized_foo,
+            get_instance_handle_from_dynamic_data, get_serialized_key_from_dynamic_data,
         },
     },
     dds_async::{
@@ -1860,14 +1859,9 @@ where
         else {
             return Err(DdsError::AlreadyDeleted);
         };
-        let serialized_key = match get_serialized_key_from_serialized_foo(dynamic_data) {
-            Ok(k) => k,
-            Err(e) => {
-                return Err(e.into());
-            }
-        };
+
         data_writer
-            .unregister_w_timestamp(serialized_key, timestamp)
+            .unregister_w_timestamp(dynamic_data, timestamp)
             .await
     }
 
@@ -6163,7 +6157,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
         }
 
         self.last_change_sequence_number += 1;
-        let serialized_key = get_serialized_key_from_serialized_foo(dynamic_data)?;
+        let serialized_key = get_serialized_key_from_dynamic_data(dynamic_data)?;
         let cache_change = CacheChange {
             kind: ChangeKind::NotAliveDisposed,
             writer_guid: self.transport_writer.guid(),
@@ -6182,7 +6176,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
 
     pub async fn unregister_w_timestamp(
         &mut self,
-        serialized_key: Vec<u8>,
+        dynamic_data: DynamicData,
         timestamp: Time,
     ) -> DdsResult<()> {
         if !self.enabled {
@@ -6208,8 +6202,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
             return Err(DdsError::IllegalOperation);
         }
 
-        let instance_handle =
-            get_instance_handle_from_serialized_key(&serialized_key, self.type_support.as_ref())?;
+        let instance_handle = get_instance_handle_from_dynamic_data(dynamic_data.clone())?;
         if !self.registered_instance_list.contains(&instance_handle) {
             return Err(DdsError::BadParameter);
         }
@@ -6223,7 +6216,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
         }
 
         self.last_change_sequence_number += 1;
-
+        let serialized_key = get_serialized_key_from_dynamic_data(dynamic_data)?;
         let cache_change = CacheChange {
             kind: ChangeKind::NotAliveDisposed,
             writer_guid: self.transport_writer.guid(),
