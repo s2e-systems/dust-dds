@@ -19,7 +19,7 @@ impl Write for Vec<u8> {
     }
 }
 
-pub trait EncodingVersion {
+trait EncodingVersion {
     const MAX_ALIGN: usize;
 }
 struct EncodingVersion1;
@@ -32,7 +32,7 @@ impl EncodingVersion for EncodingVersion2 {
     const MAX_ALIGN: usize = 4;
 }
 
-pub struct Writer<W, E, V> {
+struct Writer<W, E, V> {
     buffer: W,
     position: usize,
     _endianness: E,
@@ -68,7 +68,7 @@ impl<W: Write, E, V: EncodingVersion> Write for Writer<W, E, V> {
     }
 }
 
-pub trait PlainCdrSerialize {
+trait PlainCdrSerialize {
     fn serialize<W: Write, E: EndiannessWrite, V: EncodingVersion>(
         self,
         writer: &mut Writer<W, E, V>,
@@ -186,7 +186,7 @@ impl PlainCdrSerialize for &[u8] {
         E::write_slice_u8(self, writer);
     }
 }
-pub trait EndiannessWrite {
+trait EndiannessWrite {
     fn write_bool<C: Write>(v: bool, writer: &mut C) {
         writer.write(&[v as u8]);
     }
@@ -314,7 +314,7 @@ impl<W: Write> XTypesSerialize<W> for PlCdrSerializer<W> {
 }
 
 /// A trait representing an object with the capability of serializing a value into a CDR format.
-pub trait XTypesSerializer {
+trait XTypesSerializer {
 
     fn serialize_dynamic_data(&mut self, dynamic_data: &DynamicData) -> XTypesResult<()> {
         // todo header CDR type
