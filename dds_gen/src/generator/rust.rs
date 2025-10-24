@@ -332,7 +332,7 @@ fn enum_dcl(pair: IdlPair, writer: &mut String) {
         .clone()
         .find(|p| p.as_rule() == Rule::identifier)
         .expect("Must have an identifier according to the grammar");
-    writer.push_str("#[derive(Debug)]\n");
+    writer.push_str("#[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]\n");
     writer.push_str("pub enum ");
     generate_rust_source(identifier, writer);
     writer.push('{');
@@ -912,24 +912,6 @@ mod tests {
         generate_rust_source(p, &mut out);
         println!("RESULT: {}", out);
         assert_eq!("pub a:Vec<Vec<u8>>,", &out);
-    }
-
-    #[test]
-    fn parse_enum() {
-        let mut out = String::new();
-        let p = IdlParser::parse(
-            Rule::enum_dcl,
-            "enum Suits { Spades, Hearts, Diamonds, Clubs };",
-        )
-        .unwrap()
-        .next()
-        .unwrap();
-        generate_rust_source(p, &mut out);
-        println!("RESULT: {}", out);
-        assert_eq!(
-            "#[derive(Debug)]\npub enum Suits{Spades,Hearts,Diamonds,Clubs,}",
-            &out
-        );
     }
 
     #[test]

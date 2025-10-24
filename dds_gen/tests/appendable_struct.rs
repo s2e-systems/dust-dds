@@ -47,7 +47,7 @@ fn module_generation() {
         r#"
         pub mod Game {
             pub mod Chess {
-                #[derive(Debug)]
+                #[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]
                 pub enum ChessPiece {
                     Pawn,
                     Rook,
@@ -63,7 +63,7 @@ fn module_generation() {
                 }
             }
             pub mod Cards {
-                #[derive(Debug)]
+                #[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]
                 pub enum Suit {
                     Spades,
                     Hearts,
@@ -100,7 +100,7 @@ fn nested_types() {
 
     let expected = syn::parse2::<File>(
         r#"
-            #[derive(Debug)]
+            #[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]
             pub enum Presence {
                 Present,
                 NotPresent,
