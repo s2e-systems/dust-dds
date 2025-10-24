@@ -41,6 +41,7 @@ impl RtpsStatefulReader {
         self.guid
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn add_matched_writer(&mut self, writer_proxy: &WriterProxy) {
         let rtps_writer_proxy = RtpsWriterProxy::new(
             writer_proxy.remote_writer_guid,
@@ -60,17 +61,20 @@ impl RtpsStatefulReader {
         }
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn delete_matched_writer(&mut self, writer_guid: Guid) {
         self.matched_writers
             .retain(|x| x.remote_writer_guid() != writer_guid)
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn matched_writer_lookup(&mut self, a_writer_guid: Guid) -> Option<&mut RtpsWriterProxy> {
         self.matched_writers
             .iter_mut()
             .find(|x| x.remote_writer_guid() == a_writer_guid)
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn on_data_submessage_received(
         &mut self,
         data_submessage: &DataSubmessage,
@@ -117,6 +121,7 @@ impl RtpsStatefulReader {
         }
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn on_data_frag_submessage_received(
         &mut self,
         data_frag_submessage: &DataFragSubmessage,
@@ -139,6 +144,7 @@ impl RtpsStatefulReader {
         }
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn on_gap_submessage_received(
         &mut self,
         gap_submessage: &GapSubmessage,
@@ -160,6 +166,7 @@ impl RtpsStatefulReader {
         }
     }
 
+    #[tracing::instrument(skip(self, message_writer))]
     pub async fn on_heartbeat_submessage_received(
         &mut self,
         heartbeat_submessage: &HeartbeatSubmessage,
@@ -187,6 +194,7 @@ impl RtpsStatefulReader {
         }
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn on_heartbeat_frag_submessage_received(
         &mut self,
         heartbeat_frag_submessage: &HeartbeatFragSubmessage,
@@ -205,6 +213,7 @@ impl RtpsStatefulReader {
         }
     }
 
+    #[tracing::instrument(skip(self, message_writer))]
     pub async fn process_message(
         &mut self,
         datagram: &[u8],

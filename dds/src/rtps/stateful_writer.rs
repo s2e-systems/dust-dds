@@ -48,15 +48,18 @@ impl RtpsStatefulWriter {
         self.data_max_size_serialized
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn add_change(&mut self, cache_change: CacheChange) {
         self.changes.push(cache_change);
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn remove_change(&mut self, sequence_number: SequenceNumber) {
         self.changes
             .retain(|cc| cc.sequence_number != sequence_number);
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn is_change_acknowledged(&self, sequence_number: SequenceNumber) -> bool {
         !self
             .matched_readers
@@ -65,6 +68,7 @@ impl RtpsStatefulWriter {
             .any(|rp| rp.unacked_changes(Some(sequence_number)))
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn add_matched_reader(&mut self, reader_proxy: &ReaderProxy) {
         let first_relevant_sample_seq_num = match reader_proxy.durability_kind {
             DurabilityKind::Volatile => self
@@ -99,11 +103,13 @@ impl RtpsStatefulWriter {
         }
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn delete_matched_reader(&mut self, reader_guid: Guid) {
         self.matched_readers
             .retain(|rp| rp.remote_reader_guid() != reader_guid);
     }
 
+    #[tracing::instrument(skip(self, message_writer, clock))]
     pub async fn write_message(&mut self, message_writer: &impl WriteMessage, clock: &impl Clock) {
         for reader_proxy in &mut self.matched_readers {
             match reader_proxy.reliability() {
@@ -135,6 +141,7 @@ impl RtpsStatefulWriter {
         }
     }
 
+    #[tracing::instrument(skip(self, message_writer, clock))]
     pub async fn on_acknack_submessage_received(
         &mut self,
         acknack_submessage: &AckNackSubmessage,
@@ -175,6 +182,7 @@ impl RtpsStatefulWriter {
         }
     }
 
+    #[tracing::instrument(skip(self, message_writer, clock))]
     pub async fn on_nack_frag_submessage_received(
         &mut self,
         nackfrag_submessage: &NackFragSubmessage,
@@ -212,6 +220,7 @@ impl RtpsStatefulWriter {
         }
     }
 
+    #[tracing::instrument(skip(self, message_writer, clock))]
     pub async fn process_message(
         &mut self,
         datagram: &[u8],

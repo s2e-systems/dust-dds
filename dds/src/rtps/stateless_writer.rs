@@ -31,28 +31,34 @@ impl RtpsStatelessWriter {
         self.guid
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn add_change(&mut self, cache_change: CacheChange) {
         self.changes.push(cache_change);
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn remove_change(&mut self, sequence_number: SequenceNumber) {
         self.changes
             .retain(|cc| cc.sequence_number != sequence_number);
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn reader_locator_add(&mut self, locator: Locator) {
         self.reader_locators
             .push(RtpsReaderLocator::new(locator, false));
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn reader_locator_remove(&mut self, locator: Locator) {
         self.reader_locators.retain(|x| x.locator() != locator);
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn reader_locator_list(&mut self) -> &mut [RtpsReaderLocator] {
         &mut self.reader_locators
     }
 
+    #[tracing::instrument(skip(self, message_writer))]
     pub async fn behavior(&mut self, message_writer: &mut impl WriteMessage) {
         for reader_locator in &mut self.reader_locators {
             while let Some(unsent_change_seq_num) =
