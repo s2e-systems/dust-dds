@@ -40,7 +40,7 @@ fn main() {
     // Create a tracer provider with the exporter
     let provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
         .with_resource(resource)
-        .with_simple_exporter(otlp_exporter)
+        .with_batch_exporter(otlp_exporter)
         .build();
 
     let tracer = provider.tracer("dust-dds");
@@ -141,4 +141,7 @@ fn main() {
 
     assert_eq!(samples.len(), 1);
     assert_eq!(samples[0].data().unwrap(), data);
+
+    provider.shutdown().unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(10));
 }
