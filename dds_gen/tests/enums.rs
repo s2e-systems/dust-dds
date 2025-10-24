@@ -13,7 +13,7 @@ fn enums_generation() {
                 Spades,
                 Hearts,
                 Diamonds,
-                Clubs
+                Clubs,
             }
     "#
         .parse()
@@ -21,13 +21,8 @@ fn enums_generation() {
     )
     .unwrap();
 
-    let result = syn::parse2::<File>(
-        dust_dds_gen::compile_idl(idl_file)
-            .unwrap()
-            .parse()
-            .unwrap(),
-    )
-    .unwrap();
+    let generated_string = dust_dds_gen::compile_idl(idl_file).unwrap();
+    let result = syn::parse2::<File>(generated_string.parse().unwrap()).unwrap();
 
-    assert_eq!(result, expected);
+    assert_eq!(result, expected, "Generated {generated_string}");
 }
