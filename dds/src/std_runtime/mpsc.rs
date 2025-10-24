@@ -7,8 +7,8 @@ use std::{
 };
 
 use crate::{
-    runtime::{ChannelReceive, ChannelSend},
     infrastructure::error::{DdsError, DdsResult},
+    runtime::{ChannelReceive, ChannelSend},
 };
 
 pub fn mpsc_channel<T>() -> (MpscSender<T>, MpscReceiver<T>) {

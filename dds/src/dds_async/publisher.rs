@@ -4,8 +4,7 @@ use crate::{
         actor::Actor,
         domain_participant_mail::{DcpsDomainParticipantMail, PublisherServiceMail},
         listeners::{
-            data_writer_listener::DcpsDataWriterListener,
-            publisher_listener::DcpsPublisherListener,
+            data_writer_listener::DcpsDataWriterListener, publisher_listener::DcpsPublisherListener,
         },
         status_condition::DcpsStatusCondition,
     },
@@ -68,8 +67,8 @@ impl<R: DdsRuntime> PublisherAsync<R> {
             self.participant.spawner_handle(),
         );
         let writer_status_condition_address = status_condition.address();
-        let listener_sender = a_listener
-            .map(|l| DcpsDataWriterListener::spawn(l, self.participant.spawner_handle()));
+        let listener_sender =
+            a_listener.map(|l| DcpsDataWriterListener::spawn(l, self.participant.spawner_handle()));
         let (reply_sender, reply_receiver) = R::oneshot();
         self.participant_address()
             .send(DcpsDomainParticipantMail::Publisher(

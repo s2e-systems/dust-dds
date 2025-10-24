@@ -68,6 +68,7 @@ jobs:
       - checkout
       - run: cargo --version
       - run: cargo clippy -- -D warnings
+      - run: cargo fmt --check
   benchmark:
     docker:
       - image: cimg/rust:1.87.0

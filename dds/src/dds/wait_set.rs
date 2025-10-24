@@ -1,8 +1,8 @@
 use super::condition::StatusCondition;
 use crate::{
-    runtime::DdsRuntime,
     dds_async::wait_set::{ConditionAsync, WaitSetAsync},
     infrastructure::{error::DdsResult, time::Duration},
+    runtime::DdsRuntime,
 };
 use alloc::vec::Vec;
 

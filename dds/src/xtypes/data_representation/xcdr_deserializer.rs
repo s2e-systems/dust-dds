@@ -388,10 +388,13 @@ mod tests {
         assert_eq!(
             DynamicData::xcdr_deserialize(
                 Sequence::get_type(),
-                &mut Cdr1Deserializer::new(&[
-                    0, 0, 0, 2, // length
-                    1, 2, 77
-                ], BigEndian)
+                &mut Cdr1Deserializer::new(
+                    &[
+                        0, 0, 0, 2, // length
+                        1, 2, 77
+                    ],
+                    BigEndian
+                )
             )
             .unwrap(),
             expected

@@ -76,7 +76,9 @@ impl<R: DdsRuntime> StatusConditionAsync<R> {
     pub async fn get_trigger_value(&self) -> DdsResult<bool> {
         let (reply_sender, reply_receiver) = R::oneshot();
         self.address
-            .send_actor_mail(DcpsStatusConditionMail::GetStatusConditionTriggerValue { reply_sender })
+            .send_actor_mail(DcpsStatusConditionMail::GetStatusConditionTriggerValue {
+                reply_sender,
+            })
             .await?;
         reply_receiver.receive().await
     }

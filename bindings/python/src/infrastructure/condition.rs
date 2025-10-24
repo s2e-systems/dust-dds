@@ -6,13 +6,19 @@ use super::{error::into_pyerr, status::StatusKind};
 #[derive(Clone)]
 pub struct StatusCondition(dust_dds::condition::StatusCondition<dust_dds::std_runtime::StdRuntime>);
 
-impl From<dust_dds::condition::StatusCondition<dust_dds::std_runtime::StdRuntime>> for StatusCondition {
-    fn from(value: dust_dds::condition::StatusCondition<dust_dds::std_runtime::StdRuntime>) -> Self {
+impl From<dust_dds::condition::StatusCondition<dust_dds::std_runtime::StdRuntime>>
+    for StatusCondition
+{
+    fn from(
+        value: dust_dds::condition::StatusCondition<dust_dds::std_runtime::StdRuntime>,
+    ) -> Self {
         Self(value)
     }
 }
 
-impl From<StatusCondition> for dust_dds::condition::StatusCondition<dust_dds::std_runtime::StdRuntime> {
+impl From<StatusCondition>
+    for dust_dds::condition::StatusCondition<dust_dds::std_runtime::StdRuntime>
+{
     fn from(value: StatusCondition) -> Self {
         value.0
     }

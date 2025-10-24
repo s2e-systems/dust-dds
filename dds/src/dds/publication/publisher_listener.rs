@@ -1,10 +1,10 @@
 use crate::{
-    runtime::DdsRuntime,
     dds_async::data_writer::DataWriterAsync,
     infrastructure::status::{
         LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
         PublicationMatchedStatus,
     },
+    runtime::DdsRuntime,
 };
 use core::future::Future;
 

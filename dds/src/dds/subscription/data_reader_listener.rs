@@ -1,10 +1,10 @@
 use crate::{
-    runtime::DdsRuntime,
     dds_async::data_reader::DataReaderAsync,
     infrastructure::status::{
         LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
         SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus,
     },
+    runtime::DdsRuntime,
 };
 use core::future::Future;
 

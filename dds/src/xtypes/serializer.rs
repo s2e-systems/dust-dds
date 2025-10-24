@@ -1122,12 +1122,20 @@ mod tests {
     #[test]
     fn serialize_appendable_struct() {
         let v = AppendableType { value: 7 };
-        assert_eq!(serialize_v1_be(v.clone()), vec![
+        assert_eq!(
+            serialize_v1_be(v.clone()),
+            vec![
                 0x00, 0x00, 0x00, 0x00, // CDR Header
-                0, 7]);
-        assert_eq!(serialize_v1_le(v.clone()), vec![
+                0, 7
+            ]
+        );
+        assert_eq!(
+            serialize_v1_le(v.clone()),
+            vec![
                 0x00, 0x01, 0x00, 0x00, // CDR Header
-                7, 0]);
+                7, 0
+            ]
+        );
         assert_eq!(
             serialize_v2_be(v.clone()),
             vec![
@@ -1395,199 +1403,199 @@ mod rtps_pl_tests {
     use crate::infrastructure::type_support::TypeSupport;
     extern crate std;
 
-        fn test_serialize_type_support<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
-            RtpsPlCdrSerializer::serialize(Vec::new(), &v.create_dynamic_sample()).unwrap()
-        }
+    fn test_serialize_type_support<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
+        RtpsPlCdrSerializer::serialize(Vec::new(), &v.create_dynamic_sample()).unwrap()
+    }
 
+    #[derive(TypeSupport)]
+    #[dust_dds(extensibility = "mutable")]
+    struct MutableBasicType {
+        #[dust_dds(id = 10)]
+        field_u16: u16,
+        #[dust_dds(id = 20)]
+        field_u8: u8,
+    }
+
+    #[test]
+    fn serialize_mutable_struct() {
+        let v = MutableBasicType {
+            field_u16: 7,
+            field_u8: 8,
+        };
+        assert_eq!(
+            test_serialize_type_support(v),
+            vec![
+                0x00, 0x03, 0x00, 0x00, // CDR Header
+                10, 0, 4, 0, // PID | length
+                7, 0, 0, 0, // field_u16 | padding (2 bytes)
+                20, 0, 4, 0, // PID | length
+                8, 0, 0, 0, // field_u8 | padding (3 bytes)
+                1, 0, 0, 0, // Sentinel
+            ]
+        );
+    }
+
+    #[derive(TypeSupport)]
+    struct Time {
+        sec: u32,
+        nanosec: i32,
+    }
+
+    #[derive(TypeSupport)]
+    #[dust_dds(extensibility = "mutable")]
+    struct MutableTimeType {
+        #[dust_dds(id = 30)]
+        field_time: Time,
+    }
+
+    #[test]
+    fn serialize_mutable_time_struct() {
+        let v = MutableTimeType {
+            field_time: Time { sec: 5, nanosec: 6 },
+        };
+        assert_eq!(
+            test_serialize_type_support(v),
+            vec![
+                0x00, 0x03, 0x00, 0x00, // CDR Header
+                30, 0, 8, 0, // PID | length
+                5, 0, 0, 0, // Time: sec
+                6, 0, 0, 0, // Time: nanosec
+                1, 0, 0, 0, // Sentinel
+            ]
+        );
+    }
+
+    #[derive(TypeSupport)]
+    #[dust_dds(extensibility = "mutable")]
+    struct MutableCollectionType {
+        #[dust_dds(id = 30)]
+        field_times: Vec<Time>,
+    }
+
+    #[test]
+    fn serialize_mutable_collection_struct() {
+        let v = MutableCollectionType {
+            field_times: vec![Time { sec: 5, nanosec: 6 }, Time { sec: 7, nanosec: 8 }],
+        };
+        assert_eq!(
+            test_serialize_type_support(v),
+            vec![
+                0x00, 0x03, 0x00, 0x00, // CDR Header
+                30, 0, 8, 0, // PID | length
+                5, 0, 0, 0, // Time: sec
+                6, 0, 0, 0, // Time: nanosec
+                30, 0, 8, 0, // PID | length
+                7, 0, 0, 0, // Time: sec
+                8, 0, 0, 0, // Time: nanosec
+                1, 0, 0, 0, // Sentinel
+            ]
+        );
+    }
+
+    #[test]
+    fn serialize_string() {
         #[derive(TypeSupport)]
         #[dust_dds(extensibility = "mutable")]
-        struct MutableBasicType {
-            #[dust_dds(id = 10)]
-            field_u16: u16,
-            #[dust_dds(id = 20)]
-            field_u8: u8,
+        struct StringData {
+            #[dust_dds(id = 41)]
+            name: String,
         }
 
-        #[test]
-        fn serialize_mutable_struct() {
-            let v = MutableBasicType {
-                field_u16: 7,
-                field_u8: 8,
-            };
-            assert_eq!(
-                test_serialize_type_support(v),
-                vec![
-                    0x00, 0x03, 0x00, 0x00, // CDR Header
-                    10, 0, 4, 0, // PID | length
-                    7, 0, 0, 0, // field_u16 | padding (2 bytes)
-                    20, 0, 4, 0, // PID | length
-                    8, 0, 0, 0, // field_u8 | padding (3 bytes)
-                    1, 0, 0, 0, // Sentinel
-                ]
-            );
-        }
+        let v = StringData {
+            name: "one".to_string(),
+        };
+        assert_eq!(
+            test_serialize_type_support(v),
+            vec![
+                0x00, 0x03, 0x00, 0x00, // CDR Header
+                41, 0x00, 8, 0, // PID, length
+                4, 0, 0, 0, // String length
+                b'o', b'n', b'e', 0, // String
+                1, 0, 0, 0, // Sentinel
+            ]
+        );
+    }
 
-        #[derive(TypeSupport)]
-        struct Time {
-            sec: u32,
-            nanosec: i32,
-        }
-
+    #[test]
+    fn serialize_string_list() {
         #[derive(TypeSupport)]
         #[dust_dds(extensibility = "mutable")]
-        struct MutableTimeType {
-            #[dust_dds(id = 30)]
-            field_time: Time,
+        struct StringList {
+            #[dust_dds(id = 41)]
+            name: Vec<String>,
         }
 
-        #[test]
-        fn serialize_mutable_time_struct() {
-            let v = MutableTimeType {
-                field_time: Time { sec: 5, nanosec: 6 },
-            };
-            assert_eq!(
-                test_serialize_type_support(v),
-                vec![
-                    0x00, 0x03, 0x00, 0x00, // CDR Header
-                    30, 0, 8, 0, // PID | length
-                    5, 0, 0, 0, // Time: sec
-                    6, 0, 0, 0, // Time: nanosec
-                    1, 0, 0, 0, // Sentinel
-                ]
-            );
-        }
+        let v = StringList {
+            name: vec!["one".to_string(), "two".to_string()],
+        };
+        assert_eq!(
+            test_serialize_type_support(v),
+            vec![
+                0x00, 0x03, 0x00, 0x00, // CDR Header
+                41, 0x00, 20, 0, // PID, length
+                2, 0, 0, 0, // vec length
+                4, 0, 0, 0, // String length
+                b'o', b'n', b'e', 0, // String
+                4, 0, 0, 0, // String length
+                b't', b'w', b'o', 0, // String
+                1, 0, 0, 0, // Sentinel
+            ]
+        );
+    }
 
+    #[test]
+    fn serialize_u8_array() {
         #[derive(TypeSupport)]
         #[dust_dds(extensibility = "mutable")]
-        struct MutableCollectionType {
-            #[dust_dds(id = 30)]
-            field_times: Vec<Time>,
+        struct U8Array {
+            #[dust_dds(id = 41)]
+            version: [u8; 2],
         }
 
-        #[test]
-        fn serialize_mutable_collection_struct() {
-            let v = MutableCollectionType {
-                field_times: vec![Time { sec: 5, nanosec: 6 }, Time { sec: 7, nanosec: 8 }],
-            };
-            assert_eq!(
-                test_serialize_type_support(v),
-                vec![
-                    0x00, 0x03, 0x00, 0x00, // CDR Header
-                    30, 0, 8, 0, // PID | length
-                    5, 0, 0, 0, // Time: sec
-                    6, 0, 0, 0, // Time: nanosec
-                    30, 0, 8, 0, // PID | length
-                    7, 0, 0, 0, // Time: sec
-                    8, 0, 0, 0, // Time: nanosec
-                    1, 0, 0, 0, // Sentinel
-                ]
-            );
+        let v = U8Array { version: [1, 2] };
+        assert_eq!(
+            test_serialize_type_support(v),
+            vec![
+                0x00, 0x03, 0x00, 0x00, // CDR Header
+                41, 0x00, 4, 0, // PID, length
+                1, 2, 0, 0, // version | padding (2 bytres)
+                1, 0, 0, 0, // Sentinel
+            ]
+        );
+    }
+
+    #[test]
+    fn serialize_locator() {
+        #[derive(TypeSupport)]
+        struct Locator {
+            kind: i32,
+            port: u32,
+            address: [u8; 4],
+        }
+        #[derive(TypeSupport)]
+        #[dust_dds(extensibility = "mutable")]
+        struct LocatorContainer {
+            #[dust_dds(id = 41)]
+            locator: Locator,
         }
 
-        #[test]
-        fn serialize_string() {
-            #[derive(TypeSupport)]
-            #[dust_dds(extensibility = "mutable")]
-            struct StringData {
-                #[dust_dds(id = 41)]
-                name: String,
-            }
-
-            let v = StringData {
-                name: "one".to_string(),
-            };
-            assert_eq!(
-                test_serialize_type_support(v),
-                vec![
-                    0x00, 0x03, 0x00, 0x00, // CDR Header
-                    41, 0x00, 8, 0, // PID, length
-                    4, 0, 0, 0, // String length
-                    b'o', b'n', b'e', 0, // String
-                    1, 0, 0, 0, // Sentinel
-                ]
-            );
-        }
-
-        #[test]
-        fn serialize_string_list() {
-            #[derive(TypeSupport)]
-            #[dust_dds(extensibility = "mutable")]
-            struct StringList {
-                #[dust_dds(id = 41)]
-                name: Vec<String>,
-            }
-
-            let v = StringList {
-                name: vec!["one".to_string(), "two".to_string()],
-            };
-            assert_eq!(
-                test_serialize_type_support(v),
-                vec![
-                    0x00, 0x03, 0x00, 0x00, // CDR Header
-                    41, 0x00, 20, 0, // PID, length
-                    2, 0, 0, 0, // vec length
-                    4, 0, 0, 0, // String length
-                    b'o', b'n', b'e', 0, // String
-                    4, 0, 0, 0, // String length
-                    b't', b'w', b'o', 0, // String
-                    1, 0, 0, 0, // Sentinel
-                ]
-            );
-        }
-
-        #[test]
-        fn serialize_u8_array() {
-            #[derive(TypeSupport)]
-            #[dust_dds(extensibility = "mutable")]
-            struct U8Array {
-                #[dust_dds(id = 41)]
-                version: [u8; 2],
-            }
-
-            let v = U8Array { version: [1, 2] };
-            assert_eq!(
-                test_serialize_type_support(v),
-                vec![
-                    0x00, 0x03, 0x00, 0x00, // CDR Header
-                    41, 0x00, 4, 0, // PID, length
-                    1, 2, 0, 0, // version | padding (2 bytres)
-                    1, 0, 0, 0, // Sentinel
-                ]
-            );
-        }
-
-        #[test]
-        fn serialize_locator() {
-            #[derive(TypeSupport)]
-            struct Locator {
-                kind: i32,
-                port: u32,
-                address: [u8; 4],
-            }
-            #[derive(TypeSupport)]
-            #[dust_dds(extensibility = "mutable")]
-            struct LocatorContainer {
-                #[dust_dds(id = 41)]
-                locator: Locator,
-            }
-
-            let v = LocatorContainer {
-                locator: Locator {
-                    kind: 1,
-                    port: 2,
-                    address: [7; 4],
-                },
-            };
-            assert_eq!(
-                test_serialize_type_support(v),
-                vec![
-                    0x00, 0x03, 0x00, 0x00, // CDR Header
-                    41, 0x00, 12, 0, // PID, length
-                    1, 0, 0, 0, // kind
-                    2, 0, 0, 0, // port
-                    7, 7, 7, 7, // address
-                    1, 0, 0, 0, // Sentinel
-                ]
-            );
-        }
+        let v = LocatorContainer {
+            locator: Locator {
+                kind: 1,
+                port: 2,
+                address: [7; 4],
+            },
+        };
+        assert_eq!(
+            test_serialize_type_support(v),
+            vec![
+                0x00, 0x03, 0x00, 0x00, // CDR Header
+                41, 0x00, 12, 0, // PID, length
+                1, 0, 0, 0, // kind
+                2, 0, 0, 0, // port
+                7, 7, 7, 7, // address
+                1, 0, 0, 0, // Sentinel
+            ]
+        );
+    }
 }
