@@ -49,7 +49,7 @@ pub fn get_instance_handle_from_dynamic_data(
     };
     dynamic_data.clear_nonkey_values()?;
     dynamic_data.make_descriptor_extensibility_kind_final();
-    let key = Xcdr2BeSerializer::serialize(md5_collection, &dynamic_data)?.into_key();
+    let key = Xcdr2BeSerializer::serialize_without_header(md5_collection, &dynamic_data)?.into_key();
     Ok(InstanceHandle::new(key))
 }
 

@@ -42,10 +42,10 @@ const CDR2_BE: RepresentationIdentifier = [0x00, 0x06];
 const CDR2_LE: RepresentationIdentifier = [0x00, 0x07];
 const D_CDR2_BE: RepresentationIdentifier = [0x00, 0x08];
 const D_CDR2_LE: RepresentationIdentifier = [0x00, 0x09];
-const _PL_CDR_BE: RepresentationIdentifier = [0x00, 0x02];
+const PL_CDR_BE: RepresentationIdentifier = [0x00, 0x02];
 const PL_CDR_LE: RepresentationIdentifier = [0x00, 0x03];
-const PL_CDR2_BE: RepresentationIdentifier = [0x00, 0x02];
-const PL_CDR2_LE: RepresentationIdentifier = [0x00, 0x03];
+const PL_CDR2_BE: RepresentationIdentifier = [0x00, 0x0a];
+const PL_CDR2_LE: RepresentationIdentifier = [0x00, 0x0b];
 const REPRESENTATION_OPTIONS: [u8; 2] = [0x00, 0x00];
 
 pub struct Xcdr1BeSerializer;
@@ -54,7 +54,11 @@ impl Xcdr1BeSerializer {
         let mut s = Xcdr1Serializer {
             writer: Writer::new(&mut buffer, BigEndian, EncodingVersion1),
         };
-        s.writer.write_slice(&CDR_BE);
+        match dynamic_data.type_ref().get_descriptor().extensibility_kind {
+            ExtensibilityKind::Final => s.writer.write_slice(&CDR_BE),
+            ExtensibilityKind::Appendable => s.writer.write_slice(&CDR_BE),
+            ExtensibilityKind::Mutable => s.writer.write_slice(&PL_CDR_BE),
+        };
         s.writer.write_slice(&REPRESENTATION_OPTIONS);
         s.writer.position = 0;
         s.serialize_dynamic_data(dynamic_data)?;
@@ -67,7 +71,11 @@ impl Xcdr1LeSerializer {
         let mut s = Xcdr1Serializer {
             writer: Writer::new(&mut buffer, LittleEndian, EncodingVersion1),
         };
-        s.writer.write_slice(&CDR_LE);
+        match dynamic_data.type_ref().get_descriptor().extensibility_kind {
+            ExtensibilityKind::Final => s.writer.write_slice(&CDR_LE),
+            ExtensibilityKind::Appendable => s.writer.write_slice(&CDR_LE),
+            ExtensibilityKind::Mutable => s.writer.write_slice(&PL_CDR_LE),
+        };
         s.writer.write_slice(&REPRESENTATION_OPTIONS);
         s.writer.position = 0;
         s.serialize_dynamic_data(dynamic_data)?;
@@ -90,7 +98,10 @@ impl Xcdr2BeSerializer {
         s.serialize_dynamic_data(dynamic_data)?;
         Ok(buffer)
     }
-    pub fn serialize_without_header<W: Write>(mut buffer: W, dynamic_data: &DynamicData) -> XTypesResult<W> {
+    pub fn serialize_without_header<W: Write>(
+        mut buffer: W,
+        dynamic_data: &DynamicData,
+    ) -> XTypesResult<W> {
         let mut s = Xcdr2Serializer {
             writer: Writer::new(&mut buffer, BigEndian, EncodingVersion2),
         };
@@ -122,13 +133,13 @@ pub struct Xcdr1Serializer<'a, W, E> {
 pub struct Xcdr2Serializer<'a, W, E> {
     writer: Writer<'a, W, E, EncodingVersion2>,
 }
-pub struct PlCdrSerializer<'a, W> {
+pub struct RtpsPlCdrSerializer<'a, W> {
     cdr1_le_serializer: Xcdr1Serializer<'a, W, LittleEndian>,
 }
 
-impl<'a, W: Write> PlCdrSerializer<'a, W> {
+impl<'a, W: Write> RtpsPlCdrSerializer<'a, W> {
     pub fn serialize(mut buffer: W, dynamic_data: &DynamicData) -> XTypesResult<W> {
-        let mut s = PlCdrSerializer {
+        let mut s = RtpsPlCdrSerializer {
             cdr1_le_serializer: Xcdr1Serializer {
                 writer: Writer::new(&mut buffer, LittleEndian, EncodingVersion1),
             },
@@ -374,7 +385,7 @@ fn count_bytes_cdr2(v: &DynamicData, member_id: u32) -> Result<usize, XTypesErro
 
 fn count_bytes_pl_cdr(v: &DynamicData, member_id: u32) -> Result<u16, XTypesError> {
     let mut byte_conter = ByteCounter::new();
-    let mut byte_conter_serializer = PlCdrSerializer {
+    let mut byte_conter_serializer = RtpsPlCdrSerializer {
         cdr1_le_serializer: Xcdr1Serializer {
             writer: Writer::new(&mut byte_conter, LittleEndian, EncodingVersion1),
         },
@@ -385,7 +396,7 @@ fn count_bytes_pl_cdr(v: &DynamicData, member_id: u32) -> Result<u16, XTypesErro
 }
 fn count_bytes_pl_cdr_complex(v: &DynamicData) -> Result<u16, XTypesError> {
     let mut byte_conter = ByteCounter::new();
-    let mut byte_conter_serializer = PlCdrSerializer {
+    let mut byte_conter_serializer = RtpsPlCdrSerializer {
         cdr1_le_serializer: Xcdr1Serializer {
             writer: Writer::new(&mut byte_conter, LittleEndian, EncodingVersion1),
         },
@@ -395,7 +406,7 @@ fn count_bytes_pl_cdr_complex(v: &DynamicData) -> Result<u16, XTypesError> {
     Ok((length + 3) & !3)
 }
 
-impl<'a, W: Write> XTypesSerializer for PlCdrSerializer<'a, W> {
+impl<'a, W: Write> XTypesSerializer for RtpsPlCdrSerializer<'a, W> {
     fn serialize_final_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
         self.cdr1_le_serializer.serialize_final_struct(v)
     }
@@ -815,7 +826,6 @@ mod tests {
             f11: 1.0,
             f12: 'a',
         };
-        // PLAIN_CDR:
         assert_eq!(
             serialize_v1_be(v.clone()),
             vec![
@@ -842,7 +852,6 @@ mod tests {
                 b'a', // f12: char
             ]
         );
-        // //PLAIN_CDR2:
         assert_eq!(
             serialize_v2_be(v.clone()),
             vec![
@@ -879,482 +888,505 @@ mod tests {
         );
     }
 
-    //     #[test]
-    //     fn serialize_u8_array() {
-    //         #[derive(TypeSupport)]
-    //         #[dust_dds(extensibility = "mutable")]
-    //         struct U8Array {
-    //             #[dust_dds(id = 41)]
-    //             version: [u8; 2],
-    //         }
+    #[test]
+    fn serialize_u8_array() {
+        #[derive(TypeSupport)]
+        #[dust_dds(extensibility = "mutable")]
+        struct U8Array {
+            #[dust_dds(id = 41)]
+            version: [u8; 2],
+        }
 
-    //         let v = U8Array { version: [1, 2] };
-    //         assert_eq!(
-    //             serialize_v1_be(v),
-    //             vec![
-    //                 0x00, 41, 0, 2, // PID, length
-    //                 1, 2, 0, 0, // version | padding (2 bytres)
-    //                 0, 1, 0, 0, // Sentinel
-    //             ]
-    //         );
-    //     }
+        let v = U8Array { version: [1, 2] };
+        assert_eq!(
+            serialize_v1_be(v),
+            vec![
+                0x00, 0x00, 0x00, 0x00, // CDR Header
+                0x00, 41, 0, 2, // PID, length
+                1, 2, 0, 0, // version | padding (2 bytres)
+                0, 1, 0, 0, // Sentinel
+            ]
+        );
+    }
 
-    //     #[test]
-    //     fn serialize_locator() {
-    //         #[derive(TypeSupport)]
-    //         #[dust_dds(extensibility = "mutable")]
-    //         struct LocatorContainer {
-    //             #[dust_dds(id = 73)]
-    //             locator: Locator,
-    //         }
-    //         #[derive(TypeSupport)]
-    //         #[dust_dds(extensibility = "final", nested)]
-    //         struct Locator {
-    //             kind: i32,
-    //             address1: [u8; 2],
-    //             address2: [u8; 3],
-    //         }
+    #[test]
+    fn serialize_locator() {
+        #[derive(TypeSupport)]
+        #[dust_dds(extensibility = "mutable")]
+        struct LocatorContainer {
+            #[dust_dds(id = 73)]
+            locator: Locator,
+        }
+        #[derive(TypeSupport)]
+        #[dust_dds(extensibility = "final", nested)]
+        struct Locator {
+            kind: i32,
+            address1: [u8; 2],
+            address2: [u8; 3],
+        }
 
-    //         let v = LocatorContainer {
-    //             locator: Locator {
-    //                 kind: 1,
-    //                 address1: [3, 4],
-    //                 address2: [5, 6, 7],
-    //             },
-    //         };
-    //         assert_eq!(
-    //             serialize_v1_be(v),
-    //             vec![
-    //                 0, 73, 0, 9, // PID | length
-    //                 0, 0, 0, 1, // kind
-    //                 3, 4, 5, 6, // address1 and 2
-    //                 7, 0, 0, 0, // address2 | pading (3 bytes)
-    //                 0, 1, 0, 0
-    //             ]
-    //         );
-    //     }
+        let v = LocatorContainer {
+            locator: Locator {
+                kind: 1,
+                address1: [3, 4],
+                address2: [5, 6, 7],
+            },
+        };
+        assert_eq!(
+            serialize_v1_be(v),
+            vec![
+                0x00, 0x00, 0x00, 0x00, // CDR Header
+                0, 73, 0, 9, // PID | length
+                0, 0, 0, 1, // kind
+                3, 4, 5, 6, // address1 and 2
+                7, 0, 0, 0, // address2 | pading (3 bytes)
+                0, 1, 0, 0
+            ]
+        );
+    }
 
-    //     #[test]
-    //     fn serialize_string() {
-    //         #[derive(TypeSupport, Clone)]
-    //         struct StringData(String);
+    #[test]
+    fn serialize_string() {
+        #[derive(TypeSupport, Clone)]
+        struct StringData(String);
 
-    //         let v = StringData(String::from("Hola"));
-    //         assert_eq!(
-    //             serialize_v1_be(v.clone()),
-    //             vec![
-    //                 0, 0, 0, 5, //length
-    //                 b'H', b'o', b'l', b'a', // str
-    //                 0x00, // terminating 0
-    //             ]
-    //         );
-    //         assert_eq!(
-    //             serialize_v1_le(v.clone()),
-    //             vec![
-    //                 5, 0, 0, 0, //length
-    //                 b'H', b'o', b'l', b'a', // str
-    //                 0x00, // terminating 0
-    //             ]
-    //         );
-    //         assert_eq!(
-    //             serialize_v2_be(v.clone()),
-    //             vec![
-    //                 0, 0, 0, 5, //length
-    //                 b'H', b'o', b'l', b'a', // str
-    //                 0x00, // terminating 0
-    //             ]
-    //         );
-    //         assert_eq!(
-    //             serialize_v2_le(v.clone()),
-    //             vec![
-    //                 5, 0, 0, 0, //length
-    //                 b'H', b'o', b'l', b'a', // str
-    //                 0x00, // terminating 0
-    //             ]
-    //         );
-    //     }
+        let v = StringData(String::from("Hola"));
+        assert_eq!(
+            serialize_v1_be(v.clone()),
+            vec![
+                0x00, 0x00, 0x00, 0x00, // CDR Header
+                0, 0, 0, 5, //length
+                b'H', b'o', b'l', b'a', // str
+                0x00, // terminating 0
+            ]
+        );
+        assert_eq!(
+            serialize_v1_le(v.clone()),
+            vec![
+                0x00, 0x01, 0x00, 0x00, // CDR Header
+                5, 0, 0, 0, //length
+                b'H', b'o', b'l', b'a', // str
+                0x00, // terminating 0
+            ]
+        );
+        assert_eq!(
+            serialize_v2_be(v.clone()),
+            vec![
+                0x00, 0x06, 0x00, 0x00, // CDR Header
+                0, 0, 0, 5, //length
+                b'H', b'o', b'l', b'a', // str
+                0x00, // terminating 0
+            ]
+        );
+        assert_eq!(
+            serialize_v2_le(v.clone()),
+            vec![
+                0x00, 0x07, 0x00, 0x00, // CDR Header
+                5, 0, 0, 0, //length
+                b'H', b'o', b'l', b'a', // str
+                0x00, // terminating 0
+            ]
+        );
+    }
 
-    //     #[test]
-    //     fn serialize_string_list() {
-    //         #[derive(TypeSupport)]
-    //         struct StringList {
-    //             name: Vec<String>,
-    //         }
+    #[test]
+    fn serialize_string_list() {
+        #[derive(TypeSupport)]
+        struct StringList {
+            name: Vec<String>,
+        }
 
-    //         let v = StringList {
-    //             name: vec!["one".to_string(), "two".to_string()],
-    //         };
-    //         assert_eq!(
-    //             serialize_v1_be(v),
-    //             vec![
-    //                 0, 0, 0, 2, // vec length
-    //                 0, 0, 0, 4, // String length
-    //                 b'o', b'n', b'e', 0, // String
-    //                 0, 0, 0, 4, // String length
-    //                 b't', b'w', b'o', 0, // String
-    //             ]
-    //         );
-    //     }
+        let v = StringList {
+            name: vec!["one".to_string(), "two".to_string()],
+        };
+        assert_eq!(
+            serialize_v1_be(v),
+            vec![
+                0x00, 0x00, 0x00, 0x00, // CDR Header
+                0, 0, 0, 2, // vec length
+                0, 0, 0, 4, // String length
+                b'o', b'n', b'e', 0, // String
+                0, 0, 0, 4, // String length
+                b't', b'w', b'o', 0, // String
+            ]
+        );
+    }
 
-    //     #[derive(TypeSupport, Clone)]
-    //     struct FinalType {
-    //         field_u16: u16,
-    //         field_u64: u64,
-    //     }
+    #[derive(TypeSupport, Clone)]
+    struct FinalType {
+        field_u16: u16,
+        field_u64: u64,
+    }
 
-    //     #[test]
-    //     fn serialize_final_struct() {
-    //         let v = FinalType {
-    //             field_u16: 7,
-    //             field_u64: 9,
-    //         };
-    //         // PLAIN_CDR:
-    //         assert_eq!(
-    //             serialize_v1_be(v.clone()),
-    //             vec![
-    //                 0, 7, 0, 0, 0, 0, 0, 0, // field_u16 | padding (6 bytes)
-    //                 0, 0, 0, 0, 0, 0, 0, 9, // field_u64
-    //             ]
-    //         );
-    //         assert_eq!(
-    //             serialize_v1_le(v.clone()),
-    //             vec![
-    //                 7, 0, 0, 0, 0, 0, 0, 0, // field_u16 | padding (6 bytes)
-    //                 9, 0, 0, 0, 0, 0, 0, 0, // field_u64
-    //             ]
-    //         );
-    //         // PLAIN_CDR2:
-    //         assert_eq!(
-    //             serialize_v2_be(v.clone()),
-    //             vec![
-    //                 0, 7, 0, 0, // field_u16 | padding (2 bytes)
-    //                 0, 0, 0, 0, 0, 0, 0, 9, // field_u64
-    //             ]
-    //         );
-    //         assert_eq!(
-    //             serialize_v2_le(v.clone()),
-    //             vec![
-    //                 7, 0, 0, 0, // field_u16 | padding (2 bytes)
-    //                 9, 0, 0, 0, 0, 0, 0, 0, // field_u64
-    //             ]
-    //         );
-    //     }
+    #[test]
+    fn serialize_final_struct() {
+        let v = FinalType {
+            field_u16: 7,
+            field_u64: 9,
+        };
+        // PLAIN_CDR:
+        assert_eq!(
+            serialize_v1_be(v.clone()),
+            vec![
+                0x00, 0x00, 0x00, 0x00, // CDR Header
+                0, 7, 0, 0, 0, 0, 0, 0, // field_u16 | padding (6 bytes)
+                0, 0, 0, 0, 0, 0, 0, 9, // field_u64
+            ]
+        );
+        assert_eq!(
+            serialize_v1_le(v.clone()),
+            vec![
+                0x00, 0x01, 0x00, 0x00, // CDR Header
+                7, 0, 0, 0, 0, 0, 0, 0, // field_u16 | padding (6 bytes)
+                9, 0, 0, 0, 0, 0, 0, 0, // field_u64
+            ]
+        );
+        // PLAIN_CDR2:
+        assert_eq!(
+            serialize_v2_be(v.clone()),
+            vec![
+                0x00, 0x06, 0x00, 0x00, // CDR Header
+                0, 7, 0, 0, // field_u16 | padding (2 bytes)
+                0, 0, 0, 0, 0, 0, 0, 9, // field_u64
+            ]
+        );
+        assert_eq!(
+            serialize_v2_le(v.clone()),
+            vec![
+                0x00, 0x07, 0x00, 0x00, // CDR Header
+                7, 0, 0, 0, // field_u16 | padding (2 bytes)
+                9, 0, 0, 0, 0, 0, 0, 0, // field_u64
+            ]
+        );
+    }
 
-    //     #[derive(TypeSupport, Clone)]
-    //     struct NestedFinalType {
-    //         field_nested: FinalType,
-    //         field_u8: u8,
-    //     }
+    #[derive(TypeSupport, Clone)]
+    struct NestedFinalType {
+        field_nested: FinalType,
+        field_u8: u8,
+    }
 
-    //     #[test]
-    //     fn serialize_nested_final_struct() {
-    //         let v = NestedFinalType {
-    //             field_nested: FinalType {
-    //                 field_u16: 7,
-    //                 field_u64: 9,
-    //             },
-    //             field_u8: 10,
-    //         };
-    //         // PLAIN_CDR:
-    //         assert_eq!(
-    //             serialize_v1_be(v.clone()),
-    //             vec![
-    //                 0, 7, 0, 0, 0, 0, 0, 0, // nested FinalType (u16) | padding (6 bytes)
-    //                 0, 0, 0, 0, 0, 0, 0, 9,  // u64
-    //                 10, //u8
-    //             ]
-    //         );
-    //         assert_eq!(
-    //             serialize_v1_le(v.clone()),
-    //             vec![
-    //                 7, 0, 0, 0, 0, 0, 0, 0, // nested FinalType (u16) | padding (6 bytes)
-    //                 9, 0, 0, 0, 0, 0, 0, 0,  // u64
-    //                 10, //u8
-    //             ]
-    //         );
-    //         // PLAIN_CDR2:
-    //         assert_eq!(
-    //             serialize_v2_le(v.clone()),
-    //             vec![
-    //                 7, 0, 0, 0, // nested FinalType (u16) | padding (2 bytes)
-    //                 9, 0, 0, 0, 0, 0, 0, 0,  // u64
-    //                 10, //u8
-    //             ]
-    //         );
-    //         assert_eq!(
-    //             serialize_v2_be(v.clone()),
-    //             vec![
-    //                 0, 7, 0, 0, // nested FinalType (u16) | padding
-    //                 0, 0, 0, 0, 0, 0, 0, 9,  // u64
-    //                 10, //u8
-    //             ]
-    //         );
-    //     }
+    #[test]
+    fn serialize_nested_final_struct() {
+        let v = NestedFinalType {
+            field_nested: FinalType {
+                field_u16: 7,
+                field_u64: 9,
+            },
+            field_u8: 10,
+        };
+        assert_eq!(
+            serialize_v1_be(v.clone()),
+            vec![
+                0x00, 0x00, 0x00, 0x00, // CDR Header
+                0, 7, 0, 0, 0, 0, 0, 0, // nested FinalType (u16) | padding (6 bytes)
+                0, 0, 0, 0, 0, 0, 0, 9,  // u64
+                10, //u8
+            ]
+        );
+        assert_eq!(
+            serialize_v1_le(v.clone()),
+            vec![
+                0x00, 0x01, 0x00, 0x00, // CDR Header
+                7, 0, 0, 0, 0, 0, 0, 0, // nested FinalType (u16) | padding (6 bytes)
+                9, 0, 0, 0, 0, 0, 0, 0,  // u64
+                10, //u8
+            ]
+        );
+        assert_eq!(
+            serialize_v2_be(v.clone()),
+            vec![
+                0x00, 0x06, 0x00, 0x00, // CDR Header
+                0, 7, 0, 0, // nested FinalType (u16) | padding
+                0, 0, 0, 0, 0, 0, 0, 9,  // u64
+                10, //u8
+            ]
+        );
+        assert_eq!(
+            serialize_v2_le(v.clone()),
+            vec![
+                0x00, 0x07, 0x00, 0x00, // CDR Header
+                7, 0, 0, 0, // nested FinalType (u16) | padding (2 bytes)
+                9, 0, 0, 0, 0, 0, 0, 0,  // u64
+                10, //u8
+            ]
+        );
+    }
 
-    //     #[derive(TypeSupport, Clone)]
-    //     #[dust_dds(extensibility = "appendable", nested)]
-    //     struct AppendableType {
-    //         value: u16,
-    //     }
+    #[derive(TypeSupport, Clone)]
+    #[dust_dds(extensibility = "appendable", nested)]
+    struct AppendableType {
+        value: u16,
+    }
 
-    //     #[test]
-    //     fn serialize_appendable_struct() {
-    //         let v = AppendableType { value: 7 };
-    //         // PLAIN_CDR:
-    //         assert_eq!(serialize_v1_be(v.clone()), vec![0, 7]);
-    //         assert_eq!(serialize_v1_le(v.clone()), vec![7, 0]);
-    //         // DELIMITED_CDR:
-    //         assert_eq!(
-    //             serialize_v2_be(v.clone()),
-    //             vec![
-    //                 0, 0, 0, 2, // DHEADER
-    //                 0, 7 // value
-    //             ]
-    //         );
-    //         assert_eq!(
-    //             serialize_v2_le(v.clone()),
-    //             vec![
-    //                 2, 0, 0, 0, // DHEADER
-    //                 7, 0 // value
-    //             ]
-    //         );
-    //     }
+    #[test]
+    fn serialize_appendable_struct() {
+        let v = AppendableType { value: 7 };
+        assert_eq!(serialize_v1_be(v.clone()), vec![
+                0x00, 0x00, 0x00, 0x00, // CDR Header
+                0, 7]);
+        assert_eq!(serialize_v1_le(v.clone()), vec![
+                0x00, 0x01, 0x00, 0x00, // CDR Header
+                7, 0]);
+        assert_eq!(
+            serialize_v2_be(v.clone()),
+            vec![
+                0x00, 0x08, 0x00, 0x00, // CDR Header
+                0, 0, 0, 2, // DHEADER
+                0, 7 // value
+            ]
+        );
+        assert_eq!(
+            serialize_v2_le(v.clone()),
+            vec![
+                0x00, 0x09, 0x00, 0x00, // CDR Header
+                2, 0, 0, 0, // DHEADER
+                7, 0 // value
+            ]
+        );
+    }
 
-    //     #[derive(TypeSupport, Clone)]
-    //     #[dust_dds(extensibility = "mutable")]
-    //     struct MutableType {
-    //         #[dust_dds(id = 90, key)]
-    //         key: u8,
-    //         #[dust_dds(id = 80)]
-    //         participant_key: u16,
-    //     }
+    #[derive(TypeSupport, Clone)]
+    #[dust_dds(extensibility = "mutable")]
+    struct MutableType {
+        #[dust_dds(id = 90, key)]
+        key: u8,
+        #[dust_dds(id = 80)]
+        participant_key: u16,
+    }
 
-    //     #[test]
-    //     fn serialize_mutable_struct() {
-    //         let v = MutableType {
-    //             key: 7,
-    //             participant_key: 8,
-    //         };
-    //         // PL_CDR:
-    //         assert_eq!(
-    //             serialize_v1_be(v.clone()),
-    //             vec![
-    //                 0x00, 80, 0, 2, // PID | length
-    //                 0, 8, 0, 0, // participant_key | padding (2 bytes)
-    //                 0x00, 90, 0, 1, // PID | length
-    //                 7, 0, 0, 0, // key | padding
-    //                 0, 1, 0, 0, // Sentinel
-    //             ]
-    //         );
-    //         assert_eq!(
-    //             serialize_v1_le(v.clone()),
-    //             vec![
-    //                 0x050, 0x00, 2, 0, // PID | length
-    //                 8, 0, 0, 0, // participant_key | padding (2 bytes)
-    //                 0x05A, 0x00, 1, 0, // PID | length
-    //                 7, 0, 0, 0, // key | padding
-    //                 1, 0, 0, 0, // Sentinel
-    //             ]
-    //         );
-    //         // PL_CDR2:
-    //         assert_eq!(
-    //             serialize_v2_be(v.clone()),
-    //             vec![
-    //                 0x00, 0x050, 0, 2, // PID | length
-    //                 0, 8, 0, 0, // participant_key | padding (2 bytes)
-    //                 0x00, 0x05A, 0, 1, // PID | length
-    //                 7, 0, 0, 0, // key | padding
-    //                 0, 1, 0, 0, // Sentinel
-    //             ]
-    //         );
-    //         assert_eq!(
-    //             serialize_v2_le(v.clone()),
-    //             vec![
-    //                 0x050, 0x00, 2, 0, // PID | length
-    //                 8, 0, 0, 0, // participant_key | padding (2 bytes)
-    //                 0x05A, 0x00, 1, 0, // PID | length
-    //                 7, 0, 0, 0, // key | padding
-    //                 1, 0, 0, 0, // Sentinel
-    //             ]
-    //         );
-    //     }
+    #[test]
+    fn serialize_mutable_struct() {
+        let v = MutableType {
+            key: 7,
+            participant_key: 8,
+        };
+        assert_eq!(
+            serialize_v1_be(v.clone()),
+            vec![
+                0x00, 0x02, 0x00, 0x00, // CDR Header
+                0x00, 80, 0, 2, // PID | length
+                0, 8, 0, 0, // participant_key | padding (2 bytes)
+                0x00, 90, 0, 1, // PID | length
+                7, 0, 0, 0, // key | padding
+                0, 1, 0, 0, // Sentinel
+            ]
+        );
+        assert_eq!(
+            serialize_v1_le(v.clone()),
+            vec![
+                0x00, 0x03, 0x00, 0x00, // CDR Header
+                0x050, 0x00, 2, 0, // PID | length
+                8, 0, 0, 0, // participant_key | padding (2 bytes)
+                0x05A, 0x00, 1, 0, // PID | length
+                7, 0, 0, 0, // key | padding
+                1, 0, 0, 0, // Sentinel
+            ]
+        );
+        assert_eq!(
+            serialize_v2_be(v.clone()),
+            vec![
+                0x00, 0x0a, 0x00, 0x00, // CDR Header
+                0x00, 0x050, 0, 2, // PID | length
+                0, 8, 0, 0, // participant_key | padding (2 bytes)
+                0x00, 0x05A, 0, 1, // PID | length
+                7, 0, 0, 0, // key | padding
+                0, 1, 0, 0, // Sentinel
+            ]
+        );
+        assert_eq!(
+            serialize_v2_le(v.clone()),
+            vec![
+                0x00, 0x0b, 0x00, 0x00, // CDR Header
+                0x050, 0x00, 2, 0, // PID | length
+                8, 0, 0, 0, // participant_key | padding (2 bytes)
+                0x05A, 0x00, 1, 0, // PID | length
+                7, 0, 0, 0, // key | padding
+                1, 0, 0, 0, // Sentinel
+            ]
+        );
+    }
 
-    //     #[derive(TypeSupport, Clone)]
-    //     struct TinyFinalType {
-    //         primitive: u16,
-    //     }
+    #[derive(TypeSupport, Clone)]
+    struct TinyFinalType {
+        primitive: u16,
+    }
 
-    //     #[derive(TypeSupport, Clone)]
-    //     #[dust_dds(extensibility = "mutable")]
-    //     struct NestedMutableType {
-    //         #[dust_dds(id = 96, key)]
-    //         field_primitive: u8,
-    //         #[dust_dds(id = 97)]
-    //         field_mutable: MutableType,
-    //         #[dust_dds(id = 98)]
-    //         field_final: TinyFinalType,
-    //     }
+    #[derive(TypeSupport, Clone)]
+    #[dust_dds(extensibility = "mutable")]
+    struct NestedMutableType {
+        #[dust_dds(id = 96, key)]
+        field_primitive: u8,
+        #[dust_dds(id = 97)]
+        field_mutable: MutableType,
+        #[dust_dds(id = 98)]
+        field_final: TinyFinalType,
+    }
 
-    //     #[test]
-    //     fn serialize_nested_mutable_struct() {
-    //         let v = NestedMutableType {
-    //             field_primitive: 5,
-    //             field_mutable: MutableType {
-    //                 key: 7,
-    //                 participant_key: 8,
-    //             },
-    //             field_final: TinyFinalType { primitive: 9 },
-    //         };
-    //         // PL_CDR:
-    //         assert_eq!(
-    //             serialize_v1_be(v.clone()),
-    //             vec![
-    //                 0x00, 96, 0, 1, // PID | length
-    //                 5, 0, 0, 0, // field_primitive | padding (3 bytes)
-    //                 0x00, 97, 0, 20, // PID | length
-    //                 0x00, 80, 0, 2, // field_mutable: PID | length
-    //                 0, 8, 0, 0, // field_mutable: participant_key | padding (2 bytes)
-    //                 0x00, 90, 0, 1, // field_mutable: PID | length
-    //                 7, 0, 0, 0, // field_mutable: key | padding (3 bytes)
-    //                 0, 1, 0, 0, // field_mutable: Sentinel
-    //                 0x00, 98, 0, 2, // field_mutable: PID | length
-    //                 0, 9, 0, 0, // field_final: primitive | padding (2 bytes)
-    //                 0, 1, 0, 0, // Sentinel
-    //             ]
-    //         );
-    //         assert_eq!(
-    //             serialize_v1_le(v.clone()),
-    //             vec![
-    //                 0x060, 0x00, 1, 0, // PID | length
-    //                 5, 0, 0, 0, // field_primitive | padding (3 bytes)
-    //                 0x061, 0x00, 20, 0, // PID | length
-    //                 0x050, 0x00, 2, 0, // field_mutable: PID | length
-    //                 8, 0, 0, 0, // field_mutable: participant_key | padding (2 bytes)
-    //                 0x05A, 0x00, 1, 0, // field_mutable: PID | length
-    //                 7, 0, 0, 0, // field_mutable: key | padding (3 bytes)
-    //                 1, 0, 0, 0, // field_mutable: Sentinel
-    //                 0x062, 0x00, 2, 0, // field_mutable: PID | length
-    //                 9, 0, 0, 0, // field_final: primitive | padding (2 bytes)
-    //                 1, 0, 0, 0, // Sentinel
-    //             ]
-    //         );
-    //         // PL_CDR2:
-    //         assert_eq!(
-    //             serialize_v2_be(v.clone()),
-    //             vec![
-    //                 0x00, 0x060, 0, 1, // PID | length
-    //                 5, 0, 0, 0, // field_primitive | padding (3 bytes)
-    //                 0x00, 0x061, 0, 20, // PID | length
-    //                 0x00, 0x050, 0, 2, // field_mutable: PID | length
-    //                 0, 8, 0, 0, // field_mutable: participant_key | padding (2 bytes)
-    //                 0x00, 0x05A, 0, 1, // field_mutable: PID | length
-    //                 7, 0, 0, 0, // field_mutable: key | padding (3 bytes)
-    //                 0, 1, 0, 0, // field_mutable: Sentinel
-    //                 0x00, 0x062, 0, 2, // field_mutable: PID | length
-    //                 0, 9, 0, 0, // field_final: primitive | padding (2 bytes)
-    //                 0, 1, 0, 0, // Sentinel
-    //             ]
-    //         );
-    //         assert_eq!(
-    //             serialize_v2_le(v.clone()),
-    //             vec![
-    //                 0x060, 0x00, 1, 0, // PID | length
-    //                 5, 0, 0, 0, // field_primitive | padding (3 bytes)
-    //                 0x061, 0x00, 20, 0, // PID | length
-    //                 0x050, 0x00, 2, 0, // field_mutable: PID | length
-    //                 8, 0, 0, 0, // field_mutable: participant_key | padding (2 bytes)
-    //                 0x05A, 0x00, 1, 0, // field_mutable: PID | length
-    //                 7, 0, 0, 0, // field_mutable: key | padding (3 bytes)
-    //                 1, 0, 0, 0, // field_mutable: Sentinel
-    //                 0x062, 0x00, 2, 0, // field_mutable: PID | length
-    //                 9, 0, 0, 0, // field_final: primitive | padding (2 bytes)
-    //                 1, 0, 0, 0, // Sentinel
-    //             ]
-    //         );
-    //     }
+    #[test]
+    fn serialize_nested_mutable_struct() {
+        let v = NestedMutableType {
+            field_primitive: 5,
+            field_mutable: MutableType {
+                key: 7,
+                participant_key: 8,
+            },
+            field_final: TinyFinalType { primitive: 9 },
+        };
+        // PL_CDR:
+        assert_eq!(
+            serialize_v1_be(v.clone()),
+            vec![
+                0x00, 0x02, 0x00, 0x00, // CDR Header
+                0x00, 96, 0, 1, // PID | length
+                5, 0, 0, 0, // field_primitive | padding (3 bytes)
+                0x00, 97, 0, 20, // PID | length
+                0x00, 80, 0, 2, // field_mutable: PID | length
+                0, 8, 0, 0, // field_mutable: participant_key | padding (2 bytes)
+                0x00, 90, 0, 1, // field_mutable: PID | length
+                7, 0, 0, 0, // field_mutable: key | padding (3 bytes)
+                0, 1, 0, 0, // field_mutable: Sentinel
+                0x00, 98, 0, 2, // field_mutable: PID | length
+                0, 9, 0, 0, // field_final: primitive | padding (2 bytes)
+                0, 1, 0, 0, // Sentinel
+            ]
+        );
+        assert_eq!(
+            serialize_v1_le(v.clone()),
+            vec![
+                0x00, 0x03, 0x00, 0x00, // CDR Header
+                0x060, 0x00, 1, 0, // PID | length
+                5, 0, 0, 0, // field_primitive | padding (3 bytes)
+                0x061, 0x00, 20, 0, // PID | length
+                0x050, 0x00, 2, 0, // field_mutable: PID | length
+                8, 0, 0, 0, // field_mutable: participant_key | padding (2 bytes)
+                0x05A, 0x00, 1, 0, // field_mutable: PID | length
+                7, 0, 0, 0, // field_mutable: key | padding (3 bytes)
+                1, 0, 0, 0, // field_mutable: Sentinel
+                0x062, 0x00, 2, 0, // field_mutable: PID | length
+                9, 0, 0, 0, // field_final: primitive | padding (2 bytes)
+                1, 0, 0, 0, // Sentinel
+            ]
+        );
+        // PL_CDR2:
+        assert_eq!(
+            serialize_v2_be(v.clone()),
+            vec![
+                0x00, 0x0a, 0x00, 0x00, // CDR Header
+                0x00, 0x060, 0, 1, // PID | length
+                5, 0, 0, 0, // field_primitive | padding (3 bytes)
+                0x00, 0x061, 0, 20, // PID | length
+                0x00, 0x050, 0, 2, // field_mutable: PID | length
+                0, 8, 0, 0, // field_mutable: participant_key | padding (2 bytes)
+                0x00, 0x05A, 0, 1, // field_mutable: PID | length
+                7, 0, 0, 0, // field_mutable: key | padding (3 bytes)
+                0, 1, 0, 0, // field_mutable: Sentinel
+                0x00, 0x062, 0, 2, // field_mutable: PID | length
+                0, 9, 0, 0, // field_final: primitive | padding (2 bytes)
+                0, 1, 0, 0, // Sentinel
+            ]
+        );
+        assert_eq!(
+            serialize_v2_le(v.clone()),
+            vec![
+                0x00, 0x0b, 0x00, 0x00, // CDR Header
+                0x060, 0x00, 1, 0, // PID | length
+                5, 0, 0, 0, // field_primitive | padding (3 bytes)
+                0x061, 0x00, 20, 0, // PID | length
+                0x050, 0x00, 2, 0, // field_mutable: PID | length
+                8, 0, 0, 0, // field_mutable: participant_key | padding (2 bytes)
+                0x05A, 0x00, 1, 0, // field_mutable: PID | length
+                7, 0, 0, 0, // field_mutable: key | padding (3 bytes)
+                1, 0, 0, 0, // field_mutable: Sentinel
+                0x062, 0x00, 2, 0, // field_mutable: PID | length
+                9, 0, 0, 0, // field_final: primitive | padding (2 bytes)
+                1, 0, 0, 0, // Sentinel
+            ]
+        );
+    }
 
-    //     // #[derive(TypeSupport, Clone)]
-    //     // struct FinalOptionalType {
-    //     //     field: u8,
-    //     //     #[dust_dds(optional)]
-    //     //     optional_field: i32,
-    //     // }
+    // #[derive(TypeSupport, Clone)]
+    // struct FinalOptionalType {
+    //     field: u8,
+    //     #[dust_dds(optional)]
+    //     optional_field: i32,
+    // }
 
-    //     // #[test]
-    //     // fn serialize_final_optional_struct_some() {
-    //     //     let some = FinalOptionalType {
-    //     //         field: 6,
-    //     //         optional_field: Some(7),
-    //     //     };
-    //     //     //PLAIN_CDR:
-    //     //     assert_eq!(
-    //     //         serialize_v1_be(some.clone()),
-    //     //         vec![
-    //     //             6, 0, 0, 0, // u8 | padding
-    //     //             0, 0, 0, 2, // HEADER (FLAGS+ID | length)
-    //     //             0, 7, // optional_field value
-    //     //         ]
-    //     //     );
-    //     //     assert_eq!(
-    //     //         serialize_v1_le(some.clone()),
-    //     //         vec![
-    //     //             6, 0, 0, 0, // u8 | padding
-    //     //             0, 0, 2, 0, // HEADER (FLAGS+ID | length)
-    //     //             7, 0 // optional_field value
-    //     //         ]
-    //     //     );
-    //     //     //PLAIN_CDR2:
-    //     //     assert_eq!(
-    //     //         serialize_v2_be(some.clone()),
-    //     //         vec![
-    //     //             6, 1, // u8 | boolean for option
-    //     //             0, 7 // optional_field value
-    //     //         ]
-    //     //     );
-    //     //     assert_eq!(
-    //     //         serialize_v2_le(some.clone()),
-    //     //         vec![
-    //     //             6, 1, // u8 | boolean for option
-    //     //             7, 0 // optional_field value
-    //     //         ]
-    //     //     );
-    //     // }
+    // #[test]
+    // fn serialize_final_optional_struct_some() {
+    //     let some = FinalOptionalType {
+    //         field: 6,
+    //         optional_field: Some(7),
+    //     };
+    //     //PLAIN_CDR:
+    //     assert_eq!(
+    //         serialize_v1_be(some.clone()),
+    //         vec![
+    //             6, 0, 0, 0, // u8 | padding
+    //             0, 0, 0, 2, // HEADER (FLAGS+ID | length)
+    //             0, 7, // optional_field value
+    //         ]
+    //     );
+    //     assert_eq!(
+    //         serialize_v1_le(some.clone()),
+    //         vec![
+    //             6, 0, 0, 0, // u8 | padding
+    //             0, 0, 2, 0, // HEADER (FLAGS+ID | length)
+    //             7, 0 // optional_field value
+    //         ]
+    //     );
+    //     //PLAIN_CDR2:
+    //     assert_eq!(
+    //         serialize_v2_be(some.clone()),
+    //         vec![
+    //             6, 1, // u8 | boolean for option
+    //             0, 7 // optional_field value
+    //         ]
+    //     );
+    //     assert_eq!(
+    //         serialize_v2_le(some.clone()),
+    //         vec![
+    //             6, 1, // u8 | boolean for option
+    //             7, 0 // optional_field value
+    //         ]
+    //     );
+    // }
 
-    //     // #[test]
-    //     // fn serialize_final_optional_struct_none() {
-    //     //     let none = FinalOptionalType {
-    //     //         field: 6,
-    //     //         optional_field: None,
-    //     //     };
-    //     //     // PLAIN_CDR:
-    //     //     assert_eq!(
-    //     //         serialize_v1_be(none.clone()),
-    //     //         vec![
-    //     //             6, 0, 0, 0, // u8 | padding
-    //     //             0, 0, 0, 0, // HEADER (FLAGS+ID | length)
-    //     //         ]
-    //     //     );
-    //     //     assert_eq!(
-    //     //         serialize_v1_le(none.clone()),
-    //     //         vec![
-    //     //             6, 0, 0, 0, // u8 | padding
-    //     //             0, 0, 0, 0, // HEADER (FLAGS+ID | length)
-    //     //         ]
-    //     //     );
-    //     //     // PLAIN_CDR2:
-    //     //     assert_eq!(
-    //     //         serialize_v2_be(none.clone()),
-    //     //         vec![
-    //     //         6, 0, // u8 | boolean for option
-    //     //     ]
-    //     //     );
-    //     //     assert_eq!(
-    //     //         serialize_v2_le(none.clone()),
-    //     //         vec![
-    //     //         6, 0, // u8 | boolean for option
-    //     //     ]
-    //     //     );
-    //     // }
+    // #[test]
+    // fn serialize_final_optional_struct_none() {
+    //     let none = FinalOptionalType {
+    //         field: 6,
+    //         optional_field: None,
+    //     };
+    //     // PLAIN_CDR:
+    //     assert_eq!(
+    //         serialize_v1_be(none.clone()),
+    //         vec![
+    //             6, 0, 0, 0, // u8 | padding
+    //             0, 0, 0, 0, // HEADER (FLAGS+ID | length)
+    //         ]
+    //     );
+    //     assert_eq!(
+    //         serialize_v1_le(none.clone()),
+    //         vec![
+    //             6, 0, 0, 0, // u8 | padding
+    //             0, 0, 0, 0, // HEADER (FLAGS+ID | length)
+    //         ]
+    //     );
+    //     // PLAIN_CDR2:
+    //     assert_eq!(
+    //         serialize_v2_be(none.clone()),
+    //         vec![
+    //         6, 0, // u8 | boolean for option
+    //     ]
+    //     );
+    //     assert_eq!(
+    //         serialize_v2_le(none.clone()),
+    //         vec![
+    //         6, 0, // u8 | boolean for option
+    //     ]
+    //     );
+    // }
 }
 
 #[cfg(test)]
@@ -1363,194 +1395,199 @@ mod rtps_pl_tests {
     use crate::infrastructure::type_support::TypeSupport;
     extern crate std;
 
-    //     fn test_serialize_type_support<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
-    //         let mut serializer = PlCdrSerializer::new(Vec::new());
-    //         serializer.serialize(&v.create_dynamic_sample()).unwrap();
-    //         serializer.into_inner()
-    //     }
+        fn test_serialize_type_support<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
+            RtpsPlCdrSerializer::serialize(Vec::new(), &v.create_dynamic_sample()).unwrap()
+        }
 
-    //     #[derive(TypeSupport)]
-    //     #[dust_dds(extensibility = "mutable")]
-    //     struct MutableBasicType {
-    //         #[dust_dds(id = 10)]
-    //         field_u16: u16,
-    //         #[dust_dds(id = 20)]
-    //         field_u8: u8,
-    //     }
+        #[derive(TypeSupport)]
+        #[dust_dds(extensibility = "mutable")]
+        struct MutableBasicType {
+            #[dust_dds(id = 10)]
+            field_u16: u16,
+            #[dust_dds(id = 20)]
+            field_u8: u8,
+        }
 
-    //     #[test]
-    //     fn serialize_mutable_struct() {
-    //         let v = MutableBasicType {
-    //             field_u16: 7,
-    //             field_u8: 8,
-    //         };
-    //         assert_eq!(
-    //             test_serialize_type_support(v),
-    //             vec![
-    //                 10, 0, 4, 0, // PID | length
-    //                 7, 0, 0, 0, // field_u16 | padding (2 bytes)
-    //                 20, 0, 4, 0, // PID | length
-    //                 8, 0, 0, 0, // field_u8 | padding (3 bytes)
-    //                 1, 0, 0, 0, // Sentinel
-    //             ]
-    //         );
-    //     }
+        #[test]
+        fn serialize_mutable_struct() {
+            let v = MutableBasicType {
+                field_u16: 7,
+                field_u8: 8,
+            };
+            assert_eq!(
+                test_serialize_type_support(v),
+                vec![
+                    0x00, 0x03, 0x00, 0x00, // CDR Header
+                    10, 0, 4, 0, // PID | length
+                    7, 0, 0, 0, // field_u16 | padding (2 bytes)
+                    20, 0, 4, 0, // PID | length
+                    8, 0, 0, 0, // field_u8 | padding (3 bytes)
+                    1, 0, 0, 0, // Sentinel
+                ]
+            );
+        }
 
-    //     #[derive(TypeSupport)]
-    //     struct Time {
-    //         sec: u32,
-    //         nanosec: i32,
-    //     }
+        #[derive(TypeSupport)]
+        struct Time {
+            sec: u32,
+            nanosec: i32,
+        }
 
-    //     #[derive(TypeSupport)]
-    //     #[dust_dds(extensibility = "mutable")]
-    //     struct MutableTimeType {
-    //         #[dust_dds(id = 30)]
-    //         field_time: Time,
-    //     }
+        #[derive(TypeSupport)]
+        #[dust_dds(extensibility = "mutable")]
+        struct MutableTimeType {
+            #[dust_dds(id = 30)]
+            field_time: Time,
+        }
 
-    //     #[test]
-    //     fn serialize_mutable_time_struct() {
-    //         let v = MutableTimeType {
-    //             field_time: Time { sec: 5, nanosec: 6 },
-    //         };
-    //         assert_eq!(
-    //             test_serialize_type_support(v),
-    //             vec![
-    //                 30, 0, 8, 0, // PID | length
-    //                 5, 0, 0, 0, // Time: sec
-    //                 6, 0, 0, 0, // Time: nanosec
-    //                 1, 0, 0, 0, // Sentinel
-    //             ]
-    //         );
-    //     }
+        #[test]
+        fn serialize_mutable_time_struct() {
+            let v = MutableTimeType {
+                field_time: Time { sec: 5, nanosec: 6 },
+            };
+            assert_eq!(
+                test_serialize_type_support(v),
+                vec![
+                    0x00, 0x03, 0x00, 0x00, // CDR Header
+                    30, 0, 8, 0, // PID | length
+                    5, 0, 0, 0, // Time: sec
+                    6, 0, 0, 0, // Time: nanosec
+                    1, 0, 0, 0, // Sentinel
+                ]
+            );
+        }
 
-    //     #[derive(TypeSupport)]
-    //     #[dust_dds(extensibility = "mutable")]
-    //     struct MutableCollectionType {
-    //         #[dust_dds(id = 30)]
-    //         field_times: Vec<Time>,
-    //     }
+        #[derive(TypeSupport)]
+        #[dust_dds(extensibility = "mutable")]
+        struct MutableCollectionType {
+            #[dust_dds(id = 30)]
+            field_times: Vec<Time>,
+        }
 
-    //     #[test]
-    //     fn serialize_mutable_collection_struct() {
-    //         let v = MutableCollectionType {
-    //             field_times: vec![Time { sec: 5, nanosec: 6 }, Time { sec: 7, nanosec: 8 }],
-    //         };
-    //         assert_eq!(
-    //             test_serialize_type_support(v),
-    //             vec![
-    //                 30, 0, 8, 0, // PID | length
-    //                 5, 0, 0, 0, // Time: sec
-    //                 6, 0, 0, 0, // Time: nanosec
-    //                 30, 0, 8, 0, // PID | length
-    //                 7, 0, 0, 0, // Time: sec
-    //                 8, 0, 0, 0, // Time: nanosec
-    //                 1, 0, 0, 0, // Sentinel
-    //             ]
-    //         );
-    //     }
+        #[test]
+        fn serialize_mutable_collection_struct() {
+            let v = MutableCollectionType {
+                field_times: vec![Time { sec: 5, nanosec: 6 }, Time { sec: 7, nanosec: 8 }],
+            };
+            assert_eq!(
+                test_serialize_type_support(v),
+                vec![
+                    0x00, 0x03, 0x00, 0x00, // CDR Header
+                    30, 0, 8, 0, // PID | length
+                    5, 0, 0, 0, // Time: sec
+                    6, 0, 0, 0, // Time: nanosec
+                    30, 0, 8, 0, // PID | length
+                    7, 0, 0, 0, // Time: sec
+                    8, 0, 0, 0, // Time: nanosec
+                    1, 0, 0, 0, // Sentinel
+                ]
+            );
+        }
 
-    //     #[test]
-    //     fn serialize_string() {
-    //         #[derive(TypeSupport)]
-    //         #[dust_dds(extensibility = "mutable")]
-    //         struct StringData {
-    //             #[dust_dds(id = 41)]
-    //             name: String,
-    //         }
+        #[test]
+        fn serialize_string() {
+            #[derive(TypeSupport)]
+            #[dust_dds(extensibility = "mutable")]
+            struct StringData {
+                #[dust_dds(id = 41)]
+                name: String,
+            }
 
-    //         let v = StringData {
-    //             name: "one".to_string(),
-    //         };
-    //         assert_eq!(
-    //             test_serialize_type_support(v),
-    //             vec![
-    //                 41, 0x00, 8, 0, // PID, length
-    //                 4, 0, 0, 0, // String length
-    //                 b'o', b'n', b'e', 0, // String
-    //                 1, 0, 0, 0, // Sentinel
-    //             ]
-    //         );
-    //     }
+            let v = StringData {
+                name: "one".to_string(),
+            };
+            assert_eq!(
+                test_serialize_type_support(v),
+                vec![
+                    0x00, 0x03, 0x00, 0x00, // CDR Header
+                    41, 0x00, 8, 0, // PID, length
+                    4, 0, 0, 0, // String length
+                    b'o', b'n', b'e', 0, // String
+                    1, 0, 0, 0, // Sentinel
+                ]
+            );
+        }
 
-    //     #[test]
-    //     fn serialize_string_list() {
-    //         #[derive(TypeSupport)]
-    //         #[dust_dds(extensibility = "mutable")]
-    //         struct StringList {
-    //             #[dust_dds(id = 41)]
-    //             name: Vec<String>,
-    //         }
+        #[test]
+        fn serialize_string_list() {
+            #[derive(TypeSupport)]
+            #[dust_dds(extensibility = "mutable")]
+            struct StringList {
+                #[dust_dds(id = 41)]
+                name: Vec<String>,
+            }
 
-    //         let v = StringList {
-    //             name: vec!["one".to_string(), "two".to_string()],
-    //         };
-    //         assert_eq!(
-    //             test_serialize_type_support(v),
-    //             vec![
-    //                 41, 0x00, 20, 0, // PID, length
-    //                 2, 0, 0, 0, // vec length
-    //                 4, 0, 0, 0, // String length
-    //                 b'o', b'n', b'e', 0, // String
-    //                 4, 0, 0, 0, // String length
-    //                 b't', b'w', b'o', 0, // String
-    //                 1, 0, 0, 0, // Sentinel
-    //             ]
-    //         );
-    //     }
+            let v = StringList {
+                name: vec!["one".to_string(), "two".to_string()],
+            };
+            assert_eq!(
+                test_serialize_type_support(v),
+                vec![
+                    0x00, 0x03, 0x00, 0x00, // CDR Header
+                    41, 0x00, 20, 0, // PID, length
+                    2, 0, 0, 0, // vec length
+                    4, 0, 0, 0, // String length
+                    b'o', b'n', b'e', 0, // String
+                    4, 0, 0, 0, // String length
+                    b't', b'w', b'o', 0, // String
+                    1, 0, 0, 0, // Sentinel
+                ]
+            );
+        }
 
-    //     #[test]
-    //     fn serialize_u8_array() {
-    //         #[derive(TypeSupport)]
-    //         #[dust_dds(extensibility = "mutable")]
-    //         struct U8Array {
-    //             #[dust_dds(id = 41)]
-    //             version: [u8; 2],
-    //         }
+        #[test]
+        fn serialize_u8_array() {
+            #[derive(TypeSupport)]
+            #[dust_dds(extensibility = "mutable")]
+            struct U8Array {
+                #[dust_dds(id = 41)]
+                version: [u8; 2],
+            }
 
-    //         let v = U8Array { version: [1, 2] };
-    //         assert_eq!(
-    //             test_serialize_type_support(v),
-    //             vec![
-    //                 41, 0x00, 4, 0, // PID, length
-    //                 1, 2, 0, 0, // version | padding (2 bytres)
-    //                 1, 0, 0, 0, // Sentinel
-    //             ]
-    //         );
-    //     }
+            let v = U8Array { version: [1, 2] };
+            assert_eq!(
+                test_serialize_type_support(v),
+                vec![
+                    0x00, 0x03, 0x00, 0x00, // CDR Header
+                    41, 0x00, 4, 0, // PID, length
+                    1, 2, 0, 0, // version | padding (2 bytres)
+                    1, 0, 0, 0, // Sentinel
+                ]
+            );
+        }
 
-    //     #[test]
-    //     fn serialize_locator() {
-    //         #[derive(TypeSupport)]
-    //         struct Locator {
-    //             kind: i32,
-    //             port: u32,
-    //             address: [u8; 4],
-    //         }
-    //         #[derive(TypeSupport)]
-    //         #[dust_dds(extensibility = "mutable")]
-    //         struct LocatorContainer {
-    //             #[dust_dds(id = 41)]
-    //             locator: Locator,
-    //         }
+        #[test]
+        fn serialize_locator() {
+            #[derive(TypeSupport)]
+            struct Locator {
+                kind: i32,
+                port: u32,
+                address: [u8; 4],
+            }
+            #[derive(TypeSupport)]
+            #[dust_dds(extensibility = "mutable")]
+            struct LocatorContainer {
+                #[dust_dds(id = 41)]
+                locator: Locator,
+            }
 
-    //         let v = LocatorContainer {
-    //             locator: Locator {
-    //                 kind: 1,
-    //                 port: 2,
-    //                 address: [7; 4],
-    //             },
-    //         };
-    //         assert_eq!(
-    //             test_serialize_type_support(v),
-    //             vec![
-    //                 41, 0x00, 12, 0, // PID, length
-    //                 1, 0, 0, 0, // kind
-    //                 2, 0, 0, 0, // port
-    //                 7, 7, 7, 7, // address
-    //                 1, 0, 0, 0, // Sentinel
-    //             ]
-    //         );
-    //     }
+            let v = LocatorContainer {
+                locator: Locator {
+                    kind: 1,
+                    port: 2,
+                    address: [7; 4],
+                },
+            };
+            assert_eq!(
+                test_serialize_type_support(v),
+                vec![
+                    0x00, 0x03, 0x00, 0x00, // CDR Header
+                    41, 0x00, 12, 0, // PID, length
+                    1, 0, 0, 0, // kind
+                    2, 0, 0, 0, // port
+                    7, 7, 7, 7, // address
+                    1, 0, 0, 0, // Sentinel
+                ]
+            );
+        }
 }

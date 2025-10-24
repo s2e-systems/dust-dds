@@ -85,7 +85,7 @@ use crate::{
         binding::XTypesBinding,
         dynamic_type::{DynamicData, DynamicDataFactory, DynamicType, ExtensibilityKind},
         serializer::{
-            LittleEndian, PlCdrSerializer, Xcdr1LeSerializer, Xcdr1Serializer, Xcdr2LeSerializer, Xcdr2Serializer
+            LittleEndian, RtpsPlCdrSerializer, Xcdr1LeSerializer, Xcdr1Serializer, Xcdr2LeSerializer, Xcdr2Serializer
         },
     },
 };
@@ -6006,7 +6006,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
         } else if self.qos.representation.value[0] == XCDR2_DATA_REPRESENTATION {
             Xcdr2LeSerializer::serialize(Vec::new(), &dynamic_data)?
         } else if self.qos.representation.value[0] == BUILT_IN_DATA_REPRESENTATION {
-            PlCdrSerializer::serialize(Vec::new(), &dynamic_data)?
+            RtpsPlCdrSerializer::serialize(Vec::new(), &dynamic_data)?
         } else {
             panic!("Invalid data representation")
         };

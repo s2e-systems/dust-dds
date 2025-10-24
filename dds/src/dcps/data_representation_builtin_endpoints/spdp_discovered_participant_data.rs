@@ -452,173 +452,175 @@ mod tests {
         xtypes::{
             data_representation::{cdr_reader::PlCdr1Deserializer, endianness::LittleEndian},
             dynamic_type::DynamicData,
-            serializer::PlCdrSerializer,
+            serializer::RtpsPlCdrSerializer,
         },
     };
 
-    // #[test]
-    // fn serialize_spdp_discovered_participant_data() {
-    //     let locator1 = Locator::new(11, 12, [1; 16]);
-    //     let locator2 = Locator::new(21, 22, [2; 16]);
+    #[test]
+    fn serialize_spdp_discovered_participant_data() {
+        let locator1 = Locator::new(11, 12, [1; 16]);
+        let locator2 = Locator::new(21, 22, [2; 16]);
 
-    //     let data = SpdpDiscoveredParticipantData {
-    //         dds_participant_data: ParticipantBuiltinTopicData {
-    //             key: BuiltInTopicKey {
-    //                 value: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0xc1],
-    //             },
-    //             user_data: UserDataQosPolicy {
-    //                 value: vec![97, 53],
-    //             },
-    //         },
-    //         participant_proxy: ParticipantProxy {
-    //             domain_id: Some(0),
-    //             domain_tag: "ab".to_string(),
-    //             protocol_version: ProtocolVersion::new(2, 4),
-    //             guid_prefix: [8; 12],
-    //             vendor_id: [73, 74],
-    //             expects_inline_qos: true,
-    //             metatraffic_unicast_locator_list: vec![locator1, locator2],
-    //             metatraffic_multicast_locator_list: vec![locator1],
-    //             default_unicast_locator_list: vec![locator1],
-    //             default_multicast_locator_list: vec![locator1],
-    //             available_builtin_endpoints: BuiltinEndpointSet::new(
-    //                 BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR,
-    //             ),
-    //             manual_liveliness_count: 2,
-    //             builtin_endpoint_qos: BuiltinEndpointQos::new(
-    //                 BuiltinEndpointQos::BEST_EFFORT_PARTICIPANT_MESSAGE_DATA_READER,
-    //             ),
-    //         },
-    //         lease_duration: Duration::new(10, 11),
-    //         discovered_participant_list: vec![],
-    //     }
-    //     .create_dynamic_sample();
+        let data = SpdpDiscoveredParticipantData {
+            dds_participant_data: ParticipantBuiltinTopicData {
+                key: BuiltInTopicKey {
+                    value: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0xc1],
+                },
+                user_data: UserDataQosPolicy {
+                    value: vec![97, 53],
+                },
+            },
+            participant_proxy: ParticipantProxy {
+                domain_id: Some(0),
+                domain_tag: "ab".to_string(),
+                protocol_version: ProtocolVersion::new(2, 4),
+                guid_prefix: [8; 12],
+                vendor_id: [73, 74],
+                expects_inline_qos: true,
+                metatraffic_unicast_locator_list: vec![locator1, locator2],
+                metatraffic_multicast_locator_list: vec![locator1],
+                default_unicast_locator_list: vec![locator1],
+                default_multicast_locator_list: vec![locator1],
+                available_builtin_endpoints: BuiltinEndpointSet::new(
+                    BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR,
+                ),
+                manual_liveliness_count: 2,
+                builtin_endpoint_qos: BuiltinEndpointQos::new(
+                    BuiltinEndpointQos::BEST_EFFORT_PARTICIPANT_MESSAGE_DATA_READER,
+                ),
+            },
+            lease_duration: Duration::new(10, 11),
+            discovered_participant_list: vec![],
+        }
+        .create_dynamic_sample();
 
-    //     let expected = vec![
-    //         // 0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
-    //         2, 0x00, 8, 0x00, // PID_PARTICIPANT_LEASE_DURATION
-    //         10, 0x00, 0x00, 0x00, // Duration: seconds
-    //         11, 0x00, 0x00, 0x00, // Duration: fraction
-    //         15, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
-    //         0x00, 0x00, 0x00, 0x00, // DomainId
-    //         21, 0x00, 4, 0x00, // PID_PROTOCOL_VERSION, Length
-    //         0x02, 0x04, 0x00, 0x00, // ProtocolVersion
-    //         22, 0x00, 4, 0x00, // PID_VENDORID
-    //         73, 74, 0x00, 0x00, // VendorId
-    //         44, 0x00, 8, 0x00, // PID_USER_DATA, Length
-    //         2, 0, 0, 0, // sequence length
-    //         97, 53, 0, 0, // data, padding (2 bytes)
-    //         49, 0x00, 24, 0x00, // PID_DEFAULT_UNICAST_LOCATOR
-    //         11, 0x00, 0x00, 0x00, // Locator{kind
-    //         12, 0x00, 0x00, 0x00, // port,
-    //         0x01, 0x01, 0x01, 0x01, //
-    //         0x01, 0x01, 0x01, 0x01, // address
-    //         0x01, 0x01, 0x01, 0x01, //
-    //         0x01, 0x01, 0x01, 0x01, // }
-    //         50, 0x00, 24, 0x00, // PID_METATRAFFIC_UNICAST_LOCATOR
-    //         11, 0x00, 0x00, 0x00, // Locator{kind
-    //         12, 0x00, 0x00, 0x00, // port,
-    //         0x01, 0x01, 0x01, 0x01, //
-    //         0x01, 0x01, 0x01, 0x01, // address
-    //         0x01, 0x01, 0x01, 0x01, //
-    //         0x01, 0x01, 0x01, 0x01, // }
-    //         50, 0x00, 24, 0x00, // PID_METATRAFFIC_UNICAST_LOCATOR
-    //         21, 0x00, 0x00, 0x00, // Locator{kind
-    //         22, 0x00, 0x00, 0x00, // port,
-    //         0x02, 0x02, 0x02, 0x02, //
-    //         0x02, 0x02, 0x02, 0x02, // address
-    //         0x02, 0x02, 0x02, 0x02, //
-    //         0x02, 0x02, 0x02, 0x02, // }
-    //         51, 0x00, 24, 0x00, // PID_METATRAFFIC_MULTICAST_LOCATOR
-    //         11, 0x00, 0x00, 0x00, // Locator{kind
-    //         12, 0x00, 0x00, 0x00, // port,
-    //         0x01, 0x01, 0x01, 0x01, //
-    //         0x01, 0x01, 0x01, 0x01, // address
-    //         0x01, 0x01, 0x01, 0x01, //
-    //         0x01, 0x01, 0x01, 0x01, // }
-    //         52, 0x00, 4, 0x00, // PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT
-    //         0x02, 0x00, 0x00, 0x00, // Count
-    //         0x43, 0x00, 0x04, 0x00, // PID_EXPECTS_INLINE_QOS, Length: 4,
-    //         0x01, 0x00, 0x00, 0x00, // True
-    //         72, 0x00, 24, 0x00, // PID_DEFAULT_MULTICAST_LOCATOR
-    //         11, 0x00, 0x00, 0x00, // Locator{kind
-    //         12, 0x00, 0x00, 0x00, // port,
-    //         0x01, 0x01, 0x01, 0x01, //
-    //         0x01, 0x01, 0x01, 0x01, // address
-    //         0x01, 0x01, 0x01, 0x01, //
-    //         0x01, 0x01, 0x01, 0x01, // }
-    //         0x50, 0x00, 16, 0x00, // PID_PARTICIPANT_GUID, Length
-    //         8, 8, 8, 8, // GuidPrefix
-    //         8, 8, 8, 8, // GuidPrefix
-    //         8, 8, 8, 8, // GuidPrefix
-    //         0, 0, 1, 0xc1, // EntityId
-    //         88, 0x00, 4, 0x00, // PID_BUILTIN_ENDPOINT_SET
-    //         0x02, 0x00, 0x00, 0x00, //
-    //         119, 0x00, 4, 0x00, // PID_BUILTIN_ENDPOINT_QOS
-    //         0x00, 0x00, 0x00, 0x20, //
-    //         0x14, 0x40, 0x08, 0x00, // PID_DOMAIN_TAG, Length: 8
-    //         3, 0x00, 0x00, 0x00, // DomainTag: string length (incl. terminator)
-    //         b'a', b'b', 0, 0x00, // DomainTag: string + padding (1 byte)
-    //         0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
-    //     ];
-    //     let mut serializer = PlCdrSerializer::new(Vec::new());
-    //     serializer.serialize(&data).unwrap();
-    //     assert_eq!(serializer.into_inner(), expected);
-    // }
+        let expected = [
+            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+            2, 0x00, 8, 0x00, // PID_PARTICIPANT_LEASE_DURATION
+            10, 0x00, 0x00, 0x00, // Duration: seconds
+            11, 0x00, 0x00, 0x00, // Duration: fraction
+            15, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
+            0x00, 0x00, 0x00, 0x00, // DomainId
+            21, 0x00, 4, 0x00, // PID_PROTOCOL_VERSION, Length
+            0x02, 0x04, 0x00, 0x00, // ProtocolVersion
+            22, 0x00, 4, 0x00, // PID_VENDORID
+            73, 74, 0x00, 0x00, // VendorId
+            44, 0x00, 8, 0x00, // PID_USER_DATA, Length
+            2, 0, 0, 0, // sequence length
+            97, 53, 0, 0, // data, padding (2 bytes)
+            49, 0x00, 24, 0x00, // PID_DEFAULT_UNICAST_LOCATOR
+            11, 0x00, 0x00, 0x00, // Locator{kind
+            12, 0x00, 0x00, 0x00, // port,
+            0x01, 0x01, 0x01, 0x01, //
+            0x01, 0x01, 0x01, 0x01, // address
+            0x01, 0x01, 0x01, 0x01, //
+            0x01, 0x01, 0x01, 0x01, // }
+            50, 0x00, 24, 0x00, // PID_METATRAFFIC_UNICAST_LOCATOR
+            11, 0x00, 0x00, 0x00, // Locator{kind
+            12, 0x00, 0x00, 0x00, // port,
+            0x01, 0x01, 0x01, 0x01, //
+            0x01, 0x01, 0x01, 0x01, // address
+            0x01, 0x01, 0x01, 0x01, //
+            0x01, 0x01, 0x01, 0x01, // }
+            50, 0x00, 24, 0x00, // PID_METATRAFFIC_UNICAST_LOCATOR
+            21, 0x00, 0x00, 0x00, // Locator{kind
+            22, 0x00, 0x00, 0x00, // port,
+            0x02, 0x02, 0x02, 0x02, //
+            0x02, 0x02, 0x02, 0x02, // address
+            0x02, 0x02, 0x02, 0x02, //
+            0x02, 0x02, 0x02, 0x02, // }
+            51, 0x00, 24, 0x00, // PID_METATRAFFIC_MULTICAST_LOCATOR
+            11, 0x00, 0x00, 0x00, // Locator{kind
+            12, 0x00, 0x00, 0x00, // port,
+            0x01, 0x01, 0x01, 0x01, //
+            0x01, 0x01, 0x01, 0x01, // address
+            0x01, 0x01, 0x01, 0x01, //
+            0x01, 0x01, 0x01, 0x01, // }
+            52, 0x00, 4, 0x00, // PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT
+            0x02, 0x00, 0x00, 0x00, // Count
+            0x43, 0x00, 0x04, 0x00, // PID_EXPECTS_INLINE_QOS, Length: 4,
+            0x01, 0x00, 0x00, 0x00, // True
+            72, 0x00, 24, 0x00, // PID_DEFAULT_MULTICAST_LOCATOR
+            11, 0x00, 0x00, 0x00, // Locator{kind
+            12, 0x00, 0x00, 0x00, // port,
+            0x01, 0x01, 0x01, 0x01, //
+            0x01, 0x01, 0x01, 0x01, // address
+            0x01, 0x01, 0x01, 0x01, //
+            0x01, 0x01, 0x01, 0x01, // }
+            0x50, 0x00, 16, 0x00, // PID_PARTICIPANT_GUID, Length
+            8, 8, 8, 8, // GuidPrefix
+            8, 8, 8, 8, // GuidPrefix
+            8, 8, 8, 8, // GuidPrefix
+            0, 0, 1, 0xc1, // EntityId
+            88, 0x00, 4, 0x00, // PID_BUILTIN_ENDPOINT_SET
+            0x02, 0x00, 0x00, 0x00, //
+            119, 0x00, 4, 0x00, // PID_BUILTIN_ENDPOINT_QOS
+            0x00, 0x00, 0x00, 0x20, //
+            0x14, 0x40, 0x08, 0x00, // PID_DOMAIN_TAG, Length: 8
+            3, 0x00, 0x00, 0x00, // DomainTag: string length (incl. terminator)
+            b'a', b'b', 0, 0x00, // DomainTag: string + padding (1 byte)
+            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
+        ];
+        assert_eq!(
+            RtpsPlCdrSerializer::serialize(Vec::new(), &data).unwrap(),
+            expected
+        );
+    }
 
-    // #[test]
-    // fn serialize_spdp_discovered_participant_data_all_default() {
-    //     let data = SpdpDiscoveredParticipantData {
-    //         dds_participant_data: ParticipantBuiltinTopicData {
-    //             key: BuiltInTopicKey {
-    //                 value: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0xc1],
-    //             },
-    //             user_data: UserDataQosPolicy::default(),
-    //         },
-    //         participant_proxy: ParticipantProxy {
-    //             domain_id: None,
-    //             domain_tag: String::from(DEFAULT_DOMAIN_TAG),
-    //             protocol_version: PROTOCOLVERSION_2_4,
-    //             guid_prefix: GuidPrefix::default(),
-    //             vendor_id: [73, 74],
-    //             expects_inline_qos: DEFAULT_EXPECTS_INLINE_QOS,
-    //             metatraffic_unicast_locator_list: Vec::new(),
-    //             metatraffic_multicast_locator_list: Vec::new(),
-    //             default_unicast_locator_list: Vec::new(),
-    //             default_multicast_locator_list: Vec::new(),
-    //             available_builtin_endpoints: BuiltinEndpointSet::new(
-    //                 BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR,
-    //             ),
-    //             manual_liveliness_count: 0,
-    //             builtin_endpoint_qos: BuiltinEndpointQos::default(),
-    //         },
-    //         lease_duration: DEFAULT_PARTICIPANT_LEASE_DURATION,
-    //         discovered_participant_list: Vec::new(),
-    //     }
-    //     .create_dynamic_sample();
+    #[test]
+    fn serialize_spdp_discovered_participant_data_all_default() {
+        let data = SpdpDiscoveredParticipantData {
+            dds_participant_data: ParticipantBuiltinTopicData {
+                key: BuiltInTopicKey {
+                    value: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0xc1],
+                },
+                user_data: UserDataQosPolicy::default(),
+            },
+            participant_proxy: ParticipantProxy {
+                domain_id: None,
+                domain_tag: String::from(DEFAULT_DOMAIN_TAG),
+                protocol_version: PROTOCOLVERSION_2_4,
+                guid_prefix: GuidPrefix::default(),
+                vendor_id: [73, 74],
+                expects_inline_qos: DEFAULT_EXPECTS_INLINE_QOS,
+                metatraffic_unicast_locator_list: Vec::new(),
+                metatraffic_multicast_locator_list: Vec::new(),
+                default_unicast_locator_list: Vec::new(),
+                default_multicast_locator_list: Vec::new(),
+                available_builtin_endpoints: BuiltinEndpointSet::new(
+                    BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR,
+                ),
+                manual_liveliness_count: 0,
+                builtin_endpoint_qos: BuiltinEndpointQos::default(),
+            },
+            lease_duration: DEFAULT_PARTICIPANT_LEASE_DURATION,
+            discovered_participant_list: Vec::new(),
+        }
+        .create_dynamic_sample();
 
-    //     let expected = vec![
-    //         // 0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
-    //         0x02, 0x00, 8, 0x00, // PID_PARTICIPANT_LEASE_DURATION
-    //         100, 0x00, 0x00, 0x00, // Duration: seconds
-    //         0, 0x00, 0x00, 0x00, // Duration: fraction
-    //         0x15, 0x00, 4, 0x00, // PID_PROTOCOL_VERSION, Length
-    //         0x02, 0x04, 0x00, 0x00, // ProtocolVersion
-    //         0x16, 0x00, 4, 0x00, // PID_VENDORID
-    //         73, 74, 0x00, 0x00, // VendorId
-    //         0x50, 0x00, 16, 0x00, // PID_PARTICIPANT_GUID, Length
-    //         8, 8, 8, 8, // GuidPrefix
-    //         8, 8, 8, 8, // GuidPrefix
-    //         8, 8, 8, 8, // GuidPrefix
-    //         0, 0, 1, 0xc1, // EntityId
-    //         88, 0x00, 4, 0x00, // PID_BUILTIN_ENDPOINT_SET
-    //         0x02, 0x00, 0x00, 0x00, //
-    //         0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
-    //     ];
-    //     let mut serializer = PlCdrSerializer::new(Vec::new());
-    //     serializer.serialize(&data).unwrap();
-    //     assert_eq!(serializer.into_inner(), expected);
-    // }
+        let expected = [
+            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+            0x02, 0x00, 8, 0x00, // PID_PARTICIPANT_LEASE_DURATION
+            100, 0x00, 0x00, 0x00, // Duration: seconds
+            0, 0x00, 0x00, 0x00, // Duration: fraction
+            0x15, 0x00, 4, 0x00, // PID_PROTOCOL_VERSION, Length
+            0x02, 0x04, 0x00, 0x00, // ProtocolVersion
+            0x16, 0x00, 4, 0x00, // PID_VENDORID
+            73, 74, 0x00, 0x00, // VendorId
+            0x50, 0x00, 16, 0x00, // PID_PARTICIPANT_GUID, Length
+            8, 8, 8, 8, // GuidPrefix
+            8, 8, 8, 8, // GuidPrefix
+            8, 8, 8, 8, // GuidPrefix
+            0, 0, 1, 0xc1, // EntityId
+            88, 0x00, 4, 0x00, // PID_BUILTIN_ENDPOINT_SET
+            0x02, 0x00, 0x00, 0x00, //
+            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
+        ];
+        assert_eq!(
+            RtpsPlCdrSerializer::serialize(Vec::new(), &data).unwrap(),
+            expected
+        );
+    }
 
     #[test]
     fn deserialize_spdp_discovered_participant_data() {

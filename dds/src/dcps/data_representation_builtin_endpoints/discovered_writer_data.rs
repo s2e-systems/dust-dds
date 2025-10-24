@@ -434,76 +434,78 @@ mod tests {
         xtypes::{
             data_representation::{cdr_reader::PlCdr1Deserializer, endianness::LittleEndian},
             dynamic_type::DynamicData,
-            serializer::PlCdrSerializer,
+            serializer::RtpsPlCdrSerializer,
         },
     };
 
-    // #[test]
-    // fn serialize_all_default() {
-    //     let data = DiscoveredWriterData {
-    //         dds_publication_data: PublicationBuiltinTopicData {
-    //             key: BuiltInTopicKey {
-    //                 value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
-    //             },
-    //             participant_key: BuiltInTopicKey {
-    //                 value: [6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 0, 9, 0, 0, 0],
-    //             },
-    //             topic_name: "ab".to_string(),
-    //             type_name: "cd".to_string(),
-    //             durability: Default::default(),
-    //             deadline: Default::default(),
-    //             latency_budget: Default::default(),
-    //             liveliness: Default::default(),
-    //             reliability: DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
-    //             lifespan: Default::default(),
-    //             user_data: Default::default(),
-    //             ownership: Default::default(),
-    //             ownership_strength: Default::default(),
-    //             destination_order: Default::default(),
-    //             presentation: Default::default(),
-    //             partition: Default::default(),
-    //             topic_data: Default::default(),
-    //             group_data: Default::default(),
-    //             representation: Default::default(),
-    //         },
-    //         writer_proxy: WriterProxy {
-    //             remote_writer_guid: Guid::new(
-    //                 [5; 12],
-    //                 EntityId::new([11, 12, 13], BUILT_IN_WRITER_WITH_KEY),
-    //             ),
-    //             remote_group_entity_id: EntityId::new([21, 22, 23], BUILT_IN_READER_GROUP),
-    //             unicast_locator_list: vec![],
-    //             multicast_locator_list: vec![],
-    //         },
-    //     }
-    //     .create_dynamic_sample();
+    #[test]
+    fn serialize_all_default() {
+        let data = DiscoveredWriterData {
+            dds_publication_data: PublicationBuiltinTopicData {
+                key: BuiltInTopicKey {
+                    value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
+                },
+                participant_key: BuiltInTopicKey {
+                    value: [6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 0, 9, 0, 0, 0],
+                },
+                topic_name: "ab".to_string(),
+                type_name: "cd".to_string(),
+                durability: Default::default(),
+                deadline: Default::default(),
+                latency_budget: Default::default(),
+                liveliness: Default::default(),
+                reliability: DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
+                lifespan: Default::default(),
+                user_data: Default::default(),
+                ownership: Default::default(),
+                ownership_strength: Default::default(),
+                destination_order: Default::default(),
+                presentation: Default::default(),
+                partition: Default::default(),
+                topic_data: Default::default(),
+                group_data: Default::default(),
+                representation: Default::default(),
+            },
+            writer_proxy: WriterProxy {
+                remote_writer_guid: Guid::new(
+                    [5; 12],
+                    EntityId::new([11, 12, 13], BUILT_IN_WRITER_WITH_KEY),
+                ),
+                remote_group_entity_id: EntityId::new([21, 22, 23], BUILT_IN_READER_GROUP),
+                unicast_locator_list: vec![],
+                multicast_locator_list: vec![],
+            },
+        }
+        .create_dynamic_sample();
 
-    //     let expected = vec![
-    //         // 0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
-    //         0x05, 0x00, 0x08, 0x00, // PID_TOPIC_NAME, Length: 8
-    //         3, 0x00, 0x00, 0x00, // string length (incl. terminator)
-    //         b'a', b'b', 0, 0x00, // string + padding (1 byte)
-    //         0x07, 0x00, 0x08, 0x00, // PID_TYPE_NAME, Length: 8
-    //         3, 0x00, 0x00, 0x00, // string length (incl. terminator)
-    //         b'c', b'd', 0, 0x00, // string + padding (1 byte)
-    //         0x50, 0x00, 16, 0, //PID_PARTICIPANT_GUID, length
-    //         6, 0, 0, 0, // ,
-    //         7, 0, 0, 0, // ,
-    //         8, 0, 0, 0, // ,
-    //         9, 0, 0, 0, // ,
-    //         0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
-    //         21, 22, 23, 0xc9, // u8[3], u8
-    //         0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
-    //         1, 0, 0, 0, // ,
-    //         2, 0, 0, 0, // ,
-    //         3, 0, 0, 0, // ,
-    //         4, 0, 0, 0, // ,
-    //         0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
-    //     ];
-    //     let mut serializer = PlCdrSerializer::new(Vec::new());
-    //     serializer.serialize(&data).unwrap();
-    //     assert_eq!(serializer.into_inner(), expected);
-    // }
+        let expected = [
+            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+            0x05, 0x00, 0x08, 0x00, // PID_TOPIC_NAME, Length: 8
+            3, 0x00, 0x00, 0x00, // string length (incl. terminator)
+            b'a', b'b', 0, 0x00, // string + padding (1 byte)
+            0x07, 0x00, 0x08, 0x00, // PID_TYPE_NAME, Length: 8
+            3, 0x00, 0x00, 0x00, // string length (incl. terminator)
+            b'c', b'd', 0, 0x00, // string + padding (1 byte)
+            0x50, 0x00, 16, 0, //PID_PARTICIPANT_GUID, length
+            6, 0, 0, 0, // ,
+            7, 0, 0, 0, // ,
+            8, 0, 0, 0, // ,
+            9, 0, 0, 0, // ,
+            0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
+            21, 22, 23, 0xc9, // u8[3], u8
+            0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
+            1, 0, 0, 0, // ,
+            2, 0, 0, 0, // ,
+            3, 0, 0, 0, // ,
+            4, 0, 0, 0, // ,
+            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
+        ];
+
+        assert_eq!(
+            RtpsPlCdrSerializer::serialize(Vec::new(), &data).unwrap(),
+            expected
+        );
+    }
 
     #[test]
     fn deserialize_all_default() {

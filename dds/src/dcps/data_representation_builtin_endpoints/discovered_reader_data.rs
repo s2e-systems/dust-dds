@@ -437,151 +437,153 @@ mod tests {
         xtypes::{
             data_representation::{cdr_reader::PlCdr1Deserializer, endianness::LittleEndian},
             dynamic_type::DynamicData,
-            serializer::{PlCdrSerializer},
+            serializer::RtpsPlCdrSerializer,
         },
     };
 
-    // #[test]
-    // fn serialize_all_default() {
-    //     let data = DiscoveredReaderData {
-    //         dds_subscription_data: SubscriptionBuiltinTopicData {
-    //             key: BuiltInTopicKey {
-    //                 value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
-    //             },
-    //             participant_key: BuiltInTopicKey {
-    //                 value: [6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 0, 9, 0, 0, 0],
-    //             },
-    //             topic_name: "ab".to_string(),
-    //             type_name: "cd".to_string(),
-    //             durability: Default::default(),
-    //             deadline: Default::default(),
-    //             latency_budget: Default::default(),
-    //             liveliness: Default::default(),
-    //             reliability: DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-    //             ownership: Default::default(),
-    //             destination_order: Default::default(),
-    //             user_data: Default::default(),
-    //             time_based_filter: Default::default(),
-    //             presentation: Default::default(),
-    //             partition: Default::default(),
-    //             topic_data: Default::default(),
-    //             group_data: Default::default(),
-    //             representation: Default::default(),
-    //         },
-    //         reader_proxy: ReaderProxy {
-    //             remote_reader_guid: Guid::new(
-    //                 [5; 12],
-    //                 EntityId::new([11, 12, 13], USER_DEFINED_READER_WITH_KEY),
-    //             ),
-    //             remote_group_entity_id: EntityId::new([21, 22, 23], BUILT_IN_WRITER_WITH_KEY),
-    //             unicast_locator_list: vec![],
-    //             multicast_locator_list: vec![],
-    //             expects_inline_qos: false,
-    //         },
-    //     }
-    //     .create_dynamic_sample();
+    #[test]
+    fn serialize_all_default() {
+        let data = DiscoveredReaderData {
+            dds_subscription_data: SubscriptionBuiltinTopicData {
+                key: BuiltInTopicKey {
+                    value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
+                },
+                participant_key: BuiltInTopicKey {
+                    value: [6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 0, 9, 0, 0, 0],
+                },
+                topic_name: "ab".to_string(),
+                type_name: "cd".to_string(),
+                durability: Default::default(),
+                deadline: Default::default(),
+                latency_budget: Default::default(),
+                liveliness: Default::default(),
+                reliability: DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+                ownership: Default::default(),
+                destination_order: Default::default(),
+                user_data: Default::default(),
+                time_based_filter: Default::default(),
+                presentation: Default::default(),
+                partition: Default::default(),
+                topic_data: Default::default(),
+                group_data: Default::default(),
+                representation: Default::default(),
+            },
+            reader_proxy: ReaderProxy {
+                remote_reader_guid: Guid::new(
+                    [5; 12],
+                    EntityId::new([11, 12, 13], USER_DEFINED_READER_WITH_KEY),
+                ),
+                remote_group_entity_id: EntityId::new([21, 22, 23], BUILT_IN_WRITER_WITH_KEY),
+                unicast_locator_list: vec![],
+                multicast_locator_list: vec![],
+                expects_inline_qos: false,
+            },
+        }
+        .create_dynamic_sample();
 
-    //     let expected = vec![
-    //         // 0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
-    //         0x05, 0x00, 0x08, 0x00, // PID_TOPIC_NAME, Length: 8
-    //         3, 0x00, 0x00, 0x00, // string length (incl. terminator)
-    //         b'a', b'b', 0, 0x00, // string + padding (1 byte)
-    //         0x07, 0x00, 0x08, 0x00, // PID_TYPE_NAME, Length: 8
-    //         3, 0x00, 0x00, 0x00, // string length (incl. terminator)
-    //         b'c', b'd', 0, 0x00, // string + padding (1 byte)
-    //         0x50, 0x00, 16, 0, //PID_PARTICIPANT_GUID, length
-    //         6, 0, 0, 0, // ,
-    //         7, 0, 0, 0, // ,
-    //         8, 0, 0, 0, // ,
-    //         9, 0, 0, 0, // ,
-    //         0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
-    //         21, 22, 23, 0xc2, //
-    //         0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
-    //         1, 0, 0, 0, // ,
-    //         2, 0, 0, 0, // ,
-    //         3, 0, 0, 0, // ,
-    //         4, 0, 0, 0, // ,
-    //         0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
-    //     ];
-    //     let mut serializer = PlCdrSerializer::new(Vec::new());
-    //     serializer.serialize(&data).unwrap();
-    //     assert_eq!(serializer.into_inner(), expected);
-    // }
+        let expected = [
+            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+            0x05, 0x00, 0x08, 0x00, // PID_TOPIC_NAME, Length: 8
+            3, 0x00, 0x00, 0x00, // string length (incl. terminator)
+            b'a', b'b', 0, 0x00, // string + padding (1 byte)
+            0x07, 0x00, 0x08, 0x00, // PID_TYPE_NAME, Length: 8
+            3, 0x00, 0x00, 0x00, // string length (incl. terminator)
+            b'c', b'd', 0, 0x00, // string + padding (1 byte)
+            0x50, 0x00, 16, 0, //PID_PARTICIPANT_GUID, length
+            6, 0, 0, 0, // ,
+            7, 0, 0, 0, // ,
+            8, 0, 0, 0, // ,
+            9, 0, 0, 0, // ,
+            0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
+            21, 22, 23, 0xc2, //
+            0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
+            1, 0, 0, 0, // ,
+            2, 0, 0, 0, // ,
+            3, 0, 0, 0, // ,
+            4, 0, 0, 0, // ,
+            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
+        ];
+        assert_eq!(
+            RtpsPlCdrSerializer::serialize(Vec::new(), &data).unwrap(),
+            expected
+        );
+    }
 
-    // #[test]
-    // fn serialize_with_partition() {
-    //     let data = DiscoveredReaderData {
-    //         dds_subscription_data: SubscriptionBuiltinTopicData {
-    //             key: BuiltInTopicKey {
-    //                 value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
-    //             },
-    //             participant_key: BuiltInTopicKey {
-    //                 value: [6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 0, 9, 0, 0, 0],
-    //             },
-    //             topic_name: "ab".to_string(),
-    //             type_name: "cd".to_string(),
-    //             durability: Default::default(),
-    //             deadline: Default::default(),
-    //             latency_budget: Default::default(),
-    //             liveliness: Default::default(),
-    //             reliability: DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-    //             ownership: Default::default(),
-    //             destination_order: Default::default(),
-    //             user_data: Default::default(),
-    //             time_based_filter: Default::default(),
-    //             presentation: Default::default(),
-    //             partition: PartitionQosPolicy {
-    //                 name: vec![String::from("one"), String::from("two")],
-    //             },
-    //             topic_data: Default::default(),
-    //             group_data: Default::default(),
-    //             representation: Default::default(),
-    //         },
-    //         reader_proxy: ReaderProxy {
-    //             remote_reader_guid: Guid::new(
-    //                 [5; 12],
-    //                 EntityId::new([11, 12, 13], USER_DEFINED_READER_WITH_KEY),
-    //             ),
-    //             remote_group_entity_id: EntityId::new([21, 22, 23], BUILT_IN_WRITER_WITH_KEY),
-    //             unicast_locator_list: vec![],
-    //             multicast_locator_list: vec![],
-    //             expects_inline_qos: false,
-    //         },
-    //     }
-    //     .create_dynamic_sample();
+    #[test]
+    fn serialize_with_partition() {
+        let data = DiscoveredReaderData {
+            dds_subscription_data: SubscriptionBuiltinTopicData {
+                key: BuiltInTopicKey {
+                    value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
+                },
+                participant_key: BuiltInTopicKey {
+                    value: [6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 0, 9, 0, 0, 0],
+                },
+                topic_name: "ab".to_string(),
+                type_name: "cd".to_string(),
+                durability: Default::default(),
+                deadline: Default::default(),
+                latency_budget: Default::default(),
+                liveliness: Default::default(),
+                reliability: DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+                ownership: Default::default(),
+                destination_order: Default::default(),
+                user_data: Default::default(),
+                time_based_filter: Default::default(),
+                presentation: Default::default(),
+                partition: PartitionQosPolicy {
+                    name: vec![String::from("one"), String::from("two")],
+                },
+                topic_data: Default::default(),
+                group_data: Default::default(),
+                representation: Default::default(),
+            },
+            reader_proxy: ReaderProxy {
+                remote_reader_guid: Guid::new(
+                    [5; 12],
+                    EntityId::new([11, 12, 13], USER_DEFINED_READER_WITH_KEY),
+                ),
+                remote_group_entity_id: EntityId::new([21, 22, 23], BUILT_IN_WRITER_WITH_KEY),
+                unicast_locator_list: vec![],
+                multicast_locator_list: vec![],
+                expects_inline_qos: false,
+            },
+        }
+        .create_dynamic_sample();
 
-    //     let expected = vec![
-    //         // 0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
-    //         0x05, 0x00, 0x08, 0x00, // PID_TOPIC_NAME, Length: 8
-    //         3, 0x00, 0x00, 0x00, // string length (incl. terminator)
-    //         b'a', b'b', 0, 0x00, // string + padding (1 byte)
-    //         0x07, 0x00, 0x08, 0x00, // PID_TYPE_NAME, Length: 8
-    //         3, 0x00, 0x00, 0x00, // string length (incl. terminator)
-    //         b'c', b'd', 0, 0x00, // string + padding (1 byte)
-    //         0x29, 0x00, 20, 0, // PID_PARTITION, length
-    //         2, 0, 0, 0, // vec length
-    //         4, 0, 0, 0, // String length
-    //         b'o', b'n', b'e', 0, // String
-    //         4, 0, 0, 0, // String length
-    //         b't', b'w', b'o', 0, // String
-    //         0x50, 0x00, 16, 0, //PID_PARTICIPANT_GUID, length
-    //         6, 0, 0, 0, // ,
-    //         7, 0, 0, 0, // ,
-    //         8, 0, 0, 0, // ,
-    //         9, 0, 0, 0, // ,
-    //         0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
-    //         21, 22, 23, 0xc2, //
-    //         0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
-    //         1, 0, 0, 0, // ,
-    //         2, 0, 0, 0, // ,
-    //         3, 0, 0, 0, // ,
-    //         4, 0, 0, 0, // ,
-    //         0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
-    //     ];
-    //     let mut serializer = PlCdrSerializer::new(Vec::new());
-    //     serializer.serialize(&data).unwrap();
-    //     assert_eq!(serializer.into_inner(), expected);
-    // }
+        let expected = [
+            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+            0x05, 0x00, 0x08, 0x00, // PID_TOPIC_NAME, Length: 8
+            3, 0x00, 0x00, 0x00, // string length (incl. terminator)
+            b'a', b'b', 0, 0x00, // string + padding (1 byte)
+            0x07, 0x00, 0x08, 0x00, // PID_TYPE_NAME, Length: 8
+            3, 0x00, 0x00, 0x00, // string length (incl. terminator)
+            b'c', b'd', 0, 0x00, // string + padding (1 byte)
+            0x29, 0x00, 20, 0, // PID_PARTITION, length
+            2, 0, 0, 0, // vec length
+            4, 0, 0, 0, // String length
+            b'o', b'n', b'e', 0, // String
+            4, 0, 0, 0, // String length
+            b't', b'w', b'o', 0, // String
+            0x50, 0x00, 16, 0, //PID_PARTICIPANT_GUID, length
+            6, 0, 0, 0, // ,
+            7, 0, 0, 0, // ,
+            8, 0, 0, 0, // ,
+            9, 0, 0, 0, // ,
+            0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
+            21, 22, 23, 0xc2, //
+            0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
+            1, 0, 0, 0, // ,
+            2, 0, 0, 0, // ,
+            3, 0, 0, 0, // ,
+            4, 0, 0, 0, // ,
+            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
+        ];
+        assert_eq!(
+            RtpsPlCdrSerializer::serialize(Vec::new(), &data).unwrap(),
+            expected
+        );
+    }
 
     #[test]
     fn deserialize_all_default() {
