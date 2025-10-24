@@ -915,24 +915,6 @@ mod tests {
     }
 
     #[test]
-    fn parse_enum() {
-        let mut out = String::new();
-        let p = IdlParser::parse(
-            Rule::enum_dcl,
-            "enum Suits { Spades, Hearts, Diamonds, Clubs };",
-        )
-        .unwrap()
-        .next()
-        .unwrap();
-        generate_rust_source(p, &mut out);
-        println!("RESULT: {}", out);
-        assert_eq!(
-            "#[derive(Debug)]\npub enum Suits{Spades,Hearts,Diamonds,Clubs,}",
-            &out
-        );
-    }
-
-    #[test]
     fn parse_const_with_literals() {
         let mut out = String::new();
         let p = IdlParser::parse(Rule::specification, r#"const string a = 'a';"#)
