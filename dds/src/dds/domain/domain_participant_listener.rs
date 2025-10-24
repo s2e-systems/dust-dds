@@ -1,5 +1,4 @@
 use crate::{
-    runtime::DdsRuntime,
     dds_async::{data_reader::DataReaderAsync, data_writer::DataWriterAsync, topic::TopicAsync},
     infrastructure::status::{
         InconsistentTopicStatus, LivelinessChangedStatus, LivelinessLostStatus,
@@ -7,6 +6,7 @@ use crate::{
         RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus,
         SampleRejectedStatus, SubscriptionMatchedStatus,
     },
+    runtime::DdsRuntime,
 };
 use core::future::Future;
 

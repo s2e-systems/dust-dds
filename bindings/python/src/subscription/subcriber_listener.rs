@@ -16,8 +16,10 @@ impl From<Py<PyAny>> for SubscriberListener {
     }
 }
 
-impl dust_dds::subscription::subscriber_listener::SubscriberListener<dust_dds::std_runtime::StdRuntime>
-    for SubscriberListener
+impl
+    dust_dds::subscription::subscriber_listener::SubscriberListener<
+        dust_dds::std_runtime::StdRuntime,
+    > for SubscriberListener
 {
     async fn on_data_on_readers(
         &mut self,

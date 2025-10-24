@@ -1,6 +1,6 @@
 use crate::{
-    runtime::DdsRuntime, dds_async::topic::TopicAsync,
-    infrastructure::status::InconsistentTopicStatus,
+    dds_async::topic::TopicAsync, infrastructure::status::InconsistentTopicStatus,
+    runtime::DdsRuntime,
 };
 use core::future::Future;
 

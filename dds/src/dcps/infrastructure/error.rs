@@ -1,6 +1,6 @@
 use crate::{rtps::error::RtpsError, xtypes::error::XTypesError};
 use alloc::{boxed::Box, format, string::String};
-use core::{any::Any, fmt::{Display}, error::Error};
+use core::{any::Any, error::Error, fmt::Display};
 
 /// Result type returned by the different operations of the service
 pub type DdsResult<T> = Result<T, DdsError>;
@@ -53,7 +53,7 @@ impl Display for DdsError {
             Self::AlreadyDeleted => write!(f, "object of operation has been already deleted"),
             Self::Timeout => write!(f, "operation timed out"),
             Self::NoData => write!(f, "operation returned no data, but no error occurred"),
-            Self::IllegalOperation => write!(f, "illegal operation")
+            Self::IllegalOperation => write!(f, "illegal operation"),
         }
     }
 }

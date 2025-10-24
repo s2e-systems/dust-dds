@@ -7,8 +7,8 @@ use crate::{
         domain_participant_mail::{DcpsDomainParticipantMail, ParticipantServiceMail},
         listeners::{
             domain_participant_listener::DcpsDomainParticipantListener,
-            publisher_listener::DcpsPublisherListener,
-            subscriber_listener::DcpsSubscriberListener, topic_listener::DcpsTopicListener,
+            publisher_listener::DcpsPublisherListener, subscriber_listener::DcpsSubscriberListener,
+            topic_listener::DcpsTopicListener,
         },
         status_condition::DcpsStatusCondition,
     },
@@ -671,8 +671,8 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = R::oneshot();
-        let listener_sender = a_listener
-            .map(|l| DcpsDomainParticipantListener::spawn::<R>(l, self.spawner_handle()));
+        let listener_sender =
+            a_listener.map(|l| DcpsDomainParticipantListener::spawn::<R>(l, self.spawner_handle()));
         self.participant_address
             .send(DcpsDomainParticipantMail::Participant(
                 ParticipantServiceMail::SetListener {

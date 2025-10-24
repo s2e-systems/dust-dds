@@ -416,7 +416,6 @@ impl TryFrom<&[u8]> for RtpsMessageRead {
                             _ => Err(RtpsMessageError::UnknownMessage),
                         };
                         if let Ok(submessage) = submessage {
-
                             // DATA and DATA_FRAG submessages can have a length of 0 meaning use everything until the end
                             // of the buffer
                             if submessage_length == 0

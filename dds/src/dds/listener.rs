@@ -1,9 +1,9 @@
 use crate::{
-    runtime::DdsRuntime,
     domain::domain_participant_listener::DomainParticipantListener,
     publication::{
         data_writer_listener::DataWriterListener, publisher_listener::PublisherListener,
     },
+    runtime::DdsRuntime,
     subscription::{
         data_reader_listener::DataReaderListener, subscriber_listener::SubscriberListener,
     },
