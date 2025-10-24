@@ -452,8 +452,7 @@ mod tests {
         xtypes::{
             data_representation::{cdr_reader::PlCdr1Deserializer, endianness::LittleEndian},
             dynamic_type::DynamicData,
-            pl_cdr_serializer::PlCdrSerializer,
-            serializer::XTypesSerializer,
+            serializer::RtpsPlCdrSerializer,
         },
     };
 
@@ -492,10 +491,11 @@ mod tests {
             },
             lease_duration: Duration::new(10, 11),
             discovered_participant_list: vec![],
-        };
+        }
+        .create_dynamic_sample();
 
-        let expected = vec![
-            // 0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+        let expected = [
+            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             2, 0x00, 8, 0x00, // PID_PARTICIPANT_LEASE_DURATION
             10, 0x00, 0x00, 0x00, // Duration: seconds
             11, 0x00, 0x00, 0x00, // Duration: fraction
@@ -561,12 +561,10 @@ mod tests {
             b'a', b'b', 0, 0x00, // DomainTag: string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ];
-        let dynamic_sample = data.create_dynamic_sample();
-        let result = dynamic_sample
-            .serialize(PlCdrSerializer::new(Vec::new()))
-            .unwrap()
-            .into_inner();
-        assert_eq!(result, expected);
+        assert_eq!(
+            RtpsPlCdrSerializer::serialize(Vec::new(), &data).unwrap(),
+            expected
+        );
     }
 
     #[test]
@@ -597,10 +595,11 @@ mod tests {
             },
             lease_duration: DEFAULT_PARTICIPANT_LEASE_DURATION,
             discovered_participant_list: Vec::new(),
-        };
+        }
+        .create_dynamic_sample();
 
-        let expected = vec![
-            // 0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+        let expected = [
+            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x02, 0x00, 8, 0x00, // PID_PARTICIPANT_LEASE_DURATION
             100, 0x00, 0x00, 0x00, // Duration: seconds
             0, 0x00, 0x00, 0x00, // Duration: fraction
@@ -617,12 +616,10 @@ mod tests {
             0x02, 0x00, 0x00, 0x00, //
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ];
-        let dynamic_sample = data.create_dynamic_sample();
-        let result = dynamic_sample
-            .serialize(PlCdrSerializer::new(Vec::new()))
-            .unwrap()
-            .into_inner();
-        assert_eq!(result, expected);
+        assert_eq!(
+            RtpsPlCdrSerializer::serialize(Vec::new(), &data).unwrap(),
+            expected
+        );
     }
 
     #[test]
