@@ -901,7 +901,7 @@ mod tests {
         assert_eq!(
             serialize_v1_be(v),
             vec![
-                0x00, 0x00, 0x00, 0x00, // CDR Header
+                0x00, 0x02, 0x00, 0x00, // CDR Header
                 0x00, 41, 0, 2, // PID, length
                 1, 2, 0, 0, // version | padding (2 bytres)
                 0, 1, 0, 0, // Sentinel
@@ -935,7 +935,7 @@ mod tests {
         assert_eq!(
             serialize_v1_be(v),
             vec![
-                0x00, 0x00, 0x00, 0x00, // CDR Header
+                0x00, 0x02, 0x00, 0x00, // CDR Header
                 0, 73, 0, 9, // PID | length
                 0, 0, 0, 1, // kind
                 3, 4, 5, 6, // address1 and 2
