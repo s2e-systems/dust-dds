@@ -434,8 +434,7 @@ mod tests {
         xtypes::{
             data_representation::{cdr_reader::PlCdr1Deserializer, endianness::LittleEndian},
             dynamic_type::DynamicData,
-            pl_cdr_serializer::PlCdrSerializer,
-            serializer::XTypesSerializer,
+            serializer::RtpsPlCdrSerializer,
         },
     };
 
@@ -476,10 +475,11 @@ mod tests {
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
             },
-        };
+        }
+        .create_dynamic_sample();
 
-        let expected = vec![
-            // 0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+        let expected = [
+            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x05, 0x00, 0x08, 0x00, // PID_TOPIC_NAME, Length: 8
             3, 0x00, 0x00, 0x00, // string length (incl. terminator)
             b'a', b'b', 0, 0x00, // string + padding (1 byte)
@@ -500,12 +500,11 @@ mod tests {
             4, 0, 0, 0, // ,
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
-        let dynamic_sample = data.create_dynamic_sample();
-        let result = dynamic_sample
-            .serialize(PlCdrSerializer::new(Vec::new()))
-            .unwrap()
-            .into_inner();
-        assert_eq!(result, expected);
+
+        assert_eq!(
+            RtpsPlCdrSerializer::serialize(Vec::new(), &data).unwrap(),
+            expected
+        );
     }
 
     #[test]
