@@ -25,7 +25,7 @@ impl dust_dds::publication::publisher_listener::PublisherListener<dust_dds::std_
         status: dust_dds::infrastructure::status::LivelinessLostStatus,
     ) {
         let args = ((), LivelinessLostStatus::from(status));
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             self.0
                 .bind(py)
                 .call_method("on_liveliness_lost", args, None)
@@ -42,7 +42,7 @@ impl dust_dds::publication::publisher_listener::PublisherListener<dust_dds::std_
         status: dust_dds::infrastructure::status::OfferedDeadlineMissedStatus,
     ) {
         let args = ((), OfferedDeadlineMissedStatus::from(status));
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             self.0
                 .bind(py)
                 .call_method("on_offered_deadline_missed", args, None)
@@ -59,7 +59,7 @@ impl dust_dds::publication::publisher_listener::PublisherListener<dust_dds::std_
         status: dust_dds::infrastructure::status::OfferedIncompatibleQosStatus,
     ) {
         let args = ((), OfferedIncompatibleQosStatus::from(status));
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             self.0
                 .bind(py)
                 .call_method("on_offered_incompatible_qos", args, None)
@@ -76,7 +76,7 @@ impl dust_dds::publication::publisher_listener::PublisherListener<dust_dds::std_
         status: dust_dds::infrastructure::status::PublicationMatchedStatus,
     ) {
         let args = ((), PublicationMatchedStatus::from(status));
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             self.0
                 .bind(py)
                 .call_method("on_publication_matched", args, None)

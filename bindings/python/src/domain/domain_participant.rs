@@ -149,7 +149,7 @@ impl DomainParticipant {
             .map(dust_dds::infrastructure::status::StatusKind::from)
             .collect();
 
-        let type_name = Python::with_gil(|py| type_.getattr(py, "__name__"))?.to_string();
+        let type_name = Python::attach(|py| type_.getattr(py, "__name__"))?.to_string();
 
         TYPE_REGISTRY
             .get_or_init(|| Mutex::new(HashMap::new()))

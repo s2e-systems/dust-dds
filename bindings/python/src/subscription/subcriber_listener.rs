@@ -28,7 +28,7 @@ impl
         >,
     ) {
         let args = (Subscriber::from(the_subscriber),);
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             self.0
                 .bind(py)
                 .call_method("on_data_on_readers", args, None)
@@ -44,7 +44,7 @@ impl
         >,
     ) {
         let args = ((),);
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             self.0
                 .bind(py)
                 .call_method("on_data_available", args, None)
@@ -61,7 +61,7 @@ impl
         status: dust_dds::infrastructure::status::SampleRejectedStatus,
     ) {
         let args = ((), SampleRejectedStatus::from(status));
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             self.0
                 .bind(py)
                 .call_method("on_sample_rejected", args, None)
@@ -78,7 +78,7 @@ impl
         status: dust_dds::infrastructure::status::LivelinessChangedStatus,
     ) {
         let args = ((), LivelinessChangedStatus::from(status));
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             self.0
                 .bind(py)
                 .call_method("on_liveliness_changed", args, None)
@@ -95,7 +95,7 @@ impl
         status: dust_dds::infrastructure::status::RequestedDeadlineMissedStatus,
     ) {
         let args = ((), RequestedDeadlineMissedStatus::from(status));
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             self.0
                 .bind(py)
                 .call_method("on_requested_deadline_missed", args, None)
@@ -112,7 +112,7 @@ impl
         status: dust_dds::infrastructure::status::RequestedIncompatibleQosStatus,
     ) {
         let args = ((), RequestedIncompatibleQosStatus::from(status));
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             self.0
                 .bind(py)
                 .call_method("on_requested_incompatible_qos", args, None)
@@ -129,7 +129,7 @@ impl
         status: dust_dds::infrastructure::status::SubscriptionMatchedStatus,
     ) {
         let args = ((), SubscriptionMatchedStatus::from(status));
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             self.0
                 .bind(py)
                 .call_method("on_subscription_matched", args, None)
@@ -146,7 +146,7 @@ impl
         status: dust_dds::infrastructure::status::SampleLostStatus,
     ) {
         let args = ((), SampleLostStatus::from(status));
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             self.0
                 .bind(py)
                 .call_method("on_sample_lost", args, None)
