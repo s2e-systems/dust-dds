@@ -964,13 +964,13 @@ fn create_delete_content_filtered_topic() {
         .unwrap();
 
     let filter_expression = String::from(r#"value =  %0 "#);
-    let expression_parameters = [String::from(r#"10"#)];
+    let expression_parameters = vec![String::from(r#"10"#)];
     let content_filtered_topic = participant
         .create_contentfilteredtopic(
             "filter_abc",
             &topic,
             filter_expression,
-            &expression_parameters,
+            expression_parameters,
         )
         .unwrap();
 

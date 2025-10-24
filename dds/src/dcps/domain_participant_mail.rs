@@ -73,7 +73,9 @@ pub enum ParticipantServiceMail<R: DdsRuntime> {
         participant_handle: InstanceHandle,
         name: String,
         related_topic_name: String,
-        reply_sender: R::OneshotSender<DdsResult<()>>,
+        filter_expression: String,
+        expression_parameters: Vec<String>,
+        reply_sender: R::OneshotSender<DdsResult<InstanceHandle>>,
     },
     DeleteContentFilteredTopic {
         participant_handle: InstanceHandle,
@@ -641,12 +643,19 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsDomainParticipant<R, T> 
                 participant_handle,
                 name,
                 related_topic_name,
+                filter_expression,
+                expression_parameters,
                 reply_sender,
-            } => reply_sender.send(self.create_content_filtered_topic(
-                participant_handle,
-                name,
-                related_topic_name,
-            )),
+            } => reply_sender.send(
+                self.create_content_filtered_topic(
+                    participant_handle,
+                    name,
+                    related_topic_name,
+                    filter_expression,
+                    expression_parameters,
+                )
+                .await,
+            ),
             ParticipantServiceMail::DeleteContentFilteredTopic {
                 participant_handle,
                 name,

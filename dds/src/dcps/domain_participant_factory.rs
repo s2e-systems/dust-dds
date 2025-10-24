@@ -232,6 +232,8 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             None,
             vec![],
             Arc::new(SpdpDiscoveredParticipantData::get_type()),
+            None,
+            None,
         );
 
         topic_list.push(spdp_topic_participant);
@@ -263,6 +265,8 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             None,
             vec![],
             Arc::new(DiscoveredTopicData::get_type()),
+            None,
+            None,
         );
 
         topic_list.push(sedp_topic_topics);
@@ -294,6 +298,8 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             None,
             vec![],
             Arc::new(DiscoveredWriterData::get_type()),
+            None,
+            None,
         );
         topic_list.push(sedp_topic_publications);
 
@@ -324,6 +330,8 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             None,
             vec![],
             Arc::new(DiscoveredReaderData::get_type()),
+            None,
+            None,
         );
         topic_list.push(sedp_topic_subscriptions);
 

@@ -21,7 +21,7 @@ impl<R: DdsRuntime> Clone for ContentFilteredTopicAsync<R> {
 }
 
 impl<R: DdsRuntime> ContentFilteredTopicAsync<R> {
-    pub(crate) fn _new(name: String, topic: TopicAsync<R>) -> Self {
+    pub(crate) fn new(name: String, topic: TopicAsync<R>) -> Self {
         Self { name, topic }
     }
 }

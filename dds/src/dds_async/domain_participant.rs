@@ -12,7 +12,9 @@ use crate::{
         },
         status_condition::DcpsStatusCondition,
     },
-    dds_async::topic_description::TopicDescriptionAsync,
+    dds_async::{
+        content_filtered_topic::ContentFilteredTopicAsync, topic_description::TopicDescriptionAsync,
+    },
     domain::domain_participant_listener::DomainParticipantListener,
     infrastructure::{
         domain::DomainId,
@@ -264,36 +266,37 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
     }
 
     /// Async version of [`create_contentfilteredtopic`](crate::domain::domain_participant::DomainParticipant::create_contentfilteredtopic).
-    #[tracing::instrument(skip(self, _related_topic))]
+    #[tracing::instrument(skip(self, related_topic))]
     pub async fn create_contentfilteredtopic(
         &self,
-        _name: &str,
-        _related_topic: &TopicDescriptionAsync<R>,
-        _filter_expression: String,
-        _expression_parameters: &[String],
+        name: &str,
+        related_topic: &TopicDescriptionAsync<R>,
+        filter_expression: String,
+        expression_parameters: Vec<String>,
     ) -> DdsResult<TopicDescriptionAsync<R>> {
-        todo!()
-        // let topic = match related_topic {
-        //     TopicDescriptionAsync::Topic(t) => t.clone(),
-        //     TopicDescriptionAsync::ContentFilteredTopic(_) => return Err(DdsError::BadParameter),
-        // };
-        // let name = name.to_string();
-        // let related_topic_name = topic.get_name();
-        // let (reply_sender, reply_receiver) = R::oneshot();
-        // self.participant_address
-        //     .send(DomainParticipantMail::Participant(
-        //         ParticipantServiceMail::CreateContentFilteredTopic {
-        //             participant_handle: topic.get_participant().handle,
-        //             name: name.clone(),
-        //             related_topic_name,
-        //             reply_sender,
-        //         },
-        //     ))
-        //     .await?;
-        // reply_receiver.receive().await??;
-        // Ok(TopicDescriptionAsync::ContentFilteredTopic(
-        //     ContentFilteredTopicAsync::new(name.clone(), topic),
-        // ))
+        let topic = match related_topic {
+            TopicDescriptionAsync::Topic(t) => t.clone(),
+            TopicDescriptionAsync::ContentFilteredTopic(_) => return Err(DdsError::BadParameter),
+        };
+        let name = name.to_string();
+        let related_topic_name = related_topic.get_name();
+        let (reply_sender, reply_receiver) = R::oneshot();
+        self.participant_address
+            .send(DcpsDomainParticipantMail::Participant(
+                ParticipantServiceMail::CreateContentFilteredTopic {
+                    participant_handle: topic.get_participant().handle,
+                    name: name.clone(),
+                    related_topic_name,
+                    filter_expression,
+                    expression_parameters,
+                    reply_sender,
+                },
+            ))
+            .await?;
+        reply_receiver.receive().await??;
+        Ok(TopicDescriptionAsync::ContentFilteredTopic(
+            ContentFilteredTopicAsync::new(name.clone(), topic),
+        ))
     }
 
     /// Async version of [`delete_contentfilteredtopic`](crate::domain::domain_participant::DomainParticipant::delete_contentfilteredtopic).

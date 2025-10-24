@@ -632,6 +632,8 @@ where
             listener_sender,
             mask,
             type_support,
+            None,
+            None,
         );
 
         match self
@@ -711,13 +713,69 @@ where
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn create_content_filtered_topic(
+    pub async fn create_content_filtered_topic(
         &mut self,
         participant_handle: InstanceHandle,
         name: String,
         related_topic_name: String,
-    ) -> DdsResult<()> {
-        Ok(())
+        filter_expression: String,
+        expression_parameters: Vec<String>,
+    ) -> DdsResult<InstanceHandle> {
+        let related_topic = self
+            .domain_participant
+            .topic_list
+            .iter()
+            .find(|x| x.topic_name == related_topic_name)
+            .ok_or(DdsError::PreconditionNotMet(format!(
+                "Related topic with name {related_topic_name} does not exist."
+            )))?;
+        let qos = related_topic.qos.clone();
+
+        let topic_handle = InstanceHandle::new([
+            self.domain_participant.instance_handle[0],
+            self.domain_participant.instance_handle[1],
+            self.domain_participant.instance_handle[2],
+            self.domain_participant.instance_handle[3],
+            self.domain_participant.instance_handle[4],
+            self.domain_participant.instance_handle[5],
+            self.domain_participant.instance_handle[6],
+            self.domain_participant.instance_handle[7],
+            self.domain_participant.instance_handle[8],
+            self.domain_participant.instance_handle[9],
+            self.domain_participant.instance_handle[10],
+            self.domain_participant.instance_handle[11],
+            0,
+            self.topic_counter.to_ne_bytes()[0],
+            self.topic_counter.to_ne_bytes()[1],
+            USER_DEFINED_TOPIC,
+        ]);
+        self.topic_counter += 1;
+
+        let topic = TopicEntity::new(
+            qos,
+            related_topic.type_name.clone(),
+            name,
+            topic_handle,
+            related_topic.status_condition.clone(),
+            None,
+            Vec::new(),
+            related_topic.type_support.clone(),
+            Some(filter_expression),
+            Some(expression_parameters),
+        );
+        self.domain_participant.topic_list.push(topic);
+
+        if self.domain_participant.enabled
+            && self
+                .domain_participant
+                .qos
+                .entity_factory
+                .autoenable_created_entities
+        {
+            self.enable_topic(related_topic_name).await?;
+        }
+
+        Ok(topic_handle)
     }
 
     #[tracing::instrument(skip(self))]
@@ -800,6 +858,8 @@ where
                     None,
                     vec![],
                     type_support,
+                    None,
+                    None,
                 );
                 topic.enabled = true;
                 let topic_status_condition_address = topic.status_condition.address();
@@ -5770,6 +5830,8 @@ pub struct TopicEntity<R: DdsRuntime> {
     _listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
     _status_kind: Vec<StatusKind>,
     type_support: Arc<DynamicType>,
+    filter_expression: Option<String>,
+    expression_parameters: Option<Vec<String>>,
 }
 
 impl<R: DdsRuntime> TopicEntity<R> {
@@ -5783,6 +5845,8 @@ impl<R: DdsRuntime> TopicEntity<R> {
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         status_kind: Vec<StatusKind>,
         type_support: Arc<DynamicType>,
+        filter_expression: Option<String>,
+        expression_parameters: Option<Vec<String>>,
     ) -> Self {
         Self {
             qos,
@@ -5795,6 +5859,8 @@ impl<R: DdsRuntime> TopicEntity<R> {
             _listener_sender: listener_sender,
             _status_kind: status_kind,
             type_support,
+            filter_expression,
+            expression_parameters,
         }
     }
 }
