@@ -160,6 +160,7 @@ where
         }
     }
 
+    #[tracing::instrument(skip(self, participant_address))]
     fn get_participant_async(
         &self,
         participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
@@ -178,6 +179,7 @@ where
         )
     }
 
+    #[tracing::instrument(skip(self, participant_address))]
     fn get_subscriber_async(
         &self,
         participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
@@ -196,6 +198,7 @@ where
         ))
     }
 
+    #[tracing::instrument(skip(self, participant_address))]
     fn get_data_reader_async<Foo>(
         &self,
         participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
@@ -221,6 +224,7 @@ where
         ))
     }
 
+    #[tracing::instrument(skip(self, participant_address))]
     fn get_publisher_async(
         &self,
         participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
@@ -232,6 +236,7 @@ where
         ))
     }
 
+    #[tracing::instrument(skip(self, participant_address))]
     fn get_data_writer_async<Foo>(
         &self,
         participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
@@ -257,6 +262,7 @@ where
         ))
     }
 
+    #[tracing::instrument(skip(self, participant_address))]
     fn get_topic_description_async(
         &self,
         participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
@@ -277,6 +283,7 @@ where
         )))
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn get_builtin_subscriber(&self) -> &SubscriberEntity<R, T> {
         &self.domain_participant.builtin_subscriber
     }
@@ -1138,6 +1145,7 @@ where
         where
             R: DdsRuntime,
         {
+            #[tracing::instrument(skip(self))]
             fn add_change(
                 &mut self,
                 cache_change: CacheChange,
@@ -1157,6 +1165,7 @@ where
                 })
             }
 
+            #[tracing::instrument(skip(self))]
             fn remove_change(
                 &mut self,
                 _sequence_number: i64,
@@ -1928,27 +1937,16 @@ where
         else {
             return Err(DdsError::AlreadyDeleted);
         };
-        let instance_handle = match get_instance_handle_from_dynamic_data(dynamic_data.clone()) {
-            Ok(k) => k,
-            Err(e) => {
-                return Err(e.into());
-            }
-        };
+        let instance_handle = get_instance_handle_from_dynamic_data(dynamic_data.clone())?;
 
         match data_writer.qos.lifespan.duration {
             DurationKind::Finite(lifespan_duration) => {
                 let mut timer_handle = self.timer_handle.clone();
                 let sleep_duration = timestamp - now + lifespan_duration;
                 if sleep_duration > Duration::new(0, 0) {
-                    let sequence_number = match data_writer
+                    let sequence_number = data_writer
                         .write_w_timestamp(dynamic_data, timestamp, &self.clock_handle)
-                        .await
-                    {
-                        Ok(s) => s,
-                        Err(e) => {
-                            return Err(e);
-                        }
-                    };
+                        .await?;
 
                     let participant_address = participant_address.clone();
                     self.spawner_handle.spawn(async move {
@@ -1967,15 +1965,9 @@ where
                 }
             }
             DurationKind::Infinite => {
-                match data_writer
+                data_writer
                     .write_w_timestamp(dynamic_data, timestamp, &self.clock_handle)
-                    .await
-                {
-                    Ok(_) => (),
-                    Err(e) => {
-                        return Err(e);
-                    }
-                };
+                    .await?;
             }
         }
 
@@ -2031,7 +2023,7 @@ where
             .await
     }
 
-    //#[tracing::instrument(skip(self, participant_address))]
+    #[tracing::instrument(skip(self, participant_address))]
     pub fn wait_for_acknowledgments(
         &mut self,
         participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
@@ -2395,7 +2387,7 @@ where
         Ok(status)
     }
 
-    //#[tracing::instrument(skip(self, participant_address))]
+    #[tracing::instrument(skip(self, participant_address))]
     pub fn wait_for_historical_data(
         &mut self,
         participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
@@ -5409,6 +5401,7 @@ fn get_discovered_writer_incompatible_qos_policy_list<
     incompatible_qos_policy_list
 }
 
+#[tracing::instrument]
 fn is_discovered_topic_consistent(
     topic_qos: &TopicQos,
     topic_builtin_topic_data: &TopicBuiltinTopicData,
@@ -5427,6 +5420,7 @@ fn is_discovered_topic_consistent(
         && &topic_qos.ownership == topic_builtin_topic_data.ownership()
 }
 
+#[tracing::instrument]
 fn fnmatch_to_regex(pattern: &str) -> String {
     fn flush_literal(out: &mut String, lit: &mut String) {
         if !lit.is_empty() {
@@ -5920,6 +5914,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
         }
     }
 
+    #[tracing::instrument(skip(self, clock))]
     pub async fn write_w_timestamp(
         &mut self,
         dynamic_data: DynamicData,
@@ -6097,6 +6092,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
         Ok(self.last_change_sequence_number)
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn dispose_w_timestamp(
         &mut self,
         dynamic_data: DynamicData,
@@ -6156,6 +6152,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
         Ok(())
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn unregister_w_timestamp(
         &mut self,
         dynamic_data: DynamicData,
@@ -6214,6 +6211,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
         Ok(())
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn add_matched_subscription(
         &mut self,
         subscription_builtin_topic_data: SubscriptionBuiltinTopicData,
@@ -6234,6 +6232,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
         self.publication_matched_status.total_count_change += 1;
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn remove_matched_subscription(&mut self, subscription_handle: &InstanceHandle) {
         let Some(i) = self
             .matched_subscription_list
@@ -6247,6 +6246,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
         self.publication_matched_status.current_count_change -= 1;
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn add_incompatible_subscription(
         &mut self,
         handle: InstanceHandle,
@@ -6278,12 +6278,14 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
         }
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn get_offered_incompatible_qos_status(&mut self) -> OfferedIncompatibleQosStatus {
         let status = self.offered_incompatible_qos_status.clone();
         self.offered_incompatible_qos_status.total_count_change = 0;
         status
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn get_publication_matched_status(&mut self) -> PublicationMatchedStatus {
         let status = self.publication_matched_status.clone();
         self.publication_matched_status.current_count_change = 0;
@@ -6292,6 +6294,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
         status
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn get_instance_write_time(&self, instance_handle: InstanceHandle) -> Option<Time> {
         self.instance_publication_time
             .iter()
@@ -6299,6 +6302,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
             .map(|x| x.last_write_time)
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn are_all_changes_acknowledged(&self) -> bool {
         match &self.transport_writer {
             TransportWriterKind::Stateful(w) => {
@@ -6309,6 +6313,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
         }
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn get_offered_deadline_missed_status(&mut self) -> OfferedDeadlineMissedStatus {
         let status = self.offered_deadline_missed_status.clone();
         self.offered_deadline_missed_status.total_count_change = 0;
@@ -6493,6 +6498,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
         }
     }
 
+    #[tracing::instrument(skip(self))]
     fn create_indexed_sample_collection(
         &mut self,
         max_samples: i32,
@@ -6645,6 +6651,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
         }
     }
 
+    #[tracing::instrument(skip(self))]
     fn next_instance(&mut self, previous_handle: Option<InstanceHandle>) -> Option<InstanceHandle> {
         match previous_handle {
             Some(p) => self
@@ -6657,6 +6664,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
         }
     }
 
+    #[tracing::instrument(skip(self))]
     fn convert_cache_change_to_sample(
         &mut self,
         cache_change: CacheChange,
@@ -6747,6 +6755,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
         })
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn add_reader_change(
         &mut self,
         cache_change: CacheChange,
@@ -6988,6 +6997,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
         Ok(AddChangeResult::Added(change_instance_handle))
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn add_matched_publication(
         &mut self,
         publication_builtin_topic_data: PublicationBuiltinTopicData,
@@ -7009,18 +7019,21 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
         self.subscription_matched_status.total_count_change += 1;
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn increment_requested_deadline_missed_status(&mut self, instance_handle: InstanceHandle) {
         self.requested_deadline_missed_status.total_count += 1;
         self.requested_deadline_missed_status.total_count_change += 1;
         self.requested_deadline_missed_status.last_instance_handle = instance_handle;
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn get_requested_deadline_missed_status(&mut self) -> RequestedDeadlineMissedStatus {
         let status = self.requested_deadline_missed_status.clone();
         self.requested_deadline_missed_status.total_count_change = 0;
         status
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn remove_instance_ownership(&mut self, instance_handle: &InstanceHandle) {
         if let Some(i) = self
             .instance_ownership
@@ -7031,6 +7044,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
         }
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn add_requested_incompatible_qos(
         &mut self,
         handle: InstanceHandle,
@@ -7061,12 +7075,14 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
         }
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn get_requested_incompatible_qos_status(&mut self) -> RequestedIncompatibleQosStatus {
         let status = self.requested_incompatible_qos_status.clone();
         self.requested_incompatible_qos_status.total_count_change = 0;
         status
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn increment_sample_rejected_status(
         &mut self,
         sample_handle: InstanceHandle,
@@ -7078,6 +7094,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
         self.sample_rejected_status.total_count_change += 1;
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn get_sample_rejected_status(&mut self) -> SampleRejectedStatus {
         let status = self.sample_rejected_status.clone();
         self.sample_rejected_status.total_count_change = 0;
@@ -7085,6 +7102,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
         status
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn get_subscription_matched_status(&mut self) -> SubscriptionMatchedStatus {
         let status = self.subscription_matched_status.clone();
 
@@ -7094,6 +7112,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
         status
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn get_matched_publications(&self) -> Vec<InstanceHandle> {
         self.matched_publication_list
             .iter()
@@ -7101,6 +7120,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
             .collect()
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn get_instance_received_time(&self, instance_handle: &InstanceHandle) -> Option<Time> {
         self.instance_ownership
             .iter()
@@ -7108,6 +7128,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
             .map(|x| x.last_received_time)
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn remove_matched_publication(&mut self, publication_handle: &InstanceHandle) {
         let Some(i) = self
             .matched_publication_list
@@ -7126,6 +7147,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
             .await;
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn read(
         &mut self,
         max_samples: i32,
@@ -7167,6 +7189,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
         Ok(samples)
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn take(
         &mut self,
         max_samples: i32,
@@ -7208,6 +7231,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
         Ok(samples)
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn take_next_instance(
         &mut self,
         max_samples: i32,
@@ -7235,6 +7259,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
         }
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn read_next_instance(
         &mut self,
         max_samples: i32,
