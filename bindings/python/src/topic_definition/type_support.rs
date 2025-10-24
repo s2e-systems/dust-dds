@@ -55,7 +55,7 @@ fn _deserialize_into_py_object<'de, D: XTypesDeserializer<'de>>(
     _py: Python<'_>,
     _type_kind: TypeKind,
     _deserializer: D,
-) -> Result<PyObject, XTypesError> {
+) -> Result<Py<PyAny>, XTypesError> {
     todo!()
     // match type_kind {
     //     TypeKind::boolean => Ok(deserializer.deserialize_boolean()?.into_py(py)),
@@ -88,7 +88,7 @@ impl TryFrom<Py<PyAny>> for PythonTypeRepresentation {
     type Error = PyErr;
 
     fn try_from(value: Py<PyAny>) -> PyResult<Self> {
-        let type_name = Python::with_gil(|py| {
+        let type_name = Python::attach(|py| {
             value
                 .bind(py)
                 .get_type()
@@ -100,12 +100,12 @@ impl TryFrom<Py<PyAny>> for PythonTypeRepresentation {
         fn get_member_count(py: Python<'_>, python_type: &Py<PyAny>) -> PyResult<usize> {
             Ok(python_type
                 .getattr(py, "__dataclass_fields__")?
-                .downcast_bound::<PyDict>(py)?
+                .cast_bound::<PyDict>(py)?
                 .values()
                 .len())
         }
 
-        let member_count = Python::with_gil(|py| get_member_count(py, &value))
+        let member_count = Python::attach(|py| get_member_count(py, &value))
             .expect("Should be able to get member size");
 
         let mut member_seq = Vec::new();
@@ -117,13 +117,13 @@ impl TryFrom<Py<PyAny>> for PythonTypeRepresentation {
             ) -> PyResult<String> {
                 let dataclass_fields = type_representation
                     .getattr(py, "__dataclass_fields__")?
-                    .downcast_bound::<PyDict>(py)?
+                    .cast_bound::<PyDict>(py)?
                     .values();
                 let field = dataclass_fields.get_item(index)?;
 
                 Ok(field.getattr("name")?.to_string())
             }
-            let name = Python::with_gil(|py| get_member_name(py, &value, index))?;
+            let name = Python::attach(|py| get_member_name(py, &value, index))?;
 
             let is_key = false; //TODO!
 
@@ -134,7 +134,7 @@ impl TryFrom<Py<PyAny>> for PythonTypeRepresentation {
             ) -> PyResult<dust_dds::xtypes::type_object::TypeIdentifier> {
                 let dataclass_fields = type_representation
                     .getattr(py, "__dataclass_fields__")?
-                    .downcast_bound::<PyDict>(py)?
+                    .cast_bound::<PyDict>(py)?
                     .values();
                 let field = dataclass_fields.get_item(index)?;
 
@@ -144,8 +144,8 @@ impl TryFrom<Py<PyAny>> for PythonTypeRepresentation {
                     Ok(type_kind.into())
                 } else if is_list(&type_value)? {
                     todo!()
-                } else if let Ok(py_type) = type_value.downcast::<PyType>() {
-                    if py_type.py().get_type_bound::<PyBytes>().is(py_type) {
+                } else if let Ok(py_type) = type_value.cast::<PyType>() {
+                    if py_type.py().get_type::<PyBytes>().is(py_type) {
                         Ok(dust_dds::xtypes::type_object::TypeIdentifier::TiPlainSequenceSmall {
                                 seq_sdefn: Box::new(dust_dds::xtypes::type_object::PlainSequenceSElemDefn {
                                         header: dust_dds::xtypes::type_object::PlainCollectionHeader {
@@ -159,7 +159,7 @@ impl TryFrom<Py<PyAny>> for PythonTypeRepresentation {
                                         element_identifier: dust_dds::xtypes::type_object::TypeIdentifier::TkUint8Type,
                                     })
                                 })
-                    } else if py_type.py().get_type_bound::<PyString>().is(py_type) {
+                    } else if py_type.py().get_type::<PyString>().is(py_type) {
                         Ok(
                             dust_dds::xtypes::type_object::TypeIdentifier::TiString8Small {
                                 string_sdefn: dust_dds::xtypes::type_object::StringSTypeDefn {
@@ -178,7 +178,7 @@ impl TryFrom<Py<PyAny>> for PythonTypeRepresentation {
                     )))
                 }
             }
-            let member_type_id = Python::with_gil(|py| get_member_type(py, &value, index))?;
+            let member_type_id = Python::attach(|py| get_member_type(py, &value, index))?;
 
             member_seq.push(dust_dds::xtypes::type_object::CompleteStructMember {
                 common: dust_dds::xtypes::type_object::CommonStructMember {
@@ -226,9 +226,9 @@ impl TryFrom<Py<PyAny>> for PythonTypeRepresentation {
 }
 
 fn is_list(member_type: &Bound<PyAny>) -> PyResult<bool> {
-    let typing_module = PyModule::import_bound(member_type.py(), "typing")?;
+    let typing_module = PyModule::import(member_type.py(), "typing")?;
     let origin = typing_module.getattr("get_origin")?.call1((member_type,))?;
-    Ok(typing_module.py().get_type_bound::<PyList>().is(&origin))
+    Ok(typing_module.py().get_type::<PyList>().is(&origin))
 }
 
 pub struct PythonDdsData {
@@ -268,10 +268,10 @@ impl PythonDdsData {
         //         .getattr(py, "__class__")
         //         .and_then(|c| c.getattr(py, "__annotations__"))?;
         //     let annotation_dict = annotations
-        //         .downcast_bound::<PyDict>(py)
+        //         .cast_bound_bound::<PyDict>(py)
         //         .map_err(PyErr::from)?;
         //     for (member_name, member_type) in annotation_dict {
-        //         let attribute = data.getattr(py, member_name.downcast::<PyString>()?)?;
+        //         let attribute = data.getattr(py, member_name.cast_bound::<PyString>()?)?;
         //         serialize_data_member(attribute.bind(py), &member_type, serializer)?;
         //     }
         //     Ok(())
@@ -281,7 +281,7 @@ impl PythonDdsData {
         // buffer.extend(&CDR_LE);
         // buffer.extend(&REPRESENTATION_OPTIONS);
         // let mut serializer = Xcdr1LeSerializer::new(buffer);
-        // Python::with_gil(|py| serialize_data(py, py_object, &mut serializer))?;
+        // Python::attach(|py| serialize_data(py, py_object, &mut serializer))?;
 
         // Ok(PythonDdsData {
         //     data: serializer.into_inner(),
@@ -303,7 +303,7 @@ impl PythonDdsData {
             //     let typing_module = PyModule::import_bound(member_type.py(), "typing")?;
             //     let get_args_attr = typing_module.getattr("get_args")?;
             //     let type_args = get_args_attr.call1((member_type,))?;
-            //     let type_args = type_args.downcast::<PyTuple>()?;
+            //     let type_args = type_args.cast_bound::<PyTuple>()?;
             //     let sequence_type = type_args.get_item(0)?;
             //     let sequence_len = deserializer
             //         .deserialize_uint32()
@@ -313,7 +313,7 @@ impl PythonDdsData {
             //         list.push(deserialize_data_member(&sequence_type, deserializer)?);
             //     }
             //     Ok(PyList::new_bound(py, list).into_py(py))
-            // } else if let Ok(py_type) = member_type.downcast::<PyType>() {
+            // } else if let Ok(py_type) = member_type.cast_bound::<PyType>() {
             //     if py_type.py().get_type_bound::<PyBytes>().is(py_type) {
             //         Ok(deserializer
             //             .deserialize_byte_sequence()
@@ -348,9 +348,9 @@ impl PythonDdsData {
             //     .call_method("__new__", (py_type,), None)?
             //     .unbind();
             // let annotations = py_type.getattr("__annotations__")?;
-            // let annotation_dict = annotations.downcast::<PyDict>().map_err(PyErr::from)?;
+            // let annotation_dict = annotations.cast_bound::<PyDict>().map_err(PyErr::from)?;
             // for (member_name, member_type) in annotation_dict {
-            //     let member_name_str = member_name.downcast::<PyString>()?;
+            //     let member_name_str = member_name.cast_bound::<PyString>()?;
             //     object.setattr(
             //         py,
             //         member_name_str,
@@ -363,11 +363,11 @@ impl PythonDdsData {
 
         // let (header, body) = self.data.split_at(4);
         // match [header[0], header[1]] {
-        //     endianness::CDR_LE => Python::with_gil(|py| {
+        //     endianness::CDR_LE => Python::attach(|py| {
         //         let type_ = type_.extract(py)?;
         //         deserialize_data(py, type_, &mut Xcdr1LeDeserializer::new(body))
         //     }),
-        //     endianness::CDR_BE => Python::with_gil(|py| {
+        //     endianness::CDR_BE => Python::attach(|py| {
         //         let type_ = type_.extract(py)?;
         //         deserialize_data(py, type_, &mut Xcdr1BeDeserializer::new(body))
         //     }),

@@ -7,7 +7,7 @@ use crate::{
         submessages::{gap::GapSubmessage, info_timestamp::InfoTimestampSubmessage},
         types::TIME_INVALID,
     },
-    transport::types::{CacheChange, Guid, Locator, SequenceNumber, ENTITYID_UNKNOWN},
+    transport::types::{CacheChange, ENTITYID_UNKNOWN, Guid, Locator, SequenceNumber},
 };
 
 use alloc::vec::Vec;

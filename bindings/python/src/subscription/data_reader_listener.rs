@@ -34,7 +34,7 @@ impl
     ) {
         let reader = DataReader::from(the_reader);
         let args = (reader,);
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             self.0
                 .bind(py)
                 .call_method("on_data_available", args, None)
@@ -54,7 +54,7 @@ impl
             DataReader::from(the_reader),
             SampleRejectedStatus::from(status),
         );
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             self.0
                 .bind(py)
                 .call_method("on_sample_rejected", args, None)
@@ -74,7 +74,7 @@ impl
             DataReader::from(the_reader),
             LivelinessChangedStatus::from(status),
         );
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             self.0
                 .bind(py)
                 .call_method("on_liveliness_changed", args, None)
@@ -94,7 +94,7 @@ impl
             DataReader::from(the_reader),
             RequestedDeadlineMissedStatus::from(status),
         );
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             self.0
                 .bind(py)
                 .call_method("on_requested_deadline_missed", args, None)
@@ -114,7 +114,7 @@ impl
             DataReader::from(the_reader),
             RequestedIncompatibleQosStatus::from(status),
         );
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             self.0
                 .bind(py)
                 .call_method("on_requested_incompatible_qos", args, None)
@@ -134,7 +134,7 @@ impl
             DataReader::from(the_reader),
             SubscriptionMatchedStatus::from(status),
         );
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             self.0
                 .bind(py)
                 .call_method("on_subscription_matched", args, None)
@@ -151,7 +151,7 @@ impl
         status: dust_dds::infrastructure::status::SampleLostStatus,
     ) {
         let args = (DataReader::from(the_reader), SampleLostStatus::from(status));
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             self.0
                 .bind(py)
                 .call_method("on_sample_lost", args, None)

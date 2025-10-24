@@ -2,7 +2,7 @@ use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         qos::QosKind,
-        status::{StatusKind, NO_STATUS},
+        status::{NO_STATUS, StatusKind},
         time::Duration,
         type_support::DdsType,
     },

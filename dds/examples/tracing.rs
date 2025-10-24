@@ -5,7 +5,7 @@ use dust_dds::{
         qos::{DataReaderQos, DataWriterQos, QosKind},
         qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-        status::{StatusKind, NO_STATUS},
+        status::{NO_STATUS, StatusKind},
         time::{Duration, DurationKind},
         type_support::DdsType,
     },
@@ -13,7 +13,7 @@ use dust_dds::{
     wait_set::{Condition, WaitSet},
 };
 use tracing::Level;
-use tracing_subscriber::{fmt::format::FmtSpan, FmtSubscriber};
+use tracing_subscriber::{FmtSubscriber, fmt::format::FmtSpan};
 
 #[derive(Debug, Clone, PartialEq, DdsType)]
 struct Data {

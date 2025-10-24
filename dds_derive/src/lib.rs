@@ -1,7 +1,7 @@
 mod derive;
 use derive::type_support::expand_type_support;
 use proc_macro::TokenStream;
-use syn::{parse_macro_input, DeriveInput};
+use syn::{DeriveInput, parse_macro_input};
 
 #[proc_macro_derive(TypeSupport, attributes(dust_dds))]
 pub fn derive_type_support(input: TokenStream) -> TokenStream {

@@ -6,8 +6,8 @@ pub mod timer;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use executor::{Executor, ExecutorHandle};
-use mpsc::{mpsc_channel, MpscReceiver, MpscSender};
-use oneshot::{oneshot, OneshotReceiver, OneshotSender};
+use mpsc::{MpscReceiver, MpscSender, mpsc_channel};
+use oneshot::{OneshotReceiver, OneshotSender, oneshot};
 use timer::{TimerDriver, TimerHandle};
 
 use crate::{

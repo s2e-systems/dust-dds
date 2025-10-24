@@ -2,7 +2,7 @@ use std::{
     collections::BinaryHeap,
     future::Future,
     pin::Pin,
-    sync::{mpsc::RecvTimeoutError, Arc, Mutex},
+    sync::{Arc, Mutex, mpsc::RecvTimeoutError},
     task::{Context, Poll, Waker},
     thread::JoinHandle,
     time::{Duration, Instant},

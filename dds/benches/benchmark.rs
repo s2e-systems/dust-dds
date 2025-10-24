@@ -1,4 +1,4 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use dust_dds::{
     dds_async::data_reader::DataReaderAsync,
     domain::domain_participant_factory::DomainParticipantFactory,
@@ -6,7 +6,7 @@ use dust_dds::{
         qos::{DataWriterQos, QosKind},
         qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-        status::{StatusKind, NO_STATUS},
+        status::{NO_STATUS, StatusKind},
         time::{Duration, DurationKind},
         type_support::DdsType,
     },

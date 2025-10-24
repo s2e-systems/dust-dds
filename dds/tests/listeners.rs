@@ -13,9 +13,10 @@ use dust_dds::{
             ReliabilityQosPolicy, ReliabilityQosPolicyKind, ResourceLimitsQosPolicy,
         },
         status::{
-            OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
-            RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleRejectedStatus,
-            SampleRejectedStatusKind, StatusKind, SubscriptionMatchedStatus, NO_STATUS,
+            NO_STATUS, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
+            PublicationMatchedStatus, RequestedDeadlineMissedStatus,
+            RequestedIncompatibleQosStatus, SampleRejectedStatus, SampleRejectedStatusKind,
+            StatusKind, SubscriptionMatchedStatus,
         },
         time::{Duration, DurationKind},
         type_support::DdsType,
@@ -734,9 +735,11 @@ fn on_data_available_listener() {
     let data1 = MyData { id: 1, value: 1 };
     writer.write(data1, None).unwrap();
 
-    assert!(receiver
-        .recv_timeout(std::time::Duration::from_secs(10))
-        .is_ok());
+    assert!(
+        receiver
+            .recv_timeout(std::time::Duration::from_secs(10))
+            .is_ok()
+    );
 }
 
 #[test]
@@ -827,9 +830,11 @@ fn data_on_readers_listener() {
     let data1 = MyData { id: 1, value: 1 };
     writer.write(data1, None).unwrap();
 
-    assert!(receiver
-        .recv_timeout(std::time::Duration::from_secs(10))
-        .is_ok());
+    assert!(
+        receiver
+            .recv_timeout(std::time::Duration::from_secs(10))
+            .is_ok()
+    );
 }
 
 #[test]
@@ -933,12 +938,16 @@ fn data_available_listener_not_called_when_data_on_readers_listener() {
     let data1 = MyData { id: 1, value: 1 };
     writer.write(data1, None).unwrap();
 
-    assert!(data_on_readers_receiver
-        .recv_timeout(std::time::Duration::from_secs(10))
-        .is_ok());
-    assert!(data_available_receiver
-        .recv_timeout(std::time::Duration::from_secs(1))
-        .is_err());
+    assert!(
+        data_on_readers_receiver
+            .recv_timeout(std::time::Duration::from_secs(10))
+            .is_ok()
+    );
+    assert!(
+        data_available_receiver
+            .recv_timeout(std::time::Duration::from_secs(1))
+            .is_err()
+    );
 }
 
 #[test]

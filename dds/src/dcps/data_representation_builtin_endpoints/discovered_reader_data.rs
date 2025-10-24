@@ -8,13 +8,12 @@ use super::parameter_id_values::{
 use crate::{
     builtin_topics::{BuiltInTopicKey, SubscriptionBuiltinTopicData},
     infrastructure::qos_policy::{
-        DataRepresentationQosPolicy, DeadlineQosPolicy, DestinationOrderQosPolicy,
-        DurabilityQosPolicy, GroupDataQosPolicy, LatencyBudgetQosPolicy, LivelinessQosPolicy,
-        OwnershipQosPolicy, PartitionQosPolicy, PresentationQosPolicy, TimeBasedFilterQosPolicy,
-        TopicDataQosPolicy, UserDataQosPolicy,
-        DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+        DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS, DataRepresentationQosPolicy,
+        DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
+        LatencyBudgetQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy,
+        PresentationQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
     },
-    transport::types::{EntityId, Guid, Locator, ENTITYID_UNKNOWN},
+    transport::types::{ENTITYID_UNKNOWN, EntityId, Guid, Locator},
     xtypes::{
         binding::XTypesBinding, data_storage::DataStorageMapping, dynamic_type::DynamicTypeBuilder,
     },
@@ -431,7 +430,7 @@ mod tests {
         builtin_topics::BuiltInTopicKey,
         infrastructure::type_support::TypeSupport,
         transport::types::{
-            EntityId, Guid, BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_WITH_KEY,
+            BUILT_IN_WRITER_WITH_KEY, EntityId, Guid, USER_DEFINED_READER_WITH_KEY,
             USER_DEFINED_UNKNOWN,
         },
         xtypes::{

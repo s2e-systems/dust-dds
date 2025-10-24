@@ -8,11 +8,11 @@ use crate::{
     },
     infrastructure::{
         qos_policy::{
-            DataRepresentationQosPolicy, DeadlineQosPolicy, DestinationOrderQosPolicy,
-            DurabilityQosPolicy, HistoryQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy,
-            LivelinessQosPolicy, OwnershipQosPolicy, ReliabilityQosPolicy, ResourceLimitsQosPolicy,
-            TopicDataQosPolicy, TransportPriorityQosPolicy,
-            DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+            DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS, DataRepresentationQosPolicy,
+            DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, HistoryQosPolicy,
+            LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy,
+            ReliabilityQosPolicy, ResourceLimitsQosPolicy, TopicDataQosPolicy,
+            TransportPriorityQosPolicy,
         },
         type_support::TypeSupport,
     },
