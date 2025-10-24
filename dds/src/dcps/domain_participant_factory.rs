@@ -31,9 +31,9 @@ use crate::{
             PublisherQos, QosKind, SubscriberQos, TopicQos,
         },
         qos_policy::{
-            DataRepresentationQosPolicy, DurabilityQosPolicy, DurabilityQosPolicyKind,
-            HistoryQosPolicy, HistoryQosPolicyKind, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
-            BUILT_IN_DATA_REPRESENTATION,
+            BUILT_IN_DATA_REPRESENTATION, DataRepresentationQosPolicy, DurabilityQosPolicy,
+            DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind, ReliabilityQosPolicy,
+            ReliabilityQosPolicyKind,
         },
         status::StatusKind,
         time::{Duration, DurationKind},
@@ -47,9 +47,8 @@ use crate::{
             TransportStatelessWriter,
         },
         types::{
-            CacheChange, EntityId, GuidPrefix, ReliabilityKind, BUILT_IN_READER_GROUP,
-            BUILT_IN_READER_WITH_KEY, BUILT_IN_TOPIC, BUILT_IN_WRITER_GROUP,
-            BUILT_IN_WRITER_WITH_KEY,
+            BUILT_IN_READER_GROUP, BUILT_IN_READER_WITH_KEY, BUILT_IN_TOPIC, BUILT_IN_WRITER_GROUP,
+            BUILT_IN_WRITER_WITH_KEY, CacheChange, EntityId, GuidPrefix, ReliabilityKind,
         },
     },
 };

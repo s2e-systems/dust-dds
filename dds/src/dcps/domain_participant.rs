@@ -3,9 +3,9 @@ use super::domain_participant_mail::{
 };
 use crate::{
     builtin_topics::{
-        BuiltInTopicKey, ParticipantBuiltinTopicData, PublicationBuiltinTopicData,
-        SubscriptionBuiltinTopicData, TopicBuiltinTopicData, DCPS_PARTICIPANT, DCPS_PUBLICATION,
-        DCPS_SUBSCRIPTION, DCPS_TOPIC,
+        BuiltInTopicKey, DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
+        ParticipantBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
+        TopicBuiltinTopicData,
     },
     dcps::{
         actor::{Actor, ActorAddress},
@@ -47,14 +47,14 @@ use crate::{
             SubscriberQos, TopicQos,
         },
         qos_policy::{
-            DestinationOrderQosPolicyKind, DurabilityQosPolicyKind, HistoryQosPolicy,
-            HistoryQosPolicyKind, Length, LifespanQosPolicy, OwnershipQosPolicyKind, QosPolicyId,
-            ReliabilityQosPolicyKind, ResourceLimitsQosPolicy, TransportPriorityQosPolicy,
             BUILT_IN_DATA_REPRESENTATION, DATA_REPRESENTATION_QOS_POLICY_ID,
             DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID,
-            LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID, OWNERSHIP_QOS_POLICY_ID,
-            PRESENTATION_QOS_POLICY_ID, RELIABILITY_QOS_POLICY_ID, XCDR2_DATA_REPRESENTATION,
-            XCDR_DATA_REPRESENTATION,
+            DestinationOrderQosPolicyKind, DurabilityQosPolicyKind, HistoryQosPolicy,
+            HistoryQosPolicyKind, LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID, Length,
+            LifespanQosPolicy, OWNERSHIP_QOS_POLICY_ID, OwnershipQosPolicyKind,
+            PRESENTATION_QOS_POLICY_ID, QosPolicyId, RELIABILITY_QOS_POLICY_ID,
+            ReliabilityQosPolicyKind, ResourceLimitsQosPolicy, TransportPriorityQosPolicy,
+            XCDR_DATA_REPRESENTATION, XCDR2_DATA_REPRESENTATION,
         },
         sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
         status::{
@@ -75,8 +75,8 @@ use crate::{
             TransportStatelessWriter,
         },
         types::{
-            CacheChange, ChangeKind, DurabilityKind, EntityId, Guid, ReliabilityKind, TopicKind,
-            ENTITYID_UNKNOWN, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY,
+            CacheChange, ChangeKind, DurabilityKind, ENTITYID_UNKNOWN, EntityId, Guid,
+            ReliabilityKind, TopicKind, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY,
             USER_DEFINED_READER_WITH_KEY, USER_DEFINED_TOPIC, USER_DEFINED_WRITER_GROUP,
             USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
         },
@@ -97,8 +97,8 @@ use alloc::{
     vec::Vec,
 };
 use core::{
-    future::{poll_fn, Future},
-    pin::{pin, Pin},
+    future::{Future, poll_fn},
+    pin::{Pin, pin},
     task::Poll,
 };
 use regex::Regex;

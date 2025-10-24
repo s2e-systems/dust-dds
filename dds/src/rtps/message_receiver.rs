@@ -4,7 +4,7 @@ use crate::{
         overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
         types::TIME_INVALID,
     },
-    transport::types::{GuidPrefix, Locator, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN},
+    transport::types::{GUIDPREFIX_UNKNOWN, GuidPrefix, Locator, ProtocolVersion, VendorId},
 };
 
 use alloc::vec::Vec;

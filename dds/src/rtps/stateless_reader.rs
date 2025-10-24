@@ -7,7 +7,7 @@ use crate::{
     },
     transport::{
         interface::HistoryCache,
-        types::{CacheChange, Guid, GuidPrefix, ENTITYID_UNKNOWN},
+        types::{CacheChange, ENTITYID_UNKNOWN, Guid, GuidPrefix},
     },
 };
 use alloc::boxed::Box;

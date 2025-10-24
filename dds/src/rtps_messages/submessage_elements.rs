@@ -496,7 +496,8 @@ mod tests {
         assert_eq!(
             expected,
             Count::try_read_from_bytes(
-                &mut &[7, 0, 0, 0 , //value (long)
+                &mut &[
+                    7, 0, 0, 0, //value (long)
                 ][..],
                 &Endianness::LittleEndian
             )
@@ -535,8 +536,8 @@ mod tests {
             expected,
             FragmentNumber::try_read_from_bytes(
                 &mut &[
-                7, 0, 0, 0, // (unsigned long)
-            ][..],
+                    7, 0, 0, 0, // (unsigned long)
+                ][..],
                 &Endianness::LittleEndian
             )
             .unwrap()
@@ -768,8 +769,8 @@ mod tests {
         assert_eq!(
             write_into_bytes_vec(parameter),
             vec![
-            0x02, 0x00, 0, 0, // Parameter | length
-        ]
+                0x02, 0x00, 0, 0, // Parameter | length
+            ]
         );
     }
 

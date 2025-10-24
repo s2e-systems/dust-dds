@@ -3,7 +3,7 @@ use super::super::{
     overall_structure::{
         Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, Write, WriteIntoBytes,
     },
-    types::{SubmessageFlag, SubmessageKind, Time, TIME_INVALID},
+    types::{SubmessageFlag, SubmessageKind, TIME_INVALID, Time},
 };
 
 #[derive(Debug, PartialEq, Eq)]

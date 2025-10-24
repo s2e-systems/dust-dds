@@ -6,7 +6,7 @@ use dust_dds::{
         qos_policy::{
             HistoryQosPolicy, HistoryQosPolicyKind, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
         },
-        status::{StatusKind, SubscriptionMatchedStatus, NO_STATUS},
+        status::{NO_STATUS, StatusKind, SubscriptionMatchedStatus},
         time::{Duration, DurationKind},
         type_support::DdsType,
     },

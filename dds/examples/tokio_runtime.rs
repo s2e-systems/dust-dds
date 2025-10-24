@@ -6,7 +6,7 @@ use dust_dds::{
     infrastructure::{
         qos::QosKind,
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-        status::{StatusKind, NO_STATUS},
+        status::{NO_STATUS, StatusKind},
         time::Duration,
         type_support::DdsType,
     },

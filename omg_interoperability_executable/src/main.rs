@@ -14,10 +14,10 @@ use dust_dds::{
             self, DataRepresentationQosPolicy, DurabilityQosPolicy, HistoryQosPolicy,
             HistoryQosPolicyKind, OwnershipQosPolicy, OwnershipQosPolicyKind,
             OwnershipStrengthQosPolicy, PartitionQosPolicy, ReliabilityQosPolicy,
-            XCDR2_DATA_REPRESENTATION, XCDR_DATA_REPRESENTATION,
+            XCDR_DATA_REPRESENTATION, XCDR2_DATA_REPRESENTATION,
         },
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-        status::{InconsistentTopicStatus, StatusKind, NO_STATUS},
+        status::{InconsistentTopicStatus, NO_STATUS, StatusKind},
         time::DurationKind,
     },
     listener::NO_LISTENER,
@@ -26,7 +26,7 @@ use dust_dds::{
     std_runtime::StdRuntime,
     subscription::data_reader::DataReader,
 };
-use rand::{random, thread_rng, Rng};
+use rand::{Rng, random, thread_rng};
 use std::{
     fmt::Debug,
     io::Write,
@@ -366,12 +366,12 @@ impl<R: DdsRuntime> DomainParticipantListener<R> for Listener {
     ) {
         if !the_writer.get_topic().get_name().starts_with("DCPS") {
             println!(
-            "on_publication_matched() topic: '{}'  type: '{}' : matched readers {} (change = {})",
-            the_writer.get_topic().get_name(),
-            the_writer.get_topic().get_type_name(),
-            status.current_count,
-            status.current_count_change
-        );
+                "on_publication_matched() topic: '{}'  type: '{}' : matched readers {} (change = {})",
+                the_writer.get_topic().get_name(),
+                the_writer.get_topic().get_type_name(),
+                status.current_count,
+                status.current_count_change
+            );
         }
     }
 
@@ -429,12 +429,12 @@ impl<R: DdsRuntime> DomainParticipantListener<R> for Listener {
             .starts_with("DCPS")
         {
             println!(
-            "on_subscription_matched() topic: '{}'  type: '{}' : matched writers {} (change = {})",
-            the_reader.get_topicdescription().get_name(),
-            the_reader.get_topicdescription().get_type_name(),
-            status.current_count,
-            status.current_count_change
-        );
+                "on_subscription_matched() topic: '{}'  type: '{}' : matched writers {} (change = {})",
+                the_reader.get_topicdescription().get_name(),
+                the_reader.get_topicdescription().get_type_name(),
+                status.current_count,
+                status.current_count_change
+            );
         }
     }
 

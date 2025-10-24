@@ -7,7 +7,7 @@ use dust_dds::{
             ReliabilityQosPolicyKind,
         },
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-        status::{StatusKind, NO_STATUS},
+        status::{NO_STATUS, StatusKind},
         time::{Duration, DurationKind},
     },
     listener::NO_LISTENER,

@@ -15,8 +15,8 @@ use crate::{
         instance::InstanceHandle,
         qos::{DataReaderQos, QosKind},
         sample_info::{
-            InstanceStateKind, Sample, SampleStateKind, ViewStateKind, ANY_INSTANCE_STATE,
-            ANY_VIEW_STATE,
+            ANY_INSTANCE_STATE, ANY_VIEW_STATE, InstanceStateKind, Sample, SampleStateKind,
+            ViewStateKind,
         },
         status::{
             LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
