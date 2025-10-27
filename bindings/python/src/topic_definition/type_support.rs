@@ -263,7 +263,6 @@ impl PythonDdsData {
     }
 
     pub fn into_py_object(self, _type_: &Py<PyAny>) -> PyResult<Py<PyAny>> {
-
         // let (header, body) = self.data.split_at(4);
         // match [header[0], header[1]] {
         //     endianness::CDR_LE => Python::attach(|py| {
