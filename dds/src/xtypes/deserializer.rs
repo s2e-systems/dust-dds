@@ -8,21 +8,61 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use tracing::debug;
 
-pub trait CdrVersion {
+
+
+pub struct Cdr1Deserializer<'a, E: EndiannessRead> {
+    reader: CdrReader<'a, E, CdrVersion1>,
+}
+
+impl<'a, E: EndiannessRead> Cdr1Deserializer<'a, E> {
+    pub fn new(buffer: &'a [u8], endianness: E) -> Self {
+        Self {
+            reader: CdrReader::new(buffer, endianness, CdrVersion1),
+        }
+    }
+}
+
+pub struct Cdr2Deserializer<'a, E: EndiannessRead> {
+    reader: CdrReader<'a, E, CdrVersion2>,
+}
+
+impl<'a, E: EndiannessRead> Cdr2Deserializer<'a, E> {
+    pub fn new(buffer: &'a [u8], endianness: E) -> Self {
+        Self {
+            reader: CdrReader::new(buffer, endianness, CdrVersion2),
+        }
+    }
+}
+
+
+pub struct PlCdr1Deserializer<'a, E: EndiannessRead> {
+    cdr1_deserializer: Cdr1Deserializer<'a, E>,
+}
+
+impl<'a, E: EndiannessRead> PlCdr1Deserializer<'a, E> {
+    pub fn new(buffer: &'a [u8], endianness: E) -> Self {
+        Self {
+            cdr1_deserializer: Cdr1Deserializer::new(buffer, endianness),
+        }
+    }
+}
+
+
+trait CdrVersion {
     const MAX_ALIGN: usize;
 }
 
-pub struct CdrVersion1;
+struct CdrVersion1;
 impl CdrVersion for CdrVersion1 {
     const MAX_ALIGN: usize = 8;
 }
 
-pub struct CdrVersion2;
+struct CdrVersion2;
 impl CdrVersion for CdrVersion2 {
     const MAX_ALIGN: usize = 4;
 }
 
-pub trait EndiannessRead {
+trait EndiannessRead {
     fn read_bool<R: Read>(reader: &mut R) -> XTypesResult<bool> {
         let buf = reader.read_exact(1)?;
         match buf[0] {
@@ -125,7 +165,7 @@ impl EndiannessRead for LittleEndian {
     }
 }
 
-pub trait XTypesDeserialize {
+trait XTypesDeserialize {
     fn deserialize_complex_value(
         &mut self,
         dynamic_type: &DynamicType,
@@ -643,18 +683,6 @@ impl<'a, E: EndiannessRead, V: CdrVersion> Read for CdrReader<'a, E, V> {
     }
 }
 
-pub struct Cdr1Deserializer<'a, E: EndiannessRead> {
-    reader: CdrReader<'a, E, CdrVersion1>,
-}
-
-impl<'a, E: EndiannessRead> Cdr1Deserializer<'a, E> {
-    pub fn new(buffer: &'a [u8], endianness: E) -> Self {
-        Self {
-            reader: CdrReader::new(buffer, endianness, CdrVersion1),
-        }
-    }
-}
-
 impl<'a, E: EndiannessRead> XTypesDeserialize for Cdr1Deserializer<'a, E> {
     fn deserialize_mutable_struct(
         &mut self,
@@ -688,18 +716,6 @@ impl<'a, E: EndiannessRead> XTypesDeserialize for Cdr1Deserializer<'a, E> {
     }
 }
 
-pub struct Cdr2Deserializer<'a, E: EndiannessRead> {
-    reader: CdrReader<'a, E, CdrVersion2>,
-}
-
-impl<'a, E: EndiannessRead> Cdr2Deserializer<'a, E> {
-    pub fn new(buffer: &'a [u8], endianness: E) -> Self {
-        Self {
-            reader: CdrReader::new(buffer, endianness, CdrVersion2),
-        }
-    }
-}
-
 impl<'a, E: EndiannessRead> XTypesDeserialize for Cdr2Deserializer<'a, E> {
     fn deserialize_primitive_type<T: CdrPrimitiveTypeDeserialize>(&mut self) -> XTypesResult<T> {
         T::deserialize(&mut self.reader)
@@ -711,18 +727,6 @@ impl<'a, E: EndiannessRead> XTypesDeserialize for Cdr2Deserializer<'a, E> {
         _dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
         todo!()
-    }
-}
-
-pub struct PlCdr1Deserializer<'a, E: EndiannessRead> {
-    cdr1_deserializer: Cdr1Deserializer<'a, E>,
-}
-
-impl<'a, E: EndiannessRead> PlCdr1Deserializer<'a, E> {
-    pub fn new(buffer: &'a [u8], endianness: E) -> Self {
-        Self {
-            cdr1_deserializer: Cdr1Deserializer::new(buffer, endianness),
-        }
     }
 }
 
