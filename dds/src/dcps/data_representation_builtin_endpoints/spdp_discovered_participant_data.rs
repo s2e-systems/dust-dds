@@ -449,11 +449,7 @@ mod tests {
         dcps::data_representation_builtin_endpoints::parameter_id_values::DEFAULT_PARTICIPANT_LEASE_DURATION,
         infrastructure::qos_policy::UserDataQosPolicy,
         rtps::types::PROTOCOLVERSION_2_4,
-        xtypes::{
-            deserializer::{CdrDeserializer, LittleEndian, PlCdr1Deserializer},
-            dynamic_type::DynamicData,
-            serializer::RtpsPlCdrSerializer,
-        },
+        xtypes::{deserializer::CdrDeserializer, serializer::RtpsPlCdrSerializer},
     };
 
     #[test]

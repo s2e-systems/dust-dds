@@ -53,36 +53,36 @@ impl CdrDeserializer {
     }
 }
 
-pub struct Cdr1Deserializer<'a, E: EndiannessRead> {
+struct Cdr1Deserializer<'a, E: EndiannessRead> {
     reader: CdrReader<'a, E, CdrVersion1>,
 }
 
 impl<'a, E: EndiannessRead> Cdr1Deserializer<'a, E> {
-    pub fn new(buffer: &'a [u8], endianness: E) -> Self {
+    fn new(buffer: &'a [u8], endianness: E) -> Self {
         Self {
             reader: CdrReader::new(buffer, endianness, CdrVersion1),
         }
     }
 }
 
-pub struct Cdr2Deserializer<'a, E: EndiannessRead> {
+struct Cdr2Deserializer<'a, E: EndiannessRead> {
     reader: CdrReader<'a, E, CdrVersion2>,
 }
 
 impl<'a, E: EndiannessRead> Cdr2Deserializer<'a, E> {
-    pub fn new(buffer: &'a [u8], endianness: E) -> Self {
+    fn new(buffer: &'a [u8], endianness: E) -> Self {
         Self {
             reader: CdrReader::new(buffer, endianness, CdrVersion2),
         }
     }
 }
 
-pub struct PlCdr1Deserializer<'a, E: EndiannessRead> {
+struct PlCdr1Deserializer<'a, E: EndiannessRead> {
     cdr1_deserializer: Cdr1Deserializer<'a, E>,
 }
 
 impl<'a, E: EndiannessRead> PlCdr1Deserializer<'a, E> {
-    pub fn new(buffer: &'a [u8], endianness: E) -> Self {
+    fn new(buffer: &'a [u8], endianness: E) -> Self {
         Self {
             cdr1_deserializer: Cdr1Deserializer::new(buffer, endianness),
         }
@@ -134,7 +134,7 @@ trait EndiannessRead {
     }
 }
 
-pub struct BigEndian;
+struct BigEndian;
 
 impl EndiannessRead for BigEndian {
     fn read_i16<R: Read>(reader: &mut R) -> XTypesResult<i16> {
@@ -170,7 +170,7 @@ impl EndiannessRead for BigEndian {
     }
 }
 
-pub struct LittleEndian;
+struct LittleEndian;
 
 impl EndiannessRead for LittleEndian {
     fn read_i16<R: Read>(reader: &mut R) -> XTypesResult<i16> {
@@ -691,17 +691,17 @@ impl<'a, E: EndiannessRead, V: CdrVersion> CdrReader<'a, E, V> {
         self.pos += v
     }
 
-    pub fn seek_padding(&mut self, alignment: usize) {
+    fn seek_padding(&mut self, alignment: usize) {
         let alignment = core::cmp::min(alignment, V::MAX_ALIGN);
         let mask = alignment - 1;
         self.seek(((self.pos + mask) & !mask) - self.pos)
     }
 
-    pub fn set_position(&mut self, pos: usize) {
+    fn set_position(&mut self, pos: usize) {
         self.pos = pos;
     }
 
-    pub fn seek_to_pid_le(&mut self, pid: u16) -> XTypesResult<bool> {
+    fn seek_to_pid_le(&mut self, pid: u16) -> XTypesResult<bool> {
         const PID_SENTINEL: u16 = 1;
         loop {
             let current_pid = E::read_u16(self)?;
@@ -822,7 +822,7 @@ impl<'a, E: EndiannessRead> XTypesDeserialize for PlCdr1Deserializer<'a, E> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{infrastructure::type_support::TypeSupport, xtypes::dynamic_type::DynamicData};
+    use crate::infrastructure::type_support::TypeSupport;
 
     #[test]
     fn deserialize_final_struct() {
@@ -1108,27 +1108,47 @@ mod tests {
         struct ByteArray([u8; 2]);
         let expected = ByteArray([1u8, 2]).create_dynamic_sample();
         assert_eq!(
-            CdrDeserializer::deserialize(ByteArray::get_type(), &[
+            CdrDeserializer::deserialize(
+                ByteArray::get_type(),
+                &[
                     0x00, 0x00, 0x00, 0x00, // CDR_BE
-                    1, 2]).unwrap(),
+                    1, 2
+                ]
+            )
+            .unwrap(),
             expected
         );
         assert_eq!(
-            CdrDeserializer::deserialize(ByteArray::get_type(), &[
+            CdrDeserializer::deserialize(
+                ByteArray::get_type(),
+                &[
                     0x00, 0x01, 0x00, 0x00, // CDR_LE
-                    1, 2]).unwrap(),
+                    1, 2
+                ]
+            )
+            .unwrap(),
             expected
         );
         assert_eq!(
-            CdrDeserializer::deserialize(ByteArray::get_type(), &[
+            CdrDeserializer::deserialize(
+                ByteArray::get_type(),
+                &[
                     0x00, 0x06, 0x00, 0x00, // CDR2_BE
-                    1, 2]).unwrap(),
+                    1, 2
+                ]
+            )
+            .unwrap(),
             expected
         );
         assert_eq!(
-            CdrDeserializer::deserialize(ByteArray::get_type(), &[
+            CdrDeserializer::deserialize(
+                ByteArray::get_type(),
+                &[
                     0x00, 0x07, 0x00, 0x00, // CD2R_LE
-                    1, 2]).unwrap(),
+                    1, 2
+                ]
+            )
+            .unwrap(),
             expected
         );
     }

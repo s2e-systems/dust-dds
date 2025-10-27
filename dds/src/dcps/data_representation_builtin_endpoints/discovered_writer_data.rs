@@ -431,11 +431,7 @@ mod tests {
             BUILT_IN_PARTICIPANT, BUILT_IN_READER_GROUP, BUILT_IN_WRITER_WITH_KEY, EntityId, Guid,
             USER_DEFINED_UNKNOWN,
         },
-        xtypes::{
-            deserializer::{CdrDeserializer, LittleEndian, PlCdr1Deserializer},
-            dynamic_type::DynamicData,
-            serializer::RtpsPlCdrSerializer,
-        },
+        xtypes::{deserializer::CdrDeserializer, serializer::RtpsPlCdrSerializer},
     };
 
     #[test]
