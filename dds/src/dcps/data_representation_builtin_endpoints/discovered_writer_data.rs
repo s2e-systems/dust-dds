@@ -497,10 +497,7 @@ mod tests {
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
 
-        assert_eq!(
-            RtpsPlCdrSerializer::serialize(&data).unwrap(),
-            expected
-        );
+        assert_eq!(RtpsPlCdrSerializer::serialize(&data).unwrap(), expected);
     }
 
     #[test]

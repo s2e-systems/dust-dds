@@ -85,7 +85,7 @@ use crate::{
         binding::XTypesBinding,
         deserializer::CdrDeserializer,
         dynamic_type::{DynamicData, DynamicDataFactory, DynamicType},
-        serializer::{RtpsPlCdrSerializer, Cdr1LeSerializer, Cdr2LeSerializer},
+        serializer::{Cdr1LeSerializer, Cdr2LeSerializer, RtpsPlCdrSerializer},
     },
 };
 use alloc::{

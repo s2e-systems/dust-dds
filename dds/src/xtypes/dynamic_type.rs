@@ -1030,4 +1030,3 @@ impl DynamicData {
             .ok_or(XTypesError::InvalidId(id))
     }
 }
-
