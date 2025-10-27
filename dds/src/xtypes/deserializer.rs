@@ -551,7 +551,7 @@ impl CdrPrimitiveTypeDeserialize for u8 {
     fn deserialize<'a, E: EndiannessRead, V: CdrVersion>(
         reader: &mut CdrReader<'a, E, V>,
     ) -> XTypesResult<Self> {
-        Ok(reader.read_exact(1)?[0] as u8)
+        Ok(reader.read_exact(1)?[0])
     }
 }
 impl CdrPrimitiveTypeDeserialize for u16 {

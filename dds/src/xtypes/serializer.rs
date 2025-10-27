@@ -22,8 +22,8 @@ impl EncodingVersion for EncodingVersion2 {
     const MAX_ALIGN: usize = 4;
 }
 
-pub struct BigEndian;
-pub struct LittleEndian;
+struct BigEndian;
+struct LittleEndian;
 
 type RepresentationIdentifier = [u8; 2];
 const CDR_BE: RepresentationIdentifier = [0x00, 0x00];
@@ -117,10 +117,10 @@ impl Xcdr2LeSerializer {
     }
 }
 
-pub struct Xcdr1Serializer<'a, W, E> {
+struct Xcdr1Serializer<'a, W, E> {
     writer: Writer<'a, W, E, EncodingVersion1>,
 }
-pub struct Xcdr2Serializer<'a, W, E> {
+struct Xcdr2Serializer<'a, W, E> {
     writer: Writer<'a, W, E, EncodingVersion2>,
 }
 pub struct RtpsPlCdrSerializer<'a, W> {
