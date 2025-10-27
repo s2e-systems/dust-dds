@@ -1,7 +1,6 @@
 use super::error::XTypesError;
 use crate::xtypes::{
     data_storage::{DataStorage, DataStorageMapping},
-    deserializer::{Cdr1Deserializer, LittleEndian, PlCdr1Deserializer},
     error::XTypesResult,
     type_object::TypeObject,
 };
@@ -1032,31 +1031,3 @@ impl DynamicData {
     }
 }
 
-impl DynamicData {
-    pub fn deserialize(dynamic_type: DynamicType, buffer: &[u8]) -> XTypesResult<Self> {
-        type RepresentationIdentifier = [u8; 2];
-        // const CDR_BE: RepresentationIdentifier = [0x00, 0x00];
-        const CDR_LE: RepresentationIdentifier = [0x00, 0x01];
-        // const CDR2_BE: RepresentationIdentifier = [0x00, 0x06];
-        // const CDR2_LE: RepresentationIdentifier = [0x00, 0x07];
-        // const D_CDR2_BE: RepresentationIdentifier = [0x00, 0x08];
-        // const D_CDR2_LE: RepresentationIdentifier = [0x00, 0x09];
-        // const PL_CDR_BE: RepresentationIdentifier = [0x00, 0x02];
-        const PL_CDR_LE: RepresentationIdentifier = [0x00, 0x03];
-
-        if buffer.len() < 4 {
-            return Err(XTypesError::InvalidData);
-        }
-        match [buffer[0], buffer[1]] {
-            CDR_LE => DynamicData::xcdr_deserialize(
-                dynamic_type,
-                &mut Cdr1Deserializer::new(&buffer[4..], LittleEndian),
-            ),
-            PL_CDR_LE => DynamicData::xcdr_deserialize(
-                dynamic_type,
-                &mut PlCdr1Deserializer::new(&buffer[4..], LittleEndian),
-            ),
-            _ => Err(XTypesError::InvalidData),
-        }
-    }
-}

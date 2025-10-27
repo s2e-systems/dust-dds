@@ -466,7 +466,7 @@ mod tests {
         builtin_topics::BuiltInTopicKey,
         infrastructure::qos::TopicQos,
         xtypes::{
-            deserializer::{LittleEndian, PlCdr1Deserializer},
+            deserializer::{CdrDeserializer, LittleEndian, PlCdr1Deserializer},
             dynamic_type::DynamicData,
             serializer::RtpsPlCdrSerializer,
         },
@@ -548,6 +548,7 @@ mod tests {
         .create_dynamic_sample();
 
         let data = [
+            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
             1, 0, 0, 0, // ,
             2, 0, 0, 0, // ,
@@ -562,11 +563,7 @@ mod tests {
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
         assert_eq!(
-            DynamicData::xcdr_deserialize(
-                DiscoveredTopicData::get_type(),
-                &mut PlCdr1Deserializer::new(&data, LittleEndian)
-            )
-            .unwrap(),
+            CdrDeserializer::deserialize(DiscoveredTopicData::get_type(), &data).unwrap(),
             expected
         );
     }

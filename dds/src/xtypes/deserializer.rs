@@ -8,7 +8,50 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use tracing::debug;
 
+type RepresentationIdentifier = [u8; 2];
+const CDR_BE: RepresentationIdentifier = [0x00, 0x00];
+const CDR_LE: RepresentationIdentifier = [0x00, 0x01];
+const CDR2_BE: RepresentationIdentifier = [0x00, 0x06];
+const CDR2_LE: RepresentationIdentifier = [0x00, 0x07];
+const D_CDR2_BE: RepresentationIdentifier = [0x00, 0x08];
+const D_CDR2_LE: RepresentationIdentifier = [0x00, 0x09];
+// const PL_CDR_BE: RepresentationIdentifier = [0x00, 0x02];
+const PL_CDR_LE: RepresentationIdentifier = [0x00, 0x03];
 
+pub struct CdrDeserializer {}
+impl CdrDeserializer {
+    pub fn deserialize(dynamic_type: DynamicType, buffer: &[u8]) -> XTypesResult<DynamicData> {
+        if buffer.len() < 4 {
+            return Err(XTypesError::InvalidData);
+        }
+        let mut dynamic_data = DynamicDataFactory::create_data(dynamic_type.clone());
+
+        match [buffer[0], buffer[1]] {
+            CDR_BE => {
+                let mut deserializer = Cdr1Deserializer::new(&buffer[4..], BigEndian);
+                deserializer.deserialize_structure(&dynamic_type, &mut dynamic_data)?;
+            }
+            CDR_LE => {
+                let mut deserializer = Cdr1Deserializer::new(&buffer[4..], LittleEndian);
+                deserializer.deserialize_structure(&dynamic_type, &mut dynamic_data)?;
+            }
+            CDR2_BE | D_CDR2_BE => {
+                let mut deserializer = Cdr2Deserializer::new(&buffer[4..], BigEndian);
+                deserializer.deserialize_structure(&dynamic_type, &mut dynamic_data)?;
+            }
+            CDR2_LE | D_CDR2_LE => {
+                let mut deserializer = Cdr2Deserializer::new(&buffer[4..], LittleEndian);
+                deserializer.deserialize_structure(&dynamic_type, &mut dynamic_data)?;
+            }
+            PL_CDR_LE => {
+                let mut deserializer = PlCdr1Deserializer::new(&buffer[4..], LittleEndian);
+                deserializer.deserialize_structure(&dynamic_type, &mut dynamic_data)?;
+            }
+            _ => return Err(XTypesError::InvalidData),
+        }
+        Ok(dynamic_data)
+    }
+}
 
 pub struct Cdr1Deserializer<'a, E: EndiannessRead> {
     reader: CdrReader<'a, E, CdrVersion1>,
@@ -34,7 +77,6 @@ impl<'a, E: EndiannessRead> Cdr2Deserializer<'a, E> {
     }
 }
 
-
 pub struct PlCdr1Deserializer<'a, E: EndiannessRead> {
     cdr1_deserializer: Cdr1Deserializer<'a, E>,
 }
@@ -46,7 +88,6 @@ impl<'a, E: EndiannessRead> PlCdr1Deserializer<'a, E> {
         }
     }
 }
-
 
 trait CdrVersion {
     const MAX_ALIGN: usize;
@@ -778,17 +819,6 @@ impl<'a, E: EndiannessRead> XTypesDeserialize for PlCdr1Deserializer<'a, E> {
     }
 }
 
-impl DynamicData {
-    pub fn xcdr_deserialize(
-        dynamic_type: DynamicType,
-        deserializer: &mut impl XTypesDeserialize,
-    ) -> XTypesResult<Self> {
-        let mut dynamic_data = DynamicDataFactory::create_data(dynamic_type.clone());
-        deserializer.deserialize_structure(&dynamic_type, &mut dynamic_data)?;
-        Ok(dynamic_data)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -807,57 +837,49 @@ mod tests {
         }
         .create_dynamic_sample();
         assert_eq!(
-            DynamicData::xcdr_deserialize(
+            CdrDeserializer::deserialize(
                 FinalType::get_type(),
-                &mut Cdr1Deserializer::new(
-                    &[
-                        0, 7, 0, 0, 0, 0, 0, 0, // field_u16 | padding (6 bytes)
-                        0, 0, 0, 0, 0, 0, 0, 9, // field_u64
-                    ],
-                    BigEndian
-                )
+                &[
+                    0x00, 0x00, 0x00, 0x00, // CDR_BE
+                    0, 7, 0, 0, 0, 0, 0, 0, // field_u16 | padding (6 bytes)
+                    0, 0, 0, 0, 0, 0, 0, 9, // field_u64
+                ]
             )
             .unwrap(),
             expected
         );
         assert_eq!(
-            DynamicData::xcdr_deserialize(
+            CdrDeserializer::deserialize(
                 FinalType::get_type(),
-                &mut Cdr1Deserializer::new(
-                    &[
-                        7, 0, 0, 0, 0, 0, 0, 0, // field_u16 | padding (6 bytes)
-                        9, 0, 0, 0, 0, 0, 0, 0, // field_u64
-                    ],
-                    LittleEndian
-                )
+                &[
+                    0x00, 0x01, 0x00, 0x00, // CDR_LE
+                    7, 0, 0, 0, 0, 0, 0, 0, // field_u16 | padding (6 bytes)
+                    9, 0, 0, 0, 0, 0, 0, 0, // field_u64
+                ]
             )
             .unwrap(),
             expected
         );
         assert_eq!(
-            DynamicData::xcdr_deserialize(
+            CdrDeserializer::deserialize(
                 FinalType::get_type(),
-                &mut Cdr2Deserializer::new(
-                    &[
-                        0, 7, 0, 0, // field_u16 | padding (2 bytes)
-                        0, 0, 0, 0, 0, 0, 0, 9, // field_u64
-                    ],
-                    BigEndian
-                )
+                &[
+                    0x00, 0x06, 0x00, 0x00, // CDR2_BE
+                    0, 7, 0, 0, // field_u16 | padding (2 bytes)
+                    0, 0, 0, 0, 0, 0, 0, 9, // field_u64
+                ],
             )
             .unwrap(),
             expected
         );
         assert_eq!(
-            DynamicData::xcdr_deserialize(
+            CdrDeserializer::deserialize(
                 FinalType::get_type(),
-                &mut Cdr2Deserializer::new(
-                    &[
-                        7, 0, 0, 0, // field_u16 | padding (2 bytes)
-                        9, 0, 0, 0, 0, 0, 0, 0, // field_u64
-                    ],
-                    LittleEndian
-                )
+                &[
+                    0x00, 0x07, 0x00, 0x00, // CDR2_LE
+                    7, 0, 0, 0, // field_u16 | padding (2 bytes)
+                    9, 0, 0, 0, 0, 0, 0, 0, // field_u64
+                ]
             )
             .unwrap(),
             expected
@@ -889,63 +911,55 @@ mod tests {
         .create_dynamic_sample();
 
         assert_eq!(
-            DynamicData::xcdr_deserialize(
+            CdrDeserializer::deserialize(
                 NestedFinalType::get_type(),
-                &mut Cdr1Deserializer::new(
-                    &[
-                        0, 7, 0, 0, 0, 0, 0, 0, // nested FinalType (u16) | padding (6 bytes)
-                        0, 0, 0, 0, 0, 0, 0, 9,  // nested FinalType (u64)
-                        10, //u8
-                    ],
-                    BigEndian
-                )
+                &[
+                    0x00, 0x00, 0x00, 0x00, // CDR_BE
+                    0, 7, 0, 0, 0, 0, 0, 0, // nested FinalType (u16) | padding (6 bytes)
+                    0, 0, 0, 0, 0, 0, 0, 9,  // nested FinalType (u64)
+                    10, //u8
+                ]
             )
             .unwrap(),
             expected
         );
         assert_eq!(
-            DynamicData::xcdr_deserialize(
+            CdrDeserializer::deserialize(
                 NestedFinalType::get_type(),
-                &mut Cdr1Deserializer::new(
-                    &[
-                        7, 0, 0, 0, 0, 0, 0, 0, // nested FinalType (u16) | padding (6 bytes)
-                        9, 0, 0, 0, 0, 0, 0, 0,  // nested FinalType (u64)
-                        10, //u8
-                    ],
-                    LittleEndian
-                )
-            )
-            .unwrap(),
-            expected
-        );
-
-        assert_eq!(
-            DynamicData::xcdr_deserialize(
-                NestedFinalType::get_type(),
-                &mut Cdr2Deserializer::new(
-                    &[
-                        0, 7, 0, 0, // nested FinalType (u16) | padding
-                        0, 0, 0, 0, 0, 0, 0, 9,  // nested FinalType (u64)
-                        10, //u8
-                    ],
-                    BigEndian
-                )
+                &[
+                    0x00, 0x01, 0x00, 0x00, // CDR_LE
+                    7, 0, 0, 0, 0, 0, 0, 0, // nested FinalType (u16) | padding (6 bytes)
+                    9, 0, 0, 0, 0, 0, 0, 0,  // nested FinalType (u64)
+                    10, //u8
+                ]
             )
             .unwrap(),
             expected
         );
 
         assert_eq!(
-            DynamicData::xcdr_deserialize(
+            CdrDeserializer::deserialize(
                 NestedFinalType::get_type(),
-                &mut Cdr2Deserializer::new(
-                    &[
-                        7, 0, 0, 0, // nested FinalType (u16) | padding (2 bytes)
-                        9, 0, 0, 0, 0, 0, 0, 0,  // nested FinalType (u64)
-                        10, //u8
-                    ],
-                    LittleEndian
-                )
+                &[
+                    0x00, 0x06, 0x00, 0x00, // CDR2_BE
+                    0, 7, 0, 0, // nested FinalType (u16) | padding
+                    0, 0, 0, 0, 0, 0, 0, 9,  // nested FinalType (u64)
+                    10, //u8
+                ]
+            )
+            .unwrap(),
+            expected
+        );
+
+        assert_eq!(
+            CdrDeserializer::deserialize(
+                NestedFinalType::get_type(),
+                &[
+                    0x00, 0x07, 0x00, 0x00, // CDR2_LE
+                    7, 0, 0, 0, // nested FinalType (u16) | padding (2 bytes)
+                    9, 0, 0, 0, 0, 0, 0, 0,  // nested FinalType (u64)
+                    10, //u8
+                ]
             )
             .unwrap(),
             expected
@@ -968,69 +982,61 @@ mod tests {
         }
         .create_dynamic_sample();
         assert_eq!(
-            DynamicData::xcdr_deserialize(
+            CdrDeserializer::deserialize(
                 FinalTypeWithSequence::get_type(),
-                &mut Cdr1Deserializer::new(
-                    &[
-                        0, 7, 0, 0, 0, 0, 0, 0, // field_u16 | padding (6 bytes)
-                        0, 0, 0, 0, 0, 0, 0, 9, // field_u64
-                        0, 0, 0, 2, // field_seq_u32 Length (u32)
-                        0, 0, 0, 1, // field_seq_u32[0]
-                        0, 0, 0, 4, // field_seq_u32[0]
-                    ],
-                    BigEndian
-                )
+                &[
+                    0x00, 0x00, 0x00, 0x00, // CDR_BE
+                    0, 7, 0, 0, 0, 0, 0, 0, // field_u16 | padding (6 bytes)
+                    0, 0, 0, 0, 0, 0, 0, 9, // field_u64
+                    0, 0, 0, 2, // field_seq_u32 Length (u32)
+                    0, 0, 0, 1, // field_seq_u32[0]
+                    0, 0, 0, 4, // field_seq_u32[0]
+                ]
             )
             .unwrap(),
             expected
         );
         assert_eq!(
-            DynamicData::xcdr_deserialize(
+            CdrDeserializer::deserialize(
                 FinalTypeWithSequence::get_type(),
-                &mut Cdr1Deserializer::new(
-                    &[
-                        7, 0, 0, 0, 0, 0, 0, 0, // field_u16 | padding (6 bytes)
-                        9, 0, 0, 0, 0, 0, 0, 0, // field_u64
-                        2, 0, 0, 0, // field_seq_u32 Length (u32)
-                        1, 0, 0, 0, // field_seq_u32[0]
-                        4, 0, 0, 0, // field_seq_u32[0]
-                    ],
-                    LittleEndian
-                )
+                &[
+                    0x00, 0x01, 0x00, 0x00, // CDR_LE
+                    7, 0, 0, 0, 0, 0, 0, 0, // field_u16 | padding (6 bytes)
+                    9, 0, 0, 0, 0, 0, 0, 0, // field_u64
+                    2, 0, 0, 0, // field_seq_u32 Length (u32)
+                    1, 0, 0, 0, // field_seq_u32[0]
+                    4, 0, 0, 0, // field_seq_u32[0]
+                ]
             )
             .unwrap(),
             expected
         );
         assert_eq!(
-            DynamicData::xcdr_deserialize(
+            CdrDeserializer::deserialize(
                 FinalTypeWithSequence::get_type(),
-                &mut Cdr2Deserializer::new(
-                    &[
-                        0, 7, 0, 0, // field_u16 | padding (2 bytes)
-                        0, 0, 0, 0, 0, 0, 0, 9, // field_u64
-                        0, 0, 0, 2, // field_seq_u32 Length (u32)
-                        0, 0, 0, 1, // field_seq_u32[0]
-                        0, 0, 0, 4, // field_seq_u32[0]
-                    ],
-                    BigEndian
-                )
+                &[
+                    0x00, 0x06, 0x00, 0x00, // CDR2_BE
+                    0, 7, 0, 0, // field_u16 | padding (2 bytes)
+                    0, 0, 0, 0, 0, 0, 0, 9, // field_u64
+                    0, 0, 0, 2, // field_seq_u32 Length (u32)
+                    0, 0, 0, 1, // field_seq_u32[0]
+                    0, 0, 0, 4, // field_seq_u32[0]
+                ]
             )
             .unwrap(),
             expected
         );
         assert_eq!(
-            DynamicData::xcdr_deserialize(
+            CdrDeserializer::deserialize(
                 FinalTypeWithSequence::get_type(),
-                &mut Cdr2Deserializer::new(
-                    &[
-                        7, 0, 0, 0, // field_u16 | padding (2 bytes)
-                        9, 0, 0, 0, 0, 0, 0, 0, // field_u64
-                        2, 0, 0, 0, // field_seq_u32 Length (u32)
-                        1, 0, 0, 0, // field_seq_u32[0]
-                        4, 0, 0, 0, // field_seq_u32[0]
-                    ],
-                    LittleEndian
-                )
+                &[
+                    0x00, 0x07, 0x00, 0x00, // CDR2_LE
+                    7, 0, 0, 0, // field_u16 | padding (2 bytes)
+                    9, 0, 0, 0, 0, 0, 0, 0, // field_u64
+                    2, 0, 0, 0, // field_seq_u32 Length (u32)
+                    1, 0, 0, 0, // field_seq_u32[0]
+                    4, 0, 0, 0, // field_seq_u32[0]
+                ]
             )
             .unwrap(),
             expected
@@ -1043,61 +1049,53 @@ mod tests {
         struct FinalString(String);
         let expected = FinalString(String::from("Hola")).create_dynamic_sample();
         assert_eq!(
-            DynamicData::xcdr_deserialize(
+            CdrDeserializer::deserialize(
                 FinalString::get_type(),
-                &mut Cdr1Deserializer::new(
-                    &[
-                        0, 0, 0, 5, //length
-                        b'H', b'o', b'l', b'a', // str
-                        0x00, // terminating 0
-                    ],
-                    BigEndian
-                )
+                &[
+                    0x00, 0x00, 0x00, 0x00, // CDR_BE
+                    0, 0, 0, 5, //length
+                    b'H', b'o', b'l', b'a', // str
+                    0x00, // terminating 0
+                ]
             )
             .unwrap(),
             expected
         );
         assert_eq!(
-            DynamicData::xcdr_deserialize(
+            CdrDeserializer::deserialize(
                 FinalString::get_type(),
-                &mut Cdr1Deserializer::new(
-                    &[
-                        5, 0, 0, 0, //length
-                        b'H', b'o', b'l', b'a', // str
-                        0x00, // terminating 0
-                    ],
-                    LittleEndian
-                )
+                &[
+                    0x00, 0x01, 0x00, 0x00, // CDR_LE
+                    5, 0, 0, 0, //length
+                    b'H', b'o', b'l', b'a', // str
+                    0x00, // terminating 0
+                ]
             )
             .unwrap(),
             expected
         );
         assert_eq!(
-            DynamicData::xcdr_deserialize(
+            CdrDeserializer::deserialize(
                 FinalString::get_type(),
-                &mut Cdr2Deserializer::new(
-                    &[
-                        0, 0, 0, 5, //length
-                        b'H', b'o', b'l', b'a', // str
-                        0x00, // terminating 0
-                    ],
-                    BigEndian
-                )
+                &[
+                    0x00, 0x06, 0x00, 0x00, // CDR2_BE
+                    0, 0, 0, 5, //length
+                    b'H', b'o', b'l', b'a', // str
+                    0x00, // terminating 0
+                ]
             )
             .unwrap(),
             expected
         );
         assert_eq!(
-            DynamicData::xcdr_deserialize(
+            CdrDeserializer::deserialize(
                 FinalString::get_type(),
-                &mut Cdr2Deserializer::new(
-                    &[
-                        5, 0, 0, 0, //length
-                        b'H', b'o', b'l', b'a', // str
-                        0x00, // terminating 0
-                    ],
-                    LittleEndian
-                )
+                &[
+                    0x00, 0x07, 0x00, 0x00, // CDR2_LE
+                    5, 0, 0, 0, //length
+                    b'H', b'o', b'l', b'a', // str
+                    0x00, // terminating 0
+                ]
             )
             .unwrap(),
             expected
@@ -1110,35 +1108,27 @@ mod tests {
         struct ByteArray([u8; 2]);
         let expected = ByteArray([1u8, 2]).create_dynamic_sample();
         assert_eq!(
-            DynamicData::xcdr_deserialize(
-                ByteArray::get_type(),
-                &mut Cdr1Deserializer::new(&[1, 2], BigEndian)
-            )
-            .unwrap(),
+            CdrDeserializer::deserialize(ByteArray::get_type(), &[
+                    0x00, 0x00, 0x00, 0x00, // CDR_BE
+                    1, 2]).unwrap(),
             expected
         );
         assert_eq!(
-            DynamicData::xcdr_deserialize(
-                ByteArray::get_type(),
-                &mut Cdr1Deserializer::new(&[1, 2], LittleEndian)
-            )
-            .unwrap(),
+            CdrDeserializer::deserialize(ByteArray::get_type(), &[
+                    0x00, 0x01, 0x00, 0x00, // CDR_LE
+                    1, 2]).unwrap(),
             expected
         );
         assert_eq!(
-            DynamicData::xcdr_deserialize(
-                ByteArray::get_type(),
-                &mut Cdr2Deserializer::new(&[1, 2], BigEndian)
-            )
-            .unwrap(),
+            CdrDeserializer::deserialize(ByteArray::get_type(), &[
+                    0x00, 0x06, 0x00, 0x00, // CDR2_BE
+                    1, 2]).unwrap(),
             expected
         );
         assert_eq!(
-            DynamicData::xcdr_deserialize(
-                ByteArray::get_type(),
-                &mut Cdr2Deserializer::new(&[1, 2], LittleEndian)
-            )
-            .unwrap(),
+            CdrDeserializer::deserialize(ByteArray::get_type(), &[
+                    0x00, 0x07, 0x00, 0x00, // CD2R_LE
+                    1, 2]).unwrap(),
             expected
         );
     }
@@ -1152,15 +1142,13 @@ mod tests {
 
         let expected = Sequence(vec![Atype(1), Atype(2)]).create_dynamic_sample();
         assert_eq!(
-            DynamicData::xcdr_deserialize(
+            CdrDeserializer::deserialize(
                 Sequence::get_type(),
-                &mut Cdr1Deserializer::new(
-                    &[
-                        0, 0, 0, 2, // length
-                        1, 2, 77
-                    ],
-                    BigEndian
-                )
+                &[
+                    0x00, 0x00, 0x00, 0x00, // CDR_BE
+                    0, 0, 0, 2, // length
+                    1, 2, 77
+                ],
             )
             .unwrap(),
             expected

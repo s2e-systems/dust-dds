@@ -432,7 +432,7 @@ mod tests {
             USER_DEFINED_UNKNOWN,
         },
         xtypes::{
-            deserializer::{LittleEndian, PlCdr1Deserializer},
+            deserializer::{CdrDeserializer, LittleEndian, PlCdr1Deserializer},
             dynamic_type::DynamicData,
             serializer::RtpsPlCdrSerializer,
         },
@@ -549,6 +549,7 @@ mod tests {
         .create_dynamic_sample();
 
         let data = [
+            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
             21, 22, 23, 0xc1, // u8[3], u8
             0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
@@ -570,11 +571,7 @@ mod tests {
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
         assert_eq!(
-            DynamicData::xcdr_deserialize(
-                DiscoveredWriterData::get_type(),
-                &mut PlCdr1Deserializer::new(&data, LittleEndian)
-            )
-            .unwrap(),
+            CdrDeserializer::deserialize(DiscoveredWriterData::get_type(), &data).unwrap(),
             expected
         );
     }

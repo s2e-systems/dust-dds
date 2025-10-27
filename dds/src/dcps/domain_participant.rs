@@ -3,9 +3,7 @@ use super::domain_participant_mail::{
 };
 use crate::{
     builtin_topics::{
-        BuiltInTopicKey, DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
-        ParticipantBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
-        TopicBuiltinTopicData,
+        BuiltInTopicKey, ParticipantBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData, TopicBuiltinTopicData, DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC
     },
     dcps::{
         actor::{Actor, ActorAddress},
@@ -47,14 +45,7 @@ use crate::{
             SubscriberQos, TopicQos,
         },
         qos_policy::{
-            BUILT_IN_DATA_REPRESENTATION, DATA_REPRESENTATION_QOS_POLICY_ID,
-            DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID,
-            DestinationOrderQosPolicyKind, DurabilityQosPolicyKind, HistoryQosPolicy,
-            HistoryQosPolicyKind, LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID, Length,
-            LifespanQosPolicy, OWNERSHIP_QOS_POLICY_ID, OwnershipQosPolicyKind,
-            PRESENTATION_QOS_POLICY_ID, QosPolicyId, RELIABILITY_QOS_POLICY_ID,
-            ReliabilityQosPolicyKind, ResourceLimitsQosPolicy, TransportPriorityQosPolicy,
-            XCDR_DATA_REPRESENTATION, XCDR2_DATA_REPRESENTATION,
+            DestinationOrderQosPolicyKind, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind, Length, LifespanQosPolicy, OwnershipQosPolicyKind, QosPolicyId, ReliabilityQosPolicyKind, ResourceLimitsQosPolicy, TransportPriorityQosPolicy, BUILT_IN_DATA_REPRESENTATION, DATA_REPRESENTATION_QOS_POLICY_ID, DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID, OWNERSHIP_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID, RELIABILITY_QOS_POLICY_ID, XCDR2_DATA_REPRESENTATION, XCDR_DATA_REPRESENTATION
         },
         sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
         status::{
@@ -75,16 +66,11 @@ use crate::{
             TransportStatelessWriter,
         },
         types::{
-            CacheChange, ChangeKind, DurabilityKind, ENTITYID_UNKNOWN, EntityId, Guid,
-            ReliabilityKind, TopicKind, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY,
-            USER_DEFINED_READER_WITH_KEY, USER_DEFINED_TOPIC, USER_DEFINED_WRITER_GROUP,
-            USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
+            CacheChange, ChangeKind, DurabilityKind, EntityId, Guid, ReliabilityKind, TopicKind, ENTITYID_UNKNOWN, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_WITH_KEY, USER_DEFINED_TOPIC, USER_DEFINED_WRITER_GROUP, USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY
         },
     },
     xtypes::{
-        binding::XTypesBinding,
-        dynamic_type::{DynamicData, DynamicDataFactory, DynamicType},
-        serializer::{RtpsPlCdrSerializer, Xcdr1LeSerializer, Xcdr2LeSerializer},
+        binding::XTypesBinding, deserializer::CdrDeserializer, dynamic_type::{DynamicData, DynamicDataFactory, DynamicType}, serializer::{RtpsPlCdrSerializer, Xcdr1LeSerializer, Xcdr2LeSerializer}
     },
 };
 use alloc::{
@@ -3942,7 +3928,7 @@ where
     ) {
         match cache_change.kind {
             ChangeKind::Alive => {
-                if let Ok(dynamic_data) = DynamicData::deserialize(
+                if let Ok(dynamic_data) = CdrDeserializer::deserialize(
                     SpdpDiscoveredParticipantData::get_type(),
                     cache_change.data_value.as_ref(),
                 ) {
@@ -3954,7 +3940,7 @@ where
                 }
             }
             ChangeKind::NotAliveDisposed => {
-                if let Ok(dynamic_data) = DynamicData::deserialize(
+                if let Ok(dynamic_data) = CdrDeserializer::deserialize(
                     InstanceHandle::get_type(),
                     cache_change.data_value.as_ref(),
                 ) {
@@ -3989,7 +3975,7 @@ where
     ) {
         match cache_change.kind {
             ChangeKind::Alive => {
-                if let Ok(dynamic_data) = DynamicData::deserialize(
+                if let Ok(dynamic_data) = CdrDeserializer::deserialize(
                     DiscoveredWriterData::get_type(),
                     cache_change.data_value.as_ref(),
                 ) {
@@ -4045,7 +4031,7 @@ where
                 }
             }
             ChangeKind::NotAliveDisposed | ChangeKind::NotAliveDisposedUnregistered => {
-                if let Ok(dynamic_data) = DynamicData::deserialize(
+                if let Ok(dynamic_data) = CdrDeserializer::deserialize(
                     InstanceHandle::get_type(),
                     cache_change.data_value.as_ref(),
                 ) {
@@ -4095,7 +4081,7 @@ where
     ) {
         match cache_change.kind {
             ChangeKind::Alive => {
-                if let Ok(dynamic_data) = DynamicData::deserialize(
+                if let Ok(dynamic_data) = CdrDeserializer::deserialize(
                     DiscoveredReaderData::get_type(),
                     cache_change.data_value.as_ref(),
                 ) {
@@ -4181,7 +4167,7 @@ where
                 }
             }
             ChangeKind::NotAliveDisposed | ChangeKind::NotAliveDisposedUnregistered => {
-                if let Ok(dynamic_data) = DynamicData::deserialize(
+                if let Ok(dynamic_data) = CdrDeserializer::deserialize(
                     InstanceHandle::get_dynamic_type(),
                     cache_change.data_value.as_ref(),
                 ) {
@@ -4228,7 +4214,7 @@ where
     pub async fn add_builtin_topics_detector_cache_change(&mut self, cache_change: CacheChange) {
         match cache_change.kind {
             ChangeKind::Alive => {
-                if let Ok(dynamic_data) = DynamicData::deserialize(
+                if let Ok(dynamic_data) = CdrDeserializer::deserialize(
                     TopicBuiltinTopicData::get_type(),
                     cache_change.data_value.as_ref(),
                 ) {
@@ -6664,7 +6650,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
     ) -> DdsResult<ReaderSample> {
         let (data_value, instance_handle) = match cache_change.kind {
             ChangeKind::Alive | ChangeKind::AliveFiltered => {
-                let data_value = DynamicData::deserialize(
+                let data_value = CdrDeserializer::deserialize(
                     self.type_support.as_ref().clone(),
                     cache_change.data_value.as_ref(),
                 )?;
@@ -6685,7 +6671,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
                     let mut key_holder = self.type_support.as_ref().clone();
                     key_holder.clear_nonkey_members();
                     let data_value =
-                        DynamicData::deserialize(key_holder, cache_change.data_value.as_ref())?;
+                        CdrDeserializer::deserialize(key_holder, cache_change.data_value.as_ref())?;
                     let instance_handle =
                         get_instance_handle_from_dynamic_data(data_value.clone())?;
                     (data_value, instance_handle)
