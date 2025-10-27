@@ -479,85 +479,104 @@ pub trait XTypesDeserialize {
     }
 }
 
-pub trait CdrPrimitiveTypeDeserializer {
-    fn deserialize_u8(&mut self) -> XTypesResult<u8>;
-    fn deserialize_u16(&mut self) -> XTypesResult<u16>;
-    fn deserialize_u32(&mut self) -> XTypesResult<u32>;
-    fn deserialize_u64(&mut self) -> XTypesResult<u64>;
-    fn deserialize_i8(&mut self) -> XTypesResult<i8>;
-    fn deserialize_i16(&mut self) -> XTypesResult<i16>;
-    fn deserialize_i32(&mut self) -> XTypesResult<i32>;
-    fn deserialize_i64(&mut self) -> XTypesResult<i64>;
-    fn deserialize_f32(&mut self) -> XTypesResult<f32>;
-    fn deserialize_f64(&mut self) -> XTypesResult<f64>;
-    fn deserialize_boolean(&mut self) -> XTypesResult<bool>;
-    fn deserialize_char(&mut self) -> XTypesResult<char>;
-}
-
 // This trait is only meant to be implemented on Rust basic types
 // to allow for generalizing the process of deserializing those types
-pub trait CdrPrimitiveTypeDeserialize: Sized {
-    fn deserialize(d: &mut impl CdrPrimitiveTypeDeserializer) -> XTypesResult<Self>;
+trait CdrPrimitiveTypeDeserialize: Sized {
+    fn deserialize<'a, E: EndiannessRead, V: CdrVersion>(
+        reader: &mut CdrReader<'a, E, V>,
+    ) -> XTypesResult<Self>;
 }
 
 impl CdrPrimitiveTypeDeserialize for u8 {
-    fn deserialize(d: &mut impl CdrPrimitiveTypeDeserializer) -> XTypesResult<Self> {
-        d.deserialize_u8()
+    fn deserialize<'a, E: EndiannessRead, V: CdrVersion>(
+        reader: &mut CdrReader<'a, E, V>,
+    ) -> XTypesResult<Self> {
+        E::read_u8(reader)
     }
 }
 impl CdrPrimitiveTypeDeserialize for u16 {
-    fn deserialize(d: &mut impl CdrPrimitiveTypeDeserializer) -> XTypesResult<Self> {
-        d.deserialize_u16()
+    fn deserialize<'a, E: EndiannessRead, V: CdrVersion>(
+        reader: &mut CdrReader<'a, E, V>,
+    ) -> XTypesResult<Self> {
+        reader.seek_padding((u16::BITS / 8) as usize);
+        E::read_u16(reader)
     }
 }
 impl CdrPrimitiveTypeDeserialize for u32 {
-    fn deserialize(d: &mut impl CdrPrimitiveTypeDeserializer) -> XTypesResult<Self> {
-        d.deserialize_u32()
+    fn deserialize<'a, E: EndiannessRead, V: CdrVersion>(
+        reader: &mut CdrReader<'a, E, V>,
+    ) -> XTypesResult<Self> {
+        reader.seek_padding((u32::BITS / 8) as usize);
+        E::read_u32(reader)
     }
 }
 impl CdrPrimitiveTypeDeserialize for u64 {
-    fn deserialize(d: &mut impl CdrPrimitiveTypeDeserializer) -> XTypesResult<Self> {
-        d.deserialize_u64()
+    fn deserialize<'a, E: EndiannessRead, V: CdrVersion>(
+        reader: &mut CdrReader<'a, E, V>,
+    ) -> XTypesResult<Self> {
+        reader.seek_padding((u64::BITS / 8) as usize);
+        E::read_u64(reader)
     }
 }
 impl CdrPrimitiveTypeDeserialize for i8 {
-    fn deserialize(d: &mut impl CdrPrimitiveTypeDeserializer) -> XTypesResult<Self> {
-        d.deserialize_i8()
+    fn deserialize<'a, E: EndiannessRead, V: CdrVersion>(
+        reader: &mut CdrReader<'a, E, V>,
+    ) -> XTypesResult<Self> {
+        E::read_i8(reader)
     }
 }
 impl CdrPrimitiveTypeDeserialize for i16 {
-    fn deserialize(d: &mut impl CdrPrimitiveTypeDeserializer) -> XTypesResult<Self> {
-        d.deserialize_i16()
+    fn deserialize<'a, E: EndiannessRead, V: CdrVersion>(
+        reader: &mut CdrReader<'a, E, V>,
+    ) -> XTypesResult<Self> {
+        reader.seek_padding((i16::BITS / 8) as usize);
+        E::read_i16(reader)
     }
 }
 impl CdrPrimitiveTypeDeserialize for i32 {
-    fn deserialize(d: &mut impl CdrPrimitiveTypeDeserializer) -> XTypesResult<Self> {
-        d.deserialize_i32()
+    fn deserialize<'a, E: EndiannessRead, V: CdrVersion>(
+        reader: &mut CdrReader<'a, E, V>,
+    ) -> XTypesResult<Self> {
+        reader.seek_padding((i32::BITS / 8) as usize);
+        E::read_i32(reader)
     }
 }
 impl CdrPrimitiveTypeDeserialize for i64 {
-    fn deserialize(d: &mut impl CdrPrimitiveTypeDeserializer) -> XTypesResult<Self> {
-        d.deserialize_i64()
+    fn deserialize<'a, E: EndiannessRead, V: CdrVersion>(
+        reader: &mut CdrReader<'a, E, V>,
+    ) -> XTypesResult<Self> {
+        reader.seek_padding((i64::BITS / 8) as usize);
+        E::read_i64(reader)
     }
 }
 impl CdrPrimitiveTypeDeserialize for f32 {
-    fn deserialize(d: &mut impl CdrPrimitiveTypeDeserializer) -> XTypesResult<Self> {
-        d.deserialize_f32()
+    fn deserialize<'a, E: EndiannessRead, V: CdrVersion>(
+        reader: &mut CdrReader<'a, E, V>,
+    ) -> XTypesResult<Self> {
+        reader.seek_padding((32 / 8) as usize);
+        E::read_f32(reader)
     }
 }
 impl CdrPrimitiveTypeDeserialize for f64 {
-    fn deserialize(d: &mut impl CdrPrimitiveTypeDeserializer) -> XTypesResult<Self> {
-        d.deserialize_f64()
+    fn deserialize<'a, E: EndiannessRead, V: CdrVersion>(
+        reader: &mut CdrReader<'a, E, V>,
+    ) -> XTypesResult<Self> {
+        reader.seek_padding((64 / 8) as usize);
+        E::read_f64(reader)
     }
 }
 impl CdrPrimitiveTypeDeserialize for bool {
-    fn deserialize(d: &mut impl CdrPrimitiveTypeDeserializer) -> XTypesResult<Self> {
-        d.deserialize_boolean()
+    fn deserialize<'a, E: EndiannessRead, V: CdrVersion>(
+        reader: &mut CdrReader<'a, E, V>,
+    ) -> XTypesResult<Self> {
+        E::read_bool(reader)
     }
 }
 impl CdrPrimitiveTypeDeserialize for char {
-    fn deserialize(d: &mut impl CdrPrimitiveTypeDeserializer) -> XTypesResult<Self> {
-        d.deserialize_char()
+    fn deserialize<'a, E: EndiannessRead, V: CdrVersion>(
+        reader: &mut CdrReader<'a, E, V>,
+    ) -> XTypesResult<Self> {
+        E::read_char(reader)
     }
 }
 
@@ -621,68 +640,6 @@ impl<'a, E: EndiannessRead, V: CdrVersion> CdrReader<'a, E, V> {
 impl<'a, E: EndiannessRead, V: CdrVersion> Read for CdrReader<'a, E, V> {
     fn read_exact(&mut self, size: usize) -> XTypesResult<&[u8]> {
         self.read_all(size)
-    }
-}
-
-impl<'a, E: EndiannessRead, V: CdrVersion> CdrPrimitiveTypeDeserializer for CdrReader<'a, E, V> {
-    fn deserialize_u8(&mut self) -> XTypesResult<u8> {
-        self.seek_padding((u8::BITS / 8) as usize);
-        E::read_u8(self)
-    }
-
-    fn deserialize_u16(&mut self) -> XTypesResult<u16> {
-        self.seek_padding((u16::BITS / 8) as usize);
-        E::read_u16(self)
-    }
-
-    fn deserialize_u32(&mut self) -> XTypesResult<u32> {
-        self.seek_padding((u32::BITS / 8) as usize);
-        E::read_u32(self)
-    }
-
-    fn deserialize_u64(&mut self) -> XTypesResult<u64> {
-        self.seek_padding((u64::BITS / 8) as usize);
-        E::read_u64(self)
-    }
-
-    fn deserialize_i8(&mut self) -> XTypesResult<i8> {
-        self.seek_padding((i8::BITS / 8) as usize);
-        E::read_i8(self)
-    }
-
-    fn deserialize_i16(&mut self) -> XTypesResult<i16> {
-        self.seek_padding((i16::BITS / 8) as usize);
-        E::read_i16(self)
-    }
-
-    fn deserialize_i32(&mut self) -> XTypesResult<i32> {
-        self.seek_padding((i32::BITS / 8) as usize);
-        E::read_i32(self)
-    }
-
-    fn deserialize_i64(&mut self) -> XTypesResult<i64> {
-        self.seek_padding((i64::BITS / 8) as usize);
-        E::read_i64(self)
-    }
-
-    fn deserialize_f32(&mut self) -> XTypesResult<f32> {
-        self.seek_padding(4);
-        E::read_f32(self)
-    }
-
-    fn deserialize_f64(&mut self) -> XTypesResult<f64> {
-        self.seek_padding(8);
-        E::read_f64(self)
-    }
-
-    fn deserialize_boolean(&mut self) -> XTypesResult<bool> {
-        self.seek_padding(1);
-        E::read_bool(self)
-    }
-
-    fn deserialize_char(&mut self) -> XTypesResult<char> {
-        self.seek_padding(1);
-        E::read_char(self)
     }
 }
 
