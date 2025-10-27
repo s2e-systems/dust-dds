@@ -38,9 +38,21 @@ const PL_CDR2_BE: RepresentationIdentifier = [0x00, 0x0a];
 const PL_CDR2_LE: RepresentationIdentifier = [0x00, 0x0b];
 const REPRESENTATION_OPTIONS: [u8; 2] = [0x00, 0x00];
 
+fn pad_entire_serialization(buffer: &mut Vec<u8>) {
+    let padding = match buffer.len() % 4 {
+        1 => &[0, 0, 0][..],
+        2 => &[0, 0][..],
+        3 => &[0][..],
+        _ => &[][..],
+    };
+    buffer.extend_from_slice(padding);
+    buffer[3] = padding.len() as u8;
+}
+
 pub struct Xcdr1BeSerializer;
 impl Xcdr1BeSerializer {
-    pub fn serialize<W: Write>(mut buffer: W, dynamic_data: &DynamicData) -> XTypesResult<W> {
+    pub fn serialize(dynamic_data: &DynamicData) -> XTypesResult<Vec<u8>> {
+        let mut buffer = Vec::new();
         let mut s = Xcdr1Serializer {
             writer: Writer::new(&mut buffer, BigEndian, EncodingVersion1),
         };
@@ -52,12 +64,14 @@ impl Xcdr1BeSerializer {
         s.writer.write_slice(&REPRESENTATION_OPTIONS);
         s.writer.position = 0;
         s.serialize_dynamic_data(dynamic_data)?;
+        pad_entire_serialization(&mut buffer);
         Ok(buffer)
     }
 }
 pub struct Xcdr1LeSerializer;
 impl Xcdr1LeSerializer {
-    pub fn serialize<W: Write>(mut buffer: W, dynamic_data: &DynamicData) -> XTypesResult<W> {
+    pub fn serialize(dynamic_data: &DynamicData) -> XTypesResult<Vec<u8>> {
+        let mut buffer = Vec::new();
         let mut s = Xcdr1Serializer {
             writer: Writer::new(&mut buffer, LittleEndian, EncodingVersion1),
         };
@@ -69,12 +83,14 @@ impl Xcdr1LeSerializer {
         s.writer.write_slice(&REPRESENTATION_OPTIONS);
         s.writer.position = 0;
         s.serialize_dynamic_data(dynamic_data)?;
+        pad_entire_serialization(&mut buffer);
         Ok(buffer)
     }
 }
 pub struct Xcdr2BeSerializer;
 impl Xcdr2BeSerializer {
-    pub fn serialize<W: Write>(mut buffer: W, dynamic_data: &DynamicData) -> XTypesResult<W> {
+    pub fn serialize(dynamic_data: &DynamicData) -> XTypesResult<Vec<u8>> {
+        let mut buffer = Vec::new();
         let mut s = Xcdr2Serializer {
             writer: Writer::new(&mut buffer, BigEndian, EncodingVersion2),
         };
@@ -86,6 +102,7 @@ impl Xcdr2BeSerializer {
         s.writer.write_slice(&REPRESENTATION_OPTIONS);
         s.writer.position = 0;
         s.serialize_dynamic_data(dynamic_data)?;
+        pad_entire_serialization(&mut buffer);
         Ok(buffer)
     }
     pub fn serialize_without_header<W: Write>(
@@ -101,7 +118,8 @@ impl Xcdr2BeSerializer {
 }
 pub struct Xcdr2LeSerializer;
 impl Xcdr2LeSerializer {
-    pub fn serialize<W: Write>(mut buffer: W, dynamic_data: &DynamicData) -> XTypesResult<W> {
+    pub fn serialize(dynamic_data: &DynamicData) -> XTypesResult<Vec<u8>> {
+        let mut buffer = Vec::new();
         let mut s = Xcdr2Serializer {
             writer: Writer::new(&mut buffer, LittleEndian, EncodingVersion2),
         };
@@ -113,22 +131,18 @@ impl Xcdr2LeSerializer {
         s.writer.write_slice(&REPRESENTATION_OPTIONS);
         s.writer.position = 0;
         s.serialize_dynamic_data(dynamic_data)?;
+        pad_entire_serialization(&mut buffer);
         Ok(buffer)
     }
 }
 
-struct Xcdr1Serializer<'a, W, E> {
-    writer: Writer<'a, W, E, EncodingVersion1>,
-}
-struct Xcdr2Serializer<'a, W, E> {
-    writer: Writer<'a, W, E, EncodingVersion2>,
-}
 pub struct RtpsPlCdrSerializer<'a, W> {
     cdr1_le_serializer: Xcdr1Serializer<'a, W, LittleEndian>,
 }
 
-impl<'a, W: Write> RtpsPlCdrSerializer<'a, W> {
-    pub fn serialize(mut buffer: W, dynamic_data: &DynamicData) -> XTypesResult<W> {
+impl<'a> RtpsPlCdrSerializer<'a, Vec<u8>> {
+    pub fn serialize(dynamic_data: &DynamicData) -> XTypesResult<Vec<u8>> {
+        let mut buffer = Vec::new();
         let mut s = RtpsPlCdrSerializer {
             cdr1_le_serializer: Xcdr1Serializer {
                 writer: Writer::new(&mut buffer, LittleEndian, EncodingVersion1),
@@ -139,8 +153,16 @@ impl<'a, W: Write> RtpsPlCdrSerializer<'a, W> {
             .writer
             .write_slice(&REPRESENTATION_OPTIONS);
         s.serialize_dynamic_data(dynamic_data)?;
+        pad_entire_serialization(&mut buffer);
         Ok(buffer)
     }
+}
+
+struct Xcdr1Serializer<'a, W, E> {
+    writer: Writer<'a, W, E, EncodingVersion1>,
+}
+struct Xcdr2Serializer<'a, W, E> {
+    writer: Writer<'a, W, E, EncodingVersion2>,
 }
 
 trait XTypesSerializer {
@@ -772,16 +794,16 @@ mod tests {
     extern crate std;
 
     fn serialize_v1_be<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
-        Xcdr1BeSerializer::serialize(Vec::new(), &v.create_dynamic_sample()).unwrap()
+        Xcdr1BeSerializer::serialize(&v.create_dynamic_sample()).unwrap()
     }
     fn serialize_v1_le<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
-        Xcdr1LeSerializer::serialize(Vec::new(), &v.create_dynamic_sample()).unwrap()
+        Xcdr1LeSerializer::serialize(&v.create_dynamic_sample()).unwrap()
     }
     fn serialize_v2_be<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
-        Xcdr2BeSerializer::serialize(Vec::new(), &v.create_dynamic_sample()).unwrap()
+        Xcdr2BeSerializer::serialize(&v.create_dynamic_sample()).unwrap()
     }
     fn serialize_v2_le<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
-        Xcdr2LeSerializer::serialize(Vec::new(), &v.create_dynamic_sample()).unwrap()
+        Xcdr2LeSerializer::serialize(&v.create_dynamic_sample()).unwrap()
     }
 
     #[test]
@@ -819,33 +841,33 @@ mod tests {
         assert_eq!(
             serialize_v1_be(v.clone()),
             vec![
-                0x00, 0x00, 0x00, 0x00, // CDR Header
+                0x00, 0x00, 0x00, 0x03, // CDR Header (incl. padding length)
                 1, 2, 0, 3, 0, 0, 0, 4, // f1: bool | f2: i8 | f3: i16 | f4: i32
                 0, 0, 0, 0, 0, 0, 0, 5, // f5: i64
                 6, 0, 0, 7, 0, 0, 0, 8, // f6: u8 | padding (1 byte) | f7: u16 | f8: u32
                 0, 0, 0, 0, 0, 0, 0, 9, // f9: u64
                 0x3F, 0x80, 0x00, 0x00, 0, 0, 0, 0, // f10: f32 | padding (4 bytes)
                 0x3F, 0xF0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // f11: f64
-                b'a', // f12: char
+                b'a', 0, 0, 0 // f12: char | padding (3 bytes)
             ]
         );
         assert_eq!(
             serialize_v1_le(v.clone()),
             vec![
-                0x00, 0x01, 0x00, 0x00, // CDR Header
+                0x00, 0x01, 0x00, 0x03, // CDR Header (incl. padding length)
                 1, 2, 3, 0, 4, 0, 0, 0, // f1: bool | f2: i8 | f3: i16 | f4: i32
                 5, 0, 0, 0, 0, 0, 0, 0, // f5: i64
                 6, 0, 7, 0, 8, 0, 0, 0, // f6: u8 | padding (1 byte) | f7: u16 | f8: u32
                 9, 0, 0, 0, 0, 0, 0, 0, // f9: u64
                 0x00, 0x00, 0x80, 0x3F, 0, 0, 0, 0, // f10: f32 | padding (4 bytes)
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF0, 0x3F, // f11: f64
-                b'a', // f12: char
+                b'a', 0, 0, 0 // f12: char | padding (3 bytes)
             ]
         );
         assert_eq!(
             serialize_v2_be(v.clone()),
             vec![
-                0x00, 0x06, 0x00, 0x00, // CDR Header
+                0x00, 0x06, 0x00, 0x03, // CDR Header (incl. padding length)
                 1, 2, 0, 3, // f1: bool | f2: i8 | f3: i16
                 0, 0, 0, 4, // f4: i32
                 0, 0, 0, 0, // f5-1: i64
@@ -855,13 +877,13 @@ mod tests {
                 0, 0, 0, 0, 0, 0, 0, 9, // f9: u64
                 0x3F, 0x80, 0x00, 0x00, // f10: f32
                 0x3F, 0xF0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // f11: f64
-                b'a', // f12: char
+                b'a', 0, 0, 0 // f12: char | padding (3 bytes)
             ]
         );
         assert_eq!(
             serialize_v2_le(v.clone()),
             vec![
-                0x00, 0x07, 0x00, 0x00, // CDR Header
+                0x00, 0x07, 0x00, 0x03, // CDR Header (incl. padding length)
                 1, 2, 3, 0, // f1: bool | f2: i8 | f3: i16
                 4, 0, 0, 0, // f4: i32
                 5, 0, 0, 0, // f5-1: i64
@@ -873,7 +895,7 @@ mod tests {
                 0x00, 0x00, 0x80, 0x3F, // f10: f32
                 0x00, 0x00, 0x00, 0x00, // f11-1: f64
                 0x00, 0x00, 0xF0, 0x3F, // f11-2: f64
-                b'a', // f12: char
+                b'a', 0, 0, 0 // f12: char | padding (3 bytes)
             ]
         );
     }
@@ -944,37 +966,37 @@ mod tests {
         assert_eq!(
             serialize_v1_be(v.clone()),
             vec![
-                0x00, 0x00, 0x00, 0x00, // CDR Header
+                0x00, 0x00, 0x00, 0x03, // CDR Header (incl padding length)
                 0, 0, 0, 5, //length
                 b'H', b'o', b'l', b'a', // str
-                0x00, // terminating 0
+                0x00, 0, 0, 0 // terminating 0 | padding (3 bytes)
             ]
         );
         assert_eq!(
             serialize_v1_le(v.clone()),
             vec![
-                0x00, 0x01, 0x00, 0x00, // CDR Header
+                0x00, 0x01, 0x00, 0x03, // CDR Header (incl padding length)
                 5, 0, 0, 0, //length
                 b'H', b'o', b'l', b'a', // str
-                0x00, // terminating 0
+                0x00, 0, 0, 0 // terminating 0 | padding (3 bytes)
             ]
         );
         assert_eq!(
             serialize_v2_be(v.clone()),
             vec![
-                0x00, 0x06, 0x00, 0x00, // CDR Header
+                0x00, 0x06, 0x00, 0x03, // CDR Header (incl padding length)
                 0, 0, 0, 5, //length
                 b'H', b'o', b'l', b'a', // str
-                0x00, // terminating 0
+                0x00, 0, 0, 0 // terminating 0 | padding (3 bytes)
             ]
         );
         assert_eq!(
             serialize_v2_le(v.clone()),
             vec![
-                0x00, 0x07, 0x00, 0x00, // CDR Header
+                0x00, 0x07, 0x00, 0x03, // CDR Header (incl padding length)
                 5, 0, 0, 0, //length
                 b'H', b'o', b'l', b'a', // str
-                0x00, // terminating 0
+                0x00, 0, 0, 0 // terminating 0 | padding (3 bytes)
             ]
         );
     }
@@ -1068,37 +1090,37 @@ mod tests {
         assert_eq!(
             serialize_v1_be(v.clone()),
             vec![
-                0x00, 0x00, 0x00, 0x00, // CDR Header
+                0x00, 0x00, 0x00, 0x03, // CDR Header (incl padding length)
                 0, 7, 0, 0, 0, 0, 0, 0, // nested FinalType (u16) | padding (6 bytes)
-                0, 0, 0, 0, 0, 0, 0, 9,  // u64
-                10, //u8
+                0, 0, 0, 0, 0, 0, 0, 9, // u64
+                10, 0, 0, 0 // u8 | padding (3 bytes)
             ]
         );
         assert_eq!(
             serialize_v1_le(v.clone()),
             vec![
-                0x00, 0x01, 0x00, 0x00, // CDR Header
+                0x00, 0x01, 0x00, 0x03, // CDR Header (incl padding length)
                 7, 0, 0, 0, 0, 0, 0, 0, // nested FinalType (u16) | padding (6 bytes)
-                9, 0, 0, 0, 0, 0, 0, 0,  // u64
-                10, //u8
+                9, 0, 0, 0, 0, 0, 0, 0, // u64
+                10, 0, 0, 0 // u8 | padding (3 bytes)
             ]
         );
         assert_eq!(
             serialize_v2_be(v.clone()),
             vec![
-                0x00, 0x06, 0x00, 0x00, // CDR Header
+                0x00, 0x06, 0x00, 0x03, // CDR Header (incl padding length)
                 0, 7, 0, 0, // nested FinalType (u16) | padding
-                0, 0, 0, 0, 0, 0, 0, 9,  // u64
-                10, //u8
+                0, 0, 0, 0, 0, 0, 0, 9, // u64
+                10, 0, 0, 0 // u8 | padding (3 bytes)
             ]
         );
         assert_eq!(
             serialize_v2_le(v.clone()),
             vec![
-                0x00, 0x07, 0x00, 0x00, // CDR Header
+                0x00, 0x07, 0x00, 0x03, // CDR Header (incl padding length)
                 7, 0, 0, 0, // nested FinalType (u16) | padding (2 bytes)
-                9, 0, 0, 0, 0, 0, 0, 0,  // u64
-                10, //u8
+                9, 0, 0, 0, 0, 0, 0, 0, // u64
+                10, 0, 0, 0 // u8 | padding (3 bytes)
             ]
         );
     }
@@ -1115,31 +1137,31 @@ mod tests {
         assert_eq!(
             serialize_v1_be(v.clone()),
             vec![
-                0x00, 0x00, 0x00, 0x00, // CDR Header
-                0, 7
+                0x00, 0x00, 0x00, 0x02, // CDR Header (incl padding length)
+                0, 7, 0, 0 // value | padding (2 bytes)
             ]
         );
         assert_eq!(
             serialize_v1_le(v.clone()),
             vec![
-                0x00, 0x01, 0x00, 0x00, // CDR Header
-                7, 0
+                0x00, 0x01, 0x00, 0x02, // CDR Header (incl padding length)
+                7, 0, 0, 0 // value | padding (2 bytes)
             ]
         );
         assert_eq!(
             serialize_v2_be(v.clone()),
             vec![
-                0x00, 0x08, 0x00, 0x00, // CDR Header
+                0x00, 0x08, 0x00, 0x02, // CDR Header (incl padding length)
                 0, 0, 0, 2, // DHEADER
-                0, 7 // value
+                0, 7, 0, 0 // value | padding (2 bytes)
             ]
         );
         assert_eq!(
             serialize_v2_le(v.clone()),
             vec![
-                0x00, 0x09, 0x00, 0x00, // CDR Header
+                0x00, 0x09, 0x00, 0x02, // CDR Header (incl padding length)
                 2, 0, 0, 0, // DHEADER
-                7, 0 // value
+                7, 0, 0, 0 // value | padding (2 bytes)
             ]
         );
     }
@@ -1231,7 +1253,6 @@ mod tests {
             },
             field_final: TinyFinalType { primitive: 9 },
         };
-        // PL_CDR:
         assert_eq!(
             serialize_v1_be(v.clone()),
             vec![
@@ -1266,7 +1287,6 @@ mod tests {
                 1, 0, 0, 0, // Sentinel
             ]
         );
-        // PL_CDR2:
         assert_eq!(
             serialize_v2_be(v.clone()),
             vec![
@@ -1394,7 +1414,7 @@ mod rtps_pl_tests {
     extern crate std;
 
     fn test_serialize_type_support<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
-        RtpsPlCdrSerializer::serialize(Vec::new(), &v.create_dynamic_sample()).unwrap()
+        RtpsPlCdrSerializer::serialize(&v.create_dynamic_sample()).unwrap()
     }
 
     #[derive(TypeSupport)]

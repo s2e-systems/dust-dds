@@ -3,7 +3,9 @@ use super::domain_participant_mail::{
 };
 use crate::{
     builtin_topics::{
-        BuiltInTopicKey, ParticipantBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData, TopicBuiltinTopicData, DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC
+        BuiltInTopicKey, DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
+        ParticipantBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
+        TopicBuiltinTopicData,
     },
     dcps::{
         actor::{Actor, ActorAddress},
@@ -45,7 +47,14 @@ use crate::{
             SubscriberQos, TopicQos,
         },
         qos_policy::{
-            DestinationOrderQosPolicyKind, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind, Length, LifespanQosPolicy, OwnershipQosPolicyKind, QosPolicyId, ReliabilityQosPolicyKind, ResourceLimitsQosPolicy, TransportPriorityQosPolicy, BUILT_IN_DATA_REPRESENTATION, DATA_REPRESENTATION_QOS_POLICY_ID, DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID, OWNERSHIP_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID, RELIABILITY_QOS_POLICY_ID, XCDR2_DATA_REPRESENTATION, XCDR_DATA_REPRESENTATION
+            BUILT_IN_DATA_REPRESENTATION, DATA_REPRESENTATION_QOS_POLICY_ID,
+            DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID,
+            DestinationOrderQosPolicyKind, DurabilityQosPolicyKind, HistoryQosPolicy,
+            HistoryQosPolicyKind, LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID, Length,
+            LifespanQosPolicy, OWNERSHIP_QOS_POLICY_ID, OwnershipQosPolicyKind,
+            PRESENTATION_QOS_POLICY_ID, QosPolicyId, RELIABILITY_QOS_POLICY_ID,
+            ReliabilityQosPolicyKind, ResourceLimitsQosPolicy, TransportPriorityQosPolicy,
+            XCDR_DATA_REPRESENTATION, XCDR2_DATA_REPRESENTATION,
         },
         sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
         status::{
@@ -66,11 +75,17 @@ use crate::{
             TransportStatelessWriter,
         },
         types::{
-            CacheChange, ChangeKind, DurabilityKind, EntityId, Guid, ReliabilityKind, TopicKind, ENTITYID_UNKNOWN, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_WITH_KEY, USER_DEFINED_TOPIC, USER_DEFINED_WRITER_GROUP, USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY
+            CacheChange, ChangeKind, DurabilityKind, ENTITYID_UNKNOWN, EntityId, Guid,
+            ReliabilityKind, TopicKind, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY,
+            USER_DEFINED_READER_WITH_KEY, USER_DEFINED_TOPIC, USER_DEFINED_WRITER_GROUP,
+            USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
         },
     },
     xtypes::{
-        binding::XTypesBinding, deserializer::CdrDeserializer, dynamic_type::{DynamicData, DynamicDataFactory, DynamicType}, serializer::{RtpsPlCdrSerializer, Xcdr1LeSerializer, Xcdr2LeSerializer}
+        binding::XTypesBinding,
+        deserializer::CdrDeserializer,
+        dynamic_type::{DynamicData, DynamicDataFactory, DynamicType},
+        serializer::{RtpsPlCdrSerializer, Xcdr1LeSerializer, Xcdr2LeSerializer},
     },
 };
 use alloc::{
@@ -5976,21 +5991,11 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
         let serialized_data: Vec<u8> = if self.qos.representation.value.is_empty()
             || self.qos.representation.value[0] == XCDR_DATA_REPRESENTATION
         {
-            let mut buffer = Xcdr1LeSerializer::serialize(Vec::new(), &dynamic_data)?;
-            let padding = match buffer.len() % 4 {
-                1 => &[0, 0, 0][..],
-                2 => &[0, 0][..],
-                3 => &[0][..],
-                _ => &[][..],
-            };
-            buffer.extend_from_slice(padding);
-            buffer[3] = padding.len() as u8;
-
-            buffer
+            Xcdr1LeSerializer::serialize(&dynamic_data)?
         } else if self.qos.representation.value[0] == XCDR2_DATA_REPRESENTATION {
-            Xcdr2LeSerializer::serialize(Vec::new(), &dynamic_data)?
+            Xcdr2LeSerializer::serialize(&dynamic_data)?
         } else if self.qos.representation.value[0] == BUILT_IN_DATA_REPRESENTATION {
-            RtpsPlCdrSerializer::serialize(Vec::new(), &dynamic_data)?
+            RtpsPlCdrSerializer::serialize(&dynamic_data)?
         } else {
             panic!("Invalid data representation")
         };

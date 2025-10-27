@@ -60,10 +60,5 @@ pub fn get_serialized_key_from_dynamic_data(
 ) -> Result<Vec<u8>, XTypesError> {
     dynamic_data.make_descriptor_extensibility_kind_final();
     dynamic_data.clear_nonkey_values()?;
-    let mut serialized_key = Xcdr1LeSerializer::serialize(Vec::new(), &dynamic_data)?;
-    let padding_len = serialized_key.len().div_ceil(4) * 4 - serialized_key.len();
-    const ZEROS: [u8; 4] = [0; 4];
-    serialized_key.extend_from_slice(&ZEROS[..padding_len]);
-    serialized_key[3] |= padding_len as u8;
-    Ok(serialized_key)
+    Xcdr1LeSerializer::serialize(&dynamic_data)
 }

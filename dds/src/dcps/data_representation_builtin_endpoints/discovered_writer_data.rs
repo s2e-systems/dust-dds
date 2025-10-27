@@ -498,7 +498,7 @@ mod tests {
         ];
 
         assert_eq!(
-            RtpsPlCdrSerializer::serialize(Vec::new(), &data).unwrap(),
+            RtpsPlCdrSerializer::serialize(&data).unwrap(),
             expected
         );
     }
