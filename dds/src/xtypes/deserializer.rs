@@ -44,7 +44,7 @@ impl CdrDeserializer {
                 deserializer.deserialize_structure(&dynamic_type, &mut dynamic_data)?;
             }
             PL_CDR_LE => {
-                let mut deserializer = PlCdr1Deserializer::new(&buffer[4..]);
+                let mut deserializer = RtpsPlCdrDeserializer::new(&buffer[4..]);
                 deserializer.deserialize_structure(&dynamic_type, &mut dynamic_data)?;
             }
             _ => return Err(XTypesError::InvalidData),
@@ -77,11 +77,11 @@ impl<'a, E: EndiannessRead> Cdr2Deserializer<'a, E> {
     }
 }
 
-struct PlCdr1Deserializer<'a> {
+struct RtpsPlCdrDeserializer<'a> {
     cdr1_deserializer: Cdr1Deserializer<'a, LittleEndian>,
 }
 
-impl<'a> PlCdr1Deserializer<'a> {
+impl<'a> RtpsPlCdrDeserializer<'a> {
     fn new(buffer: &'a [u8]) -> Self {
         Self {
             cdr1_deserializer: Cdr1Deserializer::new(buffer, LittleEndian),
@@ -755,7 +755,7 @@ impl<'a, E: EndiannessRead> XTypesDeserialize for Cdr2Deserializer<'a, E> {
     }
 }
 
-impl<'a> XTypesDeserialize for PlCdr1Deserializer<'a> {
+impl<'a> XTypesDeserialize for RtpsPlCdrDeserializer<'a> {
     fn deserialize_mutable_struct(
         &mut self,
         dynamic_type: &DynamicType,

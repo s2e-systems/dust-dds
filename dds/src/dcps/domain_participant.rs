@@ -85,7 +85,7 @@ use crate::{
         binding::XTypesBinding,
         deserializer::CdrDeserializer,
         dynamic_type::{DynamicData, DynamicDataFactory, DynamicType},
-        serializer::{RtpsPlCdrSerializer, Xcdr1LeSerializer, Xcdr2LeSerializer},
+        serializer::{RtpsPlCdrSerializer, Cdr1LeSerializer, Cdr2LeSerializer},
     },
 };
 use alloc::{
@@ -5991,9 +5991,9 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
         let serialized_data: Vec<u8> = if self.qos.representation.value.is_empty()
             || self.qos.representation.value[0] == XCDR_DATA_REPRESENTATION
         {
-            Xcdr1LeSerializer::serialize(&dynamic_data)?
+            Cdr1LeSerializer::serialize(&dynamic_data)?
         } else if self.qos.representation.value[0] == XCDR2_DATA_REPRESENTATION {
-            Xcdr2LeSerializer::serialize(&dynamic_data)?
+            Cdr2LeSerializer::serialize(&dynamic_data)?
         } else if self.qos.representation.value[0] == BUILT_IN_DATA_REPRESENTATION {
             RtpsPlCdrSerializer::serialize(&dynamic_data)?
         } else {

@@ -4,7 +4,7 @@ use crate::{
         dynamic_type::DynamicData,
         error::XTypesError,
         read_write::Write,
-        serializer::{Xcdr1LeSerializer, Xcdr2BeSerializer},
+        serializer::{Cdr1LeSerializer, Cdr2BeSerializer},
     },
 };
 use alloc::vec::Vec;
@@ -51,7 +51,7 @@ pub fn get_instance_handle_from_dynamic_data(
     dynamic_data.clear_nonkey_values()?;
     dynamic_data.make_descriptor_extensibility_kind_final();
     let key =
-        Xcdr2BeSerializer::serialize_without_header(md5_collection, &dynamic_data)?.into_key();
+        Cdr2BeSerializer::serialize_without_header(md5_collection, &dynamic_data)?.into_key();
     Ok(InstanceHandle::new(key))
 }
 
@@ -60,5 +60,5 @@ pub fn get_serialized_key_from_dynamic_data(
 ) -> Result<Vec<u8>, XTypesError> {
     dynamic_data.make_descriptor_extensibility_kind_final();
     dynamic_data.clear_nonkey_values()?;
-    Xcdr1LeSerializer::serialize(&dynamic_data)
+    Cdr1LeSerializer::serialize(&dynamic_data)
 }
