@@ -1,9 +1,8 @@
 use crate::xtypes::{
-    data_representation::{
-        deserialize::XTypesDeserialize, endianness::EndiannessRead, read_write::Read,
-    },
+    data_representation::{deserialize::XTypesDeserialize, endianness::EndiannessRead},
     dynamic_type::{DynamicData, DynamicType, TypeKind},
     error::{XTypesError, XTypesResult},
+    read_write::Read,
 };
 use alloc::vec::Vec;
 

@@ -1,6 +1,6 @@
 use crate::xtypes::{
-    data_representation::read_write::Read,
     error::{XTypesError, XTypesResult},
+    read_write::Read,
 };
 
 pub trait EndiannessRead {
