@@ -1,6 +1,5 @@
 pub mod binding;
 pub mod bytes;
-pub mod data_representation;
 pub mod data_storage;
 pub mod deserializer;
 pub mod dynamic_type;

@@ -1,10 +1,7 @@
 use super::error::XTypesError;
 use crate::xtypes::{
-    data_representation::{
-        cdr_reader::{Cdr1Deserializer, PlCdr1Deserializer},
-        endianness::LittleEndian,
-    },
     data_storage::{DataStorage, DataStorageMapping},
+    deserializer::{Cdr1Deserializer, LittleEndian, PlCdr1Deserializer},
     error::XTypesResult,
     type_object::TypeObject,
 };

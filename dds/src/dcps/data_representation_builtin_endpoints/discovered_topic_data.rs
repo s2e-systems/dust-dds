@@ -466,7 +466,7 @@ mod tests {
         builtin_topics::BuiltInTopicKey,
         infrastructure::qos::TopicQos,
         xtypes::{
-            data_representation::{cdr_reader::PlCdr1Deserializer, endianness::LittleEndian},
+            deserializer::{LittleEndian, PlCdr1Deserializer},
             dynamic_type::DynamicData,
             serializer::RtpsPlCdrSerializer,
         },
