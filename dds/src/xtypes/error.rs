@@ -8,6 +8,7 @@ pub enum XTypesError {
     PidNotFound(u16),
     InvalidId(u32),
     InvalidIndex(u32),
+    NotEnoughData,
     /// An operation was invoked on an inappropriate object or
     /// at an inappropriate time (as determined by policies set by the
     /// specification or the Service implementation). There is no

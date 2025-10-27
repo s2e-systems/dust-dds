@@ -18,11 +18,11 @@ const D_CDR2_LE: RepresentationIdentifier = [0x00, 0x09];
 // const PL_CDR_BE: RepresentationIdentifier = [0x00, 0x02];
 const PL_CDR_LE: RepresentationIdentifier = [0x00, 0x03];
 
-pub struct CdrDeserializer {}
+pub struct CdrDeserializer;
 impl CdrDeserializer {
     pub fn deserialize(dynamic_type: DynamicType, buffer: &[u8]) -> XTypesResult<DynamicData> {
         if buffer.len() < 4 {
-            return Err(XTypesError::InvalidData);
+            return Err(XTypesError::NotEnoughData);
         }
         let mut dynamic_data = DynamicDataFactory::create_data(dynamic_type.clone());
 
@@ -104,23 +104,6 @@ impl CdrVersion for CdrVersion2 {
 }
 
 trait EndiannessRead {
-    fn read_bool<R: Read>(reader: &mut R) -> XTypesResult<bool> {
-        let buf = reader.read_exact(1)?;
-        match buf[0] {
-            0 => Ok(false),
-            1 => Ok(true),
-            _ => Err(XTypesError::InvalidData),
-        }
-    }
-
-    fn read_i8<R: Read>(reader: &mut R) -> XTypesResult<i8> {
-        Ok(reader.read_exact(1)?[0] as i8)
-    }
-
-    fn read_u8<R: Read>(reader: &mut R) -> XTypesResult<u8> {
-        Ok(reader.read_exact(1)?[0])
-    }
-
     fn read_i16<R: Read>(reader: &mut R) -> XTypesResult<i16>;
     fn read_u16<R: Read>(reader: &mut R) -> XTypesResult<u16>;
     fn read_i32<R: Read>(reader: &mut R) -> XTypesResult<i32>;
@@ -129,9 +112,6 @@ trait EndiannessRead {
     fn read_u64<R: Read>(reader: &mut R) -> XTypesResult<u64>;
     fn read_f32<R: Read>(reader: &mut R) -> XTypesResult<f32>;
     fn read_f64<R: Read>(reader: &mut R) -> XTypesResult<f64>;
-    fn read_char<R: Read>(reader: &mut R) -> XTypesResult<char> {
-        Ok(char::from(reader.read_exact(1)?[0]))
-    }
 }
 
 struct BigEndian;
@@ -572,7 +552,7 @@ impl CdrPrimitiveTypeDeserialize for u8 {
     fn deserialize<'a, E: EndiannessRead, V: CdrVersion>(
         reader: &mut CdrReader<'a, E, V>,
     ) -> XTypesResult<Self> {
-        E::read_u8(reader)
+        Ok(reader.read_exact(1)?[0] as u8)
     }
 }
 impl CdrPrimitiveTypeDeserialize for u16 {
@@ -603,7 +583,7 @@ impl CdrPrimitiveTypeDeserialize for i8 {
     fn deserialize<'a, E: EndiannessRead, V: CdrVersion>(
         reader: &mut CdrReader<'a, E, V>,
     ) -> XTypesResult<Self> {
-        E::read_i8(reader)
+        Ok(reader.read_exact(1)?[0] as i8)
     }
 }
 impl CdrPrimitiveTypeDeserialize for i16 {
@@ -650,14 +630,19 @@ impl CdrPrimitiveTypeDeserialize for bool {
     fn deserialize<'a, E: EndiannessRead, V: CdrVersion>(
         reader: &mut CdrReader<'a, E, V>,
     ) -> XTypesResult<Self> {
-        E::read_bool(reader)
+        let buf = reader.read_exact(1)?;
+        match buf[0] {
+            0 => Ok(false),
+            1 => Ok(true),
+            _ => Err(XTypesError::InvalidData),
+        }
     }
 }
 impl CdrPrimitiveTypeDeserialize for char {
     fn deserialize<'a, E: EndiannessRead, V: CdrVersion>(
         reader: &mut CdrReader<'a, E, V>,
     ) -> XTypesResult<Self> {
-        E::read_char(reader)
+         Ok(char::from(reader.read_exact(1)?[0]))
     }
 }
 
@@ -680,7 +665,7 @@ impl<'a, E: EndiannessRead, V: CdrVersion> CdrReader<'a, E, V> {
 
     fn read_all(&mut self, length: usize) -> XTypesResult<&'a [u8]> {
         if self.pos + length > self.buffer.len() {
-            return Err(XTypesError::InvalidData);
+            return Err(XTypesError::NotEnoughData);
         }
         let ret = &self.buffer[self.pos..self.pos + length];
         self.pos += length;
