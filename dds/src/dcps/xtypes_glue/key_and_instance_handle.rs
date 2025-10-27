@@ -3,7 +3,8 @@ use crate::{
     xtypes::{
         dynamic_type::DynamicData,
         error::XTypesError,
-        serializer::{Write, Xcdr1LeSerializer, Xcdr2BeSerializer},
+        read_write::Write,
+        serializer::{Xcdr1LeSerializer, Xcdr2BeSerializer},
     },
 };
 use alloc::vec::Vec;
