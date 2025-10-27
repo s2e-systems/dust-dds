@@ -553,7 +553,7 @@ impl CdrPrimitiveTypeSerialize for bool {
         self,
         writer: &mut CdrWriter<W, E, V>,
     ) {
-        E::write_bool(self, writer);
+        writer.write(&[self as u8]);
     }
 }
 impl CdrPrimitiveTypeSerialize for i8 {
@@ -561,7 +561,7 @@ impl CdrPrimitiveTypeSerialize for i8 {
         self,
         writer: &mut CdrWriter<W, E, V>,
     ) {
-        E::write_i8(self, writer);
+        writer.write(&[self as u8]);
     }
 }
 impl CdrPrimitiveTypeSerialize for u8 {
@@ -569,7 +569,7 @@ impl CdrPrimitiveTypeSerialize for u8 {
         self,
         writer: &mut CdrWriter<W, E, V>,
     ) {
-        E::write_u8(self, writer);
+        writer.write(&[self]);
     }
 }
 impl CdrPrimitiveTypeSerialize for i16 {
@@ -649,7 +649,7 @@ impl CdrPrimitiveTypeSerialize for char {
         self,
         writer: &mut CdrWriter<W, E, V>,
     ) {
-        E::write_char(self, writer);
+        writer.write_slice(self.to_string().as_bytes());
     }
 }
 impl CdrPrimitiveTypeSerialize for &[u8] {
@@ -657,19 +657,10 @@ impl CdrPrimitiveTypeSerialize for &[u8] {
         self,
         writer: &mut CdrWriter<W, E, V>,
     ) {
-        E::write_slice_u8(self, writer);
+        writer.write_slice(self);
     }
 }
 trait EndiannessWrite {
-    fn write_bool<C: Write>(v: bool, writer: &mut C) {
-        writer.write(&[v as u8]);
-    }
-    fn write_i8<C: Write>(v: i8, writer: &mut C) {
-        writer.write(&[v as u8]);
-    }
-    fn write_u8<C: Write>(v: u8, writer: &mut C) {
-        writer.write(&[v]);
-    }
     fn write_i16<C: Write>(v: i16, writer: &mut C);
     fn write_u16<C: Write>(v: u16, writer: &mut C);
     fn write_i32<C: Write>(v: i32, writer: &mut C);
@@ -678,12 +669,6 @@ trait EndiannessWrite {
     fn write_u64<C: Write>(v: u64, writer: &mut C);
     fn write_f32<C: Write>(v: f32, writer: &mut C);
     fn write_f64<C: Write>(v: f64, writer: &mut C);
-    fn write_char<C: Write>(v: char, writer: &mut C) {
-        writer.write(v.to_string().as_bytes());
-    }
-    fn write_slice_u8<C: Write>(v: &[u8], writer: &mut C) {
-        writer.write(v);
-    }
 }
 
 impl EndiannessWrite for BigEndian {

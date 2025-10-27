@@ -1,4 +1,5 @@
 use crate::xtypes::error::{XTypesError, XTypesResult};
+use alloc::vec::Vec;
 
 pub trait Read {
     fn read_exact(&mut self, size: usize) -> XTypesResult<&[u8]>;
