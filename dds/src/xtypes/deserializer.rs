@@ -1,22 +1,25 @@
-use crate::xtypes::dynamic_type::{DynamicDataFactory, DynamicTypeMember, ExtensibilityKind};
 use crate::xtypes::{
-    dynamic_type::{DynamicData, DynamicType, TypeKind},
+    dynamic_type::{
+        DynamicData, DynamicDataFactory, DynamicType, DynamicTypeMember, ExtensibilityKind,
+        TypeKind,
+    },
     error::{XTypesError, XTypesResult},
     read_write::Read,
 };
-use alloc::string::String;
-use alloc::vec::Vec;
+use alloc::{string::String, vec::Vec};
 use tracing::debug;
 
 type RepresentationIdentifier = [u8; 2];
 const CDR_BE: RepresentationIdentifier = [0x00, 0x00];
 const CDR_LE: RepresentationIdentifier = [0x00, 0x01];
+const PL_CDR_BE: RepresentationIdentifier = [0x00, 0x02];
+const PL_CDR_LE: RepresentationIdentifier = [0x00, 0x03];
 const CDR2_BE: RepresentationIdentifier = [0x00, 0x06];
 const CDR2_LE: RepresentationIdentifier = [0x00, 0x07];
 const D_CDR2_BE: RepresentationIdentifier = [0x00, 0x08];
 const D_CDR2_LE: RepresentationIdentifier = [0x00, 0x09];
-// const PL_CDR_BE: RepresentationIdentifier = [0x00, 0x02];
-const PL_CDR_LE: RepresentationIdentifier = [0x00, 0x03];
+const PL_CDR2_BE: RepresentationIdentifier = [0x00, 0x0a];
+const PL_CDR2_LE: RepresentationIdentifier = [0x00, 0x0b];
 
 pub struct CdrDeserializer;
 impl CdrDeserializer {
@@ -25,29 +28,44 @@ impl CdrDeserializer {
             return Err(XTypesError::NotEnoughData);
         }
         let mut dynamic_data = DynamicDataFactory::create_data(dynamic_type.clone());
-
-        match [buffer[0], buffer[1]] {
-            CDR_BE => {
+        let representation_identifier = [buffer[0], buffer[1]];
+        match representation_identifier {
+            CDR_BE | PL_CDR_BE => {
                 let mut deserializer = Cdr1Deserializer::new(&buffer[4..], BigEndian);
                 deserializer.deserialize_structure(&dynamic_type, &mut dynamic_data)?;
             }
-            CDR_LE => {
+            CDR_LE | PL_CDR_LE => {
                 let mut deserializer = Cdr1Deserializer::new(&buffer[4..], LittleEndian);
                 deserializer.deserialize_structure(&dynamic_type, &mut dynamic_data)?;
             }
-            CDR2_BE | D_CDR2_BE => {
+            CDR2_BE | D_CDR2_BE | PL_CDR2_BE => {
                 let mut deserializer = Cdr2Deserializer::new(&buffer[4..], BigEndian);
                 deserializer.deserialize_structure(&dynamic_type, &mut dynamic_data)?;
             }
-            CDR2_LE | D_CDR2_LE => {
+            CDR2_LE | D_CDR2_LE | PL_CDR2_LE => {
                 let mut deserializer = Cdr2Deserializer::new(&buffer[4..], LittleEndian);
                 deserializer.deserialize_structure(&dynamic_type, &mut dynamic_data)?;
             }
+            _ => return Err(XTypesError::InvalidData),
+        }
+        Ok(dynamic_data)
+    }
+
+    pub fn deserialize_builtin(
+        dynamic_type: DynamicType,
+        buffer: &[u8],
+    ) -> XTypesResult<DynamicData> {
+        if buffer.len() < 4 {
+            return Err(XTypesError::NotEnoughData);
+        }
+        let mut dynamic_data = DynamicDataFactory::create_data(dynamic_type.clone());
+        let representation_identifier = [buffer[0], buffer[1]];
+        match representation_identifier {
             PL_CDR_LE => {
                 let mut deserializer = RtpsPlCdrDeserializer::new(&buffer[4..]);
                 deserializer.deserialize_structure(&dynamic_type, &mut dynamic_data)?;
             }
-            _ => return Err(XTypesError::InvalidData),
+            _ => return Err(XTypesError::NotSupported(representation_identifier)),
         }
         Ok(dynamic_data)
     }
@@ -748,10 +766,38 @@ impl<'a, E: EndiannessRead> XTypesDeserialize for Cdr2Deserializer<'a, E> {
 
     fn deserialize_mutable_struct(
         &mut self,
-        _dynamic_type: &DynamicType,
-        _dynamic_data: &mut DynamicData,
+        dynamic_type: &DynamicType,
+        dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
-        todo!()
+        for member_index in 0..dynamic_type.get_member_count() {
+            let member = dynamic_type.get_member_by_index(member_index)?;
+            let member_descriptor = member.get_descriptor()?;
+            let pid = member.get_id() as u16;
+
+            self.reader.set_position(0);
+            if self.reader.seek_to_pid_le(pid)? {
+                self.deserialize_final_member(member, dynamic_data)?;
+            } else if member_descriptor.is_optional {
+                let default_value = member_descriptor
+                    .default_value
+                    .as_ref()
+                    .cloned()
+                    .expect("default value must exist for optional type");
+                dynamic_data.set_value(pid as u32, default_value);
+            } else {
+                return Err(XTypesError::PidNotFound(pid));
+            }
+        }
+        Ok(())
+    }
+
+    fn deserialize_appendable_struct(
+        &mut self,
+        dynamic_type: &DynamicType,
+        dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()> {
+        let _dheader = self.deserialize_primitive_type::<u32>()?;
+        self.deserialize_final_struct(dynamic_type, dynamic_data)
     }
 }
 
@@ -1153,6 +1199,241 @@ mod tests {
                     0, 0, 0, 2, // length
                     1, 2, 77
                 ],
+            )
+            .unwrap(),
+            expected
+        );
+    }
+
+    #[test]
+    fn deserialize_mutable_struct() {
+        #[derive(Debug, PartialEq, TypeSupport)]
+        #[dust_dds(extensibility = "mutable")]
+        struct MutableType {
+            #[dust_dds(id = 0x5A, key)]
+            key: u8,
+            #[dust_dds(id = 0x50)]
+            participant_key: u32,
+        }
+        let expected = MutableType {
+            key: 7,
+            participant_key: 8,
+        }
+        .create_dynamic_sample();
+        assert_eq!(
+            CdrDeserializer::deserialize(
+                MutableType::get_type(),
+                &[
+                    0x00, 0x02, 0x00, 0x00, // PL_CDR_BE
+                    0x00, 0x05A, 0, 1, // PID | length
+                    7, 0, 0, 0, // key | padding
+                    0x00, 0x050, 0, 4, // PID | length
+                    0, 0, 0, 8, // participant_key
+                    0, 0, 0, 0, // Sentinel
+                ]
+            )
+            .unwrap(),
+            expected
+        );
+        assert_eq!(
+            CdrDeserializer::deserialize(
+                MutableType::get_type(),
+                &[
+                    0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+                    0x05A, 0x00, 1, 0, // PID | length
+                    7, 0, 0, 0, // key | padding
+                    0x050, 0x00, 4, 0, // PID | length
+                    8, 0, 0, 0, // participant_key
+                    0, 0, 0, 0, // Sentinel
+                ]
+            )
+            .unwrap(),
+            expected
+        );
+        assert_eq!(
+            CdrDeserializer::deserialize(
+                MutableType::get_type(),
+                &[
+                    0x00, 0x06, 0x00, 0x00, // PL_CDR2_BE
+                    0x00, 0x05A, 0, 1, // PID | length
+                    7, 0, 0, 0, // key | padding
+                    0x00, 0x050, 0, 4, // PID | length
+                    0, 0, 0, 8, // participant_key
+                    0, 0, 0, 0, // Sentinel
+                ],
+            )
+            .unwrap(),
+            expected
+        );
+        assert_eq!(
+            CdrDeserializer::deserialize(
+                MutableType::get_type(),
+                &[
+                    0x00, 0x07, 0x00, 0x00, // PL_CDR2_LE
+                    0x05A, 0x00, 1, 0, // PID | length
+                    7, 0, 0, 0, // key | padding
+                    0x050, 0x00, 4, 0, // PID | length
+                    8, 0, 0, 0, // participant_key
+                    0, 0, 0, 0, // Sentinel
+                ]
+            )
+            .unwrap(),
+            expected
+        );
+    }
+
+    #[test]
+    fn deserialize_appendable_struct() {
+        #[derive(Debug, PartialEq, TypeSupport)]
+        #[dust_dds(extensibility = "appendable")]
+        struct AppendableType {
+            #[dust_dds(key)]
+            key: u8,
+            participant_key: u32,
+        }
+        let expected = AppendableType {
+            key: 7,
+            participant_key: 8,
+        }
+        .create_dynamic_sample();
+        assert_eq!(
+            CdrDeserializer::deserialize(
+                AppendableType::get_type(),
+                &[
+                    0x00, 0x00, 0x00, 0x00, // CDR_BE
+                    7, 0, 0, 0, // key | padding
+                    0, 0, 0, 8, // participant_key
+                ]
+            )
+            .unwrap(),
+            expected
+        );
+        assert_eq!(
+            CdrDeserializer::deserialize(
+                AppendableType::get_type(),
+                &[
+                    0x00, 0x01, 0x00, 0x00, // CDR_LE
+                    7, 0, 0, 0, // key | padding
+                    8, 0, 0, 0, // participant_key
+                ]
+            )
+            .unwrap(),
+            expected
+        );
+        assert_eq!(
+            CdrDeserializer::deserialize(
+                AppendableType::get_type(),
+                &[
+                    0x00, 0x08, 0x00, 0x00, // D_CDR2_BE
+                    0, 0, 0, 8, // DHEADER
+                    7, 0, 0, 0, // key | padding
+                    0, 0, 0, 8, // participant_key
+                ],
+            )
+            .unwrap(),
+            expected
+        );
+        assert_eq!(
+            CdrDeserializer::deserialize(
+                AppendableType::get_type(),
+                &[
+                    0x00, 0x09, 0x00, 0x00, // D_CDR2_LE
+                    0, 0, 0, 8, // DHEADER
+                    7, 0, 0, 0, // key | padding
+                    8, 0, 0, 0, // participant_key
+                ]
+            )
+            .unwrap(),
+            expected
+        );
+    }
+
+    #[test]
+    fn deserialize_appendable_shapes() {
+        #[derive(Debug, PartialEq, TypeSupport)]
+        #[dust_dds(extensibility = "appendable")]
+        struct AppendableShapesType {
+            #[dust_dds(key)]
+            color: String,
+            x: i32,
+            y: i32,
+            shapesize: i32,
+            additional_payload_size: Vec<u8>,
+        }
+        let expected = AppendableShapesType {
+            color: String::from("BLUE"),
+            x: 10,
+            y: 20,
+            shapesize: 30,
+            additional_payload_size: vec![],
+        }
+        .create_dynamic_sample();
+        assert_eq!(
+            CdrDeserializer::deserialize(
+                AppendableShapesType::get_type(),
+                &[
+                    0x00, 0x00, 0x00, 0x00, // CDR_BE
+                    0, 0, 0, 5, // color: length
+                    b'B', b'L', b'U', b'E', // color
+                    0, 0, 0, 0, // color: terminating 0 | padding
+                    0, 0, 0, 10, // x
+                    0, 0, 0, 20, // y
+                    0, 0, 0, 30, // shapesize
+                    0, 0, 0, 0, // additional_payload_size: length
+                ]
+            )
+            .unwrap(),
+            expected
+        );
+        assert_eq!(
+            CdrDeserializer::deserialize(
+                AppendableShapesType::get_type(),
+                &[
+                    0x00, 0x01, 0x00, 0x00, // CDR_LE
+                    5, 0, 0, 0, // color: length
+                    b'B', b'L', b'U', b'E', // color
+                    0, 0, 0, 0, // color: terminating 0 | padding
+                    10, 0, 0, 0, // x
+                    20, 0, 0, 0, // y
+                    30, 0, 0, 0, // shapesize
+                    0, 0, 0, 0, // additional_payload_size: length
+                ]
+            )
+            .unwrap(),
+            expected
+        );
+        assert_eq!(
+            CdrDeserializer::deserialize(
+                AppendableShapesType::get_type(),
+                &[
+                    0x00, 0x08, 0x00, 0x00, // D_CDR2_BE
+                    0, 0, 0, 28, // Dheader
+                    0, 0, 0, 5, // color: length
+                    b'B', b'L', b'U', b'E', // color
+                    0, 0, 0, 0, // color: terminating 0 | padding
+                    0, 0, 0, 10, // x
+                    0, 0, 0, 20, // y
+                    0, 0, 0, 30, // shapesize
+                    0, 0, 0, 0, // additional_payload_size: length
+                ],
+            )
+            .unwrap(),
+            expected
+        );
+        assert_eq!(
+            CdrDeserializer::deserialize(
+                AppendableShapesType::get_type(),
+                &[
+                    0x00, 0x09, 0x00, 0x00, // D_CDR2_LE
+                    28, 0, 0, 0, // Dheader
+                    5, 0, 0, 0, // color: length
+                    b'B', b'L', b'U', b'E', // color
+                    0, 0, 0, 0, // color: terminating 0 | padding
+                    10, 0, 0, 0, // x
+                    20, 0, 0, 0, // y
+                    30, 0, 0, 0, // shapesize
+                    0, 0, 0, 0, // additional_payload_size: length
+                ]
             )
             .unwrap(),
             expected

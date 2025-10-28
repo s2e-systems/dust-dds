@@ -65,7 +65,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         repository: omg-dds/dds-rtps
-        ref: '9e1fdbcd30bc785e5e5113a94e5e936695a3385e'
+        ref: 'v2.0.2025'
         path: omg-dds-rtps
         sparse-checkout-cone-mode: false
         sparse-checkout: |
@@ -82,7 +82,7 @@ jobs:
       with:
         repository: omg-dds/dds-rtps
         latest: true
-        preRelease: true
+        preRelease: false
         fileName: "*"
     - name: Remove DustDDS
       run: rm dust_dds-*

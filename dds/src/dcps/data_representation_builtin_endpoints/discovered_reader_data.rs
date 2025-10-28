@@ -638,7 +638,7 @@ mod tests {
         ];
 
         assert_eq!(
-            CdrDeserializer::deserialize(DiscoveredReaderData::get_type(), &data).unwrap(),
+            CdrDeserializer::deserialize_builtin(DiscoveredReaderData::get_type(), &data).unwrap(),
             expected
         );
     }

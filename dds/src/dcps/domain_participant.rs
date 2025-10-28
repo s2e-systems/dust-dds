@@ -3943,7 +3943,7 @@ where
     ) {
         match cache_change.kind {
             ChangeKind::Alive => {
-                if let Ok(dynamic_data) = CdrDeserializer::deserialize(
+                if let Ok(dynamic_data) = CdrDeserializer::deserialize_builtin(
                     SpdpDiscoveredParticipantData::get_type(),
                     cache_change.data_value.as_ref(),
                 ) {
@@ -3990,7 +3990,7 @@ where
     ) {
         match cache_change.kind {
             ChangeKind::Alive => {
-                if let Ok(dynamic_data) = CdrDeserializer::deserialize(
+                if let Ok(dynamic_data) = CdrDeserializer::deserialize_builtin(
                     DiscoveredWriterData::get_type(),
                     cache_change.data_value.as_ref(),
                 ) {
@@ -4096,7 +4096,7 @@ where
     ) {
         match cache_change.kind {
             ChangeKind::Alive => {
-                if let Ok(dynamic_data) = CdrDeserializer::deserialize(
+                if let Ok(dynamic_data) = CdrDeserializer::deserialize_builtin(
                     DiscoveredReaderData::get_type(),
                     cache_change.data_value.as_ref(),
                 ) {
@@ -4229,7 +4229,7 @@ where
     pub async fn add_builtin_topics_detector_cache_change(&mut self, cache_change: CacheChange) {
         match cache_change.kind {
             ChangeKind::Alive => {
-                if let Ok(dynamic_data) = CdrDeserializer::deserialize(
+                if let Ok(dynamic_data) = CdrDeserializer::deserialize_builtin(
                     TopicBuiltinTopicData::get_type(),
                     cache_change.data_value.as_ref(),
                 ) {

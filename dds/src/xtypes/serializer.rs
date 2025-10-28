@@ -777,17 +777,17 @@ mod tests {
     use crate::infrastructure::type_support::TypeSupport;
     extern crate std;
 
-    fn serialize_v1_be<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
-        Cdr1BeSerializer::serialize(&v.create_dynamic_sample()).unwrap()
+    fn serialize_v1_be(v: &DynamicData) -> std::vec::Vec<u8> {
+        Cdr1BeSerializer::serialize(v).unwrap()
     }
-    fn serialize_v1_le<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
-        Cdr1LeSerializer::serialize(&v.create_dynamic_sample()).unwrap()
+    fn serialize_v1_le(v: &DynamicData) -> std::vec::Vec<u8> {
+        Cdr1LeSerializer::serialize(v).unwrap()
     }
-    fn serialize_v2_be<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
-        Cdr2BeSerializer::serialize(&v.create_dynamic_sample()).unwrap()
+    fn serialize_v2_be(v: &DynamicData) -> std::vec::Vec<u8> {
+        Cdr2BeSerializer::serialize(v).unwrap()
     }
-    fn serialize_v2_le<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
-        Cdr2LeSerializer::serialize(&v.create_dynamic_sample()).unwrap()
+    fn serialize_v2_le(v: &DynamicData) -> std::vec::Vec<u8> {
+        Cdr2LeSerializer::serialize(v).unwrap()
     }
 
     #[test]
@@ -821,9 +821,10 @@ mod tests {
             f10: 1.0,
             f11: 1.0,
             f12: 'a',
-        };
+        }
+        .create_dynamic_sample();
         assert_eq!(
-            serialize_v1_be(v.clone()),
+            serialize_v1_be(&v),
             vec![
                 0x00, 0x00, 0x00, 0x03, // CDR Header (incl. padding length)
                 1, 2, 0, 3, 0, 0, 0, 4, // f1: bool | f2: i8 | f3: i16 | f4: i32
@@ -836,7 +837,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            serialize_v1_le(v.clone()),
+            serialize_v1_le(&v),
             vec![
                 0x00, 0x01, 0x00, 0x03, // CDR Header (incl. padding length)
                 1, 2, 3, 0, 4, 0, 0, 0, // f1: bool | f2: i8 | f3: i16 | f4: i32
@@ -849,7 +850,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            serialize_v2_be(v.clone()),
+            serialize_v2_be(&v),
             vec![
                 0x00, 0x06, 0x00, 0x03, // CDR Header (incl. padding length)
                 1, 2, 0, 3, // f1: bool | f2: i8 | f3: i16
@@ -865,7 +866,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            serialize_v2_le(v.clone()),
+            serialize_v2_le(&v),
             vec![
                 0x00, 0x07, 0x00, 0x03, // CDR Header (incl. padding length)
                 1, 2, 3, 0, // f1: bool | f2: i8 | f3: i16
@@ -893,14 +894,23 @@ mod tests {
             version: [u8; 2],
         }
 
-        let v = U8Array { version: [1, 2] };
+        let v = U8Array { version: [1, 2] }.create_dynamic_sample();
         assert_eq!(
-            serialize_v1_be(v),
+            serialize_v1_be(&v),
             vec![
                 0x00, 0x02, 0x00, 0x00, // CDR Header
                 0x00, 41, 0, 2, // PID, length
                 1, 2, 0, 0, // version | padding (2 bytres)
                 0, 1, 0, 0, // Sentinel
+            ]
+        );
+        assert_eq!(
+            serialize_v1_le(&v),
+            vec![
+                0x00, 0x03, 0x00, 0x00, // CDR Header
+                41, 0x00, 2, 0, // PID, length
+                1, 2, 0, 0, // version | padding (2 bytres)
+                1, 0, 0, 0, // Sentinel
             ]
         );
     }
@@ -927,9 +937,10 @@ mod tests {
                 address1: [3, 4],
                 address2: [5, 6, 7],
             },
-        };
+        }
+        .create_dynamic_sample();
         assert_eq!(
-            serialize_v1_be(v),
+            serialize_v1_be(&v),
             vec![
                 0x00, 0x02, 0x00, 0x00, // CDR Header
                 0, 73, 0, 9, // PID | length
@@ -946,9 +957,9 @@ mod tests {
         #[derive(TypeSupport, Clone)]
         struct StringData(String);
 
-        let v = StringData(String::from("Hola"));
+        let v = StringData(String::from("Hola")).create_dynamic_sample();
         assert_eq!(
-            serialize_v1_be(v.clone()),
+            serialize_v1_be(&v),
             vec![
                 0x00, 0x00, 0x00, 0x03, // CDR Header (incl padding length)
                 0, 0, 0, 5, //length
@@ -957,7 +968,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            serialize_v1_le(v.clone()),
+            serialize_v1_le(&v),
             vec![
                 0x00, 0x01, 0x00, 0x03, // CDR Header (incl padding length)
                 5, 0, 0, 0, //length
@@ -966,7 +977,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            serialize_v2_be(v.clone()),
+            serialize_v2_be(&v),
             vec![
                 0x00, 0x06, 0x00, 0x03, // CDR Header (incl padding length)
                 0, 0, 0, 5, //length
@@ -975,7 +986,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            serialize_v2_le(v.clone()),
+            serialize_v2_le(&v),
             vec![
                 0x00, 0x07, 0x00, 0x03, // CDR Header (incl padding length)
                 5, 0, 0, 0, //length
@@ -994,9 +1005,10 @@ mod tests {
 
         let v = StringList {
             name: vec!["one".to_string(), "two".to_string()],
-        };
+        }
+        .create_dynamic_sample();
         assert_eq!(
-            serialize_v1_be(v),
+            serialize_v1_be(&v),
             vec![
                 0x00, 0x00, 0x00, 0x00, // CDR Header
                 0, 0, 0, 2, // vec length
@@ -1019,10 +1031,11 @@ mod tests {
         let v = FinalType {
             field_u16: 7,
             field_u64: 9,
-        };
+        }
+        .create_dynamic_sample();
         // PLAIN_CDR:
         assert_eq!(
-            serialize_v1_be(v.clone()),
+            serialize_v1_be(&v),
             vec![
                 0x00, 0x00, 0x00, 0x00, // CDR Header
                 0, 7, 0, 0, 0, 0, 0, 0, // field_u16 | padding (6 bytes)
@@ -1030,7 +1043,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            serialize_v1_le(v.clone()),
+            serialize_v1_le(&v),
             vec![
                 0x00, 0x01, 0x00, 0x00, // CDR Header
                 7, 0, 0, 0, 0, 0, 0, 0, // field_u16 | padding (6 bytes)
@@ -1039,7 +1052,7 @@ mod tests {
         );
         // PLAIN_CDR2:
         assert_eq!(
-            serialize_v2_be(v.clone()),
+            serialize_v2_be(&v),
             vec![
                 0x00, 0x06, 0x00, 0x00, // CDR Header
                 0, 7, 0, 0, // field_u16 | padding (2 bytes)
@@ -1047,7 +1060,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            serialize_v2_le(v.clone()),
+            serialize_v2_le(&v),
             vec![
                 0x00, 0x07, 0x00, 0x00, // CDR Header
                 7, 0, 0, 0, // field_u16 | padding (2 bytes)
@@ -1070,9 +1083,10 @@ mod tests {
                 field_u64: 9,
             },
             field_u8: 10,
-        };
+        }
+        .create_dynamic_sample();
         assert_eq!(
-            serialize_v1_be(v.clone()),
+            serialize_v1_be(&v),
             vec![
                 0x00, 0x00, 0x00, 0x03, // CDR Header (incl padding length)
                 0, 7, 0, 0, 0, 0, 0, 0, // nested FinalType (u16) | padding (6 bytes)
@@ -1081,7 +1095,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            serialize_v1_le(v.clone()),
+            serialize_v1_le(&v),
             vec![
                 0x00, 0x01, 0x00, 0x03, // CDR Header (incl padding length)
                 7, 0, 0, 0, 0, 0, 0, 0, // nested FinalType (u16) | padding (6 bytes)
@@ -1090,7 +1104,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            serialize_v2_be(v.clone()),
+            serialize_v2_be(&v),
             vec![
                 0x00, 0x06, 0x00, 0x03, // CDR Header (incl padding length)
                 0, 7, 0, 0, // nested FinalType (u16) | padding
@@ -1099,7 +1113,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            serialize_v2_le(v.clone()),
+            serialize_v2_le(&v),
             vec![
                 0x00, 0x07, 0x00, 0x03, // CDR Header (incl padding length)
                 7, 0, 0, 0, // nested FinalType (u16) | padding (2 bytes)
@@ -1117,23 +1131,23 @@ mod tests {
 
     #[test]
     fn serialize_appendable_struct() {
-        let v = AppendableType { value: 7 };
+        let v = AppendableType { value: 7 }.create_dynamic_sample();
         assert_eq!(
-            serialize_v1_be(v.clone()),
+            serialize_v1_be(&v),
             vec![
                 0x00, 0x00, 0x00, 0x02, // CDR Header (incl padding length)
                 0, 7, 0, 0 // value | padding (2 bytes)
             ]
         );
         assert_eq!(
-            serialize_v1_le(v.clone()),
+            serialize_v1_le(&v),
             vec![
                 0x00, 0x01, 0x00, 0x02, // CDR Header (incl padding length)
                 7, 0, 0, 0 // value | padding (2 bytes)
             ]
         );
         assert_eq!(
-            serialize_v2_be(v.clone()),
+            serialize_v2_be(&v),
             vec![
                 0x00, 0x08, 0x00, 0x02, // CDR Header (incl padding length)
                 0, 0, 0, 2, // DHEADER
@@ -1141,7 +1155,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            serialize_v2_le(v.clone()),
+            serialize_v2_le(&v),
             vec![
                 0x00, 0x09, 0x00, 0x02, // CDR Header (incl padding length)
                 2, 0, 0, 0, // DHEADER
@@ -1164,9 +1178,10 @@ mod tests {
         let v = MutableType {
             key: 7,
             participant_key: 8,
-        };
+        }
+        .create_dynamic_sample();
         assert_eq!(
-            serialize_v1_be(v.clone()),
+            serialize_v1_be(&v),
             vec![
                 0x00, 0x02, 0x00, 0x00, // CDR Header
                 0x00, 80, 0, 2, // PID | length
@@ -1177,7 +1192,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            serialize_v1_le(v.clone()),
+            serialize_v1_le(&v),
             vec![
                 0x00, 0x03, 0x00, 0x00, // CDR Header
                 0x050, 0x00, 2, 0, // PID | length
@@ -1188,7 +1203,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            serialize_v2_be(v.clone()),
+            serialize_v2_be(&v),
             vec![
                 0x00, 0x0a, 0x00, 0x00, // CDR Header
                 0x00, 0x050, 0, 2, // PID | length
@@ -1199,7 +1214,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            serialize_v2_le(v.clone()),
+            serialize_v2_le(&v),
             vec![
                 0x00, 0x0b, 0x00, 0x00, // CDR Header
                 0x050, 0x00, 2, 0, // PID | length
@@ -1236,9 +1251,10 @@ mod tests {
                 participant_key: 8,
             },
             field_final: TinyFinalType { primitive: 9 },
-        };
+        }
+        .create_dynamic_sample();
         assert_eq!(
-            serialize_v1_be(v.clone()),
+            serialize_v1_be(&v),
             vec![
                 0x00, 0x02, 0x00, 0x00, // CDR Header
                 0x00, 96, 0, 1, // PID | length
@@ -1255,7 +1271,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            serialize_v1_le(v.clone()),
+            serialize_v1_le(&v),
             vec![
                 0x00, 0x03, 0x00, 0x00, // CDR Header
                 0x060, 0x00, 1, 0, // PID | length
@@ -1272,7 +1288,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            serialize_v2_be(v.clone()),
+            serialize_v2_be(&v),
             vec![
                 0x00, 0x0a, 0x00, 0x00, // CDR Header
                 0x00, 0x060, 0, 1, // PID | length
@@ -1289,7 +1305,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            serialize_v2_le(v.clone()),
+            serialize_v2_le(&v),
             vec![
                 0x00, 0x0b, 0x00, 0x00, // CDR Header
                 0x060, 0x00, 1, 0, // PID | length
