@@ -728,7 +728,7 @@ mod tests {
         ];
 
         assert_eq!(
-            CdrDeserializer::deserialize(SpdpDiscoveredParticipantData::get_type(), &data).unwrap(),
+            CdrDeserializer::deserialize_builtin(SpdpDiscoveredParticipantData::get_type(), &data).unwrap(),
             expected
         );
     }

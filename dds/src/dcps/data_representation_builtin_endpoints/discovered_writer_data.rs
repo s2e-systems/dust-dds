@@ -564,7 +564,7 @@ mod tests {
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
         assert_eq!(
-            CdrDeserializer::deserialize(DiscoveredWriterData::get_type(), &data).unwrap(),
+            CdrDeserializer::deserialize_builtin(DiscoveredWriterData::get_type(), &data).unwrap(),
             expected
         );
     }
