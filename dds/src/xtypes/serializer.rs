@@ -937,7 +937,8 @@ mod tests {
                 address1: [3, 4],
                 address2: [5, 6, 7],
             },
-        }.create_dynamic_sample();
+        }
+        .create_dynamic_sample();
         assert_eq!(
             serialize_v1_be(&v),
             vec![
@@ -1004,7 +1005,8 @@ mod tests {
 
         let v = StringList {
             name: vec!["one".to_string(), "two".to_string()],
-        }.create_dynamic_sample();
+        }
+        .create_dynamic_sample();
         assert_eq!(
             serialize_v1_be(&v),
             vec![
@@ -1029,7 +1031,8 @@ mod tests {
         let v = FinalType {
             field_u16: 7,
             field_u64: 9,
-        }.create_dynamic_sample();
+        }
+        .create_dynamic_sample();
         // PLAIN_CDR:
         assert_eq!(
             serialize_v1_be(&v),
@@ -1080,7 +1083,8 @@ mod tests {
                 field_u64: 9,
             },
             field_u8: 10,
-        }.create_dynamic_sample();
+        }
+        .create_dynamic_sample();
         assert_eq!(
             serialize_v1_be(&v),
             vec![
@@ -1174,7 +1178,8 @@ mod tests {
         let v = MutableType {
             key: 7,
             participant_key: 8,
-        }.create_dynamic_sample();
+        }
+        .create_dynamic_sample();
         assert_eq!(
             serialize_v1_be(&v),
             vec![
@@ -1246,7 +1251,8 @@ mod tests {
                 participant_key: 8,
             },
             field_final: TinyFinalType { primitive: 9 },
-        }.create_dynamic_sample();
+        }
+        .create_dynamic_sample();
         assert_eq!(
             serialize_v1_be(&v),
             vec![
