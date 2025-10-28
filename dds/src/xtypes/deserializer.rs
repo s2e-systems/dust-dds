@@ -790,6 +790,15 @@ impl<'a, E: EndiannessRead> XTypesDeserialize for Cdr2Deserializer<'a, E> {
         }
         Ok(())
     }
+
+    fn deserialize_appendable_struct(
+        &mut self,
+        dynamic_type: &DynamicType,
+        dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()> {
+        let _dheader = self.deserialize_primitive_type::<u32>()?;
+        self.deserialize_final_struct(dynamic_type, dynamic_data)
+    }
 }
 
 impl<'a> XTypesDeserialize for RtpsPlCdrDeserializer<'a> {
@@ -1266,6 +1275,164 @@ mod tests {
                     0x050, 0x00, 4, 0, // PID | length
                     8, 0, 0, 0, // participant_key
                     0, 0, 0, 0, // Sentinel
+                ]
+            )
+            .unwrap(),
+            expected
+        );
+    }
+
+    #[test]
+    fn deserialize_appendable_struct() {
+        #[derive(Debug, PartialEq, TypeSupport)]
+        #[dust_dds(extensibility = "appendable")]
+        struct AppendableType {
+            #[dust_dds(key)]
+            key: u8,
+            participant_key: u32,
+        }
+        let expected = AppendableType {
+            key: 7,
+            participant_key: 8,
+        }
+        .create_dynamic_sample();
+        assert_eq!(
+            CdrDeserializer::deserialize(
+                AppendableType::get_type(),
+                &[
+                    0x00, 0x00, 0x00, 0x00, // CDR_BE
+                    7, 0, 0, 0, // key | padding
+                    0, 0, 0, 8, // participant_key
+                ]
+            )
+            .unwrap(),
+            expected
+        );
+        assert_eq!(
+            CdrDeserializer::deserialize(
+                AppendableType::get_type(),
+                &[
+                    0x00, 0x01, 0x00, 0x00, // CDR_LE
+                    7, 0, 0, 0, // key | padding
+                    8, 0, 0, 0, // participant_key
+                ]
+            )
+            .unwrap(),
+            expected
+        );
+        assert_eq!(
+            CdrDeserializer::deserialize(
+                AppendableType::get_type(),
+                &[
+                    0x00, 0x08, 0x00, 0x00, // D_CDR2_BE
+                    0, 0, 0, 8, // DHEADER
+                    7, 0, 0, 0, // key | padding
+                    0, 0, 0, 8, // participant_key
+                ],
+            )
+            .unwrap(),
+            expected
+        );
+        assert_eq!(
+            CdrDeserializer::deserialize(
+                AppendableType::get_type(),
+                &[
+                    0x00, 0x09, 0x00, 0x00, // D_CDR2_LE
+                    0, 0, 0, 8, // DHEADER
+                    7, 0, 0, 0, // key | padding
+                    8, 0, 0, 0, // participant_key
+                ]
+            )
+            .unwrap(),
+            expected
+        );
+    }
+
+    #[test]
+    fn deserialize_appendable_shapes() {
+        #[derive(Debug, PartialEq, TypeSupport)]
+        #[dust_dds(extensibility = "appendable")]
+        struct AppendableShapesType {
+            #[dust_dds(key)]
+            color: String,
+            x: i32,
+            y: i32,
+            shapesize: i32,
+            additional_payload_size: Vec<u8>,
+        }
+        let expected = AppendableShapesType {
+            color: String::from("BLUE"),
+            x: 10,
+            y: 20,
+            shapesize: 30,
+            additional_payload_size: vec![],
+        }
+        .create_dynamic_sample();
+        assert_eq!(
+            CdrDeserializer::deserialize(
+                AppendableShapesType::get_type(),
+                &[
+                    0x00, 0x00, 0x00, 0x00, // CDR_BE
+                    0, 0, 0, 5, // color: length
+                    b'B', b'L', b'U', b'E', // color
+                    0, 0, 0, 0, // color: terminating 0 | padding
+                    0, 0, 0, 10, // x
+                    0, 0, 0, 20, // y
+                    0, 0, 0, 30, // shapesize
+                    0, 0, 0, 0, // additional_payload_size: length
+                ]
+            )
+            .unwrap(),
+            expected
+        );
+        assert_eq!(
+            CdrDeserializer::deserialize(
+                AppendableShapesType::get_type(),
+                &[
+                    0x00, 0x01, 0x00, 0x00, // CDR_LE
+                    5, 0, 0, 0, // color: length
+                    b'B', b'L', b'U', b'E', // color
+                    0, 0, 0, 0, // color: terminating 0 | padding
+                    10, 0, 0, 0, // x
+                    20, 0, 0, 0, // y
+                    30, 0, 0, 0, // shapesize
+                    0, 0, 0, 0, // additional_payload_size: length
+                ]
+            )
+            .unwrap(),
+            expected
+        );
+        assert_eq!(
+            CdrDeserializer::deserialize(
+                AppendableShapesType::get_type(),
+                &[
+                    0x00, 0x08, 0x00, 0x00, // D_CDR2_BE
+                    0, 0, 0, 28, // Dheader
+                    0, 0, 0, 5, // color: length
+                    b'B', b'L', b'U', b'E', // color
+                    0, 0, 0, 0, // color: terminating 0 | padding
+                    0, 0, 0, 10, // x
+                    0, 0, 0, 20, // y
+                    0, 0, 0, 30, // shapesize
+                    0, 0, 0, 0, // additional_payload_size: length
+                ],
+            )
+            .unwrap(),
+            expected
+        );
+        assert_eq!(
+            CdrDeserializer::deserialize(
+                AppendableShapesType::get_type(),
+                &[
+                    0x00, 0x09, 0x00, 0x00, // D_CDR2_LE
+                    28, 0, 0, 0, // Dheader
+                    5, 0, 0, 0, // color: length
+                    b'B', b'L', b'U', b'E', // color
+                    0, 0, 0, 0, // color: terminating 0 | padding
+                    10, 0, 0, 0, // x
+                    20, 0, 0, 0, // y
+                    30, 0, 0, 0, // shapesize
+                    0, 0, 0, 0, // additional_payload_size: length
                 ]
             )
             .unwrap(),
