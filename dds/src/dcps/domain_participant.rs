@@ -83,8 +83,9 @@ use crate::{
     },
     xtypes::{
         binding::XTypesBinding,
+        deserializer::CdrDeserializer,
         dynamic_type::{DynamicData, DynamicDataFactory, DynamicType},
-        serializer::{RtpsPlCdrSerializer, Xcdr1LeSerializer, Xcdr2LeSerializer},
+        serializer::{Cdr1LeSerializer, Cdr2LeSerializer, RtpsPlCdrSerializer},
     },
 };
 use alloc::{
@@ -3942,7 +3943,7 @@ where
     ) {
         match cache_change.kind {
             ChangeKind::Alive => {
-                if let Ok(dynamic_data) = DynamicData::deserialize(
+                if let Ok(dynamic_data) = CdrDeserializer::deserialize(
                     SpdpDiscoveredParticipantData::get_type(),
                     cache_change.data_value.as_ref(),
                 ) {
@@ -3954,7 +3955,7 @@ where
                 }
             }
             ChangeKind::NotAliveDisposed => {
-                if let Ok(dynamic_data) = DynamicData::deserialize(
+                if let Ok(dynamic_data) = CdrDeserializer::deserialize(
                     InstanceHandle::get_type(),
                     cache_change.data_value.as_ref(),
                 ) {
@@ -3989,7 +3990,7 @@ where
     ) {
         match cache_change.kind {
             ChangeKind::Alive => {
-                if let Ok(dynamic_data) = DynamicData::deserialize(
+                if let Ok(dynamic_data) = CdrDeserializer::deserialize(
                     DiscoveredWriterData::get_type(),
                     cache_change.data_value.as_ref(),
                 ) {
@@ -4045,7 +4046,7 @@ where
                 }
             }
             ChangeKind::NotAliveDisposed | ChangeKind::NotAliveDisposedUnregistered => {
-                if let Ok(dynamic_data) = DynamicData::deserialize(
+                if let Ok(dynamic_data) = CdrDeserializer::deserialize(
                     InstanceHandle::get_type(),
                     cache_change.data_value.as_ref(),
                 ) {
@@ -4095,7 +4096,7 @@ where
     ) {
         match cache_change.kind {
             ChangeKind::Alive => {
-                if let Ok(dynamic_data) = DynamicData::deserialize(
+                if let Ok(dynamic_data) = CdrDeserializer::deserialize(
                     DiscoveredReaderData::get_type(),
                     cache_change.data_value.as_ref(),
                 ) {
@@ -4181,7 +4182,7 @@ where
                 }
             }
             ChangeKind::NotAliveDisposed | ChangeKind::NotAliveDisposedUnregistered => {
-                if let Ok(dynamic_data) = DynamicData::deserialize(
+                if let Ok(dynamic_data) = CdrDeserializer::deserialize(
                     InstanceHandle::get_dynamic_type(),
                     cache_change.data_value.as_ref(),
                 ) {
@@ -4228,7 +4229,7 @@ where
     pub async fn add_builtin_topics_detector_cache_change(&mut self, cache_change: CacheChange) {
         match cache_change.kind {
             ChangeKind::Alive => {
-                if let Ok(dynamic_data) = DynamicData::deserialize(
+                if let Ok(dynamic_data) = CdrDeserializer::deserialize(
                     TopicBuiltinTopicData::get_type(),
                     cache_change.data_value.as_ref(),
                 ) {
@@ -5990,21 +5991,11 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
         let serialized_data: Vec<u8> = if self.qos.representation.value.is_empty()
             || self.qos.representation.value[0] == XCDR_DATA_REPRESENTATION
         {
-            let mut buffer = Xcdr1LeSerializer::serialize(Vec::new(), &dynamic_data)?;
-            let padding = match buffer.len() % 4 {
-                1 => &[0, 0, 0][..],
-                2 => &[0, 0][..],
-                3 => &[0][..],
-                _ => &[][..],
-            };
-            buffer.extend_from_slice(padding);
-            buffer[3] = padding.len() as u8;
-
-            buffer
+            Cdr1LeSerializer::serialize(&dynamic_data)?
         } else if self.qos.representation.value[0] == XCDR2_DATA_REPRESENTATION {
-            Xcdr2LeSerializer::serialize(Vec::new(), &dynamic_data)?
+            Cdr2LeSerializer::serialize(&dynamic_data)?
         } else if self.qos.representation.value[0] == BUILT_IN_DATA_REPRESENTATION {
-            RtpsPlCdrSerializer::serialize(Vec::new(), &dynamic_data)?
+            RtpsPlCdrSerializer::serialize(&dynamic_data)?
         } else {
             panic!("Invalid data representation")
         };
@@ -6664,7 +6655,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
     ) -> DdsResult<ReaderSample> {
         let (data_value, instance_handle) = match cache_change.kind {
             ChangeKind::Alive | ChangeKind::AliveFiltered => {
-                let data_value = DynamicData::deserialize(
+                let data_value = CdrDeserializer::deserialize(
                     self.type_support.as_ref().clone(),
                     cache_change.data_value.as_ref(),
                 )?;
@@ -6685,7 +6676,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
                     let mut key_holder = self.type_support.as_ref().clone();
                     key_holder.clear_nonkey_members();
                     let data_value =
-                        DynamicData::deserialize(key_holder, cache_change.data_value.as_ref())?;
+                        CdrDeserializer::deserialize(key_holder, cache_change.data_value.as_ref())?;
                     let instance_handle =
                         get_instance_handle_from_dynamic_data(data_value.clone())?;
                     (data_value, instance_handle)

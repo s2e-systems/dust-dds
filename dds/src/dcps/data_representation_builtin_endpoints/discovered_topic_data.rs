@@ -465,11 +465,7 @@ mod tests {
     use crate::{
         builtin_topics::BuiltInTopicKey,
         infrastructure::qos::TopicQos,
-        xtypes::{
-            data_representation::{cdr_reader::PlCdr1Deserializer, endianness::LittleEndian},
-            dynamic_type::DynamicData,
-            serializer::RtpsPlCdrSerializer,
-        },
+        xtypes::{deserializer::CdrDeserializer, serializer::RtpsPlCdrSerializer},
     };
 
     #[test]
@@ -514,10 +510,7 @@ mod tests {
             4, 0, 0, 0, // ,
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
-        assert_eq!(
-            RtpsPlCdrSerializer::serialize(Vec::new(), &data).unwrap(),
-            expected
-        );
+        assert_eq!(RtpsPlCdrSerializer::serialize(&data).unwrap(), expected);
     }
 
     #[test]
@@ -548,6 +541,7 @@ mod tests {
         .create_dynamic_sample();
 
         let data = [
+            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
             1, 0, 0, 0, // ,
             2, 0, 0, 0, // ,
@@ -562,11 +556,7 @@ mod tests {
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
         assert_eq!(
-            DynamicData::xcdr_deserialize(
-                DiscoveredTopicData::get_type(),
-                &mut PlCdr1Deserializer::new(&data, LittleEndian)
-            )
-            .unwrap(),
+            CdrDeserializer::deserialize(DiscoveredTopicData::get_type(), &data).unwrap(),
             expected
         );
     }
