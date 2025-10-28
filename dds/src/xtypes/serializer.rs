@@ -907,10 +907,10 @@ mod tests {
         assert_eq!(
             serialize_v1_le(&v),
             vec![
-                0x00, 0x02, 0x00, 0x00, // CDR Header
-                0x00, 41, 0, 2, // PID, length
+                0x00, 0x03, 0x00, 0x00, // CDR Header
+                41, 0x00, 2, 0, // PID, length
                 1, 2, 0, 0, // version | padding (2 bytres)
-                0, 1, 0, 0, // Sentinel
+                1, 0, 0, 0, // Sentinel
             ]
         );
     }
