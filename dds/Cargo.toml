@@ -30,7 +30,12 @@ regex = { version = "1.11.2", default-features = false }
 [dev-dependencies]
 tokio = { version = "1", features = ["rt", "macros"] }
 criterion = { version = "0.3", features = ["html_reports"] }
-tracing-subscriber = "0.3"
+tracing-subscriber = "0.3.20"
+
+opentelemetry = "0.31.0"
+opentelemetry-otlp = "0.31.0"
+opentelemetry_sdk = "0.31.0"
+tracing-opentelemetry = "0.32.0"
 
 [features]
 default = ["dcps", "rtps", "rtps_udp_transport", "std"]
