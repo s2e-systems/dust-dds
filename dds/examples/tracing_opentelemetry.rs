@@ -5,7 +5,7 @@ use dust_dds::{
         qos::{DataReaderQos, DataWriterQos, QosKind},
         qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-        status::{NO_STATUS, StatusKind},
+        status::{StatusKind, NO_STATUS},
         time::{Duration, DurationKind},
         type_support::DdsType,
     },
@@ -16,7 +16,7 @@ use opentelemetry::trace::TracerProvider as _;
 use opentelemetry_otlp::{Protocol, WithExportConfig};
 use opentelemetry_sdk::Resource;
 use tracing::span;
-use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Registry};
 
 #[derive(Debug, Clone, PartialEq, DdsType)]
 struct Data {
@@ -25,6 +25,14 @@ struct Data {
     value: Vec<u8>,
 }
 
+/// This example demonstrates how to use the Dust DDS library together with OpenTelemetry
+/// to record spans and events in Jaeger.  
+///
+/// To start a local Jaeger instance using Docker, run:
+/// `docker run -p 16686:16686 -p 4318:4318 -e COLLECTOR_OTLP_ENABLED=true jaegertracing/all-in-one:latest`
+///
+/// Once Jaeger is running, execute this example to send tracing data to the collector.
+/// You can then explore the traces and spans in the Jaeger web UI at `http://localhost:16686`. 
 fn main() {
     // Initialize OTLP exporter using HTTP binary protocol
     let otlp_exporter = opentelemetry_otlp::SpanExporter::builder()
@@ -121,7 +129,7 @@ fn main() {
 
     let data = Data {
         id: 1,
-        value: vec![8; 15000],
+        value: vec![8; 500],
     };
 
     writer.write(data.clone(), None).unwrap();
