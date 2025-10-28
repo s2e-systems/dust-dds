@@ -183,7 +183,6 @@ enum ChannelMessageKind {
 impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
     type TransportParticipant = RtpsUdpTransportParticipant;
 
-    #[tracing::instrument(skip(self))]
     async fn create_participant(
         &self,
         guid_prefix: GuidPrefix,
@@ -421,13 +420,6 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
     }
 }
 
-#[tracing::instrument(skip(
-    message_writer,
-    clock,
-    stateless_reader_list,
-    stateful_reader_list,
-    stateful_writer_list
-))]
 async fn process_message(
     datagram: &[u8],
     message_writer: &mut MessageWriter,
@@ -667,16 +659,12 @@ impl TransportStatefulWriter for StatefulWriter {
     fn history_cache(&mut self) -> &mut dyn HistoryCache {
         self
     }
-
-    #[tracing::instrument(skip(self))]
     async fn is_change_acknowledged(&self, sequence_number: i64) -> bool {
         self.rtps_stateful_writer
             .lock()
             .await
             .is_change_acknowledged(sequence_number)
     }
-
-    #[tracing::instrument(skip(self))]
     async fn add_matched_reader(&mut self, mut reader_proxy: ReaderProxy) {
         if reader_proxy.unicast_locator_list.is_empty() {
             reader_proxy
@@ -689,8 +677,6 @@ impl TransportStatefulWriter for StatefulWriter {
             .await
             .add_matched_reader(&reader_proxy);
     }
-
-    #[tracing::instrument(skip(self))]
     async fn remove_matched_reader(&mut self, remote_reader_guid: Guid) {
         self.rtps_stateful_writer
             .lock()
@@ -699,7 +685,6 @@ impl TransportStatefulWriter for StatefulWriter {
     }
 }
 impl HistoryCache for StatefulWriter {
-    #[tracing::instrument(skip(self))]
     fn add_change(
         &mut self,
         cache_change: CacheChange,
@@ -717,7 +702,6 @@ impl HistoryCache for StatefulWriter {
         })
     }
 
-    #[tracing::instrument(skip(self))]
     fn remove_change(&mut self, sequence_number: i64) -> Pin<Box<dyn Future<Output = ()> + Send>> {
         let rtps_stateful_writer = self.rtps_stateful_writer.clone();
         Box::pin(async move {
@@ -737,24 +721,18 @@ impl TransportStatefulReader for StatefulReader {
     fn guid(&self) -> Guid {
         self.guid
     }
-
-    #[tracing::instrument(skip(self))]
     async fn is_historical_data_received(&self) -> bool {
         self.rtps_stateful_reader
             .lock()
             .await
             .is_historical_data_received()
     }
-
-    #[tracing::instrument(skip(self))]
     async fn add_matched_writer(&mut self, writer_proxy: WriterProxy) {
         self.rtps_stateful_reader
             .lock()
             .await
             .add_matched_writer(&writer_proxy)
     }
-
-    #[tracing::instrument(skip(self))]
     async fn remove_matched_writer(&mut self, remote_writer_guid: Guid) {
         self.rtps_stateful_reader
             .lock()
@@ -790,7 +768,6 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
     fn default_multicast_locator_list(&self) -> &[Locator] {
         &[]
     }
-    #[tracing::instrument(skip(self, reader_history_cache))]
     async fn create_stateless_reader(
         &mut self,
         entity_id: EntityId,
@@ -806,7 +783,6 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
             guid: Guid::new(self.guid.prefix(), entity_id),
         }
     }
-    #[tracing::instrument(skip(self))]
     async fn create_stateless_writer(&mut self, entity_id: EntityId) -> Self::StatelessWriter {
         let guid = Guid::new(self.guid.prefix(), entity_id);
         StatelessWriter {
@@ -814,7 +790,7 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
             message_writer: self.message_writer.clone(),
         }
     }
-    #[tracing::instrument(skip(self, reader_history_cache))]
+
     async fn create_stateful_reader(
         &mut self,
         entity_id: EntityId,
@@ -837,7 +813,7 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
             rtps_stateful_reader,
         }
     }
-    #[tracing::instrument(skip(self))]
+
     async fn create_stateful_writer(
         &mut self,
         entity_id: EntityId,

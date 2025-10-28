@@ -29,7 +29,6 @@ impl RtpsStatelessReader {
         self.guid
     }
 
-    #[tracing::instrument(skip(self))]
     async fn on_data_submessage_received(
         &mut self,
         data_submessage: &DataSubmessage,
@@ -51,7 +50,6 @@ impl RtpsStatelessReader {
         }
     }
 
-    #[tracing::instrument(skip(self))]
     pub async fn process_message(&mut self, datagram: &[u8]) -> RtpsResult<()> {
         let rtps_message = RtpsMessageRead::try_from(datagram)?;
         let mut message_receiver = MessageReceiver::new(&rtps_message);

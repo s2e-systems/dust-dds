@@ -8,7 +8,6 @@ use crate::{
 };
 use alloc::vec::Vec;
 
-#[tracing::instrument]
 pub fn get_instance_handle_from_dynamic_data(
     mut dynamic_data: DynamicData,
 ) -> Result<InstanceHandle, XTypesError> {

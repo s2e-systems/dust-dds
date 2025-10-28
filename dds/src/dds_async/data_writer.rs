@@ -1,4 +1,4 @@
-use tracing::{Level, span, warn};
+use tracing::warn;
 
 use super::{condition::StatusConditionAsync, publisher::PublisherAsync};
 use crate::{
@@ -196,12 +196,7 @@ where
         timestamp: Time,
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = R::oneshot();
-
-        let dynamic_sample_span = span!(Level::TRACE, "create_dynamic_sample");
-        let dynamic_sample_span_guard = dynamic_sample_span.enter();
         let dynamic_data = data.create_dynamic_sample();
-        drop(dynamic_sample_span_guard);
-        
         self.participant_address()
             .send(DcpsDomainParticipantMail::Writer(
                 WriterServiceMail::WriteWTimestamp {
