@@ -623,7 +623,6 @@ fn init_subscriber(
 
     let data_reader = match options.color {
         // filter on specified color
-        // filter on specified color
         Some(color) => {
             let filtered_topic_name = options.topic_name + "_filtered";
             println!(
