@@ -29,9 +29,7 @@ use crate::{
         listeners::domain_participant_listener::ListenerMail,
         status_condition::DcpsStatusCondition,
         status_condition_mail::DcpsStatusConditionMail,
-        xtypes_glue::key_and_instance_handle::{
-            get_instance_handle_from_dynamic_data, get_serialized_key_from_dynamic_data,
-        },
+        xtypes_glue::key_and_instance_handle::get_instance_handle_from_dynamic_data,
     },
     dds_async::{
         content_filtered_topic::ContentFilteredTopicAsync, data_reader::DataReaderAsync,
@@ -3066,7 +3064,9 @@ where
                     .create_dynamic_sample(),
                 )
                 .unwrap();
-            dw.dispose_w_timestamp(dynamic_data, timestamp).await.ok();
+            dw.unregister_w_timestamp(dynamic_data, timestamp)
+                .await
+                .ok();
         }
     }
 
@@ -6327,14 +6327,13 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
         }
 
         self.last_change_sequence_number += 1;
-        let serialized_key = get_serialized_key_from_dynamic_data(dynamic_data)?;
         let cache_change = CacheChange {
             kind: ChangeKind::NotAliveDisposed,
             writer_guid: self.transport_writer.guid(),
             sequence_number: self.last_change_sequence_number,
             source_timestamp: Some(timestamp.into()),
             instance_handle: Some(instance_handle.into()),
-            data_value: serialized_key.into(),
+            data_value: Arc::default(),
         };
         self.transport_writer
             .history_cache()
@@ -6386,14 +6385,22 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
         }
 
         self.last_change_sequence_number += 1;
-        let serialized_key = get_serialized_key_from_dynamic_data(dynamic_data)?;
+        let kind = if self
+            .qos
+            .writer_data_lifecycle
+            .autodispose_unregistered_instances
+        {
+            ChangeKind::NotAliveDisposedUnregistered
+        } else {
+            ChangeKind::NotAliveUnregistered
+        };
         let cache_change = CacheChange {
-            kind: ChangeKind::NotAliveDisposed,
+            kind,
             writer_guid: self.transport_writer.guid(),
             sequence_number: self.last_change_sequence_number,
             source_timestamp: Some(timestamp.into()),
             instance_handle: Some(instance_handle.into()),
-            data_value: serialized_key.into(),
+            data_value: Arc::default(),
         };
         self.transport_writer
             .history_cache()
