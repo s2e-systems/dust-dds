@@ -26,7 +26,7 @@ impl CacheChange {
             ChangeKind::Alive | ChangeKind::AliveFiltered => (true, false),
             ChangeKind::NotAliveDisposed
             | ChangeKind::NotAliveUnregistered
-            | ChangeKind::NotAliveDisposedUnregistered => (false, true),
+            | ChangeKind::NotAliveDisposedUnregistered => (false, !self.data_value.is_empty()),
         };
 
         let mut parameters = Vec::with_capacity(2);
