@@ -23,7 +23,6 @@ struct KeyedData {
 }
 
 #[test]
-#[ignore = "Not yet implemented"]
 fn samples_should_be_content_filtered() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
@@ -45,7 +44,7 @@ fn samples_should_be_content_filtered() {
         .create_contentfilteredtopic(
             "MyTopicFiltered",
             &topic,
-            String::from("value == %0"),
+            String::from("value = %0"),
             vec![String::from("RED")],
         )
         .unwrap();
@@ -118,5 +117,5 @@ fn samples_should_be_content_filtered() {
         .unwrap();
 
     assert_eq!(samples.len(), 1);
-    assert_eq!(samples[0].data().unwrap(), data1);
+    assert_eq!(samples[0].data().unwrap(), data2);
 }

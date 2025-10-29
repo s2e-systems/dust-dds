@@ -1249,7 +1249,6 @@ where
         };
 
         let topic_kind = get_topic_kind(topic.type_support.as_ref());
-        let topic_name = topic.topic_name.clone();
 
         let type_support = topic.type_support.clone();
         let Some(subscriber) = self
@@ -4423,6 +4422,79 @@ where
             .iter()
             .any(|x| &x.key().value == writer_instance_handle.as_ref())
         {
+            let Some(reader_topic) = self
+                .domain_participant
+                .topic_description_list
+                .iter()
+                .find(|t| t.topic_name() == data_reader.topic_name)
+            else {
+                return;
+            };
+
+            if let TopicDescriptionKind::ContentFilteredTopic(content_filtered_topic) = reader_topic
+            {
+                if cache_change.kind == ChangeKind::Alive {
+                    let Ok(data) = CdrDeserializer::deserialize(
+                        data_reader.type_support.as_ref().clone(),
+                        cache_change.data_value.as_ref(),
+                    ) else {
+                        return;
+                    };
+
+                    if let Some((variable_name, _position_value)) = content_filtered_topic
+                        .filter_expression
+                        .trim()
+                        .split_once("=")
+                    {
+                        let Some(member_id) = data.get_member_id_by_name(variable_name.trim())
+                        else {
+                            return;
+                        };
+                        let Ok(member_descriptor) = data.get_descriptor(member_id) else {
+                            return;
+                        };
+                        match member_descriptor.r#type.get_kind() {
+                            crate::xtypes::dynamic_type::TypeKind::NONE => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::BOOLEAN => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::BYTE => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::INT16 => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::INT32 => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::INT64 => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::UINT16 => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::UINT32 => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::UINT64 => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::FLOAT32 => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::FLOAT64 => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::FLOAT128 => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::INT8 => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::UINT8 => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::CHAR8 => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::CHAR16 => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::STRING8 => {
+                                let member_value = data.get_string_value(member_id).unwrap();
+                                if member_value != &content_filtered_topic.expression_parameters[0]
+                                {
+                                    return;
+                                }
+                            }
+                            crate::xtypes::dynamic_type::TypeKind::STRING16 => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::ALIAS => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::ENUM => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::BITMASK => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::ANNOTATION => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::STRUCTURE => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::UNION => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::BITSET => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::SEQUENCE => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::ARRAY => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::MAP => todo!(),
+                        }
+                    } else {
+                        return;
+                    };
+                }
+            }
+
             match data_reader.add_reader_change(cache_change, reception_timestamp) {
                 Ok(AddChangeResult::Added(change_instance_handle)) => {
                     if let DurationKind::Finite(deadline_missed_period) =
@@ -5814,8 +5886,8 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantEntity<R, T
 pub struct ContentFilteredTopicEntity {
     topic_name: String,
     related_topic_name: String,
-    _filter_expression: String,
-    _expression_parameters: Vec<String>,
+    filter_expression: String,
+    expression_parameters: Vec<String>,
 }
 
 impl ContentFilteredTopicEntity {
@@ -5828,8 +5900,8 @@ impl ContentFilteredTopicEntity {
         Self {
             topic_name: name,
             related_topic_name,
-            _filter_expression: filter_expression,
-            _expression_parameters: expression_parameters,
+            filter_expression,
+            expression_parameters,
         }
     }
 }
@@ -6807,7 +6879,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
         };
 
         // Update the state of the instance before creating since this has direct impact on
-        // the information that is store on the sample
+        // the information that is stored on the sample
         match cache_change.kind {
             ChangeKind::Alive | ChangeKind::AliveFiltered => {
                 match self
