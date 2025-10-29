@@ -1,5 +1,5 @@
 FROM cimg/base:2023.09 AS CycloneDdsBuilder
-RUN git clone --depth 1 --branch 0.10.2 --single-branch https://github.com/eclipse-cyclonedds/cyclonedds.git
+RUN git clone --depth 1 --branch 0.10.5 --single-branch https://github.com/eclipse-cyclonedds/cyclonedds.git
 RUN cmake -B cyclonedds-build -S cyclonedds -DCMAKE_INSTALL_PREFIX=cyclonedds-install \
     && cmake --build cyclonedds-build --parallel 5 --target install
 
