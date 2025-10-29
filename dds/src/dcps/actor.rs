@@ -61,19 +61,6 @@ where
     // join_handle: tokio::task::JoinHandle<()>,
 }
 
-impl<R, A> Clone for Actor<R, A>
-where
-    R: DdsRuntime,
-    A: MailHandler,
-    A::Mail: Send,
-{
-    fn clone(&self) -> Self {
-        Self {
-            mail_sender: self.mail_sender.clone(),
-        }
-    }
-}
-
 impl<R, A> Actor<R, A>
 where
     R: DdsRuntime,
