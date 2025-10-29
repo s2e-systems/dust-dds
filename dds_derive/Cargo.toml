@@ -1,6 +1,6 @@
 [package]
 name = "dust_dds_derive"
-version = "0.13.0"
+version = "0.14.0"
 description = "Derive macro for `DdsType` and other traits from `dust-dds`"
 readme = true
 edition.workspace = true

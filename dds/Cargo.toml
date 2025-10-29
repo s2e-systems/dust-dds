@@ -1,6 +1,6 @@
 [package]
 name = "dust_dds"
-version = "0.13.0"
+version = "0.14.0"
 description = "Data Distribution Service (DDS) implementation"
 readme = true
 edition.workspace = true
@@ -13,7 +13,7 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
-dust_dds_derive = { version = "0.13", path = "../dds_derive" }
+dust_dds_derive = { version = "0.14", path = "../dds_derive" }
 
 md5 = { version = "0.7.0", default-features = false, optional = true } # Chose this crate over other possibilities since it doesn't have any other dependencies
 
