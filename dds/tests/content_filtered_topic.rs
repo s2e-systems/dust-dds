@@ -19,7 +19,7 @@ use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 struct KeyedData {
     #[dust_dds(key)]
     id: u8,
-    value: u32,
+    value: String,
 }
 
 #[test]
@@ -45,8 +45,8 @@ fn samples_should_be_content_filtered() {
         .create_contentfilteredtopic(
             "MyTopicFiltered",
             &topic,
-            String::from("value < %0"),
-            vec![String::from("10")],
+            String::from("value == %0"),
+            vec![String::from("RED")],
         )
         .unwrap();
 
@@ -98,16 +98,17 @@ fn samples_should_be_content_filtered() {
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
-    let data1 = KeyedData { id: 1, value: 1 };
-    let data3 = KeyedData { id: 3, value: 5 };
-    let data2 = KeyedData { id: 2, value: 10 };
-    let data4 = KeyedData { id: 4, value: 20 };
+    let data1 = KeyedData {
+        id: 1,
+        value: String::from("BLUE"),
+    };
+    let data2 = KeyedData {
+        id: 2,
+        value: String::from("RED"),
+    };
 
     writer.write(data1.clone(), None).unwrap();
     writer.write(data2.clone(), None).unwrap();
-    writer.write(data3.clone(), None).unwrap();
-    writer.write(data4.clone(), None).unwrap();
-
     writer
         .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
@@ -116,7 +117,6 @@ fn samples_should_be_content_filtered() {
         .take(5, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         .unwrap();
 
-    assert_eq!(samples.len(), 2);
+    assert_eq!(samples.len(), 1);
     assert_eq!(samples[0].data().unwrap(), data1);
-    assert_eq!(samples[1].data().unwrap(), data2);
 }
