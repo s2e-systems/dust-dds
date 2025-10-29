@@ -621,19 +621,23 @@ fn init_subscriber(
         );
     }
 
-    let data_reader = match &options.color {
+    let data_reader = match options.color {
         // filter on specified color
         Some(color) => {
             let filtered_topic_name = options.topic_name + "_filtered";
-            // return Err(InitializeError(
-            //     "contenfilter topic not implemented".to_string(),
-            // ));
             println!(
                 "Create reader for topic: {} color: {}",
-                filtered_topic_name, color
+                filtered_topic_name, &color
             );
-            subscriber.create_datareader::<ShapeType>(
+            let content_filtered_topic = participant.create_contentfilteredtopic(
+                &filtered_topic_name,
                 &topic,
+                String::from("color = %0"),
+                vec![color],
+            )?;
+
+            subscriber.create_datareader::<ShapeType>(
+                &content_filtered_topic,
                 QosKind::Specific(data_reader_qos),
                 NO_LISTENER,
                 NO_STATUS,

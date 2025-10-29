@@ -12,8 +12,8 @@ use crate::{
         },
         domain_participant::{
             DataReaderEntity, DataWriterEntity, DcpsDomainParticipant, DomainParticipantEntity,
-            PublisherEntity, SubscriberEntity, TopicEntity, TransportReaderKind,
-            TransportWriterKind,
+            PublisherEntity, SubscriberEntity, TopicDescriptionKind, TopicEntity,
+            TransportReaderKind, TransportWriterKind,
         },
         domain_participant_mail::{
             DcpsDomainParticipantMail, DiscoveryServiceMail, MessageServiceMail,
@@ -234,7 +234,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             Arc::new(SpdpDiscoveredParticipantData::get_type()),
         );
 
-        topic_list.push(spdp_topic_participant);
+        topic_list.push(TopicDescriptionKind::Topic(spdp_topic_participant));
 
         let sedp_topic_topics_handle = [
             participant_instance_handle[0],
@@ -265,7 +265,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             Arc::new(DiscoveredTopicData::get_type()),
         );
 
-        topic_list.push(sedp_topic_topics);
+        topic_list.push(TopicDescriptionKind::Topic(sedp_topic_topics));
 
         let sedp_topic_publications_handle = [
             participant_instance_handle[0],
@@ -295,7 +295,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             vec![],
             Arc::new(DiscoveredWriterData::get_type()),
         );
-        topic_list.push(sedp_topic_publications);
+        topic_list.push(TopicDescriptionKind::Topic(sedp_topic_publications));
 
         let sedp_topic_subscriptions_handle = [
             participant_instance_handle[0],
@@ -325,7 +325,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             vec![],
             Arc::new(DiscoveredReaderData::get_type()),
         );
-        topic_list.push(sedp_topic_subscriptions);
+        topic_list.push(TopicDescriptionKind::Topic(sedp_topic_subscriptions));
 
         let spdp_writer_qos = DataWriterQos {
             durability: DurabilityQosPolicy {
@@ -369,7 +369,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             InstanceHandle::new(dcps_participant_transport_reader.guid().into()),
             spdp_reader_qos,
             String::from(DCPS_PARTICIPANT),
-            "SpdpDiscoveredParticipantData".to_string(),
             Arc::new(SpdpDiscoveredParticipantData::get_type()),
             Actor::spawn(DcpsStatusCondition::default(), &spawner_handle),
             None,
@@ -389,7 +388,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             InstanceHandle::new(dcps_topic_transport_reader.guid().into()),
             sedp_data_reader_qos(),
             String::from(DCPS_TOPIC),
-            "DiscoveredTopicData".to_string(),
             Arc::new(DiscoveredTopicData::get_type()),
             Actor::spawn(DcpsStatusCondition::default(), &spawner_handle),
             None,
@@ -409,7 +407,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             InstanceHandle::new(dcps_publication_transport_reader.guid().into()),
             sedp_data_reader_qos(),
             String::from(DCPS_PUBLICATION),
-            "DiscoveredWriterData".to_string(),
             Arc::new(DiscoveredWriterData::get_type()),
             Actor::spawn(DcpsStatusCondition::default(), &spawner_handle),
             None,
@@ -429,7 +426,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             InstanceHandle::new(dcps_subscription_transport_reader.guid().into()),
             sedp_data_reader_qos(),
             String::from(DCPS_SUBSCRIPTION),
-            "DiscoveredReaderData".to_string(),
             Arc::new(DiscoveredReaderData::get_type()),
             Actor::spawn(DcpsStatusCondition::default(), &spawner_handle),
             None,

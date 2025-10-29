@@ -3,7 +3,7 @@ use crate::{
     infrastructure::error::DdsResult,
     runtime::DdsRuntime,
 };
-use alloc::string::String;
+use alloc::{string::String, vec::Vec};
 
 /// Async version of [`Topic`](crate::topic_definition::content_filtered_topic::ContentFilteredTopic).
 pub struct ContentFilteredTopicAsync<R: DdsRuntime> {
@@ -21,7 +21,7 @@ impl<R: DdsRuntime> Clone for ContentFilteredTopicAsync<R> {
 }
 
 impl<R: DdsRuntime> ContentFilteredTopicAsync<R> {
-    pub(crate) fn _new(name: String, topic: TopicAsync<R>) -> Self {
+    pub(crate) fn new(name: String, topic: TopicAsync<R>) -> Self {
         Self { name, topic }
     }
 }
@@ -33,14 +33,14 @@ impl<R: DdsRuntime> ContentFilteredTopicAsync<R> {
     }
 
     /// Async version of [`get_expression_parameters`](crate::topic_definition::content_filtered_topic::ContentFilteredTopic::get_expression_parameters).
-    pub async fn get_expression_parameters(&self) -> DdsResult<String> {
+    pub async fn get_expression_parameters(&self) -> DdsResult<Vec<String>> {
         todo!()
     }
 
     /// Async version of [`set_expression_parameters`](crate::topic_definition::content_filtered_topic::ContentFilteredTopic::set_expression_parameters).
     pub async fn set_expression_parameters(
         &self,
-        _expression_parameters: &[String],
+        _expression_parameters: Vec<String>,
     ) -> DdsResult<()> {
         todo!()
     }

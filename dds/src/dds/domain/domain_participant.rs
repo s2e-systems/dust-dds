@@ -194,7 +194,7 @@ impl<R: DdsRuntime> DomainParticipant<R> {
         name: &str,
         related_topic: &TopicDescription<R>,
         filter_expression: String,
-        expression_parameters: &[String],
+        expression_parameters: Vec<String>,
     ) -> DdsResult<TopicDescription<R>> {
         R::block_on(self.participant_async.create_contentfilteredtopic(
             name,

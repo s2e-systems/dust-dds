@@ -403,7 +403,7 @@ impl DynamicData {
         todo!()
     }
 
-    pub fn get_member_id_by_name(&self, name: &ObjectName) -> Option<MemberId> {
+    pub fn get_member_id_by_name(&self, name: &str) -> Option<MemberId> {
         self.type_ref
             .member_list
             .iter()

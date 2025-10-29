@@ -34,9 +34,10 @@ use crate::{
         },
     },
     dds_async::{
-        data_reader::DataReaderAsync, data_writer::DataWriterAsync,
-        domain_participant::DomainParticipantAsync, publisher::PublisherAsync,
-        subscriber::SubscriberAsync, topic::TopicAsync, topic_description::TopicDescriptionAsync,
+        content_filtered_topic::ContentFilteredTopicAsync, data_reader::DataReaderAsync,
+        data_writer::DataWriterAsync, domain_participant::DomainParticipantAsync,
+        publisher::PublisherAsync, subscriber::SubscriberAsync, topic::TopicAsync,
+        topic_description::TopicDescriptionAsync,
     },
     infrastructure::{
         domain::DomainId,
@@ -263,19 +264,45 @@ where
         participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
         topic_name: String,
     ) -> DdsResult<TopicDescriptionAsync<R>> {
-        let topic = self
+        match self
             .domain_participant
-            .topic_list
+            .topic_description_list
             .iter()
-            .find(|x| x.topic_name == topic_name)
-            .ok_or(DdsError::AlreadyDeleted)?;
-        Ok(TopicDescriptionAsync::Topic(TopicAsync::new(
-            topic.instance_handle,
-            topic.status_condition.address(),
-            topic.type_name.clone(),
-            topic_name,
-            self.get_participant_async(participant_address),
-        )))
+            .find(|x| x.topic_name() == topic_name)
+        {
+            Some(TopicDescriptionKind::Topic(topic)) => {
+                Ok(TopicDescriptionAsync::Topic(TopicAsync::new(
+                    topic.instance_handle,
+                    topic.status_condition.address(),
+                    topic.type_name.clone(),
+                    topic_name,
+                    self.get_participant_async(participant_address),
+                )))
+            }
+            Some(TopicDescriptionKind::ContentFilteredTopic(t)) => {
+                if let Some(TopicDescriptionKind::Topic(related_topic)) = self
+                    .domain_participant
+                    .topic_description_list
+                    .iter()
+                    .find(|x| x.topic_name() == t.related_topic_name)
+                {
+                    let name = t.topic_name.clone();
+                    let topic = TopicAsync::new(
+                        related_topic.instance_handle,
+                        related_topic.status_condition.address(),
+                        related_topic.type_name.clone(),
+                        t.related_topic_name.clone(),
+                        self.get_participant_async(participant_address),
+                    );
+                    Ok(TopicDescriptionAsync::ContentFilteredTopic(
+                        ContentFilteredTopicAsync::new(name, topic),
+                    ))
+                } else {
+                    Err(DdsError::AlreadyDeleted)
+                }
+            }
+            None => Err(DdsError::AlreadyDeleted),
+        }
     }
 
     pub fn get_builtin_subscriber(&self) -> &SubscriberEntity<R, T> {
@@ -287,11 +314,11 @@ where
         &mut self,
         topic_name: String,
     ) -> DdsResult<InconsistentTopicStatus> {
-        let Some(topic) = self
+        let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
-            .topic_list
+            .topic_description_list
             .iter_mut()
-            .find(|x| x.topic_name == topic_name)
+            .find(|x| x.topic_name() == topic_name)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -317,11 +344,11 @@ where
             QosKind::Default => self.domain_participant.default_topic_qos.clone(),
             QosKind::Specific(q) => q,
         };
-        let Some(topic) = self
+        let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
-            .topic_list
+            .topic_description_list
             .iter_mut()
-            .find(|x| x.topic_name == topic_name)
+            .find(|x| x.topic_name() == topic_name)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -346,11 +373,11 @@ where
 
     #[tracing::instrument(skip(self))]
     pub fn get_topic_qos(&mut self, topic_name: String) -> DdsResult<TopicQos> {
-        let Some(topic) = self
+        let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
-            .topic_list
+            .topic_description_list
             .iter_mut()
-            .find(|x| x.topic_name == topic_name)
+            .find(|x| x.topic_name() == topic_name)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -360,11 +387,11 @@ where
 
     #[tracing::instrument(skip(self))]
     pub async fn enable_topic(&mut self, topic_name: String) -> DdsResult<()> {
-        let Some(topic) = self
+        let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
-            .topic_list
+            .topic_description_list
             .iter_mut()
-            .find(|x| x.topic_name == topic_name)
+            .find(|x| x.topic_name() == topic_name)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -379,11 +406,11 @@ where
 
     #[tracing::instrument(skip(self))]
     pub fn get_type_support(&mut self, topic_name: String) -> DdsResult<Arc<DynamicType>> {
-        let Some(topic) = self
+        let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
-            .topic_list
+            .topic_description_list
             .iter_mut()
-            .find(|x| x.topic_name == topic_name)
+            .find(|x| x.topic_name() == topic_name)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -589,9 +616,9 @@ where
     ) -> DdsResult<InstanceHandle> {
         if self
             .domain_participant
-            .topic_list
+            .topic_description_list
             .iter()
-            .any(|x| x.topic_name == topic_name)
+            .any(|x| x.topic_name() == topic_name)
         {
             return Err(DdsError::PreconditionNotMet(format!(
                 "Topic with name {topic_name} already exists.
@@ -635,15 +662,9 @@ where
             type_support,
         );
 
-        match self
-            .domain_participant
-            .topic_list
-            .iter_mut()
-            .find(|x| x.topic_name == topic.topic_name)
-        {
-            Some(x) => *x = topic,
-            None => self.domain_participant.topic_list.push(topic),
-        }
+        self.domain_participant
+            .topic_description_list
+            .push(TopicDescriptionKind::Topic(topic));
 
         if self.domain_participant.enabled
             && self
@@ -674,11 +695,11 @@ where
             return Ok(());
         }
 
-        let Some(topic) = self
+        let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
-            .topic_list
+            .topic_description_list
             .iter()
-            .find(|x| x.topic_name == topic_name)
+            .find(|x| x.topic_name() == topic_name)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -689,36 +710,64 @@ where
             ));
         }
 
-        for content_filtered_topic in self.domain_participant.content_filtered_topic_list.iter() {
-            if content_filtered_topic.related_topic_name == topic_name {
-                return Err(DdsError::PreconditionNotMet(
-                    "Topic still attached to content filtered topic".to_string(),
-                ));
-            }
-        }
-
-        if let Some(index) = self
-            .domain_participant
-            .topic_list
-            .iter()
-            .position(|x| x.topic_name == topic_name)
-        {
-            self.domain_participant.topic_list.remove(index)
-        } else {
-            return Err(DdsError::AlreadyDeleted);
-        };
+        self.domain_participant
+            .topic_description_list
+            .retain(|x| x.topic_name() != topic_name);
 
         Ok(())
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn create_content_filtered_topic(
+    pub async fn create_content_filtered_topic(
         &mut self,
         participant_handle: InstanceHandle,
         name: String,
         related_topic_name: String,
-    ) -> DdsResult<()> {
-        Ok(())
+        filter_expression: String,
+        expression_parameters: Vec<String>,
+    ) -> DdsResult<InstanceHandle> {
+        if !self
+            .domain_participant
+            .topic_description_list
+            .iter()
+            .any(|x| x.topic_name() == related_topic_name)
+        {
+            return Err(DdsError::PreconditionNotMet(format!(
+                "Related topic with name {related_topic_name} does not exist."
+            )));
+        }
+
+        let topic_handle = InstanceHandle::new([
+            self.domain_participant.instance_handle[0],
+            self.domain_participant.instance_handle[1],
+            self.domain_participant.instance_handle[2],
+            self.domain_participant.instance_handle[3],
+            self.domain_participant.instance_handle[4],
+            self.domain_participant.instance_handle[5],
+            self.domain_participant.instance_handle[6],
+            self.domain_participant.instance_handle[7],
+            self.domain_participant.instance_handle[8],
+            self.domain_participant.instance_handle[9],
+            self.domain_participant.instance_handle[10],
+            self.domain_participant.instance_handle[11],
+            0,
+            self.topic_counter.to_ne_bytes()[0],
+            self.topic_counter.to_ne_bytes()[1],
+            USER_DEFINED_TOPIC,
+        ]);
+        self.topic_counter += 1;
+
+        let topic = ContentFilteredTopicEntity::new(
+            name,
+            related_topic_name,
+            filter_expression,
+            expression_parameters,
+        );
+        self.domain_participant
+            .topic_description_list
+            .push(TopicDescriptionKind::ContentFilteredTopic(topic));
+
+        Ok(topic_handle)
     }
 
     #[tracing::instrument(skip(self))]
@@ -744,11 +793,11 @@ where
             String,
         )>,
     > {
-        if let Some(topic) = self
+        if let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
-            .topic_list
+            .topic_description_list
             .iter()
-            .find(|x| x.topic_name == topic_name)
+            .find(|x| x.topic_name() == topic_name)
         {
             Ok(Some((
                 topic.instance_handle,
@@ -807,12 +856,18 @@ where
 
                 match self
                     .domain_participant
-                    .topic_list
+                    .topic_description_list
                     .iter_mut()
-                    .find(|x| x.topic_name == topic.topic_name)
+                    .find(|x| x.topic_name() == topic.topic_name)
                 {
-                    Some(x) => *x = topic,
-                    None => self.domain_participant.topic_list.push(topic),
+                    Some(TopicDescriptionKind::Topic(x)) => *x = topic,
+                    Some(TopicDescriptionKind::ContentFilteredTopic(_)) => {
+                        return Err(DdsError::IllegalOperation);
+                    }
+                    None => self
+                        .domain_participant
+                        .topic_description_list
+                        .push(TopicDescriptionKind::Topic(topic)),
                 }
 
                 return Ok(Some((
@@ -837,11 +892,11 @@ where
             ActorAddress<R, DcpsStatusCondition<R>>,
         )>,
     > {
-        if let Some(topic) = self
+        if let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
-            .topic_list
+            .topic_description_list
             .iter()
-            .find(|x| x.topic_name == topic_name)
+            .find(|x| x.topic_name() == topic_name)
         {
             Ok(Some((
                 topic.type_name.clone(),
@@ -927,8 +982,8 @@ where
         }
 
         self.domain_participant
-            .topic_list
-            .retain(|x| BUILT_IN_TOPIC_NAME_LIST.contains(&x.topic_name.as_ref()));
+            .topic_description_list
+            .retain(|x| BUILT_IN_TOPIC_NAME_LIST.contains(&x.topic_name()));
 
         Ok(())
     }
@@ -1084,8 +1139,10 @@ where
     #[tracing::instrument(skip(self))]
     pub async fn enable_domain_participant(&mut self) -> DdsResult<()> {
         if !self.domain_participant.enabled {
-            for t in &mut self.domain_participant.topic_list {
-                t.enabled = true;
+            for t in &mut self.domain_participant.topic_description_list {
+                if let TopicDescriptionKind::Topic(t) = t {
+                    t.enabled = true;
+                }
             }
             for dw in &mut self.domain_participant.builtin_publisher.data_writer_list {
                 dw.enabled = true;
@@ -1168,16 +1225,30 @@ where
 
         let Some(topic) = self
             .domain_participant
-            .topic_list
+            .topic_description_list
             .iter()
-            .find(|x| x.topic_name == topic_name)
+            .find(|x| x.topic_name() == topic_name)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
 
+        let topic = match topic {
+            TopicDescriptionKind::Topic(t) => t,
+            TopicDescriptionKind::ContentFilteredTopic(content_filtered_topic) => {
+                if let Some(TopicDescriptionKind::Topic(topic)) = self
+                    .domain_participant
+                    .topic_description_list
+                    .iter()
+                    .find(|x| x.topic_name() == content_filtered_topic.related_topic_name)
+                {
+                    topic
+                } else {
+                    return Err(DdsError::AlreadyDeleted);
+                }
+            }
+        };
+
         let topic_kind = get_topic_kind(topic.type_support.as_ref());
-        let topic_name = topic.topic_name.clone();
-        let type_name = topic.type_name.clone();
 
         let type_support = topic.type_support.clone();
         let Some(subscriber) = self
@@ -1254,7 +1325,6 @@ where
             reader_handle,
             qos,
             topic_name,
-            type_name,
             type_support,
             status_condition,
             listener_sender,
@@ -1314,9 +1384,9 @@ where
     ) -> DdsResult<Option<(InstanceHandle, ActorAddress<R, DcpsStatusCondition<R>>)>> {
         if !self
             .domain_participant
-            .topic_list
+            .topic_description_list
             .iter()
-            .any(|x| x.topic_name == topic_name)
+            .any(|x| x.topic_name() == topic_name)
         {
             return Err(DdsError::BadParameter);
         }
@@ -1463,11 +1533,11 @@ where
         mask: Vec<StatusKind>,
         participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
     ) -> DdsResult<InstanceHandle> {
-        let Some(topic) = self
+        let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
-            .topic_list
+            .topic_description_list
             .iter()
-            .find(|x| x.topic_name == topic_name)
+            .find(|x| x.topic_name() == topic_name)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -2792,11 +2862,11 @@ where
         else {
             return;
         };
-        let Some(topic) = self
+        let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
-            .topic_list
+            .topic_description_list
             .iter()
-            .find(|x| x.topic_name == data_writer.topic_name)
+            .find(|x| x.topic_name() == data_writer.topic_name)
         else {
             return;
         };
@@ -2903,19 +2973,34 @@ where
         };
         let Some(topic) = self
             .domain_participant
-            .topic_list
+            .topic_description_list
             .iter()
-            .find(|x| x.topic_name == data_reader.topic_name)
+            .find(|x| x.topic_name() == data_reader.topic_name)
         else {
             return;
         };
 
+        let (topic_name, type_name, topic_qos) = match topic {
+            TopicDescriptionKind::Topic(t) => (&t.topic_name, &t.type_name, &t.qos),
+            TopicDescriptionKind::ContentFilteredTopic(t) => {
+                if let Some(TopicDescriptionKind::Topic(topic)) = self
+                    .domain_participant
+                    .topic_description_list
+                    .iter()
+                    .find(|x| x.topic_name() == t.related_topic_name)
+                {
+                    (&topic.topic_name, &topic.type_name, &topic.qos)
+                } else {
+                    return;
+                }
+            }
+        };
         let guid = data_reader.transport_reader.guid();
         let dds_subscription_data = SubscriptionBuiltinTopicData {
             key: BuiltInTopicKey { value: guid.into() },
             participant_key: BuiltInTopicKey { value: [0; 16] },
-            topic_name: data_reader.topic_name.clone(),
-            type_name: data_reader.type_name.clone(),
+            topic_name: topic_name.clone(),
+            type_name: type_name.clone(),
             durability: data_reader.qos.durability.clone(),
             deadline: data_reader.qos.deadline.clone(),
             latency_budget: data_reader.qos.latency_budget.clone(),
@@ -2927,7 +3012,7 @@ where
             time_based_filter: data_reader.qos.time_based_filter.clone(),
             presentation: subscriber.qos.presentation.clone(),
             partition: subscriber.qos.partition.clone(),
-            topic_data: topic.qos.topic_data.clone(),
+            topic_data: topic_qos.topic_data.clone(),
             group_data: subscriber.qos.group_data.clone(),
             representation: data_reader.qos.representation.clone(),
         };
@@ -2987,11 +3072,11 @@ where
 
     #[tracing::instrument(skip(self))]
     async fn announce_topic(&mut self, topic_name: String) {
-        let Some(topic) = self
+        let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
-            .topic_list
+            .topic_description_list
             .iter()
-            .find(|x| x.topic_name == topic_name)
+            .find(|x| x.topic_name() == topic_name)
         else {
             return;
         };
@@ -3592,10 +3677,33 @@ where
             else {
                 return;
             };
+            let Some(matched_topic) = self
+                .domain_participant
+                .topic_description_list
+                .iter()
+                .find(|t| t.topic_name() == data_reader.topic_name)
+            else {
+                return;
+            };
+            let (reader_topic_name, reader_type_name) = match matched_topic {
+                TopicDescriptionKind::Topic(t) => (&t.topic_name, &t.type_name),
+                TopicDescriptionKind::ContentFilteredTopic(content_filtered_topic) => {
+                    if let Some(TopicDescriptionKind::Topic(matched_topic)) = self
+                        .domain_participant
+                        .topic_description_list
+                        .iter()
+                        .find(|t| t.topic_name() == content_filtered_topic.related_topic_name)
+                    {
+                        (&matched_topic.topic_name, &matched_topic.type_name)
+                    } else {
+                        return;
+                    }
+                }
+            };
             let is_matched_topic_name =
-                discovered_writer_data.dds_publication_data.topic_name == data_reader.topic_name;
-            let is_matched_type_name = discovered_writer_data.dds_publication_data.get_type_name()
-                == data_reader.type_name;
+                &discovered_writer_data.dds_publication_data.topic_name == reader_topic_name;
+            let is_matched_type_name =
+                discovered_writer_data.dds_publication_data.get_type_name() == reader_type_name;
 
             if is_matched_topic_name && is_matched_type_name {
                 let incompatible_qos_policy_list =
@@ -4238,22 +4346,26 @@ where
 
                     self.domain_participant
                         .add_discovered_topic(topic_builtin_topic_data.clone());
-                    for topic in self.domain_participant.topic_list.iter_mut() {
-                        if topic.topic_name == topic_builtin_topic_data.name()
-                            && topic.type_name == topic_builtin_topic_data.get_type_name()
-                            && !is_discovered_topic_consistent(
-                                &topic.qos,
-                                &topic_builtin_topic_data,
-                            )
-                        {
-                            topic.inconsistent_topic_status.total_count += 1;
-                            topic.inconsistent_topic_status.total_count_change += 1;
-                            topic
-                                .status_condition
-                                .send_actor_mail(DcpsStatusConditionMail::AddCommunicationState {
-                                    state: StatusKind::InconsistentTopic,
-                                })
-                                .await;
+                    for topic in self.domain_participant.topic_description_list.iter_mut() {
+                        if let TopicDescriptionKind::Topic(topic) = topic {
+                            if topic.topic_name == topic_builtin_topic_data.name()
+                                && topic.type_name == topic_builtin_topic_data.get_type_name()
+                                && !is_discovered_topic_consistent(
+                                    &topic.qos,
+                                    &topic_builtin_topic_data,
+                                )
+                            {
+                                topic.inconsistent_topic_status.total_count += 1;
+                                topic.inconsistent_topic_status.total_count_change += 1;
+                                topic
+                                    .status_condition
+                                    .send_actor_mail(
+                                        DcpsStatusConditionMail::AddCommunicationState {
+                                            state: StatusKind::InconsistentTopic,
+                                        },
+                                    )
+                                    .await;
+                            }
                         }
                     }
                 }
@@ -4310,6 +4422,79 @@ where
             .iter()
             .any(|x| &x.key().value == writer_instance_handle.as_ref())
         {
+            let Some(reader_topic) = self
+                .domain_participant
+                .topic_description_list
+                .iter()
+                .find(|t| t.topic_name() == data_reader.topic_name)
+            else {
+                return;
+            };
+
+            if let TopicDescriptionKind::ContentFilteredTopic(content_filtered_topic) = reader_topic
+            {
+                if cache_change.kind == ChangeKind::Alive {
+                    let Ok(data) = CdrDeserializer::deserialize(
+                        data_reader.type_support.as_ref().clone(),
+                        cache_change.data_value.as_ref(),
+                    ) else {
+                        return;
+                    };
+
+                    if let Some((variable_name, _position_value)) = content_filtered_topic
+                        .filter_expression
+                        .trim()
+                        .split_once("=")
+                    {
+                        let Some(member_id) = data.get_member_id_by_name(variable_name.trim())
+                        else {
+                            return;
+                        };
+                        let Ok(member_descriptor) = data.get_descriptor(member_id) else {
+                            return;
+                        };
+                        match member_descriptor.r#type.get_kind() {
+                            crate::xtypes::dynamic_type::TypeKind::NONE => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::BOOLEAN => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::BYTE => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::INT16 => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::INT32 => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::INT64 => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::UINT16 => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::UINT32 => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::UINT64 => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::FLOAT32 => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::FLOAT64 => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::FLOAT128 => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::INT8 => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::UINT8 => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::CHAR8 => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::CHAR16 => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::STRING8 => {
+                                let member_value = data.get_string_value(member_id).unwrap();
+                                if member_value != &content_filtered_topic.expression_parameters[0]
+                                {
+                                    return;
+                                }
+                            }
+                            crate::xtypes::dynamic_type::TypeKind::STRING16 => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::ALIAS => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::ENUM => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::BITMASK => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::ANNOTATION => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::STRUCTURE => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::UNION => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::BITSET => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::SEQUENCE => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::ARRAY => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::MAP => todo!(),
+                        }
+                    } else {
+                        return;
+                    };
+                }
+            }
+
             match data_reader.add_reader_change(cache_change, reception_timestamp) {
                 Ok(AddChangeResult::Added(change_instance_handle)) => {
                     if let DurationKind::Finite(deadline_missed_period) =
@@ -5535,8 +5720,7 @@ pub struct DomainParticipantEntity<R: DdsRuntime, T: TransportParticipantFactory
     default_subscriber_qos: SubscriberQos,
     user_defined_publisher_list: Vec<PublisherEntity<R, T>>,
     default_publisher_qos: PublisherQos,
-    topic_list: Vec<TopicEntity<R>>,
-    content_filtered_topic_list: Vec<ContentFilteredTopicEntity>,
+    topic_description_list: Vec<TopicDescriptionKind<R>>,
     default_topic_qos: TopicQos,
     discovered_participant_list: Vec<SpdpDiscoveredParticipantData>,
     discovered_topic_list: Vec<TopicBuiltinTopicData>,
@@ -5561,7 +5745,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantEntity<R, T
         instance_handle: InstanceHandle,
         builtin_publisher: PublisherEntity<R, T>,
         builtin_subscriber: SubscriberEntity<R, T>,
-        topic_list: Vec<TopicEntity<R>>,
+        topic_description_list: Vec<TopicDescriptionKind<R>>,
         domain_tag: String,
     ) -> Self {
         Self {
@@ -5574,8 +5758,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantEntity<R, T
             default_subscriber_qos: SubscriberQos::const_default(),
             user_defined_publisher_list: Vec::new(),
             default_publisher_qos: PublisherQos::const_default(),
-            topic_list,
-            content_filtered_topic_list: Vec::new(),
+            topic_description_list,
             default_topic_qos: TopicQos::const_default(),
             discovered_participant_list: Vec::new(),
             discovered_topic_list: Vec::new(),
@@ -5688,9 +5871,9 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantEntity<R, T
 
     pub fn is_empty(&self) -> bool {
         let no_user_defined_topics = self
-            .topic_list
+            .topic_description_list
             .iter()
-            .filter(|t| !BUILT_IN_TOPIC_NAME_LIST.contains(&t.topic_name.as_ref()))
+            .filter(|t| !BUILT_IN_TOPIC_NAME_LIST.contains(&t.topic_name()))
             .count()
             == 0;
 
@@ -5701,10 +5884,10 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantEntity<R, T
 }
 
 pub struct ContentFilteredTopicEntity {
-    _name: String,
+    topic_name: String,
     related_topic_name: String,
-    _filter_expression: String,
-    _expression_parameters: Vec<String>,
+    filter_expression: String,
+    expression_parameters: Vec<String>,
 }
 
 impl ContentFilteredTopicEntity {
@@ -5715,10 +5898,10 @@ impl ContentFilteredTopicEntity {
         expression_parameters: Vec<String>,
     ) -> Self {
         Self {
-            _name: name,
+            topic_name: name,
             related_topic_name,
-            _filter_expression: filter_expression,
-            _expression_parameters: expression_parameters,
+            filter_expression,
+            expression_parameters,
         }
     }
 }
@@ -5757,6 +5940,20 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> SubscriberEntity<R, T> {
 
     pub fn status_condition(&self) -> &Actor<R, DcpsStatusCondition<R>> {
         &self.status_condition
+    }
+}
+
+pub enum TopicDescriptionKind<R: DdsRuntime> {
+    Topic(TopicEntity<R>),
+    ContentFilteredTopic(ContentFilteredTopicEntity),
+}
+
+impl<R: DdsRuntime> TopicDescriptionKind<R> {
+    pub fn topic_name(&self) -> &str {
+        match self {
+            TopicDescriptionKind::Topic(t) => &t.topic_name,
+            TopicDescriptionKind::ContentFilteredTopic(t) => &t.topic_name,
+        }
     }
 }
 
@@ -6429,7 +6626,6 @@ pub struct DataReaderEntity<R: DdsRuntime, T: TransportParticipantFactory> {
     sample_list: Vec<ReaderSample>,
     qos: DataReaderQos,
     topic_name: String,
-    type_name: String,
     type_support: Arc<DynamicType>,
     requested_deadline_missed_status: RequestedDeadlineMissedStatus,
     requested_incompatible_qos_status: RequestedIncompatibleQosStatus,
@@ -6453,7 +6649,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
         instance_handle: InstanceHandle,
         qos: DataReaderQos,
         topic_name: String,
-        type_name: String,
         type_support: Arc<DynamicType>,
         status_condition: Actor<R, DcpsStatusCondition<R>>,
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
@@ -6465,7 +6660,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
             sample_list: Vec::new(),
             qos,
             topic_name,
-            type_name,
             type_support,
             requested_deadline_missed_status: RequestedDeadlineMissedStatus::const_default(),
             requested_incompatible_qos_status: RequestedIncompatibleQosStatus::const_default(),
@@ -6685,7 +6879,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
         };
 
         // Update the state of the instance before creating since this has direct impact on
-        // the information that is store on the sample
+        // the information that is stored on the sample
         match cache_change.kind {
             ChangeKind::Alive | ChangeKind::AliveFiltered => {
                 match self
