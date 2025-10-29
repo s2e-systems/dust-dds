@@ -3,7 +3,7 @@ use crate::{
     domain::domain_participant::DomainParticipant, infrastructure::error::DdsResult,
     runtime::DdsRuntime, topic_definition::topic::Topic,
 };
-use alloc::string::String;
+use alloc::{string::String, vec::Vec};
 
 /// [`ContentFilteredTopic`] describes a more sophisticated subscription that indicates the subscriber does not want to necessarily see
 /// all values of each instance published under the [`Topic`]. Rather, it wants to see only the values whose contents satisfy certain
