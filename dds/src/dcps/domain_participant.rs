@@ -632,8 +632,6 @@ where
             listener_sender,
             mask,
             type_support,
-            None,
-            None,
         );
 
         match self
@@ -721,15 +719,16 @@ where
         filter_expression: String,
         expression_parameters: Vec<String>,
     ) -> DdsResult<InstanceHandle> {
-        let related_topic = self
+        if !self
             .domain_participant
             .topic_list
             .iter()
-            .find(|x| x.topic_name == related_topic_name)
-            .ok_or(DdsError::PreconditionNotMet(format!(
+            .any(|x| x.topic_name == related_topic_name)
+        {
+            return Err(DdsError::PreconditionNotMet(format!(
                 "Related topic with name {related_topic_name} does not exist."
-            )))?;
-        let qos = related_topic.qos.clone();
+            )));
+        }
 
         let topic_handle = InstanceHandle::new([
             self.domain_participant.instance_handle[0],
@@ -751,29 +750,15 @@ where
         ]);
         self.topic_counter += 1;
 
-        let topic = TopicEntity::new(
-            qos,
-            related_topic.type_name.clone(),
+        let topic = ContentFilteredTopicEntity::new(
             name,
-            topic_handle,
-            related_topic.status_condition.clone(),
-            None,
-            Vec::new(),
-            related_topic.type_support.clone(),
-            Some(filter_expression),
-            Some(expression_parameters),
+            related_topic_name,
+            filter_expression,
+            expression_parameters,
         );
-        self.domain_participant.topic_list.push(topic);
-
-        if self.domain_participant.enabled
-            && self
-                .domain_participant
-                .qos
-                .entity_factory
-                .autoenable_created_entities
-        {
-            self.enable_topic(related_topic_name).await?;
-        }
+        self.domain_participant
+            .content_filtered_topic_list
+            .push(topic);
 
         Ok(topic_handle)
     }
@@ -858,8 +843,6 @@ where
                     None,
                     vec![],
                     type_support,
-                    None,
-                    None,
                 );
                 topic.enabled = true;
                 let topic_status_condition_address = topic.status_condition.address();
@@ -1236,7 +1219,6 @@ where
 
         let topic_kind = get_topic_kind(topic.type_support.as_ref());
         let topic_name = topic.topic_name.clone();
-        let type_name = topic.type_name.clone();
 
         let type_support = topic.type_support.clone();
         let Some(subscriber) = self
@@ -1313,7 +1295,6 @@ where
             reader_handle,
             qos,
             topic_name,
-            type_name,
             type_support,
             status_condition,
             listener_sender,
@@ -2974,7 +2955,7 @@ where
             key: BuiltInTopicKey { value: guid.into() },
             participant_key: BuiltInTopicKey { value: [0; 16] },
             topic_name: data_reader.topic_name.clone(),
-            type_name: data_reader.type_name.clone(),
+            type_name: topic.type_name.clone(),
             durability: data_reader.qos.durability.clone(),
             deadline: data_reader.qos.deadline.clone(),
             latency_budget: data_reader.qos.latency_budget.clone(),
@@ -3651,10 +3632,18 @@ where
             else {
                 return;
             };
+            let Some(matched_topic) = self
+                .domain_participant
+                .topic_list
+                .iter()
+                .find(|t| t.topic_name == data_reader.topic_name)
+            else {
+                return;
+            };
             let is_matched_topic_name =
                 discovered_writer_data.dds_publication_data.topic_name == data_reader.topic_name;
             let is_matched_type_name = discovered_writer_data.dds_publication_data.get_type_name()
-                == data_reader.type_name;
+                == matched_topic.type_name;
 
             if is_matched_topic_name && is_matched_type_name {
                 let incompatible_qos_policy_list =
@@ -5830,8 +5819,6 @@ pub struct TopicEntity<R: DdsRuntime> {
     _listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
     _status_kind: Vec<StatusKind>,
     type_support: Arc<DynamicType>,
-    filter_expression: Option<String>,
-    expression_parameters: Option<Vec<String>>,
 }
 
 impl<R: DdsRuntime> TopicEntity<R> {
@@ -5845,8 +5832,6 @@ impl<R: DdsRuntime> TopicEntity<R> {
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         status_kind: Vec<StatusKind>,
         type_support: Arc<DynamicType>,
-        filter_expression: Option<String>,
-        expression_parameters: Option<Vec<String>>,
     ) -> Self {
         Self {
             qos,
@@ -5859,8 +5844,6 @@ impl<R: DdsRuntime> TopicEntity<R> {
             _listener_sender: listener_sender,
             _status_kind: status_kind,
             type_support,
-            filter_expression,
-            expression_parameters,
         }
     }
 }
@@ -6504,7 +6487,6 @@ pub struct DataReaderEntity<R: DdsRuntime, T: TransportParticipantFactory> {
     sample_list: Vec<ReaderSample>,
     qos: DataReaderQos,
     topic_name: String,
-    type_name: String,
     type_support: Arc<DynamicType>,
     requested_deadline_missed_status: RequestedDeadlineMissedStatus,
     requested_incompatible_qos_status: RequestedIncompatibleQosStatus,
@@ -6528,7 +6510,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
         instance_handle: InstanceHandle,
         qos: DataReaderQos,
         topic_name: String,
-        type_name: String,
         type_support: Arc<DynamicType>,
         status_condition: Actor<R, DcpsStatusCondition<R>>,
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
@@ -6540,7 +6521,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
             sample_list: Vec::new(),
             qos,
             topic_name,
-            type_name,
             type_support,
             requested_deadline_missed_status: RequestedDeadlineMissedStatus::const_default(),
             requested_incompatible_qos_status: RequestedIncompatibleQosStatus::const_default(),

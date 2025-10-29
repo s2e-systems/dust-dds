@@ -232,8 +232,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             None,
             vec![],
             Arc::new(SpdpDiscoveredParticipantData::get_type()),
-            None,
-            None,
         );
 
         topic_list.push(spdp_topic_participant);
@@ -265,8 +263,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             None,
             vec![],
             Arc::new(DiscoveredTopicData::get_type()),
-            None,
-            None,
         );
 
         topic_list.push(sedp_topic_topics);
@@ -298,8 +294,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             None,
             vec![],
             Arc::new(DiscoveredWriterData::get_type()),
-            None,
-            None,
         );
         topic_list.push(sedp_topic_publications);
 
@@ -330,8 +324,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             None,
             vec![],
             Arc::new(DiscoveredReaderData::get_type()),
-            None,
-            None,
         );
         topic_list.push(sedp_topic_subscriptions);
 
@@ -377,7 +369,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             InstanceHandle::new(dcps_participant_transport_reader.guid().into()),
             spdp_reader_qos,
             String::from(DCPS_PARTICIPANT),
-            "SpdpDiscoveredParticipantData".to_string(),
             Arc::new(SpdpDiscoveredParticipantData::get_type()),
             Actor::spawn(DcpsStatusCondition::default(), &spawner_handle),
             None,
@@ -397,7 +388,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             InstanceHandle::new(dcps_topic_transport_reader.guid().into()),
             sedp_data_reader_qos(),
             String::from(DCPS_TOPIC),
-            "DiscoveredTopicData".to_string(),
             Arc::new(DiscoveredTopicData::get_type()),
             Actor::spawn(DcpsStatusCondition::default(), &spawner_handle),
             None,
@@ -417,7 +407,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             InstanceHandle::new(dcps_publication_transport_reader.guid().into()),
             sedp_data_reader_qos(),
             String::from(DCPS_PUBLICATION),
-            "DiscoveredWriterData".to_string(),
             Arc::new(DiscoveredWriterData::get_type()),
             Actor::spawn(DcpsStatusCondition::default(), &spawner_handle),
             None,
@@ -437,7 +426,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             InstanceHandle::new(dcps_subscription_transport_reader.guid().into()),
             sedp_data_reader_qos(),
             String::from(DCPS_SUBSCRIPTION),
-            "DiscoveredReaderData".to_string(),
             Arc::new(DiscoveredReaderData::get_type()),
             Actor::spawn(DcpsStatusCondition::default(), &spawner_handle),
             None,
