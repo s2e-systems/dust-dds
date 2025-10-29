@@ -29,7 +29,9 @@ use crate::{
         listeners::domain_participant_listener::ListenerMail,
         status_condition::DcpsStatusCondition,
         status_condition_mail::DcpsStatusConditionMail,
-        xtypes_glue::key_and_instance_handle::get_instance_handle_from_dynamic_data,
+        xtypes_glue::key_and_instance_handle::{
+            get_instance_handle_from_dynamic_data, get_serialized_key_from_dynamic_data,
+        },
     },
     dds_async::{
         content_filtered_topic::ContentFilteredTopicAsync, data_reader::DataReaderAsync,
@@ -6341,6 +6343,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
             self.instance_publication_time.remove(i);
         }
 
+        let serialized_key = get_serialized_key_from_dynamic_data(dynamic_data)?;
         self.last_change_sequence_number += 1;
         let cache_change = CacheChange {
             kind: ChangeKind::NotAliveDisposed,
@@ -6348,7 +6351,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
             sequence_number: self.last_change_sequence_number,
             source_timestamp: Some(timestamp.into()),
             instance_handle: Some(instance_handle.into()),
-            data_value: Arc::default(),
+            data_value: serialized_key.into(),
         };
         self.transport_writer
             .history_cache()
@@ -6399,6 +6402,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
             self.instance_publication_time.remove(i);
         }
 
+        let serialized_key = get_serialized_key_from_dynamic_data(dynamic_data)?;
         self.last_change_sequence_number += 1;
         let kind = if self
             .qos
@@ -6415,7 +6419,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
             sequence_number: self.last_change_sequence_number,
             source_timestamp: Some(timestamp.into()),
             instance_handle: Some(instance_handle.into()),
-            data_value: Arc::default(),
+            data_value: serialized_key.into(),
         };
         self.transport_writer
             .history_cache()
