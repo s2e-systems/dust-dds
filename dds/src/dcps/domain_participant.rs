@@ -983,7 +983,7 @@ where
 
         self.domain_participant
             .topic_description_list
-            .retain(|x| BUILT_IN_TOPIC_NAME_LIST.contains(&x.topic_name().as_ref()));
+            .retain(|x| BUILT_IN_TOPIC_NAME_LIST.contains(&x.topic_name()));
 
         Ok(())
     }
@@ -5873,7 +5873,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantEntity<R, T
         let no_user_defined_topics = self
             .topic_description_list
             .iter()
-            .filter(|t| !BUILT_IN_TOPIC_NAME_LIST.contains(&t.topic_name().as_ref()))
+            .filter(|t| !BUILT_IN_TOPIC_NAME_LIST.contains(&t.topic_name()))
             .count()
             == 0;
 
