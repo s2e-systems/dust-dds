@@ -31,7 +31,11 @@ impl CacheChange {
 
         let mut parameters = Vec::with_capacity(2);
         match self.kind {
-            ChangeKind::Alive | ChangeKind::AliveFiltered => (),
+            ChangeKind::Alive | ChangeKind::AliveFiltered => {
+                if let Some(i) = self.instance_handle {
+                    parameters.push(Parameter::new(PID_KEY_HASH, Arc::from(i)));
+                }
+            }
             ChangeKind::NotAliveDisposed => parameters.push(Parameter::new(
                 PID_STATUS_INFO,
                 Arc::from(STATUS_INFO_DISPOSED.0),
@@ -46,9 +50,6 @@ impl CacheChange {
             )),
         }
 
-        if let Some(i) = self.instance_handle {
-            parameters.push(Parameter::new(PID_KEY_HASH, Arc::from(i)));
-        }
         let parameter_list = ParameterList::new(parameters);
 
         DataSubmessage::new(
