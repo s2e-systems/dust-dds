@@ -465,28 +465,6 @@ async fn write_message_to_reader_proxy_reliable(
         }
     } else if !reader_proxy.unacked_changes(seq_num_max) {
         // Idle
-        if reader_proxy
-            .heartbeat_machine()
-            .is_time_for_heartbeat(now, heartbeat_period.into())
-            && reader_proxy.durability() != DurabilityKind::Volatile
-        {
-            let first_sn = seq_num_min.unwrap_or(1);
-            let last_sn = seq_num_max.unwrap_or(0);
-            let heartbeat_submessage = reader_proxy
-                .heartbeat_machine()
-                .generate_new_heartbeat(writer_id, first_sn, last_sn, now, true);
-
-            let info_dst =
-                InfoDestinationSubmessage::new(reader_proxy.remote_reader_guid().prefix());
-
-            let rtps_message = RtpsMessageWrite::from_submessages(
-                &[&info_dst, &heartbeat_submessage],
-                message_writer.guid_prefix(),
-            );
-            message_writer
-                .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list())
-                .await;
-        }
     } else if reader_proxy
         .heartbeat_machine()
         .is_time_for_heartbeat(now, heartbeat_period.into())
