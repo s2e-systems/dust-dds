@@ -2836,7 +2836,9 @@ where
                     )
                     .unwrap();
 
-                dw.dispose_w_timestamp(dynamic_data, timestamp).await.ok();
+                dw.unregister_w_timestamp(dynamic_data, timestamp)
+                    .await
+                    .ok();
             }
         }
     }
@@ -2946,7 +2948,9 @@ where
                 )
                 .unwrap();
 
-            dw.dispose_w_timestamp(dynamic_data, timestamp).await.ok();
+            dw.unregister_w_timestamp(dynamic_data, timestamp)
+                .await
+                .ok();
         }
     }
 
@@ -3066,7 +3070,9 @@ where
                     .create_dynamic_sample(),
                 )
                 .unwrap();
-            dw.dispose_w_timestamp(dynamic_data, timestamp).await.ok();
+            dw.unregister_w_timestamp(dynamic_data, timestamp)
+                .await
+                .ok();
         }
     }
 
@@ -4062,18 +4068,21 @@ where
                         .await;
                 }
             }
-            ChangeKind::NotAliveDisposed => {
-                if let Ok(dynamic_data) = CdrDeserializer::deserialize(
-                    InstanceHandle::get_type(),
+            ChangeKind::NotAliveDisposed | ChangeKind::NotAliveDisposedUnregistered => {
+                let discovered_participant_handle = if let Some(h) = cache_change.instance_handle {
+                    InstanceHandle::new(h)
+                } else if let Ok(dynamic_data) = CdrDeserializer::deserialize(
+                    InstanceHandle::get_dynamic_type(),
                     cache_change.data_value.as_ref(),
                 ) {
-                    let discovered_participant_handle = InstanceHandle::create_sample(dynamic_data);
-                    self.remove_discovered_participant(discovered_participant_handle);
-                }
+                    InstanceHandle::create_sample(dynamic_data)
+                } else {
+                    return;
+                };
+
+                self.remove_discovered_participant(discovered_participant_handle);
             }
-            ChangeKind::AliveFiltered
-            | ChangeKind::NotAliveUnregistered
-            | ChangeKind::NotAliveDisposedUnregistered => (), // Do nothing,
+            ChangeKind::AliveFiltered | ChangeKind::NotAliveUnregistered => (), // Do nothing,
         }
 
         let reception_timestamp = self.get_current_time();
@@ -4154,29 +4163,33 @@ where
                 }
             }
             ChangeKind::NotAliveDisposed | ChangeKind::NotAliveDisposedUnregistered => {
-                if let Ok(dynamic_data) = CdrDeserializer::deserialize(
-                    InstanceHandle::get_type(),
+                let discovered_writer_handle = if let Some(h) = cache_change.instance_handle {
+                    InstanceHandle::new(h)
+                } else if let Ok(dynamic_data) = CdrDeserializer::deserialize(
+                    InstanceHandle::get_dynamic_type(),
                     cache_change.data_value.as_ref(),
                 ) {
-                    let discovered_writer_handle = InstanceHandle::create_sample(dynamic_data);
-                    self.domain_participant
-                        .remove_discovered_writer(&discovered_writer_handle);
+                    InstanceHandle::create_sample(dynamic_data)
+                } else {
+                    return;
+                };
 
-                    let mut handle_list = Vec::new();
-                    for subscriber in &self.domain_participant.user_defined_subscriber_list {
-                        for data_reader in subscriber.data_reader_list.iter() {
-                            handle_list
-                                .push((subscriber.instance_handle, data_reader.instance_handle));
-                        }
+                self.domain_participant
+                    .remove_discovered_writer(&discovered_writer_handle);
+
+                let mut handle_list = Vec::new();
+                for subscriber in &self.domain_participant.user_defined_subscriber_list {
+                    for data_reader in subscriber.data_reader_list.iter() {
+                        handle_list.push((subscriber.instance_handle, data_reader.instance_handle));
                     }
-                    for (subscriber_handle, data_reader_handle) in handle_list {
-                        self.remove_discovered_writer(
-                            discovered_writer_handle,
-                            subscriber_handle,
-                            data_reader_handle,
-                        )
-                        .await;
-                    }
+                }
+                for (subscriber_handle, data_reader_handle) in handle_list {
+                    self.remove_discovered_writer(
+                        discovered_writer_handle,
+                        subscriber_handle,
+                        data_reader_handle,
+                    )
+                    .await;
                 }
             }
             ChangeKind::AliveFiltered | ChangeKind::NotAliveUnregistered => (),
@@ -4290,30 +4303,34 @@ where
                 }
             }
             ChangeKind::NotAliveDisposed | ChangeKind::NotAliveDisposedUnregistered => {
-                if let Ok(dynamic_data) = CdrDeserializer::deserialize(
+                let discovered_reader_handle = if let Some(h) = cache_change.instance_handle {
+                    InstanceHandle::new(h)
+                } else if let Ok(dynamic_data) = CdrDeserializer::deserialize(
                     InstanceHandle::get_dynamic_type(),
                     cache_change.data_value.as_ref(),
                 ) {
-                    let discovered_reader_handle = InstanceHandle::create_sample(dynamic_data);
-                    self.domain_participant
-                        .remove_discovered_reader(&discovered_reader_handle);
+                    InstanceHandle::create_sample(dynamic_data)
+                } else {
+                    return;
+                };
 
-                    let mut handle_list = Vec::new();
-                    for publisher in &self.domain_participant.user_defined_publisher_list {
-                        for data_writer in publisher.data_writer_list.iter() {
-                            handle_list
-                                .push((publisher.instance_handle, data_writer.instance_handle));
-                        }
-                    }
+                self.domain_participant
+                    .remove_discovered_reader(&discovered_reader_handle);
 
-                    for (publisher_handle, data_writer_handle) in handle_list {
-                        self.remove_discovered_reader(
-                            discovered_reader_handle,
-                            publisher_handle,
-                            data_writer_handle,
-                        )
-                        .await;
+                let mut handle_list = Vec::new();
+                for publisher in &self.domain_participant.user_defined_publisher_list {
+                    for data_writer in publisher.data_writer_list.iter() {
+                        handle_list.push((publisher.instance_handle, data_writer.instance_handle));
                     }
+                }
+
+                for (publisher_handle, data_writer_handle) in handle_list {
+                    self.remove_discovered_reader(
+                        discovered_reader_handle,
+                        publisher_handle,
+                        data_writer_handle,
+                    )
+                    .await;
                 }
             }
             ChangeKind::AliveFiltered | ChangeKind::NotAliveUnregistered => (),
@@ -6326,8 +6343,8 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
             self.instance_publication_time.remove(i);
         }
 
-        self.last_change_sequence_number += 1;
         let serialized_key = get_serialized_key_from_dynamic_data(dynamic_data)?;
+        self.last_change_sequence_number += 1;
         let cache_change = CacheChange {
             kind: ChangeKind::NotAliveDisposed,
             writer_guid: self.transport_writer.guid(),
@@ -6385,10 +6402,19 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
             self.instance_publication_time.remove(i);
         }
 
-        self.last_change_sequence_number += 1;
         let serialized_key = get_serialized_key_from_dynamic_data(dynamic_data)?;
+        self.last_change_sequence_number += 1;
+        let kind = if self
+            .qos
+            .writer_data_lifecycle
+            .autodispose_unregistered_instances
+        {
+            ChangeKind::NotAliveDisposedUnregistered
+        } else {
+            ChangeKind::NotAliveUnregistered
+        };
         let cache_change = CacheChange {
-            kind: ChangeKind::NotAliveDisposed,
+            kind,
             writer_guid: self.transport_writer.guid(),
             sequence_number: self.last_change_sequence_number,
             source_timestamp: Some(timestamp.into()),
