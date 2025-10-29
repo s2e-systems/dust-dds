@@ -23,6 +23,7 @@ use crate::{
             SampleLostStatus, SampleRejectedStatus, StatusKind, SubscriptionMatchedStatus,
         },
         time::Duration,
+        type_support::TypeSupport,
     },
     runtime::{ChannelSend, DdsRuntime, OneshotReceive},
     subscription::data_reader_listener::DataReaderListener,
@@ -82,7 +83,7 @@ impl<R: DdsRuntime, Foo> Clone for DataReaderAsync<R, Foo> {
     }
 }
 
-impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
+impl<R: DdsRuntime, Foo: TypeSupport> DataReaderAsync<R, Foo> {
     /// Async version of [`read`](crate::subscription::data_reader::DataReader::read).
     #[tracing::instrument(skip(self))]
     pub async fn read(

@@ -208,7 +208,7 @@ impl ShapesDemoApp {
             .unwrap();
 
         let velocity = vec2(30.0, 20.0);
-        let shape_type = &ShapeType {
+        let shape_type = ShapeType {
             color: color.to_string(),
             x: 100,
             y: 80,
@@ -445,14 +445,14 @@ impl eframe::App for ShapesDemoApp {
                 ) {
                     let mut alpha = 50;
                     let alpha_step = (255 - alpha) / samples.len() as u8;
-                    for sample in samples.iter() {
-                        previous_handle = Some(sample.sample_info().instance_handle);
-                        if let Ok(shape_type) = sample.data() {
+                    for sample in samples.into_iter() {
+                        previous_handle = Some(sample.sample_info.instance_handle);
+                        if let Some(shape_type) = sample.data {
                             let shape = GuiShape::from_shape_type(
                                 kind.clone(),
-                                &shape_type,
+                                shape_type,
                                 alpha,
-                                sample.sample_info().instance_state,
+                                sample.sample_info.instance_state,
                             );
                             shape_list.push(shape);
                         }

@@ -73,7 +73,7 @@ fn main() {
         .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         .unwrap();
 
-    if samples[0].sample_info().instance_state != InstanceStateKind::NotAliveDisposed {
+    if samples[0].sample_info.instance_state != InstanceStateKind::NotAliveDisposed {
         wait_set.wait(Duration::new(30, 0)).unwrap();
         samples = reader
             .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
@@ -81,7 +81,7 @@ fn main() {
     }
 
     assert_eq!(
-        samples[0].sample_info().instance_state,
+        samples[0].sample_info.instance_state,
         InstanceStateKind::NotAliveDisposed,
     );
 

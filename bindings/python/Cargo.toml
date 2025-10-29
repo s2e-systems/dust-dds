@@ -1,6 +1,6 @@
 [package]
 name = "dust_dds_python"
-version = "0.13.0"
+version = "0.14.0"
 description = "Dust DDS Python bindings"
 readme = true
 publish = false

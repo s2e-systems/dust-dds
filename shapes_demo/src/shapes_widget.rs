@@ -23,7 +23,7 @@ pub struct GuiShape {
 impl GuiShape {
     pub fn from_shape_type(
         kind: String,
-        shape_type: &ShapeType,
+        shape_type: ShapeType,
         alpha: u8,
         instance_state_kind: InstanceStateKind,
     ) -> Self {

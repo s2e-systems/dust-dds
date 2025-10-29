@@ -74,7 +74,7 @@ The subscriber side can be implemented as:
     use dust_dds::{
         domain::domain_participant_factory::DomainParticipantFactory,
         listener::NO_LISTENER,
-        infrastructure::{qos::QosKind, sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE}, status::NO_STATUS, type_support::DdsType},
+        infrastructure::{qos::QosKind, status::NO_STATUS, type_support::DdsType},
     };
 
     #[derive(Debug, DdsType)]
@@ -103,11 +103,8 @@ The subscriber side can be implemented as:
         .create_datareader::<HelloWorldType>(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
-    let samples = reader
-        .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE);
-
-    if let Ok(hello_world_samples) = samples {
-        println!("Received: {:?}", hello_world_samples[0].data().unwrap());
+    if let Ok(hello_world_sample) = reader.read_next_sample() {
+        println!("Received: {:?}", hello_world_sample.data.unwrap());
     }
 ```
 

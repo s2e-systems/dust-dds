@@ -122,5 +122,5 @@ async fn dust_dds_should_run_inside_tokio_runtime() {
         .unwrap();
 
     assert_eq!(samples.len(), 1);
-    assert_eq!(samples[0].data().unwrap(), data);
+    assert_eq!(samples[0].data.as_ref().unwrap(), &data);
 }

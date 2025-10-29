@@ -6,7 +6,6 @@ use dust_dds::{
             DurabilityQosPolicy, DurabilityQosPolicyKind, ReliabilityQosPolicy,
             ReliabilityQosPolicyKind,
         },
-        sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         status::{NO_STATUS, StatusKind},
         time::{Duration, DurationKind},
         type_support::DdsType,
@@ -79,12 +78,9 @@ fn main() {
         .unwrap();
     wait_set.wait(Duration::new(30, 0)).unwrap();
 
-    let samples = reader
-        .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-        .unwrap();
+    let samples = reader.read_next_sample().unwrap();
 
-    let hello_world = samples[0].data().unwrap();
-    println!("Received: {:?}", hello_world);
+    println!("Received: {:?}", samples.data.unwrap());
 
     // Sleep to allow sending acknowledgements
     std::thread::sleep(std::time::Duration::from_secs(2));

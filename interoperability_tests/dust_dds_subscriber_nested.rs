@@ -73,7 +73,7 @@ fn main() {
         .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         .unwrap();
 
-    let data = samples[0].data().unwrap();
+    let data = samples[0].data.as_ref().unwrap();
     println!("Received: {:?}", data);
 
     // Sleep to allow sending acknowledgements
