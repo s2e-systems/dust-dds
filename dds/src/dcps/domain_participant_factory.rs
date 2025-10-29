@@ -12,8 +12,8 @@ use crate::{
         },
         domain_participant::{
             DataReaderEntity, DataWriterEntity, DcpsDomainParticipant, DomainParticipantEntity,
-            PublisherEntity, SubscriberEntity, TopicEntity, TransportReaderKind,
-            TransportWriterKind,
+            PublisherEntity, SubscriberEntity, TopicDescriptionKind, TopicEntity,
+            TransportReaderKind, TransportWriterKind,
         },
         domain_participant_mail::{
             DcpsDomainParticipantMail, DiscoveryServiceMail, MessageServiceMail,
@@ -234,7 +234,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             Arc::new(SpdpDiscoveredParticipantData::get_type()),
         );
 
-        topic_list.push(spdp_topic_participant);
+        topic_list.push(TopicDescriptionKind::Topic(spdp_topic_participant));
 
         let sedp_topic_topics_handle = [
             participant_instance_handle[0],
@@ -265,7 +265,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             Arc::new(DiscoveredTopicData::get_type()),
         );
 
-        topic_list.push(sedp_topic_topics);
+        topic_list.push(TopicDescriptionKind::Topic(sedp_topic_topics));
 
         let sedp_topic_publications_handle = [
             participant_instance_handle[0],
@@ -295,7 +295,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             vec![],
             Arc::new(DiscoveredWriterData::get_type()),
         );
-        topic_list.push(sedp_topic_publications);
+        topic_list.push(TopicDescriptionKind::Topic(sedp_topic_publications));
 
         let sedp_topic_subscriptions_handle = [
             participant_instance_handle[0],
@@ -325,7 +325,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             vec![],
             Arc::new(DiscoveredReaderData::get_type()),
         );
-        topic_list.push(sedp_topic_subscriptions);
+        topic_list.push(TopicDescriptionKind::Topic(sedp_topic_subscriptions));
 
         let spdp_writer_qos = DataWriterQos {
             durability: DurabilityQosPolicy {
