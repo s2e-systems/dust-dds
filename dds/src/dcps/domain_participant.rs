@@ -4062,18 +4062,21 @@ where
                         .await;
                 }
             }
-            ChangeKind::NotAliveDisposed => {
-                if let Ok(dynamic_data) = CdrDeserializer::deserialize(
-                    InstanceHandle::get_type(),
+            ChangeKind::NotAliveDisposed | ChangeKind::NotAliveDisposedUnregistered => {
+                let discovered_participant_handle = if let Some(h) = cache_change.instance_handle {
+                    InstanceHandle::new(h)
+                } else if let Ok(dynamic_data) = CdrDeserializer::deserialize(
+                    InstanceHandle::get_dynamic_type(),
                     cache_change.data_value.as_ref(),
                 ) {
-                    let discovered_participant_handle = InstanceHandle::create_sample(dynamic_data);
-                    self.remove_discovered_participant(discovered_participant_handle);
-                }
+                    InstanceHandle::create_sample(dynamic_data)
+                } else {
+                    return;
+                };
+
+                self.remove_discovered_participant(discovered_participant_handle);
             }
-            ChangeKind::AliveFiltered
-            | ChangeKind::NotAliveUnregistered
-            | ChangeKind::NotAliveDisposedUnregistered => (), // Do nothing,
+            ChangeKind::AliveFiltered | ChangeKind::NotAliveUnregistered => (), // Do nothing,
         }
 
         let reception_timestamp = self.get_current_time();
@@ -4154,29 +4157,33 @@ where
                 }
             }
             ChangeKind::NotAliveDisposed | ChangeKind::NotAliveDisposedUnregistered => {
-                if let Ok(dynamic_data) = CdrDeserializer::deserialize(
-                    InstanceHandle::get_type(),
+                let discovered_writer_handle = if let Some(h) = cache_change.instance_handle {
+                    InstanceHandle::new(h)
+                } else if let Ok(dynamic_data) = CdrDeserializer::deserialize(
+                    InstanceHandle::get_dynamic_type(),
                     cache_change.data_value.as_ref(),
                 ) {
-                    let discovered_writer_handle = InstanceHandle::create_sample(dynamic_data);
-                    self.domain_participant
-                        .remove_discovered_writer(&discovered_writer_handle);
+                    InstanceHandle::create_sample(dynamic_data)
+                } else {
+                    return;
+                };
 
-                    let mut handle_list = Vec::new();
-                    for subscriber in &self.domain_participant.user_defined_subscriber_list {
-                        for data_reader in subscriber.data_reader_list.iter() {
-                            handle_list
-                                .push((subscriber.instance_handle, data_reader.instance_handle));
-                        }
+                self.domain_participant
+                    .remove_discovered_writer(&discovered_writer_handle);
+
+                let mut handle_list = Vec::new();
+                for subscriber in &self.domain_participant.user_defined_subscriber_list {
+                    for data_reader in subscriber.data_reader_list.iter() {
+                        handle_list.push((subscriber.instance_handle, data_reader.instance_handle));
                     }
-                    for (subscriber_handle, data_reader_handle) in handle_list {
-                        self.remove_discovered_writer(
-                            discovered_writer_handle,
-                            subscriber_handle,
-                            data_reader_handle,
-                        )
-                        .await;
-                    }
+                }
+                for (subscriber_handle, data_reader_handle) in handle_list {
+                    self.remove_discovered_writer(
+                        discovered_writer_handle,
+                        subscriber_handle,
+                        data_reader_handle,
+                    )
+                    .await;
                 }
             }
             ChangeKind::AliveFiltered | ChangeKind::NotAliveUnregistered => (),
@@ -4290,30 +4297,34 @@ where
                 }
             }
             ChangeKind::NotAliveDisposed | ChangeKind::NotAliveDisposedUnregistered => {
-                if let Ok(dynamic_data) = CdrDeserializer::deserialize(
+                let discovered_reader_handle = if let Some(h) = cache_change.instance_handle {
+                    InstanceHandle::new(h)
+                } else if let Ok(dynamic_data) = CdrDeserializer::deserialize(
                     InstanceHandle::get_dynamic_type(),
                     cache_change.data_value.as_ref(),
                 ) {
-                    let discovered_reader_handle = InstanceHandle::create_sample(dynamic_data);
-                    self.domain_participant
-                        .remove_discovered_reader(&discovered_reader_handle);
+                    InstanceHandle::create_sample(dynamic_data)
+                } else {
+                    return;
+                };
 
-                    let mut handle_list = Vec::new();
-                    for publisher in &self.domain_participant.user_defined_publisher_list {
-                        for data_writer in publisher.data_writer_list.iter() {
-                            handle_list
-                                .push((publisher.instance_handle, data_writer.instance_handle));
-                        }
-                    }
+                self.domain_participant
+                    .remove_discovered_reader(&discovered_reader_handle);
 
-                    for (publisher_handle, data_writer_handle) in handle_list {
-                        self.remove_discovered_reader(
-                            discovered_reader_handle,
-                            publisher_handle,
-                            data_writer_handle,
-                        )
-                        .await;
+                let mut handle_list = Vec::new();
+                for publisher in &self.domain_participant.user_defined_publisher_list {
+                    for data_writer in publisher.data_writer_list.iter() {
+                        handle_list.push((publisher.instance_handle, data_writer.instance_handle));
                     }
+                }
+
+                for (publisher_handle, data_writer_handle) in handle_list {
+                    self.remove_discovered_reader(
+                        discovered_reader_handle,
+                        publisher_handle,
+                        data_writer_handle,
+                    )
+                    .await;
                 }
             }
             ChangeKind::AliveFiltered | ChangeKind::NotAliveUnregistered => (),
