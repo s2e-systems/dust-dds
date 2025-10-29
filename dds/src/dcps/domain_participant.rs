@@ -2834,7 +2834,9 @@ where
                     )
                     .unwrap();
 
-                dw.dispose_w_timestamp(dynamic_data, timestamp).await.ok();
+                dw.unregister_w_timestamp(dynamic_data, timestamp)
+                    .await
+                    .ok();
             }
         }
     }
@@ -2944,7 +2946,9 @@ where
                 )
                 .unwrap();
 
-            dw.dispose_w_timestamp(dynamic_data, timestamp).await.ok();
+            dw.unregister_w_timestamp(dynamic_data, timestamp)
+                .await
+                .ok();
         }
     }
 
