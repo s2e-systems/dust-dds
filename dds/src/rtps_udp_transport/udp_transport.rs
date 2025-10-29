@@ -38,6 +38,7 @@ use std::{
         mpsc::{Sender, channel},
     },
 };
+use tracing::info;
 
 const MAX_DATAGRAM_SIZE: usize = 65507;
 
@@ -84,7 +85,7 @@ fn get_multicast_socket(
             Addr::V4(a) => {
                 let r = socket.join_multicast_v4(&addr, &a.ip);
                 if let Err(e) = r {
-                    println!(
+                    info!(
                         "Failed to join multicast group on address {} with error {}",
                         a.ip, e
                     )
