@@ -530,6 +530,7 @@ impl DataReader {
 }
 
 #[pyclass]
+#[allow(dead_code)]
 pub struct Sample {
     sample: dust_dds::infrastructure::sample_info::Sample<PythonDdsData>,
     type_: Py<PyAny>,
@@ -538,13 +539,14 @@ pub struct Sample {
 #[pymethods]
 impl Sample {
     pub fn get_data(&self) -> PyResult<Py<PyAny>> {
-        self.sample
-            .data()
-            .map_err(into_pyerr)?
-            .into_py_object(&self.type_)
+        todo!()
+        // self.sample
+        //     .data()
+        //     .map_err(into_pyerr)?
+        //     .into_py_object(&self.type_)
     }
 
     pub fn get_sample_info(&self) -> SampleInfo {
-        self.sample.sample_info().into()
+        self.sample.sample_info.clone().into()
     }
 }

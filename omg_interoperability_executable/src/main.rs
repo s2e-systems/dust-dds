@@ -687,8 +687,8 @@ fn run_subscriber(
             match read_result {
                 Ok(samples) => {
                     for sample in samples {
-                        if sample.sample_info().valid_data {
-                            let smaple_data = sample.data().expect("data present");
+                        if sample.sample_info.valid_data {
+                            let smaple_data = sample.data.as_ref().expect("data present");
                             println!(
                                 "{:10} {:10} {:03} {:03} [{}]",
                                 data_reader.get_topicdescription().get_name(),
@@ -699,7 +699,7 @@ fn run_subscriber(
                             );
                             std::io::stdout().flush().expect("flush stdout succeeds");
                         }
-                        previous_handle = Some(sample.sample_info().instance_handle);
+                        previous_handle = Some(sample.sample_info.instance_handle);
                     }
 
                     std::thread::sleep(std::time::Duration::from_millis(

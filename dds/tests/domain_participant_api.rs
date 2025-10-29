@@ -754,7 +754,7 @@ fn get_discovery_data_from_builtin_reader() {
             topics_reader.read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         {
             assert_eq!(
-                &topic_samples[0].data().unwrap().topic_data().value,
+                &topic_samples[0].data.as_ref().unwrap().topic_data().value,
                 &topic_user_data
             );
             break;
@@ -766,17 +766,32 @@ fn get_discovery_data_from_builtin_reader() {
     }
 
     assert_eq!(
-        &participant_samples[0].data().unwrap().user_data().value,
+        &participant_samples[0]
+            .data
+            .as_ref()
+            .unwrap()
+            .user_data()
+            .value,
         &participant_user_data
     );
 
     assert_eq!(
-        &subscription_samples[0].data().unwrap().user_data().value,
+        &subscription_samples[0]
+            .data
+            .as_ref()
+            .unwrap()
+            .user_data()
+            .value,
         &reader_user_data
     );
 
     assert_eq!(
-        &publication_samples[0].data().unwrap().user_data().value,
+        &publication_samples[0]
+            .data
+            .as_ref()
+            .unwrap()
+            .user_data()
+            .value,
         &writer_user_data
     );
 }

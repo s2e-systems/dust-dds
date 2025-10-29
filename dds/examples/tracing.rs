@@ -118,5 +118,5 @@ fn main() {
         .unwrap();
 
     assert_eq!(samples.len(), 1);
-    assert_eq!(samples[0].data().unwrap(), data);
+    assert_eq!(samples[0].data.as_ref().unwrap(), &data);
 }

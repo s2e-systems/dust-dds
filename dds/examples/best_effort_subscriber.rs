@@ -32,7 +32,7 @@ impl<R: DdsRuntime> DataReaderListener<R, BestEffortExampleType> for Listener {
             .take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
             .await
         {
-            let sample = samples[0].data().unwrap();
+            let sample = samples[0].data.as_ref().unwrap();
             println!("Read sample: {:?}", sample);
         }
     }
