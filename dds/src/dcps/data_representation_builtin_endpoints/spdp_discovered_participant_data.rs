@@ -449,11 +449,7 @@ mod tests {
         dcps::data_representation_builtin_endpoints::parameter_id_values::DEFAULT_PARTICIPANT_LEASE_DURATION,
         infrastructure::qos_policy::UserDataQosPolicy,
         rtps::types::PROTOCOLVERSION_2_4,
-        xtypes::{
-            data_representation::{cdr_reader::PlCdr1Deserializer, endianness::LittleEndian},
-            dynamic_type::DynamicData,
-            serializer::RtpsPlCdrSerializer,
-        },
+        xtypes::{deserializer::CdrDeserializer, serializer::RtpsPlCdrSerializer},
     };
 
     #[test]
@@ -561,10 +557,7 @@ mod tests {
             b'a', b'b', 0, 0x00, // DomainTag: string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ];
-        assert_eq!(
-            RtpsPlCdrSerializer::serialize(Vec::new(), &data).unwrap(),
-            expected
-        );
+        assert_eq!(RtpsPlCdrSerializer::serialize(&data).unwrap(), expected);
     }
 
     #[test]
@@ -616,10 +609,7 @@ mod tests {
             0x02, 0x00, 0x00, 0x00, //
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ];
-        assert_eq!(
-            RtpsPlCdrSerializer::serialize(Vec::new(), &data).unwrap(),
-            expected
-        );
+        assert_eq!(RtpsPlCdrSerializer::serialize(&data).unwrap(), expected);
     }
 
     #[test]
@@ -673,6 +663,7 @@ mod tests {
         .create_dynamic_sample();
 
         let data = [
+            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             15, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
             0x01, 0x00, 0x00, 0x00, // DomainId
             0x14, 0x40, 0x08, 0x00, // PID_DOMAIN_TAG, Length: 8
@@ -737,11 +728,8 @@ mod tests {
         ];
 
         assert_eq!(
-            DynamicData::xcdr_deserialize(
-                SpdpDiscoveredParticipantData::get_type(),
-                &mut PlCdr1Deserializer::new(&data, LittleEndian)
-            )
-            .unwrap(),
+            CdrDeserializer::deserialize_builtin(SpdpDiscoveredParticipantData::get_type(), &data)
+                .unwrap(),
             expected
         );
     }

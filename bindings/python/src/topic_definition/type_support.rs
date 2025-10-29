@@ -1,7 +1,4 @@
-use dust_dds::{
-    infrastructure::type_support::TypeSupport,
-    xtypes::{deserializer::XTypesDeserializer, error::XTypesError},
-};
+use dust_dds::infrastructure::type_support::TypeSupport;
 use pyo3::{
     exceptions::PyTypeError,
     prelude::*,
@@ -49,31 +46,6 @@ impl From<TypeKind> for dust_dds::xtypes::type_object::TypeIdentifier {
             TypeKind::char16 => dust_dds::xtypes::type_object::TypeIdentifier::TkChar16Type,
         }
     }
-}
-
-fn _deserialize_into_py_object<'de, D: XTypesDeserializer<'de>>(
-    _py: Python<'_>,
-    _type_kind: TypeKind,
-    _deserializer: D,
-) -> Result<Py<PyAny>, XTypesError> {
-    todo!()
-    // match type_kind {
-    //     TypeKind::boolean => Ok(deserializer.deserialize_boolean()?.into_py(py)),
-    //     TypeKind::byte => Ok(deserializer.deserialize_uint8()?.into_py(py)),
-    //     TypeKind::char8 => Ok(deserializer.deserialize_char8()?.into_py(py)),
-    //     TypeKind::char16 => Ok(deserializer.deserialize_char8()?.into_py(py)),
-    //     TypeKind::int8 => Ok(deserializer.deserialize_int8()?.into_py(py)),
-    //     TypeKind::uint8 => Ok(deserializer.deserialize_uint8()?.into_py(py)),
-    //     TypeKind::int16 => Ok(deserializer.deserialize_int16()?.into_py(py)),
-    //     TypeKind::uint16 => Ok(deserializer.deserialize_uint16()?.into_py(py)),
-    //     TypeKind::int32 => Ok(deserializer.deserialize_int32()?.into_py(py)),
-    //     TypeKind::uint32 => Ok(deserializer.deserialize_uint32()?.into_py(py)),
-    //     TypeKind::int64 => Ok(deserializer.deserialize_int64()?.into_py(py)),
-    //     TypeKind::uint64 => Ok(deserializer.deserialize_uint64()?.into_py(py)),
-    //     TypeKind::float32 => Ok(deserializer.deserialize_float32()?.into_py(py)),
-    //     TypeKind::float64 => Ok(deserializer.deserialize_float64()?.into_py(py)),
-    //     TypeKind::float128 => Err(XTypesError::InvalidData),
-    // }
 }
 
 #[allow(dead_code)]
@@ -291,76 +263,6 @@ impl PythonDdsData {
     }
 
     pub fn into_py_object(self, _type_: &Py<PyAny>) -> PyResult<Py<PyAny>> {
-        fn _deserialize_data_member<'de>(
-            _member_type: &Bound<PyAny>,
-            _deserializer: &mut impl XTypesDeserializer<'de>,
-        ) -> PyResult<Py<PyAny>> {
-            // let py = member_type.py();
-            // if let Ok(member_type_kind) = member_type.extract::<TypeKind>() {
-            //     deserialize_into_py_object(py, member_type_kind, deserializer)
-            //         .map_err(|e| PyTypeError::new_err(format!("XTypesError {e:?}")))
-            // } else if is_list(member_type)? {
-            //     let typing_module = PyModule::import_bound(member_type.py(), "typing")?;
-            //     let get_args_attr = typing_module.getattr("get_args")?;
-            //     let type_args = get_args_attr.call1((member_type,))?;
-            //     let type_args = type_args.cast_bound::<PyTuple>()?;
-            //     let sequence_type = type_args.get_item(0)?;
-            //     let sequence_len = deserializer
-            //         .deserialize_uint32()
-            //         .map_err(|e| PyTypeError::new_err(format!("XTypesError {e:?}")))?;
-            //     let mut list: Vec<Py<PyAny>> = Vec::with_capacity(sequence_len as usize);
-            //     for _ in 0..sequence_len {
-            //         list.push(deserialize_data_member(&sequence_type, deserializer)?);
-            //     }
-            //     Ok(PyList::new_bound(py, list).into_py(py))
-            // } else if let Ok(py_type) = member_type.cast_bound::<PyType>() {
-            //     if py_type.py().get_type_bound::<PyBytes>().is(py_type) {
-            //         Ok(deserializer
-            //             .deserialize_byte_sequence()
-            //             .map_err(|e| PyTypeError::new_err(format!("XTypesError {e:?}")))?
-            //             .into_py(py))
-            //     } else if py_type.py().get_type_bound::<PyString>().is(py_type) {
-            //         Ok(deserializer
-            //             .deserialize_string()
-            //             .map_err(|e| PyTypeError::new_err(format!("XTypesError {e:?}")))?
-            //             .into_py(py))
-            //     } else {
-            //         deserialize_data(py, member_type.extract()?, &mut *deserializer)
-            //     }
-            // } else {
-            //     Err(PyTypeError::new_err(format!(
-            //         "Unsupported Dust DDS type representation {member_type}"
-            //     )))
-            // }
-            todo!()
-        }
-        fn _deserialize_data<'de, D>(
-            _py: Python<'_>,
-            _type_: Py<PyType>,
-            _deserializer: &mut D,
-        ) -> PyResult<Py<PyAny>>
-        where
-            for<'a> &'a mut D: XTypesDeserializer<'de>,
-        {
-            // let py_type = type_.bind(py);
-            // let object = type_
-            //     .bind(py)
-            //     .call_method("__new__", (py_type,), None)?
-            //     .unbind();
-            // let annotations = py_type.getattr("__annotations__")?;
-            // let annotation_dict = annotations.cast_bound::<PyDict>().map_err(PyErr::from)?;
-            // for (member_name, member_type) in annotation_dict {
-            //     let member_name_str = member_name.cast_bound::<PyString>()?;
-            //     object.setattr(
-            //         py,
-            //         member_name_str,
-            //         deserialize_data_member(&member_type, &mut *deserializer)?,
-            //     )?;
-            // }
-            // Ok(object)
-            todo!()
-        }
-
         // let (header, body) = self.data.split_at(4);
         // match [header[0], header[1]] {
         //     endianness::CDR_LE => Python::attach(|py| {
