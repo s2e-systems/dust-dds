@@ -57,7 +57,7 @@ pub fn get_instance_handle_from_dynamic_data(
 pub fn get_serialized_key_from_dynamic_data(
     mut dynamic_data: DynamicData,
 ) -> Result<Vec<u8>, XTypesError> {
-    dynamic_data.make_descriptor_extensibility_kind_final();
+    // dynamic_data.make_descriptor_extensibility_kind_final();
     dynamic_data.clear_nonkey_values()?;
     Cdr1LeSerializer::serialize(&dynamic_data)
 }
