@@ -210,24 +210,19 @@ impl RtpsStatefulWriter {
             if reader_proxy.reliability() == ReliabilityKind::Reliable
                 && nackfrag_submessage.count() > reader_proxy.last_received_nack_frag_count()
             {
-                reader_proxy.requested_fragments_set(
-                    nackfrag_submessage.writer_sn(),
-                    nackfrag_submessage.fragment_number_state().set(),
-                );
                 reader_proxy.set_last_received_nack_frag_count(nackfrag_submessage.count());
+                reader_proxy.write_change_message_reliable(
+                    writer_id,
+                    changes,
+                    seq_num_min,
+                    seq_num_max,
+                    data_max_size_serialized,
+                    change_seq_num,
+                    message_writer,
+                    clock,
+                );
 
-                reader_proxy
-                    .write_message_reliable(
-                        self.guid.entity_id(),
-                        &self.changes,
-                        self.changes.iter().map(|cc| cc.sequence_number).min(),
-                        self.changes.iter().map(|cc| cc.sequence_number).max(),
-                        self.data_max_size_serialized,
-                        self.heartbeat_period,
-                        message_writer,
-                        clock,
-                    )
-                    .await;
+                todo!("Must be possible to send a single fragment DataFragSubmessage")
             }
         }
     }
