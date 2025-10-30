@@ -192,8 +192,10 @@ impl RtpsStatefulWriter {
             if reader_proxy.reliability() == ReliabilityKind::Reliable
                 && nackfrag_submessage.count() > reader_proxy.last_received_nack_frag_count()
             {
-                reader_proxy
-                    .requested_changes_set(core::iter::once(nackfrag_submessage.writer_sn()));
+                reader_proxy.requested_fragments_set(
+                    nackfrag_submessage.writer_sn(),
+                    nackfrag_submessage.fragment_number_state().into_iter(),
+                );
                 reader_proxy.set_last_received_nack_frag_count(nackfrag_submessage.count());
 
                 write_message_to_reader_proxy_reliable(
@@ -677,6 +679,62 @@ mod tests {
 
     #[test]
     fn test_all_fragments_sent() {
+        struct MockWriter {
+            total_fragments_sent: Mutex<usize>,
+        }
+        impl WriteMessage for MockWriter {
+            async fn write_message(
+                &self,
+                datagram: &[u8],
+                _locator_list: &[crate::transport::types::Locator],
+            ) {
+                let message = RtpsMessageRead::try_from(datagram).unwrap();
+                assert!(matches!(
+                    message.submessages()[2],
+                    RtpsSubmessageReadKind::DataFrag(_)
+                ));
+                *self.total_fragments_sent.lock().unwrap() += 1;
+            }
+
+            fn guid_prefix(&self) -> GuidPrefix {
+                [1; 12]
+            }
+        }
+
+        let data_max_size_serialized = 500;
+        let guid = Guid::new([1; 12], EntityId::new([1; 3], 1));
+        let mut writer = RtpsStatefulWriter::new(guid, data_max_size_serialized);
+
+        let remote_reader_guid = Guid::new([2; 12], EntityId::new([2; 3], 2));
+        writer.add_matched_reader(&ReaderProxy {
+            remote_reader_guid,
+            remote_group_entity_id: ENTITYID_UNKNOWN,
+            reliability_kind: ReliabilityKind::Reliable,
+            durability_kind: DurabilityKind::Volatile,
+            unicast_locator_list: vec![],
+            multicast_locator_list: vec![],
+            expects_inline_qos: false,
+        });
+
+        writer.add_change(CacheChange {
+            kind: ChangeKind::Alive,
+            writer_guid: guid,
+            sequence_number: 1,
+            source_timestamp: None,
+            instance_handle: Some([10; 16]),
+            data_value: vec![8; 1300].into(),
+        });
+
+        let message_writer = MockWriter {
+            total_fragments_sent: Mutex::new(0),
+        };
+        block_on(writer.write_message(&message_writer, &RtpsUdpTransportClock));
+
+        assert_eq!(*message_writer.total_fragments_sent.lock().unwrap(), 3);
+    }
+
+    #[test]
+    fn test_single_fragment_sent_after_acknack_frag() {
         struct MockWriter {
             total_fragments_sent: Mutex<usize>,
         }
