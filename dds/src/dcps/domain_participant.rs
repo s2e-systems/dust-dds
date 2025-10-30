@@ -29,9 +29,7 @@ use crate::{
         listeners::domain_participant_listener::ListenerMail,
         status_condition::DcpsStatusCondition,
         status_condition_mail::DcpsStatusConditionMail,
-        xtypes_glue::key_and_instance_handle::{
-            get_instance_handle_from_dynamic_data, get_serialized_key_from_dynamic_data,
-        },
+        xtypes_glue::key_and_instance_handle::get_instance_handle_from_dynamic_data,
     },
     dds_async::{
         content_filtered_topic::ContentFilteredTopicAsync, data_reader::DataReaderAsync,
@@ -6304,7 +6302,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
 
     pub async fn dispose_w_timestamp(
         &mut self,
-        dynamic_data: DynamicData,
+        mut dynamic_data: DynamicData,
         timestamp: Time,
     ) -> DdsResult<()> {
         if !self.enabled {
@@ -6343,7 +6341,19 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
             self.instance_publication_time.remove(i);
         }
 
-        let serialized_key = get_serialized_key_from_dynamic_data(dynamic_data)?;
+        dynamic_data.clear_nonkey_values()?;
+        let serialized_key = if self.qos.representation.value.is_empty()
+            || self.qos.representation.value[0] == XCDR_DATA_REPRESENTATION
+        {
+            Cdr1LeSerializer::serialize(&dynamic_data)?
+        } else if self.qos.representation.value[0] == XCDR2_DATA_REPRESENTATION {
+            Cdr2LeSerializer::serialize(&dynamic_data)?
+        } else if self.qos.representation.value[0] == BUILT_IN_DATA_REPRESENTATION {
+            RtpsPlCdrSerializer::serialize(&dynamic_data)?
+        } else {
+            panic!("Invalid data representation")
+        };
+
         self.last_change_sequence_number += 1;
         let cache_change = CacheChange {
             kind: ChangeKind::NotAliveDisposed,
@@ -6363,7 +6373,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
 
     pub async fn unregister_w_timestamp(
         &mut self,
-        dynamic_data: DynamicData,
+        mut dynamic_data: DynamicData,
         timestamp: Time,
     ) -> DdsResult<()> {
         if !self.enabled {
@@ -6402,7 +6412,19 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
             self.instance_publication_time.remove(i);
         }
 
-        let serialized_key = get_serialized_key_from_dynamic_data(dynamic_data)?;
+        dynamic_data.clear_nonkey_values()?;
+        let serialized_key = if self.qos.representation.value.is_empty()
+            || self.qos.representation.value[0] == XCDR_DATA_REPRESENTATION
+        {
+            Cdr1LeSerializer::serialize(&dynamic_data)?
+        } else if self.qos.representation.value[0] == XCDR2_DATA_REPRESENTATION {
+            Cdr2LeSerializer::serialize(&dynamic_data)?
+        } else if self.qos.representation.value[0] == BUILT_IN_DATA_REPRESENTATION {
+            RtpsPlCdrSerializer::serialize(&dynamic_data)?
+        } else {
+            panic!("Invalid data representation")
+        };
+
         self.last_change_sequence_number += 1;
         let kind = if self
             .qos
