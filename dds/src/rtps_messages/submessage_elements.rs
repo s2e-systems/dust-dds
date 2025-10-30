@@ -109,14 +109,27 @@ impl WriteIntoBytes for SequenceNumberSet {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FragmentNumberSet {
     base: FragmentNumber,
-    set: Vec<FragmentNumber>,
+    num_bits: u32,
+    bitmap: [i32; 8],
 }
 
 impl FragmentNumberSet {
     pub fn new(base: FragmentNumber, set: impl IntoIterator<Item = FragmentNumber>) -> Self {
+        let mut bitmap = [0; 8];
+        let mut num_bits = 0;
+        for fragment_number in set {
+            let delta_n = (fragment_number - base) as u32;
+            let bitmap_num = delta_n / 32;
+            bitmap[bitmap_num as usize] |= 1 << (31 - delta_n % 32);
+            if delta_n + 1 > num_bits {
+                num_bits = delta_n + 1;
+            }
+        }
+
         Self {
             base,
-            set: set.into_iter().collect(),
+            num_bits,
+            bitmap,
         }
     }
 
@@ -141,25 +154,48 @@ impl FragmentNumberSet {
         }
         Ok(Self::new(base, set))
     }
+
+    pub fn base(&self) -> FragmentNumber {
+        self.base
+    }
+
+    pub fn set(&self) -> impl Iterator<Item = FragmentNumber> + '_ {
+        struct FragmentNumberSetIterator<'a> {
+            set: &'a FragmentNumberSet,
+            index: usize,
+        }
+
+        impl Iterator for FragmentNumberSetIterator<'_> {
+            type Item = FragmentNumber;
+
+            fn next(&mut self) -> Option<Self::Item> {
+                while self.index < self.set.num_bits as usize {
+                    let delta_n = self.index;
+                    self.index += 1;
+                    let bitmap_num = delta_n / 32;
+                    let mask = 1 << (31 - delta_n % 32);
+                    if self.set.bitmap[bitmap_num] & mask == mask {
+                        return Some(self.set.base + delta_n as u32);
+                    }
+                }
+                None
+            }
+        }
+
+        FragmentNumberSetIterator {
+            set: self,
+            index: 0,
+        }
+    }
 }
 
 impl WriteIntoBytes for FragmentNumberSet {
     fn write_into_bytes(&self, buf: &mut dyn Write) {
-        let mut bitmap = [0; 8];
-        let mut num_bits = 0;
-        for fragment_number in &self.set {
-            let delta_n = *fragment_number - self.base;
-            let bitmap_num = delta_n / 32;
-            bitmap[bitmap_num as usize] |= 1 << (31 - delta_n % 32);
-            if delta_n + 1 > num_bits {
-                num_bits = delta_n + 1;
-            }
-        }
-        let number_of_bitmap_elements = num_bits.div_ceil(32) as usize; //In standard referred to as "M"
+        let number_of_bitmap_elements = self.num_bits.div_ceil(32) as usize; //In standard referred to as "M"
 
         self.base.write_into_bytes(buf);
-        num_bits.write_into_bytes(buf);
-        for bitmap_element in &bitmap[..number_of_bitmap_elements] {
+        self.num_bits.write_into_bytes(buf);
+        for bitmap_element in &self.bitmap[..number_of_bitmap_elements] {
             bitmap_element.write_into_bytes(buf);
         }
     }
@@ -446,10 +482,7 @@ mod tests {
 
     #[test]
     fn serialize_fragment_number_max_gap() {
-        let fragment_number_set = FragmentNumberSet {
-            base: 2,
-            set: vec![2, 257],
-        };
+        let fragment_number_set = FragmentNumberSet::new(2, vec![2, 257]);
         #[rustfmt::skip]
         assert_eq!(write_into_bytes_vec(fragment_number_set), vec![
             2, 0, 0, 0, // bitmapBase: (unsigned long)
@@ -546,10 +579,7 @@ mod tests {
 
     #[test]
     fn deserialize_fragment_number_set_max_gap() {
-        let expected = FragmentNumberSet {
-            base: 2,
-            set: vec![2, 257],
-        };
+        let expected = FragmentNumberSet::new(2, vec![2, 257]);
         #[rustfmt::skip]
         let result = FragmentNumberSet::try_read_from_bytes(&mut &[
             2, 0, 0, 0, // bitmapBase: (unsigned long)

@@ -50,8 +50,7 @@ impl RtpsStatelessReader {
         }
     }
 
-    pub async fn process_message(&mut self, datagram: &[u8]) -> RtpsResult<()> {
-        let rtps_message = RtpsMessageRead::try_from(datagram)?;
+    pub async fn process_message(&mut self, rtps_message: &RtpsMessageRead) -> RtpsResult<()> {
         let mut message_receiver = MessageReceiver::new(&rtps_message);
 
         while let Some(submessage) = message_receiver.next() {

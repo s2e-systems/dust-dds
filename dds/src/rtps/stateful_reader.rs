@@ -207,10 +207,9 @@ impl RtpsStatefulReader {
 
     pub async fn process_message(
         &mut self,
-        datagram: &[u8],
+        rtps_message: &RtpsMessageRead,
         message_writer: &impl WriteMessage,
     ) -> RtpsResult<()> {
-        let rtps_message = RtpsMessageRead::try_from(datagram)?;
         let mut message_receiver = MessageReceiver::new(&rtps_message);
 
         while let Some(submessage) = message_receiver.next() {
