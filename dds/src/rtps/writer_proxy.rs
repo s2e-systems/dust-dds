@@ -72,6 +72,10 @@ impl RtpsWriterProxy {
         }
     }
 
+    pub fn delete_data_fragments(&mut self, sequence_number: SequenceNumber) {
+        self.frag_buffer.retain(|f| f.writer_sn() > sequence_number);
+    }
+
     pub fn reconstruct_data_from_frag(
         &mut self,
         seq_num: SequenceNumber,

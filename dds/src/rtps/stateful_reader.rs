@@ -126,9 +126,24 @@ impl RtpsStatefulReader {
         let writer_guid = Guid::new(source_guid_prefix, data_frag_submessage.writer_id());
         let sequence_number = data_frag_submessage.writer_sn();
         if let Some(writer_proxy) = self.matched_writer_lookup(writer_guid) {
-            writer_proxy.push_data_frag(data_frag_submessage.clone());
+            match writer_proxy.reliability() {
+                ReliabilityKind::BestEffort => {
+                    let expected_seq_num = writer_proxy.available_changes_max() + 1;
+                    if sequence_number >= expected_seq_num {
+                        writer_proxy.push_data_frag(data_frag_submessage.clone());
+                    }
+                }
+                ReliabilityKind::Reliable => {
+                    let expected_seq_num = writer_proxy.available_changes_max() + 1;
+                    if sequence_number == expected_seq_num {
+                        writer_proxy.push_data_frag(data_frag_submessage.clone());
+                    }
+                }
+            }
+
             if let Some(data_submessage) = writer_proxy.reconstruct_data_from_frag(sequence_number)
             {
+                writer_proxy.delete_data_fragments(data_submessage.writer_sn());
                 self.on_data_submessage_received(
                     &data_submessage,
                     source_guid_prefix,
