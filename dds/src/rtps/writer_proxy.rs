@@ -209,6 +209,10 @@ impl RtpsWriterProxy {
         if a_seq_num > self.highest_received_change_sn {
             self.highest_received_change_sn = a_seq_num;
         }
+
+        // Make sure all the fragments that are older than the received sample are deleted
+        // since they are not useful anymore
+        self.frag_buffer.retain(|x| x.writer_sn() > a_seq_num);
     }
 
     pub fn set_must_send_acknacks(&mut self, must_send_acknacks: bool) {
