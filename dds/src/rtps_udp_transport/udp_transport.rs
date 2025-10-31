@@ -1,5 +1,6 @@
 use crate::{
     rtps::message_sender::{Clock, WriteMessage},
+    rtps_messages::overall_structure::RtpsMessageRead,
     std_runtime::executor::block_on,
     transport::{
         interface::{
@@ -429,24 +430,26 @@ async fn process_message(
     stateful_reader_list: &[Arc<Mutex<RtpsStatefulReader>>],
     stateful_writer_list: &[Arc<Mutex<RtpsStatefulWriter>>],
 ) {
-    for stateless_reader in stateless_reader_list {
-        stateless_reader.process_message(datagram).await.ok();
-    }
-    for stateful_reader in stateful_reader_list {
-        stateful_reader
-            .lock()
-            .await
-            .process_message(datagram, message_writer)
-            .await
-            .ok();
-    }
-    for stateful_writer in stateful_writer_list {
-        stateful_writer
-            .lock()
-            .await
-            .process_message(datagram, message_writer, clock)
-            .await
-            .ok();
+    if let Ok(rtps_message) = RtpsMessageRead::try_from(datagram) {
+        for stateless_reader in stateless_reader_list {
+            stateless_reader.process_message(&rtps_message).await.ok();
+        }
+        for stateful_reader in stateful_reader_list {
+            stateful_reader
+                .lock()
+                .await
+                .process_message(&rtps_message, message_writer)
+                .await
+                .ok();
+        }
+        for stateful_writer in stateful_writer_list {
+            stateful_writer
+                .lock()
+                .await
+                .process_message(&rtps_message, message_writer, clock)
+                .await
+                .ok();
+        }
     }
 }
 

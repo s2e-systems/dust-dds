@@ -46,7 +46,7 @@ impl NackFragSubmessage {
         self.writer_sn
     }
 
-    pub fn _fragment_number_state(&self) -> &FragmentNumberSet {
+    pub fn fragment_number_state(&self) -> &FragmentNumberSet {
         &self.fragment_number_state
     }
 
@@ -146,7 +146,7 @@ mod tests {
         assert_eq!(expected_writer_sn, submessage.writer_sn());
         assert_eq!(
             &expected_fragment_number_state,
-            submessage._fragment_number_state()
+            submessage.fragment_number_state()
         );
         assert_eq!(expected_count, submessage.count());
     }

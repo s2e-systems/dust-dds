@@ -2,8 +2,8 @@ use super::error::RtpsError;
 use crate::{
     rtps_messages::{
         self,
-        submessage_elements::{Parameter, ParameterList},
-        submessages::data::DataSubmessage,
+        submessage_elements::{Parameter, ParameterList, SerializedDataFragment},
+        submessages::{data::DataSubmessage, data_frag::DataFragSubmessage},
         types::ParameterId,
     },
     transport::types::{CacheChange, ChangeKind, EntityId, Guid, GuidPrefix},
@@ -114,5 +114,46 @@ impl CacheChange {
             sequence_number: data_submessage.writer_sn(),
             data_value: data_submessage.serialized_payload().clone().into(),
         })
+    }
+
+    pub fn as_data_frag_submessage(
+        &self,
+        reader_id: EntityId,
+        writer_id: EntityId,
+        data_max_size_serialized: usize,
+        fragment_number: usize,
+    ) -> DataFragSubmessage {
+        let inline_qos_flag = true;
+        let key_flag = false;
+        let non_standard_payload_flag = false;
+        let writer_sn = self.sequence_number;
+        let fragment_starting_num = (fragment_number + 1) as u32;
+        let fragments_in_submessage = 1;
+        let fragment_size = data_max_size_serialized as u16;
+        let data_size = self.data_value.len() as u32;
+
+        let start = fragment_number * data_max_size_serialized;
+        let end = core::cmp::min(
+            (fragment_number + 1) * data_max_size_serialized,
+            self.data_value.len(),
+        );
+
+        let serialized_payload =
+            SerializedDataFragment::new(self.data_value.clone().into(), start..end);
+
+        DataFragSubmessage::new(
+            inline_qos_flag,
+            non_standard_payload_flag,
+            key_flag,
+            reader_id,
+            writer_id,
+            writer_sn,
+            fragment_starting_num,
+            fragments_in_submessage,
+            fragment_size,
+            data_size,
+            ParameterList::new(Vec::new()),
+            serialized_payload,
+        )
     }
 }
