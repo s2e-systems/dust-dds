@@ -126,9 +126,24 @@ impl RtpsStatefulReader {
         let writer_guid = Guid::new(source_guid_prefix, data_frag_submessage.writer_id());
         let sequence_number = data_frag_submessage.writer_sn();
         if let Some(writer_proxy) = self.matched_writer_lookup(writer_guid) {
-            writer_proxy.push_data_frag(data_frag_submessage.clone());
+            match writer_proxy.reliability() {
+                ReliabilityKind::BestEffort => {
+                    let expected_seq_num = writer_proxy.available_changes_max() + 1;
+                    if sequence_number >= expected_seq_num {
+                        writer_proxy.push_data_frag(data_frag_submessage.clone());
+                    }
+                }
+                ReliabilityKind::Reliable => {
+                    let expected_seq_num = writer_proxy.available_changes_max() + 1;
+                    if sequence_number == expected_seq_num {
+                        writer_proxy.push_data_frag(data_frag_submessage.clone());
+                    }
+                }
+            }
+
             if let Some(data_submessage) = writer_proxy.reconstruct_data_from_frag(sequence_number)
             {
+                writer_proxy.delete_data_fragments(data_submessage.writer_sn());
                 self.on_data_submessage_received(
                     &data_submessage,
                     source_guid_prefix,
@@ -264,5 +279,126 @@ impl RtpsStatefulReader {
             .matched_writers
             .iter()
             .any(|p| !p.is_historical_data_received())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use core::panic;
+    use std::sync::Arc;
+
+    use crate::{
+        rtps_messages::submessage_elements::{Data, ParameterList, SerializedDataFragment},
+        std_runtime::executor::block_on,
+        transport::types::{DurabilityKind, ENTITYID_UNKNOWN, EntityId},
+    };
+
+    use super::*;
+
+    #[test]
+    fn receive_only_not_yet_received_data_frag() {
+        struct MockCache;
+
+        impl HistoryCache for MockCache {
+            fn add_change(
+                &mut self,
+                _cache_change: CacheChange,
+            ) -> core::pin::Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+                todo!()
+            }
+
+            fn remove_change(
+                &mut self,
+                _sequence_number: i64,
+            ) -> core::pin::Pin<Box<dyn Future<Output = ()> + Send>> {
+                todo!()
+            }
+        }
+
+        struct MockWriter;
+        impl WriteMessage for MockWriter {
+            async fn write_message(
+                &self,
+                datagram: &[u8],
+                _locator_list: &[crate::transport::types::Locator],
+            ) {
+                let message = RtpsMessageRead::try_from(datagram).unwrap();
+                let submessages = message.submessages();
+                match &submessages[1] {
+                    RtpsSubmessageReadKind::AckNack(ack_nack_submessage) => {
+                        assert_eq!(ack_nack_submessage.reader_sn_state().base(), 1);
+                        assert_eq!(ack_nack_submessage.reader_sn_state().set().count(), 0);
+                    }
+                    _ => panic!("Expected AckNack submessage"),
+                }
+                match &submessages[2] {
+                    RtpsSubmessageReadKind::NackFrag(nack_frag_submessage) => {
+                        assert_eq!(nack_frag_submessage.writer_sn(), 1);
+                        assert_eq!(nack_frag_submessage.fragment_number_state().base(), 2);
+                        assert_eq!(
+                            nack_frag_submessage
+                                .fragment_number_state()
+                                .set()
+                                .collect::<Vec<u32>>(),
+                            vec![2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+                        );
+                    }
+                    _ => panic!("Expected NackFrag submessage"),
+                }
+            }
+
+            fn guid_prefix(&self) -> GuidPrefix {
+                [2; 12]
+            }
+        }
+
+        let reader_guid_prefix = [1; 12];
+        let reader_entity_id = EntityId::new([1; 3], 1);
+        let reader_guid = Guid::new(reader_guid_prefix, reader_entity_id);
+        let mut reader =
+            RtpsStatefulReader::new(reader_guid, Box::new(MockCache), ReliabilityKind::Reliable);
+
+        let writer_guid_prefix = [2; 12];
+        let writer_entity_id = EntityId::new([2; 3], 2);
+        reader.add_matched_writer(&WriterProxy {
+            remote_writer_guid: Guid::new(writer_guid_prefix, writer_entity_id),
+            remote_group_entity_id: ENTITYID_UNKNOWN,
+            reliability_kind: ReliabilityKind::Reliable,
+            durability_kind: DurabilityKind::Volatile,
+            unicast_locator_list: vec![],
+            multicast_locator_list: vec![],
+        });
+
+        let writer_sn = 1;
+
+        let payload = Arc::<[u8]>::from(vec![1; 1200]);
+        let data_frag1_submessage = DataFragSubmessage::new(
+            false,
+            false,
+            false,
+            reader_entity_id,
+            writer_entity_id,
+            writer_sn,
+            1,
+            1,
+            100,
+            payload.len() as u32,
+            ParameterList::empty(),
+            SerializedDataFragment::new(Data::new(payload), 0..100),
+        );
+        block_on(reader.on_data_frag_submessage_received(
+            &data_frag1_submessage,
+            writer_guid_prefix,
+            None,
+        ));
+
+        let heartbeat_submessage =
+            HeartbeatSubmessage::new(false, false, reader_entity_id, writer_entity_id, 1, 1, 1);
+        let message_writer = MockWriter;
+        block_on(reader.on_heartbeat_submessage_received(
+            &heartbeat_submessage,
+            writer_guid_prefix,
+            &message_writer,
+        ))
     }
 }
