@@ -210,7 +210,7 @@ impl RtpsStatefulReader {
         rtps_message: &RtpsMessageRead,
         message_writer: &impl WriteMessage,
     ) -> RtpsResult<()> {
-        let mut message_receiver = MessageReceiver::new(&rtps_message);
+        let mut message_receiver = MessageReceiver::new(rtps_message);
 
         while let Some(submessage) = message_receiver.next() {
             match submessage {

@@ -125,7 +125,7 @@ impl RtpsStatefulWriter {
         message_writer: &impl WriteMessage,
         clock: &impl Clock,
     ) -> RtpsResult<()> {
-        let mut message_receiver = MessageReceiver::new(&rtps_message);
+        let mut message_receiver = MessageReceiver::new(rtps_message);
 
         while let Some(submessage) = message_receiver.next() {
             match &submessage {
@@ -291,7 +291,7 @@ impl RtpsReaderProxy {
             ReliabilityKind::BestEffort => {
                 self.write_message_best_effort(
                     writer_id,
-                    &changes,
+                    changes,
                     data_max_size_serialized,
                     message_writer,
                 )
@@ -300,7 +300,7 @@ impl RtpsReaderProxy {
             ReliabilityKind::Reliable => {
                 self.write_message_reliable(
                     writer_id,
-                    &changes,
+                    changes,
                     data_max_size_serialized,
                     heartbeat_period,
                     message_writer,
@@ -428,7 +428,6 @@ impl RtpsReaderProxy {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
     async fn write_message_reliable(
         &mut self,
         writer_id: EntityId,
@@ -524,7 +523,6 @@ impl RtpsReaderProxy {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
     async fn write_change_message_reliable(
         &mut self,
         writer_id: EntityId,
@@ -549,15 +547,30 @@ impl RtpsReaderProxy {
 
             // Either send a DATAFRAG submessages or send a single DATA submessage
             if number_of_fragments > 1 && cache_change.kind == ChangeKind::Alive {
-                for frag_index in 0..number_of_fragments {
-                    self.write_data_frag_reliable(
+                for fragment_number in 0..number_of_fragments {
+                    let reader_id = self.remote_reader_guid().entity_id();
+                    let data_frag = cache_change.as_data_frag_submessage(
+                        reader_id,
                         writer_id,
-                        cache_change,
                         data_max_size_serialized,
-                        frag_index,
-                        message_writer,
-                    )
-                    .await;
+                        fragment_number,
+                    );
+
+                    let info_dst =
+                        InfoDestinationSubmessage::new(self.remote_reader_guid().prefix());
+                    let info_timestamp = if let Some(timestamp) = cache_change.source_timestamp {
+                        InfoTimestampSubmessage::new(false, timestamp.into())
+                    } else {
+                        InfoTimestampSubmessage::new(true, TIME_INVALID)
+                    };
+
+                    let rtps_message = RtpsMessageWrite::from_submessages(
+                        &[&info_dst, &info_timestamp, &data_frag],
+                        message_writer.guid_prefix(),
+                    );
+                    message_writer
+                        .write_message(rtps_message.buffer(), self.unicast_locator_list())
+                        .await;
                 }
             } else {
                 let info_dst = InfoDestinationSubmessage::new(self.remote_reader_guid().prefix());
@@ -603,38 +616,6 @@ impl RtpsReaderProxy {
                 .write_message(rtps_message.buffer(), self.unicast_locator_list())
                 .await;
         }
-    }
-
-    async fn write_data_frag_reliable(
-        &mut self,
-        writer_id: EntityId,
-        cache_change: &CacheChange,
-        data_max_size_serialized: usize,
-        fragment_number: usize,
-        message_writer: &impl WriteMessage,
-    ) {
-        let reader_id = self.remote_reader_guid().entity_id();
-        let data_frag = cache_change.as_data_frag_submessage(
-            reader_id,
-            writer_id,
-            data_max_size_serialized,
-            fragment_number,
-        );
-
-        let info_dst = InfoDestinationSubmessage::new(self.remote_reader_guid().prefix());
-        let info_timestamp = if let Some(timestamp) = cache_change.source_timestamp {
-            InfoTimestampSubmessage::new(false, timestamp.into())
-        } else {
-            InfoTimestampSubmessage::new(true, TIME_INVALID)
-        };
-
-        let rtps_message = RtpsMessageWrite::from_submessages(
-            &[&info_dst, &info_timestamp, &data_frag],
-            message_writer.guid_prefix(),
-        );
-        message_writer
-            .write_message(rtps_message.buffer(), self.unicast_locator_list())
-            .await;
     }
 }
 

@@ -51,7 +51,7 @@ impl RtpsStatelessReader {
     }
 
     pub async fn process_message(&mut self, rtps_message: &RtpsMessageRead) -> RtpsResult<()> {
-        let mut message_receiver = MessageReceiver::new(&rtps_message);
+        let mut message_receiver = MessageReceiver::new(rtps_message);
 
         while let Some(submessage) = message_receiver.next() {
             if let RtpsSubmessageReadKind::Data(data_submessage) = &submessage {

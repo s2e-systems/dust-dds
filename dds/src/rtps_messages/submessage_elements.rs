@@ -118,7 +118,7 @@ impl FragmentNumberSet {
         let mut bitmap = [0; 8];
         let mut num_bits = 0;
         for fragment_number in set {
-            let delta_n = (fragment_number - base) as u32;
+            let delta_n = fragment_number - base;
             let bitmap_num = delta_n / 32;
             bitmap[bitmap_num as usize] |= 1 << (31 - delta_n % 32);
             if delta_n + 1 > num_bits {
