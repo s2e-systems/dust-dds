@@ -218,7 +218,9 @@ impl RtpsStatefulWriter {
                         .len()
                         .div_ceil(self.data_max_size_serialized);
 
-                    for request_fragment_number in nackfrag_submessage.fragment_number_state().set()
+                    for request_fragment_number in
+                        core::iter::once(nackfrag_submessage.fragment_number_state().base())
+                            .chain(nackfrag_submessage.fragment_number_state().set())
                     {
                         let request_fragment_number = request_fragment_number as usize;
                         // Either send a DATAFRAG submessages or send a single DATA submessage
@@ -833,7 +835,7 @@ mod tests {
             remote_reader_id,
             writer_id,
             1,
-            FragmentNumberSet::new(1, [2]),
+            FragmentNumberSet::new(1, []),
             1,
         );
         let message_writer = MockWriter {
