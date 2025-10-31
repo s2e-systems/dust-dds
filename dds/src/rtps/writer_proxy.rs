@@ -254,72 +254,72 @@ impl RtpsWriterProxy {
             let info_dst_submessage =
                 InfoDestinationSubmessage::new(self.remote_writer_guid().prefix());
 
+            // We report missing changes up to the one where we have received at least one fragment
+            let missing_changes = self.missing_changes().take(256).take_while(|x| {
+                x < &self
+                    .frag_buffer
+                    .iter()
+                    .map(|x| x.writer_sn())
+                    .min()
+                    .unwrap_or(i64::MAX)
+            });
             let acknack_submessage = AckNackSubmessage::new(
                 true,
                 reader_guid.entity_id(),
                 self.remote_writer_guid().entity_id(),
-                SequenceNumberSet::new(
-                    self.available_changes_max() + 1,
-                    self.missing_changes().take(256),
-                ),
+                SequenceNumberSet::new(self.available_changes_max() + 1, missing_changes),
                 self.acknack_count(),
             );
 
-            let rtps_message = RtpsMessageWrite::from_submessages(
-                &[&info_dst_submessage, &acknack_submessage],
-                message_writer.guid_prefix(),
-            );
+            let rtps_message = if let Some(missing_change_fragments_seq_num) = self
+                .missing_changes()
+                .take(256)
+                .find(|s| self.frag_buffer.iter().any(|x| &x.writer_sn() == s))
+            {
+                let frag = self
+                    .frag_buffer
+                    .iter()
+                    .find(|x| x.writer_sn() == missing_change_fragments_seq_num)
+                    .expect("Must exist");
+                let total_fragments_expected =
+                    frag.data_size().div_ceil(frag.fragment_size() as u32);
+                let mut missing_fragments_iter =
+                    (1..=total_fragments_expected).filter(|frag_num| {
+                        !self.frag_buffer.iter().any(|f| {
+                            f.writer_sn() == missing_change_fragments_seq_num
+                                && &f.fragment_starting_num() == frag_num
+                        })
+                    });
+                let base = missing_fragments_iter
+                    .next()
+                    .expect("At least a fragment must be missing");
+                let fragment_number_state = FragmentNumberSet::new(base, missing_fragments_iter);
+                let nack_frag_submessage = NackFragSubmessage::new(
+                    reader_guid.entity_id(),
+                    self.remote_writer_guid().entity_id(),
+                    missing_change_fragments_seq_num,
+                    fragment_number_state,
+                    self.nack_frag_count,
+                );
+
+                RtpsMessageWrite::from_submessages(
+                    &[
+                        &info_dst_submessage,
+                        &acknack_submessage,
+                        &nack_frag_submessage,
+                    ],
+                    message_writer.guid_prefix(),
+                )
+            } else {
+                RtpsMessageWrite::from_submessages(
+                    &[&info_dst_submessage, &acknack_submessage],
+                    message_writer.guid_prefix(),
+                )
+            };
+
             message_writer
                 .write_message(rtps_message.buffer(), self.unicast_locator_list())
                 .await;
-
-            let mut missing_fragment_seq_num_list: Vec<SequenceNumber> =
-                self.frag_buffer.iter().map(|f| f.writer_sn()).collect();
-            missing_fragment_seq_num_list.sort();
-            missing_fragment_seq_num_list.dedup();
-            for missing_seq_num in missing_fragment_seq_num_list {
-                let Some(missing_seq_num_frag) = self
-                    .frag_buffer
-                    .iter()
-                    .find(|f| f.writer_sn() == missing_seq_num)
-                else {
-                    continue;
-                };
-                let total_fragments_expected = total_fragments_expected(missing_seq_num_frag);
-                let mut missing_fragment_number = Vec::new();
-                for fragment_number in 1..=total_fragments_expected {
-                    if !self.frag_buffer.iter().any(|f| {
-                        f.writer_sn() == missing_seq_num
-                            && (f.fragment_starting_num()
-                                ..f.fragment_starting_num() + f.fragments_in_submessage() as u32)
-                                .contains(&fragment_number)
-                    }) {
-                        missing_fragment_number.push(fragment_number)
-                    }
-                }
-
-                if !missing_fragment_number.is_empty() {
-                    self.nack_frag_count = self.nack_frag_count.wrapping_add(1);
-                    let nack_frag_submessage = NackFragSubmessage::new(
-                        reader_guid.entity_id(),
-                        self.remote_writer_guid().entity_id(),
-                        missing_seq_num,
-                        FragmentNumberSet::new(
-                            missing_fragment_number[0],
-                            missing_fragment_number.into_iter(),
-                        ),
-                        self.nack_frag_count,
-                    );
-
-                    let rtps_message = RtpsMessageWrite::from_submessages(
-                        &[&info_dst_submessage, &nack_frag_submessage],
-                        message_writer.guid_prefix(),
-                    );
-                    message_writer
-                        .write_message(rtps_message.buffer(), self.unicast_locator_list())
-                        .await;
-                }
-            }
         }
     }
 
