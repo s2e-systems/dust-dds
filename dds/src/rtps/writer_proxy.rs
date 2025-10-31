@@ -287,15 +287,17 @@ impl RtpsWriterProxy {
                     .expect("Must exist");
                 let total_fragments_expected =
                     frag.data_size().div_ceil(frag.fragment_size() as u32);
-                let mut missing_fragments_iter =
-                    (1..=total_fragments_expected).filter(|frag_num| {
+                let mut missing_fragments_iter = (1..=total_fragments_expected)
+                    .filter(|frag_num| {
                         !self.frag_buffer.iter().any(|f| {
                             f.writer_sn() == missing_change_fragments_seq_num
                                 && &f.fragment_starting_num() == frag_num
                         })
-                    });
-                let base = missing_fragments_iter
-                    .next()
+                    })
+                    .peekable();
+
+                let base = *missing_fragments_iter
+                    .peek()
                     .expect("At least a fragment must be missing");
                 let fragment_number_state = FragmentNumberSet::new(base, missing_fragments_iter);
                 let nack_frag_submessage = NackFragSubmessage::new(
