@@ -6901,29 +6901,27 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
                     self.type_support.as_ref().clone(),
                     cache_change.data_value.as_ref(),
                 )?;
-                let instance_handle = get_instance_handle_from_dynamic_data(data_value.clone())?;
+                let instance_handle = if let Some(i) = cache_change.instance_handle {
+                    InstanceHandle::new(i)
+                } else {
+                    get_instance_handle_from_dynamic_data(data_value.clone())?
+                };
                 (data_value, instance_handle)
             }
             ChangeKind::NotAliveDisposed
             | ChangeKind::NotAliveUnregistered
-            | ChangeKind::NotAliveDisposedUnregistered => match cache_change.instance_handle {
-                Some(i) => {
-                    let mut key_holder = self.type_support.as_ref().clone();
-                    key_holder.clear_nonkey_members();
-                    let data_value = DynamicDataFactory::create_data(key_holder);
-                    let instance_handle = InstanceHandle::new(i);
-                    (data_value, instance_handle)
-                }
-                None => {
-                    let mut key_holder = self.type_support.as_ref().clone();
-                    key_holder.clear_nonkey_members();
-                    let data_value =
-                        CdrDeserializer::deserialize(key_holder, cache_change.data_value.as_ref())?;
-                    let instance_handle =
-                        get_instance_handle_from_dynamic_data(data_value.clone())?;
-                    (data_value, instance_handle)
-                }
-            },
+            | ChangeKind::NotAliveDisposedUnregistered => {
+                let mut key_holder = self.type_support.as_ref().clone();
+                key_holder.clear_nonkey_members();
+                let data_value =
+                    CdrDeserializer::deserialize(key_holder, cache_change.data_value.as_ref())?;
+                let instance_handle = if let Some(i) = cache_change.instance_handle {
+                    InstanceHandle::new(i)
+                } else {
+                    get_instance_handle_from_dynamic_data(data_value.clone())?
+                };
+                (data_value, instance_handle)
+            }
         };
 
         // Update the state of the instance before creating since this has direct impact on
