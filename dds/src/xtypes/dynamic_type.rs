@@ -976,10 +976,15 @@ impl DynamicData {
         self.abstract_data.insert(id, value);
     }
 
-    pub fn get_value(&self, id: MemberId) -> XTypesResult<DataStorage> {
+    pub fn get_value(&self, id: MemberId) -> XTypesResult<&DataStorage> {
         self.abstract_data
             .get(&id)
-            .cloned()
+            .ok_or(XTypesError::InvalidId(id))
+    }
+
+    pub fn remove_value(&mut self, id: MemberId) -> XTypesResult<DataStorage> {
+        self.abstract_data
+            .remove(&id)
             .ok_or(XTypesError::InvalidId(id))
     }
 }
