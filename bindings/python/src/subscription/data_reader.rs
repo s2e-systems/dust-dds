@@ -19,7 +19,7 @@ use crate::{
     subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     topic_definition::{
         topic_description::TopicDescription,
-        type_support::{PythonDdsData, convert_dynamic_data_to_python},
+        type_support::{PythonDdsData, convert_dynamic_data_to_python_instance},
     },
 };
 use pyo3::{
@@ -486,7 +486,9 @@ pub struct Sample {
 impl From<dust_dds::infrastructure::sample_info::Sample<PythonDdsData>> for Sample {
     fn from(value: dust_dds::infrastructure::sample_info::Sample<PythonDdsData>) -> Self {
         let data = if let Some(dynamic_data) = value.data {
-            convert_dynamic_data_to_python(dynamic_data.into()).ok()
+            Python::attach(|py| {
+                convert_dynamic_data_to_python_instance(py, dynamic_data.into()).ok()
+            })
         } else {
             None
         };

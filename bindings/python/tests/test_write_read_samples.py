@@ -20,7 +20,7 @@ def test_write_read():
     data_writer = publisher.create_datawriter(topic)
 
     subscriber = participant.create_subscriber()
-    data_reader = subscriber.create_datareader(topic, a_listener = MyReaderListener, mask=[dust_dds.StatusKind.DataAvailable] )
+    data_reader = subscriber.create_datareader(topic, a_listener = MyReaderListener, mask=[] ) #dust_dds.StatusKind.DataAvailable
 
     # Wait for discovery
     ws = dust_dds.WaitSet()
@@ -30,7 +30,7 @@ def test_write_read():
 
     data = MyDataType(bytes([0,1,2,3,4]))
     data_writer.write(data)
-
+    
     # Wait for data to be received
     ws_data_available = dust_dds.WaitSet()
     cond = data_reader.get_statuscondition()
@@ -39,6 +39,6 @@ def test_write_read():
 
     ws_data_available.wait(dust_dds.Duration(sec=2, nanosec=0))
 
-    received_data = data_reader.read(max_samples = 1)
+    received_data: MyDataType = data_reader.read(max_samples = 1)
 
-    assert data == received_data[0].get_data()
+    assert data.data == received_data[0].get_data().data
