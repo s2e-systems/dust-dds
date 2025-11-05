@@ -46,6 +46,7 @@ fn write_type(pyi_file: &mut fs::File, type_path: &syn::Type) {
                         write!(pyi_file, "]").unwrap();
                     }
                     "Py" => write!(pyi_file, "Any").unwrap(),
+                    "Bound" => write!(pyi_file, "Any").unwrap(),
                     "PyResult" => match &p.path.segments[0].arguments {
                         syn::PathArguments::AngleBracketed(g) => match &g.args[0] {
                             syn::GenericArgument::Type(t) => write_type(pyi_file, t),
@@ -53,8 +54,8 @@ fn write_type(pyi_file: &mut fs::File, type_path: &syn::Type) {
                         },
                         _ => unimplemented!(),
                     },
-                    _ => {
-                        unimplemented!();
+                    other_type => {
+                        unimplemented!("Not implemented for {other_type:?}");
                     }
                 }
             }

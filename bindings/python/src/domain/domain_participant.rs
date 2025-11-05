@@ -1,7 +1,4 @@
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex, OnceLock},
-};
+use std::sync::Arc;
 
 use pyo3::prelude::*;
 
@@ -16,7 +13,10 @@ use crate::{
     },
     publication::{publisher::Publisher, publisher_listener::PublisherListener},
     subscription::{subcriber_listener::SubscriberListener, subscriber::Subscriber},
-    topic_definition::{topic_description::TopicDescription, topic_listener::TopicListener},
+    topic_definition::{
+        topic_description::TopicDescription, topic_listener::TopicListener,
+        type_support::convert_python_type_to_dynamic_type,
+    },
 };
 
 use super::domain_participant_listener::DomainParticipantListener;
@@ -122,7 +122,7 @@ impl DomainParticipant {
     pub fn create_topic(
         &self,
         topic_name: String,
-        type_: Py<PyAny>,
+        type_: Bound<'_, PyAny>,
         qos: Option<TopicQos>,
         a_listener: Option<Py<PyAny>>,
         mask: Vec<StatusKind>,
@@ -138,9 +138,9 @@ impl DomainParticipant {
             .map(dust_dds::infrastructure::status::StatusKind::from)
             .collect();
 
-        let type_name = Python::attach(|py| type_.getattr(py, "__name__"))?.to_string();
+        let type_name = type_.getattr("__name__")?.to_string();
 
-        let dynamic_type_representation = Arc::new(todo!());
+        let dynamic_type_representation = Arc::new(convert_python_type_to_dynamic_type(&type_)?);
 
         let r = self.0.create_dynamic_topic(
             &topic_name,
