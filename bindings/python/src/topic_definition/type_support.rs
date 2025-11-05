@@ -10,9 +10,7 @@ use pyo3::{
 #[derive(Clone)]
 pub enum TypeKind {
     boolean,
-    byte,
     char8,
-    char16,
     int8,
     uint8,
     int16,
@@ -23,14 +21,12 @@ pub enum TypeKind {
     uint64,
     float32,
     float64,
-    float128,
 }
 
 impl From<TypeKind> for dust_dds::xtypes::type_object::TypeIdentifier {
     fn from(value: TypeKind) -> Self {
         match value {
             TypeKind::boolean => dust_dds::xtypes::type_object::TypeIdentifier::TkBoolean,
-            TypeKind::byte => dust_dds::xtypes::type_object::TypeIdentifier::TkByteType,
             TypeKind::int8 => dust_dds::xtypes::type_object::TypeIdentifier::TkInt8Type,
             TypeKind::uint8 => dust_dds::xtypes::type_object::TypeIdentifier::TkInt16Type,
             TypeKind::int16 => dust_dds::xtypes::type_object::TypeIdentifier::TkInt32Type,
@@ -41,166 +37,9 @@ impl From<TypeKind> for dust_dds::xtypes::type_object::TypeIdentifier {
             TypeKind::uint64 => dust_dds::xtypes::type_object::TypeIdentifier::TkUint64Type,
             TypeKind::float32 => dust_dds::xtypes::type_object::TypeIdentifier::TkFloat32Type,
             TypeKind::float64 => dust_dds::xtypes::type_object::TypeIdentifier::TkFloat64Type,
-            TypeKind::float128 => dust_dds::xtypes::type_object::TypeIdentifier::TkFloat128Type,
             TypeKind::char8 => dust_dds::xtypes::type_object::TypeIdentifier::TkChar8Type,
-            TypeKind::char16 => dust_dds::xtypes::type_object::TypeIdentifier::TkChar16Type,
         }
     }
-}
-
-#[allow(dead_code)]
-pub struct PythonTypeRepresentation(dust_dds::xtypes::type_object::CompleteTypeObject);
-impl From<PythonTypeRepresentation> for dust_dds::xtypes::dynamic_type::DynamicType {
-    fn from(_value: PythonTypeRepresentation) -> Self {
-        todo!()
-    }
-}
-
-impl TryFrom<Py<PyAny>> for PythonTypeRepresentation {
-    type Error = PyErr;
-
-    fn try_from(value: Py<PyAny>) -> PyResult<Self> {
-        let type_name = Python::attach(|py| {
-            value
-                .bind(py)
-                .get_type()
-                .name()
-                .expect("name exists")
-                .to_string()
-        });
-
-        fn get_member_count(py: Python<'_>, python_type: &Py<PyAny>) -> PyResult<usize> {
-            Ok(python_type
-                .getattr(py, "__dataclass_fields__")?
-                .cast_bound::<PyDict>(py)?
-                .values()
-                .len())
-        }
-
-        let member_count = Python::attach(|py| get_member_count(py, &value))
-            .expect("Should be able to get member size");
-
-        let mut member_seq = Vec::new();
-        for index in 0..member_count {
-            fn get_member_name(
-                py: Python<'_>,
-                type_representation: &Py<PyAny>,
-                index: usize,
-            ) -> PyResult<String> {
-                let dataclass_fields = type_representation
-                    .getattr(py, "__dataclass_fields__")?
-                    .cast_bound::<PyDict>(py)?
-                    .values();
-                let field = dataclass_fields.get_item(index)?;
-
-                Ok(field.getattr("name")?.to_string())
-            }
-            let name = Python::attach(|py| get_member_name(py, &value, index))?;
-
-            let is_key = false; //TODO!
-
-            fn get_member_type(
-                py: Python<'_>,
-                type_representation: &Py<PyAny>,
-                index: usize,
-            ) -> PyResult<dust_dds::xtypes::type_object::TypeIdentifier> {
-                let dataclass_fields = type_representation
-                    .getattr(py, "__dataclass_fields__")?
-                    .cast_bound::<PyDict>(py)?
-                    .values();
-                let field = dataclass_fields.get_item(index)?;
-
-                let type_value = field.getattr("type")?;
-
-                if let Ok(type_kind) = type_value.extract::<TypeKind>() {
-                    Ok(type_kind.into())
-                } else if is_list(&type_value)? {
-                    todo!()
-                } else if let Ok(py_type) = type_value.cast::<PyType>() {
-                    if py_type.py().get_type::<PyBytes>().is(py_type) {
-                        Ok(dust_dds::xtypes::type_object::TypeIdentifier::TiPlainSequenceSmall {
-                                seq_sdefn: Box::new(dust_dds::xtypes::type_object::PlainSequenceSElemDefn {
-                                        header: dust_dds::xtypes::type_object::PlainCollectionHeader {
-                                            equiv_kind: dust_dds::xtypes::type_object::EK_COMPLETE,
-                                            element_flags: dust_dds::xtypes::type_object::CollectionElementFlag {
-                                                try_construct: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
-                                                is_external: false
-                                            },
-                                        },
-                                        bound: 0,
-                                        element_identifier: dust_dds::xtypes::type_object::TypeIdentifier::TkUint8Type,
-                                    })
-                                })
-                    } else if py_type.py().get_type::<PyString>().is(py_type) {
-                        Ok(
-                            dust_dds::xtypes::type_object::TypeIdentifier::TiString8Small {
-                                string_sdefn: dust_dds::xtypes::type_object::StringSTypeDefn {
-                                    bound: 0,
-                                },
-                            },
-                        )
-                    } else {
-                        Err(PyTypeError::new_err(format!(
-                            "Unsupported Dust DDS representation for Python Type {py_type}"
-                        )))
-                    }
-                } else {
-                    Err(PyTypeError::new_err(format!(
-                        "Unsupported Dust DDS representation for Python Type {type_value}"
-                    )))
-                }
-            }
-            let member_type_id = Python::attach(|py| get_member_type(py, &value, index))?;
-
-            member_seq.push(dust_dds::xtypes::type_object::CompleteStructMember {
-                common: dust_dds::xtypes::type_object::CommonStructMember {
-                    member_id: index as u32,
-                    member_flags: dust_dds::xtypes::type_object::StructMemberFlag {
-                        try_construct: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
-                        is_external: false,
-                        is_optional: false,
-                        is_must_undestand: true,
-                        is_key,
-                    },
-                    member_type_id,
-                },
-                detail: dust_dds::xtypes::type_object::CompleteMemberDetail {
-                    name,
-                    ann_builtin: None,
-                    ann_custom: None,
-                },
-            });
-        }
-
-        Ok(Self(
-            dust_dds::xtypes::type_object::CompleteTypeObject::TkStructure {
-                struct_type: dust_dds::xtypes::type_object::CompleteStructType {
-                    struct_flags: dust_dds::xtypes::type_object::StructTypeFlag {
-                        is_final: true,
-                        is_appendable: false,
-                        is_mutable: false,
-                        is_nested: false,
-                        is_autoid_hash: false,
-                    },
-                    header: dust_dds::xtypes::type_object::CompleteStructHeader {
-                        base_type: dust_dds::xtypes::type_object::TypeIdentifier::TkNone,
-                        detail: dust_dds::xtypes::type_object::CompleteTypeDetail {
-                            ann_builtin: None,
-                            ann_custom: None,
-                            type_name,
-                        },
-                    },
-                    member_seq,
-                },
-            },
-        ))
-    }
-}
-
-fn is_list(member_type: &Bound<PyAny>) -> PyResult<bool> {
-    let typing_module = PyModule::import(member_type.py(), "typing")?;
-    let origin = typing_module.getattr("get_origin")?.call1((member_type,))?;
-    Ok(typing_module.py().get_type::<PyList>().is(&origin))
 }
 
 pub struct PythonDdsData {
@@ -276,5 +115,143 @@ impl PythonDdsData {
         //     _ => panic!("Unknown endianness"),
         // }
         todo!()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use pyo3::ffi::c_str;
+
+    use super::*;
+
+    fn convert_python_to_dynamic_type(
+        python_type: Bound<'_, PyAny>,
+    ) -> dust_dds::xtypes::error::XTypesResult<dust_dds::xtypes::dynamic_type::DynamicType> {
+        let dataclass_fields = python_type
+            .getattr("__annotations__")
+            .map_err(|_| dust_dds::xtypes::error::XTypesError::InvalidType)?;
+        let fields_dict = dataclass_fields
+            .cast::<PyDict>()
+            .map_err(|_| dust_dds::xtypes::error::XTypesError::InvalidType)?;
+        let name = python_type
+            .getattr("__name__")
+            .map_err(|_| dust_dds::xtypes::error::XTypesError::InvalidType)?
+            .extract::<String>()
+            .map_err(|_| dust_dds::xtypes::error::XTypesError::InvalidType)?;
+        let mut builder = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
+            dust_dds::xtypes::dynamic_type::TypeDescriptor {
+                kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
+                name,
+                base_type: None,
+                discriminator_type: None,
+                bound: Vec::new(),
+                element_type: None,
+                key_element_type: None,
+                extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
+                is_nested: false,
+            },
+        );
+
+        for (index, (field_name, field_dict)) in fields_dict.iter().enumerate() {
+            let name = field_name
+                .extract()
+                .map_err(|_| dust_dds::xtypes::error::XTypesError::InvalidType)?;
+            let xtypes_type_kind = match field_dict
+                .extract::<TypeKind>()
+                .map_err(|_| dust_dds::xtypes::error::XTypesError::InvalidType)?
+            {
+                TypeKind::boolean => dust_dds::xtypes::dynamic_type::TypeKind::BOOLEAN,
+                TypeKind::char8 => dust_dds::xtypes::dynamic_type::TypeKind::CHAR8,
+                TypeKind::int8 => dust_dds::xtypes::dynamic_type::TypeKind::INT8,
+                TypeKind::uint8 => dust_dds::xtypes::dynamic_type::TypeKind::UINT8,
+                TypeKind::int16 => dust_dds::xtypes::dynamic_type::TypeKind::INT16,
+                TypeKind::uint16 => dust_dds::xtypes::dynamic_type::TypeKind::UINT16,
+                TypeKind::int32 => dust_dds::xtypes::dynamic_type::TypeKind::INT32,
+                TypeKind::uint32 => dust_dds::xtypes::dynamic_type::TypeKind::UINT32,
+                TypeKind::int64 => dust_dds::xtypes::dynamic_type::TypeKind::INT64,
+                TypeKind::uint64 => dust_dds::xtypes::dynamic_type::TypeKind::UINT64,
+                TypeKind::float32 => dust_dds::xtypes::dynamic_type::TypeKind::FLOAT32,
+                TypeKind::float64 => dust_dds::xtypes::dynamic_type::TypeKind::FLOAT64,
+            };
+            let r#type =
+                dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::get_primitive_type(
+                    xtypes_type_kind,
+                );
+
+            builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+                name,
+                id: index as u32,
+                r#type,
+                default_value: None,
+                index: index as u32,
+                label: vec![],
+                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+                is_key: false,
+                is_optional: false,
+                is_must_understand: true,
+                is_shared: false,
+                is_default_label: false,
+            })?;
+        }
+
+        Ok(builder.build())
+    }
+
+    #[test]
+    fn test_convert_python_to_dynamic_type() {
+        Python::initialize();
+        let python_type = Python::attach(|py| {
+            let code = c_str!(
+                r"
+class MyDataType:
+    id: TypeKind.uint8
+    value: int
+    data: bytes
+    name: str
+    "
+            );
+            let locals = PyDict::new(py);
+            let globals = PyDict::new(py);
+            globals
+                .set_item(
+                    "TypeKind",
+                    py.get_type::<TypeKind>().into_pyobject(py).unwrap(),
+                )
+                .unwrap();
+            py.run(code, Some(&globals), Some(&locals)).unwrap();
+            let my_data_type = locals.get_item("MyDataType").unwrap().unwrap();
+            let dynamic_type = convert_python_to_dynamic_type(my_data_type).unwrap();
+
+            assert_eq!(dynamic_type.get_name(), "MyDataType");
+            assert_eq!(dynamic_type.get_member_count(), 4);
+
+            let id_member = dynamic_type.get_member_by_index(0).unwrap();
+            assert_eq!(id_member.get_name(), "id");
+            assert_eq!(
+                id_member.get_descriptor().unwrap().r#type.get_kind(),
+                dust_dds::xtypes::dynamic_type::TypeKind::UINT8
+            );
+
+            let data_member = dynamic_type.get_member_by_index(1).unwrap();
+            assert_eq!(data_member.get_name(), "value");
+            assert_eq!(
+                id_member.get_descriptor().unwrap().r#type.get_kind(),
+                dust_dds::xtypes::dynamic_type::TypeKind::INT64
+            );
+
+            let data_member = dynamic_type.get_member_by_index(2).unwrap();
+            assert_eq!(data_member.get_name(), "data");
+            assert_eq!(
+                id_member.get_descriptor().unwrap().r#type.get_kind(),
+                dust_dds::xtypes::dynamic_type::TypeKind::SEQUENCE
+            );
+
+            let data_member = dynamic_type.get_member_by_index(3).unwrap();
+            assert_eq!(data_member.get_name(), "name");
+            assert_eq!(
+                id_member.get_descriptor().unwrap().r#type.get_kind(),
+                dust_dds::xtypes::dynamic_type::TypeKind::STRING8
+            );
+        });
     }
 }

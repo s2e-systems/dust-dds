@@ -16,15 +16,10 @@ use crate::{
     },
     publication::{publisher::Publisher, publisher_listener::PublisherListener},
     subscription::{subcriber_listener::SubscriberListener, subscriber::Subscriber},
-    topic_definition::{
-        topic_description::TopicDescription, topic_listener::TopicListener,
-        type_support::PythonTypeRepresentation,
-    },
+    topic_definition::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
 
 use super::domain_participant_listener::DomainParticipantListener;
-
-static TYPE_REGISTRY: OnceLock<Mutex<HashMap<String, Py<PyAny>>>> = OnceLock::new();
 
 #[pyclass]
 pub struct DomainParticipant(
@@ -54,12 +49,6 @@ impl
     ) -> &dust_dds::domain::domain_participant::DomainParticipant<dust_dds::std_runtime::StdRuntime>
     {
         &self.0
-    }
-}
-
-impl DomainParticipant {
-    pub fn get_type(type_name: &str) -> Option<Py<PyAny>> {
-        TYPE_REGISTRY.get()?.lock().unwrap().get(type_name).cloned()
     }
 }
 
@@ -151,16 +140,8 @@ impl DomainParticipant {
 
         let type_name = Python::attach(|py| type_.getattr(py, "__name__"))?.to_string();
 
-        TYPE_REGISTRY
-            .get_or_init(|| Mutex::new(HashMap::new()))
-            .lock()
-            .unwrap()
-            .insert(type_name.clone(), type_.clone());
+        let dynamic_type_representation = Arc::new(todo!());
 
-        let dynamic_type_representation =
-            Arc::new(dust_dds::xtypes::dynamic_type::DynamicType::from(
-                PythonTypeRepresentation::try_from(type_)?,
-            ));
         let r = self.0.create_dynamic_topic(
             &topic_name,
             &type_name,
