@@ -120,7 +120,7 @@ impl PythonDdsData {
 
 #[cfg(test)]
 mod tests {
-    use pyo3::ffi::c_str;
+    use pyo3::{ffi::c_str, types::PyInt};
 
     use super::*;
 
@@ -156,27 +156,31 @@ mod tests {
             let name = field_name
                 .extract()
                 .map_err(|_| dust_dds::xtypes::error::XTypesError::InvalidType)?;
-            let xtypes_type_kind = match field_dict
-                .extract::<TypeKind>()
-                .map_err(|_| dust_dds::xtypes::error::XTypesError::InvalidType)?
-            {
-                TypeKind::boolean => dust_dds::xtypes::dynamic_type::TypeKind::BOOLEAN,
-                TypeKind::char8 => dust_dds::xtypes::dynamic_type::TypeKind::CHAR8,
-                TypeKind::int8 => dust_dds::xtypes::dynamic_type::TypeKind::INT8,
-                TypeKind::uint8 => dust_dds::xtypes::dynamic_type::TypeKind::UINT8,
-                TypeKind::int16 => dust_dds::xtypes::dynamic_type::TypeKind::INT16,
-                TypeKind::uint16 => dust_dds::xtypes::dynamic_type::TypeKind::UINT16,
-                TypeKind::int32 => dust_dds::xtypes::dynamic_type::TypeKind::INT32,
-                TypeKind::uint32 => dust_dds::xtypes::dynamic_type::TypeKind::UINT32,
-                TypeKind::int64 => dust_dds::xtypes::dynamic_type::TypeKind::INT64,
-                TypeKind::uint64 => dust_dds::xtypes::dynamic_type::TypeKind::UINT64,
-                TypeKind::float32 => dust_dds::xtypes::dynamic_type::TypeKind::FLOAT32,
-                TypeKind::float64 => dust_dds::xtypes::dynamic_type::TypeKind::FLOAT64,
-            };
-            let r#type =
+            let r#type = if let Ok(dustdds_type) = field_dict.extract::<TypeKind>() {
+                let xtypes_type_kind = match dustdds_type {
+                    TypeKind::boolean => dust_dds::xtypes::dynamic_type::TypeKind::BOOLEAN,
+                    TypeKind::char8 => dust_dds::xtypes::dynamic_type::TypeKind::CHAR8,
+                    TypeKind::int8 => dust_dds::xtypes::dynamic_type::TypeKind::INT8,
+                    TypeKind::uint8 => dust_dds::xtypes::dynamic_type::TypeKind::UINT8,
+                    TypeKind::int16 => dust_dds::xtypes::dynamic_type::TypeKind::INT16,
+                    TypeKind::uint16 => dust_dds::xtypes::dynamic_type::TypeKind::UINT16,
+                    TypeKind::int32 => dust_dds::xtypes::dynamic_type::TypeKind::INT32,
+                    TypeKind::uint32 => dust_dds::xtypes::dynamic_type::TypeKind::UINT32,
+                    TypeKind::int64 => dust_dds::xtypes::dynamic_type::TypeKind::INT64,
+                    TypeKind::uint64 => dust_dds::xtypes::dynamic_type::TypeKind::UINT64,
+                    TypeKind::float32 => dust_dds::xtypes::dynamic_type::TypeKind::FLOAT32,
+                    TypeKind::float64 => dust_dds::xtypes::dynamic_type::TypeKind::FLOAT64,
+                };
                 dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::get_primitive_type(
                     xtypes_type_kind,
-                );
+                )
+            } else {
+                // field_dict .get_type()
+                // field_dict.cast::<PyInt>
+                // field_dict.cast::<PyBytes>
+                // field_dict.cast::<Py>
+                todo!()
+            };
 
             builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
                 name,
