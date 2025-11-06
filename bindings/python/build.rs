@@ -54,6 +54,7 @@ fn write_type(pyi_file: &mut fs::File, type_path: &syn::Type) {
                         },
                         _ => unimplemented!(),
                     },
+                    "dust_dds" => (),
                     other_type => {
                         unimplemented!("Not implemented for {other_type:?}");
                     }

@@ -1,4 +1,7 @@
-use std::sync::Arc;
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex, OnceLock},
+};
 
 use pyo3::prelude::*;
 
@@ -20,6 +23,8 @@ use crate::{
 };
 
 use super::domain_participant_listener::DomainParticipantListener;
+
+static TYPE_REGISTRY: OnceLock<Mutex<HashMap<String, Py<PyAny>>>> = OnceLock::new();
 
 #[pyclass]
 pub struct DomainParticipant(
@@ -49,6 +54,12 @@ impl
     ) -> &dust_dds::domain::domain_participant::DomainParticipant<dust_dds::std_runtime::StdRuntime>
     {
         &self.0
+    }
+}
+
+impl DomainParticipant {
+    pub fn get_type(type_name: &str) -> Option<Py<PyAny>> {
+        TYPE_REGISTRY.get()?.lock().unwrap().get(type_name).cloned()
     }
 }
 
@@ -122,7 +133,7 @@ impl DomainParticipant {
     pub fn create_topic(
         &self,
         topic_name: String,
-        type_: Bound<'_, PyAny>,
+        type_: Py<PyAny>,
         qos: Option<TopicQos>,
         a_listener: Option<Py<PyAny>>,
         mask: Vec<StatusKind>,
@@ -138,9 +149,17 @@ impl DomainParticipant {
             .map(dust_dds::infrastructure::status::StatusKind::from)
             .collect();
 
-        let type_name = type_.getattr("__name__")?.to_string();
+        let type_name = Python::attach(|py| type_.getattr(py, "__name__"))?.to_string();
 
-        let dynamic_type_representation = Arc::new(convert_python_type_to_dynamic_type(&type_)?);
+        TYPE_REGISTRY
+            .get_or_init(|| Mutex::new(HashMap::new()))
+            .lock()
+            .unwrap()
+            .insert(type_name.clone(), type_.clone());
+
+        let dynamic_type_representation = Arc::new(Python::attach(|py| {
+            convert_python_type_to_dynamic_type(&type_.bind(py))
+        })?);
 
         let r = self.0.create_dynamic_topic(
             &topic_name,

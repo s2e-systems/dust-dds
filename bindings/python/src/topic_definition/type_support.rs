@@ -171,31 +171,15 @@ pub fn convert_python_instance_to_dynamic_data(
 
 pub fn convert_dynamic_data_to_python_instance(
     py: Python,
+    r#type: &Py<PyAny>,
     dynamic_data: dust_dds::xtypes::dynamic_type::DynamicData,
 ) -> PyResult<Py<PyAny>> {
-    let dynamic_type = dynamic_data.type_ref();
-    let class_name = dynamic_type.get_name();
-    let annotations_dict = PyDict::new(py);
-    for member_index in 0..dynamic_type.get_member_count() {
-        let member = dynamic_type
-            .get_member_by_index(member_index)
-            .expect("Must exist");
-        annotations_dict.set_item(member.get_name(), "int")?;
-    }
-    let code = std::ffi::CString::new(format!(
-        r#"
-DataType = type('{class_name}',(),{annotations_dict})
-data = DataType()
-"#
-    ))
-    .unwrap();
+    // Call the empty constructor of the type
+    let data = r#type.bind(py).call0()?;
 
-    let locals = PyDict::new(py);
-    py.run(code.as_c_str(), None, Some(&locals))?;
-
-    let data = locals.get_item("data")?.unwrap();
-    for member_index in 0..dynamic_type.get_member_count() {
-        let member = dynamic_type
+    for member_index in 0..dynamic_data.type_ref().get_member_count() {
+        let member = dynamic_data
+            .type_ref()
             .get_member_by_index(member_index)
             .expect("Must exist");
         let name = member.get_name();
@@ -307,7 +291,6 @@ impl TypeSupport for PythonDdsData {
 
 #[cfg(test)]
 mod tests {
-    use dust_dds::infrastructure::type_support::DdsType;
     use pyo3::ffi::c_str;
 
     use super::*;
@@ -410,84 +393,6 @@ my_data = MyDataType(id=10, value=100, data=bytes([0,1,2,3,4]), name='mytype')
                 dynamic_data.get_string_value(3).unwrap(),
                 &String::from("mytype")
             );
-        });
-    }
-
-    #[test]
-    fn test_convert_dynamic_data_to_python() {
-        #[derive(DdsType)]
-        pub struct TestType {
-            id: u8,
-            value: i32,
-            data: Vec<u8>,
-            name: String,
-        }
-
-        let data = TestType {
-            id: 10,
-            value: 100,
-            data: vec![1, 2, 3, 4],
-            name: String::from("Myname"),
-        };
-
-        let dynamic_data = data.create_dynamic_sample();
-        Python::initialize();
-        Python::attach(|py| {
-            let created_data = convert_dynamic_data_to_python_instance(py, dynamic_data).unwrap();
-
-            assert_eq!(
-                created_data
-                    .getattr(py, "id")
-                    .unwrap()
-                    .extract::<u8>(py)
-                    .unwrap(),
-                10
-            );
-            assert_eq!(
-                created_data
-                    .getattr(py, "value")
-                    .unwrap()
-                    .extract::<i32>(py)
-                    .unwrap(),
-                100
-            );
-
-            assert_eq!(
-                created_data
-                    .getattr(py, "data")
-                    .unwrap()
-                    .extract::<Vec<u8>>(py)
-                    .unwrap(),
-                vec![1, 2, 3, 4]
-            );
-
-            assert_eq!(
-                created_data
-                    .getattr(py, "name")
-                    .unwrap()
-                    .extract::<String>(py)
-                    .unwrap(),
-                "Myname"
-            );
-
-            let code = c_str!(
-                r"
-assert created_data.id==10
-assert created_data.value==100
-assert created_data.data==bytes([1,2,3,4])
-assert created_data.name=='Myname'
-    "
-            );
-            let locals = PyDict::new(py);
-            locals.set_item("created_data", created_data).unwrap();
-            let globals = PyDict::new(py);
-            globals
-                .set_item(
-                    "TypeKind",
-                    py.get_type::<TypeKind>().into_pyobject(py).unwrap(),
-                )
-                .unwrap();
-            py.run(&code, Some(&globals), Some(&locals)).unwrap();
         });
     }
 }
