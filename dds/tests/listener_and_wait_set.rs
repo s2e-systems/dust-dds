@@ -174,7 +174,7 @@ fn reader_on_data_available_matched_listener_and_wait_set_should_both_trigger() 
         },
         ..Default::default()
     };
-    let _writer = publisher
+    let writer = publisher
         .create_datawriter::<MyData>(
             &topic,
             QosKind::Specific(data_writer_qos),
@@ -212,6 +212,19 @@ fn reader_on_data_available_matched_listener_and_wait_set_should_both_trigger() 
             &[StatusKind::DataAvailable],
         )
         .unwrap();
+    let condition = writer.get_statuscondition();
+    condition
+        .set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(condition))
+        .unwrap();
+
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    writer.write(MyData { id: 1, value: 1 }, None).unwrap();
+
     let condition = reader.get_statuscondition();
     condition
         .set_enabled_statuses(&[StatusKind::DataAvailable])
