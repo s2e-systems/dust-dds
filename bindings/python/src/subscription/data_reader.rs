@@ -18,9 +18,15 @@ use crate::{
         time::Duration,
     },
     subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-    topic_definition::{topic_description::TopicDescription, type_support::PythonDdsData},
+    topic_definition::{
+        topic_description::TopicDescription,
+        type_support::{PythonDdsData, convert_dynamic_data_to_python_instance},
+    },
 };
-use pyo3::{exceptions::PyTypeError, prelude::*};
+use pyo3::{
+    exceptions::{PyTypeError, PyValueError},
+    prelude::*,
+};
 
 #[pyclass]
 pub struct DataReader(
@@ -117,13 +123,7 @@ impl DataReader {
             .0
             .read(max_samples, &sample_states, &view_states, &instance_states)
         {
-            Ok(s) => Ok(s
-                .into_iter()
-                .map(|s| Sample {
-                    sample: s,
-                    type_: type_.clone(),
-                })
-                .collect()),
+            Ok(s) => Ok(s.into_iter().map(|s| Sample::new(s, &type_)).collect()),
             Err(dust_dds::infrastructure::error::DdsError::NoData) => Ok(Vec::new()),
             Err(e) => Err(PyTypeError::new_err(format!("{e:?}"))),
         }
@@ -160,13 +160,7 @@ impl DataReader {
             .0
             .take(max_samples, &sample_states, &view_states, &instance_states)
         {
-            Ok(s) => Ok(s
-                .into_iter()
-                .map(|s| Sample {
-                    sample: s,
-                    type_: type_.clone(),
-                })
-                .collect()),
+            Ok(s) => Ok(s.into_iter().map(|s| Sample::new(s, &type_)).collect()),
             Err(dust_dds::infrastructure::error::DdsError::NoData) => Ok(Vec::new()),
             Err(e) => Err(PyTypeError::new_err(format!("{e:?}"))),
         }
@@ -176,10 +170,7 @@ impl DataReader {
         let type_ = DomainParticipant::get_type(&self.0.get_topicdescription().get_type_name())
             .ok_or(PyTypeError::new_err("Type information not found"))?;
         match self.0.read_next_sample() {
-            Ok(s) => Ok(Sample {
-                sample: s,
-                type_: type_.clone(),
-            }),
+            Ok(s) => Ok(Sample::new(s, &type_)),
             Err(e) => Err(PyTypeError::new_err(format!("{e:?}"))),
         }
     }
@@ -188,10 +179,7 @@ impl DataReader {
         let type_ = DomainParticipant::get_type(&self.0.get_topicdescription().get_type_name())
             .ok_or(PyTypeError::new_err("Type information not found"))?;
         match self.0.take_next_sample() {
-            Ok(s) => Ok(Sample {
-                sample: s,
-                type_: type_.clone(),
-            }),
+            Ok(s) => Ok(Sample::new(s, &type_)),
             Err(e) => Err(PyTypeError::new_err(format!("{e:?}"))),
         }
     }
@@ -232,13 +220,7 @@ impl DataReader {
             &view_states,
             &instance_states,
         ) {
-            Ok(s) => Ok(s
-                .into_iter()
-                .map(|s| Sample {
-                    sample: s,
-                    type_: type_.clone(),
-                })
-                .collect()),
+            Ok(s) => Ok(s.into_iter().map(|s| Sample::new(s, &type_)).collect()),
             Err(dust_dds::infrastructure::error::DdsError::NoData) => Ok(Vec::new()),
             Err(e) => Err(PyTypeError::new_err(format!("{e:?}"))),
         }
@@ -280,13 +262,7 @@ impl DataReader {
             &view_states,
             &instance_states,
         ) {
-            Ok(s) => Ok(s
-                .into_iter()
-                .map(|s| Sample {
-                    sample: s,
-                    type_: type_.clone(),
-                })
-                .collect()),
+            Ok(s) => Ok(s.into_iter().map(|s| Sample::new(s, &type_)).collect()),
             Err(dust_dds::infrastructure::error::DdsError::NoData) => Ok(Vec::new()),
             Err(e) => Err(PyTypeError::new_err(format!("{e:?}"))),
         }
@@ -328,13 +304,7 @@ impl DataReader {
             &view_states,
             &instance_states,
         ) {
-            Ok(s) => Ok(s
-                .into_iter()
-                .map(|s| Sample {
-                    sample: s,
-                    type_: type_.clone(),
-                })
-                .collect()),
+            Ok(s) => Ok(s.into_iter().map(|s| Sample::new(s, &type_)).collect()),
             Err(dust_dds::infrastructure::error::DdsError::NoData) => Ok(Vec::new()),
             Err(e) => Err(PyTypeError::new_err(format!("{e:?}"))),
         }
@@ -376,13 +346,7 @@ impl DataReader {
             &view_states,
             &instance_states,
         ) {
-            Ok(s) => Ok(s
-                .into_iter()
-                .map(|s| Sample {
-                    sample: s,
-                    type_: type_.clone(),
-                })
-                .collect()),
+            Ok(s) => Ok(s.into_iter().map(|s| Sample::new(s, &type_)).collect()),
             Err(dust_dds::infrastructure::error::DdsError::NoData) => Ok(Vec::new()),
             Err(e) => Err(PyTypeError::new_err(format!("{e:?}"))),
         }
@@ -532,21 +496,41 @@ impl DataReader {
 #[pyclass]
 #[allow(dead_code)]
 pub struct Sample {
-    sample: dust_dds::infrastructure::sample_info::Sample<PythonDdsData>,
-    type_: Py<PyAny>,
+    data: Option<Py<PyAny>>,
+    sample_info: dust_dds::infrastructure::sample_info::SampleInfo,
+}
+
+impl Sample {
+    fn new(
+        sample: dust_dds::infrastructure::sample_info::Sample<PythonDdsData>,
+        type_: &Py<PyAny>,
+    ) -> Self {
+        let data = if let Some(dynamic_data) = sample.data {
+            Python::attach(|py| {
+                convert_dynamic_data_to_python_instance(py, type_, dynamic_data.into()).ok()
+            })
+        } else {
+            None
+        };
+
+        Self {
+            data,
+            sample_info: sample.sample_info,
+        }
+    }
 }
 
 #[pymethods]
 impl Sample {
+    #[tracing::instrument(skip(self))]
     pub fn get_data(&self) -> PyResult<Py<PyAny>> {
-        todo!()
-        // self.sample
-        //     .data()
-        //     .map_err(into_pyerr)?
-        //     .into_py_object(&self.type_)
+        self.data
+            .clone()
+            .ok_or(PyValueError::new_err("No data available"))
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn get_sample_info(&self) -> SampleInfo {
-        self.sample.sample_info.clone().into()
+        self.sample_info.clone().into()
     }
 }
