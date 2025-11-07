@@ -102,6 +102,7 @@ use core::{
     task::Poll,
 };
 use regex::Regex;
+use tracing::info;
 
 pub fn poll_timeout<T>(
     mut timer_handle: impl Timer,
@@ -4512,6 +4513,7 @@ where
 
             match data_reader.add_reader_change(cache_change, reception_timestamp) {
                 Ok(AddChangeResult::Added(change_instance_handle)) => {
+                    info!("New change added");
                     if let DurationKind::Finite(deadline_missed_period) =
                         data_reader.qos.deadline.period
                     {
@@ -4535,7 +4537,7 @@ where
                             }
                         });
                     }
-                    let deta_reader_on_data_available_active = data_reader
+                    let data_reader_on_data_available_active = data_reader
                         .listener_mask
                         .contains(&StatusKind::DataAvailable);
 
@@ -4571,7 +4573,7 @@ where
                                 .await
                                 .ok();
                         }
-                    } else if deta_reader_on_data_available_active {
+                    } else if data_reader_on_data_available_active {
                         let Ok(the_reader) = self.get_data_reader_async(
                             participant_address,
                             subscriber_handle,
@@ -4596,6 +4598,7 @@ where
                             return;
                         };
                         if let Some(l) = &data_reader.listener_sender {
+                            info!("Triggering data reader DataAvailable listener");
                             l.send(ListenerMail::DataAvailable { the_reader })
                                 .await
                                 .ok();
@@ -4633,6 +4636,7 @@ where
                 }
                 Ok(AddChangeResult::NotAdded) => (), // Do nothing
                 Ok(AddChangeResult::Rejected(instance_handle, sample_rejected_status_kind)) => {
+                    info!("Change rejected");
                     data_reader.increment_sample_rejected_status(
                         instance_handle,
                         sample_rejected_status_kind,

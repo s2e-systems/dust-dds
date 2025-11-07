@@ -522,12 +522,14 @@ impl Sample {
 
 #[pymethods]
 impl Sample {
+    #[tracing::instrument(skip(self))]
     pub fn get_data(&self) -> PyResult<Py<PyAny>> {
         self.data
             .clone()
             .ok_or(PyValueError::new_err("No data available"))
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn get_sample_info(&self) -> SampleInfo {
         self.sample_info.clone().into()
     }
