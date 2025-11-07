@@ -82,3 +82,4 @@ docs/_build/
 *.pyi
 shapes_demo/android/keystore.properties
 shapes_demo/android/app/keystore.jks
+bindings/python/dds_venv/*

@@ -41,6 +41,10 @@ def test_write_read_my_data_type():
 
     ws_data_available.wait(dust_dds.Duration(sec=2, nanosec=0))
 
-    received_data = data_reader.read(max_samples = 1 )
+    received_data_samples = data_reader.read(max_samples = 1 )
 
-    assert data == received_data[0].get_data()
+    received_data : MyDataType = received_data_samples[0].get_data()
+    assert data.id == received_data.id 
+    assert data.data == received_data.data 
+    assert data.msg == received_data.msg 
+    assert data.state == received_data.state 

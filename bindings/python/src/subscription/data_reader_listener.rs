@@ -25,6 +25,7 @@ impl
         PythonDdsData,
     > for DataReaderListener
 {
+    #[tracing::instrument(skip(self, the_reader))]
     async fn on_data_available(
         &mut self,
         the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<

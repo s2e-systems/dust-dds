@@ -4,7 +4,7 @@ use std::{
     path::Path,
 };
 
-use syn::{Attribute, Ident, ImplItemFn, visit::Visit};
+use syn::{Attribute, Ident, ImplItemFn, Visibility, visit::Visit};
 
 fn write_type(pyi_file: &mut fs::File, type_path: &syn::Type) {
     match type_path {
@@ -46,6 +46,7 @@ fn write_type(pyi_file: &mut fs::File, type_path: &syn::Type) {
                         write!(pyi_file, "]").unwrap();
                     }
                     "Py" => write!(pyi_file, "Any").unwrap(),
+                    "Bound" => write!(pyi_file, "Any").unwrap(),
                     "PyResult" => match &p.path.segments[0].arguments {
                         syn::PathArguments::AngleBracketed(g) => match &g.args[0] {
                             syn::GenericArgument::Type(t) => write_type(pyi_file, t),
@@ -53,8 +54,8 @@ fn write_type(pyi_file: &mut fs::File, type_path: &syn::Type) {
                         },
                         _ => unimplemented!(),
                     },
-                    _ => {
-                        unimplemented!();
+                    other_type => {
+                        unimplemented!("Not implemented for {other_type:?}");
                     }
                 }
             }
@@ -317,10 +318,15 @@ impl<'ast> Visit<'ast> for PyiImplVisitor<'ast> {
         if let syn::Type::Path(impl_path) = i.self_ty.as_ref() {
             if let Some(path_ident) = impl_path.path.get_ident() {
                 if *path_ident == self.class_name {
-                    for fn_item in i.items.iter().filter_map(|i| match i {
-                        syn::ImplItem::Fn(f) => Some(f),
-                        _ => None,
-                    }) {
+                    for fn_item in i
+                        .items
+                        .iter()
+                        .filter_map(|i| match i {
+                            syn::ImplItem::Fn(f) => Some(f),
+                            _ => None,
+                        })
+                        .filter(|f| matches!(f.vis, Visibility::Public(_)))
+                    {
                         self.write_fn_item(fn_item)
                     }
                 }
