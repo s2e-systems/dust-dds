@@ -2,7 +2,7 @@ use dust_dds::infrastructure::type_support::TypeSupport;
 use pyo3::{
     exceptions::PyRuntimeError,
     prelude::*,
-    types::{PyBytes, PyDict},
+    types::{PyBytes, PyDict, PyType},
 };
 
 #[allow(non_camel_case_types)]
@@ -175,7 +175,8 @@ pub fn convert_dynamic_data_to_python_instance(
     dynamic_data: dust_dds::xtypes::dynamic_type::DynamicData,
 ) -> PyResult<Py<PyAny>> {
     // Call the empty constructor of the type
-    let data = r#type.bind(py).call0()?;
+    let py_type = r#type.cast_bound::<PyType>(py)?;
+    let data = r#type.bind(py).call_method("__new__", (py_type,), None)?;
 
     for member_index in 0..dynamic_data.type_ref().get_member_count() {
         let member = dynamic_data
@@ -291,6 +292,7 @@ impl TypeSupport for PythonDdsData {
 
 #[cfg(test)]
 mod tests {
+    use dust_dds::infrastructure::type_support::DdsType;
     use pyo3::ffi::c_str;
 
     use super::*;
@@ -393,6 +395,108 @@ my_data = MyDataType(id=10, value=100, data=bytes([0,1,2,3,4]), name='mytype')
                 dynamic_data.get_string_value(3).unwrap(),
                 &String::from("mytype")
             );
+        });
+    }
+
+    #[test]
+    fn test_convert_dynamic_data_to_python() {
+        #[derive(DdsType)]
+        pub struct MyDataType {
+            id: u8,
+            value: i32,
+            data: Vec<u8>,
+            name: String,
+        }
+
+        Python::initialize();
+        Python::attach(|py| {
+            let code = c_str!(
+                r"
+from dataclasses import dataclass
+
+@dataclass
+class MyDataType:
+    id: TypeKind.uint8
+    value: int
+    data: bytes
+    name: str
+    "
+            );
+
+            let dynamic_data = MyDataType {
+                id: 10,
+                value: 100,
+                data: vec![1, 2, 3, 4],
+                name: String::from("Myname"),
+            }
+            .create_dynamic_sample();
+
+            let globals = PyDict::new(py);
+            globals
+                .set_item(
+                    "TypeKind",
+                    py.get_type::<TypeKind>().into_pyobject(py).unwrap(),
+                )
+                .unwrap();
+            let locals = PyDict::new(py);
+            py.run(code, Some(&globals), Some(&locals)).unwrap();
+            let r#type = locals.get_item("MyDataType").unwrap().unwrap().unbind();
+            let created_data =
+                convert_dynamic_data_to_python_instance(py, &r#type, dynamic_data).unwrap();
+
+            assert_eq!(
+                created_data
+                    .getattr(py, "id")
+                    .unwrap()
+                    .extract::<u8>(py)
+                    .unwrap(),
+                10
+            );
+            assert_eq!(
+                created_data
+                    .getattr(py, "value")
+                    .unwrap()
+                    .extract::<i32>(py)
+                    .unwrap(),
+                100
+            );
+
+            assert_eq!(
+                created_data
+                    .getattr(py, "data")
+                    .unwrap()
+                    .extract::<Vec<u8>>(py)
+                    .unwrap(),
+                vec![1, 2, 3, 4]
+            );
+
+            assert_eq!(
+                created_data
+                    .getattr(py, "name")
+                    .unwrap()
+                    .extract::<String>(py)
+                    .unwrap(),
+                "Myname"
+            );
+
+            let code = c_str!(
+                r"
+assert created_data.id==10
+assert created_data.value==100
+assert created_data.data==bytes([1,2,3,4])
+assert created_data.name=='Myname'
+    "
+            );
+            let locals = PyDict::new(py);
+            locals.set_item("created_data", created_data).unwrap();
+            let globals = PyDict::new(py);
+            globals
+                .set_item(
+                    "TypeKind",
+                    py.get_type::<TypeKind>().into_pyobject(py).unwrap(),
+                )
+                .unwrap();
+            py.run(&code, Some(&globals), Some(&locals)).unwrap();
         });
     }
 }
