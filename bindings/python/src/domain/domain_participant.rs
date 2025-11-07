@@ -158,7 +158,7 @@ impl DomainParticipant {
             .insert(type_name.clone(), type_.clone());
 
         let dynamic_type_representation = Arc::new(Python::attach(|py| {
-            convert_python_type_to_dynamic_type(&type_.bind(py))
+            convert_python_type_to_dynamic_type(type_.bind(py))
         })?);
 
         let r = self.0.create_dynamic_topic(
