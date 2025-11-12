@@ -711,16 +711,13 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn get_int32_values(&self, id: MemberId) -> XTypesResult<Vec<i32>> {
-        if let DataStorage::Sequence(d) = self
+    pub fn get_int32_values(&self, id: MemberId) -> XTypesResult<&[i32]> {
+        if let DataStorage::SequenceInt32(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.iter()
-                .cloned()
-                .map(DataStorageMapping::try_from_storage)
-                .collect()
+            Ok(d.as_slice())
         } else {
             Err(XTypesError::InvalidType)
         }
@@ -731,16 +728,13 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn get_uint32_values(&self, id: MemberId) -> XTypesResult<Vec<u32>> {
-        if let DataStorage::Sequence(d) = self
+    pub fn get_uint32_values(&self, id: MemberId) -> XTypesResult<&[u32]> {
+        if let DataStorage::SequenceUInt32(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.iter()
-                .cloned()
-                .map(DataStorageMapping::try_from_storage)
-                .collect()
+            Ok(d.as_slice())
         } else {
             Err(XTypesError::InvalidType)
         }
@@ -751,16 +745,13 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn get_int16_values(&self, id: MemberId) -> XTypesResult<Vec<i16>> {
-        if let DataStorage::Sequence(d) = self
+    pub fn get_int16_values(&self, id: MemberId) -> XTypesResult<&[i16]> {
+        if let DataStorage::SequenceInt16(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.iter()
-                .cloned()
-                .map(DataStorageMapping::try_from_storage)
-                .collect()
+            Ok(d.as_slice())
         } else {
             Err(XTypesError::InvalidType)
         }
@@ -771,16 +762,13 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn get_uint16_values(&self, id: MemberId) -> XTypesResult<Vec<u16>> {
-        if let DataStorage::Sequence(d) = self
+    pub fn get_uint16_values(&self, id: MemberId) -> XTypesResult<&[u16]> {
+        if let DataStorage::SequenceUInt16(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.iter()
-                .cloned()
-                .map(DataStorageMapping::try_from_storage)
-                .collect()
+            Ok(d.as_slice())
         } else {
             Err(XTypesError::InvalidType)
         }
@@ -791,16 +779,13 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn get_int64_values(&self, id: MemberId) -> XTypesResult<Vec<i64>> {
-        if let DataStorage::Sequence(d) = self
+    pub fn get_int64_values(&self, id: MemberId) -> XTypesResult<&[i64]> {
+        if let DataStorage::SequenceInt64(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.iter()
-                .cloned()
-                .map(DataStorageMapping::try_from_storage)
-                .collect()
+            Ok(d.as_slice())
         } else {
             Err(XTypesError::InvalidType)
         }
@@ -811,16 +796,13 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn get_uint64_values(&self, id: MemberId) -> XTypesResult<Vec<u64>> {
-        if let DataStorage::Sequence(d) = self
+    pub fn get_uint64_values(&self, id: MemberId) -> XTypesResult<&[u64]> {
+        if let DataStorage::SequenceUInt64(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.iter()
-                .cloned()
-                .map(DataStorageMapping::try_from_storage)
-                .collect()
+            Ok(d.as_slice())
         } else {
             Err(XTypesError::InvalidType)
         }
@@ -831,16 +813,13 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn get_float32_values(&self, id: MemberId) -> XTypesResult<Vec<f32>> {
-        if let DataStorage::Sequence(d) = self
+    pub fn get_float32_values(&self, id: MemberId) -> XTypesResult<&[f32]> {
+        if let DataStorage::SequenceFloat32(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.iter()
-                .cloned()
-                .map(DataStorageMapping::try_from_storage)
-                .collect()
+            Ok(d.as_slice())
         } else {
             Err(XTypesError::InvalidType)
         }
@@ -851,16 +830,13 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn get_float64_values(&self, id: MemberId) -> XTypesResult<Vec<f64>> {
-        if let DataStorage::Sequence(d) = self
+    pub fn get_float64_values(&self, id: MemberId) -> XTypesResult<&[f64]> {
+        if let DataStorage::SequenceFloat64(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.iter()
-                .cloned()
-                .map(DataStorageMapping::try_from_storage)
-                .collect()
+            Ok(d.as_slice())
         } else {
             Err(XTypesError::InvalidType)
         }
@@ -871,16 +847,13 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn get_char8_values(&self, id: MemberId) -> XTypesResult<Vec<char>> {
-        if let DataStorage::Sequence(d) = self
+    pub fn get_char8_values(&self, id: MemberId) -> XTypesResult<&[char]> {
+        if let DataStorage::SequenceChar8(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.iter()
-                .cloned()
-                .map(DataStorageMapping::try_from_storage)
-                .collect()
+            Ok(d.as_slice())
         } else {
             Err(XTypesError::InvalidType)
         }
@@ -891,16 +864,13 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn get_byte_values(&self, id: MemberId) -> XTypesResult<Vec<u8>> {
-        if let DataStorage::Sequence(d) = self
+    pub fn get_byte_values(&self, id: MemberId) -> XTypesResult<&[u8]> {
+        if let DataStorage::SequenceUInt8(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.iter()
-                .cloned()
-                .map(DataStorageMapping::try_from_storage)
-                .collect()
+            Ok(d.as_slice())
         } else {
             Err(XTypesError::InvalidType)
         }
@@ -911,16 +881,13 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn get_boolean_values(&self, id: MemberId) -> XTypesResult<Vec<bool>> {
-        if let DataStorage::Sequence(d) = self
+    pub fn get_boolean_values(&self, id: MemberId) -> XTypesResult<&[bool]> {
+        if let DataStorage::SequenceBoolean(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.iter()
-                .cloned()
-                .map(DataStorageMapping::try_from_storage)
-                .collect()
+            Ok(d.as_slice())
         } else {
             Err(XTypesError::InvalidType)
         }
@@ -931,16 +898,13 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn get_string_values(&self, id: MemberId) -> XTypesResult<Vec<String>> {
-        if let DataStorage::Sequence(d) = self
+    pub fn get_string_values(&self, id: MemberId) -> XTypesResult<&[String]> {
+        if let DataStorage::SequenceString(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.iter()
-                .cloned()
-                .map(DataStorageMapping::try_from_storage)
-                .collect()
+            Ok(d.as_slice())
         } else {
             Err(XTypesError::InvalidType)
         }
@@ -952,31 +916,25 @@ impl DynamicData {
     }
 
     // Custom functions
-    pub fn get_uint8_values(&self, id: MemberId) -> XTypesResult<Vec<u8>> {
-        if let DataStorage::Sequence(d) = self
+    pub fn get_uint8_values(&self, id: MemberId) -> XTypesResult<&[u8]> {
+        if let DataStorage::SequenceUInt8(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.iter()
-                .cloned()
-                .map(DataStorageMapping::try_from_storage)
-                .collect()
+            Ok(d.as_slice())
         } else {
             Err(XTypesError::InvalidType)
         }
     }
 
-    pub fn get_int8_values(&self, id: MemberId) -> XTypesResult<Vec<i8>> {
-        if let DataStorage::Sequence(d) = self
+    pub fn get_int8_values(&self, id: MemberId) -> XTypesResult<&[i8]> {
+        if let DataStorage::SequenceInt8(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.iter()
-                .cloned()
-                .map(DataStorageMapping::try_from_storage)
-                .collect()
+            Ok(d.as_slice())
         } else {
             Err(XTypesError::InvalidType)
         }
@@ -992,16 +950,13 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn get_complex_values(&self, id: MemberId) -> XTypesResult<Vec<DynamicData>> {
-        if let DataStorage::Sequence(d) = self
+    pub fn get_complex_values(&self, id: MemberId) -> XTypesResult<&[DynamicData]> {
+        if let DataStorage::SequenceComplexValue(d) = self
             .abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))?
         {
-            d.iter()
-                .cloned()
-                .map(DataStorageMapping::try_from_storage)
-                .collect()
+            Ok(d.as_slice())
         } else {
             Err(XTypesError::InvalidType)
         }
@@ -1012,10 +967,8 @@ impl DynamicData {
         id: MemberId,
         value: Vec<DynamicData>,
     ) -> XTypesResult<()> {
-        self.abstract_data.insert(
-            id,
-            DataStorage::Sequence(value.into_iter().map(DataStorage::ComplexValue).collect()),
-        );
+        self.abstract_data
+            .insert(id, DataStorage::SequenceComplexValue(value));
         Ok(())
     }
 
@@ -1023,10 +976,15 @@ impl DynamicData {
         self.abstract_data.insert(id, value);
     }
 
-    pub fn get_value(&self, id: MemberId) -> XTypesResult<DataStorage> {
+    pub fn get_value(&self, id: MemberId) -> XTypesResult<&DataStorage> {
         self.abstract_data
             .get(&id)
-            .cloned()
+            .ok_or(XTypesError::InvalidId(id))
+    }
+
+    pub fn remove_value(&mut self, id: MemberId) -> XTypesResult<DataStorage> {
+        self.abstract_data
+            .remove(&id)
             .ok_or(XTypesError::InvalidId(id))
     }
 }
