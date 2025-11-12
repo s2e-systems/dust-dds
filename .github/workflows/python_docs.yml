@@ -18,17 +18,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-
-      - run: pip install pytest
-      - run: pytest
-        working-directory: bindings/python
-
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
           args: --out dist
           working-directory: bindings/python
       - run: pip install bindings/python/dist/dust_dds*.whl
+
+      - run: pip install pytest
+      - run: pytest
+        working-directory: bindings/python
 
       - run: pip install pdoc
       - run: pdoc -o docs/ dust_dds
