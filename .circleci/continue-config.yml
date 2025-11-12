@@ -15,6 +15,7 @@ jobs:
   hello_world_on_macos:
     macos:
       xcode: 14.2.0
+    resource_class: m4pro.medium
     steps:
     - checkout
     - rust/install
