@@ -25,12 +25,15 @@ fn dust_dds(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<subscription::data_reader::DataReader>()?;
     m.add_class::<topic_definition::topic::Topic>()?;
     m.add_class::<topic_definition::type_support::TypeKind>()?;
+    m.add_class::<topic_definition::topic_description::TopicDescription>()?;
 
+    m.add_class::<infrastructure::time::Time>()?;
     m.add_class::<infrastructure::time::Duration>()?;
     m.add_class::<infrastructure::time::DurationKind>()?;
     m.add_class::<infrastructure::status::StatusKind>()?;
     m.add_class::<infrastructure::wait_set::Condition>()?;
     m.add_class::<infrastructure::wait_set::WaitSet>()?;
+    m.add_class::<infrastructure::instance::InstanceHandle>()?;
 
     // Add QosPolicy classes
     m.add_class::<infrastructure::qos_policy::DeadlineQosPolicy>()?;
@@ -50,6 +53,7 @@ fn dust_dds(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<infrastructure::qos_policy::OwnershipQosPolicy>()?;
     m.add_class::<infrastructure::qos_policy::OwnershipQosPolicyKind>()?;
     m.add_class::<infrastructure::qos_policy::PartitionQosPolicy>()?;
+    m.add_class::<infrastructure::qos_policy::PresentationQosPolicy>()?;
     m.add_class::<infrastructure::qos_policy::ReaderDataLifecycleQosPolicy>()?;
     m.add_class::<infrastructure::qos_policy::ReliabilityQosPolicy>()?;
     m.add_class::<infrastructure::qos_policy::ReliabilityQosPolicyKind>()?;
@@ -58,16 +62,21 @@ fn dust_dds(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<infrastructure::qos_policy::TopicDataQosPolicy>()?;
     m.add_class::<infrastructure::qos_policy::TransportPriorityQosPolicy>()?;
     m.add_class::<infrastructure::qos_policy::UserDataQosPolicy>()?;
+    m.add_class::<infrastructure::qos_policy::DataRepresentationQosPolicy>()?;
+    m.add_class::<infrastructure::qos_policy::OwnershipStrengthQosPolicy>()?;
+    m.add_class::<infrastructure::qos_policy::WriterDataLifecycleQosPolicy>()?;
 
     // Add Qos classes
+    m.add_class::<infrastructure::qos::DataReaderQos>()?;
+    m.add_class::<infrastructure::qos::DataWriterQos>()?;
     m.add_class::<infrastructure::qos::DomainParticipantFactoryQos>()?;
     m.add_class::<infrastructure::qos::DomainParticipantQos>()?;
-    m.add_class::<infrastructure::qos::SubscriberQos>()?;
     m.add_class::<infrastructure::qos::PublisherQos>()?;
+    m.add_class::<infrastructure::qos::SubscriberQos>()?;
     m.add_class::<infrastructure::qos::TopicQos>()?;
-    m.add_class::<infrastructure::qos::DataWriterQos>()?;
-    m.add_class::<infrastructure::qos::DataReaderQos>()?;
 
+    m.add_class::<subscription::data_reader::Sample>()?;
+    m.add_class::<subscription::sample_info::SampleInfo>()?;
     m.add_class::<subscription::sample_info::SampleStateKind>()?;
     m.add("ANY_SAMPLE_STATE", ANY_SAMPLE_STATE.to_vec())?;
     m.add_class::<subscription::sample_info::ViewStateKind>()?;
