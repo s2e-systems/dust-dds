@@ -1,13 +1,14 @@
-use core::marker::PhantomData;
-
-use crate::{infrastructure::status::StatusKind, runtime::DdsRuntime};
+use crate::{
+    infrastructure::status::StatusKind,
+    runtime::{ChannelSend, DdsRuntime},
+};
 use alloc::{vec, vec::Vec};
 
 #[derive(Debug)]
 pub struct DcpsStatusCondition<R: DdsRuntime> {
     enabled_statuses: Vec<StatusKind>,
     status_changes: Vec<StatusKind>,
-    phantom: PhantomData<R>,
+    registered_notifications: Vec<R::ChannelSender<()>>,
 }
 
 impl<R: DdsRuntime> Default for DcpsStatusCondition<R> {
@@ -29,14 +30,20 @@ impl<R: DdsRuntime> Default for DcpsStatusCondition<R> {
                 StatusKind::SubscriptionMatched,
             ],
             status_changes: Vec::new(),
-            phantom: PhantomData,
+            registered_notifications: Vec::new(),
         }
     }
 }
 
 impl<R: DdsRuntime> DcpsStatusCondition<R> {
-    pub fn add_communication_state(&mut self, state: StatusKind) {
+    pub async fn add_communication_state(&mut self, state: StatusKind) {
         self.status_changes.push(state);
+        if self.get_trigger_value() {
+            for w in self.registered_notifications.drain(..) {
+                // Do not care if there is no channel waiting for response
+                w.send(()).await.ok();
+            }
+        }
     }
 
     pub fn remove_communication_state(&mut self, state: StatusKind) {
@@ -58,5 +65,15 @@ impl<R: DdsRuntime> DcpsStatusCondition<R> {
             }
         }
         false
+    }
+
+    pub async fn register_notification(&mut self) -> R::ChannelReceiver<()> {
+        let (sender, receiver) = R::channel();
+        if self.get_trigger_value() {
+            sender.send(()).await.ok();
+        } else {
+            self.registered_notifications.push(sender);
+        }
+        receiver
     }
 }

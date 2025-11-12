@@ -21,6 +21,9 @@ pub enum DcpsStatusConditionMail<R: DdsRuntime> {
     RemoveCommunicationState {
         state: StatusKind,
     },
+    RegisterNotification {
+        reply_sender: R::OneshotSender<R::ChannelReceiver<()>>,
+    },
 }
 
 impl<R: DdsRuntime> MailHandler for DcpsStatusCondition<R> {
@@ -37,10 +40,13 @@ impl<R: DdsRuntime> MailHandler for DcpsStatusCondition<R> {
                 reply_sender.send(self.get_trigger_value())
             }
             DcpsStatusConditionMail::AddCommunicationState { state } => {
-                self.add_communication_state(state)
+                self.add_communication_state(state).await
             }
             DcpsStatusConditionMail::RemoveCommunicationState { state } => {
                 self.remove_communication_state(state)
+            }
+            DcpsStatusConditionMail::RegisterNotification { reply_sender } => {
+                reply_sender.send(self.register_notification().await)
             }
         }
     }
