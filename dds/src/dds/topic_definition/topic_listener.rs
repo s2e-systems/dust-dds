@@ -1,3 +1,5 @@
+use tracing::info;
+
 use crate::{
     dds_async::topic::TopicAsync, infrastructure::status::InconsistentTopicStatus,
     runtime::DdsRuntime,
@@ -10,8 +12,9 @@ pub trait TopicListener<R: DdsRuntime> {
     fn on_inconsistent_topic(
         &mut self,
         _the_topic: TopicAsync<R>,
-        _status: InconsistentTopicStatus,
+        status: InconsistentTopicStatus,
     ) -> impl Future<Output = ()> + Send {
+        info!(?status, "on_inconsistent_topic");
         core::future::ready(())
     }
 }
