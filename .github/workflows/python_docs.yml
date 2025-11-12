@@ -28,7 +28,18 @@ jobs:
 
       - uses: actions/upload-pages-artifact@v3
         with:
+          name: "docs"
           path: docs/
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          name: "whl"
+          path: bindings/python/dist/
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          name: "pyi"
+          path: bindings/python/dust_dds.pyi
 
   # Deploy the artifact to GitHub pages.
   # This is a separate job so that only actions/deploy-pages has the necessary permissions.
