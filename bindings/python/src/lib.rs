@@ -40,6 +40,7 @@ fn dust_dds(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<infrastructure::status::SampleLostStatus>()?;
     m.add_class::<infrastructure::status::SampleRejectedStatus>()?;
     m.add_class::<infrastructure::status::StatusKind>()?;
+    m.add_class::<infrastructure::status::SubscriptionMatchedStatus>()?;
     m.add_class::<infrastructure::time::Duration>()?;
     m.add_class::<infrastructure::time::DurationKind>()?;
     m.add_class::<infrastructure::time::Time>()?;
