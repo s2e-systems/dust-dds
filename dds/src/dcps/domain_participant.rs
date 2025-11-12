@@ -48,12 +48,12 @@ use crate::{
         qos_policy::{
             BUILT_IN_DATA_REPRESENTATION, DATA_REPRESENTATION_QOS_POLICY_ID,
             DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID,
-            DestinationOrderQosPolicyKind, DurabilityQosPolicyKind, HistoryQosPolicy,
-            HistoryQosPolicyKind, LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID, Length,
-            LifespanQosPolicy, OWNERSHIP_QOS_POLICY_ID, OwnershipQosPolicyKind,
-            PRESENTATION_QOS_POLICY_ID, QosPolicyId, RELIABILITY_QOS_POLICY_ID,
-            ReliabilityQosPolicyKind, ResourceLimitsQosPolicy, TransportPriorityQosPolicy,
-            XCDR_DATA_REPRESENTATION, XCDR2_DATA_REPRESENTATION,
+            DataRepresentationQosPolicy, DestinationOrderQosPolicyKind, DurabilityQosPolicyKind,
+            HistoryQosPolicy, HistoryQosPolicyKind, LATENCYBUDGET_QOS_POLICY_ID,
+            LIVELINESS_QOS_POLICY_ID, Length, LifespanQosPolicy, OWNERSHIP_QOS_POLICY_ID,
+            OwnershipQosPolicyKind, PRESENTATION_QOS_POLICY_ID, QosPolicyId,
+            RELIABILITY_QOS_POLICY_ID, ReliabilityQosPolicyKind, ResourceLimitsQosPolicy,
+            TransportPriorityQosPolicy, XCDR_DATA_REPRESENTATION, XCDR2_DATA_REPRESENTATION,
         },
         sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
         status::{
@@ -84,7 +84,10 @@ use crate::{
         binding::XTypesBinding,
         deserializer::CdrDeserializer,
         dynamic_type::{DynamicData, DynamicDataFactory, DynamicType},
-        serializer::{Cdr1LeSerializer, Cdr2LeSerializer, RtpsPlCdrSerializer},
+        serializer::{
+            Cdr1BeSerializer, Cdr1LeSerializer, Cdr2BeSerializer, Cdr2LeSerializer,
+            RtpsPlCdrSerializer,
+        },
     },
 };
 use alloc::{
@@ -6204,17 +6207,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
             }
         }
 
-        let serialized_data: Vec<u8> = if self.qos.representation.value.is_empty()
-            || self.qos.representation.value[0] == XCDR_DATA_REPRESENTATION
-        {
-            Cdr1LeSerializer::serialize(&dynamic_data)?
-        } else if self.qos.representation.value[0] == XCDR2_DATA_REPRESENTATION {
-            Cdr2LeSerializer::serialize(&dynamic_data)?
-        } else if self.qos.representation.value[0] == BUILT_IN_DATA_REPRESENTATION {
-            RtpsPlCdrSerializer::serialize(&dynamic_data)?
-        } else {
-            panic!("Invalid data representation")
-        };
+        let serialized_data = serialize(&dynamic_data, &self.qos.representation)?;
 
         let change = CacheChange {
             kind: ChangeKind::Alive,
@@ -6346,17 +6339,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
         }
 
         dynamic_data.clear_nonkey_values()?;
-        let serialized_key = if self.qos.representation.value.is_empty()
-            || self.qos.representation.value[0] == XCDR_DATA_REPRESENTATION
-        {
-            Cdr1LeSerializer::serialize(&dynamic_data)?
-        } else if self.qos.representation.value[0] == XCDR2_DATA_REPRESENTATION {
-            Cdr2LeSerializer::serialize(&dynamic_data)?
-        } else if self.qos.representation.value[0] == BUILT_IN_DATA_REPRESENTATION {
-            RtpsPlCdrSerializer::serialize(&dynamic_data)?
-        } else {
-            panic!("Invalid data representation")
-        };
+        let serialized_key = serialize(&dynamic_data, &self.qos.representation)?;
 
         self.last_change_sequence_number += 1;
         let cache_change = CacheChange {
@@ -6417,17 +6400,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
         }
 
         dynamic_data.clear_nonkey_values()?;
-        let serialized_key = if self.qos.representation.value.is_empty()
-            || self.qos.representation.value[0] == XCDR_DATA_REPRESENTATION
-        {
-            Cdr1LeSerializer::serialize(&dynamic_data)?
-        } else if self.qos.representation.value[0] == XCDR2_DATA_REPRESENTATION {
-            Cdr2LeSerializer::serialize(&dynamic_data)?
-        } else if self.qos.representation.value[0] == BUILT_IN_DATA_REPRESENTATION {
-            RtpsPlCdrSerializer::serialize(&dynamic_data)?
-        } else {
-            panic!("Invalid data representation")
-        };
+        let serialized_key = serialize(&dynamic_data, &self.qos.representation)?;
 
         self.last_change_sequence_number += 1;
         let kind = if self
@@ -7498,5 +7471,27 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
     }
 }
 
-// #[cfg(test)]
-// mod tests;
+fn serialize(
+    dynamic_data: &DynamicData,
+    representation: &DataRepresentationQosPolicy,
+) -> DdsResult<Vec<u8>> {
+    Ok(
+        if representation.value.is_empty() || representation.value[0] == XCDR_DATA_REPRESENTATION {
+            if cfg!(target_endian = "big") {
+                Cdr1BeSerializer::serialize(dynamic_data)?
+            } else {
+                Cdr1LeSerializer::serialize(dynamic_data)?
+            }
+        } else if representation.value[0] == XCDR2_DATA_REPRESENTATION {
+            if cfg!(target_endian = "big") {
+                Cdr2BeSerializer::serialize(dynamic_data)?
+            } else {
+                Cdr2LeSerializer::serialize(dynamic_data)?
+            }
+        } else if representation.value[0] == BUILT_IN_DATA_REPRESENTATION {
+            RtpsPlCdrSerializer::serialize(dynamic_data)?
+        } else {
+            panic!("Invalid data representation")
+        },
+    )
+}

@@ -11,14 +11,14 @@ use alloc::vec::Vec;
 /// Async version of [`StatusCondition`](crate::infrastructure::condition::StatusCondition).
 pub struct StatusConditionAsync<R: DdsRuntime> {
     address: ActorAddress<R, DcpsStatusCondition<R>>,
-    clock_handle: R::ClockHandle,
+    timer_handle: R::TimerHandle,
 }
 
 impl<R: DdsRuntime> Clone for StatusConditionAsync<R> {
     fn clone(&self) -> Self {
         Self {
             address: self.address.clone(),
-            clock_handle: self.clock_handle.clone(),
+            timer_handle: self.timer_handle.clone(),
         }
     }
 }
@@ -26,16 +26,24 @@ impl<R: DdsRuntime> Clone for StatusConditionAsync<R> {
 impl<R: DdsRuntime> StatusConditionAsync<R> {
     pub(crate) fn new(
         address: ActorAddress<R, DcpsStatusCondition<R>>,
-        clock_handle: R::ClockHandle,
+        timer_handle: R::TimerHandle,
     ) -> Self {
         Self {
             address,
-            clock_handle,
+            timer_handle,
         }
     }
 
-    pub(crate) fn clock_handle(&self) -> &R::ClockHandle {
-        &self.clock_handle
+    pub(crate) fn timer_handle(&self) -> &R::TimerHandle {
+        &self.timer_handle
+    }
+
+    pub(crate) async fn register_notification(&self) -> DdsResult<R::ChannelReceiver<()>> {
+        let (reply_sender, reply_receiver) = R::oneshot();
+        self.address
+            .send_actor_mail(DcpsStatusConditionMail::RegisterNotification { reply_sender })
+            .await?;
+        reply_receiver.receive().await
     }
 }
 
