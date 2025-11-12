@@ -529,6 +529,7 @@ fn main() -> io::Result<()> {
     let mut pyi_file = File::create(cargo_dir_path.join("dust_dds.pyi"))?;
 
     writeln!(pyi_file, "from typing import Any \n").unwrap();
+    writeln!(pyi_file, "from .dust_dds import *\n").unwrap();
 
     // Add the constants manually
     writeln!(pyi_file, "ANY_SAMPLE_STATE : SampleStateKind= ...").unwrap();
