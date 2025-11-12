@@ -26,7 +26,6 @@ fn dust_dds(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<topic_definition::topic::Topic>()?;
     m.add_class::<topic_definition::type_support::TypeKind>()?;
     m.add_class::<topic_definition::topic_description::TopicDescription>()?;
-
     m.add_class::<infrastructure::instance::InstanceHandle>()?;
     m.add_class::<infrastructure::status::InconsistentTopicStatus>()?;
     m.add_class::<infrastructure::status::LivelinessChangedStatus>()?;
@@ -46,6 +45,13 @@ fn dust_dds(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<infrastructure::time::Time>()?;
     m.add_class::<infrastructure::wait_set::Condition>()?;
     m.add_class::<infrastructure::wait_set::WaitSet>()?;
+
+    // Add Builtin Topics
+    m.add_class::<builtin_topics::BuiltInTopicKey>()?;
+    m.add_class::<builtin_topics::ParticipantBuiltinTopicData>()?;
+    m.add_class::<builtin_topics::PublicationBuiltinTopicData>()?;
+    m.add_class::<builtin_topics::SubscriptionBuiltinTopicData>()?;
+    m.add_class::<builtin_topics::TopicBuiltinTopicData>()?;
 
     // Add QosPolicy classes
     m.add_class::<infrastructure::qos_policy::DeadlineQosPolicy>()?;
