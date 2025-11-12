@@ -95,10 +95,10 @@ impl<R: DdsRuntime> WaitSetAsync<R> {
             .map(|x| Box::pin(x.receive()))
             .collect();
 
-        core::future::poll_fn(move |cx| {
-            for notification in notification_futures.iter_mut() {
+        let condition_index = core::future::poll_fn(move |cx| {
+            for (condition_index, notification) in notification_futures.iter_mut().enumerate() {
                 if notification.as_mut().poll(cx).is_ready() {
-                    return Poll::Ready(Ok(vec![]));
+                    return Poll::Ready(Ok(condition_index));
                 }
             }
             if timer.as_mut().poll(cx).is_ready() {
@@ -106,7 +106,9 @@ impl<R: DdsRuntime> WaitSetAsync<R> {
             }
             Poll::Pending
         })
-        .await
+        .await?;
+
+        Ok(vec![self.conditions[condition_index].clone()])
     }
 
     /// Async version of [`attach_condition`](crate::infrastructure::wait_set::WaitSet::attach_condition).
