@@ -195,13 +195,13 @@ trait XTypesSerializer {
         Ok(())
     }
 
-    fn serialize_array_basic(&mut self, v: Vec<impl CdrPrimitiveTypeSerialize>) {
+    fn serialize_array_basic(&mut self, v: &[impl CdrPrimitiveTypeSerialize]) {
         for vi in v {
             self.serialize_primitive_type(vi);
         }
     }
-    fn serialize_sequence_basic(&mut self, v: Vec<impl CdrPrimitiveTypeSerialize>) {
-        self.serialize_primitive_type(v.len() as u32);
+    fn serialize_sequence_basic(&mut self, v: &[impl CdrPrimitiveTypeSerialize]) {
+        self.serialize_primitive_type(&(v.len() as u32));
 
         for vi in v {
             self.serialize_primitive_type(vi);
@@ -209,9 +209,9 @@ trait XTypesSerializer {
     }
 
     fn serialize_string(&mut self, v: &String) {
-        self.serialize_primitive_type(v.len() as u32 + 1);
-        self.serialize_primitive_type(v.as_bytes());
-        self.serialize_primitive_type(0u8);
+        self.serialize_primitive_type(&(v.len() as u32 + 1));
+        self.serialize_primitive_type(&v.as_bytes());
+        self.serialize_primitive_type(&0u8);
     }
 
     fn serialize_dynamic_data_member(
@@ -222,20 +222,20 @@ trait XTypesSerializer {
         let member_descriptor = v.get_descriptor(member_id)?;
         match member_descriptor.r#type.get_kind() {
             TypeKind::NONE => todo!(),
-            TypeKind::BOOLEAN => self.serialize_primitive_type(*v.get_boolean_value(member_id)?),
+            TypeKind::BOOLEAN => self.serialize_primitive_type(v.get_boolean_value(member_id)?),
             TypeKind::BYTE => todo!(),
-            TypeKind::INT16 => self.serialize_primitive_type(*v.get_int16_value(member_id)?),
-            TypeKind::INT32 => self.serialize_primitive_type(*v.get_int32_value(member_id)?),
-            TypeKind::INT64 => self.serialize_primitive_type(*v.get_int64_value(member_id)?),
-            TypeKind::UINT16 => self.serialize_primitive_type(*v.get_uint16_value(member_id)?),
-            TypeKind::UINT32 => self.serialize_primitive_type(*v.get_uint32_value(member_id)?),
-            TypeKind::UINT64 => self.serialize_primitive_type(*v.get_uint64_value(member_id)?),
-            TypeKind::FLOAT32 => self.serialize_primitive_type(*v.get_float32_value(member_id)?),
-            TypeKind::FLOAT64 => self.serialize_primitive_type(*v.get_float64_value(member_id)?),
+            TypeKind::INT16 => self.serialize_primitive_type(v.get_int16_value(member_id)?),
+            TypeKind::INT32 => self.serialize_primitive_type(v.get_int32_value(member_id)?),
+            TypeKind::INT64 => self.serialize_primitive_type(v.get_int64_value(member_id)?),
+            TypeKind::UINT16 => self.serialize_primitive_type(v.get_uint16_value(member_id)?),
+            TypeKind::UINT32 => self.serialize_primitive_type(v.get_uint32_value(member_id)?),
+            TypeKind::UINT64 => self.serialize_primitive_type(v.get_uint64_value(member_id)?),
+            TypeKind::FLOAT32 => self.serialize_primitive_type(v.get_float32_value(member_id)?),
+            TypeKind::FLOAT64 => self.serialize_primitive_type(v.get_float64_value(member_id)?),
             TypeKind::FLOAT128 => unimplemented!("not supported by Rust"),
-            TypeKind::INT8 => self.serialize_primitive_type(*v.get_int8_value(member_id)?),
-            TypeKind::UINT8 => self.serialize_primitive_type(*v.get_uint8_value(member_id)?),
-            TypeKind::CHAR8 => self.serialize_primitive_type(*v.get_char8_value(member_id)?),
+            TypeKind::INT8 => self.serialize_primitive_type(v.get_int8_value(member_id)?),
+            TypeKind::UINT8 => self.serialize_primitive_type(v.get_uint8_value(member_id)?),
+            TypeKind::CHAR8 => self.serialize_primitive_type(v.get_char8_value(member_id)?),
             TypeKind::CHAR16 => todo!(),
             TypeKind::STRING8 => self.serialize_string(v.get_string_value(member_id)?),
             TypeKind::STRING16 => todo!(),
@@ -280,8 +280,8 @@ trait XTypesSerializer {
             TypeKind::CHAR16 => todo!(),
             TypeKind::STRING8 => {
                 let list = v.get_string_values(member_id)?;
-                self.serialize_primitive_type(list.len() as u32);
-                for v in &list {
+                self.serialize_primitive_type(&(list.len() as u32));
+                for v in list {
                     self.serialize_string(v);
                 }
             }
@@ -292,8 +292,8 @@ trait XTypesSerializer {
             TypeKind::ANNOTATION => todo!(),
             TypeKind::STRUCTURE => {
                 let list = v.get_complex_values(member_id)?;
-                self.serialize_primitive_type(list.len() as u32);
-                for v in &list {
+                self.serialize_primitive_type(&(list.len() as u32));
+                for v in list {
                     self.serialize_complex(v)?;
                 }
             }
@@ -333,7 +333,7 @@ trait XTypesSerializer {
             TypeKind::CHAR8 => todo!(),
             TypeKind::CHAR16 => todo!(),
             TypeKind::STRING8 => {
-                for v in &v.get_string_values(member_id)? {
+                for v in v.get_string_values(member_id)? {
                     self.serialize_string(v);
                 }
             }
@@ -343,7 +343,7 @@ trait XTypesSerializer {
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
             TypeKind::STRUCTURE => {
-                for v in &v.get_complex_values(member_id)? {
+                for v in v.get_complex_values(member_id)? {
                     self.serialize_complex(v)?;
                 }
             }
@@ -359,7 +359,7 @@ trait XTypesSerializer {
 
     fn serialize_enum(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
         let _discriminator_type = v.type_ref().get_descriptor().discriminator_type.as_ref();
-        self.serialize_primitive_type(*v.get_int32_value(0)?);
+        self.serialize_primitive_type(v.get_int32_value(0)?);
         Ok(())
     }
 
@@ -371,7 +371,7 @@ trait XTypesSerializer {
         }
     }
 
-    fn serialize_primitive_type(&mut self, v: impl CdrPrimitiveTypeSerialize);
+    fn serialize_primitive_type(&mut self, v: &impl CdrPrimitiveTypeSerialize);
 }
 
 const PID_SENTINEL: u16 = 1;
@@ -446,34 +446,40 @@ impl<'a, W: Write> XTypesSerializer for RtpsPlCdrSerializer<'a, W> {
             if let Some(element_type) = element_type {
                 // Sequence
                 if element_type.get_kind() == TypeKind::STRUCTURE {
-                    for vi in &v.get_complex_values(member_id)? {
+                    for vi in v.get_complex_values(member_id)? {
                         let padded_length = count_bytes_pl_cdr_complex(vi)?;
                         LittleEndian::write_u16(
-                            member_id as u16,
+                            &(member_id as u16),
                             &mut self.cdr1_le_serializer.writer,
                         );
-                        LittleEndian::write_u16(padded_length, &mut self.cdr1_le_serializer.writer);
+                        LittleEndian::write_u16(
+                            &padded_length,
+                            &mut self.cdr1_le_serializer.writer,
+                        );
                         self.serialize_complex(vi)?
                     }
                     self.cdr1_le_serializer.writer.pad(4);
                 } else {
                     let padded_length = count_bytes_pl_cdr(v, member_id)?;
-                    LittleEndian::write_u16(member_id as u16, &mut self.cdr1_le_serializer.writer);
-                    LittleEndian::write_u16(padded_length, &mut self.cdr1_le_serializer.writer);
+                    LittleEndian::write_u16(
+                        &(member_id as u16),
+                        &mut self.cdr1_le_serializer.writer,
+                    );
+                    LittleEndian::write_u16(&padded_length, &mut self.cdr1_le_serializer.writer);
                     self.serialize_dynamic_data_member(v, member_id)?;
                     self.cdr1_le_serializer.writer.pad(4);
                 }
             } else {
                 // Structure
                 let padded_length = count_bytes_pl_cdr(v, member_id)?;
-                LittleEndian::write_u16(member_id as u16, &mut self.cdr1_le_serializer.writer);
-                LittleEndian::write_u16(padded_length, &mut self.cdr1_le_serializer.writer);
+                LittleEndian::write_u16(&(member_id as u16), &mut self.cdr1_le_serializer.writer);
+                LittleEndian::write_u16(&padded_length, &mut self.cdr1_le_serializer.writer);
                 self.serialize_dynamic_data_member(v, member_id)?;
                 self.cdr1_le_serializer.writer.pad(4);
             }
         }
-        LittleEndian::write_u16(PID_SENTINEL, &mut self.cdr1_le_serializer.writer);
-        LittleEndian::write_u16(0, &mut self.cdr1_le_serializer.writer);
+        LittleEndian::write_u16(&PID_SENTINEL, &mut self.cdr1_le_serializer.writer);
+        LittleEndian::write_u16(&0, &mut self.cdr1_le_serializer.writer);
         Ok(())
     }
 
@@ -486,7 +492,7 @@ impl<'a, W: Write> XTypesSerializer for RtpsPlCdrSerializer<'a, W> {
             .serialize_dynamic_data_member(v, member_id)
     }
 
-    fn serialize_primitive_type(&mut self, v: impl super::serializer::CdrPrimitiveTypeSerialize) {
+    fn serialize_primitive_type(&mut self, v: &impl super::serializer::CdrPrimitiveTypeSerialize) {
         v.serialize(&mut self.cdr1_le_serializer.writer);
     }
 }
@@ -496,22 +502,22 @@ impl<'a, W: Write, E: EndiannessWrite> XTypesSerializer for Xcdr1Serializer<'a, 
         for field_index in 0..v.get_item_count() {
             let member_id = v.get_member_id_at_index(field_index)?;
             let length = count_bytes_cdr1(v, member_id)?;
-            self.serialize_primitive_type(member_id as u16);
-            self.serialize_primitive_type(length as u16);
+            self.serialize_primitive_type(&(member_id as u16));
+            self.serialize_primitive_type(&(length as u16));
             self.serialize_dynamic_data_member(v, member_id)?;
             self.writer.pad(4);
         }
-        self.serialize_primitive_type(PID_SENTINEL);
-        self.serialize_primitive_type(0u16);
+        self.serialize_primitive_type(&PID_SENTINEL);
+        self.serialize_primitive_type(&0u16);
         Ok(())
     }
-    fn serialize_primitive_type(&mut self, v: impl CdrPrimitiveTypeSerialize) {
+    fn serialize_primitive_type(&mut self, v: &impl CdrPrimitiveTypeSerialize) {
         v.serialize(&mut self.writer);
     }
 }
 
 impl<'a, W: Write, E: EndiannessWrite> XTypesSerializer for Xcdr2Serializer<'a, W, E> {
-    fn serialize_primitive_type(&mut self, v: impl CdrPrimitiveTypeSerialize) {
+    fn serialize_primitive_type(&mut self, v: &impl CdrPrimitiveTypeSerialize) {
         v.serialize(&mut self.writer);
     }
 
@@ -531,50 +537,50 @@ impl<'a, W: Write, E: EndiannessWrite> XTypesSerializer for Xcdr2Serializer<'a, 
         for field_index in 0..v.get_item_count() {
             let member_id = v.get_member_id_at_index(field_index)?;
             let length = count_bytes_cdr2(v, member_id)?;
-            self.serialize_primitive_type(member_id as u16);
-            self.serialize_primitive_type(length as u16);
+            self.serialize_primitive_type(&(member_id as u16));
+            self.serialize_primitive_type(&(length as u16));
             self.serialize_dynamic_data_member(v, member_id)?;
             self.writer.pad(4);
         }
-        self.serialize_primitive_type(PID_SENTINEL);
-        self.serialize_primitive_type(0u16);
+        self.serialize_primitive_type(&PID_SENTINEL);
+        self.serialize_primitive_type(&0u16);
         Ok(())
     }
 }
 
 trait CdrPrimitiveTypeSerialize {
     fn serialize<W: Write, E: EndiannessWrite, V: CdrVersion>(
-        self,
+        &self,
         writer: &mut CdrWriter<W, E, V>,
     );
 }
 impl CdrPrimitiveTypeSerialize for bool {
     fn serialize<W: Write, E: EndiannessWrite, V: CdrVersion>(
-        self,
+        &self,
         writer: &mut CdrWriter<W, E, V>,
     ) {
-        writer.write(&[self as u8]);
+        writer.write(&[*self as u8]);
     }
 }
 impl CdrPrimitiveTypeSerialize for i8 {
     fn serialize<W: Write, E: EndiannessWrite, V: CdrVersion>(
-        self,
+        &self,
         writer: &mut CdrWriter<W, E, V>,
     ) {
-        writer.write(&[self as u8]);
+        writer.write(&[*self as u8]);
     }
 }
 impl CdrPrimitiveTypeSerialize for u8 {
     fn serialize<W: Write, E: EndiannessWrite, V: CdrVersion>(
-        self,
+        &self,
         writer: &mut CdrWriter<W, E, V>,
     ) {
-        writer.write(&[self]);
+        writer.write(&[*self]);
     }
 }
 impl CdrPrimitiveTypeSerialize for i16 {
     fn serialize<W: Write, E: EndiannessWrite, V: CdrVersion>(
-        self,
+        &self,
         writer: &mut CdrWriter<W, E, V>,
     ) {
         writer.pad(i16::BITS as usize / 8);
@@ -583,7 +589,7 @@ impl CdrPrimitiveTypeSerialize for i16 {
 }
 impl CdrPrimitiveTypeSerialize for u16 {
     fn serialize<W: Write, E: EndiannessWrite, V: CdrVersion>(
-        self,
+        &self,
         writer: &mut CdrWriter<W, E, V>,
     ) {
         writer.pad(u16::BITS as usize / 8);
@@ -592,7 +598,7 @@ impl CdrPrimitiveTypeSerialize for u16 {
 }
 impl CdrPrimitiveTypeSerialize for i32 {
     fn serialize<W: Write, E: EndiannessWrite, V: CdrVersion>(
-        self,
+        &self,
         writer: &mut CdrWriter<W, E, V>,
     ) {
         writer.pad(i32::BITS as usize / 8);
@@ -601,7 +607,7 @@ impl CdrPrimitiveTypeSerialize for i32 {
 }
 impl CdrPrimitiveTypeSerialize for u32 {
     fn serialize<W: Write, E: EndiannessWrite, V: CdrVersion>(
-        self,
+        &self,
         writer: &mut CdrWriter<W, E, V>,
     ) {
         writer.pad(u32::BITS as usize / 8);
@@ -610,7 +616,7 @@ impl CdrPrimitiveTypeSerialize for u32 {
 }
 impl CdrPrimitiveTypeSerialize for i64 {
     fn serialize<W: Write, E: EndiannessWrite, V: CdrVersion>(
-        self,
+        &self,
         writer: &mut CdrWriter<W, E, V>,
     ) {
         writer.pad(i64::BITS as usize / 8);
@@ -619,7 +625,7 @@ impl CdrPrimitiveTypeSerialize for i64 {
 }
 impl CdrPrimitiveTypeSerialize for u64 {
     fn serialize<W: Write, E: EndiannessWrite, V: CdrVersion>(
-        self,
+        &self,
         writer: &mut CdrWriter<W, E, V>,
     ) {
         writer.pad(u64::BITS as usize / 8);
@@ -628,7 +634,7 @@ impl CdrPrimitiveTypeSerialize for u64 {
 }
 impl CdrPrimitiveTypeSerialize for f32 {
     fn serialize<W: Write, E: EndiannessWrite, V: CdrVersion>(
-        self,
+        &self,
         writer: &mut CdrWriter<W, E, V>,
     ) {
         writer.pad(32 / 8);
@@ -637,7 +643,7 @@ impl CdrPrimitiveTypeSerialize for f32 {
 }
 impl CdrPrimitiveTypeSerialize for f64 {
     fn serialize<W: Write, E: EndiannessWrite, V: CdrVersion>(
-        self,
+        &self,
         writer: &mut CdrWriter<W, E, V>,
     ) {
         writer.pad(64 / 8);
@@ -646,7 +652,7 @@ impl CdrPrimitiveTypeSerialize for f64 {
 }
 impl CdrPrimitiveTypeSerialize for char {
     fn serialize<W: Write, E: EndiannessWrite, V: CdrVersion>(
-        self,
+        &self,
         writer: &mut CdrWriter<W, E, V>,
     ) {
         writer.write_slice(self.to_string().as_bytes());
@@ -654,73 +660,73 @@ impl CdrPrimitiveTypeSerialize for char {
 }
 impl CdrPrimitiveTypeSerialize for &[u8] {
     fn serialize<W: Write, E: EndiannessWrite, V: CdrVersion>(
-        self,
+        &self,
         writer: &mut CdrWriter<W, E, V>,
     ) {
         writer.write_slice(self);
     }
 }
 trait EndiannessWrite {
-    fn write_i16<C: Write>(v: i16, writer: &mut C);
-    fn write_u16<C: Write>(v: u16, writer: &mut C);
-    fn write_i32<C: Write>(v: i32, writer: &mut C);
-    fn write_u32<C: Write>(v: u32, writer: &mut C);
-    fn write_i64<C: Write>(v: i64, writer: &mut C);
-    fn write_u64<C: Write>(v: u64, writer: &mut C);
-    fn write_f32<C: Write>(v: f32, writer: &mut C);
-    fn write_f64<C: Write>(v: f64, writer: &mut C);
+    fn write_i16<C: Write>(v: &i16, writer: &mut C);
+    fn write_u16<C: Write>(v: &u16, writer: &mut C);
+    fn write_i32<C: Write>(v: &i32, writer: &mut C);
+    fn write_u32<C: Write>(v: &u32, writer: &mut C);
+    fn write_i64<C: Write>(v: &i64, writer: &mut C);
+    fn write_u64<C: Write>(v: &u64, writer: &mut C);
+    fn write_f32<C: Write>(v: &f32, writer: &mut C);
+    fn write_f64<C: Write>(v: &f64, writer: &mut C);
 }
 
 impl EndiannessWrite for BigEndian {
-    fn write_i16<C: Write>(v: i16, writer: &mut C) {
+    fn write_i16<C: Write>(v: &i16, writer: &mut C) {
         writer.write(&v.to_be_bytes())
     }
-    fn write_u16<C: Write>(v: u16, writer: &mut C) {
+    fn write_u16<C: Write>(v: &u16, writer: &mut C) {
         writer.write(&v.to_be_bytes())
     }
-    fn write_i32<C: Write>(v: i32, writer: &mut C) {
+    fn write_i32<C: Write>(v: &i32, writer: &mut C) {
         writer.write(&v.to_be_bytes())
     }
-    fn write_u32<C: Write>(v: u32, writer: &mut C) {
+    fn write_u32<C: Write>(v: &u32, writer: &mut C) {
         writer.write(&v.to_be_bytes())
     }
-    fn write_i64<C: Write>(v: i64, writer: &mut C) {
+    fn write_i64<C: Write>(v: &i64, writer: &mut C) {
         writer.write(&v.to_be_bytes())
     }
-    fn write_u64<C: Write>(v: u64, writer: &mut C) {
+    fn write_u64<C: Write>(v: &u64, writer: &mut C) {
         writer.write(&v.to_be_bytes())
     }
-    fn write_f32<C: Write>(v: f32, writer: &mut C) {
+    fn write_f32<C: Write>(v: &f32, writer: &mut C) {
         writer.write(&v.to_be_bytes())
     }
-    fn write_f64<C: Write>(v: f64, writer: &mut C) {
+    fn write_f64<C: Write>(v: &f64, writer: &mut C) {
         writer.write(&v.to_be_bytes())
     }
 }
 
 impl EndiannessWrite for LittleEndian {
-    fn write_i16<C: Write>(v: i16, writer: &mut C) {
+    fn write_i16<C: Write>(v: &i16, writer: &mut C) {
         writer.write(&v.to_le_bytes())
     }
-    fn write_u16<C: Write>(v: u16, writer: &mut C) {
+    fn write_u16<C: Write>(v: &u16, writer: &mut C) {
         writer.write(&v.to_le_bytes())
     }
-    fn write_i32<C: Write>(v: i32, writer: &mut C) {
+    fn write_i32<C: Write>(v: &i32, writer: &mut C) {
         writer.write(&v.to_le_bytes())
     }
-    fn write_u32<C: Write>(v: u32, writer: &mut C) {
+    fn write_u32<C: Write>(v: &u32, writer: &mut C) {
         writer.write(&v.to_le_bytes())
     }
-    fn write_i64<C: Write>(v: i64, writer: &mut C) {
+    fn write_i64<C: Write>(v: &i64, writer: &mut C) {
         writer.write(&v.to_le_bytes())
     }
-    fn write_u64<C: Write>(v: u64, writer: &mut C) {
+    fn write_u64<C: Write>(v: &u64, writer: &mut C) {
         writer.write(&v.to_le_bytes())
     }
-    fn write_f32<C: Write>(v: f32, writer: &mut C) {
+    fn write_f32<C: Write>(v: &f32, writer: &mut C) {
         writer.write(&v.to_le_bytes())
     }
-    fn write_f64<C: Write>(v: f64, writer: &mut C) {
+    fn write_f64<C: Write>(v: &f64, writer: &mut C) {
         writer.write(&v.to_le_bytes())
     }
 }

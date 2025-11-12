@@ -244,10 +244,7 @@ pub fn convert_dynamic_data_to_python_instance(
                             name,
                             PyBytes::new(
                                 py,
-                                dynamic_data
-                                    .get_uint8_values(member.get_id())
-                                    .unwrap()
-                                    .as_slice(),
+                                dynamic_data.get_uint8_values(member.get_id()).unwrap(),
                             ),
                         )?;
                     }

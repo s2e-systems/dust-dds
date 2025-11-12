@@ -349,7 +349,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParti
             )
             .expect("Type must match"),
             discovered_participant_list: vec![], // DataStorageMapping::try_from_storage(
-                                                 //     src.get_value(PID_DISCOVERED_PARTICIPANT as u32)
+                                                 //     src.remove_value(PID_DISCOVERED_PARTICIPANT as u32)
                                                  //         .expect("Must exist"),
                                                  // )
                                                  // .expect("Type must match"),
