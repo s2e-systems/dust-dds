@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from dust_dds import DomainParticipantFactory, UserDataQosPolicy, DomainParticipantQos, TypeKind
-import dust_dds
 
 @dataclass
 class MyTopicType:
