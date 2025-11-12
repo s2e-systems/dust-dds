@@ -308,76 +308,78 @@ impl TypeSupport for DiscoveredTopicData {
         builder.build()
     }
 
-    fn create_sample(src: crate::xtypes::dynamic_type::DynamicData) -> Self {
+    fn create_sample(mut src: crate::xtypes::dynamic_type::DynamicData) -> Self {
         Self {
             topic_builtin_topic_data: TopicBuiltinTopicData {
                 key: DataStorageMapping::try_from_storage(
-                    src.get_value(PID_ENDPOINT_GUID as u32).expect("Must exist"),
+                    src.remove_value(PID_ENDPOINT_GUID as u32)
+                        .expect("Must exist"),
                 )
                 .expect("Must match"),
                 type_name: DataStorageMapping::try_from_storage(
-                    src.get_value(PID_TYPE_NAME as u32).expect("Must exist"),
+                    src.remove_value(PID_TYPE_NAME as u32).expect("Must exist"),
                 )
                 .expect("Must match"),
                 name: DataStorageMapping::try_from_storage(
-                    src.get_value(PID_TOPIC_NAME as u32).expect("Must exist"),
+                    src.remove_value(PID_TOPIC_NAME as u32).expect("Must exist"),
                 )
                 .expect("Must match"),
                 durability: DataStorageMapping::try_from_storage(
-                    src.get_value(PID_DURABILITY as u32).expect("Must exist"),
+                    src.remove_value(PID_DURABILITY as u32).expect("Must exist"),
                 )
                 .expect("Must match"),
                 deadline: DataStorageMapping::try_from_storage(
-                    src.get_value(PID_DEADLINE as u32).expect("Must exist"),
+                    src.remove_value(PID_DEADLINE as u32).expect("Must exist"),
                 )
                 .expect("Must match"),
                 latency_budget: DataStorageMapping::try_from_storage(
-                    src.get_value(PID_LATENCY_BUDGET as u32)
+                    src.remove_value(PID_LATENCY_BUDGET as u32)
                         .expect("Must exist"),
                 )
                 .expect("Must match"),
                 liveliness: DataStorageMapping::try_from_storage(
-                    src.get_value(PID_LIVELINESS as u32).expect("Must exist"),
+                    src.remove_value(PID_LIVELINESS as u32).expect("Must exist"),
                 )
                 .expect("Must match"),
                 reliability: DataStorageMapping::try_from_storage(
-                    src.get_value(PID_RELIABILITY as u32).expect("Must exist"),
+                    src.remove_value(PID_RELIABILITY as u32)
+                        .expect("Must exist"),
                 )
                 .expect("Must match"),
                 destination_order: DataStorageMapping::try_from_storage(
-                    src.get_value(PID_DESTINATION_ORDER as u32)
+                    src.remove_value(PID_DESTINATION_ORDER as u32)
                         .expect("Must exist"),
                 )
                 .expect("Must match"),
                 topic_data: DataStorageMapping::try_from_storage(
-                    src.get_value(PID_TOPIC_DATA as u32).expect("Must exist"),
+                    src.remove_value(PID_TOPIC_DATA as u32).expect("Must exist"),
                 )
                 .expect("Must match"),
                 representation: DataStorageMapping::try_from_storage(
-                    src.get_value(PID_DATA_REPRESENTATION as u32)
+                    src.remove_value(PID_DATA_REPRESENTATION as u32)
                         .expect("Must exist"),
                 )
                 .expect("Must match"),
                 transport_priority: DataStorageMapping::try_from_storage(
-                    src.get_value(PID_TRANSPORT_PRIORITY as u32)
+                    src.remove_value(PID_TRANSPORT_PRIORITY as u32)
                         .expect("Must exist"),
                 )
                 .expect("Must match"),
                 lifespan: DataStorageMapping::try_from_storage(
-                    src.get_value(PID_LIFESPAN as u32).expect("Must exist"),
+                    src.remove_value(PID_LIFESPAN as u32).expect("Must exist"),
                 )
                 .expect("Must match"),
                 history: DataStorageMapping::try_from_storage(
-                    src.get_value(PID_HISTORY as u32).expect("Must exist"),
+                    src.remove_value(PID_HISTORY as u32).expect("Must exist"),
                 )
                 .expect("Must match"),
                 resource_limits: DataStorageMapping::try_from_storage(
-                    src.get_value(PID_RESOURCE_LIMITS as u32)
+                    src.remove_value(PID_RESOURCE_LIMITS as u32)
                         .expect("Must exist"),
                 )
                 .expect("Must match"),
                 ownership: DataStorageMapping::try_from_storage(
-                    src.get_value(PID_OWNERSHIP as u32).expect("Must exist"),
+                    src.remove_value(PID_OWNERSHIP as u32).expect("Must exist"),
                 )
                 .expect("Must match"),
             },

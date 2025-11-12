@@ -213,9 +213,10 @@ impl TypeSupport for DiscoveredWriterData {
         builder.builder.build()
     }
 
-    fn create_sample(src: crate::xtypes::dynamic_type::DynamicData) -> Self {
+    fn create_sample(mut src: crate::xtypes::dynamic_type::DynamicData) -> Self {
         let key = BuiltInTopicKey::try_from_storage(
-            src.get_value(PID_ENDPOINT_GUID as u32).expect("Must exist"),
+            src.remove_value(PID_ENDPOINT_GUID as u32)
+                .expect("Must exist"),
         )
         .expect("Must match");
         let remote_writer_guid = Guid::new(
@@ -229,79 +230,81 @@ impl TypeSupport for DiscoveredWriterData {
             dds_publication_data: PublicationBuiltinTopicData {
                 key,
                 participant_key: DataStorageMapping::try_from_storage(
-                    src.get_value(PID_PARTICIPANT_GUID as u32)
+                    src.remove_value(PID_PARTICIPANT_GUID as u32)
                         .expect("Must exist"),
                 )
                 .expect("Must match"),
                 topic_name: DataStorageMapping::try_from_storage(
-                    src.get_value(PID_TOPIC_NAME as u32).expect("Must exist"),
+                    src.remove_value(PID_TOPIC_NAME as u32).expect("Must exist"),
                 )
                 .expect("Must match"),
                 type_name: DataStorageMapping::try_from_storage(
-                    src.get_value(PID_TYPE_NAME as u32).expect("Must exist"),
+                    src.remove_value(PID_TYPE_NAME as u32).expect("Must exist"),
                 )
                 .expect("Must match"),
                 durability: DataStorageMapping::try_from_storage(
-                    src.get_value(PID_DURABILITY as u32).expect("Must exist"),
+                    src.remove_value(PID_DURABILITY as u32).expect("Must exist"),
                 )
                 .expect("Must match"),
                 deadline: DataStorageMapping::try_from_storage(
-                    src.get_value(PID_DEADLINE as u32).expect("Must exist"),
+                    src.remove_value(PID_DEADLINE as u32).expect("Must exist"),
                 )
                 .expect("Must match"),
                 latency_budget: DataStorageMapping::try_from_storage(
-                    src.get_value(PID_LATENCY_BUDGET as u32)
+                    src.remove_value(PID_LATENCY_BUDGET as u32)
                         .expect("Must exist"),
                 )
                 .expect("Must match"),
                 liveliness: DataStorageMapping::try_from_storage(
-                    src.get_value(PID_LIVELINESS as u32).expect("Must exist"),
+                    src.remove_value(PID_LIVELINESS as u32).expect("Must exist"),
                 )
                 .expect("Must match"),
                 reliability: DataStorageMapping::try_from_storage(
-                    src.get_value(PID_RELIABILITY as u32).expect("Must exist"),
+                    src.remove_value(PID_RELIABILITY as u32)
+                        .expect("Must exist"),
                 )
                 .expect("Must match"),
                 lifespan: DataStorageMapping::try_from_storage(
-                    src.get_value(PID_LIFESPAN as u32).expect("Must exist"),
+                    src.remove_value(PID_LIFESPAN as u32).expect("Must exist"),
                 )
                 .expect("Must match"),
                 user_data: DataStorageMapping::try_from_storage(
-                    src.get_value(PID_USER_DATA as u32).expect("Must exist"),
+                    src.remove_value(PID_USER_DATA as u32).expect("Must exist"),
                 )
                 .expect("Must match"),
                 ownership: DataStorageMapping::try_from_storage(
-                    src.get_value(PID_OWNERSHIP as u32).expect("Must exist"),
+                    src.remove_value(PID_OWNERSHIP as u32).expect("Must exist"),
                 )
                 .expect("Must match"),
                 ownership_strength: DataStorageMapping::try_from_storage(
-                    src.get_value(PID_OWNERSHIP_STRENGTH as u32)
+                    src.remove_value(PID_OWNERSHIP_STRENGTH as u32)
                         .expect("Must exist"),
                 )
                 .expect("Must match"),
                 destination_order: DataStorageMapping::try_from_storage(
-                    src.get_value(PID_DESTINATION_ORDER as u32)
+                    src.remove_value(PID_DESTINATION_ORDER as u32)
                         .expect("Must exist"),
                 )
                 .expect("Must match"),
                 presentation: DataStorageMapping::try_from_storage(
-                    src.get_value(PID_PRESENTATION as u32).expect("Must exist"),
+                    src.remove_value(PID_PRESENTATION as u32)
+                        .expect("Must exist"),
                 )
                 .expect("Must match"),
                 partition: DataStorageMapping::try_from_storage(
-                    src.get_value(PID_PARTITION as u32).expect("Must exist"),
+                    src.remove_value(PID_PARTITION as u32).expect("Must exist"),
                 )
                 .expect("Must match"),
                 topic_data: DataStorageMapping::try_from_storage(
-                    src.get_value(PID_TOPIC_DATA as u32).expect("Must exist"),
+                    src.remove_value(PID_TOPIC_DATA as u32).expect("Must exist"),
                 )
                 .expect("Must match"),
                 group_data: DataStorageMapping::try_from_storage(
-                    src.get_value(PID_GROUP_DATA as u32).expect("Must exist"),
+                    src.remove_value(PID_GROUP_DATA as u32).expect("Must exist"),
                 )
                 .expect("Must match"),
                 representation: DataStorageMapping::try_from_storage(
-                    src.get_value(PID_DATA_REPRESENTATION as u32)
+                    src.remove_value(PID_DATA_REPRESENTATION as u32)
                         .expect("Must exist"),
                 )
                 .expect("Must match"),
@@ -309,17 +312,17 @@ impl TypeSupport for DiscoveredWriterData {
             writer_proxy: WriterProxy {
                 remote_writer_guid,
                 remote_group_entity_id: DataStorageMapping::try_from_storage(
-                    src.get_value(PID_GROUP_ENTITYID as u32)
+                    src.remove_value(PID_GROUP_ENTITYID as u32)
                         .expect("Must exist"),
                 )
                 .expect("Must match"),
                 unicast_locator_list: DataStorageMapping::try_from_storage(
-                    src.get_value(PID_UNICAST_LOCATOR as u32)
+                    src.remove_value(PID_UNICAST_LOCATOR as u32)
                         .expect("Must exist"),
                 )
                 .expect("Must match"),
                 multicast_locator_list: DataStorageMapping::try_from_storage(
-                    src.get_value(PID_MULTICAST_LOCATOR as u32)
+                    src.remove_value(PID_MULTICAST_LOCATOR as u32)
                         .expect("Must exist"),
                 )
                 .expect("Must match"),

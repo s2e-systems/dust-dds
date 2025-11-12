@@ -101,14 +101,14 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     match &field.ident {
                         Some(field_ident) => {
                             member_sample_seq.push(quote! {
-                                #field_ident: dust_dds::xtypes::data_storage::DataStorageMapping::try_from_storage(src.get_value(#member_id).expect("Must exist")).expect("Must match"),
+                                #field_ident: dust_dds::xtypes::data_storage::DataStorageMapping::try_from_storage(src.remove_value(#member_id).expect("Must exist")).expect("Must match"),
                             });
                             member_dynamic_sample_seq
                                 .push(quote! {data.set_value(#member_id, dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(self.#field_ident));});
                         }
                         None => {
                             let index = Index::from(field_index);
-                            member_sample_seq.push(quote! { dust_dds::xtypes::data_storage::DataStorageMapping::try_from_storage(src.get_value(#member_id).expect("Must exist")).expect("Must match"),});
+                            member_sample_seq.push(quote! { dust_dds::xtypes::data_storage::DataStorageMapping::try_from_storage(src.remove_value(#member_id).expect("Must exist")).expect("Must match"),});
                             member_dynamic_sample_seq.push(quote! {
                                 data.set_value(#member_id, dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(self.#index));
                             })
@@ -247,7 +247,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 #get_type_quote
             }
 
-            fn create_sample(src: dust_dds::xtypes::dynamic_type::DynamicData) -> Self {
+            fn create_sample(mut src: dust_dds::xtypes::dynamic_type::DynamicData) -> Self {
                 #create_sample_quote
             }
 
