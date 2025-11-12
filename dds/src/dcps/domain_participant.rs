@@ -7480,18 +7480,18 @@ fn serialize(
     Ok(
         if representation.value.is_empty() || representation.value[0] == XCDR_DATA_REPRESENTATION {
             if cfg!(target_endian = "big") {
-                Cdr1BeSerializer::serialize(&dynamic_data)?
+                Cdr1BeSerializer::serialize(dynamic_data)?
             } else {
-                Cdr1LeSerializer::serialize(&dynamic_data)?
+                Cdr1LeSerializer::serialize(dynamic_data)?
             }
         } else if representation.value[0] == XCDR2_DATA_REPRESENTATION {
             if cfg!(target_endian = "big") {
-                Cdr2BeSerializer::serialize(&dynamic_data)?
+                Cdr2BeSerializer::serialize(dynamic_data)?
             } else {
-                Cdr2LeSerializer::serialize(&dynamic_data)?
+                Cdr2LeSerializer::serialize(dynamic_data)?
             }
         } else if representation.value[0] == BUILT_IN_DATA_REPRESENTATION {
-            RtpsPlCdrSerializer::serialize(&dynamic_data)?
+            RtpsPlCdrSerializer::serialize(dynamic_data)?
         } else {
             panic!("Invalid data representation")
         },
