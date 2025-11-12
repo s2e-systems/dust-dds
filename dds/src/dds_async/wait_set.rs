@@ -1,12 +1,14 @@
+use core::task::Poll;
+
 use super::condition::StatusConditionAsync;
 use crate::{
     infrastructure::{
         error::{DdsError, DdsResult},
         time::Duration,
     },
-    runtime::{Clock, DdsRuntime},
+    runtime::{ChannelReceive, DdsRuntime, Timer},
 };
-use alloc::{string::String, vec::Vec};
+use alloc::{boxed::Box, string::String, vec, vec::Vec};
 
 /// Async version of [`Condition`](crate::infrastructure::wait_set::Condition).
 pub enum ConditionAsync<R: DdsRuntime> {
@@ -61,29 +63,52 @@ impl<R: DdsRuntime> WaitSetAsync<R> {
             )));
         };
 
-        let clock_handle = match &self.conditions[0] {
-            ConditionAsync::StatusCondition(c) => c.clock_handle().clone(),
+        let mut timer_handle = match &self.conditions[0] {
+            ConditionAsync::StatusCondition(status_condition_async) => {
+                status_condition_async.timer_handle().clone()
+            }
         };
-        let start = clock_handle.now();
-        while clock_handle.now() - start < timeout {
-            let mut finished = false;
-            let mut trigger_conditions = Vec::new();
-            for condition in &self.conditions {
-                if condition.get_trigger_value().await? {
-                    trigger_conditions.push(condition.clone());
-                    finished = true;
-                }
-            }
+        let mut timer = Box::pin(timer_handle.delay(timeout.into()));
 
-            if finished {
-                return Ok(trigger_conditions);
+        let mut trigger_conditions = Vec::new();
+        // Check if conditions are already triggered
+        for condition in &self.conditions {
+            if condition.get_trigger_value().await? {
+                trigger_conditions.push(condition.clone());
             }
-            // timer_handle
-            //     .sleep(std::time::Duration::from_millis(20))
-            //     .await;
         }
 
-        Err(DdsError::Timeout)
+        if !trigger_conditions.is_empty() {
+            return Ok(trigger_conditions);
+        }
+
+        // No status condition is yet triggered so now we have to wait for at least one status condition to trigger
+        let mut notification_channels = Vec::new();
+        for condition in &self.conditions {
+            match condition {
+                ConditionAsync::StatusCondition(status_condition_async) => notification_channels
+                    .push(status_condition_async.register_notification().await?),
+            }
+        }
+        let mut notification_futures: Vec<_> = notification_channels
+            .iter_mut()
+            .map(|x| Box::pin(x.receive()))
+            .collect();
+
+        let condition_index = core::future::poll_fn(move |cx| {
+            for (condition_index, notification) in notification_futures.iter_mut().enumerate() {
+                if notification.as_mut().poll(cx).is_ready() {
+                    return Poll::Ready(Ok(condition_index));
+                }
+            }
+            if timer.as_mut().poll(cx).is_ready() {
+                return Poll::Ready(Err(DdsError::Timeout));
+            }
+            Poll::Pending
+        })
+        .await?;
+
+        Ok(vec![self.conditions[condition_index].clone()])
     }
 
     /// Async version of [`attach_condition`](crate::infrastructure::wait_set::WaitSet::attach_condition).
