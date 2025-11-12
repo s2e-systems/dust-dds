@@ -45,6 +45,7 @@ fn dust_dds(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<infrastructure::time::Time>()?;
     m.add_class::<infrastructure::wait_set::Condition>()?;
     m.add_class::<infrastructure::wait_set::WaitSet>()?;
+    m.add_class::<infrastructure::condition::StatusCondition>()?;
 
     // Add Builtin Topics
     m.add_class::<builtin_topics::BuiltInTopicKey>()?;
