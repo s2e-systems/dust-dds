@@ -8,7 +8,7 @@ use crate::{
     },
     runtime::{ChannelReceive, DdsRuntime, Timer},
 };
-use alloc::{string::String, vec::Vec};
+use alloc::{boxed::Box, string::String, vec, vec::Vec};
 
 /// Async version of [`Condition`](crate::infrastructure::wait_set::Condition).
 pub enum ConditionAsync<R: DdsRuntime> {
