@@ -25,6 +25,10 @@ jobs:
           working-directory: bindings/python
       - run: pip install bindings/python/dist/dust_dds*.whl
 
+      - name: Debug dust_dds import
+        run: |
+          python -c "import dust_dds; print('EXPORTS:', [s for s in dir(dust_dds) if not s.startswith('_')])"
+
       - run: pip install pytest
       - run: pytest
         working-directory: bindings/python
