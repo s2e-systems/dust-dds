@@ -23,7 +23,12 @@ jobs:
         with:
           args: --out dist
           working-directory: bindings/python
-      - run: pip install pdoc bindings/python/dist/dust_dds*.whl
+      - run: pip install bindings/python/dist/dust_dds*.whl
+
+      - run: pytest
+        working-directory: bindings/python
+
+      - run: pip install pdoc
       - run: pdoc -o docs/ dust_dds
 
       - uses: actions/upload-pages-artifact@v3
@@ -36,10 +41,6 @@ jobs:
           name: "whl"
           path: bindings/python/dist/
 
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          name: "pyi"
-          path: bindings/python/dust_dds.pyi
 
   # Deploy the artifact to GitHub pages.
   # This is a separate job so that only actions/deploy-pages has the necessary permissions.
