@@ -485,7 +485,7 @@ impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
     pub fn get_statuscondition(&self) -> StatusConditionAsync<R> {
         StatusConditionAsync::new(
             self.status_condition_address.clone(),
-            self.subscriber.get_participant().clock_handle().clone(),
+            self.subscriber.get_participant().timer_handle().clone(),
         )
     }
 

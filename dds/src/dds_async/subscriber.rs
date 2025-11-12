@@ -280,7 +280,7 @@ impl<R: DdsRuntime> SubscriberAsync<R> {
     pub fn get_statuscondition(&self) -> StatusConditionAsync<R> {
         StatusConditionAsync::new(
             self.status_condition_address.clone(),
-            self.participant.clock_handle().clone(),
+            self.participant.timer_handle().clone(),
         )
     }
 

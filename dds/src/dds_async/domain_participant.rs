@@ -94,10 +94,6 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         &self.spawner_handle
     }
 
-    pub(crate) fn clock_handle(&self) -> &R::ClockHandle {
-        &self.clock_handle
-    }
-
     pub(crate) fn timer_handle(&self) -> &R::TimerHandle {
         &self.timer_handle
     }
