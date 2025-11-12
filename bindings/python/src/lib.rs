@@ -27,13 +27,24 @@ fn dust_dds(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<topic_definition::type_support::TypeKind>()?;
     m.add_class::<topic_definition::topic_description::TopicDescription>()?;
 
-    m.add_class::<infrastructure::time::Time>()?;
+    m.add_class::<infrastructure::instance::InstanceHandle>()?;
+    m.add_class::<infrastructure::status::InconsistentTopicStatus>()?;
+    m.add_class::<infrastructure::status::LivelinessChangedStatus>()?;
+    m.add_class::<infrastructure::status::LivelinessLostStatus>()?;
+    m.add_class::<infrastructure::status::OfferedDeadlineMissedStatus>()?;
+    m.add_class::<infrastructure::status::OfferedIncompatibleQosStatus>()?;
+    m.add_class::<infrastructure::status::PublicationMatchedStatus>()?;
+    m.add_class::<infrastructure::status::QosPolicyCount>()?;
+    m.add_class::<infrastructure::status::RequestedDeadlineMissedStatus>()?;
+    m.add_class::<infrastructure::status::RequestedIncompatibleQosStatus>()?;
+    m.add_class::<infrastructure::status::SampleLostStatus>()?;
+    m.add_class::<infrastructure::status::SampleRejectedStatus>()?;
+    m.add_class::<infrastructure::status::StatusKind>()?;
     m.add_class::<infrastructure::time::Duration>()?;
     m.add_class::<infrastructure::time::DurationKind>()?;
-    m.add_class::<infrastructure::status::StatusKind>()?;
+    m.add_class::<infrastructure::time::Time>()?;
     m.add_class::<infrastructure::wait_set::Condition>()?;
     m.add_class::<infrastructure::wait_set::WaitSet>()?;
-    m.add_class::<infrastructure::instance::InstanceHandle>()?;
 
     // Add QosPolicy classes
     m.add_class::<infrastructure::qos_policy::DeadlineQosPolicy>()?;
