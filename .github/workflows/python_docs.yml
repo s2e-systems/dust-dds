@@ -5,7 +5,6 @@ on:
   release:
     types: published
 
-
 permissions:
   contents: read
 
@@ -17,7 +16,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
@@ -38,14 +37,7 @@ jobs:
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          name: "docs"
           path: docs/
-
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          name: "whl"
-          path: bindings/python/dist/
-
 
   # Deploy the artifact to GitHub pages.
   # This is a separate job so that only actions/deploy-pages has the necessary permissions.
