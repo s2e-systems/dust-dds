@@ -25,9 +25,7 @@ jobs:
       - run: pip install bindings/python/dist/dust_dds*.whl
 
       - run: pip install pdoc==16.0.0
-      - run: |
-          set -e
-          pdoc -o docs/ dust_dds
+      - run: pdoc -o docs/ dust_dds
 
       - uses: actions/upload-pages-artifact@v3
         with:
