@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 import dust_dds
 import threading
-import time
 
 @dataclass
 class MyDataType:
@@ -35,10 +34,10 @@ def test_write_read():
     cond = data_writer.get_statuscondition()
     cond.set_enabled_statuses([dust_dds.StatusKind.PublicationMatched])
     ws.attach_condition(dust_dds.Condition.StatusCondition(cond))
-    
+
     data = MyDataType(bytes([0,1,2,3,4]))
     data_writer.write(data)
-    
+
     # Wait for data to be received on the listener using semaphore
     listener_semaphore.acquire(timeout=10)
 

@@ -5,7 +5,6 @@ on:
   release:
     types: published
 
-
 permissions:
   contents: read
 
@@ -17,13 +16,15 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
           args: --out dist
           working-directory: bindings/python
-      - run: pip install pdoc bindings/python/dist/dust_dds*.whl
+      - run: pip install bindings/python/dist/dust_dds*.whl
+
+      - run: pip install pdoc==16.0.0
       - run: pdoc -o docs/ dust_dds
 
       - uses: actions/upload-pages-artifact@v3
