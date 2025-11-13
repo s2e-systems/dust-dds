@@ -21,7 +21,7 @@ use crate::{
     },
     runtime::{ChannelSend, DdsRuntime, OneshotReceive},
 };
-use alloc::vec::Vec;
+use alloc::{string::ToString, vec::Vec};
 
 /// Async version of [`Publisher`](crate::publication::publisher::Publisher).
 pub struct PublisherAsync<R: DdsRuntime> {

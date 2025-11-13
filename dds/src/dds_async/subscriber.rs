@@ -24,7 +24,10 @@ use crate::{
         data_reader_listener::DataReaderListener, subscriber_listener::SubscriberListener,
     },
 };
-use alloc::{string::String, vec::Vec};
+use alloc::{
+    string::{String, ToString},
+    vec::Vec,
+};
 
 /// Async version of [`Subscriber`](crate::subscription::subscriber::Subscriber).
 pub struct SubscriberAsync<R: DdsRuntime> {
