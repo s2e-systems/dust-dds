@@ -70,7 +70,6 @@ fn reader_subscription_matched_listener_and_wait_set_should_both_trigger() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            ..Default::default()
         },
         ..Default::default()
     };
@@ -93,7 +92,6 @@ fn reader_subscription_matched_listener_and_wait_set_should_both_trigger() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            ..Default::default()
         },
 
         ..Default::default()
@@ -170,7 +168,6 @@ fn reader_on_data_available_matched_listener_and_wait_set_should_both_trigger() 
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            ..Default::default()
         },
         ..Default::default()
     };
@@ -193,7 +190,6 @@ fn reader_on_data_available_matched_listener_and_wait_set_should_both_trigger() 
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            ..Default::default()
         },
 
         ..Default::default()

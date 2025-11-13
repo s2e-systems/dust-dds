@@ -1,5 +1,4 @@
 use clap::{Parser, ValueEnum};
-use ctrlc;
 use dust_dds::{
     dds_async::topic::TopicAsync,
     domain::{
@@ -474,8 +473,8 @@ fn move_shape(
     da_width: i32,
     da_height: i32,
 ) {
-    shape.x = shape.x + *x_vel;
-    shape.y = shape.y + *y_vel;
+    shape.x += *x_vel;
+    shape.y += *y_vel;
     if shape.x < 0 {
         shape.x = 0;
         *x_vel = -*x_vel;

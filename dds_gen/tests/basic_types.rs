@@ -31,7 +31,7 @@ fn basic_types() {
     .unwrap();
 
     let result = syn::parse2::<File>(
-        dust_dds_gen::compile_idl(&idl_file)
+        dust_dds_gen::compile_idl(idl_file)
             .unwrap()
             .parse()
             .unwrap(),

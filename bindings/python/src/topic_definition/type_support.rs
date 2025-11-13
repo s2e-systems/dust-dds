@@ -493,7 +493,7 @@ assert created_data.name=='Myname'
                     py.get_type::<TypeKind>().into_pyobject(py).unwrap(),
                 )
                 .unwrap();
-            py.run(&code, Some(&globals), Some(&locals)).unwrap();
+            py.run(code, Some(&globals), Some(&locals)).unwrap();
         });
     }
 }

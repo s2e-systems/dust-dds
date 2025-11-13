@@ -9,7 +9,7 @@ fuzz_target!(|data: &[u8]| -> Corpus {
     if data.len() > 4 {
         let mut data = data;
         let header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
-        DataSubmessage::try_from_bytes(&header, data.into()).ok();
+        DataSubmessage::try_from_bytes(&header, data).ok();
         Corpus::Keep
     } else {
         Corpus::Reject
