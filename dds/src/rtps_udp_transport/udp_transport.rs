@@ -3,11 +3,7 @@ use crate::{
     rtps_messages::overall_structure::RtpsMessageRead,
     std_runtime::executor::block_on,
     transport::{
-        interface::{
-            HistoryCache, TransportParticipant, TransportParticipantFactory,
-            TransportStatefulReader, TransportStatefulWriter, TransportStatelessReader,
-            TransportStatelessWriter,
-        },
+        interface::{HistoryCache, TransportParticipant, TransportParticipantFactory},
         types::{CacheChange, LOCATOR_KIND_UDP_V6, ReaderProxy, WriterProxy},
     },
 };
@@ -183,7 +179,7 @@ enum ChannelMessageKind {
 }
 
 impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
-    type TransportParticipant = RtpsUdpTransportParticipant;
+    type TransportParticipant = RtpsTransportParticipant;
 
     async fn create_participant(
         &self,
@@ -267,7 +263,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
 
         let (chanel_message_sender, chanel_message_receiver) = channel();
 
-        let global_participant = RtpsUdpTransportParticipant {
+        let global_participant = RtpsTransportParticipant {
             guid,
             message_writer: message_writer.clone(),
             default_unicast_locator_list,
@@ -594,7 +590,7 @@ impl Clock for RtpsUdpTransportClock {
     }
 }
 
-pub struct RtpsUdpTransportParticipant {
+pub struct RtpsTransportParticipant {
     guid: Guid,
     message_writer: MessageWriter,
     default_unicast_locator_list: Vec<Locator>,
@@ -604,36 +600,37 @@ pub struct RtpsUdpTransportParticipant {
     chanel_message_sender: Sender<ChannelMessageKind>,
 }
 
-pub struct StatelessReader {
+pub struct RtpsTransportStatelessReader {
     guid: Guid,
 }
-impl TransportStatelessReader for StatelessReader {
-    fn guid(&self) -> Guid {
+impl RtpsTransportStatelessReader {
+    pub fn guid(&self) -> Guid {
         self.guid
     }
 }
 
-pub struct StatelessWriter {
+pub struct RtpsTransportStatelessWriter {
     rtps_writer: RtpsStatelessWriter,
     message_writer: MessageWriter,
 }
-impl TransportStatelessWriter for StatelessWriter {
-    fn guid(&self) -> Guid {
+impl RtpsTransportStatelessWriter {
+    pub fn guid(&self) -> Guid {
         self.rtps_writer.guid()
     }
-    fn history_cache(&mut self) -> &mut dyn HistoryCache {
+    pub fn history_cache(&mut self) -> &mut dyn HistoryCache {
         self
     }
 
-    fn add_reader_locator(&mut self, locator: Locator) {
+    pub fn add_reader_locator(&mut self, locator: Locator) {
         self.rtps_writer.reader_locator_add(locator);
     }
 
-    fn remove_reader_locator(&mut self, locator: &Locator) {
+    pub fn remove_reader_locator(&mut self, locator: &Locator) {
         self.rtps_writer.reader_locator_remove(*locator);
     }
 }
-impl HistoryCache for StatelessWriter {
+
+impl HistoryCache for RtpsTransportStatelessWriter {
     fn add_change(
         &mut self,
         cache_change: CacheChange,
@@ -650,26 +647,26 @@ impl HistoryCache for StatelessWriter {
     }
 }
 
-pub struct StatefulWriter {
+pub struct RtpsTransportStatefulWriter {
     guid: Guid,
     rtps_stateful_writer: Arc<Mutex<RtpsStatefulWriter>>,
     message_writer: MessageWriter,
     default_unicast_locator_list: Vec<Locator>,
 }
-impl TransportStatefulWriter for StatefulWriter {
-    fn guid(&self) -> Guid {
+impl RtpsTransportStatefulWriter {
+    pub fn guid(&self) -> Guid {
         self.guid
     }
-    fn history_cache(&mut self) -> &mut dyn HistoryCache {
+    pub fn history_cache(&mut self) -> &mut dyn HistoryCache {
         self
     }
-    async fn is_change_acknowledged(&self, sequence_number: i64) -> bool {
+    pub async fn is_change_acknowledged(&self, sequence_number: i64) -> bool {
         self.rtps_stateful_writer
             .lock()
             .await
             .is_change_acknowledged(sequence_number)
     }
-    async fn add_matched_reader(&mut self, mut reader_proxy: ReaderProxy) {
+    pub async fn add_matched_reader(&mut self, mut reader_proxy: ReaderProxy) {
         if reader_proxy.unicast_locator_list.is_empty() {
             reader_proxy
                 .unicast_locator_list
@@ -681,14 +678,14 @@ impl TransportStatefulWriter for StatefulWriter {
             .await
             .add_matched_reader(&reader_proxy);
     }
-    async fn remove_matched_reader(&mut self, remote_reader_guid: Guid) {
+    pub async fn remove_matched_reader(&mut self, remote_reader_guid: Guid) {
         self.rtps_stateful_writer
             .lock()
             .await
             .delete_matched_reader(remote_reader_guid);
     }
 }
-impl HistoryCache for StatefulWriter {
+impl HistoryCache for RtpsTransportStatefulWriter {
     fn add_change(
         &mut self,
         cache_change: CacheChange,
@@ -717,27 +714,27 @@ impl HistoryCache for StatefulWriter {
     }
 }
 
-pub struct StatefulReader {
+pub struct RtpsTransportStatefulReader {
     guid: Guid,
     rtps_stateful_reader: Arc<Mutex<RtpsStatefulReader>>,
 }
-impl TransportStatefulReader for StatefulReader {
-    fn guid(&self) -> Guid {
+impl RtpsTransportStatefulReader {
+    pub fn guid(&self) -> Guid {
         self.guid
     }
-    async fn is_historical_data_received(&self) -> bool {
+    pub async fn is_historical_data_received(&self) -> bool {
         self.rtps_stateful_reader
             .lock()
             .await
             .is_historical_data_received()
     }
-    async fn add_matched_writer(&mut self, writer_proxy: WriterProxy) {
+    pub async fn add_matched_writer(&mut self, writer_proxy: WriterProxy) {
         self.rtps_stateful_reader
             .lock()
             .await
             .add_matched_writer(&writer_proxy)
     }
-    async fn remove_matched_writer(&mut self, remote_writer_guid: Guid) {
+    pub async fn remove_matched_writer(&mut self, remote_writer_guid: Guid) {
         self.rtps_stateful_reader
             .lock()
             .await
@@ -745,12 +742,7 @@ impl TransportStatefulReader for StatefulReader {
     }
 }
 
-impl TransportParticipant for RtpsUdpTransportParticipant {
-    type StatelessReader = StatelessReader;
-    type StatelessWriter = StatelessWriter;
-    type StatefulReader = StatefulReader;
-    type StatefulWriter = StatefulWriter;
-
+impl TransportParticipant for RtpsTransportParticipant {
     fn guid(&self) -> Guid {
         self.guid
     }
@@ -776,20 +768,23 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
         &mut self,
         entity_id: EntityId,
         reader_history_cache: Box<dyn HistoryCache>,
-    ) -> Self::StatelessReader {
+    ) -> RtpsTransportStatelessReader {
         let guid = Guid::new(self.guid.prefix(), entity_id);
         self.chanel_message_sender
             .send(ChannelMessageKind::AddStatelessReader(
                 RtpsStatelessReader::new(guid, reader_history_cache),
             ))
             .expect("chanel_message receiver alive");
-        StatelessReader {
+        RtpsTransportStatelessReader {
             guid: Guid::new(self.guid.prefix(), entity_id),
         }
     }
-    async fn create_stateless_writer(&mut self, entity_id: EntityId) -> Self::StatelessWriter {
+    async fn create_stateless_writer(
+        &mut self,
+        entity_id: EntityId,
+    ) -> RtpsTransportStatelessWriter {
         let guid = Guid::new(self.guid.prefix(), entity_id);
-        StatelessWriter {
+        RtpsTransportStatelessWriter {
             rtps_writer: RtpsStatelessWriter::new(guid),
             message_writer: self.message_writer.clone(),
         }
@@ -800,7 +795,7 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
         entity_id: EntityId,
         reliability_kind: ReliabilityKind,
         reader_history_cache: Box<dyn HistoryCache>,
-    ) -> Self::StatefulReader {
+    ) -> RtpsTransportStatefulReader {
         let guid = Guid::new(self.guid.prefix(), entity_id);
         let rtps_stateful_reader = Arc::new(Mutex::new(RtpsStatefulReader::new(
             guid,
@@ -812,7 +807,7 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
                 rtps_stateful_reader.clone(),
             ))
             .expect("chanel_message receiver alive");
-        StatefulReader {
+        RtpsTransportStatefulReader {
             guid,
             rtps_stateful_reader,
         }
@@ -822,7 +817,7 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
         &mut self,
         entity_id: EntityId,
         _reliability_kind: ReliabilityKind,
-    ) -> Self::StatefulWriter {
+    ) -> RtpsTransportStatefulWriter {
         let guid = Guid::new(self.guid.prefix(), entity_id);
         let rtps_stateful_writer = Arc::new(Mutex::new(RtpsStatefulWriter::new(
             guid,
@@ -833,7 +828,7 @@ impl TransportParticipant for RtpsUdpTransportParticipant {
                 rtps_stateful_writer.clone(),
             ))
             .expect("chanel_message receiver alive");
-        StatefulWriter {
+        RtpsTransportStatefulWriter {
             guid,
             rtps_stateful_writer,
             message_writer: self.message_writer.clone(),

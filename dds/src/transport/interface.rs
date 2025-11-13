@@ -1,6 +1,9 @@
 use super::types::{
-    CacheChange, EntityId, Guid, GuidPrefix, Locator, ProtocolVersion, ReaderProxy,
-    ReliabilityKind, VendorId, WriterProxy,
+    CacheChange, EntityId, Guid, GuidPrefix, Locator, ProtocolVersion, ReliabilityKind, VendorId,
+};
+use crate::rtps_udp_transport::udp_transport::{
+    RtpsTransportStatefulReader, RtpsTransportStatefulWriter, RtpsTransportStatelessReader,
+    RtpsTransportStatelessWriter,
 };
 use alloc::boxed::Box;
 use core::{future::Future, pin::Pin};
@@ -14,37 +17,6 @@ pub trait TransportParticipantFactory: Send + 'static {
         domain_id: i32,
     ) -> impl Future<Output = Self::TransportParticipant> + Send;
 }
-pub trait TransportStatelessWriter: Send + Sync {
-    fn guid(&self) -> Guid;
-    fn history_cache(&mut self) -> &mut dyn HistoryCache;
-    fn add_reader_locator(&mut self, locator: Locator);
-    fn remove_reader_locator(&mut self, locator: &Locator);
-}
-
-pub trait TransportStatefulWriter: Send + Sync {
-    fn guid(&self) -> Guid;
-    fn history_cache(&mut self) -> &mut dyn HistoryCache;
-    fn is_change_acknowledged(&self, sequence_number: i64) -> impl Future<Output = bool> + Send;
-    fn add_matched_reader(&mut self, reader_proxy: ReaderProxy) -> impl Future<Output = ()> + Send;
-    fn remove_matched_reader(
-        &mut self,
-        remote_reader_guid: Guid,
-    ) -> impl Future<Output = ()> + Send;
-}
-
-pub trait TransportStatelessReader: Send + Sync {
-    fn guid(&self) -> Guid;
-}
-
-pub trait TransportStatefulReader: Send + Sync {
-    fn guid(&self) -> Guid;
-    fn is_historical_data_received(&self) -> impl Future<Output = bool> + Send;
-    fn add_matched_writer(&mut self, writer_proxy: WriterProxy) -> impl Future<Output = ()> + Send;
-    fn remove_matched_writer(
-        &mut self,
-        remote_writer_guid: Guid,
-    ) -> impl Future<Output = ()> + Send;
-}
 
 pub trait HistoryCache: Send {
     fn add_change(
@@ -56,11 +28,6 @@ pub trait HistoryCache: Send {
 }
 
 pub trait TransportParticipant: Send {
-    type StatelessReader: TransportStatelessReader;
-    type StatefulReader: TransportStatefulReader;
-    type StatelessWriter: TransportStatelessWriter;
-    type StatefulWriter: TransportStatefulWriter;
-
     fn guid(&self) -> Guid;
     fn protocol_version(&self) -> ProtocolVersion;
     fn vendor_id(&self) -> VendorId;
@@ -73,23 +40,23 @@ pub trait TransportParticipant: Send {
         &mut self,
         entity_id: EntityId,
         reader_history_cache: Box<dyn HistoryCache>,
-    ) -> impl Future<Output = Self::StatelessReader> + Send;
+    ) -> impl Future<Output = RtpsTransportStatelessReader> + Send;
 
     fn create_stateless_writer(
         &mut self,
         entity_id: EntityId,
-    ) -> impl Future<Output = Self::StatelessWriter> + Send;
+    ) -> impl Future<Output = RtpsTransportStatelessWriter> + Send;
 
     fn create_stateful_reader(
         &mut self,
         entity_id: EntityId,
         reliability_kind: ReliabilityKind,
         reader_history_cache: Box<dyn HistoryCache>,
-    ) -> impl Future<Output = Self::StatefulReader> + Send;
+    ) -> impl Future<Output = RtpsTransportStatefulReader> + Send;
 
     fn create_stateful_writer(
         &mut self,
         entity_id: EntityId,
         reliability_kind: ReliabilityKind,
-    ) -> impl Future<Output = Self::StatefulWriter> + Send;
+    ) -> impl Future<Output = RtpsTransportStatefulWriter> + Send;
 }

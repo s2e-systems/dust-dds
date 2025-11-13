@@ -65,14 +65,14 @@ use crate::{
         time::{Duration, DurationKind, Time},
         type_support::TypeSupport,
     },
+    rtps_udp_transport::udp_transport::{
+        RtpsTransportStatefulReader, RtpsTransportStatefulWriter, RtpsTransportStatelessReader,
+        RtpsTransportStatelessWriter,
+    },
     runtime::{ChannelSend, Clock, DdsRuntime, OneshotReceive, Spawner, Timer},
     transport::{
         self,
-        interface::{
-            HistoryCache, TransportParticipant, TransportParticipantFactory,
-            TransportStatefulReader, TransportStatefulWriter, TransportStatelessReader,
-            TransportStatelessWriter,
-        },
+        interface::{HistoryCache, TransportParticipant, TransportParticipantFactory},
         types::{
             CacheChange, ChangeKind, DurabilityKind, ENTITYID_UNKNOWN, EntityId, Guid,
             ReliabilityKind, TopicKind, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY,
@@ -132,7 +132,7 @@ pub struct DcpsDomainParticipant<R: DdsRuntime, T: TransportParticipantFactory> 
     writer_counter: u16,
     publisher_counter: u8,
     subscriber_counter: u8,
-    domain_participant: DomainParticipantEntity<R, T>,
+    domain_participant: DomainParticipantEntity<R>,
     clock_handle: R::ClockHandle,
     timer_handle: R::TimerHandle,
     spawner_handle: R::SpawnerHandle,
@@ -144,7 +144,7 @@ where
     T: TransportParticipantFactory,
 {
     pub fn new(
-        domain_participant: DomainParticipantEntity<R, T>,
+        domain_participant: DomainParticipantEntity<R>,
         transport: T::TransportParticipant,
         clock_handle: R::ClockHandle,
         timer_handle: R::TimerHandle,
@@ -307,7 +307,7 @@ where
         }
     }
 
-    pub fn get_builtin_subscriber(&self) -> &SubscriberEntity<R, T> {
+    pub fn get_builtin_subscriber(&self) -> &SubscriberEntity<R> {
         &self.domain_participant.builtin_subscriber
     }
 
@@ -961,7 +961,7 @@ where
 
     #[tracing::instrument(skip(self))]
     pub async fn delete_participant_contained_entities(&mut self) -> DdsResult<()> {
-        let deleted_publisher_list: Vec<PublisherEntity<R, T>> = self
+        let deleted_publisher_list: Vec<PublisherEntity<R>> = self
             .domain_participant
             .user_defined_publisher_list
             .drain(..)
@@ -972,7 +972,7 @@ where
             }
         }
 
-        let deleted_subscriber_list: Vec<SubscriberEntity<R, T>> = self
+        let deleted_subscriber_list: Vec<SubscriberEntity<R>> = self
             .domain_participant
             .user_defined_subscriber_list
             .drain(..)
@@ -1359,7 +1359,7 @@ where
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x: &&mut SubscriberEntity<R, T>| x.instance_handle == subscriber_handle)
+            .find(|x: &&mut SubscriberEntity<R>| x.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -2929,7 +2929,7 @@ where
     }
 
     #[tracing::instrument(skip(self, data_writer))]
-    async fn announce_deleted_data_writer(&mut self, data_writer: DataWriterEntity<R, T>) {
+    async fn announce_deleted_data_writer(&mut self, data_writer: DataWriterEntity<R>) {
         let timestamp = self.get_current_time();
         if let Some(dw) = self
             .domain_participant
@@ -3052,7 +3052,7 @@ where
     }
 
     #[tracing::instrument(skip(self, data_reader))]
-    async fn announce_deleted_data_reader(&mut self, data_reader: DataReaderEntity<R, T>) {
+    async fn announce_deleted_data_reader(&mut self, data_reader: DataReaderEntity<R>) {
         let timestamp = self.get_current_time();
         if let Some(dw) = self
             .domain_participant
@@ -3715,7 +3715,7 @@ where
 
             if is_matched_topic_name && is_matched_type_name {
                 let incompatible_qos_policy_list =
-                    get_discovered_writer_incompatible_qos_policy_list::<R, T>(
+                    get_discovered_writer_incompatible_qos_policy_list::<R>(
                         data_reader,
                         &discovered_writer_data.dds_publication_data,
                         &subscriber_qos,
@@ -5552,11 +5552,8 @@ fn get_discovered_reader_incompatible_qos_policy_list(
 }
 
 #[tracing::instrument(skip(data_reader))]
-fn get_discovered_writer_incompatible_qos_policy_list<
-    R: DdsRuntime,
-    T: TransportParticipantFactory,
->(
-    data_reader: &DataReaderEntity<R, T>,
+fn get_discovered_writer_incompatible_qos_policy_list<R: DdsRuntime>(
+    data_reader: &DataReaderEntity<R>,
     publication_builtin_topic_data: &PublicationBuiltinTopicData,
     subscriber_qos: &SubscriberQos,
 ) -> Vec<QosPolicyId> {
@@ -5731,16 +5728,16 @@ pub const BUILT_IN_TOPIC_NAME_LIST: [&str; 4] = [
     DCPS_SUBSCRIPTION,
 ];
 
-pub struct DomainParticipantEntity<R: DdsRuntime, T: TransportParticipantFactory> {
+pub struct DomainParticipantEntity<R: DdsRuntime> {
     domain_id: DomainId,
     domain_tag: String,
     instance_handle: InstanceHandle,
     qos: DomainParticipantQos,
-    builtin_subscriber: SubscriberEntity<R, T>,
-    builtin_publisher: PublisherEntity<R, T>,
-    user_defined_subscriber_list: Vec<SubscriberEntity<R, T>>,
+    builtin_subscriber: SubscriberEntity<R>,
+    builtin_publisher: PublisherEntity<R>,
+    user_defined_subscriber_list: Vec<SubscriberEntity<R>>,
     default_subscriber_qos: SubscriberQos,
-    user_defined_publisher_list: Vec<PublisherEntity<R, T>>,
+    user_defined_publisher_list: Vec<PublisherEntity<R>>,
     default_publisher_qos: PublisherQos,
     topic_description_list: Vec<TopicDescriptionKind<R>>,
     default_topic_qos: TopicQos,
@@ -5757,7 +5754,7 @@ pub struct DomainParticipantEntity<R: DdsRuntime, T: TransportParticipantFactory
     listener_mask: Vec<StatusKind>,
 }
 
-impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantEntity<R, T> {
+impl<R: DdsRuntime> DomainParticipantEntity<R> {
     #[allow(clippy::too_many_arguments)]
     pub const fn new(
         domain_id: DomainId,
@@ -5765,8 +5762,8 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantEntity<R, T
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         listener_mask: Vec<StatusKind>,
         instance_handle: InstanceHandle,
-        builtin_publisher: PublisherEntity<R, T>,
-        builtin_subscriber: SubscriberEntity<R, T>,
+        builtin_publisher: PublisherEntity<R>,
+        builtin_subscriber: SubscriberEntity<R>,
         topic_description_list: Vec<TopicDescriptionKind<R>>,
         domain_tag: String,
     ) -> Self {
@@ -5801,7 +5798,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantEntity<R, T
         self.instance_handle
     }
 
-    pub fn builtin_subscriber(&self) -> &SubscriberEntity<R, T> {
+    pub fn builtin_subscriber(&self) -> &SubscriberEntity<R> {
         &self.builtin_subscriber
     }
 
@@ -5873,7 +5870,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantEntity<R, T
         }
     }
 
-    pub fn remove_subscriber(&mut self, handle: &InstanceHandle) -> Option<SubscriberEntity<R, T>> {
+    pub fn remove_subscriber(&mut self, handle: &InstanceHandle) -> Option<SubscriberEntity<R>> {
         let i = self
             .user_defined_subscriber_list
             .iter()
@@ -5882,7 +5879,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantEntity<R, T
         Some(self.user_defined_subscriber_list.remove(i))
     }
 
-    pub fn remove_publisher(&mut self, handle: &InstanceHandle) -> Option<PublisherEntity<R, T>> {
+    pub fn remove_publisher(&mut self, handle: &InstanceHandle) -> Option<PublisherEntity<R>> {
         let i = self
             .user_defined_publisher_list
             .iter()
@@ -5928,10 +5925,10 @@ impl ContentFilteredTopicEntity {
     }
 }
 
-pub struct SubscriberEntity<R: DdsRuntime, T: TransportParticipantFactory> {
+pub struct SubscriberEntity<R: DdsRuntime> {
     instance_handle: InstanceHandle,
     qos: SubscriberQos,
-    data_reader_list: Vec<DataReaderEntity<R, T>>,
+    data_reader_list: Vec<DataReaderEntity<R>>,
     enabled: bool,
     default_data_reader_qos: DataReaderQos,
     status_condition: Actor<R, DcpsStatusCondition<R>>,
@@ -5939,11 +5936,11 @@ pub struct SubscriberEntity<R: DdsRuntime, T: TransportParticipantFactory> {
     listener_mask: Vec<StatusKind>,
 }
 
-impl<R: DdsRuntime, T: TransportParticipantFactory> SubscriberEntity<R, T> {
+impl<R: DdsRuntime> SubscriberEntity<R> {
     pub const fn new(
         instance_handle: InstanceHandle,
         qos: SubscriberQos,
-        data_reader_list: Vec<DataReaderEntity<R, T>>,
+        data_reader_list: Vec<DataReaderEntity<R>>,
         status_condition: Actor<R, DcpsStatusCondition<R>>,
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         listener_mask: Vec<StatusKind>,
@@ -6019,21 +6016,21 @@ impl<R: DdsRuntime> TopicEntity<R> {
     }
 }
 
-pub struct PublisherEntity<R: DdsRuntime, T: TransportParticipantFactory> {
+pub struct PublisherEntity<R: DdsRuntime> {
     qos: PublisherQos,
     instance_handle: InstanceHandle,
-    data_writer_list: Vec<DataWriterEntity<R, T>>,
+    data_writer_list: Vec<DataWriterEntity<R>>,
     enabled: bool,
     default_datawriter_qos: DataWriterQos,
     listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
     listener_mask: Vec<StatusKind>,
 }
 
-impl<R: DdsRuntime, T: TransportParticipantFactory> PublisherEntity<R, T> {
+impl<R: DdsRuntime> PublisherEntity<R> {
     pub const fn new(
         qos: PublisherQos,
         instance_handle: InstanceHandle,
-        data_writer_list: Vec<DataWriterEntity<R, T>>,
+        data_writer_list: Vec<DataWriterEntity<R>>,
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         listener_mask: Vec<StatusKind>,
     ) -> Self {
@@ -6049,12 +6046,12 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> PublisherEntity<R, T> {
     }
 }
 
-pub enum TransportWriterKind<T: TransportParticipantFactory> {
-    Stateful(<T::TransportParticipant as TransportParticipant>::StatefulWriter),
-    Stateless(<T::TransportParticipant as TransportParticipant>::StatelessWriter),
+pub enum TransportWriterKind {
+    Stateful(RtpsTransportStatefulWriter),
+    Stateless(RtpsTransportStatelessWriter),
 }
 
-impl<T: TransportParticipantFactory> TransportWriterKind<T> {
+impl TransportWriterKind {
     pub fn guid(&self) -> Guid {
         match self {
             TransportWriterKind::Stateful(w) => w.guid(),
@@ -6080,9 +6077,9 @@ pub struct InstanceSamples {
     samples: VecDeque<i64>,
 }
 
-pub struct DataWriterEntity<R: DdsRuntime, T: TransportParticipantFactory> {
+pub struct DataWriterEntity<R: DdsRuntime> {
     instance_handle: InstanceHandle,
-    transport_writer: TransportWriterKind<T>,
+    transport_writer: TransportWriterKind,
     topic_name: String,
     type_name: String,
     type_support: Arc<DynamicType>,
@@ -6103,11 +6100,11 @@ pub struct DataWriterEntity<R: DdsRuntime, T: TransportParticipantFactory> {
     instance_samples: Vec<InstanceSamples>,
 }
 
-impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
+impl<R: DdsRuntime> DataWriterEntity<R> {
     #[allow(clippy::too_many_arguments)]
     pub const fn new(
         instance_handle: InstanceHandle,
-        transport_writer: TransportWriterKind<T>,
+        transport_writer: TransportWriterKind,
         topic_name: String,
         type_name: String,
         type_support: Arc<DynamicType>,
@@ -6626,12 +6623,12 @@ pub struct IndexedSample {
     pub sample: (Option<DynamicData>, SampleInfo),
 }
 
-pub enum TransportReaderKind<T: TransportParticipantFactory> {
-    Stateful(<T::TransportParticipant as TransportParticipant>::StatefulReader),
-    Stateless(<T::TransportParticipant as TransportParticipant>::StatelessReader),
+pub enum TransportReaderKind {
+    Stateful(RtpsTransportStatefulReader),
+    Stateless(RtpsTransportStatelessReader),
 }
 
-impl<T: TransportParticipantFactory> TransportReaderKind<T> {
+impl TransportReaderKind {
     pub fn guid(&self) -> Guid {
         match self {
             TransportReaderKind::Stateful(r) => r.guid(),
@@ -6646,7 +6643,7 @@ struct InstanceOwnership {
     last_received_time: Time,
 }
 
-pub struct DataReaderEntity<R: DdsRuntime, T: TransportParticipantFactory> {
+pub struct DataReaderEntity<R: DdsRuntime> {
     instance_handle: InstanceHandle,
     sample_list: Vec<ReaderSample>,
     qos: DataReaderQos,
@@ -6665,10 +6662,10 @@ pub struct DataReaderEntity<R: DdsRuntime, T: TransportParticipantFactory> {
     listener_mask: Vec<StatusKind>,
     instances: Vec<InstanceState>,
     instance_ownership: Vec<InstanceOwnership>,
-    transport_reader: TransportReaderKind<T>,
+    transport_reader: TransportReaderKind,
 }
 
-impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
+impl<R: DdsRuntime> DataReaderEntity<R> {
     #[allow(clippy::too_many_arguments)]
     pub const fn new(
         instance_handle: InstanceHandle,
@@ -6678,7 +6675,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
         status_condition: Actor<R, DcpsStatusCondition<R>>,
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         listener_mask: Vec<StatusKind>,
-        transport_reader: TransportReaderKind<T>,
+        transport_reader: TransportReaderKind,
     ) -> Self {
         Self {
             instance_handle,
