@@ -61,7 +61,7 @@ impl<R: DdsRuntime> PublisherAsync<R> {
         a_listener: Option<impl DataWriterListener<R, Foo> + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<DataWriterAsync<R, Foo>> {
-        let topic_name = a_topic.get_name();
+        let topic_name = a_topic.get_name().to_string();
         let status_condition = Actor::spawn(
             DcpsStatusCondition::default(),
             self.participant.spawner_handle(),

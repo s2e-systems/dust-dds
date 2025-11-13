@@ -82,15 +82,17 @@ impl<R: DdsRuntime> TopicAsync<R> {
     }
 
     /// Async version of [`get_type_name`](crate::topic_definition::topic::Topic::get_type_name).
+    #[inline]
     #[tracing::instrument(skip(self))]
-    pub fn get_type_name(&self) -> String {
-        self.type_name.clone()
+    pub fn get_type_name(&self) -> &str {
+        &self.type_name
     }
 
     /// Async version of [`get_name`](crate::topic_definition::topic::Topic::get_name).
+    #[inline]
     #[tracing::instrument(skip(self))]
-    pub fn get_name(&self) -> String {
-        self.topic_name.clone()
+    pub fn get_name(&self) -> &str {
+        &self.topic_name
     }
 }
 

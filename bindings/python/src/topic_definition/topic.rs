@@ -54,11 +54,13 @@ impl Topic {
         self.0.get_participant().into()
     }
 
-    pub fn get_type_name(&self) -> String {
+    #[inline]
+    pub fn get_type_name(&self) -> &str {
         self.0.get_type_name()
     }
 
-    pub fn get_name(&self) -> String {
+    #[inline]
+    pub fn get_name(&self) -> &str {
         self.0.get_name()
     }
 

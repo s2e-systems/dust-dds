@@ -105,7 +105,7 @@ impl DataReader {
         view_states: Vec<ViewStateKind>,
         instance_states: Vec<InstanceStateKind>,
     ) -> PyResult<Vec<Sample>> {
-        let type_ = DomainParticipant::get_type(&self.0.get_topicdescription().get_type_name())
+        let type_ = DomainParticipant::get_type(self.0.get_topicdescription().get_type_name())
             .ok_or(PyTypeError::new_err("Type information not found"))?;
         let sample_states: Vec<_> = sample_states
             .into_iter()
@@ -142,7 +142,7 @@ impl DataReader {
         view_states: Vec<ViewStateKind>,
         instance_states: Vec<InstanceStateKind>,
     ) -> PyResult<Vec<Sample>> {
-        let type_ = DomainParticipant::get_type(&self.0.get_topicdescription().get_type_name())
+        let type_ = DomainParticipant::get_type(self.0.get_topicdescription().get_type_name())
             .ok_or(PyTypeError::new_err("Type information not found"))?;
         let sample_states: Vec<_> = sample_states
             .into_iter()
@@ -167,7 +167,7 @@ impl DataReader {
     }
 
     pub fn read_next_sample(&self) -> PyResult<Sample> {
-        let type_ = DomainParticipant::get_type(&self.0.get_topicdescription().get_type_name())
+        let type_ = DomainParticipant::get_type(self.0.get_topicdescription().get_type_name())
             .ok_or(PyTypeError::new_err("Type information not found"))?;
         match self.0.read_next_sample() {
             Ok(s) => Ok(Sample::new(s, &type_)),
@@ -176,7 +176,7 @@ impl DataReader {
     }
 
     pub fn take_next_sample(&self) -> PyResult<Sample> {
-        let type_ = DomainParticipant::get_type(&self.0.get_topicdescription().get_type_name())
+        let type_ = DomainParticipant::get_type(self.0.get_topicdescription().get_type_name())
             .ok_or(PyTypeError::new_err("Type information not found"))?;
         match self.0.take_next_sample() {
             Ok(s) => Ok(Sample::new(s, &type_)),
@@ -199,7 +199,7 @@ impl DataReader {
         view_states: Vec<ViewStateKind>,
         instance_states: Vec<InstanceStateKind>,
     ) -> PyResult<Vec<Sample>> {
-        let type_ = DomainParticipant::get_type(&self.0.get_topicdescription().get_type_name())
+        let type_ = DomainParticipant::get_type(self.0.get_topicdescription().get_type_name())
             .ok_or(PyTypeError::new_err("Type information not found"))?;
         let sample_states: Vec<_> = sample_states
             .into_iter()
@@ -241,7 +241,7 @@ impl DataReader {
         view_states: Vec<ViewStateKind>,
         instance_states: Vec<InstanceStateKind>,
     ) -> PyResult<Vec<Sample>> {
-        let type_ = DomainParticipant::get_type(&self.0.get_topicdescription().get_type_name())
+        let type_ = DomainParticipant::get_type(self.0.get_topicdescription().get_type_name())
             .ok_or(PyTypeError::new_err("Type information not found"))?;
         let sample_states: Vec<_> = sample_states
             .into_iter()
@@ -283,7 +283,7 @@ impl DataReader {
         view_states: Vec<ViewStateKind>,
         instance_states: Vec<InstanceStateKind>,
     ) -> PyResult<Vec<Sample>> {
-        let type_ = DomainParticipant::get_type(&self.0.get_topicdescription().get_type_name())
+        let type_ = DomainParticipant::get_type(self.0.get_topicdescription().get_type_name())
             .ok_or(PyTypeError::new_err("Type information not found"))?;
         let sample_states: Vec<_> = sample_states
             .into_iter()
@@ -325,7 +325,7 @@ impl DataReader {
         view_states: Vec<ViewStateKind>,
         instance_states: Vec<InstanceStateKind>,
     ) -> PyResult<Vec<Sample>> {
-        let type_ = DomainParticipant::get_type(&self.0.get_topicdescription().get_type_name())
+        let type_ = DomainParticipant::get_type(self.0.get_topicdescription().get_type_name())
             .ok_or(PyTypeError::new_err("Type information not found"))?;
         let sample_states: Vec<_> = sample_states
             .into_iter()

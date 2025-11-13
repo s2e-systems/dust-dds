@@ -4,7 +4,6 @@ use crate::{
     runtime::DdsRuntime,
     topic_definition::{content_filtered_topic::ContentFilteredTopic, topic::Topic},
 };
-use alloc::string::String;
 
 /// This class is an enumrator for different topic types.
 pub enum TopicDescription<R: DdsRuntime> {
@@ -56,18 +55,18 @@ impl<R: DdsRuntime> TopicDescription<R> {
         }
     }
 
-    /// The name of the type used to create the [`Topic`]
+    /// The name of the type used to create the [`Topic`].
     #[tracing::instrument(skip(self))]
-    pub fn get_type_name(&self) -> String {
+    pub fn get_type_name(&self) -> &str {
         match self {
             Self::Topic(t) => t.get_type_name(),
             Self::ContentFilteredTopic(t) => t.get_type_name(),
         }
     }
 
-    /// The name used to create the [`Topic`]
+    /// The name used to create the [`Topic`].
     #[tracing::instrument(skip(self))]
-    pub fn get_name(&self) -> String {
+    pub fn get_name(&self) -> &str {
         match self {
             Self::Topic(t) => t.get_name(),
             Self::ContentFilteredTopic(t) => t.get_name(),

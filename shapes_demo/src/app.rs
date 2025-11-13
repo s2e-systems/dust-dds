@@ -434,7 +434,7 @@ impl eframe::App for ShapesDemoApp {
 
             let mut shape_list = Vec::new();
             for reader in &self.reader_list {
-                let kind = reader.get_topicdescription().get_name();
+                let kind = reader.get_topicdescription().get_name().to_string();
                 let mut previous_handle = None;
                 while let Ok(samples) = reader.read_next_instance(
                     100,

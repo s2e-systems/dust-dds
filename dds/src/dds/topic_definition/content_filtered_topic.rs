@@ -60,15 +60,17 @@ impl<R: DdsRuntime> ContentFilteredTopic<R> {
         DomainParticipant::new(self.topic.get_participant())
     }
 
-    /// The name of the type used to create the [`Topic`]
+    /// The name of the type used to create the [`Topic`].
+    #[inline]
     #[tracing::instrument(skip(self))]
-    pub fn get_type_name(&self) -> String {
+    pub fn get_type_name(&self) -> &str {
         self.topic.get_type_name()
     }
 
-    /// The name used to create the [`Topic`]
+    /// The name used to create the [`Topic`].
+    #[inline]
     #[tracing::instrument(skip(self))]
-    pub fn get_name(&self) -> String {
+    pub fn get_name(&self) -> &str {
         self.topic.get_name()
     }
 }

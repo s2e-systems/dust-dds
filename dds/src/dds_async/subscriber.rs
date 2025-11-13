@@ -71,6 +71,7 @@ impl<R: DdsRuntime> SubscriberAsync<R> {
         a_listener: Option<impl DataReaderListener<R, Foo> + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<DataReaderAsync<R, Foo>> {
+        let topic_name = a_topic.get_name().to_string();
         let status_condition = Actor::spawn(
             DcpsStatusCondition::default(),
             self.participant.spawner_handle(),
@@ -83,7 +84,7 @@ impl<R: DdsRuntime> SubscriberAsync<R> {
             .send(DcpsDomainParticipantMail::Subscriber(
                 SubscriberServiceMail::CreateDataReader {
                     subscriber_handle: self.handle,
-                    topic_name: a_topic.get_name(),
+                    topic_name,
                     qos,
                     status_condition,
                     listener_sender,
