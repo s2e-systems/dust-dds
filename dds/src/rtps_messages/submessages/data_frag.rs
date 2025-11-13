@@ -361,8 +361,7 @@ mod tests {
             1, 2, 3, 0, // serializedPayload
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
-        let submessage =
-            DataFragSubmessage::try_from_bytes(&submessage_header, data.into()).unwrap();
+        let submessage = DataFragSubmessage::try_from_bytes(&submessage_header, data).unwrap();
 
         let expected_inline_qos_flag = true;
         let expected_non_standard_payload_flag = false;
@@ -413,6 +412,6 @@ mod tests {
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
         // Should not panic with this input
-        let _ = DataFragSubmessage::try_from_bytes(&submessage_header, data.into());
+        let _ = DataFragSubmessage::try_from_bytes(&submessage_header, data);
     }
 }

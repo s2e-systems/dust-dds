@@ -2382,7 +2382,6 @@ fn data_reader_resource_limits() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            ..Default::default()
         },
         ..Default::default()
     };
@@ -2405,7 +2404,6 @@ fn data_reader_resource_limits() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            ..Default::default()
         },
         resource_limits: ResourceLimitsQosPolicy {
             max_samples: Length::Limited(2),
@@ -2488,7 +2486,6 @@ fn data_reader_order_by_source_timestamp() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            ..Default::default()
         },
         ..Default::default()
     };
