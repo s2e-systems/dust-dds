@@ -353,7 +353,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             ..Default::default()
         };
 
-        let dcps_participant_transport_reader = transport
+        let guid = transport
             .create_stateless_reader(
                 ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
                 Box::new(DcpsParticipantReaderHistoryCache::<R> {
@@ -362,14 +362,14 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             )
             .await;
         let dcps_participant_reader = DataReaderEntity::new(
-            InstanceHandle::new(dcps_participant_transport_reader.guid().into()),
+            InstanceHandle::new(guid.into()),
             spdp_reader_qos,
             String::from(DCPS_PARTICIPANT),
             Arc::new(SpdpDiscoveredParticipantData::get_type()),
             Actor::spawn(DcpsStatusCondition::default(), &spawner_handle),
             None,
             Vec::new(),
-            TransportReaderKind::Stateless(dcps_participant_transport_reader),
+            TransportReaderKind::Stateless(guid),
         );
         let dcps_topic_transport_reader = transport
             .create_stateful_reader(

@@ -66,7 +66,7 @@ use crate::{
         type_support::TypeSupport,
     },
     rtps_udp_transport::udp_transport::{
-        RtpsTransportStatefulReader, RtpsTransportStatefulWriter, RtpsTransportStatelessReader,
+        RtpsTransportStatefulReader, RtpsTransportStatefulWriter,
         RtpsTransportStatelessWriter,
     },
     runtime::{ChannelSend, Clock, DdsRuntime, OneshotReceive, Spawner, Timer},
@@ -6625,14 +6625,14 @@ pub struct IndexedSample {
 
 pub enum TransportReaderKind {
     Stateful(RtpsTransportStatefulReader),
-    Stateless(RtpsTransportStatelessReader),
+    Stateless(Guid),
 }
 
 impl TransportReaderKind {
     pub fn guid(&self) -> Guid {
         match self {
             TransportReaderKind::Stateful(r) => r.guid(),
-            TransportReaderKind::Stateless(r) => r.guid(),
+            TransportReaderKind::Stateless(r) => *r,
         }
     }
 }

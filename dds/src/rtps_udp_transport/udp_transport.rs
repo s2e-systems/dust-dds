@@ -600,14 +600,6 @@ pub struct RtpsTransportParticipant {
     chanel_message_sender: Sender<ChannelMessageKind>,
 }
 
-pub struct RtpsTransportStatelessReader {
-    guid: Guid,
-}
-impl RtpsTransportStatelessReader {
-    pub fn guid(&self) -> Guid {
-        self.guid
-    }
-}
 
 pub struct RtpsTransportStatelessWriter {
     rtps_writer: RtpsStatelessWriter,
@@ -768,16 +760,16 @@ impl TransportParticipant for RtpsTransportParticipant {
         &mut self,
         entity_id: EntityId,
         reader_history_cache: Box<dyn HistoryCache>,
-    ) -> RtpsTransportStatelessReader {
+    ) -> Guid {
         let guid = Guid::new(self.guid.prefix(), entity_id);
         self.chanel_message_sender
             .send(ChannelMessageKind::AddStatelessReader(
                 RtpsStatelessReader::new(guid, reader_history_cache),
             ))
             .expect("chanel_message receiver alive");
-        RtpsTransportStatelessReader {
-            guid: Guid::new(self.guid.prefix(), entity_id),
-        }
+
+        Guid::new(self.guid.prefix(), entity_id)
+
     }
     async fn create_stateless_writer(
         &mut self,
