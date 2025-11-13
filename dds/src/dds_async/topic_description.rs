@@ -5,7 +5,6 @@ use crate::{
     },
     runtime::DdsRuntime,
 };
-use alloc::string::String;
 
 /// Async version of [`TopicDescription`](crate::topic_definition::topic_description::TopicDescription).
 pub enum TopicDescriptionAsync<R: DdsRuntime> {
@@ -36,7 +35,7 @@ impl<R: DdsRuntime> TopicDescriptionAsync<R> {
 
     /// Async version of [`get_type_name`](crate::topic_definition::topic::Topic::get_type_name).
     #[tracing::instrument(skip(self))]
-    pub fn get_type_name(&self) -> String {
+    pub fn get_type_name(&self) -> &str {
         match self {
             Self::Topic(t) => t.get_type_name(),
             Self::ContentFilteredTopic(t) => t.get_type_name(),
@@ -45,7 +44,7 @@ impl<R: DdsRuntime> TopicDescriptionAsync<R> {
 
     /// Async version of [`get_name`](crate::topic_definition::topic::Topic::get_name).
     #[tracing::instrument(skip(self))]
-    pub fn get_name(&self) -> String {
+    pub fn get_name(&self) -> &str {
         match self {
             Self::Topic(t) => t.get_name(),
             Self::ContentFilteredTopic(t) => t.get_name(),

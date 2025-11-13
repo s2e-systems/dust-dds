@@ -258,7 +258,7 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
             .send(DcpsDomainParticipantMail::Participant(
                 ParticipantServiceMail::DeleteUserDefinedTopic {
                     participant_handle: a_topic.get_participant().handle,
-                    topic_name: a_topic.get_name(),
+                    topic_name: a_topic.get_name().to_string(),
                     reply_sender,
                 },
             ))
@@ -280,7 +280,7 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
             TopicDescriptionAsync::ContentFilteredTopic(_) => return Err(DdsError::BadParameter),
         };
         let name = name.to_string();
-        let related_topic_name = related_topic.get_name();
+        let related_topic_name = related_topic.get_name().to_string();
         let (reply_sender, reply_receiver) = R::oneshot();
         self.participant_address
             .send(DcpsDomainParticipantMail::Participant(

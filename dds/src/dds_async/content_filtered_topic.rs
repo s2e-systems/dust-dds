@@ -54,14 +54,16 @@ impl<R: DdsRuntime> ContentFilteredTopicAsync<R> {
     }
 
     /// Async version of [`get_type_name`](crate::topic_definition::content_filtered_topic::ContentFilteredTopic::get_type_name).
+    #[inline]
     #[tracing::instrument(skip(self))]
-    pub fn get_type_name(&self) -> String {
+    pub fn get_type_name(&self) -> &str {
         self.topic.get_type_name()
     }
 
     /// Async version of [`get_name`](crate::topic_definition::content_filtered_topic::ContentFilteredTopic::get_name).
+    #[inline]
     #[tracing::instrument(skip(self))]
-    pub fn get_name(&self) -> String {
-        self.name.clone()
+    pub fn get_name(&self) -> &str {
+        &self.name
     }
 }

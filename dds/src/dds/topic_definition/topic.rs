@@ -12,7 +12,7 @@ use crate::{
     runtime::DdsRuntime,
     xtypes::dynamic_type::DynamicType,
 };
-use alloc::{string::String, sync::Arc, vec::Vec};
+use alloc::{sync::Arc, vec::Vec};
 
 /// The [`Topic`] represents the fact that both publications and subscriptions are tied to a single data-type. Its attributes
 /// `type_name` defines a unique resulting type for the publication or the subscription. It has also a `name` that allows it to
@@ -57,15 +57,17 @@ impl<R: DdsRuntime> Topic<R> {
         DomainParticipant::new(self.topic_async.get_participant())
     }
 
-    /// The name of the type used to create the [`Topic`]
+    /// The name of the type used to create the [`Topic`].
+    #[inline]
     #[tracing::instrument(skip(self))]
-    pub fn get_type_name(&self) -> String {
+    pub fn get_type_name(&self) -> &str {
         self.topic_async.get_type_name()
     }
 
-    /// The name used to create the [`Topic`]
+    /// The name used to create the [`Topic`].
+    #[inline]
     #[tracing::instrument(skip(self))]
-    pub fn get_name(&self) -> String {
+    pub fn get_name(&self) -> &str {
         self.topic_async.get_name()
     }
 }
