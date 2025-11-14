@@ -65,10 +65,8 @@ use crate::{
         time::{Duration, DurationKind, Time},
         type_support::TypeSupport,
     },
-    rtps_udp_transport::udp_transport::{
-        RtpsTransportStatefulReader, RtpsTransportStatefulWriter,
-        RtpsTransportStatelessWriter,
-    },
+    rtps::stateless_writer::RtpsStatelessWriter,
+    rtps_udp_transport::udp_transport::{RtpsTransportStatefulReader, RtpsTransportStatefulWriter},
     runtime::{ChannelSend, Clock, DdsRuntime, OneshotReceive, Spawner, Timer},
     transport::{
         self,
@@ -4793,10 +4791,7 @@ where
                 .iter_mut()
                 .find(|x| x.instance_handle == data_writer_handle)
             {
-                dw.transport_writer
-                    .history_cache()
-                    .remove_change(sequence_number)
-                    .await;
+                dw.transport_writer.remove_change(sequence_number).await;
             }
         }
     }
@@ -6048,7 +6043,7 @@ impl<R: DdsRuntime> PublisherEntity<R> {
 
 pub enum TransportWriterKind {
     Stateful(RtpsTransportStatefulWriter),
-    Stateless(RtpsTransportStatelessWriter),
+    Stateless(RtpsStatelessWriter),
 }
 
 impl TransportWriterKind {
@@ -6059,10 +6054,17 @@ impl TransportWriterKind {
         }
     }
 
-    pub fn history_cache(&mut self) -> &mut dyn HistoryCache {
+    pub async fn add_change(&mut self, cache_change: CacheChange) {
         match self {
-            TransportWriterKind::Stateful(w) => w.history_cache(),
-            TransportWriterKind::Stateless(w) => w.history_cache(),
+            TransportWriterKind::Stateful(w) => w.add_change(cache_change).await,
+            TransportWriterKind::Stateless(w) => w.add_change(cache_change),
+        }
+    }
+
+    pub async fn remove_change(&mut self, sequence_number: i64) {
+        match self {
+            TransportWriterKind::Stateful(w) => w.remove_change(sequence_number).await,
+            TransportWriterKind::Stateless(w) => w.remove_change(sequence_number),
         }
     }
 }
@@ -6241,7 +6243,6 @@ impl<R: DdsRuntime> DataWriterEntity<R> {
                     }
                     if let Some(smallest_seq_num_instance) = s.samples.pop_front() {
                         self.transport_writer
-                            .history_cache()
                             .remove_change(smallest_seq_num_instance)
                             .await;
                     }
@@ -6287,10 +6288,7 @@ impl<R: DdsRuntime> DataWriterEntity<R> {
                 self.instance_samples.push(s);
             }
         }
-        self.transport_writer
-            .history_cache()
-            .add_change(change)
-            .await;
+        self.transport_writer.add_change(change).await;
         Ok(self.last_change_sequence_number)
     }
 
@@ -6347,10 +6345,7 @@ impl<R: DdsRuntime> DataWriterEntity<R> {
             instance_handle: Some(instance_handle.into()),
             data_value: serialized_key.into(),
         };
-        self.transport_writer
-            .history_cache()
-            .add_change(cache_change)
-            .await;
+        self.transport_writer.add_change(cache_change).await;
 
         Ok(())
     }
@@ -6417,10 +6412,7 @@ impl<R: DdsRuntime> DataWriterEntity<R> {
             instance_handle: Some(instance_handle.into()),
             data_value: serialized_key.into(),
         };
-        self.transport_writer
-            .history_cache()
-            .add_change(cache_change)
-            .await;
+        self.transport_writer.add_change(cache_change).await;
         Ok(())
     }
 

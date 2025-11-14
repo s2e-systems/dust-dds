@@ -1,13 +1,12 @@
-use core::future::Future;
-
 use crate::transport::types::{GuidPrefix, Locator};
+use core::{future::Future, pin::Pin};
 
 pub trait WriteMessage {
     fn write_message(
         &self,
-        datagram: &[u8],
-        locator_list: &[Locator],
-    ) -> impl Future<Output = ()> + Send;
+        buf: &[u8],
+        locators: &[Locator],
+    );
     fn guid_prefix(&self) -> GuidPrefix;
 }
 

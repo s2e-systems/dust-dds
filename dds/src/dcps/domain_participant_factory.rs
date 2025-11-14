@@ -466,7 +466,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             .create_stateless_writer(ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER)
             .await;
         for &discovery_locator in transport.metatraffic_multicast_locator_list() {
-            dcps_participant_transport_writer.add_reader_locator(discovery_locator);
+            dcps_participant_transport_writer.reader_locator_add(discovery_locator);
         }
         let dcps_participant_writer = DataWriterEntity::new(
             InstanceHandle::new(dcps_participant_transport_writer.guid().into()),

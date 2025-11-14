@@ -1,9 +1,9 @@
 use super::types::{
     CacheChange, EntityId, Guid, GuidPrefix, Locator, ProtocolVersion, ReliabilityKind, VendorId,
 };
-use crate::rtps_udp_transport::udp_transport::{
-    RtpsTransportStatefulReader, RtpsTransportStatefulWriter, RtpsTransportStatelessWriter,
-};
+use crate::{rtps::stateless_writer::RtpsStatelessWriter, rtps_udp_transport::udp_transport::{
+    RtpsTransportStatefulReader, RtpsTransportStatefulWriter,
+}};
 use alloc::boxed::Box;
 use core::{future::Future, pin::Pin};
 
@@ -44,7 +44,7 @@ pub trait TransportParticipant: Send {
     fn create_stateless_writer(
         &mut self,
         entity_id: EntityId,
-    ) -> impl Future<Output = RtpsTransportStatelessWriter> + Send;
+    ) -> impl Future<Output = RtpsStatelessWriter> + Send;
 
     fn create_stateful_reader(
         &mut self,
