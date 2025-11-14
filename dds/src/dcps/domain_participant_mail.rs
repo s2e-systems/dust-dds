@@ -28,8 +28,7 @@ use crate::{
     xtypes::dynamic_type::{DynamicData, DynamicType},
 };
 use alloc::{boxed::Box, string::String, sync::Arc, vec::Vec};
-use core::{cell::RefCell, future::Future, pin::Pin};
-use std::rc::Rc;
+use core::{future::Future, pin::Pin};
 
 pub enum ParticipantServiceMail<R: DdsRuntime> {
     CreateUserDefinedPublisher {
@@ -541,11 +540,9 @@ pub enum DcpsDomainParticipantMail<R: DdsRuntime> {
     Discovery(DiscoveryServiceMail),
 }
 
-
 impl<R: DdsRuntime, T: TransportParticipantFactory> MailHandler for DcpsDomainParticipant<R, T> {
     type Mail = DcpsDomainParticipantMail<R>;
     async fn handle(&mut self, message: DcpsDomainParticipantMail<R>) {
-
         match message {
             DcpsDomainParticipantMail::Participant(participant_service_mail) => {
                 self.handle_participant_service(participant_service_mail)

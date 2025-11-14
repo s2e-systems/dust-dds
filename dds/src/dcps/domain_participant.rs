@@ -6057,7 +6057,7 @@ impl TransportWriterKind {
     pub async fn add_change(&mut self, cache_change: CacheChange) {
         match self {
             TransportWriterKind::Stateful(w) => w.add_change(cache_change).await,
-            TransportWriterKind::Stateless(w) => w.add_change(cache_change),
+            TransportWriterKind::Stateless(w) => w.add_change(cache_change).await,
         }
     }
 

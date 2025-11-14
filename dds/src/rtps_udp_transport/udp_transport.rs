@@ -549,7 +549,7 @@ impl WriteMessage for MessageWriter {
         &self,
         datagram: &[u8],
         locator_list: &[Locator],
-    ) {
+    ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
         for &destination_locator in locator_list {
             if UdpLocator(destination_locator).is_multicast() {
                 let socket2: socket2::Socket = self.socket.try_clone().unwrap().into();
@@ -577,6 +577,7 @@ impl WriteMessage for MessageWriter {
                     .ok();
             }
         }
+        Box::pin(async{})
     }
 
     fn guid_prefix(&self) -> GuidPrefix {
