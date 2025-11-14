@@ -70,7 +70,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantFactoryAsyn
             domain_id,
             participant_handle,
             spawner_handle,
-            clock_handle,
             timer_handle,
         );
 
