@@ -5,7 +5,7 @@ use core::{
     task::{Context, Poll, Waker},
 };
 
-use alloc::sync::Arc;
+use alloc::{string::String, sync::Arc};
 use critical_section::Mutex;
 
 use crate::{
@@ -20,7 +20,7 @@ pub enum OneshotRecvError {
 
 impl From<OneshotRecvError> for DdsError {
     fn from(_: OneshotRecvError) -> Self {
-        DdsError::Error("Internal error: Oneshot sender dropped".to_owned())
+        DdsError::Error(String::from("Internal error: Oneshot sender dropped"))
     }
 }
 
