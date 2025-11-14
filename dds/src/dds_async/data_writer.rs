@@ -477,18 +477,13 @@ impl<R: DdsRuntime, Foo> DataWriterAsync<R, Foo> {
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
-        let listener_sender = a_listener.map(|l| {
-            DcpsDataWriterListener::spawn(
-                l,
-                self.get_publisher().get_participant().spawner_handle(),
-            )
-        });
+        let listener = a_listener.map(|l| DcpsDataWriterListener::spawn(l));
         self.participant_address()
             .send(DcpsDomainParticipantMail::Writer(
                 WriterServiceMail::SetListener {
                     publisher_handle: self.publisher.get_instance_handle().await,
                     data_writer_handle: self.handle,
-                    listener_sender,
+                    listener,
                     listener_mask: mask.to_vec(),
                     reply_sender,
                 },
