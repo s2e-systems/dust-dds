@@ -1,7 +1,8 @@
 use tracing::span;
 
 use crate::{
-    runtime::{ChannelReceive, DdsRuntime, Spawner},
+    dcps::channels::mpsc::{MpscSender, mpsc_channel},
+    runtime::{DdsRuntime, Spawner},
     subscription::data_reader_listener::DataReaderListener,
 };
 
@@ -14,8 +15,8 @@ impl DcpsDataReaderListener {
     pub fn spawn<R: DdsRuntime, Foo>(
         mut listener: impl DataReaderListener<R, Foo> + Send + 'static,
         spawner_handle: &R::SpawnerHandle,
-    ) -> R::ChannelSender<ListenerMail<R>> {
-        let (listener_sender, mut listener_receiver) = R::channel();
+    ) -> MpscSender<ListenerMail<R>> {
+        let (listener_sender, listener_receiver) = mpsc_channel();
         spawner_handle.spawn(async move {
             while let Some(m) = listener_receiver.receive().await {
                 let listener_root = span!(tracing::Level::INFO, "data_reader_listener_triggered");

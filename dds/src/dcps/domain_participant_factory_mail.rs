@@ -1,11 +1,7 @@
 use crate::{
     configuration::DustDdsConfiguration,
     dcps::{
-        actor::{ActorAddress, MailHandler},
-        domain_participant_factory::DcpsParticipantFactory,
-        domain_participant_mail::DcpsDomainParticipantMail,
-        listeners::domain_participant_listener::ListenerMail,
-        status_condition::DcpsStatusCondition,
+        actor::{ActorAddress, MailHandler}, channels::{mpsc::MpscSender, oneshot::OneshotSender}, domain_participant_factory::DcpsParticipantFactory, domain_participant_mail::DcpsDomainParticipantMail, listeners::domain_participant_listener::ListenerMail, status_condition::DcpsStatusCondition
     },
     infrastructure::{
         domain::DomainId,
@@ -14,7 +10,7 @@ use crate::{
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
         status::StatusKind,
     },
-    runtime::{DdsRuntime, OneshotSend},
+    runtime::{DdsRuntime},
     transport::interface::TransportParticipantFactory,
 };
 use alloc::vec::Vec;
@@ -23,43 +19,43 @@ pub enum DcpsParticipantFactoryMail<R: DdsRuntime> {
     CreateParticipant {
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
-        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
+        listener_sender: Option<MpscSender<ListenerMail<R>>>,
         status_kind: Vec<StatusKind>,
         clock_handle: R::ClockHandle,
         timer_handle: R::TimerHandle,
         spawner_handle: R::SpawnerHandle,
         #[allow(clippy::type_complexity)]
-        reply_sender: R::OneshotSender<
+        reply_sender: OneshotSender<
             DdsResult<(
-                R::ChannelSender<DcpsDomainParticipantMail<R>>,
+                MpscSender<DcpsDomainParticipantMail<R>>,
                 InstanceHandle,
-                ActorAddress<DcpsStatusCondition<R>>,
+                ActorAddress<DcpsStatusCondition>,
             )>,
         >,
     },
     DeleteParticipant {
         handle: InstanceHandle,
-        reply_sender: R::OneshotSender<DdsResult<R::ChannelSender<DcpsDomainParticipantMail<R>>>>,
+        reply_sender: OneshotSender<DdsResult<MpscSender<DcpsDomainParticipantMail<R>>>>,
     },
     SetDefaultParticipantQos {
         qos: QosKind<DomainParticipantQos>,
-        reply_sender: R::OneshotSender<DdsResult<()>>,
+        reply_sender: OneshotSender<DdsResult<()>>,
     },
     GetDefaultParticipantQos {
-        reply_sender: R::OneshotSender<DomainParticipantQos>,
+        reply_sender: OneshotSender<DomainParticipantQos>,
     },
     SetQos {
         qos: QosKind<DomainParticipantFactoryQos>,
-        reply_sender: R::OneshotSender<DdsResult<()>>,
+        reply_sender: OneshotSender<DdsResult<()>>,
     },
     GetQos {
-        reply_sender: R::OneshotSender<DomainParticipantFactoryQos>,
+        reply_sender: OneshotSender<DomainParticipantFactoryQos>,
     },
     SetConfiguration {
         configuration: DustDdsConfiguration,
     },
     GetConfiguration {
-        reply_sender: R::OneshotSender<DustDdsConfiguration>,
+        reply_sender: OneshotSender<DustDdsConfiguration>,
     },
 }
 

@@ -44,6 +44,7 @@ where
     {
         self.mail_sender
             .send(mail)
+            .await
             .map_err(|_| DdsError::AlreadyDeleted)
     }
 }
@@ -66,7 +67,7 @@ where
         let (mail_sender, mailbox_recv) = mpsc_channel::<A::Mail>();
 
         spawner_handle.spawn(async move {
-            while let Some(m) = mailbox_recv.recv().await {
+            while let Some(m) = mailbox_recv.receive().await {
                 actor.handle(m).await;
             }
         });
@@ -82,6 +83,7 @@ where
     pub async fn send_actor_mail(&self, mail: A::Mail) {
         self.mail_sender
             .send(mail)
+            .await
             .expect("Message will always be sent when actor exists");
     }
 }

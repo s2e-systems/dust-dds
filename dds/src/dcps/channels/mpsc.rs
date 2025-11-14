@@ -7,10 +7,7 @@ use core::{
 
 use alloc::{collections::VecDeque, sync::Arc};
 
-use crate::{
-    infrastructure::error::{DdsError, DdsResult},
-    runtime::{ChannelReceive, ChannelSend},
-};
+use crate::infrastructure::error::DdsError;
 
 use critical_section::Mutex;
 
@@ -66,15 +63,6 @@ impl<T> Clone for MpscSender<T> {
     }
 }
 
-impl<T> ChannelSend<T> for MpscSender<T>
-where
-    T: Send,
-{
-    async fn send(&self, value: T) -> DdsResult<()> {
-        MpscSender::send(self, value).map_err(|_| DdsError::AlreadyDeleted)
-    }
-}
-
 impl<T> core::fmt::Debug for MpscSender<T> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("MpscSender")
@@ -84,7 +72,7 @@ impl<T> core::fmt::Debug for MpscSender<T> {
 }
 
 impl<T> MpscSender<T> {
-    pub fn send(&self, value: T) -> Result<(), MpscSenderError> {
+    pub async fn send(&self, value: T) -> Result<(), MpscSenderError> {
         critical_section::with(|cs| {
             let mut inner_lock = self.inner.borrow(cs).borrow_mut();
             if inner_lock.is_closed {
@@ -105,20 +93,11 @@ pub struct MpscReceiver<T> {
 }
 
 impl<T> MpscReceiver<T> {
-    pub async fn recv(&self) -> Option<T> {
+    pub async fn receive(&self) -> Option<T> {
         MpscReceiverFuture {
             inner: self.inner.clone(),
         }
         .await
-    }
-}
-
-impl<T> ChannelReceive<T> for MpscReceiver<T>
-where
-    T: Send,
-{
-    async fn receive(&mut self) -> Option<T> {
-        self.recv().await
     }
 }
 

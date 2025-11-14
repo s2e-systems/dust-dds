@@ -8,10 +8,7 @@ use core::{
 use alloc::{string::String, sync::Arc};
 use critical_section::Mutex;
 
-use crate::{
-    infrastructure::error::{DdsError, DdsResult},
-    runtime::{OneshotReceive, OneshotSend},
-};
+use crate::infrastructure::error::DdsError;
 
 #[derive(Debug)]
 pub enum OneshotRecvError {
@@ -60,15 +57,6 @@ impl<T> OneshotSender<T> {
     }
 }
 
-impl<T> OneshotSend<T> for OneshotSender<T>
-where
-    T: Send,
-{
-    fn send(self, value: T) {
-        self.send(value);
-    }
-}
-
 impl<T> Drop for OneshotSender<T> {
     fn drop(&mut self) {
         critical_section::with(|cs| {
@@ -88,7 +76,7 @@ pub struct OneshotReceiver<T> {
 }
 
 impl<T> Future for OneshotReceiver<T> {
-    type Output = Result<T, OneshotRecvError>;
+    type Output = Result<T, DdsError>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         critical_section::with(|cs| {
@@ -96,21 +84,11 @@ impl<T> Future for OneshotReceiver<T> {
             if let Some(value) = inner_lock.data.take() {
                 Poll::Ready(Ok(value))
             } else if !inner_lock.has_sender {
-                Poll::Ready(Err(OneshotRecvError::SenderDropped))
+                Poll::Ready(Err(DdsError::AlreadyDeleted))
             } else {
                 inner_lock.waker.replace(cx.waker().clone());
                 Poll::Pending
             }
         })
-    }
-}
-
-impl<T> OneshotReceive<T> for OneshotReceiver<T>
-where
-    T: Send,
-{
-    async fn receive(self) -> DdsResult<T> {
-        self.await
-            .map_err(|_| DdsError::Error(String::from("Receive error")))
     }
 }
