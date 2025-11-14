@@ -1,6 +1,6 @@
 [package]
 name = "dust_dds"
-version = "0.14.0"
+version = "0.15.0"
 description = "Data Distribution Service (DDS) implementation"
 readme = true
 edition.workspace = true
@@ -55,7 +55,7 @@ rtps = ["rtps_messages"]
 rtps_messages = ["transport"]
 transport = ["xtypes"]
 xtypes = []
-std = []
+std = ["critical-section/std"]
 
 [[bench]]
 name = "benchmark"
