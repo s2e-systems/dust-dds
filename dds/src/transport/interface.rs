@@ -1,9 +1,10 @@
 use super::types::{
     CacheChange, EntityId, Guid, GuidPrefix, Locator, ProtocolVersion, ReliabilityKind, VendorId,
 };
-use crate::{rtps::stateless_writer::RtpsStatelessWriter, rtps_udp_transport::udp_transport::{
-    RtpsTransportStatefulReader, RtpsTransportStatefulWriter,
-}};
+use crate::{
+    rtps::stateless_writer::RtpsStatelessWriter,
+    rtps_udp_transport::udp_transport::{RtpsTransportStatefulReader, RtpsTransportStatefulWriter},
+};
 use alloc::boxed::Box;
 use core::{future::Future, pin::Pin};
 

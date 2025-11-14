@@ -63,7 +63,8 @@ impl RtpsStatelessWriter {
                         self.message_writer.guid_prefix(),
                     );
                     self.message_writer
-                        .write_message(rtps_message.buffer(), &[reader_locator.locator()]).await;
+                        .write_message(rtps_message.buffer(), &[reader_locator.locator()])
+                        .await;
                 } else {
                     let gap_submessage = GapSubmessage::new(
                         ENTITYID_UNKNOWN,
@@ -76,7 +77,8 @@ impl RtpsStatelessWriter {
                         self.message_writer.guid_prefix(),
                     );
                     self.message_writer
-                        .write_message(rtps_message.buffer(), &[reader_locator.locator()]).await;
+                        .write_message(rtps_message.buffer(), &[reader_locator.locator()])
+                        .await;
                 }
                 reader_locator.set_highest_sent_change_sn(unsent_change_seq_num);
             }
@@ -100,5 +102,4 @@ impl RtpsStatelessWriter {
     pub fn reader_locator_list(&mut self) -> &mut [RtpsReaderLocator] {
         &mut self.reader_locators
     }
-
 }

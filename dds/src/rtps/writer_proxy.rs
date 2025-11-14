@@ -323,7 +323,9 @@ impl RtpsWriterProxy {
                 )
             };
 
-            message_writer.write_message(rtps_message.buffer(), self.unicast_locator_list()).await;
+            message_writer
+                .write_message(rtps_message.buffer(), self.unicast_locator_list())
+                .await;
         }
     }
 

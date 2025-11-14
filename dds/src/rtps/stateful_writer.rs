@@ -361,7 +361,9 @@ impl RtpsReaderProxy {
                     &[&gap_submessage],
                     message_writer.guid_prefix(),
                 );
-                message_writer.write_message(rtps_message.buffer(), self.unicast_locator_list()).await;
+                message_writer
+                    .write_message(rtps_message.buffer(), self.unicast_locator_list())
+                    .await;
 
                 self.set_highest_sent_seq_num(next_unsent_change_seq_num);
             } else if let Some(cache_change) = changes
@@ -652,7 +654,8 @@ impl RtpsReaderProxy {
                             message_writer.guid_prefix(),
                         );
                         message_writer
-                            .write_message(rtps_message.buffer(), self.unicast_locator_list()).await;
+                            .write_message(rtps_message.buffer(), self.unicast_locator_list())
+                            .await;
                     } else {
                         let info_dst =
                             InfoDestinationSubmessage::new(self.remote_reader_guid().prefix());
@@ -678,7 +681,8 @@ impl RtpsReaderProxy {
                             message_writer.guid_prefix(),
                         );
                         message_writer
-                            .write_message(rtps_message.buffer(), self.unicast_locator_list()).await;
+                            .write_message(rtps_message.buffer(), self.unicast_locator_list())
+                            .await;
                     }
                 } else {
                     let info_dst =
@@ -696,7 +700,8 @@ impl RtpsReaderProxy {
                         message_writer.guid_prefix(),
                     );
                     message_writer
-                        .write_message(rtps_message.buffer(), self.unicast_locator_list()).await;
+                        .write_message(rtps_message.buffer(), self.unicast_locator_list())
+                        .await;
                 }
             }
         }
@@ -731,7 +736,7 @@ mod tests {
                     RtpsSubmessageReadKind::DataFrag(_)
                 ));
                 *self.total_fragments_sent.lock().unwrap() += 1;
-                Box::pin(async{})
+                Box::pin(async {})
             }
 
             fn guid_prefix(&self) -> GuidPrefix {
@@ -788,7 +793,7 @@ mod tests {
                     RtpsSubmessageReadKind::DataFrag(_)
                 ));
                 *self.total_fragments_sent.lock().unwrap() += 1;
-                Box::pin(async{})
+                Box::pin(async {})
             }
 
             fn guid_prefix(&self) -> GuidPrefix {

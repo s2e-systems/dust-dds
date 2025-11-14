@@ -345,7 +345,7 @@ mod tests {
                     }
                     _ => panic!("Expected NackFrag submessage"),
                 }
-                Box::pin(async{})
+                Box::pin(async {})
             }
 
             fn guid_prefix(&self) -> GuidPrefix {
