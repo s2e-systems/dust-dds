@@ -1,12 +1,11 @@
 pub mod executor;
-pub mod mpsc;
 pub mod oneshot;
 pub mod timer;
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use crate::dcps::channels::mpsc::{MpscReceiver, MpscSender, mpsc_channel};
 use executor::{Executor, ExecutorHandle};
-use mpsc::{MpscReceiver, MpscSender, mpsc_channel};
 use oneshot::{OneshotReceiver, OneshotSender, oneshot};
 use timer::{TimerDriver, TimerHandle};
 
