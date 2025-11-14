@@ -2,6 +2,7 @@ use super::{condition::StatusConditionAsync, domain_participant::DomainParticipa
 use crate::{
     dcps::{
         actor::ActorAddress,
+        channels::oneshot::oneshot,
         domain_participant_mail::{DcpsDomainParticipantMail, TopicServiceMail},
         status_condition::DcpsStatusCondition,
     },
@@ -11,7 +12,7 @@ use crate::{
         qos::{QosKind, TopicQos},
         status::{InconsistentTopicStatus, StatusKind},
     },
-    runtime::{ChannelSend, DdsRuntime, OneshotReceive},
+    runtime::DdsRuntime,
     topic_definition::topic_listener::TopicListener,
     xtypes::dynamic_type::DynamicType,
 };
@@ -20,7 +21,7 @@ use alloc::{string::String, sync::Arc, vec::Vec};
 /// Async version of [`Topic`](crate::topic_definition::topic::Topic).
 pub struct TopicAsync<R: DdsRuntime> {
     handle: InstanceHandle,
-    status_condition_address: ActorAddress<R, DcpsStatusCondition<R>>,
+    status_condition_address: ActorAddress<DcpsStatusCondition>,
     type_name: String,
     topic_name: String,
     participant: DomainParticipantAsync<R>,
@@ -41,7 +42,7 @@ impl<R: DdsRuntime> Clone for TopicAsync<R> {
 impl<R: DdsRuntime> TopicAsync<R> {
     pub(crate) fn new(
         handle: InstanceHandle,
-        status_condition_address: ActorAddress<R, DcpsStatusCondition<R>>,
+        status_condition_address: ActorAddress<DcpsStatusCondition>,
         type_name: String,
         topic_name: String,
         participant: DomainParticipantAsync<R>,
@@ -60,7 +61,7 @@ impl<R: DdsRuntime> TopicAsync<R> {
     /// Async version of [`get_inconsistent_topic_status`](crate::topic_definition::topic::Topic::get_inconsistent_topic_status).
     #[tracing::instrument(skip(self))]
     pub async fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
-        let (reply_sender, reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = oneshot();
         self.participant
             .participant_address()
             .send(DcpsDomainParticipantMail::Topic(
@@ -70,7 +71,7 @@ impl<R: DdsRuntime> TopicAsync<R> {
                 },
             ))
             .await?;
-        reply_receiver.receive().await?
+        reply_receiver.await?
     }
 }
 
@@ -98,7 +99,7 @@ impl<R: DdsRuntime> TopicAsync<R> {
     /// Async version of [`set_qos`](crate::topic_definition::topic::Topic::set_qos).
     #[tracing::instrument(skip(self))]
     pub async fn set_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
-        let (reply_sender, reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = oneshot();
         self.participant
             .participant_address()
             .send(DcpsDomainParticipantMail::Topic(TopicServiceMail::SetQos {
@@ -108,13 +109,13 @@ impl<R: DdsRuntime> TopicAsync<R> {
             }))
             .await?;
 
-        reply_receiver.receive().await?
+        reply_receiver.await?
     }
 
     /// Async version of [`get_qos`](crate::topic_definition::topic::Topic::get_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_qos(&self) -> DdsResult<TopicQos> {
-        let (reply_sender, reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = oneshot();
         self.participant
             .participant_address()
             .send(DcpsDomainParticipantMail::Topic(TopicServiceMail::GetQos {
@@ -123,7 +124,7 @@ impl<R: DdsRuntime> TopicAsync<R> {
             }))
             .await?;
 
-        reply_receiver.receive().await?
+        reply_receiver.await?
     }
 
     /// Async version of [`get_statuscondition`](crate::topic_definition::topic::Topic::get_statuscondition).
@@ -144,7 +145,7 @@ impl<R: DdsRuntime> TopicAsync<R> {
     /// Async version of [`enable`](crate::topic_definition::topic::Topic::enable).
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
-        let (reply_sender, reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = oneshot();
         self.participant
             .participant_address()
             .send(DcpsDomainParticipantMail::Topic(TopicServiceMail::Enable {
@@ -152,7 +153,7 @@ impl<R: DdsRuntime> TopicAsync<R> {
                 reply_sender,
             }))
             .await?;
-        reply_receiver.receive().await?
+        reply_receiver.await?
     }
 
     /// Async version of [`get_instance_handle`](crate::topic_definition::topic::Topic::get_instance_handle).
@@ -176,7 +177,7 @@ impl<R: DdsRuntime> TopicAsync<R> {
     #[doc(hidden)]
     #[tracing::instrument(skip(self))]
     pub async fn get_type_support(&self) -> DdsResult<Arc<DynamicType>> {
-        let (reply_sender, reply_receiver) = R::oneshot();
+        let (reply_sender, reply_receiver) = oneshot();
         self.participant
             .participant_address()
             .send(DcpsDomainParticipantMail::Topic(
@@ -187,6 +188,6 @@ impl<R: DdsRuntime> TopicAsync<R> {
             ))
             .await?;
 
-        reply_receiver.receive().await?
+        reply_receiver.await?
     }
 }

@@ -1,17 +1,17 @@
 use crate::{
+    dcps::channels::mpsc::{MpscReceiver, MpscSender, mpsc_channel},
     infrastructure::status::StatusKind,
-    runtime::{ChannelSend, DdsRuntime},
 };
 use alloc::{vec, vec::Vec};
 
 #[derive(Debug)]
-pub struct DcpsStatusCondition<R: DdsRuntime> {
+pub struct DcpsStatusCondition {
     enabled_statuses: Vec<StatusKind>,
     status_changes: Vec<StatusKind>,
-    registered_notifications: Vec<R::ChannelSender<()>>,
+    registered_notifications: Vec<MpscSender<()>>,
 }
 
-impl<R: DdsRuntime> Default for DcpsStatusCondition<R> {
+impl Default for DcpsStatusCondition {
     fn default() -> Self {
         Self {
             enabled_statuses: vec![
@@ -35,7 +35,7 @@ impl<R: DdsRuntime> Default for DcpsStatusCondition<R> {
     }
 }
 
-impl<R: DdsRuntime> DcpsStatusCondition<R> {
+impl DcpsStatusCondition {
     pub async fn add_communication_state(&mut self, state: StatusKind) {
         self.status_changes.push(state);
         if self.get_trigger_value() {
@@ -67,8 +67,8 @@ impl<R: DdsRuntime> DcpsStatusCondition<R> {
         false
     }
 
-    pub async fn register_notification(&mut self) -> R::ChannelReceiver<()> {
-        let (sender, receiver) = R::channel();
+    pub async fn register_notification(&mut self) -> MpscReceiver<()> {
+        let (sender, receiver) = mpsc_channel();
         if self.get_trigger_value() {
             sender.send(()).await.ok();
         } else {

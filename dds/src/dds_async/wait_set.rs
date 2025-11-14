@@ -6,7 +6,7 @@ use crate::{
         error::{DdsError, DdsResult},
         time::Duration,
     },
-    runtime::{ChannelReceive, DdsRuntime, Timer},
+    runtime::{DdsRuntime, Timer},
 };
 use alloc::{boxed::Box, string::String, vec, vec::Vec};
 

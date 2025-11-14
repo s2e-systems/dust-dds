@@ -1,19 +1,22 @@
 use crate::{
-    dcps::{actor::MailHandler, status_condition::DcpsStatusCondition},
+    dcps::{
+        actor::MailHandler,
+        channels::{mpsc::MpscReceiver, oneshot::OneshotSender},
+        status_condition::DcpsStatusCondition,
+    },
     infrastructure::status::StatusKind,
-    runtime::{DdsRuntime, OneshotSend},
 };
 use alloc::vec::Vec;
 
-pub enum DcpsStatusConditionMail<R: DdsRuntime> {
+pub enum DcpsStatusConditionMail {
     GetStatusConditionEnabledStatuses {
-        reply_sender: R::OneshotSender<Vec<StatusKind>>,
+        reply_sender: OneshotSender<Vec<StatusKind>>,
     },
     SetStatusConditionEnabledStatuses {
         status_mask: Vec<StatusKind>,
     },
     GetStatusConditionTriggerValue {
-        reply_sender: R::OneshotSender<bool>,
+        reply_sender: OneshotSender<bool>,
     },
     AddCommunicationState {
         state: StatusKind,
@@ -22,13 +25,13 @@ pub enum DcpsStatusConditionMail<R: DdsRuntime> {
         state: StatusKind,
     },
     RegisterNotification {
-        reply_sender: R::OneshotSender<R::ChannelReceiver<()>>,
+        reply_sender: OneshotSender<MpscReceiver<()>>,
     },
 }
 
-impl<R: DdsRuntime> MailHandler for DcpsStatusCondition<R> {
-    type Mail = DcpsStatusConditionMail<R>;
-    async fn handle(&mut self, message: DcpsStatusConditionMail<R>) {
+impl MailHandler for DcpsStatusCondition {
+    type Mail = DcpsStatusConditionMail;
+    async fn handle(&mut self, message: DcpsStatusConditionMail) {
         match message {
             DcpsStatusConditionMail::GetStatusConditionEnabledStatuses { reply_sender } => {
                 reply_sender.send(self.get_enabled_statuses())

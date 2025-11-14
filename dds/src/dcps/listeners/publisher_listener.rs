@@ -1,6 +1,7 @@
 use crate::{
+    dcps::channels::mpsc::{MpscSender, mpsc_channel},
     publication::publisher_listener::PublisherListener,
-    runtime::{ChannelReceive, DdsRuntime, Spawner},
+    runtime::{DdsRuntime, Spawner},
 };
 
 use super::domain_participant_listener::ListenerMail;
@@ -11,8 +12,8 @@ impl DcpsPublisherListener {
     pub fn spawn<R: DdsRuntime>(
         mut listener: impl PublisherListener<R> + Send + 'static,
         spawner_handle: &R::SpawnerHandle,
-    ) -> R::ChannelSender<ListenerMail<R>> {
-        let (listener_sender, mut listener_receiver) = R::channel();
+    ) -> MpscSender<ListenerMail<R>> {
+        let (listener_sender, listener_receiver) = mpsc_channel();
         spawner_handle.spawn(async move {
             while let Some(m) = listener_receiver.receive().await {
                 match m {
