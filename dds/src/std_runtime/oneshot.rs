@@ -1,9 +1,12 @@
-use std::{
+use core::{
+    cell::RefCell,
     future::Future,
     pin::Pin,
-    sync::{Arc, Mutex},
     task::{Context, Poll, Waker},
 };
+
+use alloc::sync::Arc;
+use critical_section::Mutex;
 
 use crate::{
     infrastructure::error::{DdsError, DdsResult},
@@ -22,11 +25,11 @@ impl From<OneshotRecvError> for DdsError {
 }
 
 pub fn oneshot<T>() -> (OneshotSender<T>, OneshotReceiver<T>) {
-    let inner = Arc::new(Mutex::new(OneshotInner {
+    let inner = Arc::new(Mutex::new(RefCell::new(OneshotInner {
         data: None,
         waker: None,
         has_sender: true,
-    }));
+    })));
     (
         OneshotSender {
             inner: inner.clone(),
@@ -42,18 +45,18 @@ struct OneshotInner<T> {
 }
 
 pub struct OneshotSender<T> {
-    inner: Arc<Mutex<OneshotInner<T>>>,
+    inner: Arc<Mutex<RefCell<OneshotInner<T>>>>,
 }
 
 impl<T> OneshotSender<T> {
     pub fn send(self, value: T) {
-        {
-            let mut inner_lock = self.inner.lock().expect("Mutex shouldn't be poisoned");
+        critical_section::with(|cs| {
+            let mut inner_lock = self.inner.borrow(cs).borrow_mut();
             inner_lock.data.replace(value);
             if let Some(w) = inner_lock.waker.take() {
                 w.wake()
             }
-        }
+        })
     }
 }
 
@@ -68,33 +71,37 @@ where
 
 impl<T> Drop for OneshotSender<T> {
     fn drop(&mut self) {
-        let mut inner_lock = self.inner.lock().expect("Mutex shouldn't be poisoned");
-        inner_lock.has_sender = false;
-        // When the sender is dropped wake the waiting task
-        // so that it can finish knowing it won't get any message
-        if let Some(w) = inner_lock.waker.take() {
-            w.wake()
-        }
+        critical_section::with(|cs| {
+            let mut inner_lock = self.inner.borrow(cs).borrow_mut();
+            inner_lock.has_sender = false;
+            // When the sender is dropped wake the waiting task
+            // so that it can finish knowing it won't get any message
+            if let Some(w) = inner_lock.waker.take() {
+                w.wake()
+            }
+        })
     }
 }
 
 pub struct OneshotReceiver<T> {
-    inner: Arc<Mutex<OneshotInner<T>>>,
+    inner: Arc<Mutex<RefCell<OneshotInner<T>>>>,
 }
 
 impl<T> Future for OneshotReceiver<T> {
     type Output = Result<T, OneshotRecvError>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let mut inner_lock = self.inner.lock().expect("Mutex shouldn't be poisoned");
-        if let Some(value) = inner_lock.data.take() {
-            Poll::Ready(Ok(value))
-        } else if !inner_lock.has_sender {
-            Poll::Ready(Err(OneshotRecvError::SenderDropped))
-        } else {
-            inner_lock.waker.replace(cx.waker().clone());
-            Poll::Pending
-        }
+        critical_section::with(|cs| {
+            let mut inner_lock = self.inner.borrow(cs).borrow_mut();
+            if let Some(value) = inner_lock.data.take() {
+                Poll::Ready(Ok(value))
+            } else if !inner_lock.has_sender {
+                Poll::Ready(Err(OneshotRecvError::SenderDropped))
+            } else {
+                inner_lock.waker.replace(cx.waker().clone());
+                Poll::Pending
+            }
+        })
     }
 }
 

@@ -34,8 +34,8 @@ struct MpscInner<T> {
     is_closed: bool,
 }
 
-impl<T> std::fmt::Debug for MpscInner<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<T> core::fmt::Debug for MpscInner<T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("MpscInner")
             .field("data_length", &self.data.len())
             .field("waker", &self.waker)
@@ -75,8 +75,8 @@ where
     }
 }
 
-impl<T> std::fmt::Debug for MpscSender<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<T> core::fmt::Debug for MpscSender<T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("MpscSender")
             .field("inner", &self.inner)
             .finish()
