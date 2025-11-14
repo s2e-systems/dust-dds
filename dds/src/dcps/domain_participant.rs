@@ -512,7 +512,7 @@ where
     pub fn create_user_defined_subscriber(
         &mut self,
         qos: QosKind<SubscriberQos>,
-        status_condition: Actor<R, DcpsStatusCondition<R>>,
+        status_condition: Actor<DcpsStatusCondition<R>>,
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         mask: Vec<StatusKind>,
     ) -> DdsResult<InstanceHandle> {
@@ -611,7 +611,7 @@ where
         topic_name: String,
         type_name: String,
         qos: QosKind<TopicQos>,
-        status_condition: Actor<R, DcpsStatusCondition<R>>,
+        status_condition: Actor<DcpsStatusCondition<R>>,
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         mask: Vec<StatusKind>,
         type_support: Arc<DynamicType>,
@@ -787,14 +787,8 @@ where
         &mut self,
         topic_name: String,
         type_support: Arc<DynamicType>,
-        status_condition: Actor<R, DcpsStatusCondition<R>>,
-    ) -> DdsResult<
-        Option<(
-            InstanceHandle,
-            ActorAddress<R, DcpsStatusCondition<R>>,
-            String,
-        )>,
-    > {
+        status_condition: Actor<DcpsStatusCondition<R>>,
+    ) -> DdsResult<Option<(InstanceHandle, ActorAddress<DcpsStatusCondition<R>>, String)>> {
         if let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
             .topic_description_list
@@ -887,13 +881,7 @@ where
     pub fn lookup_topicdescription(
         &mut self,
         topic_name: String,
-    ) -> DdsResult<
-        Option<(
-            String,
-            InstanceHandle,
-            ActorAddress<R, DcpsStatusCondition<R>>,
-        )>,
-    > {
+    ) -> DdsResult<Option<(String, InstanceHandle, ActorAddress<DcpsStatusCondition<R>>)>> {
         if let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
             .topic_description_list
@@ -1180,7 +1168,7 @@ where
         subscriber_handle: InstanceHandle,
         topic_name: String,
         qos: QosKind<DataReaderQos>,
-        status_condition: Actor<R, DcpsStatusCondition<R>>,
+        status_condition: Actor<DcpsStatusCondition<R>>,
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         mask: Vec<StatusKind>,
         domain_participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
@@ -1383,7 +1371,7 @@ where
         &mut self,
         subscriber_handle: InstanceHandle,
         topic_name: String,
-    ) -> DdsResult<Option<(InstanceHandle, ActorAddress<R, DcpsStatusCondition<R>>)>> {
+    ) -> DdsResult<Option<(InstanceHandle, ActorAddress<DcpsStatusCondition<R>>)>> {
         if !self
             .domain_participant
             .topic_description_list
@@ -1530,7 +1518,7 @@ where
         publisher_handle: InstanceHandle,
         topic_name: String,
         qos: QosKind<DataWriterQos>,
-        status_condition: Actor<R, DcpsStatusCondition<R>>,
+        status_condition: Actor<DcpsStatusCondition<R>>,
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         mask: Vec<StatusKind>,
         participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
@@ -5934,7 +5922,7 @@ pub struct SubscriberEntity<R: DdsRuntime, T: TransportParticipantFactory> {
     data_reader_list: Vec<DataReaderEntity<R, T>>,
     enabled: bool,
     default_data_reader_qos: DataReaderQos,
-    status_condition: Actor<R, DcpsStatusCondition<R>>,
+    status_condition: Actor<DcpsStatusCondition<R>>,
     listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
     listener_mask: Vec<StatusKind>,
 }
@@ -5944,7 +5932,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> SubscriberEntity<R, T> {
         instance_handle: InstanceHandle,
         qos: SubscriberQos,
         data_reader_list: Vec<DataReaderEntity<R, T>>,
-        status_condition: Actor<R, DcpsStatusCondition<R>>,
+        status_condition: Actor<DcpsStatusCondition<R>>,
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         listener_mask: Vec<StatusKind>,
     ) -> Self {
@@ -5960,7 +5948,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> SubscriberEntity<R, T> {
         }
     }
 
-    pub fn status_condition(&self) -> &Actor<R, DcpsStatusCondition<R>> {
+    pub fn status_condition(&self) -> &Actor<DcpsStatusCondition<R>> {
         &self.status_condition
     }
 }
@@ -5986,7 +5974,7 @@ pub struct TopicEntity<R: DdsRuntime> {
     instance_handle: InstanceHandle,
     enabled: bool,
     inconsistent_topic_status: InconsistentTopicStatus,
-    status_condition: Actor<R, DcpsStatusCondition<R>>,
+    status_condition: Actor<DcpsStatusCondition<R>>,
     _listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
     _status_kind: Vec<StatusKind>,
     type_support: Arc<DynamicType>,
@@ -5999,7 +5987,7 @@ impl<R: DdsRuntime> TopicEntity<R> {
         type_name: String,
         topic_name: String,
         instance_handle: InstanceHandle,
-        status_condition: Actor<R, DcpsStatusCondition<R>>,
+        status_condition: Actor<DcpsStatusCondition<R>>,
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         status_kind: Vec<StatusKind>,
         type_support: Arc<DynamicType>,
@@ -6091,7 +6079,7 @@ pub struct DataWriterEntity<R: DdsRuntime, T: TransportParticipantFactory> {
     incompatible_subscription_list: Vec<InstanceHandle>,
     offered_incompatible_qos_status: OfferedIncompatibleQosStatus,
     enabled: bool,
-    status_condition: Actor<R, DcpsStatusCondition<R>>,
+    status_condition: Actor<DcpsStatusCondition<R>>,
     listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
     listener_mask: Vec<StatusKind>,
     max_seq_num: Option<i64>,
@@ -6111,7 +6099,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
         topic_name: String,
         type_name: String,
         type_support: Arc<DynamicType>,
-        status_condition: Actor<R, DcpsStatusCondition<R>>,
+        status_condition: Actor<DcpsStatusCondition<R>>,
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         listener_mask: Vec<StatusKind>,
         qos: DataWriterQos,
@@ -6660,7 +6648,7 @@ pub struct DataReaderEntity<R: DdsRuntime, T: TransportParticipantFactory> {
     enabled: bool,
     data_available_status_changed_flag: bool,
     incompatible_writer_list: Vec<InstanceHandle>,
-    status_condition: Actor<R, DcpsStatusCondition<R>>,
+    status_condition: Actor<DcpsStatusCondition<R>>,
     listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
     listener_mask: Vec<StatusKind>,
     instances: Vec<InstanceState>,
@@ -6675,7 +6663,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
         qos: DataReaderQos,
         topic_name: String,
         type_support: Arc<DynamicType>,
-        status_condition: Actor<R, DcpsStatusCondition<R>>,
+        status_condition: Actor<DcpsStatusCondition<R>>,
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         listener_mask: Vec<StatusKind>,
         transport_reader: TransportReaderKind<T>,

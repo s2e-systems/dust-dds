@@ -34,7 +34,7 @@ use core::marker::PhantomData;
 /// Async version of [`DataReader`](crate::subscription::data_reader::DataReader).
 pub struct DataReaderAsync<R: DdsRuntime, Foo> {
     handle: InstanceHandle,
-    status_condition_address: ActorAddress<R, DcpsStatusCondition<R>>,
+    status_condition_address: ActorAddress<DcpsStatusCondition<R>>,
     subscriber: SubscriberAsync<R>,
     topic: TopicDescriptionAsync<R>,
     phantom: PhantomData<Foo>,
@@ -43,7 +43,7 @@ pub struct DataReaderAsync<R: DdsRuntime, Foo> {
 impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
     pub(crate) fn new(
         handle: InstanceHandle,
-        status_condition_address: ActorAddress<R, DcpsStatusCondition<R>>,
+        status_condition_address: ActorAddress<DcpsStatusCondition<R>>,
         subscriber: SubscriberAsync<R>,
         topic: TopicDescriptionAsync<R>,
     ) -> Self {

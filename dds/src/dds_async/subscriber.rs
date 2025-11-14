@@ -29,7 +29,7 @@ use alloc::{string::String, vec::Vec};
 /// Async version of [`Subscriber`](crate::subscription::subscriber::Subscriber).
 pub struct SubscriberAsync<R: DdsRuntime> {
     handle: InstanceHandle,
-    status_condition_address: ActorAddress<R, DcpsStatusCondition<R>>,
+    status_condition_address: ActorAddress<DcpsStatusCondition<R>>,
     participant: DomainParticipantAsync<R>,
 }
 
@@ -46,7 +46,7 @@ impl<R: DdsRuntime> Clone for SubscriberAsync<R> {
 impl<R: DdsRuntime> SubscriberAsync<R> {
     pub(crate) fn new(
         handle: InstanceHandle,
-        status_condition_address: ActorAddress<R, DcpsStatusCondition<R>>,
+        status_condition_address: ActorAddress<DcpsStatusCondition<R>>,
         participant: DomainParticipantAsync<R>,
     ) -> Self {
         Self {
@@ -71,7 +71,7 @@ impl<R: DdsRuntime> SubscriberAsync<R> {
         a_listener: Option<impl DataReaderListener<R, Foo> + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<DataReaderAsync<R, Foo>> {
-        let status_condition = Actor::spawn(
+        let status_condition = Actor::spawn::<R>(
             DcpsStatusCondition::default(),
             self.participant.spawner_handle(),
         );

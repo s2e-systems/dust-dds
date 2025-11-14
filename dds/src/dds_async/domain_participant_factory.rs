@@ -28,7 +28,7 @@ use alloc::string::String;
 /// to spin tasks on an existing runtime which can be shared with other things outside Dust DDS.
 pub struct DomainParticipantFactoryAsync<R: DdsRuntime, T: TransportParticipantFactory> {
     runtime: R,
-    domain_participant_factory_actor: Actor<R, DcpsParticipantFactory<R, T>>,
+    domain_participant_factory_actor: Actor<DcpsParticipantFactory<R, T>>,
 }
 
 impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantFactoryAsync<R, T> {
@@ -190,7 +190,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantFactoryAsyn
         host_id: [u8; 4],
         transport: T,
     ) -> DomainParticipantFactoryAsync<R, T> {
-        let domain_participant_factory_actor = Actor::spawn(
+        let domain_participant_factory_actor = Actor::spawn::<R>(
             DcpsParticipantFactory::new(app_id, host_id, transport),
             &runtime.spawner(),
         );

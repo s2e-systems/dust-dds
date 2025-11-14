@@ -41,7 +41,7 @@ use alloc::{
 /// Async version of [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant).
 pub struct DomainParticipantAsync<R: DdsRuntime> {
     participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
-    builtin_subscriber_status_condition_address: ActorAddress<R, DcpsStatusCondition<R>>,
+    builtin_subscriber_status_condition_address: ActorAddress<DcpsStatusCondition<R>>,
     domain_id: DomainId,
     handle: InstanceHandle,
     spawner_handle: R::SpawnerHandle,
@@ -68,7 +68,7 @@ impl<R: DdsRuntime> Clone for DomainParticipantAsync<R> {
 impl<R: DdsRuntime> DomainParticipantAsync<R> {
     pub(crate) fn new(
         participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
-        builtin_subscriber_status_condition_address: ActorAddress<R, DcpsStatusCondition<R>>,
+        builtin_subscriber_status_condition_address: ActorAddress<DcpsStatusCondition<R>>,
         domain_id: DomainId,
         handle: InstanceHandle,
         spawner_handle: R::SpawnerHandle,
@@ -152,7 +152,8 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         mask: &[StatusKind],
     ) -> DdsResult<SubscriberAsync<R>> {
         let (reply_sender, reply_receiver) = R::oneshot();
-        let status_condition = Actor::spawn(DcpsStatusCondition::default(), &self.spawner_handle);
+        let status_condition =
+            Actor::spawn::<R>(DcpsStatusCondition::default(), &self.spawner_handle);
         let subscriber_status_condition_address = status_condition.address();
         let listener_sender =
             a_listener.map(|l| DcpsSubscriberListener::spawn(l, self.spawner_handle()));
@@ -221,7 +222,8 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         dynamic_type_representation: Arc<DynamicType>,
     ) -> DdsResult<TopicDescriptionAsync<R>> {
         let (reply_sender, reply_receiver) = R::oneshot();
-        let status_condition = Actor::spawn(DcpsStatusCondition::default(), &self.spawner_handle);
+        let status_condition =
+            Actor::spawn::<R>(DcpsStatusCondition::default(), &self.spawner_handle);
         let topic_status_condition_address = status_condition.address();
         let listener_sender =
             a_listener.map(|l| DcpsTopicListener::spawn(l, self.spawner_handle()));
@@ -346,7 +348,7 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
                 loop {
                     let (reply_sender, reply_receiver) = R::oneshot();
                     let status_condition =
-                        Actor::spawn(DcpsStatusCondition::default(), &executor_handle);
+                        Actor::spawn::<R>(DcpsStatusCondition::default(), &executor_handle);
 
                     participant_address
                         .send(DcpsDomainParticipantMail::Participant(

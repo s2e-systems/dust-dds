@@ -44,7 +44,7 @@ pub enum ParticipantServiceMail<R: DdsRuntime> {
     },
     CreateUserDefinedSubscriber {
         qos: QosKind<SubscriberQos>,
-        status_condition: Actor<R, DcpsStatusCondition<R>>,
+        status_condition: Actor<DcpsStatusCondition<R>>,
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         mask: Vec<StatusKind>,
         reply_sender: R::OneshotSender<DdsResult<InstanceHandle>>,
@@ -58,7 +58,7 @@ pub enum ParticipantServiceMail<R: DdsRuntime> {
         topic_name: String,
         type_name: String,
         qos: QosKind<TopicQos>,
-        status_condition: Actor<R, DcpsStatusCondition<R>>,
+        status_condition: Actor<DcpsStatusCondition<R>>,
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         mask: Vec<StatusKind>,
         type_support: Arc<DynamicType>,
@@ -85,29 +85,17 @@ pub enum ParticipantServiceMail<R: DdsRuntime> {
     FindTopic {
         topic_name: String,
         type_support: Arc<DynamicType>,
-        status_condition: Actor<R, DcpsStatusCondition<R>>,
+        status_condition: Actor<DcpsStatusCondition<R>>,
         #[allow(clippy::type_complexity)]
         reply_sender: R::OneshotSender<
-            DdsResult<
-                Option<(
-                    InstanceHandle,
-                    ActorAddress<R, DcpsStatusCondition<R>>,
-                    String,
-                )>,
-            >,
+            DdsResult<Option<(InstanceHandle, ActorAddress<DcpsStatusCondition<R>>, String)>>,
         >,
     },
     LookupTopicdescription {
         topic_name: String,
         #[allow(clippy::type_complexity)]
         reply_sender: R::OneshotSender<
-            DdsResult<
-                Option<(
-                    String,
-                    InstanceHandle,
-                    ActorAddress<R, DcpsStatusCondition<R>>,
-                )>,
-            >,
+            DdsResult<Option<(String, InstanceHandle, ActorAddress<DcpsStatusCondition<R>>)>>,
         >,
     },
     IgnoreParticipant {
@@ -213,7 +201,7 @@ pub enum PublisherServiceMail<R: DdsRuntime> {
         publisher_handle: InstanceHandle,
         topic_name: String,
         qos: QosKind<DataWriterQos>,
-        status_condition: Actor<R, DcpsStatusCondition<R>>,
+        status_condition: Actor<DcpsStatusCondition<R>>,
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         mask: Vec<StatusKind>,
         participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
@@ -255,7 +243,7 @@ pub enum SubscriberServiceMail<R: DdsRuntime> {
         subscriber_handle: InstanceHandle,
         topic_name: String,
         qos: QosKind<DataReaderQos>,
-        status_condition: Actor<R, DcpsStatusCondition<R>>,
+        status_condition: Actor<DcpsStatusCondition<R>>,
         listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
         mask: Vec<StatusKind>,
         domain_participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
@@ -271,7 +259,7 @@ pub enum SubscriberServiceMail<R: DdsRuntime> {
         topic_name: String,
         #[allow(clippy::type_complexity)]
         reply_sender: R::OneshotSender<
-            DdsResult<Option<(InstanceHandle, ActorAddress<R, DcpsStatusCondition<R>>)>>,
+            DdsResult<Option<(InstanceHandle, ActorAddress<DcpsStatusCondition<R>>)>>,
         >,
     },
     SetDefaultDataReaderQos {

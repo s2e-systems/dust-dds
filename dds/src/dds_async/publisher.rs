@@ -62,7 +62,7 @@ impl<R: DdsRuntime> PublisherAsync<R> {
         mask: &[StatusKind],
     ) -> DdsResult<DataWriterAsync<R, Foo>> {
         let topic_name = a_topic.get_name();
-        let status_condition = Actor::spawn(
+        let status_condition = Actor::spawn::<R>(
             DcpsStatusCondition::default(),
             self.participant.spawner_handle(),
         );

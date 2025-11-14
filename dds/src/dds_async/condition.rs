@@ -10,7 +10,7 @@ use alloc::vec::Vec;
 
 /// Async version of [`StatusCondition`](crate::infrastructure::condition::StatusCondition).
 pub struct StatusConditionAsync<R: DdsRuntime> {
-    address: ActorAddress<R, DcpsStatusCondition<R>>,
+    address: ActorAddress<DcpsStatusCondition<R>>,
     timer_handle: R::TimerHandle,
 }
 
@@ -25,7 +25,7 @@ impl<R: DdsRuntime> Clone for StatusConditionAsync<R> {
 
 impl<R: DdsRuntime> StatusConditionAsync<R> {
     pub(crate) fn new(
-        address: ActorAddress<R, DcpsStatusCondition<R>>,
+        address: ActorAddress<DcpsStatusCondition<R>>,
         timer_handle: R::TimerHandle,
     ) -> Self {
         Self {

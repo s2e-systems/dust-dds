@@ -20,7 +20,7 @@ use alloc::{string::String, sync::Arc, vec::Vec};
 /// Async version of [`Topic`](crate::topic_definition::topic::Topic).
 pub struct TopicAsync<R: DdsRuntime> {
     handle: InstanceHandle,
-    status_condition_address: ActorAddress<R, DcpsStatusCondition<R>>,
+    status_condition_address: ActorAddress<DcpsStatusCondition<R>>,
     type_name: String,
     topic_name: String,
     participant: DomainParticipantAsync<R>,
@@ -41,7 +41,7 @@ impl<R: DdsRuntime> Clone for TopicAsync<R> {
 impl<R: DdsRuntime> TopicAsync<R> {
     pub(crate) fn new(
         handle: InstanceHandle,
-        status_condition_address: ActorAddress<R, DcpsStatusCondition<R>>,
+        status_condition_address: ActorAddress<DcpsStatusCondition<R>>,
         type_name: String,
         topic_name: String,
         participant: DomainParticipantAsync<R>,

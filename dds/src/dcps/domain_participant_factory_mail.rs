@@ -33,7 +33,7 @@ pub enum DcpsParticipantFactoryMail<R: DdsRuntime> {
             DdsResult<(
                 R::ChannelSender<DcpsDomainParticipantMail<R>>,
                 InstanceHandle,
-                ActorAddress<R, DcpsStatusCondition<R>>,
+                ActorAddress<DcpsStatusCondition<R>>,
             )>,
         >,
     },
