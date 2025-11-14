@@ -41,11 +41,7 @@ use crate::{
     },
     runtime::{ChannelReceive, ChannelSend, DdsRuntime, Spawner, Timer},
     transport::{
-        interface::{
-            HistoryCache, TransportParticipant, TransportParticipantFactory,
-            TransportStatefulReader, TransportStatefulWriter, TransportStatelessReader,
-            TransportStatelessWriter,
-        },
+        interface::{HistoryCache, TransportParticipant, TransportParticipantFactory},
         types::{
             BUILT_IN_READER_GROUP, BUILT_IN_READER_WITH_KEY, BUILT_IN_TOPIC, BUILT_IN_WRITER_GROUP,
             BUILT_IN_WRITER_WITH_KEY, CacheChange, EntityId, GuidPrefix, ReliabilityKind,
@@ -357,7 +353,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             ..Default::default()
         };
 
-        let dcps_participant_transport_reader = transport
+        let guid = transport
             .create_stateless_reader(
                 ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
                 Box::new(DcpsParticipantReaderHistoryCache::<R> {
@@ -366,14 +362,14 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             )
             .await;
         let dcps_participant_reader = DataReaderEntity::new(
-            InstanceHandle::new(dcps_participant_transport_reader.guid().into()),
+            InstanceHandle::new(guid.into()),
             spdp_reader_qos,
             String::from(DCPS_PARTICIPANT),
             Arc::new(SpdpDiscoveredParticipantData::get_type()),
             Actor::spawn(DcpsStatusCondition::default(), &spawner_handle),
             None,
             Vec::new(),
-            TransportReaderKind::Stateless(dcps_participant_transport_reader),
+            TransportReaderKind::Stateless(guid),
         );
         let dcps_topic_transport_reader = transport
             .create_stateful_reader(
@@ -470,7 +466,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             .create_stateless_writer(ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER)
             .await;
         for &discovery_locator in transport.metatraffic_multicast_locator_list() {
-            dcps_participant_transport_writer.add_reader_locator(discovery_locator);
+            dcps_participant_transport_writer.reader_locator_add(discovery_locator);
         }
         let dcps_participant_writer = DataWriterEntity::new(
             InstanceHandle::new(dcps_participant_transport_writer.guid().into()),

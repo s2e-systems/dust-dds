@@ -317,11 +317,11 @@ mod tests {
 
         struct MockWriter;
         impl WriteMessage for MockWriter {
-            async fn write_message(
+            fn write_message(
                 &self,
                 datagram: &[u8],
                 _locator_list: &[crate::transport::types::Locator],
-            ) {
+            ) -> core::pin::Pin<Box<dyn Future<Output = ()> + Send>> {
                 let message = RtpsMessageRead::try_from(datagram).unwrap();
                 let submessages = message.submessages();
                 match &submessages[1] {
@@ -345,6 +345,7 @@ mod tests {
                     }
                     _ => panic!("Expected NackFrag submessage"),
                 }
+                Box::pin(async {})
             }
 
             fn guid_prefix(&self) -> GuidPrefix {

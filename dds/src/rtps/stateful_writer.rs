@@ -255,7 +255,7 @@ impl RtpsStatefulWriter {
                                     rtps_message.buffer(),
                                     reader_proxy.unicast_locator_list(),
                                 )
-                                .await;
+                                .await
                         }
                     }
                 } else {
@@ -275,7 +275,7 @@ impl RtpsStatefulWriter {
                     );
                     message_writer
                         .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list())
-                        .await;
+                        .await
                 }
             }
         }
@@ -399,7 +399,7 @@ impl RtpsReaderProxy {
                         );
                         message_writer
                             .write_message(rtps_message.buffer(), self.unicast_locator_list())
-                            .await;
+                            .await
                     }
                 } else {
                     let data_submessage = cache_change
@@ -411,7 +411,7 @@ impl RtpsReaderProxy {
                     );
                     message_writer
                         .write_message(rtps_message.buffer(), self.unicast_locator_list())
-                        .await;
+                        .await
                 }
             } else {
                 let gap_submessage = GapSubmessage::new(
@@ -426,7 +426,7 @@ impl RtpsReaderProxy {
                 );
                 message_writer
                     .write_message(rtps_message.buffer(), self.unicast_locator_list())
-                    .await;
+                    .await
             }
 
             self.set_highest_sent_seq_num(next_unsent_change_seq_num);
@@ -470,7 +470,7 @@ impl RtpsReaderProxy {
                     );
                     message_writer
                         .write_message(rtps_message.buffer(), self.unicast_locator_list())
-                        .await;
+                        .await
                 } else {
                     let now = clock.now();
                     let seq_num_min = changes.iter().map(|cc| cc.sequence_number).min();
@@ -527,7 +527,7 @@ impl RtpsReaderProxy {
                                         rtps_message.buffer(),
                                         self.unicast_locator_list(),
                                     )
-                                    .await;
+                                    .await
                             }
                         } else {
                             let info_dst =
@@ -557,7 +557,7 @@ impl RtpsReaderProxy {
                             );
                             message_writer
                                 .write_message(rtps_message.buffer(), self.unicast_locator_list())
-                                .await;
+                                .await
                         }
                     } else {
                         let info_dst =
@@ -576,7 +576,7 @@ impl RtpsReaderProxy {
                         );
                         message_writer
                             .write_message(rtps_message.buffer(), self.unicast_locator_list())
-                            .await;
+                            .await
                     }
                 }
                 self.set_highest_sent_seq_num(next_unsent_change_seq_num);
@@ -601,7 +601,7 @@ impl RtpsReaderProxy {
             );
             message_writer
                 .write_message(rtps_message.buffer(), self.unicast_locator_list())
-                .await;
+                .await
         }
 
         // Middle-part of the state-machine - Figure 8.19 RTPS standard
@@ -725,17 +725,18 @@ mod tests {
             total_fragments_sent: Mutex<usize>,
         }
         impl WriteMessage for MockWriter {
-            async fn write_message(
+            fn write_message(
                 &self,
                 datagram: &[u8],
                 _locator_list: &[crate::transport::types::Locator],
-            ) {
+            ) -> core::pin::Pin<Box<dyn Future<Output = ()> + Send>> {
                 let message = RtpsMessageRead::try_from(datagram).unwrap();
                 assert!(matches!(
                     message.submessages()[2],
                     RtpsSubmessageReadKind::DataFrag(_)
                 ));
                 *self.total_fragments_sent.lock().unwrap() += 1;
+                Box::pin(async {})
             }
 
             fn guid_prefix(&self) -> GuidPrefix {
@@ -781,17 +782,18 @@ mod tests {
             total_fragments_sent: Mutex<usize>,
         }
         impl WriteMessage for MockWriter {
-            async fn write_message(
+            fn write_message(
                 &self,
                 datagram: &[u8],
                 _locator_list: &[crate::transport::types::Locator],
-            ) {
+            ) -> core::pin::Pin<Box<dyn Future<Output = ()> + Send>> {
                 let message = RtpsMessageRead::try_from(datagram).unwrap();
                 assert!(matches!(
                     message.submessages()[2],
                     RtpsSubmessageReadKind::DataFrag(_)
                 ));
                 *self.total_fragments_sent.lock().unwrap() += 1;
+                Box::pin(async {})
             }
 
             fn guid_prefix(&self) -> GuidPrefix {
