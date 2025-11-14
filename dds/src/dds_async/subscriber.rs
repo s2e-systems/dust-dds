@@ -140,9 +140,7 @@ impl<R: DdsRuntime> SubscriberAsync<R> {
                     },
                 ))
                 .await?;
-            if let Some((reader_handle, reader_status_condition_address)) =
-                reply_receiver.await??
-            {
+            if let Some((reader_handle, reader_status_condition_address)) = reply_receiver.await?? {
                 Ok(Some(DataReaderAsync::new(
                     reader_handle,
                     reader_status_condition_address,

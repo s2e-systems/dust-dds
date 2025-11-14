@@ -24,4 +24,3 @@ pub mod time;
 
 /// Contains the classes needed to publish and subscribe types using Dust DDS
 pub mod type_support;
-

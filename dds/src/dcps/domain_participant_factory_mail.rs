@@ -1,7 +1,12 @@
 use crate::{
     configuration::DustDdsConfiguration,
     dcps::{
-        actor::{ActorAddress, MailHandler}, channels::{mpsc::MpscSender, oneshot::OneshotSender}, domain_participant_factory::DcpsParticipantFactory, domain_participant_mail::DcpsDomainParticipantMail, listeners::domain_participant_listener::ListenerMail, status_condition::DcpsStatusCondition
+        actor::{ActorAddress, MailHandler},
+        channels::{mpsc::MpscSender, oneshot::OneshotSender},
+        domain_participant_factory::DcpsParticipantFactory,
+        domain_participant_mail::DcpsDomainParticipantMail,
+        listeners::domain_participant_listener::ListenerMail,
+        status_condition::DcpsStatusCondition,
     },
     infrastructure::{
         domain::DomainId,
@@ -10,7 +15,7 @@ use crate::{
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
         status::StatusKind,
     },
-    runtime::{DdsRuntime},
+    runtime::DdsRuntime,
     transport::interface::TransportParticipantFactory,
 };
 use alloc::vec::Vec;
