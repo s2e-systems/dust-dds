@@ -1,22 +1,25 @@
-use std::{
-    collections::VecDeque,
+use core::{
+    cell::RefCell,
     future::Future,
     pin::Pin,
-    sync::{Arc, Mutex},
     task::{Context, Poll, Waker},
 };
+
+use alloc::{collections::VecDeque, sync::Arc};
 
 use crate::{
     infrastructure::error::{DdsError, DdsResult},
     runtime::{ChannelReceive, ChannelSend},
 };
 
+use critical_section::Mutex;
+
 pub fn mpsc_channel<T>() -> (MpscSender<T>, MpscReceiver<T>) {
-    let inner = Arc::new(Mutex::new(MpscInner {
+    let inner = Arc::new(Mutex::new(RefCell::new(MpscInner {
         data: VecDeque::with_capacity(64),
         waker: None,
         is_closed: false,
-    }));
+    })));
     (
         MpscSender {
             inner: inner.clone(),
@@ -52,7 +55,7 @@ impl From<MpscSenderError> for DdsError {
 }
 
 pub struct MpscSender<T> {
-    inner: Arc<Mutex<MpscInner<T>>>,
+    inner: Arc<Mutex<RefCell<MpscInner<T>>>>,
 }
 
 impl<T> Clone for MpscSender<T> {
@@ -82,21 +85,23 @@ impl<T> std::fmt::Debug for MpscSender<T> {
 
 impl<T> MpscSender<T> {
     pub fn send(&self, value: T) -> Result<(), MpscSenderError> {
-        let mut inner_lock = self.inner.lock().expect("Mutex shouldn't be poisoned");
-        if inner_lock.is_closed {
-            Err(MpscSenderError::Closed)
-        } else {
-            inner_lock.data.push_back(value);
-            if let Some(w) = inner_lock.waker.take() {
-                w.wake();
+        critical_section::with(|cs| {
+            let mut inner_lock = self.inner.borrow(cs).borrow_mut();
+            if inner_lock.is_closed {
+                Err(MpscSenderError::Closed)
+            } else {
+                inner_lock.data.push_back(value);
+                if let Some(w) = inner_lock.waker.take() {
+                    w.wake();
+                }
+                Ok(())
             }
-            Ok(())
-        }
+        })
     }
 }
 
 pub struct MpscReceiver<T> {
-    inner: Arc<Mutex<MpscInner<T>>>,
+    inner: Arc<Mutex<RefCell<MpscInner<T>>>>,
 }
 
 impl<T> MpscReceiver<T> {
@@ -118,21 +123,23 @@ where
 }
 
 struct MpscReceiverFuture<T> {
-    inner: Arc<Mutex<MpscInner<T>>>,
+    inner: Arc<Mutex<RefCell<MpscInner<T>>>>,
 }
 
 impl<T> Future for MpscReceiverFuture<T> {
     type Output = Option<T>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let mut inner_lock = self.inner.lock().expect("Mutex shouldn't be poisoned");
-        if let Some(value) = inner_lock.data.pop_front() {
-            Poll::Ready(Some(value))
-        } else if inner_lock.is_closed {
-            Poll::Ready(None)
-        } else {
-            inner_lock.waker.replace(cx.waker().clone());
-            Poll::Pending
-        }
+        critical_section::with(|cs| {
+            let mut inner_lock = self.inner.borrow(cs).borrow_mut();
+            if let Some(value) = inner_lock.data.pop_front() {
+                Poll::Ready(Some(value))
+            } else if inner_lock.is_closed {
+                Poll::Ready(None)
+            } else {
+                inner_lock.waker.replace(cx.waker().clone());
+                Poll::Pending
+            }
+        })
     }
 }
