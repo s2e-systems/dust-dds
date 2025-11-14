@@ -203,10 +203,7 @@ pub enum PublisherServiceMail<R: DdsRuntime> {
         topic_name: String,
         qos: QosKind<DataWriterQos>,
         status_condition: Actor<DcpsStatusCondition>,
-        listener: Option<(
-            MpscSender<ListenerMail<R>>,
-            Pin<Box<dyn Future<Output = ()> + Send>>,
-        )>,
+        listener_sender: Option<MpscSender<ListenerMail<R>>>,
         mask: Vec<StatusKind>,
         participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
         reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
@@ -295,10 +292,7 @@ pub enum WriterServiceMail<R: DdsRuntime> {
     SetListener {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        listener: Option<(
-            MpscSender<ListenerMail<R>>,
-            Pin<Box<dyn Future<Output = ()> + Send>>,
-        )>,
+        listener_sender: Option<MpscSender<ListenerMail<R>>>,
         listener_mask: Vec<StatusKind>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
@@ -769,7 +763,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsDomainParticipant<R, T> 
                 topic_name,
                 qos,
                 status_condition,
-                listener,
+                listener_sender,
                 mask,
                 participant_address,
                 reply_sender,
@@ -779,7 +773,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsDomainParticipant<R, T> 
                     topic_name,
                     qos,
                     status_condition,
-                    listener,
+                    listener_sender,
                     mask,
                     participant_address,
                 )
@@ -829,13 +823,13 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsDomainParticipant<R, T> 
             WriterServiceMail::SetListener {
                 publisher_handle,
                 data_writer_handle,
-                listener,
+                listener_sender,
                 listener_mask,
                 reply_sender,
             } => reply_sender.send(self.set_listener_data_writer(
                 publisher_handle,
                 data_writer_handle,
-                listener,
+                listener_sender,
                 listener_mask,
             )),
             WriterServiceMail::GetDataWriterQos {

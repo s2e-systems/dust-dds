@@ -1,9 +1,7 @@
-use core::pin::Pin;
-
 use crate::{
     dcps::channels::mpsc::{MpscSender, mpsc_channel},
     publication::data_writer_listener::DataWriterListener,
-    runtime::DdsRuntime,
+    runtime::{DdsRuntime, Spawner},
 };
 
 use super::domain_participant_listener::ListenerMail;
@@ -13,12 +11,10 @@ pub struct DcpsDataWriterListener;
 impl DcpsDataWriterListener {
     pub fn spawn<R: DdsRuntime, Foo>(
         mut listener: impl DataWriterListener<R, Foo> + Send + 'static,
-    ) -> (
-        MpscSender<ListenerMail<R>>,
-        Pin<Box<dyn Future<Output = ()> + Send>>,
-    ) {
+        spawner_handle: &R::SpawnerHandle,
+    ) -> MpscSender<ListenerMail<R>> {
         let (listener_sender, listener_receiver) = mpsc_channel();
-        let listener_future = Box::pin(async move {
+        spawner_handle.spawn(async move {
             while let Some(m) = listener_receiver.receive().await {
                 match m {
                     ListenerMail::PublicationMatched { the_writer, status } => {
@@ -69,6 +65,6 @@ impl DcpsDataWriterListener {
                 }
             }
         });
-        (listener_sender, listener_future)
+        listener_sender
     }
 }

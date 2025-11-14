@@ -68,7 +68,8 @@ impl<R: DdsRuntime> PublisherAsync<R> {
             self.participant.spawner_handle(),
         );
         let writer_status_condition_address = status_condition.address();
-        let listener = a_listener.map(|l| DcpsDataWriterListener::spawn(l));
+        let listener_sender =
+            a_listener.map(|l| DcpsDataWriterListener::spawn(l, self.participant.spawner_handle()));
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
             .send(DcpsDomainParticipantMail::Publisher(
@@ -77,7 +78,7 @@ impl<R: DdsRuntime> PublisherAsync<R> {
                     topic_name,
                     qos,
                     status_condition,
-                    listener,
+                    listener_sender,
                     mask: mask.to_vec(),
                     participant_address: self.participant_address().clone(),
                     reply_sender,

@@ -1513,17 +1513,14 @@ where
     }
 
     #[allow(clippy::too_many_arguments)]
-    #[tracing::instrument(skip(self, status_condition, listener, participant_address))]
+    #[tracing::instrument(skip(self, status_condition, listener_sender, participant_address))]
     pub async fn create_data_writer(
         &mut self,
         publisher_handle: InstanceHandle,
         topic_name: String,
         qos: QosKind<DataWriterQos>,
         status_condition: Actor<DcpsStatusCondition>,
-        listener: Option<(
-            MpscSender<ListenerMail<R>>,
-            Pin<Box<dyn Future<Output = ()> + Send>>,
-        )>,
+        listener_sender: Option<MpscSender<ListenerMail<R>>>,
         mask: Vec<StatusKind>,
         participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
     ) -> DdsResult<InstanceHandle> {
@@ -1602,12 +1599,6 @@ where
             .create_stateful_writer(entity_id, reliablity_kind)
             .await;
 
-        let listener_sender = if let Some((listener_sender, listener_future)) = listener {
-            self.spawner_handle.spawn(listener_future);
-            Some(listener_sender)
-        } else {
-            None
-        };
         let data_writer = DataWriterEntity::new(
             writer_handle,
             TransportWriterKind::Stateful(transport_writer),
@@ -1792,15 +1783,12 @@ where
         Ok(status)
     }
 
-    #[tracing::instrument(skip(self, listener))]
+    #[tracing::instrument(skip(self, listener_sender))]
     pub fn set_listener_data_writer(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        listener: Option<(
-            MpscSender<ListenerMail<R>>,
-            Pin<Box<dyn Future<Output = ()> + Send>>,
-        )>,
+        listener_sender: Option<MpscSender<ListenerMail<R>>>,
         listener_mask: Vec<StatusKind>,
     ) -> DdsResult<()> {
         let Some(publisher) = self
@@ -1819,12 +1807,6 @@ where
             return Ok(());
         };
 
-        let listener_sender = if let Some((listener_sender, listener_future)) = listener {
-            self.spawner_handle.spawn(listener_future);
-            Some(listener_sender)
-        } else {
-            None
-        };
         data_writer.listener_sender = listener_sender;
         data_writer.listener_mask = listener_mask;
 
