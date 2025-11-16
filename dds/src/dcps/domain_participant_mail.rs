@@ -6,6 +6,7 @@ use crate::{
     },
     dcps::{
         actor::{Actor, ActorAddress, MailHandler},
+        channels::{mpsc::MpscSender, oneshot::OneshotSender},
         listeners::domain_participant_listener::ListenerMail,
         status_condition::DcpsStatusCondition,
     },
@@ -23,7 +24,7 @@ use crate::{
         },
         time::{Duration, Time},
     },
-    runtime::{DdsRuntime, OneshotSend},
+    runtime::DdsRuntime,
     transport::{interface::TransportParticipantFactory, types::CacheChange},
     xtypes::dynamic_type::{DynamicData, DynamicType},
 };
@@ -33,41 +34,41 @@ use core::{future::Future, pin::Pin};
 pub enum ParticipantServiceMail<R: DdsRuntime> {
     CreateUserDefinedPublisher {
         qos: QosKind<PublisherQos>,
-        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
+        listener_sender: Option<MpscSender<ListenerMail<R>>>,
         mask: Vec<StatusKind>,
-        reply_sender: R::OneshotSender<DdsResult<InstanceHandle>>,
+        reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
     },
     DeleteUserDefinedPublisher {
         participant_handle: InstanceHandle,
         publisher_handle: InstanceHandle,
-        reply_sender: R::OneshotSender<DdsResult<()>>,
+        reply_sender: OneshotSender<DdsResult<()>>,
     },
     CreateUserDefinedSubscriber {
         qos: QosKind<SubscriberQos>,
-        status_condition: Actor<R, DcpsStatusCondition<R>>,
-        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
+        status_condition: Actor<DcpsStatusCondition>,
+        listener_sender: Option<MpscSender<ListenerMail<R>>>,
         mask: Vec<StatusKind>,
-        reply_sender: R::OneshotSender<DdsResult<InstanceHandle>>,
+        reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
     },
     DeleteUserDefinedSubscriber {
         participant_handle: InstanceHandle,
         subscriber_handle: InstanceHandle,
-        reply_sender: R::OneshotSender<DdsResult<()>>,
+        reply_sender: OneshotSender<DdsResult<()>>,
     },
     CreateTopic {
         topic_name: String,
         type_name: String,
         qos: QosKind<TopicQos>,
-        status_condition: Actor<R, DcpsStatusCondition<R>>,
-        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
+        status_condition: Actor<DcpsStatusCondition>,
+        listener_sender: Option<MpscSender<ListenerMail<R>>>,
         mask: Vec<StatusKind>,
         type_support: Arc<DynamicType>,
-        reply_sender: R::OneshotSender<DdsResult<InstanceHandle>>,
+        reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
     },
     DeleteUserDefinedTopic {
         participant_handle: InstanceHandle,
         topic_name: String,
-        reply_sender: R::OneshotSender<DdsResult<()>>,
+        reply_sender: OneshotSender<DdsResult<()>>,
     },
     CreateContentFilteredTopic {
         participant_handle: InstanceHandle,
@@ -75,136 +76,124 @@ pub enum ParticipantServiceMail<R: DdsRuntime> {
         related_topic_name: String,
         filter_expression: String,
         expression_parameters: Vec<String>,
-        reply_sender: R::OneshotSender<DdsResult<InstanceHandle>>,
+        reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
     },
     DeleteContentFilteredTopic {
         participant_handle: InstanceHandle,
         name: String,
-        reply_sender: R::OneshotSender<DdsResult<()>>,
+        reply_sender: OneshotSender<DdsResult<()>>,
     },
     FindTopic {
         topic_name: String,
         type_support: Arc<DynamicType>,
-        status_condition: Actor<R, DcpsStatusCondition<R>>,
+        status_condition: Actor<DcpsStatusCondition>,
         #[allow(clippy::type_complexity)]
-        reply_sender: R::OneshotSender<
-            DdsResult<
-                Option<(
-                    InstanceHandle,
-                    ActorAddress<R, DcpsStatusCondition<R>>,
-                    String,
-                )>,
-            >,
+        reply_sender: OneshotSender<
+            DdsResult<Option<(InstanceHandle, ActorAddress<DcpsStatusCondition>, String)>>,
         >,
     },
     LookupTopicdescription {
         topic_name: String,
         #[allow(clippy::type_complexity)]
-        reply_sender: R::OneshotSender<
-            DdsResult<
-                Option<(
-                    String,
-                    InstanceHandle,
-                    ActorAddress<R, DcpsStatusCondition<R>>,
-                )>,
-            >,
+        reply_sender: OneshotSender<
+            DdsResult<Option<(String, InstanceHandle, ActorAddress<DcpsStatusCondition>)>>,
         >,
     },
     IgnoreParticipant {
         handle: InstanceHandle,
-        reply_sender: R::OneshotSender<DdsResult<()>>,
+        reply_sender: OneshotSender<DdsResult<()>>,
     },
     IgnoreSubscription {
         handle: InstanceHandle,
-        reply_sender: R::OneshotSender<DdsResult<()>>,
+        reply_sender: OneshotSender<DdsResult<()>>,
     },
     IgnorePublication {
         handle: InstanceHandle,
-        reply_sender: R::OneshotSender<DdsResult<()>>,
+        reply_sender: OneshotSender<DdsResult<()>>,
     },
     DeleteContainedEntities {
-        reply_sender: R::OneshotSender<DdsResult<()>>,
+        reply_sender: OneshotSender<DdsResult<()>>,
     },
     SetDefaultPublisherQos {
         qos: QosKind<PublisherQos>,
-        reply_sender: R::OneshotSender<DdsResult<()>>,
+        reply_sender: OneshotSender<DdsResult<()>>,
     },
     GetDefaultPublisherQos {
-        reply_sender: R::OneshotSender<DdsResult<PublisherQos>>,
+        reply_sender: OneshotSender<DdsResult<PublisherQos>>,
     },
     SetDefaultSubscriberQos {
         qos: QosKind<SubscriberQos>,
-        reply_sender: R::OneshotSender<DdsResult<()>>,
+        reply_sender: OneshotSender<DdsResult<()>>,
     },
     GetDefaultSubscriberQos {
-        reply_sender: R::OneshotSender<DdsResult<SubscriberQos>>,
+        reply_sender: OneshotSender<DdsResult<SubscriberQos>>,
     },
     SetDefaultTopicQos {
         qos: QosKind<TopicQos>,
-        reply_sender: R::OneshotSender<DdsResult<()>>,
+        reply_sender: OneshotSender<DdsResult<()>>,
     },
     GetDefaultTopicQos {
-        reply_sender: R::OneshotSender<DdsResult<TopicQos>>,
+        reply_sender: OneshotSender<DdsResult<TopicQos>>,
     },
     GetDiscoveredParticipants {
-        reply_sender: R::OneshotSender<DdsResult<Vec<InstanceHandle>>>,
+        reply_sender: OneshotSender<DdsResult<Vec<InstanceHandle>>>,
     },
     GetDiscoveredParticipantData {
         participant_handle: InstanceHandle,
 
-        reply_sender: R::OneshotSender<DdsResult<ParticipantBuiltinTopicData>>,
+        reply_sender: OneshotSender<DdsResult<ParticipantBuiltinTopicData>>,
     },
     GetDiscoveredTopics {
-        reply_sender: R::OneshotSender<DdsResult<Vec<InstanceHandle>>>,
+        reply_sender: OneshotSender<DdsResult<Vec<InstanceHandle>>>,
     },
     GetDiscoveredTopicData {
         topic_handle: InstanceHandle,
-        reply_sender: R::OneshotSender<DdsResult<TopicBuiltinTopicData>>,
+        reply_sender: OneshotSender<DdsResult<TopicBuiltinTopicData>>,
     },
     GetCurrentTime {
-        reply_sender: R::OneshotSender<Time>,
+        reply_sender: OneshotSender<Time>,
     },
     SetQos {
         qos: QosKind<DomainParticipantQos>,
-        reply_sender: R::OneshotSender<DdsResult<()>>,
+        reply_sender: OneshotSender<DdsResult<()>>,
     },
     GetQos {
-        reply_sender: R::OneshotSender<DdsResult<DomainParticipantQos>>,
+        reply_sender: OneshotSender<DdsResult<DomainParticipantQos>>,
     },
     SetListener {
-        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
+        listener_sender: Option<MpscSender<ListenerMail<R>>>,
         status_kind: Vec<StatusKind>,
-        reply_sender: R::OneshotSender<DdsResult<()>>,
+        reply_sender: OneshotSender<DdsResult<()>>,
     },
     Enable {
-        reply_sender: R::OneshotSender<DdsResult<()>>,
+        reply_sender: OneshotSender<DdsResult<()>>,
     },
     IsEmpty {
-        reply_sender: R::OneshotSender<bool>,
+        reply_sender: OneshotSender<bool>,
     },
 }
 
-pub enum TopicServiceMail<R: DdsRuntime> {
+pub enum TopicServiceMail {
     GetInconsistentTopicStatus {
         topic_name: String,
-        reply_sender: R::OneshotSender<DdsResult<InconsistentTopicStatus>>,
+        reply_sender: OneshotSender<DdsResult<InconsistentTopicStatus>>,
     },
     SetQos {
         topic_name: String,
         topic_qos: QosKind<TopicQos>,
-        reply_sender: R::OneshotSender<DdsResult<()>>,
+        reply_sender: OneshotSender<DdsResult<()>>,
     },
     GetQos {
         topic_name: String,
-        reply_sender: R::OneshotSender<DdsResult<TopicQos>>,
+        reply_sender: OneshotSender<DdsResult<TopicQos>>,
     },
     Enable {
         topic_name: String,
-        reply_sender: R::OneshotSender<DdsResult<()>>,
+        reply_sender: OneshotSender<DdsResult<()>>,
     },
     GetTypeSupport {
         topic_name: String,
-        reply_sender: R::OneshotSender<DdsResult<Arc<DynamicType>>>,
+        reply_sender: OneshotSender<DdsResult<Arc<DynamicType>>>,
     },
 }
 
@@ -213,40 +202,40 @@ pub enum PublisherServiceMail<R: DdsRuntime> {
         publisher_handle: InstanceHandle,
         topic_name: String,
         qos: QosKind<DataWriterQos>,
-        status_condition: Actor<R, DcpsStatusCondition<R>>,
-        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
+        status_condition: Actor<DcpsStatusCondition>,
+        listener_sender: Option<MpscSender<ListenerMail<R>>>,
         mask: Vec<StatusKind>,
-        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
-        reply_sender: R::OneshotSender<DdsResult<InstanceHandle>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
+        reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
     },
     DeleteDataWriter {
         publisher_handle: InstanceHandle,
         datawriter_handle: InstanceHandle,
-        reply_sender: R::OneshotSender<DdsResult<()>>,
+        reply_sender: OneshotSender<DdsResult<()>>,
     },
     GetDefaultDataWriterQos {
         publisher_handle: InstanceHandle,
-        reply_sender: R::OneshotSender<DdsResult<DataWriterQos>>,
+        reply_sender: OneshotSender<DdsResult<DataWriterQos>>,
     },
     SetDefaultDataWriterQos {
         publisher_handle: InstanceHandle,
         qos: QosKind<DataWriterQos>,
-        reply_sender: R::OneshotSender<DdsResult<()>>,
+        reply_sender: OneshotSender<DdsResult<()>>,
     },
     GetPublisherQos {
         publisher_handle: InstanceHandle,
-        reply_sender: R::OneshotSender<DdsResult<PublisherQos>>,
+        reply_sender: OneshotSender<DdsResult<PublisherQos>>,
     },
     SetPublisherQos {
         publisher_handle: InstanceHandle,
         qos: QosKind<PublisherQos>,
-        reply_sender: R::OneshotSender<DdsResult<()>>,
+        reply_sender: OneshotSender<DdsResult<()>>,
     },
     SetPublisherListener {
         publisher_handle: InstanceHandle,
-        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
+        listener_sender: Option<MpscSender<ListenerMail<R>>>,
         mask: Vec<StatusKind>,
-        reply_sender: R::OneshotSender<DdsResult<()>>,
+        reply_sender: OneshotSender<DdsResult<()>>,
     },
 }
 
@@ -255,48 +244,47 @@ pub enum SubscriberServiceMail<R: DdsRuntime> {
         subscriber_handle: InstanceHandle,
         topic_name: String,
         qos: QosKind<DataReaderQos>,
-        status_condition: Actor<R, DcpsStatusCondition<R>>,
-        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
+        status_condition: Actor<DcpsStatusCondition>,
+        listener_sender: Option<MpscSender<ListenerMail<R>>>,
         mask: Vec<StatusKind>,
-        domain_participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
-        reply_sender: R::OneshotSender<DdsResult<InstanceHandle>>,
+        domain_participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
+        reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
     },
     DeleteDataReader {
         subscriber_handle: InstanceHandle,
         datareader_handle: InstanceHandle,
-        reply_sender: R::OneshotSender<DdsResult<()>>,
+        reply_sender: OneshotSender<DdsResult<()>>,
     },
     LookupDataReader {
         subscriber_handle: InstanceHandle,
         topic_name: String,
         #[allow(clippy::type_complexity)]
-        reply_sender: R::OneshotSender<
-            DdsResult<Option<(InstanceHandle, ActorAddress<R, DcpsStatusCondition<R>>)>>,
-        >,
+        reply_sender:
+            OneshotSender<DdsResult<Option<(InstanceHandle, ActorAddress<DcpsStatusCondition>)>>>,
     },
     SetDefaultDataReaderQos {
         subscriber_handle: InstanceHandle,
         qos: QosKind<DataReaderQos>,
-        reply_sender: R::OneshotSender<DdsResult<()>>,
+        reply_sender: OneshotSender<DdsResult<()>>,
     },
     GetDefaultDataReaderQos {
         subscriber_handle: InstanceHandle,
-        reply_sender: R::OneshotSender<DdsResult<DataReaderQos>>,
+        reply_sender: OneshotSender<DdsResult<DataReaderQos>>,
     },
     SetQos {
         subscriber_handle: InstanceHandle,
         qos: QosKind<SubscriberQos>,
-        reply_sender: R::OneshotSender<DdsResult<()>>,
+        reply_sender: OneshotSender<DdsResult<()>>,
     },
     GetSubscriberQos {
         subscriber_handle: InstanceHandle,
-        reply_sender: R::OneshotSender<DdsResult<SubscriberQos>>,
+        reply_sender: OneshotSender<DdsResult<SubscriberQos>>,
     },
     SetListener {
         subscriber_handle: InstanceHandle,
-        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
+        listener_sender: Option<MpscSender<ListenerMail<R>>>,
         mask: Vec<StatusKind>,
-        reply_sender: R::OneshotSender<DdsResult<()>>,
+        reply_sender: OneshotSender<DdsResult<()>>,
     },
 }
 
@@ -304,75 +292,75 @@ pub enum WriterServiceMail<R: DdsRuntime> {
     SetListener {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
+        listener_sender: Option<MpscSender<ListenerMail<R>>>,
         listener_mask: Vec<StatusKind>,
-        reply_sender: R::OneshotSender<DdsResult<()>>,
+        reply_sender: OneshotSender<DdsResult<()>>,
     },
     GetDataWriterQos {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        reply_sender: R::OneshotSender<DdsResult<DataWriterQos>>,
+        reply_sender: OneshotSender<DdsResult<DataWriterQos>>,
     },
     GetMatchedSubscriptions {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        reply_sender: R::OneshotSender<DdsResult<Vec<InstanceHandle>>>,
+        reply_sender: OneshotSender<DdsResult<Vec<InstanceHandle>>>,
     },
     GetMatchedSubscriptionData {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         subscription_handle: InstanceHandle,
-        reply_sender: R::OneshotSender<DdsResult<SubscriptionBuiltinTopicData>>,
+        reply_sender: OneshotSender<DdsResult<SubscriptionBuiltinTopicData>>,
     },
     GetPublicationMatchedStatus {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        reply_sender: R::OneshotSender<DdsResult<PublicationMatchedStatus>>,
+        reply_sender: OneshotSender<DdsResult<PublicationMatchedStatus>>,
     },
     UnregisterInstance {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         dynamic_data: DynamicData,
         timestamp: Time,
-        reply_sender: R::OneshotSender<DdsResult<()>>,
+        reply_sender: OneshotSender<DdsResult<()>>,
     },
     LookupInstance {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         dynamic_data: DynamicData,
-        reply_sender: R::OneshotSender<DdsResult<Option<InstanceHandle>>>,
+        reply_sender: OneshotSender<DdsResult<Option<InstanceHandle>>>,
     },
     WriteWTimestamp {
-        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         dynamic_data: DynamicData,
         timestamp: Time,
-        reply_sender: R::OneshotSender<DdsResult<()>>,
+        reply_sender: OneshotSender<DdsResult<()>>,
     },
     DisposeWTimestamp {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         dynamic_data: DynamicData,
         timestamp: Time,
-        reply_sender: R::OneshotSender<DdsResult<()>>,
+        reply_sender: OneshotSender<DdsResult<()>>,
     },
     GetOfferedDeadlineMissedStatus {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        reply_sender: R::OneshotSender<DdsResult<OfferedDeadlineMissedStatus>>,
+        reply_sender: OneshotSender<DdsResult<OfferedDeadlineMissedStatus>>,
     },
     EnableDataWriter {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
-        reply_sender: R::OneshotSender<DdsResult<()>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
+        reply_sender: OneshotSender<DdsResult<()>>,
     },
     SetDataWriterQos {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         qos: QosKind<DataWriterQos>,
-        reply_sender: R::OneshotSender<DdsResult<()>>,
+        reply_sender: OneshotSender<DdsResult<()>>,
     },
 }
 
@@ -380,8 +368,8 @@ pub enum ReaderServiceMail<R: DdsRuntime> {
     Enable {
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
-        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
-        reply_sender: R::OneshotSender<DdsResult<()>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
+        reply_sender: OneshotSender<DdsResult<()>>,
     },
     Read {
         subscriber_handle: InstanceHandle,
@@ -392,7 +380,7 @@ pub enum ReaderServiceMail<R: DdsRuntime> {
         instance_states: Vec<InstanceStateKind>,
         specific_instance_handle: Option<InstanceHandle>,
         #[allow(clippy::type_complexity)]
-        reply_sender: R::OneshotSender<DdsResult<Vec<(Option<DynamicData>, SampleInfo)>>>,
+        reply_sender: OneshotSender<DdsResult<Vec<(Option<DynamicData>, SampleInfo)>>>,
     },
     Take {
         subscriber_handle: InstanceHandle,
@@ -403,7 +391,7 @@ pub enum ReaderServiceMail<R: DdsRuntime> {
         instance_states: Vec<InstanceStateKind>,
         specific_instance_handle: Option<InstanceHandle>,
         #[allow(clippy::type_complexity)]
-        reply_sender: R::OneshotSender<DdsResult<Vec<(Option<DynamicData>, SampleInfo)>>>,
+        reply_sender: OneshotSender<DdsResult<Vec<(Option<DynamicData>, SampleInfo)>>>,
     },
     ReadNextInstance {
         subscriber_handle: InstanceHandle,
@@ -414,7 +402,7 @@ pub enum ReaderServiceMail<R: DdsRuntime> {
         view_states: Vec<ViewStateKind>,
         instance_states: Vec<InstanceStateKind>,
         #[allow(clippy::type_complexity)]
-        reply_sender: R::OneshotSender<DdsResult<Vec<(Option<DynamicData>, SampleInfo)>>>,
+        reply_sender: OneshotSender<DdsResult<Vec<(Option<DynamicData>, SampleInfo)>>>,
     },
     TakeNextInstance {
         subscriber_handle: InstanceHandle,
@@ -425,54 +413,54 @@ pub enum ReaderServiceMail<R: DdsRuntime> {
         view_states: Vec<ViewStateKind>,
         instance_states: Vec<InstanceStateKind>,
         #[allow(clippy::type_complexity)]
-        reply_sender: R::OneshotSender<DdsResult<Vec<(Option<DynamicData>, SampleInfo)>>>,
+        reply_sender: OneshotSender<DdsResult<Vec<(Option<DynamicData>, SampleInfo)>>>,
     },
     GetSubscriptionMatchedStatus {
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
-        reply_sender: R::OneshotSender<DdsResult<SubscriptionMatchedStatus>>,
+        reply_sender: OneshotSender<DdsResult<SubscriptionMatchedStatus>>,
     },
     WaitForHistoricalData {
-        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         max_wait: Duration,
-        reply_sender: R::OneshotSender<Pin<Box<dyn Future<Output = DdsResult<()>> + Send>>>,
+        reply_sender: OneshotSender<Pin<Box<dyn Future<Output = DdsResult<()>> + Send>>>,
     },
     GetMatchedPublicationData {
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         publication_handle: InstanceHandle,
-        reply_sender: R::OneshotSender<DdsResult<PublicationBuiltinTopicData>>,
+        reply_sender: OneshotSender<DdsResult<PublicationBuiltinTopicData>>,
     },
     GetMatchedPublications {
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
-        reply_sender: R::OneshotSender<DdsResult<Vec<InstanceHandle>>>,
+        reply_sender: OneshotSender<DdsResult<Vec<InstanceHandle>>>,
     },
     SetQos {
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         qos: QosKind<DataReaderQos>,
-        reply_sender: R::OneshotSender<DdsResult<()>>,
+        reply_sender: OneshotSender<DdsResult<()>>,
     },
     GetQos {
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
-        reply_sender: R::OneshotSender<DdsResult<DataReaderQos>>,
+        reply_sender: OneshotSender<DdsResult<DataReaderQos>>,
     },
     SetListener {
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
-        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
+        listener_sender: Option<MpscSender<ListenerMail<R>>>,
         listener_mask: Vec<StatusKind>,
-        reply_sender: R::OneshotSender<DdsResult<()>>,
+        reply_sender: OneshotSender<DdsResult<()>>,
     },
 }
 
 pub enum MessageServiceMail<R: DdsRuntime> {
     AddCacheChange {
-        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
         cache_change: CacheChange,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
@@ -485,23 +473,23 @@ pub enum MessageServiceMail<R: DdsRuntime> {
     AreAllChangesAcknowledged {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        reply_sender: R::OneshotSender<DdsResult<bool>>,
+        reply_sender: OneshotSender<DdsResult<bool>>,
     },
     IsHistoricalDataReceived {
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
-        reply_sender: R::OneshotSender<DdsResult<bool>>,
+        reply_sender: OneshotSender<DdsResult<bool>>,
     },
     AddBuiltinParticipantsDetectorCacheChange {
         cache_change: CacheChange,
     },
     AddBuiltinPublicationsDetectorCacheChange {
         cache_change: CacheChange,
-        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
     },
     AddBuiltinSubscriptionsDetectorCacheChange {
         cache_change: CacheChange,
-        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
     },
     AddBuiltinTopicsDetectorCacheChange {
         cache_change: CacheChange,
@@ -513,13 +501,13 @@ pub enum EventServiceMail<R: DdsRuntime> {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         change_instance_handle: InstanceHandle,
-        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
     },
     RequestedDeadlineMissed {
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         change_instance_handle: InstanceHandle,
-        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
     },
 }
 
@@ -530,7 +518,7 @@ pub enum DiscoveryServiceMail {
 
 pub enum DcpsDomainParticipantMail<R: DdsRuntime> {
     Participant(ParticipantServiceMail<R>),
-    Topic(TopicServiceMail<R>),
+    Topic(TopicServiceMail),
     Publisher(PublisherServiceMail<R>),
     Writer(WriterServiceMail<R>),
     Subscriber(SubscriberServiceMail<R>),
@@ -742,7 +730,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsDomainParticipant<R, T> 
         }
     }
 
-    async fn handle_topic_service(&mut self, topic_service_mail: TopicServiceMail<R>) {
+    async fn handle_topic_service(&mut self, topic_service_mail: TopicServiceMail) {
         match topic_service_mail {
             TopicServiceMail::GetInconsistentTopicStatus {
                 topic_name,

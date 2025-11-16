@@ -1,5 +1,6 @@
 use crate::{
-    runtime::{ChannelReceive, DdsRuntime, Spawner},
+    dcps::channels::mpsc::{MpscSender, mpsc_channel},
+    runtime::{DdsRuntime, Spawner},
     subscription::subscriber_listener::SubscriberListener,
 };
 
@@ -11,8 +12,8 @@ impl DcpsSubscriberListener {
     pub fn spawn<R: DdsRuntime>(
         mut listener: impl SubscriberListener<R> + Send + 'static,
         spanwer_handle: &R::SpawnerHandle,
-    ) -> R::ChannelSender<ListenerMail<R>> {
-        let (listener_sender, mut listener_receiver) = R::channel();
+    ) -> MpscSender<ListenerMail<R>> {
+        let (listener_sender, listener_receiver) = mpsc_channel();
         spanwer_handle.spawn(async move {
             while let Some(m) = listener_receiver.receive().await {
                 match m {
