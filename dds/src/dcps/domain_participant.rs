@@ -9,6 +9,7 @@ use crate::{
     },
     dcps::{
         actor::{Actor, ActorAddress},
+        channels::{mpsc::MpscSender, oneshot::oneshot},
         data_representation_builtin_endpoints::{
             discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
             discovered_topic_data::DiscoveredTopicData,
@@ -65,7 +66,7 @@ use crate::{
         time::{Duration, DurationKind, Time},
         type_support::TypeSupport,
     },
-    runtime::{ChannelSend, Clock, DdsRuntime, OneshotReceive, Spawner, Timer},
+    runtime::{Clock, DdsRuntime, Spawner, Timer},
     transport::{
         self,
         interface::{
@@ -166,7 +167,7 @@ where
 
     fn get_participant_async(
         &self,
-        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
     ) -> DomainParticipantAsync<R> {
         DomainParticipantAsync::new(
             participant_address,
@@ -184,7 +185,7 @@ where
 
     fn get_subscriber_async(
         &self,
-        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
         subscriber_handle: InstanceHandle,
     ) -> DdsResult<SubscriberAsync<R>> {
         Ok(SubscriberAsync::new(
@@ -202,7 +203,7 @@ where
 
     fn get_data_reader_async<Foo>(
         &self,
-        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
     ) -> DdsResult<DataReaderAsync<R, Foo>> {
@@ -227,7 +228,7 @@ where
 
     fn get_publisher_async(
         &self,
-        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
         publisher_handle: InstanceHandle,
     ) -> DdsResult<PublisherAsync<R>> {
         Ok(PublisherAsync::new(
@@ -238,7 +239,7 @@ where
 
     fn get_data_writer_async<Foo>(
         &self,
-        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
     ) -> DdsResult<DataWriterAsync<R, Foo>> {
@@ -263,7 +264,7 @@ where
 
     fn get_topic_description_async(
         &self,
-        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
         topic_name: String,
     ) -> DdsResult<TopicDescriptionAsync<R>> {
         match self
@@ -423,7 +424,7 @@ where
     pub fn create_user_defined_publisher(
         &mut self,
         qos: QosKind<PublisherQos>,
-        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
+        listener_sender: Option<MpscSender<ListenerMail<R>>>,
         mask: Vec<StatusKind>,
     ) -> DdsResult<InstanceHandle> {
         let publisher_qos = match qos {
@@ -512,8 +513,8 @@ where
     pub fn create_user_defined_subscriber(
         &mut self,
         qos: QosKind<SubscriberQos>,
-        status_condition: Actor<R, DcpsStatusCondition<R>>,
-        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
+        status_condition: Actor<DcpsStatusCondition>,
+        listener_sender: Option<MpscSender<ListenerMail<R>>>,
         mask: Vec<StatusKind>,
     ) -> DdsResult<InstanceHandle> {
         let subscriber_qos = match qos {
@@ -611,8 +612,8 @@ where
         topic_name: String,
         type_name: String,
         qos: QosKind<TopicQos>,
-        status_condition: Actor<R, DcpsStatusCondition<R>>,
-        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
+        status_condition: Actor<DcpsStatusCondition>,
+        listener_sender: Option<MpscSender<ListenerMail<R>>>,
         mask: Vec<StatusKind>,
         type_support: Arc<DynamicType>,
     ) -> DdsResult<InstanceHandle> {
@@ -787,14 +788,8 @@ where
         &mut self,
         topic_name: String,
         type_support: Arc<DynamicType>,
-        status_condition: Actor<R, DcpsStatusCondition<R>>,
-    ) -> DdsResult<
-        Option<(
-            InstanceHandle,
-            ActorAddress<R, DcpsStatusCondition<R>>,
-            String,
-        )>,
-    > {
+        status_condition: Actor<DcpsStatusCondition>,
+    ) -> DdsResult<Option<(InstanceHandle, ActorAddress<DcpsStatusCondition>, String)>> {
         if let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
             .topic_description_list
@@ -887,13 +882,7 @@ where
     pub fn lookup_topicdescription(
         &mut self,
         topic_name: String,
-    ) -> DdsResult<
-        Option<(
-            String,
-            InstanceHandle,
-            ActorAddress<R, DcpsStatusCondition<R>>,
-        )>,
-    > {
+    ) -> DdsResult<Option<(String, InstanceHandle, ActorAddress<DcpsStatusCondition>)>> {
         if let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
             .topic_description_list
@@ -1129,7 +1118,7 @@ where
     #[tracing::instrument(skip(self, listener_sender))]
     pub fn set_domain_participant_listener(
         &mut self,
-        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
+        listener_sender: Option<MpscSender<ListenerMail<R>>>,
         status_kind: Vec<StatusKind>,
     ) -> DdsResult<()> {
         self.domain_participant.listener_sender = listener_sender;
@@ -1180,16 +1169,16 @@ where
         subscriber_handle: InstanceHandle,
         topic_name: String,
         qos: QosKind<DataReaderQos>,
-        status_condition: Actor<R, DcpsStatusCondition<R>>,
-        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
+        status_condition: Actor<DcpsStatusCondition>,
+        listener_sender: Option<MpscSender<ListenerMail<R>>>,
         mask: Vec<StatusKind>,
-        domain_participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
+        domain_participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
     ) -> DdsResult<InstanceHandle> {
         struct UserDefinedReaderHistoryCache<R>
         where
             R: DdsRuntime,
         {
-            pub domain_participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
+            pub domain_participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
             pub subscriber_handle: InstanceHandle,
             pub data_reader_handle: InstanceHandle,
         }
@@ -1383,7 +1372,7 @@ where
         &mut self,
         subscriber_handle: InstanceHandle,
         topic_name: String,
-    ) -> DdsResult<Option<(InstanceHandle, ActorAddress<R, DcpsStatusCondition<R>>)>> {
+    ) -> DdsResult<Option<(InstanceHandle, ActorAddress<DcpsStatusCondition>)>> {
         if !self
             .domain_participant
             .topic_description_list
@@ -1506,7 +1495,7 @@ where
     pub fn set_subscriber_listener(
         &mut self,
         subscriber_handle: InstanceHandle,
-        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
+        listener_sender: Option<MpscSender<ListenerMail<R>>>,
         mask: Vec<StatusKind>,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
@@ -1530,10 +1519,10 @@ where
         publisher_handle: InstanceHandle,
         topic_name: String,
         qos: QosKind<DataWriterQos>,
-        status_condition: Actor<R, DcpsStatusCondition<R>>,
-        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
+        status_condition: Actor<DcpsStatusCondition>,
+        listener_sender: Option<MpscSender<ListenerMail<R>>>,
         mask: Vec<StatusKind>,
-        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
     ) -> DdsResult<InstanceHandle> {
         let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
@@ -1745,7 +1734,7 @@ where
     pub fn set_publisher_listener(
         &mut self,
         publisher_handle: InstanceHandle,
-        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
+        listener_sender: Option<MpscSender<ListenerMail<R>>>,
         mask: Vec<StatusKind>,
     ) -> DdsResult<()> {
         let Some(publisher) = self
@@ -1799,7 +1788,7 @@ where
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
+        listener_sender: Option<MpscSender<ListenerMail<R>>>,
         listener_mask: Vec<StatusKind>,
     ) -> DdsResult<()> {
         let Some(publisher) = self
@@ -1979,7 +1968,7 @@ where
     #[tracing::instrument(skip(self, participant_address))]
     pub async fn write_w_timestamp(
         &mut self,
-        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         dynamic_data: DynamicData,
@@ -2107,7 +2096,7 @@ where
     //#[tracing::instrument(skip(self, participant_address))]
     pub fn wait_for_acknowledgments(
         &mut self,
-        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         timeout: Duration,
@@ -2119,7 +2108,7 @@ where
                 timeout.into(),
                 Box::pin(async move {
                     loop {
-                        let (reply_sender, reply_receiver) = R::oneshot();
+                        let (reply_sender, reply_receiver) = oneshot();
                         participant_address
                             .send(DcpsDomainParticipantMail::Message(
                                 MessageServiceMail::AreAllChangesAcknowledged {
@@ -2130,7 +2119,7 @@ where
                             ))
                             .await
                             .ok();
-                        let reply = reply_receiver.receive().await;
+                        let reply = reply_receiver.await;
                         match reply {
                             Ok(are_changes_acknowledged) => match are_changes_acknowledged {
                                 Ok(true) => return Ok(()),
@@ -2176,7 +2165,7 @@ where
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
     ) -> DdsResult<()> {
         let Some(publisher) = self
             .domain_participant
@@ -2471,7 +2460,7 @@ where
     //#[tracing::instrument(skip(self, participant_address))]
     pub fn wait_for_historical_data(
         &mut self,
-        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         max_wait: Duration,
@@ -2483,7 +2472,7 @@ where
                 max_wait.into(),
                 Box::pin(async move {
                     loop {
-                        let (reply_sender, reply_receiver) = R::oneshot();
+                        let (reply_sender, reply_receiver) = oneshot();
                         participant_address
                             .send(DcpsDomainParticipantMail::Message(
                                 MessageServiceMail::IsHistoricalDataReceived {
@@ -2494,7 +2483,7 @@ where
                             ))
                             .await?;
 
-                        let reply = reply_receiver.receive().await;
+                        let reply = reply_receiver.await;
                         match reply {
                             Ok(historical_data_received) => match historical_data_received {
                                 Ok(true) => return Ok(()),
@@ -2640,7 +2629,7 @@ where
         &mut self,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
-        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
+        listener_sender: Option<MpscSender<ListenerMail<R>>>,
         listener_mask: Vec<StatusKind>,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
@@ -2710,7 +2699,7 @@ where
         &mut self,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
-        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
             .domain_participant
@@ -3136,7 +3125,7 @@ where
         discovered_reader_data: DiscoveredReaderData,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
     ) {
         let default_unicast_locator_list = if let Some(p) = self
             .domain_participant
@@ -3594,7 +3583,7 @@ where
         discovered_writer_data: DiscoveredWriterData,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
-        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
     ) {
         let default_unicast_locator_list = if let Some(p) = self
             .domain_participant
@@ -4105,7 +4094,7 @@ where
     pub async fn add_builtin_publications_detector_cache_change(
         &mut self,
         cache_change: CacheChange,
-        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
     ) {
         match cache_change.kind {
             ChangeKind::Alive => {
@@ -4215,7 +4204,7 @@ where
     pub async fn add_builtin_subscriptions_detector_cache_change(
         &mut self,
         cache_change: CacheChange,
-        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
     ) {
         match cache_change.kind {
             ChangeKind::Alive => {
@@ -4412,7 +4401,7 @@ where
     #[tracing::instrument(skip(self, participant_address))]
     pub async fn add_cache_change(
         &mut self,
-        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
         cache_change: CacheChange,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
@@ -4807,7 +4796,7 @@ where
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         change_instance_handle: InstanceHandle,
-        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
     ) {
         let current_time = self.get_current_time();
         let Some(publisher) = self
@@ -4978,7 +4967,7 @@ where
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         change_instance_handle: InstanceHandle,
-        participant_address: R::ChannelSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
     ) {
         let current_time = self.get_current_time();
         let Some(subscriber) = self
@@ -5753,7 +5742,7 @@ pub struct DomainParticipantEntity<R: DdsRuntime, T: TransportParticipantFactory
     ignored_publications: Vec<InstanceHandle>,
     ignored_subcriptions: Vec<InstanceHandle>,
     _ignored_topic_list: Vec<InstanceHandle>,
-    listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
+    listener_sender: Option<MpscSender<ListenerMail<R>>>,
     listener_mask: Vec<StatusKind>,
 }
 
@@ -5762,7 +5751,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantEntity<R, T
     pub const fn new(
         domain_id: DomainId,
         domain_participant_qos: DomainParticipantQos,
-        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
+        listener_sender: Option<MpscSender<ListenerMail<R>>>,
         listener_mask: Vec<StatusKind>,
         instance_handle: InstanceHandle,
         builtin_publisher: PublisherEntity<R, T>,
@@ -5934,8 +5923,8 @@ pub struct SubscriberEntity<R: DdsRuntime, T: TransportParticipantFactory> {
     data_reader_list: Vec<DataReaderEntity<R, T>>,
     enabled: bool,
     default_data_reader_qos: DataReaderQos,
-    status_condition: Actor<R, DcpsStatusCondition<R>>,
-    listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
+    status_condition: Actor<DcpsStatusCondition>,
+    listener_sender: Option<MpscSender<ListenerMail<R>>>,
     listener_mask: Vec<StatusKind>,
 }
 
@@ -5944,8 +5933,8 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> SubscriberEntity<R, T> {
         instance_handle: InstanceHandle,
         qos: SubscriberQos,
         data_reader_list: Vec<DataReaderEntity<R, T>>,
-        status_condition: Actor<R, DcpsStatusCondition<R>>,
-        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
+        status_condition: Actor<DcpsStatusCondition>,
+        listener_sender: Option<MpscSender<ListenerMail<R>>>,
         listener_mask: Vec<StatusKind>,
     ) -> Self {
         Self {
@@ -5960,7 +5949,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> SubscriberEntity<R, T> {
         }
     }
 
-    pub fn status_condition(&self) -> &Actor<R, DcpsStatusCondition<R>> {
+    pub fn status_condition(&self) -> &Actor<DcpsStatusCondition> {
         &self.status_condition
     }
 }
@@ -5986,8 +5975,8 @@ pub struct TopicEntity<R: DdsRuntime> {
     instance_handle: InstanceHandle,
     enabled: bool,
     inconsistent_topic_status: InconsistentTopicStatus,
-    status_condition: Actor<R, DcpsStatusCondition<R>>,
-    _listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
+    status_condition: Actor<DcpsStatusCondition>,
+    _listener_sender: Option<MpscSender<ListenerMail<R>>>,
     _status_kind: Vec<StatusKind>,
     type_support: Arc<DynamicType>,
 }
@@ -5999,8 +5988,8 @@ impl<R: DdsRuntime> TopicEntity<R> {
         type_name: String,
         topic_name: String,
         instance_handle: InstanceHandle,
-        status_condition: Actor<R, DcpsStatusCondition<R>>,
-        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
+        status_condition: Actor<DcpsStatusCondition>,
+        listener_sender: Option<MpscSender<ListenerMail<R>>>,
         status_kind: Vec<StatusKind>,
         type_support: Arc<DynamicType>,
     ) -> Self {
@@ -6025,7 +6014,7 @@ pub struct PublisherEntity<R: DdsRuntime, T: TransportParticipantFactory> {
     data_writer_list: Vec<DataWriterEntity<R, T>>,
     enabled: bool,
     default_datawriter_qos: DataWriterQos,
-    listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
+    listener_sender: Option<MpscSender<ListenerMail<R>>>,
     listener_mask: Vec<StatusKind>,
 }
 
@@ -6034,7 +6023,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> PublisherEntity<R, T> {
         qos: PublisherQos,
         instance_handle: InstanceHandle,
         data_writer_list: Vec<DataWriterEntity<R, T>>,
-        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
+        listener_sender: Option<MpscSender<ListenerMail<R>>>,
         listener_mask: Vec<StatusKind>,
     ) -> Self {
         Self {
@@ -6091,8 +6080,8 @@ pub struct DataWriterEntity<R: DdsRuntime, T: TransportParticipantFactory> {
     incompatible_subscription_list: Vec<InstanceHandle>,
     offered_incompatible_qos_status: OfferedIncompatibleQosStatus,
     enabled: bool,
-    status_condition: Actor<R, DcpsStatusCondition<R>>,
-    listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
+    status_condition: Actor<DcpsStatusCondition>,
+    listener_sender: Option<MpscSender<ListenerMail<R>>>,
     listener_mask: Vec<StatusKind>,
     max_seq_num: Option<i64>,
     last_change_sequence_number: i64,
@@ -6111,8 +6100,8 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataWriterEntity<R, T> {
         topic_name: String,
         type_name: String,
         type_support: Arc<DynamicType>,
-        status_condition: Actor<R, DcpsStatusCondition<R>>,
-        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
+        status_condition: Actor<DcpsStatusCondition>,
+        listener_sender: Option<MpscSender<ListenerMail<R>>>,
         listener_mask: Vec<StatusKind>,
         qos: DataWriterQos,
     ) -> Self {
@@ -6660,8 +6649,8 @@ pub struct DataReaderEntity<R: DdsRuntime, T: TransportParticipantFactory> {
     enabled: bool,
     data_available_status_changed_flag: bool,
     incompatible_writer_list: Vec<InstanceHandle>,
-    status_condition: Actor<R, DcpsStatusCondition<R>>,
-    listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
+    status_condition: Actor<DcpsStatusCondition>,
+    listener_sender: Option<MpscSender<ListenerMail<R>>>,
     listener_mask: Vec<StatusKind>,
     instances: Vec<InstanceState>,
     instance_ownership: Vec<InstanceOwnership>,
@@ -6675,8 +6664,8 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DataReaderEntity<R, T> {
         qos: DataReaderQos,
         topic_name: String,
         type_support: Arc<DynamicType>,
-        status_condition: Actor<R, DcpsStatusCondition<R>>,
-        listener_sender: Option<R::ChannelSender<ListenerMail<R>>>,
+        status_condition: Actor<DcpsStatusCondition>,
+        listener_sender: Option<MpscSender<ListenerMail<R>>>,
         listener_mask: Vec<StatusKind>,
         transport_reader: TransportReaderKind<T>,
     ) -> Self {
