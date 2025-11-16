@@ -10,6 +10,7 @@ use crate::{
         status::{InconsistentTopicStatus, StatusKind},
     },
     runtime::DdsRuntime,
+    std_runtime::executor::block_on,
     xtypes::dynamic_type::DynamicType,
 };
 use alloc::{string::String, sync::Arc, vec::Vec};
@@ -45,7 +46,7 @@ impl<R: DdsRuntime> Topic<R> {
     /// This method allows the application to retrieve the [`InconsistentTopicStatus`] of the [`Topic`].
     #[tracing::instrument(skip(self))]
     pub fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
-        R::block_on(self.topic_async.get_inconsistent_topic_status())
+        block_on(self.topic_async.get_inconsistent_topic_status())
     }
 }
 
@@ -86,13 +87,13 @@ impl<R: DdsRuntime> Topic<R> {
     /// modified to match the current default for the Entity's factory.
     #[tracing::instrument(skip(self))]
     pub fn set_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
-        R::block_on(self.topic_async.set_qos(qos))
+        block_on(self.topic_async.set_qos(qos))
     }
 
     /// This operation allows access to the existing set of [`TopicQos`] policies.
     #[tracing::instrument(skip(self))]
     pub fn get_qos(&self) -> DdsResult<TopicQos> {
-        R::block_on(self.topic_async.get_qos())
+        block_on(self.topic_async.get_qos())
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
@@ -111,7 +112,7 @@ impl<R: DdsRuntime> Topic<R> {
     /// and does not include statuses that apply to contained entities.
     #[tracing::instrument(skip(self))]
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
-        R::block_on(self.topic_async.get_status_changes())
+        block_on(self.topic_async.get_status_changes())
     }
 
     /// This operation enables the Entity. Entity objects can be created either enabled or disabled. This is controlled by the value of
@@ -136,13 +137,13 @@ impl<R: DdsRuntime> Topic<R> {
     /// enabled are *inactive,* that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     #[tracing::instrument(skip(self))]
     pub fn enable(&self) -> DdsResult<()> {
-        R::block_on(self.topic_async.enable())
+        block_on(self.topic_async.enable())
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     #[tracing::instrument(skip(self))]
     pub fn get_instance_handle(&self) -> InstanceHandle {
-        R::block_on(self.topic_async.get_instance_handle())
+        block_on(self.topic_async.get_instance_handle())
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
@@ -157,7 +158,7 @@ impl<R: DdsRuntime> Topic<R> {
         a_listener: Option<impl TopicListener<R> + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        R::block_on(self.topic_async.set_listener(a_listener, mask))
+        block_on(self.topic_async.set_listener(a_listener, mask))
     }
 }
 
@@ -165,6 +166,6 @@ impl<R: DdsRuntime> Topic<R> {
     #[doc(hidden)]
     #[tracing::instrument(skip(self))]
     pub fn get_type_support(&self) -> DdsResult<Arc<DynamicType>> {
-        R::block_on(self.topic_async.get_type_support())
+        block_on(self.topic_async.get_type_support())
     }
 }

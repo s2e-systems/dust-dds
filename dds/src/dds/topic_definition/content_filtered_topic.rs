@@ -1,7 +1,7 @@
 use crate::{
     dds_async::content_filtered_topic::ContentFilteredTopicAsync,
     domain::domain_participant::DomainParticipant, infrastructure::error::DdsResult,
-    runtime::DdsRuntime, topic_definition::topic::Topic,
+    runtime::DdsRuntime, std_runtime::executor::block_on, topic_definition::topic::Topic,
 };
 use alloc::{string::String, vec::Vec};
 
@@ -43,12 +43,12 @@ impl<R: DdsRuntime> ContentFilteredTopic<R> {
     /// on the last successful call to set_expression_parameters, or if set_expression_parameters was never called, the parameters
     /// specified when the [`ContentFilteredTopic`] was created.
     pub fn get_expression_parameters(&self) -> DdsResult<Vec<String>> {
-        R::block_on(self.topic.get_expression_parameters())
+        block_on(self.topic.get_expression_parameters())
     }
 
     /// This operation changes the expression_parameters associated with the  [`ContentFilteredTopic`].
     pub fn set_expression_parameters(&self, expression_parameters: Vec<String>) -> DdsResult<()> {
-        R::block_on(self.topic.set_expression_parameters(expression_parameters))
+        block_on(self.topic.set_expression_parameters(expression_parameters))
     }
 }
 

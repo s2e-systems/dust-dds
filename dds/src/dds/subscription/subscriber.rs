@@ -13,6 +13,7 @@ use crate::{
         status::{SampleLostStatus, StatusKind},
     },
     runtime::DdsRuntime,
+    std_runtime::executor::block_on,
     topic_definition::topic_description::TopicDescription,
 };
 use alloc::vec::Vec;
@@ -65,7 +66,7 @@ impl<R: DdsRuntime> Subscriber<R> {
         a_listener: Option<impl DataReaderListener<R, Foo> + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<DataReader<R, Foo>> {
-        R::block_on(self.subscriber_async.create_datareader::<Foo>(
+        block_on(self.subscriber_async.create_datareader::<Foo>(
             &a_topic.clone().into(),
             qos,
             a_listener,
@@ -79,7 +80,7 @@ impl<R: DdsRuntime> Subscriber<R> {
     /// different [`Subscriber`], the operation will have no effect and it will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     #[tracing::instrument(skip(self, a_datareader))]
     pub fn delete_datareader<Foo>(&self, a_datareader: &DataReader<R, Foo>) -> DdsResult<()> {
-        R::block_on(
+        block_on(
             self.subscriber_async
                 .delete_datareader::<Foo>(a_datareader.reader_async()),
         )
@@ -96,7 +97,7 @@ impl<R: DdsRuntime> Subscriber<R> {
         topic_name: &str,
     ) -> DdsResult<Option<DataReader<R, Foo>>> {
         Ok(
-            R::block_on(self.subscriber_async.lookup_datareader::<Foo>(topic_name))?
+            block_on(self.subscriber_async.lookup_datareader::<Foo>(topic_name))?
                 .map(DataReader::from),
         )
     }
@@ -107,7 +108,7 @@ impl<R: DdsRuntime> Subscriber<R> {
     /// [`SubscriberListener`] can delegate to the [`DataReaderListener`] objects the handling of the data.
     #[tracing::instrument(skip(self))]
     pub fn notify_datareaders(&self) -> DdsResult<()> {
-        R::block_on(self.subscriber_async.notify_datareaders())
+        block_on(self.subscriber_async.notify_datareaders())
     }
 
     /// This operation returns the [`DomainParticipant`] to which the [`Subscriber`] belongs.
@@ -119,7 +120,7 @@ impl<R: DdsRuntime> Subscriber<R> {
     /// This operation allows access to the [`SampleLostStatus`].
     #[tracing::instrument(skip(self))]
     pub fn get_sample_lost_status(&self) -> DdsResult<SampleLostStatus> {
-        R::block_on(self.subscriber_async.get_sample_lost_status())
+        block_on(self.subscriber_async.get_sample_lost_status())
     }
 
     /// This operation deletes all the entities that were created by means of the [`Subscriber::create_datareader`] operations.
@@ -130,7 +131,7 @@ impl<R: DdsRuntime> Subscriber<R> {
     /// contained [`DataReader`] objects.
     #[tracing::instrument(skip(self))]
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
-        R::block_on(self.subscriber_async.delete_contained_entities())
+        block_on(self.subscriber_async.delete_contained_entities())
     }
 
     /// This operation sets a default value of the [`DataReaderQos`] which will be used for newly created [`DataReader`] entities in
@@ -141,7 +142,7 @@ impl<R: DdsRuntime> Subscriber<R> {
     /// reset back to the initial values the factory would use, that is the default value of [`DataReaderQos`].
     #[tracing::instrument(skip(self))]
     pub fn set_default_datareader_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
-        R::block_on(self.subscriber_async.set_default_datareader_qos(qos))
+        block_on(self.subscriber_async.set_default_datareader_qos(qos))
     }
 
     /// This operation retrieves the default value of the [`DataReaderQos`], that is, the qos policies which will be used for newly
@@ -150,7 +151,7 @@ impl<R: DdsRuntime> Subscriber<R> {
     /// [`Subscriber::get_default_datareader_qos`], or else, if the call was never made, the default values of [`DataReaderQos`].
     #[tracing::instrument(skip(self))]
     pub fn get_default_datareader_qos(&self) -> DdsResult<DataReaderQos> {
-        R::block_on(self.subscriber_async.get_default_datareader_qos())
+        block_on(self.subscriber_async.get_default_datareader_qos())
     }
 
     /// This operation copies the policies in the `a_topic_qos` to the corresponding policies in the `a_datareader_qos`.
@@ -181,13 +182,13 @@ impl<R: DdsRuntime> Subscriber<R> {
     /// modified to match the current default for the Entity's factory.
     #[tracing::instrument(skip(self))]
     pub fn set_qos(&self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
-        R::block_on(self.subscriber_async.set_qos(qos))
+        block_on(self.subscriber_async.set_qos(qos))
     }
 
     /// This operation allows access to the existing set of [`SubscriberQos`] policies.
     #[tracing::instrument(skip(self))]
     pub fn get_qos(&self) -> DdsResult<SubscriberQos> {
-        R::block_on(self.subscriber_async.get_qos())
+        block_on(self.subscriber_async.get_qos())
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
@@ -202,7 +203,7 @@ impl<R: DdsRuntime> Subscriber<R> {
         a_listener: Option<impl SubscriberListener<R> + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        R::block_on(self.subscriber_async.set_listener(a_listener, mask))
+        block_on(self.subscriber_async.set_listener(a_listener, mask))
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
@@ -221,7 +222,7 @@ impl<R: DdsRuntime> Subscriber<R> {
     /// and does not include statuses that apply to contained entities.
     #[tracing::instrument(skip(self))]
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
-        R::block_on(self.subscriber_async.get_status_changes())
+        block_on(self.subscriber_async.get_status_changes())
     }
 
     /// This operation enables the Entity. Entity objects can be created either enabled or disabled. This is controlled by the value of
@@ -246,12 +247,12 @@ impl<R: DdsRuntime> Subscriber<R> {
     /// enabled are *inactive*, that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     #[tracing::instrument(skip(self))]
     pub fn enable(&self) -> DdsResult<()> {
-        R::block_on(self.subscriber_async.enable())
+        block_on(self.subscriber_async.enable())
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     #[tracing::instrument(skip(self))]
     pub fn get_instance_handle(&self) -> InstanceHandle {
-        R::block_on(self.subscriber_async.get_instance_handle())
+        block_on(self.subscriber_async.get_instance_handle())
     }
 }
