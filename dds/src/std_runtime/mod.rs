@@ -54,8 +54,4 @@ impl DdsRuntime for StdRuntime {
     fn spawner(&self) -> Self::SpawnerHandle {
         self.executor.handle()
     }
-
-    fn block_on<T>(f: impl core::future::Future<Output = T>) -> T {
-        executor::block_on(f)
-    }
 }
