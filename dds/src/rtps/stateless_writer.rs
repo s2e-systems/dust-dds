@@ -9,8 +9,7 @@ use crate::{
     },
     transport::types::{CacheChange, ENTITYID_UNKNOWN, Guid, Locator, SequenceNumber},
 };
-
-use alloc::vec::Vec;
+use alloc::{boxed::Box, vec::Vec};
 
 pub struct RtpsStatelessWriter {
     guid: Guid,

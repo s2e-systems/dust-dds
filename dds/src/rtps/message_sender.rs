@@ -1,4 +1,5 @@
 use crate::transport::types::{GuidPrefix, Locator};
+use alloc::boxed::Box;
 use core::{future::Future, pin::Pin};
 
 pub trait WriteMessage {
