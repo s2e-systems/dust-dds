@@ -80,10 +80,6 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
     pub(crate) fn participant_address(&self) -> &MpscSender<DcpsDomainParticipantMail<R>> {
         &self.participant_address
     }
-
-    pub(crate) fn spawner_handle(&self) -> &R::SpawnerHandle {
-        &self.spawner_handle
-    }
 }
 
 impl<R: DdsRuntime> DomainParticipantAsync<R> {

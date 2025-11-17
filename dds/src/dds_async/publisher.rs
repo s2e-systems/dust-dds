@@ -1,13 +1,11 @@
 use super::{data_writer::DataWriterAsync, domain_participant::DomainParticipantAsync};
 use crate::{
     dcps::{
-        actor::Actor,
         channels::{mpsc::MpscSender, oneshot::oneshot},
         domain_participant_mail::{DcpsDomainParticipantMail, PublisherServiceMail},
         listeners::{
             data_writer_listener::DcpsDataWriterListener, publisher_listener::DcpsPublisherListener,
         },
-        status_condition::DcpsStatusCondition,
     },
     dds_async::topic_description::TopicDescriptionAsync,
     infrastructure::{
@@ -63,11 +61,6 @@ impl<R: DdsRuntime> PublisherAsync<R> {
         mask: &[StatusKind],
     ) -> DdsResult<DataWriterAsync<R, Foo>> {
         let topic_name = a_topic.get_name();
-        let status_condition = Actor::spawn::<R>(
-            DcpsStatusCondition::default(),
-            self.participant.spawner_handle(),
-        );
-        let writer_status_condition_address = status_condition.address();
         let dcps_listener = a_listener.map(DcpsDataWriterListener::new);
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
@@ -76,7 +69,6 @@ impl<R: DdsRuntime> PublisherAsync<R> {
                     publisher_handle: self.handle,
                     topic_name,
                     qos,
-                    status_condition,
                     dcps_listener,
                     mask: mask.to_vec(),
                     participant_address: self.participant_address().clone(),
@@ -84,7 +76,7 @@ impl<R: DdsRuntime> PublisherAsync<R> {
                 },
             ))
             .await?;
-        let guid = reply_receiver.await??;
+        let (guid, writer_status_condition_address) = reply_receiver.await??;
 
         Ok(DataWriterAsync::new(
             guid,

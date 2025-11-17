@@ -1171,17 +1171,16 @@ where
     }
 
     #[allow(clippy::too_many_arguments)]
-    #[tracing::instrument(skip(self, status_condition, dcps_listener, domain_participant_address))]
+    #[tracing::instrument(skip(self, dcps_listener, domain_participant_address))]
     pub async fn create_data_reader(
         &mut self,
         subscriber_handle: InstanceHandle,
         topic_name: String,
         qos: QosKind<DataReaderQos>,
-        status_condition: Actor<DcpsStatusCondition>,
         dcps_listener: Option<DcpsDataReaderListener<R>>,
         mask: Vec<StatusKind>,
         domain_participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
-    ) -> DdsResult<InstanceHandle> {
+    ) -> DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)> {
         struct UserDefinedReaderHistoryCache<R>
         where
             R: DdsRuntime,
@@ -1319,6 +1318,9 @@ where
                 .await,
         );
 
+        let status_condition =
+            Actor::spawn::<R>(DcpsStatusCondition::default(), &self.spawner_handle);
+        let reader_status_condition_address = status_condition.address();
         let listener_mask = mask.to_vec();
         let listener_sender = dcps_listener.map(|l| l.spawn(&self.spawner_handle));
         let data_reader = DataReaderEntity::new(
@@ -1344,7 +1346,7 @@ where
             )
             .await?;
         }
-        Ok(data_reader_handle)
+        Ok((data_reader_handle, reader_status_condition_address))
     }
 
     #[tracing::instrument(skip(self))]
@@ -1523,17 +1525,16 @@ where
     }
 
     #[allow(clippy::too_many_arguments)]
-    #[tracing::instrument(skip(self, status_condition, dcps_listener, participant_address))]
+    #[tracing::instrument(skip(self, dcps_listener, participant_address))]
     pub async fn create_data_writer(
         &mut self,
         publisher_handle: InstanceHandle,
         topic_name: String,
         qos: QosKind<DataWriterQos>,
-        status_condition: Actor<DcpsStatusCondition>,
         dcps_listener: Option<DcpsDataWriterListener<R>>,
         mask: Vec<StatusKind>,
         participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
-    ) -> DdsResult<InstanceHandle> {
+    ) -> DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)> {
         let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
             .topic_description_list
@@ -1590,6 +1591,9 @@ where
         ]);
         self.writer_counter += 1;
 
+        let status_condition =
+            Actor::spawn::<R>(DcpsStatusCondition::default(), &self.spawner_handle);
+        let writer_status_condition_address = status_condition.address();
         let qos = match qos {
             QosKind::Default => publisher.default_datawriter_qos.clone(),
             QosKind::Specific(q) => {
@@ -1629,7 +1633,7 @@ where
                 .await?;
         }
 
-        Ok(data_writer_handle)
+        Ok((data_writer_handle, writer_status_condition_address))
     }
 
     #[tracing::instrument(skip(self))]

@@ -4,7 +4,7 @@ use super::{
 };
 use crate::{
     dcps::{
-        actor::{Actor, ActorAddress},
+        actor::ActorAddress,
         channels::{mpsc::MpscSender, oneshot::oneshot},
         domain_participant_mail::{DcpsDomainParticipantMail, SubscriberServiceMail},
         listeners::{
@@ -72,11 +72,6 @@ impl<R: DdsRuntime> SubscriberAsync<R> {
         a_listener: Option<impl DataReaderListener<R, Foo> + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<DataReaderAsync<R, Foo>> {
-        let status_condition = Actor::spawn::<R>(
-            DcpsStatusCondition::default(),
-            self.participant.spawner_handle(),
-        );
-        let reader_status_condition_address = status_condition.address();
         let dcps_listener = a_listener.map(DcpsDataReaderListener::new);
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
@@ -85,7 +80,6 @@ impl<R: DdsRuntime> SubscriberAsync<R> {
                     subscriber_handle: self.handle,
                     topic_name: a_topic.get_name(),
                     qos,
-                    status_condition,
                     dcps_listener,
                     mask: mask.to_vec(),
                     domain_participant_address: self.participant_address().clone(),
@@ -93,7 +87,7 @@ impl<R: DdsRuntime> SubscriberAsync<R> {
                 },
             ))
             .await?;
-        let guid = reply_receiver.await??;
+        let (guid, reader_status_condition_address) = reply_receiver.await??;
 
         Ok(DataReaderAsync::new(
             guid,
