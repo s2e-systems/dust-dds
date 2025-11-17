@@ -2,7 +2,7 @@ use super::condition::StatusCondition;
 use crate::{
     dds_async::wait_set::{ConditionAsync, WaitSetAsync},
     infrastructure::{error::DdsResult, time::Duration},
-    std_runtime::executor::block_on,
+    std_runtime::executor::{block_on, block_timeout},
 };
 use alloc::vec::Vec;
 
@@ -55,15 +55,14 @@ impl WaitSet {
     /// [`WaitSet`] that already has a thread blocking on it, the operation will return immediately with the value [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError::PreconditionNotMet).
     #[tracing::instrument(skip(self))]
     pub fn wait(&self, timeout: Duration) -> DdsResult<Vec<Condition>> {
-        todo!()
-        // Ok(block_on(self.waitset_async.wait(timeout))?
-        //     .into_iter()
-        //     .map(|c| match c {
-        //         ConditionAsync::StatusCondition(sc) => {
-        //             Condition::StatusCondition(StatusCondition::new(sc))
-        //         }
-        //     })
-        //     .collect())
+        Ok(block_timeout(timeout.into(), self.waitset_async.wait())??
+            .into_iter()
+            .map(|c| match c {
+                ConditionAsync::StatusCondition(sc) => {
+                    Condition::StatusCondition(StatusCondition::new(sc))
+                }
+            })
+            .collect())
     }
 
     /// Attaches a [`Condition`] to the [`WaitSet`].

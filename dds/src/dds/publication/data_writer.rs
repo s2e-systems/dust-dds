@@ -15,7 +15,7 @@ use crate::{
     },
     publication::{data_writer_listener::DataWriterListener, publisher::Publisher},
     runtime::DdsRuntime,
-    std_runtime::executor::block_on,
+    std_runtime::executor::{block_on, block_timeout},
     topic_definition::topic_description::TopicDescription,
 };
 use alloc::vec::Vec;
@@ -260,8 +260,10 @@ impl<R: DdsRuntime, Foo> DataWriter<R, Foo> {
     /// Otherwise the operation will return immediately with [`Ok`].
     #[tracing::instrument(skip(self))]
     pub fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
-        todo!()
-        // block_on(self.writer_async.wait_for_acknowledgments())
+        block_timeout(
+            max_wait.into(),
+            self.writer_async.wait_for_acknowledgments(),
+        )?
     }
 
     /// This operation allows access to the [`LivelinessLostStatus`].
