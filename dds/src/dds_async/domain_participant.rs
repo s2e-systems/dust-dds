@@ -44,7 +44,6 @@ pub struct DomainParticipantAsync<R: DdsRuntime> {
     domain_id: DomainId,
     handle: InstanceHandle,
     spawner_handle: R::SpawnerHandle,
-    clock_handle: R::ClockHandle,
 }
 
 impl<R: DdsRuntime> Clone for DomainParticipantAsync<R> {
@@ -57,7 +56,6 @@ impl<R: DdsRuntime> Clone for DomainParticipantAsync<R> {
             domain_id: self.domain_id,
             handle: self.handle,
             spawner_handle: self.spawner_handle.clone(),
-            clock_handle: self.clock_handle.clone(),
         }
     }
 }
@@ -69,7 +67,6 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         domain_id: DomainId,
         handle: InstanceHandle,
         spawner_handle: R::SpawnerHandle,
-        clock_handle: R::ClockHandle,
     ) -> Self {
         Self {
             participant_address,
@@ -77,7 +74,6 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
             domain_id,
             handle,
             spawner_handle,
-            clock_handle,
         }
     }
 
