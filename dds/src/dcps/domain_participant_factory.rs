@@ -45,7 +45,7 @@ use crate::{
     },
     runtime::{DdsRuntime, Spawner, Timer},
     transport::{
-        interface::{HistoryCache, TransportParticipant, TransportParticipantFactory},
+        interface::{HistoryCache, TransportParticipantFactory},
         types::{
             BUILT_IN_READER_GROUP, BUILT_IN_READER_WITH_KEY, BUILT_IN_TOPIC, BUILT_IN_WRITER_GROUP,
             BUILT_IN_WRITER_WITH_KEY, CacheChange, EntityId, GuidPrefix, ReliabilityKind,
@@ -577,7 +577,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             String::from(self.configuration.domain_tag()),
         );
 
-        let mut dcps_participant: DcpsDomainParticipant<R, T> = DcpsDomainParticipant::new(
+        let mut dcps_participant: DcpsDomainParticipant<R> = DcpsDomainParticipant::new(
             domain_participant,
             transport,
             clock_handle,

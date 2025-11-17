@@ -67,11 +67,13 @@ use crate::{
         type_support::TypeSupport,
     },
     rtps::stateless_writer::RtpsStatelessWriter,
-    rtps_udp_transport::udp_transport::{RtpsTransportStatefulReader, RtpsTransportStatefulWriter},
     runtime::{Clock, DdsRuntime, Spawner, Timer},
     transport::{
         self,
-        interface::{HistoryCache, TransportParticipant, TransportParticipantFactory},
+        interface::{
+            HistoryCache, RtpsTransportParticipant, RtpsTransportStatefulReader,
+            RtpsTransportStatefulWriter, TransportParticipantFactory,
+        },
         types::{
             CacheChange, ChangeKind, DurabilityKind, ENTITYID_UNKNOWN, EntityId, Guid,
             ReliabilityKind, TopicKind, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY,
@@ -124,8 +126,8 @@ pub fn poll_timeout<T>(
     })
 }
 
-pub struct DcpsDomainParticipant<R: DdsRuntime, T: TransportParticipantFactory> {
-    transport: T::TransportParticipant,
+pub struct DcpsDomainParticipant<R: DdsRuntime> {
+    transport: RtpsTransportParticipant,
     topic_counter: u16,
     reader_counter: u16,
     writer_counter: u16,
@@ -137,14 +139,13 @@ pub struct DcpsDomainParticipant<R: DdsRuntime, T: TransportParticipantFactory> 
     spawner_handle: R::SpawnerHandle,
 }
 
-impl<R, T> DcpsDomainParticipant<R, T>
+impl<R> DcpsDomainParticipant<R>
 where
     R: DdsRuntime,
-    T: TransportParticipantFactory,
 {
     pub fn new(
         domain_participant: DomainParticipantEntity<R>,
-        transport: T::TransportParticipant,
+        transport: RtpsTransportParticipant,
         clock_handle: R::ClockHandle,
         timer_handle: R::TimerHandle,
         spawner_handle: R::SpawnerHandle,

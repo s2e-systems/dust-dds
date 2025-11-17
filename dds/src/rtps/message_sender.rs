@@ -9,6 +9,8 @@ pub trait WriteMessage {
         locators: &[Locator],
     ) -> Pin<Box<dyn Future<Output = ()> + Send>>;
     fn guid_prefix(&self) -> GuidPrefix;
+
+    fn box_clone(&self) -> Box<dyn WriteMessage + Send + Sync + 'static>;
 }
 
 pub trait Clock {

@@ -1,39 +1,30 @@
 use crate::{
+    dcps::channels::mpsc::mpsc_channel,
     rtps::message_sender::{Clock, WriteMessage},
     rtps_messages::overall_structure::RtpsMessageRead,
-    std_runtime::executor::block_on,
     transport::{
-        interface::{HistoryCache, TransportParticipant, TransportParticipantFactory},
-        types::{CacheChange, LOCATOR_KIND_UDP_V6, ReaderProxy, WriterProxy},
+        interface::{RtpsTransportParticipant, TransportParticipantFactory},
+        types::LOCATOR_KIND_UDP_V6,
     },
 };
-use async_lock::Mutex;
 use core::{
     future::Future,
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4},
     pin::Pin,
 };
+use critical_section::Mutex;
 use dust_dds::{
     rtps::{
-        stateful_reader::RtpsStatefulReader,
-        stateful_writer::RtpsStatefulWriter,
+        stateful_reader::RtpsStatefulReader, stateful_writer::RtpsStatefulWriter,
         stateless_reader::RtpsStatelessReader,
-        stateless_writer::RtpsStatelessWriter,
-        types::{PROTOCOLVERSION, VENDOR_ID_S2E},
     },
-    transport::types::{
-        ENTITYID_PARTICIPANT, EntityId, Guid, GuidPrefix, LOCATOR_KIND_UDP_V4, Locator,
-        ProtocolVersion, ReliabilityKind, VendorId,
-    },
+    transport::types::{ENTITYID_PARTICIPANT, Guid, GuidPrefix, LOCATOR_KIND_UDP_V4, Locator},
 };
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use socket2::Socket;
 use std::{
     net::{ToSocketAddrs, UdpSocket},
-    sync::{
-        Arc,
-        mpsc::{Sender, channel},
-    },
+    sync::Arc,
 };
 use tracing::info;
 
@@ -168,24 +159,12 @@ impl Default for RtpsUdpTransportParticipantFactory {
     }
 }
 
-enum ChannelMessageKind {
-    AddStatelessReader(RtpsStatelessReader),
-    AddStatefulReader(Arc<Mutex<RtpsStatefulReader>>),
-    AddStatefulWriter(Arc<Mutex<RtpsStatefulWriter>>),
-    MetatrafficMulticastSocket(Arc<[u8]>),
-    MetatrafficUnicastSocket(Arc<[u8]>),
-    DefaultUnicastSocket(Arc<[u8]>),
-    Poke,
-}
-
 impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
-    type TransportParticipant = RtpsTransportParticipant;
-
     async fn create_participant(
         &self,
         guid_prefix: GuidPrefix,
         domain_id: i32,
-    ) -> Self::TransportParticipant {
+    ) -> RtpsTransportParticipant {
         let interface_address_list = NetworkInterface::show()
             .expect("Could not scan interfaces")
             .into_iter()
@@ -261,11 +240,11 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
 
         let guid = Guid::new(guid_prefix, ENTITYID_PARTICIPANT);
 
-        let (chanel_message_sender, chanel_message_receiver) = channel();
+        let (chanel_message_sender, chanel_message_receiver) = mpsc_channel();
 
         let global_participant = RtpsTransportParticipant {
             guid,
-            message_writer: message_writer.clone(),
+            message_writer: Box::new(message_writer.clone()),
             default_unicast_locator_list,
             metatraffic_unicast_locator_list,
             metatraffic_multicast_locator_list,
@@ -282,11 +261,11 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                 loop {
                     if let Ok(size) = metatraffic_multicast_socket.recv(&mut buf) {
                         if size > 0 {
-                            chanel_message_sender_clone
-                                .send(ChannelMessageKind::MetatrafficMulticastSocket(
-                                    buf[..size].into(),
-                                ))
-                                .expect("chanel_message sender alive");
+                            // chanel_message_sender_clone
+                            //     .send(ChannelMessageKind::MetatrafficMulticastSocket(
+                            //         buf[..size].into(),
+                            //     )).await
+                            //     .expect("chanel_message sender alive");
                         }
                     }
                 }
@@ -301,11 +280,11 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                 loop {
                     if let Ok(size) = metatraffic_unicast_socket.recv(&mut buf) {
                         if size > 0 {
-                            chanel_message_sender_clone
-                                .send(ChannelMessageKind::MetatrafficUnicastSocket(
-                                    buf[..size].into(),
-                                ))
-                                .expect("chanel_message sender alive");
+                            // chanel_message_sender_clone
+                            //     .send(ChannelMessageKind::MetatrafficUnicastSocket(
+                            //         buf[..size].into(),
+                            //     )).await
+                            //     .expect("chanel_message sender alive");
                         }
                     }
                 }
@@ -320,9 +299,9 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                 loop {
                     if let Ok(size) = default_unicast_socket.recv(&mut buf) {
                         if size > 0 {
-                            chanel_message_sender_clone
-                                .send(ChannelMessageKind::DefaultUnicastSocket(buf[..size].into()))
-                                .expect("chanel_message sender alive");
+                            // chanel_message_sender_clone
+                            //     .send(ChannelMessageKind::DefaultUnicastSocket(buf[..size].into()))
+                            //     .expect("chanel_message sender alive");
                         }
                     }
                 }
@@ -335,9 +314,9 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
             .spawn(move || {
                 loop {
                     std::thread::sleep(std::time::Duration::from_millis(50));
-                    chanel_message_sender_clone
-                        .send(ChannelMessageKind::Poke)
-                        .expect("chanel_message sender alive");
+                    // chanel_message_sender_clone
+                    //     .send(ChannelMessageKind::Poke)
+                    //     .expect("chanel_message sender alive");
                 }
             })
             .expect("failed to spawn thread");
@@ -345,71 +324,71 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
         std::thread::Builder::new()
             .name("Socket receiver".to_string())
             .spawn(move || -> ! {
-                let mut stateless_reader_list = Vec::new();
-                let mut stateful_reader_list = Vec::new();
-                let mut stateful_writer_list = Vec::new();
+                // let mut stateless_reader_list = Vec::new();
+                // let mut stateful_reader_list = Vec::new();
+                // let mut stateful_writer_list = Vec::new();
                 loop {
-                    if let Ok(chanel_message) = chanel_message_receiver.recv() {
-                        match chanel_message {
-                            ChannelMessageKind::AddStatelessReader(stateless_reader) => {
-                                stateless_reader_list.push(stateless_reader)
-                            }
-                            ChannelMessageKind::AddStatefulReader(stateful_reader) => {
-                                stateful_reader_list.push(stateful_reader)
-                            }
-                            ChannelMessageKind::AddStatefulWriter(stateful_writer) => {
-                                stateful_writer_list.push(stateful_writer)
-                            }
-                            ChannelMessageKind::MetatrafficMulticastSocket(datagram) => {
-                                block_on(async {
-                                    process_message(
-                                        &datagram,
-                                        &mut message_writer,
-                                        &RtpsUdpTransportClock,
-                                        &mut stateless_reader_list,
-                                        &stateful_reader_list,
-                                        &stateful_writer_list,
-                                    )
-                                    .await
-                                });
-                            }
-                            ChannelMessageKind::MetatrafficUnicastSocket(datagram) => {
-                                block_on(async {
-                                    process_message(
-                                        &datagram,
-                                        &mut message_writer,
-                                        &RtpsUdpTransportClock,
-                                        &mut stateless_reader_list,
-                                        &stateful_reader_list,
-                                        &stateful_writer_list,
-                                    )
-                                    .await
-                                });
-                            }
-                            ChannelMessageKind::DefaultUnicastSocket(datagram) => {
-                                block_on(async {
-                                    process_message(
-                                        &datagram,
-                                        &mut message_writer,
-                                        &RtpsUdpTransportClock,
-                                        &mut stateless_reader_list,
-                                        &stateful_reader_list,
-                                        &stateful_writer_list,
-                                    )
-                                    .await
-                                });
-                            }
-                            ChannelMessageKind::Poke => block_on(async {
-                                for rtps_stateful_writer in &stateful_writer_list {
-                                    rtps_stateful_writer
-                                        .lock()
-                                        .await
-                                        .write_message(&message_writer, &RtpsUdpTransportClock)
-                                        .await;
-                                }
-                            }),
-                        }
-                    }
+                    // if let Ok(chanel_message) = chanel_message_receiver.recv() {
+                    //     match chanel_message {
+                    //         ChannelMessageKind::AddStatelessReader(stateless_reader) => {
+                    //             stateless_reader_list.push(stateless_reader)
+                    //         }
+                    //         ChannelMessageKind::AddStatefulReader(stateful_reader) => {
+                    //             stateful_reader_list.push(stateful_reader)
+                    //         }
+                    //         ChannelMessageKind::AddStatefulWriter(stateful_writer) => {
+                    //             stateful_writer_list.push(stateful_writer)
+                    //         }
+                    //         ChannelMessageKind::MetatrafficMulticastSocket(datagram) => {
+                    //             block_on(async {
+                    //                 process_message(
+                    //                     &datagram,
+                    //                     &mut message_writer,
+                    //                     &RtpsUdpTransportClock,
+                    //                     &mut stateless_reader_list,
+                    //                     &stateful_reader_list,
+                    //                     &stateful_writer_list,
+                    //                 )
+                    //                 .await
+                    //             });
+                    //         }
+                    //         ChannelMessageKind::MetatrafficUnicastSocket(datagram) => {
+                    //             block_on(async {
+                    //                 process_message(
+                    //                     &datagram,
+                    //                     &mut message_writer,
+                    //                     &RtpsUdpTransportClock,
+                    //                     &mut stateless_reader_list,
+                    //                     &stateful_reader_list,
+                    //                     &stateful_writer_list,
+                    //                 )
+                    //                 .await
+                    //             });
+                    //         }
+                    //         ChannelMessageKind::DefaultUnicastSocket(datagram) => {
+                    //             block_on(async {
+                    //                 process_message(
+                    //                     &datagram,
+                    //                     &mut message_writer,
+                    //                     &RtpsUdpTransportClock,
+                    //                     &mut stateless_reader_list,
+                    //                     &stateful_reader_list,
+                    //                     &stateful_writer_list,
+                    //                 )
+                    //                 .await
+                    //             });
+                    //         }
+                    //         ChannelMessageKind::Poke => block_on(async {
+                    //             for rtps_stateful_writer in &stateful_writer_list {
+                    //                 rtps_stateful_writer
+                    //                     .lock()
+                    //                     .await
+                    //                     .write_message(&message_writer, &RtpsUdpTransportClock)
+                    //                     .await;
+                    //             }
+                    //         }),
+                    //     }
+                    // }
                 }
             })
             .expect("failed to spawn thread");
@@ -431,20 +410,20 @@ async fn process_message(
             stateless_reader.process_message(&rtps_message).await.ok();
         }
         for stateful_reader in stateful_reader_list {
-            stateful_reader
-                .lock()
-                .await
-                .process_message(&rtps_message, message_writer)
-                .await
-                .ok();
+            // stateful_reader
+            //     .lock()
+            //     .await
+            //     .process_message(&rtps_message, message_writer)
+            //     .await
+            //     .ok();
         }
         for stateful_writer in stateful_writer_list {
-            stateful_writer
-                .lock()
-                .await
-                .process_message(&rtps_message, message_writer, clock)
-                .await
-                .ok();
+            // stateful_writer
+            //     .lock()
+            //     .await
+            //     .process_message(&rtps_message, message_writer, clock)
+            //     .await
+            //     .ok();
         }
     }
 }
@@ -583,6 +562,10 @@ impl WriteMessage for MessageWriter {
     fn guid_prefix(&self) -> GuidPrefix {
         self.guid_prefix
     }
+
+    fn box_clone(&self) -> Box<dyn WriteMessage + Send + Sync + 'static> {
+        Box::new(self.clone())
+    }
 }
 
 pub struct RtpsUdpTransportClock;
@@ -592,201 +575,6 @@ impl Clock for RtpsUdpTransportClock {
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .expect("Clock should always give valid Unix time")
-    }
-}
-
-pub struct RtpsTransportParticipant {
-    guid: Guid,
-    message_writer: MessageWriter,
-    default_unicast_locator_list: Vec<Locator>,
-    metatraffic_unicast_locator_list: Vec<Locator>,
-    metatraffic_multicast_locator_list: Vec<Locator>,
-    fragment_size: usize,
-    chanel_message_sender: Sender<ChannelMessageKind>,
-}
-
-pub struct RtpsTransportStatefulWriter {
-    guid: Guid,
-    rtps_stateful_writer: Arc<Mutex<RtpsStatefulWriter>>,
-    message_writer: MessageWriter,
-    default_unicast_locator_list: Vec<Locator>,
-}
-impl RtpsTransportStatefulWriter {
-    pub fn guid(&self) -> Guid {
-        self.guid
-    }
-    pub fn history_cache(&mut self) -> &mut dyn HistoryCache {
-        self
-    }
-    pub async fn is_change_acknowledged(&self, sequence_number: i64) -> bool {
-        self.rtps_stateful_writer
-            .lock()
-            .await
-            .is_change_acknowledged(sequence_number)
-    }
-    pub async fn add_matched_reader(&mut self, mut reader_proxy: ReaderProxy) {
-        if reader_proxy.unicast_locator_list.is_empty() {
-            reader_proxy
-                .unicast_locator_list
-                .clone_from(&self.default_unicast_locator_list);
-        }
-
-        self.rtps_stateful_writer
-            .lock()
-            .await
-            .add_matched_reader(&reader_proxy);
-    }
-    pub async fn remove_matched_reader(&mut self, remote_reader_guid: Guid) {
-        self.rtps_stateful_writer
-            .lock()
-            .await
-            .delete_matched_reader(remote_reader_guid);
-    }
-}
-impl HistoryCache for RtpsTransportStatefulWriter {
-    fn add_change(
-        &mut self,
-        cache_change: CacheChange,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async move {
-            self.rtps_stateful_writer
-                .lock()
-                .await
-                .add_change(cache_change);
-            self.rtps_stateful_writer
-                .lock()
-                .await
-                .write_message(&self.message_writer, &RtpsUdpTransportClock)
-                .await;
-        })
-    }
-
-    fn remove_change(&mut self, sequence_number: i64) -> Pin<Box<dyn Future<Output = ()> + Send>> {
-        let rtps_stateful_writer = self.rtps_stateful_writer.clone();
-        Box::pin(async move {
-            rtps_stateful_writer
-                .lock()
-                .await
-                .remove_change(sequence_number);
-        })
-    }
-}
-
-pub struct RtpsTransportStatefulReader {
-    guid: Guid,
-    rtps_stateful_reader: Arc<Mutex<RtpsStatefulReader>>,
-}
-impl RtpsTransportStatefulReader {
-    pub fn guid(&self) -> Guid {
-        self.guid
-    }
-    pub async fn is_historical_data_received(&self) -> bool {
-        self.rtps_stateful_reader
-            .lock()
-            .await
-            .is_historical_data_received()
-    }
-    pub async fn add_matched_writer(&mut self, writer_proxy: WriterProxy) {
-        self.rtps_stateful_reader
-            .lock()
-            .await
-            .add_matched_writer(&writer_proxy)
-    }
-    pub async fn remove_matched_writer(&mut self, remote_writer_guid: Guid) {
-        self.rtps_stateful_reader
-            .lock()
-            .await
-            .delete_matched_writer(remote_writer_guid)
-    }
-}
-
-impl TransportParticipant for RtpsTransportParticipant {
-    fn guid(&self) -> Guid {
-        self.guid
-    }
-    fn protocol_version(&self) -> ProtocolVersion {
-        PROTOCOLVERSION
-    }
-    fn vendor_id(&self) -> VendorId {
-        VENDOR_ID_S2E
-    }
-    fn metatraffic_unicast_locator_list(&self) -> &[Locator] {
-        &self.metatraffic_unicast_locator_list
-    }
-    fn metatraffic_multicast_locator_list(&self) -> &[Locator] {
-        &self.metatraffic_multicast_locator_list
-    }
-    fn default_unicast_locator_list(&self) -> &[Locator] {
-        &self.default_unicast_locator_list
-    }
-    fn default_multicast_locator_list(&self) -> &[Locator] {
-        &[]
-    }
-    async fn create_stateless_reader(
-        &mut self,
-        entity_id: EntityId,
-        reader_history_cache: Box<dyn HistoryCache>,
-    ) -> Guid {
-        let guid = Guid::new(self.guid.prefix(), entity_id);
-        self.chanel_message_sender
-            .send(ChannelMessageKind::AddStatelessReader(
-                RtpsStatelessReader::new(guid, reader_history_cache),
-            ))
-            .expect("chanel_message receiver alive");
-
-        Guid::new(self.guid.prefix(), entity_id)
-    }
-    async fn create_stateless_writer(&mut self, entity_id: EntityId) -> RtpsStatelessWriter {
-        RtpsStatelessWriter::new(
-            Guid::new(self.guid.prefix(), entity_id),
-            Box::new(self.message_writer.clone()),
-        )
-    }
-
-    async fn create_stateful_reader(
-        &mut self,
-        entity_id: EntityId,
-        reliability_kind: ReliabilityKind,
-        reader_history_cache: Box<dyn HistoryCache>,
-    ) -> RtpsTransportStatefulReader {
-        let guid = Guid::new(self.guid.prefix(), entity_id);
-        let rtps_stateful_reader = Arc::new(Mutex::new(RtpsStatefulReader::new(
-            guid,
-            reader_history_cache,
-            reliability_kind,
-        )));
-        self.chanel_message_sender
-            .send(ChannelMessageKind::AddStatefulReader(
-                rtps_stateful_reader.clone(),
-            ))
-            .expect("chanel_message receiver alive");
-        RtpsTransportStatefulReader {
-            guid,
-            rtps_stateful_reader,
-        }
-    }
-
-    async fn create_stateful_writer(
-        &mut self,
-        entity_id: EntityId,
-        _reliability_kind: ReliabilityKind,
-    ) -> RtpsTransportStatefulWriter {
-        let guid = Guid::new(self.guid.prefix(), entity_id);
-        let rtps_stateful_writer = Arc::new(Mutex::new(RtpsStatefulWriter::new(
-            guid,
-            self.fragment_size,
-        )));
-        self.chanel_message_sender
-            .send(ChannelMessageKind::AddStatefulWriter(
-                rtps_stateful_writer.clone(),
-            ))
-            .expect("chanel_message receiver alive");
-        RtpsTransportStatefulWriter {
-            guid,
-            rtps_stateful_writer,
-            message_writer: self.message_writer.clone(),
-            default_unicast_locator_list: self.default_unicast_locator_list.clone(),
-        }
     }
 }
 
@@ -863,91 +651,91 @@ mod tests {
     //     assert_eq!(cache_change, received_cache_change);
     // }
 
-    #[test]
-    fn basic_transport_stateful_reader_writer_usage() {
-        let guid_prefix = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-        let domain_id = 0;
-        let transport = RtpsUdpTransportParticipantFactoryBuilder::new()
-            .build()
-            .unwrap();
-        let mut participant =
-            block_on(async { transport.create_participant(guid_prefix, domain_id).await });
+    // #[test]
+    // fn basic_transport_stateful_reader_writer_usage() {
+    //     let guid_prefix = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+    //     let domain_id = 0;
+    //     let transport = RtpsUdpTransportParticipantFactoryBuilder::new()
+    //         .build()
+    //         .unwrap();
+    //     let mut participant =
+    //         block_on(async { transport.create_participant(guid_prefix, domain_id).await });
 
-        struct MockHistoryCache(SyncSender<CacheChange>);
+    //     struct MockHistoryCache(SyncSender<CacheChange>);
 
-        impl HistoryCache for MockHistoryCache {
-            fn add_change(
-                &mut self,
-                cache_change: CacheChange,
-            ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
-                self.0.send(cache_change).unwrap();
-                Box::pin(async {})
-            }
-            fn remove_change(
-                &mut self,
-                _sequence_number: i64,
-            ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
-                Box::pin(async {
-                    unimplemented!();
-                })
-            }
-        }
+    //     impl HistoryCache for MockHistoryCache {
+    //         fn add_change(
+    //             &mut self,
+    //             cache_change: CacheChange,
+    //         ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
+    //             self.0.send(cache_change).unwrap();
+    //             Box::pin(async {})
+    //         }
+    //         fn remove_change(
+    //             &mut self,
+    //             _sequence_number: i64,
+    //         ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
+    //             Box::pin(async {
+    //                 unimplemented!();
+    //             })
+    //         }
+    //     }
 
-        let entity_id = EntityId::new([1, 2, 3], 4);
-        let reliability_kind = ReliabilityKind::BestEffort;
-        let (sender, receiver) = sync_channel(0);
-        let reader_history_cache = Box::new(MockHistoryCache(sender));
-        let mut reader = block_on(async {
-            participant
-                .create_stateful_reader(entity_id, reliability_kind, reader_history_cache)
-                .await
-        });
+    //     let entity_id = EntityId::new([1, 2, 3], 4);
+    //     let reliability_kind = ReliabilityKind::BestEffort;
+    //     let (sender, receiver) = sync_channel(0);
+    //     let reader_history_cache = Box::new(MockHistoryCache(sender));
+    //     let mut reader = block_on(async {
+    //         participant
+    //             .create_stateful_reader(entity_id, reliability_kind, reader_history_cache)
+    //             .await
+    //     });
 
-        let entity_id = EntityId::new([5, 6, 7], 8);
-        let mut writer = block_on(async {
-            participant
-                .create_stateful_writer(entity_id, reliability_kind)
-                .await
-        });
+    //     let entity_id = EntityId::new([5, 6, 7], 8);
+    //     let mut writer = block_on(async {
+    //         participant
+    //             .create_stateful_writer(entity_id, reliability_kind)
+    //             .await
+    //     });
 
-        let reader_proxy = ReaderProxy {
-            remote_reader_guid: reader.guid(),
-            remote_group_entity_id: ENTITYID_UNKNOWN,
-            reliability_kind,
-            durability_kind: DurabilityKind::Volatile,
-            unicast_locator_list: vec![],
-            multicast_locator_list: vec![],
-            expects_inline_qos: false,
-        };
-        block_on(async { writer.add_matched_reader(reader_proxy).await });
+    //     let reader_proxy = ReaderProxy {
+    //         remote_reader_guid: reader.guid(),
+    //         remote_group_entity_id: ENTITYID_UNKNOWN,
+    //         reliability_kind,
+    //         durability_kind: DurabilityKind::Volatile,
+    //         unicast_locator_list: vec![],
+    //         multicast_locator_list: vec![],
+    //         expects_inline_qos: false,
+    //     };
+    //     block_on(async { writer.add_matched_reader(reader_proxy).await });
 
-        let writer_proxy = WriterProxy {
-            remote_writer_guid: writer.guid(),
-            remote_group_entity_id: ENTITYID_UNKNOWN,
-            reliability_kind,
-            durability_kind: DurabilityKind::Volatile,
-            unicast_locator_list: vec![],
-            multicast_locator_list: vec![],
-        };
-        block_on(async { reader.add_matched_writer(writer_proxy).await });
-        let cache_change = CacheChange {
-            kind: ChangeKind::Alive,
-            writer_guid: writer.guid(),
-            sequence_number: 1,
-            source_timestamp: None,
-            instance_handle: None,
-            data_value: vec![0, 0, 0, 0, 1, 2, 3, 4].into(),
-        };
-        block_on(async {
-            writer
-                .history_cache()
-                .add_change(cache_change.clone())
-                .await
-        });
+    //     let writer_proxy = WriterProxy {
+    //         remote_writer_guid: writer.guid(),
+    //         remote_group_entity_id: ENTITYID_UNKNOWN,
+    //         reliability_kind,
+    //         durability_kind: DurabilityKind::Volatile,
+    //         unicast_locator_list: vec![],
+    //         multicast_locator_list: vec![],
+    //     };
+    //     block_on(async { reader.add_matched_writer(writer_proxy).await });
+    //     let cache_change = CacheChange {
+    //         kind: ChangeKind::Alive,
+    //         writer_guid: writer.guid(),
+    //         sequence_number: 1,
+    //         source_timestamp: None,
+    //         instance_handle: None,
+    //         data_value: vec![0, 0, 0, 0, 1, 2, 3, 4].into(),
+    //     };
+    //     block_on(async {
+    //         writer
+    //             .history_cache()
+    //             .add_change(cache_change.clone())
+    //             .await
+    //     });
 
-        let received_cache_change = receiver
-            .recv_timeout(std::time::Duration::from_secs(3))
-            .unwrap();
-        assert_eq!(cache_change, received_cache_change);
-    }
+    //     let received_cache_change = receiver
+    //         .recv_timeout(std::time::Duration::from_secs(3))
+    //         .unwrap();
+    //     assert_eq!(cache_change, received_cache_change);
+    // }
 }

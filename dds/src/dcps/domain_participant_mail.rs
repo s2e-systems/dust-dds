@@ -528,7 +528,7 @@ pub enum DcpsDomainParticipantMail<R: DdsRuntime> {
     Discovery(DiscoveryServiceMail),
 }
 
-impl<R: DdsRuntime, T: TransportParticipantFactory> MailHandler for DcpsDomainParticipant<R, T> {
+impl<R: DdsRuntime> MailHandler for DcpsDomainParticipant<R> {
     type Mail = DcpsDomainParticipantMail<R>;
     async fn handle(&mut self, message: DcpsDomainParticipantMail<R>) {
         match message {
@@ -565,7 +565,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> MailHandler for DcpsDomainPa
     }
 }
 
-impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsDomainParticipant<R, T> {
+impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     async fn handle_participant_service(
         &mut self,
         participant_service_mail: ParticipantServiceMail<R>,
