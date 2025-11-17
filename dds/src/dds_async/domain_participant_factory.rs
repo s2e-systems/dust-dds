@@ -45,14 +45,13 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantFactoryAsyn
         let timer_handle = self.runtime.timer();
         let spawner_handle = self.runtime.spawner();
         let status_kind = mask.to_vec();
-        let listener_sender =
-            a_listener.map(|l| DcpsDomainParticipantListener::spawn::<R>(l, &spawner_handle));
+        let dcps_listener = a_listener.map(DcpsDomainParticipantListener::new);
         let (reply_sender, reply_receiver) = oneshot();
         self.domain_participant_factory_actor
             .send_actor_mail(DcpsParticipantFactoryMail::CreateParticipant {
                 domain_id,
                 qos,
-                listener_sender,
+                dcps_listener,
                 status_kind,
                 reply_sender,
                 clock_handle: clock_handle.clone(),

@@ -526,18 +526,15 @@ impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
-        let listener_sender = a_listener.map(|l| {
-            DcpsDataReaderListener::spawn(
-                l,
-                self.get_subscriber().get_participant().spawner_handle(),
-            )
-        });
+        let dcps_listener = a_listener.map(
+            DcpsDataReaderListener::new
+        );
         self.participant_address()
             .send(DcpsDomainParticipantMail::Reader(
                 ReaderServiceMail::SetListener {
                     subscriber_handle: self.subscriber.get_instance_handle().await,
                     data_reader_handle: self.handle,
-                    listener_sender,
+                    dcps_listener,
                     listener_mask: mask.to_vec(),
                     reply_sender,
                 },

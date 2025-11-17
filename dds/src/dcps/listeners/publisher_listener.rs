@@ -1,3 +1,5 @@
+use core::pin::Pin;
+
 use crate::{
     dcps::channels::mpsc::{MpscSender, mpsc_channel},
     publication::publisher_listener::PublisherListener,
@@ -6,15 +8,15 @@ use crate::{
 
 use super::domain_participant_listener::ListenerMail;
 
-pub struct DcpsPublisherListener;
+pub struct DcpsPublisherListener<R: DdsRuntime> {
+    sender: MpscSender<ListenerMail<R>>,
+    task: Pin<Box<dyn Future<Output = ()> + Send>>,
+}
 
-impl DcpsPublisherListener {
-    pub fn spawn<R: DdsRuntime>(
-        mut listener: impl PublisherListener<R> + Send + 'static,
-        spawner_handle: &R::SpawnerHandle,
-    ) -> MpscSender<ListenerMail<R>> {
-        let (listener_sender, listener_receiver) = mpsc_channel();
-        spawner_handle.spawn(async move {
+impl<R: DdsRuntime> DcpsPublisherListener<R> {
+    pub fn new(mut listener: impl PublisherListener<R> + Send + 'static) -> Self {
+        let (sender, listener_receiver) = mpsc_channel();
+        let task = Box::pin(async move {
             while let Some(m) = listener_receiver.receive().await {
                 match m {
                     ListenerMail::PublicationMatched { the_writer, status } => {
@@ -63,6 +65,11 @@ impl DcpsPublisherListener {
                 }
             }
         });
-        listener_sender
+        Self { sender, task }
+    }
+
+    pub fn spawn(self, spawner_handle: &R::SpawnerHandle) -> MpscSender<ListenerMail<R>> {
+        spawner_handle.spawn(self.task);
+        self.sender
     }
 }

@@ -23,7 +23,7 @@ use crate::{
             DcpsDomainParticipantMail, DiscoveryServiceMail, MessageServiceMail,
             ParticipantServiceMail,
         },
-        listeners::domain_participant_listener::ListenerMail,
+        listeners::domain_participant_listener::DcpsDomainParticipantListener,
         status_condition::DcpsStatusCondition,
     },
     infrastructure::{
@@ -144,7 +144,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
         &mut self,
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
-        listener_sender: Option<MpscSender<ListenerMail<R>>>,
+        dcps_listener: Option<DcpsDomainParticipantListener<R>>,
         status_kind: Vec<StatusKind>,
         clock_handle: R::ClockHandle,
         mut timer_handle: R::TimerHandle,
@@ -568,7 +568,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             None,
             vec![],
         );
-
+        let listener_sender = dcps_listener.map(|l| l.spawn(&spawner_handle));
         let domain_participant = DomainParticipantEntity::new(
             domain_id,
             domain_participant_qos,

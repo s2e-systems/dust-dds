@@ -77,8 +77,7 @@ impl<R: DdsRuntime> SubscriberAsync<R> {
             self.participant.spawner_handle(),
         );
         let reader_status_condition_address = status_condition.address();
-        let listener_sender =
-            a_listener.map(|l| DcpsDataReaderListener::spawn(l, self.participant.spawner_handle()));
+        let dcps_listener = a_listener.map(DcpsDataReaderListener::new);
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
             .send(DcpsDomainParticipantMail::Subscriber(
@@ -87,7 +86,7 @@ impl<R: DdsRuntime> SubscriberAsync<R> {
                     topic_name: a_topic.get_name(),
                     qos,
                     status_condition,
-                    listener_sender,
+                    dcps_listener,
                     mask: mask.to_vec(),
                     domain_participant_address: self.participant_address().clone(),
                     reply_sender,
@@ -259,12 +258,12 @@ impl<R: DdsRuntime> SubscriberAsync<R> {
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
-        let listener_sender_task = a_listener.map(|l| DcpsSubscriberListener::spawn(l));
+        let dcps_listener = a_listener.map(|l| DcpsSubscriberListener::new(l));
         self.participant_address()
             .send(DcpsDomainParticipantMail::Subscriber(
                 SubscriberServiceMail::SetListener {
                     subscriber_handle: self.handle,
-                    listener_sender_task,
+                    dcps_listener,
                     mask: mask.to_vec(),
                     reply_sender,
                 },

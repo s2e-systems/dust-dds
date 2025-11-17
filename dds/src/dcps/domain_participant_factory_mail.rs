@@ -5,7 +5,7 @@ use crate::{
         channels::{mpsc::MpscSender, oneshot::OneshotSender},
         domain_participant_factory::DcpsParticipantFactory,
         domain_participant_mail::DcpsDomainParticipantMail,
-        listeners::domain_participant_listener::ListenerMail,
+        listeners::domain_participant_listener::DcpsDomainParticipantListener,
         status_condition::DcpsStatusCondition,
     },
     infrastructure::{
@@ -24,7 +24,7 @@ pub enum DcpsParticipantFactoryMail<R: DdsRuntime> {
     CreateParticipant {
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
-        listener_sender: Option<MpscSender<ListenerMail<R>>>,
+        dcps_listener: Option<DcpsDomainParticipantListener<R>>,
         status_kind: Vec<StatusKind>,
         clock_handle: R::ClockHandle,
         timer_handle: R::TimerHandle,
@@ -72,7 +72,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> MailHandler for DcpsParticip
             DcpsParticipantFactoryMail::CreateParticipant {
                 domain_id,
                 qos,
-                listener_sender,
+                dcps_listener,
                 status_kind,
                 clock_handle,
                 timer_handle,
@@ -82,7 +82,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> MailHandler for DcpsParticip
                 self.create_participant(
                     domain_id,
                     qos,
-                    listener_sender,
+                    dcps_listener,
                     status_kind,
                     clock_handle,
                     timer_handle,

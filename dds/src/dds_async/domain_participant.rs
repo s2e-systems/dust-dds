@@ -96,13 +96,12 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         mask: &[StatusKind],
     ) -> DdsResult<PublisherAsync<R>> {
         let (reply_sender, reply_receiver) = oneshot();
-        let listener_sender =
-            a_listener.map(|l| DcpsPublisherListener::spawn(l, self.spawner_handle()));
+        let dcps_listener = a_listener.map(DcpsPublisherListener::new);
         self.participant_address
             .send(DcpsDomainParticipantMail::Participant(
                 ParticipantServiceMail::CreateUserDefinedPublisher {
                     qos,
-                    listener_sender,
+                    dcps_listener,
                     mask: mask.to_vec(),
                     reply_sender,
                 },
@@ -142,13 +141,13 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         let status_condition =
             Actor::spawn::<R>(DcpsStatusCondition::default(), &self.spawner_handle);
         let subscriber_status_condition_address = status_condition.address();
-        let listener_sender_task = a_listener.map(|l| DcpsSubscriberListener::spawn(l));
+        let dcps_listener = a_listener.map(DcpsSubscriberListener::new);
         self.participant_address
             .send(DcpsDomainParticipantMail::Participant(
                 ParticipantServiceMail::CreateUserDefinedSubscriber {
                     qos,
                     status_condition,
-                    listener_sender_task,
+                    dcps_listener,
                     mask: mask.to_vec(),
                     reply_sender,
                 },
@@ -211,8 +210,7 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         let status_condition =
             Actor::spawn::<R>(DcpsStatusCondition::default(), &self.spawner_handle);
         let topic_status_condition_address = status_condition.address();
-        let listener_sender =
-            a_listener.map(|l| DcpsTopicListener::spawn(l, self.spawner_handle()));
+        let dcps_listener = a_listener.map(DcpsTopicListener::new);
         self.participant_address
             .send(DcpsDomainParticipantMail::Participant(
                 ParticipantServiceMail::CreateTopic {
@@ -220,7 +218,7 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
                     type_name: String::from(type_name),
                     qos,
                     status_condition,
-                    listener_sender,
+                    dcps_listener,
                     mask: mask.to_vec(),
                     type_support: dynamic_type_representation,
                     reply_sender,
@@ -651,12 +649,11 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
-        let listener_sender =
-            a_listener.map(|l| DcpsDomainParticipantListener::spawn::<R>(l, self.spawner_handle()));
+        let dcps_listener = a_listener.map(DcpsDomainParticipantListener::new);
         self.participant_address
             .send(DcpsDomainParticipantMail::Participant(
                 ParticipantServiceMail::SetListener {
-                    listener_sender,
+                    dcps_listener,
                     status_kind: mask.to_vec(),
                     reply_sender,
                 },

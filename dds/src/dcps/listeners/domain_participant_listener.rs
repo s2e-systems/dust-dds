@@ -1,3 +1,5 @@
+use core::pin::Pin;
+
 use crate::{
     dcps::channels::mpsc::{MpscSender, mpsc_channel},
     dds_async::{
@@ -12,15 +14,15 @@ use crate::{
     runtime::{DdsRuntime, Spawner},
 };
 
-pub struct DcpsDomainParticipantListener;
+pub struct DcpsDomainParticipantListener<R: DdsRuntime> {
+    sender: MpscSender<ListenerMail<R>>,
+    task: Pin<Box<dyn Future<Output = ()> + Send>>,
+}
 
-impl DcpsDomainParticipantListener {
-    pub fn spawn<R: DdsRuntime>(
-        mut listener: impl DomainParticipantListener<R> + Send + 'static,
-        spawner_handle: &R::SpawnerHandle,
-    ) -> MpscSender<ListenerMail<R>> {
-        let (listener_sender, listener_receiver) = mpsc_channel();
-        spawner_handle.spawn(async move {
+impl<R: DdsRuntime> DcpsDomainParticipantListener<R> {
+    pub fn new(mut listener: impl DomainParticipantListener<R> + Send + 'static) -> Self {
+        let (sender, listener_receiver) = mpsc_channel();
+        let task = Box::pin(async move {
             while let Some(m) = listener_receiver.receive().await {
                 match m {
                     ListenerMail::DataAvailable { the_reader } => {
@@ -61,7 +63,12 @@ impl DcpsDomainParticipantListener {
                 }
             }
         });
-        listener_sender
+        Self { sender, task }
+    }
+
+    pub fn spawn(self, spawner_handle: &R::SpawnerHandle) -> MpscSender<ListenerMail<R>> {
+        spawner_handle.spawn(self.task);
+        self.sender
     }
 }
 
