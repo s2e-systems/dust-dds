@@ -507,12 +507,15 @@ where
         Ok(())
     }
 
-    #[tracing::instrument(skip(self, status_condition, listener_sender))]
+    #[tracing::instrument(skip(self, status_condition, listener_sender_task))]
     pub fn create_user_defined_subscriber(
         &mut self,
         qos: QosKind<SubscriberQos>,
         status_condition: Actor<DcpsStatusCondition>,
-        listener_sender: Option<MpscSender<ListenerMail<R>>>,
+        listener_sender_task: Option<(
+            MpscSender<ListenerMail<R>>,
+            Pin<Box<dyn Future<Output = ()> + Send>>,
+        )>,
         mask: Vec<StatusKind>,
     ) -> DdsResult<InstanceHandle> {
         let subscriber_qos = match qos {
@@ -541,6 +544,11 @@ where
 
         let listener_mask = mask.to_vec();
         let data_reader_list = Default::default();
+
+        let listener_sender = listener_sender_task.map(|(sender, task)| {
+            self.spawner_handle.spawn(task);
+            sender
+        });
         let mut subscriber = SubscriberEntity::new(
             subscriber_handle,
             subscriber_qos,
@@ -1489,11 +1497,14 @@ where
         Ok(subscriber.qos.clone())
     }
 
-    #[tracing::instrument(skip(self, listener_sender))]
+    #[tracing::instrument(skip(self, listener_sender_task))]
     pub fn set_subscriber_listener(
         &mut self,
         subscriber_handle: InstanceHandle,
-        listener_sender: Option<MpscSender<ListenerMail<R>>>,
+        listener_sender_task: Option<(
+            MpscSender<ListenerMail<R>>,
+            Pin<Box<dyn Future<Output = ()> + Send>>,
+        )>,
         mask: Vec<StatusKind>,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
@@ -1505,6 +1516,10 @@ where
             return Err(DdsError::AlreadyDeleted);
         };
 
+        let listener_sender = listener_sender_task.map(|(sender, task)| {
+            self.spawner_handle.spawn(task);
+            sender
+        });
         subscriber.listener_sender = listener_sender;
         subscriber.listener_mask = mask;
         Ok(())

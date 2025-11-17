@@ -142,14 +142,13 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         let status_condition =
             Actor::spawn::<R>(DcpsStatusCondition::default(), &self.spawner_handle);
         let subscriber_status_condition_address = status_condition.address();
-        let listener_sender =
-            a_listener.map(|l| DcpsSubscriberListener::spawn(l, self.spawner_handle()));
+        let listener_sender_task = a_listener.map(|l| DcpsSubscriberListener::spawn(l));
         self.participant_address
             .send(DcpsDomainParticipantMail::Participant(
                 ParticipantServiceMail::CreateUserDefinedSubscriber {
                     qos,
                     status_condition,
-                    listener_sender,
+                    listener_sender_task,
                     mask: mask.to_vec(),
                     reply_sender,
                 },

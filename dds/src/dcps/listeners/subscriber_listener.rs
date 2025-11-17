@@ -1,6 +1,8 @@
+use core::pin::Pin;
+
 use crate::{
     dcps::channels::mpsc::{MpscSender, mpsc_channel},
-    runtime::{DdsRuntime, Spawner},
+    runtime::DdsRuntime,
     subscription::subscriber_listener::SubscriberListener,
 };
 
@@ -11,10 +13,12 @@ pub struct DcpsSubscriberListener;
 impl DcpsSubscriberListener {
     pub fn spawn<R: DdsRuntime>(
         mut listener: impl SubscriberListener<R> + Send + 'static,
-        spanwer_handle: &R::SpawnerHandle,
-    ) -> MpscSender<ListenerMail<R>> {
+    ) -> (
+        MpscSender<ListenerMail<R>>,
+        Pin<Box<dyn Future<Output = ()> + Send>>,
+    ) {
         let (listener_sender, listener_receiver) = mpsc_channel();
-        spanwer_handle.spawn(async move {
+        let listener_task = Box::pin(async move {
             while let Some(m) = listener_receiver.receive().await {
                 match m {
                     ListenerMail::DataOnReaders { the_subscriber } => {
@@ -60,6 +64,6 @@ impl DcpsSubscriberListener {
                 }
             }
         });
-        listener_sender
+        (listener_sender, listener_task)
     }
 }

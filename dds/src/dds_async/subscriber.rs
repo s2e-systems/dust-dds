@@ -259,13 +259,12 @@ impl<R: DdsRuntime> SubscriberAsync<R> {
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
-        let listener_sender =
-            a_listener.map(|l| DcpsSubscriberListener::spawn(l, self.participant.spawner_handle()));
+        let listener_sender_task = a_listener.map(|l| DcpsSubscriberListener::spawn(l));
         self.participant_address()
             .send(DcpsDomainParticipantMail::Subscriber(
                 SubscriberServiceMail::SetListener {
                     subscriber_handle: self.handle,
-                    listener_sender,
+                    listener_sender_task,
                     mask: mask.to_vec(),
                     reply_sender,
                 },

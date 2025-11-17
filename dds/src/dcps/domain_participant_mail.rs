@@ -46,7 +46,10 @@ pub enum ParticipantServiceMail<R: DdsRuntime> {
     CreateUserDefinedSubscriber {
         qos: QosKind<SubscriberQos>,
         status_condition: Actor<DcpsStatusCondition>,
-        listener_sender: Option<MpscSender<ListenerMail<R>>>,
+        listener_sender_task: Option<(
+            MpscSender<ListenerMail<R>>,
+            Pin<Box<dyn Future<Output = ()> + Send>>,
+        )>,
         mask: Vec<StatusKind>,
         reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
     },
@@ -282,7 +285,10 @@ pub enum SubscriberServiceMail<R: DdsRuntime> {
     },
     SetListener {
         subscriber_handle: InstanceHandle,
-        listener_sender: Option<MpscSender<ListenerMail<R>>>,
+        listener_sender_task: Option<(
+            MpscSender<ListenerMail<R>>,
+            Pin<Box<dyn Future<Output = ()> + Send>>,
+        )>,
         mask: Vec<StatusKind>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
@@ -586,13 +592,13 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsDomainParticipant<R, T> 
             ParticipantServiceMail::CreateUserDefinedSubscriber {
                 qos,
                 status_condition,
-                listener_sender,
+                listener_sender_task,
                 mask,
                 reply_sender,
             } => reply_sender.send(self.create_user_defined_subscriber(
                 qos,
                 status_condition,
-                listener_sender,
+                listener_sender_task,
                 mask,
             )),
             ParticipantServiceMail::DeleteUserDefinedSubscriber {
@@ -1006,12 +1012,12 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsDomainParticipant<R, T> 
             } => reply_sender.send(self.get_subscriber_qos(subscriber_handle)),
             SubscriberServiceMail::SetListener {
                 subscriber_handle,
-                listener_sender,
+                listener_sender_task,
                 mask,
                 reply_sender,
             } => reply_sender.send(self.set_subscriber_listener(
                 subscriber_handle,
-                listener_sender,
+                listener_sender_task,
                 mask,
             )),
         }
