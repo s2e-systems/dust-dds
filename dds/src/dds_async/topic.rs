@@ -12,22 +12,21 @@ use crate::{
         qos::{QosKind, TopicQos},
         status::{InconsistentTopicStatus, StatusKind},
     },
-    runtime::DdsRuntime,
     topic_definition::topic_listener::TopicListener,
     xtypes::dynamic_type::DynamicType,
 };
 use alloc::{string::String, sync::Arc, vec::Vec};
 
 /// Async version of [`Topic`](crate::topic_definition::topic::Topic).
-pub struct TopicAsync<R: DdsRuntime> {
+pub struct TopicAsync {
     handle: InstanceHandle,
     status_condition_address: ActorAddress<DcpsStatusCondition>,
     type_name: String,
     topic_name: String,
-    participant: DomainParticipantAsync<R>,
+    participant: DomainParticipantAsync,
 }
 
-impl<R: DdsRuntime> Clone for TopicAsync<R> {
+impl Clone for TopicAsync {
     fn clone(&self) -> Self {
         Self {
             handle: self.handle,
@@ -39,13 +38,13 @@ impl<R: DdsRuntime> Clone for TopicAsync<R> {
     }
 }
 
-impl<R: DdsRuntime> TopicAsync<R> {
+impl TopicAsync {
     pub(crate) fn new(
         handle: InstanceHandle,
         status_condition_address: ActorAddress<DcpsStatusCondition>,
         type_name: String,
         topic_name: String,
-        participant: DomainParticipantAsync<R>,
+        participant: DomainParticipantAsync,
     ) -> Self {
         Self {
             handle,
@@ -57,7 +56,7 @@ impl<R: DdsRuntime> TopicAsync<R> {
     }
 }
 
-impl<R: DdsRuntime> TopicAsync<R> {
+impl TopicAsync {
     /// Async version of [`get_inconsistent_topic_status`](crate::topic_definition::topic::Topic::get_inconsistent_topic_status).
     #[tracing::instrument(skip(self))]
     pub async fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
@@ -75,10 +74,10 @@ impl<R: DdsRuntime> TopicAsync<R> {
     }
 }
 
-impl<R: DdsRuntime> TopicAsync<R> {
+impl TopicAsync {
     /// Async version of [`get_participant`](crate::topic_definition::topic::Topic::get_participant).
     #[tracing::instrument(skip(self))]
-    pub fn get_participant(&self) -> DomainParticipantAsync<R> {
+    pub fn get_participant(&self) -> DomainParticipantAsync {
         self.participant.clone()
     }
 
@@ -95,7 +94,7 @@ impl<R: DdsRuntime> TopicAsync<R> {
     }
 }
 
-impl<R: DdsRuntime> TopicAsync<R> {
+impl TopicAsync {
     /// Async version of [`set_qos`](crate::topic_definition::topic::Topic::set_qos).
     #[tracing::instrument(skip(self))]
     pub async fn set_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
@@ -163,14 +162,14 @@ impl<R: DdsRuntime> TopicAsync<R> {
     #[tracing::instrument(skip(self, _a_listener))]
     pub async fn set_listener(
         &self,
-        _a_listener: Option<impl TopicListener<R> + Send + 'static>,
+        _a_listener: Option<impl TopicListener + Send + 'static>,
         _mask: &[StatusKind],
     ) -> DdsResult<()> {
         todo!()
     }
 }
 
-impl<R: DdsRuntime> TopicAsync<R> {
+impl TopicAsync {
     #[doc(hidden)]
     #[tracing::instrument(skip(self))]
     pub async fn get_type_support(&self) -> DdsResult<Arc<DynamicType>> {

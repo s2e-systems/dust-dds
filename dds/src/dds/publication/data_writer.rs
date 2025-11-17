@@ -14,7 +14,6 @@ use crate::{
         type_support::TypeSupport,
     },
     publication::{data_writer_listener::DataWriterListener, publisher::Publisher},
-    runtime::DdsRuntime,
     std_runtime::executor::{block_on, block_timeout},
     topic_definition::topic_description::TopicDescription,
 };
@@ -22,19 +21,19 @@ use alloc::vec::Vec;
 
 /// The [`DataWriter`] allows the application to set the value of the
 /// data to be published under a given [`Topic`].
-pub struct DataWriter<R: DdsRuntime, Foo> {
-    writer_async: DataWriterAsync<R, Foo>,
+pub struct DataWriter<Foo> {
+    writer_async: DataWriterAsync<Foo>,
 }
 
-impl<R: DdsRuntime, Foo> From<DataWriterAsync<R, Foo>> for DataWriter<R, Foo> {
-    fn from(value: DataWriterAsync<R, Foo>) -> Self {
+impl<Foo> From<DataWriterAsync<Foo>> for DataWriter<Foo> {
+    fn from(value: DataWriterAsync<Foo>) -> Self {
         Self {
             writer_async: value,
         }
     }
 }
 
-impl<R: DdsRuntime, Foo> Clone for DataWriter<R, Foo> {
+impl<Foo> Clone for DataWriter<Foo> {
     fn clone(&self) -> Self {
         Self {
             writer_async: self.writer_async.clone(),
@@ -42,13 +41,13 @@ impl<R: DdsRuntime, Foo> Clone for DataWriter<R, Foo> {
     }
 }
 
-impl<R: DdsRuntime, Foo> DataWriter<R, Foo> {
-    pub(crate) fn writer_async(&self) -> &DataWriterAsync<R, Foo> {
+impl<Foo> DataWriter<Foo> {
+    pub(crate) fn writer_async(&self) -> &DataWriterAsync<Foo> {
         &self.writer_async
     }
 }
 
-impl<R: DdsRuntime, Foo> DataWriter<R, Foo>
+impl<Foo> DataWriter<Foo>
 where
     Foo: TypeSupport,
 {
@@ -249,7 +248,7 @@ where
     }
 }
 
-impl<R: DdsRuntime, Foo> DataWriter<R, Foo> {
+impl<Foo> DataWriter<Foo> {
     /// This operation blocks the calling thread until either all data written by the [`DataWriter`] is acknowledged by all
     /// matched [`DataReader`](crate::subscription::data_reader::DataReader) entities that have
     /// [`ReliabilityQosPolicyKind::Reliable`](crate::infrastructure::qos_policy::ReliabilityQosPolicyKind), or else the duration
@@ -292,13 +291,13 @@ impl<R: DdsRuntime, Foo> DataWriter<R, Foo> {
 
     /// This operation returns the [`Topic`] associated with the [`DataWriter`]. This is the same [`Topic`] that was used to create the [`DataWriter`].
     #[tracing::instrument(skip(self))]
-    pub fn get_topic(&self) -> TopicDescription<R> {
+    pub fn get_topic(&self) -> TopicDescription {
         self.writer_async.get_topic().into()
     }
 
     /// This operation returns the [`Publisher`] to which the [`DataWriter`] object belongs.
     #[tracing::instrument(skip(self))]
-    pub fn get_publisher(&self) -> Publisher<R> {
+    pub fn get_publisher(&self) -> Publisher {
         Publisher::from(self.writer_async.get_publisher())
     }
 
@@ -345,7 +344,7 @@ impl<R: DdsRuntime, Foo> DataWriter<R, Foo> {
 }
 
 /// This implementation block contains the Entity operations for the [`DataWriter`].
-impl<R: DdsRuntime, Foo> DataWriter<R, Foo> {
+impl<Foo> DataWriter<Foo> {
     /// This operation is used to set the QoS policies of the Entity and replacing the values of any policies previously set.
     /// Certain policies are *immutable;* they can only be set at Entity creation time, or before the entity is made enabled.
     /// If [`Self::set_qos()`] is invoked after the Entity is enabled and it attempts to change the value of an *immutable* policy, the operation will
@@ -420,7 +419,7 @@ impl<R: DdsRuntime, Foo> DataWriter<R, Foo> {
     }
 }
 
-impl<R: DdsRuntime, Foo> DataWriter<R, Foo> {
+impl<Foo> DataWriter<Foo> {
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
     /// indicated by the specified mask. It is permitted to use [`None`] as the value of the listener. The [`None`] listener behaves
     /// as a Listener whose operations perform no action.
@@ -430,7 +429,7 @@ impl<R: DdsRuntime, Foo> DataWriter<R, Foo> {
     #[tracing::instrument(skip(self, a_listener))]
     pub fn set_listener(
         &self,
-        a_listener: Option<impl DataWriterListener<R, Foo> + Send + 'static>,
+        a_listener: Option<impl DataWriterListener<Foo> + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         block_on(self.writer_async.set_listener(a_listener, mask))

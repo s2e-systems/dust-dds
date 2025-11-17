@@ -15,7 +15,6 @@ use crate::{
         time::Duration,
         type_support::TypeSupport,
     },
-    runtime::DdsRuntime,
     std_runtime::executor::block_on,
     subscription::data_reader_listener::DataReaderListener,
     topic_definition::topic_description::TopicDescription,
@@ -27,25 +26,25 @@ use alloc::vec::Vec;
 ///
 /// A DataReader refers to exactly one [`Topic`] that identifies the data to be read. The subscription has a unique resulting type.
 /// The data-reader may give access to several instances of the resulting type, which can be distinguished from each other by their key.
-pub struct DataReader<R: DdsRuntime, Foo> {
-    reader_async: DataReaderAsync<R, Foo>,
+pub struct DataReader<Foo> {
+    reader_async: DataReaderAsync<Foo>,
 }
 
-impl<R: DdsRuntime, Foo> DataReader<R, Foo> {
-    pub(crate) fn reader_async(&self) -> &DataReaderAsync<R, Foo> {
+impl<Foo> DataReader<Foo> {
+    pub(crate) fn reader_async(&self) -> &DataReaderAsync<Foo> {
         &self.reader_async
     }
 }
 
-impl<R: DdsRuntime, Foo> From<DataReaderAsync<R, Foo>> for DataReader<R, Foo> {
-    fn from(value: DataReaderAsync<R, Foo>) -> Self {
+impl<Foo> From<DataReaderAsync<Foo>> for DataReader<Foo> {
+    fn from(value: DataReaderAsync<Foo>) -> Self {
         Self {
             reader_async: value,
         }
     }
 }
 
-impl<R: DdsRuntime, Foo> Clone for DataReader<R, Foo> {
+impl<Foo> Clone for DataReader<Foo> {
     fn clone(&self) -> Self {
         Self {
             reader_async: self.reader_async.clone(),
@@ -53,7 +52,7 @@ impl<R: DdsRuntime, Foo> Clone for DataReader<R, Foo> {
     }
 }
 
-impl<R: DdsRuntime, Foo: TypeSupport> DataReader<R, Foo> {
+impl<Foo: TypeSupport> DataReader<Foo> {
     /// This operation accesses a collection of [`Sample`] from the [`DataReader`]. The size of the returned collection will
     /// be limited to the specified `max_samples`. The properties of the data values collection and the setting of the
     /// [`PresentationQosPolicy`](crate::infrastructure::qos_policy::PresentationQosPolicy) may impose further limits
@@ -284,7 +283,7 @@ impl<R: DdsRuntime, Foo: TypeSupport> DataReader<R, Foo> {
     }
 }
 
-impl<R: DdsRuntime, Foo> DataReader<R, Foo> {
+impl<Foo> DataReader<Foo> {
     /// This operation allows access to the [`LivelinessChangedStatus`].
     #[tracing::instrument(skip(self))]
     pub fn get_liveliness_changed_status(&self) -> DdsResult<LivelinessChangedStatus> {
@@ -326,13 +325,13 @@ impl<R: DdsRuntime, Foo> DataReader<R, Foo> {
     /// This operation returns the [`Topic`] associated with the [`DataReader`]. This is the same [`Topic`]
     /// that was used to create the [`DataReader`].
     #[tracing::instrument(skip(self))]
-    pub fn get_topicdescription(&self) -> TopicDescription<R> {
+    pub fn get_topicdescription(&self) -> TopicDescription {
         self.reader_async.get_topicdescription().into()
     }
 
     /// This operation returns the [`Subscriber`] to which the [`DataReader`] belongs.
     #[tracing::instrument(skip(self))]
-    pub fn get_subscriber(&self) -> Subscriber<R> {
+    pub fn get_subscriber(&self) -> Subscriber {
         Subscriber::from(self.reader_async.get_subscriber())
     }
 
@@ -383,7 +382,7 @@ impl<R: DdsRuntime, Foo> DataReader<R, Foo> {
     }
 }
 
-impl<R: DdsRuntime, Foo> DataReader<R, Foo> {
+impl<Foo> DataReader<Foo> {
     /// This operation is used to set the QoS policies of the Entity and replacing the values of any policies previously set.
     /// Certain policies are *immutable;* they can only be set at Entity creation time, or before the entity is made enabled.
     /// If [`Self::set_qos()`] is invoked after the Entity is enabled and it attempts to change the value of an *immutable* policy, the operation will
@@ -458,7 +457,7 @@ impl<R: DdsRuntime, Foo> DataReader<R, Foo> {
     }
 }
 
-impl<R: DdsRuntime, Foo> DataReader<R, Foo> {
+impl<Foo> DataReader<Foo> {
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
     /// indicated by the specified mask. It is permitted to use [`None`] as the value of the listener. The [`None`] listener behaves
     /// as a Listener whose operations perform no action.
@@ -468,7 +467,7 @@ impl<R: DdsRuntime, Foo> DataReader<R, Foo> {
     #[tracing::instrument(skip(self, a_listener))]
     pub fn set_listener(
         &self,
-        a_listener: Option<impl DataReaderListener<R, Foo> + Send + 'static>,
+        a_listener: Option<impl DataReaderListener<Foo> + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         block_on(self.reader_async.set_listener(a_listener, mask))

@@ -8,13 +8,13 @@ use crate::{
 
 use super::domain_participant_listener::ListenerMail;
 
-pub struct DcpsSubscriberListener<R: DdsRuntime> {
-    sender: MpscSender<ListenerMail<R>>,
+pub struct DcpsSubscriberListener {
+    sender: MpscSender<ListenerMail>,
     task: Pin<Box<dyn Future<Output = ()> + Send>>,
 }
 
-impl<R: DdsRuntime> DcpsSubscriberListener<R> {
-    pub fn new(mut listener: impl SubscriberListener<R> + Send + 'static) -> Self {
+impl DcpsSubscriberListener {
+    pub fn new(mut listener: impl SubscriberListener + Send + 'static) -> Self {
         let (sender, listener_receiver) = mpsc_channel();
         let task = Box::pin(async move {
             while let Some(m) = listener_receiver.receive().await {
@@ -65,7 +65,7 @@ impl<R: DdsRuntime> DcpsSubscriberListener<R> {
         Self { sender, task }
     }
 
-    pub fn spawn(self, spawner: &R::SpawnerHandle) -> MpscSender<ListenerMail<R>> {
+    pub fn spawn<R: DdsRuntime>(self, spawner: &R::SpawnerHandle) -> MpscSender<ListenerMail> {
         spawner.spawn(self.task);
         self.sender
     }

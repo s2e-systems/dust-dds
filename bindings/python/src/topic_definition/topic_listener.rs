@@ -10,12 +10,10 @@ impl From<Py<PyAny>> for TopicListener {
     }
 }
 
-impl dust_dds::topic_definition::topic_listener::TopicListener<dust_dds::std_runtime::StdRuntime>
-    for TopicListener
-{
+impl dust_dds::topic_definition::topic_listener::TopicListener for TopicListener {
     async fn on_inconsistent_topic(
         &mut self,
-        the_topic: dust_dds::dds_async::topic::TopicAsync<dust_dds::std_runtime::StdRuntime>,
+        the_topic: dust_dds::dds_async::topic::TopicAsync,
         status: dust_dds::infrastructure::status::InconsistentTopicStatus,
     ) {
         let args = (

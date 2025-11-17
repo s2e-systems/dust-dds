@@ -10,7 +10,6 @@ use crate::{
         time::Duration,
     },
     publication::data_writer::DataWriter,
-    runtime::DdsRuntime,
     std_runtime::executor::block_on,
     topic_definition::topic_description::TopicDescription,
 };
@@ -20,25 +19,25 @@ use alloc::vec::Vec;
 /// data associated with one of its [`DataWriter`] objects, it decides when it is appropriate to actually send the data-update message.
 /// In making this decision, it considers any extra information that goes with the data (timestamp, writer, etc.) as well as the QoS
 /// of the [`Publisher`] and the [`DataWriter`].
-pub struct Publisher<R: DdsRuntime> {
-    publisher_async: PublisherAsync<R>,
+pub struct Publisher {
+    publisher_async: PublisherAsync,
 }
 
-impl<R: DdsRuntime> Publisher<R> {
-    pub(crate) fn publisher_async(&self) -> &PublisherAsync<R> {
+impl Publisher {
+    pub(crate) fn publisher_async(&self) -> &PublisherAsync {
         &self.publisher_async
     }
 }
 
-impl<R: DdsRuntime> From<PublisherAsync<R>> for Publisher<R> {
-    fn from(value: PublisherAsync<R>) -> Self {
+impl From<PublisherAsync> for Publisher {
+    fn from(value: PublisherAsync) -> Self {
         Self {
             publisher_async: value,
         }
     }
 }
 
-impl<R: DdsRuntime> Publisher<R> {
+impl Publisher {
     /// This operation creates a [`DataWriter`]. The returned [`DataWriter`] will be attached and belongs to the [`Publisher`].
     /// The [`DataWriter`] returned by this operation has an associated [`Topic`] and a type `Foo`.
     /// The [`Topic`] passed to this operation must have been created from the same [`DomainParticipant`] that was used to create this
@@ -58,11 +57,11 @@ impl<R: DdsRuntime> Publisher<R> {
     #[tracing::instrument(skip(self, a_topic, a_listener))]
     pub fn create_datawriter<Foo>(
         &self,
-        a_topic: &TopicDescription<R>,
+        a_topic: &TopicDescription,
         qos: QosKind<DataWriterQos>,
-        a_listener: Option<impl DataWriterListener<R, Foo> + Send + 'static>,
+        a_listener: Option<impl DataWriterListener<Foo> + Send + 'static>,
         mask: &[StatusKind],
-    ) -> DdsResult<DataWriter<R, Foo>> {
+    ) -> DdsResult<DataWriter<Foo>> {
         block_on(self.publisher_async.create_datawriter::<Foo>(
             &a_topic.clone().into(),
             qos,
@@ -79,7 +78,7 @@ impl<R: DdsRuntime> Publisher<R> {
     /// [`WriterDataLifecycleQosPolicy`](crate::infrastructure::qos_policy::WriterDataLifecycleQosPolicy), the deletion of the
     /// [`DataWriter`].
     #[tracing::instrument(skip(self, a_datawriter))]
-    pub fn delete_datawriter<Foo>(&self, a_datawriter: &DataWriter<R, Foo>) -> DdsResult<()> {
+    pub fn delete_datawriter<Foo>(&self, a_datawriter: &DataWriter<Foo>) -> DdsResult<()> {
         block_on(
             self.publisher_async
                 .delete_datawriter::<Foo>(a_datawriter.writer_async()),
@@ -91,10 +90,7 @@ impl<R: DdsRuntime> Publisher<R> {
     /// If multiple [`DataWriter`] attached to the [`Publisher`] satisfy this condition, then the operation will return one of them. It is not
     /// specified which one.
     #[tracing::instrument(skip(self))]
-    pub fn lookup_datawriter<Foo>(
-        &self,
-        topic_name: &str,
-    ) -> DdsResult<Option<DataWriter<R, Foo>>> {
+    pub fn lookup_datawriter<Foo>(&self, topic_name: &str) -> DdsResult<Option<DataWriter<Foo>>> {
         Ok(
             block_on(self.publisher_async.lookup_datawriter::<Foo>(topic_name))?
                 .map(DataWriter::from),
@@ -162,7 +158,7 @@ impl<R: DdsRuntime> Publisher<R> {
 
     /// This operation returns the [`DomainParticipant`] to which the [`Publisher`] belongs.
     #[tracing::instrument(skip(self))]
-    pub fn get_participant(&self) -> DomainParticipant<R> {
+    pub fn get_participant(&self) -> DomainParticipant {
         DomainParticipant::new(self.publisher_async.get_participant())
     }
 
@@ -214,7 +210,7 @@ impl<R: DdsRuntime> Publisher<R> {
 }
 
 /// This implementation block contains the Entity operations for the [`Publisher`].
-impl<R: DdsRuntime> Publisher<R> {
+impl Publisher {
     /// This operation is used to set the QoS policies of the Entity and replacing the values of any policies previously set.
     /// Certain policies are *immutable;* they can only be set at Entity creation time, or before the entity is made enabled.
     /// If [`Self::set_qos()`] is invoked after the Entity is enabled and it attempts to change the value of an *immutable* policy, the operation will
@@ -247,7 +243,7 @@ impl<R: DdsRuntime> Publisher<R> {
     #[tracing::instrument(skip(self, a_listener))]
     pub fn set_listener(
         &self,
-        a_listener: Option<impl PublisherListener<R> + Send + 'static>,
+        a_listener: Option<impl PublisherListener + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         block_on(self.publisher_async.set_listener(a_listener, mask))

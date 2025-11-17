@@ -25,21 +25,20 @@ use crate::{
         type_support::TypeSupport,
     },
     publication::data_writer_listener::DataWriterListener,
-    runtime::DdsRuntime,
 };
 use alloc::vec::Vec;
 use core::marker::PhantomData;
 
 /// Async version of [`DataWriter`](crate::publication::data_writer::DataWriter).
-pub struct DataWriterAsync<R: DdsRuntime, Foo> {
+pub struct DataWriterAsync<Foo> {
     handle: InstanceHandle,
     status_condition_address: ActorAddress<DcpsStatusCondition>,
-    publisher: PublisherAsync<R>,
-    topic: TopicDescriptionAsync<R>,
+    publisher: PublisherAsync,
+    topic: TopicDescriptionAsync,
     phantom: PhantomData<Foo>,
 }
 
-impl<R: DdsRuntime, Foo> Clone for DataWriterAsync<R, Foo> {
+impl<Foo> Clone for DataWriterAsync<Foo> {
     fn clone(&self) -> Self {
         Self {
             handle: self.handle,
@@ -51,12 +50,12 @@ impl<R: DdsRuntime, Foo> Clone for DataWriterAsync<R, Foo> {
     }
 }
 
-impl<R: DdsRuntime, Foo> DataWriterAsync<R, Foo> {
+impl<Foo> DataWriterAsync<Foo> {
     pub(crate) fn new(
         handle: InstanceHandle,
         status_condition_address: ActorAddress<DcpsStatusCondition>,
-        publisher: PublisherAsync<R>,
-        topic: TopicDescriptionAsync<R>,
+        publisher: PublisherAsync,
+        topic: TopicDescriptionAsync,
     ) -> Self {
         Self {
             handle,
@@ -67,11 +66,11 @@ impl<R: DdsRuntime, Foo> DataWriterAsync<R, Foo> {
         }
     }
 
-    pub(crate) fn participant_address(&self) -> &MpscSender<DcpsDomainParticipantMail<R>> {
+    pub(crate) fn participant_address(&self) -> &MpscSender<DcpsDomainParticipantMail> {
         self.publisher.participant_address()
     }
 
-    pub(crate) fn change_foo_type<T>(self) -> DataWriterAsync<R, T> {
+    pub(crate) fn change_foo_type<T>(self) -> DataWriterAsync<T> {
         DataWriterAsync {
             handle: self.handle,
             status_condition_address: self.status_condition_address,
@@ -82,7 +81,7 @@ impl<R: DdsRuntime, Foo> DataWriterAsync<R, Foo> {
     }
 }
 
-impl<R: DdsRuntime, Foo> DataWriterAsync<R, Foo>
+impl<Foo> DataWriterAsync<Foo>
 where
     Foo: TypeSupport,
 {
@@ -248,7 +247,7 @@ where
     }
 }
 
-impl<R: DdsRuntime, Foo> DataWriterAsync<R, Foo> {
+impl<Foo> DataWriterAsync<Foo> {
     /// Async version of [`wait_for_acknowledgments`](crate::publication::data_writer::DataWriter::wait_for_acknowledgments).
     /// This method does not internally wait for a maximum timeout and that is expected
     /// to be handle on the user side if needed.
@@ -331,13 +330,13 @@ impl<R: DdsRuntime, Foo> DataWriterAsync<R, Foo> {
 
     /// Async version of [`get_topic`](crate::publication::data_writer::DataWriter::get_topic).
     #[tracing::instrument(skip(self))]
-    pub fn get_topic(&self) -> TopicDescriptionAsync<R> {
+    pub fn get_topic(&self) -> TopicDescriptionAsync {
         self.topic.clone()
     }
 
     /// Async version of [`get_publisher`](crate::publication::data_writer::DataWriter::get_publisher).
     #[tracing::instrument(skip(self))]
-    pub fn get_publisher(&self) -> PublisherAsync<R> {
+    pub fn get_publisher(&self) -> PublisherAsync {
         self.publisher.clone()
     }
 
@@ -384,7 +383,7 @@ impl<R: DdsRuntime, Foo> DataWriterAsync<R, Foo> {
     }
 }
 
-impl<R: DdsRuntime, Foo> DataWriterAsync<R, Foo> {
+impl<Foo> DataWriterAsync<Foo> {
     /// Async version of [`set_qos`](crate::publication::data_writer::DataWriter::set_qos).
     #[tracing::instrument(skip(self))]
     pub async fn set_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
@@ -453,12 +452,12 @@ impl<R: DdsRuntime, Foo> DataWriterAsync<R, Foo> {
         self.handle
     }
 }
-impl<R: DdsRuntime, Foo> DataWriterAsync<R, Foo> {
+impl<Foo> DataWriterAsync<Foo> {
     /// Async version of [`set_listener`](crate::publication::data_writer::DataWriter::set_listener).
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn set_listener(
         &self,
-        a_listener: Option<impl DataWriterListener<R, Foo> + Send + 'static>,
+        a_listener: Option<impl DataWriterListener<Foo> + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();

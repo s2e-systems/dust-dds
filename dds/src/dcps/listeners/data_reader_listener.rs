@@ -10,14 +10,14 @@ use crate::{
 
 use super::domain_participant_listener::ListenerMail;
 
-pub struct DcpsDataReaderListener<R: DdsRuntime> {
-    sender: MpscSender<ListenerMail<R>>,
+pub struct DcpsDataReaderListener {
+    sender: MpscSender<ListenerMail>,
     task: Pin<Box<dyn Future<Output = ()> + Send>>,
 }
 
-impl<R: DdsRuntime> DcpsDataReaderListener<R> {
+impl DcpsDataReaderListener {
     #[tracing::instrument(skip(listener,))]
-    pub fn new<Foo>(mut listener: impl DataReaderListener<R, Foo> + Send + 'static) -> Self {
+    pub fn new<Foo>(mut listener: impl DataReaderListener<Foo> + Send + 'static) -> Self {
         let (sender, listener_receiver) = mpsc_channel();
         let task = Box::pin(async move {
             while let Some(m) = listener_receiver.receive().await {
@@ -78,7 +78,10 @@ impl<R: DdsRuntime> DcpsDataReaderListener<R> {
         Self { sender, task }
     }
 
-    pub fn spawn(self, spawner_handle: &R::SpawnerHandle) -> MpscSender<ListenerMail<R>> {
+    pub fn spawn<R: DdsRuntime>(
+        self,
+        spawner_handle: &R::SpawnerHandle,
+    ) -> MpscSender<ListenerMail> {
         spawner_handle.spawn(self.task);
         self.sender
     }

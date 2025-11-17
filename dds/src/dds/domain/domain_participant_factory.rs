@@ -42,9 +42,9 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantFactory<R, 
         &self,
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
-        a_listener: Option<impl DomainParticipantListener<R> + Send + 'static>,
+        a_listener: Option<impl DomainParticipantListener + Send + 'static>,
         mask: &[StatusKind],
-    ) -> DdsResult<DomainParticipant<R>> {
+    ) -> DdsResult<DomainParticipant> {
         block_on(
             self.participant_factory_async
                 .create_participant(domain_id, qos, a_listener, mask),
@@ -56,7 +56,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantFactory<R, 
     /// the participant have already been deleted otherwise the error [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError::PreconditionNotMet) is returned. If the
     /// participant has been previously deleted this operation returns the error [`DdsError::AlreadyDeleted`](crate::infrastructure::error::DdsError::AlreadyDeleted).
     #[tracing::instrument(skip(self, participant))]
-    pub fn delete_participant(&self, participant: &DomainParticipant<R>) -> DdsResult<()> {
+    pub fn delete_participant(&self, participant: &DomainParticipant) -> DdsResult<()> {
         block_on(
             self.participant_factory_async
                 .delete_participant(participant.participant_async()),
@@ -68,10 +68,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantFactory<R, 
     /// If multiple [`DomainParticipant`] entities belonging to that domain_id exist, then the operation will return one of them. It is not
     /// specified which one.
     #[tracing::instrument(skip(self))]
-    pub fn lookup_participant(
-        &self,
-        domain_id: DomainId,
-    ) -> DdsResult<Option<DomainParticipant<R>>> {
+    pub fn lookup_participant(&self, domain_id: DomainId) -> DdsResult<Option<DomainParticipant>> {
         Ok(
             block_on(self.participant_factory_async.lookup_participant(domain_id))?
                 .map(DomainParticipant::new),

@@ -18,17 +18,16 @@ use crate::{
     publication::{
         data_writer_listener::DataWriterListener, publisher_listener::PublisherListener,
     },
-    runtime::DdsRuntime,
 };
 use alloc::vec::Vec;
 
 /// Async version of [`Publisher`](crate::publication::publisher::Publisher).
-pub struct PublisherAsync<R: DdsRuntime> {
+pub struct PublisherAsync {
     handle: InstanceHandle,
-    participant: DomainParticipantAsync<R>,
+    participant: DomainParticipantAsync,
 }
 
-impl<R: DdsRuntime> Clone for PublisherAsync<R> {
+impl Clone for PublisherAsync {
     fn clone(&self) -> Self {
         Self {
             handle: self.handle,
@@ -37,29 +36,29 @@ impl<R: DdsRuntime> Clone for PublisherAsync<R> {
     }
 }
 
-impl<R: DdsRuntime> PublisherAsync<R> {
-    pub(crate) fn new(handle: InstanceHandle, participant: DomainParticipantAsync<R>) -> Self {
+impl PublisherAsync {
+    pub(crate) fn new(handle: InstanceHandle, participant: DomainParticipantAsync) -> Self {
         Self {
             handle,
             participant,
         }
     }
 
-    pub(crate) fn participant_address(&self) -> &MpscSender<DcpsDomainParticipantMail<R>> {
+    pub(crate) fn participant_address(&self) -> &MpscSender<DcpsDomainParticipantMail> {
         self.participant.participant_address()
     }
 }
 
-impl<R: DdsRuntime> PublisherAsync<R> {
+impl PublisherAsync {
     /// Async version of [`create_datawriter`](crate::publication::publisher::Publisher::create_datawriter).
     #[tracing::instrument(skip(self, a_topic, a_listener))]
     pub async fn create_datawriter<Foo>(
         &self,
-        a_topic: &TopicDescriptionAsync<R>,
+        a_topic: &TopicDescriptionAsync,
         qos: QosKind<DataWriterQos>,
-        a_listener: Option<impl DataWriterListener<R, Foo> + Send + 'static>,
+        a_listener: Option<impl DataWriterListener<Foo> + Send + 'static>,
         mask: &[StatusKind],
-    ) -> DdsResult<DataWriterAsync<R, Foo>> {
+    ) -> DdsResult<DataWriterAsync<Foo>> {
         let topic_name = a_topic.get_name();
         let dcps_listener = a_listener.map(DcpsDataWriterListener::new);
         let (reply_sender, reply_receiver) = oneshot();
@@ -90,7 +89,7 @@ impl<R: DdsRuntime> PublisherAsync<R> {
     #[tracing::instrument(skip(self, a_datawriter))]
     pub async fn delete_datawriter<Foo>(
         &self,
-        a_datawriter: &DataWriterAsync<R, Foo>,
+        a_datawriter: &DataWriterAsync<Foo>,
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address()
@@ -110,7 +109,7 @@ impl<R: DdsRuntime> PublisherAsync<R> {
     pub async fn lookup_datawriter<Foo>(
         &self,
         topic_name: &str,
-    ) -> DdsResult<Option<DataWriterAsync<R, Foo>>> {
+    ) -> DdsResult<Option<DataWriterAsync<Foo>>> {
         todo!()
     }
 
@@ -146,7 +145,7 @@ impl<R: DdsRuntime> PublisherAsync<R> {
 
     /// Async version of [`get_participant`](crate::publication::publisher::Publisher::get_participant).
     #[tracing::instrument(skip(self))]
-    pub fn get_participant(&self) -> DomainParticipantAsync<R> {
+    pub fn get_participant(&self) -> DomainParticipantAsync {
         self.participant.clone()
     }
 
@@ -198,7 +197,7 @@ impl<R: DdsRuntime> PublisherAsync<R> {
     }
 }
 
-impl<R: DdsRuntime> PublisherAsync<R> {
+impl PublisherAsync {
     /// Async version of [`set_qos`](crate::publication::publisher::Publisher::set_qos).
     #[tracing::instrument(skip(self))]
     pub async fn set_qos(&self, qos: QosKind<PublisherQos>) -> DdsResult<()> {
@@ -234,7 +233,7 @@ impl<R: DdsRuntime> PublisherAsync<R> {
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn set_listener(
         &self,
-        a_listener: Option<impl PublisherListener<R> + Send + 'static>,
+        a_listener: Option<impl PublisherListener + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();

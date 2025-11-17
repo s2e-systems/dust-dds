@@ -38,9 +38,9 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantFactoryAsyn
         &self,
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
-        a_listener: Option<impl DomainParticipantListener<R> + Send + 'static>,
+        a_listener: Option<impl DomainParticipantListener + Send + 'static>,
         mask: &[StatusKind],
-    ) -> DdsResult<DomainParticipantAsync<R>> {
+    ) -> DdsResult<DomainParticipantAsync> {
         let clock_handle = self.runtime.clock();
         let timer_handle = self.runtime.timer();
         let spawner_handle = self.runtime.spawner();
@@ -76,7 +76,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantFactoryAsyn
     /// Async version of [`delete_participant`](crate::domain::domain_participant_factory::DomainParticipantFactory::delete_participant).
     pub async fn delete_participant(
         &self,
-        participant: &DomainParticipantAsync<R>,
+        participant: &DomainParticipantAsync,
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
         participant
@@ -115,7 +115,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantFactoryAsyn
     pub async fn lookup_participant(
         &self,
         _domain_id: DomainId,
-    ) -> DdsResult<Option<DomainParticipantAsync<R>>> {
+    ) -> DdsResult<Option<DomainParticipantAsync>> {
         todo!()
     }
 

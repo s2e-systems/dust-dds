@@ -26,27 +26,26 @@ use crate::{
         time::Duration,
         type_support::TypeSupport,
     },
-    runtime::DdsRuntime,
     subscription::data_reader_listener::DataReaderListener,
 };
 use alloc::{vec, vec::Vec};
 use core::marker::PhantomData;
 
 /// Async version of [`DataReader`](crate::subscription::data_reader::DataReader).
-pub struct DataReaderAsync<R: DdsRuntime, Foo> {
+pub struct DataReaderAsync<Foo> {
     handle: InstanceHandle,
     status_condition_address: ActorAddress<DcpsStatusCondition>,
-    subscriber: SubscriberAsync<R>,
-    topic: TopicDescriptionAsync<R>,
+    subscriber: SubscriberAsync,
+    topic: TopicDescriptionAsync,
     phantom: PhantomData<Foo>,
 }
 
-impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
+impl<Foo> DataReaderAsync<Foo> {
     pub(crate) fn new(
         handle: InstanceHandle,
         status_condition_address: ActorAddress<DcpsStatusCondition>,
-        subscriber: SubscriberAsync<R>,
-        topic: TopicDescriptionAsync<R>,
+        subscriber: SubscriberAsync,
+        topic: TopicDescriptionAsync,
     ) -> Self {
         Self {
             handle,
@@ -57,11 +56,11 @@ impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
         }
     }
 
-    pub(crate) fn participant_address(&self) -> &MpscSender<DcpsDomainParticipantMail<R>> {
+    pub(crate) fn participant_address(&self) -> &MpscSender<DcpsDomainParticipantMail> {
         self.subscriber.participant_address()
     }
 
-    pub(crate) fn change_foo_type<T>(self) -> DataReaderAsync<R, T> {
+    pub(crate) fn change_foo_type<T>(self) -> DataReaderAsync<T> {
         DataReaderAsync {
             handle: self.handle,
             status_condition_address: self.status_condition_address,
@@ -72,7 +71,7 @@ impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
     }
 }
 
-impl<R: DdsRuntime, Foo> Clone for DataReaderAsync<R, Foo> {
+impl<Foo> Clone for DataReaderAsync<Foo> {
     fn clone(&self) -> Self {
         Self {
             handle: self.handle,
@@ -84,7 +83,7 @@ impl<R: DdsRuntime, Foo> Clone for DataReaderAsync<R, Foo> {
     }
 }
 
-impl<R: DdsRuntime, Foo: TypeSupport> DataReaderAsync<R, Foo> {
+impl<Foo: TypeSupport> DataReaderAsync<Foo> {
     /// Async version of [`read`](crate::subscription::data_reader::DataReader::read).
     #[tracing::instrument(skip(self))]
     pub async fn read(
@@ -329,7 +328,7 @@ impl<R: DdsRuntime, Foo: TypeSupport> DataReaderAsync<R, Foo> {
     }
 }
 
-impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
+impl<Foo> DataReaderAsync<Foo> {
     /// Async version of [`get_liveliness_changed_status`](crate::subscription::data_reader::DataReader::get_liveliness_changed_status).
     #[tracing::instrument(skip(self))]
     pub async fn get_liveliness_changed_status(&self) -> DdsResult<LivelinessChangedStatus> {
@@ -382,13 +381,13 @@ impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
 
     /// Async version of [`get_topicdescription`](crate::subscription::data_reader::DataReader::get_topicdescription).
     #[tracing::instrument(skip(self))]
-    pub fn get_topicdescription(&self) -> TopicDescriptionAsync<R> {
+    pub fn get_topicdescription(&self) -> TopicDescriptionAsync {
         self.topic.clone()
     }
 
     /// Async version of [`get_subscriber`](crate::subscription::data_reader::DataReader::get_subscriber).
     #[tracing::instrument(skip(self))]
-    pub fn get_subscriber(&self) -> SubscriberAsync<R> {
+    pub fn get_subscriber(&self) -> SubscriberAsync {
         self.subscriber.clone()
     }
 
@@ -448,7 +447,7 @@ impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
     }
 }
 
-impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
+impl<Foo> DataReaderAsync<Foo> {
     /// Async version of [`set_qos`](crate::subscription::data_reader::DataReader::set_qos).
     pub async fn set_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
@@ -517,18 +516,16 @@ impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
     }
 }
 
-impl<R: DdsRuntime, Foo> DataReaderAsync<R, Foo> {
+impl<Foo> DataReaderAsync<Foo> {
     /// Async version of [`set_listener`](crate::subscription::data_reader::DataReader::set_listener).
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn set_listener(
         &self,
-        a_listener: Option<impl DataReaderListener<R, Foo> + Send + 'static>,
+        a_listener: Option<impl DataReaderListener<Foo> + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
-        let dcps_listener = a_listener.map(
-            DcpsDataReaderListener::new
-        );
+        let dcps_listener = a_listener.map(DcpsDataReaderListener::new);
         self.participant_address()
             .send(DcpsDomainParticipantMail::Reader(
                 ReaderServiceMail::SetListener {

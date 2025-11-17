@@ -11,7 +11,6 @@ use dust_dds::{
         type_support::DdsType,
     },
     listener::NO_LISTENER,
-    runtime::DdsRuntime,
     subscription::data_reader_listener::DataReaderListener,
     wait_set::{Condition, WaitSet},
     xtypes::bytes::ByteBuf,
@@ -132,8 +131,8 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
     struct Listener {
         sender: std::sync::mpsc::SyncSender<()>,
     }
-    impl<R: DdsRuntime> DataReaderListener<R, KeyedData> for Listener {
-        async fn on_data_available(&mut self, the_reader: DataReaderAsync<R, KeyedData>) {
+    impl DataReaderListener<KeyedData> for Listener {
+        async fn on_data_available(&mut self, the_reader: DataReaderAsync<KeyedData>) {
             the_reader
                 .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
                 .await
@@ -219,8 +218,8 @@ fn best_effort_write_and_receive_frag(c: &mut Criterion) {
     struct Listener {
         sender: std::sync::mpsc::SyncSender<()>,
     }
-    impl<R: DdsRuntime> DataReaderListener<R, LargeKeyedData> for Listener {
-        async fn on_data_available(&mut self, the_reader: DataReaderAsync<R, LargeKeyedData>) {
+    impl DataReaderListener<LargeKeyedData> for Listener {
+        async fn on_data_available(&mut self, the_reader: DataReaderAsync<LargeKeyedData>) {
             the_reader
                 .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
                 .await

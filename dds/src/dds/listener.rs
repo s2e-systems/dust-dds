@@ -3,7 +3,6 @@ use crate::{
     publication::{
         data_writer_listener::DataWriterListener, publisher_listener::PublisherListener,
     },
-    runtime::DdsRuntime,
     subscription::{
         data_reader_listener::DataReaderListener, subscriber_listener::SubscriberListener,
     },
@@ -13,14 +12,14 @@ use crate::{
 /// Convinience constant to be used when the user does not want to install a listener.
 pub const NO_LISTENER: Option<()> = None;
 
-impl<R: DdsRuntime> DomainParticipantListener<R> for () {}
+impl DomainParticipantListener for () {}
 
-impl<R: DdsRuntime> PublisherListener<R> for () {}
+impl PublisherListener for () {}
 
-impl<R: DdsRuntime> SubscriberListener<R> for () {}
+impl SubscriberListener for () {}
 
-impl<R: DdsRuntime> TopicListener<R> for () {}
+impl TopicListener for () {}
 
-impl<R: DdsRuntime, Foo> DataWriterListener<R, Foo> for () {}
+impl<Foo> DataWriterListener<Foo> for () {}
 
-impl<R: DdsRuntime, Foo> DataReaderListener<R, Foo> for () {}
+impl<Foo> DataReaderListener<Foo> for () {}

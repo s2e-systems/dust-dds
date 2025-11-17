@@ -24,7 +24,7 @@ pub enum DcpsParticipantFactoryMail<R: DdsRuntime> {
     CreateParticipant {
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
-        dcps_listener: Option<DcpsDomainParticipantListener<R>>,
+        dcps_listener: Option<DcpsDomainParticipantListener>,
         status_kind: Vec<StatusKind>,
         clock_handle: R::ClockHandle,
         timer_handle: R::TimerHandle,
@@ -32,7 +32,7 @@ pub enum DcpsParticipantFactoryMail<R: DdsRuntime> {
         #[allow(clippy::type_complexity)]
         reply_sender: OneshotSender<
             DdsResult<(
-                MpscSender<DcpsDomainParticipantMail<R>>,
+                MpscSender<DcpsDomainParticipantMail>,
                 InstanceHandle,
                 ActorAddress<DcpsStatusCondition>,
             )>,
@@ -40,7 +40,7 @@ pub enum DcpsParticipantFactoryMail<R: DdsRuntime> {
     },
     DeleteParticipant {
         handle: InstanceHandle,
-        reply_sender: OneshotSender<DdsResult<MpscSender<DcpsDomainParticipantMail<R>>>>,
+        reply_sender: OneshotSender<DdsResult<MpscSender<DcpsDomainParticipantMail>>>,
     },
     SetDefaultParticipantQos {
         qos: QosKind<DomainParticipantQos>,
