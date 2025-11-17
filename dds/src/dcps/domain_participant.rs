@@ -2092,48 +2092,6 @@ where
             .await
     }
 
-    //#[tracing::instrument(skip(self, participant_address))]
-    pub fn wait_for_acknowledgments(
-        &mut self,
-        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
-        publisher_handle: InstanceHandle,
-        data_writer_handle: InstanceHandle,
-        timeout: Duration,
-    ) -> Pin<Box<dyn Future<Output = DdsResult<()>> + Send>> {
-        let timer_handle = self.timer_handle.clone();
-        Box::pin(async move {
-            poll_timeout(
-                timer_handle,
-                timeout.into(),
-                Box::pin(async move {
-                    loop {
-                        let (reply_sender, reply_receiver) = oneshot();
-                        participant_address
-                            .send(DcpsDomainParticipantMail::Message(
-                                MessageServiceMail::AreAllChangesAcknowledged {
-                                    publisher_handle,
-                                    data_writer_handle,
-                                    reply_sender,
-                                },
-                            ))
-                            .await
-                            .ok();
-                        let reply = reply_receiver.await;
-                        match reply {
-                            Ok(are_changes_acknowledged) => match are_changes_acknowledged {
-                                Ok(true) => return Ok(()),
-                                Ok(false) => (),
-                                Err(e) => return Err(e),
-                            },
-                            Err(_) => return Err(DdsError::Error(String::from("Channel error"))),
-                        }
-                    }
-                }),
-            )
-            .await?
-        })
-    }
-
     #[tracing::instrument(skip(self))]
     pub async fn get_offered_deadline_missed_status(
         &mut self,

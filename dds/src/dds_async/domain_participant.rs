@@ -323,47 +323,38 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
     where
         Foo: TypeSupport,
     {
-        // let type_support = Arc::new(Foo::get_type());
-        // let topic_name = String::from(topic_name);
-        // let participant_address = self.participant_address.clone();
-        // let participant_async = self.clone();
-        // let executor_handle = self.spawner_handle.clone();
-        // poll_timeout(
-        //     self.timer_handle.clone(),
-        //     timeout.into(),
-        //     Box::pin(async move {
-        //         loop {
-        //             let (reply_sender, reply_receiver) = oneshot();
-        //             let status_condition =
-        //                 Actor::spawn::<R>(DcpsStatusCondition::default(), &executor_handle);
+        let type_support = Arc::new(Foo::get_type());
+        let topic_name = String::from(topic_name);
+        let participant_address = self.participant_address.clone();
+        let participant_async = self.clone();
+        let executor_handle = self.spawner_handle.clone();
+        loop {
+            let (reply_sender, reply_receiver) = oneshot();
+            let status_condition =
+                Actor::spawn::<R>(DcpsStatusCondition::default(), &executor_handle);
 
-        //             participant_address
-        //                 .send(DcpsDomainParticipantMail::Participant(
-        //                     ParticipantServiceMail::FindTopic {
-        //                         topic_name: topic_name.clone(),
-        //                         type_support: type_support.clone(),
-        //                         status_condition,
-        //                         reply_sender,
-        //                     },
-        //                 ))
-        //                 .await?;
-        //             if let Some((guid, topic_status_condition_address, type_name)) =
-        //                 reply_receiver.await??
-        //             {
-        //                 return Ok(TopicDescriptionAsync::Topic(TopicAsync::new(
-        //                     guid,
-        //                     topic_status_condition_address,
-        //                     type_name,
-        //                     topic_name,
-        //                     participant_async,
-        //                 )));
-        //             }
-        //         }
-        //     }),
-        // )
-        // .await
-        // .map_err(|_| DdsError::Timeout)?
-        todo!()
+            participant_address
+                .send(DcpsDomainParticipantMail::Participant(
+                    ParticipantServiceMail::FindTopic {
+                        topic_name: topic_name.clone(),
+                        type_support: type_support.clone(),
+                        status_condition,
+                        reply_sender,
+                    },
+                ))
+                .await?;
+            if let Some((guid, topic_status_condition_address, type_name)) =
+                reply_receiver.await??
+            {
+                return Ok(TopicDescriptionAsync::Topic(TopicAsync::new(
+                    guid,
+                    topic_status_condition_address,
+                    type_name,
+                    topic_name,
+                    participant_async,
+                )));
+            }
+        }
     }
 
     /// Async version of [`lookup_topicdescription`](crate::domain::domain_participant::DomainParticipant::lookup_topicdescription).

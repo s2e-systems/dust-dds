@@ -13,7 +13,7 @@ use crate::{
     },
     publication::{publisher::Publisher, publisher_listener::PublisherListener},
     runtime::DdsRuntime,
-    std_runtime::executor::block_on,
+    std_runtime::executor::{block_on, block_timeout},
     subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener},
     topic_definition::{topic_description::TopicDescription, topic_listener::TopicListener},
     xtypes::dynamic_type::DynamicType,
@@ -246,12 +246,11 @@ impl<R: DdsRuntime> DomainParticipant<R> {
     where
         Foo: TypeSupport,
     {
-        todo!()
-        // block_on(
-        //     self.participant_async
-        //         .find_topic::<Foo>(topic_name),
-        // )
-        // .map(TopicDescription::from)
+        block_timeout(
+            timeout.into(),
+            self.participant_async.find_topic::<Foo>(topic_name),
+        )?
+        .map(TopicDescription::from)
     }
 
     /// This operation gives access to an existing locally-created [`Topic`], based on its name and type. The
