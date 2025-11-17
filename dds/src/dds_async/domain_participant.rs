@@ -2,7 +2,7 @@ use super::{publisher::PublisherAsync, subscriber::SubscriberAsync, topic::Topic
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     dcps::{
-        actor::{Actor, ActorAddress},
+        actor::ActorAddress,
         channels::{mpsc::MpscSender, oneshot::oneshot},
         domain_participant_mail::{DcpsDomainParticipantMail, ParticipantServiceMail},
         listeners::{
@@ -43,7 +43,6 @@ pub struct DomainParticipantAsync<R: DdsRuntime> {
     builtin_subscriber_status_condition_address: ActorAddress<DcpsStatusCondition>,
     domain_id: DomainId,
     handle: InstanceHandle,
-    spawner_handle: R::SpawnerHandle,
 }
 
 impl<R: DdsRuntime> Clone for DomainParticipantAsync<R> {
@@ -55,7 +54,6 @@ impl<R: DdsRuntime> Clone for DomainParticipantAsync<R> {
                 .clone(),
             domain_id: self.domain_id,
             handle: self.handle,
-            spawner_handle: self.spawner_handle.clone(),
         }
     }
 }
@@ -66,14 +64,12 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         builtin_subscriber_status_condition_address: ActorAddress<DcpsStatusCondition>,
         domain_id: DomainId,
         handle: InstanceHandle,
-        spawner_handle: R::SpawnerHandle,
     ) -> Self {
         Self {
             participant_address,
             builtin_subscriber_status_condition_address,
             domain_id,
             handle,
-            spawner_handle,
         }
     }
 
@@ -308,18 +304,14 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         let topic_name = String::from(topic_name);
         let participant_address = self.participant_address.clone();
         let participant_async = self.clone();
-        let executor_handle = self.spawner_handle.clone();
         loop {
             let (reply_sender, reply_receiver) = oneshot();
-            let status_condition =
-                Actor::spawn::<R>(DcpsStatusCondition::default(), &executor_handle);
 
             participant_address
                 .send(DcpsDomainParticipantMail::Participant(
                     ParticipantServiceMail::FindTopic {
                         topic_name: topic_name.clone(),
                         type_support: type_support.clone(),
-                        status_condition,
                         reply_sender,
                     },
                 ))

@@ -68,7 +68,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantFactoryAsyn
             builtin_subscriber_status_condition_address,
             domain_id,
             participant_handle,
-            spawner_handle,
         );
 
         Ok(domain_participant)

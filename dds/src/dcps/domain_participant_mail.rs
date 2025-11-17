@@ -5,7 +5,7 @@ use crate::{
         TopicBuiltinTopicData,
     },
     dcps::{
-        actor::{Actor, ActorAddress, MailHandler},
+        actor::{ActorAddress, MailHandler},
         channels::{mpsc::MpscSender, oneshot::OneshotSender},
         listeners::{
             data_reader_listener::DcpsDataReaderListener,
@@ -90,7 +90,6 @@ pub enum ParticipantServiceMail<R: DdsRuntime> {
     FindTopic {
         topic_name: String,
         type_support: Arc<DynamicType>,
-        status_condition: Actor<DcpsStatusCondition>,
         #[allow(clippy::type_complexity)]
         reply_sender: OneshotSender<
             DdsResult<Option<(InstanceHandle, ActorAddress<DcpsStatusCondition>, String)>>,
@@ -646,9 +645,8 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsDomainParticipant<R, T> 
             ParticipantServiceMail::FindTopic {
                 topic_name,
                 type_support,
-                status_condition,
                 reply_sender,
-            } => reply_sender.send(self.find_topic(topic_name, type_support, status_condition)),
+            } => reply_sender.send(self.find_topic(topic_name, type_support)),
             ParticipantServiceMail::LookupTopicdescription {
                 topic_name,
                 reply_sender,

@@ -184,7 +184,6 @@ where
                 .address(),
             self.domain_participant.domain_id,
             self.domain_participant.instance_handle,
-            self.spawner_handle.clone(),
         )
     }
 
@@ -795,12 +794,11 @@ where
     }
 
     #[allow(clippy::type_complexity)]
-    #[tracing::instrument(skip(self, type_support, status_condition))]
+    #[tracing::instrument(skip(self, type_support))]
     pub fn find_topic(
         &mut self,
         topic_name: String,
         type_support: Arc<DynamicType>,
-        status_condition: Actor<DcpsStatusCondition>,
     ) -> DdsResult<Option<(InstanceHandle, ActorAddress<DcpsStatusCondition>, String)>> {
         if let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
@@ -850,6 +848,8 @@ where
                     USER_DEFINED_TOPIC,
                 ]);
                 self.topic_counter += 1;
+                let status_condition =
+                    Actor::spawn::<R>(DcpsStatusCondition::default(), &self.spawner_handle);
                 let mut topic = TopicEntity::new(
                     qos,
                     type_name.clone(),
