@@ -210,7 +210,7 @@ impl<R: DdsRuntime> Subscriber<R> {
     /// condition can then be added to a [`WaitSet`](crate::infrastructure::wait_set::WaitSet) so that the application can wait for specific status changes
     /// that affect the Entity.
     #[tracing::instrument(skip(self))]
-    pub fn get_statuscondition(&self) -> StatusCondition<R> {
+    pub fn get_statuscondition(&self) -> StatusCondition {
         StatusCondition::new(self.subscriber_async.get_statuscondition())
     }
 

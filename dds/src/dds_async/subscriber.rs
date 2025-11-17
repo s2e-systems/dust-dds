@@ -276,11 +276,8 @@ impl<R: DdsRuntime> SubscriberAsync<R> {
 
     /// Async version of [`get_statuscondition`](crate::subscription::subscriber::Subscriber::get_statuscondition).
     #[tracing::instrument(skip(self))]
-    pub fn get_statuscondition(&self) -> StatusConditionAsync<R> {
-        StatusConditionAsync::new(
-            self.status_condition_address.clone(),
-            self.participant.timer_handle().clone(),
-        )
+    pub fn get_statuscondition(&self) -> StatusConditionAsync {
+        StatusConditionAsync::new(self.status_condition_address.clone())
     }
 
     /// Async version of [`get_status_changes`](crate::subscription::subscriber::Subscriber::get_status_changes).

@@ -71,7 +71,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantFactoryAsyn
             participant_handle,
             spawner_handle,
             clock_handle,
-            timer_handle,
         );
 
         Ok(domain_participant)

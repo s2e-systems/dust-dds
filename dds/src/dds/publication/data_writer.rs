@@ -260,7 +260,8 @@ impl<R: DdsRuntime, Foo> DataWriter<R, Foo> {
     /// Otherwise the operation will return immediately with [`Ok`].
     #[tracing::instrument(skip(self))]
     pub fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
-        block_on(self.writer_async.wait_for_acknowledgments(max_wait))
+        todo!()
+        // block_on(self.writer_async.wait_for_acknowledgments())
     }
 
     /// This operation allows access to the [`LivelinessLostStatus`].
@@ -370,7 +371,7 @@ impl<R: DdsRuntime, Foo> DataWriter<R, Foo> {
     /// condition can then be added to a [`WaitSet`](crate::infrastructure::wait_set::WaitSet) so that the application can wait for specific status changes
     /// that affect the Entity.
     #[tracing::instrument(skip(self))]
-    pub fn get_statuscondition(&self) -> StatusCondition<R> {
+    pub fn get_statuscondition(&self) -> StatusCondition {
         StatusCondition::new(self.writer_async.get_statuscondition())
     }
 

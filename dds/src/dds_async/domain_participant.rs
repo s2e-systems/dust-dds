@@ -4,7 +4,6 @@ use crate::{
     dcps::{
         actor::{Actor, ActorAddress},
         channels::{mpsc::MpscSender, oneshot::oneshot},
-        domain_participant::poll_timeout,
         domain_participant_mail::{DcpsDomainParticipantMail, ParticipantServiceMail},
         listeners::{
             domain_participant_listener::DcpsDomainParticipantListener,
@@ -23,7 +22,7 @@ use crate::{
         instance::InstanceHandle,
         qos::{DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
         status::StatusKind,
-        time::{Duration, Time},
+        time::Time,
         type_support::TypeSupport,
     },
     publication::publisher_listener::PublisherListener,
@@ -33,7 +32,6 @@ use crate::{
     xtypes::dynamic_type::DynamicType,
 };
 use alloc::{
-    boxed::Box,
     string::{String, ToString},
     sync::Arc,
     vec::Vec,
@@ -47,7 +45,6 @@ pub struct DomainParticipantAsync<R: DdsRuntime> {
     handle: InstanceHandle,
     spawner_handle: R::SpawnerHandle,
     clock_handle: R::ClockHandle,
-    timer_handle: R::TimerHandle,
 }
 
 impl<R: DdsRuntime> Clone for DomainParticipantAsync<R> {
@@ -61,7 +58,6 @@ impl<R: DdsRuntime> Clone for DomainParticipantAsync<R> {
             handle: self.handle,
             spawner_handle: self.spawner_handle.clone(),
             clock_handle: self.clock_handle.clone(),
-            timer_handle: self.timer_handle.clone(),
         }
     }
 }
@@ -74,7 +70,6 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         handle: InstanceHandle,
         spawner_handle: R::SpawnerHandle,
         clock_handle: R::ClockHandle,
-        timer_handle: R::TimerHandle,
     ) -> Self {
         Self {
             participant_address,
@@ -83,7 +78,6 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
             handle,
             spawner_handle,
             clock_handle,
-            timer_handle,
         }
     }
 
@@ -93,10 +87,6 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
 
     pub(crate) fn spawner_handle(&self) -> &R::SpawnerHandle {
         &self.spawner_handle
-    }
-
-    pub(crate) fn timer_handle(&self) -> &R::TimerHandle {
-        &self.timer_handle
     }
 }
 
@@ -329,54 +319,51 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
 
     /// Async version of [`find_topic`](crate::domain::domain_participant::DomainParticipant::find_topic).
     #[tracing::instrument(skip(self))]
-    pub async fn find_topic<Foo>(
-        &self,
-        topic_name: &str,
-        timeout: Duration,
-    ) -> DdsResult<TopicDescriptionAsync<R>>
+    pub async fn find_topic<Foo>(&self, topic_name: &str) -> DdsResult<TopicDescriptionAsync<R>>
     where
         Foo: TypeSupport,
     {
-        let type_support = Arc::new(Foo::get_type());
-        let topic_name = String::from(topic_name);
-        let participant_address = self.participant_address.clone();
-        let participant_async = self.clone();
-        let executor_handle = self.spawner_handle.clone();
-        poll_timeout(
-            self.timer_handle.clone(),
-            timeout.into(),
-            Box::pin(async move {
-                loop {
-                    let (reply_sender, reply_receiver) = oneshot();
-                    let status_condition =
-                        Actor::spawn::<R>(DcpsStatusCondition::default(), &executor_handle);
+        // let type_support = Arc::new(Foo::get_type());
+        // let topic_name = String::from(topic_name);
+        // let participant_address = self.participant_address.clone();
+        // let participant_async = self.clone();
+        // let executor_handle = self.spawner_handle.clone();
+        // poll_timeout(
+        //     self.timer_handle.clone(),
+        //     timeout.into(),
+        //     Box::pin(async move {
+        //         loop {
+        //             let (reply_sender, reply_receiver) = oneshot();
+        //             let status_condition =
+        //                 Actor::spawn::<R>(DcpsStatusCondition::default(), &executor_handle);
 
-                    participant_address
-                        .send(DcpsDomainParticipantMail::Participant(
-                            ParticipantServiceMail::FindTopic {
-                                topic_name: topic_name.clone(),
-                                type_support: type_support.clone(),
-                                status_condition,
-                                reply_sender,
-                            },
-                        ))
-                        .await?;
-                    if let Some((guid, topic_status_condition_address, type_name)) =
-                        reply_receiver.await??
-                    {
-                        return Ok(TopicDescriptionAsync::Topic(TopicAsync::new(
-                            guid,
-                            topic_status_condition_address,
-                            type_name,
-                            topic_name,
-                            participant_async,
-                        )));
-                    }
-                }
-            }),
-        )
-        .await
-        .map_err(|_| DdsError::Timeout)?
+        //             participant_address
+        //                 .send(DcpsDomainParticipantMail::Participant(
+        //                     ParticipantServiceMail::FindTopic {
+        //                         topic_name: topic_name.clone(),
+        //                         type_support: type_support.clone(),
+        //                         status_condition,
+        //                         reply_sender,
+        //                     },
+        //                 ))
+        //                 .await?;
+        //             if let Some((guid, topic_status_condition_address, type_name)) =
+        //                 reply_receiver.await??
+        //             {
+        //                 return Ok(TopicDescriptionAsync::Topic(TopicAsync::new(
+        //                     guid,
+        //                     topic_status_condition_address,
+        //                     type_name,
+        //                     topic_name,
+        //                     participant_async,
+        //                 )));
+        //             }
+        //         }
+        //     }),
+        // )
+        // .await
+        // .map_err(|_| DdsError::Timeout)?
+        todo!()
     }
 
     /// Async version of [`lookup_topicdescription`](crate::domain::domain_participant::DomainParticipant::lookup_topicdescription).

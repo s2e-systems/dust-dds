@@ -2,18 +2,17 @@ use super::condition::StatusCondition;
 use crate::{
     dds_async::wait_set::{ConditionAsync, WaitSetAsync},
     infrastructure::{error::DdsResult, time::Duration},
-    runtime::DdsRuntime,
     std_runtime::executor::block_on,
 };
 use alloc::vec::Vec;
 
 /// Enumeration of the different Condition objects that can be associated with a [`WaitSet`].
 #[derive(Clone)]
-pub enum Condition<R: DdsRuntime> {
+pub enum Condition {
     /// Status condition variant
-    StatusCondition(StatusCondition<R>),
+    StatusCondition(StatusCondition),
 }
-impl<R: DdsRuntime> Condition<R> {
+impl Condition {
     #[tracing::instrument(skip(self))]
     /// This operation retrieves the trigger_value of the Condition.
     pub fn get_trigger_value(&self) -> DdsResult<bool> {
@@ -27,11 +26,11 @@ impl<R: DdsRuntime> Condition<R> {
 /// [`true`] or else until the timeout expires. It is created by calling the [`WaitSet::new`] operation and is not necessarily
 /// associated with a single [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant) and could be used to
 /// wait on [`Condition`] objects associated with different [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant) objects.
-pub struct WaitSet<R: DdsRuntime> {
-    waitset_async: WaitSetAsync<R>,
+pub struct WaitSet {
+    waitset_async: WaitSetAsync,
 }
 
-impl<R: DdsRuntime> Default for WaitSet<R> {
+impl Default for WaitSet {
     fn default() -> Self {
         Self {
             waitset_async: Default::default(),
@@ -39,7 +38,7 @@ impl<R: DdsRuntime> Default for WaitSet<R> {
     }
 }
 
-impl<R: DdsRuntime> WaitSet<R> {
+impl WaitSet {
     /// Create a new [`WaitSet`]
     #[tracing::instrument]
     pub fn new() -> Self {
@@ -55,15 +54,16 @@ impl<R: DdsRuntime> WaitSet<R> {
     /// It is not allowed for more than one application thread to be waiting on the same [`WaitSet`]. If the wait operation is invoked on a
     /// [`WaitSet`] that already has a thread blocking on it, the operation will return immediately with the value [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError::PreconditionNotMet).
     #[tracing::instrument(skip(self))]
-    pub fn wait(&self, timeout: Duration) -> DdsResult<Vec<Condition<R>>> {
-        Ok(block_on(self.waitset_async.wait(timeout))?
-            .into_iter()
-            .map(|c| match c {
-                ConditionAsync::StatusCondition(sc) => {
-                    Condition::StatusCondition(StatusCondition::new(sc))
-                }
-            })
-            .collect())
+    pub fn wait(&self, timeout: Duration) -> DdsResult<Vec<Condition>> {
+        todo!()
+        // Ok(block_on(self.waitset_async.wait(timeout))?
+        //     .into_iter()
+        //     .map(|c| match c {
+        //         ConditionAsync::StatusCondition(sc) => {
+        //             Condition::StatusCondition(StatusCondition::new(sc))
+        //         }
+        //     })
+        //     .collect())
     }
 
     /// Attaches a [`Condition`] to the [`WaitSet`].
@@ -71,7 +71,7 @@ impl<R: DdsRuntime> WaitSet<R> {
     /// [`Condition`] has a `trigger_value` of [`true`], then attaching the condition will unblock the [`WaitSet`].
     /// Adding a [`Condition`] that is already attached to the [`WaitSet`] has no effect.
     #[tracing::instrument(skip(self, cond))]
-    pub fn attach_condition(&mut self, cond: Condition<R>) -> DdsResult<()> {
+    pub fn attach_condition(&mut self, cond: Condition) -> DdsResult<()> {
         match cond {
             Condition::StatusCondition(sc) => block_on(self.waitset_async.attach_condition(
                 ConditionAsync::StatusCondition(sc.condition_async().clone()),
@@ -82,13 +82,13 @@ impl<R: DdsRuntime> WaitSet<R> {
     /// Detaches a [`Condition`] from the [`WaitSet`].
     /// If the [`Condition`] was not attached to the [`WaitSet`], the operation will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError::PreconditionNotMet).
     #[tracing::instrument(skip(self, _cond))]
-    pub fn detach_condition(&self, _cond: Condition<R>) -> DdsResult<()> {
+    pub fn detach_condition(&self, _cond: Condition) -> DdsResult<()> {
         todo!()
     }
 
     /// This operation retrieves the list of attached conditions.
     #[tracing::instrument(skip(self))]
-    pub fn get_conditions(&self) -> DdsResult<Vec<Condition<R>>> {
+    pub fn get_conditions(&self) -> DdsResult<Vec<Condition>> {
         Ok(block_on(self.waitset_async.get_conditions())?
             .into_iter()
             .map(|c| match c {

@@ -6,29 +6,26 @@ use crate::{
     dcps::{
         actor::ActorAddress,
         channels::{mpsc::MpscSender, oneshot::oneshot},
-        domain_participant::poll_timeout,
-        domain_participant_mail::{
-            DcpsDomainParticipantMail, MessageServiceMail, WriterServiceMail,
-        },
+        domain_participant_mail::{DcpsDomainParticipantMail, WriterServiceMail},
         listeners::data_writer_listener::DcpsDataWriterListener,
         status_condition::DcpsStatusCondition,
     },
     dds_async::topic_description::TopicDescriptionAsync,
     infrastructure::{
-        error::{DdsError, DdsResult},
+        error::DdsResult,
         instance::InstanceHandle,
         qos::{DataWriterQos, QosKind},
         status::{
             LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
             PublicationMatchedStatus, StatusKind,
         },
-        time::{Duration, Time},
+        time::Time,
         type_support::TypeSupport,
     },
     publication::data_writer_listener::DataWriterListener,
     runtime::DdsRuntime,
 };
-use alloc::{boxed::Box, string::String, vec::Vec};
+use alloc::vec::Vec;
 use core::marker::PhantomData;
 
 /// Async version of [`DataWriter`](crate::publication::data_writer::DataWriter).
@@ -251,46 +248,49 @@ where
 
 impl<R: DdsRuntime, Foo> DataWriterAsync<R, Foo> {
     /// Async version of [`wait_for_acknowledgments`](crate::publication::data_writer::DataWriter::wait_for_acknowledgments).
+    /// This method does not internally wait for a maximum timeout and that is expected
+    /// to be handle on the user side if needed.
     #[tracing::instrument(skip(self))]
-    pub async fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
-        let publisher_handle = self.get_publisher().get_instance_handle().await;
-        let timer_handle = self
-            .get_publisher()
-            .get_participant()
-            .timer_handle()
-            .clone();
-        let participant_address = self.participant_address().clone();
-        let data_writer_handle = self.handle;
+    pub async fn wait_for_acknowledgments(&self) -> DdsResult<()> {
+        todo!()
+        // let publisher_handle = self.get_publisher().get_instance_handle().await;
+        // let timer_handle = self
+        //     .get_publisher()
+        //     .get_participant()
+        //     .timer_handle()
+        //     .clone();
+        // let participant_address = self.participant_address().clone();
+        // let data_writer_handle = self.handle;
 
-        poll_timeout(
-            timer_handle,
-            max_wait.into(),
-            Box::pin(async move {
-                loop {
-                    let (reply_sender, reply_receiver) = oneshot();
-                    participant_address
-                        .send(DcpsDomainParticipantMail::Message(
-                            MessageServiceMail::AreAllChangesAcknowledged {
-                                publisher_handle,
-                                data_writer_handle,
-                                reply_sender,
-                            },
-                        ))
-                        .await
-                        .ok();
-                    let reply = reply_receiver.await;
-                    match reply {
-                        Ok(are_changes_acknowledged) => match are_changes_acknowledged {
-                            Ok(true) => return Ok(()),
-                            Ok(false) => (),
-                            Err(e) => return Err(e),
-                        },
-                        Err(_) => return Err(DdsError::Error(String::from("Channel error"))),
-                    }
-                }
-            }),
-        )
-        .await?
+        // poll_timeout(
+        //     timer_handle,
+        //     max_wait.into(),
+        //     Box::pin(async move {
+        //         loop {
+        //             let (reply_sender, reply_receiver) = oneshot();
+        //             participant_address
+        //                 .send(DcpsDomainParticipantMail::Message(
+        //                     MessageServiceMail::AreAllChangesAcknowledged {
+        //                         publisher_handle,
+        //                         data_writer_handle,
+        //                         reply_sender,
+        //                     },
+        //                 ))
+        //                 .await
+        //                 .ok();
+        //             let reply = reply_receiver.await;
+        //             match reply {
+        //                 Ok(are_changes_acknowledged) => match are_changes_acknowledged {
+        //                     Ok(true) => return Ok(()),
+        //                     Ok(false) => (),
+        //                     Err(e) => return Err(e),
+        //                 },
+        //                 Err(_) => return Err(DdsError::Error(String::from("Channel error"))),
+        //             }
+        //         }
+        //     }),
+        // )
+        // .await?
     }
 
     /// Async version of [`get_liveliness_lost_status`](crate::publication::data_writer::DataWriter::get_liveliness_lost_status).
@@ -432,11 +432,8 @@ impl<R: DdsRuntime, Foo> DataWriterAsync<R, Foo> {
 
     /// Async version of [`get_statuscondition`](crate::publication::data_writer::DataWriter::get_statuscondition).
     #[tracing::instrument(skip(self))]
-    pub fn get_statuscondition(&self) -> StatusConditionAsync<R> {
-        StatusConditionAsync::new(
-            self.status_condition_address.clone(),
-            self.publisher.get_participant().timer_handle().clone(),
-        )
+    pub fn get_statuscondition(&self) -> StatusConditionAsync {
+        StatusConditionAsync::new(self.status_condition_address.clone())
     }
 
     /// Async version of [`get_status_changes`](crate::publication::data_writer::DataWriter::get_status_changes).

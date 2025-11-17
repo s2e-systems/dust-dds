@@ -246,11 +246,12 @@ impl<R: DdsRuntime> DomainParticipant<R> {
     where
         Foo: TypeSupport,
     {
-        block_on(
-            self.participant_async
-                .find_topic::<Foo>(topic_name, timeout),
-        )
-        .map(TopicDescription::from)
+        todo!()
+        // block_on(
+        //     self.participant_async
+        //         .find_topic::<Foo>(topic_name),
+        // )
+        // .map(TopicDescription::from)
     }
 
     /// This operation gives access to an existing locally-created [`Topic`], based on its name and type. The

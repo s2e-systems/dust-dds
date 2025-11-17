@@ -179,7 +179,6 @@ where
             self.domain_participant.instance_handle,
             self.spawner_handle.clone(),
             self.clock_handle.clone(),
-            self.timer_handle.clone(),
         )
     }
 
