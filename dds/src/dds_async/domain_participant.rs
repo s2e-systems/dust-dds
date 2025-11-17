@@ -138,22 +138,18 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         mask: &[StatusKind],
     ) -> DdsResult<SubscriberAsync<R>> {
         let (reply_sender, reply_receiver) = oneshot();
-        let status_condition =
-            Actor::spawn::<R>(DcpsStatusCondition::default(), &self.spawner_handle);
-        let subscriber_status_condition_address = status_condition.address();
         let dcps_listener = a_listener.map(DcpsSubscriberListener::new);
         self.participant_address
             .send(DcpsDomainParticipantMail::Participant(
                 ParticipantServiceMail::CreateUserDefinedSubscriber {
                     qos,
-                    status_condition,
                     dcps_listener,
                     mask: mask.to_vec(),
                     reply_sender,
                 },
             ))
             .await?;
-        let guid = reply_receiver.await??;
+        let (guid, subscriber_status_condition_address) = reply_receiver.await??;
         let subscriber =
             SubscriberAsync::new(guid, subscriber_status_condition_address, self.clone());
 
@@ -207,9 +203,6 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
         dynamic_type_representation: Arc<DynamicType>,
     ) -> DdsResult<TopicDescriptionAsync<R>> {
         let (reply_sender, reply_receiver) = oneshot();
-        let status_condition =
-            Actor::spawn::<R>(DcpsStatusCondition::default(), &self.spawner_handle);
-        let topic_status_condition_address = status_condition.address();
         let dcps_listener = a_listener.map(DcpsTopicListener::new);
         self.participant_address
             .send(DcpsDomainParticipantMail::Participant(
@@ -217,7 +210,6 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
                     topic_name: String::from(topic_name),
                     type_name: String::from(type_name),
                     qos,
-                    status_condition,
                     dcps_listener,
                     mask: mask.to_vec(),
                     type_support: dynamic_type_representation,
@@ -225,7 +217,7 @@ impl<R: DdsRuntime> DomainParticipantAsync<R> {
                 },
             ))
             .await?;
-        let guid = reply_receiver.await??;
+        let (guid, topic_status_condition_address) = reply_receiver.await??;
 
         Ok(TopicDescriptionAsync::Topic(TopicAsync::new(
             guid,

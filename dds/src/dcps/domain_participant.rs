@@ -515,18 +515,20 @@ where
         Ok(())
     }
 
-    #[tracing::instrument(skip(self, status_condition, dcps_listener))]
+    #[tracing::instrument(skip(self, dcps_listener))]
     pub fn create_user_defined_subscriber(
         &mut self,
         qos: QosKind<SubscriberQos>,
-        status_condition: Actor<DcpsStatusCondition>,
         dcps_listener: Option<DcpsSubscriberListener<R>>,
         mask: Vec<StatusKind>,
-    ) -> DdsResult<InstanceHandle> {
+    ) -> DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)> {
         let subscriber_qos = match qos {
             QosKind::Default => self.domain_participant.default_subscriber_qos.clone(),
             QosKind::Specific(q) => q,
         };
+        let status_condition =
+            Actor::spawn::<R>(DcpsStatusCondition::default(), &self.spawner_handle);
+        let subscriber_status_condition_address = status_condition.address();
         let subscriber_handle = InstanceHandle::new([
             self.domain_participant.instance_handle[0],
             self.domain_participant.instance_handle[1],
@@ -574,7 +576,7 @@ where
             .user_defined_subscriber_list
             .push(subscriber);
 
-        Ok(subscriber_handle)
+        Ok((subscriber_handle, subscriber_status_condition_address))
     }
 
     #[tracing::instrument(skip(self))]
@@ -614,17 +616,16 @@ where
     }
 
     #[allow(clippy::too_many_arguments)]
-    #[tracing::instrument(skip(self, status_condition, dcps_listener, type_support))]
+    #[tracing::instrument(skip(self, dcps_listener, type_support))]
     pub async fn create_topic(
         &mut self,
         topic_name: String,
         type_name: String,
         qos: QosKind<TopicQos>,
-        status_condition: Actor<DcpsStatusCondition>,
         dcps_listener: Option<DcpsTopicListener<R>>,
         mask: Vec<StatusKind>,
         type_support: Arc<DynamicType>,
-    ) -> DdsResult<InstanceHandle> {
+    ) -> DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)> {
         if self
             .domain_participant
             .topic_description_list
@@ -637,6 +638,9 @@ where
             )));
         }
 
+        let status_condition =
+            Actor::spawn::<R>(DcpsStatusCondition::default(), &self.spawner_handle);
+        let topic_status_condition_address = status_condition.address();
         let qos = match qos {
             QosKind::Default => self.domain_participant.default_topic_qos.clone(),
             QosKind::Specific(q) => q,
@@ -687,7 +691,7 @@ where
             self.enable_topic(topic_name).await?;
         }
 
-        Ok(topic_handle)
+        Ok((topic_handle, topic_status_condition_address))
     }
 
     #[tracing::instrument(skip(self))]

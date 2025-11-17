@@ -51,10 +51,9 @@ pub enum ParticipantServiceMail<R: DdsRuntime> {
     },
     CreateUserDefinedSubscriber {
         qos: QosKind<SubscriberQos>,
-        status_condition: Actor<DcpsStatusCondition>,
         dcps_listener: Option<DcpsSubscriberListener<R>>,
         mask: Vec<StatusKind>,
-        reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
+        reply_sender: OneshotSender<DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)>>,
     },
     DeleteUserDefinedSubscriber {
         participant_handle: InstanceHandle,
@@ -65,11 +64,10 @@ pub enum ParticipantServiceMail<R: DdsRuntime> {
         topic_name: String,
         type_name: String,
         qos: QosKind<TopicQos>,
-        status_condition: Actor<DcpsStatusCondition>,
         dcps_listener: Option<DcpsTopicListener<R>>,
         mask: Vec<StatusKind>,
         type_support: Arc<DynamicType>,
-        reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
+        reply_sender: OneshotSender<DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)>>,
     },
     DeleteUserDefinedTopic {
         participant_handle: InstanceHandle,
@@ -591,16 +589,10 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsDomainParticipant<R, T> 
                 .send(self.delete_user_defined_publisher(participant_handle, publisher_handle)),
             ParticipantServiceMail::CreateUserDefinedSubscriber {
                 qos,
-                status_condition,
                 dcps_listener,
                 mask,
                 reply_sender,
-            } => reply_sender.send(self.create_user_defined_subscriber(
-                qos,
-                status_condition,
-                dcps_listener,
-                mask,
-            )),
+            } => reply_sender.send(self.create_user_defined_subscriber(qos, dcps_listener, mask)),
             ParticipantServiceMail::DeleteUserDefinedSubscriber {
                 participant_handle,
                 subscriber_handle,
@@ -611,7 +603,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsDomainParticipant<R, T> 
                 topic_name,
                 type_name,
                 qos,
-                status_condition,
                 dcps_listener,
                 mask,
                 type_support,
@@ -621,7 +612,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsDomainParticipant<R, T> 
                     topic_name,
                     type_name,
                     qos,
-                    status_condition,
                     dcps_listener,
                     mask,
                     type_support,
