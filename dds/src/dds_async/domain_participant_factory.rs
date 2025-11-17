@@ -74,10 +74,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantFactoryAsyn
     }
 
     /// Async version of [`delete_participant`](crate::domain::domain_participant_factory::DomainParticipantFactory::delete_participant).
-    pub async fn delete_participant(
-        &self,
-        participant: &DomainParticipantAsync,
-    ) -> DdsResult<()> {
+    pub async fn delete_participant(&self, participant: &DomainParticipantAsync) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
         participant
             .participant_address()
