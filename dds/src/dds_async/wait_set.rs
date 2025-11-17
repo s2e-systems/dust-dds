@@ -29,16 +29,9 @@ impl ConditionAsync {
 }
 
 /// Async version of [`WaitSet`](crate::infrastructure::wait_set::WaitSet).
+#[derive(Default)]
 pub struct WaitSetAsync {
     conditions: Vec<ConditionAsync>,
-}
-
-impl Default for WaitSetAsync {
-    fn default() -> Self {
-        Self {
-            conditions: Default::default(),
-        }
-    }
 }
 
 impl WaitSetAsync {

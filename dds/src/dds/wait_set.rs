@@ -26,16 +26,9 @@ impl Condition {
 /// [`true`] or else until the timeout expires. It is created by calling the [`WaitSet::new`] operation and is not necessarily
 /// associated with a single [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant) and could be used to
 /// wait on [`Condition`] objects associated with different [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant) objects.
+#[derive(Default)]
 pub struct WaitSet {
     waitset_async: WaitSetAsync,
-}
-
-impl Default for WaitSet {
-    fn default() -> Self {
-        Self {
-            waitset_async: Default::default(),
-        }
-    }
 }
 
 impl WaitSet {
