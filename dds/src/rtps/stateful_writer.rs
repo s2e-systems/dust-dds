@@ -104,7 +104,11 @@ impl RtpsStatefulWriter {
             .retain(|rp| rp.remote_reader_guid() != reader_guid);
     }
 
-    pub async fn write_message(&mut self, message_writer: &(impl WriteMessage + ?Sized), clock: &impl Clock) {
+    pub async fn write_message(
+        &mut self,
+        message_writer: &(impl WriteMessage + ?Sized),
+        clock: &impl Clock,
+    ) {
         for reader_proxy in &mut self.matched_readers {
             reader_proxy
                 .write_message(

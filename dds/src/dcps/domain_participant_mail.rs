@@ -25,7 +25,7 @@ use crate::{
         time::{Duration, Time},
     },
     runtime::DdsRuntime,
-    transport::{interface::TransportParticipantFactory, types::CacheChange},
+    transport::types::CacheChange,
     xtypes::dynamic_type::{DynamicData, DynamicType},
 };
 use alloc::{boxed::Box, string::String, sync::Arc, vec::Vec};

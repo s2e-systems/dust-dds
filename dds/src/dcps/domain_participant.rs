@@ -72,7 +72,7 @@ use crate::{
         self,
         interface::{
             HistoryCache, RtpsTransportParticipant, RtpsTransportStatefulReader,
-            RtpsTransportStatefulWriter, TransportParticipantFactory,
+            RtpsTransportStatefulWriter,
         },
         types::{
             CacheChange, ChangeKind, DurabilityKind, ENTITYID_UNKNOWN, EntityId, Guid,
