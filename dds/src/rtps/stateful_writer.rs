@@ -65,7 +65,7 @@ impl RtpsStatefulWriter {
             .any(|rp| rp.unacked_changes(Some(sequence_number)))
     }
 
-    pub fn add_matched_reader(&mut self, reader_proxy: &ReaderProxy) {
+    pub fn add_matched_reader(&mut self, reader_proxy: ReaderProxy) {
         let first_relevant_sample_seq_num = match reader_proxy.durability_kind {
             DurabilityKind::Volatile => self
                 .changes
@@ -104,7 +104,7 @@ impl RtpsStatefulWriter {
             .retain(|rp| rp.remote_reader_guid() != reader_guid);
     }
 
-    pub async fn write_message(&mut self, message_writer: &impl WriteMessage, clock: &impl Clock) {
+    pub async fn write_message(&mut self, message_writer: &(impl WriteMessage + ?Sized), clock: &impl Clock) {
         for reader_proxy in &mut self.matched_readers {
             reader_proxy
                 .write_message(
@@ -289,7 +289,7 @@ impl RtpsReaderProxy {
         changes: &[CacheChange],
         data_max_size_serialized: usize,
         heartbeat_period: Duration,
-        message_writer: &impl WriteMessage,
+        message_writer: &(impl WriteMessage + ?Sized),
         clock: &impl Clock,
     ) {
         match self.reliability() {
@@ -321,7 +321,7 @@ impl RtpsReaderProxy {
         writer_id: EntityId,
         changes: &[CacheChange],
         data_max_size_serialized: usize,
-        message_writer: &impl WriteMessage,
+        message_writer: &(impl WriteMessage + ?Sized),
     ) {
         // a_change_seq_num := the_reader_proxy.next_unsent_change();
         // if ( a_change_seq_num > the_reader_proxy.higuest_sent_seq_num +1 ) {
@@ -439,7 +439,7 @@ impl RtpsReaderProxy {
         changes: &[CacheChange],
         data_max_size_serialized: usize,
         heartbeat_period: Duration,
-        message_writer: &impl WriteMessage,
+        message_writer: &(impl WriteMessage + ?Sized),
         clock: &impl Clock,
     ) {
         let now = clock.now();
