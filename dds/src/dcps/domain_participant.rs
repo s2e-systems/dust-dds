@@ -5469,10 +5469,14 @@ where
 
     pub async fn handle_data(&mut self, data_message: Arc<[u8]>) {
         if let Ok(rtps_message) = RtpsMessageRead::try_from(data_message.as_ref()) {
-            for subscriber in core::iter::chain(
-                &mut self.domain_participant.user_defined_subscriber_list,
-                core::iter::once(&mut self.domain_participant.builtin_subscriber),
-            ) {
+            for subscriber in self
+                .domain_participant
+                .user_defined_subscriber_list
+                .iter_mut()
+                .chain(core::iter::once(
+                    &mut self.domain_participant.builtin_subscriber,
+                ))
+            {
                 for dr in &mut subscriber.data_reader_list {
                     match &mut dr.transport_reader {
                         TransportReaderKind::Stateful(reader) => {
@@ -5490,10 +5494,14 @@ where
                     }
                 }
             }
-            for publisher in core::iter::chain(
-                &mut self.domain_participant.user_defined_publisher_list,
-                core::iter::once(&mut self.domain_participant.builtin_publisher),
-            ) {
+            for publisher in self
+                .domain_participant
+                .user_defined_publisher_list
+                .iter_mut()
+                .chain(core::iter::once(
+                    &mut self.domain_participant.builtin_publisher,
+                ))
+            {
                 for dw in &mut publisher.data_writer_list {
                     match &mut dw.transport_writer {
                         TransportWriterKind::Stateful(writer) => {
@@ -5514,10 +5522,14 @@ where
     }
 
     pub async fn poke(&mut self) {
-        for publisher in core::iter::chain(
-            &mut self.domain_participant.user_defined_publisher_list,
-            core::iter::once(&mut self.domain_participant.builtin_publisher),
-        ) {
+        for publisher in self
+            .domain_participant
+            .user_defined_publisher_list
+            .iter_mut()
+            .chain(core::iter::once(
+                &mut self.domain_participant.builtin_publisher,
+            ))
+        {
             for dw in &mut publisher.data_writer_list {
                 match &mut dw.transport_writer {
                     TransportWriterKind::Stateful(writer) => {
