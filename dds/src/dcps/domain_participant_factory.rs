@@ -45,7 +45,7 @@ use crate::{
     },
     rtps::{
         stateful_reader::RtpsStatefulReader, stateful_writer::RtpsStatefulWriter,
-        stateless_reader::RtpsStatelessReader,
+        stateless_reader::RtpsStatelessReader, stateless_writer::RtpsStatelessWriter,
     },
     runtime::{DdsRuntime, Spawner, Timer},
     transport::{
@@ -476,9 +476,13 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             vec![],
         );
 
-        let mut dcps_participant_transport_writer = transport
-            .create_stateless_writer(ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER)
-            .await;
+        let mut dcps_participant_transport_writer = RtpsStatelessWriter::new(
+            Guid::new(
+                transport.guid.prefix(),
+                ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
+            ),
+            transport.message_writer.box_clone(),
+        );
         for &discovery_locator in transport.metatraffic_multicast_locator_list() {
             dcps_participant_transport_writer.reader_locator_add(discovery_locator);
         }

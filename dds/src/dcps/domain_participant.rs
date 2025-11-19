@@ -5440,12 +5440,11 @@ where
             {
                 for dr in &mut subscriber.data_reader_list {
                     match &mut dr.transport_reader {
-                        TransportReaderKind::Stateful(rtps_stateful_reader) => todo!(),
-                        TransportReaderKind::Stateless(rtps_stateless_reader) => {
-                            rtps_stateless_reader
-                                .process_message(&rtps_message)
-                                .await
-                                .ok();
+                        TransportReaderKind::Stateful(reader) => {
+                            reader.process_message(&rtps_message, self.transport.message_writer.as_ref()).await.ok();
+                        }
+                        TransportReaderKind::Stateless(reader) => {
+                            reader.process_message(&rtps_message).await.ok();
                         }
                     }
                 }

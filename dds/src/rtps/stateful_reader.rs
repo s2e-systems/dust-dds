@@ -179,7 +179,7 @@ impl RtpsStatefulReader {
         &mut self,
         heartbeat_submessage: &HeartbeatSubmessage,
         source_guid_prefix: GuidPrefix,
-        message_writer: &impl WriteMessage,
+        message_writer: &(impl WriteMessage + ?Sized),
     ) {
         let writer_guid = Guid::new(source_guid_prefix, heartbeat_submessage.writer_id());
         if let Some(writer_proxy) = self
@@ -223,7 +223,7 @@ impl RtpsStatefulReader {
     pub async fn process_message(
         &mut self,
         rtps_message: &RtpsMessageRead,
-        message_writer: &impl WriteMessage,
+        message_writer: &(impl WriteMessage + ?Sized),
     ) -> RtpsResult<()> {
         let mut message_receiver = MessageReceiver::new(rtps_message);
 

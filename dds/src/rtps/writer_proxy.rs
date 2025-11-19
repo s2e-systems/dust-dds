@@ -250,7 +250,7 @@ impl RtpsWriterProxy {
         self.acknack_count = self.acknack_count.wrapping_add(1);
     }
 
-    pub async fn write_message(&mut self, reader_guid: &Guid, message_writer: &impl WriteMessage) {
+    pub async fn write_message(&mut self, reader_guid: &Guid, message_writer: &(impl WriteMessage + ?Sized)) {
         if self.must_send_acknacks() || !self.missing_changes().count() == 0 {
             self.set_must_send_acknacks(false);
             self.increment_acknack_count();
