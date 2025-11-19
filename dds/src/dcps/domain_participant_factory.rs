@@ -43,7 +43,7 @@ use crate::{
         time::{Duration, DurationKind},
         type_support::TypeSupport,
     },
-    rtps::stateless_reader::RtpsStatelessReader,
+    rtps::{stateful_reader::RtpsStatefulReader, stateless_reader::RtpsStatelessReader},
     runtime::{DdsRuntime, Spawner, Timer},
     transport::{
         interface::{HistoryCache, TransportParticipantFactory},
@@ -359,17 +359,15 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             ..Default::default()
         };
 
-        let guid = Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER);
-
         let rtps_stateless_reader = RtpsStatelessReader::new(
-            guid,
+            Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER),
             Box::new(DcpsParticipantReaderHistoryCache {
                 participant_address: participant_sender.clone(),
             }),
         );
 
         let dcps_participant_reader = DataReaderEntity::new(
-            InstanceHandle::new(guid.into()),
+            InstanceHandle::new(rtps_stateless_reader.guid().into()),
             spdp_reader_qos,
             String::from(DCPS_PARTICIPANT),
             Arc::new(SpdpDiscoveredParticipantData::get_type()),
@@ -378,15 +376,15 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             Vec::new(),
             TransportReaderKind::Stateless(rtps_stateless_reader),
         );
-        let dcps_topic_transport_reader = transport
-            .create_stateful_reader(
-                ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
-                ReliabilityKind::Reliable,
-                Box::new(DcpsTopicsReaderHistoryCache {
-                    participant_address: participant_sender.clone(),
-                }),
-            )
-            .await;
+
+        let dcps_topic_transport_reader = RtpsStatefulReader::new(
+            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR),
+            Box::new(DcpsTopicsReaderHistoryCache {
+                participant_address: participant_sender.clone(),
+            }),
+            ReliabilityKind::Reliable,
+        );
+
         let dcps_topic_reader = DataReaderEntity::new(
             InstanceHandle::new(dcps_topic_transport_reader.guid().into()),
             sedp_data_reader_qos(),
@@ -397,15 +395,18 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             Vec::new(),
             TransportReaderKind::Stateful(dcps_topic_transport_reader),
         );
-        let dcps_publication_transport_reader = transport
-            .create_stateful_reader(
+
+        let dcps_publication_transport_reader = RtpsStatefulReader::new(
+            Guid::new(
+                transport.guid().prefix(),
                 ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
-                ReliabilityKind::Reliable,
-                Box::new(DcpsPublicationsReaderHistoryCache {
-                    participant_address: participant_sender.clone(),
-                }),
-            )
-            .await;
+            ),
+            Box::new(DcpsPublicationsReaderHistoryCache {
+                participant_address: participant_sender.clone(),
+            }),
+            ReliabilityKind::Reliable,
+        );
+
         let dcps_publication_reader = DataReaderEntity::new(
             InstanceHandle::new(dcps_publication_transport_reader.guid().into()),
             sedp_data_reader_qos(),
@@ -416,15 +417,18 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             Vec::new(),
             TransportReaderKind::Stateful(dcps_publication_transport_reader),
         );
-        let dcps_subscription_transport_reader = transport
-            .create_stateful_reader(
+
+        let dcps_subscription_transport_reader = RtpsStatefulReader::new(
+            Guid::new(
+                transport.guid().prefix(),
                 ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
-                ReliabilityKind::Reliable,
-                Box::new(DcpsSubscriptionsReaderHistoryCache {
-                    participant_address: participant_sender.clone(),
-                }),
-            )
-            .await;
+            ),
+            Box::new(DcpsSubscriptionsReaderHistoryCache {
+                participant_address: participant_sender.clone(),
+            }),
+            ReliabilityKind::Reliable,
+        );
+
         let dcps_subscription_reader = DataReaderEntity::new(
             InstanceHandle::new(dcps_subscription_transport_reader.guid().into()),
             sedp_data_reader_qos(),

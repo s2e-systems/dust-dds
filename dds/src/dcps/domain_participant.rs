@@ -1301,19 +1301,18 @@ where
             ReliabilityQosPolicyKind::BestEffort => ReliabilityKind::BestEffort,
             ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
         };
-        let transport_reader = TransportReaderKind::Stateful(
-            self.transport
-                .create_stateful_reader(
-                    entity_id,
-                    reliablity_kind,
-                    Box::new(UserDefinedReaderHistoryCache {
-                        domain_participant_address: domain_participant_address.clone(),
-                        subscriber_handle: subscriber.instance_handle,
-                        data_reader_handle: reader_handle,
-                    }),
-                )
-                .await,
-        );
+
+        let guid = Guid::new(self.transport.guid().prefix(), entity_id);
+
+        let transport_reader = TransportReaderKind::Stateful(RtpsStatefulReader::new(
+            guid,
+            Box::new(UserDefinedReaderHistoryCache {
+                domain_participant_address: domain_participant_address.clone(),
+                subscriber_handle: subscriber.instance_handle,
+                data_reader_handle: reader_handle,
+            }),
+            reliablity_kind,
+        ));
 
         let status_condition =
             Actor::spawn::<R>(DcpsStatusCondition::default(), &self.spawner_handle);
@@ -2660,7 +2659,7 @@ where
         };
 
         if let TransportReaderKind::Stateful(r) = &data_reader.transport_reader {
-            Ok(r.is_historical_data_received().await)
+            Ok(r.is_historical_data_received())
         } else {
             Ok(true)
         }
@@ -3724,7 +3723,7 @@ where
                         durability_kind,
                     };
                     if let TransportReaderKind::Stateful(r) = &mut data_reader.transport_reader {
-                        r.add_matched_writer(writer_proxy).await;
+                        r.add_matched_writer(&writer_proxy);
                     }
 
                     if data_reader
@@ -5240,7 +5239,7 @@ where
                 })
             {
                 match &mut dr.transport_reader {
-                    TransportReaderKind::Stateful(r) => r.add_matched_writer(writer_proxy).await,
+                    TransportReaderKind::Stateful(r) => r.add_matched_writer(&writer_proxy),
                     TransportReaderKind::Stateless(_) => panic!("Invalid built-in reader type"),
                 }
             }
@@ -5337,7 +5336,7 @@ where
                 })
             {
                 match &mut dr.transport_reader {
-                    TransportReaderKind::Stateful(r) => r.add_matched_writer(writer_proxy).await,
+                    TransportReaderKind::Stateful(r) => r.add_matched_writer(&writer_proxy),
                     TransportReaderKind::Stateless(_) => panic!("Invalid built-in reader type"),
                 }
             }
@@ -5432,7 +5431,7 @@ where
                 })
             {
                 match &mut dr.transport_reader {
-                    TransportReaderKind::Stateful(r) => r.add_matched_writer(writer_proxy).await,
+                    TransportReaderKind::Stateful(r) => r.add_matched_writer(&writer_proxy),
                     TransportReaderKind::Stateless(_) => panic!("Invalid built-in reader type"),
                 }
             }
@@ -5441,12 +5440,19 @@ where
 
     pub async fn handle_data(&mut self, data_message: Arc<[u8]>) {
         if let Ok(rtps_message) = RtpsMessageRead::try_from(data_message.as_ref()) {
-            for subscriber in self.domain_participant.user_defined_subscriber_list.iter_mut() {
+            for subscriber in self
+                .domain_participant
+                .user_defined_subscriber_list
+                .iter_mut()
+            {
                 for dr in &mut subscriber.data_reader_list {
                     match &mut dr.transport_reader {
-                        TransportReaderKind::Stateful(rtps_transport_stateful_reader) => todo!(),
+                        TransportReaderKind::Stateful(rtps_stateful_reader) => todo!(),
                         TransportReaderKind::Stateless(rtps_stateless_reader) => {
-                            rtps_stateless_reader.process_message(&rtps_message).await.ok();
+                            rtps_stateless_reader
+                                .process_message(&rtps_message)
+                                .await
+                                .ok();
                         }
                     }
                 }
@@ -6594,7 +6600,7 @@ pub struct IndexedSample {
 }
 
 pub enum TransportReaderKind {
-    Stateful(RtpsTransportStatefulReader),
+    Stateful(RtpsStatefulReader),
     Stateless(RtpsStatelessReader),
 }
 

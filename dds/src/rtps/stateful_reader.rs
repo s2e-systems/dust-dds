@@ -20,13 +20,13 @@ pub struct RtpsStatefulReader {
     guid: Guid,
     matched_writers: Vec<RtpsWriterProxy>,
     reliability: ReliabilityKind,
-    history_cache: Box<dyn HistoryCache>,
+    history_cache: Box<dyn HistoryCache + Send + Sync>,
 }
 
 impl RtpsStatefulReader {
     pub fn new(
         guid: Guid,
-        history_cache: Box<dyn HistoryCache>,
+        history_cache: Box<dyn HistoryCache + Send + Sync>,
         reliability: ReliabilityKind,
     ) -> Self {
         Self {

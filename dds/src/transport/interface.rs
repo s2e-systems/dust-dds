@@ -65,30 +65,6 @@ impl RtpsTransportParticipant {
         )
     }
 
-    pub async fn create_stateful_reader(
-        &mut self,
-        entity_id: EntityId,
-        reliability_kind: ReliabilityKind,
-        reader_history_cache: Box<dyn HistoryCache>,
-    ) -> RtpsTransportStatefulReader {
-        let guid = Guid::new(self.guid.prefix(), entity_id);
-        let rtps_stateful_reader = Arc::new(Mutex::new(RefCell::new(RtpsStatefulReader::new(
-            guid,
-            reader_history_cache,
-            reliability_kind,
-        ))));
-        self.chanel_message_sender
-            .send(ChannelMessageKind::AddStatefulReader(
-                rtps_stateful_reader.clone(),
-            ))
-            .await
-            .expect("chanel_message receiver alive");
-        RtpsTransportStatefulReader {
-            guid,
-            rtps_stateful_reader,
-        }
-    }
-
     pub async fn create_stateful_writer(
         &mut self,
         entity_id: EntityId,
