@@ -202,7 +202,6 @@ fn sample_rejected_listener() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            ..Default::default()
         },
         ..Default::default()
     };
@@ -225,7 +224,6 @@ fn sample_rejected_listener() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            ..Default::default()
         },
         resource_limits: ResourceLimitsQosPolicy {
             max_samples: Length::Limited(2),
@@ -319,7 +317,6 @@ fn subscription_matched_listener() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            ..Default::default()
         },
         ..Default::default()
     };
@@ -342,7 +339,6 @@ fn subscription_matched_listener() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            ..Default::default()
         },
 
         ..Default::default()
@@ -414,7 +410,6 @@ fn requested_incompatible_qos_listener() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            ..Default::default()
         },
         ..Default::default()
     };
@@ -437,7 +432,6 @@ fn requested_incompatible_qos_listener() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            ..Default::default()
         },
 
         ..Default::default()
@@ -509,7 +503,6 @@ fn publication_matched_listener() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            ..Default::default()
         },
 
         ..Default::default()
@@ -534,7 +527,6 @@ fn publication_matched_listener() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            ..Default::default()
         },
         ..Default::default()
     };
@@ -605,7 +597,6 @@ fn offered_incompatible_qos_listener() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            ..Default::default()
         },
 
         ..Default::default()
@@ -630,7 +621,6 @@ fn offered_incompatible_qos_listener() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            ..Default::default()
         },
         ..Default::default()
     };
@@ -1094,7 +1084,6 @@ fn data_reader_sample_rejected_listener() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            ..Default::default()
         },
         ..Default::default()
     };
@@ -1117,7 +1106,6 @@ fn data_reader_sample_rejected_listener() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            ..Default::default()
         },
         resource_limits: ResourceLimitsQosPolicy {
             max_samples: Length::Limited(2),
@@ -1206,7 +1194,6 @@ fn data_reader_subscription_matched_listener() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            ..Default::default()
         },
         ..Default::default()
     };
@@ -1229,7 +1216,6 @@ fn data_reader_subscription_matched_listener() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            ..Default::default()
         },
 
         ..Default::default()
@@ -1296,7 +1282,6 @@ fn data_reader_requested_incompatible_qos_listener() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            ..Default::default()
         },
         ..Default::default()
     };
@@ -1319,7 +1304,6 @@ fn data_reader_requested_incompatible_qos_listener() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            ..Default::default()
         },
 
         ..Default::default()
@@ -1386,7 +1370,6 @@ fn publisher_publication_matched_listener() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            ..Default::default()
         },
 
         ..Default::default()
@@ -1417,7 +1400,6 @@ fn publisher_publication_matched_listener() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            ..Default::default()
         },
         ..Default::default()
     };
@@ -1480,7 +1462,6 @@ fn publisher_offered_incompatible_qos_listener() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            ..Default::default()
         },
 
         ..Default::default()
@@ -1512,7 +1493,6 @@ fn publisher_offered_incompatible_qos_listener() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            ..Default::default()
         },
         ..Default::default()
     };
@@ -1681,7 +1661,6 @@ fn subscriber_sample_rejected_listener() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            ..Default::default()
         },
         ..Default::default()
     };
@@ -1711,7 +1690,6 @@ fn subscriber_sample_rejected_listener() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            ..Default::default()
         },
         resource_limits: ResourceLimitsQosPolicy {
             max_samples: Length::Limited(2),
@@ -1796,7 +1774,6 @@ fn subscriber_subscription_matched_listener() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            ..Default::default()
         },
         ..Default::default()
     };
@@ -1826,7 +1803,6 @@ fn subscriber_subscription_matched_listener() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            ..Default::default()
         },
 
         ..Default::default()
@@ -1890,7 +1866,6 @@ fn subscriber_requested_incompatible_qos_listener() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            ..Default::default()
         },
         ..Default::default()
     };
@@ -1920,7 +1895,6 @@ fn subscriber_requested_incompatible_qos_listener() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            ..Default::default()
         },
 
         ..Default::default()
@@ -1984,7 +1958,6 @@ fn data_writer_publication_matched_listener() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            ..Default::default()
         },
 
         ..Default::default()
@@ -2009,7 +1982,6 @@ fn data_writer_publication_matched_listener() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            ..Default::default()
         },
         ..Default::default()
     };
@@ -2075,7 +2047,6 @@ fn data_writer_offered_incompatible_qos_listener() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            ..Default::default()
         },
 
         ..Default::default()
@@ -2100,7 +2071,6 @@ fn data_writer_offered_incompatible_qos_listener() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            ..Default::default()
         },
         ..Default::default()
     };
