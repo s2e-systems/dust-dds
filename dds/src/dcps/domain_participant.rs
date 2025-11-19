@@ -74,17 +74,14 @@ use crate::{
         type_support::TypeSupport,
     },
     rtps::{
-        stateful_reader::RtpsStatefulReader, stateless_reader::RtpsStatelessReader,
-        stateless_writer::RtpsStatelessWriter,
+        stateful_reader::RtpsStatefulReader, stateful_writer::RtpsStatefulWriter,
+        stateless_reader::RtpsStatelessReader, stateless_writer::RtpsStatelessWriter,
     },
     rtps_messages::overall_structure::RtpsMessageRead,
     runtime::{Clock, DdsRuntime, Spawner, Timer},
     transport::{
         self,
-        interface::{
-            HistoryCache, RtpsTransportParticipant, RtpsTransportStatefulReader,
-            RtpsTransportStatefulWriter,
-        },
+        interface::{HistoryCache, RtpsTransportParticipant},
         types::{
             CacheChange, ChangeKind, DurabilityKind, ENTITYID_UNKNOWN, EntityId, Guid,
             ReliabilityKind, TopicKind, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY,
@@ -1600,14 +1597,10 @@ where
                 }
             }
         };
-        let reliablity_kind = match qos.reliability.kind {
-            ReliabilityQosPolicyKind::BestEffort => ReliabilityKind::BestEffort,
-            ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
-        };
-        let transport_writer = self
-            .transport
-            .create_stateful_writer(entity_id, reliablity_kind)
-            .await;
+        let transport_writer = RtpsStatefulWriter::new(
+            Guid::new(self.transport.guid().prefix(), entity_id),
+            self.transport.fragment_size,
+        );
         let listener_sender = dcps_listener.map(|l| l.spawn::<R>(&self.spawner_handle));
         let data_writer = DataWriterEntity::new(
             writer_handle,
@@ -3254,7 +3247,7 @@ where
                         expects_inline_qos: false,
                     };
                     if let TransportWriterKind::Stateful(w) = &mut data_writer.transport_writer {
-                        w.add_matched_reader(reader_proxy).await;
+                        w.add_matched_reader(reader_proxy);
                     }
 
                     if data_writer
@@ -5191,7 +5184,7 @@ where
                 })
             {
                 match &mut dw.transport_writer {
-                    TransportWriterKind::Stateful(w) => w.add_matched_reader(reader_proxy).await,
+                    TransportWriterKind::Stateful(w) => w.add_matched_reader(reader_proxy),
                     TransportWriterKind::Stateless(_) => panic!("Invalid built-in writer type"),
                 }
             }
@@ -5288,7 +5281,7 @@ where
                 })
             {
                 match &mut dw.transport_writer {
-                    TransportWriterKind::Stateful(w) => w.add_matched_reader(reader_proxy).await,
+                    TransportWriterKind::Stateful(w) => w.add_matched_reader(reader_proxy),
                     TransportWriterKind::Stateless(_) => panic!("Invalid built-in writer type"),
                 }
             }
@@ -5384,7 +5377,7 @@ where
                 })
             {
                 match &mut dw.transport_writer {
-                    TransportWriterKind::Stateful(w) => w.add_matched_reader(reader_proxy).await,
+                    TransportWriterKind::Stateful(w) => w.add_matched_reader(reader_proxy),
                     TransportWriterKind::Stateless(_) => panic!("Invalid built-in writer type"),
                 }
             }
@@ -6026,7 +6019,7 @@ impl PublisherEntity {
 }
 
 pub enum TransportWriterKind {
-    Stateful(RtpsTransportStatefulWriter),
+    Stateful(RtpsStatefulWriter),
     Stateless(RtpsStatelessWriter),
 }
 
@@ -6040,14 +6033,14 @@ impl TransportWriterKind {
 
     pub async fn add_change(&mut self, cache_change: CacheChange) {
         match self {
-            TransportWriterKind::Stateful(w) => w.add_change(cache_change).await,
+            TransportWriterKind::Stateful(w) => w.add_change(cache_change),
             TransportWriterKind::Stateless(w) => w.add_change(cache_change).await,
         }
     }
 
     pub async fn remove_change(&mut self, sequence_number: i64) {
         match self {
-            TransportWriterKind::Stateful(w) => w.remove_change(sequence_number).await,
+            TransportWriterKind::Stateful(w) => w.remove_change(sequence_number),
             TransportWriterKind::Stateless(w) => w.remove_change(sequence_number),
         }
     }
@@ -6211,7 +6204,7 @@ impl DataWriterEntity {
                         if self.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
                             let start_time = clock.now();
                             while let TransportWriterKind::Stateful(w) = &self.transport_writer {
-                                if w.is_change_acknowledged(smallest_seq_num_instance).await {
+                                if w.is_change_acknowledged(smallest_seq_num_instance) {
                                     break;
                                 }
 
@@ -6489,7 +6482,6 @@ impl DataWriterEntity {
         match &self.transport_writer {
             TransportWriterKind::Stateful(w) => {
                 w.is_change_acknowledged(self.last_change_sequence_number)
-                    .await
             }
             TransportWriterKind::Stateless(_) => true,
         }

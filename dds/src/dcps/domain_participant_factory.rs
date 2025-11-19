@@ -43,7 +43,10 @@ use crate::{
         time::{Duration, DurationKind},
         type_support::TypeSupport,
     },
-    rtps::{stateful_reader::RtpsStatefulReader, stateless_reader::RtpsStatelessReader},
+    rtps::{
+        stateful_reader::RtpsStatefulReader, stateful_writer::RtpsStatefulWriter,
+        stateless_reader::RtpsStatelessReader,
+    },
     runtime::{DdsRuntime, Spawner, Timer},
     transport::{
         interface::{HistoryCache, TransportParticipantFactory},
@@ -491,12 +494,14 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             spdp_writer_qos,
         );
 
-        let dcps_topics_transport_writer = transport
-            .create_stateful_writer(
+        let dcps_topics_transport_writer = RtpsStatefulWriter::new(
+            Guid::new(
+                transport.guid.prefix(),
                 ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
-                ReliabilityKind::Reliable,
-            )
-            .await;
+            ),
+            transport.fragment_size,
+        );
+
         let dcps_topics_writer = DataWriterEntity::new(
             InstanceHandle::new(dcps_topics_transport_writer.guid().into()),
             TransportWriterKind::Stateful(dcps_topics_transport_writer),
@@ -508,12 +513,14 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             vec![],
             sedp_data_writer_qos(),
         );
-        let dcps_publications_transport_writer = transport
-            .create_stateful_writer(
+        let dcps_publications_transport_writer = RtpsStatefulWriter::new(
+            Guid::new(
+                transport.guid().prefix(),
                 ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
-                ReliabilityKind::Reliable,
-            )
-            .await;
+            ),
+            transport.fragment_size,
+        );
+
         let dcps_publications_writer = DataWriterEntity::new(
             InstanceHandle::new(dcps_publications_transport_writer.guid().into()),
             TransportWriterKind::Stateful(dcps_publications_transport_writer),
@@ -526,12 +533,13 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             sedp_data_writer_qos(),
         );
 
-        let dcps_subscriptions_transport_writer = transport
-            .create_stateful_writer(
+        let dcps_subscriptions_transport_writer = RtpsStatefulWriter::new(
+            Guid::new(
+                transport.guid().prefix(),
                 ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
-                ReliabilityKind::Reliable,
-            )
-            .await;
+            ),
+            transport.fragment_size,
+        );
         let dcps_subscriptions_writer = DataWriterEntity::new(
             InstanceHandle::new(dcps_subscriptions_transport_writer.guid().into()),
             TransportWriterKind::Stateful(dcps_subscriptions_transport_writer),
