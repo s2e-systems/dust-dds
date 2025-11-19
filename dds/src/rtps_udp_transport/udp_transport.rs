@@ -1,5 +1,5 @@
 use crate::{
-    dcps::channels::mpsc::mpsc_channel,
+    dcps::channels::mpsc::{MpscReceiver, MpscSender, mpsc_channel},
     rtps::message_sender::{Clock, WriteMessage},
     rtps_messages::overall_structure::RtpsMessageRead,
     std_runtime::{self, executor::block_on},
@@ -160,6 +160,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
         &self,
         guid_prefix: GuidPrefix,
         domain_id: i32,
+        data_channel_sender: MpscSender<Arc<[u8]>>,
     ) -> RtpsTransportParticipant {
         let interface_address_list = NetworkInterface::show()
             .expect("Could not scan interfaces")
@@ -248,7 +249,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
             chanel_message_sender: chanel_message_sender.clone(),
         };
 
-        let chanel_message_sender_clone = chanel_message_sender.clone();
+        let data_channel_sender_clone = data_channel_sender.clone();
 
         std::thread::Builder::new()
             .name("SomethingOnMetatrafficMulticastSocket".to_string())
@@ -258,8 +259,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                     if let Ok(size) = metatraffic_multicast_socket.recv(&mut buf) {
                         if size > 0 {
                             std_runtime::executor::block_on(
-                                chanel_message_sender_clone
-                                    .send(ChannelMessageKind::DataArrived(buf[..size].into())),
+                                data_channel_sender_clone.send(Arc::from(&buf[..size])),
                             )
                             .expect("chanel_message sender alive");
                         }
@@ -268,7 +268,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
             })
             .expect("failed to spawn thread");
 
-        let chanel_message_sender_clone = chanel_message_sender.clone();
+        let data_channel_sender_clone = data_channel_sender.clone();
         std::thread::Builder::new()
             .name("SomethingOnMetatrafficUnicastSocket".to_string())
             .spawn(move || {
@@ -277,8 +277,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                     if let Ok(size) = metatraffic_unicast_socket.recv(&mut buf) {
                         if size > 0 {
                             std_runtime::executor::block_on(
-                                chanel_message_sender_clone
-                                    .send(ChannelMessageKind::DataArrived(buf[..size].into())),
+                                data_channel_sender_clone.send(Arc::from(&buf[..size])),
                             )
                             .expect("chanel_message sender alive")
                         }
@@ -287,7 +286,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
             })
             .expect("failed to spawn thread");
 
-        let chanel_message_sender_clone = chanel_message_sender.clone();
+        let data_channel_sender_clone = data_channel_sender.clone();
         std::thread::Builder::new()
             .name("SomethingOnDefaultUnicastSocket".to_string())
             .spawn(move || {
@@ -296,8 +295,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                     if let Ok(size) = default_unicast_socket.recv(&mut buf) {
                         if size > 0 {
                             std_runtime::executor::block_on(
-                                chanel_message_sender_clone
-                                    .send(ChannelMessageKind::DataArrived(buf[..size].into())),
+                                data_channel_sender_clone.send(Arc::from(&buf[..size])),
                             )
                             .expect("chanel_message sender alive");
                         }

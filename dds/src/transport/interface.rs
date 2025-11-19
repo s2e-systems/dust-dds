@@ -2,7 +2,7 @@ use super::types::{
     CacheChange, EntityId, Guid, GuidPrefix, Locator, ProtocolVersion, ReliabilityKind, VendorId,
 };
 use crate::{
-    dcps::channels::mpsc::MpscSender,
+    dcps::channels::mpsc::{MpscReceiver, MpscSender},
     rtps::{
         message_sender::WriteMessage,
         stateful_reader::RtpsStatefulReader,
@@ -239,6 +239,7 @@ pub trait TransportParticipantFactory: Send + 'static {
         &self,
         guid_prefix: GuidPrefix,
         domain_id: i32,
+        data_channel_sender: MpscSender<Arc<[u8]>>,
     ) -> impl Future<Output = RtpsTransportParticipant> + Send;
 }
 

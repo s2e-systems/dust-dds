@@ -4,7 +4,7 @@ use crate::{
     dcps::{
         actor::{Actor, ActorAddress},
         channels::{
-            mpsc::{MpscSender, mpsc_channel},
+            mpsc::{MpscReceiver, MpscSender, mpsc_channel},
             oneshot::oneshot,
         },
         data_representation_builtin_endpoints::{
@@ -59,7 +59,7 @@ use alloc::{
     vec,
     vec::Vec,
 };
-use core::{future::Future, marker::PhantomData, pin::Pin};
+use core::{future::Future, marker::PhantomData, pin::Pin, task::Poll};
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
     EntityId::new([0x00, 0x01, 0x00], BUILT_IN_WRITER_WITH_KEY);
@@ -160,9 +160,11 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
         let guid_prefix = self.create_new_guid_prefix();
         let (participant_sender, participant_receiver) = mpsc_channel();
 
+        let (data_channel_sender, data_channel_receiver) = mpsc_channel();
+
         let mut transport = self
             .transport
-            .create_participant(guid_prefix, domain_id)
+            .create_participant(guid_prefix, domain_id, data_channel_sender)
             .await;
         let participant_instance_handle = InstanceHandle::new(transport.guid().into());
 
@@ -591,9 +593,53 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             .status_condition()
             .address();
 
+        enum Either {
+            A(Option<DcpsDomainParticipantMail>),
+            B(Option<Arc<[u8]>>),
+        }
+        struct Select<A, B> {
+            a: A,
+            b: B,
+        }
+        impl<'a, A, B> Future for Select<A, B>
+        where
+            A: Future<Output = Option<DcpsDomainParticipantMail>> + Unpin,
+            B: Future<Output = Option<Arc<[u8]>>> + Unpin,
+        {
+            type Output = Either;
+
+            fn poll(
+                mut self: Pin<&mut Self>,
+                cx: &mut core::task::Context<'_>,
+            ) -> core::task::Poll<Self::Output> {
+                if let Poll::Ready(a) = Pin::new(&mut self.a).poll(cx) {
+                    return Poll::Ready(Either::A(a));
+                }
+                if let Poll::Ready(b) = Pin::new(&mut self.b).poll(cx) {
+                    return Poll::Ready(Either::B(b));
+                }
+                Poll::Pending
+            }
+        }
+
         spawner_handle.spawn(async move {
-            while let Some(m) = participant_receiver.receive().await {
-                dcps_participant.handle(m).await;
+            loop {
+                let select = Select {
+                    a: core::pin::pin!(participant_receiver.receive()),
+                    b: core::pin::pin!(data_channel_receiver.receive()),
+                };
+                match select.await {
+                    Either::A(dcps_domain_participant_mail) => {
+                        if let Some(dcps_domain_participant_mail) = dcps_domain_participant_mail {
+                            dcps_participant.handle(dcps_domain_participant_mail).await
+                        }
+                    }
+                    Either::B(data_message) => {
+                        if let Some(data_message) = data_message {
+                            dcps_participant.handle_data(data_message).await
+                        }
+                    }
+                }
             }
         });
 
