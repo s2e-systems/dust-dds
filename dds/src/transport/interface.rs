@@ -1,14 +1,11 @@
-use super::types::{
-    CacheChange, EntityId, Guid, GuidPrefix, Locator, ProtocolVersion, ReliabilityKind, VendorId,
-};
+use super::types::{CacheChange, Guid, GuidPrefix, Locator, ProtocolVersion, VendorId};
 use crate::{
-    dcps::channels::mpsc::{MpscReceiver, MpscSender},
+    dcps::channels::mpsc::MpscSender,
     rtps::{
         message_sender::WriteMessage,
         stateful_reader::RtpsStatefulReader,
         stateful_writer::RtpsStatefulWriter,
         stateless_reader::RtpsStatelessReader,
-        stateless_writer::RtpsStatelessWriter,
         types::{PROTOCOLVERSION, VENDOR_ID_S2E},
     },
     transport::types::{ReaderProxy, WriterProxy},
@@ -57,14 +54,6 @@ impl RtpsTransportParticipant {
     pub fn default_multicast_locator_list(&self) -> &[Locator] {
         &[]
     }
-
-    pub async fn create_stateless_writer(&mut self, entity_id: EntityId) -> RtpsStatelessWriter {
-        RtpsStatelessWriter::new(
-            Guid::new(self.guid.prefix(), entity_id),
-            self.message_writer.box_clone(),
-        )
-    }
-
 }
 
 pub struct RtpsTransportStatefulReader {
@@ -138,37 +127,6 @@ impl RtpsTransportStatefulWriter {
                 .borrow(cs)
                 .borrow_mut()
                 .delete_matched_reader(remote_reader_guid);
-        })
-    }
-}
-
-impl RtpsTransportStatefulWriter {
-    pub fn add_change(
-        &mut self,
-        cache_change: CacheChange,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async move {
-            critical_section::with(move |cs| {
-                self.rtps_stateful_writer
-                    .borrow(cs)
-                    .borrow_mut()
-                    .add_change(cache_change);
-            })
-        })
-    }
-
-    pub fn remove_change(
-        &mut self,
-        sequence_number: i64,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
-        let rtps_stateful_writer = self.rtps_stateful_writer.clone();
-        Box::pin(async move {
-            critical_section::with(move |cs| {
-                rtps_stateful_writer
-                    .borrow(cs)
-                    .borrow_mut()
-                    .remove_change(sequence_number);
-            })
         })
     }
 }

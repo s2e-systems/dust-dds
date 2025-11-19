@@ -481,7 +481,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 transport.guid.prefix(),
                 ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
             ),
-            transport.message_writer.box_clone(),
         );
         for &discovery_locator in transport.metatraffic_multicast_locator_list() {
             dcps_participant_transport_writer.reader_locator_add(discovery_locator);

@@ -14,6 +14,7 @@ use crate::{
         },
         types::TIME_INVALID,
     },
+    rtps_udp_transport::udp_transport::RtpsUdpTransportClock,
     transport::types::{
         CacheChange, ChangeKind, DurabilityKind, ENTITYID_UNKNOWN, EntityId, Guid, GuidPrefix,
         ReaderProxy, ReliabilityKind, SequenceNumber,
@@ -48,8 +49,14 @@ impl RtpsStatefulWriter {
         self.data_max_size_serialized
     }
 
-    pub fn add_change(&mut self, cache_change: CacheChange) {
+    pub async fn add_change(
+        &mut self,
+        cache_change: CacheChange,
+        message_writer: &(impl WriteMessage + ?Sized),
+    ) {
         self.changes.push(cache_change);
+        self.write_message(message_writer, &RtpsUdpTransportClock)
+            .await;
     }
 
     pub fn remove_change(&mut self, sequence_number: SequenceNumber) {
@@ -126,7 +133,7 @@ impl RtpsStatefulWriter {
     pub async fn process_message(
         &mut self,
         rtps_message: &RtpsMessageRead,
-        message_writer: &impl WriteMessage,
+        message_writer: &(impl WriteMessage + ?Sized),
         clock: &impl Clock,
     ) -> RtpsResult<()> {
         let mut message_receiver = MessageReceiver::new(rtps_message);
@@ -160,7 +167,7 @@ impl RtpsStatefulWriter {
         &mut self,
         acknack_submessage: &AckNackSubmessage,
         source_guid_prefix: GuidPrefix,
-        message_writer: &impl WriteMessage,
+        message_writer: &(impl WriteMessage + ?Sized),
         clock: &impl Clock,
     ) {
         if &self.guid.entity_id() == acknack_submessage.writer_id() {
@@ -198,7 +205,7 @@ impl RtpsStatefulWriter {
         &mut self,
         nackfrag_submessage: &NackFragSubmessage,
         source_guid_prefix: GuidPrefix,
-        message_writer: &impl WriteMessage,
+        message_writer: &(impl WriteMessage + ?Sized),
     ) {
         let reader_guid = Guid::new(source_guid_prefix, nackfrag_submessage.reader_id());
 

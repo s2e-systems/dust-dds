@@ -74,10 +74,12 @@ use crate::{
         type_support::TypeSupport,
     },
     rtps::{
-        stateful_reader::RtpsStatefulReader, stateful_writer::RtpsStatefulWriter,
-        stateless_reader::RtpsStatelessReader, stateless_writer::RtpsStatelessWriter,
+        message_sender::WriteMessage, stateful_reader::RtpsStatefulReader,
+        stateful_writer::RtpsStatefulWriter, stateless_reader::RtpsStatelessReader,
+        stateless_writer::RtpsStatelessWriter,
     },
     rtps_messages::overall_structure::RtpsMessageRead,
+    rtps_udp_transport::udp_transport::RtpsUdpTransportClock,
     runtime::{Clock, DdsRuntime, Spawner, Timer},
     transport::{
         self,
@@ -1926,7 +1928,11 @@ where
         };
 
         data_writer
-            .unregister_w_timestamp(dynamic_data, timestamp)
+            .unregister_w_timestamp(
+                dynamic_data,
+                timestamp,
+                self.transport.message_writer.as_ref(),
+            )
             .await
     }
 
@@ -2008,7 +2014,12 @@ where
                 let sleep_duration = timestamp - now + lifespan_duration;
                 if sleep_duration > Duration::new(0, 0) {
                     let sequence_number = match data_writer
-                        .write_w_timestamp(dynamic_data, timestamp, &self.clock_handle)
+                        .write_w_timestamp(
+                            dynamic_data,
+                            timestamp,
+                            &self.clock_handle,
+                            self.transport.message_writer.as_ref(),
+                        )
                         .await
                     {
                         Ok(s) => s,
@@ -2035,7 +2046,12 @@ where
             }
             DurationKind::Infinite => {
                 match data_writer
-                    .write_w_timestamp(dynamic_data, timestamp, &self.clock_handle)
+                    .write_w_timestamp(
+                        dynamic_data,
+                        timestamp,
+                        &self.clock_handle,
+                        self.transport.message_writer.as_ref(),
+                    )
                     .await
                 {
                     Ok(_) => (),
@@ -2094,7 +2110,11 @@ where
         };
 
         data_writer
-            .dispose_w_timestamp(dynamic_data, timestamp)
+            .dispose_w_timestamp(
+                dynamic_data,
+                timestamp,
+                self.transport.message_writer.as_ref(),
+            )
             .await
     }
 
@@ -2761,6 +2781,7 @@ where
                     spdp_discovered_participant_data.create_dynamic_sample(),
                     timestamp,
                     &self.clock_handle,
+                    self.transport.message_writer.as_ref(),
                 )
                 .await
                 .ok();
@@ -2791,9 +2812,13 @@ where
                     )
                     .unwrap();
 
-                dw.unregister_w_timestamp(dynamic_data, timestamp)
-                    .await
-                    .ok();
+                dw.unregister_w_timestamp(
+                    dynamic_data,
+                    timestamp,
+                    self.transport.message_writer.as_ref(),
+                )
+                .await
+                .ok();
             }
         }
     }
@@ -2875,6 +2900,7 @@ where
                 discovered_writer_data.create_dynamic_sample(),
                 timestamp,
                 &self.clock_handle,
+                self.transport.message_writer.as_ref(),
             )
             .await
             .ok();
@@ -2903,9 +2929,13 @@ where
                 )
                 .unwrap();
 
-            dw.unregister_w_timestamp(dynamic_data, timestamp)
-                .await
-                .ok();
+            dw.unregister_w_timestamp(
+                dynamic_data,
+                timestamp,
+                self.transport.message_writer.as_ref(),
+            )
+            .await
+            .ok();
         }
     }
 
@@ -2998,6 +3028,7 @@ where
                 discovered_reader_data.create_dynamic_sample(),
                 timestamp,
                 &self.clock_handle,
+                self.transport.message_writer.as_ref(),
             )
             .await
             .ok();
@@ -3025,9 +3056,13 @@ where
                     .create_dynamic_sample(),
                 )
                 .unwrap();
-            dw.unregister_w_timestamp(dynamic_data, timestamp)
-                .await
-                .ok();
+            dw.unregister_w_timestamp(
+                dynamic_data,
+                timestamp,
+                self.transport.message_writer.as_ref(),
+            )
+            .await
+            .ok();
         }
     }
 
@@ -3077,6 +3112,7 @@ where
                 discovered_topic_data.create_dynamic_sample(),
                 timestamp,
                 &self.clock_handle,
+                self.transport.message_writer.as_ref(),
             )
             .await
             .ok();
@@ -5433,19 +5469,44 @@ where
 
     pub async fn handle_data(&mut self, data_message: Arc<[u8]>) {
         if let Ok(rtps_message) = RtpsMessageRead::try_from(data_message.as_ref()) {
-            for subscriber in self
-                .domain_participant
-                .user_defined_subscriber_list
-                .iter_mut()
-            {
+            for subscriber in core::iter::chain(
+                &mut self.domain_participant.user_defined_subscriber_list,
+                core::iter::once(&mut self.domain_participant.builtin_subscriber),
+            ) {
                 for dr in &mut subscriber.data_reader_list {
                     match &mut dr.transport_reader {
                         TransportReaderKind::Stateful(reader) => {
-                            reader.process_message(&rtps_message, self.transport.message_writer.as_ref()).await.ok();
+                            reader
+                                .process_message(
+                                    &rtps_message,
+                                    self.transport.message_writer.as_ref(),
+                                )
+                                .await
+                                .ok();
                         }
                         TransportReaderKind::Stateless(reader) => {
                             reader.process_message(&rtps_message).await.ok();
                         }
+                    }
+                }
+            }
+            for publisher in core::iter::chain(
+                &mut self.domain_participant.user_defined_publisher_list,
+                core::iter::once(&mut self.domain_participant.builtin_publisher),
+            ) {
+                for dw in &mut publisher.data_writer_list {
+                    match &mut dw.transport_writer {
+                        TransportWriterKind::Stateful(writer) => {
+                            writer
+                                .process_message(
+                                    &rtps_message,
+                                    self.transport.message_writer.as_ref(),
+                                    &RtpsUdpTransportClock,
+                                )
+                                .await
+                                .ok();
+                        }
+                        TransportWriterKind::Stateless(_writer) => {}
                     }
                 }
             }
@@ -6030,10 +6091,14 @@ impl TransportWriterKind {
         }
     }
 
-    pub async fn add_change(&mut self, cache_change: CacheChange) {
+    pub async fn add_change(
+        &mut self,
+        cache_change: CacheChange,
+        message_writer: &(impl WriteMessage + ?Sized),
+    ) {
         match self {
-            TransportWriterKind::Stateful(w) => w.add_change(cache_change),
-            TransportWriterKind::Stateless(w) => w.add_change(cache_change).await,
+            TransportWriterKind::Stateful(w) => w.add_change(cache_change, message_writer).await,
+            TransportWriterKind::Stateless(w) => w.add_change(cache_change, message_writer).await,
         }
     }
 
@@ -6120,6 +6185,7 @@ impl DataWriterEntity {
         dynamic_data: DynamicData,
         timestamp: Time,
         clock: &impl Clock,
+        message_writer: &(impl WriteMessage + ?Sized),
     ) -> DdsResult<i64> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
@@ -6264,7 +6330,9 @@ impl DataWriterEntity {
                 self.instance_samples.push(s);
             }
         }
-        self.transport_writer.add_change(change).await;
+        self.transport_writer
+            .add_change(change, message_writer)
+            .await;
         Ok(self.last_change_sequence_number)
     }
 
@@ -6272,6 +6340,7 @@ impl DataWriterEntity {
         &mut self,
         mut dynamic_data: DynamicData,
         timestamp: Time,
+        message_writer: &(impl WriteMessage + ?Sized),
     ) -> DdsResult<()> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
@@ -6321,7 +6390,9 @@ impl DataWriterEntity {
             instance_handle: Some(instance_handle.into()),
             data_value: serialized_key.into(),
         };
-        self.transport_writer.add_change(cache_change).await;
+        self.transport_writer
+            .add_change(cache_change, message_writer)
+            .await;
 
         Ok(())
     }
@@ -6330,6 +6401,7 @@ impl DataWriterEntity {
         &mut self,
         mut dynamic_data: DynamicData,
         timestamp: Time,
+        message_writer: &(impl WriteMessage + ?Sized),
     ) -> DdsResult<()> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
@@ -6388,7 +6460,9 @@ impl DataWriterEntity {
             instance_handle: Some(instance_handle.into()),
             data_value: serialized_key.into(),
         };
-        self.transport_writer.add_change(cache_change).await;
+        self.transport_writer
+            .add_change(cache_change, message_writer)
+            .await;
         Ok(())
     }
 

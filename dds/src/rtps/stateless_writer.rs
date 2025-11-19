@@ -15,16 +15,14 @@ pub struct RtpsStatelessWriter {
     guid: Guid,
     changes: Vec<CacheChange>,
     reader_locators: Vec<RtpsReaderLocator>,
-    message_writer: Box<dyn WriteMessage + Send + Sync + 'static>,
 }
 
 impl RtpsStatelessWriter {
-    pub fn new(guid: Guid, message_writer: Box<dyn WriteMessage + Send + Sync + 'static>) -> Self {
+    pub fn new(guid: Guid) -> Self {
         Self {
             guid,
             changes: Vec::new(),
             reader_locators: Vec::new(),
-            message_writer,
         }
     }
 
@@ -32,7 +30,11 @@ impl RtpsStatelessWriter {
         self.guid
     }
 
-    pub async fn add_change(&mut self, cache_change: CacheChange) {
+    pub async fn add_change(
+        &mut self,
+        cache_change: CacheChange,
+        message_writer: &(impl WriteMessage + ?Sized),
+    ) {
         self.changes.push(cache_change);
 
         for reader_locator in &mut self.reader_locators {
@@ -59,9 +61,9 @@ impl RtpsStatelessWriter {
 
                     let rtps_message = RtpsMessageWrite::from_submessages(
                         &[&info_ts_submessage, &data_submessage],
-                        self.message_writer.guid_prefix(),
+                        message_writer.guid_prefix(),
                     );
-                    self.message_writer
+                    message_writer
                         .write_message(rtps_message.buffer(), &[reader_locator.locator()])
                         .await;
                 } else {
@@ -73,9 +75,9 @@ impl RtpsStatelessWriter {
                     );
                     let rtps_message = RtpsMessageWrite::from_submessages(
                         &[&gap_submessage],
-                        self.message_writer.guid_prefix(),
+                        message_writer.guid_prefix(),
                     );
-                    self.message_writer
+                    message_writer
                         .write_message(rtps_message.buffer(), &[reader_locator.locator()])
                         .await;
                 }
