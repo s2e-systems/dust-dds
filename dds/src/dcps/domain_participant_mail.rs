@@ -5,9 +5,15 @@ use crate::{
         TopicBuiltinTopicData,
     },
     dcps::{
-        actor::{Actor, ActorAddress, MailHandler},
+        actor::{ActorAddress, MailHandler},
         channels::{mpsc::MpscSender, oneshot::OneshotSender},
-        listeners::domain_participant_listener::ListenerMail,
+        listeners::{
+            data_reader_listener::DcpsDataReaderListener,
+            data_writer_listener::DcpsDataWriterListener,
+            domain_participant_listener::DcpsDomainParticipantListener,
+            publisher_listener::DcpsPublisherListener, subscriber_listener::DcpsSubscriberListener,
+            topic_listener::DcpsTopicListener,
+        },
         status_condition::DcpsStatusCondition,
     },
     infrastructure::{
@@ -31,10 +37,10 @@ use crate::{
 use alloc::{boxed::Box, string::String, sync::Arc, vec::Vec};
 use core::{future::Future, pin::Pin};
 
-pub enum ParticipantServiceMail<R: DdsRuntime> {
+pub enum ParticipantServiceMail {
     CreateUserDefinedPublisher {
         qos: QosKind<PublisherQos>,
-        listener_sender: Option<MpscSender<ListenerMail<R>>>,
+        dcps_listener: Option<DcpsPublisherListener>,
         mask: Vec<StatusKind>,
         reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
     },
@@ -45,10 +51,9 @@ pub enum ParticipantServiceMail<R: DdsRuntime> {
     },
     CreateUserDefinedSubscriber {
         qos: QosKind<SubscriberQos>,
-        status_condition: Actor<DcpsStatusCondition>,
-        listener_sender: Option<MpscSender<ListenerMail<R>>>,
+        dcps_listener: Option<DcpsSubscriberListener>,
         mask: Vec<StatusKind>,
-        reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
+        reply_sender: OneshotSender<DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)>>,
     },
     DeleteUserDefinedSubscriber {
         participant_handle: InstanceHandle,
@@ -59,11 +64,10 @@ pub enum ParticipantServiceMail<R: DdsRuntime> {
         topic_name: String,
         type_name: String,
         qos: QosKind<TopicQos>,
-        status_condition: Actor<DcpsStatusCondition>,
-        listener_sender: Option<MpscSender<ListenerMail<R>>>,
+        dcps_listener: Option<DcpsTopicListener>,
         mask: Vec<StatusKind>,
         type_support: Arc<DynamicType>,
-        reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
+        reply_sender: OneshotSender<DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)>>,
     },
     DeleteUserDefinedTopic {
         participant_handle: InstanceHandle,
@@ -86,7 +90,6 @@ pub enum ParticipantServiceMail<R: DdsRuntime> {
     FindTopic {
         topic_name: String,
         type_support: Arc<DynamicType>,
-        status_condition: Actor<DcpsStatusCondition>,
         #[allow(clippy::type_complexity)]
         reply_sender: OneshotSender<
             DdsResult<Option<(InstanceHandle, ActorAddress<DcpsStatusCondition>, String)>>,
@@ -161,7 +164,7 @@ pub enum ParticipantServiceMail<R: DdsRuntime> {
         reply_sender: OneshotSender<DdsResult<DomainParticipantQos>>,
     },
     SetListener {
-        listener_sender: Option<MpscSender<ListenerMail<R>>>,
+        dcps_listener: Option<DcpsDomainParticipantListener>,
         status_kind: Vec<StatusKind>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
@@ -197,16 +200,15 @@ pub enum TopicServiceMail {
     },
 }
 
-pub enum PublisherServiceMail<R: DdsRuntime> {
+pub enum PublisherServiceMail {
     CreateDataWriter {
         publisher_handle: InstanceHandle,
         topic_name: String,
         qos: QosKind<DataWriterQos>,
-        status_condition: Actor<DcpsStatusCondition>,
-        listener_sender: Option<MpscSender<ListenerMail<R>>>,
+        dcps_listener: Option<DcpsDataWriterListener>,
         mask: Vec<StatusKind>,
-        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
-        reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
+        reply_sender: OneshotSender<DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)>>,
     },
     DeleteDataWriter {
         publisher_handle: InstanceHandle,
@@ -233,22 +235,21 @@ pub enum PublisherServiceMail<R: DdsRuntime> {
     },
     SetPublisherListener {
         publisher_handle: InstanceHandle,
-        listener_sender: Option<MpscSender<ListenerMail<R>>>,
+        dcps_listener: Option<DcpsPublisherListener>,
         mask: Vec<StatusKind>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
 }
 
-pub enum SubscriberServiceMail<R: DdsRuntime> {
+pub enum SubscriberServiceMail {
     CreateDataReader {
         subscriber_handle: InstanceHandle,
         topic_name: String,
         qos: QosKind<DataReaderQos>,
-        status_condition: Actor<DcpsStatusCondition>,
-        listener_sender: Option<MpscSender<ListenerMail<R>>>,
+        dcps_listener: Option<DcpsDataReaderListener>,
         mask: Vec<StatusKind>,
-        domain_participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
-        reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
+        domain_participant_address: MpscSender<DcpsDomainParticipantMail>,
+        reply_sender: OneshotSender<DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)>>,
     },
     DeleteDataReader {
         subscriber_handle: InstanceHandle,
@@ -282,17 +283,17 @@ pub enum SubscriberServiceMail<R: DdsRuntime> {
     },
     SetListener {
         subscriber_handle: InstanceHandle,
-        listener_sender: Option<MpscSender<ListenerMail<R>>>,
+        dcps_listener: Option<DcpsSubscriberListener>,
         mask: Vec<StatusKind>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
 }
 
-pub enum WriterServiceMail<R: DdsRuntime> {
+pub enum WriterServiceMail {
     SetListener {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        listener_sender: Option<MpscSender<ListenerMail<R>>>,
+        dcps_listener: Option<DcpsDataWriterListener>,
         listener_mask: Vec<StatusKind>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
@@ -331,7 +332,7 @@ pub enum WriterServiceMail<R: DdsRuntime> {
         reply_sender: OneshotSender<DdsResult<Option<InstanceHandle>>>,
     },
     WriteWTimestamp {
-        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         dynamic_data: DynamicData,
@@ -353,7 +354,7 @@ pub enum WriterServiceMail<R: DdsRuntime> {
     EnableDataWriter {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
     SetDataWriterQos {
@@ -364,11 +365,11 @@ pub enum WriterServiceMail<R: DdsRuntime> {
     },
 }
 
-pub enum ReaderServiceMail<R: DdsRuntime> {
+pub enum ReaderServiceMail {
     Enable {
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
-        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
     Read {
@@ -421,7 +422,7 @@ pub enum ReaderServiceMail<R: DdsRuntime> {
         reply_sender: OneshotSender<DdsResult<SubscriptionMatchedStatus>>,
     },
     WaitForHistoricalData {
-        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         max_wait: Duration,
@@ -452,15 +453,15 @@ pub enum ReaderServiceMail<R: DdsRuntime> {
     SetListener {
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
-        listener_sender: Option<MpscSender<ListenerMail<R>>>,
+        dcps_listener: Option<DcpsDataReaderListener>,
         listener_mask: Vec<StatusKind>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
 }
 
-pub enum MessageServiceMail<R: DdsRuntime> {
+pub enum MessageServiceMail {
     AddCacheChange {
-        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
         cache_change: CacheChange,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
@@ -485,29 +486,29 @@ pub enum MessageServiceMail<R: DdsRuntime> {
     },
     AddBuiltinPublicationsDetectorCacheChange {
         cache_change: CacheChange,
-        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
     },
     AddBuiltinSubscriptionsDetectorCacheChange {
         cache_change: CacheChange,
-        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
     },
     AddBuiltinTopicsDetectorCacheChange {
         cache_change: CacheChange,
     },
 }
 
-pub enum EventServiceMail<R: DdsRuntime> {
+pub enum EventServiceMail {
     OfferedDeadlineMissed {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         change_instance_handle: InstanceHandle,
-        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
     },
     RequestedDeadlineMissed {
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         change_instance_handle: InstanceHandle,
-        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
     },
 }
 
@@ -516,21 +517,21 @@ pub enum DiscoveryServiceMail {
     AnnounceDeletedParticipant,
 }
 
-pub enum DcpsDomainParticipantMail<R: DdsRuntime> {
-    Participant(ParticipantServiceMail<R>),
+pub enum DcpsDomainParticipantMail {
+    Participant(ParticipantServiceMail),
     Topic(TopicServiceMail),
-    Publisher(PublisherServiceMail<R>),
-    Writer(WriterServiceMail<R>),
-    Subscriber(SubscriberServiceMail<R>),
-    Reader(ReaderServiceMail<R>),
-    Message(MessageServiceMail<R>),
-    Event(EventServiceMail<R>),
+    Publisher(PublisherServiceMail),
+    Writer(WriterServiceMail),
+    Subscriber(SubscriberServiceMail),
+    Reader(ReaderServiceMail),
+    Message(MessageServiceMail),
+    Event(EventServiceMail),
     Discovery(DiscoveryServiceMail),
 }
 
 impl<R: DdsRuntime> MailHandler for DcpsDomainParticipant<R> {
-    type Mail = DcpsDomainParticipantMail<R>;
-    async fn handle(&mut self, message: DcpsDomainParticipantMail<R>) {
+    type Mail = DcpsDomainParticipantMail;
+    async fn handle(&mut self, message: DcpsDomainParticipantMail) {
         match message {
             DcpsDomainParticipantMail::Participant(participant_service_mail) => {
                 self.handle_participant_service(participant_service_mail)
@@ -568,15 +569,15 @@ impl<R: DdsRuntime> MailHandler for DcpsDomainParticipant<R> {
 impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     async fn handle_participant_service(
         &mut self,
-        participant_service_mail: ParticipantServiceMail<R>,
+        participant_service_mail: ParticipantServiceMail,
     ) {
         match participant_service_mail {
             ParticipantServiceMail::CreateUserDefinedPublisher {
                 qos,
-                listener_sender,
+                dcps_listener,
                 mask,
                 reply_sender,
-            } => reply_sender.send(self.create_user_defined_publisher(qos, listener_sender, mask)),
+            } => reply_sender.send(self.create_user_defined_publisher(qos, dcps_listener, mask)),
             ParticipantServiceMail::DeleteUserDefinedPublisher {
                 participant_handle,
                 publisher_handle,
@@ -585,16 +586,10 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                 .send(self.delete_user_defined_publisher(participant_handle, publisher_handle)),
             ParticipantServiceMail::CreateUserDefinedSubscriber {
                 qos,
-                status_condition,
-                listener_sender,
+                dcps_listener,
                 mask,
                 reply_sender,
-            } => reply_sender.send(self.create_user_defined_subscriber(
-                qos,
-                status_condition,
-                listener_sender,
-                mask,
-            )),
+            } => reply_sender.send(self.create_user_defined_subscriber(qos, dcps_listener, mask)),
             ParticipantServiceMail::DeleteUserDefinedSubscriber {
                 participant_handle,
                 subscriber_handle,
@@ -605,8 +600,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                 topic_name,
                 type_name,
                 qos,
-                status_condition,
-                listener_sender,
+                dcps_listener,
                 mask,
                 type_support,
                 reply_sender,
@@ -615,8 +609,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                     topic_name,
                     type_name,
                     qos,
-                    status_condition,
-                    listener_sender,
+                    dcps_listener,
                     mask,
                     type_support,
                 )
@@ -652,9 +645,8 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             ParticipantServiceMail::FindTopic {
                 topic_name,
                 type_support,
-                status_condition,
                 reply_sender,
-            } => reply_sender.send(self.find_topic(topic_name, type_support, status_condition)),
+            } => reply_sender.send(self.find_topic(topic_name, type_support)),
             ParticipantServiceMail::LookupTopicdescription {
                 topic_name,
                 reply_sender,
@@ -716,11 +708,12 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                 reply_sender.send(self.get_domain_participant_qos())
             }
             ParticipantServiceMail::SetListener {
-                listener_sender,
+                dcps_listener,
                 status_kind,
                 reply_sender,
-            } => reply_sender
-                .send(self.set_domain_participant_listener(listener_sender, status_kind)),
+            } => {
+                reply_sender.send(self.set_domain_participant_listener(dcps_listener, status_kind))
+            }
             ParticipantServiceMail::Enable { reply_sender } => {
                 reply_sender.send(self.enable_domain_participant().await)
             }
@@ -756,14 +749,13 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         }
     }
 
-    async fn handle_publisher_service(&mut self, publisher_service_mail: PublisherServiceMail<R>) {
+    async fn handle_publisher_service(&mut self, publisher_service_mail: PublisherServiceMail) {
         match publisher_service_mail {
             PublisherServiceMail::CreateDataWriter {
                 publisher_handle,
                 topic_name,
                 qos,
-                status_condition,
-                listener_sender,
+                dcps_listener,
                 mask,
                 participant_address,
                 reply_sender,
@@ -772,8 +764,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                     publisher_handle,
                     topic_name,
                     qos,
-                    status_condition,
-                    listener_sender,
+                    dcps_listener,
                     mask,
                     participant_address,
                 )
@@ -807,29 +798,29 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             } => reply_sender.send(self.set_publisher_qos(publisher_handle, qos)),
             PublisherServiceMail::SetPublisherListener {
                 publisher_handle,
-                listener_sender,
+                dcps_listener,
                 mask,
                 reply_sender,
             } => reply_sender.send(self.set_publisher_listener(
                 publisher_handle,
-                listener_sender,
+                dcps_listener,
                 mask,
             )),
         }
     }
 
-    async fn handle_writer_service(&mut self, writer_service_mail: WriterServiceMail<R>) {
+    async fn handle_writer_service(&mut self, writer_service_mail: WriterServiceMail) {
         match writer_service_mail {
             WriterServiceMail::SetListener {
                 publisher_handle,
                 data_writer_handle,
-                listener_sender,
+                dcps_listener,
                 listener_mask,
                 reply_sender,
             } => reply_sender.send(self.set_listener_data_writer(
                 publisher_handle,
                 data_writer_handle,
-                listener_sender,
+                dcps_listener,
                 listener_mask,
             )),
             WriterServiceMail::GetDataWriterQos {
@@ -947,17 +938,13 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         }
     }
 
-    async fn handle_subscriber_service(
-        &mut self,
-        subscriber_service_mail: SubscriberServiceMail<R>,
-    ) {
+    async fn handle_subscriber_service(&mut self, subscriber_service_mail: SubscriberServiceMail) {
         match subscriber_service_mail {
             SubscriberServiceMail::CreateDataReader {
                 subscriber_handle,
                 topic_name,
                 qos,
-                status_condition,
-                listener_sender,
+                dcps_listener,
                 mask,
                 domain_participant_address,
                 reply_sender,
@@ -966,8 +953,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                     subscriber_handle,
                     topic_name,
                     qos,
-                    status_condition,
-                    listener_sender,
+                    dcps_listener,
                     mask,
                     domain_participant_address,
                 )
@@ -1006,18 +992,18 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             } => reply_sender.send(self.get_subscriber_qos(subscriber_handle)),
             SubscriberServiceMail::SetListener {
                 subscriber_handle,
-                listener_sender,
+                dcps_listener,
                 mask,
                 reply_sender,
             } => reply_sender.send(self.set_subscriber_listener(
                 subscriber_handle,
-                listener_sender,
+                dcps_listener,
                 mask,
             )),
         }
     }
 
-    async fn handle_reader_service(&mut self, reader_service_mail: ReaderServiceMail<R>) {
+    async fn handle_reader_service(&mut self, reader_service_mail: ReaderServiceMail) {
         match reader_service_mail {
             ReaderServiceMail::Read {
                 subscriber_handle,
@@ -1165,19 +1151,19 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             ReaderServiceMail::SetListener {
                 subscriber_handle,
                 data_reader_handle,
-                listener_sender,
+                dcps_listener,
                 listener_mask,
                 reply_sender,
             } => reply_sender.send(self.set_data_reader_listener(
                 subscriber_handle,
                 data_reader_handle,
-                listener_sender,
+                dcps_listener,
                 listener_mask,
             )),
         }
     }
 
-    async fn handle_message_service(&mut self, message_service_mail: MessageServiceMail<R>) {
+    async fn handle_message_service(&mut self, message_service_mail: MessageServiceMail) {
         match message_service_mail {
             MessageServiceMail::AddCacheChange {
                 participant_address,
@@ -1248,7 +1234,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         }
     }
 
-    async fn handle_event_service(&mut self, event_service_mail: EventServiceMail<R>) {
+    async fn handle_event_service(&mut self, event_service_mail: EventServiceMail) {
         match event_service_mail {
             EventServiceMail::OfferedDeadlineMissed {
                 publisher_handle,

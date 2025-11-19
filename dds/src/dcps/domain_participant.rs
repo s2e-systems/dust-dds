@@ -27,7 +27,14 @@ use crate::{
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
             ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
         },
-        listeners::domain_participant_listener::ListenerMail,
+        listeners::{
+            data_reader_listener::DcpsDataReaderListener,
+            data_writer_listener::DcpsDataWriterListener,
+            domain_participant_listener::{DcpsDomainParticipantListener, ListenerMail},
+            publisher_listener::DcpsPublisherListener,
+            subscriber_listener::DcpsSubscriberListener,
+            topic_listener::DcpsTopicListener,
+        },
         status_condition::DcpsStatusCondition,
         status_condition_mail::DcpsStatusConditionMail,
         xtypes_glue::key_and_instance_handle::get_instance_handle_from_dynamic_data,
@@ -133,7 +140,7 @@ pub struct DcpsDomainParticipant<R: DdsRuntime> {
     writer_counter: u16,
     publisher_counter: u8,
     subscriber_counter: u8,
-    domain_participant: DomainParticipantEntity<R>,
+    domain_participant: DomainParticipantEntity,
     clock_handle: R::ClockHandle,
     timer_handle: R::TimerHandle,
     spawner_handle: R::SpawnerHandle,
@@ -144,7 +151,7 @@ where
     R: DdsRuntime,
 {
     pub fn new(
-        domain_participant: DomainParticipantEntity<R>,
+        domain_participant: DomainParticipantEntity,
         transport: RtpsTransportParticipant,
         clock_handle: R::ClockHandle,
         timer_handle: R::TimerHandle,
@@ -166,8 +173,8 @@ where
 
     fn get_participant_async(
         &self,
-        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
-    ) -> DomainParticipantAsync<R> {
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
+    ) -> DomainParticipantAsync {
         DomainParticipantAsync::new(
             participant_address,
             self.domain_participant
@@ -176,17 +183,14 @@ where
                 .address(),
             self.domain_participant.domain_id,
             self.domain_participant.instance_handle,
-            self.spawner_handle.clone(),
-            self.clock_handle.clone(),
-            self.timer_handle.clone(),
         )
     }
 
     fn get_subscriber_async(
         &self,
-        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
         subscriber_handle: InstanceHandle,
-    ) -> DdsResult<SubscriberAsync<R>> {
+    ) -> DdsResult<SubscriberAsync> {
         Ok(SubscriberAsync::new(
             subscriber_handle,
             self.domain_participant
@@ -202,10 +206,10 @@ where
 
     fn get_data_reader_async<Foo>(
         &self,
-        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
-    ) -> DdsResult<DataReaderAsync<R, Foo>> {
+    ) -> DdsResult<DataReaderAsync<Foo>> {
         let data_reader = self
             .domain_participant
             .user_defined_subscriber_list
@@ -227,9 +231,9 @@ where
 
     fn get_publisher_async(
         &self,
-        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
         publisher_handle: InstanceHandle,
-    ) -> DdsResult<PublisherAsync<R>> {
+    ) -> DdsResult<PublisherAsync> {
         Ok(PublisherAsync::new(
             publisher_handle,
             self.get_participant_async(participant_address),
@@ -238,10 +242,10 @@ where
 
     fn get_data_writer_async<Foo>(
         &self,
-        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-    ) -> DdsResult<DataWriterAsync<R, Foo>> {
+    ) -> DdsResult<DataWriterAsync<Foo>> {
         let data_writer = self
             .domain_participant
             .user_defined_publisher_list
@@ -263,9 +267,9 @@ where
 
     fn get_topic_description_async(
         &self,
-        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
         topic_name: String,
-    ) -> DdsResult<TopicDescriptionAsync<R>> {
+    ) -> DdsResult<TopicDescriptionAsync> {
         match self
             .domain_participant
             .topic_description_list
@@ -307,7 +311,7 @@ where
         }
     }
 
-    pub fn get_builtin_subscriber(&self) -> &SubscriberEntity<R> {
+    pub fn get_builtin_subscriber(&self) -> &SubscriberEntity {
         &self.domain_participant.builtin_subscriber
     }
 
@@ -419,11 +423,11 @@ where
         Ok(topic.type_support.clone())
     }
 
-    #[tracing::instrument(skip(self, listener_sender))]
+    #[tracing::instrument(skip(self, dcps_listener))]
     pub fn create_user_defined_publisher(
         &mut self,
         qos: QosKind<PublisherQos>,
-        listener_sender: Option<MpscSender<ListenerMail<R>>>,
+        dcps_listener: Option<DcpsPublisherListener>,
         mask: Vec<StatusKind>,
     ) -> DdsResult<InstanceHandle> {
         let publisher_qos = match qos {
@@ -451,6 +455,7 @@ where
         ]);
         self.publisher_counter += 1;
         let data_writer_list = Default::default();
+        let listener_sender = dcps_listener.map(|l| l.spawn::<R>(&self.spawner_handle));
         let mut publisher = PublisherEntity::new(
             publisher_qos,
             publisher_handle,
@@ -508,18 +513,20 @@ where
         Ok(())
     }
 
-    #[tracing::instrument(skip(self, status_condition, listener_sender))]
+    #[tracing::instrument(skip(self, dcps_listener))]
     pub fn create_user_defined_subscriber(
         &mut self,
         qos: QosKind<SubscriberQos>,
-        status_condition: Actor<DcpsStatusCondition>,
-        listener_sender: Option<MpscSender<ListenerMail<R>>>,
+        dcps_listener: Option<DcpsSubscriberListener>,
         mask: Vec<StatusKind>,
-    ) -> DdsResult<InstanceHandle> {
+    ) -> DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)> {
         let subscriber_qos = match qos {
             QosKind::Default => self.domain_participant.default_subscriber_qos.clone(),
             QosKind::Specific(q) => q,
         };
+        let status_condition =
+            Actor::spawn::<R>(DcpsStatusCondition::default(), &self.spawner_handle);
+        let subscriber_status_condition_address = status_condition.address();
         let subscriber_handle = InstanceHandle::new([
             self.domain_participant.instance_handle[0],
             self.domain_participant.instance_handle[1],
@@ -542,6 +549,8 @@ where
 
         let listener_mask = mask.to_vec();
         let data_reader_list = Default::default();
+
+        let listener_sender = dcps_listener.map(|l| l.spawn::<R>(&self.spawner_handle));
         let mut subscriber = SubscriberEntity::new(
             subscriber_handle,
             subscriber_qos,
@@ -565,7 +574,7 @@ where
             .user_defined_subscriber_list
             .push(subscriber);
 
-        Ok(subscriber_handle)
+        Ok((subscriber_handle, subscriber_status_condition_address))
     }
 
     #[tracing::instrument(skip(self))]
@@ -605,17 +614,16 @@ where
     }
 
     #[allow(clippy::too_many_arguments)]
-    #[tracing::instrument(skip(self, status_condition, listener_sender, type_support))]
+    #[tracing::instrument(skip(self, dcps_listener, type_support))]
     pub async fn create_topic(
         &mut self,
         topic_name: String,
         type_name: String,
         qos: QosKind<TopicQos>,
-        status_condition: Actor<DcpsStatusCondition>,
-        listener_sender: Option<MpscSender<ListenerMail<R>>>,
+        dcps_listener: Option<DcpsTopicListener>,
         mask: Vec<StatusKind>,
         type_support: Arc<DynamicType>,
-    ) -> DdsResult<InstanceHandle> {
+    ) -> DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)> {
         if self
             .domain_participant
             .topic_description_list
@@ -628,6 +636,9 @@ where
             )));
         }
 
+        let status_condition =
+            Actor::spawn::<R>(DcpsStatusCondition::default(), &self.spawner_handle);
+        let topic_status_condition_address = status_condition.address();
         let qos = match qos {
             QosKind::Default => self.domain_participant.default_topic_qos.clone(),
             QosKind::Specific(q) => q,
@@ -652,7 +663,7 @@ where
             USER_DEFINED_TOPIC,
         ]);
         self.topic_counter += 1;
-
+        let listener_sender = dcps_listener.map(|l| l.spawn::<R>(&self.spawner_handle));
         let topic = TopicEntity::new(
             qos,
             type_name,
@@ -678,7 +689,7 @@ where
             self.enable_topic(topic_name).await?;
         }
 
-        Ok(topic_handle)
+        Ok((topic_handle, topic_status_condition_address))
     }
 
     #[tracing::instrument(skip(self))]
@@ -782,12 +793,11 @@ where
     }
 
     #[allow(clippy::type_complexity)]
-    #[tracing::instrument(skip(self, type_support, status_condition))]
+    #[tracing::instrument(skip(self, type_support))]
     pub fn find_topic(
         &mut self,
         topic_name: String,
         type_support: Arc<DynamicType>,
-        status_condition: Actor<DcpsStatusCondition>,
     ) -> DdsResult<Option<(InstanceHandle, ActorAddress<DcpsStatusCondition>, String)>> {
         if let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
@@ -837,6 +847,8 @@ where
                     USER_DEFINED_TOPIC,
                 ]);
                 self.topic_counter += 1;
+                let status_condition =
+                    Actor::spawn::<R>(DcpsStatusCondition::default(), &self.spawner_handle);
                 let mut topic = TopicEntity::new(
                     qos,
                     type_name.clone(),
@@ -949,7 +961,7 @@ where
 
     #[tracing::instrument(skip(self))]
     pub async fn delete_participant_contained_entities(&mut self) -> DdsResult<()> {
-        let deleted_publisher_list: Vec<PublisherEntity<R>> = self
+        let deleted_publisher_list: Vec<PublisherEntity> = self
             .domain_participant
             .user_defined_publisher_list
             .drain(..)
@@ -960,7 +972,7 @@ where
             }
         }
 
-        let deleted_subscriber_list: Vec<SubscriberEntity<R>> = self
+        let deleted_subscriber_list: Vec<SubscriberEntity> = self
             .domain_participant
             .user_defined_subscriber_list
             .drain(..)
@@ -1114,12 +1126,13 @@ where
         Ok(self.domain_participant.qos.clone())
     }
 
-    #[tracing::instrument(skip(self, listener_sender))]
+    #[tracing::instrument(skip(self, dcps_listener))]
     pub fn set_domain_participant_listener(
         &mut self,
-        listener_sender: Option<MpscSender<ListenerMail<R>>>,
+        dcps_listener: Option<DcpsDomainParticipantListener>,
         status_kind: Vec<StatusKind>,
     ) -> DdsResult<()> {
+        let listener_sender = dcps_listener.map(|l| l.spawn::<R>(&self.spawner_handle));
         self.domain_participant.listener_sender = listener_sender;
         self.domain_participant.listener_mask = status_kind;
 
@@ -1157,35 +1170,23 @@ where
     }
 
     #[allow(clippy::too_many_arguments)]
-    #[tracing::instrument(skip(
-        self,
-        status_condition,
-        listener_sender,
-        domain_participant_address
-    ))]
+    #[tracing::instrument(skip(self, dcps_listener, domain_participant_address))]
     pub async fn create_data_reader(
         &mut self,
         subscriber_handle: InstanceHandle,
         topic_name: String,
         qos: QosKind<DataReaderQos>,
-        status_condition: Actor<DcpsStatusCondition>,
-        listener_sender: Option<MpscSender<ListenerMail<R>>>,
+        dcps_listener: Option<DcpsDataReaderListener>,
         mask: Vec<StatusKind>,
-        domain_participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
-    ) -> DdsResult<InstanceHandle> {
-        struct UserDefinedReaderHistoryCache<R>
-        where
-            R: DdsRuntime,
-        {
-            pub domain_participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
+        domain_participant_address: MpscSender<DcpsDomainParticipantMail>,
+    ) -> DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)> {
+        struct UserDefinedReaderHistoryCache {
+            pub domain_participant_address: MpscSender<DcpsDomainParticipantMail>,
             pub subscriber_handle: InstanceHandle,
             pub data_reader_handle: InstanceHandle,
         }
 
-        impl<R> HistoryCache for UserDefinedReaderHistoryCache<R>
-        where
-            R: DdsRuntime,
-        {
+        impl HistoryCache for UserDefinedReaderHistoryCache {
             fn add_change(
                 &mut self,
                 cache_change: CacheChange,
@@ -1301,7 +1302,7 @@ where
                 .create_stateful_reader(
                     entity_id,
                     reliablity_kind,
-                    Box::new(UserDefinedReaderHistoryCache::<R> {
+                    Box::new(UserDefinedReaderHistoryCache {
                         domain_participant_address: domain_participant_address.clone(),
                         subscriber_handle: subscriber.instance_handle,
                         data_reader_handle: reader_handle,
@@ -1310,7 +1311,11 @@ where
                 .await,
         );
 
+        let status_condition =
+            Actor::spawn::<R>(DcpsStatusCondition::default(), &self.spawner_handle);
+        let reader_status_condition_address = status_condition.address();
         let listener_mask = mask.to_vec();
+        let listener_sender = dcps_listener.map(|l| l.spawn::<R>(&self.spawner_handle));
         let data_reader = DataReaderEntity::new(
             reader_handle,
             qos,
@@ -1334,7 +1339,7 @@ where
             )
             .await?;
         }
-        Ok(data_reader_handle)
+        Ok((data_reader_handle, reader_status_condition_address))
     }
 
     #[tracing::instrument(skip(self))]
@@ -1347,7 +1352,7 @@ where
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x: &&mut SubscriberEntity<R>| x.instance_handle == subscriber_handle)
+            .find(|x: &&mut SubscriberEntity| x.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -1490,11 +1495,11 @@ where
         Ok(subscriber.qos.clone())
     }
 
-    #[tracing::instrument(skip(self, listener_sender))]
+    #[tracing::instrument(skip(self, listener_sender_task))]
     pub fn set_subscriber_listener(
         &mut self,
         subscriber_handle: InstanceHandle,
-        listener_sender: Option<MpscSender<ListenerMail<R>>>,
+        listener_sender_task: Option<DcpsSubscriberListener>,
         mask: Vec<StatusKind>,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
@@ -1506,23 +1511,23 @@ where
             return Err(DdsError::AlreadyDeleted);
         };
 
+        let listener_sender = listener_sender_task.map(|l| l.spawn::<R>(&self.spawner_handle));
         subscriber.listener_sender = listener_sender;
         subscriber.listener_mask = mask;
         Ok(())
     }
 
     #[allow(clippy::too_many_arguments)]
-    #[tracing::instrument(skip(self, status_condition, listener_sender, participant_address))]
+    #[tracing::instrument(skip(self, dcps_listener, participant_address))]
     pub async fn create_data_writer(
         &mut self,
         publisher_handle: InstanceHandle,
         topic_name: String,
         qos: QosKind<DataWriterQos>,
-        status_condition: Actor<DcpsStatusCondition>,
-        listener_sender: Option<MpscSender<ListenerMail<R>>>,
+        dcps_listener: Option<DcpsDataWriterListener>,
         mask: Vec<StatusKind>,
-        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
-    ) -> DdsResult<InstanceHandle> {
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
+    ) -> DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)> {
         let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
             .topic_description_list
@@ -1579,6 +1584,9 @@ where
         ]);
         self.writer_counter += 1;
 
+        let status_condition =
+            Actor::spawn::<R>(DcpsStatusCondition::default(), &self.spawner_handle);
+        let writer_status_condition_address = status_condition.address();
         let qos = match qos {
             QosKind::Default => publisher.default_datawriter_qos.clone(),
             QosKind::Specific(q) => {
@@ -1597,7 +1605,7 @@ where
             .transport
             .create_stateful_writer(entity_id, reliablity_kind)
             .await;
-
+        let listener_sender = dcps_listener.map(|l| l.spawn::<R>(&self.spawner_handle));
         let data_writer = DataWriterEntity::new(
             writer_handle,
             TransportWriterKind::Stateful(transport_writer),
@@ -1618,7 +1626,7 @@ where
                 .await?;
         }
 
-        Ok(data_writer_handle)
+        Ok((data_writer_handle, writer_status_condition_address))
     }
 
     #[tracing::instrument(skip(self))]
@@ -1729,11 +1737,11 @@ where
         Ok(publisher.qos.clone())
     }
 
-    #[tracing::instrument(skip(self, listener_sender))]
+    #[tracing::instrument(skip(self, dcps_listener))]
     pub fn set_publisher_listener(
         &mut self,
         publisher_handle: InstanceHandle,
-        listener_sender: Option<MpscSender<ListenerMail<R>>>,
+        dcps_listener: Option<DcpsPublisherListener>,
         mask: Vec<StatusKind>,
     ) -> DdsResult<()> {
         let Some(publisher) = self
@@ -1744,6 +1752,7 @@ where
         else {
             return Err(DdsError::AlreadyDeleted);
         };
+        let listener_sender = dcps_listener.map(|l| l.spawn::<R>(&self.spawner_handle));
         publisher.listener_sender = listener_sender;
         publisher.listener_mask = mask;
         Ok(())
@@ -1782,12 +1791,12 @@ where
         Ok(status)
     }
 
-    #[tracing::instrument(skip(self, listener_sender))]
+    #[tracing::instrument(skip(self, dcps_listener))]
     pub fn set_listener_data_writer(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        listener_sender: Option<MpscSender<ListenerMail<R>>>,
+        dcps_listener: Option<DcpsDataWriterListener>,
         listener_mask: Vec<StatusKind>,
     ) -> DdsResult<()> {
         let Some(publisher) = self
@@ -1806,6 +1815,7 @@ where
             return Ok(());
         };
 
+        let listener_sender = dcps_listener.map(|l| l.spawn::<R>(&self.spawner_handle));
         data_writer.listener_sender = listener_sender;
         data_writer.listener_mask = listener_mask;
 
@@ -1967,7 +1977,7 @@ where
     #[tracing::instrument(skip(self, participant_address))]
     pub async fn write_w_timestamp(
         &mut self,
-        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         dynamic_data: DynamicData,
@@ -2092,48 +2102,6 @@ where
             .await
     }
 
-    //#[tracing::instrument(skip(self, participant_address))]
-    pub fn wait_for_acknowledgments(
-        &mut self,
-        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
-        publisher_handle: InstanceHandle,
-        data_writer_handle: InstanceHandle,
-        timeout: Duration,
-    ) -> Pin<Box<dyn Future<Output = DdsResult<()>> + Send>> {
-        let timer_handle = self.timer_handle.clone();
-        Box::pin(async move {
-            poll_timeout(
-                timer_handle,
-                timeout.into(),
-                Box::pin(async move {
-                    loop {
-                        let (reply_sender, reply_receiver) = oneshot();
-                        participant_address
-                            .send(DcpsDomainParticipantMail::Message(
-                                MessageServiceMail::AreAllChangesAcknowledged {
-                                    publisher_handle,
-                                    data_writer_handle,
-                                    reply_sender,
-                                },
-                            ))
-                            .await
-                            .ok();
-                        let reply = reply_receiver.await;
-                        match reply {
-                            Ok(are_changes_acknowledged) => match are_changes_acknowledged {
-                                Ok(true) => return Ok(()),
-                                Ok(false) => (),
-                                Err(e) => return Err(e),
-                            },
-                            Err(_) => return Err(DdsError::Error(String::from("Channel error"))),
-                        }
-                    }
-                }),
-            )
-            .await?
-        })
-    }
-
     #[tracing::instrument(skip(self))]
     pub async fn get_offered_deadline_missed_status(
         &mut self,
@@ -2164,7 +2132,7 @@ where
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
     ) -> DdsResult<()> {
         let Some(publisher) = self
             .domain_participant
@@ -2459,7 +2427,7 @@ where
     //#[tracing::instrument(skip(self, participant_address))]
     pub fn wait_for_historical_data(
         &mut self,
-        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         max_wait: Duration,
@@ -2623,12 +2591,12 @@ where
         Ok(data_reader.qos.clone())
     }
 
-    #[tracing::instrument(skip(self, listener_sender))]
+    #[tracing::instrument(skip(self, dcps_listener))]
     pub fn set_data_reader_listener(
         &mut self,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
-        listener_sender: Option<MpscSender<ListenerMail<R>>>,
+        dcps_listener: Option<DcpsDataReaderListener>,
         listener_mask: Vec<StatusKind>,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
@@ -2646,6 +2614,7 @@ where
         else {
             return Err(DdsError::AlreadyDeleted);
         };
+        let listener_sender = dcps_listener.map(|l| l.spawn::<R>(&self.spawner_handle));
         data_reader.listener_sender = listener_sender;
         data_reader.listener_mask = listener_mask;
         Ok(())
@@ -2698,7 +2667,7 @@ where
         &mut self,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
-        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
             .domain_participant
@@ -2917,7 +2886,7 @@ where
     }
 
     #[tracing::instrument(skip(self, data_writer))]
-    async fn announce_deleted_data_writer(&mut self, data_writer: DataWriterEntity<R>) {
+    async fn announce_deleted_data_writer(&mut self, data_writer: DataWriterEntity) {
         let timestamp = self.get_current_time();
         if let Some(dw) = self
             .domain_participant
@@ -3040,7 +3009,7 @@ where
     }
 
     #[tracing::instrument(skip(self, data_reader))]
-    async fn announce_deleted_data_reader(&mut self, data_reader: DataReaderEntity<R>) {
+    async fn announce_deleted_data_reader(&mut self, data_reader: DataReaderEntity) {
         let timestamp = self.get_current_time();
         if let Some(dw) = self
             .domain_participant
@@ -3124,7 +3093,7 @@ where
         discovered_reader_data: DiscoveredReaderData,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
     ) {
         let default_unicast_locator_list = if let Some(p) = self
             .domain_participant
@@ -3582,7 +3551,7 @@ where
         discovered_writer_data: DiscoveredWriterData,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
-        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
     ) {
         let default_unicast_locator_list = if let Some(p) = self
             .domain_participant
@@ -3703,7 +3672,7 @@ where
 
             if is_matched_topic_name && is_matched_type_name {
                 let incompatible_qos_policy_list =
-                    get_discovered_writer_incompatible_qos_policy_list::<R>(
+                    get_discovered_writer_incompatible_qos_policy_list(
                         data_reader,
                         &discovered_writer_data.dds_publication_data,
                         &subscriber_qos,
@@ -4093,7 +4062,7 @@ where
     pub async fn add_builtin_publications_detector_cache_change(
         &mut self,
         cache_change: CacheChange,
-        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
     ) {
         match cache_change.kind {
             ChangeKind::Alive => {
@@ -4203,7 +4172,7 @@ where
     pub async fn add_builtin_subscriptions_detector_cache_change(
         &mut self,
         cache_change: CacheChange,
-        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
     ) {
         match cache_change.kind {
             ChangeKind::Alive => {
@@ -4400,7 +4369,7 @@ where
     #[tracing::instrument(skip(self, participant_address))]
     pub async fn add_cache_change(
         &mut self,
-        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
         cache_change: CacheChange,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
@@ -4792,7 +4761,7 @@ where
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         change_instance_handle: InstanceHandle,
-        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
     ) {
         let current_time = self.get_current_time();
         let Some(publisher) = self
@@ -4963,7 +4932,7 @@ where
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         change_instance_handle: InstanceHandle,
-        participant_address: MpscSender<DcpsDomainParticipantMail<R>>,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
     ) {
         let current_time = self.get_current_time();
         let Some(subscriber) = self
@@ -5537,8 +5506,8 @@ fn get_discovered_reader_incompatible_qos_policy_list(
 }
 
 #[tracing::instrument(skip(data_reader))]
-fn get_discovered_writer_incompatible_qos_policy_list<R: DdsRuntime>(
-    data_reader: &DataReaderEntity<R>,
+fn get_discovered_writer_incompatible_qos_policy_list(
+    data_reader: &DataReaderEntity,
     publication_builtin_topic_data: &PublicationBuiltinTopicData,
     subscriber_qos: &SubscriberQos,
 ) -> Vec<QosPolicyId> {
@@ -5713,18 +5682,18 @@ pub const BUILT_IN_TOPIC_NAME_LIST: [&str; 4] = [
     DCPS_SUBSCRIPTION,
 ];
 
-pub struct DomainParticipantEntity<R: DdsRuntime> {
+pub struct DomainParticipantEntity {
     domain_id: DomainId,
     domain_tag: String,
     instance_handle: InstanceHandle,
     qos: DomainParticipantQos,
-    builtin_subscriber: SubscriberEntity<R>,
-    builtin_publisher: PublisherEntity<R>,
-    user_defined_subscriber_list: Vec<SubscriberEntity<R>>,
+    builtin_subscriber: SubscriberEntity,
+    builtin_publisher: PublisherEntity,
+    user_defined_subscriber_list: Vec<SubscriberEntity>,
     default_subscriber_qos: SubscriberQos,
-    user_defined_publisher_list: Vec<PublisherEntity<R>>,
+    user_defined_publisher_list: Vec<PublisherEntity>,
     default_publisher_qos: PublisherQos,
-    topic_description_list: Vec<TopicDescriptionKind<R>>,
+    topic_description_list: Vec<TopicDescriptionKind>,
     default_topic_qos: TopicQos,
     discovered_participant_list: Vec<SpdpDiscoveredParticipantData>,
     discovered_topic_list: Vec<TopicBuiltinTopicData>,
@@ -5735,21 +5704,21 @@ pub struct DomainParticipantEntity<R: DdsRuntime> {
     ignored_publications: Vec<InstanceHandle>,
     ignored_subcriptions: Vec<InstanceHandle>,
     _ignored_topic_list: Vec<InstanceHandle>,
-    listener_sender: Option<MpscSender<ListenerMail<R>>>,
+    listener_sender: Option<MpscSender<ListenerMail>>,
     listener_mask: Vec<StatusKind>,
 }
 
-impl<R: DdsRuntime> DomainParticipantEntity<R> {
+impl DomainParticipantEntity {
     #[allow(clippy::too_many_arguments)]
     pub const fn new(
         domain_id: DomainId,
         domain_participant_qos: DomainParticipantQos,
-        listener_sender: Option<MpscSender<ListenerMail<R>>>,
+        listener_sender: Option<MpscSender<ListenerMail>>,
         listener_mask: Vec<StatusKind>,
         instance_handle: InstanceHandle,
-        builtin_publisher: PublisherEntity<R>,
-        builtin_subscriber: SubscriberEntity<R>,
-        topic_description_list: Vec<TopicDescriptionKind<R>>,
+        builtin_publisher: PublisherEntity,
+        builtin_subscriber: SubscriberEntity,
+        topic_description_list: Vec<TopicDescriptionKind>,
         domain_tag: String,
     ) -> Self {
         Self {
@@ -5783,7 +5752,7 @@ impl<R: DdsRuntime> DomainParticipantEntity<R> {
         self.instance_handle
     }
 
-    pub fn builtin_subscriber(&self) -> &SubscriberEntity<R> {
+    pub fn builtin_subscriber(&self) -> &SubscriberEntity {
         &self.builtin_subscriber
     }
 
@@ -5855,7 +5824,7 @@ impl<R: DdsRuntime> DomainParticipantEntity<R> {
         }
     }
 
-    pub fn remove_subscriber(&mut self, handle: &InstanceHandle) -> Option<SubscriberEntity<R>> {
+    pub fn remove_subscriber(&mut self, handle: &InstanceHandle) -> Option<SubscriberEntity> {
         let i = self
             .user_defined_subscriber_list
             .iter()
@@ -5864,7 +5833,7 @@ impl<R: DdsRuntime> DomainParticipantEntity<R> {
         Some(self.user_defined_subscriber_list.remove(i))
     }
 
-    pub fn remove_publisher(&mut self, handle: &InstanceHandle) -> Option<PublisherEntity<R>> {
+    pub fn remove_publisher(&mut self, handle: &InstanceHandle) -> Option<PublisherEntity> {
         let i = self
             .user_defined_publisher_list
             .iter()
@@ -5910,24 +5879,24 @@ impl ContentFilteredTopicEntity {
     }
 }
 
-pub struct SubscriberEntity<R: DdsRuntime> {
+pub struct SubscriberEntity {
     instance_handle: InstanceHandle,
     qos: SubscriberQos,
-    data_reader_list: Vec<DataReaderEntity<R>>,
+    data_reader_list: Vec<DataReaderEntity>,
     enabled: bool,
     default_data_reader_qos: DataReaderQos,
     status_condition: Actor<DcpsStatusCondition>,
-    listener_sender: Option<MpscSender<ListenerMail<R>>>,
+    listener_sender: Option<MpscSender<ListenerMail>>,
     listener_mask: Vec<StatusKind>,
 }
 
-impl<R: DdsRuntime> SubscriberEntity<R> {
+impl SubscriberEntity {
     pub const fn new(
         instance_handle: InstanceHandle,
         qos: SubscriberQos,
-        data_reader_list: Vec<DataReaderEntity<R>>,
+        data_reader_list: Vec<DataReaderEntity>,
         status_condition: Actor<DcpsStatusCondition>,
-        listener_sender: Option<MpscSender<ListenerMail<R>>>,
+        listener_sender: Option<MpscSender<ListenerMail>>,
         listener_mask: Vec<StatusKind>,
     ) -> Self {
         Self {
@@ -5947,12 +5916,12 @@ impl<R: DdsRuntime> SubscriberEntity<R> {
     }
 }
 
-pub enum TopicDescriptionKind<R: DdsRuntime> {
-    Topic(TopicEntity<R>),
+pub enum TopicDescriptionKind {
+    Topic(TopicEntity),
     ContentFilteredTopic(ContentFilteredTopicEntity),
 }
 
-impl<R: DdsRuntime> TopicDescriptionKind<R> {
+impl TopicDescriptionKind {
     pub fn topic_name(&self) -> &str {
         match self {
             TopicDescriptionKind::Topic(t) => &t.topic_name,
@@ -5961,7 +5930,7 @@ impl<R: DdsRuntime> TopicDescriptionKind<R> {
     }
 }
 
-pub struct TopicEntity<R: DdsRuntime> {
+pub struct TopicEntity {
     qos: TopicQos,
     type_name: String,
     topic_name: String,
@@ -5969,12 +5938,12 @@ pub struct TopicEntity<R: DdsRuntime> {
     enabled: bool,
     inconsistent_topic_status: InconsistentTopicStatus,
     status_condition: Actor<DcpsStatusCondition>,
-    _listener_sender: Option<MpscSender<ListenerMail<R>>>,
+    _listener_sender: Option<MpscSender<ListenerMail>>,
     _status_kind: Vec<StatusKind>,
     type_support: Arc<DynamicType>,
 }
 
-impl<R: DdsRuntime> TopicEntity<R> {
+impl TopicEntity {
     #[allow(clippy::too_many_arguments)]
     pub const fn new(
         qos: TopicQos,
@@ -5982,7 +5951,7 @@ impl<R: DdsRuntime> TopicEntity<R> {
         topic_name: String,
         instance_handle: InstanceHandle,
         status_condition: Actor<DcpsStatusCondition>,
-        listener_sender: Option<MpscSender<ListenerMail<R>>>,
+        listener_sender: Option<MpscSender<ListenerMail>>,
         status_kind: Vec<StatusKind>,
         type_support: Arc<DynamicType>,
     ) -> Self {
@@ -6001,22 +5970,22 @@ impl<R: DdsRuntime> TopicEntity<R> {
     }
 }
 
-pub struct PublisherEntity<R: DdsRuntime> {
+pub struct PublisherEntity {
     qos: PublisherQos,
     instance_handle: InstanceHandle,
-    data_writer_list: Vec<DataWriterEntity<R>>,
+    data_writer_list: Vec<DataWriterEntity>,
     enabled: bool,
     default_datawriter_qos: DataWriterQos,
-    listener_sender: Option<MpscSender<ListenerMail<R>>>,
+    listener_sender: Option<MpscSender<ListenerMail>>,
     listener_mask: Vec<StatusKind>,
 }
 
-impl<R: DdsRuntime> PublisherEntity<R> {
+impl PublisherEntity {
     pub const fn new(
         qos: PublisherQos,
         instance_handle: InstanceHandle,
-        data_writer_list: Vec<DataWriterEntity<R>>,
-        listener_sender: Option<MpscSender<ListenerMail<R>>>,
+        data_writer_list: Vec<DataWriterEntity>,
+        listener_sender: Option<MpscSender<ListenerMail>>,
         listener_mask: Vec<StatusKind>,
     ) -> Self {
         Self {
@@ -6069,7 +6038,7 @@ pub struct InstanceSamples {
     samples: VecDeque<i64>,
 }
 
-pub struct DataWriterEntity<R: DdsRuntime> {
+pub struct DataWriterEntity {
     instance_handle: InstanceHandle,
     transport_writer: TransportWriterKind,
     topic_name: String,
@@ -6081,7 +6050,7 @@ pub struct DataWriterEntity<R: DdsRuntime> {
     offered_incompatible_qos_status: OfferedIncompatibleQosStatus,
     enabled: bool,
     status_condition: Actor<DcpsStatusCondition>,
-    listener_sender: Option<MpscSender<ListenerMail<R>>>,
+    listener_sender: Option<MpscSender<ListenerMail>>,
     listener_mask: Vec<StatusKind>,
     max_seq_num: Option<i64>,
     last_change_sequence_number: i64,
@@ -6092,7 +6061,7 @@ pub struct DataWriterEntity<R: DdsRuntime> {
     instance_samples: Vec<InstanceSamples>,
 }
 
-impl<R: DdsRuntime> DataWriterEntity<R> {
+impl DataWriterEntity {
     #[allow(clippy::too_many_arguments)]
     pub const fn new(
         instance_handle: InstanceHandle,
@@ -6101,7 +6070,7 @@ impl<R: DdsRuntime> DataWriterEntity<R> {
         type_name: String,
         type_support: Arc<DynamicType>,
         status_condition: Actor<DcpsStatusCondition>,
-        listener_sender: Option<MpscSender<ListenerMail<R>>>,
+        listener_sender: Option<MpscSender<ListenerMail>>,
         listener_mask: Vec<StatusKind>,
         qos: DataWriterQos,
     ) -> Self {
@@ -6625,7 +6594,7 @@ struct InstanceOwnership {
     last_received_time: Time,
 }
 
-pub struct DataReaderEntity<R: DdsRuntime> {
+pub struct DataReaderEntity {
     instance_handle: InstanceHandle,
     sample_list: Vec<ReaderSample>,
     qos: DataReaderQos,
@@ -6640,14 +6609,14 @@ pub struct DataReaderEntity<R: DdsRuntime> {
     data_available_status_changed_flag: bool,
     incompatible_writer_list: Vec<InstanceHandle>,
     status_condition: Actor<DcpsStatusCondition>,
-    listener_sender: Option<MpscSender<ListenerMail<R>>>,
+    listener_sender: Option<MpscSender<ListenerMail>>,
     listener_mask: Vec<StatusKind>,
     instances: Vec<InstanceState>,
     instance_ownership: Vec<InstanceOwnership>,
     transport_reader: TransportReaderKind,
 }
 
-impl<R: DdsRuntime> DataReaderEntity<R> {
+impl DataReaderEntity {
     #[allow(clippy::too_many_arguments)]
     pub const fn new(
         instance_handle: InstanceHandle,
@@ -6655,7 +6624,7 @@ impl<R: DdsRuntime> DataReaderEntity<R> {
         topic_name: String,
         type_support: Arc<DynamicType>,
         status_condition: Actor<DcpsStatusCondition>,
-        listener_sender: Option<MpscSender<ListenerMail<R>>>,
+        listener_sender: Option<MpscSender<ListenerMail>>,
         listener_mask: Vec<StatusKind>,
         transport_reader: TransportReaderKind,
     ) -> Self {

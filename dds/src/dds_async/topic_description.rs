@@ -1,21 +1,18 @@
-use crate::{
-    dds_async::{
-        content_filtered_topic::ContentFilteredTopicAsync,
-        domain_participant::DomainParticipantAsync, topic::TopicAsync,
-    },
-    runtime::DdsRuntime,
+use crate::dds_async::{
+    content_filtered_topic::ContentFilteredTopicAsync, domain_participant::DomainParticipantAsync,
+    topic::TopicAsync,
 };
 use alloc::string::String;
 
 /// Async version of [`TopicDescription`](crate::topic_definition::topic_description::TopicDescription).
-pub enum TopicDescriptionAsync<R: DdsRuntime> {
+pub enum TopicDescriptionAsync {
     /// Async topic
-    Topic(TopicAsync<R>),
+    Topic(TopicAsync),
     /// Content filtered topic
-    ContentFilteredTopic(ContentFilteredTopicAsync<R>),
+    ContentFilteredTopic(ContentFilteredTopicAsync),
 }
 
-impl<R: DdsRuntime> Clone for TopicDescriptionAsync<R> {
+impl Clone for TopicDescriptionAsync {
     fn clone(&self) -> Self {
         match self {
             Self::Topic(arg0) => Self::Topic(arg0.clone()),
@@ -24,10 +21,10 @@ impl<R: DdsRuntime> Clone for TopicDescriptionAsync<R> {
     }
 }
 
-impl<R: DdsRuntime> TopicDescriptionAsync<R> {
+impl TopicDescriptionAsync {
     /// Async version of [`get_participant`](crate::topic_definition::topic::Topic::get_participant).
     #[tracing::instrument(skip(self))]
-    pub fn get_participant(&self) -> DomainParticipantAsync<R> {
+    pub fn get_participant(&self) -> DomainParticipantAsync {
         match self {
             Self::Topic(t) => t.get_participant(),
             Self::ContentFilteredTopic(t) => t.get_participant(),

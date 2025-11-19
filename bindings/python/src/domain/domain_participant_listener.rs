@@ -18,17 +18,12 @@ impl From<Py<PyAny>> for DomainParticipantListener {
     }
 }
 
-impl
-    dust_dds::domain::domain_participant_listener::DomainParticipantListener<
-        dust_dds::std_runtime::StdRuntime,
-    > for DomainParticipantListener
+impl dust_dds::domain::domain_participant_listener::DomainParticipantListener
+    for DomainParticipantListener
 {
     async fn on_data_available(
         &mut self,
-        _the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<
-            dust_dds::std_runtime::StdRuntime,
-            (),
-        >,
+        _the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<()>,
     ) {
         let args = ((),);
         Python::attach(|py| {
@@ -41,10 +36,7 @@ impl
 
     async fn on_sample_rejected(
         &mut self,
-        _the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<
-            dust_dds::std_runtime::StdRuntime,
-            (),
-        >,
+        _the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<()>,
         status: dust_dds::infrastructure::status::SampleRejectedStatus,
     ) {
         let args = ((), SampleRejectedStatus::from(status));
@@ -58,10 +50,7 @@ impl
 
     async fn on_liveliness_changed(
         &mut self,
-        _the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<
-            dust_dds::std_runtime::StdRuntime,
-            (),
-        >,
+        _the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<()>,
         status: dust_dds::infrastructure::status::LivelinessChangedStatus,
     ) {
         let args = ((), LivelinessChangedStatus::from(status));
@@ -75,10 +64,7 @@ impl
 
     async fn on_requested_deadline_missed(
         &mut self,
-        _the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<
-            dust_dds::std_runtime::StdRuntime,
-            (),
-        >,
+        _the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<()>,
         status: dust_dds::infrastructure::status::RequestedDeadlineMissedStatus,
     ) {
         let args = ((), RequestedDeadlineMissedStatus::from(status));
@@ -92,10 +78,7 @@ impl
 
     async fn on_requested_incompatible_qos(
         &mut self,
-        _the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<
-            dust_dds::std_runtime::StdRuntime,
-            (),
-        >,
+        _the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<()>,
         status: dust_dds::infrastructure::status::RequestedIncompatibleQosStatus,
     ) {
         let args = ((), RequestedIncompatibleQosStatus::from(status));
@@ -109,10 +92,7 @@ impl
 
     async fn on_subscription_matched(
         &mut self,
-        _the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<
-            dust_dds::std_runtime::StdRuntime,
-            (),
-        >,
+        _the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<()>,
         status: dust_dds::infrastructure::status::SubscriptionMatchedStatus,
     ) {
         let args = ((), SubscriptionMatchedStatus::from(status));
@@ -126,10 +106,7 @@ impl
 
     async fn on_sample_lost(
         &mut self,
-        _the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<
-            dust_dds::std_runtime::StdRuntime,
-            (),
-        >,
+        _the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<()>,
         status: dust_dds::infrastructure::status::SampleLostStatus,
     ) {
         let args = ((), SampleLostStatus::from(status));
@@ -143,7 +120,7 @@ impl
 
     async fn on_inconsistent_topic(
         &mut self,
-        the_topic: dust_dds::dds_async::topic::TopicAsync<dust_dds::std_runtime::StdRuntime>,
+        the_topic: dust_dds::dds_async::topic::TopicAsync,
         status: dust_dds::infrastructure::status::InconsistentTopicStatus,
     ) {
         let args = (
@@ -160,10 +137,7 @@ impl
 
     async fn on_liveliness_lost(
         &mut self,
-        _the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<
-            dust_dds::std_runtime::StdRuntime,
-            (),
-        >,
+        _the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<()>,
         status: dust_dds::infrastructure::status::LivelinessLostStatus,
     ) {
         let args = ((), LivelinessLostStatus::from(status));
@@ -177,10 +151,7 @@ impl
 
     async fn on_offered_deadline_missed(
         &mut self,
-        _the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<
-            dust_dds::std_runtime::StdRuntime,
-            (),
-        >,
+        _the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<()>,
         status: dust_dds::infrastructure::status::OfferedDeadlineMissedStatus,
     ) {
         let args = ((), OfferedDeadlineMissedStatus::from(status));
@@ -194,10 +165,7 @@ impl
 
     async fn on_offered_incompatible_qos(
         &mut self,
-        _the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<
-            dust_dds::std_runtime::StdRuntime,
-            (),
-        >,
+        _the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<()>,
         status: dust_dds::infrastructure::status::OfferedIncompatibleQosStatus,
     ) {
         let args = ((), OfferedIncompatibleQosStatus::from(status));
@@ -211,10 +179,7 @@ impl
 
     async fn on_publication_matched(
         &mut self,
-        _the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<
-            dust_dds::std_runtime::StdRuntime,
-            (),
-        >,
+        _the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<()>,
         status: dust_dds::infrastructure::status::PublicationMatchedStatus,
     ) {
         let args = ((), PublicationMatchedStatus::from(status));

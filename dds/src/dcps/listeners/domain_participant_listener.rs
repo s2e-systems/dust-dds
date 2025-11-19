@@ -1,9 +1,13 @@
+use core::pin::Pin;
+
+use alloc::boxed::Box;
+
 use crate::{
     dcps::channels::mpsc::{MpscSender, mpsc_channel},
     dds_async::{
-        data_reader::DataReaderAsync, data_writer::DataWriterAsync, subscriber::SubscriberAsync,
+        data_reader::DataReaderAsync, data_writer::DataWriterAsync,
+        domain_participant_listener::DomainParticipantListener, subscriber::SubscriberAsync,
     },
-    domain::domain_participant_listener::DomainParticipantListener,
     infrastructure::status::{
         OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
         RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleRejectedStatus,
@@ -12,15 +16,15 @@ use crate::{
     runtime::{DdsRuntime, Spawner},
 };
 
-pub struct DcpsDomainParticipantListener;
+pub struct DcpsDomainParticipantListener {
+    sender: MpscSender<ListenerMail>,
+    task: Pin<Box<dyn Future<Output = ()> + Send>>,
+}
 
 impl DcpsDomainParticipantListener {
-    pub fn spawn<R: DdsRuntime>(
-        mut listener: impl DomainParticipantListener<R> + Send + 'static,
-        spawner_handle: &R::SpawnerHandle,
-    ) -> MpscSender<ListenerMail<R>> {
-        let (listener_sender, listener_receiver) = mpsc_channel();
-        spawner_handle.spawn(async move {
+    pub fn new(mut listener: impl DomainParticipantListener + Send + 'static) -> Self {
+        let (sender, listener_receiver) = mpsc_channel();
+        let task = Box::pin(async move {
             while let Some(m) = listener_receiver.receive().await {
                 match m {
                     ListenerMail::DataAvailable { the_reader } => {
@@ -61,43 +65,51 @@ impl DcpsDomainParticipantListener {
                 }
             }
         });
-        listener_sender
+        Self { sender, task }
+    }
+
+    pub fn spawn<R: DdsRuntime>(
+        self,
+        spawner_handle: &R::SpawnerHandle,
+    ) -> MpscSender<ListenerMail> {
+        spawner_handle.spawn(self.task);
+        self.sender
     }
 }
 
-pub enum ListenerMail<R: DdsRuntime> {
+pub enum ListenerMail {
     DataAvailable {
-        the_reader: DataReaderAsync<R, ()>,
+        the_reader: DataReaderAsync<()>,
     },
     DataOnReaders {
-        the_subscriber: SubscriberAsync<R>,
+        the_subscriber: SubscriberAsync,
     },
     RequestedDeadlineMissed {
-        the_reader: DataReaderAsync<R, ()>,
+        the_reader: DataReaderAsync<()>,
         status: RequestedDeadlineMissedStatus,
     },
     SampleRejected {
-        the_reader: DataReaderAsync<R, ()>,
+        the_reader: DataReaderAsync<()>,
         status: SampleRejectedStatus,
     },
     SubscriptionMatched {
-        the_reader: DataReaderAsync<R, ()>,
+        the_reader: DataReaderAsync<()>,
         status: SubscriptionMatchedStatus,
     },
     RequestedIncompatibleQos {
-        the_reader: DataReaderAsync<R, ()>,
+        the_reader: DataReaderAsync<()>,
         status: RequestedIncompatibleQosStatus,
     },
     PublicationMatched {
-        the_writer: DataWriterAsync<R, ()>,
+        the_writer: DataWriterAsync<()>,
         status: PublicationMatchedStatus,
     },
     OfferedIncompatibleQos {
-        the_writer: DataWriterAsync<R, ()>,
+        the_writer: DataWriterAsync<()>,
         status: OfferedIncompatibleQosStatus,
     },
     OfferedDeadlineMissed {
-        the_writer: DataWriterAsync<R, ()>,
+        the_writer: DataWriterAsync<()>,
         status: OfferedDeadlineMissedStatus,
     },
 }

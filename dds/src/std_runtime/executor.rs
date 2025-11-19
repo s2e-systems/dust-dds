@@ -10,7 +10,48 @@ use std::{
     thread::{self, JoinHandle, Thread},
 };
 
-use crate::runtime::Spawner;
+use crate::{
+    infrastructure::error::{DdsError, DdsResult},
+    runtime::Spawner,
+};
+
+pub fn block_timeout<T>(
+    duration: core::time::Duration,
+    future: impl Future<Output = T>,
+) -> DdsResult<T> {
+    struct ChannelWake(std::sync::mpsc::SyncSender<()>);
+    impl Wake for ChannelWake {
+        fn wake(self: std::sync::Arc<Self>) {
+            self.wake_by_ref();
+        }
+
+        fn wake_by_ref(self: &Arc<Self>) {
+            self.0.send(()).ok();
+        }
+    }
+    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    let waker = Waker::from(Arc::new(ChannelWake(sender)));
+    let mut cx = Context::from_waker(&waker);
+    let mut pinned_fut = pin!(future);
+    let start_instant = std::time::Instant::now();
+    loop {
+        match pinned_fut.as_mut().poll(&mut cx) {
+            Poll::Ready(t) => return Ok(t),
+            Poll::Pending => {
+                if let Some(timeout) =
+                    duration.checked_sub(std::time::Instant::now().duration_since(start_instant))
+                {
+                    match receiver.recv_timeout(timeout) {
+                        Ok(_) => (),
+                        Err(_) => return Err(DdsError::Timeout),
+                    }
+                } else {
+                    return Err(DdsError::Timeout);
+                }
+            }
+        }
+    }
+}
 
 pub fn block_on<T>(f: impl Future<Output = T>) -> T {
     struct ThreadWake(Thread);

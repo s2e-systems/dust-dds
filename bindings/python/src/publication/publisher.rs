@@ -18,26 +18,16 @@ use super::{
 };
 
 #[pyclass]
-pub struct Publisher(
-    dust_dds::publication::publisher::Publisher<dust_dds::std_runtime::StdRuntime>,
-);
+pub struct Publisher(dust_dds::publication::publisher::Publisher);
 
-impl From<dust_dds::publication::publisher::Publisher<dust_dds::std_runtime::StdRuntime>>
-    for Publisher
-{
-    fn from(
-        value: dust_dds::publication::publisher::Publisher<dust_dds::std_runtime::StdRuntime>,
-    ) -> Self {
+impl From<dust_dds::publication::publisher::Publisher> for Publisher {
+    fn from(value: dust_dds::publication::publisher::Publisher) -> Self {
         Self(value)
     }
 }
 
-impl AsRef<dust_dds::publication::publisher::Publisher<dust_dds::std_runtime::StdRuntime>>
-    for Publisher
-{
-    fn as_ref(
-        &self,
-    ) -> &dust_dds::publication::publisher::Publisher<dust_dds::std_runtime::StdRuntime> {
+impl AsRef<dust_dds::publication::publisher::Publisher> for Publisher {
+    fn as_ref(&self) -> &dust_dds::publication::publisher::Publisher {
         &self.0
     }
 }
