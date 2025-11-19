@@ -11,8 +11,6 @@ use crate::{
         stateless_writer::RtpsStatelessWriter,
         types::{PROTOCOLVERSION, VENDOR_ID_S2E},
     },
-    rtps_udp_transport::udp_transport::RtpsUdpTransportClock,
-    std_runtime::executor::block_on,
     transport::types::{ReaderProxy, WriterProxy},
 };
 use alloc::{boxed::Box, sync::Arc, vec::Vec};
@@ -218,17 +216,14 @@ impl RtpsTransportStatefulWriter {
                     .borrow(cs)
                     .borrow_mut()
                     .add_change(cache_change);
-                block_on(
-                    self.rtps_stateful_writer
-                        .borrow(cs)
-                        .borrow_mut()
-                        .write_message(self.message_writer.as_ref(), &RtpsUdpTransportClock),
-                );
             })
         })
     }
 
-    pub fn remove_change(&mut self, sequence_number: i64) -> Pin<Box<dyn Future<Output = ()> + Send>> {
+    pub fn remove_change(
+        &mut self,
+        sequence_number: i64,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
         let rtps_stateful_writer = self.rtps_stateful_writer.clone();
         Box::pin(async move {
             critical_section::with(move |cs| {
