@@ -13,15 +13,10 @@ impl From<Py<PyAny>> for PublisherListener {
     }
 }
 
-impl dust_dds::publication::publisher_listener::PublisherListener<dust_dds::std_runtime::StdRuntime>
-    for PublisherListener
-{
+impl dust_dds::publication::publisher_listener::PublisherListener for PublisherListener {
     async fn on_liveliness_lost(
         &mut self,
-        _the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<
-            dust_dds::std_runtime::StdRuntime,
-            (),
-        >,
+        _the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<()>,
         status: dust_dds::infrastructure::status::LivelinessLostStatus,
     ) {
         let args = ((), LivelinessLostStatus::from(status));
@@ -35,10 +30,7 @@ impl dust_dds::publication::publisher_listener::PublisherListener<dust_dds::std_
 
     async fn on_offered_deadline_missed(
         &mut self,
-        _the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<
-            dust_dds::std_runtime::StdRuntime,
-            (),
-        >,
+        _the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<()>,
         status: dust_dds::infrastructure::status::OfferedDeadlineMissedStatus,
     ) {
         let args = ((), OfferedDeadlineMissedStatus::from(status));
@@ -52,10 +44,7 @@ impl dust_dds::publication::publisher_listener::PublisherListener<dust_dds::std_
 
     async fn on_offered_incompatible_qos(
         &mut self,
-        _the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<
-            dust_dds::std_runtime::StdRuntime,
-            (),
-        >,
+        _the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<()>,
         status: dust_dds::infrastructure::status::OfferedIncompatibleQosStatus,
     ) {
         let args = ((), OfferedIncompatibleQosStatus::from(status));
@@ -69,10 +58,7 @@ impl dust_dds::publication::publisher_listener::PublisherListener<dust_dds::std_
 
     async fn on_publication_matched(
         &mut self,
-        _the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<
-            dust_dds::std_runtime::StdRuntime,
-            (),
-        >,
+        _the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<()>,
         status: dust_dds::infrastructure::status::PublicationMatchedStatus,
     ) {
         let args = ((), PublicationMatchedStatus::from(status));

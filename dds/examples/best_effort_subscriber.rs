@@ -13,7 +13,6 @@ use dust_dds::{
         type_support::DdsType,
     },
     listener::NO_LISTENER,
-    runtime::DdsRuntime,
     subscription::data_reader_listener::DataReaderListener,
 };
 
@@ -26,8 +25,8 @@ struct Listener {
     sender: SyncSender<()>,
 }
 
-impl<R: DdsRuntime> DataReaderListener<R, BestEffortExampleType> for Listener {
-    async fn on_data_available(&mut self, the_reader: DataReaderAsync<R, BestEffortExampleType>) {
+impl DataReaderListener<BestEffortExampleType> for Listener {
+    async fn on_data_available(&mut self, the_reader: DataReaderAsync<BestEffortExampleType>) {
         if let Ok(samples) = the_reader
             .take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
             .await
@@ -38,7 +37,7 @@ impl<R: DdsRuntime> DataReaderListener<R, BestEffortExampleType> for Listener {
     }
     async fn on_subscription_matched(
         &mut self,
-        _the_reader: DataReaderAsync<R, BestEffortExampleType>,
+        _the_reader: DataReaderAsync<BestEffortExampleType>,
         status: dust_dds::infrastructure::status::SubscriptionMatchedStatus,
     ) {
         if status.current_count == 0 {

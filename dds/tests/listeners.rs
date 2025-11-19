@@ -25,7 +25,6 @@ use dust_dds::{
     publication::{
         data_writer_listener::DataWriterListener, publisher_listener::PublisherListener,
     },
-    runtime::DdsRuntime,
     subscription::{
         data_reader_listener::DataReaderListener, subscriber_listener::SubscriberListener,
     },
@@ -49,10 +48,10 @@ fn requested_deadline_missed_listener() {
         sender: std::sync::mpsc::SyncSender<RequestedDeadlineMissedStatus>,
     }
 
-    impl<R: DdsRuntime> DomainParticipantListener<R> for DeadlineMissedListener {
+    impl DomainParticipantListener for DeadlineMissedListener {
         async fn on_requested_deadline_missed(
             &mut self,
-            _the_reader: DataReaderAsync<R, ()>,
+            _the_reader: DataReaderAsync<()>,
             status: RequestedDeadlineMissedStatus,
         ) {
             self.sender.send(status).ok();
@@ -159,10 +158,10 @@ fn sample_rejected_listener() {
         sender: std::sync::mpsc::SyncSender<SampleRejectedStatus>,
     }
 
-    impl<R: DdsRuntime> DomainParticipantListener<R> for SampleRejectedListener {
+    impl DomainParticipantListener for SampleRejectedListener {
         async fn on_sample_rejected(
             &mut self,
-            _the_reader: DataReaderAsync<R, ()>,
+            _the_reader: DataReaderAsync<()>,
             status: SampleRejectedStatus,
         ) {
             self.sender.send(status).ok();
@@ -274,10 +273,10 @@ fn subscription_matched_listener() {
         sender: std::sync::mpsc::SyncSender<SubscriptionMatchedStatus>,
     }
 
-    impl<R: DdsRuntime> DomainParticipantListener<R> for SubscriptionMatchedListener {
+    impl DomainParticipantListener for SubscriptionMatchedListener {
         async fn on_subscription_matched(
             &mut self,
-            _the_reader: DataReaderAsync<R, ()>,
+            _the_reader: DataReaderAsync<()>,
             status: SubscriptionMatchedStatus,
         ) {
             self.sender.send(status).ok();
@@ -367,10 +366,10 @@ fn requested_incompatible_qos_listener() {
         sender: std::sync::mpsc::SyncSender<RequestedIncompatibleQosStatus>,
     }
 
-    impl<R: DdsRuntime> DomainParticipantListener<R> for RequestedIncompatibleQosListener {
+    impl DomainParticipantListener for RequestedIncompatibleQosListener {
         async fn on_requested_incompatible_qos(
             &mut self,
-            _the_reader: DataReaderAsync<R, ()>,
+            _the_reader: DataReaderAsync<()>,
             status: RequestedIncompatibleQosStatus,
         ) {
             self.sender.send(status).ok();
@@ -460,10 +459,10 @@ fn publication_matched_listener() {
         sender: std::sync::mpsc::SyncSender<PublicationMatchedStatus>,
     }
 
-    impl<R: DdsRuntime> DomainParticipantListener<R> for PublicationMatchedListener {
+    impl DomainParticipantListener for PublicationMatchedListener {
         async fn on_publication_matched(
             &mut self,
-            _the_writer: DataWriterAsync<R, ()>,
+            _the_writer: DataWriterAsync<()>,
             status: PublicationMatchedStatus,
         ) {
             self.sender.send(status).ok();
@@ -554,10 +553,10 @@ fn offered_incompatible_qos_listener() {
         sender: std::sync::mpsc::SyncSender<OfferedIncompatibleQosStatus>,
     }
 
-    impl<R: DdsRuntime> DomainParticipantListener<R> for OfferedIncompatibleQosListener {
+    impl DomainParticipantListener for OfferedIncompatibleQosListener {
         async fn on_offered_incompatible_qos(
             &mut self,
-            _the_writer: DataWriterAsync<R, ()>,
+            _the_writer: DataWriterAsync<()>,
             status: OfferedIncompatibleQosStatus,
         ) {
             self.sender.send(status).ok();
@@ -648,8 +647,8 @@ fn on_data_available_listener() {
         sender: std::sync::mpsc::SyncSender<()>,
     }
 
-    impl<R: DdsRuntime> DataReaderListener<R, MyData> for DataAvailableListener {
-        async fn on_data_available(&mut self, _the_reader: DataReaderAsync<R, MyData>) {
+    impl DataReaderListener<MyData> for DataAvailableListener {
+        async fn on_data_available(&mut self, _the_reader: DataReaderAsync<MyData>) {
             self.sender.send(()).unwrap();
         }
     }
@@ -738,8 +737,8 @@ fn data_on_readers_listener() {
         sender: std::sync::mpsc::SyncSender<()>,
     }
 
-    impl<R: DdsRuntime> SubscriberListener<R> for DataOnReadersListener {
-        async fn on_data_on_readers(&mut self, _the_subscriber: SubscriberAsync<R>) {
+    impl SubscriberListener for DataOnReadersListener {
+        async fn on_data_on_readers(&mut self, _the_subscriber: SubscriberAsync) {
             self.sender.send(()).unwrap();
         }
     }
@@ -833,8 +832,8 @@ fn data_available_listener_not_called_when_data_on_readers_listener() {
         sender: std::sync::mpsc::SyncSender<()>,
     }
 
-    impl<R: DdsRuntime> SubscriberListener<R> for DataOnReadersListener {
-        async fn on_data_on_readers(&mut self, _the_subscriber: SubscriberAsync<R>) {
+    impl SubscriberListener for DataOnReadersListener {
+        async fn on_data_on_readers(&mut self, _the_subscriber: SubscriberAsync) {
             self.sender.send(()).unwrap();
         }
     }
@@ -843,8 +842,8 @@ fn data_available_listener_not_called_when_data_on_readers_listener() {
         sender: std::sync::mpsc::SyncSender<()>,
     }
 
-    impl<R: DdsRuntime> DataReaderListener<R, MyData> for DataAvailableListener {
-        async fn on_data_available(&mut self, _the_reader: DataReaderAsync<R, MyData>) {
+    impl DataReaderListener<MyData> for DataAvailableListener {
+        async fn on_data_available(&mut self, _the_reader: DataReaderAsync<MyData>) {
             self.sender.send(()).unwrap();
         }
     }
@@ -946,10 +945,10 @@ fn participant_requested_deadline_missed_listener() {
         sender: std::sync::mpsc::SyncSender<RequestedDeadlineMissedStatus>,
     }
 
-    impl<R: DdsRuntime> DataReaderListener<R, MyData> for DeadlineMissedListener {
+    impl DataReaderListener<MyData> for DeadlineMissedListener {
         async fn on_requested_deadline_missed(
             &mut self,
-            _the_reader: DataReaderAsync<R, MyData>,
+            _the_reader: DataReaderAsync<MyData>,
             status: RequestedDeadlineMissedStatus,
         ) {
             self.sender.send(status).ok();
@@ -1049,10 +1048,10 @@ fn data_reader_sample_rejected_listener() {
         sender: std::sync::mpsc::SyncSender<SampleRejectedStatus>,
     }
 
-    impl<R: DdsRuntime> DataReaderListener<R, MyData> for SampleRejectedListener {
+    impl DataReaderListener<MyData> for SampleRejectedListener {
         async fn on_sample_rejected(
             &mut self,
-            _the_reader: DataReaderAsync<R, MyData>,
+            _the_reader: DataReaderAsync<MyData>,
             status: SampleRejectedStatus,
         ) {
             self.sender.send(status).ok();
@@ -1159,10 +1158,10 @@ fn data_reader_subscription_matched_listener() {
         sender: std::sync::mpsc::SyncSender<SubscriptionMatchedStatus>,
     }
 
-    impl<R: DdsRuntime> DataReaderListener<R, MyData> for SubscriptionMatchedListener {
+    impl DataReaderListener<MyData> for SubscriptionMatchedListener {
         async fn on_subscription_matched(
             &mut self,
-            _the_reader: DataReaderAsync<R, MyData>,
+            _the_reader: DataReaderAsync<MyData>,
             status: SubscriptionMatchedStatus,
         ) {
             self.sender.send(status).ok();
@@ -1247,10 +1246,10 @@ fn data_reader_requested_incompatible_qos_listener() {
         sender: std::sync::mpsc::SyncSender<RequestedIncompatibleQosStatus>,
     }
 
-    impl<R: DdsRuntime> DataReaderListener<R, MyData> for RequestedIncompatibleQosListener {
+    impl DataReaderListener<MyData> for RequestedIncompatibleQosListener {
         async fn on_requested_incompatible_qos(
             &mut self,
-            _the_reader: DataReaderAsync<R, MyData>,
+            _the_reader: DataReaderAsync<MyData>,
             status: RequestedIncompatibleQosStatus,
         ) {
             self.sender.send(status).ok();
@@ -1335,10 +1334,10 @@ fn publisher_publication_matched_listener() {
         sender: std::sync::mpsc::SyncSender<PublicationMatchedStatus>,
     }
 
-    impl<R: DdsRuntime> PublisherListener<R> for PublicationMatchedListener {
+    impl PublisherListener for PublicationMatchedListener {
         async fn on_publication_matched(
             &mut self,
-            _the_writer: DataWriterAsync<R, ()>,
+            _the_writer: DataWriterAsync<()>,
             status: PublicationMatchedStatus,
         ) {
             self.sender.send(status).ok();
@@ -1427,10 +1426,10 @@ fn publisher_offered_incompatible_qos_listener() {
         sender: std::sync::mpsc::SyncSender<OfferedIncompatibleQosStatus>,
     }
 
-    impl<R: DdsRuntime> PublisherListener<R> for OfferedIncompatibleQosListener {
+    impl PublisherListener for OfferedIncompatibleQosListener {
         async fn on_offered_incompatible_qos(
             &mut self,
-            _the_writer: DataWriterAsync<R, ()>,
+            _the_writer: DataWriterAsync<()>,
             status: OfferedIncompatibleQosStatus,
         ) {
             self.sender.send(status).ok();
@@ -1520,10 +1519,10 @@ fn subscriber_requested_deadline_missed_listener() {
         sender: std::sync::mpsc::SyncSender<RequestedDeadlineMissedStatus>,
     }
 
-    impl<R: DdsRuntime> SubscriberListener<R> for DeadlineMissedListener {
+    impl SubscriberListener for DeadlineMissedListener {
         async fn on_requested_deadline_missed(
             &mut self,
-            _the_reader: DataReaderAsync<R, ()>,
+            _the_reader: DataReaderAsync<()>,
             status: RequestedDeadlineMissedStatus,
         ) {
             self.sender.send(status).ok();
@@ -1626,10 +1625,10 @@ fn subscriber_sample_rejected_listener() {
         sender: std::sync::mpsc::SyncSender<SampleRejectedStatus>,
     }
 
-    impl<R: DdsRuntime> SubscriberListener<R> for SampleRejectedListener {
+    impl SubscriberListener for SampleRejectedListener {
         async fn on_sample_rejected(
             &mut self,
-            _the_reader: DataReaderAsync<R, ()>,
+            _the_reader: DataReaderAsync<()>,
             status: SampleRejectedStatus,
         ) {
             self.sender.send(status).ok();
@@ -1739,10 +1738,10 @@ fn subscriber_subscription_matched_listener() {
         sender: std::sync::mpsc::SyncSender<SubscriptionMatchedStatus>,
     }
 
-    impl<R: DdsRuntime> SubscriberListener<R> for SubscriptionMatchedListener {
+    impl SubscriberListener for SubscriptionMatchedListener {
         async fn on_subscription_matched(
             &mut self,
-            _the_reader: DataReaderAsync<R, ()>,
+            _the_reader: DataReaderAsync<()>,
             status: SubscriptionMatchedStatus,
         ) {
             self.sender.send(status).ok();
@@ -1831,10 +1830,10 @@ fn subscriber_requested_incompatible_qos_listener() {
         sender: std::sync::mpsc::SyncSender<RequestedIncompatibleQosStatus>,
     }
 
-    impl<R: DdsRuntime> SubscriberListener<R> for RequestedIncompatibleQosListener {
+    impl SubscriberListener for RequestedIncompatibleQosListener {
         async fn on_requested_incompatible_qos(
             &mut self,
-            _the_reader: DataReaderAsync<R, ()>,
+            _the_reader: DataReaderAsync<()>,
             status: RequestedIncompatibleQosStatus,
         ) {
             self.sender.send(status).ok();
@@ -1923,10 +1922,10 @@ fn data_writer_publication_matched_listener() {
         sender: std::sync::mpsc::SyncSender<PublicationMatchedStatus>,
     }
 
-    impl<R: DdsRuntime> DataWriterListener<R, MyData> for PublicationMatchedListener {
+    impl DataWriterListener<MyData> for PublicationMatchedListener {
         async fn on_publication_matched(
             &mut self,
-            _the_reader: DataWriterAsync<R, MyData>,
+            _the_reader: DataWriterAsync<MyData>,
             status: PublicationMatchedStatus,
         ) {
             self.sender.send(status).ok();
@@ -2012,10 +2011,10 @@ fn data_writer_offered_incompatible_qos_listener() {
         sender: std::sync::mpsc::SyncSender<OfferedIncompatibleQosStatus>,
     }
 
-    impl<R: DdsRuntime> DataWriterListener<R, MyData> for OfferedIncompatibleQosListener {
+    impl DataWriterListener<MyData> for OfferedIncompatibleQosListener {
         async fn on_offered_incompatible_qos(
             &mut self,
-            _the_reader: DataWriterAsync<R, MyData>,
+            _the_reader: DataWriterAsync<MyData>,
             status: OfferedIncompatibleQosStatus,
         ) {
             self.sender.send(status).ok();
@@ -2106,12 +2105,12 @@ fn non_sync_listener_should_be_accepted() {
         }
     }
 
-    impl<R: DdsRuntime> DomainParticipantListener<R> for NonSyncListener {}
-    impl<R: DdsRuntime> PublisherListener<R> for NonSyncListener {}
-    impl<R: DdsRuntime> SubscriberListener<R> for NonSyncListener {}
-    impl<R: DdsRuntime> TopicListener<R> for NonSyncListener {}
-    impl<R: DdsRuntime> DataWriterListener<R, MyData> for NonSyncListener {}
-    impl<R: DdsRuntime> DataReaderListener<R, MyData> for NonSyncListener {}
+    impl DomainParticipantListener for NonSyncListener {}
+    impl PublisherListener for NonSyncListener {}
+    impl SubscriberListener for NonSyncListener {}
+    impl TopicListener for NonSyncListener {}
+    impl DataWriterListener<MyData> for NonSyncListener {}
+    impl DataReaderListener<MyData> for NonSyncListener {}
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let participant_factory = DomainParticipantFactory::get_instance();
@@ -2164,10 +2163,10 @@ fn writer_offered_deadline_missed_listener() {
         sender: std::sync::mpsc::SyncSender<OfferedDeadlineMissedStatus>,
     }
 
-    impl<R: DdsRuntime> DataWriterListener<R, MyData> for DeadlineMissedListener {
+    impl DataWriterListener<MyData> for DeadlineMissedListener {
         async fn on_offered_deadline_missed(
             &mut self,
-            _the_writer: DataWriterAsync<R, MyData>,
+            _the_writer: DataWriterAsync<MyData>,
             status: OfferedDeadlineMissedStatus,
         ) {
             self.sender.send(status).ok();
@@ -2266,10 +2265,10 @@ fn publisher_offered_deadline_missed_listener() {
         sender: std::sync::mpsc::SyncSender<OfferedDeadlineMissedStatus>,
     }
 
-    impl<R: DdsRuntime> PublisherListener<R> for DeadlineMissedListener {
+    impl PublisherListener for DeadlineMissedListener {
         async fn on_offered_deadline_missed(
             &mut self,
-            _the_writer: DataWriterAsync<R, ()>,
+            _the_writer: DataWriterAsync<()>,
             status: OfferedDeadlineMissedStatus,
         ) {
             self.sender.send(status).ok();
@@ -2373,10 +2372,10 @@ fn participant_offered_deadline_missed_listener() {
         sender: std::sync::mpsc::SyncSender<OfferedDeadlineMissedStatus>,
     }
 
-    impl<R: DdsRuntime> DomainParticipantListener<R> for DeadlineMissedListener {
+    impl DomainParticipantListener for DeadlineMissedListener {
         async fn on_offered_deadline_missed(
             &mut self,
-            _the_writer: DataWriterAsync<R, ()>,
+            _the_writer: DataWriterAsync<()>,
             status: OfferedDeadlineMissedStatus,
         ) {
             self.sender.send(status).ok();

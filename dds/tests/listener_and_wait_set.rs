@@ -11,7 +11,6 @@ use dust_dds::{
         type_support::DdsType,
     },
     listener::NO_LISTENER,
-    runtime::DdsRuntime,
     subscription::data_reader_listener::DataReaderListener,
     wait_set::{Condition, WaitSet},
 };
@@ -32,10 +31,10 @@ fn reader_subscription_matched_listener_and_wait_set_should_both_trigger() {
         sender: Option<std::sync::mpsc::SyncSender<SubscriptionMatchedStatus>>,
     }
 
-    impl<R: DdsRuntime> DataReaderListener<R, MyData> for SubscriptionMatchedListener {
+    impl DataReaderListener<MyData> for SubscriptionMatchedListener {
         async fn on_subscription_matched(
             &mut self,
-            _the_reader: DataReaderAsync<R, MyData>,
+            _the_reader: DataReaderAsync<MyData>,
             status: SubscriptionMatchedStatus,
         ) {
             if let Some(s) = self.sender.take() {
@@ -134,8 +133,8 @@ fn reader_on_data_available_matched_listener_and_wait_set_should_both_trigger() 
         sender: Option<std::sync::mpsc::SyncSender<()>>,
     }
 
-    impl<R: DdsRuntime> DataReaderListener<R, MyData> for DataAvailableListener {
-        async fn on_data_available(&mut self, _the_reader: DataReaderAsync<R, MyData>) -> () {
+    impl DataReaderListener<MyData> for DataAvailableListener {
+        async fn on_data_available(&mut self, _the_reader: DataReaderAsync<MyData>) -> () {
             if let Some(s) = self.sender.take() {
                 s.send(()).unwrap()
             };

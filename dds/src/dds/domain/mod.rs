@@ -5,4 +5,6 @@ pub mod domain_participant;
 pub mod domain_participant_factory;
 
 /// Contains the [`DomainParticipantListener`](crate::domain::domain_participant_listener::DomainParticipantListener) trait.
-pub mod domain_participant_listener;
+pub mod domain_participant_listener {
+    pub use crate::dds_async::domain_participant_listener::*;
+}

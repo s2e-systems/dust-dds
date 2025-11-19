@@ -1,20 +1,30 @@
+use core::pin::Pin;
+
+use alloc::boxed::Box;
+
 use crate::{
-    runtime::{ChannelReceive, DdsRuntime, Spawner},
-    topic_definition::topic_listener::TopicListener,
+    dcps::channels::mpsc::{MpscSender, mpsc_channel},
+    dds_async::topic_listener::TopicListener,
+    runtime::{DdsRuntime, Spawner},
 };
 
 use super::domain_participant_listener::ListenerMail;
 
-pub struct DcpsTopicListener;
+pub struct DcpsTopicListener {
+    sender: MpscSender<ListenerMail>,
+    task: Pin<Box<dyn Future<Output = ()> + Send>>,
+}
 
 impl DcpsTopicListener {
-    pub fn spawn<R: DdsRuntime>(
-        _listener: impl TopicListener<R> + Send + 'static,
-        spawner_handle: &R::SpawnerHandle,
-    ) -> R::ChannelSender<ListenerMail<R>> {
-        let (listener_sender, mut listener_receiver) = R::channel();
-        spawner_handle
-            .spawn(async move { while let Some(_m) = listener_receiver.receive().await {} });
-        listener_sender
+    pub fn new(_listener: impl TopicListener + Send + 'static) -> Self {
+        let (sender, listener_receiver) = mpsc_channel();
+        let task =
+            Box::pin(async move { while let Some(_m) = listener_receiver.receive().await {} });
+        Self { sender, task }
+    }
+
+    pub fn spawn<R: DdsRuntime>(self, spawner: &R::SpawnerHandle) -> MpscSender<ListenerMail> {
+        spawner.spawn(self.task);
+        self.sender
     }
 }

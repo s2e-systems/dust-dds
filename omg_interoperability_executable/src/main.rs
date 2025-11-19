@@ -21,8 +21,6 @@ use dust_dds::{
     },
     listener::NO_LISTENER,
     publication::data_writer::DataWriter,
-    runtime::DdsRuntime,
-    std_runtime::StdRuntime,
     subscription::data_reader::DataReader,
 };
 use rand::{Rng, random, thread_rng};
@@ -330,10 +328,10 @@ impl Options {
 }
 
 struct Listener;
-impl<R: DdsRuntime> DomainParticipantListener<R> for Listener {
+impl DomainParticipantListener for Listener {
     async fn on_inconsistent_topic(
         &mut self,
-        the_topic: TopicAsync<R>,
+        the_topic: TopicAsync,
         _status: InconsistentTopicStatus,
     ) {
         println!(
@@ -345,7 +343,7 @@ impl<R: DdsRuntime> DomainParticipantListener<R> for Listener {
 
     async fn on_offered_incompatible_qos(
         &mut self,
-        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<R, ()>,
+        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<()>,
         status: dust_dds::infrastructure::status::OfferedIncompatibleQosStatus,
     ) {
         let policy_name = qos_policy_name(status.last_policy_id);
@@ -360,7 +358,7 @@ impl<R: DdsRuntime> DomainParticipantListener<R> for Listener {
 
     async fn on_publication_matched(
         &mut self,
-        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<R, ()>,
+        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<()>,
         status: dust_dds::infrastructure::status::PublicationMatchedStatus,
     ) {
         if !the_writer.get_topic().get_name().starts_with("DCPS") {
@@ -376,7 +374,7 @@ impl<R: DdsRuntime> DomainParticipantListener<R> for Listener {
 
     async fn on_offered_deadline_missed(
         &mut self,
-        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<R, ()>,
+        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<()>,
         status: dust_dds::infrastructure::status::OfferedDeadlineMissedStatus,
     ) {
         println!(
@@ -390,7 +388,7 @@ impl<R: DdsRuntime> DomainParticipantListener<R> for Listener {
 
     async fn on_liveliness_lost(
         &mut self,
-        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<R, ()>,
+        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<()>,
         status: dust_dds::infrastructure::status::LivelinessLostStatus,
     ) {
         println!(
@@ -404,7 +402,7 @@ impl<R: DdsRuntime> DomainParticipantListener<R> for Listener {
 
     async fn on_requested_incompatible_qos(
         &mut self,
-        the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<R, ()>,
+        the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<()>,
         status: dust_dds::infrastructure::status::RequestedIncompatibleQosStatus,
     ) {
         let policy_name = qos_policy_name(status.last_policy_id);
@@ -419,7 +417,7 @@ impl<R: DdsRuntime> DomainParticipantListener<R> for Listener {
 
     async fn on_subscription_matched(
         &mut self,
-        the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<R, ()>,
+        the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<()>,
         status: dust_dds::infrastructure::status::SubscriptionMatchedStatus,
     ) {
         if !the_reader
@@ -439,7 +437,7 @@ impl<R: DdsRuntime> DomainParticipantListener<R> for Listener {
 
     async fn on_requested_deadline_missed(
         &mut self,
-        the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<R, ()>,
+        the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<()>,
         status: dust_dds::infrastructure::status::RequestedDeadlineMissedStatus,
     ) {
         println!(
@@ -453,7 +451,7 @@ impl<R: DdsRuntime> DomainParticipantListener<R> for Listener {
 
     async fn on_liveliness_changed(
         &mut self,
-        the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<R, ()>,
+        the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<()>,
         status: dust_dds::infrastructure::status::LivelinessChangedStatus,
     ) {
         println!(
@@ -494,9 +492,9 @@ fn move_shape(
 }
 
 fn init_publisher(
-    participant: &DomainParticipant<StdRuntime>,
+    participant: &DomainParticipant,
     options: Options,
-) -> Result<DataWriter<StdRuntime, ShapeType>, InitializeError> {
+) -> Result<DataWriter<ShapeType>, InitializeError> {
     let topic = participant
         .lookup_topicdescription(&options.topic_name)
         .expect("lookup_topicdescription succeeds")
@@ -540,7 +538,7 @@ fn init_publisher(
 }
 
 fn run_publisher(
-    data_writer: &DataWriter<StdRuntime, ShapeType>,
+    data_writer: &DataWriter<ShapeType>,
     options: Options,
     all_done: Receiver<()>,
 ) -> Result<(), RunningError> {
@@ -593,9 +591,9 @@ fn run_publisher(
 }
 
 fn init_subscriber(
-    participant: &DomainParticipant<StdRuntime>,
+    participant: &DomainParticipant,
     options: Options,
-) -> Result<DataReader<StdRuntime, ShapeType>, InitializeError> {
+) -> Result<DataReader<ShapeType>, InitializeError> {
     let topic = participant
         .lookup_topicdescription(&options.topic_name)
         .expect("lookup_topicdescription succeeds")
@@ -658,7 +656,7 @@ fn init_subscriber(
 }
 
 fn run_subscriber(
-    data_reader: &DataReader<StdRuntime, ShapeType>,
+    data_reader: &DataReader<ShapeType>,
     options: Options,
     all_done: Receiver<()>,
 ) -> Result<(), RunningError> {
@@ -712,7 +710,7 @@ fn run_subscriber(
     Ok(())
 }
 
-fn initialize(options: &Options) -> Result<DomainParticipant<StdRuntime>, InitializeError> {
+fn initialize(options: &Options) -> Result<DomainParticipant, InitializeError> {
     let participant_factory = DomainParticipantFactory::get_instance();
     let participant = participant_factory.create_participant(
         options.domain_id,

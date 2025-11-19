@@ -14,26 +14,26 @@ use crate::{
         type_support::TypeSupport,
     },
     publication::{data_writer_listener::DataWriterListener, publisher::Publisher},
-    runtime::DdsRuntime,
+    std_runtime::executor::{block_on, block_timeout},
     topic_definition::topic_description::TopicDescription,
 };
 use alloc::vec::Vec;
 
 /// The [`DataWriter`] allows the application to set the value of the
 /// data to be published under a given [`Topic`].
-pub struct DataWriter<R: DdsRuntime, Foo> {
-    writer_async: DataWriterAsync<R, Foo>,
+pub struct DataWriter<Foo> {
+    writer_async: DataWriterAsync<Foo>,
 }
 
-impl<R: DdsRuntime, Foo> From<DataWriterAsync<R, Foo>> for DataWriter<R, Foo> {
-    fn from(value: DataWriterAsync<R, Foo>) -> Self {
+impl<Foo> From<DataWriterAsync<Foo>> for DataWriter<Foo> {
+    fn from(value: DataWriterAsync<Foo>) -> Self {
         Self {
             writer_async: value,
         }
     }
 }
 
-impl<R: DdsRuntime, Foo> Clone for DataWriter<R, Foo> {
+impl<Foo> Clone for DataWriter<Foo> {
     fn clone(&self) -> Self {
         Self {
             writer_async: self.writer_async.clone(),
@@ -41,13 +41,13 @@ impl<R: DdsRuntime, Foo> Clone for DataWriter<R, Foo> {
     }
 }
 
-impl<R: DdsRuntime, Foo> DataWriter<R, Foo> {
-    pub(crate) fn writer_async(&self) -> &DataWriterAsync<R, Foo> {
+impl<Foo> DataWriter<Foo> {
+    pub(crate) fn writer_async(&self) -> &DataWriterAsync<Foo> {
         &self.writer_async
     }
 }
 
-impl<R: DdsRuntime, Foo> DataWriter<R, Foo>
+impl<Foo> DataWriter<Foo>
 where
     Foo: TypeSupport,
 {
@@ -67,7 +67,7 @@ where
     /// and specify no [`InstanceHandle`] to indicate that the *key* should be examined to identify the instance.
     #[tracing::instrument(skip(self, instance))]
     pub fn register_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
-        R::block_on(self.writer_async.register_instance(instance))
+        block_on(self.writer_async.register_instance(instance))
     }
 
     /// This operation performs the same function and return the same values as [`DataWriter::register_instance`] and can be used instead of
@@ -80,7 +80,7 @@ where
         instance: &Foo,
         timestamp: Time,
     ) -> DdsResult<Option<InstanceHandle>> {
-        R::block_on(
+        block_on(
             self.writer_async
                 .register_instance_w_timestamp(instance, timestamp),
         )
@@ -120,7 +120,7 @@ where
         instance: Foo,
         handle: Option<InstanceHandle>,
     ) -> DdsResult<()> {
-        R::block_on(self.writer_async.unregister_instance(instance, handle))
+        block_on(self.writer_async.unregister_instance(instance, handle))
     }
 
     /// This operation performs the same function and returns the same values as [`DataWriter::unregister_instance`] and can
@@ -135,7 +135,7 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        R::block_on(
+        block_on(
             self.writer_async
                 .unregister_instance_w_timestamp(instance, handle, timestamp),
         )
@@ -147,7 +147,7 @@ where
     /// correspond to an existing data object known to the [`DataWriter`].
     #[tracing::instrument(skip(self, key_holder))]
     pub fn get_key_value(&self, key_holder: &mut Foo, handle: InstanceHandle) -> DdsResult<()> {
-        R::block_on(self.writer_async.get_key_value(key_holder, handle))
+        block_on(self.writer_async.get_key_value(key_holder, handle))
     }
 
     /// This operation takes as a parameter an instance and returns an [`InstanceHandle`] that can be used in subsequent operations
@@ -157,7 +157,7 @@ where
     /// reason the Service is unable to provide an [`InstanceHandle`], the operation will return [`None`].
     #[tracing::instrument(skip(self, instance))]
     pub fn lookup_instance(&self, instance: Foo) -> DdsResult<Option<InstanceHandle>> {
-        R::block_on(self.writer_async.lookup_instance(instance))
+        block_on(self.writer_async.lookup_instance(instance))
     }
 
     /// This operation modifies the value of a data instance. When this operation is used, the Service will automatically supply the
@@ -194,7 +194,7 @@ where
     /// chance of freeing the necessary resources. For example, if the only way to gain the necessary resources would be for the user to unregister an instance.
     #[tracing::instrument(skip(self, data))]
     pub fn write(&self, data: Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
-        R::block_on(self.writer_async.write(data, handle))
+        block_on(self.writer_async.write(data, handle))
     }
 
     /// This operation performs the same function and returns the same values as [`DataWriter::write`] and can
@@ -209,7 +209,7 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        R::block_on(self.writer_async.write_w_timestamp(data, handle, timestamp))
+        block_on(self.writer_async.write_w_timestamp(data, handle, timestamp))
     }
 
     /// This operation requests the middleware to delete the data (the actual deletion is postponed until there is no more use for that
@@ -226,7 +226,7 @@ where
     /// [`DdsError::OutOfResources`](crate::infrastructure::error::DdsError) under the same circumstances described for [`DataWriter::write`].
     #[tracing::instrument(skip(self, data))]
     pub fn dispose(&self, data: Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
-        R::block_on(self.writer_async.dispose(data, handle))
+        block_on(self.writer_async.dispose(data, handle))
     }
 
     /// This operation performs the same function and returns the same values as [`DataWriter::dispose`] and can
@@ -241,14 +241,14 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        R::block_on(
+        block_on(
             self.writer_async
                 .dispose_w_timestamp(data, handle, timestamp),
         )
     }
 }
 
-impl<R: DdsRuntime, Foo> DataWriter<R, Foo> {
+impl<Foo> DataWriter<Foo> {
     /// This operation blocks the calling thread until either all data written by the [`DataWriter`] is acknowledged by all
     /// matched [`DataReader`](crate::subscription::data_reader::DataReader) entities that have
     /// [`ReliabilityQosPolicyKind::Reliable`](crate::infrastructure::qos_policy::ReliabilityQosPolicyKind), or else the duration
@@ -259,42 +259,45 @@ impl<R: DdsRuntime, Foo> DataWriter<R, Foo> {
     /// Otherwise the operation will return immediately with [`Ok`].
     #[tracing::instrument(skip(self))]
     pub fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
-        R::block_on(self.writer_async.wait_for_acknowledgments(max_wait))
+        block_timeout(
+            max_wait.into(),
+            self.writer_async.wait_for_acknowledgments(),
+        )?
     }
 
     /// This operation allows access to the [`LivelinessLostStatus`].
     #[tracing::instrument(skip(self))]
     pub fn get_liveliness_lost_status(&self) -> DdsResult<LivelinessLostStatus> {
-        R::block_on(self.writer_async.get_liveliness_lost_status())
+        block_on(self.writer_async.get_liveliness_lost_status())
     }
 
     /// This operation allows access to the [`OfferedDeadlineMissedStatus`].
     #[tracing::instrument(skip(self))]
     pub fn get_offered_deadline_missed_status(&self) -> DdsResult<OfferedDeadlineMissedStatus> {
-        R::block_on(self.writer_async.get_offered_deadline_missed_status())
+        block_on(self.writer_async.get_offered_deadline_missed_status())
     }
 
     /// This operation allows access to the [`OfferedIncompatibleQosStatus`].
     #[tracing::instrument(skip(self))]
     pub fn get_offered_incompatible_qos_status(&self) -> DdsResult<OfferedIncompatibleQosStatus> {
-        R::block_on(self.writer_async.get_offered_incompatible_qos_status())
+        block_on(self.writer_async.get_offered_incompatible_qos_status())
     }
 
     /// This operation allows access to the [`PublicationMatchedStatus`].
     #[tracing::instrument(skip(self))]
     pub fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus> {
-        R::block_on(self.writer_async.get_publication_matched_status())
+        block_on(self.writer_async.get_publication_matched_status())
     }
 
     /// This operation returns the [`Topic`] associated with the [`DataWriter`]. This is the same [`Topic`] that was used to create the [`DataWriter`].
     #[tracing::instrument(skip(self))]
-    pub fn get_topic(&self) -> TopicDescription<R> {
+    pub fn get_topic(&self) -> TopicDescription {
         self.writer_async.get_topic().into()
     }
 
     /// This operation returns the [`Publisher`] to which the [`DataWriter`] object belongs.
     #[tracing::instrument(skip(self))]
-    pub fn get_publisher(&self) -> Publisher<R> {
+    pub fn get_publisher(&self) -> Publisher {
         Publisher::from(self.writer_async.get_publisher())
     }
 
@@ -308,7 +311,7 @@ impl<R: DdsRuntime, Foo> DataWriter<R, Foo> {
     /// if the application is not writing data regularly.
     #[tracing::instrument(skip(self))]
     pub fn assert_liveliness(&self) -> DdsResult<()> {
-        R::block_on(self.writer_async.assert_liveliness())
+        block_on(self.writer_async.assert_liveliness())
     }
 
     /// This operation retrieves information on a subscription that is currently *associated* with the [`DataWriter`]; that is, a subscription
@@ -322,7 +325,7 @@ impl<R: DdsRuntime, Foo> DataWriter<R, Foo> {
         &self,
         subscription_handle: InstanceHandle,
     ) -> DdsResult<SubscriptionBuiltinTopicData> {
-        R::block_on(
+        block_on(
             self.writer_async
                 .get_matched_subscription_data(subscription_handle),
         )
@@ -336,12 +339,12 @@ impl<R: DdsRuntime, Foo> DataWriter<R, Foo> {
     /// [`SampleInfo::instance_handle`](crate::subscription::sample_info::SampleInfo) field when reading the *DCPSSubscriptions* builtin topic.
     #[tracing::instrument(skip(self))]
     pub fn get_matched_subscriptions(&self) -> DdsResult<Vec<InstanceHandle>> {
-        R::block_on(self.writer_async.get_matched_subscriptions())
+        block_on(self.writer_async.get_matched_subscriptions())
     }
 }
 
 /// This implementation block contains the Entity operations for the [`DataWriter`].
-impl<R: DdsRuntime, Foo> DataWriter<R, Foo> {
+impl<Foo> DataWriter<Foo> {
     /// This operation is used to set the QoS policies of the Entity and replacing the values of any policies previously set.
     /// Certain policies are *immutable;* they can only be set at Entity creation time, or before the entity is made enabled.
     /// If [`Self::set_qos()`] is invoked after the Entity is enabled and it attempts to change the value of an *immutable* policy, the operation will
@@ -356,20 +359,20 @@ impl<R: DdsRuntime, Foo> DataWriter<R, Foo> {
     /// modified to match the current default for the Entity's factory.
     #[tracing::instrument(skip(self))]
     pub fn set_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
-        R::block_on(self.writer_async.set_qos(qos))
+        block_on(self.writer_async.set_qos(qos))
     }
 
     /// This operation allows access to the existing set of [`DataWriterQos`] policies.
     #[tracing::instrument(skip(self))]
     pub fn get_qos(&self) -> DdsResult<DataWriterQos> {
-        R::block_on(self.writer_async.get_qos())
+        block_on(self.writer_async.get_qos())
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
     /// condition can then be added to a [`WaitSet`](crate::infrastructure::wait_set::WaitSet) so that the application can wait for specific status changes
     /// that affect the Entity.
     #[tracing::instrument(skip(self))]
-    pub fn get_statuscondition(&self) -> StatusCondition<R> {
+    pub fn get_statuscondition(&self) -> StatusCondition {
         StatusCondition::new(self.writer_async.get_statuscondition())
     }
 
@@ -381,7 +384,7 @@ impl<R: DdsRuntime, Foo> DataWriter<R, Foo> {
     /// and does not include statuses that apply to contained entities.
     #[tracing::instrument(skip(self))]
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
-        R::block_on(self.writer_async.get_status_changes())
+        block_on(self.writer_async.get_status_changes())
     }
 
     /// This operation enables the Entity. Entity objects can be created either enabled or disabled. This is controlled by the value of
@@ -406,17 +409,17 @@ impl<R: DdsRuntime, Foo> DataWriter<R, Foo> {
     /// enabled are *inactive,* that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     #[tracing::instrument(skip(self))]
     pub fn enable(&self) -> DdsResult<()> {
-        R::block_on(self.writer_async.enable())
+        block_on(self.writer_async.enable())
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     #[tracing::instrument(skip(self))]
     pub fn get_instance_handle(&self) -> InstanceHandle {
-        R::block_on(self.writer_async.get_instance_handle())
+        block_on(self.writer_async.get_instance_handle())
     }
 }
 
-impl<R: DdsRuntime, Foo> DataWriter<R, Foo> {
+impl<Foo> DataWriter<Foo> {
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
     /// indicated by the specified mask. It is permitted to use [`None`] as the value of the listener. The [`None`] listener behaves
     /// as a Listener whose operations perform no action.
@@ -426,9 +429,9 @@ impl<R: DdsRuntime, Foo> DataWriter<R, Foo> {
     #[tracing::instrument(skip(self, a_listener))]
     pub fn set_listener(
         &self,
-        a_listener: Option<impl DataWriterListener<R, Foo> + Send + 'static>,
+        a_listener: Option<impl DataWriterListener<Foo> + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        R::block_on(self.writer_async.set_listener(a_listener, mask))
+        block_on(self.writer_async.set_listener(a_listener, mask))
     }
 }

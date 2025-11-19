@@ -9,7 +9,7 @@ use crate::{
         qos::{QosKind, TopicQos},
         status::{InconsistentTopicStatus, StatusKind},
     },
-    runtime::DdsRuntime,
+    std_runtime::executor::block_on,
     xtypes::dynamic_type::DynamicType,
 };
 use alloc::{string::String, sync::Arc, vec::Vec};
@@ -17,11 +17,11 @@ use alloc::{string::String, sync::Arc, vec::Vec};
 /// The [`Topic`] represents the fact that both publications and subscriptions are tied to a single data-type. Its attributes
 /// `type_name` defines a unique resulting type for the publication or the subscription. It has also a `name` that allows it to
 /// be retrieved locally.
-pub struct Topic<R: DdsRuntime> {
-    topic_async: TopicAsync<R>,
+pub struct Topic {
+    topic_async: TopicAsync,
 }
 
-impl<R: DdsRuntime> Clone for Topic<R> {
+impl Clone for Topic {
     fn clone(&self) -> Self {
         Self {
             topic_async: self.topic_async.clone(),
@@ -29,31 +29,31 @@ impl<R: DdsRuntime> Clone for Topic<R> {
     }
 }
 
-impl<R: DdsRuntime> From<TopicAsync<R>> for Topic<R> {
-    fn from(value: TopicAsync<R>) -> Self {
+impl From<TopicAsync> for Topic {
+    fn from(value: TopicAsync) -> Self {
         Self { topic_async: value }
     }
 }
 
-impl<R: DdsRuntime> From<Topic<R>> for TopicAsync<R> {
-    fn from(value: Topic<R>) -> Self {
+impl From<Topic> for TopicAsync {
+    fn from(value: Topic) -> Self {
         value.topic_async
     }
 }
 
-impl<R: DdsRuntime> Topic<R> {
+impl Topic {
     /// This method allows the application to retrieve the [`InconsistentTopicStatus`] of the [`Topic`].
     #[tracing::instrument(skip(self))]
     pub fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
-        R::block_on(self.topic_async.get_inconsistent_topic_status())
+        block_on(self.topic_async.get_inconsistent_topic_status())
     }
 }
 
 /// This implementation block represents the TopicDescription operations for the [`Topic`].
-impl<R: DdsRuntime> Topic<R> {
+impl Topic {
     /// This operation returns the [`DomainParticipant`] to which the [`Topic`] belongs.
     #[tracing::instrument(skip(self))]
-    pub fn get_participant(&self) -> DomainParticipant<R> {
+    pub fn get_participant(&self) -> DomainParticipant {
         DomainParticipant::new(self.topic_async.get_participant())
     }
 
@@ -71,7 +71,7 @@ impl<R: DdsRuntime> Topic<R> {
 }
 
 /// This implementation block contains the Entity operations for the [`Topic`].
-impl<R: DdsRuntime> Topic<R> {
+impl Topic {
     /// This operation is used to set the QoS policies of the Entity and replacing the values of any policies previously set.
     /// Certain policies are *immutable;* they can only be set at Entity creation time, or before the entity is made enabled.
     /// If [`Self::set_qos()`] is invoked after the Entity is enabled and it attempts to change the value of an *immutable* policy, the operation will
@@ -86,20 +86,20 @@ impl<R: DdsRuntime> Topic<R> {
     /// modified to match the current default for the Entity's factory.
     #[tracing::instrument(skip(self))]
     pub fn set_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
-        R::block_on(self.topic_async.set_qos(qos))
+        block_on(self.topic_async.set_qos(qos))
     }
 
     /// This operation allows access to the existing set of [`TopicQos`] policies.
     #[tracing::instrument(skip(self))]
     pub fn get_qos(&self) -> DdsResult<TopicQos> {
-        R::block_on(self.topic_async.get_qos())
+        block_on(self.topic_async.get_qos())
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
     /// condition can then be added to a [`WaitSet`](crate::infrastructure::wait_set::WaitSet) so that the application can wait for specific status changes
     /// that affect the Entity.
     #[tracing::instrument(skip(self))]
-    pub fn get_statuscondition(&self) -> StatusCondition<R> {
+    pub fn get_statuscondition(&self) -> StatusCondition {
         StatusCondition::new(self.topic_async.get_statuscondition())
     }
 
@@ -111,7 +111,7 @@ impl<R: DdsRuntime> Topic<R> {
     /// and does not include statuses that apply to contained entities.
     #[tracing::instrument(skip(self))]
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
-        R::block_on(self.topic_async.get_status_changes())
+        block_on(self.topic_async.get_status_changes())
     }
 
     /// This operation enables the Entity. Entity objects can be created either enabled or disabled. This is controlled by the value of
@@ -136,13 +136,13 @@ impl<R: DdsRuntime> Topic<R> {
     /// enabled are *inactive,* that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     #[tracing::instrument(skip(self))]
     pub fn enable(&self) -> DdsResult<()> {
-        R::block_on(self.topic_async.enable())
+        block_on(self.topic_async.enable())
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     #[tracing::instrument(skip(self))]
     pub fn get_instance_handle(&self) -> InstanceHandle {
-        R::block_on(self.topic_async.get_instance_handle())
+        block_on(self.topic_async.get_instance_handle())
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
@@ -154,17 +154,17 @@ impl<R: DdsRuntime> Topic<R> {
     #[tracing::instrument(skip(self, a_listener))]
     pub fn set_listener(
         &self,
-        a_listener: Option<impl TopicListener<R> + Send + 'static>,
+        a_listener: Option<impl TopicListener + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        R::block_on(self.topic_async.set_listener(a_listener, mask))
+        block_on(self.topic_async.set_listener(a_listener, mask))
     }
 }
 
-impl<R: DdsRuntime> Topic<R> {
+impl Topic {
     #[doc(hidden)]
     #[tracing::instrument(skip(self))]
     pub fn get_type_support(&self) -> DdsResult<Arc<DynamicType>> {
-        R::block_on(self.topic_async.get_type_support())
+        block_on(self.topic_async.get_type_support())
     }
 }

@@ -18,18 +18,12 @@ impl From<Py<PyAny>> for DataWriterListener {
     }
 }
 
-impl
-    dust_dds::publication::data_writer_listener::DataWriterListener<
-        dust_dds::std_runtime::StdRuntime,
-        PythonDdsData,
-    > for DataWriterListener
+impl dust_dds::publication::data_writer_listener::DataWriterListener<PythonDdsData>
+    for DataWriterListener
 {
     async fn on_liveliness_lost(
         &mut self,
-        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<
-            dust_dds::std_runtime::StdRuntime,
-            PythonDdsData,
-        >,
+        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<PythonDdsData>,
         status: dust_dds::infrastructure::status::LivelinessLostStatus,
     ) {
         let args = (
@@ -46,10 +40,7 @@ impl
 
     async fn on_offered_deadline_missed(
         &mut self,
-        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<
-            dust_dds::std_runtime::StdRuntime,
-            PythonDdsData,
-        >,
+        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<PythonDdsData>,
         status: dust_dds::infrastructure::status::OfferedDeadlineMissedStatus,
     ) {
         let args = (
@@ -66,10 +57,7 @@ impl
 
     async fn on_offered_incompatible_qos(
         &mut self,
-        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<
-            dust_dds::std_runtime::StdRuntime,
-            PythonDdsData,
-        >,
+        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<PythonDdsData>,
         status: dust_dds::infrastructure::status::OfferedIncompatibleQosStatus,
     ) {
         let args = (
@@ -86,10 +74,7 @@ impl
 
     async fn on_publication_matched(
         &mut self,
-        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<
-            dust_dds::std_runtime::StdRuntime,
-            PythonDdsData,
-        >,
+        the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<PythonDdsData>,
         status: dust_dds::infrastructure::status::PublicationMatchedStatus,
     ) {
         let args = (

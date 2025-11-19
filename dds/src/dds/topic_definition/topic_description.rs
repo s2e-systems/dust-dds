@@ -1,20 +1,19 @@
 use crate::{
     dds_async::topic_description::TopicDescriptionAsync,
     domain::domain_participant::DomainParticipant,
-    runtime::DdsRuntime,
     topic_definition::{content_filtered_topic::ContentFilteredTopic, topic::Topic},
 };
 use alloc::string::String;
 
 /// This class is an enumrator for different topic types.
-pub enum TopicDescription<R: DdsRuntime> {
+pub enum TopicDescription {
     /// Topic type
-    Topic(Topic<R>),
+    Topic(Topic),
     /// Content filtered topic
-    ContentFilteredTopic(ContentFilteredTopic<R>),
+    ContentFilteredTopic(ContentFilteredTopic),
 }
 
-impl<R: DdsRuntime> Clone for TopicDescription<R> {
+impl Clone for TopicDescription {
     fn clone(&self) -> Self {
         match self {
             Self::Topic(arg0) => Self::Topic(arg0.clone()),
@@ -23,8 +22,8 @@ impl<R: DdsRuntime> Clone for TopicDescription<R> {
     }
 }
 
-impl<R: DdsRuntime> From<TopicDescriptionAsync<R>> for TopicDescription<R> {
-    fn from(value: TopicDescriptionAsync<R>) -> Self {
+impl From<TopicDescriptionAsync> for TopicDescription {
+    fn from(value: TopicDescriptionAsync) -> Self {
         match value {
             TopicDescriptionAsync::Topic(t) => TopicDescription::Topic(t.into()),
             TopicDescriptionAsync::ContentFilteredTopic(t) => {
@@ -34,8 +33,8 @@ impl<R: DdsRuntime> From<TopicDescriptionAsync<R>> for TopicDescription<R> {
     }
 }
 
-impl<R: DdsRuntime> From<TopicDescription<R>> for TopicDescriptionAsync<R> {
-    fn from(value: TopicDescription<R>) -> Self {
+impl From<TopicDescription> for TopicDescriptionAsync {
+    fn from(value: TopicDescription) -> Self {
         match value {
             TopicDescription::Topic(t) => TopicDescriptionAsync::Topic(t.into()),
             TopicDescription::ContentFilteredTopic(t) => {
@@ -46,10 +45,10 @@ impl<R: DdsRuntime> From<TopicDescription<R>> for TopicDescriptionAsync<R> {
 }
 
 /// This implementation block represents the TopicDescription operations for the [`Topic`].
-impl<R: DdsRuntime> TopicDescription<R> {
+impl TopicDescription {
     /// This operation returns the [`DomainParticipant`] to which the [`Topic`] belongs.
     #[tracing::instrument(skip(self))]
-    pub fn get_participant(&self) -> DomainParticipant<R> {
+    pub fn get_participant(&self) -> DomainParticipant {
         match self {
             Self::Topic(t) => t.get_participant(),
             Self::ContentFilteredTopic(t) => t.get_participant(),
