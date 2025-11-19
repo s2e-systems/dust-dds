@@ -282,18 +282,18 @@ impl RtpsStatefulReader {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use core::panic;
-    use std::sync::Arc;
+// #[cfg(test)]
+// mod tests {
+//     use core::panic;
+//     use std::sync::Arc;
 
-    use crate::{
-        rtps_messages::submessage_elements::{Data, ParameterList, SerializedDataFragment},
-        std_runtime::executor::block_on,
-        transport::types::{DurabilityKind, ENTITYID_UNKNOWN, EntityId},
-    };
+//     use crate::{
+//         rtps_messages::submessage_elements::{Data, ParameterList, SerializedDataFragment},
+//         std_runtime::executor::block_on,
+//         transport::types::{DurabilityKind, ENTITYID_UNKNOWN, EntityId},
+//     };
 
-    use super::*;
+//     use super::*;
 
     // #[test]
     // fn receive_only_not_yet_received_data_frag() {
@@ -402,4 +402,4 @@ mod tests {
     //         &message_writer,
     //     ))
     // }
-}
+// }

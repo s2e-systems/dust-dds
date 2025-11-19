@@ -712,16 +712,16 @@ impl RtpsReaderProxy {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use std::sync::Mutex;
+// #[cfg(test)]
+// mod tests {
+//     use std::sync::Mutex;
 
-    use crate::{
-        rtps_messages::submessage_elements::FragmentNumberSet,
-        rtps_udp_transport::udp_transport::RtpsUdpTransportClock, std_runtime::executor::block_on,
-    };
+//     use crate::{
+//         rtps_messages::submessage_elements::FragmentNumberSet,
+//         rtps_udp_transport::udp_transport::RtpsUdpTransportClock, std_runtime::executor::block_on,
+//     };
 
-    use super::*;
+//     use super::*;
 
     // #[test]
     // fn test_all_fragments_sent() {
@@ -859,4 +859,4 @@ mod tests {
 
     //     assert_eq!(*message_writer.total_fragments_sent.lock().unwrap(), 1);
     // }
-}
+// }

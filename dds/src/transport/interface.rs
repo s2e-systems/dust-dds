@@ -15,7 +15,7 @@ use crate::{
     std_runtime::executor::block_on,
     transport::types::{ReaderProxy, WriterProxy},
 };
-use alloc::{boxed::Box, sync::Arc};
+use alloc::{boxed::Box, sync::Arc, vec::Vec};
 use core::{cell::RefCell, future::Future, pin::Pin};
 use critical_section::Mutex;
 
@@ -176,9 +176,6 @@ impl RtpsTransportStatefulWriter {
     pub fn guid(&self) -> Guid {
         self.guid
     }
-    pub fn history_cache(&mut self) -> &mut dyn HistoryCache {
-        self
-    }
     pub async fn is_change_acknowledged(&self, sequence_number: i64) -> bool {
         critical_section::with(|cs| {
             self.rtps_stateful_writer
@@ -209,8 +206,9 @@ impl RtpsTransportStatefulWriter {
         })
     }
 }
-impl HistoryCache for RtpsTransportStatefulWriter {
-    fn add_change(
+
+impl RtpsTransportStatefulWriter {
+    pub fn add_change(
         &mut self,
         cache_change: CacheChange,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
@@ -230,7 +228,7 @@ impl HistoryCache for RtpsTransportStatefulWriter {
         })
     }
 
-    fn remove_change(&mut self, sequence_number: i64) -> Pin<Box<dyn Future<Output = ()> + Send>> {
+    pub fn remove_change(&mut self, sequence_number: i64) -> Pin<Box<dyn Future<Output = ()> + Send>> {
         let rtps_stateful_writer = self.rtps_stateful_writer.clone();
         Box::pin(async move {
             critical_section::with(move |cs| {
