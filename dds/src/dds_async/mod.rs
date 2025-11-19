@@ -1,5 +1,8 @@
 /// Classes related to the async status conditions.
 pub mod condition;
+/// Contains the [`DustDdsConfiguration`](crate::configuration::DustDdsConfiguration) struct that allow configuring the runtime options
+/// of the Dust DDS systems
+pub mod configuration;
 /// Classes related to the async content filtered topic.
 pub mod content_filtered_topic;
 /// Classes related to the async data reader.

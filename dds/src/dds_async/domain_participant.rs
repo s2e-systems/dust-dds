@@ -1,4 +1,7 @@
-use super::{publisher::PublisherAsync, subscriber::SubscriberAsync, topic::TopicAsync};
+use super::{
+    publisher::PublisherAsync, publisher_listener::PublisherListener, subscriber::SubscriberAsync,
+    subscriber_listener::SubscriberListener, topic::TopicAsync, topic_listener::TopicListener,
+};
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     dcps::{
@@ -13,9 +16,10 @@ use crate::{
         status_condition::DcpsStatusCondition,
     },
     dds_async::{
-        content_filtered_topic::ContentFilteredTopicAsync, topic_description::TopicDescriptionAsync,
+        content_filtered_topic::ContentFilteredTopicAsync,
+        domain_participant_listener::DomainParticipantListener,
+        topic_description::TopicDescriptionAsync,
     },
-    domain::domain_participant_listener::DomainParticipantListener,
     infrastructure::{
         domain::DomainId,
         error::{DdsError, DdsResult},
@@ -25,9 +29,6 @@ use crate::{
         time::Time,
         type_support::TypeSupport,
     },
-    publication::publisher_listener::PublisherListener,
-    subscription::subscriber_listener::SubscriberListener,
-    topic_definition::topic_listener::TopicListener,
     xtypes::dynamic_type::DynamicType,
 };
 use alloc::{

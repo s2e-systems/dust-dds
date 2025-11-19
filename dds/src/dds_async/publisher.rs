@@ -1,4 +1,7 @@
-use super::{data_writer::DataWriterAsync, domain_participant::DomainParticipantAsync};
+use super::{
+    data_writer::DataWriterAsync, data_writer_listener::DataWriterListener,
+    domain_participant::DomainParticipantAsync, publisher_listener::PublisherListener,
+};
 use crate::{
     dcps::{
         channels::{mpsc::MpscSender, oneshot::oneshot},
@@ -14,9 +17,6 @@ use crate::{
         qos::{DataWriterQos, PublisherQos, QosKind, TopicQos},
         status::StatusKind,
         time::Duration,
-    },
-    publication::{
-        data_writer_listener::DataWriterListener, publisher_listener::PublisherListener,
     },
 };
 use alloc::vec::Vec;

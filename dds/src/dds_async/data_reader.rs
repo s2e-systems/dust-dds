@@ -10,7 +10,9 @@ use crate::{
         listeners::data_reader_listener::DcpsDataReaderListener,
         status_condition::DcpsStatusCondition,
     },
-    dds_async::topic_description::TopicDescriptionAsync,
+    dds_async::{
+        data_reader_listener::DataReaderListener, topic_description::TopicDescriptionAsync,
+    },
     infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,
@@ -26,7 +28,6 @@ use crate::{
         time::Duration,
         type_support::TypeSupport,
     },
-    subscription::data_reader_listener::DataReaderListener,
 };
 use alloc::{vec, vec::Vec};
 use core::marker::PhantomData;

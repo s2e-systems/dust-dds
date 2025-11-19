@@ -1,6 +1,7 @@
 use super::{
     condition::StatusConditionAsync, data_reader::DataReaderAsync,
-    domain_participant::DomainParticipantAsync,
+    data_reader_listener::DataReaderListener, domain_participant::DomainParticipantAsync,
+    subscriber_listener::SubscriberListener,
 };
 use crate::{
     dcps::{
@@ -19,9 +20,6 @@ use crate::{
         instance::InstanceHandle,
         qos::{DataReaderQos, QosKind, SubscriberQos, TopicQos},
         status::{SampleLostStatus, StatusKind},
-    },
-    subscription::{
-        data_reader_listener::DataReaderListener, subscriber_listener::SubscriberListener,
     },
 };
 use alloc::{string::String, vec::Vec};

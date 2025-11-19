@@ -6,8 +6,8 @@ use tracing::span;
 
 use crate::{
     dcps::channels::mpsc::{MpscSender, mpsc_channel},
+    dds_async::data_reader_listener::DataReaderListener,
     runtime::{DdsRuntime, Spawner},
-    subscription::data_reader_listener::DataReaderListener,
 };
 
 use super::domain_participant_listener::ListenerMail;

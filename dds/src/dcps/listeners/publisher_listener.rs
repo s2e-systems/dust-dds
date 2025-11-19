@@ -4,7 +4,7 @@ use alloc::boxed::Box;
 
 use crate::{
     dcps::channels::mpsc::{MpscSender, mpsc_channel},
-    publication::publisher_listener::PublisherListener,
+    dds_async::publisher_listener::PublisherListener,
     runtime::{DdsRuntime, Spawner},
 };
 

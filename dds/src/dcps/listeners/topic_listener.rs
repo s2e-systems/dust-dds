@@ -4,8 +4,8 @@ use alloc::boxed::Box;
 
 use crate::{
     dcps::channels::mpsc::{MpscSender, mpsc_channel},
+    dds_async::topic_listener::TopicListener,
     runtime::{DdsRuntime, Spawner},
-    topic_definition::topic_listener::TopicListener,
 };
 
 use super::domain_participant_listener::ListenerMail;

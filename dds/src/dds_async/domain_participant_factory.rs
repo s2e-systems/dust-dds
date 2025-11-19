@@ -1,6 +1,5 @@
 use super::domain_participant::DomainParticipantAsync;
 use crate::{
-    configuration::DustDdsConfiguration,
     dcps::{
         actor::Actor,
         channels::oneshot::oneshot,
@@ -11,7 +10,9 @@ use crate::{
         },
         listeners::domain_participant_listener::DcpsDomainParticipantListener,
     },
-    domain::domain_participant_listener::DomainParticipantListener,
+    dds_async::{
+        configuration::DustDdsConfiguration, domain_participant_listener::DomainParticipantListener,
+    },
     infrastructure::{
         domain::DomainId,
         error::{DdsError, DdsResult},

@@ -12,7 +12,9 @@ use crate::{
         listeners::data_writer_listener::DcpsDataWriterListener,
         status_condition::DcpsStatusCondition,
     },
-    dds_async::topic_description::TopicDescriptionAsync,
+    dds_async::{
+        data_writer_listener::DataWriterListener, topic_description::TopicDescriptionAsync,
+    },
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
@@ -24,7 +26,6 @@ use crate::{
         time::Time,
         type_support::TypeSupport,
     },
-    publication::data_writer_listener::DataWriterListener,
 };
 use alloc::{string::String, vec::Vec};
 use core::marker::PhantomData;

@@ -1,7 +1,6 @@
 use super::actor::MailHandler;
 use crate::{
     builtin_topics::{DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC},
-    configuration::DustDdsConfiguration,
     dcps::{
         actor::{Actor, ActorAddress},
         channels::{
@@ -26,6 +25,7 @@ use crate::{
         listeners::domain_participant_listener::DcpsDomainParticipantListener,
         status_condition::DcpsStatusCondition,
     },
+    dds_async::configuration::DustDdsConfiguration,
     infrastructure::{
         domain::DomainId,
         error::{DdsError, DdsResult},

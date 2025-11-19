@@ -5,9 +5,9 @@ use alloc::boxed::Box;
 use crate::{
     dcps::channels::mpsc::{MpscSender, mpsc_channel},
     dds_async::{
-        data_reader::DataReaderAsync, data_writer::DataWriterAsync, subscriber::SubscriberAsync,
+        data_reader::DataReaderAsync, data_writer::DataWriterAsync,
+        domain_participant_listener::DomainParticipantListener, subscriber::SubscriberAsync,
     },
-    domain::domain_participant_listener::DomainParticipantListener,
     infrastructure::status::{
         OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
         RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleRejectedStatus,

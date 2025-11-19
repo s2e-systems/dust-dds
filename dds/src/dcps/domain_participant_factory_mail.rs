@@ -1,5 +1,4 @@
 use crate::{
-    configuration::DustDdsConfiguration,
     dcps::{
         actor::{ActorAddress, MailHandler},
         channels::{mpsc::MpscSender, oneshot::OneshotSender},
@@ -8,6 +7,7 @@ use crate::{
         listeners::domain_participant_listener::DcpsDomainParticipantListener,
         status_condition::DcpsStatusCondition,
     },
+    dds_async::configuration::DustDdsConfiguration,
     infrastructure::{
         domain::DomainId,
         error::DdsResult,

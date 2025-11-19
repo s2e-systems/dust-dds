@@ -1,4 +1,7 @@
-use super::{condition::StatusConditionAsync, domain_participant::DomainParticipantAsync};
+use super::{
+    condition::StatusConditionAsync, domain_participant::DomainParticipantAsync,
+    topic_listener::TopicListener,
+};
 use crate::{
     dcps::{
         actor::ActorAddress,
@@ -12,7 +15,6 @@ use crate::{
         qos::{QosKind, TopicQos},
         status::{InconsistentTopicStatus, StatusKind},
     },
-    topic_definition::topic_listener::TopicListener,
     xtypes::dynamic_type::DynamicType,
 };
 use alloc::{string::String, sync::Arc, vec::Vec};
