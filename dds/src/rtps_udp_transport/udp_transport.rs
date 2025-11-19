@@ -10,18 +10,12 @@ use crate::{
     },
 };
 use core::{
-    cell::RefCell,
     future::Future,
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4},
     pin::Pin,
 };
-use critical_section::Mutex;
-use dust_dds::{
-    rtps::{
-        stateful_reader::RtpsStatefulReader, stateful_writer::RtpsStatefulWriter,
-        stateless_reader::RtpsStatelessReader,
-    },
-    transport::types::{ENTITYID_PARTICIPANT, Guid, GuidPrefix, LOCATOR_KIND_UDP_V4, Locator},
+use dust_dds::transport::types::{
+    ENTITYID_PARTICIPANT, Guid, GuidPrefix, LOCATOR_KIND_UDP_V4, Locator,
 };
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use socket2::Socket;
@@ -264,9 +258,10 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                 loop {
                     if let Ok(size) = metatraffic_multicast_socket.recv(&mut buf) {
                         if size > 0 {
-                            StdRuntime::block_on(chanel_message_sender_clone.send(
-                                ChannelMessageKind::MetatrafficMulticastSocket(buf[..size].into()),
-                            ))
+                            StdRuntime::block_on(
+                                chanel_message_sender_clone
+                                    .send(ChannelMessageKind::DataArrived(buf[..size].into())),
+                            )
                             .expect("chanel_message sender alive");
                         }
                     }
@@ -282,9 +277,10 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                 loop {
                     if let Ok(size) = metatraffic_unicast_socket.recv(&mut buf) {
                         if size > 0 {
-                            StdRuntime::block_on(chanel_message_sender_clone.send(
-                                ChannelMessageKind::MetatrafficUnicastSocket(buf[..size].into()),
-                            ))
+                            StdRuntime::block_on(
+                                chanel_message_sender_clone
+                                    .send(ChannelMessageKind::DataArrived(buf[..size].into())),
+                            )
                             .expect("chanel_message sender alive")
                         }
                     }
@@ -300,9 +296,10 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                 loop {
                     if let Ok(size) = default_unicast_socket.recv(&mut buf) {
                         if size > 0 {
-                            StdRuntime::block_on(chanel_message_sender_clone.send(
-                                ChannelMessageKind::DefaultUnicastSocket(buf[..size].into()),
-                            ))
+                            StdRuntime::block_on(
+                                chanel_message_sender_clone
+                                    .send(ChannelMessageKind::DataArrived(buf[..size].into())),
+                            )
                             .expect("chanel_message sender alive");
                         }
                     }
@@ -343,38 +340,46 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                                 ChannelMessageKind::AddStatefulWriter(stateful_writer) => {
                                     stateful_writer_list.push(stateful_writer)
                                 }
-                                ChannelMessageKind::MetatrafficMulticastSocket(datagram) => {
-                                    process_message(
-                                        &datagram,
-                                        &mut message_writer,
-                                        &RtpsUdpTransportClock,
-                                        &mut stateless_reader_list,
-                                        &stateful_reader_list,
-                                        &stateful_writer_list,
-                                    )
-                                    .await;
-                                }
-                                ChannelMessageKind::MetatrafficUnicastSocket(datagram) => {
-                                    process_message(
-                                        &datagram,
-                                        &mut message_writer,
-                                        &RtpsUdpTransportClock,
-                                        &mut stateless_reader_list,
-                                        &stateful_reader_list,
-                                        &stateful_writer_list,
-                                    )
-                                    .await;
-                                }
-                                ChannelMessageKind::DefaultUnicastSocket(datagram) => {
-                                    process_message(
-                                        &datagram,
-                                        &mut message_writer,
-                                        &RtpsUdpTransportClock,
-                                        &mut stateless_reader_list,
-                                        &stateful_reader_list,
-                                        &stateful_writer_list,
-                                    )
-                                    .await;
+                                ChannelMessageKind::DataArrived(datagram) => {
+                                    if let Ok(rtps_message) =
+                                        RtpsMessageRead::try_from(datagram.as_ref())
+                                    {
+                                        for stateless_reader in &mut stateless_reader_list {
+                                            stateless_reader
+                                                .process_message(&rtps_message)
+                                                .await
+                                                .ok();
+                                        }
+                                        for stateful_reader in &stateful_reader_list {
+                                            critical_section::with(|cs| {
+                                                block_on(
+                                                    stateful_reader
+                                                        .borrow(cs)
+                                                        .borrow_mut()
+                                                        .process_message(
+                                                            &rtps_message,
+                                                            &mut message_writer,
+                                                        ),
+                                                )
+                                                .ok();
+                                            })
+                                        }
+                                        for stateful_writer in &stateful_writer_list {
+                                            critical_section::with(|cs| {
+                                                block_on(
+                                                    stateful_writer
+                                                        .borrow(cs)
+                                                        .borrow_mut()
+                                                        .process_message(
+                                                            &rtps_message,
+                                                            &mut message_writer,
+                                                            &RtpsUdpTransportClock,
+                                                        ),
+                                                )
+                                                .ok();
+                                            })
+                                        }
+                                    }
                                 }
                                 ChannelMessageKind::Poke => {
                                     for rtps_stateful_writer in &stateful_writer_list {
@@ -399,42 +404,6 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
             .expect("failed to spawn thread");
 
         global_participant
-    }
-}
-
-async fn process_message(
-    datagram: &[u8],
-    message_writer: &mut MessageWriter,
-    clock: &impl Clock,
-    stateless_reader_list: &mut [RtpsStatelessReader],
-    stateful_reader_list: &[Arc<Mutex<RefCell<RtpsStatefulReader>>>],
-    stateful_writer_list: &[Arc<Mutex<RefCell<RtpsStatefulWriter>>>],
-) {
-    if let Ok(rtps_message) = RtpsMessageRead::try_from(datagram) {
-        for stateless_reader in stateless_reader_list {
-            stateless_reader.process_message(&rtps_message).await.ok();
-        }
-        for stateful_reader in stateful_reader_list {
-            critical_section::with(|cs| {
-                block_on(
-                    stateful_reader
-                        .borrow(cs)
-                        .borrow_mut()
-                        .process_message(&rtps_message, message_writer),
-                )
-                .ok();
-            })
-        }
-        for stateful_writer in stateful_writer_list {
-            critical_section::with(|cs| {
-                block_on(stateful_writer.borrow(cs).borrow_mut().process_message(
-                    &rtps_message,
-                    message_writer,
-                    clock,
-                ))
-                .ok();
-            })
-        }
     }
 }
 

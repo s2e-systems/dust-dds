@@ -21,9 +21,7 @@ pub enum ChannelMessageKind {
     AddStatelessReader(RtpsStatelessReader),
     AddStatefulReader(Arc<Mutex<RefCell<RtpsStatefulReader>>>),
     AddStatefulWriter(Arc<Mutex<RefCell<RtpsStatefulWriter>>>),
-    MetatrafficMulticastSocket(Arc<[u8]>),
-    MetatrafficUnicastSocket(Arc<[u8]>),
-    DefaultUnicastSocket(Arc<[u8]>),
+    DataArrived(Arc<[u8]>),
     Poke,
 }
 
