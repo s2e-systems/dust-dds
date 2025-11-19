@@ -1,17 +1,16 @@
 use crate::{
     dds_async::{domain_participant::DomainParticipantAsync, topic::TopicAsync},
     infrastructure::error::DdsResult,
-    runtime::DdsRuntime,
 };
 use alloc::{string::String, vec::Vec};
 
 /// Async version of [`Topic`](crate::topic_definition::content_filtered_topic::ContentFilteredTopic).
-pub struct ContentFilteredTopicAsync<R: DdsRuntime> {
+pub struct ContentFilteredTopicAsync {
     name: String,
-    topic: TopicAsync<R>,
+    topic: TopicAsync,
 }
 
-impl<R: DdsRuntime> Clone for ContentFilteredTopicAsync<R> {
+impl Clone for ContentFilteredTopicAsync {
     fn clone(&self) -> Self {
         Self {
             name: self.name.clone(),
@@ -20,15 +19,15 @@ impl<R: DdsRuntime> Clone for ContentFilteredTopicAsync<R> {
     }
 }
 
-impl<R: DdsRuntime> ContentFilteredTopicAsync<R> {
-    pub(crate) fn new(name: String, topic: TopicAsync<R>) -> Self {
+impl ContentFilteredTopicAsync {
+    pub(crate) fn new(name: String, topic: TopicAsync) -> Self {
         Self { name, topic }
     }
 }
 
-impl<R: DdsRuntime> ContentFilteredTopicAsync<R> {
+impl ContentFilteredTopicAsync {
     /// Async version of [`get_related_topic`](crate::topic_definition::content_filtered_topic::ContentFilteredTopic::get_related_topic).
-    pub fn get_related_topic(&self) -> TopicAsync<R> {
+    pub fn get_related_topic(&self) -> TopicAsync {
         self.topic.clone()
     }
 
@@ -46,10 +45,10 @@ impl<R: DdsRuntime> ContentFilteredTopicAsync<R> {
     }
 }
 
-impl<R: DdsRuntime> ContentFilteredTopicAsync<R> {
+impl ContentFilteredTopicAsync {
     /// Async version of [`get_participant`](crate::topic_definition::content_filtered_topic::ContentFilteredTopic::get_participant).
     #[tracing::instrument(skip(self))]
-    pub fn get_participant(&self) -> DomainParticipantAsync<R> {
+    pub fn get_participant(&self) -> DomainParticipantAsync {
         self.topic.get_participant()
     }
 

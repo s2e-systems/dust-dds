@@ -43,10 +43,4 @@ pub trait DdsRuntime: Send + 'static {
     fn clock(&self) -> Self::ClockHandle;
     /// Returns a spawner handle for this runtime
     fn spawner(&self) -> Self::SpawnerHandle;
-
-    /// Runs a future to completion on the current thread
-    ///
-    /// # Arguments
-    /// * `f` - Future to be executed
-    fn block_on<T>(f: impl Future<Output = T>) -> T;
 }

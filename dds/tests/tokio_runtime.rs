@@ -96,7 +96,10 @@ async fn dust_dds_should_run_inside_tokio_runtime() {
         .attach_condition(ConditionAsync::StatusCondition(cond))
         .await
         .unwrap();
-    wait_set.wait(Duration::new(10, 0)).await.unwrap();
+    tokio::time::timeout(tokio::time::Duration::from_secs(10), wait_set.wait())
+        .await
+        .unwrap()
+        .unwrap();
 
     let data = UserData {
         id: 1,
@@ -114,7 +117,10 @@ async fn dust_dds_should_run_inside_tokio_runtime() {
         .attach_condition(ConditionAsync::StatusCondition(cond))
         .await
         .unwrap();
-    reader_wait_set.wait(Duration::new(10, 0)).await.unwrap();
+    tokio::time::timeout(tokio::time::Duration::from_secs(10), reader_wait_set.wait())
+        .await
+        .unwrap()
+        .unwrap();
 
     let samples = reader
         .take(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)

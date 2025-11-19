@@ -17,7 +17,9 @@ pub mod topic_definition;
 
 /// Contains the [`DustDdsConfiguration`](crate::configuration::DustDdsConfiguration) struct that allow configuring the runtime options
 /// of the Dust DDS systems
-pub mod configuration;
+pub mod configuration {
+    pub use crate::dds_async::configuration::*;
+}
 
 /// Classes related to the status conditions.
 pub mod condition;

@@ -1,23 +1,27 @@
+use core::pin::Pin;
+
+use alloc::boxed::Box;
+
 use tracing::span;
 
 use crate::{
     dcps::channels::mpsc::{MpscSender, mpsc_channel},
+    dds_async::data_reader_listener::DataReaderListener,
     runtime::{DdsRuntime, Spawner},
-    subscription::data_reader_listener::DataReaderListener,
 };
 
 use super::domain_participant_listener::ListenerMail;
 
-pub struct DcpsDataReaderListener;
+pub struct DcpsDataReaderListener {
+    sender: MpscSender<ListenerMail>,
+    task: Pin<Box<dyn Future<Output = ()> + Send>>,
+}
 
 impl DcpsDataReaderListener {
-    #[tracing::instrument(skip(listener, spawner_handle))]
-    pub fn spawn<R: DdsRuntime, Foo>(
-        mut listener: impl DataReaderListener<R, Foo> + Send + 'static,
-        spawner_handle: &R::SpawnerHandle,
-    ) -> MpscSender<ListenerMail<R>> {
-        let (listener_sender, listener_receiver) = mpsc_channel();
-        spawner_handle.spawn(async move {
+    #[tracing::instrument(skip(listener,))]
+    pub fn new<Foo>(mut listener: impl DataReaderListener<Foo> + Send + 'static) -> Self {
+        let (sender, listener_receiver) = mpsc_channel();
+        let task = Box::pin(async move {
             while let Some(m) = listener_receiver.receive().await {
                 let listener_root = span!(tracing::Level::INFO, "data_reader_listener_triggered");
                 let _listener_span_guard = listener_root.enter();
@@ -73,6 +77,14 @@ impl DcpsDataReaderListener {
                 }
             }
         });
-        listener_sender
+        Self { sender, task }
+    }
+
+    pub fn spawn<R: DdsRuntime>(
+        self,
+        spawner_handle: &R::SpawnerHandle,
+    ) -> MpscSender<ListenerMail> {
+        spawner_handle.spawn(self.task);
+        self.sender
     }
 }

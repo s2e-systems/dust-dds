@@ -21,7 +21,6 @@ use dust_dds::{
     },
     listener::NO_LISTENER,
     publication::{data_writer::DataWriter, publisher::Publisher},
-    std_runtime::StdRuntime,
     subscription::{data_reader::DataReader, subscriber::Subscriber},
 };
 use eframe::{
@@ -31,7 +30,7 @@ use eframe::{
 use std::sync::{Arc, Mutex};
 
 struct ShapeWriter {
-    writer: DataWriter<StdRuntime, ShapeType>,
+    writer: DataWriter<ShapeType>,
     shape: MovingShapeObject,
 }
 impl ShapeWriter {
@@ -87,10 +86,10 @@ impl egui::Widget for &mut PublishWidget {
 }
 
 pub struct ShapesDemoApp {
-    participant: DomainParticipant<StdRuntime>,
-    publisher: Publisher<StdRuntime>,
-    subscriber: Subscriber<StdRuntime>,
-    reader_list: Vec<DataReader<StdRuntime, ShapeType>>,
+    participant: DomainParticipant,
+    publisher: Publisher,
+    subscriber: Subscriber,
+    reader_list: Vec<DataReader<ShapeType>>,
     writer_list: Arc<Mutex<Vec<ShapeWriter>>>,
     time: f64,
     is_reliable_reader: bool,

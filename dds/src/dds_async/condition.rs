@@ -6,38 +6,25 @@ use crate::{
         status_condition_mail::DcpsStatusConditionMail,
     },
     infrastructure::{error::DdsResult, status::StatusKind},
-    runtime::DdsRuntime,
 };
 use alloc::vec::Vec;
 
 /// Async version of [`StatusCondition`](crate::infrastructure::condition::StatusCondition).
-pub struct StatusConditionAsync<R: DdsRuntime> {
+pub struct StatusConditionAsync {
     address: ActorAddress<DcpsStatusCondition>,
-    timer_handle: R::TimerHandle,
 }
 
-impl<R: DdsRuntime> Clone for StatusConditionAsync<R> {
+impl Clone for StatusConditionAsync {
     fn clone(&self) -> Self {
         Self {
             address: self.address.clone(),
-            timer_handle: self.timer_handle.clone(),
         }
     }
 }
 
-impl<R: DdsRuntime> StatusConditionAsync<R> {
-    pub(crate) fn new(
-        address: ActorAddress<DcpsStatusCondition>,
-        timer_handle: R::TimerHandle,
-    ) -> Self {
-        Self {
-            address,
-            timer_handle,
-        }
-    }
-
-    pub(crate) fn timer_handle(&self) -> &R::TimerHandle {
-        &self.timer_handle
+impl StatusConditionAsync {
+    pub(crate) fn new(address: ActorAddress<DcpsStatusCondition>) -> Self {
+        Self { address }
     }
 
     pub(crate) async fn register_notification(&self) -> DdsResult<MpscReceiver<()>> {
@@ -49,7 +36,7 @@ impl<R: DdsRuntime> StatusConditionAsync<R> {
     }
 }
 
-impl<R: DdsRuntime> StatusConditionAsync<R> {
+impl StatusConditionAsync {
     /// Async version of [`get_enabled_statuses`](crate::infrastructure::condition::StatusCondition::get_enabled_statuses).
     #[tracing::instrument(skip(self))]
     pub async fn get_enabled_statuses(&self) -> DdsResult<Vec<StatusKind>> {
@@ -80,7 +67,7 @@ impl<R: DdsRuntime> StatusConditionAsync<R> {
     }
 }
 
-impl<R: DdsRuntime> StatusConditionAsync<R> {
+impl StatusConditionAsync {
     /// Async version of [`get_trigger_value`](crate::infrastructure::condition::StatusCondition::get_trigger_value).
     #[tracing::instrument(skip(self))]
     pub async fn get_trigger_value(&self) -> DdsResult<bool> {

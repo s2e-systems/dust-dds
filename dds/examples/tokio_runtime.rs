@@ -7,7 +7,6 @@ use dust_dds::{
         qos::QosKind,
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         status::{NO_STATUS, StatusKind},
-        time::Duration,
         type_support::DdsType,
     },
     listener::NO_LISTENER,
@@ -69,7 +68,10 @@ async fn main() {
         .attach_condition(ConditionAsync::StatusCondition(cond))
         .await
         .unwrap();
-    wait_set.wait(Duration::new(10, 0)).await.unwrap();
+    tokio::time::timeout(tokio::time::Duration::from_secs(10), wait_set.wait())
+        .await
+        .unwrap()
+        .unwrap();
 
     let data = UserData {
         id: 1,
@@ -87,7 +89,10 @@ async fn main() {
         .attach_condition(ConditionAsync::StatusCondition(cond))
         .await
         .unwrap();
-    reader_wait_set.wait(Duration::new(10, 0)).await.unwrap();
+    tokio::time::timeout(tokio::time::Duration::from_secs(10), reader_wait_set.wait())
+        .await
+        .unwrap()
+        .unwrap();
 
     let samples = reader
         .take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
