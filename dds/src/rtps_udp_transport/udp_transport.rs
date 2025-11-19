@@ -1,10 +1,9 @@
 use crate::{
-    dcps::channels::mpsc::{MpscSender, mpsc_channel},
+    dcps::channels::mpsc::MpscSender,
     rtps::message_sender::{Clock, WriteMessage},
-    rtps_messages::overall_structure::RtpsMessageRead,
-    std_runtime::{self, executor::block_on},
+    std_runtime::{self},
     transport::{
-        interface::{ChannelMessageKind, RtpsTransportParticipant, TransportParticipantFactory},
+        interface::{RtpsTransportParticipant, TransportParticipantFactory},
         types::LOCATOR_KIND_UDP_V6,
     },
 };
@@ -237,8 +236,6 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
 
         let guid = Guid::new(guid_prefix, ENTITYID_PARTICIPANT);
 
-        let (chanel_message_sender, chanel_message_receiver) = mpsc_channel();
-
         let global_participant = RtpsTransportParticipant {
             guid,
             message_writer: Box::new(message_writer.clone()),
@@ -246,7 +243,6 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
             metatraffic_unicast_locator_list,
             metatraffic_multicast_locator_list,
             fragment_size: self.fragment_size,
-            chanel_message_sender: chanel_message_sender.clone(),
         };
 
         let data_channel_sender_clone = data_channel_sender.clone();
@@ -300,102 +296,6 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                             .expect("chanel_message sender alive");
                         }
                     }
-                }
-            })
-            .expect("failed to spawn thread");
-
-        let chanel_message_sender_clone = chanel_message_sender.clone();
-        std::thread::Builder::new()
-            .name("Regular poke".to_string())
-            .spawn(move || {
-                loop {
-                    std::thread::sleep(std::time::Duration::from_millis(50));
-                    std_runtime::executor::block_on(
-                        chanel_message_sender_clone.send(ChannelMessageKind::Poke),
-                    )
-                    .expect("chanel_message sender alive");
-                }
-            })
-            .expect("failed to spawn thread");
-
-        std::thread::Builder::new()
-            .name("Socket receiver".to_string())
-            .spawn(move || -> ! {
-                let mut stateless_reader_list = Vec::new();
-                let mut stateful_reader_list = Vec::new();
-                let mut stateful_writer_list = Vec::new();
-                loop {
-                    std_runtime::executor::block_on(async {
-                        if let Some(chanel_message) = chanel_message_receiver.receive().await {
-                            match chanel_message {
-                                ChannelMessageKind::AddStatelessReader(stateless_reader) => {
-                                    stateless_reader_list.push(stateless_reader)
-                                }
-                                ChannelMessageKind::AddStatefulReader(stateful_reader) => {
-                                    stateful_reader_list.push(stateful_reader)
-                                }
-                                ChannelMessageKind::AddStatefulWriter(stateful_writer) => {
-                                    stateful_writer_list.push(stateful_writer)
-                                }
-                                ChannelMessageKind::DataArrived(datagram) => {
-                                    if let Ok(rtps_message) =
-                                        RtpsMessageRead::try_from(datagram.as_ref())
-                                    {
-                                        for stateless_reader in &mut stateless_reader_list {
-                                            stateless_reader
-                                                .process_message(&rtps_message)
-                                                .await
-                                                .ok();
-                                        }
-                                        for stateful_reader in &stateful_reader_list {
-                                            critical_section::with(|cs| {
-                                                block_on(
-                                                    stateful_reader
-                                                        .borrow(cs)
-                                                        .borrow_mut()
-                                                        .process_message(
-                                                            &rtps_message,
-                                                            &message_writer,
-                                                        ),
-                                                )
-                                                .ok();
-                                            })
-                                        }
-                                        for stateful_writer in &stateful_writer_list {
-                                            critical_section::with(|cs| {
-                                                block_on(
-                                                    stateful_writer
-                                                        .borrow(cs)
-                                                        .borrow_mut()
-                                                        .process_message(
-                                                            &rtps_message,
-                                                            &message_writer,
-                                                            &RtpsUdpTransportClock,
-                                                        ),
-                                                )
-                                                .ok();
-                                            })
-                                        }
-                                    }
-                                }
-                                ChannelMessageKind::Poke => {
-                                    for rtps_stateful_writer in &stateful_writer_list {
-                                        critical_section::with(|cs| {
-                                            block_on(
-                                                rtps_stateful_writer
-                                                    .borrow(cs)
-                                                    .borrow_mut()
-                                                    .write_message(
-                                                        &message_writer,
-                                                        &RtpsUdpTransportClock,
-                                                    ),
-                                            );
-                                        })
-                                    }
-                                }
-                            }
-                        }
-                    })
                 }
             })
             .expect("failed to spawn thread");

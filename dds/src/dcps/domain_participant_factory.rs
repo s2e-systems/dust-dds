@@ -166,7 +166,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
 
         let (data_channel_sender, data_channel_receiver) = mpsc_channel();
 
-        let mut transport = self
+        let transport = self
             .transport
             .create_participant(guid_prefix, domain_id, data_channel_sender)
             .await;
