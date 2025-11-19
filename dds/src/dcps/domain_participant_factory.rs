@@ -4,7 +4,7 @@ use crate::{
     dcps::{
         actor::{Actor, ActorAddress},
         channels::{
-            mpsc::{MpscReceiver, MpscSender, mpsc_channel},
+            mpsc::{MpscSender, mpsc_channel},
             oneshot::oneshot,
         },
         data_representation_builtin_endpoints::{
@@ -476,12 +476,10 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             vec![],
         );
 
-        let mut dcps_participant_transport_writer = RtpsStatelessWriter::new(
-            Guid::new(
-                transport.guid.prefix(),
-                ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
-            ),
-        );
+        let mut dcps_participant_transport_writer = RtpsStatelessWriter::new(Guid::new(
+            transport.guid.prefix(),
+            ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
+        ));
         for &discovery_locator in transport.metatraffic_multicast_locator_list() {
             dcps_participant_transport_writer.reader_locator_add(discovery_locator);
         }
@@ -664,6 +662,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
 
         // Start the regular participant announcement task
         let participant_address = participant_sender.clone();
+        let mut timer_handle_clone = timer_handle.clone();
         let participant_announcement_interval =
             self.configuration.participant_announcement_interval();
 
@@ -675,7 +674,23 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 .await
                 .is_ok()
             {
-                timer_handle.delay(participant_announcement_interval).await;
+                timer_handle_clone
+                    .delay(participant_announcement_interval)
+                    .await;
+            }
+        });
+
+        // Start regular message writing
+        let participant_address = participant_sender.clone();
+        spawner_handle.spawn(async move {
+            while participant_address
+                .send(DcpsDomainParticipantMail::Message(MessageServiceMail::Poke))
+                .await
+                .is_ok()
+            {
+                timer_handle
+                    .delay(core::time::Duration::from_millis(50))
+                    .await;
             }
         });
 

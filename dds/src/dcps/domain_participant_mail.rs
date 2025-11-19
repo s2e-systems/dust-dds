@@ -495,6 +495,7 @@ pub enum MessageServiceMail {
     AddBuiltinTopicsDetectorCacheChange {
         cache_change: CacheChange,
     },
+    Poke,
 }
 
 pub enum EventServiceMail {
@@ -1231,6 +1232,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                 self.add_builtin_topics_detector_cache_change(cache_change)
                     .await
             }
+            MessageServiceMail::Poke => self.poke().await,
         }
     }
 

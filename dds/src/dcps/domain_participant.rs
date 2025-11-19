@@ -5512,6 +5512,27 @@ where
             }
         }
     }
+
+    pub async fn poke(&mut self) {
+        for publisher in core::iter::chain(
+            &mut self.domain_participant.user_defined_publisher_list,
+            core::iter::once(&mut self.domain_participant.builtin_publisher),
+        ) {
+            for dw in &mut publisher.data_writer_list {
+                match &mut dw.transport_writer {
+                    TransportWriterKind::Stateful(writer) => {
+                        writer
+                            .write_message(
+                                self.transport.message_writer.as_ref(),
+                                &RtpsUdpTransportClock,
+                            )
+                            .await
+                    }
+                    TransportWriterKind::Stateless(_writer) => {}
+                }
+            }
+        }
+    }
 }
 
 #[tracing::instrument(skip(type_support))]

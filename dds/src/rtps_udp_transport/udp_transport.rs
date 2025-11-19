@@ -1,5 +1,5 @@
 use crate::{
-    dcps::channels::mpsc::{MpscReceiver, MpscSender, mpsc_channel},
+    dcps::channels::mpsc::{MpscSender, mpsc_channel},
     rtps::message_sender::{Clock, WriteMessage},
     rtps_messages::overall_structure::RtpsMessageRead,
     std_runtime::{self, executor::block_on},
