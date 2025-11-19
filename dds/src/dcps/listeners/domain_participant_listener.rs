@@ -1,5 +1,7 @@
 use core::pin::Pin;
 
+use alloc::boxed::Box;
+
 use crate::{
     dcps::channels::mpsc::{MpscSender, mpsc_channel},
     dds_async::{

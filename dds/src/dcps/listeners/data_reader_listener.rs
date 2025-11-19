@@ -1,5 +1,7 @@
 use core::pin::Pin;
 
+use alloc::boxed::Box;
+
 use tracing::span;
 
 use crate::{
