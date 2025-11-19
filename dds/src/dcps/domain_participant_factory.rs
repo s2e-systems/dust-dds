@@ -43,12 +43,13 @@ use crate::{
         time::{Duration, DurationKind},
         type_support::TypeSupport,
     },
+    rtps::stateless_reader::RtpsStatelessReader,
     runtime::{DdsRuntime, Spawner, Timer},
     transport::{
         interface::{HistoryCache, TransportParticipantFactory},
         types::{
             BUILT_IN_READER_GROUP, BUILT_IN_READER_WITH_KEY, BUILT_IN_TOPIC, BUILT_IN_WRITER_GROUP,
-            BUILT_IN_WRITER_WITH_KEY, CacheChange, EntityId, GuidPrefix, ReliabilityKind,
+            BUILT_IN_WRITER_WITH_KEY, CacheChange, EntityId, Guid, GuidPrefix, ReliabilityKind,
         },
     },
 };
@@ -358,14 +359,15 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             ..Default::default()
         };
 
-        let guid = transport
-            .create_stateless_reader(
-                ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
-                Box::new(DcpsParticipantReaderHistoryCache {
-                    participant_address: participant_sender.clone(),
-                }),
-            )
-            .await;
+        let guid = Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER);
+
+        let rtps_stateless_reader = RtpsStatelessReader::new(
+            guid,
+            Box::new(DcpsParticipantReaderHistoryCache {
+                participant_address: participant_sender.clone(),
+            }),
+        );
+
         let dcps_participant_reader = DataReaderEntity::new(
             InstanceHandle::new(guid.into()),
             spdp_reader_qos,
@@ -374,7 +376,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
             None,
             Vec::new(),
-            TransportReaderKind::Stateless(guid),
+            TransportReaderKind::Stateless(rtps_stateless_reader),
         );
         let dcps_topic_transport_reader = transport
             .create_stateful_reader(

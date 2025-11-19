@@ -57,21 +57,7 @@ impl RtpsTransportParticipant {
     pub fn default_multicast_locator_list(&self) -> &[Locator] {
         &[]
     }
-    pub async fn create_stateless_reader(
-        &mut self,
-        entity_id: EntityId,
-        reader_history_cache: Box<dyn HistoryCache>,
-    ) -> Guid {
-        let guid = Guid::new(self.guid.prefix(), entity_id);
-        self.chanel_message_sender
-            .send(ChannelMessageKind::AddStatelessReader(
-                RtpsStatelessReader::new(guid, reader_history_cache),
-            ))
-            .await
-            .expect("chanel_message receiver alive");
 
-        Guid::new(self.guid.prefix(), entity_id)
-    }
     pub async fn create_stateless_writer(&mut self, entity_id: EntityId) -> RtpsStatelessWriter {
         RtpsStatelessWriter::new(
             Guid::new(self.guid.prefix(), entity_id),

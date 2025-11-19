@@ -6,7 +6,8 @@ use crate::{
         BuiltInTopicKey, DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
         ParticipantBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
         TopicBuiltinTopicData,
-    }, dcps::{
+    },
+    dcps::{
         actor::{Actor, ActorAddress},
         channels::{mpsc::MpscSender, oneshot::oneshot},
         data_representation_builtin_endpoints::{
@@ -37,12 +38,14 @@ use crate::{
         status_condition::DcpsStatusCondition,
         status_condition_mail::DcpsStatusConditionMail,
         xtypes_glue::key_and_instance_handle::get_instance_handle_from_dynamic_data,
-    }, dds_async::{
+    },
+    dds_async::{
         content_filtered_topic::ContentFilteredTopicAsync, data_reader::DataReaderAsync,
         data_writer::DataWriterAsync, domain_participant::DomainParticipantAsync,
         publisher::PublisherAsync, subscriber::SubscriberAsync, topic::TopicAsync,
         topic_description::TopicDescriptionAsync,
-    }, infrastructure::{
+    },
+    infrastructure::{
         domain::DomainId,
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
@@ -69,7 +72,14 @@ use crate::{
         },
         time::{Duration, DurationKind, Time},
         type_support::TypeSupport,
-    }, rtps::stateless_writer::RtpsStatelessWriter, rtps_messages::overall_structure::RtpsMessageRead, runtime::{Clock, DdsRuntime, Spawner, Timer}, transport::{
+    },
+    rtps::{
+        stateful_reader::RtpsStatefulReader, stateless_reader::RtpsStatelessReader,
+        stateless_writer::RtpsStatelessWriter,
+    },
+    rtps_messages::overall_structure::RtpsMessageRead,
+    runtime::{Clock, DdsRuntime, Spawner, Timer},
+    transport::{
         self,
         interface::{
             HistoryCache, RtpsTransportParticipant, RtpsTransportStatefulReader,
@@ -81,7 +91,8 @@ use crate::{
             USER_DEFINED_READER_WITH_KEY, USER_DEFINED_TOPIC, USER_DEFINED_WRITER_GROUP,
             USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
         },
-    }, xtypes::{
+    },
+    xtypes::{
         binding::XTypesBinding,
         deserializer::CdrDeserializer,
         dynamic_type::{DynamicData, DynamicDataFactory, DynamicType},
@@ -89,7 +100,7 @@ use crate::{
             Cdr1BeSerializer, Cdr1LeSerializer, Cdr2BeSerializer, Cdr2LeSerializer,
             RtpsPlCdrSerializer,
         },
-    }
+    },
 };
 use alloc::{
     boxed::Box,
@@ -5429,11 +5440,15 @@ where
     }
 
     pub async fn handle_data(&mut self, data_message: Arc<[u8]>) {
-        if let Ok(m) = RtpsMessageRead::try_from(data_message.as_ref()) {
-            // self.
-            for subscriber in self.domain_participant.user_defined_subscriber_list.iter() {
-                for dr in &subscriber.data_reader_list {
-                    todo!()
+        if let Ok(rtps_message) = RtpsMessageRead::try_from(data_message.as_ref()) {
+            for subscriber in self.domain_participant.user_defined_subscriber_list.iter_mut() {
+                for dr in &mut subscriber.data_reader_list {
+                    match &mut dr.transport_reader {
+                        TransportReaderKind::Stateful(rtps_transport_stateful_reader) => todo!(),
+                        TransportReaderKind::Stateless(rtps_stateless_reader) => {
+                            rtps_stateless_reader.process_message(&rtps_message).await.ok();
+                        }
+                    }
                 }
             }
         }
@@ -6580,14 +6595,14 @@ pub struct IndexedSample {
 
 pub enum TransportReaderKind {
     Stateful(RtpsTransportStatefulReader),
-    Stateless(Guid),
+    Stateless(RtpsStatelessReader),
 }
 
 impl TransportReaderKind {
     pub fn guid(&self) -> Guid {
         match self {
             TransportReaderKind::Stateful(r) => r.guid(),
-            TransportReaderKind::Stateless(r) => *r,
+            TransportReaderKind::Stateless(r) => r.guid(),
         }
     }
 }
