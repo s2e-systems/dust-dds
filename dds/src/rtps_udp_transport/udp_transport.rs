@@ -229,7 +229,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
             .unwrap(),
         );
 
-        let mut message_writer = MessageWriter::new(
+        let message_writer = MessageWriter::new(
             guid_prefix,
             default_unicast_socket.try_clone().expect("Socket cloning"),
         );
@@ -357,7 +357,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                                                         .borrow_mut()
                                                         .process_message(
                                                             &rtps_message,
-                                                            &mut message_writer,
+                                                            &message_writer,
                                                         ),
                                                 )
                                                 .ok();
@@ -371,7 +371,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                                                         .borrow_mut()
                                                         .process_message(
                                                             &rtps_message,
-                                                            &mut message_writer,
+                                                            &message_writer,
                                                             &RtpsUdpTransportClock,
                                                         ),
                                                 )
