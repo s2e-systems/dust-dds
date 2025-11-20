@@ -1302,8 +1302,8 @@ where
             ReliabilityQosPolicyKind::BestEffort => ReliabilityKind::BestEffort,
             ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
         };
-
-        let guid = Guid::from(*self.domain_participant.instance_handle.as_ref());
+        let guid_prefix = Guid::from(*self.domain_participant.instance_handle.as_ref()).prefix();
+        let guid = Guid::new(guid_prefix, entity_id);
 
         let transport_reader = TransportReaderKind::Stateful(RtpsStatefulReader::new(
             guid,
