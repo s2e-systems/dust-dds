@@ -44,15 +44,17 @@ use crate::{
         type_support::TypeSupport,
     },
     rtps::{
-        stateful_reader::RtpsStatefulReader, stateful_writer::RtpsStatefulWriter,
-        stateless_reader::RtpsStatelessReader, stateless_writer::RtpsStatelessWriter,
+        history_cache::HistoryCache, stateful_reader::RtpsStatefulReader,
+        stateful_writer::RtpsStatefulWriter, stateless_reader::RtpsStatelessReader,
+        stateless_writer::RtpsStatelessWriter,
     },
     runtime::{DdsRuntime, Spawner, Timer},
     transport::{
-        interface::{HistoryCache, TransportParticipantFactory},
+        interface::TransportParticipantFactory,
         types::{
             BUILT_IN_READER_GROUP, BUILT_IN_READER_WITH_KEY, BUILT_IN_TOPIC, BUILT_IN_WRITER_GROUP,
-            BUILT_IN_WRITER_WITH_KEY, CacheChange, EntityId, Guid, GuidPrefix, ReliabilityKind,
+            BUILT_IN_WRITER_WITH_KEY, CacheChange, ENTITYID_PARTICIPANT, EntityId, Guid,
+            GuidPrefix, ReliabilityKind,
         },
     },
 };
@@ -166,11 +168,12 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
 
         let (data_channel_sender, data_channel_receiver) = mpsc_channel();
 
+        let guid = Guid::new(guid_prefix, ENTITYID_PARTICIPANT);
         let transport = self
             .transport
-            .create_participant(guid_prefix, domain_id, data_channel_sender)
+            .create_participant(domain_id, data_channel_sender)
             .await;
-        let participant_instance_handle = InstanceHandle::new(transport.guid().into());
+        let participant_instance_handle = InstanceHandle::new(guid.into());
 
         fn sedp_data_reader_qos() -> DataReaderQos {
             DataReaderQos {
@@ -400,10 +403,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
         );
 
         let dcps_publication_transport_reader = RtpsStatefulReader::new(
-            Guid::new(
-                transport.guid().prefix(),
-                ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
-            ),
+            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR),
             Box::new(DcpsPublicationsReaderHistoryCache {
                 participant_address: participant_sender.clone(),
             }),
@@ -422,10 +422,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
         );
 
         let dcps_subscription_transport_reader = RtpsStatefulReader::new(
-            Guid::new(
-                transport.guid().prefix(),
-                ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
-            ),
+            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR),
             Box::new(DcpsSubscriptionsReaderHistoryCache {
                 participant_address: participant_sender.clone(),
             }),
@@ -477,10 +474,10 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
         );
 
         let mut dcps_participant_transport_writer = RtpsStatelessWriter::new(Guid::new(
-            transport.guid.prefix(),
+            guid_prefix,
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
         ));
-        for &discovery_locator in transport.metatraffic_multicast_locator_list() {
+        for &discovery_locator in &transport.metatraffic_multicast_locator_list {
             dcps_participant_transport_writer.reader_locator_add(discovery_locator);
         }
         let dcps_participant_writer = DataWriterEntity::new(
@@ -496,10 +493,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
         );
 
         let dcps_topics_transport_writer = RtpsStatefulWriter::new(
-            Guid::new(
-                transport.guid.prefix(),
-                ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
-            ),
+            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER),
             transport.fragment_size,
         );
 
@@ -515,10 +509,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             sedp_data_writer_qos(),
         );
         let dcps_publications_transport_writer = RtpsStatefulWriter::new(
-            Guid::new(
-                transport.guid().prefix(),
-                ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
-            ),
+            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER),
             transport.fragment_size,
         );
 
@@ -535,10 +526,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
         );
 
         let dcps_subscriptions_transport_writer = RtpsStatefulWriter::new(
-            Guid::new(
-                transport.guid().prefix(),
-                ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
-            ),
+            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER),
             transport.fragment_size,
         );
         let dcps_subscriptions_writer = DataWriterEntity::new(

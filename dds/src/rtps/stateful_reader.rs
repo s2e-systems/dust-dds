@@ -1,5 +1,6 @@
 use super::{error::RtpsResult, message_receiver::MessageReceiver, writer_proxy::RtpsWriterProxy};
 use crate::{
+    rtps::history_cache::HistoryCache,
     rtps_messages::{
         self,
         overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
@@ -9,7 +10,7 @@ use crate::{
         },
     },
     transport::{
-        interface::{HistoryCache, WriteMessage},
+        interface::WriteMessage,
         types::{CacheChange, Guid, GuidPrefix, ReliabilityKind, WriterProxy},
     },
 };
@@ -345,10 +346,6 @@ mod tests {
                     _ => panic!("Expected NackFrag submessage"),
                 }
                 Box::pin(async {})
-            }
-
-            fn guid_prefix(&self) -> GuidPrefix {
-                [2; 12]
             }
         }
 

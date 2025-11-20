@@ -1,14 +1,12 @@
 use super::{error::RtpsResult, message_receiver::MessageReceiver};
 use crate::{
+    rtps::history_cache::HistoryCache,
     rtps_messages::{
         self,
         overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
         submessages::data::DataSubmessage,
     },
-    transport::{
-        interface::HistoryCache,
-        types::{CacheChange, ENTITYID_UNKNOWN, Guid, GuidPrefix},
-    },
+    transport::types::{CacheChange, ENTITYID_UNKNOWN, Guid, GuidPrefix},
 };
 use alloc::boxed::Box;
 

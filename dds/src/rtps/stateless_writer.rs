@@ -63,7 +63,7 @@ impl RtpsStatelessWriter {
 
                     let rtps_message = RtpsMessageWrite::from_submessages(
                         &[&info_ts_submessage, &data_submessage],
-                        message_writer.guid_prefix(),
+                        self.guid.prefix(),
                     );
                     message_writer
                         .write_message(rtps_message.buffer(), &[reader_locator.locator()])
@@ -75,10 +75,8 @@ impl RtpsStatelessWriter {
                         unsent_change_seq_num,
                         SequenceNumberSet::new(unsent_change_seq_num + 1, []),
                     );
-                    let rtps_message = RtpsMessageWrite::from_submessages(
-                        &[&gap_submessage],
-                        message_writer.guid_prefix(),
-                    );
+                    let rtps_message =
+                        RtpsMessageWrite::from_submessages(&[&gap_submessage], self.guid.prefix());
                     message_writer
                         .write_message(rtps_message.buffer(), &[reader_locator.locator()])
                         .await;
