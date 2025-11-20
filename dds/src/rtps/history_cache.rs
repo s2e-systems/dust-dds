@@ -1,4 +1,5 @@
 use crate::transport::types::CacheChange;
+use alloc::boxed::Box;
 use core::pin::Pin;
 
 pub trait HistoryCache {
