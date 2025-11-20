@@ -233,6 +233,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
             default_unicast_locator_list,
             metatraffic_unicast_locator_list,
             metatraffic_multicast_locator_list,
+            default_multicast_locator_list: Vec::new(),
             fragment_size: self.fragment_size,
         };
 

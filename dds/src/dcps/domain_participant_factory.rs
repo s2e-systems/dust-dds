@@ -476,7 +476,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             guid_prefix,
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
         ));
-        for &discovery_locator in transport.metatraffic_multicast_locator_list() {
+        for &discovery_locator in &transport.metatraffic_multicast_locator_list {
             dcps_participant_transport_writer.reader_locator_add(discovery_locator);
         }
         let dcps_participant_writer = DataWriterEntity::new(

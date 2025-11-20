@@ -74,8 +74,11 @@ use crate::{
         type_support::TypeSupport,
     },
     rtps::{
-        stateful_reader::RtpsStatefulReader, stateful_writer::RtpsStatefulWriter,
-        stateless_reader::RtpsStatelessReader, stateless_writer::RtpsStatelessWriter,
+        stateful_reader::RtpsStatefulReader,
+        stateful_writer::RtpsStatefulWriter,
+        stateless_reader::RtpsStatelessReader,
+        stateless_writer::RtpsStatelessWriter,
+        types::{PROTOCOLVERSION, VENDOR_ID_S2E},
     },
     rtps_messages::overall_structure::RtpsMessageRead,
     runtime::{Clock, DdsRuntime, Spawner, Timer},
@@ -2736,25 +2739,22 @@ where
             let participant_proxy = ParticipantProxy {
                 domain_id: Some(self.domain_participant.domain_id),
                 domain_tag: self.domain_participant.domain_tag.clone(),
-                protocol_version: self.transport.protocol_version(),
+                protocol_version: PROTOCOLVERSION,
                 guid_prefix: guid.prefix(),
-                vendor_id: self.transport.vendor_id(),
+                vendor_id: VENDOR_ID_S2E,
                 expects_inline_qos: false,
                 metatraffic_unicast_locator_list: self
                     .transport
-                    .metatraffic_unicast_locator_list()
+                    .metatraffic_unicast_locator_list
                     .to_vec(),
                 metatraffic_multicast_locator_list: self
                     .transport
-                    .metatraffic_multicast_locator_list()
+                    .metatraffic_multicast_locator_list
                     .to_vec(),
-                default_unicast_locator_list: self
-                    .transport
-                    .default_unicast_locator_list()
-                    .to_vec(),
+                default_unicast_locator_list: self.transport.default_unicast_locator_list.to_vec(),
                 default_multicast_locator_list: self
                     .transport
-                    .default_multicast_locator_list()
+                    .default_multicast_locator_list
                     .to_vec(),
                 available_builtin_endpoints: BuiltinEndpointSet::default(),
                 manual_liveliness_count: 0,

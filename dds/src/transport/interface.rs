@@ -1,9 +1,5 @@
-use super::types::{CacheChange, ProtocolVersion, VendorId};
-use crate::{
-    dcps::channels::mpsc::MpscSender,
-    rtps::types::{PROTOCOLVERSION, VENDOR_ID_S2E},
-    transport::types::Locator,
-};
+use super::types::CacheChange;
+use crate::{dcps::channels::mpsc::MpscSender, transport::types::Locator};
 use alloc::{boxed::Box, sync::Arc, vec::Vec};
 use core::{future::Future, pin::Pin};
 
@@ -20,28 +16,8 @@ pub struct RtpsTransportParticipant {
     pub default_unicast_locator_list: Vec<Locator>,
     pub metatraffic_unicast_locator_list: Vec<Locator>,
     pub metatraffic_multicast_locator_list: Vec<Locator>,
+    pub default_multicast_locator_list: Vec<Locator>,
     pub fragment_size: usize,
-}
-
-impl RtpsTransportParticipant {
-    pub fn protocol_version(&self) -> ProtocolVersion {
-        PROTOCOLVERSION
-    }
-    pub fn vendor_id(&self) -> VendorId {
-        VENDOR_ID_S2E
-    }
-    pub fn metatraffic_unicast_locator_list(&self) -> &[Locator] {
-        &self.metatraffic_unicast_locator_list
-    }
-    pub fn metatraffic_multicast_locator_list(&self) -> &[Locator] {
-        &self.metatraffic_multicast_locator_list
-    }
-    pub fn default_unicast_locator_list(&self) -> &[Locator] {
-        &self.default_unicast_locator_list
-    }
-    pub fn default_multicast_locator_list(&self) -> &[Locator] {
-        &[]
-    }
 }
 
 pub trait TransportParticipantFactory: Send + 'static {
