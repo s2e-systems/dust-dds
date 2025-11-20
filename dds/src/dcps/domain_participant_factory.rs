@@ -608,9 +608,9 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             .status_condition()
             .address();
 
-        enum Either {
-            A(Option<DcpsDomainParticipantMail>),
-            B(Option<Arc<[u8]>>),
+        enum Either<A, B> {
+            A(A),
+            B(B),
         }
         struct Select<A, B> {
             a: A,
@@ -621,7 +621,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             A: Future<Output = Option<DcpsDomainParticipantMail>> + Unpin,
             B: Future<Output = Option<Arc<[u8]>>> + Unpin,
         {
-            type Output = Either;
+            type Output = Either<Option<DcpsDomainParticipantMail>, Option<Arc<[u8]>>>;
 
             fn poll(
                 mut self: Pin<&mut Self>,
