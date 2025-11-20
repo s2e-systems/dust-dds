@@ -1,6 +1,6 @@
 use crate::{
     dcps::channels::mpsc::MpscSender,
-    rtps::message_sender::{Clock, WriteMessage},
+    rtps::message_sender::WriteMessage,
     std_runtime::{self},
     transport::{
         interface::{RtpsTransportParticipant, TransportParticipantFactory},
@@ -441,16 +441,6 @@ impl WriteMessage for MessageWriter {
 
     fn box_clone(&self) -> Box<dyn WriteMessage + Send + Sync + 'static> {
         Box::new(self.clone())
-    }
-}
-
-pub struct RtpsUdpTransportClock;
-
-impl Clock for RtpsUdpTransportClock {
-    fn now(&self) -> core::time::Duration {
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .expect("Clock should always give valid Unix time")
     }
 }
 

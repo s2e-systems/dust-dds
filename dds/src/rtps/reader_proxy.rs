@@ -1,4 +1,5 @@
 use crate::{
+    infrastructure::time::{Duration, Time},
     rtps_messages::{
         submessages::{heartbeat::HeartbeatSubmessage, heartbeat_frag::HeartbeatFragSubmessage},
         types::{Count, FragmentNumber},
@@ -13,21 +14,17 @@ use alloc::vec::Vec;
 pub struct HeartbeatMachine {
     count: Count,
     reader_id: EntityId,
-    last_heartbeat_time: core::time::Duration,
+    last_heartbeat_time: Time,
 }
 impl HeartbeatMachine {
     fn new(reader_id: EntityId) -> Self {
         HeartbeatMachine {
             count: 0,
             reader_id,
-            last_heartbeat_time: core::time::Duration::ZERO,
+            last_heartbeat_time: Time::new(0, 0),
         }
     }
-    pub fn is_time_for_heartbeat(
-        &self,
-        now: core::time::Duration,
-        heartbeat_period: core::time::Duration,
-    ) -> bool {
+    pub fn is_time_for_heartbeat(&self, now: Time, heartbeat_period: Duration) -> bool {
         now - self.last_heartbeat_time >= heartbeat_period
     }
 
@@ -36,7 +33,7 @@ impl HeartbeatMachine {
         writer_id: EntityId,
         first_sn: SequenceNumber,
         last_sn: SequenceNumber,
-        heartbeat_time: core::time::Duration,
+        heartbeat_time: Time,
         final_flag: bool,
     ) -> HeartbeatSubmessage {
         self.count = self.count.wrapping_add(1);

@@ -79,7 +79,6 @@ use crate::{
         stateless_writer::RtpsStatelessWriter,
     },
     rtps_messages::overall_structure::RtpsMessageRead,
-    rtps_udp_transport::udp_transport::RtpsUdpTransportClock,
     runtime::{Clock, DdsRuntime, Spawner, Timer},
     transport::{
         self,
@@ -1932,6 +1931,7 @@ where
                 dynamic_data,
                 timestamp,
                 self.transport.message_writer.as_ref(),
+                &self.clock_handle,
             )
             .await
     }
@@ -2114,6 +2114,7 @@ where
                 dynamic_data,
                 timestamp,
                 self.transport.message_writer.as_ref(),
+                &self.clock_handle,
             )
             .await
     }
@@ -2816,6 +2817,7 @@ where
                     dynamic_data,
                     timestamp,
                     self.transport.message_writer.as_ref(),
+                    &self.clock_handle,
                 )
                 .await
                 .ok();
@@ -2933,6 +2935,7 @@ where
                 dynamic_data,
                 timestamp,
                 self.transport.message_writer.as_ref(),
+                &self.clock_handle,
             )
             .await
             .ok();
@@ -3060,6 +3063,7 @@ where
                 dynamic_data,
                 timestamp,
                 self.transport.message_writer.as_ref(),
+                &self.clock_handle,
             )
             .await
             .ok();
@@ -5509,7 +5513,7 @@ where
                                 .process_message(
                                     &rtps_message,
                                     self.transport.message_writer.as_ref(),
-                                    &RtpsUdpTransportClock,
+                                    &self.clock_handle,
                                 )
                                 .await
                                 .ok();
@@ -5536,7 +5540,7 @@ where
                         writer
                             .write_message(
                                 self.transport.message_writer.as_ref(),
-                                &RtpsUdpTransportClock,
+                                &self.clock_handle,
                             )
                             .await
                     }
@@ -6128,9 +6132,12 @@ impl TransportWriterKind {
         &mut self,
         cache_change: CacheChange,
         message_writer: &(impl WriteMessage + ?Sized),
+        clock: &impl Clock,
     ) {
         match self {
-            TransportWriterKind::Stateful(w) => w.add_change(cache_change, message_writer).await,
+            TransportWriterKind::Stateful(w) => {
+                w.add_change(cache_change, message_writer, clock).await
+            }
             TransportWriterKind::Stateless(w) => w.add_change(cache_change, message_writer).await,
         }
     }
@@ -6364,7 +6371,7 @@ impl DataWriterEntity {
             }
         }
         self.transport_writer
-            .add_change(change, message_writer)
+            .add_change(change, message_writer, clock)
             .await;
         Ok(self.last_change_sequence_number)
     }
@@ -6374,6 +6381,7 @@ impl DataWriterEntity {
         mut dynamic_data: DynamicData,
         timestamp: Time,
         message_writer: &(impl WriteMessage + ?Sized),
+        clock: &impl Clock,
     ) -> DdsResult<()> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
@@ -6424,7 +6432,7 @@ impl DataWriterEntity {
             data_value: serialized_key.into(),
         };
         self.transport_writer
-            .add_change(cache_change, message_writer)
+            .add_change(cache_change, message_writer, clock)
             .await;
 
         Ok(())
@@ -6435,6 +6443,7 @@ impl DataWriterEntity {
         mut dynamic_data: DynamicData,
         timestamp: Time,
         message_writer: &(impl WriteMessage + ?Sized),
+        clock: &impl Clock,
     ) -> DdsResult<()> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
@@ -6494,7 +6503,7 @@ impl DataWriterEntity {
             data_value: serialized_key.into(),
         };
         self.transport_writer
-            .add_change(cache_change, message_writer)
+            .add_change(cache_change, message_writer, clock)
             .await;
         Ok(())
     }

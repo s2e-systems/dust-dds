@@ -12,7 +12,3 @@ pub trait WriteMessage {
 
     fn box_clone(&self) -> Box<dyn WriteMessage + Send + Sync + 'static>;
 }
-
-pub trait Clock {
-    fn now(&self) -> core::time::Duration;
-}

@@ -1,6 +1,6 @@
 use super::{
     behavior_types::Duration, error::RtpsResult, message_receiver::MessageReceiver,
-    message_sender::Clock, reader_proxy::RtpsReaderProxy,
+    reader_proxy::RtpsReaderProxy,
 };
 use crate::{
     rtps::message_sender::WriteMessage,
@@ -14,7 +14,7 @@ use crate::{
         },
         types::TIME_INVALID,
     },
-    rtps_udp_transport::udp_transport::RtpsUdpTransportClock,
+    runtime::Clock,
     transport::types::{
         CacheChange, ChangeKind, DurabilityKind, ENTITYID_UNKNOWN, EntityId, Guid, GuidPrefix,
         ReaderProxy, ReliabilityKind, SequenceNumber,
@@ -53,10 +53,10 @@ impl RtpsStatefulWriter {
         &mut self,
         cache_change: CacheChange,
         message_writer: &(impl WriteMessage + ?Sized),
+        clock: &impl Clock,
     ) {
         self.changes.push(cache_change);
-        self.write_message(message_writer, &RtpsUdpTransportClock)
-            .await;
+        self.write_message(message_writer, clock).await;
     }
 
     pub fn remove_change(&mut self, sequence_number: SequenceNumber) {

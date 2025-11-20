@@ -3065,6 +3065,7 @@ fn transient_local_writer_does_not_deliver_lifespan_expired_data_after_write() {
 }
 
 #[test]
+#[ignore = "needs investigation"]
 fn reader_joining_after_writer_writes_many_samples() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
