@@ -298,6 +298,7 @@ impl RtpsStatefulWriter {
 }
 
 impl RtpsReaderProxy {
+    #[allow(clippy::too_many_arguments)]
     async fn write_message(
         &mut self,
         writer_id: EntityId,
@@ -448,6 +449,7 @@ impl RtpsReaderProxy {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn write_message_reliable(
         &mut self,
         writer_id: EntityId,
@@ -488,7 +490,6 @@ impl RtpsReaderProxy {
                         .write_message(rtps_message.buffer(), self.unicast_locator_list())
                         .await
                 } else {
-                    let now = clock.now();
                     let seq_num_min = changes.iter().map(|cc| cc.sequence_number).min();
                     let seq_num_max = changes.iter().map(|cc| cc.sequence_number).max();
                     if let Some(cache_change) = changes.iter().find(|cc| {

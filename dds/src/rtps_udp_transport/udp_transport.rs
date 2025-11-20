@@ -11,9 +11,7 @@ use core::{
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4},
     pin::Pin,
 };
-use dust_dds::transport::types::{
-    ENTITYID_PARTICIPANT, Guid, GuidPrefix, LOCATOR_KIND_UDP_V4, Locator,
-};
+use dust_dds::transport::types::{LOCATOR_KIND_UDP_V4, Locator};
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use socket2::Socket;
 use std::{
@@ -156,7 +154,6 @@ impl Default for RtpsUdpTransportParticipantFactory {
 impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
     async fn create_participant(
         &self,
-        guid_prefix: GuidPrefix,
         domain_id: i32,
         data_channel_sender: MpscSender<Arc<[u8]>>,
     ) -> RtpsTransportParticipant {
@@ -228,15 +225,10 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
             .unwrap(),
         );
 
-        let message_writer = MessageWriter::new(
-            guid_prefix,
-            default_unicast_socket.try_clone().expect("Socket cloning"),
-        );
-
-        let guid = Guid::new(guid_prefix, ENTITYID_PARTICIPANT);
+        let message_writer =
+            MessageWriter::new(default_unicast_socket.try_clone().expect("Socket cloning"));
 
         let global_participant = RtpsTransportParticipant {
-            guid,
             message_writer: Box::new(message_writer.clone()),
             default_unicast_locator_list,
             metatraffic_unicast_locator_list,
@@ -377,25 +369,20 @@ impl UdpLocator {
 }
 
 struct MessageWriter {
-    guid_prefix: GuidPrefix,
     socket: UdpSocket,
 }
 
 impl Clone for MessageWriter {
     fn clone(&self) -> Self {
         Self {
-            guid_prefix: self.guid_prefix,
             socket: self.socket.try_clone().expect("Socket cloning"),
         }
     }
 }
 
 impl MessageWriter {
-    fn new(guid_prefix: GuidPrefix, socket: UdpSocket) -> Self {
-        Self {
-            guid_prefix,
-            socket,
-        }
+    fn new(socket: UdpSocket) -> Self {
+        Self { socket }
     }
 }
 impl WriteMessage for MessageWriter {

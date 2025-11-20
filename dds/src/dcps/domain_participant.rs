@@ -1299,7 +1299,7 @@ where
             ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
         };
 
-        let guid = Guid::new(self.transport.guid().prefix(), entity_id);
+        let guid = Guid::from(*self.domain_participant.instance_handle.as_ref());
 
         let transport_reader = TransportReaderKind::Stateful(RtpsStatefulReader::new(
             guid,
@@ -1597,8 +1597,9 @@ where
                 }
             }
         };
+        let guid = Guid::from(*self.domain_participant.instance_handle.as_ref());
         let transport_writer = RtpsStatefulWriter::new(
-            Guid::new(self.transport.guid().prefix(), entity_id),
+            Guid::new(guid.prefix(), entity_id),
             self.transport.fragment_size,
         );
         let listener_sender = dcps_listener.map(|l| l.spawn::<R>(&self.spawner_handle));
@@ -2724,9 +2725,11 @@ where
     #[tracing::instrument(skip(self))]
     pub async fn announce_participant(&mut self) {
         if self.domain_participant.enabled {
+            let builtin_topic_key = *self.domain_participant.instance_handle.as_ref();
+            let guid = Guid::from(builtin_topic_key);
             let participant_builtin_topic_data = ParticipantBuiltinTopicData {
                 key: BuiltInTopicKey {
-                    value: self.transport.guid().into(),
+                    value: builtin_topic_key,
                 },
                 user_data: self.domain_participant.qos.user_data.clone(),
             };
@@ -2734,7 +2737,7 @@ where
                 domain_id: Some(self.domain_participant.domain_id),
                 domain_tag: self.domain_participant.domain_tag.clone(),
                 protocol_version: self.transport.protocol_version(),
-                guid_prefix: self.transport.guid().prefix(),
+                guid_prefix: guid.prefix(),
                 vendor_id: self.transport.vendor_id(),
                 expects_inline_qos: false,
                 metatraffic_unicast_locator_list: self
@@ -2800,13 +2803,14 @@ where
                 .iter_mut()
                 .find(|x| x.topic_name == DCPS_PARTICIPANT)
             {
+                let builtin_topic_key = *self.domain_participant.instance_handle.as_ref();
                 let mut dynamic_data =
                     DynamicDataFactory::create_data(SpdpDiscoveredParticipantData::get_type());
                 dynamic_data
                     .set_complex_value(
                         PID_PARTICIPANT_GUID as u32,
                         BuiltInTopicKey {
-                            value: self.transport.guid().into(),
+                            value: builtin_topic_key,
                         }
                         .create_dynamic_sample(),
                     )
