@@ -1,5 +1,4 @@
 use crate::{
-    rtps::message_sender::WriteMessage,
     rtps_messages::{
         overall_structure::RtpsMessageWrite,
         submessage_elements::{Data, FragmentNumberSet, SequenceNumberSet},
@@ -9,7 +8,10 @@ use crate::{
         },
         types::Count,
     },
-    transport::types::{EntityId, Guid, Locator, ReliabilityKind, SequenceNumber},
+    transport::{
+        interface::WriteMessage,
+        types::{EntityId, Guid, Locator, ReliabilityKind, SequenceNumber},
+    },
 };
 use alloc::{sync::Arc, vec::Vec};
 
@@ -250,7 +252,11 @@ impl RtpsWriterProxy {
         self.acknack_count = self.acknack_count.wrapping_add(1);
     }
 
-    pub async fn write_message(&mut self, reader_guid: &Guid, message_writer: &(impl WriteMessage + ?Sized)) {
+    pub async fn write_message(
+        &mut self,
+        reader_guid: &Guid,
+        message_writer: &(impl WriteMessage + ?Sized),
+    ) {
         if self.must_send_acknacks() || !self.missing_changes().count() == 0 {
             self.set_must_send_acknacks(false);
             self.increment_acknack_count();

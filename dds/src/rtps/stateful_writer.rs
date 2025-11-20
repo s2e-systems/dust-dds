@@ -3,7 +3,6 @@ use super::{
     reader_proxy::RtpsReaderProxy,
 };
 use crate::{
-    rtps::message_sender::WriteMessage,
     rtps_messages::{
         overall_structure::{RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageReadKind},
         submessage_elements::SequenceNumberSet,
@@ -15,9 +14,12 @@ use crate::{
         types::TIME_INVALID,
     },
     runtime::Clock,
-    transport::types::{
-        CacheChange, ChangeKind, DurabilityKind, ENTITYID_UNKNOWN, EntityId, Guid, GuidPrefix,
-        ReaderProxy, ReliabilityKind, SequenceNumber,
+    transport::{
+        interface::WriteMessage,
+        types::{
+            CacheChange, ChangeKind, DurabilityKind, ENTITYID_UNKNOWN, EntityId, Guid, GuidPrefix,
+            ReaderProxy, ReliabilityKind, SequenceNumber,
+        },
     },
 };
 use alloc::vec::Vec;

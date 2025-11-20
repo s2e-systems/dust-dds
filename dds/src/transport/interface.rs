@@ -1,13 +1,21 @@
 use super::types::{CacheChange, Guid, GuidPrefix, Locator, ProtocolVersion, VendorId};
 use crate::{
     dcps::channels::mpsc::MpscSender,
-    rtps::{
-        message_sender::WriteMessage,
-        types::{PROTOCOLVERSION, VENDOR_ID_S2E},
-    },
+    rtps::types::{PROTOCOLVERSION, VENDOR_ID_S2E},
 };
 use alloc::{boxed::Box, sync::Arc, vec::Vec};
 use core::{future::Future, pin::Pin};
+
+pub trait WriteMessage {
+    fn write_message(
+        &self,
+        buf: &[u8],
+        locators: &[Locator],
+    ) -> Pin<Box<dyn Future<Output = ()> + Send>>;
+    fn guid_prefix(&self) -> GuidPrefix;
+
+    fn box_clone(&self) -> Box<dyn WriteMessage + Send + Sync + 'static>;
+}
 
 pub struct RtpsTransportParticipant {
     pub guid: Guid,

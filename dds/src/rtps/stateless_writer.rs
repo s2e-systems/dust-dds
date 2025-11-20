@@ -1,13 +1,15 @@
 use super::reader_locator::RtpsReaderLocator;
 use crate::{
-    rtps::message_sender::WriteMessage,
     rtps_messages::{
         overall_structure::RtpsMessageWrite,
         submessage_elements::SequenceNumberSet,
         submessages::{gap::GapSubmessage, info_timestamp::InfoTimestampSubmessage},
         types::TIME_INVALID,
     },
-    transport::types::{CacheChange, ENTITYID_UNKNOWN, Guid, Locator, SequenceNumber},
+    transport::{
+        interface::WriteMessage,
+        types::{CacheChange, ENTITYID_UNKNOWN, Guid, Locator, SequenceNumber},
+    },
 };
 use alloc::vec::Vec;
 

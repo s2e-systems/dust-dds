@@ -74,15 +74,14 @@ use crate::{
         type_support::TypeSupport,
     },
     rtps::{
-        message_sender::WriteMessage, stateful_reader::RtpsStatefulReader,
-        stateful_writer::RtpsStatefulWriter, stateless_reader::RtpsStatelessReader,
-        stateless_writer::RtpsStatelessWriter,
+        stateful_reader::RtpsStatefulReader, stateful_writer::RtpsStatefulWriter,
+        stateless_reader::RtpsStatelessReader, stateless_writer::RtpsStatelessWriter,
     },
     rtps_messages::overall_structure::RtpsMessageRead,
     runtime::{Clock, DdsRuntime, Spawner, Timer},
     transport::{
         self,
-        interface::{HistoryCache, RtpsTransportParticipant},
+        interface::{HistoryCache, RtpsTransportParticipant, WriteMessage},
         types::{
             CacheChange, ChangeKind, DurabilityKind, ENTITYID_UNKNOWN, EntityId, Guid,
             ReliabilityKind, TopicKind, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY,

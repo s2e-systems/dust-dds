@@ -616,7 +616,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             a: A,
             b: B,
         }
-        impl<'a, A, B> Future for Select<A, B>
+        impl<A, B> Future for Select<A, B>
         where
             A: Future<Output = Option<DcpsDomainParticipantMail>> + Unpin,
             B: Future<Output = Option<Arc<[u8]>>> + Unpin,

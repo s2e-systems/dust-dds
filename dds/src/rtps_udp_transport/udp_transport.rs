@@ -1,9 +1,8 @@
 use crate::{
     dcps::channels::mpsc::MpscSender,
-    rtps::message_sender::WriteMessage,
     std_runtime::{self},
     transport::{
-        interface::{RtpsTransportParticipant, TransportParticipantFactory},
+        interface::{RtpsTransportParticipant, TransportParticipantFactory, WriteMessage},
         types::LOCATOR_KIND_UDP_V6,
     },
 };

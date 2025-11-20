@@ -1,6 +1,5 @@
 use super::{error::RtpsResult, message_receiver::MessageReceiver, writer_proxy::RtpsWriterProxy};
 use crate::{
-    rtps::message_sender::WriteMessage,
     rtps_messages::{
         self,
         overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
@@ -10,7 +9,7 @@ use crate::{
         },
     },
     transport::{
-        interface::HistoryCache,
+        interface::{HistoryCache, WriteMessage},
         types::{CacheChange, Guid, GuidPrefix, ReliabilityKind, WriterProxy},
     },
 };
