@@ -13,13 +13,11 @@ pub trait WriteMessage {
         locators: &[Locator],
     ) -> Pin<Box<dyn Future<Output = ()> + Send>>;
     fn guid_prefix(&self) -> GuidPrefix;
-
-    fn box_clone(&self) -> Box<dyn WriteMessage + Send + Sync + 'static>;
 }
 
 pub struct RtpsTransportParticipant {
     pub guid: Guid,
-    pub message_writer: Box<dyn WriteMessage + Send + Sync + 'static>,
+    pub message_writer: Box<dyn WriteMessage + Send + Sync>,
     pub default_unicast_locator_list: Vec<Locator>,
     pub metatraffic_unicast_locator_list: Vec<Locator>,
     pub metatraffic_multicast_locator_list: Vec<Locator>,

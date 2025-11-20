@@ -437,10 +437,6 @@ impl WriteMessage for MessageWriter {
     fn guid_prefix(&self) -> GuidPrefix {
         self.guid_prefix
     }
-
-    fn box_clone(&self) -> Box<dyn WriteMessage + Send + Sync + 'static> {
-        Box::new(self.clone())
-    }
 }
 
 // #[cfg(test)]
