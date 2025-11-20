@@ -1,7 +1,7 @@
 use crate::transport::types::CacheChange;
 use core::pin::Pin;
 
-pub trait HistoryCache: Send {
+pub trait HistoryCache {
     fn add_change(
         &mut self,
         cache_change: CacheChange,
