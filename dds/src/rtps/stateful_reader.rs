@@ -1,6 +1,5 @@
 use super::{error::RtpsResult, message_receiver::MessageReceiver, writer_proxy::RtpsWriterProxy};
 use crate::{
-    rtps::message_sender::WriteMessage,
     rtps_messages::{
         self,
         overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
@@ -10,7 +9,7 @@ use crate::{
         },
     },
     transport::{
-        interface::HistoryCache,
+        interface::{HistoryCache, WriteMessage},
         types::{CacheChange, Guid, GuidPrefix, ReliabilityKind, WriterProxy},
     },
 };
@@ -20,13 +19,13 @@ pub struct RtpsStatefulReader {
     guid: Guid,
     matched_writers: Vec<RtpsWriterProxy>,
     reliability: ReliabilityKind,
-    history_cache: Box<dyn HistoryCache>,
+    history_cache: Box<dyn HistoryCache + Send + Sync>,
 }
 
 impl RtpsStatefulReader {
     pub fn new(
         guid: Guid,
-        history_cache: Box<dyn HistoryCache>,
+        history_cache: Box<dyn HistoryCache + Send + Sync>,
         reliability: ReliabilityKind,
     ) -> Self {
         Self {
@@ -179,7 +178,7 @@ impl RtpsStatefulReader {
         &mut self,
         heartbeat_submessage: &HeartbeatSubmessage,
         source_guid_prefix: GuidPrefix,
-        message_writer: &impl WriteMessage,
+        message_writer: &(impl WriteMessage + ?Sized),
     ) {
         let writer_guid = Guid::new(source_guid_prefix, heartbeat_submessage.writer_id());
         if let Some(writer_proxy) = self
@@ -223,7 +222,7 @@ impl RtpsStatefulReader {
     pub async fn process_message(
         &mut self,
         rtps_message: &RtpsMessageRead,
-        message_writer: &impl WriteMessage,
+        message_writer: &(impl WriteMessage + ?Sized),
     ) -> RtpsResult<()> {
         let mut message_receiver = MessageReceiver::new(rtps_message);
 
@@ -317,11 +316,11 @@ mod tests {
 
         struct MockWriter;
         impl WriteMessage for MockWriter {
-            async fn write_message(
+            fn write_message(
                 &self,
                 datagram: &[u8],
                 _locator_list: &[crate::transport::types::Locator],
-            ) {
+            ) -> core::pin::Pin<Box<dyn Future<Output = ()> + Send>> {
                 let message = RtpsMessageRead::try_from(datagram).unwrap();
                 let submessages = message.submessages();
                 match &submessages[1] {
@@ -345,6 +344,7 @@ mod tests {
                     }
                     _ => panic!("Expected NackFrag submessage"),
                 }
+                Box::pin(async {})
             }
 
             fn guid_prefix(&self) -> GuidPrefix {

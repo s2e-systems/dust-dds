@@ -43,16 +43,16 @@ use crate::{
         time::{Duration, DurationKind},
         type_support::TypeSupport,
     },
+    rtps::{
+        stateful_reader::RtpsStatefulReader, stateful_writer::RtpsStatefulWriter,
+        stateless_reader::RtpsStatelessReader, stateless_writer::RtpsStatelessWriter,
+    },
     runtime::{DdsRuntime, Spawner, Timer},
     transport::{
-        interface::{
-            HistoryCache, TransportParticipant, TransportParticipantFactory,
-            TransportStatefulReader, TransportStatefulWriter, TransportStatelessReader,
-            TransportStatelessWriter,
-        },
+        interface::{HistoryCache, TransportParticipantFactory},
         types::{
             BUILT_IN_READER_GROUP, BUILT_IN_READER_WITH_KEY, BUILT_IN_TOPIC, BUILT_IN_WRITER_GROUP,
-            BUILT_IN_WRITER_WITH_KEY, CacheChange, EntityId, GuidPrefix, ReliabilityKind,
+            BUILT_IN_WRITER_WITH_KEY, CacheChange, EntityId, Guid, GuidPrefix, ReliabilityKind,
         },
     },
 };
@@ -63,7 +63,7 @@ use alloc::{
     vec,
     vec::Vec,
 };
-use core::{future::Future, marker::PhantomData, pin::Pin};
+use core::{future::Future, marker::PhantomData, pin::Pin, task::Poll};
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
     EntityId::new([0x00, 0x01, 0x00], BUILT_IN_WRITER_WITH_KEY);
@@ -164,9 +164,11 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
         let guid_prefix = self.create_new_guid_prefix();
         let (participant_sender, participant_receiver) = mpsc_channel();
 
-        let mut transport = self
+        let (data_channel_sender, data_channel_receiver) = mpsc_channel();
+
+        let transport = self
             .transport
-            .create_participant(guid_prefix, domain_id)
+            .create_participant(guid_prefix, domain_id, data_channel_sender)
             .await;
         let participant_instance_handle = InstanceHandle::new(transport.guid().into());
 
@@ -360,33 +362,32 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             ..Default::default()
         };
 
-        let dcps_participant_transport_reader = transport
-            .create_stateless_reader(
-                ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
-                Box::new(DcpsParticipantReaderHistoryCache {
-                    participant_address: participant_sender.clone(),
-                }),
-            )
-            .await;
+        let rtps_stateless_reader = RtpsStatelessReader::new(
+            Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER),
+            Box::new(DcpsParticipantReaderHistoryCache {
+                participant_address: participant_sender.clone(),
+            }),
+        );
+
         let dcps_participant_reader = DataReaderEntity::new(
-            InstanceHandle::new(dcps_participant_transport_reader.guid().into()),
+            InstanceHandle::new(rtps_stateless_reader.guid().into()),
             spdp_reader_qos,
             String::from(DCPS_PARTICIPANT),
             Arc::new(SpdpDiscoveredParticipantData::get_type()),
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
             None,
             Vec::new(),
-            TransportReaderKind::Stateless(dcps_participant_transport_reader),
+            TransportReaderKind::Stateless(rtps_stateless_reader),
         );
-        let dcps_topic_transport_reader = transport
-            .create_stateful_reader(
-                ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
-                ReliabilityKind::Reliable,
-                Box::new(DcpsTopicsReaderHistoryCache {
-                    participant_address: participant_sender.clone(),
-                }),
-            )
-            .await;
+
+        let dcps_topic_transport_reader = RtpsStatefulReader::new(
+            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR),
+            Box::new(DcpsTopicsReaderHistoryCache {
+                participant_address: participant_sender.clone(),
+            }),
+            ReliabilityKind::Reliable,
+        );
+
         let dcps_topic_reader = DataReaderEntity::new(
             InstanceHandle::new(dcps_topic_transport_reader.guid().into()),
             sedp_data_reader_qos(),
@@ -397,15 +398,18 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             Vec::new(),
             TransportReaderKind::Stateful(dcps_topic_transport_reader),
         );
-        let dcps_publication_transport_reader = transport
-            .create_stateful_reader(
+
+        let dcps_publication_transport_reader = RtpsStatefulReader::new(
+            Guid::new(
+                transport.guid().prefix(),
                 ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
-                ReliabilityKind::Reliable,
-                Box::new(DcpsPublicationsReaderHistoryCache {
-                    participant_address: participant_sender.clone(),
-                }),
-            )
-            .await;
+            ),
+            Box::new(DcpsPublicationsReaderHistoryCache {
+                participant_address: participant_sender.clone(),
+            }),
+            ReliabilityKind::Reliable,
+        );
+
         let dcps_publication_reader = DataReaderEntity::new(
             InstanceHandle::new(dcps_publication_transport_reader.guid().into()),
             sedp_data_reader_qos(),
@@ -416,15 +420,18 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             Vec::new(),
             TransportReaderKind::Stateful(dcps_publication_transport_reader),
         );
-        let dcps_subscription_transport_reader = transport
-            .create_stateful_reader(
+
+        let dcps_subscription_transport_reader = RtpsStatefulReader::new(
+            Guid::new(
+                transport.guid().prefix(),
                 ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
-                ReliabilityKind::Reliable,
-                Box::new(DcpsSubscriptionsReaderHistoryCache {
-                    participant_address: participant_sender.clone(),
-                }),
-            )
-            .await;
+            ),
+            Box::new(DcpsSubscriptionsReaderHistoryCache {
+                participant_address: participant_sender.clone(),
+            }),
+            ReliabilityKind::Reliable,
+        );
+
         let dcps_subscription_reader = DataReaderEntity::new(
             InstanceHandle::new(dcps_subscription_transport_reader.guid().into()),
             sedp_data_reader_qos(),
@@ -469,11 +476,12 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             vec![],
         );
 
-        let mut dcps_participant_transport_writer = transport
-            .create_stateless_writer(ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER)
-            .await;
+        let mut dcps_participant_transport_writer = RtpsStatelessWriter::new(Guid::new(
+            transport.guid.prefix(),
+            ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
+        ));
         for &discovery_locator in transport.metatraffic_multicast_locator_list() {
-            dcps_participant_transport_writer.add_reader_locator(discovery_locator);
+            dcps_participant_transport_writer.reader_locator_add(discovery_locator);
         }
         let dcps_participant_writer = DataWriterEntity::new(
             InstanceHandle::new(dcps_participant_transport_writer.guid().into()),
@@ -487,12 +495,14 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             spdp_writer_qos,
         );
 
-        let dcps_topics_transport_writer = transport
-            .create_stateful_writer(
+        let dcps_topics_transport_writer = RtpsStatefulWriter::new(
+            Guid::new(
+                transport.guid.prefix(),
                 ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
-                ReliabilityKind::Reliable,
-            )
-            .await;
+            ),
+            transport.fragment_size,
+        );
+
         let dcps_topics_writer = DataWriterEntity::new(
             InstanceHandle::new(dcps_topics_transport_writer.guid().into()),
             TransportWriterKind::Stateful(dcps_topics_transport_writer),
@@ -504,12 +514,14 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             vec![],
             sedp_data_writer_qos(),
         );
-        let dcps_publications_transport_writer = transport
-            .create_stateful_writer(
+        let dcps_publications_transport_writer = RtpsStatefulWriter::new(
+            Guid::new(
+                transport.guid().prefix(),
                 ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
-                ReliabilityKind::Reliable,
-            )
-            .await;
+            ),
+            transport.fragment_size,
+        );
+
         let dcps_publications_writer = DataWriterEntity::new(
             InstanceHandle::new(dcps_publications_transport_writer.guid().into()),
             TransportWriterKind::Stateful(dcps_publications_transport_writer),
@@ -522,12 +534,13 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             sedp_data_writer_qos(),
         );
 
-        let dcps_subscriptions_transport_writer = transport
-            .create_stateful_writer(
+        let dcps_subscriptions_transport_writer = RtpsStatefulWriter::new(
+            Guid::new(
+                transport.guid().prefix(),
                 ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
-                ReliabilityKind::Reliable,
-            )
-            .await;
+            ),
+            transport.fragment_size,
+        );
         let dcps_subscriptions_writer = DataWriterEntity::new(
             InstanceHandle::new(dcps_subscriptions_transport_writer.guid().into()),
             TransportWriterKind::Stateful(dcps_subscriptions_transport_writer),
@@ -583,7 +596,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             String::from(self.configuration.domain_tag()),
         );
 
-        let mut dcps_participant: DcpsDomainParticipant<R, T> = DcpsDomainParticipant::new(
+        let mut dcps_participant: DcpsDomainParticipant<R> = DcpsDomainParticipant::new(
             domain_participant,
             transport,
             clock_handle,
@@ -595,9 +608,53 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             .status_condition()
             .address();
 
+        enum Either<A, B> {
+            A(A),
+            B(B),
+        }
+        struct Select<A, B> {
+            a: A,
+            b: B,
+        }
+        impl<A, B> Future for Select<A, B>
+        where
+            A: Future<Output = Option<DcpsDomainParticipantMail>> + Unpin,
+            B: Future<Output = Option<Arc<[u8]>>> + Unpin,
+        {
+            type Output = Either<Option<DcpsDomainParticipantMail>, Option<Arc<[u8]>>>;
+
+            fn poll(
+                mut self: Pin<&mut Self>,
+                cx: &mut core::task::Context<'_>,
+            ) -> core::task::Poll<Self::Output> {
+                if let Poll::Ready(a) = Pin::new(&mut self.a).poll(cx) {
+                    return Poll::Ready(Either::A(a));
+                }
+                if let Poll::Ready(b) = Pin::new(&mut self.b).poll(cx) {
+                    return Poll::Ready(Either::B(b));
+                }
+                Poll::Pending
+            }
+        }
+
         spawner_handle.spawn(async move {
-            while let Some(m) = participant_receiver.receive().await {
-                dcps_participant.handle(m).await;
+            loop {
+                let select = Select {
+                    a: core::pin::pin!(participant_receiver.receive()),
+                    b: core::pin::pin!(data_channel_receiver.receive()),
+                };
+                match select.await {
+                    Either::A(dcps_domain_participant_mail) => {
+                        if let Some(dcps_domain_participant_mail) = dcps_domain_participant_mail {
+                            dcps_participant.handle(dcps_domain_participant_mail).await
+                        }
+                    }
+                    Either::B(data_message) => {
+                        if let Some(data_message) = data_message {
+                            dcps_participant.handle_data(data_message).await
+                        }
+                    }
+                }
             }
         });
 
@@ -605,6 +662,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
 
         // Start the regular participant announcement task
         let participant_address = participant_sender.clone();
+        let mut timer_handle_clone = timer_handle.clone();
         let participant_announcement_interval =
             self.configuration.participant_announcement_interval();
 
@@ -616,7 +674,23 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 .await
                 .is_ok()
             {
-                timer_handle.delay(participant_announcement_interval).await;
+                timer_handle_clone
+                    .delay(participant_announcement_interval)
+                    .await;
+            }
+        });
+
+        // Start regular message writing
+        let participant_address = participant_sender.clone();
+        spawner_handle.spawn(async move {
+            while participant_address
+                .send(DcpsDomainParticipantMail::Message(MessageServiceMail::Poke))
+                .await
+                .is_ok()
+            {
+                timer_handle
+                    .delay(core::time::Duration::from_millis(50))
+                    .await;
             }
         });
 

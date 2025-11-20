@@ -14,11 +14,11 @@ use alloc::boxed::Box;
 
 pub struct RtpsStatelessReader {
     guid: Guid,
-    history_cache: Box<dyn HistoryCache>,
+    history_cache: Box<dyn HistoryCache + Send + Sync>,
 }
 
 impl RtpsStatelessReader {
-    pub fn new(guid: Guid, history_cache: Box<dyn HistoryCache>) -> Self {
+    pub fn new(guid: Guid, history_cache: Box<dyn HistoryCache + Send + Sync>) -> Self {
         Self {
             guid,
             history_cache,

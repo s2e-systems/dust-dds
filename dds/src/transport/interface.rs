@@ -1,49 +1,60 @@
-use super::types::{
-    CacheChange, EntityId, Guid, GuidPrefix, Locator, ProtocolVersion, ReaderProxy,
-    ReliabilityKind, VendorId, WriterProxy,
+use super::types::{CacheChange, Guid, GuidPrefix, Locator, ProtocolVersion, VendorId};
+use crate::{
+    dcps::channels::mpsc::MpscSender,
+    rtps::types::{PROTOCOLVERSION, VENDOR_ID_S2E},
 };
-use alloc::boxed::Box;
+use alloc::{boxed::Box, sync::Arc, vec::Vec};
 use core::{future::Future, pin::Pin};
 
-pub trait TransportParticipantFactory: Send + 'static {
-    type TransportParticipant: TransportParticipant;
+pub trait WriteMessage {
+    fn write_message(
+        &self,
+        buf: &[u8],
+        locators: &[Locator],
+    ) -> Pin<Box<dyn Future<Output = ()> + Send>>;
+    fn guid_prefix(&self) -> GuidPrefix;
+}
 
+pub struct RtpsTransportParticipant {
+    pub guid: Guid,
+    pub message_writer: Box<dyn WriteMessage + Send + Sync>,
+    pub default_unicast_locator_list: Vec<Locator>,
+    pub metatraffic_unicast_locator_list: Vec<Locator>,
+    pub metatraffic_multicast_locator_list: Vec<Locator>,
+    pub fragment_size: usize,
+}
+
+impl RtpsTransportParticipant {
+    pub fn guid(&self) -> Guid {
+        self.guid
+    }
+    pub fn protocol_version(&self) -> ProtocolVersion {
+        PROTOCOLVERSION
+    }
+    pub fn vendor_id(&self) -> VendorId {
+        VENDOR_ID_S2E
+    }
+    pub fn metatraffic_unicast_locator_list(&self) -> &[Locator] {
+        &self.metatraffic_unicast_locator_list
+    }
+    pub fn metatraffic_multicast_locator_list(&self) -> &[Locator] {
+        &self.metatraffic_multicast_locator_list
+    }
+    pub fn default_unicast_locator_list(&self) -> &[Locator] {
+        &self.default_unicast_locator_list
+    }
+    pub fn default_multicast_locator_list(&self) -> &[Locator] {
+        &[]
+    }
+}
+
+pub trait TransportParticipantFactory: Send + 'static {
     fn create_participant(
         &self,
         guid_prefix: GuidPrefix,
         domain_id: i32,
-    ) -> impl Future<Output = Self::TransportParticipant> + Send;
-}
-pub trait TransportStatelessWriter: Send + Sync {
-    fn guid(&self) -> Guid;
-    fn history_cache(&mut self) -> &mut dyn HistoryCache;
-    fn add_reader_locator(&mut self, locator: Locator);
-    fn remove_reader_locator(&mut self, locator: &Locator);
-}
-
-pub trait TransportStatefulWriter: Send + Sync {
-    fn guid(&self) -> Guid;
-    fn history_cache(&mut self) -> &mut dyn HistoryCache;
-    fn is_change_acknowledged(&self, sequence_number: i64) -> impl Future<Output = bool> + Send;
-    fn add_matched_reader(&mut self, reader_proxy: ReaderProxy) -> impl Future<Output = ()> + Send;
-    fn remove_matched_reader(
-        &mut self,
-        remote_reader_guid: Guid,
-    ) -> impl Future<Output = ()> + Send;
-}
-
-pub trait TransportStatelessReader: Send + Sync {
-    fn guid(&self) -> Guid;
-}
-
-pub trait TransportStatefulReader: Send + Sync {
-    fn guid(&self) -> Guid;
-    fn is_historical_data_received(&self) -> impl Future<Output = bool> + Send;
-    fn add_matched_writer(&mut self, writer_proxy: WriterProxy) -> impl Future<Output = ()> + Send;
-    fn remove_matched_writer(
-        &mut self,
-        remote_writer_guid: Guid,
-    ) -> impl Future<Output = ()> + Send;
+        data_channel_sender: MpscSender<Arc<[u8]>>,
+    ) -> impl Future<Output = RtpsTransportParticipant> + Send;
 }
 
 pub trait HistoryCache: Send {
@@ -53,43 +64,4 @@ pub trait HistoryCache: Send {
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>>;
 
     fn remove_change(&mut self, sequence_number: i64) -> Pin<Box<dyn Future<Output = ()> + Send>>;
-}
-
-pub trait TransportParticipant: Send {
-    type StatelessReader: TransportStatelessReader;
-    type StatefulReader: TransportStatefulReader;
-    type StatelessWriter: TransportStatelessWriter;
-    type StatefulWriter: TransportStatefulWriter;
-
-    fn guid(&self) -> Guid;
-    fn protocol_version(&self) -> ProtocolVersion;
-    fn vendor_id(&self) -> VendorId;
-    fn metatraffic_unicast_locator_list(&self) -> &[Locator];
-    fn metatraffic_multicast_locator_list(&self) -> &[Locator];
-    fn default_unicast_locator_list(&self) -> &[Locator];
-    fn default_multicast_locator_list(&self) -> &[Locator];
-
-    fn create_stateless_reader(
-        &mut self,
-        entity_id: EntityId,
-        reader_history_cache: Box<dyn HistoryCache>,
-    ) -> impl Future<Output = Self::StatelessReader> + Send;
-
-    fn create_stateless_writer(
-        &mut self,
-        entity_id: EntityId,
-    ) -> impl Future<Output = Self::StatelessWriter> + Send;
-
-    fn create_stateful_reader(
-        &mut self,
-        entity_id: EntityId,
-        reliability_kind: ReliabilityKind,
-        reader_history_cache: Box<dyn HistoryCache>,
-    ) -> impl Future<Output = Self::StatefulReader> + Send;
-
-    fn create_stateful_writer(
-        &mut self,
-        entity_id: EntityId,
-        reliability_kind: ReliabilityKind,
-    ) -> impl Future<Output = Self::StatefulWriter> + Send;
 }

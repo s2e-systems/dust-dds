@@ -31,7 +31,7 @@ use crate::{
         time::{Duration, Time},
     },
     runtime::DdsRuntime,
-    transport::{interface::TransportParticipantFactory, types::CacheChange},
+    transport::types::CacheChange,
     xtypes::dynamic_type::{DynamicData, DynamicType},
 };
 use alloc::{boxed::Box, string::String, sync::Arc, vec::Vec};
@@ -495,6 +495,7 @@ pub enum MessageServiceMail {
     AddBuiltinTopicsDetectorCacheChange {
         cache_change: CacheChange,
     },
+    Poke,
 }
 
 pub enum EventServiceMail {
@@ -529,7 +530,7 @@ pub enum DcpsDomainParticipantMail {
     Discovery(DiscoveryServiceMail),
 }
 
-impl<R: DdsRuntime, T: TransportParticipantFactory> MailHandler for DcpsDomainParticipant<R, T> {
+impl<R: DdsRuntime> MailHandler for DcpsDomainParticipant<R> {
     type Mail = DcpsDomainParticipantMail;
     async fn handle(&mut self, message: DcpsDomainParticipantMail) {
         match message {
@@ -566,7 +567,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> MailHandler for DcpsDomainPa
     }
 }
 
-impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsDomainParticipant<R, T> {
+impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     async fn handle_participant_service(
         &mut self,
         participant_service_mail: ParticipantServiceMail,
@@ -1231,6 +1232,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsDomainParticipant<R, T> 
                 self.add_builtin_topics_detector_cache_change(cache_change)
                     .await
             }
+            MessageServiceMail::Poke => self.poke().await,
         }
     }
 
