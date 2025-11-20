@@ -320,12 +320,12 @@ impl RtpsWriterProxy {
                         &acknack_submessage,
                         &nack_frag_submessage,
                     ],
-                    message_writer.guid_prefix(),
+                    reader_guid.prefix(),
                 )
             } else {
                 RtpsMessageWrite::from_submessages(
                     &[&info_dst_submessage, &acknack_submessage],
-                    message_writer.guid_prefix(),
+                    reader_guid.prefix(),
                 )
             };
 

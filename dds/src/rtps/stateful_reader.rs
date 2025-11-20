@@ -346,10 +346,6 @@ mod tests {
                 }
                 Box::pin(async {})
             }
-
-            fn guid_prefix(&self) -> GuidPrefix {
-                [2; 12]
-            }
         }
 
         let reader_guid_prefix = [1; 12];

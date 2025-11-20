@@ -12,7 +12,6 @@ pub trait WriteMessage {
         buf: &[u8],
         locators: &[Locator],
     ) -> Pin<Box<dyn Future<Output = ()> + Send>>;
-    fn guid_prefix(&self) -> GuidPrefix;
 }
 
 pub struct RtpsTransportParticipant {

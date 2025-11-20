@@ -433,8 +433,4 @@ impl WriteMessage for MessageWriter {
         }
         Box::pin(async {})
     }
-
-    fn guid_prefix(&self) -> GuidPrefix {
-        self.guid_prefix
-    }
 }
