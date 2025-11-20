@@ -44,12 +44,13 @@ use crate::{
         type_support::TypeSupport,
     },
     rtps::{
-        stateful_reader::RtpsStatefulReader, stateful_writer::RtpsStatefulWriter,
-        stateless_reader::RtpsStatelessReader, stateless_writer::RtpsStatelessWriter,
+        history_cache::HistoryCache, stateful_reader::RtpsStatefulReader,
+        stateful_writer::RtpsStatefulWriter, stateless_reader::RtpsStatelessReader,
+        stateless_writer::RtpsStatelessWriter,
     },
     runtime::{DdsRuntime, Spawner, Timer},
     transport::{
-        interface::{HistoryCache, TransportParticipantFactory},
+        interface::TransportParticipantFactory,
         types::{
             BUILT_IN_READER_GROUP, BUILT_IN_READER_WITH_KEY, BUILT_IN_TOPIC, BUILT_IN_WRITER_GROUP,
             BUILT_IN_WRITER_WITH_KEY, CacheChange, ENTITYID_PARTICIPANT, EntityId, Guid,

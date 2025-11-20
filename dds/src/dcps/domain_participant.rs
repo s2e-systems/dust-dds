@@ -74,6 +74,7 @@ use crate::{
         type_support::TypeSupport,
     },
     rtps::{
+        history_cache::HistoryCache,
         stateful_reader::RtpsStatefulReader,
         stateful_writer::RtpsStatefulWriter,
         stateless_reader::RtpsStatelessReader,
@@ -84,7 +85,7 @@ use crate::{
     runtime::{Clock, DdsRuntime, Spawner, Timer},
     transport::{
         self,
-        interface::{HistoryCache, RtpsTransportParticipant, WriteMessage},
+        interface::{RtpsTransportParticipant, WriteMessage},
         types::{
             CacheChange, ChangeKind, DurabilityKind, ENTITYID_UNKNOWN, EntityId, Guid,
             ReliabilityKind, TopicKind, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY,
