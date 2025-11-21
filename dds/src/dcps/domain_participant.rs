@@ -5478,124 +5478,183 @@ where
 
     pub async fn handle_data(&mut self, data_message: Arc<[u8]>) {
         if let Ok(rtps_message) = RtpsMessageRead::try_from(data_message.as_ref()) {
-            for subscriber in self
-                .domain_participant
-                .user_defined_subscriber_list
-                .iter_mut()
-                .chain(core::iter::once(
-                    &mut self.domain_participant.builtin_subscriber,
-                ))
-            {
-                for dr in &mut subscriber.data_reader_list {
-                    match &mut dr.transport_reader {
-                        TransportReaderKind::Stateful(reader) => {
-                            let mut message_receiver = MessageReceiver::new(&rtps_message);
+            let mut message_receiver = MessageReceiver::new(&rtps_message);
 
-                            while let Some(submessage) = message_receiver.next() {
-                                match submessage {
-                                    RtpsSubmessageReadKind::Data(data_submessage) => {
-                                        reader
-                                            .on_data_submessage_received(
-                                                data_submessage,
-                                                message_receiver.source_guid_prefix(),
-                                                message_receiver.source_timestamp(),
-                                            )
-                                            .await;
-                                    }
-                                    RtpsSubmessageReadKind::DataFrag(data_frag_submessage) => {
-                                        reader
-                                            .on_data_frag_submessage_received(
-                                                data_frag_submessage,
-                                                message_receiver.source_guid_prefix(),
-                                                message_receiver.source_timestamp(),
-                                            )
-                                            .await;
-                                    }
-                                    RtpsSubmessageReadKind::HeartbeatFrag(
-                                        heartbeat_frag_submessage,
-                                    ) => {
-                                        reader.on_heartbeat_frag_submessage_received(
-                                            heartbeat_frag_submessage,
-                                            message_receiver.source_guid_prefix(),
-                                        );
-                                    }
-                                    RtpsSubmessageReadKind::Gap(gap_submessage) => {
-                                        reader.on_gap_submessage_received(
-                                            gap_submessage,
-                                            message_receiver.source_guid_prefix(),
-                                        );
-                                    }
-                                    RtpsSubmessageReadKind::Heartbeat(heartbeat_submessage) => {
-                                        reader
-                                            .on_heartbeat_submessage_received(
-                                                heartbeat_submessage,
-                                                message_receiver.source_guid_prefix(),
-                                                self.transport.message_writer.as_ref(),
-                                            )
-                                            .await;
-                                    }
-                                    _ => (),
-                                }
-                            }
-                        }
-                        TransportReaderKind::Stateless(reader) => {
-                            let mut message_receiver = MessageReceiver::new(&rtps_message);
-
-                            while let Some(submessage) = message_receiver.next() {
-                                if let RtpsSubmessageReadKind::Data(data_submessage) = &submessage {
-                                    reader
-                                        .on_data_submessage_received(
+            while let Some(submessage) = message_receiver.next() {
+                match submessage {
+                    RtpsSubmessageReadKind::Data(data_submessage) => {
+                        for subscriber in self
+                            .domain_participant
+                            .user_defined_subscriber_list
+                            .iter_mut()
+                            .chain(core::iter::once(
+                                &mut self.domain_participant.builtin_subscriber,
+                            ))
+                        {
+                            for dr in &mut subscriber.data_reader_list {
+                                match &mut dr.transport_reader {
+                                    TransportReaderKind::Stateful(r) => {
+                                        r.on_data_submessage_received(
                                             data_submessage,
                                             message_receiver.source_guid_prefix(),
                                             message_receiver.source_timestamp(),
                                         )
                                         .await;
+                                    }
+                                    TransportReaderKind::Stateless(r) => {
+                                        r.on_data_submessage_received(
+                                            data_submessage,
+                                            message_receiver.source_guid_prefix(),
+                                            message_receiver.source_timestamp(),
+                                        )
+                                        .await;
+                                    }
                                 }
                             }
                         }
                     }
-                }
-            }
-            for publisher in self
-                .domain_participant
-                .user_defined_publisher_list
-                .iter_mut()
-                .chain(core::iter::once(
-                    &mut self.domain_participant.builtin_publisher,
-                ))
-            {
-                for dw in &mut publisher.data_writer_list {
-                    match &mut dw.transport_writer {
-                        TransportWriterKind::Stateful(writer) => {
-                            let mut message_receiver = MessageReceiver::new(&rtps_message);
-
-                            while let Some(submessage) = message_receiver.next() {
-                                match &submessage {
-                                    RtpsSubmessageReadKind::AckNack(acknack_submessage) => {
-                                        writer
-                                            .on_acknack_submessage_received(
-                                                acknack_submessage,
-                                                message_receiver.source_guid_prefix(),
-                                                self.transport.message_writer.as_ref(),
-                                                &self.clock_handle,
-                                            )
-                                            .await;
+                    RtpsSubmessageReadKind::DataFrag(data_frag_submessage) => {
+                        for subscriber in self
+                            .domain_participant
+                            .user_defined_subscriber_list
+                            .iter_mut()
+                            .chain(core::iter::once(
+                                &mut self.domain_participant.builtin_subscriber,
+                            ))
+                        {
+                            for dr in &mut subscriber.data_reader_list {
+                                match &mut dr.transport_reader {
+                                    TransportReaderKind::Stateful(r) => {
+                                        r.on_data_frag_submessage_received(
+                                            data_frag_submessage,
+                                            message_receiver.source_guid_prefix(),
+                                            message_receiver.source_timestamp(),
+                                        )
+                                        .await;
                                     }
-                                    RtpsSubmessageReadKind::NackFrag(nackfrag_submessage) => {
-                                        writer
-                                            .on_nack_frag_submessage_received(
-                                                nackfrag_submessage,
-                                                message_receiver.source_guid_prefix(),
-                                                self.transport.message_writer.as_ref(),
-                                            )
-                                            .await;
-                                    }
-                                    _ => (),
+                                    TransportReaderKind::Stateless(_) => (),
                                 }
                             }
                         }
-                        TransportWriterKind::Stateless(_writer) => {}
                     }
+                    RtpsSubmessageReadKind::Gap(gap_submessage) => {
+                        for subscriber in self
+                            .domain_participant
+                            .user_defined_subscriber_list
+                            .iter_mut()
+                            .chain(core::iter::once(
+                                &mut self.domain_participant.builtin_subscriber,
+                            ))
+                        {
+                            for dr in &mut subscriber.data_reader_list {
+                                match &mut dr.transport_reader {
+                                    TransportReaderKind::Stateful(r) => {
+                                        r.on_gap_submessage_received(
+                                            gap_submessage,
+                                            message_receiver.source_guid_prefix(),
+                                        );
+                                    }
+                                    TransportReaderKind::Stateless(_) => (),
+                                }
+                            }
+                        }
+                    }
+                    RtpsSubmessageReadKind::Heartbeat(heartbeat_submessage) => {
+                        for subscriber in self
+                            .domain_participant
+                            .user_defined_subscriber_list
+                            .iter_mut()
+                            .chain(core::iter::once(
+                                &mut self.domain_participant.builtin_subscriber,
+                            ))
+                        {
+                            for dr in &mut subscriber.data_reader_list {
+                                match &mut dr.transport_reader {
+                                    TransportReaderKind::Stateful(r) => {
+                                        r.on_heartbeat_submessage_received(
+                                            heartbeat_submessage,
+                                            message_receiver.source_guid_prefix(),
+                                            self.transport.message_writer.as_ref(),
+                                        )
+                                        .await;
+                                    }
+                                    TransportReaderKind::Stateless(_) => (),
+                                }
+                            }
+                        }
+                    }
+                    RtpsSubmessageReadKind::HeartbeatFrag(heartbeat_frag_submessage) => {
+                        for subscriber in self
+                            .domain_participant
+                            .user_defined_subscriber_list
+                            .iter_mut()
+                            .chain(core::iter::once(
+                                &mut self.domain_participant.builtin_subscriber,
+                            ))
+                        {
+                            for dr in &mut subscriber.data_reader_list {
+                                match &mut dr.transport_reader {
+                                    TransportReaderKind::Stateful(r) => {
+                                        r.on_heartbeat_frag_submessage_received(
+                                            heartbeat_frag_submessage,
+                                            message_receiver.source_guid_prefix(),
+                                        );
+                                    }
+                                    TransportReaderKind::Stateless(_) => (),
+                                }
+                            }
+                        }
+                    }
+                    RtpsSubmessageReadKind::AckNack(ack_nack_submessage) => {
+                        for publisher in self
+                            .domain_participant
+                            .user_defined_publisher_list
+                            .iter_mut()
+                            .chain(core::iter::once(
+                                &mut self.domain_participant.builtin_publisher,
+                            ))
+                        {
+                            for dw in &mut publisher.data_writer_list {
+                                match &mut dw.transport_writer {
+                                    TransportWriterKind::Stateful(w) => {
+                                        w.on_acknack_submessage_received(
+                                            ack_nack_submessage,
+                                            message_receiver.source_guid_prefix(),
+                                            self.transport.message_writer.as_ref(),
+                                            &self.clock_handle,
+                                        )
+                                        .await
+                                    }
+                                    TransportWriterKind::Stateless(_) => (),
+                                }
+                            }
+                        }
+                    }
+                    RtpsSubmessageReadKind::NackFrag(nack_frag_submessage) => {
+                        for publisher in self
+                            .domain_participant
+                            .user_defined_publisher_list
+                            .iter_mut()
+                            .chain(core::iter::once(
+                                &mut self.domain_participant.builtin_publisher,
+                            ))
+                        {
+                            for dw in &mut publisher.data_writer_list {
+                                match &mut dw.transport_writer {
+                                    TransportWriterKind::Stateful(w) => {
+                                        w.on_nack_frag_submessage_received(
+                                            nack_frag_submessage,
+                                            message_receiver.source_guid_prefix(),
+                                            self.transport.message_writer.as_ref(),
+                                        )
+                                        .await
+                                    }
+                                    TransportWriterKind::Stateless(_) => (),
+                                }
+                            }
+                        }
+                    }
+                    _ => (),
                 }
             }
         }
