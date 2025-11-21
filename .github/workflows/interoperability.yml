@@ -10,10 +10,10 @@ jobs:
     steps:
     - name: Checkout sources
       uses: actions/checkout@v4
-    - name: Checkout dds-rtps
+    - name: Checkout omg dds-rtpss2e-systems fork
       uses: actions/checkout@v4
       with:
-        repository: omg-dds/dds-rtps
+        repository: s2e-systems/dds-rtps
         ref: update-dust-dds-src
         path: omg-dds-rtps
         sparse-checkout-cone-mode: false
@@ -60,7 +60,7 @@ jobs:
     steps:
     - name: Checkout sources
       uses: actions/checkout@v4
-    - name: Checkout dds-rtps
+    - name: Checkout omg dds-rtps
       uses: actions/checkout@v4
       with:
         repository: omg-dds/dds-rtps
