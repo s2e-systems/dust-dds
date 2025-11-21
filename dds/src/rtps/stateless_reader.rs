@@ -1,11 +1,6 @@
-use super::{error::RtpsResult, message_receiver::MessageReceiver};
 use crate::{
     rtps::history_cache::HistoryCache,
-    rtps_messages::{
-        self,
-        overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
-        submessages::data::DataSubmessage,
-    },
+    rtps_messages::{self, submessages::data::DataSubmessage},
     transport::types::{CacheChange, ENTITYID_UNKNOWN, Guid, GuidPrefix},
 };
 use alloc::boxed::Box;
@@ -27,7 +22,7 @@ impl RtpsStatelessReader {
         self.guid
     }
 
-    async fn on_data_submessage_received(
+    pub async fn on_data_submessage_received(
         &mut self,
         data_submessage: &DataSubmessage,
         source_guid_prefix: GuidPrefix,
@@ -46,21 +41,5 @@ impl RtpsStatelessReader {
                 self.history_cache.add_change(change).await;
             }
         }
-    }
-
-    pub async fn process_message(&mut self, rtps_message: &RtpsMessageRead) -> RtpsResult<()> {
-        let mut message_receiver = MessageReceiver::new(rtps_message);
-
-        while let Some(submessage) = message_receiver.next() {
-            if let RtpsSubmessageReadKind::Data(data_submessage) = &submessage {
-                self.on_data_submessage_received(
-                    data_submessage,
-                    message_receiver.source_guid_prefix(),
-                    message_receiver.source_timestamp(),
-                )
-                .await;
-            }
-        }
-        Ok(())
     }
 }

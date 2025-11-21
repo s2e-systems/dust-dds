@@ -1,10 +1,7 @@
-use super::{
-    behavior_types::Duration, error::RtpsResult, message_receiver::MessageReceiver,
-    reader_proxy::RtpsReaderProxy,
-};
+use super::{behavior_types::Duration, reader_proxy::RtpsReaderProxy};
 use crate::{
     rtps_messages::{
-        overall_structure::{RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageReadKind},
+        overall_structure::RtpsMessageWrite,
         submessage_elements::SequenceNumberSet,
         submessages::{
             ack_nack::AckNackSubmessage, gap::GapSubmessage,
@@ -133,40 +130,7 @@ impl RtpsStatefulWriter {
         }
     }
 
-    pub async fn process_message(
-        &mut self,
-        rtps_message: &RtpsMessageRead,
-        message_writer: &(impl WriteMessage + ?Sized),
-        clock: &impl Clock,
-    ) -> RtpsResult<()> {
-        let mut message_receiver = MessageReceiver::new(rtps_message);
-
-        while let Some(submessage) = message_receiver.next() {
-            match &submessage {
-                RtpsSubmessageReadKind::AckNack(acknack_submessage) => {
-                    self.on_acknack_submessage_received(
-                        acknack_submessage,
-                        message_receiver.source_guid_prefix(),
-                        message_writer,
-                        clock,
-                    )
-                    .await;
-                }
-                RtpsSubmessageReadKind::NackFrag(nackfrag_submessage) => {
-                    self.on_nack_frag_submessage_received(
-                        nackfrag_submessage,
-                        message_receiver.source_guid_prefix(),
-                        message_writer,
-                    )
-                    .await;
-                }
-                _ => (),
-            }
-        }
-        Ok(())
-    }
-
-    async fn on_acknack_submessage_received(
+    pub async fn on_acknack_submessage_received(
         &mut self,
         acknack_submessage: &AckNackSubmessage,
         source_guid_prefix: GuidPrefix,
@@ -205,7 +169,7 @@ impl RtpsStatefulWriter {
         }
     }
 
-    async fn on_nack_frag_submessage_received(
+    pub async fn on_nack_frag_submessage_received(
         &mut self,
         nackfrag_submessage: &NackFragSubmessage,
         source_guid_prefix: GuidPrefix,
@@ -730,7 +694,11 @@ mod tests {
     use std::sync::Mutex;
 
     use crate::{
-        infrastructure::time::Time, rtps_messages::submessage_elements::FragmentNumberSet,
+        infrastructure::time::Time,
+        rtps_messages::{
+            overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
+            submessage_elements::FragmentNumberSet,
+        },
         std_runtime::executor::block_on,
     };
 
