@@ -18,6 +18,7 @@ jobs:
         sparse-checkout-cone-mode: false
         sparse-checkout: |
           srcRs/DustDDS
+          srcCxx/shape.idl
     - name: Build executable
       run: cargo build --package dust_dds_shape_main_linux --release --manifest-path srcRs/DustDDS/Cargo.toml
     - name: Upload executable artifact
