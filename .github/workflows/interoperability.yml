@@ -10,7 +10,7 @@ jobs:
     steps:
     - name: Checkout sources
       uses: actions/checkout@v4
-    - name: Checkout omg dds-rtpss2e-systems fork
+    - name: Checkout omg dds-rtps from s2e-systems fork
       uses: actions/checkout@v4
       with:
         repository: s2e-systems/dds-rtps
@@ -19,7 +19,7 @@ jobs:
         sparse-checkout: |
           srcRs/DustDDS
     - name: Build executable
-      run: cargo build --package dust_dds_shape_main_linux --release --manifest-path dds-rtps/srcRs/DustDDS/Cargo.toml
+      run: cargo build --package dust_dds_shape_main_linux --release --manifest-path srcRs/DustDDS/Cargo.toml
     - name: Upload executable artifact
       uses: actions/upload-artifact@v4
       with:
