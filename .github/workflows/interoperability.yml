@@ -10,23 +10,22 @@ jobs:
     steps:
     - name: Checkout sources
       uses: actions/checkout@v4
-
-    - run: cargo build --package dust_dds_shape_main_linux --release
-    - name: Install tomlq
-      run: cargo install tomlq
-    - name: Install zip
-      run: sudo apt-get install zip -y
-    - name: Rename executable
-      run: |
-        version=$( tq -f dds/Cargo.toml 'package.version' | tr -d '"' )
-        cp ./target/release/dust_dds_shape_main_linux ./dust_dds-${version}_shape_main_linux
-        mkdir artifacts
-        zip --junk-paths artifacts/dust_dds-${version}_shape_main_linux.zip ./dust_dds-${version}_shape_main_linux
+    - name: Checkout dds-rtps
+      uses: actions/checkout@v4
+      with:
+        repository: omg-dds/dds-rtps
+        ref: update-dust-dds-src
+        path: omg-dds-rtps
+        sparse-checkout-cone-mode: false
+        sparse-checkout: |
+          srcRs/DustDDS
+    - name: Build executable
+      run: cargo build --package dust_dds_shape_main_linux --release
     - name: Upload executable artifact
       uses: actions/upload-artifact@v4
       with:
         name: interoperability_executable
-        path: ./artifacts/
+        path: ./target/release/dust_dds_shape_main_linux
 
   run_tests:
     runs-on: ubuntu-latest
@@ -84,22 +83,23 @@ jobs:
         latest: true
         preRelease: false
         fileName: "*"
-    # - name: Remove DustDDS
-    #   run: rm dust_dds-*
-    # - name: Download dust_dds_shape_main executable artifact from create_bin_release
-    #   uses: actions/download-artifact@v4
-    #   with:
-    #     name: interoperability_executable
-    - name: Unzip executables
-      run: unzip '*.zip' -d executables
+        out-file-path: executables
+        extract: true
+    - name: Remove DustDDS
+      run: rm dust_dds-*
+    - name: Download dust_dds_shape_main executable artifact from create_bin_release
+      uses: actions/download-artifact@v4
+      with:
+        name: interoperability_executable
+        path: executables
     - name: List directory
-      run: ls -l
+      run: ls -l executables
     - name: Install omg-dds dds-rtps Python requirements
       run: pip install --requirement omg-dds-rtps/requirements.txt
 
     - name: Run Interoperability script
       timeout-minutes: 60
-      run: python3 ./omg-dds-rtps/interoperability_report.py --verbose --publisher ./executables/${{ matrix.publisher }}-*shape_main_linux --subscriber ./executables/${{ matrix.subscriber }}-*shape_main_linux --output-name junit_report-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml
+      run: python3 ./omg-dds-rtps/interoperability_report.py --verbose --publisher ./executables/${{ matrix.publisher }}*shape_main_linux --subscriber ./executables/${{ matrix.subscriber }}*shape_main_linux --output-name junit_report-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml
 
     - name: Upload report
       uses: actions/upload-artifact@v4
