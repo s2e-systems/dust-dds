@@ -86,10 +86,10 @@ jobs:
         fileName: "*"
     # - name: Remove DustDDS
     #   run: rm dust_dds-*
-    - name: Download dust_dds_shape_main executable artifact from create_bin_release
-      uses: actions/download-artifact@v4
-      with:
-        name: interoperability_executable
+    # - name: Download dust_dds_shape_main executable artifact from create_bin_release
+    #   uses: actions/download-artifact@v4
+    #   with:
+    #     name: interoperability_executable
     - name: Unzip executables
       run: unzip '*.zip' -d executables
     - name: List directory
