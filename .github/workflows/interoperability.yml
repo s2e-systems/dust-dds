@@ -15,10 +15,6 @@ jobs:
       with:
         repository: s2e-systems/dds-rtps
         ref: update-dust-dds-src
-        sparse-checkout-cone-mode: false
-        sparse-checkout: |
-          srcRs/DustDDS
-          srcCxx/shape.idl
     - name: Build executable
       run: cargo build --package dust_dds_shape_main_linux --release --manifest-path srcRs/DustDDS/Cargo.toml
     - name: Upload executable artifact
