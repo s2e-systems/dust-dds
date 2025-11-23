@@ -15,10 +15,6 @@ jobs:
       with:
         repository: s2e-systems/dds-rtps
         ref: update-dust-dds-src
-    - name: List directory
-      run: ls -l
-    - name: List directory
-      run: ls -l srcRs/DustDDS
     - name: Build executable
       run: cargo build --package dust_dds_shape_main_linux --release --manifest-path srcRs/DustDDS/Cargo.toml
     - name: Upload executable artifact
@@ -86,7 +82,8 @@ jobs:
         out-file-path: executables
         extract: true
     - name: Remove DustDDS
-      run: rm dust_dds-*
+      run: rm executables/dust_dds-*
+      continue-on-error: true
     - name: Download dust_dds_shape_main executable artifact from create_bin_release
       uses: actions/download-artifact@v4
       with:
