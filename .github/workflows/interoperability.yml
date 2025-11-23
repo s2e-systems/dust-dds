@@ -21,7 +21,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: interoperability_executable
-        path: dds-rtps/srcRs/DustDDS/target/release/dust_dds_shape_main_linux
+        path: target/release/dust_dds_shape_main_linux
 
   run_tests:
     runs-on: ubuntu-latest
@@ -62,13 +62,6 @@ jobs:
         repository: omg-dds/dds-rtps
         ref: 'v2.0.2025'
         path: omg-dds-rtps
-        sparse-checkout-cone-mode: false
-        sparse-checkout: |
-          interoperability_report.py
-          test_suite.py
-          rtps_test_utilities.py
-          test_suite_functions.py
-          requirements.txt
     - uses: actions/setup-python@v5
       with:
         python-version: '3.11.4'
