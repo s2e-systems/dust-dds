@@ -18,7 +18,7 @@ dust_dds_derive = { version = "0.15", path = "../dds_derive" }
 md5 = { version = "0.7.0", default-features = false, optional = true } # Chose this crate over other possibilities since it doesn't have any other dependencies
 
 socket2 = { version = "0.5", features = ["all"], optional = true }
-network-interface = { version = "1.1.1", optional = true }
+network-interface = { version = "2.0.3", optional = true }
 
 tracing = { version = "0.1", default-features = false, features = [
 	"attributes",
@@ -44,11 +44,7 @@ tracing-opentelemetry = "0.32.0"
 [features]
 default = ["dcps", "rtps", "rtps_udp_transport", "std"]
 dcps = ["xtypes", "transport", "dep:md5", "dep:tracing"]
-rtps_udp_transport = [
-	"rtps",
-	"dep:socket2",
-	"dep:network-interface",
-]
+rtps_udp_transport = ["rtps", "dep:socket2", "dep:network-interface"]
 rtps = ["rtps_messages"]
 rtps_messages = ["transport"]
 transport = ["xtypes"]
