@@ -10,18 +10,21 @@ jobs:
     steps:
     - name: Checkout sources
       uses: actions/checkout@v4
+      with:
+        path: dust-dds
     - name: Checkout omg dds-rtps from s2e-systems fork
       uses: actions/checkout@v4
       with:
         repository: s2e-systems/dds-rtps
         ref: update-dust-dds-src
+        path: dds-rtps
     - name: Build executable
-      run: cargo build --package dust_dds_shape_main_linux --release --manifest-path srcRs/DustDDS/Cargo.toml
+      run: cargo build --package dust_dds_shape_main_linux --release --manifest-path dds-rtps/srcRs/DustDDS/Cargo.toml --config patch.crates-io.dust_dds.path="'dust-dds/dds'"
     - name: Upload executable artifact
       uses: actions/upload-artifact@v4
       with:
         name: interoperability_executable
-        path: target/release/dust_dds_shape_main_linux
+        path: dds-rtps/srcRs/DustDDS/target/release/dust_dds_shape_main_linux
 
   run_tests:
     runs-on: ubuntu-latest
