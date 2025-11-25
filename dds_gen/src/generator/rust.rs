@@ -856,7 +856,7 @@ mod tests {
         .next()
         .unwrap();
         generate_rust_source(p, &mut out);
-        println!("RESULT: {}", out);
+        println!("RESULT: {out}");
         assert_eq!(
             "#[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]\npub struct MyStruct {pub a:i32,pub b:i64,pub c:i64,pub xary:[u8;32],pub yary:[u8;64],}\n",
             &out
@@ -871,7 +871,7 @@ mod tests {
             .next()
             .unwrap();
         generate_rust_source(p, &mut out);
-        println!("RESULT: {}", out);
+        println!("RESULT: {out}");
         assert_eq!(
             &out,
             "#[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]\n#[dust_dds(extensibility = \"appendable\")]\npub struct MyStruct {pub a:i32,}\n",
@@ -886,7 +886,7 @@ mod tests {
             .next()
             .unwrap();
         generate_rust_source(p, &mut out);
-        println!("RESULT: {}", out);
+        println!("RESULT: {out}");
         assert_eq!("#[dust_dds(key)]pub a:i32,", &out);
     }
 
@@ -898,7 +898,7 @@ mod tests {
             .next()
             .unwrap();
         generate_rust_source(p, &mut out);
-        println!("RESULT: {}", out);
+        println!("RESULT: {out}");
         assert_eq!("pub a:Vec<u8>,", &out);
     }
 
@@ -910,7 +910,7 @@ mod tests {
             .next()
             .unwrap();
         generate_rust_source(p, &mut out);
-        println!("RESULT: {}", out);
+        println!("RESULT: {out}");
         assert_eq!("pub a:Vec<Vec<u8>>,", &out);
     }
 
