@@ -77,10 +77,12 @@ jobs:
         fileName: "*"
         out-file-path: executables
         extract: true
-        zipBall: false
     - name: Remove DustDDS
       run: rm executables/dust_dds-*
       continue-on-error: true
+
+    - name: Remove zip files
+      run: rm executables/*.zip
     - name: Download dust_dds_shape_main executable artifact from create_bin_release
       uses: actions/download-artifact@v4
       with:
