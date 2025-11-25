@@ -296,7 +296,7 @@ workflows:
       - hello_world_on_windows
       - benchmark
       - compilation_times
-      - clippy
+      - code_checks
       - multi_machine_tests
       - shapes_demo_build
 
