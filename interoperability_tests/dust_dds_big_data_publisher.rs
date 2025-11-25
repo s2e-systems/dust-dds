@@ -1,4 +1,6 @@
-use self::big_data::interoperability::test::BigDataType;
+include!("target/idl/big_data.rs");
+
+use self::interoperability::test::BigDataType;
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
@@ -14,10 +16,6 @@ use dust_dds::{
     listener::NO_LISTENER,
     wait_set::{Condition, WaitSet},
 };
-
-mod big_data {
-    include!("target/idl/big_data.rs");
-}
 
 fn main() {
     let domain_id = 0;

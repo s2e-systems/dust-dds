@@ -1,4 +1,6 @@
-use self::nested_type::interoperability::test::{Inner, Nested};
+include!("target/idl/nested_type.rs");
+
+use self::interoperability::test::{Inner, Nested};
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
@@ -14,10 +16,6 @@ use dust_dds::{
     listener::NO_LISTENER,
     wait_set::{Condition, WaitSet},
 };
-
-mod nested_type {
-    include!("target/idl/nested_type.rs");
-}
 
 fn main() {
     let domain_id = 0;

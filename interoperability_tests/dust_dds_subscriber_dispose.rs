@@ -1,4 +1,6 @@
-use self::dispose_data::interoperability::test::DisposeDataType;
+include!("target/idl/dispose_data.rs");
+
+use self::interoperability::test::DisposeDataType;
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
@@ -14,10 +16,6 @@ use dust_dds::{
     listener::NO_LISTENER,
     wait_set::{Condition, WaitSet},
 };
-
-mod dispose_data {
-    include!("target/idl/dispose_data.rs");
-}
 
 fn main() {
     let domain_id = 0;

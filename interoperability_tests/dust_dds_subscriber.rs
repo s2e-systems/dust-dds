@@ -1,4 +1,6 @@
-use self::hello_world::interoperability::test::HelloWorldType;
+include!("target/idl/hello_world.rs");
+
+use self::interoperability::test::HelloWorldType;
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
@@ -14,10 +16,6 @@ use dust_dds::{
     listener::NO_LISTENER,
     wait_set::{Condition, WaitSet},
 };
-
-mod hello_world {
-    include!("target/idl/hello_world.rs");
-}
 
 fn main() {
     let domain_id = 0;
