@@ -69,7 +69,6 @@ jobs:
     steps:
       - checkout
       - run: cargo --version
-      - run: cargo check --verbose --all-features --all-targets --workspace
       - run: cargo clippy --verbose --all-features --all-targets --all
       - run: cargo fmt --verbose --check --all
   benchmark:
