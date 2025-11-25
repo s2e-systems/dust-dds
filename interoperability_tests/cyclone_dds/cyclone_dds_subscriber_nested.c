@@ -12,7 +12,7 @@ int main(int argc, char *argv[])
 	{
 		DDS_FATAL("dds_create_participant: %s\n", dds_strretcode(-participant));
 	}
-	const dds_entity_t topic = dds_create_topic(participant, &Nested_desc, topic_name, NULL /*qos*/, NULL /*listener*/);
+	const dds_entity_t topic = dds_create_topic(participant, &interoperability_test_Nested_desc, topic_name, NULL /*qos*/, NULL /*listener*/);
 	if (topic < 0)
 	{
 		DDS_FATAL("dds_create_topic: %s\n", dds_strretcode(-topic));
@@ -70,10 +70,10 @@ int main(int argc, char *argv[])
 		DDS_FATAL("dds_waitset_wait: %s\n", dds_strretcode(-rc));
 	}
 
-	Nested *msg;
+	interoperability_test_Nested *msg;
 	void *samples[MAX_SAMPLES];
 	dds_sample_info_t infos[MAX_SAMPLES];
-	samples[0] = Nested__alloc();
+	samples[0] = interoperability_test_Nested__alloc();
 
 	rc = dds_read(data_reader, samples, infos, MAX_SAMPLES, MAX_SAMPLES);
 	if (rc < 0)
@@ -83,8 +83,8 @@ int main(int argc, char *argv[])
 
 	if ((rc > 0) && (infos[0].valid_data))
 	{
-		msg = (Nested *)samples[0];
-		printf("Received: Nested { inner: { a: \"%d\", b: \"%d\", c: \"%d\" }, level: \"%lld\", other: \"%d\", last: \"%d\"  }\n", msg->inner.a, msg->inner.b, msg->inner.a, msg->level, msg->other, msg->last);
+		msg = (interoperability_test_Nested *)samples[0];
+		printf("Received: %s { inner: { a: \"%d\", b: \"%d\", c: \"%d\" }, level: \"%lld\", other: \"%d\", last: \"%d\"  }\n", interoperability_test_Nested_desc.m_typename, msg->inner.a, msg->inner.b, msg->inner.a, msg->level, msg->other, msg->last);
 	}
 
 	// Sleep to allow sending acknowledgements

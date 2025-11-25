@@ -1,3 +1,4 @@
+use self::dispose_data::interoperability::test::DisposeDataType;
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
@@ -27,7 +28,7 @@ fn main() {
         .unwrap();
 
     let topic = participant
-        .find_topic::<dispose_data::DisposeDataType>("DisposeData", Duration::new(120, 0))
+        .find_topic::<DisposeDataType>("DisposeData", Duration::new(120, 0))
         .unwrap();
 
     let subscriber = participant
@@ -45,7 +46,7 @@ fn main() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<dispose_data::DisposeDataType>(
+        .create_datareader::<DisposeDataType>(
             &topic,
             QosKind::Specific(reader_qos),
             NO_LISTENER,

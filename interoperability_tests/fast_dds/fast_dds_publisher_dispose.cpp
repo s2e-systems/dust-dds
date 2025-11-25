@@ -1,4 +1,4 @@
-#include "DisposeDataPubSubTypes.h"
+#include "interoperability_test_DisposeDataPubSubTypes.h"
 #include <fastdds/dds/domain/DomainParticipantFactory.hpp>
 #include <fastdds/dds/domain/DomainParticipant.hpp>
 #include <fastdds/dds/topic/TypeSupport.hpp>
@@ -13,6 +13,7 @@
 #include <stdexcept>
 
 using namespace eprosima::fastdds::dds;
+using namespace interoperability::test;
 
 int main(int argc, char *argv[])
 {
@@ -21,7 +22,7 @@ int main(int argc, char *argv[])
 	auto participant = DomainParticipantFactory::get_instance()->create_participant(0, PARTICIPANT_QOS_DEFAULT);
 	TypeSupport dispose_data_type{new DisposeDataTypePubSubType()};
 	dispose_data_type.register_type(participant);
-	auto topic = participant->create_topic(topic_name, "DisposeDataType", TOPIC_QOS_DEFAULT);
+	auto topic = participant->create_topic(topic_name, dispose_data_type.get_type_name(), TOPIC_QOS_DEFAULT);
 	auto publisher = participant->create_publisher(PUBLISHER_QOS_DEFAULT, nullptr);
 
 	DataWriterQos qos;

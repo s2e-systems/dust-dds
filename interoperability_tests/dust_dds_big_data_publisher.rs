@@ -1,4 +1,4 @@
-use big_data::BigDataType;
+use self::big_data::interoperability::test::BigDataType;
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
@@ -9,10 +9,12 @@ use dust_dds::{
         },
         status::{NO_STATUS, StatusKind},
         time::{Duration, DurationKind},
+        type_support::TypeSupport,
     },
     listener::NO_LISTENER,
     wait_set::{Condition, WaitSet},
 };
+
 mod big_data {
     include!("target/idl/big_data.rs");
 }
@@ -26,9 +28,9 @@ fn main() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<big_data::BigDataType>(
+        .create_topic::<BigDataType>(
             "BigData",
-            "BigDataType",
+            BigDataType::get_type_name(),
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
@@ -68,7 +70,7 @@ fn main() {
 
     wait_set.wait(Duration::new(60, 0)).unwrap();
 
-    let data = big_data::BigDataType {
+    let data = BigDataType {
         msg: vec![b'a'; 15000],
     };
     writer.write(data, None).unwrap();

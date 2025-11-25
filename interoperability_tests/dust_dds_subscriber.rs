@@ -1,3 +1,4 @@
+use self::hello_world::interoperability::test::HelloWorldType;
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
@@ -27,7 +28,7 @@ fn main() {
         .unwrap();
 
     let topic = participant
-        .find_topic::<hello_world::HelloWorldType>("HelloWorld", Duration::new(120, 0))
+        .find_topic::<HelloWorldType>("HelloWorld", Duration::new(120, 0))
         .unwrap();
 
     let subscriber = participant
@@ -45,7 +46,7 @@ fn main() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<hello_world::HelloWorldType>(
+        .create_datareader::<HelloWorldType>(
             &topic,
             QosKind::Specific(reader_qos),
             NO_LISTENER,

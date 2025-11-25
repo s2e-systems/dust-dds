@@ -1,6 +1,9 @@
-
-struct DisposeDataType
-{
-	@key string name;
-	octet value;
+module interoperability {
+	module test {
+		struct DisposeDataType
+		{
+			@key string name;
+			octet value;
+		};
+	};
 };

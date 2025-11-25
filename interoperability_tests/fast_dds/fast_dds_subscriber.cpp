@@ -1,4 +1,4 @@
-#include "HelloWorldPubSubTypes.h"
+#include "interoperability_test_HelloWorldPubSubTypes.h"
 #include <fastdds/dds/domain/DomainParticipantFactory.hpp>
 #include <fastdds/dds/domain/DomainParticipant.hpp>
 #include <fastdds/dds/topic/TypeSupport.hpp>
@@ -13,6 +13,7 @@
 #include <stdexcept>
 
 using namespace eprosima::fastdds::dds;
+using namespace interoperability::test;
 
 int main(int argc, char *argv[])
 {
@@ -21,7 +22,7 @@ int main(int argc, char *argv[])
 	auto participant = DomainParticipantFactory::get_instance()->create_participant(0, PARTICIPANT_QOS_DEFAULT);
 	TypeSupport hello_world_type{new HelloWorldTypePubSubType()};
 	hello_world_type.register_type(participant);
-	auto topic = participant->create_topic(topic_name, "HelloWorldType", TOPIC_QOS_DEFAULT);
+	auto topic = participant->create_topic(topic_name, hello_world_type.get_type_name(), TOPIC_QOS_DEFAULT);
 	auto subscriber = participant->create_subscriber(SUBSCRIBER_QOS_DEFAULT, nullptr);
 
 	DataReaderQos qos;

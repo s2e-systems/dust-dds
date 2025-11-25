@@ -10,7 +10,7 @@ int main(int argc, char *argv[])
 	{
 		DDS_FATAL("dds_create_participant: %s\n", dds_strretcode(-participant));
 	}
-	const dds_entity_t topic = dds_create_topic(participant, &Nested_desc, topic_name, NULL /*qos*/, NULL /*listener*/);
+	const dds_entity_t topic = dds_create_topic(participant, &interoperability_test_Nested_desc, topic_name, NULL /*qos*/, NULL /*listener*/);
 	if (topic < 0)
 	{
 		DDS_FATAL("dds_create_topic: %s\n", dds_strretcode(-topic));
@@ -53,8 +53,8 @@ int main(int argc, char *argv[])
 		DDS_FATAL("dds_waitset_wait: %s\n", dds_strretcode(-rc));
 	}
 
-	Inner msg_inner = {.a = 1, .b = 2, .c = 3};
-	Nested msg = {.inner = msg_inner, .level = 10, .other = 20, .last = 70};
+	interoperability_test_Inner msg_inner = {.a = 1, .b = 2, .c = 3};
+	interoperability_test_Nested msg = {.inner = msg_inner, .level = 10, .other = 20, .last = 70};
 	msg.value_list._buffer = dds_sequence_int64_allocbuf(3);
 	msg.value_list._length = 3;
 	msg.value_list._release = true;

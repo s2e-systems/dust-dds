@@ -1,3 +1,4 @@
+use self::nested_type::interoperability::test::Nested;
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
@@ -27,7 +28,7 @@ fn main() {
         .unwrap();
 
     let topic = participant
-        .find_topic::<nested_type::Nested>("Nested", Duration::new(120, 0))
+        .find_topic::<Nested>("Nested", Duration::new(120, 0))
         .unwrap();
 
     let subscriber = participant
@@ -45,7 +46,7 @@ fn main() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<nested_type::Nested>(
+        .create_datareader::<Nested>(
             &topic,
             QosKind::Specific(reader_qos),
             NO_LISTENER,

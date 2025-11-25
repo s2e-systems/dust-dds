@@ -1,3 +1,4 @@
+use self::big_data::interoperability::test::BigDataType;
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
@@ -9,6 +10,7 @@ use dust_dds::{
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         status::{NO_STATUS, StatusKind},
         time::{Duration, DurationKind},
+        type_support::TypeSupport,
     },
     listener::NO_LISTENER,
     wait_set::{Condition, WaitSet},
@@ -27,9 +29,9 @@ fn main() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<big_data::BigDataType>(
+        .create_topic::<BigDataType>(
             "BigData",
-            "BigDataType",
+            BigDataType::get_type_name(),
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
@@ -51,7 +53,7 @@ fn main() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<big_data::BigDataType>(
+        .create_datareader::<BigDataType>(
             &topic,
             QosKind::Specific(reader_qos),
             NO_LISTENER,

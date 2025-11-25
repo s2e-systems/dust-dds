@@ -12,7 +12,7 @@ int main(int argc, char *argv[])
 	{
 		DDS_FATAL("dds_create_participant: %s\n", dds_strretcode(-participant));
 	}
-	const dds_entity_t topic = dds_create_topic(participant, &BigDataType_desc, topic_name, NULL /*qos*/, NULL /*listener*/);
+	const dds_entity_t topic = dds_create_topic(participant, &interoperability_test_BigDataType_desc, topic_name, NULL /*qos*/, NULL /*listener*/);
 	if (topic < 0)
 	{
 		DDS_FATAL("dds_create_topic: %s\n", dds_strretcode(-topic));
@@ -70,10 +70,10 @@ int main(int argc, char *argv[])
 		DDS_FATAL("dds_waitset_wait: %s\n", dds_strretcode(-rc));
 	}
 
-	BigDataType *data;
+	interoperability_test_BigDataType *data;
 	void *samples[MAX_SAMPLES];
 	dds_sample_info_t infos[MAX_SAMPLES];
-	samples[0] = BigDataType__alloc();
+	samples[0] = interoperability_test_BigDataType__alloc();
 
 	rc = dds_read(data_reader, samples, infos, MAX_SAMPLES, MAX_SAMPLES);
 	if (rc < 0)
@@ -83,8 +83,8 @@ int main(int argc, char *argv[])
 
 	if ((rc > 0) && (infos[0].valid_data))
 	{
-		data = (BigDataType *)samples[0];
-		printf("Received: BigDataType { msg.length: %d, msg[0]: \"%c\" }\n", data->msg._length, data->msg._buffer[0]);
+		data = (interoperability_test_BigDataType *)samples[0];
+		printf("Received: %s { msg.length: %d, msg[0]: \"%c\" }\n", interoperability_test_BigDataType_desc.m_typename, data->msg._length, data->msg._buffer[0]);
 	}
 	// Sleep to allow sending acknowledgements
 	dds_sleepfor(DDS_SECS(2));

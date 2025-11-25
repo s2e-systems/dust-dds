@@ -1,6 +1,9 @@
-
-struct HelloWorldType
-{
-	octet id;
-	char msg;
+module interoperability {
+	module test {
+		struct HelloWorldType
+		{
+			octet id;
+			char msg;
+		};
+	};
 };

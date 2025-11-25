@@ -10,7 +10,7 @@ int main(int argc, char *argv[])
 	{
 		DDS_FATAL("dds_create_participant: %s\n", dds_strretcode(-participant));
 	}
-	const dds_entity_t topic = dds_create_topic(participant, &BigDataType_desc, topic_name, NULL /*qos*/, NULL /*listener*/);
+	const dds_entity_t topic = dds_create_topic(participant, &interoperability_test_BigDataType_desc, topic_name, NULL /*qos*/, NULL /*listener*/);
 	if (topic < 0)
 	{
 		DDS_FATAL("dds_create_topic: %s\n", dds_strretcode(-topic));
@@ -61,7 +61,7 @@ int main(int argc, char *argv[])
 		._length = sizeof(data_bytes),
 		._buffer = data_bytes,
 		._release = true};
-	const BigDataType data = {msg};
+	const interoperability_test_BigDataType data = {msg};
 	dds_write(data_writer, &data);
 
 	rc = dds_wait_for_acks(data_writer, DDS_SECS(30));
