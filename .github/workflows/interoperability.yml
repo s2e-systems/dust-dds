@@ -75,14 +75,12 @@ jobs:
         latest: true
         preRelease: false
         fileName: "*"
-        out-file-path: executables
-        extract: true
+        out-file-path: ziped_executables
     - name: Remove DustDDS
-      run: rm executables/dust_dds-*
+      run: rm ziped_executables/dust_dds*
       continue-on-error: true
-
-    - name: Remove zip files
-      run: rm executables/*.zip
+    - name: Unzip executables
+      run: unzip 'ziped_executables/*.zip' -d executables
     - name: Download dust_dds_shape_main executable artifact from create_bin_release
       uses: actions/download-artifact@v4
       with:
