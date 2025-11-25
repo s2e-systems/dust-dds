@@ -1,4 +1,4 @@
-#include "interoperability_test_DisposeDataPubSubTypes.h"
+#include "DisposeDataPubSubTypes.h"
 #include <fastdds/dds/domain/DomainParticipantFactory.hpp>
 #include <fastdds/dds/domain/DomainParticipant.hpp>
 #include <fastdds/dds/topic/TypeSupport.hpp>
