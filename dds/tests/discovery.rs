@@ -26,10 +26,9 @@ struct UserType(#[dust_dds(key)] i32);
 #[test]
 fn writer_discovers_reader_in_same_participant() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let dp: dust_dds::domain::domain_participant::DomainParticipant =
-        DomainParticipantFactory::get_instance()
-            .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
-            .unwrap();
+    let dp = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
     let topic = dp
         .create_topic::<UserType>(
             "topic_name",
