@@ -40,7 +40,7 @@ pub struct DiscoveredWriterData {
 impl TypeSupport for DiscoveredWriterData {
     #[inline]
     fn get_type_name() -> &'static str {
-        "PublicationBuiltinTopicData"
+        "DiscoveredWriterData"
     }
 
     fn get_type() -> dust_dds::xtypes::dynamic_type::DynamicType {

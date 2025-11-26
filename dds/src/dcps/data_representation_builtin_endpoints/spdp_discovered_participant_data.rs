@@ -130,7 +130,7 @@ pub struct SpdpDiscoveredParticipantData {
 impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParticipantData {
     #[inline]
     fn get_type_name() -> &'static str {
-        "ParticipantBuiltinTopicData"
+        "SpdpDiscoveredParticipantData"
     }
 
     fn get_type() -> dust_dds::xtypes::dynamic_type::DynamicType {
