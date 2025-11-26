@@ -67,6 +67,7 @@ pub enum ParticipantServiceMail {
         dcps_listener: Option<DcpsTopicListener>,
         mask: Vec<StatusKind>,
         type_support: Arc<DynamicType>,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
         reply_sender: OneshotSender<DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)>>,
     },
     DeleteUserDefinedTopic {
@@ -194,6 +195,7 @@ pub enum TopicServiceMail {
     },
     Enable {
         topic_name: String,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
     GetTypeSupport {
@@ -611,6 +613,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                 dcps_listener,
                 mask,
                 type_support,
+                participant_address,
                 reply_sender,
             } => reply_sender.send(
                 self.create_topic(
@@ -620,6 +623,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                     dcps_listener,
                     mask,
                     type_support,
+                    participant_address,
                 )
                 .await,
             ),
@@ -754,8 +758,9 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             } => reply_sender.send(self.get_topic_qos(topic_name)),
             TopicServiceMail::Enable {
                 topic_name,
+                participant_address,
                 reply_sender,
-            } => reply_sender.send(self.enable_topic(topic_name).await),
+            } => reply_sender.send(self.enable_topic(topic_name, participant_address).await),
             TopicServiceMail::GetTypeSupport {
                 topic_name,
                 reply_sender,

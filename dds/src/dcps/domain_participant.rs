@@ -947,7 +947,11 @@ where
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn enable_topic(&mut self, topic_name: String) -> DdsResult<()> {
+    pub async fn enable_topic(
+        &mut self,
+        topic_name: String,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
+    ) -> DdsResult<()> {
         let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
             .topic_description_list
@@ -959,7 +963,7 @@ where
 
         if !topic.enabled {
             topic.enabled = true;
-            self.announce_topic(topic_name).await;
+            self.announce_topic(topic_name, participant_address).await;
         }
 
         Ok(())
@@ -1178,6 +1182,7 @@ where
         dcps_listener: Option<DcpsTopicListener>,
         mask: Vec<StatusKind>,
         type_support: Arc<DynamicType>,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
     ) -> DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)> {
         if self
             .domain_participant
@@ -1241,7 +1246,7 @@ where
                 .entity_factory
                 .autoenable_created_entities
         {
-            self.enable_topic(topic_name).await?;
+            self.enable_topic(topic_name, participant_address).await?;
         }
 
         Ok((topic_handle, topic_status_condition_address))
@@ -3637,7 +3642,11 @@ where
     }
 
     #[tracing::instrument(skip(self))]
-    async fn announce_topic(&mut self, topic_name: String) {
+    async fn announce_topic(
+        &mut self,
+        topic_name: String,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
+    ) {
         let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
             .topic_description_list
@@ -3670,23 +3679,23 @@ where
             },
         };
 
-        let timestamp = self.get_current_time();
-        if let Some(dw) = self
-            .domain_participant
-            .builtin_publisher
-            .data_writer_list
-            .iter_mut()
-            .find(|x| x.topic_name == DCPS_TOPIC)
-        {
-            dw.write_w_timestamp(
-                discovered_topic_data.create_dynamic_sample(),
-                timestamp,
-                &self.clock_handle,
-                self.transport.message_writer.as_ref(),
+        let data_writer_handle = InstanceHandle::new(
+            Guid::new(
+                Guid::from(*self.domain_participant.instance_handle.as_ref()).prefix(),
+                ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
             )
-            .await
-            .ok();
-        }
+            .into(),
+        );
+        let timestamp = self.get_current_time();
+        self.write_w_timestamp(
+            participant_address,
+            self.domain_participant.builtin_publisher.instance_handle,
+            data_writer_handle,
+            discovered_topic_data.create_dynamic_sample(),
+            timestamp,
+        )
+        .await
+        .ok();
     }
 
     #[tracing::instrument(skip(self, participant_address))]

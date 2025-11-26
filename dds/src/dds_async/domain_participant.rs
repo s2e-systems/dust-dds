@@ -205,6 +205,7 @@ impl DomainParticipantAsync {
                     dcps_listener,
                     mask: mask.to_vec(),
                     type_support: dynamic_type_representation,
+                    participant_address: self.participant_address.clone(),
                     reply_sender,
                 },
             ))
