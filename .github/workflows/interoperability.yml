@@ -22,7 +22,7 @@ jobs:
       run: cargo build --package dust_dds_shape_main_linux --release --manifest-path dds-rtps/srcRs/DustDDS/Cargo.toml --config patch.crates-io.dust_dds.path="'dust-dds/dds'"
     - name: Zip executable  # Zipping done here to preserve executable bit
       run: |
-        version=$( tq -f dds/Cargo.toml 'package.version' | tr -d '"' )
+        version=$( cargo tree --package dust_dds --depth 0 --prefix none | tr -d 'dust_dds v' )
         cp dds-rtps/srcRs/DustDDS/target/release/dust_dds_shape_main_linux dust_dds-${version}_shape_main_linux
         mkdir artifacts
         zip --junk-paths artifacts/dust_dds-${version}_shape_main_linux.zip dust_dds-${version}_shape_main_linux
@@ -68,8 +68,8 @@ jobs:
     - name: Checkout omg dds-rtps
       uses: actions/checkout@v4
       with:
-        repository: omg-dds/dds-rtps
-        ref: 'v2.0.2025'
+        repository: s2e-systems/dds-rtps
+        ref: update-dust-dds-src
         path: omg-dds-rtps
     - uses: actions/setup-python@v5
       with:
@@ -77,28 +77,28 @@ jobs:
     - name: Downloads shape_main executables from OMG
       uses: robinraju/release-downloader@v1.10
       with:
-        repository: omg-dds/dds-rtps
+        repository: s2e-systems/dds-rtps
         latest: true
         preRelease: false
         fileName: "*"
-        out-file-path: ziped_executables
+        out-file-path: zipped_executables
     - name: Remove DustDDS
-      run: rm ziped_executables/dust_dds*
+      run: rm zipped_executables/dust_dds*
       continue-on-error: true
     - name: Download dust_dds_shape_main executable artifact from create_bin_release
       uses: actions/download-artifact@v4
       with:
         name: interoperability_executable
-        path: ziped_executables
+        path: zipped_executables
     - name: Unzip executables
-      run: unzip 'ziped_executables/*.zip' -d executables
+      run: unzip 'zipped_executables/*.zip' -d executables
     - name: List directory
       run: ls -l executables
     - name: Install omg-dds dds-rtps Python requirements
       run: pip install --requirement omg-dds-rtps/requirements.txt
 
     - name: Run Interoperability script
-      timeout-minutes: 60
+      timeout-minutes: 30
       run: python3 ./omg-dds-rtps/interoperability_report.py --verbose --publisher ./executables/${{ matrix.publisher }}*shape_main_linux --subscriber ./executables/${{ matrix.subscriber }}*shape_main_linux --output-name junit_report-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml
 
     - name: Upload report
@@ -120,7 +120,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         repository: omg-dds/dds-rtps
-        ref: 'v2.0.2025'
+        ref: update-dust-dds-src
         path: omg-dds-rtps
     - uses: actions/setup-python@v5
       with:
