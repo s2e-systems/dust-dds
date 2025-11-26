@@ -36,6 +36,11 @@ pub struct DiscoveredReaderData {
 }
 
 impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderData {
+    #[inline]
+    fn get_type_name() -> &'static str {
+        "SubscriptionBuiltinTopicData"
+    }
+
     fn get_type() -> dust_dds::xtypes::dynamic_type::DynamicType {
         extern crate alloc;
         struct ConvenienceDynamicTypeBuilder {
@@ -113,7 +118,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
             builder: dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
                 dust_dds::xtypes::dynamic_type::TypeDescriptor {
                     kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
-                    name: alloc::string::String::from("DiscoveredReaderData"),
+                    name: alloc::string::String::from(Self::get_type_name()),
                     base_type: None,
                     discriminator_type: None,
                     bound: alloc::vec::Vec::new(),

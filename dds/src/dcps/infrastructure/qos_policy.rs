@@ -26,6 +26,12 @@ pub enum Length {
 }
 
 impl TypeSupport for Length {
+    #[inline]
+    fn get_type_name() -> &'static str {
+        "Length"
+    }
+
+    #[inline]
     fn get_type() -> crate::xtypes::dynamic_type::DynamicType {
         i32::get_dynamic_type()
     }
