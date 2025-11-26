@@ -32,7 +32,7 @@ impl DataReaderListener<BestEffortExampleType> for Listener {
             .await
         {
             let sample = samples[0].data.as_ref().unwrap();
-            println!("Read sample: {:?}", sample);
+            println!("Read sample: {sample:?}",);
         }
     }
     async fn on_subscription_matched(

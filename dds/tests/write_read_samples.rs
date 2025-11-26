@@ -448,8 +448,7 @@ fn writer_with_keep_last_3_should_send_last_3_samples_to_reader() {
     assert_eq!(
         samples.len(),
         3,
-        "Received wrong number of samples. Received samples: {:?}",
-        samples
+        "Received wrong number of samples. Received samples: {samples:?}",
     );
     assert_eq!(samples[0].data.as_ref().unwrap(), &data3);
     assert_eq!(samples[1].data.as_ref().unwrap(), &data4);
