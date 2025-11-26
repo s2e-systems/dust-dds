@@ -22,11 +22,10 @@ use crate::{
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
         status::StatusKind,
     },
-    runtime::{DdsRuntime, Spawner, Timer},
+    runtime::{DdsRuntime, Either, Spawner, Timer, select_future},
     transport::{interface::TransportParticipantFactory, types::GuidPrefix},
 };
-use alloc::{borrow::ToOwned, string::String, sync::Arc, vec::Vec};
-use core::{future::Future, pin::Pin, task::Poll};
+use alloc::{borrow::ToOwned, string::String, vec::Vec};
 
 pub struct DcpsParticipantFactory<T> {
     domain_participant_list: Vec<(InstanceHandle, MpscSender<DcpsDomainParticipantMail>)>,
@@ -126,42 +125,14 @@ impl<T: TransportParticipantFactory> DcpsParticipantFactory<T> {
             .get_builtin_subscriber_status_condition()
             .address();
 
-        enum Either<A, B> {
-            A(A),
-            B(B),
-        }
-        struct Select<A, B> {
-            a: A,
-            b: B,
-        }
-        impl<A, B> Future for Select<A, B>
-        where
-            A: Future<Output = Option<DcpsDomainParticipantMail>> + Unpin,
-            B: Future<Output = Option<Arc<[u8]>>> + Unpin,
-        {
-            type Output = Either<Option<DcpsDomainParticipantMail>, Option<Arc<[u8]>>>;
-
-            fn poll(
-                mut self: Pin<&mut Self>,
-                cx: &mut core::task::Context<'_>,
-            ) -> core::task::Poll<Self::Output> {
-                if let Poll::Ready(a) = Pin::new(&mut self.a).poll(cx) {
-                    return Poll::Ready(Either::A(a));
-                }
-                if let Poll::Ready(b) = Pin::new(&mut self.b).poll(cx) {
-                    return Poll::Ready(Either::B(b));
-                }
-                Poll::Pending
-            }
-        }
-
         spawner_handle.spawn(async move {
             loop {
-                let select = Select {
-                    a: core::pin::pin!(participant_receiver.receive()),
-                    b: core::pin::pin!(data_channel_receiver.receive()),
-                };
-                match select.await {
+                match select_future(
+                    participant_receiver.receive(),
+                    data_channel_receiver.receive(),
+                )
+                .await
+                {
                     Either::A(dcps_domain_participant_mail) => {
                         if let Some(dcps_domain_participant_mail) = dcps_domain_participant_mail {
                             dcps_participant.handle(dcps_domain_participant_mail).await
@@ -187,7 +158,9 @@ impl<T: TransportParticipantFactory> DcpsParticipantFactory<T> {
         spawner_handle.spawn(async move {
             while participant_address
                 .send(DcpsDomainParticipantMail::Discovery(
-                    DiscoveryServiceMail::AnnounceParticipant,
+                    DiscoveryServiceMail::AnnounceParticipant {
+                        participant_address: participant_address.clone(),
+                    },
                 ))
                 .await
                 .is_ok()
@@ -214,9 +187,13 @@ impl<T: TransportParticipantFactory> DcpsParticipantFactory<T> {
 
         if self.qos.entity_factory.autoenable_created_entities {
             let (reply_sender, _reply_receiver) = oneshot();
+            let participant_address = participant_sender.clone();
             participant_sender
                 .send(DcpsDomainParticipantMail::Participant(
-                    ParticipantServiceMail::Enable { reply_sender },
+                    ParticipantServiceMail::Enable {
+                        participant_address,
+                        reply_sender,
+                    },
                 ))
                 .await
                 .ok();

@@ -130,13 +130,15 @@ impl RtpsStatefulWriter {
         }
     }
 
+    /// Process the received AckNack RTPS submessage. This method return an Option indicating the sequence number of the acknowledged change
+    /// or None if no change has been acknowledged.
     pub async fn on_acknack_submessage_received(
         &mut self,
         acknack_submessage: &AckNackSubmessage,
         source_guid_prefix: GuidPrefix,
         message_writer: &(impl WriteMessage + ?Sized),
         clock: &impl Clock,
-    ) {
+    ) -> Option<SequenceNumber> {
         if &self.guid.entity_id() == acknack_submessage.writer_id() {
             let reader_guid = Guid::new(source_guid_prefix, *acknack_submessage.reader_id());
 
@@ -148,7 +150,8 @@ impl RtpsStatefulWriter {
                 if reader_proxy.reliability() == ReliabilityKind::Reliable
                     && acknack_submessage.count() > reader_proxy.last_received_acknack_count()
                 {
-                    reader_proxy.acked_changes_set(acknack_submessage.reader_sn_state().base() - 1);
+                    let acked_changes = acknack_submessage.reader_sn_state().base() - 1;
+                    reader_proxy.acked_changes_set(acked_changes);
                     reader_proxy.requested_changes_set(acknack_submessage.reader_sn_state().set());
 
                     reader_proxy.set_last_received_acknack_count(acknack_submessage.count());
@@ -164,9 +167,11 @@ impl RtpsStatefulWriter {
                             self.guid.prefix(),
                         )
                         .await;
+                    return Some(acked_changes);
                 }
             }
         }
+        None
     }
 
     pub async fn on_nack_frag_submessage_received(
