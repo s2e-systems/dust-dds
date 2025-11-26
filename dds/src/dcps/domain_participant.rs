@@ -278,6 +278,7 @@ impl<R> DcpsDomainParticipant<R>
 where
     R: DdsRuntime,
 {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         domain_id: DomainId,
         domain_tag: String,
