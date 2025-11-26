@@ -603,7 +603,11 @@ impl DomainParticipantAsync {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address
             .send(DcpsDomainParticipantMail::Participant(
-                ParticipantServiceMail::SetQos { qos, reply_sender },
+                ParticipantServiceMail::SetQos {
+                    qos,
+                    participant_address: self.participant_address.clone(),
+                    reply_sender,
+                },
             ))
             .await?;
         reply_receiver.await?
@@ -654,7 +658,10 @@ impl DomainParticipantAsync {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant_address
             .send(DcpsDomainParticipantMail::Participant(
-                ParticipantServiceMail::Enable { reply_sender },
+                ParticipantServiceMail::Enable {
+                    participant_address: self.participant_address.clone(),
+                    reply_sender,
+                },
             ))
             .await?;
         reply_receiver.await?

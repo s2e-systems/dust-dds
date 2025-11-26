@@ -158,6 +158,7 @@ pub enum ParticipantServiceMail {
     },
     SetQos {
         qos: QosKind<DomainParticipantQos>,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
     GetQos {
@@ -169,6 +170,7 @@ pub enum ParticipantServiceMail {
         reply_sender: OneshotSender<DdsResult<()>>,
     },
     Enable {
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
     IsEmpty {
@@ -483,6 +485,7 @@ pub enum MessageServiceMail {
     },
     AddBuiltinParticipantsDetectorCacheChange {
         cache_change: CacheChange,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
     },
     AddBuiltinPublicationsDetectorCacheChange {
         cache_change: CacheChange,
@@ -514,7 +517,9 @@ pub enum EventServiceMail {
 }
 
 pub enum DiscoveryServiceMail {
-    AnnounceParticipant,
+    AnnounceParticipant {
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
+    },
     AnnounceDeletedParticipant,
 }
 
@@ -702,9 +707,14 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                 topic_handle,
                 reply_sender,
             } => reply_sender.send(self.get_discovered_topic_data(topic_handle)),
-            ParticipantServiceMail::SetQos { qos, reply_sender } => {
-                reply_sender.send(self.set_domain_participant_qos(qos).await)
-            }
+            ParticipantServiceMail::SetQos {
+                qos,
+                participant_address,
+                reply_sender,
+            } => reply_sender.send(
+                self.set_domain_participant_qos(qos, participant_address)
+                    .await,
+            ),
             ParticipantServiceMail::GetQos { reply_sender } => {
                 reply_sender.send(self.get_domain_participant_qos())
             }
@@ -715,9 +725,10 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             } => {
                 reply_sender.send(self.set_domain_participant_listener(dcps_listener, status_kind))
             }
-            ParticipantServiceMail::Enable { reply_sender } => {
-                reply_sender.send(self.enable_domain_participant().await)
-            }
+            ParticipantServiceMail::Enable {
+                participant_address,
+                reply_sender,
+            } => reply_sender.send(self.enable_domain_participant(participant_address).await),
             ParticipantServiceMail::IsEmpty { reply_sender } => {
                 reply_sender.send(self.is_participant_empty())
             }
@@ -1204,9 +1215,15 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                 self.is_historical_data_received(subscriber_handle, data_reader_handle)
                     .await,
             ),
-            MessageServiceMail::AddBuiltinParticipantsDetectorCacheChange { cache_change } => {
-                self.add_builtin_participants_detector_cache_change(cache_change)
-                    .await
+            MessageServiceMail::AddBuiltinParticipantsDetectorCacheChange {
+                cache_change,
+                participant_address,
+            } => {
+                self.add_builtin_participants_detector_cache_change(
+                    cache_change,
+                    participant_address,
+                )
+                .await
             }
             MessageServiceMail::AddBuiltinPublicationsDetectorCacheChange {
                 cache_change,
@@ -1271,8 +1288,10 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
 
     async fn handle_discovery_service(&mut self, discovery_service_mail: DiscoveryServiceMail) {
         match discovery_service_mail {
-            DiscoveryServiceMail::AnnounceParticipant => {
-                self.announce_participant().await;
+            DiscoveryServiceMail::AnnounceParticipant {
+                participant_address,
+            } => {
+                self.announce_participant(participant_address).await;
             }
             DiscoveryServiceMail::AnnounceDeletedParticipant => {
                 self.announce_deleted_participant().await;

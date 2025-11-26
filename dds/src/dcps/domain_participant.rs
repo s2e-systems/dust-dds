@@ -153,7 +153,10 @@ impl HistoryCache for DcpsParticipantReaderHistoryCache {
         Box::pin(async move {
             self.participant_address
                 .send(DcpsDomainParticipantMail::Message(
-                    MessageServiceMail::AddBuiltinParticipantsDetectorCacheChange { cache_change },
+                    MessageServiceMail::AddBuiltinParticipantsDetectorCacheChange {
+                        cache_change,
+                        participant_address: self.participant_address.clone(),
+                    },
                 ))
                 .await
                 .ok();
@@ -1660,6 +1663,7 @@ where
     pub async fn set_domain_participant_qos(
         &mut self,
         qos: QosKind<DomainParticipantQos>,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
     ) -> DdsResult<()> {
         let qos = match qos {
             QosKind::Default => DomainParticipantQos::default(),
@@ -1668,7 +1672,7 @@ where
 
         self.domain_participant.qos = qos;
         if self.domain_participant.enabled {
-            self.announce_participant().await;
+            self.announce_participant(participant_address).await;
         }
         Ok(())
     }
@@ -1692,7 +1696,10 @@ where
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn enable_domain_participant(&mut self) -> DdsResult<()> {
+    pub async fn enable_domain_participant(
+        &mut self,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
+    ) -> DdsResult<()> {
         if !self.domain_participant.enabled {
             for t in &mut self.domain_participant.topic_description_list {
                 if let TopicDescriptionKind::Topic(t) = t {
@@ -1710,7 +1717,7 @@ where
             self.domain_participant.builtin_subscriber.enabled = true;
             self.domain_participant.enabled = true;
 
-            self.announce_participant().await;
+            self.announce_participant(participant_address).await;
         }
 
         Ok(())
@@ -2537,10 +2544,8 @@ where
         timestamp: Time,
     ) -> DdsResult<()> {
         let now = self.get_current_time();
-        let Some(publisher) = self
-            .domain_participant
-            .user_defined_publisher_list
-            .iter_mut()
+        let Some(publisher) = core::iter::once(&mut self.domain_participant.builtin_publisher)
+            .chain(&mut self.domain_participant.user_defined_publisher_list)
             .find(|x| x.instance_handle == publisher_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
@@ -3274,7 +3279,10 @@ where
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn announce_participant(&mut self) {
+    pub async fn announce_participant(
+        &mut self,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
+    ) {
         if self.domain_participant.enabled {
             let builtin_topic_key = *self.domain_participant.instance_handle.as_ref();
             let guid = Guid::from(builtin_topic_key);
@@ -3319,24 +3327,23 @@ where
                     .map(|p| InstanceHandle::new(p.dds_participant_data.key().value))
                     .collect(),
             };
-            let timestamp = self.get_current_time();
-
-            if let Some(dw) = self
-                .domain_participant
-                .builtin_publisher
-                .data_writer_list
-                .iter_mut()
-                .find(|x| x.topic_name == DCPS_PARTICIPANT)
-            {
-                dw.write_w_timestamp(
-                    spdp_discovered_participant_data.create_dynamic_sample(),
-                    timestamp,
-                    &self.clock_handle,
-                    self.transport.message_writer.as_ref(),
+            let data_writer_handle = InstanceHandle::new(
+                Guid::new(
+                    Guid::from(*self.domain_participant.instance_handle.as_ref()).prefix(),
+                    ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
                 )
-                .await
-                .ok();
-            }
+                .into(),
+            );
+            let timestamp = self.get_current_time();
+            self.write_w_timestamp(
+                participant_address,
+                self.domain_participant.builtin_publisher.instance_handle,
+                data_writer_handle,
+                spdp_discovered_participant_data.create_dynamic_sample(),
+                timestamp,
+            )
+            .await
+            .ok();
         }
     }
 
@@ -4604,6 +4611,7 @@ where
     pub async fn add_builtin_participants_detector_cache_change(
         &mut self,
         cache_change: CacheChange,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
     ) {
         match cache_change.kind {
             ChangeKind::Alive => {
@@ -4614,8 +4622,11 @@ where
                     let discovered_participant_data =
                         SpdpDiscoveredParticipantData::create_sample(dynamic_data);
 
-                    self.add_discovered_participant(discovered_participant_data)
-                        .await;
+                    self.add_discovered_participant(
+                        discovered_participant_data,
+                        participant_address,
+                    )
+                    .await;
                 }
             }
             ChangeKind::NotAliveDisposed | ChangeKind::NotAliveDisposedUnregistered => {
@@ -5683,6 +5694,7 @@ where
     async fn add_discovered_participant(
         &mut self,
         discovered_participant_data: SpdpDiscoveredParticipantData,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
     ) {
         // Check that the domainId of the discovered participant equals the local one.
         // If it is not equal then there the local endpoints are not configured to
@@ -5723,7 +5735,7 @@ where
             self.add_matched_topics_announcer(&discovered_participant_data)
                 .await;
 
-            self.announce_participant().await;
+            self.announce_participant(participant_address).await;
         }
 
         self.domain_participant

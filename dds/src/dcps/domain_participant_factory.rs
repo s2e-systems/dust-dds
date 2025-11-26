@@ -187,7 +187,9 @@ impl<T: TransportParticipantFactory> DcpsParticipantFactory<T> {
         spawner_handle.spawn(async move {
             while participant_address
                 .send(DcpsDomainParticipantMail::Discovery(
-                    DiscoveryServiceMail::AnnounceParticipant,
+                    DiscoveryServiceMail::AnnounceParticipant {
+                        participant_address: participant_address.clone(),
+                    },
                 ))
                 .await
                 .is_ok()
@@ -214,9 +216,13 @@ impl<T: TransportParticipantFactory> DcpsParticipantFactory<T> {
 
         if self.qos.entity_factory.autoenable_created_entities {
             let (reply_sender, _reply_receiver) = oneshot();
+            let participant_address = participant_sender.clone();
             participant_sender
                 .send(DcpsDomainParticipantMail::Participant(
-                    ParticipantServiceMail::Enable { reply_sender },
+                    ParticipantServiceMail::Enable {
+                        participant_address,
+                        reply_sender,
+                    },
                 ))
                 .await
                 .ok();
