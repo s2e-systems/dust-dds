@@ -1,11 +1,10 @@
-use std::path::Path;
-
-use generator::rust;
-use pest::Parser;
-
 mod generator;
 mod parser;
 mod preprocessor;
+
+use self::generator::{Context, rust};
+use pest::Parser;
+use std::path::Path;
 
 pub fn compile_idl(idl_filepath: &Path) -> Result<String, String> {
     let processed_idl =
@@ -15,7 +14,8 @@ pub fn compile_idl(idl_filepath: &Path) -> Result<String, String> {
         .next()
         .expect("Must contain a specification");
 
-    let mut output = String::new();
-    rust::generate_rust_source(parsed_idl, &mut output);
-    Ok(output)
+    let mut ctx = Context::<String>::default();
+    rust::generate_rust_source(parsed_idl, &mut ctx).map_err(|err| err.to_string())?;
+
+    Ok(ctx.writer)
 }
