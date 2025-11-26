@@ -1093,12 +1093,17 @@ pub enum HistoryQosPolicyKind {
 }
 
 impl TypeSupport for HistoryQosPolicyKind {
+    #[inline]
+    fn get_type_name() -> &'static str {
+        "HistoryQosPolicyKind"
+    }
+
     fn get_type() -> crate::xtypes::dynamic_type::DynamicType {
         extern crate alloc;
         let builder = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
             dust_dds::xtypes::dynamic_type::TypeDescriptor {
                 kind: dust_dds::xtypes::dynamic_type::TypeKind::ENUM,
-                name: alloc::string::String::from("HistoryQosPolicyKind"),
+                name: alloc::string::String::from(Self::get_type_name()),
                 base_type: None,
                 discriminator_type: Some(
                     dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::get_primitive_type(
@@ -1164,12 +1169,17 @@ impl HistoryQosPolicy {
 }
 
 impl dust_dds::infrastructure::type_support::TypeSupport for HistoryQosPolicy {
+    #[inline]
+    fn get_type_name() -> &'static str {
+        "HistoryQosPolicy"
+    }
+
     fn get_type() -> dust_dds::xtypes::dynamic_type::DynamicType {
         extern crate alloc;
         let mut builder = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
             dust_dds::xtypes::dynamic_type::TypeDescriptor {
                 kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
-                name: alloc::string::String::from("HistoryQosPolicy"),
+                name: alloc::string::String::from(Self::get_type_name()),
                 base_type: None,
                 discriminator_type: None,
                 bound: alloc::vec::Vec::new(),
