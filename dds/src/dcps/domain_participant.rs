@@ -81,7 +81,7 @@ use crate::{
         types::{PROTOCOLVERSION, VENDOR_ID_S2E},
     },
     rtps_messages::overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
-    runtime::{Clock, DdsRuntime, Spawner, Timer},
+    runtime::{Clock, DdsRuntime, Either, Spawner, Timer, select_future},
     transport::{
         self,
         interface::{RtpsTransportParticipant, WriteMessage},
@@ -2672,29 +2672,67 @@ where
                 if s.samples.len() == depth as usize {
                     if let Some(&smallest_seq_num_instance) = s.samples.front() {
                         if data_writer.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
-                            let start_time = self.clock_handle.now();
                             if let TransportWriterKind::Stateful(w) = &data_writer.transport_writer
                             {
+                                let mut timer_handle = self.timer_handle.clone();
+                                let max_blocking_time =
+                                    data_writer.qos.reliability.max_blocking_time;
+                                let (
+                                    acknowledgment_notification_sender,
+                                    acknowledgment_notification_receiver,
+                                ) = oneshot::<()>();
+                                data_writer.acknowledgement_notification =
+                                    Some(acknowledgment_notification_sender);
                                 if !w.is_change_acknowledged(smallest_seq_num_instance) {
                                     let participant_address_clone = participant_address.clone();
                                     self.spawner_handle.spawn(async move {
-                                        //  data_writer.qos.reliability.max_blocking_time
-                                        reply_sender.send(Err(DdsError::Timeout));
-                                        return;
-
-                                        participant_address_clone
-                                            .send(DcpsDomainParticipantMail::Writer(
-                                                WriterServiceMail::WriteWTimestamp {
-                                                    participant_address: participant_address_clone
-                                                        .clone(),
-                                                    publisher_handle,
-                                                    data_writer_handle,
-                                                    dynamic_data,
-                                                    timestamp,
-                                                    reply_sender,
-                                                },
-                                            ))
-                                            .await;
+                                        if let DurationKind::Finite(t) = max_blocking_time {
+                                            let max_blocking_time_wait =
+                                                timer_handle.delay(t.into());
+                                            match select_future(
+                                                acknowledgment_notification_receiver,
+                                                max_blocking_time_wait,
+                                            )
+                                            .await
+                                            {
+                                                Either::A(_) => {
+                                                    participant_address_clone
+                                                        .send(DcpsDomainParticipantMail::Writer(
+                                                            WriterServiceMail::WriteWTimestamp {
+                                                                participant_address:
+                                                                    participant_address_clone
+                                                                        .clone(),
+                                                                publisher_handle,
+                                                                data_writer_handle,
+                                                                dynamic_data,
+                                                                timestamp,
+                                                                reply_sender,
+                                                            },
+                                                        ))
+                                                        .await
+                                                        .ok();
+                                                }
+                                                Either::B(_) => {
+                                                    reply_sender.send(Err(DdsError::Timeout))
+                                                }
+                                            };
+                                        } else {
+                                            acknowledgment_notification_receiver.await;
+                                            participant_address_clone
+                                                .send(DcpsDomainParticipantMail::Writer(
+                                                    WriterServiceMail::WriteWTimestamp {
+                                                        participant_address:
+                                                            participant_address_clone.clone(),
+                                                        publisher_handle,
+                                                        data_writer_handle,
+                                                        dynamic_data,
+                                                        timestamp,
+                                                        reply_sender,
+                                                    },
+                                                ))
+                                                .await
+                                                .ok();
+                                        }
                                     });
                                     return;
                                 }
@@ -7049,6 +7087,7 @@ struct DataWriterEntity {
     offered_deadline_missed_status: OfferedDeadlineMissedStatus,
     instance_publication_time: Vec<InstancePublicationTime>,
     instance_samples: Vec<InstanceSamples>,
+    acknowledgement_notification: Option<OneshotSender<()>>,
 }
 
 impl DataWriterEntity {
@@ -7085,6 +7124,7 @@ impl DataWriterEntity {
             offered_deadline_missed_status: OfferedDeadlineMissedStatus::const_default(),
             instance_publication_time: Vec::new(),
             instance_samples: Vec::new(),
+            acknowledgement_notification: None,
         }
     }
 
