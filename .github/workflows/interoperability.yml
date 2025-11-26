@@ -22,7 +22,8 @@ jobs:
       run: cargo build --package dust_dds_shape_main_linux --release --manifest-path dds-rtps/srcRs/DustDDS/Cargo.toml --config patch.crates-io.dust_dds.path="'dust-dds/dds'"
     - name: Zip executable  # Zipping done here to preserve executable bit
       run: |
-        version=$( cargo tree --package dust_dds --depth 0 --prefix none | tr -d 'dust_dds v' )
+        version=$( cargo tree --package dust_dds --depth 0 --prefix none | sed -n 's/.*v\([0-9.]*\).*/\1/p' )
+        echo $version
         cp ../dds-rtps/srcRs/DustDDS/target/release/dust_dds_shape_main_linux dust_dds-${version}_shape_main_linux
         mkdir ../artifacts
         zip --junk-paths ../artifacts/dust_dds-${version}_shape_main_linux.zip dust_dds-${version}_shape_main_linux
