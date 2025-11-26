@@ -1,6 +1,6 @@
 use crate::{
     dcps::{
-        actor::{ActorAddress, MailHandler},
+        actor::ActorAddress,
         channels::{mpsc::MpscSender, oneshot::OneshotSender},
         domain_participant_factory::DcpsParticipantFactory,
         domain_participant_mail::DcpsDomainParticipantMail,
@@ -64,10 +64,8 @@ pub enum DcpsParticipantFactoryMail<R: DdsRuntime> {
     },
 }
 
-impl<R: DdsRuntime, T: TransportParticipantFactory> MailHandler for DcpsParticipantFactory<R, T> {
-    type Mail = DcpsParticipantFactoryMail<R>;
-
-    async fn handle(&mut self, message: Self::Mail) {
+impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T> {
+    pub async fn handle(&mut self, message: DcpsParticipantFactoryMail<R>) {
         match message {
             DcpsParticipantFactoryMail::CreateParticipant {
                 domain_id,
