@@ -69,8 +69,8 @@ jobs:
     steps:
       - checkout
       - run: cargo --version
-      - run: cargo clippy --verbose --all-features --all-targets --all
-      - run: cargo fmt --verbose --check --all
+      - run: cargo clippy --all-features --all-targets --all
+      - run: cargo fmt --check --all
   benchmark:
     docker:
       - image: cimg/rust:1.87.0
