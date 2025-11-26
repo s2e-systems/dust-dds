@@ -119,8 +119,8 @@ jobs:
     - name: Checkout omg-dds dds-rtps
       uses: actions/checkout@v4
       with:
-        repository: s2e-systems/dds-rtps
-        ref: update-dust-dds-src
+        repository: omg-dds/dds-rtps
+        ref: 'v2.0.2025'
         path: omg-dds-rtps
     - uses: actions/setup-python@v5
       with:
