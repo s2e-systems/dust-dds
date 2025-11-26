@@ -117,28 +117,28 @@ use core::{
 use regex::Regex;
 use tracing::info;
 
-pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
+const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
     EntityId::new([0x00, 0x01, 0x00], BUILT_IN_WRITER_WITH_KEY);
 
-pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER: EntityId =
+const ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER: EntityId =
     EntityId::new([0x00, 0x01, 0x00], BUILT_IN_READER_WITH_KEY);
 
-pub const ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER: EntityId =
+const ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER: EntityId =
     EntityId::new([0, 0, 0x02], BUILT_IN_WRITER_WITH_KEY);
 
-pub const ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR: EntityId =
+const ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR: EntityId =
     EntityId::new([0, 0, 0x02], BUILT_IN_READER_WITH_KEY);
 
-pub const ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER: EntityId =
+const ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER: EntityId =
     EntityId::new([0, 0, 0x03], BUILT_IN_WRITER_WITH_KEY);
 
-pub const ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR: EntityId =
+const ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR: EntityId =
     EntityId::new([0, 0, 0x03], BUILT_IN_READER_WITH_KEY);
 
-pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER: EntityId =
+const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER: EntityId =
     EntityId::new([0, 0, 0x04], BUILT_IN_WRITER_WITH_KEY);
 
-pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR: EntityId =
+const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR: EntityId =
     EntityId::new([0, 0, 0x04], BUILT_IN_READER_WITH_KEY);
 
 struct DcpsParticipantReaderHistoryCache {
@@ -166,7 +166,7 @@ impl HistoryCache for DcpsParticipantReaderHistoryCache {
 }
 
 struct DcpsTopicsReaderHistoryCache {
-    pub participant_address: MpscSender<DcpsDomainParticipantMail>,
+    participant_address: MpscSender<DcpsDomainParticipantMail>,
 }
 
 impl HistoryCache for DcpsTopicsReaderHistoryCache {
@@ -190,7 +190,7 @@ impl HistoryCache for DcpsTopicsReaderHistoryCache {
 }
 
 struct DcpsSubscriptionsReaderHistoryCache {
-    pub participant_address: MpscSender<DcpsDomainParticipantMail>,
+    participant_address: MpscSender<DcpsDomainParticipantMail>,
 }
 
 impl HistoryCache for DcpsSubscriptionsReaderHistoryCache {
@@ -217,7 +217,7 @@ impl HistoryCache for DcpsSubscriptionsReaderHistoryCache {
 }
 
 struct DcpsPublicationsReaderHistoryCache {
-    pub participant_address: MpscSender<DcpsDomainParticipantMail>,
+    participant_address: MpscSender<DcpsDomainParticipantMail>,
 }
 
 impl HistoryCache for DcpsPublicationsReaderHistoryCache {
@@ -243,7 +243,7 @@ impl HistoryCache for DcpsPublicationsReaderHistoryCache {
     }
 }
 
-pub fn poll_timeout<T>(
+fn poll_timeout<T>(
     mut timer_handle: impl Timer,
     duration: core::time::Duration,
     mut future: Pin<Box<dyn Future<Output = T> + Send>>,
@@ -862,8 +862,8 @@ where
         self.domain_participant.instance_handle
     }
 
-    pub fn get_builtin_subscriber(&self) -> &SubscriberEntity {
-        &self.domain_participant.builtin_subscriber
+    pub fn get_builtin_subscriber_status_condition(&self) -> &Actor<DcpsStatusCondition> {
+        &self.domain_participant.builtin_subscriber.status_condition
     }
 
     #[tracing::instrument(skip(self))]
@@ -1732,9 +1732,9 @@ where
         domain_participant_address: MpscSender<DcpsDomainParticipantMail>,
     ) -> DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)> {
         struct UserDefinedReaderHistoryCache {
-            pub domain_participant_address: MpscSender<DcpsDomainParticipantMail>,
-            pub subscriber_handle: InstanceHandle,
-            pub data_reader_handle: InstanceHandle,
+            domain_participant_address: MpscSender<DcpsDomainParticipantMail>,
+            subscriber_handle: InstanceHandle,
+            data_reader_handle: InstanceHandle,
         }
 
         impl HistoryCache for UserDefinedReaderHistoryCache {
@@ -6474,14 +6474,14 @@ fn fnmatch_to_regex(pattern: &str) -> String {
     out
 }
 
-pub const BUILT_IN_TOPIC_NAME_LIST: [&str; 4] = [
+const BUILT_IN_TOPIC_NAME_LIST: [&str; 4] = [
     DCPS_PARTICIPANT,
     DCPS_TOPIC,
     DCPS_PUBLICATION,
     DCPS_SUBSCRIPTION,
 ];
 
-pub struct DomainParticipantEntity {
+struct DomainParticipantEntity {
     domain_id: DomainId,
     domain_tag: String,
     instance_handle: InstanceHandle,
@@ -6509,7 +6509,7 @@ pub struct DomainParticipantEntity {
 
 impl DomainParticipantEntity {
     #[allow(clippy::too_many_arguments)]
-    pub const fn new(
+    const fn new(
         domain_id: DomainId,
         domain_participant_qos: DomainParticipantQos,
         listener_sender: Option<MpscSender<ListenerMail>>,
@@ -6547,15 +6547,11 @@ impl DomainParticipantEntity {
         }
     }
 
-    pub fn instance_handle(&self) -> InstanceHandle {
-        self.instance_handle
-    }
-
-    pub fn builtin_subscriber(&self) -> &SubscriberEntity {
+    fn builtin_subscriber(&self) -> &SubscriberEntity {
         &self.builtin_subscriber
     }
 
-    pub fn add_discovered_topic(&mut self, topic_builtin_topic_data: TopicBuiltinTopicData) {
+    fn add_discovered_topic(&mut self, topic_builtin_topic_data: TopicBuiltinTopicData) {
         match self
             .discovered_topic_list
             .iter_mut()
@@ -6566,12 +6562,12 @@ impl DomainParticipantEntity {
         }
     }
 
-    pub fn remove_discovered_writer(&mut self, discovered_writer_handle: &InstanceHandle) {
+    fn remove_discovered_writer(&mut self, discovered_writer_handle: &InstanceHandle) {
         self.discovered_writer_list
             .retain(|x| &x.dds_publication_data.key().value != discovered_writer_handle.as_ref());
     }
 
-    pub fn get_discovered_topic_data(
+    fn get_discovered_topic_data(
         &self,
         topic_handle: &InstanceHandle,
     ) -> Option<&TopicBuiltinTopicData> {
@@ -6580,13 +6576,13 @@ impl DomainParticipantEntity {
             .find(|x| &x.key().value == topic_handle.as_ref())
     }
 
-    pub fn find_topic(&self, topic_name: &str) -> Option<&TopicBuiltinTopicData> {
+    fn find_topic(&self, topic_name: &str) -> Option<&TopicBuiltinTopicData> {
         self.discovered_topic_list
             .iter()
             .find(|&discovered_topic_data| discovered_topic_data.name() == topic_name)
     }
 
-    pub fn add_discovered_participant(
+    fn add_discovered_participant(
         &mut self,
         discovered_participant_data: SpdpDiscoveredParticipantData,
     ) {
@@ -6600,7 +6596,7 @@ impl DomainParticipantEntity {
         }
     }
 
-    pub fn add_discovered_reader(&mut self, discovered_reader_data: DiscoveredReaderData) {
+    fn add_discovered_reader(&mut self, discovered_reader_data: DiscoveredReaderData) {
         match self.discovered_reader_list.iter_mut().find(|x| {
             x.dds_subscription_data.key() == discovered_reader_data.dds_subscription_data.key()
         }) {
@@ -6609,12 +6605,12 @@ impl DomainParticipantEntity {
         }
     }
 
-    pub fn remove_discovered_reader(&mut self, discovered_reader_handle: &InstanceHandle) {
+    fn remove_discovered_reader(&mut self, discovered_reader_handle: &InstanceHandle) {
         self.discovered_reader_list
             .retain(|x| &x.dds_subscription_data.key().value != discovered_reader_handle.as_ref());
     }
 
-    pub fn add_discovered_writer(&mut self, discovered_writer_data: DiscoveredWriterData) {
+    fn add_discovered_writer(&mut self, discovered_writer_data: DiscoveredWriterData) {
         match self.discovered_writer_list.iter_mut().find(|x| {
             x.dds_publication_data.key() == discovered_writer_data.dds_publication_data.key()
         }) {
@@ -6623,7 +6619,7 @@ impl DomainParticipantEntity {
         }
     }
 
-    pub fn remove_subscriber(&mut self, handle: &InstanceHandle) -> Option<SubscriberEntity> {
+    fn remove_subscriber(&mut self, handle: &InstanceHandle) -> Option<SubscriberEntity> {
         let i = self
             .user_defined_subscriber_list
             .iter()
@@ -6632,7 +6628,7 @@ impl DomainParticipantEntity {
         Some(self.user_defined_subscriber_list.remove(i))
     }
 
-    pub fn remove_publisher(&mut self, handle: &InstanceHandle) -> Option<PublisherEntity> {
+    fn remove_publisher(&mut self, handle: &InstanceHandle) -> Option<PublisherEntity> {
         let i = self
             .user_defined_publisher_list
             .iter()
@@ -6641,7 +6637,7 @@ impl DomainParticipantEntity {
         Some(self.user_defined_publisher_list.remove(i))
     }
 
-    pub fn is_empty(&self) -> bool {
+    fn is_empty(&self) -> bool {
         let no_user_defined_topics = self
             .topic_description_list
             .iter()
@@ -6655,7 +6651,7 @@ impl DomainParticipantEntity {
     }
 }
 
-pub struct ContentFilteredTopicEntity {
+struct ContentFilteredTopicEntity {
     topic_name: String,
     related_topic_name: String,
     filter_expression: String,
@@ -6663,7 +6659,7 @@ pub struct ContentFilteredTopicEntity {
 }
 
 impl ContentFilteredTopicEntity {
-    pub fn new(
+    fn new(
         name: String,
         related_topic_name: String,
         filter_expression: String,
@@ -6678,7 +6674,7 @@ impl ContentFilteredTopicEntity {
     }
 }
 
-pub struct SubscriberEntity {
+struct SubscriberEntity {
     instance_handle: InstanceHandle,
     qos: SubscriberQos,
     data_reader_list: Vec<DataReaderEntity>,
@@ -6690,7 +6686,7 @@ pub struct SubscriberEntity {
 }
 
 impl SubscriberEntity {
-    pub const fn new(
+    const fn new(
         instance_handle: InstanceHandle,
         qos: SubscriberQos,
         data_reader_list: Vec<DataReaderEntity>,
@@ -6709,19 +6705,15 @@ impl SubscriberEntity {
             listener_mask,
         }
     }
-
-    pub fn status_condition(&self) -> &Actor<DcpsStatusCondition> {
-        &self.status_condition
-    }
 }
 
-pub enum TopicDescriptionKind {
+enum TopicDescriptionKind {
     Topic(TopicEntity),
     ContentFilteredTopic(ContentFilteredTopicEntity),
 }
 
 impl TopicDescriptionKind {
-    pub fn topic_name(&self) -> &str {
+    fn topic_name(&self) -> &str {
         match self {
             TopicDescriptionKind::Topic(t) => &t.topic_name,
             TopicDescriptionKind::ContentFilteredTopic(t) => &t.topic_name,
@@ -6729,7 +6721,7 @@ impl TopicDescriptionKind {
     }
 }
 
-pub struct TopicEntity {
+struct TopicEntity {
     qos: TopicQos,
     type_name: String,
     topic_name: String,
@@ -6744,7 +6736,7 @@ pub struct TopicEntity {
 
 impl TopicEntity {
     #[allow(clippy::too_many_arguments)]
-    pub const fn new(
+    const fn new(
         qos: TopicQos,
         type_name: String,
         topic_name: String,
@@ -6769,7 +6761,7 @@ impl TopicEntity {
     }
 }
 
-pub struct PublisherEntity {
+struct PublisherEntity {
     qos: PublisherQos,
     instance_handle: InstanceHandle,
     data_writer_list: Vec<DataWriterEntity>,
@@ -6780,7 +6772,7 @@ pub struct PublisherEntity {
 }
 
 impl PublisherEntity {
-    pub const fn new(
+    const fn new(
         qos: PublisherQos,
         instance_handle: InstanceHandle,
         data_writer_list: Vec<DataWriterEntity>,
@@ -6799,20 +6791,20 @@ impl PublisherEntity {
     }
 }
 
-pub enum TransportWriterKind {
+enum TransportWriterKind {
     Stateful(RtpsStatefulWriter),
     Stateless(RtpsStatelessWriter),
 }
 
 impl TransportWriterKind {
-    pub fn guid(&self) -> Guid {
+    fn guid(&self) -> Guid {
         match self {
             TransportWriterKind::Stateful(w) => w.guid(),
             TransportWriterKind::Stateless(w) => w.guid(),
         }
     }
 
-    pub async fn add_change(
+    async fn add_change(
         &mut self,
         cache_change: CacheChange,
         message_writer: &(impl WriteMessage + ?Sized),
@@ -6826,7 +6818,7 @@ impl TransportWriterKind {
         }
     }
 
-    pub async fn remove_change(&mut self, sequence_number: i64) {
+    async fn remove_change(&mut self, sequence_number: i64) {
         match self {
             TransportWriterKind::Stateful(w) => w.remove_change(sequence_number),
             TransportWriterKind::Stateless(w) => w.remove_change(sequence_number),
@@ -6834,17 +6826,17 @@ impl TransportWriterKind {
     }
 }
 
-pub struct InstancePublicationTime {
+struct InstancePublicationTime {
     instance: InstanceHandle,
     last_write_time: Time,
 }
 
-pub struct InstanceSamples {
+struct InstanceSamples {
     instance: InstanceHandle,
     samples: VecDeque<i64>,
 }
 
-pub struct DataWriterEntity {
+struct DataWriterEntity {
     instance_handle: InstanceHandle,
     transport_writer: TransportWriterKind,
     topic_name: String,
@@ -6869,7 +6861,7 @@ pub struct DataWriterEntity {
 
 impl DataWriterEntity {
     #[allow(clippy::too_many_arguments)]
-    pub const fn new(
+    const fn new(
         instance_handle: InstanceHandle,
         transport_writer: TransportWriterKind,
         topic_name: String,
@@ -6904,7 +6896,7 @@ impl DataWriterEntity {
         }
     }
 
-    pub async fn write_w_timestamp(
+    async fn write_w_timestamp(
         &mut self,
         dynamic_data: DynamicData,
         timestamp: Time,
@@ -7060,7 +7052,7 @@ impl DataWriterEntity {
         Ok(self.last_change_sequence_number)
     }
 
-    pub async fn dispose_w_timestamp(
+    async fn dispose_w_timestamp(
         &mut self,
         mut dynamic_data: DynamicData,
         timestamp: Time,
@@ -7122,7 +7114,7 @@ impl DataWriterEntity {
         Ok(())
     }
 
-    pub async fn unregister_w_timestamp(
+    async fn unregister_w_timestamp(
         &mut self,
         mut dynamic_data: DynamicData,
         timestamp: Time,
@@ -7192,7 +7184,7 @@ impl DataWriterEntity {
         Ok(())
     }
 
-    pub fn add_matched_subscription(
+    fn add_matched_subscription(
         &mut self,
         subscription_builtin_topic_data: SubscriptionBuiltinTopicData,
     ) {
@@ -7212,7 +7204,7 @@ impl DataWriterEntity {
         self.publication_matched_status.total_count_change += 1;
     }
 
-    pub fn remove_matched_subscription(&mut self, subscription_handle: &InstanceHandle) {
+    fn remove_matched_subscription(&mut self, subscription_handle: &InstanceHandle) {
         let Some(i) = self
             .matched_subscription_list
             .iter()
@@ -7225,7 +7217,7 @@ impl DataWriterEntity {
         self.publication_matched_status.current_count_change -= 1;
     }
 
-    pub fn add_incompatible_subscription(
+    fn add_incompatible_subscription(
         &mut self,
         handle: InstanceHandle,
         incompatible_qos_policy_list: Vec<QosPolicyId>,
@@ -7256,13 +7248,13 @@ impl DataWriterEntity {
         }
     }
 
-    pub fn get_offered_incompatible_qos_status(&mut self) -> OfferedIncompatibleQosStatus {
+    fn get_offered_incompatible_qos_status(&mut self) -> OfferedIncompatibleQosStatus {
         let status = self.offered_incompatible_qos_status.clone();
         self.offered_incompatible_qos_status.total_count_change = 0;
         status
     }
 
-    pub fn get_publication_matched_status(&mut self) -> PublicationMatchedStatus {
+    fn get_publication_matched_status(&mut self) -> PublicationMatchedStatus {
         let status = self.publication_matched_status.clone();
         self.publication_matched_status.current_count_change = 0;
         self.publication_matched_status.total_count_change = 0;
@@ -7270,14 +7262,14 @@ impl DataWriterEntity {
         status
     }
 
-    pub fn get_instance_write_time(&self, instance_handle: InstanceHandle) -> Option<Time> {
+    fn get_instance_write_time(&self, instance_handle: InstanceHandle) -> Option<Time> {
         self.instance_publication_time
             .iter()
             .find(|x| x.instance == instance_handle)
             .map(|x| x.last_write_time)
     }
 
-    pub async fn are_all_changes_acknowledged(&self) -> bool {
+    async fn are_all_changes_acknowledged(&self) -> bool {
         match &self.transport_writer {
             TransportWriterKind::Stateful(w) => {
                 w.is_change_acknowledged(self.last_change_sequence_number)
@@ -7286,7 +7278,7 @@ impl DataWriterEntity {
         }
     }
 
-    pub async fn get_offered_deadline_missed_status(&mut self) -> OfferedDeadlineMissedStatus {
+    async fn get_offered_deadline_missed_status(&mut self) -> OfferedDeadlineMissedStatus {
         let status = self.offered_deadline_missed_status.clone();
         self.offered_deadline_missed_status.total_count_change = 0;
         self.status_condition
@@ -7301,7 +7293,7 @@ impl DataWriterEntity {
 
 type SampleList = Vec<(Option<DynamicData>, SampleInfo)>;
 
-pub enum AddChangeResult {
+enum AddChangeResult {
     Added(InstanceHandle),
     NotAdded,
     Rejected(InstanceHandle, SampleRejectedStatusKind),
@@ -7373,30 +7365,30 @@ impl InstanceState {
 }
 
 #[derive(Debug)]
-pub struct ReaderSample {
-    pub kind: ChangeKind,
-    pub writer_guid: [u8; 16],
-    pub instance_handle: InstanceHandle,
-    pub source_timestamp: Option<Time>,
-    pub data_value: DynamicData,
-    pub sample_state: SampleStateKind,
-    pub disposed_generation_count: i32,
-    pub no_writers_generation_count: i32,
-    pub reception_timestamp: Time,
+struct ReaderSample {
+    kind: ChangeKind,
+    writer_guid: [u8; 16],
+    instance_handle: InstanceHandle,
+    source_timestamp: Option<Time>,
+    data_value: DynamicData,
+    sample_state: SampleStateKind,
+    disposed_generation_count: i32,
+    no_writers_generation_count: i32,
+    reception_timestamp: Time,
 }
 
-pub struct IndexedSample {
-    pub index: usize,
-    pub sample: (Option<DynamicData>, SampleInfo),
+struct IndexedSample {
+    index: usize,
+    sample: (Option<DynamicData>, SampleInfo),
 }
 
-pub enum TransportReaderKind {
+enum TransportReaderKind {
     Stateful(RtpsStatefulReader),
     Stateless(RtpsStatelessReader),
 }
 
 impl TransportReaderKind {
-    pub fn guid(&self) -> Guid {
+    fn guid(&self) -> Guid {
         match self {
             TransportReaderKind::Stateful(r) => r.guid(),
             TransportReaderKind::Stateless(r) => r.guid(),
@@ -7410,7 +7402,7 @@ struct InstanceOwnership {
     last_received_time: Time,
 }
 
-pub struct DataReaderEntity {
+struct DataReaderEntity {
     instance_handle: InstanceHandle,
     sample_list: Vec<ReaderSample>,
     qos: DataReaderQos,
@@ -7434,7 +7426,7 @@ pub struct DataReaderEntity {
 
 impl DataReaderEntity {
     #[allow(clippy::too_many_arguments)]
-    pub const fn new(
+    const fn new(
         instance_handle: InstanceHandle,
         qos: DataReaderQos,
         topic_name: String,
@@ -7721,7 +7713,7 @@ impl DataReaderEntity {
         })
     }
 
-    pub fn add_reader_change(
+    fn add_reader_change(
         &mut self,
         cache_change: CacheChange,
         reception_timestamp: Time,
@@ -7962,7 +7954,7 @@ impl DataReaderEntity {
         Ok(AddChangeResult::Added(change_instance_handle))
     }
 
-    pub fn add_matched_publication(
+    fn add_matched_publication(
         &mut self,
         publication_builtin_topic_data: PublicationBuiltinTopicData,
     ) {
@@ -7983,19 +7975,19 @@ impl DataReaderEntity {
         self.subscription_matched_status.total_count_change += 1;
     }
 
-    pub fn increment_requested_deadline_missed_status(&mut self, instance_handle: InstanceHandle) {
+    fn increment_requested_deadline_missed_status(&mut self, instance_handle: InstanceHandle) {
         self.requested_deadline_missed_status.total_count += 1;
         self.requested_deadline_missed_status.total_count_change += 1;
         self.requested_deadline_missed_status.last_instance_handle = instance_handle;
     }
 
-    pub fn get_requested_deadline_missed_status(&mut self) -> RequestedDeadlineMissedStatus {
+    fn get_requested_deadline_missed_status(&mut self) -> RequestedDeadlineMissedStatus {
         let status = self.requested_deadline_missed_status.clone();
         self.requested_deadline_missed_status.total_count_change = 0;
         status
     }
 
-    pub fn remove_instance_ownership(&mut self, instance_handle: &InstanceHandle) {
+    fn remove_instance_ownership(&mut self, instance_handle: &InstanceHandle) {
         if let Some(i) = self
             .instance_ownership
             .iter()
@@ -8005,7 +7997,7 @@ impl DataReaderEntity {
         }
     }
 
-    pub fn add_requested_incompatible_qos(
+    fn add_requested_incompatible_qos(
         &mut self,
         handle: InstanceHandle,
         incompatible_qos_policy_list: Vec<QosPolicyId>,
@@ -8035,13 +8027,13 @@ impl DataReaderEntity {
         }
     }
 
-    pub fn get_requested_incompatible_qos_status(&mut self) -> RequestedIncompatibleQosStatus {
+    fn get_requested_incompatible_qos_status(&mut self) -> RequestedIncompatibleQosStatus {
         let status = self.requested_incompatible_qos_status.clone();
         self.requested_incompatible_qos_status.total_count_change = 0;
         status
     }
 
-    pub fn increment_sample_rejected_status(
+    fn increment_sample_rejected_status(
         &mut self,
         sample_handle: InstanceHandle,
         sample_rejected_status_kind: SampleRejectedStatusKind,
@@ -8052,14 +8044,14 @@ impl DataReaderEntity {
         self.sample_rejected_status.total_count_change += 1;
     }
 
-    pub fn get_sample_rejected_status(&mut self) -> SampleRejectedStatus {
+    fn get_sample_rejected_status(&mut self) -> SampleRejectedStatus {
         let status = self.sample_rejected_status.clone();
         self.sample_rejected_status.total_count_change = 0;
 
         status
     }
 
-    pub fn get_subscription_matched_status(&mut self) -> SubscriptionMatchedStatus {
+    fn get_subscription_matched_status(&mut self) -> SubscriptionMatchedStatus {
         let status = self.subscription_matched_status.clone();
 
         self.subscription_matched_status.total_count_change = 0;
@@ -8068,21 +8060,21 @@ impl DataReaderEntity {
         status
     }
 
-    pub fn get_matched_publications(&self) -> Vec<InstanceHandle> {
+    fn get_matched_publications(&self) -> Vec<InstanceHandle> {
         self.matched_publication_list
             .iter()
             .map(|x| InstanceHandle::new(x.key().value))
             .collect()
     }
 
-    pub fn get_instance_received_time(&self, instance_handle: &InstanceHandle) -> Option<Time> {
+    fn get_instance_received_time(&self, instance_handle: &InstanceHandle) -> Option<Time> {
         self.instance_ownership
             .iter()
             .find(|x| &x.instance_handle == instance_handle)
             .map(|x| x.last_received_time)
     }
 
-    pub async fn remove_matched_publication(&mut self, publication_handle: &InstanceHandle) {
+    async fn remove_matched_publication(&mut self, publication_handle: &InstanceHandle) {
         let Some(i) = self
             .matched_publication_list
             .iter()
@@ -8100,7 +8092,7 @@ impl DataReaderEntity {
             .await;
     }
 
-    pub async fn read(
+    async fn read(
         &mut self,
         max_samples: i32,
         sample_states: &[SampleStateKind],
@@ -8141,7 +8133,7 @@ impl DataReaderEntity {
         Ok(samples)
     }
 
-    pub async fn take(
+    async fn take(
         &mut self,
         max_samples: i32,
         sample_states: Vec<SampleStateKind>,
@@ -8182,7 +8174,7 @@ impl DataReaderEntity {
         Ok(samples)
     }
 
-    pub async fn take_next_instance(
+    async fn take_next_instance(
         &mut self,
         max_samples: i32,
         previous_handle: Option<InstanceHandle>,
@@ -8209,7 +8201,7 @@ impl DataReaderEntity {
         }
     }
 
-    pub async fn read_next_instance(
+    async fn read_next_instance(
         &mut self,
         max_samples: i32,
         previous_handle: Option<InstanceHandle>,

@@ -125,8 +125,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
         );
         let participant_instance_handle = dcps_participant.get_instance_handle();
         let builtin_subscriber_status_condition_address = dcps_participant
-            .get_builtin_subscriber()
-            .status_condition()
+            .get_builtin_subscriber_status_condition()
             .address();
 
         enum Either<A, B> {
