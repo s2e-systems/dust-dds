@@ -119,16 +119,9 @@ jobs:
     - name: Checkout omg-dds dds-rtps
       uses: actions/checkout@v4
       with:
-        repository: omg-dds/dds-rtps
-        ref: '9e1fdbcd30bc785e5e5113a94e5e936695a3385e'
+        repository: s2e-systems/dds-rtps
+        ref: update-dust-dds-src
         path: omg-dds-rtps
-        sparse-checkout-cone-mode: false
-        sparse-checkout: |
-          generate_xlsx_report.py
-          rtps_test_utilities.py
-          test_suite.py
-          test_suite_functions.py
-          requirements.txt
     - uses: actions/setup-python@v5
       with:
         python-version: '3.11.4'
