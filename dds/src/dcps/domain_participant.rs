@@ -2575,8 +2575,6 @@ where
             return;
         }
 
-        data_writer.last_change_sequence_number += 1;
-
         let instance_handle = match get_instance_handle_from_dynamic_data(dynamic_data.clone()) {
             Ok(h) => h,
             Err(e) => {
@@ -2655,14 +2653,6 @@ where
             }
         };
 
-        let change = CacheChange {
-            kind: ChangeKind::Alive,
-            writer_guid: data_writer.transport_writer.guid(),
-            sequence_number: data_writer.last_change_sequence_number,
-            source_timestamp: Some(timestamp.into()),
-            instance_handle: Some(instance_handle.into()),
-            data_value: serialized_data.into(),
-        };
         if let HistoryQosPolicyKind::KeepLast(depth) = data_writer.qos.history.kind {
             if let Some(s) = data_writer
                 .instance_samples
@@ -2674,16 +2664,22 @@ where
                         if data_writer.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
                             if let TransportWriterKind::Stateful(w) = &data_writer.transport_writer
                             {
-                                let mut timer_handle = self.timer_handle.clone();
-                                let max_blocking_time =
-                                    data_writer.qos.reliability.max_blocking_time;
-                                let (
-                                    acknowledgment_notification_sender,
-                                    acknowledgment_notification_receiver,
-                                ) = oneshot::<()>();
-                                data_writer.acknowledgement_notification =
-                                    Some(acknowledgment_notification_sender);
                                 if !w.is_change_acknowledged(smallest_seq_num_instance) {
+                                    if data_writer.acknowledgement_notification.is_some() {
+                                        reply_sender.send(Err(DdsError::Error(String::from(
+                                            "Another writer already waiting for acknowledgements.",
+                                        ))));
+                                        return;
+                                    }
+                                    let mut timer_handle = self.timer_handle.clone();
+                                    let max_blocking_time =
+                                        data_writer.qos.reliability.max_blocking_time;
+                                    let (
+                                        acknowledgment_notification_sender,
+                                        acknowledgment_notification_receiver,
+                                    ) = oneshot::<()>();
+                                    data_writer.acknowledgement_notification =
+                                        Some(acknowledgment_notification_sender);
                                     let participant_address_clone = participant_address.clone();
                                     self.spawner_handle.spawn(async move {
                                         if let DurationKind::Finite(t) = max_blocking_time {
@@ -2717,7 +2713,7 @@ where
                                                 }
                                             };
                                         } else {
-                                            acknowledgment_notification_receiver.await;
+                                            acknowledgment_notification_receiver.await.ok();
                                             participant_address_clone
                                                 .send(DcpsDomainParticipantMail::Writer(
                                                     WriterServiceMail::WriteWTimestamp {
@@ -2749,6 +2745,15 @@ where
             }
         }
 
+        data_writer.last_change_sequence_number += 1;
+        let change = CacheChange {
+            kind: ChangeKind::Alive,
+            writer_guid: data_writer.transport_writer.guid(),
+            sequence_number: data_writer.last_change_sequence_number,
+            source_timestamp: Some(timestamp.into()),
+            instance_handle: Some(instance_handle.into()),
+            data_value: serialized_data.into(),
+        };
         let seq_num = change.sequence_number;
 
         if seq_num > data_writer.max_seq_num.unwrap_or(0) {
@@ -6396,13 +6401,20 @@ where
                             for dw in &mut publisher.data_writer_list {
                                 match &mut dw.transport_writer {
                                     TransportWriterKind::Stateful(w) => {
-                                        w.on_acknack_submessage_received(
-                                            ack_nack_submessage,
-                                            message_receiver.source_guid_prefix(),
-                                            self.transport.message_writer.as_ref(),
-                                            &self.clock_handle,
-                                        )
-                                        .await
+                                        if let Some(_) = w
+                                            .on_acknack_submessage_received(
+                                                ack_nack_submessage,
+                                                message_receiver.source_guid_prefix(),
+                                                self.transport.message_writer.as_ref(),
+                                                &self.clock_handle,
+                                            )
+                                            .await
+                                        {
+                                            if let Some(x) = dw.acknowledgement_notification.take()
+                                            {
+                                                x.send(());
+                                            }
+                                        }
                                     }
                                     TransportWriterKind::Stateless(_) => (),
                                 }
