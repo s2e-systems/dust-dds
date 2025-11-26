@@ -26,9 +26,10 @@ struct UserType(#[dust_dds(key)] i32);
 #[test]
 fn writer_discovers_reader_in_same_participant() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let dp = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
+    let dp: dust_dds::domain::domain_participant::DomainParticipant =
+        DomainParticipantFactory::get_instance()
+            .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+            .unwrap();
     let topic = dp
         .create_topic::<UserType>(
             "topic_name",
@@ -60,7 +61,15 @@ fn writer_discovers_reader_in_same_participant() {
         .unwrap();
     wait_set.wait(Duration::new(5, 0)).unwrap();
 
-    assert_eq!(data_writer.get_matched_subscriptions().unwrap().len(), 1);
+    let matched_subscriptions = data_writer.get_matched_subscriptions().unwrap();
+    assert_eq!(matched_subscriptions.len(), 1);
+    let matched_subscription_data = data_writer
+        .get_matched_subscription_data(matched_subscriptions[0])
+        .unwrap();
+    assert_eq!(
+        &matched_subscription_data.participant_key().value,
+        dp.get_instance_handle().as_ref()
+    )
 }
 
 #[test]
@@ -203,7 +212,15 @@ fn reader_discovers_writer_in_same_participant() {
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
-    assert_eq!(data_reader.get_matched_publications().unwrap().len(), 1);
+    let matched_publications = data_reader.get_matched_publications().unwrap();
+    assert_eq!(matched_publications.len(), 1);
+    let matched_publication_data = data_reader
+        .get_matched_publication_data(matched_publications[0])
+        .unwrap();
+    assert_eq!(
+        &matched_publication_data.participant_key().value,
+        dp.get_instance_handle().as_ref()
+    )
 }
 
 #[test]
