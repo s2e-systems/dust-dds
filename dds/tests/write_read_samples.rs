@@ -3084,7 +3084,7 @@ fn reader_joining_after_writer_writes_many_samples() {
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(15, 0)),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };

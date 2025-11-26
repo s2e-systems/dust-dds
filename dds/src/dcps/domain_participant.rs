@@ -2648,7 +2648,7 @@ where
         let serialized_data = match serialize(&dynamic_data, &data_writer.qos.representation) {
             Ok(s) => s,
             Err(e) => {
-                reply_sender.send(Err(e.into()));
+                reply_sender.send(Err(e));
                 return;
             }
         };
@@ -6401,14 +6401,14 @@ where
                             for dw in &mut publisher.data_writer_list {
                                 match &mut dw.transport_writer {
                                     TransportWriterKind::Stateful(w) => {
-                                        if let Some(_) = w
-                                            .on_acknack_submessage_received(
-                                                ack_nack_submessage,
-                                                message_receiver.source_guid_prefix(),
-                                                self.transport.message_writer.as_ref(),
-                                                &self.clock_handle,
-                                            )
-                                            .await
+                                        if w.on_acknack_submessage_received(
+                                            ack_nack_submessage,
+                                            message_receiver.source_guid_prefix(),
+                                            self.transport.message_writer.as_ref(),
+                                            &self.clock_handle,
+                                        )
+                                        .await
+                                        .is_some()
                                         {
                                             if let Some(x) = dw.acknowledgement_notification.take()
                                             {
