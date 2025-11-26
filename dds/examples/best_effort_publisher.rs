@@ -52,7 +52,7 @@ fn main() {
     wait_set.wait(Duration::new(60, 0)).unwrap();
 
     for id in 1..=10 {
-        let sample: BestEffortExampleType = BestEffortExampleType { id };
+        let sample = BestEffortExampleType { id };
         println!("Wrote sample: {sample:?}");
         writer.write(sample, None).unwrap();
         std::thread::sleep(std::time::Duration::from_millis(100));
