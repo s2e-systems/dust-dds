@@ -2866,7 +2866,9 @@ where
             key: BuiltInTopicKey {
                 value: data_writer.transport_writer.guid().into(),
             },
-            participant_key: BuiltInTopicKey { value: [0; 16] },
+            participant_key: BuiltInTopicKey {
+                value: self.domain_participant.instance_handle.into(),
+            },
             topic_name: data_writer.topic_name.clone(),
             type_name: data_writer.type_name.clone(),
             durability: data_writer.qos.durability.clone(),
@@ -2995,7 +2997,9 @@ where
         let guid = data_reader.transport_reader.guid();
         let dds_subscription_data = SubscriptionBuiltinTopicData {
             key: BuiltInTopicKey { value: guid.into() },
-            participant_key: BuiltInTopicKey { value: [0; 16] },
+            participant_key: BuiltInTopicKey {
+                value: self.domain_participant.instance_handle.into(),
+            },
             topic_name: topic_name.clone(),
             type_name: type_name.clone(),
             durability: data_reader.qos.durability.clone(),
