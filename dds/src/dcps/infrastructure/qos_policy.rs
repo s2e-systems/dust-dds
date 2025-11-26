@@ -28,7 +28,7 @@ pub enum Length {
 impl TypeSupport for Length {
     #[inline]
     fn get_type_name() -> &'static str {
-        ""
+        "Length"
     }
 
     #[inline]
