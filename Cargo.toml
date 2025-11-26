@@ -8,7 +8,6 @@ members = [
     "shapes_demo/android",
     "fuzz",
     "bindings/python",
-    "omg_interoperability_executable",
     "nostd_test_project",
 ]
 default-members = [
