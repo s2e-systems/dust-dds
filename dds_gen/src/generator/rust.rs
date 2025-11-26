@@ -16,7 +16,7 @@ impl<'a> RustGenerator<'a> {
         }
     }
 
-    pub fn generate_source(&mut self, pair: IdlPair) {
+    pub fn generate(&mut self, pair: IdlPair) {
         match pair.as_rule() {
             Rule::EOI => (),
             Rule::escape => todo!(),
@@ -241,13 +241,13 @@ impl<'a> RustGenerator<'a> {
 
     fn specification(&mut self, pair: IdlPair) {
         for definition in pair.into_inner() {
-            self.generate_source(definition);
+            self.generate(definition);
         }
     }
 
     #[inline]
     fn definition(&mut self, pair: IdlPair) {
-        self.generate_source(
+        self.generate(
             pair.into_inner()
                 .next()
                 .expect("Must have an element according to the grammar"),
@@ -262,14 +262,14 @@ impl<'a> RustGenerator<'a> {
             .expect("Must have an identifier according to the grammar");
         self.modules.push(identifier.as_str().to_string());
         self.writer.push_str("pub mod ");
-        self.generate_source(identifier);
+        self.generate(identifier);
         self.writer.push('{');
 
         for definition in inner_pairs
             .clone()
             .filter(|p| p.as_rule() == Rule::definition)
         {
-            self.generate_source(definition);
+            self.generate(definition);
         }
 
         self.writer.push('}');
@@ -278,7 +278,7 @@ impl<'a> RustGenerator<'a> {
 
     #[inline]
     fn type_dcl(&mut self, pair: IdlPair) {
-        self.generate_source(
+        self.generate(
             pair.into_inner()
                 .next()
                 .expect("Must have an element according to the grammar"),
@@ -287,7 +287,7 @@ impl<'a> RustGenerator<'a> {
 
     #[inline]
     fn constr_type_dcl(&mut self, pair: IdlPair) {
-        self.generate_source(
+        self.generate(
             pair.into_inner()
                 .next()
                 .expect("Must have an element according to the grammar"),
@@ -296,7 +296,7 @@ impl<'a> RustGenerator<'a> {
 
     #[inline]
     fn struct_dcl(&mut self, pair: IdlPair) {
-        self.generate_source(
+        self.generate(
             pair.into_inner()
                 .next()
                 .expect("Must have an element according to the grammar"),
@@ -351,12 +351,12 @@ impl<'a> RustGenerator<'a> {
         }
 
         self.writer.push_str("pub struct ");
-        self.generate_source(identifier);
+        self.generate(identifier);
 
         self.writer.push_str(" {");
 
         for member in inner_pairs.filter(|p| p.as_rule() == Rule::member) {
-            self.generate_source(member);
+            self.generate(member);
         }
 
         self.writer.push_str("}\n");
@@ -378,14 +378,14 @@ impl<'a> RustGenerator<'a> {
             self.writer.push_str(&name);
         }
         self.writer.push_str("pub enum ");
-        self.generate_source(identifier);
+        self.generate(identifier);
         self.writer.push_str(" {");
 
         for enumerator in inner_pairs
             .clone()
             .filter(|p| p.as_rule() == Rule::enumerator)
         {
-            self.generate_source(enumerator);
+            self.generate(enumerator);
             self.writer.push(',');
         }
 
@@ -394,7 +394,7 @@ impl<'a> RustGenerator<'a> {
 
     #[inline]
     fn enumerator(&mut self, pair: IdlPair) {
-        self.generate_source(
+        self.generate(
             pair.into_inner()
                 .next()
                 .expect("Must have an element according to the grammar"),
@@ -452,18 +452,18 @@ impl<'a> RustGenerator<'a> {
                         .clone()
                         .find(|p| p.as_rule() == Rule::fixed_array_size)
                         .expect("Identifier must exist according to grammar");
-                    self.generate_source(identifier);
+                    self.generate(identifier);
                     self.writer.push(':');
                     self.writer.push('[');
-                    self.generate_source(type_spec.clone());
+                    self.generate(type_spec.clone());
                     self.writer.push(';');
-                    self.generate_source(fixed_array_size);
+                    self.generate(fixed_array_size);
                     self.writer.push(']');
                 }
                 Rule::simple_declarator => {
-                    self.generate_source(array_or_simple_declarator);
+                    self.generate(array_or_simple_declarator);
                     self.writer.push(':');
-                    self.generate_source(type_spec.clone());
+                    self.generate(type_spec.clone());
                 }
                 _ => panic!("Not allowed by the grammar"),
             }
@@ -473,13 +473,13 @@ impl<'a> RustGenerator<'a> {
 
     fn declarators(&mut self, pair: IdlPair) {
         for declarator in pair.into_inner() {
-            self.generate_source(declarator);
+            self.generate(declarator);
         }
     }
 
     #[inline]
     fn interface_dcl(&mut self, pair: IdlPair) {
-        self.generate_source(
+        self.generate(
             pair.into_inner()
                 .next()
                 .expect("Must have an element according to the grammar"),
@@ -499,9 +499,9 @@ impl<'a> RustGenerator<'a> {
             .find(|p| p.as_rule() == Rule::interface_body)
             .expect("Must have an interface_body according to grammar");
 
-        self.generate_source(interface_header);
+        self.generate(interface_header);
         self.writer.push('{');
-        self.generate_source(interface_body);
+        self.generate(interface_body);
         self.writer.push_str("}\n");
     }
 
@@ -522,11 +522,11 @@ impl<'a> RustGenerator<'a> {
             .clone()
             .find(|p| p.as_rule() == Rule::interface_inheritance_spec);
 
-        self.generate_source(interface_kind);
-        self.generate_source(identifier);
+        self.generate(interface_kind);
+        self.generate(identifier);
 
         if let Some(interface_inheritance_spec) = interface_inheritance_spec {
-            self.generate_source(interface_inheritance_spec);
+            self.generate(interface_inheritance_spec);
         }
     }
 
@@ -540,13 +540,13 @@ impl<'a> RustGenerator<'a> {
 
     fn interface_body(&mut self, pair: IdlPair) {
         for export in pair.into_inner().filter(|p| p.as_rule() == Rule::export) {
-            self.generate_source(export);
+            self.generate(export);
         }
     }
 
     #[inline]
     fn export(&mut self, pair: IdlPair) {
-        self.generate_source(
+        self.generate(
             pair.into_inner()
                 .next()
                 .expect("Must have an element according to the grammar"),
@@ -568,24 +568,24 @@ impl<'a> RustGenerator<'a> {
             .find(|p| p.as_rule() == Rule::op_type_spec)
             .expect("Must have an op_type_spec according to the grammar");
         self.writer.push_str("fn ");
-        self.generate_source(identifier);
+        self.generate(identifier);
         self.writer.push('(');
-        self.generate_source(parameter_dcls);
+        self.generate(parameter_dcls);
         self.writer.push(')');
-        self.generate_source(op_type_spec);
+        self.generate(op_type_spec);
         self.writer.push_str(";\n");
     }
 
     fn op_type_spec(&mut self, pair: IdlPair) {
         if let Some(type_spec) = pair.into_inner().find(|p| p.as_rule() == Rule::type_spec) {
             self.writer.push_str("->");
-            self.generate_source(type_spec);
+            self.generate(type_spec);
         }
     }
 
     fn parameter_dcls(&mut self, pair: IdlPair) {
         for param_dcl in pair.into_inner().filter(|p| p.as_rule() == Rule::param_dcl) {
-            self.generate_source(param_dcl);
+            self.generate(param_dcl);
         }
     }
 
@@ -604,10 +604,10 @@ impl<'a> RustGenerator<'a> {
             .find(|p| p.as_rule() == Rule::simple_declarator)
             .expect("Must have a simple_declarator according to the grammar");
 
-        self.generate_source(simple_declarator);
+        self.generate(simple_declarator);
         self.writer.push(':');
-        self.generate_source(param_attribute);
-        self.generate_source(type_spec);
+        self.generate(param_attribute);
+        self.generate(type_spec);
         self.writer.push(',');
     }
 
@@ -621,7 +621,7 @@ impl<'a> RustGenerator<'a> {
 
     #[inline]
     fn simple_declarator(&mut self, pair: IdlPair) {
-        self.generate_source(
+        self.generate(
             pair.into_inner()
                 .next()
                 .expect("Must have an element according to the grammar"),
@@ -630,7 +630,7 @@ impl<'a> RustGenerator<'a> {
 
     #[inline]
     fn typedef_dcl(&mut self, pair: IdlPair) {
-        self.generate_source(
+        self.generate(
             pair.into_inner()
                 .next()
                 .expect("Must have an element according to the grammar"),
@@ -650,16 +650,16 @@ impl<'a> RustGenerator<'a> {
             .expect("Must have any_declarators according to grammar");
         for any_declarator in any_declarators.into_inner() {
             self.writer.push_str("pub type ");
-            self.generate_source(any_declarator);
+            self.generate(any_declarator);
             self.writer.push('=');
-            self.generate_source(type_spec.clone());
+            self.generate(type_spec.clone());
             self.writer.push_str(";\n");
         }
     }
 
     #[inline]
     fn any_declarator(&mut self, pair: IdlPair) {
-        self.generate_source(
+        self.generate(
             pair.into_inner()
                 .next()
                 .expect("Must have an element according to the grammar"),
@@ -673,7 +673,7 @@ impl<'a> RustGenerator<'a> {
 
     #[inline]
     fn type_spec(&mut self, pair: IdlPair) {
-        self.generate_source(
+        self.generate(
             pair.into_inner()
                 .next()
                 .expect("Must have an element according to the grammar"),
@@ -682,7 +682,7 @@ impl<'a> RustGenerator<'a> {
 
     #[inline]
     fn simple_type_spec(&mut self, pair: IdlPair) {
-        self.generate_source(
+        self.generate(
             pair.into_inner()
                 .next()
                 .expect("Must have an element according to the grammar"),
@@ -691,7 +691,7 @@ impl<'a> RustGenerator<'a> {
 
     #[inline]
     fn base_type_spec(&mut self, pair: IdlPair) {
-        self.generate_source(
+        self.generate(
             pair.into_inner()
                 .next()
                 .expect("Must have an element according to the grammar"),
@@ -709,7 +709,7 @@ impl<'a> RustGenerator<'a> {
 
     #[inline]
     fn integer_type(&mut self, pair: IdlPair) {
-        self.generate_source(
+        self.generate(
             pair.into_inner()
                 .next()
                 .expect("Must have an element according to the grammar"),
@@ -723,7 +723,7 @@ impl<'a> RustGenerator<'a> {
 
     #[inline]
     fn signed_int(&mut self, pair: IdlPair) {
-        self.generate_source(
+        self.generate(
             pair.into_inner()
                 .next()
                 .expect("Must have an element according to the grammar"),
@@ -752,7 +752,7 @@ impl<'a> RustGenerator<'a> {
 
     #[inline]
     fn unsigned_int(&mut self, pair: IdlPair) {
-        self.generate_source(
+        self.generate(
             pair.into_inner()
                 .next()
                 .expect("Must have an element according to the grammar"),
@@ -781,7 +781,7 @@ impl<'a> RustGenerator<'a> {
 
     #[inline]
     fn template_type_spec(&mut self, pair: IdlPair) {
-        self.generate_source(
+        self.generate(
             pair.into_inner()
                 .next()
                 .expect("Must have an element according to the grammar"),
@@ -797,7 +797,7 @@ impl<'a> RustGenerator<'a> {
             .expect("Must have a type_spec according to the grammar");
 
         self.writer.push_str("Vec<");
-        self.generate_source(type_spec);
+        self.generate(type_spec);
         self.writer.push('>');
     }
 
@@ -813,7 +813,7 @@ impl<'a> RustGenerator<'a> {
 
     #[inline]
     fn fixed_array_size(&mut self, pair: IdlPair) {
-        self.generate_source(
+        self.generate(
             pair.into_inner()
                 .next()
                 .expect("Must have an element according to the grammar"),
@@ -822,7 +822,7 @@ impl<'a> RustGenerator<'a> {
 
     #[inline]
     fn positive_int_const(&mut self, pair: IdlPair) {
-        self.generate_source(
+        self.generate(
             pair.into_inner()
                 .next()
                 .expect("Must have an element according to the grammar"),
@@ -861,17 +861,17 @@ impl<'a> RustGenerator<'a> {
             .expect("Must have a const_expr according to the grammar");
 
         self.writer.push_str("pub const ");
-        self.generate_source(identifier);
+        self.generate(identifier);
         self.writer.push(':');
-        self.generate_source(const_type);
+        self.generate(const_type);
         self.writer.push('=');
-        self.generate_source(const_expr);
+        self.generate(const_expr);
         self.writer.push_str(";\n");
     }
 
     #[inline]
     fn const_type(&mut self, pair: IdlPair) {
-        self.generate_source(
+        self.generate(
             pair.into_inner()
                 .next()
                 .expect("Must have an element according to grammar"),
@@ -924,7 +924,7 @@ mod tests {
         .unwrap();
         let mut writer = String::new();
         let mut rust_generator = RustGenerator::new(&mut writer);
-        rust_generator.generate_source(p);
+        rust_generator.generate(p);
 
         assert_eq!(
             &writer,
@@ -947,7 +947,7 @@ mod tests {
         .unwrap();
         let mut writer = String::new();
         let mut rust_generator = RustGenerator::new(&mut writer);
-        rust_generator.generate_source(p);
+        rust_generator.generate(p);
 
         assert_eq!(
             &writer,
@@ -963,7 +963,7 @@ mod tests {
             .unwrap();
         let mut writer = String::new();
         let mut rust_generator = RustGenerator::new(&mut writer);
-        rust_generator.generate_source(p);
+        rust_generator.generate(p);
 
         assert_eq!(
             &writer,
@@ -979,7 +979,7 @@ mod tests {
             .unwrap();
         let mut writer = String::new();
         let mut rust_generator = RustGenerator::new(&mut writer);
-        rust_generator.generate_source(p);
+        rust_generator.generate(p);
 
         assert_eq!(&writer, "#[dust_dds(key)]pub a:i32,");
     }
@@ -992,7 +992,7 @@ mod tests {
             .unwrap();
         let mut writer = String::new();
         let mut rust_generator = RustGenerator::new(&mut writer);
-        rust_generator.generate_source(p);
+        rust_generator.generate(p);
 
         assert_eq!(&writer, "pub a:Vec<u8>,");
     }
@@ -1005,7 +1005,7 @@ mod tests {
             .unwrap();
         let mut writer = String::new();
         let mut rust_generator = RustGenerator::new(&mut writer);
-        rust_generator.generate_source(p);
+        rust_generator.generate(p);
 
         assert_eq!(&writer, "pub a:Vec<Vec<u8>>,");
     }
@@ -1018,7 +1018,7 @@ mod tests {
             .unwrap();
         let mut writer = String::new();
         let mut rust_generator = RustGenerator::new(&mut writer);
-        rust_generator.generate_source(p);
+        rust_generator.generate(p);
 
         assert_eq!(&writer, "pub const a:String='a';\n");
     }
@@ -1031,7 +1031,7 @@ mod tests {
             .unwrap();
         let mut writer = String::new();
         let mut rust_generator = RustGenerator::new(&mut writer);
-        rust_generator.generate_source(p);
+        rust_generator.generate(p);
 
         assert_eq!(&writer, "pub type Name=i32;\n");
     }
@@ -1044,7 +1044,7 @@ mod tests {
             .unwrap();
         let mut writer = String::new();
         let mut rust_generator = RustGenerator::new(&mut writer);
-        rust_generator.generate_source(p);
+        rust_generator.generate(p);
 
         assert_eq!(&writer, "fn op(s:&mut String,)->i16;\n");
     }
@@ -1063,7 +1063,7 @@ mod tests {
         .unwrap();
         let mut writer = String::new();
         let mut rust_generator = RustGenerator::new(&mut writer);
-        rust_generator.generate_source(p);
+        rust_generator.generate(p);
 
         assert_eq!(
             &writer,
@@ -1098,7 +1098,7 @@ mod tests {
         .unwrap();
         let mut writer = String::new();
         let mut rust_generator = RustGenerator::new(&mut writer);
-        rust_generator.generate_source(p);
+        rust_generator.generate(p);
 
         assert_eq!(
             &writer,

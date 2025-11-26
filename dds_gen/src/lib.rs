@@ -17,6 +17,6 @@ pub fn compile_idl(idl_filepath: &Path) -> Result<String, String> {
 
     let mut output = String::new();
     let mut rust_generator = RustGenerator::new(&mut output);
-    rust_generator.generate_source(parsed_idl);
+    rust_generator.generate(parsed_idl);
     Ok(output)
 }
