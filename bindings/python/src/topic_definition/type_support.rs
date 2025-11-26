@@ -274,6 +274,10 @@ impl From<PythonDdsData> for dust_dds::xtypes::dynamic_type::DynamicData {
 }
 
 impl TypeSupport for PythonDdsData {
+    fn get_type_name() -> &'static str {
+        todo!()
+    }
+
     fn get_type() -> dust_dds::xtypes::dynamic_type::DynamicType {
         todo!()
     }

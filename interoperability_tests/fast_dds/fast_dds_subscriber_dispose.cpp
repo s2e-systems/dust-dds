@@ -19,9 +19,9 @@ int main(int argc, char *argv[])
 	const std::string topic_name = "DisposeData";
 
 	auto participant = DomainParticipantFactory::get_instance()->create_participant(0, PARTICIPANT_QOS_DEFAULT);
-	TypeSupport dispose_data_type{new DisposeDataTypePubSubType()};
+	TypeSupport dispose_data_type{new interoperability::test::DisposeDataTypePubSubType()};
 	dispose_data_type.register_type(participant);
-	auto topic = participant->create_topic(topic_name, "DisposeDataType", TOPIC_QOS_DEFAULT);
+	auto topic = participant->create_topic(topic_name, dispose_data_type.get_type_name(), TOPIC_QOS_DEFAULT);
 	auto subscriber = participant->create_subscriber(SUBSCRIBER_QOS_DEFAULT, nullptr);
 
 	DataReaderQos qos;
@@ -49,7 +49,7 @@ int main(int argc, char *argv[])
 		throw std::runtime_error{"No data available on time"};
 	}
 
-	DisposeDataType sample;
+	interoperability::test::DisposeDataType sample;
 	SampleInfo info;
 	if (reader->take_next_sample(&sample, &info) != ReturnCode_t::RETCODE_OK)
 	{

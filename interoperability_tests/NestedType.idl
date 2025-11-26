@@ -1,13 +1,17 @@
-struct Inner {
-    uint8 a;
-    uint32 b;
-    uint16 c;
-};
+module interoperability {
+	module test {
+        struct Inner {
+            uint8 a;
+            uint32 b;
+            uint16 c;
+        };
 
-struct Nested {
-    Inner inner;
-    int64 level;
-    int32 other;
-    sequence <int64, 100> value_list;
-    int32 last;
+        struct Nested {
+            Inner inner;
+            int64 level;
+            int32 other;
+            sequence <int64, 100> value_list;
+            int32 last;
+        };
+    };
 };

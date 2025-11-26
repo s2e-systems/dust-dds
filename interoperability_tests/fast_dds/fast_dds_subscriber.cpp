@@ -19,9 +19,9 @@ int main(int argc, char *argv[])
 	const std::string topic_name = "HelloWorld";
 
 	auto participant = DomainParticipantFactory::get_instance()->create_participant(0, PARTICIPANT_QOS_DEFAULT);
-	TypeSupport hello_world_type{new HelloWorldTypePubSubType()};
+	TypeSupport hello_world_type{new interoperability::test::HelloWorldTypePubSubType()};
 	hello_world_type.register_type(participant);
-	auto topic = participant->create_topic(topic_name, "HelloWorldType", TOPIC_QOS_DEFAULT);
+	auto topic = participant->create_topic(topic_name, hello_world_type.get_type_name(), TOPIC_QOS_DEFAULT);
 	auto subscriber = participant->create_subscriber(SUBSCRIBER_QOS_DEFAULT, nullptr);
 
 	DataReaderQos qos;
@@ -49,7 +49,7 @@ int main(int argc, char *argv[])
 		throw std::runtime_error{"No data available on time"};
 	}
 
-	HelloWorldType sample;
+	interoperability::test::HelloWorldType sample;
 	SampleInfo info;
 	if (reader->take_next_sample(&sample, &info) != ReturnCode_t::RETCODE_OK)
 	{
@@ -60,7 +60,7 @@ int main(int argc, char *argv[])
 		throw std::runtime_error{"data not valid"};
 	}
 
-	printf("Received: HelloWorldType { id: %d, msg: \"%c\" }\n", sample.id(), sample.msg());
+	printf("Received: %s { id: %d, msg: \"%c\" }\n", hello_world_type.get_type_name(), sample.id(), sample.msg());
 
 	// Sleep to allow sending acknowledgements
 	std::this_thread::sleep_for(std::chrono::seconds(2));

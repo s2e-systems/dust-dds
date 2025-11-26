@@ -1,3 +1,6 @@
+include!("target/idl/hello_world.rs");
+
+use self::interoperability::test::HelloWorldType;
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
@@ -8,14 +11,11 @@ use dust_dds::{
         },
         status::{NO_STATUS, StatusKind},
         time::{Duration, DurationKind},
+        type_support::TypeSupport,
     },
     listener::NO_LISTENER,
     wait_set::{Condition, WaitSet},
 };
-
-mod hello_world {
-    include!("target/idl/hello_world.rs");
-}
 
 fn main() {
     let domain_id = 0;
@@ -26,9 +26,9 @@ fn main() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<hello_world::HelloWorldType>(
+        .create_topic::<HelloWorldType>(
             "HelloWorld",
-            "HelloWorldType",
+            HelloWorldType::get_type_name(),
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
@@ -68,7 +68,7 @@ fn main() {
 
     wait_set.wait(Duration::new(60, 0)).unwrap();
 
-    let hello_world = hello_world::HelloWorldType { id: 8, msg: 'a' };
+    let hello_world = HelloWorldType { id: 8, msg: 'a' };
     writer.write(hello_world, None).unwrap();
 
     writer

@@ -11,12 +11,14 @@ fn i11eperf_generation() {
         pub mod i11eperf {
           #[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]
           #[dust_dds(extensibility = "final")]
+          #[dust_dds(name = "i11eperf::ou")]
             pub struct ou {
               pub ts: u64,
               pub s: u32,
             }
             #[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]
             #[dust_dds(extensibility = "final")]
+            #[dust_dds(name = "i11eperf::a32")]
             pub struct a32 {
               pub ts: u64,
               pub s: u32,
@@ -24,6 +26,7 @@ fn i11eperf_generation() {
             }
             #[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]
             #[dust_dds(extensibility = "final")]
+            #[dust_dds(name = "i11eperf::a128")]
             pub struct a128 {
               pub ts: u64,
               pub s: u32,
@@ -31,6 +34,7 @@ fn i11eperf_generation() {
             }
             #[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]
             #[dust_dds(extensibility = "final")]
+            #[dust_dds(name = "i11eperf::a1024")]
             pub struct a1024 {
               pub ts: u64,
               pub s: u32,
@@ -38,6 +42,7 @@ fn i11eperf_generation() {
             }
             #[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]
             #[dust_dds(extensibility = "final")]
+            #[dust_dds(name = "i11eperf::a16k")]
             pub struct a16k {
               pub ts: u64,
               pub s: u32,
@@ -45,6 +50,7 @@ fn i11eperf_generation() {
             }
             #[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]
             #[dust_dds(extensibility = "final")]
+            #[dust_dds(name = "i11eperf::a48k")]
             pub struct a48k {
               pub ts: u64,
               pub s: u32,
@@ -52,6 +58,7 @@ fn i11eperf_generation() {
             }
             #[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]
             #[dust_dds(extensibility = "final")]
+            #[dust_dds(name = "i11eperf::a64k")]
             pub struct a64k {
               pub ts: u64,
               pub s: u32,
@@ -59,6 +66,7 @@ fn i11eperf_generation() {
             }
             #[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]
             #[dust_dds(extensibility = "final")]
+            #[dust_dds(name = "i11eperf::a1M")]
             pub struct a1M {
               pub ts: u64,
               pub s: u32,
@@ -66,6 +74,7 @@ fn i11eperf_generation() {
             }
             #[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]
             #[dust_dds(extensibility = "final")]
+            #[dust_dds(name = "i11eperf::a2M")]
             pub struct a2M {
               pub ts: u64,
               pub s: u32,
@@ -73,6 +82,7 @@ fn i11eperf_generation() {
             }
             #[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]
             #[dust_dds(extensibility = "final")]
+            #[dust_dds(name = "i11eperf::a4M")]
             pub struct a4M {
               pub ts: u64,
               pub s: u32,
@@ -80,6 +90,7 @@ fn i11eperf_generation() {
             }
             #[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]
             #[dust_dds(extensibility = "final")]
+            #[dust_dds(name = "i11eperf::a8M")]
             pub struct a8M {
               pub ts: u64,
               pub s: u32,
@@ -87,6 +98,7 @@ fn i11eperf_generation() {
             }
             #[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]
             #[dust_dds(extensibility = "final")]
+            #[dust_dds(name = "i11eperf::seq")]
             pub struct seq {
               pub ts: u64,
               pub s: u32,

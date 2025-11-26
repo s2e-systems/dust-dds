@@ -12,7 +12,7 @@ int main(int argc, char *argv[])
 	{
 		DDS_FATAL("dds_create_participant: %s\n", dds_strretcode(-participant));
 	}
-	const dds_entity_t topic = dds_create_topic(participant, &HelloWorldType_desc, topic_name, NULL /*qos*/, NULL /*listener*/);
+	const dds_entity_t topic = dds_create_topic(participant, &interoperability_test_HelloWorldType_desc, topic_name, NULL /*qos*/, NULL /*listener*/);
 	if (topic < 0)
 	{
 		DDS_FATAL("dds_create_topic: %s\n", dds_strretcode(-topic));
@@ -70,10 +70,10 @@ int main(int argc, char *argv[])
 		DDS_FATAL("dds_waitset_wait: %s\n", dds_strretcode(-rc));
 	}
 
-	HelloWorldType *msg;
+	interoperability_test_HelloWorldType *msg;
 	void *samples[MAX_SAMPLES];
 	dds_sample_info_t infos[MAX_SAMPLES];
-	samples[0] = HelloWorldType__alloc();
+	samples[0] = interoperability_test_HelloWorldType__alloc();
 
 	rc = dds_read(data_reader, samples, infos, MAX_SAMPLES, MAX_SAMPLES);
 	if (rc < 0)
@@ -83,8 +83,8 @@ int main(int argc, char *argv[])
 
 	if ((rc > 0) && (infos[0].valid_data))
 	{
-		msg = (HelloWorldType *)samples[0];
-		printf("Received: HelloWorldType { id: %d, msg: \"%c\" }\n", msg->id, msg->msg);
+		msg = (interoperability_test_HelloWorldType *)samples[0];
+		printf("Received: %s { id: %d, msg: \"%c\" }\n", interoperability_test_HelloWorldType_desc.m_typename, msg->id, msg->msg);
 	}
 
 	// Sleep to allow sending acknowledgements

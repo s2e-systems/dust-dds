@@ -10,7 +10,7 @@ int main(int argc, char *argv[])
 	{
 		DDS_FATAL("dds_create_participant: %s\n", dds_strretcode(-participant));
 	}
-	const dds_entity_t topic = dds_create_topic(participant, &DisposeDataType_desc, topic_name, NULL /*qos*/, NULL /*listener*/);
+	const dds_entity_t topic = dds_create_topic(participant, &interoperability_test_DisposeDataType_desc, topic_name, NULL /*qos*/, NULL /*listener*/);
 	if (topic < 0)
 	{
 		DDS_FATAL("dds_create_topic: %s\n", dds_strretcode(-topic));
@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
 		DDS_FATAL("dds_waitset_wait: %s\n", dds_strretcode(-rc));
 	}
 
-	DisposeDataType msg = {"Very Long Name", 1};
+	interoperability_test_DisposeDataType msg = {"Very Long Name", 1};
 	rc = dds_write(data_writer, &msg);
 	if (rc != DDS_RETCODE_OK)
 	{

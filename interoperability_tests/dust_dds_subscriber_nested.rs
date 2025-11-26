@@ -1,3 +1,6 @@
+include!("target/idl/nested_type.rs");
+
+use self::interoperability::test::Nested;
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
@@ -14,10 +17,6 @@ use dust_dds::{
     wait_set::{Condition, WaitSet},
 };
 
-mod nested_type {
-    include!("target/idl/nested_type.rs");
-}
-
 fn main() {
     let domain_id = 0;
     let participant_factory = DomainParticipantFactory::get_instance();
@@ -27,7 +26,7 @@ fn main() {
         .unwrap();
 
     let topic = participant
-        .find_topic::<nested_type::Nested>("Nested", Duration::new(120, 0))
+        .find_topic::<Nested>("Nested", Duration::new(120, 0))
         .unwrap();
 
     let subscriber = participant
@@ -45,7 +44,7 @@ fn main() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<nested_type::Nested>(
+        .create_datareader::<Nested>(
             &topic,
             QosKind::Specific(reader_qos),
             NO_LISTENER,

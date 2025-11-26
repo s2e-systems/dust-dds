@@ -26,12 +26,17 @@ pub struct DiscoveredTopicData {
 }
 
 impl TypeSupport for DiscoveredTopicData {
+    #[inline]
+    fn get_type_name() -> &'static str {
+        "TopicBuiltinTopicData"
+    }
+
     fn get_type() -> dust_dds::xtypes::dynamic_type::DynamicType {
         extern crate alloc;
         let mut builder = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
             dust_dds::xtypes::dynamic_type::TypeDescriptor {
                 kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
-                name: alloc::string::String::from("TopicBuiltinTopicData"),
+                name: alloc::string::String::from(Self::get_type_name()),
                 base_type: None,
                 discriminator_type: None,
                 bound: alloc::vec::Vec::new(),

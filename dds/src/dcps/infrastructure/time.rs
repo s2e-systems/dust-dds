@@ -11,6 +11,12 @@ pub enum DurationKind {
 }
 
 impl TypeSupport for DurationKind {
+    #[inline]
+    fn get_type_name() -> &'static str {
+        Duration::get_type_name()
+    }
+
+    #[inline]
     fn get_type() -> crate::xtypes::dynamic_type::DynamicType {
         Duration::get_type()
     }

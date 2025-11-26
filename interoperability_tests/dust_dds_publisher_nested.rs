@@ -1,3 +1,6 @@
+include!("target/idl/nested_type.rs");
+
+use self::interoperability::test::{Inner, Nested};
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
@@ -8,14 +11,11 @@ use dust_dds::{
         },
         status::{NO_STATUS, StatusKind},
         time::{Duration, DurationKind},
+        type_support::TypeSupport,
     },
     listener::NO_LISTENER,
     wait_set::{Condition, WaitSet},
 };
-
-mod nested_type {
-    include!("target/idl/nested_type.rs");
-}
 
 fn main() {
     let domain_id = 0;
@@ -26,9 +26,9 @@ fn main() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<nested_type::Nested>(
+        .create_topic::<Nested>(
             "Nested",
-            "Nested",
+            Nested::get_type_name(),
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
@@ -68,8 +68,8 @@ fn main() {
 
     wait_set.wait(Duration::new(60, 0)).unwrap();
 
-    let data = nested_type::Nested {
-        inner: nested_type::Inner { a: 1, b: 2, c: 3 },
+    let data = Nested {
+        inner: Inner { a: 1, b: 2, c: 3 },
         level: 10,
         other: 20,
         value_list: vec![30, 40, 50],

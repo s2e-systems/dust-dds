@@ -1,3 +1,6 @@
+include!("target/idl/hello_world.rs");
+
+use self::interoperability::test::HelloWorldType;
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
@@ -14,10 +17,6 @@ use dust_dds::{
     wait_set::{Condition, WaitSet},
 };
 
-mod hello_world {
-    include!("target/idl/hello_world.rs");
-}
-
 fn main() {
     let domain_id = 0;
     let participant_factory = DomainParticipantFactory::get_instance();
@@ -27,7 +26,7 @@ fn main() {
         .unwrap();
 
     let topic = participant
-        .find_topic::<hello_world::HelloWorldType>("HelloWorld", Duration::new(120, 0))
+        .find_topic::<HelloWorldType>("HelloWorld", Duration::new(120, 0))
         .unwrap();
 
     let subscriber = participant
@@ -45,7 +44,7 @@ fn main() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<hello_world::HelloWorldType>(
+        .create_datareader::<HelloWorldType>(
             &topic,
             QosKind::Specific(reader_qos),
             NO_LISTENER,

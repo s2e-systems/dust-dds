@@ -1,3 +1,6 @@
+include!("target/idl/dispose_data.rs");
+
+use self::interoperability::test::DisposeDataType;
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
@@ -14,10 +17,6 @@ use dust_dds::{
     wait_set::{Condition, WaitSet},
 };
 
-mod dispose_data {
-    include!("target/idl/dispose_data.rs");
-}
-
 fn main() {
     let domain_id = 0;
     let participant_factory = DomainParticipantFactory::get_instance();
@@ -27,7 +26,7 @@ fn main() {
         .unwrap();
 
     let topic = participant
-        .find_topic::<dispose_data::DisposeDataType>("DisposeData", Duration::new(120, 0))
+        .find_topic::<DisposeDataType>("DisposeData", Duration::new(120, 0))
         .unwrap();
 
     let subscriber = participant
@@ -45,7 +44,7 @@ fn main() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<dispose_data::DisposeDataType>(
+        .create_datareader::<DisposeDataType>(
             &topic,
             QosKind::Specific(reader_qos),
             NO_LISTENER,

@@ -10,7 +10,7 @@ int main(int argc, char *argv[])
 	{
 		DDS_FATAL("dds_create_participant: %s\n", dds_strretcode(-participant));
 	}
-	const dds_entity_t topic = dds_create_topic(participant, &HelloWorldType_desc, topic_name, NULL /*qos*/, NULL /*listener*/);
+	const dds_entity_t topic = dds_create_topic(participant, &interoperability_test_HelloWorldType_desc, topic_name, NULL /*qos*/, NULL /*listener*/);
 	if (topic < 0)
 	{
 		DDS_FATAL("dds_create_topic: %s\n", dds_strretcode(-topic));
@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
 	}
 
 
-	HelloWorldType msg = {8, 'a'};
+	interoperability_test_HelloWorldType msg = {8, 'a'};
 	dds_write(data_writer, &msg);
 
 	rc = dds_wait_for_acks(data_writer, DDS_SECS(30));

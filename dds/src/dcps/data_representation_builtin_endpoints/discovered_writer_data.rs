@@ -38,6 +38,11 @@ pub struct DiscoveredWriterData {
     pub(crate) writer_proxy: WriterProxy,
 }
 impl TypeSupport for DiscoveredWriterData {
+    #[inline]
+    fn get_type_name() -> &'static str {
+        "DiscoveredWriterData"
+    }
+
     fn get_type() -> dust_dds::xtypes::dynamic_type::DynamicType {
         extern crate alloc;
         struct ConvenienceDynamicTypeBuilder {
@@ -115,7 +120,7 @@ impl TypeSupport for DiscoveredWriterData {
             builder: dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
                 dust_dds::xtypes::dynamic_type::TypeDescriptor {
                     kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
-                    name: alloc::string::String::from("DiscoveredReaderData"),
+                    name: alloc::string::String::from(Self::get_type_name()),
                     base_type: None,
                     discriminator_type: None,
                     bound: alloc::vec::Vec::new(),

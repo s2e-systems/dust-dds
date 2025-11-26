@@ -8,8 +8,8 @@ use syn::{DataEnum, DeriveInput, Fields, Index, Result, spanned::Spanned};
 pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
     let input_attributes = get_input_attributes(input)?;
     let ident = &input.ident;
-    let type_name = ident.to_string();
 
+    let type_name = input_attributes.name.as_str();
     let extensibility_kind = match input_attributes.extensibility {
         Extensibility::Final => {
             quote! {dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final}
@@ -241,9 +241,14 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
     }?;
 
     Ok(quote! {
+        #[automatically_derived]
         impl #impl_generics dust_dds::infrastructure::type_support::TypeSupport for #ident #type_generics #where_clause {
-            fn get_type() -> dust_dds::xtypes::dynamic_type::DynamicType
-            {
+            #[inline]
+            fn get_type_name() -> &'static str {
+                #type_name
+            }
+
+            fn get_type() -> dust_dds::xtypes::dynamic_type::DynamicType {
                 #get_type_quote
             }
 
@@ -265,11 +270,13 @@ enum Extensibility {
 }
 
 struct InputAttributes {
+    name: String,
     extensibility: Extensibility,
     is_nested: bool,
 }
 
 fn get_input_attributes(input: &DeriveInput) -> Result<InputAttributes> {
+    let mut name = input.ident.to_string();
     let mut extensibility = Extensibility::Final;
     let mut is_nested = false;
     if let Some(xtypes_attribute) = input
@@ -278,7 +285,10 @@ fn get_input_attributes(input: &DeriveInput) -> Result<InputAttributes> {
         .find(|attr| attr.path().is_ident("dust_dds"))
     {
         xtypes_attribute.parse_nested_meta(|meta| {
-            if meta.path.is_ident("extensibility") {
+            if meta.path.is_ident("name") {
+                name = meta.value()?.parse::<syn::LitStr>()?.value();
+                Ok(())
+            } else if meta.path.is_ident("extensibility") {
                 let format_str: syn::LitStr = meta.value()?.parse()?;
                 match format_str.value().as_ref() {
                     "final" => {
@@ -308,6 +318,7 @@ fn get_input_attributes(input: &DeriveInput) -> Result<InputAttributes> {
         })?;
     }
     Ok(InputAttributes {
+        name,
         extensibility,
         is_nested,
     })

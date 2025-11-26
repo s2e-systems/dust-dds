@@ -1,3 +1,6 @@
+include!("target/idl/dispose_data.rs");
+
+use self::interoperability::test::DisposeDataType;
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
@@ -8,14 +11,11 @@ use dust_dds::{
         },
         status::{NO_STATUS, StatusKind},
         time::{Duration, DurationKind},
+        type_support::TypeSupport,
     },
     listener::NO_LISTENER,
     wait_set::{Condition, WaitSet},
 };
-
-mod dispose_data {
-    include!("target/idl/dispose_data.rs");
-}
 
 fn main() {
     let domain_id = 0;
@@ -26,9 +26,9 @@ fn main() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<dispose_data::DisposeDataType>(
+        .create_topic::<DisposeDataType>(
             "DisposeData",
-            "DisposeDataType",
+            DisposeDataType::get_type_name(),
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
@@ -70,7 +70,7 @@ fn main() {
 
     writer
         .write(
-            dispose_data::DisposeDataType {
+            DisposeDataType {
                 name: "Very Long Name".to_string(),
                 value: 1,
             },
@@ -84,7 +84,7 @@ fn main() {
 
     writer
         .dispose(
-            dispose_data::DisposeDataType {
+            DisposeDataType {
                 name: "Very Long Name".to_string(),
                 value: 1,
             },

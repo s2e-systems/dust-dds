@@ -19,9 +19,9 @@ int main(int argc, char *argv[])
 	const std::string topic_name = "DisposeData";
 
 	auto participant = DomainParticipantFactory::get_instance()->create_participant(0, PARTICIPANT_QOS_DEFAULT);
-	TypeSupport dispose_data_type{new DisposeDataTypePubSubType()};
+	TypeSupport dispose_data_type{new interoperability::test::DisposeDataTypePubSubType()};
 	dispose_data_type.register_type(participant);
-	auto topic = participant->create_topic(topic_name, "DisposeDataType", TOPIC_QOS_DEFAULT);
+	auto topic = participant->create_topic(topic_name, dispose_data_type.get_type_name(), TOPIC_QOS_DEFAULT);
 	auto publisher = participant->create_publisher(PUBLISHER_QOS_DEFAULT, nullptr);
 
 	DataWriterQos qos;
@@ -39,7 +39,7 @@ int main(int argc, char *argv[])
 		throw std::runtime_error{"Subscription not matched"};
 	}
 
-	DisposeDataType dispose_msg;
+	interoperability::test::DisposeDataType dispose_msg;
 	dispose_msg.name("Very Long Name");
 	dispose_msg.value(1);
 	auto handle = writer->register_instance(&dispose_msg);
