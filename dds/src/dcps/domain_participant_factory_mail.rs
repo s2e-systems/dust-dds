@@ -64,8 +64,8 @@ pub enum DcpsParticipantFactoryMail<R: DdsRuntime> {
     },
 }
 
-impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T> {
-    pub async fn handle(&mut self, message: DcpsParticipantFactoryMail<R>) {
+impl<T: TransportParticipantFactory> DcpsParticipantFactory<T> {
+    pub async fn handle<R: DdsRuntime>(&mut self, message: DcpsParticipantFactoryMail<R>) {
         match message {
             DcpsParticipantFactoryMail::CreateParticipant {
                 domain_id,
@@ -77,7 +77,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 spawner_handle,
                 reply_sender,
             } => reply_sender.send(
-                self.create_participant(
+                self.create_participant::<R>(
                     domain_id,
                     qos,
                     dcps_listener,

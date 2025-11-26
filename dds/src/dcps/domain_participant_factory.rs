@@ -26,9 +26,9 @@ use crate::{
     transport::{interface::TransportParticipantFactory, types::GuidPrefix},
 };
 use alloc::{borrow::ToOwned, string::String, sync::Arc, vec::Vec};
-use core::{future::Future, marker::PhantomData, pin::Pin, task::Poll};
+use core::{future::Future, pin::Pin, task::Poll};
 
-pub struct DcpsParticipantFactory<R: DdsRuntime, T> {
+pub struct DcpsParticipantFactory<T> {
     domain_participant_list: Vec<(InstanceHandle, MpscSender<DcpsDomainParticipantMail>)>,
     qos: DomainParticipantFactoryQos,
     default_participant_qos: DomainParticipantQos,
@@ -37,10 +37,9 @@ pub struct DcpsParticipantFactory<R: DdsRuntime, T> {
     entity_counter: u32,
     app_id: [u8; 4],
     host_id: [u8; 4],
-    runtime: PhantomData<R>,
 }
 
-impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T> {
+impl<T: TransportParticipantFactory> DcpsParticipantFactory<T> {
     pub fn new(app_id: [u8; 4], host_id: [u8; 4], transport: T) -> Self {
         Self {
             domain_participant_list: Default::default(),
@@ -51,7 +50,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             entity_counter: 0,
             app_id,
             host_id,
-            runtime: PhantomData,
         }
     }
 
@@ -81,7 +79,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
     }
 
     #[allow(clippy::type_complexity, clippy::too_many_arguments)]
-    pub async fn create_participant(
+    pub async fn create_participant<R: DdsRuntime>(
         &mut self,
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
