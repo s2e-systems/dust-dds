@@ -53,7 +53,7 @@ fn main() {
 
     for id in 1..=10 {
         let sample = BestEffortExampleType { id };
-        println!("Wrote sample: {:?}", sample);
+        println!("Wrote sample: {sample:?}");
         writer.write(sample, None).unwrap();
         std::thread::sleep(std::time::Duration::from_millis(100));
     }

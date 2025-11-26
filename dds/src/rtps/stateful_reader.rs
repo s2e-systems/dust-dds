@@ -1,9 +1,8 @@
-use super::{error::RtpsResult, message_receiver::MessageReceiver, writer_proxy::RtpsWriterProxy};
+use super::writer_proxy::RtpsWriterProxy;
 use crate::{
     rtps::history_cache::HistoryCache,
     rtps_messages::{
         self,
-        overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
         submessages::{
             data::DataSubmessage, data_frag::DataFragSubmessage, gap::GapSubmessage,
             heartbeat::HeartbeatSubmessage, heartbeat_frag::HeartbeatFragSubmessage,
@@ -219,57 +218,6 @@ impl RtpsStatefulReader {
             }
         }
     }
-
-    pub async fn process_message(
-        &mut self,
-        rtps_message: &RtpsMessageRead,
-        message_writer: &(impl WriteMessage + ?Sized),
-    ) -> RtpsResult<()> {
-        let mut message_receiver = MessageReceiver::new(rtps_message);
-
-        while let Some(submessage) = message_receiver.next() {
-            match submessage {
-                RtpsSubmessageReadKind::Data(data_submessage) => {
-                    self.on_data_submessage_received(
-                        data_submessage,
-                        message_receiver.source_guid_prefix(),
-                        message_receiver.source_timestamp(),
-                    )
-                    .await;
-                }
-                RtpsSubmessageReadKind::DataFrag(data_frag_submessage) => {
-                    self.on_data_frag_submessage_received(
-                        data_frag_submessage,
-                        message_receiver.source_guid_prefix(),
-                        message_receiver.source_timestamp(),
-                    )
-                    .await;
-                }
-                RtpsSubmessageReadKind::HeartbeatFrag(heartbeat_frag_submessage) => {
-                    self.on_heartbeat_frag_submessage_received(
-                        heartbeat_frag_submessage,
-                        message_receiver.source_guid_prefix(),
-                    );
-                }
-                RtpsSubmessageReadKind::Gap(gap_submessage) => {
-                    self.on_gap_submessage_received(
-                        gap_submessage,
-                        message_receiver.source_guid_prefix(),
-                    );
-                }
-                RtpsSubmessageReadKind::Heartbeat(heartbeat_submessage) => {
-                    self.on_heartbeat_submessage_received(
-                        heartbeat_submessage,
-                        message_receiver.source_guid_prefix(),
-                        message_writer,
-                    )
-                    .await;
-                }
-                _ => (),
-            }
-        }
-        Ok(())
-    }
 }
 
 // The methods in this impl block are not defined by the standard
@@ -288,7 +236,10 @@ mod tests {
     use std::sync::Arc;
 
     use crate::{
-        rtps_messages::submessage_elements::{Data, ParameterList, SerializedDataFragment},
+        rtps_messages::{
+            overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
+            submessage_elements::{Data, ParameterList, SerializedDataFragment},
+        },
         std_runtime::executor::block_on,
         transport::types::{DurabilityKind, ENTITYID_UNKNOWN, EntityId},
     };
