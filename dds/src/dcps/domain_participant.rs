@@ -2562,79 +2562,172 @@ where
         else {
             return Err(DdsError::AlreadyDeleted);
         };
-        let instance_handle = match get_instance_handle_from_dynamic_data(dynamic_data.clone()) {
-            Ok(k) => k,
-            Err(e) => {
-                return Err(e.into());
+
+        if !data_writer.enabled {
+            return Err(DdsError::NotEnabled);
+        }
+
+        data_writer.last_change_sequence_number += 1;
+
+        let instance_handle = get_instance_handle_from_dynamic_data(dynamic_data.clone())?;
+
+        if !data_writer
+            .registered_instance_list
+            .contains(&instance_handle)
+        {
+            if data_writer.registered_instance_list.len()
+                < data_writer.qos.resource_limits.max_instances
+            {
+                data_writer.registered_instance_list.push(instance_handle);
+            } else {
+                return Err(DdsError::OutOfResources);
             }
-        };
+        }
 
-        match data_writer.qos.lifespan.duration {
-            DurationKind::Finite(lifespan_duration) => {
-                let mut timer_handle = self.timer_handle.clone();
-                let sleep_duration = timestamp - now + lifespan_duration;
-                if sleep_duration > Duration::new(0, 0) {
-                    let sequence_number = match data_writer
-                        .write_w_timestamp(
-                            dynamic_data,
-                            timestamp,
-                            &self.clock_handle,
-                            self.transport.message_writer.as_ref(),
-                        )
-                        .await
+        if let Length::Limited(max_instances) = data_writer.qos.resource_limits.max_instances {
+            if !data_writer
+                .instance_samples
+                .iter()
+                .any(|x| x.instance == instance_handle)
+                && data_writer.instance_samples.len() == max_instances as usize
+            {
+                return Err(DdsError::OutOfResources);
+            }
+        }
+
+        if let Length::Limited(max_samples_per_instance) =
+            data_writer.qos.resource_limits.max_samples_per_instance
+        {
+            // If the history Qos guarantess that the number of samples
+            // is below the limit there is no need to check
+            match data_writer.qos.history.kind {
+                HistoryQosPolicyKind::KeepLast(depth)
+                    if depth as i32 <= max_samples_per_instance => {}
+                _ => {
+                    if let Some(s) = data_writer
+                        .instance_samples
+                        .iter()
+                        .find(|x| x.instance == instance_handle)
                     {
-                        Ok(s) => s,
-                        Err(e) => {
-                            return Err(e);
+                        // Only Alive changes count towards the resource limits
+                        if s.samples.len() >= max_samples_per_instance as usize {
+                            return Err(DdsError::OutOfResources);
                         }
-                    };
-
-                    let participant_address = participant_address.clone();
-                    self.spawner_handle.spawn(async move {
-                        timer_handle.delay(sleep_duration.into()).await;
-                        participant_address
-                            .send(DcpsDomainParticipantMail::Message(
-                                MessageServiceMail::RemoveWriterChange {
-                                    publisher_handle,
-                                    data_writer_handle,
-                                    sequence_number,
-                                },
-                            ))
-                            .await
-                            .ok();
-                    });
+                    }
                 }
             }
-            DurationKind::Infinite => {
-                match data_writer
-                    .write_w_timestamp(
-                        dynamic_data,
-                        timestamp,
-                        &self.clock_handle,
-                        self.transport.message_writer.as_ref(),
-                    )
-                    .await
-                {
-                    Ok(_) => (),
-                    Err(e) => {
-                        return Err(e);
+        }
+
+        if let Length::Limited(max_samples) = data_writer.qos.resource_limits.max_samples {
+            let total_samples = data_writer
+                .instance_samples
+                .iter()
+                .fold(0, |acc, x| acc + x.samples.len());
+
+            if total_samples >= max_samples as usize {
+                return Err(DdsError::OutOfResources);
+            }
+        }
+
+        let serialized_data = serialize(&dynamic_data, &data_writer.qos.representation)?;
+
+        let change = CacheChange {
+            kind: ChangeKind::Alive,
+            writer_guid: data_writer.transport_writer.guid(),
+            sequence_number: data_writer.last_change_sequence_number,
+            source_timestamp: Some(timestamp.into()),
+            instance_handle: Some(instance_handle.into()),
+            data_value: serialized_data.into(),
+        };
+        if let HistoryQosPolicyKind::KeepLast(depth) = data_writer.qos.history.kind {
+            if let Some(s) = data_writer
+                .instance_samples
+                .iter_mut()
+                .find(|x| x.instance == instance_handle)
+            {
+                if s.samples.len() == depth as usize {
+                    if let Some(&smallest_seq_num_instance) = s.samples.front() {
+                        if data_writer.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
+                            let start_time = self.clock_handle.now();
+                            while let TransportWriterKind::Stateful(w) =
+                                &data_writer.transport_writer
+                            {
+                                if w.is_change_acknowledged(smallest_seq_num_instance) {
+                                    break;
+                                }
+
+                                if let DurationKind::Finite(t) =
+                                    data_writer.qos.reliability.max_blocking_time
+                                {
+                                    if (self.clock_handle.now() - start_time) > t {
+                                        return Err(DdsError::Timeout);
+                                    }
+                                }
+                            }
+                        }
                     }
+                    if let Some(smallest_seq_num_instance) = s.samples.pop_front() {
+                        data_writer
+                            .transport_writer
+                            .remove_change(smallest_seq_num_instance)
+                            .await;
+                    }
+                }
+            }
+        }
+
+        let seq_num = change.sequence_number;
+
+        if seq_num > data_writer.max_seq_num.unwrap_or(0) {
+            data_writer.max_seq_num = Some(seq_num)
+        }
+
+        match data_writer
+            .instance_publication_time
+            .iter_mut()
+            .find(|x| x.instance == instance_handle)
+        {
+            Some(x) => {
+                if x.last_write_time < timestamp {
+                    x.last_write_time = timestamp;
+                }
+            }
+            None => data_writer
+                .instance_publication_time
+                .push(InstancePublicationTime {
+                    instance: instance_handle,
+                    last_write_time: timestamp,
+                }),
+        }
+
+        match data_writer
+            .instance_samples
+            .iter_mut()
+            .find(|x| x.instance == instance_handle)
+        {
+            Some(s) => s.samples.push_back(change.sequence_number),
+            None => {
+                let s = InstanceSamples {
+                    instance: instance_handle,
+                    samples: VecDeque::from([change.sequence_number]),
                 };
+                data_writer.instance_samples.push(s);
             }
         }
 
         if let DurationKind::Finite(deadline_missed_period) = data_writer.qos.deadline.period {
             let mut timer_handle = self.timer_handle.clone();
+            let participant_address_clone = participant_address.clone();
             self.spawner_handle.spawn(async move {
                 loop {
                     timer_handle.delay(deadline_missed_period.into()).await;
-                    participant_address
+                    participant_address_clone
                         .send(DcpsDomainParticipantMail::Event(
                             EventServiceMail::OfferedDeadlineMissed {
                                 publisher_handle,
                                 data_writer_handle,
                                 change_instance_handle: instance_handle,
-                                participant_address: participant_address.clone(),
+                                participant_address: participant_address_clone.clone(),
                             },
                         ))
                         .await
@@ -2642,6 +2735,39 @@ where
                 }
             });
         }
+
+        let sequence_number = data_writer.last_change_sequence_number;
+
+        if let DurationKind::Finite(lifespan_duration) = data_writer.qos.lifespan.duration {
+            let sleep_duration = timestamp - now + lifespan_duration;
+            let mut timer_handle = self.timer_handle.clone();
+            if sleep_duration <= Duration::new(0, 0) {
+                return Ok(());
+            }
+
+            self.spawner_handle.spawn(async move {
+                timer_handle.delay(sleep_duration.into()).await;
+                participant_address
+                    .send(DcpsDomainParticipantMail::Message(
+                        MessageServiceMail::RemoveWriterChange {
+                            publisher_handle,
+                            data_writer_handle,
+                            sequence_number,
+                        },
+                    ))
+                    .await
+                    .ok();
+            });
+        }
+
+        data_writer
+            .transport_writer
+            .add_change(
+                change,
+                self.transport.message_writer.as_ref(),
+                &self.clock_handle,
+            )
+            .await;
 
         Ok(())
     }
@@ -6920,162 +7046,6 @@ impl DataWriterEntity {
             instance_publication_time: Vec::new(),
             instance_samples: Vec::new(),
         }
-    }
-
-    async fn write_w_timestamp(
-        &mut self,
-        dynamic_data: DynamicData,
-        timestamp: Time,
-        clock: &impl Clock,
-        message_writer: &(impl WriteMessage + ?Sized),
-    ) -> DdsResult<i64> {
-        if !self.enabled {
-            return Err(DdsError::NotEnabled);
-        }
-
-        self.last_change_sequence_number += 1;
-
-        let instance_handle = get_instance_handle_from_dynamic_data(dynamic_data.clone())?;
-
-        if !self.registered_instance_list.contains(&instance_handle) {
-            if self.registered_instance_list.len() < self.qos.resource_limits.max_instances {
-                self.registered_instance_list.push(instance_handle);
-            } else {
-                return Err(DdsError::OutOfResources);
-            }
-        }
-
-        if let Length::Limited(max_instances) = self.qos.resource_limits.max_instances {
-            if !self
-                .instance_samples
-                .iter()
-                .any(|x| x.instance == instance_handle)
-                && self.instance_samples.len() == max_instances as usize
-            {
-                return Err(DdsError::OutOfResources);
-            }
-        }
-
-        if let Length::Limited(max_samples_per_instance) =
-            self.qos.resource_limits.max_samples_per_instance
-        {
-            // If the history Qos guarantess that the number of samples
-            // is below the limit there is no need to check
-            match self.qos.history.kind {
-                HistoryQosPolicyKind::KeepLast(depth)
-                    if depth as i32 <= max_samples_per_instance => {}
-                _ => {
-                    if let Some(s) = self
-                        .instance_samples
-                        .iter()
-                        .find(|x| x.instance == instance_handle)
-                    {
-                        // Only Alive changes count towards the resource limits
-                        if s.samples.len() >= max_samples_per_instance as usize {
-                            return Err(DdsError::OutOfResources);
-                        }
-                    }
-                }
-            }
-        }
-
-        if let Length::Limited(max_samples) = self.qos.resource_limits.max_samples {
-            let total_samples = self
-                .instance_samples
-                .iter()
-                .fold(0, |acc, x| acc + x.samples.len());
-
-            if total_samples >= max_samples as usize {
-                return Err(DdsError::OutOfResources);
-            }
-        }
-
-        let serialized_data = serialize(&dynamic_data, &self.qos.representation)?;
-
-        let change = CacheChange {
-            kind: ChangeKind::Alive,
-            writer_guid: self.transport_writer.guid(),
-            sequence_number: self.last_change_sequence_number,
-            source_timestamp: Some(timestamp.into()),
-            instance_handle: Some(instance_handle.into()),
-            data_value: serialized_data.into(),
-        };
-        if let HistoryQosPolicyKind::KeepLast(depth) = self.qos.history.kind {
-            if let Some(s) = self
-                .instance_samples
-                .iter_mut()
-                .find(|x| x.instance == instance_handle)
-            {
-                if s.samples.len() == depth as usize {
-                    if let Some(&smallest_seq_num_instance) = s.samples.front() {
-                        if self.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
-                            let start_time = clock.now();
-                            while let TransportWriterKind::Stateful(w) = &self.transport_writer {
-                                if w.is_change_acknowledged(smallest_seq_num_instance) {
-                                    break;
-                                }
-
-                                if let DurationKind::Finite(t) =
-                                    self.qos.reliability.max_blocking_time
-                                {
-                                    if (clock.now() - start_time) > t {
-                                        return Err(DdsError::Timeout);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    if let Some(smallest_seq_num_instance) = s.samples.pop_front() {
-                        self.transport_writer
-                            .remove_change(smallest_seq_num_instance)
-                            .await;
-                    }
-                }
-            }
-        }
-
-        let seq_num = change.sequence_number;
-
-        if seq_num > self.max_seq_num.unwrap_or(0) {
-            self.max_seq_num = Some(seq_num)
-        }
-
-        match self
-            .instance_publication_time
-            .iter_mut()
-            .find(|x| x.instance == instance_handle)
-        {
-            Some(x) => {
-                if x.last_write_time < timestamp {
-                    x.last_write_time = timestamp;
-                }
-            }
-            None => self
-                .instance_publication_time
-                .push(InstancePublicationTime {
-                    instance: instance_handle,
-                    last_write_time: timestamp,
-                }),
-        }
-
-        match self
-            .instance_samples
-            .iter_mut()
-            .find(|x| x.instance == instance_handle)
-        {
-            Some(s) => s.samples.push_back(change.sequence_number),
-            None => {
-                let s = InstanceSamples {
-                    instance: instance_handle,
-                    samples: VecDeque::from([change.sequence_number]),
-                };
-                self.instance_samples.push(s);
-            }
-        }
-        self.transport_writer
-            .add_change(change, message_writer, clock)
-            .await;
-        Ok(self.last_change_sequence_number)
     }
 
     async fn dispose_w_timestamp(
