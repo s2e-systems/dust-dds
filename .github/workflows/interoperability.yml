@@ -23,9 +23,11 @@ jobs:
     - name: Zip executable  # Zipping done here to preserve executable bit
       run: |
         version=$( cargo tree --package dust_dds --depth 0 --prefix none | tr -d 'dust_dds v' )
-        cp dds-rtps/srcRs/DustDDS/target/release/dust_dds_shape_main_linux dust_dds-${version}_shape_main_linux
-        mkdir artifacts
-        zip --junk-paths artifacts/dust_dds-${version}_shape_main_linux.zip dust_dds-${version}_shape_main_linux
+        cp ../dds-rtps/srcRs/DustDDS/target/release/dust_dds_shape_main_linux dust_dds-${version}_shape_main_linux
+        mkdir ../artifacts
+        zip --junk-paths ../artifacts/dust_dds-${version}_shape_main_linux.zip dust_dds-${version}_shape_main_linux
+      working-directory:
+        dust-dds
     - name: Upload executable artifact
       uses: actions/upload-artifact@v4
       with:
