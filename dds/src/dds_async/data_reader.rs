@@ -458,6 +458,7 @@ impl<Foo> DataReaderAsync<Foo> {
                     subscriber_handle: self.subscriber.get_instance_handle().await,
                     data_reader_handle: self.handle,
                     qos,
+                    participant_address: self.participant_address().clone(),
                     reply_sender,
                 },
             ))

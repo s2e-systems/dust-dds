@@ -363,6 +363,7 @@ pub enum WriterServiceMail {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         qos: QosKind<DataWriterQos>,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
 }
@@ -445,6 +446,7 @@ pub enum ReaderServiceMail {
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         qos: QosKind<DataReaderQos>,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
     GetQos {
@@ -942,10 +944,16 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                 publisher_handle,
                 data_writer_handle,
                 qos,
+                participant_address,
                 reply_sender,
             } => reply_sender.send(
-                self.set_data_writer_qos(publisher_handle, data_writer_handle, qos)
-                    .await,
+                self.set_data_writer_qos(
+                    publisher_handle,
+                    data_writer_handle,
+                    qos,
+                    participant_address,
+                )
+                .await,
             ),
         }
     }
@@ -1155,10 +1163,16 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                 subscriber_handle,
                 data_reader_handle,
                 qos,
+                participant_address,
                 reply_sender,
             } => reply_sender.send(
-                self.set_data_reader_qos(subscriber_handle, data_reader_handle, qos)
-                    .await,
+                self.set_data_reader_qos(
+                    subscriber_handle,
+                    data_reader_handle,
+                    qos,
+                    participant_address,
+                )
+                .await,
             ),
             ReaderServiceMail::SetListener {
                 subscriber_handle,

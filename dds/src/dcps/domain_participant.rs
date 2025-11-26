@@ -2737,7 +2737,7 @@ where
                 .await;
             }
 
-            self.announce_data_writer(publisher_handle, data_writer_handle)
+            self.announce_data_writer(publisher_handle, data_writer_handle, participant_address)
                 .await;
         }
         Ok(())
@@ -2749,6 +2749,7 @@ where
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         qos: QosKind<DataWriterQos>,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
     ) -> DdsResult<()> {
         let Some(publisher) = self
             .domain_participant
@@ -2777,7 +2778,7 @@ where
         data_writer.qos = qos;
 
         if data_writer.enabled {
-            self.announce_data_writer(publisher_handle, data_writer_handle)
+            self.announce_data_writer(publisher_handle, data_writer_handle, participant_address)
                 .await;
         }
         Ok(())
@@ -3104,6 +3105,7 @@ where
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         qos: QosKind<DataReaderQos>,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
             .domain_participant
@@ -3133,7 +3135,7 @@ where
         data_reader.qos = qos;
 
         if data_reader.enabled {
-            self.announce_data_reader(subscriber_handle, data_reader_handle)
+            self.announce_data_reader(subscriber_handle, data_reader_handle, participant_address)
                 .await;
         }
         Ok(())
@@ -3272,7 +3274,7 @@ where
                 .await;
             }
 
-            self.announce_data_reader(subscriber_handle, data_reader_handle)
+            self.announce_data_reader(subscriber_handle, data_reader_handle, participant_address)
                 .await;
         }
         Ok(())
@@ -3388,6 +3390,7 @@ where
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
     ) {
         let Some(publisher) = self
             .domain_participant
@@ -3450,23 +3453,23 @@ where
             dds_publication_data,
             writer_proxy,
         };
-        let timestamp = self.get_current_time();
-        if let Some(dw) = self
-            .domain_participant
-            .builtin_publisher
-            .data_writer_list
-            .iter_mut()
-            .find(|x| x.topic_name == DCPS_PUBLICATION)
-        {
-            dw.write_w_timestamp(
-                discovered_writer_data.create_dynamic_sample(),
-                timestamp,
-                &self.clock_handle,
-                self.transport.message_writer.as_ref(),
+        let data_writer_handle = InstanceHandle::new(
+            Guid::new(
+                Guid::from(*self.domain_participant.instance_handle.as_ref()).prefix(),
+                ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
             )
-            .await
-            .ok();
-        }
+            .into(),
+        );
+        let timestamp = self.get_current_time();
+        self.write_w_timestamp(
+            participant_address,
+            self.domain_participant.builtin_publisher.instance_handle,
+            data_writer_handle,
+            discovered_writer_data.create_dynamic_sample(),
+            timestamp,
+        )
+        .await
+        .ok();
     }
 
     #[tracing::instrument(skip(self, data_writer))]
@@ -3507,6 +3510,7 @@ where
         &mut self,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
     ) {
         let Some(subscriber) = self
             .domain_participant
@@ -3581,23 +3585,23 @@ where
             dds_subscription_data,
             reader_proxy,
         };
-        let timestamp = self.get_current_time();
-        if let Some(dw) = self
-            .domain_participant
-            .builtin_publisher
-            .data_writer_list
-            .iter_mut()
-            .find(|x| x.topic_name == DCPS_SUBSCRIPTION)
-        {
-            dw.write_w_timestamp(
-                discovered_reader_data.create_dynamic_sample(),
-                timestamp,
-                &self.clock_handle,
-                self.transport.message_writer.as_ref(),
+        let data_writer_handle = InstanceHandle::new(
+            Guid::new(
+                Guid::from(*self.domain_participant.instance_handle.as_ref()).prefix(),
+                ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
             )
-            .await
-            .ok();
-        }
+            .into(),
+        );
+        let timestamp = self.get_current_time();
+        self.write_w_timestamp(
+            participant_address,
+            self.domain_participant.builtin_publisher.instance_handle,
+            data_writer_handle,
+            discovered_reader_data.create_dynamic_sample(),
+            timestamp,
+        )
+        .await
+        .ok();
     }
 
     #[tracing::instrument(skip(self, data_reader))]
