@@ -20,11 +20,17 @@ jobs:
         path: dds-rtps
     - name: Build executable
       run: cargo build --package dust_dds_shape_main_linux --release --manifest-path dds-rtps/srcRs/DustDDS/Cargo.toml --config patch.crates-io.dust_dds.path="'dust-dds/dds'"
+    - name: Zip executable  # Zipping done here to preserve executable bit
+      run: |
+        version=$( tq -f dds/Cargo.toml 'package.version' | tr -d '"' )
+        cp dds-rtps/srcRs/DustDDS/target/release/dust_dds_shape_main_linux dust_dds-${version}_shape_main_linux
+        mkdir artifacts
+        zip --junk-paths artifacts/dust_dds-${version}_shape_main_linux.zip dust_dds-${version}_shape_main_linux
     - name: Upload executable artifact
       uses: actions/upload-artifact@v4
       with:
         name: interoperability_executable
-        path: dds-rtps/srcRs/DustDDS/target/release/dust_dds_shape_main_linux
+        path: artifacts
 
   run_tests:
     runs-on: ubuntu-latest
@@ -79,13 +85,13 @@ jobs:
     - name: Remove DustDDS
       run: rm ziped_executables/dust_dds*
       continue-on-error: true
-    - name: Unzip executables
-      run: unzip 'ziped_executables/*.zip' -d executables
     - name: Download dust_dds_shape_main executable artifact from create_bin_release
       uses: actions/download-artifact@v4
       with:
         name: interoperability_executable
-        path: executables
+        path: ziped_executables
+    - name: Unzip executables
+      run: unzip 'ziped_executables/*.zip' -d executables
     - name: List directory
       run: ls -l executables
     - name: Install omg-dds dds-rtps Python requirements
