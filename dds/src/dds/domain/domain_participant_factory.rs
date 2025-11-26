@@ -11,20 +11,19 @@ use crate::{
     },
     runtime::DdsRuntime,
     std_runtime::executor::block_on,
-    transport::interface::TransportParticipantFactory,
 };
 use tracing::warn;
 
 /// The sole purpose of this class is to allow the creation and destruction of [`DomainParticipant`] objects.
 /// [`DomainParticipantFactory`] itself has no factory. It is a pre-existing singleton object that can be accessed by means of the
 /// [`DomainParticipantFactory::get_instance`] operation.
-pub struct DomainParticipantFactory<R: DdsRuntime, T: TransportParticipantFactory> {
-    participant_factory_async: &'static DomainParticipantFactoryAsync<R, T>,
+pub struct DomainParticipantFactory<R: DdsRuntime> {
+    participant_factory_async: &'static DomainParticipantFactoryAsync<R>,
 }
 
-impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantFactory<R, T> {
+impl<R: DdsRuntime> DomainParticipantFactory<R> {
     /// Construct a new ['DomainParticipantFactory'] from an existing ['DomainParticipantFactoryAsync'] static reference
-    pub fn new(participant_factory_async: &'static DomainParticipantFactoryAsync<R, T>) -> Self {
+    pub fn new(participant_factory_async: &'static DomainParticipantFactoryAsync<R>) -> Self {
         Self {
             participant_factory_async,
         }
@@ -114,7 +113,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantFactory<R, 
     }
 }
 
-impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantFactory<R, T> {
+impl<R: DdsRuntime> DomainParticipantFactory<R> {
     /// Set the configuration of the [`DomainParticipantFactory`] singleton
     pub fn set_configuration(&self, configuration: DustDdsConfiguration) -> DdsResult<()> {
         block_on(
@@ -130,26 +129,17 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DomainParticipantFactory<R, 
 }
 
 #[cfg(feature = "std")]
-impl
-    DomainParticipantFactory<
-        crate::std_runtime::StdRuntime,
-        crate::rtps_udp_transport::udp_transport::RtpsUdpTransportParticipantFactory,
-    >
-{
+impl DomainParticipantFactory<crate::std_runtime::StdRuntime> {
     /// This operation returns the [`DomainParticipantFactory`] singleton. The operation is idempotent, that is, it can be called multiple
     /// times without side-effects and it will return the same [`DomainParticipantFactory`] instance.
     #[tracing::instrument]
     pub fn get_instance() -> &'static Self {
         static PARTICIPANT_FACTORY: std::sync::OnceLock<
-            DomainParticipantFactory<
-                crate::std_runtime::StdRuntime,
-                crate::rtps_udp_transport::udp_transport::RtpsUdpTransportParticipantFactory,
-            >,
+            DomainParticipantFactory<crate::std_runtime::StdRuntime>,
         > = std::sync::OnceLock::new();
         PARTICIPANT_FACTORY.get_or_init(|| DomainParticipantFactory {
             participant_factory_async: DomainParticipantFactoryAsync::<
                 crate::std_runtime::StdRuntime,
-                crate::rtps_udp_transport::udp_transport::RtpsUdpTransportParticipantFactory,
             >::get_instance(),
         })
     }

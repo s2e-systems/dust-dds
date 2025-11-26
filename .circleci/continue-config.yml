@@ -60,15 +60,17 @@ jobs:
             echo $DOCKERHUB_ACCESS_TOKEN | docker login --username $DOCKERHUB_USERNAME --password-stdin
             docker push s2esystems/dust_dds_interoperability:1.85.0
 
-  clippy:
+  code_checks:
     docker:
       - image: cimg/rust:1.87.0
     resource_class: large
+    environment:
+      RUSTFLAGS: -D warnings
     steps:
       - checkout
       - run: cargo --version
-      - run: cargo clippy -- -D warnings
-      - run: cargo fmt --check
+      - run: cargo clippy --all-features --all-targets --all
+      - run: cargo fmt --check --all
   benchmark:
     docker:
       - image: cimg/rust:1.87.0
@@ -293,7 +295,7 @@ workflows:
       - hello_world_on_windows
       - benchmark
       - compilation_times
-      - clippy
+      - code_checks
       - multi_machine_tests
       - shapes_demo_build
 

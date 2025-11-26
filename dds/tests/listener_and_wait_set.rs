@@ -134,7 +134,7 @@ fn reader_on_data_available_matched_listener_and_wait_set_should_both_trigger() 
     }
 
     impl DataReaderListener<MyData> for DataAvailableListener {
-        async fn on_data_available(&mut self, _the_reader: DataReaderAsync<MyData>) -> () {
+        async fn on_data_available(&mut self, _the_reader: DataReaderAsync<MyData>) {
             if let Some(s) = self.sender.take() {
                 s.send(()).unwrap()
             };

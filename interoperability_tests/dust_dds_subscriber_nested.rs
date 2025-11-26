@@ -73,7 +73,7 @@ fn main() {
         .unwrap();
 
     let data = samples[0].data.as_ref().unwrap();
-    println!("Received: {:?}", data);
+    println!("Received: {data:?}",);
 
     // Sleep to allow sending acknowledgements
     std::thread::sleep(std::time::Duration::from_secs(2));

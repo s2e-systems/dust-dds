@@ -242,10 +242,7 @@ impl Options {
             Some(color) => color,
             None => {
                 let default_color = "BLUE".to_string();
-                println!(
-                    "warning: color was not specified, defaulting to \"{}\"",
-                    default_color
-                );
+                println!("warning: color was not specified, defaulting to \"{default_color}\"",);
                 default_color
             }
         }
@@ -746,12 +743,12 @@ struct RunningError(String);
 
 impl From<DdsError> for InitializeError {
     fn from(value: DdsError) -> Self {
-        Self(format!("DdsError: {:?}", value))
+        Self(format!("DdsError: {value:?}"))
     }
 }
 impl From<DdsError> for RunningError {
     fn from(value: DdsError) -> Self {
-        Self(format!("DdsError: {:?}", value))
+        Self(format!("DdsError: {value:?}"))
     }
 }
 
