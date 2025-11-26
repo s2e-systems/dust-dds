@@ -25,7 +25,7 @@ use crate::{
     runtime::{DdsRuntime, Spawner, Timer},
     transport::{interface::TransportParticipantFactory, types::GuidPrefix},
 };
-use alloc::{string::ToString, sync::Arc, vec::Vec};
+use alloc::{borrow::ToOwned, string::String, sync::Arc, vec::Vec};
 use core::{future::Future, marker::PhantomData, pin::Pin, task::Poll};
 
 pub struct DcpsParticipantFactory<R: DdsRuntime, T> {
@@ -112,7 +112,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
 
         let mut dcps_participant: DcpsDomainParticipant<R> = DcpsDomainParticipant::new(
             domain_id,
-            String::from(self.configuration.domain_tag()),
+            self.configuration.domain_tag().to_owned(),
             guid_prefix,
             domain_participant_qos,
             listener_sender,
@@ -243,10 +243,9 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             .domain_participant_list
             .iter()
             .position(|(h, _)| h == &handle)
-            .ok_or(DdsError::PreconditionNotMet(
-                "Participant can only be deleted from its parent domain participant factory"
-                    .to_string(),
-            ))?;
+            .ok_or(DdsError::PreconditionNotMet(String::from(
+                "Participant can only be deleted from its parent domain participant factory",
+            )))?;
 
         let (_, participant) = self.domain_participant_list.remove(index);
         Ok(participant)
