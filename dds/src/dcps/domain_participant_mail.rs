@@ -903,16 +903,18 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                 dynamic_data,
                 timestamp,
                 reply_sender,
-            } => reply_sender.send(
+            } => {
                 self.write_w_timestamp(
                     participant_address,
                     publisher_handle,
                     data_writer_handle,
                     dynamic_data,
                     timestamp,
+                    reply_sender,
                 )
-                .await,
-            ),
+                .await
+            }
+
             WriterServiceMail::DisposeWTimestamp {
                 publisher_handle,
                 data_writer_handle,
