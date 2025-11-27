@@ -1,31 +1,242 @@
-use super::Generator;
 use crate::parser::{IdlPair, Rule};
 
 /// _Rust_ generator.
 #[derive(Debug)]
-pub struct RustGenerator {
-    /// Writer.
-    writer: String,
-    /// List of modules to keep track hierarchy.
+pub struct RustGenerator<'a> {
+    writer: &'a mut String,
+    /// List of modules to keep track of hierarchy.
     modules: Vec<String>,
 }
 
-impl RustGenerator {
-    /// Constructs a new `Context` from `writer`.
-    #[inline]
-    #[must_use]
-    pub fn new(writer: String) -> Self {
+impl<'a> RustGenerator<'a> {
+    pub fn new(writer: &'a mut String) -> Self {
         Self {
             writer,
             modules: Vec::default(),
         }
     }
 
-    /// Consumes `self` returning `writer`.
-    #[inline]
-    #[must_use]
-    pub fn into_writer(self) -> String {
-        self.writer
+    pub fn generate(&mut self, pair: IdlPair) {
+        match pair.as_rule() {
+            Rule::EOI => (),
+            Rule::escape => todo!(),
+            Rule::octal_escape => todo!(),
+            Rule::hex_escape => todo!(),
+            Rule::unicode_escape => todo!(),
+            Rule::WHITESPACE => (),
+            Rule::block_comment => (),
+            Rule::line_comment => (),
+            Rule::COMMENT => (),
+            Rule::reserved_keyword => (),
+            Rule::identifier => self.identifier(pair),
+            Rule::character_literal => todo!(),
+            Rule::string_literal => todo!(),
+            Rule::wide_character_literal => todo!(),
+            Rule::wide_string_literal => todo!(),
+            Rule::integer_literal => todo!(),
+            Rule::decimal_integer_literal => todo!(),
+            Rule::octal_integer_literal => todo!(),
+            Rule::hex_integer_literal => todo!(),
+            Rule::fixed_pt_literal => todo!(),
+            Rule::floating_pt_literal => todo!(),
+            Rule::integral_part => todo!(),
+            Rule::fractional_part => todo!(),
+            Rule::exponent => todo!(),
+            Rule::float_suffix => todo!(),
+            Rule::specification => self.specification(pair),
+            Rule::definition => self.definition(pair),
+            Rule::module_dcl => self.module_dcl(pair),
+            Rule::scoped_name => self.scoped_name(pair),
+            Rule::const_dcl => self.const_dcl(pair),
+            Rule::const_type => self.const_type(pair),
+            Rule::const_expr => self.const_expr(pair),
+            Rule::or_expr => todo!(),
+            Rule::xor_expr => todo!(),
+            Rule::and_expr => todo!(),
+            Rule::lshift_expr => todo!(),
+            Rule::rshift_expr => todo!(),
+            Rule::add_expr => todo!(),
+            Rule::sub_expr => todo!(),
+            Rule::mul_expr => todo!(),
+            Rule::div_expr => todo!(),
+            Rule::mod_expr => todo!(),
+            Rule::unary_expr => todo!(),
+            Rule::unary_operator => todo!(),
+            Rule::primary_expr => todo!(),
+            Rule::literal => todo!(),
+            Rule::boolean_literal => todo!(),
+            Rule::positive_int_const => self.positive_int_const(pair),
+            Rule::type_dcl => self.type_dcl(pair),
+            Rule::type_spec => self.type_spec(pair),
+            Rule::simple_type_spec => self.simple_type_spec(pair),
+            Rule::base_type_spec => self.base_type_spec(pair),
+            Rule::floating_pt_type => self.floating_pt_type(pair),
+            Rule::integer_type => self.integer_type(pair),
+            Rule::signed_tiny_int => self.signed_tiny_int(pair),
+            Rule::signed_int => self.signed_int(pair),
+            Rule::signed_short_int => self.signed_short_int(pair),
+            Rule::signed_long_int => self.signed_long_int(pair),
+            Rule::signed_longlong_int => self.signed_longlong_int(pair),
+            Rule::unsigned_tiny_int => self.unsigned_tiny_int(pair),
+            Rule::unsigned_int => self.unsigned_int(pair),
+            Rule::unsigned_short_int => self.unsigned_short_int(pair),
+            Rule::unsigned_long_int => self.unsigned_long_int(pair),
+            Rule::unsigned_longlong_int => self.unsigned_longlong_int(pair),
+            Rule::char_type => self.char_type(pair),
+            Rule::wide_char_type => self.wide_char_type(pair),
+            Rule::boolean_type => self.boolean(pair),
+            Rule::octet_type => self.octet_type(pair),
+            Rule::template_type_spec => self.template_type_spec(pair),
+            Rule::sequence_type => self.sequence_type(pair),
+            Rule::string_type => self.string_type(pair),
+            Rule::wide_string_type => self.wide_string_type(pair),
+            Rule::fixed_pt_type => unimplemented!("Fixed point not supported in Rust mapping"),
+            Rule::fixed_pt_const_type => {
+                unimplemented!("Fixed point not supported in Rust mapping")
+            }
+            Rule::constr_type_dcl => self.constr_type_dcl(pair),
+            Rule::struct_dcl => self.struct_dcl(pair),
+            Rule::struct_def => self.struct_def(pair),
+            Rule::member => self.member(pair),
+            Rule::struct_forward_dcl => (), // Forward declarations are irrelevant in Rust mapping
+            Rule::union_dcl => todo!(),
+            Rule::union_def => todo!(),
+            Rule::switch_type_spec => todo!(),
+            Rule::switch_body => todo!(),
+            Rule::case => todo!(),
+            Rule::case_label => todo!(),
+            Rule::element_spec => todo!(),
+            Rule::union_forward_dcl => (), // Forward declarations are irrelevant in Rust mapping
+            Rule::enum_dcl => self.enum_dcl(pair),
+            Rule::enumerator => self.enumerator(pair),
+            Rule::array_declarator => todo!(),
+            Rule::fixed_array_size => self.fixed_array_size(pair),
+            Rule::native_dcl => todo!(),
+            Rule::simple_declarator => self.simple_declarator(pair),
+            Rule::typedef_dcl => self.typedef_dcl(pair),
+            Rule::type_declarator => self.type_declarator(pair),
+            Rule::any_declarators => (), // Handled inside typedef_dcl
+            Rule::any_declarator => self.any_declarator(pair),
+            Rule::declarators => self.declarators(pair),
+            Rule::declarator => todo!(),
+            Rule::any_type => todo!(),
+            Rule::except_dcl => todo!(),
+            Rule::interface_dcl => self.interface_dcl(pair),
+            Rule::interface_def => self.interface_def(pair),
+            Rule::interface_forward_dcl => (), // Forward declarations are irrelevant in Rust mapping
+            Rule::interface_header => self.interface_header(pair),
+            Rule::interface_kind => self.interface_kind(pair),
+            Rule::interface_inheritance_spec => todo!(),
+            Rule::interface_name => todo!(),
+            Rule::interface_body => self.interface_body(pair),
+            Rule::export => self.export(pair),
+            Rule::op_dcl => self.op_dcl(pair),
+            Rule::op_type_spec => self.op_type_spec(pair),
+            Rule::parameter_dcls => self.parameter_dcls(pair),
+            Rule::param_dcl => self.param_dcl(pair),
+            Rule::param_attribute => self.param_attribute(pair),
+            Rule::raises_expr => todo!(),
+            Rule::attr_dcl => todo!(),
+            Rule::readonly_attr_spec => todo!(),
+            Rule::readonly_attr_declarator => todo!(),
+            Rule::attr_spec => todo!(),
+            Rule::attr_declarator => todo!(),
+            Rule::attr_raises_expr => todo!(),
+            Rule::get_excep_expr => todo!(),
+            Rule::set_excep_expr => todo!(),
+            Rule::exception_list => todo!(),
+            Rule::value_dcl => todo!(),
+            Rule::value_def => todo!(),
+            Rule::value_header => todo!(),
+            Rule::value_kind => todo!(),
+            Rule::value_inheritance_spec => todo!(),
+            Rule::value_name => todo!(),
+            Rule::value_element => todo!(),
+            Rule::state_member => todo!(),
+            Rule::init_dcl => todo!(),
+            Rule::init_param_dcls => todo!(),
+            Rule::init_param_dcl => todo!(),
+            Rule::value_forward_dcl => todo!(),
+            Rule::type_id_dcl => todo!(),
+            Rule::type_prefix_dcl => todo!(),
+            Rule::import_dcl => todo!(),
+            Rule::imported_scope => todo!(),
+            Rule::object_type => todo!(),
+            Rule::op_oneway_dcl => todo!(),
+            Rule::in_parameter_dcls => todo!(),
+            Rule::in_param_dcl => todo!(),
+            Rule::op_with_context => todo!(),
+            Rule::context_expr => todo!(),
+            Rule::value_box_def => todo!(),
+            Rule::value_abs_def => todo!(),
+            Rule::value_base_type => todo!(),
+            Rule::component_dcl => todo!(),
+            Rule::component_forward_dcl => todo!(),
+            Rule::component_def => todo!(),
+            Rule::component_header => todo!(),
+            Rule::component_inheritance_spec => todo!(),
+            Rule::component_body => todo!(),
+            Rule::component_export => todo!(),
+            Rule::provides_dcl => todo!(),
+            Rule::interface_type => todo!(),
+            Rule::uses_dcl => todo!(),
+            Rule::home_dcl => todo!(),
+            Rule::home_header => todo!(),
+            Rule::home_inheritance_spec => todo!(),
+            Rule::home_body => todo!(),
+            Rule::home_export => todo!(),
+            Rule::factory_dcl => todo!(),
+            Rule::factory_param_dcls => todo!(),
+            Rule::factory_param_dcl => todo!(),
+            Rule::supported_interface_spec => todo!(),
+            Rule::emits_dcl => todo!(),
+            Rule::publishes_dcl => todo!(),
+            Rule::consumes_dcl => todo!(),
+            Rule::primary_key_spec => todo!(),
+            Rule::finder_dcl => todo!(),
+            Rule::event_dcl => todo!(),
+            Rule::event_forward_dcl => todo!(),
+            Rule::event_abs_def => todo!(),
+            Rule::event_def => todo!(),
+            Rule::event_header => todo!(),
+            Rule::porttype_dcl => todo!(),
+            Rule::porttype_forward_dcl => todo!(),
+            Rule::porttype_def => todo!(),
+            Rule::port_body => todo!(),
+            Rule::port_ref => todo!(),
+            Rule::port_export => todo!(),
+            Rule::port_dcl => todo!(),
+            Rule::connector_dcl => todo!(),
+            Rule::connector_header => todo!(),
+            Rule::connector_inherit_spec => todo!(),
+            Rule::connector_export => todo!(),
+            Rule::template_module_dcl => todo!(),
+            Rule::formal_parameters => todo!(),
+            Rule::formal_parameter => todo!(),
+            Rule::formal_parameter_type => todo!(),
+            Rule::tpl_definition => todo!(),
+            Rule::template_module_inst => todo!(),
+            Rule::actual_parameters => todo!(),
+            Rule::actual_parameter => todo!(),
+            Rule::template_module_ref => todo!(),
+            Rule::formal_parameter_names => todo!(),
+            Rule::map_type => todo!(),
+            Rule::bitset_dcl => todo!(),
+            Rule::bitfield => todo!(),
+            Rule::bitfield_spec => todo!(),
+            Rule::destination_type => todo!(),
+            Rule::bitmask_dcl => todo!(),
+            Rule::bit_value => todo!(),
+            Rule::annotation_dcl => todo!(),
+            Rule::annotation_header => todo!(),
+            Rule::annotation_body => todo!(),
+            Rule::annotation_member => todo!(),
+            Rule::annotation_member_type => todo!(),
+            Rule::any_const_type => todo!(),
+            Rule::annotation_appl => todo!(),
+            Rule::annotation_appl_params => todo!(),
+            Rule::annotation_appl_param => todo!(),
+        }
     }
 
     fn specification(&mut self, pair: IdlPair) {
@@ -134,7 +345,7 @@ impl RustGenerator {
         if !self.modules.is_empty() {
             let name = format!(
                 "#[dust_dds(name = \"{}\")]\n",
-                self.type_name(identifier.as_str())
+                self.hierarchical_type_name(identifier.as_str())
             );
             self.writer.push_str(&name);
         }
@@ -162,7 +373,7 @@ impl RustGenerator {
         if !self.modules.is_empty() {
             let name = format!(
                 "#[dust_dds(name = \"{}\")]\n",
-                self.type_name(identifier.as_str())
+                self.hierarchical_type_name(identifier.as_str())
             );
             self.writer.push_str(&name);
         }
@@ -681,248 +892,20 @@ impl RustGenerator {
     fn boolean(&mut self, _pair: IdlPair) {
         self.writer.push_str("bool")
     }
-}
 
-impl Generator for RustGenerator {
-    fn generate(&mut self, pair: IdlPair) {
-        match pair.as_rule() {
-            Rule::EOI => (),
-            Rule::escape => todo!(),
-            Rule::octal_escape => todo!(),
-            Rule::hex_escape => todo!(),
-            Rule::unicode_escape => todo!(),
-            Rule::WHITESPACE => (),
-            Rule::block_comment => (),
-            Rule::line_comment => (),
-            Rule::COMMENT => (),
-            Rule::reserved_keyword => (),
-            Rule::identifier => self.identifier(pair),
-            Rule::character_literal => todo!(),
-            Rule::string_literal => todo!(),
-            Rule::wide_character_literal => todo!(),
-            Rule::wide_string_literal => todo!(),
-            Rule::integer_literal => todo!(),
-            Rule::decimal_integer_literal => todo!(),
-            Rule::octal_integer_literal => todo!(),
-            Rule::hex_integer_literal => todo!(),
-            Rule::fixed_pt_literal => todo!(),
-            Rule::floating_pt_literal => todo!(),
-            Rule::integral_part => todo!(),
-            Rule::fractional_part => todo!(),
-            Rule::exponent => todo!(),
-            Rule::float_suffix => todo!(),
-            Rule::specification => self.specification(pair),
-            Rule::definition => self.definition(pair),
-            Rule::module_dcl => self.module_dcl(pair),
-            Rule::scoped_name => self.scoped_name(pair),
-            Rule::const_dcl => self.const_dcl(pair),
-            Rule::const_type => self.const_type(pair),
-            Rule::const_expr => self.const_expr(pair),
-            Rule::or_expr => todo!(),
-            Rule::xor_expr => todo!(),
-            Rule::and_expr => todo!(),
-            Rule::lshift_expr => todo!(),
-            Rule::rshift_expr => todo!(),
-            Rule::add_expr => todo!(),
-            Rule::sub_expr => todo!(),
-            Rule::mul_expr => todo!(),
-            Rule::div_expr => todo!(),
-            Rule::mod_expr => todo!(),
-            Rule::unary_expr => todo!(),
-            Rule::unary_operator => todo!(),
-            Rule::primary_expr => todo!(),
-            Rule::literal => todo!(),
-            Rule::boolean_literal => todo!(),
-            Rule::positive_int_const => self.positive_int_const(pair),
-            Rule::type_dcl => self.type_dcl(pair),
-            Rule::type_spec => self.type_spec(pair),
-            Rule::simple_type_spec => self.simple_type_spec(pair),
-            Rule::base_type_spec => self.base_type_spec(pair),
-            Rule::floating_pt_type => self.floating_pt_type(pair),
-            Rule::integer_type => self.integer_type(pair),
-            Rule::signed_tiny_int => self.signed_tiny_int(pair),
-            Rule::signed_int => self.signed_int(pair),
-            Rule::signed_short_int => self.signed_short_int(pair),
-            Rule::signed_long_int => self.signed_long_int(pair),
-            Rule::signed_longlong_int => self.signed_longlong_int(pair),
-            Rule::unsigned_tiny_int => self.unsigned_tiny_int(pair),
-            Rule::unsigned_int => self.unsigned_int(pair),
-            Rule::unsigned_short_int => self.unsigned_short_int(pair),
-            Rule::unsigned_long_int => self.unsigned_long_int(pair),
-            Rule::unsigned_longlong_int => self.unsigned_longlong_int(pair),
-            Rule::char_type => self.char_type(pair),
-            Rule::wide_char_type => self.wide_char_type(pair),
-            Rule::boolean_type => self.boolean(pair),
-            Rule::octet_type => self.octet_type(pair),
-            Rule::template_type_spec => self.template_type_spec(pair),
-            Rule::sequence_type => self.sequence_type(pair),
-            Rule::string_type => self.string_type(pair),
-            Rule::wide_string_type => self.wide_string_type(pair),
-            Rule::fixed_pt_type => unimplemented!("Fixed point not supported in Rust mapping"),
-            Rule::fixed_pt_const_type => {
-                unimplemented!("Fixed point not supported in Rust mapping")
-            }
-            Rule::constr_type_dcl => self.constr_type_dcl(pair),
-            Rule::struct_dcl => self.struct_dcl(pair),
-            Rule::struct_def => self.struct_def(pair),
-            Rule::member => self.member(pair),
-            Rule::struct_forward_dcl => (), // Forward declarations are irrelevant in Rust mapping
-            Rule::union_dcl => todo!(),
-            Rule::union_def => todo!(),
-            Rule::switch_type_spec => todo!(),
-            Rule::switch_body => todo!(),
-            Rule::case => todo!(),
-            Rule::case_label => todo!(),
-            Rule::element_spec => todo!(),
-            Rule::union_forward_dcl => (), // Forward declarations are irrelevant in Rust mapping
-            Rule::enum_dcl => self.enum_dcl(pair),
-            Rule::enumerator => self.enumerator(pair),
-            Rule::array_declarator => todo!(),
-            Rule::fixed_array_size => self.fixed_array_size(pair),
-            Rule::native_dcl => todo!(),
-            Rule::simple_declarator => self.simple_declarator(pair),
-            Rule::typedef_dcl => self.typedef_dcl(pair),
-            Rule::type_declarator => self.type_declarator(pair),
-            Rule::any_declarators => (), // Handled inside typedef_dcl
-            Rule::any_declarator => self.any_declarator(pair),
-            Rule::declarators => self.declarators(pair),
-            Rule::declarator => todo!(),
-            Rule::any_type => todo!(),
-            Rule::except_dcl => todo!(),
-            Rule::interface_dcl => self.interface_dcl(pair),
-            Rule::interface_def => self.interface_def(pair),
-            Rule::interface_forward_dcl => (), // Forward declarations are irrelevant in Rust mapping
-            Rule::interface_header => self.interface_header(pair),
-            Rule::interface_kind => self.interface_kind(pair),
-            Rule::interface_inheritance_spec => todo!(),
-            Rule::interface_name => todo!(),
-            Rule::interface_body => self.interface_body(pair),
-            Rule::export => self.export(pair),
-            Rule::op_dcl => self.op_dcl(pair),
-            Rule::op_type_spec => self.op_type_spec(pair),
-            Rule::parameter_dcls => self.parameter_dcls(pair),
-            Rule::param_dcl => self.param_dcl(pair),
-            Rule::param_attribute => self.param_attribute(pair),
-            Rule::raises_expr => todo!(),
-            Rule::attr_dcl => todo!(),
-            Rule::readonly_attr_spec => todo!(),
-            Rule::readonly_attr_declarator => todo!(),
-            Rule::attr_spec => todo!(),
-            Rule::attr_declarator => todo!(),
-            Rule::attr_raises_expr => todo!(),
-            Rule::get_excep_expr => todo!(),
-            Rule::set_excep_expr => todo!(),
-            Rule::exception_list => todo!(),
-            Rule::value_dcl => todo!(),
-            Rule::value_def => todo!(),
-            Rule::value_header => todo!(),
-            Rule::value_kind => todo!(),
-            Rule::value_inheritance_spec => todo!(),
-            Rule::value_name => todo!(),
-            Rule::value_element => todo!(),
-            Rule::state_member => todo!(),
-            Rule::init_dcl => todo!(),
-            Rule::init_param_dcls => todo!(),
-            Rule::init_param_dcl => todo!(),
-            Rule::value_forward_dcl => todo!(),
-            Rule::type_id_dcl => todo!(),
-            Rule::type_prefix_dcl => todo!(),
-            Rule::import_dcl => todo!(),
-            Rule::imported_scope => todo!(),
-            Rule::object_type => todo!(),
-            Rule::op_oneway_dcl => todo!(),
-            Rule::in_parameter_dcls => todo!(),
-            Rule::in_param_dcl => todo!(),
-            Rule::op_with_context => todo!(),
-            Rule::context_expr => todo!(),
-            Rule::value_box_def => todo!(),
-            Rule::value_abs_def => todo!(),
-            Rule::value_base_type => todo!(),
-            Rule::component_dcl => todo!(),
-            Rule::component_forward_dcl => todo!(),
-            Rule::component_def => todo!(),
-            Rule::component_header => todo!(),
-            Rule::component_inheritance_spec => todo!(),
-            Rule::component_body => todo!(),
-            Rule::component_export => todo!(),
-            Rule::provides_dcl => todo!(),
-            Rule::interface_type => todo!(),
-            Rule::uses_dcl => todo!(),
-            Rule::home_dcl => todo!(),
-            Rule::home_header => todo!(),
-            Rule::home_inheritance_spec => todo!(),
-            Rule::home_body => todo!(),
-            Rule::home_export => todo!(),
-            Rule::factory_dcl => todo!(),
-            Rule::factory_param_dcls => todo!(),
-            Rule::factory_param_dcl => todo!(),
-            Rule::supported_interface_spec => todo!(),
-            Rule::emits_dcl => todo!(),
-            Rule::publishes_dcl => todo!(),
-            Rule::consumes_dcl => todo!(),
-            Rule::primary_key_spec => todo!(),
-            Rule::finder_dcl => todo!(),
-            Rule::event_dcl => todo!(),
-            Rule::event_forward_dcl => todo!(),
-            Rule::event_abs_def => todo!(),
-            Rule::event_def => todo!(),
-            Rule::event_header => todo!(),
-            Rule::porttype_dcl => todo!(),
-            Rule::porttype_forward_dcl => todo!(),
-            Rule::porttype_def => todo!(),
-            Rule::port_body => todo!(),
-            Rule::port_ref => todo!(),
-            Rule::port_export => todo!(),
-            Rule::port_dcl => todo!(),
-            Rule::connector_dcl => todo!(),
-            Rule::connector_header => todo!(),
-            Rule::connector_inherit_spec => todo!(),
-            Rule::connector_export => todo!(),
-            Rule::template_module_dcl => todo!(),
-            Rule::formal_parameters => todo!(),
-            Rule::formal_parameter => todo!(),
-            Rule::formal_parameter_type => todo!(),
-            Rule::tpl_definition => todo!(),
-            Rule::template_module_inst => todo!(),
-            Rule::actual_parameters => todo!(),
-            Rule::actual_parameter => todo!(),
-            Rule::template_module_ref => todo!(),
-            Rule::formal_parameter_names => todo!(),
-            Rule::map_type => todo!(),
-            Rule::bitset_dcl => todo!(),
-            Rule::bitfield => todo!(),
-            Rule::bitfield_spec => todo!(),
-            Rule::destination_type => todo!(),
-            Rule::bitmask_dcl => todo!(),
-            Rule::bit_value => todo!(),
-            Rule::annotation_dcl => todo!(),
-            Rule::annotation_header => todo!(),
-            Rule::annotation_body => todo!(),
-            Rule::annotation_member => todo!(),
-            Rule::annotation_member_type => todo!(),
-            Rule::any_const_type => todo!(),
-            Rule::annotation_appl => todo!(),
-            Rule::annotation_appl_params => todo!(),
-            Rule::annotation_appl_param => todo!(),
+    fn hierarchical_type_name(&self, ident: &str) -> String {
+        const MODULE_SEP: &str = "::";
+        if self.modules.is_empty() {
+            ident.to_owned()
+        } else {
+            format!("{}{}{ident}", self.modules.join(MODULE_SEP), MODULE_SEP)
         }
-    }
-
-    #[inline]
-    fn modules(&self) -> &[String] {
-        &self.modules
-    }
-}
-
-impl Default for RustGenerator {
-    #[inline]
-    fn default() -> Self {
-        Self::new(String::default())
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{Generator, RustGenerator};
+    use super::*;
     use crate::parser::{IdlParser, Rule};
     use pest::Parser;
 
@@ -939,9 +922,10 @@ mod tests {
         .unwrap()
         .next()
         .unwrap();
-        let mut rust_generator = RustGenerator::default();
+        let mut writer = String::new();
+        let mut rust_generator = RustGenerator::new(&mut writer);
         rust_generator.generate(p);
-        let writer = rust_generator.into_writer();
+
         assert_eq!(
             &writer,
             "#[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]\npub struct MyStruct {pub a:i32,pub b:i64,pub c:i64,pub xary:[u8;32],pub yary:[u8;64],}\n",
@@ -961,9 +945,10 @@ mod tests {
         .unwrap()
         .next()
         .unwrap();
-        let mut rust_generator = RustGenerator::default();
+        let mut writer = String::new();
+        let mut rust_generator = RustGenerator::new(&mut writer);
         rust_generator.generate(p);
-        let writer = rust_generator.into_writer();
+
         assert_eq!(
             &writer,
             "#[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]\npub enum MyEnum {A,B,C,}\n",
@@ -976,9 +961,10 @@ mod tests {
             .unwrap()
             .next()
             .unwrap();
-        let mut rust_generator = RustGenerator::default();
+        let mut writer = String::new();
+        let mut rust_generator = RustGenerator::new(&mut writer);
         rust_generator.generate(p);
-        let writer = rust_generator.into_writer();
+
         assert_eq!(
             &writer,
             "#[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]\n#[dust_dds(extensibility = \"appendable\")]\npub struct MyStruct {pub a:i32,}\n",
@@ -991,9 +977,10 @@ mod tests {
             .unwrap()
             .next()
             .unwrap();
-        let mut rust_generator = RustGenerator::default();
+        let mut writer = String::new();
+        let mut rust_generator = RustGenerator::new(&mut writer);
         rust_generator.generate(p);
-        let writer = rust_generator.into_writer();
+
         assert_eq!(&writer, "#[dust_dds(key)]pub a:i32,");
     }
 
@@ -1003,9 +990,10 @@ mod tests {
             .unwrap()
             .next()
             .unwrap();
-        let mut rust_generator = RustGenerator::default();
+        let mut writer = String::new();
+        let mut rust_generator = RustGenerator::new(&mut writer);
         rust_generator.generate(p);
-        let writer = rust_generator.into_writer();
+
         assert_eq!(&writer, "pub a:Vec<u8>,");
     }
 
@@ -1015,9 +1003,10 @@ mod tests {
             .unwrap()
             .next()
             .unwrap();
-        let mut rust_generator = RustGenerator::default();
+        let mut writer = String::new();
+        let mut rust_generator = RustGenerator::new(&mut writer);
         rust_generator.generate(p);
-        let writer = rust_generator.into_writer();
+
         assert_eq!(&writer, "pub a:Vec<Vec<u8>>,");
     }
 
@@ -1027,9 +1016,10 @@ mod tests {
             .unwrap()
             .next()
             .unwrap();
-        let mut rust_generator = RustGenerator::default();
+        let mut writer = String::new();
+        let mut rust_generator = RustGenerator::new(&mut writer);
         rust_generator.generate(p);
-        let writer = rust_generator.into_writer();
+
         assert_eq!(&writer, "pub const a:String='a';\n");
     }
 
@@ -1039,9 +1029,10 @@ mod tests {
             .unwrap()
             .next()
             .unwrap();
-        let mut rust_generator = RustGenerator::default();
+        let mut writer = String::new();
+        let mut rust_generator = RustGenerator::new(&mut writer);
         rust_generator.generate(p);
-        let writer = rust_generator.into_writer();
+
         assert_eq!(&writer, "pub type Name=i32;\n");
     }
 
@@ -1051,9 +1042,10 @@ mod tests {
             .unwrap()
             .next()
             .unwrap();
-        let mut rust_generator = RustGenerator::default();
+        let mut writer = String::new();
+        let mut rust_generator = RustGenerator::new(&mut writer);
         rust_generator.generate(p);
-        let writer = rust_generator.into_writer();
+
         assert_eq!(&writer, "fn op(s:&mut String,)->i16;\n");
     }
 
@@ -1069,9 +1061,10 @@ mod tests {
         .unwrap()
         .next()
         .unwrap();
-        let mut rust_generator = RustGenerator::default();
+        let mut writer = String::new();
+        let mut rust_generator = RustGenerator::new(&mut writer);
         rust_generator.generate(p);
-        let writer = rust_generator.into_writer();
+
         assert_eq!(
             &writer,
             "pub trait MyInterface{fn op(s:&mut String,a:&mut i16,u:&char,);\nfn sum(a:&u16,b:&u16,)->u16;\n}\n",
@@ -1103,9 +1096,10 @@ mod tests {
         .unwrap()
         .next()
         .unwrap();
-        let mut rust_generator = RustGenerator::default();
+        let mut writer = String::new();
+        let mut rust_generator = RustGenerator::new(&mut writer);
         rust_generator.generate(p);
-        let writer = rust_generator.into_writer();
+
         assert_eq!(
             &writer,
             "pub mod root{pub mod a{#[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]\n#[dust_dds(name = \"root::a::A\")]\npub struct A {pub x:u8,pub y:u16,pub z:u32,}\n}pub mod b{#[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]\n#[dust_dds(name = \"root::b::B\")]\npub enum B {X,Y,Z,}\n}}",
