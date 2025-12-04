@@ -79,12 +79,12 @@ pub struct Task {
     future: Mutex<Pin<Box<dyn Future<Output = ()> + Send>>>,
     task_sender: Sender<Arc<Task>>,
     thread_handle: Thread,
-    abort: AtomicBool,
+    finished: AtomicBool,
 }
 
 impl Task {
-    fn is_aborted(&self) -> bool {
-        self.abort.load(atomic::Ordering::Acquire)
+    fn is_finished(&self) -> bool {
+        self.finished.load(atomic::Ordering::Acquire)
     }
 }
 
@@ -94,7 +94,7 @@ impl Wake for Task {
     }
 
     fn wake_by_ref(self: &Arc<Self>) {
-        if !self.is_aborted() {
+        if !self.is_finished() {
             self.task_sender.send(self.clone()).unwrap();
             self.thread_handle.unpark();
         }
@@ -114,7 +114,7 @@ impl ExecutorHandle {
             future: Mutex::new(future),
             task_sender: self.task_sender.clone(),
             thread_handle: self.thread_handle.clone(),
-            abort: AtomicBool::new(false),
+            finished: AtomicBool::new(false),
         });
         self.task_sender
             .send(task.clone())
@@ -149,15 +149,18 @@ impl Executor {
                 loop {
                     match task_receiver.try_recv() {
                         Ok(task) => {
-                            if !task.is_aborted() {
+                            if !task.is_finished() {
                                 let waker = Waker::from(task.clone());
                                 let mut cx = Context::from_waker(&waker);
-                                let _ = task
+                                let poll_result = task
                                     .future
                                     .try_lock()
                                     .expect("Only ever locked here")
                                     .as_mut()
                                     .poll(&mut cx);
+                                if matches!(poll_result, Poll::Ready(_)) {
+                                    task.finished.store(true, atomic::Ordering::Relaxed);
+                                }
                             }
                         }
                         Err(TryRecvError::Empty) => thread::park(),
