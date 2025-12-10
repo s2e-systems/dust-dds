@@ -432,14 +432,12 @@ fn enum_should_be_always_same_instance() {
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
-
     writer.write(UnKeyedData::On, None).unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
     let sample = reader
         .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         .unwrap();
     assert_eq!(sample[0].data.as_ref().unwrap(), &UnKeyedData::On);
-
 
     writer.write(UnKeyedData::Off, None).unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
