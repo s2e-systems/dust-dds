@@ -388,3 +388,64 @@ fn foo_xtypes_union_should_read_and_write() {
     assert_eq!(samples.len(), 1);
     assert_eq!(samples[0].data.as_ref().unwrap(), &data);
 }
+
+#[test]
+fn enum_should_be_always_same_instance() {
+    #[derive(Clone, Debug, PartialEq, DdsType)]
+    enum UnKeyedData {
+        On,
+        Off,
+    }
+
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let topic = participant
+        .create_topic::<UnKeyedData>(
+            "MyTopic",
+            "UnKeyedData",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+    let publisher = participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer = publisher
+        .create_datawriter(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let subscriber = participant
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader = subscriber
+        .create_datareader::<UnKeyedData>(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let cond = reader.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::SubscriptionMatched, StatusKind::DataAvailable])
+        .unwrap();
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+
+
+    writer.write(UnKeyedData::On, None).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+    let sample = reader
+        .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+    assert_eq!(sample[0].data.as_ref().unwrap(), &UnKeyedData::On);
+
+
+    writer.write(UnKeyedData::Off, None).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+    let samples = reader
+        .read(2, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+    assert_eq!(samples.len(), 1);
+    assert_eq!(samples[0].data.as_ref().unwrap(), &UnKeyedData::Off);
+}
