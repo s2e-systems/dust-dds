@@ -92,27 +92,14 @@ impl From<Guid> for [u8; 16] {
 impl PartialEq<[u8; 16]> for Guid {
     #[inline]
     fn eq(&self, other: &[u8; 16]) -> bool {
-        self.prefix == other[..12] && self.entity_id == other[12..]
+        self.prefix == other[..12]
+            && other[12..]
+                .try_into()
+                .is_ok_and(|entity_id: [u8; 4]| self.entity_id == entity_id)
     }
 }
 
 impl PartialEq<Guid> for [u8; 16] {
-    #[inline]
-    fn eq(&self, other: &Guid) -> bool {
-        other.eq(self)
-    }
-}
-
-impl PartialEq<[u8]> for Guid {
-    #[inline]
-    fn eq(&self, other: &[u8]) -> bool {
-        other
-            .try_into()
-            .is_ok_and(|other: &[u8; 16]| self.eq(other))
-    }
-}
-
-impl PartialEq<Guid> for [u8] {
     #[inline]
     fn eq(&self, other: &Guid) -> bool {
         other.eq(self)
@@ -174,20 +161,6 @@ impl PartialEq<[u8; 4]> for EntityId {
 }
 
 impl PartialEq<EntityId> for [u8; 4] {
-    #[inline]
-    fn eq(&self, other: &EntityId) -> bool {
-        other.eq(self)
-    }
-}
-
-impl PartialEq<[u8]> for EntityId {
-    #[inline]
-    fn eq(&self, other: &[u8]) -> bool {
-        other.try_into().is_ok_and(|other: &[u8; 4]| self.eq(other))
-    }
-}
-
-impl PartialEq<EntityId> for [u8] {
     #[inline]
     fn eq(&self, other: &EntityId) -> bool {
         other.eq(self)

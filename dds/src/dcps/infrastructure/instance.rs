@@ -1,8 +1,5 @@
 use crate::transport::types::Guid;
-use core::{
-    borrow::Borrow,
-    ops::{Deref, Index},
-};
+use core::{borrow::Borrow, ops::Index};
 use dust_dds_derive::TypeSupport;
 
 /// Special constant value representing a 'nil' [`InstanceHandle`].
@@ -74,31 +71,6 @@ impl PartialEq<InstanceHandle> for [u8; 16] {
     #[inline]
     fn eq(&self, other: &InstanceHandle) -> bool {
         self.eq(&other.0)
-    }
-}
-
-impl PartialEq<[u8]> for InstanceHandle {
-    #[inline]
-    fn eq(&self, other: &[u8]) -> bool {
-        other
-            .try_into()
-            .is_ok_and(|other: &[u8; 16]| self.eq(other))
-    }
-}
-
-impl PartialEq<InstanceHandle> for [u8] {
-    #[inline]
-    fn eq(&self, other: &InstanceHandle) -> bool {
-        other.eq(self)
-    }
-}
-
-impl Deref for InstanceHandle {
-    type Target = [u8; 16];
-
-    #[inline]
-    fn deref(&self) -> &Self::Target {
-        &self.0
     }
 }
 

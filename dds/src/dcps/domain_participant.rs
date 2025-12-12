@@ -6893,10 +6893,10 @@ struct DomainParticipantEntity {
     discovered_reader_list: Vec<DiscoveredReaderData>,
     discovered_writer_list: Vec<DiscoveredWriterData>,
     enabled: bool,
-    ignored_participants: BTreeSet<InstanceHandle>, // TODO: no_std HashSet from https://github.com/rust-lang/hashbrown
-    ignored_publications: BTreeSet<InstanceHandle>, // TODO: no_std HashSet from https://github.com/rust-lang/hashbrown
-    ignored_subscriptions: BTreeSet<InstanceHandle>, // TODO: no_std HashSet from https://github.com/rust-lang/hashbrown
-    _ignored_topic_list: BTreeSet<InstanceHandle>, // TODO: no_std HashSet from https://github.com/rust-lang/hashbrown
+    ignored_participants: BTreeSet<InstanceHandle>,
+    ignored_publications: BTreeSet<InstanceHandle>,
+    ignored_subscriptions: BTreeSet<InstanceHandle>,
+    _ignored_topic_list: BTreeSet<InstanceHandle>,
     listener_sender: Option<MpscSender<ListenerMail>>,
     listener_mask: Vec<StatusKind>,
 }
