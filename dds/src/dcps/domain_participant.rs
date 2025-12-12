@@ -106,7 +106,7 @@ use crate::{
 };
 use alloc::{
     boxed::Box,
-    collections::VecDeque,
+    collections::{BTreeSet, VecDeque},
     format,
     string::{String, ToString},
     sync::Arc,
@@ -1474,53 +1474,91 @@ where
         }
     }
 
+    /// Ignore participant with the specified [`handle`](InstanceHandle).
     #[tracing::instrument(skip(self))]
     pub fn ignore_participant(&mut self, handle: InstanceHandle) -> DdsResult<()> {
-        if self.domain_participant.enabled {
-            if !self
-                .domain_participant
-                .ignored_participants
-                .contains(&handle)
-            {
-                self.domain_participant.ignored_participants.push(handle);
-            }
-
-            Ok(())
-        } else {
-            Err(DdsError::NotEnabled)
+        // Check enabled
+        if !self.domain_participant.enabled {
+            return Err(DdsError::NotEnabled);
         }
-    }
 
-    #[tracing::instrument(skip(self))]
-    pub fn ignore_subscription(&mut self, handle: InstanceHandle) -> DdsResult<()> {
-        if self.domain_participant.enabled {
-            if !self
-                .domain_participant
-                .ignored_subcriptions
-                .contains(&handle)
-            {
-                self.domain_participant.ignored_subcriptions.push(handle);
-            }
-            Ok(())
-        } else {
-            Err(DdsError::NotEnabled)
+        // Add to ignored participants
+        if !self.domain_participant.ignored_participants.insert(handle) {
+            // Already ignored
+            return Ok(());
         }
+
+        // Prefix
+        let prefix = Guid::from(handle).prefix();
+
+        // Subscribers
+        for subscriber in &mut self.domain_participant.user_defined_subscriber_list {
+            for data_reader in &mut subscriber.data_reader_list {
+                // Remove writers
+                if let TransportReaderKind::Stateful(stateful_reader) =
+                    &mut data_reader.transport_reader
+                {
+                    stateful_reader.delete_matched_writers(prefix);
+                }
+
+                // Remove samples
+                data_reader
+                    .sample_list
+                    .retain(|sample| sample.writer_guid[..prefix.len()] != prefix);
+            }
+        }
+
+        // Publishers
+        for publisher in &mut self.domain_participant.user_defined_publisher_list {
+            for data_writer in &mut publisher.data_writer_list {
+                // Remove readers
+                if let TransportWriterKind::Stateful(stateful_writer) =
+                    &mut data_writer.transport_writer
+                {
+                    stateful_writer.delete_matched_readers(prefix);
+                }
+            }
+        }
+
+        // Remove publications detector
+        self.remove_matched_publications_detector(prefix);
+        // Remove publications announcer
+        self.remove_matched_publications_announcer(prefix);
+
+        // Remove subscriptions detector
+        self.remove_matched_subscriptions_detector(prefix);
+        // Remove subscriptions announcer
+        self.remove_matched_subscriptions_announcer(prefix);
+
+        // Remove topics detector
+        self.remove_matched_topics_detector(prefix);
+        // Remove topics announcer
+        self.remove_matched_topics_announcer(prefix);
+
+        // Remove from discovered participant
+        self.remove_discovered_participant(handle);
+
+        Ok(())
     }
 
     #[tracing::instrument(skip(self))]
     pub fn ignore_publication(&mut self, handle: InstanceHandle) -> DdsResult<()> {
-        if self.domain_participant.enabled {
-            if !self
-                .domain_participant
-                .ignored_publications
-                .contains(&handle)
-            {
-                self.domain_participant.ignored_publications.push(handle);
-            }
-            Ok(())
-        } else {
-            Err(DdsError::NotEnabled)
+        if !self.domain_participant.enabled {
+            return Err(DdsError::NotEnabled);
         }
+
+        self.domain_participant.ignored_publications.insert(handle);
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn ignore_subscription(&mut self, handle: InstanceHandle) -> DdsResult<()> {
+        if !self.domain_participant.enabled {
+            return Err(DdsError::NotEnabled);
+        }
+
+        self.domain_participant.ignored_subscriptions.insert(handle);
+        Ok(())
     }
 
     #[tracing::instrument(skip(self))]
@@ -5933,7 +5971,6 @@ where
         };
         let is_domain_tag_matching = discovered_participant_data.participant_proxy.domain_tag
             == self.domain_participant.domain_tag;
-
         let is_participant_discovered = self
             .domain_participant
             .discovered_participant_list
@@ -5942,37 +5979,40 @@ where
                 p.dds_participant_data.key().value
                     == discovered_participant_data.dds_participant_data.key.value
             });
+        let is_participant_ignored = self
+            .domain_participant
+            .ignored_participants
+            .iter()
+            .any(|handle| handle == &discovered_participant_data.dds_participant_data.key.value);
 
-        if is_domain_id_matching && is_domain_tag_matching && !is_participant_discovered {
-            self.add_matched_publications_detector(&discovered_participant_data)
-                .await;
-            self.add_matched_publications_announcer(&discovered_participant_data)
-                .await;
-            self.add_matched_subscriptions_detector(&discovered_participant_data)
-                .await;
-            self.add_matched_subscriptions_announcer(&discovered_participant_data)
-                .await;
-            self.add_matched_topics_detector(&discovered_participant_data)
-                .await;
-            self.add_matched_topics_announcer(&discovered_participant_data)
-                .await;
+        if is_domain_id_matching
+            && is_domain_tag_matching
+            && !is_participant_discovered
+            && !is_participant_ignored
+        {
+            self.add_matched_publications_detector(&discovered_participant_data);
+            self.add_matched_publications_announcer(&discovered_participant_data);
+            self.add_matched_subscriptions_detector(&discovered_participant_data);
+            self.add_matched_subscriptions_announcer(&discovered_participant_data);
+            self.add_matched_topics_detector(&discovered_participant_data);
+            self.add_matched_topics_announcer(&discovered_participant_data);
 
             self.announce_participant(participant_address).await;
-        }
 
-        self.domain_participant
-            .add_discovered_participant(discovered_participant_data);
+            self.domain_participant
+                .add_discovered_participant(discovered_participant_data);
+        }
     }
 
     #[tracing::instrument(skip(self))]
     fn remove_discovered_participant(&mut self, discovered_participant: InstanceHandle) {
         self.domain_participant
             .discovered_participant_list
-            .retain(|p| &p.dds_participant_data.key().value != discovered_participant.as_ref());
+            .retain(|p| p.dds_participant_data.key().value != discovered_participant);
     }
 
     #[tracing::instrument(skip(self))]
-    async fn add_matched_publications_detector(
+    fn add_matched_publications_detector(
         &mut self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
     ) {
@@ -6021,7 +6061,26 @@ where
     }
 
     #[tracing::instrument(skip(self))]
-    async fn add_matched_publications_announcer(
+    fn remove_matched_publications_detector(&mut self, prefix: GuidPrefix) {
+        if let Some(dw) = self
+            .domain_participant
+            .builtin_publisher
+            .data_writer_list
+            .iter_mut()
+            .find(|dw| {
+                dw.transport_writer.guid().entity_id()
+                    == ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER
+            })
+        {
+            if let TransportWriterKind::Stateful(w) = &mut dw.transport_writer {
+                let guid = Guid::new(prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
+                w.delete_matched_reader(guid);
+            }
+        }
+    }
+
+    #[tracing::instrument(skip(self))]
+    fn add_matched_publications_announcer(
         &mut self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
     ) {
@@ -6069,7 +6128,26 @@ where
     }
 
     #[tracing::instrument(skip(self))]
-    async fn add_matched_subscriptions_detector(
+    fn remove_matched_publications_announcer(&mut self, prefix: GuidPrefix) {
+        if let Some(dr) = self
+            .domain_participant
+            .builtin_subscriber
+            .data_reader_list
+            .iter_mut()
+            .find(|dr| {
+                dr.transport_reader.guid().entity_id()
+                    == ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR
+            })
+        {
+            if let TransportReaderKind::Stateful(r) = &mut dr.transport_reader {
+                let guid = Guid::new(prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER);
+                r.delete_matched_writer(guid);
+            }
+        }
+    }
+
+    #[tracing::instrument(skip(self))]
+    fn add_matched_subscriptions_detector(
         &mut self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
     ) {
@@ -6118,7 +6196,26 @@ where
     }
 
     #[tracing::instrument(skip(self))]
-    async fn add_matched_subscriptions_announcer(
+    fn remove_matched_subscriptions_detector(&mut self, prefix: GuidPrefix) {
+        if let Some(dw) = self
+            .domain_participant
+            .builtin_publisher
+            .data_writer_list
+            .iter_mut()
+            .find(|dw| {
+                dw.transport_writer.guid().entity_id()
+                    == ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER
+            })
+        {
+            if let TransportWriterKind::Stateful(w) = &mut dw.transport_writer {
+                let guid = Guid::new(prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+                w.delete_matched_reader(guid);
+            }
+        }
+    }
+
+    #[tracing::instrument(skip(self))]
+    fn add_matched_subscriptions_announcer(
         &mut self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
     ) {
@@ -6166,7 +6263,26 @@ where
     }
 
     #[tracing::instrument(skip(self))]
-    async fn add_matched_topics_detector(
+    fn remove_matched_subscriptions_announcer(&mut self, prefix: GuidPrefix) {
+        if let Some(dr) = self
+            .domain_participant
+            .builtin_subscriber
+            .data_reader_list
+            .iter_mut()
+            .find(|dr| {
+                dr.transport_reader.guid().entity_id()
+                    == ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR
+            })
+        {
+            if let TransportReaderKind::Stateful(r) = &mut dr.transport_reader {
+                let guid = Guid::new(prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+                r.delete_matched_writer(guid);
+            }
+        }
+    }
+
+    #[tracing::instrument(skip(self))]
+    fn add_matched_topics_detector(
         &mut self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
     ) {
@@ -6214,7 +6330,25 @@ where
     }
 
     #[tracing::instrument(skip(self))]
-    async fn add_matched_topics_announcer(
+    fn remove_matched_topics_detector(&mut self, prefix: GuidPrefix) {
+        if let Some(dw) = self
+            .domain_participant
+            .builtin_publisher
+            .data_writer_list
+            .iter_mut()
+            .find(|dw| {
+                dw.transport_writer.guid().entity_id() == ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER
+            })
+        {
+            if let TransportWriterKind::Stateful(w) = &mut dw.transport_writer {
+                let guid = Guid::new(prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR);
+                w.delete_matched_reader(guid);
+            }
+        }
+    }
+
+    #[tracing::instrument(skip(self))]
+    fn add_matched_topics_announcer(
         &mut self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
     ) {
@@ -6256,6 +6390,24 @@ where
                     TransportReaderKind::Stateful(r) => r.add_matched_writer(&writer_proxy),
                     TransportReaderKind::Stateless(_) => panic!("Invalid built-in reader type"),
                 }
+            }
+        }
+    }
+
+    #[tracing::instrument(skip(self))]
+    fn remove_matched_topics_announcer(&mut self, prefix: GuidPrefix) {
+        if let Some(dr) = self
+            .domain_participant
+            .builtin_subscriber
+            .data_reader_list
+            .iter_mut()
+            .find(|dr| {
+                dr.transport_reader.guid().entity_id() == ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR
+            })
+        {
+            if let TransportReaderKind::Stateful(r) = &mut dr.transport_reader {
+                let guid = Guid::new(prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER);
+                r.delete_matched_writer(guid);
             }
         }
     }
@@ -6741,10 +6893,10 @@ struct DomainParticipantEntity {
     discovered_reader_list: Vec<DiscoveredReaderData>,
     discovered_writer_list: Vec<DiscoveredWriterData>,
     enabled: bool,
-    ignored_participants: Vec<InstanceHandle>,
-    ignored_publications: Vec<InstanceHandle>,
-    ignored_subcriptions: Vec<InstanceHandle>,
-    _ignored_topic_list: Vec<InstanceHandle>,
+    ignored_participants: BTreeSet<InstanceHandle>, // TODO: no_std HashSet from https://github.com/rust-lang/hashbrown
+    ignored_publications: BTreeSet<InstanceHandle>, // TODO: no_std HashSet from https://github.com/rust-lang/hashbrown
+    ignored_subscriptions: BTreeSet<InstanceHandle>, // TODO: no_std HashSet from https://github.com/rust-lang/hashbrown
+    _ignored_topic_list: BTreeSet<InstanceHandle>, // TODO: no_std HashSet from https://github.com/rust-lang/hashbrown
     listener_sender: Option<MpscSender<ListenerMail>>,
     listener_mask: Vec<StatusKind>,
 }
@@ -6779,10 +6931,10 @@ impl DomainParticipantEntity {
             discovered_reader_list: Vec::new(),
             discovered_writer_list: Vec::new(),
             enabled: false,
-            ignored_participants: Vec::new(),
-            ignored_publications: Vec::new(),
-            ignored_subcriptions: Vec::new(),
-            _ignored_topic_list: Vec::new(),
+            ignored_participants: BTreeSet::new(),
+            ignored_publications: BTreeSet::new(),
+            ignored_subscriptions: BTreeSet::new(),
+            _ignored_topic_list: BTreeSet::new(),
             listener_sender,
             listener_mask,
             domain_tag,

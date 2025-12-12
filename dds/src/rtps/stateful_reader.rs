@@ -59,9 +59,18 @@ impl RtpsStatefulReader {
         }
     }
 
-    pub fn delete_matched_writer(&mut self, writer_guid: Guid) {
+    /// Delete writer with the specified [`guid`](Guid).
+    #[inline]
+    pub fn delete_matched_writer(&mut self, guid: Guid) {
         self.matched_writers
-            .retain(|x| x.remote_writer_guid() != writer_guid)
+            .retain(|writer| writer.remote_writer_guid() != guid)
+    }
+
+    /// Delete writers with the specified [`prefix`](GuidPrefix).
+    #[inline]
+    pub fn delete_matched_writers(&mut self, prefix: GuidPrefix) {
+        self.matched_writers
+            .retain(|writer| writer.remote_writer_guid().prefix() != prefix);
     }
 
     pub fn matched_writer_lookup(&mut self, a_writer_guid: Guid) -> Option<&mut RtpsWriterProxy> {
