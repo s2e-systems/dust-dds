@@ -105,9 +105,18 @@ impl RtpsStatefulWriter {
         }
     }
 
-    pub fn delete_matched_reader(&mut self, reader_guid: Guid) {
+    /// Delete reader with the specified [`guid`](Guid).
+    #[inline]
+    pub fn delete_matched_reader(&mut self, guid: Guid) {
         self.matched_readers
-            .retain(|rp| rp.remote_reader_guid() != reader_guid);
+            .retain(|reader| reader.remote_reader_guid() != guid);
+    }
+
+    /// Delete readers with the specified [`prefix`](GuidPrefix).
+    #[inline]
+    pub fn delete_matched_readers(&mut self, prefix: GuidPrefix) {
+        self.matched_readers
+            .retain(|reader| reader.remote_reader_guid().prefix() != prefix);
     }
 
     pub async fn write_message(

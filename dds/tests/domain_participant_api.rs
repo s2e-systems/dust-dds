@@ -797,6 +797,36 @@ fn get_discovery_data_from_builtin_reader() {
 }
 
 #[test]
+fn ignore_participant() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let participant1 = domain_participant_factory
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let participant2 = domain_participant_factory
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    participant1
+        .ignore_participant(participant2.get_instance_handle())
+        .unwrap();
+
+    std::thread::sleep(std::time::Duration::from_secs(5));
+
+    // Participant 1
+    let participants = participant1.get_discovered_participants().unwrap();
+    assert_eq!(participants.len(), 1);
+    assert_eq!(participants[0], participant1.get_instance_handle());
+
+    // Participant 2
+    let participants = participant2.get_discovered_participants().unwrap();
+    assert_eq!(participants.len(), 2);
+    assert!(participants.contains(&participant2.get_instance_handle()));
+    assert!(participants.contains(&participant1.get_instance_handle()));
+}
+
+#[test]
 #[ignore = "Functionality needs to be revisited"]
 fn ignore_publication() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
@@ -940,29 +970,6 @@ fn ignore_subscription() {
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
     assert!(wait_set.wait(Duration::new(2, 0)).is_err());
-}
-
-#[test]
-#[ignore = "Test is flaky. Needs to be investigated"]
-fn ignore_participant() {
-    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let domain_participant_factory = DomainParticipantFactory::get_instance();
-    let participant1 = domain_participant_factory
-        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
-
-    let participant2 = domain_participant_factory
-        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
-
-    participant1
-        .ignore_participant(participant2.get_instance_handle())
-        .unwrap();
-
-    std::thread::sleep(std::time::Duration::from_secs(5));
-
-    // Participant should only discover itself
-    assert_eq!(participant1.get_discovered_participants().unwrap().len(), 1);
 }
 
 #[test]
