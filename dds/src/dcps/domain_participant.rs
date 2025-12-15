@@ -1476,7 +1476,7 @@ where
 
     /// Ignore participant with the specified [`handle`](InstanceHandle).
     #[tracing::instrument(skip(self))]
-    pub fn ignore_participant(&mut self, handle: InstanceHandle) -> DdsResult<()> {
+    pub async fn ignore_participant(&mut self, handle: InstanceHandle) -> DdsResult<()> {
         // Check enabled
         if !self.domain_participant.enabled {
             return Err(DdsError::NotEnabled);
@@ -1488,55 +1488,8 @@ where
             return Ok(());
         }
 
-        // Prefix
-        let prefix = Guid::from(handle).prefix();
-
-        // Subscribers
-        for subscriber in &mut self.domain_participant.user_defined_subscriber_list {
-            for data_reader in &mut subscriber.data_reader_list {
-                // Remove writers
-                if let TransportReaderKind::Stateful(stateful_reader) =
-                    &mut data_reader.transport_reader
-                {
-                    stateful_reader.delete_matched_writers(prefix);
-                }
-
-                // Remove samples
-                data_reader
-                    .sample_list
-                    .retain(|sample| sample.writer_guid[..prefix.len()] != prefix);
-            }
-        }
-
-        // Publishers
-        for publisher in &mut self.domain_participant.user_defined_publisher_list {
-            for data_writer in &mut publisher.data_writer_list {
-                // Remove readers
-                if let TransportWriterKind::Stateful(stateful_writer) =
-                    &mut data_writer.transport_writer
-                {
-                    stateful_writer.delete_matched_readers(prefix);
-                }
-            }
-        }
-
-        // Remove publications detector
-        self.remove_matched_publications_detector(prefix);
-        // Remove publications announcer
-        self.remove_matched_publications_announcer(prefix);
-
-        // Remove subscriptions detector
-        self.remove_matched_subscriptions_detector(prefix);
-        // Remove subscriptions announcer
-        self.remove_matched_subscriptions_announcer(prefix);
-
-        // Remove topics detector
-        self.remove_matched_topics_detector(prefix);
-        // Remove topics announcer
-        self.remove_matched_topics_announcer(prefix);
-
-        // Remove from discovered participant
-        self.remove_discovered_participant(handle);
+        // Remove participant
+        self.remove_discovered_participant(handle).await;
 
         Ok(())
     }
@@ -4901,7 +4854,8 @@ where
                     return;
                 };
 
-                self.remove_discovered_participant(discovered_participant_handle);
+                self.remove_discovered_participant(discovered_participant_handle)
+                    .await;
             }
             ChangeKind::AliveFiltered | ChangeKind::NotAliveUnregistered => (), // Do nothing,
         }
@@ -6004,11 +5958,68 @@ where
         }
     }
 
+    /// Remove discovered [domain participant](SpdpDiscoveredParticipantData) with the speficied [handle](InstanceHandle).
     #[tracing::instrument(skip(self))]
-    fn remove_discovered_participant(&mut self, discovered_participant: InstanceHandle) {
+    async fn remove_discovered_participant(&mut self, handle: InstanceHandle) {
+        // Remove participant
         self.domain_participant
             .discovered_participant_list
-            .retain(|p| p.dds_participant_data.key().value != discovered_participant);
+            .retain(|domain_participant| {
+                domain_participant.dds_participant_data.key.value != handle
+            });
+
+        // Prefix
+        let prefix = Guid::from(handle).prefix();
+
+        // Subscribers
+        for subscriber in &mut self.domain_participant.user_defined_subscriber_list {
+            for data_reader in &mut subscriber.data_reader_list {
+                // Remove writers
+                if let TransportReaderKind::Stateful(stateful_reader) =
+                    &mut data_reader.transport_reader
+                {
+                    stateful_reader.delete_matched_writers(prefix);
+                }
+
+                // Remove publications
+                data_reader.remove_matched_publications(prefix).await;
+
+                // Remove samples
+                data_reader
+                    .sample_list
+                    .retain(|sample| sample.writer_guid[..prefix.len()] != prefix);
+            }
+        }
+
+        // Publishers
+        for publisher in &mut self.domain_participant.user_defined_publisher_list {
+            for data_writer in &mut publisher.data_writer_list {
+                // Remove readers
+                if let TransportWriterKind::Stateful(stateful_writer) =
+                    &mut data_writer.transport_writer
+                {
+                    stateful_writer.delete_matched_readers(prefix);
+                }
+
+                // Remove subscriptions
+                data_writer.remove_matched_subscriptions(prefix);
+            }
+        }
+
+        // Remove publications detector
+        self.remove_matched_publications_detector(prefix);
+        // Remove publications announcer
+        self.remove_matched_publications_announcer(prefix);
+
+        // Remove subscriptions detector
+        self.remove_matched_subscriptions_detector(prefix);
+        // Remove subscriptions announcer
+        self.remove_matched_subscriptions_announcer(prefix);
+
+        // Remove topics detector
+        self.remove_matched_topics_detector(prefix);
+        // Remove topics announcer
+        self.remove_matched_topics_announcer(prefix);
     }
 
     #[tracing::instrument(skip(self))]
@@ -7453,8 +7464,20 @@ impl DataWriterEntity {
             return;
         };
         self.matched_subscription_list.remove(i);
+
         self.publication_matched_status.current_count = self.matched_subscription_list.len() as i32;
         self.publication_matched_status.current_count_change -= 1;
+    }
+
+    /// Remove subscriptions with the specified [`prefix`](GuidPrefix).
+    fn remove_matched_subscriptions(&mut self, prefix: GuidPrefix) {
+        let len = self.matched_subscription_list.len();
+        self.matched_subscription_list
+            .retain(|subscription| subscription.key.value[..prefix.len()] != prefix);
+
+        self.publication_matched_status.current_count = self.matched_subscription_list.len() as i32;
+        self.publication_matched_status.current_count_change -=
+            (len - self.matched_subscription_list.len()) as i32;
     }
 
     fn add_incompatible_subscription(
@@ -8323,8 +8346,25 @@ impl DataReaderEntity {
             return;
         };
         self.matched_publication_list.remove(i);
+
         self.subscription_matched_status.current_count = self.matched_publication_list.len() as i32;
         self.subscription_matched_status.current_count_change -= 1;
+        self.status_condition
+            .send_actor_mail(DcpsStatusConditionMail::AddCommunicationState {
+                state: StatusKind::SubscriptionMatched,
+            })
+            .await;
+    }
+
+    /// Remove publications with the specified [`prefix`](GuidPrefix).
+    async fn remove_matched_publications(&mut self, prefix: GuidPrefix) {
+        let len = self.matched_publication_list.len();
+        self.matched_publication_list
+            .retain(|publication| publication.key.value[..prefix.len()] != prefix);
+
+        self.subscription_matched_status.current_count = self.matched_publication_list.len() as i32;
+        self.subscription_matched_status.current_count_change -=
+            (len - self.matched_publication_list.len()) as i32;
         self.status_condition
             .send_actor_mail(DcpsStatusConditionMail::AddCommunicationState {
                 state: StatusKind::SubscriptionMatched,
