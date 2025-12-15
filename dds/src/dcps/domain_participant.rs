@@ -5969,7 +5969,7 @@ where
             });
 
         // Prefix
-        let prefix = Guid::from(handle).prefix();
+        let prefix = handle.prefix();
 
         // Subscribers
         for subscriber in &mut self.domain_participant.user_defined_subscriber_list {
