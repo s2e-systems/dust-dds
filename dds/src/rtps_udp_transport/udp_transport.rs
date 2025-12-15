@@ -160,19 +160,16 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
         let interface_address_list = NetworkInterface::show()
             .expect("Could not scan interfaces")
             .into_iter()
-            .filter(|x| {
-                if let Some(if_name) = &self.interface_name {
-                    &x.name == if_name
-                } else {
-                    true
-                }
+            .filter(|interface| {
+                self.interface_name
+                    .as_ref()
+                    .is_none_or(|interface_name| interface_name == &interface.name)
             })
-            .flat_map(|i| {
-                i.addr.into_iter().filter(|a| match a {
-                    #[rustfmt::skip]
-                Addr::V4(_) => true,
-                    _ => false,
-                })
+            .flat_map(|interface| {
+                interface
+                    .addr
+                    .into_iter()
+                    .filter(|a| matches!(a, Addr::V4(_)))
             });
 
         let default_unicast_socket =
