@@ -1,5 +1,5 @@
 use crate::transport::types::Guid;
-use core::{borrow::Borrow, ops::Index};
+use core::ops::Index;
 use dust_dds_derive::TypeSupport;
 
 /// Special constant value representing a 'nil' [`InstanceHandle`].
@@ -78,13 +78,6 @@ impl PartialEq<InstanceHandle> for [u8; 16] {
 impl AsRef<[u8; 16]> for InstanceHandle {
     #[inline]
     fn as_ref(&self) -> &[u8; 16] {
-        &self.0
-    }
-}
-
-impl Borrow<[u8; 16]> for InstanceHandle {
-    #[inline]
-    fn borrow(&self) -> &[u8; 16] {
         &self.0
     }
 }
