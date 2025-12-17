@@ -61,7 +61,7 @@ impl RtpsStatefulReader {
 
     pub fn delete_matched_writer(&mut self, writer_guid: Guid) {
         self.matched_writers
-            .retain(|x| x.remote_writer_guid() != writer_guid)
+            .retain(|writer_proxy| writer_proxy.remote_writer_guid() != writer_guid)
     }
 
     pub fn matched_writer_lookup(&mut self, a_writer_guid: Guid) -> Option<&mut RtpsWriterProxy> {

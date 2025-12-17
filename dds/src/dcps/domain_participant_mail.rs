@@ -666,7 +666,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             ParticipantServiceMail::IgnoreParticipant {
                 handle,
                 reply_sender,
-            } => reply_sender.send(self.ignore_participant(handle)),
+            } => reply_sender.send(self.ignore_participant(handle).await),
             ParticipantServiceMail::IgnoreSubscription {
                 handle,
                 reply_sender,
