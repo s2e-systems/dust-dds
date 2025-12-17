@@ -5961,64 +5961,61 @@ where
     /// Remove discovered [domain participant](SpdpDiscoveredParticipantData) with the speficied [handle](InstanceHandle).
     #[tracing::instrument(skip(self))]
     async fn remove_discovered_participant(&mut self, handle: InstanceHandle) {
-        // Remove participant
         self.domain_participant
             .discovered_participant_list
             .retain(|domain_participant| {
                 domain_participant.dds_participant_data.key.value != handle
             });
 
-        // Prefix
         let prefix = handle.prefix();
 
-        // Subscribers
         for subscriber in &mut self.domain_participant.user_defined_subscriber_list {
             for data_reader in &mut subscriber.data_reader_list {
-                // Remove writers
-                if let TransportReaderKind::Stateful(stateful_reader) =
-                    &mut data_reader.transport_reader
-                {
-                    stateful_reader.delete_matched_writers(prefix);
-                }
-
-                // Remove publications
-                data_reader.remove_matched_publications(prefix).await;
-
                 // Remove samples
                 data_reader
                     .sample_list
-                    .retain(|sample| sample.writer_guid[..prefix.len()] != prefix);
+                    .retain(|sample| sample.writer_guid[..12] != prefix);
+
+                for matched_publication in &data_reader.matched_publication_list {
+                    if matched_publication.key.value[0..12] == prefix {
+                        // Remove matched writers
+                        if let TransportReaderKind::Stateful(stateful_reader) =
+                            &mut data_reader.transport_reader
+                        {
+                            stateful_reader
+                                .delete_matched_writer(matched_publication.key.value.into());
+                        }
+                    }
+                }
             }
         }
 
-        // Publishers
         for publisher in &mut self.domain_participant.user_defined_publisher_list {
             for data_writer in &mut publisher.data_writer_list {
-                // Remove readers
-                if let TransportWriterKind::Stateful(stateful_writer) =
-                    &mut data_writer.transport_writer
-                {
-                    stateful_writer.delete_matched_readers(prefix);
+                for matched_subscription in &data_writer.matched_subscription_list {
+                    if matched_subscription.key.value[..12] == prefix {
+                        // Remove readers
+                        if let TransportWriterKind::Stateful(stateful_writer) =
+                            &mut data_writer.transport_writer
+                        {
+                            stateful_writer
+                                .delete_matched_reader(matched_subscription.key.value.into());
+                        }
+                    }
                 }
-
-                // Remove subscriptions
-                data_writer.remove_matched_subscriptions(prefix);
+                data_writer
+                    .matched_subscription_list
+                    .retain(|subscription| subscription.key.value[..12] != prefix);
             }
         }
 
-        // Remove publications detector
         self.remove_matched_publications_detector(prefix);
-        // Remove publications announcer
         self.remove_matched_publications_announcer(prefix);
 
-        // Remove subscriptions detector
         self.remove_matched_subscriptions_detector(prefix);
-        // Remove subscriptions announcer
         self.remove_matched_subscriptions_announcer(prefix);
 
-        // Remove topics detector
         self.remove_matched_topics_detector(prefix);
-        // Remove topics announcer
         self.remove_matched_topics_announcer(prefix);
     }
 
@@ -7469,17 +7466,6 @@ impl DataWriterEntity {
         self.publication_matched_status.current_count_change -= 1;
     }
 
-    /// Remove subscriptions with the specified [`prefix`](GuidPrefix).
-    fn remove_matched_subscriptions(&mut self, prefix: GuidPrefix) {
-        let len = self.matched_subscription_list.len();
-        self.matched_subscription_list
-            .retain(|subscription| subscription.key.value[..prefix.len()] != prefix);
-
-        self.publication_matched_status.current_count = self.matched_subscription_list.len() as i32;
-        self.publication_matched_status.current_count_change -=
-            (len - self.matched_subscription_list.len()) as i32;
-    }
-
     fn add_incompatible_subscription(
         &mut self,
         handle: InstanceHandle,
@@ -8349,22 +8335,6 @@ impl DataReaderEntity {
 
         self.subscription_matched_status.current_count = self.matched_publication_list.len() as i32;
         self.subscription_matched_status.current_count_change -= 1;
-        self.status_condition
-            .send_actor_mail(DcpsStatusConditionMail::AddCommunicationState {
-                state: StatusKind::SubscriptionMatched,
-            })
-            .await;
-    }
-
-    /// Remove publications with the specified [`prefix`](GuidPrefix).
-    async fn remove_matched_publications(&mut self, prefix: GuidPrefix) {
-        let len = self.matched_publication_list.len();
-        self.matched_publication_list
-            .retain(|publication| publication.key.value[..prefix.len()] != prefix);
-
-        self.subscription_matched_status.current_count = self.matched_publication_list.len() as i32;
-        self.subscription_matched_status.current_count_change -=
-            (len - self.matched_publication_list.len()) as i32;
         self.status_condition
             .send_actor_mail(DcpsStatusConditionMail::AddCommunicationState {
                 state: StatusKind::SubscriptionMatched,
