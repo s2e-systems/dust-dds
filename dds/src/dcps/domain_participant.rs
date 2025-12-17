@@ -5967,17 +5967,17 @@ where
                 domain_participant.dds_participant_data.key.value != handle
             });
 
-        let prefix = handle.prefix();
+        let prefix = Guid::from(<[u8; 16]>::from(handle)).prefix();
 
         for subscriber in &mut self.domain_participant.user_defined_subscriber_list {
             for data_reader in &mut subscriber.data_reader_list {
                 // Remove samples
                 data_reader
                     .sample_list
-                    .retain(|sample| sample.writer_guid[..12] != prefix);
+                    .retain(|sample| &sample.writer_guid[..12] != prefix);
 
                 for matched_publication in &data_reader.matched_publication_list {
-                    if matched_publication.key.value[0..12] == prefix {
+                    if &matched_publication.key.value[0..12] == prefix {
                         // Remove matched writers
                         if let TransportReaderKind::Stateful(stateful_reader) =
                             &mut data_reader.transport_reader
@@ -5993,7 +5993,7 @@ where
         for publisher in &mut self.domain_participant.user_defined_publisher_list {
             for data_writer in &mut publisher.data_writer_list {
                 for matched_subscription in &data_writer.matched_subscription_list {
-                    if matched_subscription.key.value[..12] == prefix {
+                    if &matched_subscription.key.value[..12] == prefix {
                         // Remove readers
                         if let TransportWriterKind::Stateful(stateful_writer) =
                             &mut data_writer.transport_writer

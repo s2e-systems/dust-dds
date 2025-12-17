@@ -6,30 +6,13 @@ use dust_dds_derive::TypeSupport;
 pub const HANDLE_NIL: InstanceHandle = InstanceHandle([0; 16]);
 
 /// Type for the instance handle representing an Entity.
-#[repr(transparent)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, PartialOrd, Ord, TypeSupport)]
 pub struct InstanceHandle([u8; 16]);
 
 impl InstanceHandle {
     /// Constructs a new `InstanceHandle`.
-    #[inline]
     pub const fn new(bytes: [u8; 16]) -> Self {
         Self(bytes)
-    }
-
-    /// Returns the _prefix_.
-    #[inline]
-    pub const fn prefix(&self) -> [u8; 12] {
-        [
-            self.0[0], self.0[1], self.0[2], self.0[3], self.0[4], self.0[5], self.0[6], self.0[7],
-            self.0[8], self.0[9], self.0[10], self.0[11],
-        ]
-    }
-
-    /// Returns the _entity identifier_.
-    #[inline]
-    pub const fn entity_id(&self) -> [u8; 4] {
-        [self.0[12], self.0[13], self.0[14], self.0[15]]
     }
 }
 
