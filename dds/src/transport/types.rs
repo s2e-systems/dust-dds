@@ -89,6 +89,23 @@ impl From<Guid> for [u8; 16] {
     }
 }
 
+impl PartialEq<[u8; 16]> for Guid {
+    #[inline]
+    fn eq(&self, other: &[u8; 16]) -> bool {
+        self.prefix == other[..12]
+            && other[12..]
+                .try_into()
+                .is_ok_and(|entity_id: [u8; 4]| self.entity_id == entity_id)
+    }
+}
+
+impl PartialEq<Guid> for [u8; 16] {
+    #[inline]
+    fn eq(&self, other: &Guid) -> bool {
+        other.eq(self)
+    }
+}
+
 pub const GUID_UNKNOWN: Guid = Guid::new(GUIDPREFIX_UNKNOWN, ENTITYID_UNKNOWN);
 
 /// GuidPrefix_t
@@ -110,6 +127,7 @@ pub struct EntityId {
 }
 
 impl EntityId {
+    #[inline]
     pub const fn new(entity_key: OctetArray3, entity_kind: Octet) -> Self {
         Self {
             entity_key,
@@ -117,18 +135,35 @@ impl EntityId {
         }
     }
 
+    #[inline]
     pub const fn entity_key(&self) -> OctetArray3 {
         self.entity_key
     }
 
+    #[inline]
     pub const fn entity_kind(&self) -> Octet {
         self.entity_kind
     }
 }
 
 impl Default for EntityId {
+    #[inline]
     fn default() -> Self {
         ENTITYID_UNKNOWN
+    }
+}
+
+impl PartialEq<[u8; 4]> for EntityId {
+    #[inline]
+    fn eq(&self, other: &[u8; 4]) -> bool {
+        self.entity_key == other[..3] && self.entity_kind == other[3]
+    }
+}
+
+impl PartialEq<EntityId> for [u8; 4] {
+    #[inline]
+    fn eq(&self, other: &EntityId) -> bool {
+        other.eq(self)
     }
 }
 
