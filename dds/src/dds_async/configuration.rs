@@ -8,6 +8,7 @@ use core::time::Duration;
 pub struct DustDdsConfiguration {
     domain_tag: String,
     participant_announcement_interval: Duration,
+    participant_lease_duration: Duration,
 }
 
 impl DustDdsConfiguration {
@@ -20,6 +21,11 @@ impl DustDdsConfiguration {
     pub fn participant_announcement_interval(&self) -> Duration {
         self.participant_announcement_interval
     }
+
+    /// Duration after which a participant is considered dead if no announcements are received.
+    pub fn participant_lease_duration(&self) -> Duration {
+        self.participant_lease_duration
+    }
 }
 
 impl Default for DustDdsConfiguration {
@@ -27,6 +33,7 @@ impl Default for DustDdsConfiguration {
         Self {
             domain_tag: "".to_string(),
             participant_announcement_interval: Duration::from_secs(5),
+            participant_lease_duration: Duration::from_secs(100),
         }
     }
 }
@@ -63,6 +70,13 @@ impl DustDdsConfigurationBuilder {
         participant_announcement_interval: Duration,
     ) -> Self {
         self.configuration.participant_announcement_interval = participant_announcement_interval;
+        self
+    }
+
+    /// Set the duration after which a participant is considered dead if no announcements are received.
+    /// This is the lease duration announced via SPDP.
+    pub fn participant_lease_duration(mut self, participant_lease_duration: Duration) -> Self {
+        self.configuration.participant_lease_duration = participant_lease_duration;
         self
     }
 }

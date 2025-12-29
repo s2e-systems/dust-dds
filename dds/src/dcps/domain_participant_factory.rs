@@ -119,6 +119,7 @@ impl<T: TransportParticipantFactory> DcpsParticipantFactory<T> {
             clock_handle,
             timer_handle.clone(),
             spawner_handle.clone(),
+            self.configuration.participant_lease_duration().into(),
         );
         let participant_instance_handle = dcps_participant.get_instance_handle();
         let builtin_subscriber_status_condition_address = dcps_participant
@@ -168,6 +169,23 @@ impl<T: TransportParticipantFactory> DcpsParticipantFactory<T> {
                 timer_handle_clone
                     .delay(participant_announcement_interval)
                     .await;
+            }
+        });
+
+        // Start periodic participant liveliness check task
+        let participant_address = participant_sender.clone();
+        let mut timer_handle_clone = timer_handle.clone();
+        let liveliness_check_interval = core::time::Duration::from_secs(10);
+
+        spawner_handle.spawn(async move {
+            while participant_address
+                .send(DcpsDomainParticipantMail::Discovery(
+                    DiscoveryServiceMail::CheckParticipantLiveness,
+                ))
+                .await
+                .is_ok()
+            {
+                timer_handle_clone.delay(liveliness_check_interval).await;
             }
         });
 

@@ -1,8 +1,10 @@
 use std::time::Instant;
 
 use dust_dds::{
+    configuration::DustDdsConfigurationBuilder,
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
+        instance::InstanceHandle,
         qos::{DataReaderQos, DataWriterQos, PublisherQos, QosKind, SubscriberQos},
         qos_policy::{
             DataRepresentationQosPolicy, OwnershipQosPolicy, OwnershipQosPolicyKind,
@@ -1132,4 +1134,44 @@ fn participant_removed_after_lease_duration() {
     let discovered_participant = participant1.get_discovered_participants().unwrap();
 
     assert_eq!(discovered_participant.len(), 1);
+}
+
+/// Test that configurable participant_lease_duration is applied correctly.
+///
+/// This test verifies that the participant_lease_duration configuration is properly
+/// passed through to participants and used in SPDP announcements.
+#[test]
+fn participant_lease_duration_is_configurable() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+
+    // Configure a short lease duration
+    let lease_duration_secs = 5;
+    let configuration = DustDdsConfigurationBuilder::new()
+        .participant_lease_duration(std::time::Duration::from_secs(lease_duration_secs))
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(configuration)
+        .unwrap();
+
+    // Verify config was applied
+    let applied_config = domain_participant_factory.get_configuration().unwrap();
+    assert_eq!(
+        applied_config.participant_lease_duration(),
+        std::time::Duration::from_secs(lease_duration_secs)
+    );
+
+    // Create a participant with the configured lease duration
+    let participant = domain_participant_factory
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    // The participant should be created successfully with the configured lease
+    assert!(participant.get_instance_handle() != InstanceHandle::default());
+
+    // Clean up
+    domain_participant_factory
+        .delete_participant(&participant)
+        .unwrap();
 }

@@ -4,6 +4,7 @@ use dust_dds::{
     infrastructure::{qos::QosKind, status::NO_STATUS, type_support::DdsType},
     listener::NO_LISTENER,
 };
+use std::time::Duration;
 
 #[derive(DdsType, Debug)]
 struct HelloWorldType {
@@ -15,8 +16,15 @@ struct HelloWorldType {
 fn main() {
     let domain_id = 0;
     let participant_factory = DomainParticipantFactory::get_instance();
+
+    // Configure DustDDS with custom settings:
+    // - domain_tag: Tag for domain isolation (default: "")
+    // - participant_announcement_interval: How often to announce presence via SPDP (default: 5s)
+    // - participant_lease_duration: How long before a silent participant is considered dead (default: 100s)
     let configuration = DustDdsConfigurationBuilder::new()
         .domain_tag("abc".to_string())
+        .participant_announcement_interval(Duration::from_secs(5))
+        .participant_lease_duration(Duration::from_secs(100))
         .build()
         .unwrap();
 
