@@ -119,7 +119,6 @@ impl<T: TransportParticipantFactory> DcpsParticipantFactory<T> {
             clock_handle,
             timer_handle.clone(),
             spawner_handle.clone(),
-            self.configuration.participant_lease_duration().into(),
         );
         let participant_instance_handle = dcps_participant.get_instance_handle();
         let builtin_subscriber_status_condition_address = dcps_participant

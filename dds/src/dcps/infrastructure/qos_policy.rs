@@ -1514,6 +1514,56 @@ impl Default for DataRepresentationQosPolicy {
     }
 }
 
+/*******  Dust-DDS Extension: Discovery Configuration **********/
+
+const DISCOVERY_CONFIG_QOS_POLICY_NAME: &str = "DiscoveryConfig";
+
+/// Id for the DiscoveryConfigQosPolicy (vendor extension)
+pub const DISCOVERY_CONFIG_QOS_POLICY_ID: QosPolicyId = 100;
+
+/// This policy controls the discovery configuration for a [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant).
+///
+/// This is a vendor-specific extension that matches similar policies in RTI Connext and eProsima Fast DDS.
+/// It controls RTPS-level discovery parameters that are not part of the standard DDS QoS policies.
+///
+/// The [`DiscoveryConfigQosPolicy::participant_lease_duration`] defines how long other participants will consider
+/// this participant alive without receiving SPDP announcements. If no announcement is received within this duration,
+/// the participant is considered dead and removed from discovery.
+///
+/// This policy is immutable - it can only be set at participant creation time.
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct DiscoveryConfigQosPolicy {
+    /// Duration after which a participant is considered dead if no SPDP announcements are received.
+    /// This value is advertised to other participants via SPDP and they will use it to determine
+    /// when to remove this participant from their discovery database.
+    ///
+    /// Default: 100 seconds
+    pub participant_lease_duration: Duration,
+}
+
+impl DiscoveryConfigQosPolicy {
+    /// Default participant lease duration of 100 seconds
+    const DEFAULT_PARTICIPANT_LEASE_DURATION: Duration = Duration::new(100, 0);
+
+    pub const fn const_default() -> Self {
+        Self {
+            participant_lease_duration: Self::DEFAULT_PARTICIPANT_LEASE_DURATION,
+        }
+    }
+}
+
+impl QosPolicy for DiscoveryConfigQosPolicy {
+    fn name(&self) -> &str {
+        DISCOVERY_CONFIG_QOS_POLICY_NAME
+    }
+}
+
+impl Default for DiscoveryConfigQosPolicy {
+    fn default() -> Self {
+        Self::const_default()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

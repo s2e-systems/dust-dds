@@ -281,8 +281,6 @@ pub struct DcpsDomainParticipant<R: DdsRuntime> {
     spawner_handle: R::SpawnerHandle,
     /// Tracks when each discovered participant was last seen (for lease expiry)
     discovered_participant_last_seen: BTreeMap<InstanceHandle, Time>,
-    /// Duration after which a participant is considered dead if no announcements are received
-    participant_lease_duration: Duration,
 }
 
 impl<R> DcpsDomainParticipant<R>
@@ -302,7 +300,6 @@ where
         clock_handle: R::ClockHandle,
         timer_handle: R::TimerHandle,
         spawner_handle: R::SpawnerHandle,
-        participant_lease_duration: Duration,
     ) -> Self {
         let guid = Guid::new(guid_prefix, ENTITYID_PARTICIPANT);
 
@@ -729,7 +726,6 @@ where
             timer_handle,
             spawner_handle,
             discovered_participant_last_seen: BTreeMap::new(),
-            participant_lease_duration,
         }
     }
 
@@ -3529,7 +3525,7 @@ where
             let spdp_discovered_participant_data = SpdpDiscoveredParticipantData {
                 dds_participant_data: participant_builtin_topic_data,
                 participant_proxy,
-                lease_duration: self.participant_lease_duration,
+                lease_duration: self.domain_participant.qos.discovery_config.participant_lease_duration,
                 discovered_participant_list: self
                     .domain_participant
                     .discovered_participant_list

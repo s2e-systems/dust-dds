@@ -8,7 +8,12 @@
 use dust_dds::{
     configuration::DustDdsConfigurationBuilder,
     domain::domain_participant_factory::DomainParticipantFactory,
-    infrastructure::{qos::QosKind, status::NO_STATUS},
+    infrastructure::{
+        qos::{DomainParticipantQos, QosKind},
+        qos_policy::DiscoveryConfigQosPolicy,
+        status::NO_STATUS,
+        time::Duration as DdsDuration,
+    },
     listener::NO_LISTENER,
 };
 use std::{
@@ -46,7 +51,6 @@ fn run_as_crash_participant() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let configuration = DustDdsConfigurationBuilder::new()
-        .participant_lease_duration(Duration::from_secs(lease_secs))
         .participant_announcement_interval(Duration::from_millis(announce_ms))
         .build()
         .expect("Failed to build configuration");
@@ -55,8 +59,15 @@ fn run_as_crash_participant() {
         .set_configuration(configuration)
         .expect("Failed to set configuration");
 
+    let qos = DomainParticipantQos {
+        discovery_config: DiscoveryConfigQosPolicy {
+            participant_lease_duration: DdsDuration::new(lease_secs as i32, 0),
+        },
+        ..Default::default()
+    };
+
     let _participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .create_participant(domain_id, QosKind::Specific(qos), NO_LISTENER, NO_STATUS)
         .expect("Failed to create participant");
 
     // Signal ready
@@ -147,7 +158,6 @@ fn crashed_participant_is_removed_after_lease_expiry() {
 
     // Configure the observer with the same settings
     let configuration = DustDdsConfigurationBuilder::new()
-        .participant_lease_duration(Duration::from_secs(lease_secs))
         .participant_announcement_interval(Duration::from_millis(announce_ms))
         .build()
         .unwrap();
@@ -155,9 +165,16 @@ fn crashed_participant_is_removed_after_lease_expiry() {
         .set_configuration(configuration)
         .unwrap();
 
+    let observer_qos = DomainParticipantQos {
+        discovery_config: DiscoveryConfigQosPolicy {
+            participant_lease_duration: DdsDuration::new(lease_secs as i32, 0),
+        },
+        ..Default::default()
+    };
+
     // Create observer participant
     let observer = domain_participant_factory
-        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .create_participant(domain_id, QosKind::Specific(observer_qos), NO_LISTENER, NO_STATUS)
         .expect("Failed to create observer participant");
 
     // Spawn crash participant in child process
