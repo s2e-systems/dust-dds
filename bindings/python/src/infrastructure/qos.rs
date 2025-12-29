@@ -70,6 +70,7 @@ impl DomainParticipantQos {
         Self(dust_dds::infrastructure::qos::DomainParticipantQos {
             user_data: user_data.clone().into(),
             entity_factory: entity_factory.into(),
+            discovery_config: Default::default(),
         })
     }
 

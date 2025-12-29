@@ -1,9 +1,16 @@
 use dust_dds::{
     configuration::DustDdsConfigurationBuilder,
     domain::domain_participant_factory::DomainParticipantFactory,
-    infrastructure::{qos::QosKind, status::NO_STATUS, type_support::DdsType},
+    infrastructure::{
+        qos::{DomainParticipantQos, QosKind},
+        qos_policy::DiscoveryConfigQosPolicy,
+        status::NO_STATUS,
+        time::Duration as DdsDuration,
+        type_support::DdsType,
+    },
     listener::NO_LISTENER,
 };
+use std::time::Duration;
 
 #[derive(DdsType, Debug)]
 struct HelloWorldType {
@@ -15,8 +22,13 @@ struct HelloWorldType {
 fn main() {
     let domain_id = 0;
     let participant_factory = DomainParticipantFactory::get_instance();
+
+    // Configure DustDDS with custom settings:
+    // - domain_tag: Tag for domain isolation (default: "")
+    // - participant_announcement_interval: How often to announce presence via SPDP (default: 5s)
     let configuration = DustDdsConfigurationBuilder::new()
         .domain_tag("abc".to_string())
+        .participant_announcement_interval(Duration::from_secs(5))
         .build()
         .unwrap();
 
@@ -24,8 +36,22 @@ fn main() {
         .set_configuration(configuration)
         .unwrap();
 
+    // Configure participant QoS with custom discovery settings:
+    // - participant_lease_duration: How long before a silent participant is considered dead (default: 100s)
+    let participant_qos = DomainParticipantQos {
+        discovery_config: DiscoveryConfigQosPolicy {
+            participant_lease_duration: DdsDuration::new(100, 0),
+        },
+        ..Default::default()
+    };
+
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Specific(participant_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
         .unwrap();
 
     let topic = participant
