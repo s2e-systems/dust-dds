@@ -174,7 +174,12 @@ fn crashed_participant_is_removed_after_lease_expiry() {
 
     // Create observer participant
     let observer = domain_participant_factory
-        .create_participant(domain_id, QosKind::Specific(observer_qos), NO_LISTENER, NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Specific(observer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
         .expect("Failed to create observer participant");
 
     // Spawn crash participant in child process

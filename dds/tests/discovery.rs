@@ -4,7 +4,10 @@ use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         instance::InstanceHandle,
-        qos::{DataReaderQos, DataWriterQos, DomainParticipantQos, PublisherQos, QosKind, SubscriberQos},
+        qos::{
+            DataReaderQos, DataWriterQos, DomainParticipantQos, PublisherQos, QosKind,
+            SubscriberQos,
+        },
         qos_policy::{
             DataRepresentationQosPolicy, DiscoveryConfigQosPolicy, OwnershipQosPolicy,
             OwnershipQosPolicyKind, PartitionQosPolicy, UserDataQosPolicy,

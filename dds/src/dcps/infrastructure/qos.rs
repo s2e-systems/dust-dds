@@ -34,7 +34,7 @@ pub enum QosKind<T> {
 }
 
 /// QoS policies applicable to the [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant)
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, Default, PartialEq, Eq, Clone)]
 pub struct DomainParticipantQos {
     /// Value of the user data QoS policy.
     pub user_data: UserDataQosPolicy,
@@ -43,16 +43,6 @@ pub struct DomainParticipantQos {
     /// Value of the discovery config QoS policy (vendor extension).
     /// Controls RTPS discovery parameters like participant lease duration.
     pub discovery_config: DiscoveryConfigQosPolicy,
-}
-
-impl Default for DomainParticipantQos {
-    fn default() -> Self {
-        Self {
-            user_data: UserDataQosPolicy::default(),
-            entity_factory: EntityFactoryQosPolicy::default(),
-            discovery_config: DiscoveryConfigQosPolicy::default(),
-        }
-    }
 }
 
 /// QoS policies applicable to the [`Publisher`](crate::publication::publisher::Publisher)

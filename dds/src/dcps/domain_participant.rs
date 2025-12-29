@@ -3525,7 +3525,11 @@ where
             let spdp_discovered_participant_data = SpdpDiscoveredParticipantData {
                 dds_participant_data: participant_builtin_topic_data,
                 participant_proxy,
-                lease_duration: self.domain_participant.qos.discovery_config.participant_lease_duration,
+                lease_duration: self
+                    .domain_participant
+                    .qos
+                    .discovery_config
+                    .participant_lease_duration,
                 discovered_participant_list: self
                     .domain_participant
                     .discovered_participant_list

@@ -46,7 +46,12 @@ fn main() {
     };
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Specific(participant_qos), NO_LISTENER, NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Specific(participant_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
         .unwrap();
 
     let topic = participant
