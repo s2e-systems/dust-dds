@@ -48,6 +48,10 @@ impl RtpsStatefulWriter {
         self.data_max_size_serialized
     }
 
+    pub fn cached_changes_count(&self) -> usize {
+        self.changes.len()
+    }
+
     pub async fn add_change(
         &mut self,
         cache_change: CacheChange,
@@ -351,9 +355,11 @@ impl RtpsReaderProxy {
                 message_writer
                     .write_message(rtps_message.buffer(), self.unicast_locator_list())
                     .await;
-
-                self.set_highest_sent_seq_num(next_unsent_change_seq_num);
-            } else if let Some(cache_change) = changes
+                // Set highest_sent to gap_end so next iteration sends the actual data
+                self.set_highest_sent_seq_num(gap_end_sequence_number);
+                // Don't set to next_unsent yet - let the loop continue to send the actual data
+            }
+            if let Some(cache_change) = changes
                 .iter()
                 .find(|cc| cc.sequence_number == next_unsent_change_seq_num)
             {
@@ -846,5 +852,142 @@ mod tests {
         ));
 
         assert_eq!(*message_writer.total_fragments_sent.lock().unwrap(), 1);
+    }
+
+    /// Test that when a late-joining reader connects and there are gaps in sequence numbers
+    /// (e.g., old samples were removed from cache), the writer sends both:
+    /// 1. A GAP message for the missing sequence numbers
+    /// 2. A DATA message for the available sample
+    ///
+    /// This tests a bug fix where the DATA message was not sent after the GAP because
+    /// the code used `else if` instead of `if`, causing the DATA branch to be skipped.
+    #[test]
+    fn test_gap_followed_by_data_for_late_joining_reader() {
+        struct MockClock {}
+        impl Clock for MockClock {
+            fn now(&self) -> crate::infrastructure::time::Time {
+                Time::new(1, 0)
+            }
+        }
+
+        #[derive(Default)]
+        struct MessageTracker {
+            gap_count: Mutex<usize>,
+            data_count: Mutex<usize>,
+            gap_ranges: Mutex<Vec<(SequenceNumber, SequenceNumber)>>,
+            data_seq_nums: Mutex<Vec<SequenceNumber>>,
+        }
+
+        impl WriteMessage for MessageTracker {
+            fn write_message(
+                &self,
+                datagram: &[u8],
+                _locator_list: &[crate::transport::types::Locator],
+            ) -> core::pin::Pin<Box<dyn Future<Output = ()> + Send>> {
+                let message = RtpsMessageRead::try_from(datagram).unwrap();
+                for submessage in message.submessages() {
+                    match submessage {
+                        RtpsSubmessageReadKind::Gap(gap) => {
+                            *self.gap_count.lock().unwrap() += 1;
+                            let start = gap.gap_start();
+                            // gap_list base is the first seq after the gap
+                            let end = gap.gap_list().base() - 1;
+                            self.gap_ranges.lock().unwrap().push((start, end));
+                        }
+                        RtpsSubmessageReadKind::Data(data) => {
+                            *self.data_count.lock().unwrap() += 1;
+                            self.data_seq_nums.lock().unwrap().push(data.writer_sn());
+                        }
+                        _ => {}
+                    }
+                }
+                Box::pin(async {})
+            }
+        }
+
+        let data_max_size_serialized = 500;
+        let guid = Guid::new([1; 12], EntityId::new([1; 3], 1));
+        let mut writer = RtpsStatefulWriter::new(guid, data_max_size_serialized);
+
+        // Step 1: Add a Volatile reader first (won't try to get historical data)
+        let volatile_reader_guid = Guid::new([2; 12], EntityId::new([2; 3], 2));
+        writer.add_matched_reader(ReaderProxy {
+            remote_reader_guid: volatile_reader_guid,
+            remote_group_entity_id: ENTITYID_UNKNOWN,
+            reliability_kind: ReliabilityKind::BestEffort,
+            durability_kind: DurabilityKind::Volatile,
+            unicast_locator_list: vec![],
+            multicast_locator_list: vec![],
+            expects_inline_qos: false,
+        });
+
+        // Step 2: Add changes with sequence numbers 1-5
+        let dummy_writer = MessageTracker::default();
+        for seq in 1..=5 {
+            block_on(writer.add_change(
+                CacheChange {
+                    kind: ChangeKind::Alive,
+                    writer_guid: guid,
+                    sequence_number: seq,
+                    source_timestamp: None,
+                    instance_handle: Some([10; 16]),
+                    data_value: vec![8; 100].into(),
+                },
+                &dummy_writer,
+                &MockClock {},
+            ));
+        }
+
+        // Step 3: Remove changes 1-4, leaving only seq 5 in the cache
+        for seq in 1..=4 {
+            writer.remove_change(seq);
+        }
+        assert_eq!(writer.cached_changes_count(), 1);
+
+        // Step 4: Remove the volatile reader and add a TransientLocal reader
+        // TransientLocal readers expect to receive all available historical data
+        writer.delete_matched_reader(volatile_reader_guid);
+
+        let transient_local_reader_guid = Guid::new([3; 12], EntityId::new([3; 3], 3));
+        writer.add_matched_reader(ReaderProxy {
+            remote_reader_guid: transient_local_reader_guid,
+            remote_group_entity_id: ENTITYID_UNKNOWN,
+            reliability_kind: ReliabilityKind::BestEffort,
+            durability_kind: DurabilityKind::TransientLocal,
+            unicast_locator_list: vec![],
+            multicast_locator_list: vec![],
+            expects_inline_qos: false,
+        });
+
+        // Step 5: Call write_message and track what's sent
+        let message_tracker = MessageTracker::default();
+        block_on(writer.write_message(&message_tracker, &MockClock {}));
+
+        // Verify: Should have sent 1 GAP (for seq 1-4) and 1 DATA (for seq 5)
+        let gap_count = *message_tracker.gap_count.lock().unwrap();
+        let data_count = *message_tracker.data_count.lock().unwrap();
+        let gap_ranges = message_tracker.gap_ranges.lock().unwrap().clone();
+        let data_seq_nums = message_tracker.data_seq_nums.lock().unwrap().clone();
+
+        assert_eq!(
+            gap_count, 1,
+            "Expected 1 GAP message for missing sequence numbers 1-4"
+        );
+        assert_eq!(
+            data_count, 1,
+            "Expected 1 DATA message for sequence number 5 (this was the bug - DATA was not sent after GAP)"
+        );
+
+        // Verify the GAP covers seq 1-4
+        assert_eq!(gap_ranges.len(), 1);
+        assert_eq!(
+            gap_ranges[0],
+            (1, 4),
+            "GAP should cover sequence numbers 1-4"
+        );
+
+        // Verify the DATA is for seq 5
+        assert_eq!(data_seq_nums.len(), 1);
+        assert_eq!(data_seq_nums[0], 5, "DATA should be for sequence number 5");
     }
 }
