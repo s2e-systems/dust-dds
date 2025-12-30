@@ -525,6 +525,8 @@ pub enum DiscoveryServiceMail {
         participant_address: MpscSender<DcpsDomainParticipantMail>,
     },
     AnnounceDeletedParticipant,
+    /// Periodic check to remove participants whose lease has expired
+    CheckParticipantLiveness,
 }
 
 pub enum DcpsDomainParticipantMail {
@@ -1316,6 +1318,9 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             }
             DiscoveryServiceMail::AnnounceDeletedParticipant => {
                 self.announce_deleted_participant().await;
+            }
+            DiscoveryServiceMail::CheckParticipantLiveness => {
+                self.check_participant_liveness().await;
             }
         }
     }

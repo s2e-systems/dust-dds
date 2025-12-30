@@ -106,7 +106,7 @@ use crate::{
 };
 use alloc::{
     boxed::Box,
-    collections::{BTreeSet, VecDeque},
+    collections::{BTreeMap, BTreeSet, VecDeque},
     format,
     string::{String, ToString},
     sync::Arc,
@@ -279,6 +279,8 @@ pub struct DcpsDomainParticipant<R: DdsRuntime> {
     clock_handle: R::ClockHandle,
     timer_handle: R::TimerHandle,
     spawner_handle: R::SpawnerHandle,
+    /// Tracks when each discovered participant was last seen (for lease expiry)
+    discovered_participant_last_seen: BTreeMap<InstanceHandle, Time>,
 }
 
 impl<R> DcpsDomainParticipant<R>
@@ -723,6 +725,7 @@ where
             clock_handle,
             timer_handle,
             spawner_handle,
+            discovered_participant_last_seen: BTreeMap::new(),
         }
     }
 
@@ -3522,7 +3525,11 @@ where
             let spdp_discovered_participant_data = SpdpDiscoveredParticipantData {
                 dds_participant_data: participant_builtin_topic_data,
                 participant_proxy,
-                lease_duration: Duration::new(100, 0),
+                lease_duration: self
+                    .domain_participant
+                    .qos
+                    .discovery_config
+                    .participant_lease_duration,
                 discovered_participant_list: self
                     .domain_participant
                     .discovered_participant_list
@@ -5939,6 +5946,14 @@ where
             .iter()
             .any(|handle| handle == &discovered_participant_data.dds_participant_data.key.value);
 
+        // Always update last_seen timestamp for lease expiry tracking (even for already-discovered participants)
+        if is_domain_id_matching && is_domain_tag_matching && !is_participant_ignored {
+            let handle =
+                InstanceHandle::new(discovered_participant_data.dds_participant_data.key.value);
+            let now = self.clock_handle.now();
+            self.discovered_participant_last_seen.insert(handle, now);
+        }
+
         if is_domain_id_matching
             && is_domain_tag_matching
             && !is_participant_discovered
@@ -5961,6 +5976,9 @@ where
     /// Remove discovered [domain participant](SpdpDiscoveredParticipantData) with the speficied [handle](InstanceHandle).
     #[tracing::instrument(skip(self))]
     async fn remove_discovered_participant(&mut self, handle: InstanceHandle) {
+        // Remove from last_seen tracking
+        self.discovered_participant_last_seen.remove(&handle);
+
         self.domain_participant
             .discovered_participant_list
             .retain(|domain_participant| {
@@ -6017,6 +6035,42 @@ where
 
         self.remove_matched_topics_detector(prefix);
         self.remove_matched_topics_announcer(prefix);
+    }
+
+    /// Check all discovered participants and remove those whose lease has expired.
+    /// Called periodically by the liveliness check timer.
+    #[tracing::instrument(skip(self))]
+    pub async fn check_participant_liveness(&mut self) {
+        let now = self.clock_handle.now();
+        let mut expired_handles = Vec::new();
+
+        for (handle, last_seen) in &self.discovered_participant_last_seen {
+            // Find the participant's lease_duration
+            if let Some(participant) = self
+                .domain_participant
+                .discovered_participant_list
+                .iter()
+                .find(|p| InstanceHandle::new(p.dds_participant_data.key().value) == *handle)
+            {
+                let lease_duration = participant.lease_duration;
+                // Time - Time = Duration (implemented in time.rs)
+                let elapsed = now - *last_seen;
+
+                if elapsed > lease_duration {
+                    tracing::debug!(
+                        "Participant {:?} lease expired (elapsed: {:?}, lease: {:?}), removing",
+                        handle,
+                        elapsed,
+                        lease_duration
+                    );
+                    expired_handles.push(*handle);
+                }
+            }
+        }
+
+        for handle in expired_handles {
+            self.remove_discovered_participant(handle).await;
+        }
     }
 
     #[tracing::instrument(skip(self))]
