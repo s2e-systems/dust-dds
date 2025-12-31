@@ -570,4 +570,43 @@ impl DomainParticipant {
     pub fn get_instance_handle(&self) -> InstanceHandle {
         block_on(self.participant_async.get_instance_handle())
     }
+
+    /// Request type information from a remote participant using TypeLookup service (XTypes 1.3).
+    ///
+    /// This method sends a TypeLookup request to the specified remote participant and waits
+    /// for the reply containing the requested TypeObjects.
+    ///
+    /// # Arguments
+    /// * `target_participant_prefix` - The GUID prefix of the target participant (first 12 bytes of GUID)
+    /// * `type_ids` - List of TypeIdentifiers to look up (raw XCDR-encoded bytes)
+    ///
+    /// # Returns
+    /// The TypeLookup reply containing the requested types, or an error if the request fails.
+    #[cfg(feature = "type_lookup")]
+    #[tracing::instrument(skip(self))]
+    pub fn request_type_lookup(
+        &self,
+        target_participant_prefix: [u8; 12],
+        type_ids: Vec<Vec<u8>>,
+    ) -> DdsResult<crate::dcps::data_representation_builtin_endpoints::type_lookup::TypeLookupReply>
+    {
+        block_on(
+            self.participant_async
+                .request_type_lookup(target_participant_prefix, type_ids),
+        )
+    }
+
+    /// This operation discovers the [`DynamicType`](crate::xtypes::dynamic_type::DynamicType) for a topic by querying remote participants using the TypeLookup service.
+    /// It finds a discovered writer for the given topic name, extracts the type information from the writer's discovery data,
+    /// sends a TypeLookup request to the writer's participant, and converts the received TypeObject to a [`DynamicType`](crate::xtypes::dynamic_type::DynamicType).
+    /// The returned [`DynamicType`](crate::xtypes::dynamic_type::DynamicType) can be used with [`Subscriber::create_dynamic_datareader`](crate::subscription::subscriber::Subscriber::create_dynamic_datareader)
+    /// to create a reader without compile-time type knowledge.
+    #[cfg(feature = "type_lookup")]
+    #[tracing::instrument(skip(self))]
+    pub fn discover_type(
+        &self,
+        topic_name: &str,
+    ) -> DdsResult<crate::xtypes::dynamic_type::DynamicType> {
+        block_on(self.participant_async.discover_type(topic_name))
+    }
 }

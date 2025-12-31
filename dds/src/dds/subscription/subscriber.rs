@@ -1,6 +1,6 @@
 use super::{
     data_reader::DataReader, data_reader_listener::DataReaderListener,
-    subscriber_listener::SubscriberListener,
+    dynamic_data_reader::DynamicDataReader, subscriber_listener::SubscriberListener,
 };
 use crate::{
     condition::StatusCondition,
@@ -14,6 +14,7 @@ use crate::{
     },
     std_runtime::executor::block_on,
     topic_definition::topic_description::TopicDescription,
+    xtypes::dynamic_type::DynamicType,
 };
 use alloc::vec::Vec;
 
@@ -72,6 +73,24 @@ impl Subscriber {
             mask,
         ))
         .map(DataReader::from)
+    }
+
+    /// This operation creates a [`DynamicDataReader`] for the given topic name and [`DynamicType`].
+    /// Unlike [`create_datareader`](Self::create_datareader), this operation does not require a [`Topic`] and accepts a
+    /// [`DynamicType`] directly, allowing readers to be created for types discovered at runtime via the TypeLookup service.
+    /// The returned [`DynamicDataReader`] will be attached and belong to the [`Subscriber`].
+    #[tracing::instrument(skip(self, dynamic_type))]
+    pub fn create_dynamic_datareader(
+        &self,
+        topic_name: &str,
+        dynamic_type: DynamicType,
+        qos: QosKind<DataReaderQos>,
+    ) -> DdsResult<DynamicDataReader> {
+        block_on(
+            self.subscriber_async
+                .create_dynamic_datareader(topic_name, dynamic_type, qos),
+        )
+        .map(DynamicDataReader::from)
     }
 
     /// This operation deletes a [`DataReader`] that belongs to the [`Subscriber`]. This operation must be called on the

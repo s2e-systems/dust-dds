@@ -1,7 +1,7 @@
 use super::{
     condition::StatusConditionAsync, data_reader::DataReaderAsync,
     data_reader_listener::DataReaderListener, domain_participant::DomainParticipantAsync,
-    subscriber_listener::SubscriberListener,
+    dynamic_data_reader::DynamicDataReaderAsync, subscriber_listener::SubscriberListener,
 };
 use crate::{
     dcps::{
@@ -21,6 +21,7 @@ use crate::{
         qos::{DataReaderQos, QosKind, SubscriberQos, TopicQos},
         status::{SampleLostStatus, StatusKind},
     },
+    xtypes::dynamic_type::DynamicType,
 };
 use alloc::{string::String, vec::Vec};
 
@@ -91,6 +92,41 @@ impl SubscriberAsync {
             reader_status_condition_address,
             self.clone(),
             a_topic.clone(),
+        ))
+    }
+
+    /// This operation creates a [`DynamicDataReaderAsync`] for the given topic name and [`DynamicType`].
+    /// Unlike [`create_datareader`](Self::create_datareader), this operation does not require a [`TopicAsync`] and accepts a
+    /// [`DynamicType`] directly, allowing readers to be created for types discovered at runtime via the TypeLookup service.
+    /// The returned [`DynamicDataReaderAsync`] will be attached and belong to the [`SubscriberAsync`].
+    #[tracing::instrument(skip(self, dynamic_type))]
+    pub async fn create_dynamic_datareader(
+        &self,
+        topic_name: &str,
+        dynamic_type: DynamicType,
+        qos: QosKind<DataReaderQos>,
+    ) -> DdsResult<DynamicDataReaderAsync> {
+        let (reply_sender, reply_receiver) = oneshot();
+        self.participant_address()
+            .send(DcpsDomainParticipantMail::Subscriber(
+                SubscriberServiceMail::CreateDynamicDataReader {
+                    subscriber_handle: self.handle,
+                    topic_name: String::from(topic_name),
+                    dynamic_type: dynamic_type.clone(),
+                    qos,
+                    domain_participant_address: self.participant_address().clone(),
+                    reply_sender,
+                },
+            ))
+            .await?;
+        let (handle, status_condition_address) = reply_receiver.await??;
+
+        Ok(DynamicDataReaderAsync::new(
+            handle,
+            status_condition_address,
+            self.clone(),
+            String::from(topic_name),
+            dynamic_type,
         ))
     }
 

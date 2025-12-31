@@ -3,7 +3,7 @@ use super::parameter_id_values::{
     PID_DURABILITY, PID_ENDPOINT_GUID, PID_EXPECTS_INLINE_QOS, PID_GROUP_DATA, PID_GROUP_ENTITYID,
     PID_LATENCY_BUDGET, PID_LIVELINESS, PID_MULTICAST_LOCATOR, PID_OWNERSHIP, PID_PARTICIPANT_GUID,
     PID_PARTITION, PID_PRESENTATION, PID_RELIABILITY, PID_TIME_BASED_FILTER, PID_TOPIC_DATA,
-    PID_TOPIC_NAME, PID_TYPE_NAME, PID_UNICAST_LOCATOR, PID_USER_DATA,
+    PID_TOPIC_NAME, PID_TYPE_INFORMATION, PID_TYPE_NAME, PID_UNICAST_LOCATOR, PID_USER_DATA,
 };
 use crate::{
     builtin_topics::{BuiltInTopicKey, SubscriptionBuiltinTopicData},
@@ -33,6 +33,10 @@ pub struct ReaderProxy {
 pub struct DiscoveredReaderData {
     pub(crate) dds_subscription_data: SubscriptionBuiltinTopicData,
     pub(crate) reader_proxy: ReaderProxy,
+    /// XTypes TypeInformation, stored as raw XCDR-encoded bytes for wire compatibility.
+    /// This allows discovery to work with TypeInformation from other XTypes implementations
+    /// without requiring full deserialization of the complex TypeInformation structure.
+    pub(crate) type_information: Option<Vec<u8>>,
 }
 
 impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderData {
@@ -215,6 +219,11 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
             PID_EXPECTS_INLINE_QOS,
             DEFAULT_EXPECTS_INLINE_QOS,
         );
+        builder.add_member_with_default(
+            "type_information",
+            PID_TYPE_INFORMATION,
+            Vec::<u8>::default(),
+        );
         builder.builder.build()
     }
 
@@ -333,6 +342,11 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
                 )
                 .expect("Must match"),
             },
+            type_information: src
+                .remove_value(PID_TYPE_INFORMATION as u32)
+                .ok()
+                .and_then(|v| Vec::<u8>::try_from_storage(v).ok())
+                .filter(|v| !v.is_empty()),
         }
     }
 
@@ -427,6 +441,10 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
             PID_EXPECTS_INLINE_QOS as u32,
             self.reader_proxy.expects_inline_qos.into_storage(),
         );
+        data.set_value(
+            PID_TYPE_INFORMATION as u32,
+            self.type_information.unwrap_or_default().into_storage(),
+        );
         data
     }
 }
@@ -481,6 +499,7 @@ mod tests {
                 multicast_locator_list: vec![],
                 expects_inline_qos: false,
             },
+            type_information: None,
         }
         .create_dynamic_sample();
 
@@ -548,6 +567,7 @@ mod tests {
                 multicast_locator_list: vec![],
                 expects_inline_qos: false,
             },
+            type_information: None,
         }
         .create_dynamic_sample();
 
@@ -619,8 +639,8 @@ mod tests {
                 group_data: Default::default(),
                 representation: Default::default(),
             },
-        }
-        .create_dynamic_sample();
+            type_information: None,
+        };
 
         let data = [
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
@@ -645,9 +665,10 @@ mod tests {
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
 
-        assert_eq!(
-            CdrDeserializer::deserialize_builtin(DiscoveredReaderData::get_type(), &data).unwrap(),
-            expected
-        );
+        // Deserialize to DynamicData and then create the sample to compare at struct level
+        let deserialized_dynamic =
+            CdrDeserializer::deserialize_builtin(DiscoveredReaderData::get_type(), &data).unwrap();
+        let actual = DiscoveredReaderData::create_sample(deserialized_dynamic);
+        assert_eq!(actual, expected);
     }
 }

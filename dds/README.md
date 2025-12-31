@@ -140,6 +140,48 @@ Dust DDS provides both a "sync" and an "async" API to allow integrating DDS in t
 
 When implementing applications that already make use of async, then the async API must be used. In particular, when using a Tokio runtime, using the Sync API will result in a panic due to blocking calls. You can see find an example in the examples folder.
 
+## Dynamic type discovery
+
+Dust DDS supports runtime type discovery via the DDS-XTypes TypeLookup service. This allows applications to subscribe to topics without compile-time type knowledge, which is useful for generic monitoring tools, data recorders, or dynamic language bindings.
+
+The `type_lookup` feature is enabled by default. To disable it for size-constrained builds, use `default-features = false` in your Cargo.toml.
+
+```rust
+use dust_dds::{
+    dds_async::domain_participant_factory::DomainParticipantFactoryAsync,
+    infrastructure::{qos::QosKind, status::NO_STATUS},
+};
+
+let participant_factory = DomainParticipantFactoryAsync::get_instance();
+let participant = participant_factory
+    .create_participant(0, QosKind::Default, None::<()>, NO_STATUS)
+    .await
+    .unwrap();
+
+let subscriber = participant
+    .create_subscriber(QosKind::Default, None::<()>, NO_STATUS)
+    .await
+    .unwrap();
+
+// Discover the type from a remote publisher
+let dynamic_type = participant.discover_type("HelloWorld").await.unwrap();
+
+// Create a reader using the discovered type
+let reader = subscriber
+    .create_dynamic_datareader("HelloWorld", dynamic_type, QosKind::Default)
+    .await
+    .unwrap();
+
+// Read data and access fields by name
+for sample in reader.take(10, &ANY_SAMPLE_STATE, &ANY_VIEW_STATE, &ANY_INSTANCE_STATE).await.unwrap() {
+    if let Some(data) = sample.data {
+        let id = data.get_uint8_value_by_name("id").unwrap();
+        let msg = data.get_string_value_by_name("msg").unwrap();
+        println!("Received: id={}, msg={}", id, msg);
+    }
+}
+```
+
 ## Dust DDS extensions
 
 ### DDS over the Internet

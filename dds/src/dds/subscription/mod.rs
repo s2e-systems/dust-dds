@@ -1,6 +1,9 @@
 /// Contains the [`DataReader`](crate::subscription::data_reader::DataReader) and any related objects.
 pub mod data_reader;
 
+/// Contains the [`DynamicDataReader`](crate::subscription::dynamic_data_reader::DynamicDataReader) for runtime type discovery.
+pub mod dynamic_data_reader;
+
 /// Contains the [`DataReaderListener`](crate::subscription::data_reader_listener::DataReaderListener) trait.
 pub mod data_reader_listener {
     pub use crate::dds_async::data_reader_listener::*;

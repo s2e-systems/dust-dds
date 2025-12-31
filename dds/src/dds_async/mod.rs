@@ -7,6 +7,8 @@ pub mod configuration;
 pub mod content_filtered_topic;
 /// Classes related to the async data reader.
 pub mod data_reader;
+/// Classes related to the async dynamic data reader.
+pub mod dynamic_data_reader;
 /// Traits related to the async data reader listener.
 pub mod data_reader_listener;
 /// Classes related to the async data writer.

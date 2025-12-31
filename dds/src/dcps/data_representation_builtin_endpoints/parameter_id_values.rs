@@ -58,6 +58,8 @@ pub const _PID_DATA_MAX_SIZE_SERIALIZED: ParameterId = _PID_TYPE_MAX_SIZE_SERIAL
 // also in "Table 9.14 - ParameterId mapping and default values"
 pub const PID_GROUP_ENTITYID: ParameterId = 0x0053;
 pub const PID_DATA_REPRESENTATION: ParameterId = 0x0073;
+// XTypes TypeInformation PID from XTypes 1.2+
+pub const PID_TYPE_INFORMATION: ParameterId = 0x0075;
 
 #[allow(overflowing_literals)]
 pub const _PID_TYPE_REPRESENTATION: ParameterId = 0x8010;

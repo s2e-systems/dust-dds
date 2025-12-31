@@ -86,10 +86,11 @@ use crate::{
         self,
         interface::{RtpsTransportParticipant, WriteMessage},
         types::{
-            BUILT_IN_READER_GROUP, BUILT_IN_READER_WITH_KEY, BUILT_IN_TOPIC, BUILT_IN_WRITER_GROUP,
-            BUILT_IN_WRITER_WITH_KEY, CacheChange, ChangeKind, DurabilityKind,
+            BUILT_IN_READER_GROUP, BUILT_IN_READER_NO_KEY, BUILT_IN_READER_WITH_KEY, BUILT_IN_TOPIC,
+            BUILT_IN_WRITER_GROUP, BUILT_IN_WRITER_NO_KEY, BUILT_IN_WRITER_WITH_KEY, CacheChange,
+            ChangeKind, DurabilityKind,
             ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN, EntityId, Guid, GuidPrefix, ReliabilityKind,
-            TopicKind, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY,
+            SequenceNumber, TopicKind, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY,
             USER_DEFINED_READER_WITH_KEY, USER_DEFINED_TOPIC, USER_DEFINED_WRITER_GROUP,
             USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
         },
@@ -144,6 +145,23 @@ const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER: EntityId =
 
 const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR: EntityId =
     EntityId::new([0, 0, 0x04], BUILT_IN_READER_WITH_KEY);
+
+// TypeLookup service EntityIds - XTypes 1.3 Table 61
+#[cfg(feature = "type_lookup")]
+const ENTITYID_TL_SVC_REQ_WRITER: EntityId =
+    EntityId::new([0x00, 0x03, 0x00], BUILT_IN_WRITER_NO_KEY);
+
+#[cfg(feature = "type_lookup")]
+const ENTITYID_TL_SVC_REQ_READER: EntityId =
+    EntityId::new([0x00, 0x03, 0x00], BUILT_IN_READER_NO_KEY);
+
+#[cfg(feature = "type_lookup")]
+const ENTITYID_TL_SVC_REPLY_WRITER: EntityId =
+    EntityId::new([0x00, 0x03, 0x01], BUILT_IN_WRITER_NO_KEY);
+
+#[cfg(feature = "type_lookup")]
+const ENTITYID_TL_SVC_REPLY_READER: EntityId =
+    EntityId::new([0x00, 0x03, 0x01], BUILT_IN_READER_NO_KEY);
 
 struct DcpsParticipantReaderHistoryCache {
     participant_address: MpscSender<DcpsDomainParticipantMail>,
@@ -250,6 +268,61 @@ impl HistoryCache for DcpsPublicationsReaderHistoryCache {
     }
 }
 
+#[cfg(feature = "type_lookup")]
+struct TypeLookupRequestReaderHistoryCache {
+    participant_address: MpscSender<DcpsDomainParticipantMail>,
+}
+
+#[cfg(feature = "type_lookup")]
+impl HistoryCache for TypeLookupRequestReaderHistoryCache {
+    fn add_change(
+        &mut self,
+        cache_change: CacheChange,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        Box::pin(async move {
+            self.participant_address
+                .send(DcpsDomainParticipantMail::Message(
+                    MessageServiceMail::AddTypeLookupRequestCacheChange {
+                        cache_change,
+                        participant_address: self.participant_address.clone(),
+                    },
+                ))
+                .await
+                .ok();
+        })
+    }
+
+    fn remove_change(&mut self, _sequence_number: i64) -> Pin<Box<dyn Future<Output = ()> + Send>> {
+        todo!()
+    }
+}
+
+#[cfg(feature = "type_lookup")]
+struct TypeLookupReplyReaderHistoryCache {
+    participant_address: MpscSender<DcpsDomainParticipantMail>,
+}
+
+#[cfg(feature = "type_lookup")]
+impl HistoryCache for TypeLookupReplyReaderHistoryCache {
+    fn add_change(
+        &mut self,
+        cache_change: CacheChange,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        Box::pin(async move {
+            self.participant_address
+                .send(DcpsDomainParticipantMail::Message(
+                    MessageServiceMail::AddTypeLookupReplyCacheChange { cache_change },
+                ))
+                .await
+                .ok();
+        })
+    }
+
+    fn remove_change(&mut self, _sequence_number: i64) -> Pin<Box<dyn Future<Output = ()> + Send>> {
+        todo!()
+    }
+}
+
 fn poll_timeout<T>(
     mut timer_handle: impl Timer,
     duration: core::time::Duration,
@@ -281,6 +354,17 @@ pub struct DcpsDomainParticipant<R: DdsRuntime> {
     spawner_handle: R::SpawnerHandle,
     /// Tracks when each discovered participant was last seen (for lease expiry)
     discovered_participant_last_seen: BTreeMap<InstanceHandle, Time>,
+    /// Pending TypeLookup requests awaiting replies (CLIENT side)
+    /// Key: (writer_guid as bytes, sequence_number) of the request we sent
+    /// Value: oneshot sender to deliver the reply to the waiting caller
+    #[cfg(feature = "type_lookup")]
+    pending_type_requests: BTreeMap<
+        ([u8; 16], SequenceNumber),
+        OneshotSender<DdsResult<crate::dcps::data_representation_builtin_endpoints::type_lookup::TypeLookupReply>>,
+    >,
+    /// Sequence number counter for TypeLookup requests
+    #[cfg(feature = "type_lookup")]
+    type_lookup_sequence_number: SequenceNumber,
 }
 
 impl<R> DcpsDomainParticipant<R>
@@ -504,7 +588,7 @@ where
 
         let dcps_participant_reader = DataReaderEntity::new(
             InstanceHandle::new(rtps_stateless_reader.guid().into()),
-            spdp_reader_qos,
+            spdp_reader_qos.clone(),
             String::from(DCPS_PARTICIPANT),
             Arc::new(SpdpDiscoveredParticipantData::get_type()),
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
@@ -570,12 +654,60 @@ where
             TransportReaderKind::Stateful(dcps_subscription_transport_reader),
         );
 
-        let data_reader_list = vec![
+        let mut data_reader_list = vec![
             dcps_participant_reader,
             dcps_topic_reader,
             dcps_publication_reader,
             dcps_subscription_reader,
         ];
+
+        // TypeLookup service endpoints (XTypes 1.3)
+        #[cfg(feature = "type_lookup")]
+        {
+            use crate::dcps::data_representation_builtin_endpoints::type_lookup::{
+                TypeLookupReply, TypeLookupRequest,
+            };
+            use crate::infrastructure::type_support::TypeSupport;
+
+            // TypeLookup request reader - receives TypeLookup_Request messages (SERVER)
+            let type_lookup_req_transport_reader = RtpsStatelessReader::new(
+                Guid::new(guid_prefix, ENTITYID_TL_SVC_REQ_READER),
+                Box::new(TypeLookupRequestReaderHistoryCache {
+                    participant_address: participant_sender.clone(),
+                }),
+            );
+            let type_lookup_req_reader = DataReaderEntity::new(
+                InstanceHandle::new(type_lookup_req_transport_reader.guid().into()),
+                spdp_reader_qos.clone(),
+                String::from("TypeLookup_Request"),
+                Arc::new(TypeLookupRequest::get_type()),
+                Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
+                None,
+                Vec::new(),
+                TransportReaderKind::Stateless(type_lookup_req_transport_reader),
+            );
+            data_reader_list.push(type_lookup_req_reader);
+
+            // TypeLookup reply reader - receives TypeLookup_Reply messages (CLIENT)
+            let type_lookup_reply_transport_reader = RtpsStatelessReader::new(
+                Guid::new(guid_prefix, ENTITYID_TL_SVC_REPLY_READER),
+                Box::new(TypeLookupReplyReaderHistoryCache {
+                    participant_address: participant_sender.clone(),
+                }),
+            );
+            let type_lookup_reply_reader = DataReaderEntity::new(
+                InstanceHandle::new(type_lookup_reply_transport_reader.guid().into()),
+                spdp_reader_qos.clone(),
+                String::from("TypeLookup_Reply"),
+                Arc::new(TypeLookupReply::get_type()),
+                Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
+                None,
+                Vec::new(),
+                TransportReaderKind::Stateless(type_lookup_reply_transport_reader),
+            );
+            data_reader_list.push(type_lookup_reply_reader);
+        }
+
         let builtin_subscriber_handle = [
             participant_instance_handle[0],
             participant_instance_handle[1],
@@ -619,7 +751,7 @@ where
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
             None,
             vec![],
-            spdp_writer_qos,
+            spdp_writer_qos.clone(),
         );
 
         let dcps_topics_transport_writer = RtpsStatefulWriter::new(
@@ -670,12 +802,58 @@ where
             vec![],
             sedp_data_writer_qos(),
         );
-        let builtin_data_writer_list = vec![
+        let mut builtin_data_writer_list = vec![
             dcps_participant_writer,
             dcps_topics_writer,
             dcps_publications_writer,
             dcps_subscriptions_writer,
         ];
+
+        // TypeLookup service writers (XTypes 1.3)
+        #[cfg(feature = "type_lookup")]
+        {
+            use crate::dcps::data_representation_builtin_endpoints::type_lookup::{
+                TypeLookupReply, TypeLookupRequest,
+            };
+            use crate::infrastructure::type_support::TypeSupport;
+
+            // TypeLookup reply writer - sends TypeLookup_Reply messages (SERVER)
+            let type_lookup_reply_transport_writer = RtpsStatelessWriter::new(Guid::new(
+                guid_prefix,
+                ENTITYID_TL_SVC_REPLY_WRITER,
+            ));
+            let type_lookup_reply_writer = DataWriterEntity::new(
+                InstanceHandle::new(type_lookup_reply_transport_writer.guid().into()),
+                TransportWriterKind::Stateless(type_lookup_reply_transport_writer),
+                String::from("TypeLookup_Reply"),
+                "TypeLookup_Reply".to_string(),
+                Arc::new(TypeLookupReply::get_type()),
+                Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
+                None,
+                vec![],
+                spdp_writer_qos.clone(),
+            );
+            builtin_data_writer_list.push(type_lookup_reply_writer);
+
+            // TypeLookup request writer - sends TypeLookup_Request messages (CLIENT)
+            let type_lookup_req_transport_writer = RtpsStatelessWriter::new(Guid::new(
+                guid_prefix,
+                ENTITYID_TL_SVC_REQ_WRITER,
+            ));
+            let type_lookup_req_writer = DataWriterEntity::new(
+                InstanceHandle::new(type_lookup_req_transport_writer.guid().into()),
+                TransportWriterKind::Stateless(type_lookup_req_transport_writer),
+                String::from("TypeLookup_Request"),
+                "TypeLookup_Request".to_string(),
+                Arc::new(TypeLookupRequest::get_type()),
+                Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
+                None,
+                vec![],
+                spdp_writer_qos.clone(),
+            );
+            builtin_data_writer_list.push(type_lookup_req_writer);
+        }
+
         let builtin_publisher_handle = [
             participant_instance_handle[0],
             participant_instance_handle[1],
@@ -726,6 +904,10 @@ where
             timer_handle,
             spawner_handle,
             discovered_participant_last_seen: BTreeMap::new(),
+            #[cfg(feature = "type_lookup")]
+            pending_type_requests: BTreeMap::new(),
+            #[cfg(feature = "type_lookup")]
+            type_lookup_sequence_number: 1,
         }
     }
 
@@ -1657,6 +1839,27 @@ where
         Ok(handle.clone())
     }
 
+    /// Get discovered writer info for a topic (used for type discovery).
+    ///
+    /// Returns the participant prefix and type_information bytes if a writer is found.
+    #[cfg(feature = "type_lookup")]
+    #[tracing::instrument(skip(self))]
+    pub fn get_discovered_writer_for_topic(
+        &self,
+        topic_name: &str,
+    ) -> Option<([u8; 12], Option<Vec<u8>>)> {
+        self.domain_participant
+            .discovered_writer_list
+            .iter()
+            .find(|w| w.dds_publication_data.topic_name == topic_name)
+            .map(|w| {
+                (
+                    w.writer_proxy.remote_writer_guid.prefix(),
+                    w.type_information.clone(),
+                )
+            })
+    }
+
     #[tracing::instrument(skip(self))]
     pub fn get_current_time(&mut self) -> Time {
         self.clock_handle.now()
@@ -1890,9 +2093,190 @@ where
 
         let data_reader_handle = data_reader.instance_handle;
 
+        // Capture type info for TypeLookup registration before moving data_reader
+        #[cfg(feature = "type_lookup")]
+        let type_for_registry = data_reader.type_support.as_ref().clone();
+
         subscriber.data_reader_list.push(data_reader);
 
-        if subscriber.enabled && subscriber.qos.entity_factory.autoenable_created_entities {
+        let should_enable =
+            subscriber.enabled && subscriber.qos.entity_factory.autoenable_created_entities;
+
+        // Register the type in the type registry for TypeLookup service
+        // (done after subscriber borrow is released)
+        #[cfg(feature = "type_lookup")]
+        {
+            use crate::dcps::data_representation_builtin_endpoints::type_lookup::compute_equivalence_hash;
+            let hash = compute_equivalence_hash(&type_for_registry);
+            self.domain_participant.register_type(hash, type_for_registry);
+        }
+
+        if should_enable {
+            self.enable_data_reader(
+                subscriber_handle,
+                data_reader_handle,
+                domain_participant_address,
+            )
+            .await?;
+        }
+        Ok((data_reader_handle, reader_status_condition_address))
+    }
+
+    /// Creates a dynamic data reader for runtime type discovery.
+    ///
+    /// Unlike `create_data_reader`, this method accepts a `DynamicType` directly,
+    /// allowing readers to be created for types discovered at runtime via TypeLookup.
+    #[tracing::instrument(skip(self, dynamic_type))]
+    pub async fn create_dynamic_data_reader(
+        &mut self,
+        subscriber_handle: InstanceHandle,
+        topic_name: String,
+        dynamic_type: DynamicType,
+        qos: QosKind<DataReaderQos>,
+        domain_participant_address: MpscSender<DcpsDomainParticipantMail>,
+    ) -> DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)> {
+        struct UserDefinedReaderHistoryCache {
+            domain_participant_address: MpscSender<DcpsDomainParticipantMail>,
+            subscriber_handle: InstanceHandle,
+            data_reader_handle: InstanceHandle,
+        }
+
+        impl HistoryCache for UserDefinedReaderHistoryCache {
+            fn add_change(
+                &mut self,
+                cache_change: CacheChange,
+            ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+                Box::pin(async move {
+                    self.domain_participant_address
+                        .send(DcpsDomainParticipantMail::Message(
+                            MessageServiceMail::AddCacheChange {
+                                participant_address: self.domain_participant_address.clone(),
+                                cache_change,
+                                subscriber_handle: self.subscriber_handle,
+                                data_reader_handle: self.data_reader_handle,
+                            },
+                        ))
+                        .await
+                        .ok();
+                })
+            }
+
+            fn remove_change(
+                &mut self,
+                _sequence_number: i64,
+            ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
+                todo!()
+            }
+        }
+
+        let topic_kind = get_topic_kind(&dynamic_type);
+        let type_support = Arc::new(dynamic_type);
+
+        let Some(subscriber) = self
+            .domain_participant
+            .user_defined_subscriber_list
+            .iter_mut()
+            .find(|x| x.instance_handle == subscriber_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        let qos = match qos {
+            QosKind::Default => subscriber.default_data_reader_qos.clone(),
+            QosKind::Specific(q) => {
+                if q.is_consistent().is_ok() {
+                    q
+                } else {
+                    return Err(DdsError::InconsistentPolicy);
+                }
+            }
+        };
+
+        let entity_kind = match topic_kind {
+            TopicKind::NoKey => USER_DEFINED_READER_NO_KEY,
+            TopicKind::WithKey => USER_DEFINED_READER_WITH_KEY,
+        };
+        let entity_id = EntityId::new(
+            [
+                subscriber.instance_handle[12],
+                self.reader_counter.to_ne_bytes()[0],
+                self.reader_counter.to_ne_bytes()[1],
+            ],
+            entity_kind,
+        );
+        let reader_handle = InstanceHandle::new([
+            self.domain_participant.instance_handle[0],
+            self.domain_participant.instance_handle[1],
+            self.domain_participant.instance_handle[2],
+            self.domain_participant.instance_handle[3],
+            self.domain_participant.instance_handle[4],
+            self.domain_participant.instance_handle[5],
+            self.domain_participant.instance_handle[6],
+            self.domain_participant.instance_handle[7],
+            self.domain_participant.instance_handle[8],
+            self.domain_participant.instance_handle[9],
+            self.domain_participant.instance_handle[10],
+            self.domain_participant.instance_handle[11],
+            entity_id.entity_key()[0],
+            entity_id.entity_key()[1],
+            entity_id.entity_key()[2],
+            entity_id.entity_kind(),
+        ]);
+        self.reader_counter += 1;
+        let reliablity_kind = match qos.reliability.kind {
+            ReliabilityQosPolicyKind::BestEffort => ReliabilityKind::BestEffort,
+            ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
+        };
+        let guid_prefix = Guid::from(*self.domain_participant.instance_handle.as_ref()).prefix();
+        let guid = Guid::new(guid_prefix, entity_id);
+
+        let transport_reader = TransportReaderKind::Stateful(RtpsStatefulReader::new(
+            guid,
+            Box::new(UserDefinedReaderHistoryCache {
+                domain_participant_address: domain_participant_address.clone(),
+                subscriber_handle: subscriber.instance_handle,
+                data_reader_handle: reader_handle,
+            }),
+            reliablity_kind,
+        ));
+
+        let status_condition =
+            Actor::spawn::<R>(DcpsStatusCondition::default(), &self.spawner_handle);
+        let reader_status_condition_address = status_condition.address();
+        // No listener for dynamic readers (simplification)
+        let listener_sender = None;
+        let listener_mask = Vec::new();
+        let data_reader = DataReaderEntity::new(
+            reader_handle,
+            qos,
+            topic_name,
+            type_support.clone(),
+            status_condition,
+            listener_sender,
+            listener_mask,
+            transport_reader,
+        );
+
+        let data_reader_handle = data_reader.instance_handle;
+
+        // Capture type info for TypeLookup registration before moving data_reader
+        #[cfg(feature = "type_lookup")]
+        let type_for_registry = data_reader.type_support.as_ref().clone();
+
+        subscriber.data_reader_list.push(data_reader);
+
+        let should_enable =
+            subscriber.enabled && subscriber.qos.entity_factory.autoenable_created_entities;
+
+        // Register the type in the type registry for TypeLookup service
+        #[cfg(feature = "type_lookup")]
+        {
+            use crate::dcps::data_representation_builtin_endpoints::type_lookup::compute_equivalence_hash;
+            let hash = compute_equivalence_hash(&type_for_registry);
+            self.domain_participant.register_type(hash, type_for_registry);
+        }
+
+        if should_enable {
             self.enable_data_reader(
                 subscriber_handle,
                 data_reader_handle,
@@ -2177,9 +2561,25 @@ where
         );
         let data_writer_handle = data_writer.instance_handle;
 
+        // Capture type info for TypeLookup registration before moving data_writer
+        #[cfg(feature = "type_lookup")]
+        let type_for_registry = data_writer.type_support.as_ref().clone();
+
         publisher.data_writer_list.push(data_writer);
 
-        if publisher.enabled && publisher.qos.entity_factory.autoenable_created_entities {
+        let should_enable =
+            publisher.enabled && publisher.qos.entity_factory.autoenable_created_entities;
+
+        // Register the type in the type registry for TypeLookup service
+        // (done after publisher borrow is released)
+        #[cfg(feature = "type_lookup")]
+        {
+            use crate::dcps::data_representation_builtin_endpoints::type_lookup::compute_equivalence_hash;
+            let hash = compute_equivalence_hash(&type_for_registry);
+            self.domain_participant.register_type(hash, type_for_registry);
+        }
+
+        if should_enable {
             self.enable_data_writer(publisher_handle, writer_handle, participant_address)
                 .await?;
         }
@@ -3658,9 +4058,16 @@ where
             unicast_locator_list: vec![],
             multicast_locator_list: vec![],
         };
+        // Generate TypeInformation from the data_writer's type
+        #[cfg(feature = "type_lookup")]
+        let type_information = Some(data_writer.type_support.to_type_information_bytes());
+        #[cfg(not(feature = "type_lookup"))]
+        let type_information = None;
+
         let discovered_writer_data = DiscoveredWriterData {
             dds_publication_data,
             writer_proxy,
+            type_information,
         };
         let data_writer_handle = InstanceHandle::new(
             Guid::new(
@@ -3737,28 +4144,42 @@ where
         else {
             return;
         };
-        let Some(topic) = self
+
+        // For DynamicDataReader, there may be no Topic in the topic_description_list.
+        // In that case, use the type_support directly to get the type name.
+        let topic = self
             .domain_participant
             .topic_description_list
             .iter()
-            .find(|x| x.topic_name() == data_reader.topic_name)
-        else {
-            return;
-        };
+            .find(|x| x.topic_name() == data_reader.topic_name);
 
-        let (topic_name, type_name, topic_qos) = match topic {
-            TopicDescriptionKind::Topic(t) => (&t.topic_name, &t.type_name, &t.qos),
-            TopicDescriptionKind::ContentFilteredTopic(t) => {
+        let (topic_name, type_name, topic_qos): (String, String, TopicQos) = match topic {
+            Some(TopicDescriptionKind::Topic(t)) => {
+                (t.topic_name.clone(), t.type_name.clone(), t.qos.clone())
+            }
+            Some(TopicDescriptionKind::ContentFilteredTopic(t)) => {
                 if let Some(TopicDescriptionKind::Topic(topic)) = self
                     .domain_participant
                     .topic_description_list
                     .iter()
                     .find(|x| x.topic_name() == t.related_topic_name)
                 {
-                    (&topic.topic_name, &topic.type_name, &topic.qos)
+                    (
+                        topic.topic_name.clone(),
+                        topic.type_name.clone(),
+                        topic.qos.clone(),
+                    )
                 } else {
                     return;
                 }
+            }
+            None => {
+                // DynamicDataReader case: no Topic in list, use type_support directly
+                (
+                    data_reader.topic_name.clone(),
+                    data_reader.type_support.get_name().to_string(),
+                    TopicQos::default(),
+                )
             }
         };
         let guid = data_reader.transport_reader.guid();
@@ -3791,9 +4212,16 @@ where
             multicast_locator_list: vec![],
             expects_inline_qos: false,
         };
+        // Generate TypeInformation from the data_reader's type
+        #[cfg(feature = "type_lookup")]
+        let type_information = Some(data_reader.type_support.to_type_information_bytes());
+        #[cfg(not(feature = "type_lookup"))]
+        let type_information = None;
+
         let discovered_reader_data = DiscoveredReaderData {
             dds_subscription_data,
             reader_proxy,
+            type_information,
         };
         let data_writer_handle = InstanceHandle::new(
             Guid::new(
@@ -3913,19 +4341,27 @@ where
         data_writer_handle: InstanceHandle,
         participant_address: MpscSender<DcpsDomainParticipantMail>,
     ) {
+        let reader_guid_prefix = discovered_reader_data
+            .reader_proxy
+            .remote_reader_guid
+            .prefix();
         let default_unicast_locator_list = if let Some(p) = self
             .domain_participant
             .discovered_participant_list
             .iter()
-            .find(|p| {
-                p.participant_proxy.guid_prefix
-                    == discovered_reader_data
-                        .reader_proxy
-                        .remote_reader_guid
-                        .prefix()
-            }) {
+            .find(|p| p.participant_proxy.guid_prefix == reader_guid_prefix)
+        {
+            tracing::info!(
+                "add_discovered_reader: found participant {:?} with default_unicast_locator_list={:?}",
+                p.participant_proxy.guid_prefix,
+                p.participant_proxy.default_unicast_locator_list
+            );
             p.participant_proxy.default_unicast_locator_list.clone()
         } else {
+            tracing::warn!(
+                "add_discovered_reader: participant not found for reader {:?}, locator fallback empty",
+                reader_guid_prefix
+            );
             vec![]
         };
         let default_multicast_locator_list = if let Some(p) = self
@@ -4057,6 +4493,8 @@ where
                             DurabilityQosPolicyKind::Persistent => DurabilityKind::Persistent,
                         };
 
+                    let unicast_count = unicast_locator_list.len();
+                    let multicast_count = multicast_locator_list.len();
                     let reader_proxy = transport::types::ReaderProxy {
                         remote_reader_guid: discovered_reader_data.reader_proxy.remote_reader_guid,
                         remote_group_entity_id: discovered_reader_data
@@ -4070,6 +4508,35 @@ where
                     };
                     if let TransportWriterKind::Stateful(w) = &mut data_writer.transport_writer {
                         w.add_matched_reader(reader_proxy);
+                        // Send cached samples to the new reader for TRANSIENT_LOCAL durability
+                        // The reader proxy's highest_sent_seq_num is 0, so write_message will
+                        // send all cached samples to it. Existing readers won't receive duplicates
+                        // because their highest_sent_seq_num is already at the latest.
+                        if durability_kind != DurabilityKind::Volatile {
+                            let cached_changes = w.cached_changes_count();
+                            // Small delay to allow reader to fully initialize before receiving cached data
+                            // TODO: Investigate proper synchronization mechanism
+                            let mut timer_handle = self.timer_handle.clone();
+                            timer_handle
+                                .delay(core::time::Duration::from_millis(100))
+                                .await;
+                            tracing::info!(
+                                "TRANSIENT_LOCAL: About to send {} cached changes for topic {:?} (unicast_locators: {}, multicast_locators: {})",
+                                cached_changes,
+                                data_writer.topic_name,
+                                unicast_count,
+                                multicast_count
+                            );
+                            w.write_message(
+                                self.transport.message_writer.as_ref(),
+                                &self.clock_handle,
+                            )
+                            .await;
+                            tracing::info!(
+                                "TRANSIENT_LOCAL: write_message completed for topic {:?}",
+                                data_writer.topic_name
+                            );
+                        }
                     }
 
                     if data_writer
@@ -4460,29 +4927,35 @@ where
             else {
                 return;
             };
-            let Some(matched_topic) = self
+            // Look up topic for the reader. For DynamicDataReader, there may be no Topic
+            // in the list - that's OK, we fall back to using the reader's type_support directly.
+            let matched_topic = self
                 .domain_participant
                 .topic_description_list
                 .iter()
-                .find(|t| t.topic_name() == data_reader.topic_name)
-            else {
-                return;
-            };
-            let (reader_topic_name, reader_type_name) = match matched_topic {
-                TopicDescriptionKind::Topic(t) => (&t.topic_name, &t.type_name),
-                TopicDescriptionKind::ContentFilteredTopic(content_filtered_topic) => {
+                .find(|t| t.topic_name() == data_reader.topic_name);
+
+            // Get the type name from the topic (if available) or from the reader's type_support
+            let reader_type_name: String = match matched_topic {
+                Some(TopicDescriptionKind::Topic(t)) => t.type_name.clone(),
+                Some(TopicDescriptionKind::ContentFilteredTopic(content_filtered_topic)) => {
                     if let Some(TopicDescriptionKind::Topic(matched_topic)) = self
                         .domain_participant
                         .topic_description_list
                         .iter()
                         .find(|t| t.topic_name() == content_filtered_topic.related_topic_name)
                     {
-                        (&matched_topic.topic_name, &matched_topic.type_name)
+                        matched_topic.type_name.clone()
                     } else {
                         return;
                     }
                 }
+                None => {
+                    // DynamicDataReader case: no Topic, use type_support directly
+                    data_reader.type_support.get_name().to_string()
+                }
             };
+            let reader_topic_name = &data_reader.topic_name;
             let is_matched_topic_name =
                 &discovered_writer_data.dds_publication_data.topic_name == reader_topic_name;
             let is_matched_type_name =
@@ -5189,6 +5662,434 @@ where
         }
     }
 
+    /// Handle incoming TypeLookup requests.
+    ///
+    /// When a TypeLookup_Request is received, this method:
+    /// 1. Deserializes the request
+    /// 2. Looks up the requested types in the type registry
+    /// 3. Sends a TypeLookup_Reply with the found TypeObjects
+    #[cfg(feature = "type_lookup")]
+    #[tracing::instrument(skip(self, _participant_address))]
+    pub async fn handle_type_lookup_request(
+        &mut self,
+        cache_change: CacheChange,
+        _participant_address: MpscSender<DcpsDomainParticipantMail>,
+    ) {
+        use crate::dcps::data_representation_builtin_endpoints::type_lookup::{
+            extract_hash_from_type_identifier, ReplyHeader, SampleIdentity, TypeLookupCall,
+            TypeLookupGetTypesOut, TypeLookupReply, TypeLookupRequest, TypeLookupReturn,
+            TypeIdentifierTypeObjectPairBytes, REMOTE_EX_OK,
+        };
+        use crate::infrastructure::type_support::TypeSupport;
+        use crate::rtps_messages::{
+            overall_structure::RtpsMessageWrite,
+            submessages::info_timestamp::InfoTimestampSubmessage,
+            types::TIME_INVALID,
+        };
+
+        // Only process Alive changes
+        if cache_change.kind != ChangeKind::Alive {
+            eprintln!("[TypeLookup] Ignoring non-Alive change");
+            return;
+        }
+        let data_bytes = cache_change.data_value.as_ref();
+
+        // TypeLookup uses CDR2 (XCDR2), not PL_CDR like SPDP/SEDP
+        // Skip non-CDR2 messages (they're discovery traffic being broadcast to all readers)
+        if data_bytes.len() < 4 {
+            return;
+        }
+        let rep_id = [data_bytes[0], data_bytes[1]];
+        // CDR2_LE = [0x00, 0x07], D_CDR2_LE = [0x00, 0x09], PL_CDR2_LE = [0x00, 0x0b]
+        if rep_id != [0x00, 0x07] && rep_id != [0x00, 0x09] && rep_id != [0x00, 0x0b] {
+            // Not CDR2 - skip silently (this is likely SPDP/SEDP traffic)
+            return;
+        }
+
+        // Try to deserialize the TypeLookup_Request
+        let Ok(dynamic_data) = CdrDeserializer::deserialize(
+            TypeLookupRequest::get_type(),
+            data_bytes,
+        ) else {
+            eprintln!("[TypeLookup] Failed to deserialize TypeLookup_Request");
+            return;
+        };
+
+        let request = TypeLookupRequest::create_sample(dynamic_data);
+        tracing::debug!(
+            "Received TypeLookup request from {:?}: {:?}",
+            cache_change.writer_guid,
+            request
+        );
+
+        // Find the discovered participant based on writer_guid prefix
+        let writer_prefix = cache_change.writer_guid.prefix();
+        let reply_locators = {
+            let Some(discovered_participant) = self
+                .domain_participant
+                .discovered_participant_list
+                .iter()
+                .find(|p| p.participant_proxy.guid_prefix == writer_prefix)
+            else {
+                tracing::warn!(
+                    "Received TypeLookup request from unknown participant: {:?}",
+                    writer_prefix
+                );
+                return;
+            };
+
+            // Clone the metatraffic unicast locators to release the borrow
+            let locators = discovered_participant
+                .participant_proxy
+                .metatraffic_unicast_locator_list
+                .clone();
+            if locators.is_empty() {
+                tracing::warn!("No metatraffic locators for participant {:?}", writer_prefix);
+                return;
+            }
+            locators
+        };
+
+        // Build the TypeLookup reply
+        // For GetTypes requests, look up types in the registry and return them
+        let reply_data = match &request.data {
+            TypeLookupCall::GetTypes(get_types_in) => {
+                let mut found_types = Vec::new();
+
+                for type_id_bytes in &get_types_in.type_ids {
+                    // Extract the hash from the TypeIdentifier
+                    if let Some(hash) = extract_hash_from_type_identifier(type_id_bytes) {
+                        // Look up the type in our registry
+                        if let Some(dynamic_type) = self.domain_participant.lookup_type(&hash) {
+                            tracing::debug!(
+                                "Found type '{}' for hash {:?}",
+                                dynamic_type.get_name(),
+                                hash
+                            );
+                            // Convert DynamicType to TypeObject and serialize
+                            let type_object_bytes = match dynamic_type.to_type_object() {
+                                Ok(type_object) => type_object.serialize_to_bytes(),
+                                Err(e) => {
+                                    tracing::warn!(
+                                        "Failed to convert type '{}' to TypeObject: {:?}",
+                                        dynamic_type.get_name(),
+                                        e
+                                    );
+                                    Vec::new()
+                                }
+                            };
+                            tracing::debug!(
+                                "Serialized TypeObject for '{}': {} bytes",
+                                dynamic_type.get_name(),
+                                type_object_bytes.len()
+                            );
+                            found_types.push(TypeIdentifierTypeObjectPairBytes {
+                                type_identifier: type_id_bytes.clone(),
+                                type_object: type_object_bytes,
+                            });
+                        } else {
+                            tracing::debug!("Type not found for hash {:?}", hash);
+                        }
+                    }
+                }
+
+                tracing::debug!(
+                    "TypeLookup returning {} types for {} requested",
+                    found_types.len(),
+                    get_types_in.type_ids.len()
+                );
+
+                TypeLookupReturn::GetTypes(TypeLookupGetTypesOut {
+                    types: found_types,
+                    complete_to_minimal: Vec::new(),
+                })
+            }
+            TypeLookupCall::GetTypeDependencies(_) => {
+                // Not implemented yet - return empty
+                TypeLookupReturn::GetTypeDependencies(
+                    crate::dcps::data_representation_builtin_endpoints::type_lookup::TypeLookupGetTypeDependenciesOut::default(),
+                )
+            }
+            TypeLookupCall::Unknown(hash) => {
+                tracing::warn!("Unknown TypeLookup operation: 0x{:08x}", hash);
+                return;
+            }
+        };
+
+        let reply = TypeLookupReply {
+            header: ReplyHeader {
+                related_request_id: SampleIdentity {
+                    writer_guid: cache_change.writer_guid,
+                    sequence_number: cache_change.sequence_number,
+                },
+                remote_ex: REMOTE_EX_OK,
+            },
+            data: reply_data,
+        };
+
+        // Serialize the reply using CDR2 (XCDR2) since TypeLookupReply is Final extensibility
+        let dynamic_reply = reply.create_dynamic_sample();
+        let serialized = if cfg!(target_endian = "big") {
+            Cdr2BeSerializer::serialize(&dynamic_reply)
+        } else {
+            Cdr2LeSerializer::serialize(&dynamic_reply)
+        };
+        let Ok(serialized_data) = serialized else {
+            tracing::warn!("Failed to serialize TypeLookup reply");
+            return;
+        };
+
+        // Create cache change for the reply
+        // Use a simple incrementing sequence number - in a full implementation
+        // this would be tracked per-writer
+        let guid_prefix = Guid::from(*self.domain_participant.instance_handle.as_ref()).prefix();
+        let reply_writer_guid = Guid::new(guid_prefix, ENTITYID_TL_SVC_REPLY_WRITER);
+
+        let timestamp = self.get_current_time();
+        let reply_change = CacheChange {
+            kind: ChangeKind::Alive,
+            writer_guid: reply_writer_guid,
+            sequence_number: 1, // Simple fixed sequence number for stateless replies
+            source_timestamp: Some(timestamp.into()),
+            instance_handle: None,
+            data_value: serialized_data.into(),
+        };
+
+        // Build RTPS message with InfoTimestamp and Data submessages
+        let info_ts_submessage = reply_change
+            .source_timestamp
+            .map_or(InfoTimestampSubmessage::new(true, TIME_INVALID), |t| {
+                InfoTimestampSubmessage::new(false, t.into())
+            });
+
+        let data_submessage = reply_change.as_data_submessage(
+            ENTITYID_TL_SVC_REPLY_READER, // Remote reader entity ID
+            ENTITYID_TL_SVC_REPLY_WRITER, // Our writer entity ID
+        );
+
+        let rtps_message = RtpsMessageWrite::from_submessages(
+            &[&info_ts_submessage, &data_submessage],
+            guid_prefix,
+        );
+
+        // Send the reply to the requester's metatraffic unicast locators
+        self.transport
+            .message_writer
+            .write_message(rtps_message.buffer(), &reply_locators)
+            .await;
+
+        tracing::debug!(
+            "TypeLookup sent reply to {:?} via {:?}",
+            writer_prefix,
+            &reply_locators
+        );
+    }
+
+    /// Handle incoming TypeLookup_Reply messages (CLIENT side)
+    ///
+    /// When a TypeLookup_Reply is received, this method:
+    /// 1. Deserializes the reply
+    /// 2. Matches it with pending requests using related_request_id
+    /// 3. Extracts the returned TypeObjects and notifies waiting callers
+    #[cfg(feature = "type_lookup")]
+    #[tracing::instrument(skip(self))]
+    pub async fn handle_type_lookup_reply(&mut self, cache_change: CacheChange) {
+        use crate::dcps::data_representation_builtin_endpoints::type_lookup::TypeLookupReply;
+        use crate::infrastructure::type_support::TypeSupport;
+
+        // Only process Alive changes
+        if cache_change.kind != ChangeKind::Alive {
+            return;
+        }
+        let data_bytes = cache_change.data_value.as_ref();
+
+        // TypeLookup uses CDR2 (XCDR2), not PL_CDR like SPDP/SEDP
+        // Skip non-CDR2 messages (they're discovery traffic being broadcast to all readers)
+        if data_bytes.len() < 4 {
+            return;
+        }
+        let rep_id = [data_bytes[0], data_bytes[1]];
+        // CDR2_LE = [0x00, 0x07], D_CDR2_LE = [0x00, 0x09], PL_CDR2_LE = [0x00, 0x0b]
+        if rep_id != [0x00, 0x07] && rep_id != [0x00, 0x09] && rep_id != [0x00, 0x0b] {
+            // Not CDR2 - skip silently (this is likely SPDP/SEDP traffic)
+            return;
+        }
+
+        // Try to deserialize the TypeLookup_Reply
+        let Ok(dynamic_data) = CdrDeserializer::deserialize(
+            TypeLookupReply::get_type(),
+            data_bytes,
+        ) else {
+            tracing::debug!("Failed to deserialize TypeLookup_Reply");
+            return;
+        };
+
+        let reply = TypeLookupReply::create_sample(dynamic_data);
+        tracing::debug!(
+            "Received TypeLookup reply from {:?}",
+            cache_change.writer_guid,
+        );
+
+        // Check if this reply matches a pending request
+        // Convert Guid to [u8; 16] for the key since Guid doesn't implement Ord
+        let guid_bytes: [u8; 16] = reply.header.related_request_id.writer_guid.into();
+        let request_key = (guid_bytes, reply.header.related_request_id.sequence_number);
+
+        if let Some(reply_sender) = self.pending_type_requests.remove(&request_key) {
+            // Send the reply to the waiting caller, wrapped in Ok
+            reply_sender.send(Ok(reply));
+            tracing::debug!("Delivered TypeLookup reply to waiting caller");
+        } else {
+            tracing::debug!(
+                "Received TypeLookup reply for unknown request: {:?}",
+                request_key
+            );
+        }
+    }
+
+    /// Send a TypeLookup request to a remote participant (CLIENT side)
+    ///
+    /// This method:
+    /// 1. Finds the target participant's metatraffic locators
+    /// 2. Builds and sends a TypeLookup_Request message
+    /// 3. Registers the pending request for reply correlation
+    ///
+    /// The caller will receive the TypeLookup_Reply via the reply_sender when it arrives.
+    #[cfg(feature = "type_lookup")]
+    #[tracing::instrument(skip(self, reply_sender))]
+    pub async fn send_type_lookup_request(
+        &mut self,
+        target_participant_prefix: [u8; 12],
+        type_ids: Vec<Vec<u8>>,
+        reply_sender: OneshotSender<
+            DdsResult<crate::dcps::data_representation_builtin_endpoints::type_lookup::TypeLookupReply>,
+        >,
+    ) {
+        use crate::dcps::data_representation_builtin_endpoints::type_lookup::{
+            RequestHeader, SampleIdentity, TypeLookupCall, TypeLookupGetTypesIn, TypeLookupRequest,
+        };
+        use crate::infrastructure::type_support::TypeSupport;
+        use crate::rtps_messages::{
+            overall_structure::RtpsMessageWrite,
+            submessages::info_timestamp::InfoTimestampSubmessage,
+            types::TIME_INVALID,
+        };
+
+        // Find the discovered participant based on target GUID prefix
+        let target_locators = {
+            let Some(discovered_participant) = self
+                .domain_participant
+                .discovered_participant_list
+                .iter()
+                .find(|p| p.participant_proxy.guid_prefix == target_participant_prefix)
+            else {
+                tracing::warn!(
+                    "Target participant not found for TypeLookup request: {:?}",
+                    target_participant_prefix
+                );
+                reply_sender.send(Err(DdsError::PreconditionNotMet(
+                    "Target participant not found".into(),
+                )));
+                return;
+            };
+
+            let locators = discovered_participant
+                .participant_proxy
+                .metatraffic_unicast_locator_list
+                .clone();
+            if locators.is_empty() {
+                tracing::warn!(
+                    "No metatraffic locators for participant {:?}",
+                    target_participant_prefix
+                );
+                reply_sender.send(Err(DdsError::PreconditionNotMet(
+                    "No metatraffic locators for target participant".into(),
+                )));
+                return;
+            }
+            locators
+        };
+
+        // Allocate a sequence number for this request
+        let sequence_number = self.type_lookup_sequence_number;
+        self.type_lookup_sequence_number += 1;
+
+        // Get our request writer GUID
+        let guid_prefix = Guid::from(*self.domain_participant.instance_handle.as_ref()).prefix();
+        let request_writer_guid = Guid::new(guid_prefix, ENTITYID_TL_SVC_REQ_WRITER);
+
+        // Build the TypeLookup request
+        let request = TypeLookupRequest {
+            header: RequestHeader {
+                request_id: SampleIdentity {
+                    writer_guid: request_writer_guid,
+                    sequence_number,
+                },
+                instance_name: String::new(),
+            },
+            data: TypeLookupCall::GetTypes(TypeLookupGetTypesIn { type_ids }),
+        };
+
+        // Serialize the request using CDR2 (XCDR2) since TypeLookupRequest is Final extensibility
+        let dynamic_request = request.create_dynamic_sample();
+        let serialized = if cfg!(target_endian = "big") {
+            Cdr2BeSerializer::serialize(&dynamic_request)
+        } else {
+            Cdr2LeSerializer::serialize(&dynamic_request)
+        };
+        let Ok(serialized_data) = serialized else {
+            tracing::warn!("Failed to serialize TypeLookup request");
+            reply_sender.send(Err(DdsError::Error("Failed to serialize request".into())));
+            return;
+        };
+
+        // Create cache change for the request
+        let timestamp = self.get_current_time();
+        let request_change = CacheChange {
+            kind: ChangeKind::Alive,
+            writer_guid: request_writer_guid,
+            sequence_number,
+            source_timestamp: Some(timestamp.into()),
+            instance_handle: None,
+            data_value: serialized_data.into(),
+        };
+
+        // Build RTPS message with InfoTimestamp and Data submessages
+        let info_ts_submessage = request_change
+            .source_timestamp
+            .map_or(InfoTimestampSubmessage::new(true, TIME_INVALID), |t| {
+                InfoTimestampSubmessage::new(false, t.into())
+            });
+
+        let data_submessage = request_change.as_data_submessage(
+            ENTITYID_TL_SVC_REQ_READER, // Remote reader entity ID
+            ENTITYID_TL_SVC_REQ_WRITER, // Our writer entity ID
+        );
+
+        let rtps_message = RtpsMessageWrite::from_submessages(
+            &[&info_ts_submessage, &data_submessage],
+            guid_prefix,
+        );
+
+        // Register the pending request BEFORE sending (so we're ready for the reply)
+        let guid_bytes: [u8; 16] = request_writer_guid.into();
+        self.pending_type_requests
+            .insert((guid_bytes, sequence_number), reply_sender);
+
+        // Send the request to the target participant's metatraffic unicast locators
+        self.transport
+            .message_writer
+            .write_message(rtps_message.buffer(), &target_locators)
+            .await;
+
+        tracing::debug!(
+            "Sent TypeLookup request to {:?} (seq={}) via {:?}",
+            target_participant_prefix,
+            sequence_number,
+            &target_locators
+        );
+    }
+
     #[tracing::instrument(skip(self, participant_address))]
     pub async fn add_cache_change(
         &mut self,
@@ -5221,16 +6122,15 @@ where
             .iter()
             .any(|x| &x.key().value == writer_instance_handle.as_ref())
         {
-            let Some(reader_topic) = self
+            // Look up the topic for content filtering. For DynamicDataReader,
+            // there may be no Topic in the list - that's OK, just skip filtering.
+            let reader_topic = self
                 .domain_participant
                 .topic_description_list
                 .iter()
-                .find(|t| t.topic_name() == data_reader.topic_name)
-            else {
-                return;
-            };
+                .find(|t| t.topic_name() == data_reader.topic_name);
 
-            if let TopicDescriptionKind::ContentFilteredTopic(content_filtered_topic) = reader_topic
+            if let Some(TopicDescriptionKind::ContentFilteredTopic(content_filtered_topic)) = reader_topic
             {
                 if cache_change.kind == ChangeKind::Alive {
                     let Ok(data) = CdrDeserializer::deserialize(
@@ -6961,11 +7861,15 @@ struct DomainParticipantEntity {
     _ignored_topic_list: BTreeSet<InstanceHandle>,
     listener_sender: Option<MpscSender<ListenerMail>>,
     listener_mask: Vec<StatusKind>,
+    /// Type registry for TypeLookup service.
+    /// Maps equivalence hash (14 bytes) to serialized TypeObject/DynamicType.
+    #[cfg(feature = "type_lookup")]
+    type_registry: BTreeMap<[u8; 14], DynamicType>,
 }
 
 impl DomainParticipantEntity {
     #[allow(clippy::too_many_arguments)]
-    const fn new(
+    fn new(
         domain_id: DomainId,
         domain_participant_qos: DomainParticipantQos,
         listener_sender: Option<MpscSender<ListenerMail>>,
@@ -7000,6 +7904,8 @@ impl DomainParticipantEntity {
             listener_sender,
             listener_mask,
             domain_tag,
+            #[cfg(feature = "type_lookup")]
+            type_registry: BTreeMap::new(),
         }
     }
 
@@ -7036,6 +7942,19 @@ impl DomainParticipantEntity {
         self.discovered_topic_list
             .iter()
             .find(|&discovered_topic_data| discovered_topic_data.name() == topic_name)
+    }
+
+    /// Register a type in the type registry for TypeLookup service.
+    /// The hash should be the first 14 bytes of MD5 of the serialized TypeObject.
+    #[cfg(feature = "type_lookup")]
+    fn register_type(&mut self, hash: [u8; 14], dynamic_type: DynamicType) {
+        self.type_registry.insert(hash, dynamic_type);
+    }
+
+    /// Look up a type in the type registry by its equivalence hash.
+    #[cfg(feature = "type_lookup")]
+    fn lookup_type(&self, hash: &[u8; 14]) -> Option<&DynamicType> {
+        self.type_registry.get(hash)
     }
 
     fn add_discovered_participant(

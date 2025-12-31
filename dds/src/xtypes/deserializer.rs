@@ -814,20 +814,34 @@ impl<'a> XTypesDeserialize for RtpsPlCdrDeserializer<'a> {
 
             self.cdr1_deserializer.reader.set_position(0);
             if member_descriptor.r#type.get_kind() == TypeKind::SEQUENCE {
-                let mut sequence = Vec::new();
-                while self.cdr1_deserializer.reader.seek_to_pid_le(pid)? {
-                    sequence.push(
-                        self.deserialize_complex_value(
-                            member_descriptor
-                                .r#type
-                                .get_descriptor()
-                                .element_type
-                                .as_ref()
-                                .expect("must have element_type"),
-                        )?,
-                    );
+                // Check if this is a sequence of complex types (structures) or primitives
+                let element_type = member_descriptor
+                    .r#type
+                    .get_descriptor()
+                    .element_type
+                    .as_ref()
+                    .expect("must have element_type");
+
+                if element_type.get_kind() == TypeKind::STRUCTURE {
+                    // Sequence of structures: each element is serialized as separate PID entry
+                    let mut sequence = Vec::new();
+                    while self.cdr1_deserializer.reader.seek_to_pid_le(pid)? {
+                        sequence.push(self.deserialize_complex_value(element_type)?);
+                    }
+                    dynamic_data.set_complex_values(pid as u32, sequence)?;
+                } else if self.cdr1_deserializer.reader.seek_to_pid_le(pid)? {
+                    // Sequence of primitives: single PID entry with length + values
+                    self.deserialize_final_member(member, dynamic_data)?;
+                } else if member_descriptor.is_optional {
+                    let default_value = member_descriptor
+                        .default_value
+                        .as_ref()
+                        .cloned()
+                        .expect("default value must exist for optional type");
+                    dynamic_data.set_value(pid as u32, default_value);
+                } else {
+                    return Err(XTypesError::PidNotFound(pid));
                 }
-                dynamic_data.set_complex_values(pid as u32, sequence)?;
             } else if self.cdr1_deserializer.reader.seek_to_pid_le(pid)? {
                 self.deserialize_final_member(member, dynamic_data)?;
             } else if member_descriptor.is_optional {

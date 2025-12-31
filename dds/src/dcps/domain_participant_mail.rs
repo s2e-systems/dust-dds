@@ -177,6 +177,28 @@ pub enum ParticipantServiceMail {
     IsEmpty {
         reply_sender: OneshotSender<bool>,
     },
+    /// Send a TypeLookup request to discover remote types (XTypes 1.3)
+    #[cfg(feature = "type_lookup")]
+    RequestTypeLookup {
+        /// Target participant's GUID prefix
+        target_participant_prefix: [u8; 12],
+        /// TypeIdentifiers to look up (raw XCDR-encoded bytes)
+        type_ids: Vec<Vec<u8>>,
+        /// Sender to deliver the reply
+        #[allow(clippy::type_complexity)]
+        reply_sender: OneshotSender<
+            DdsResult<crate::dcps::data_representation_builtin_endpoints::type_lookup::TypeLookupReply>,
+        >,
+    },
+    /// Get discovered writer info for a topic to enable type discovery
+    #[cfg(feature = "type_lookup")]
+    GetDiscoveredWriterForTopic {
+        /// Topic name to search for
+        topic_name: String,
+        /// Returns: (participant_prefix, type_information bytes) if found
+        #[allow(clippy::type_complexity)]
+        reply_sender: OneshotSender<DdsResult<Option<([u8; 12], Option<Vec<u8>>)>>>,
+    },
 }
 
 pub enum TopicServiceMail {
@@ -252,6 +274,14 @@ pub enum SubscriberServiceMail {
         qos: QosKind<DataReaderQos>,
         dcps_listener: Option<DcpsDataReaderListener>,
         mask: Vec<StatusKind>,
+        domain_participant_address: MpscSender<DcpsDomainParticipantMail>,
+        reply_sender: OneshotSender<DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)>>,
+    },
+    CreateDynamicDataReader {
+        subscriber_handle: InstanceHandle,
+        topic_name: String,
+        dynamic_type: DynamicType,
+        qos: QosKind<DataReaderQos>,
         domain_participant_address: MpscSender<DcpsDomainParticipantMail>,
         reply_sender: OneshotSender<DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)>>,
     },
@@ -502,6 +532,15 @@ pub enum MessageServiceMail {
     AddBuiltinTopicsDetectorCacheChange {
         cache_change: CacheChange,
     },
+    #[cfg(feature = "type_lookup")]
+    AddTypeLookupRequestCacheChange {
+        cache_change: CacheChange,
+        participant_address: MpscSender<DcpsDomainParticipantMail>,
+    },
+    #[cfg(feature = "type_lookup")]
+    AddTypeLookupReplyCacheChange {
+        cache_change: CacheChange,
+    },
     Poke,
 }
 
@@ -739,6 +778,23 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             } => reply_sender.send(self.enable_domain_participant(participant_address).await),
             ParticipantServiceMail::IsEmpty { reply_sender } => {
                 reply_sender.send(self.is_participant_empty())
+            }
+            #[cfg(feature = "type_lookup")]
+            ParticipantServiceMail::RequestTypeLookup {
+                target_participant_prefix,
+                type_ids,
+                reply_sender,
+            } => {
+                self.send_type_lookup_request(target_participant_prefix, type_ids, reply_sender)
+                    .await
+            }
+            #[cfg(feature = "type_lookup")]
+            ParticipantServiceMail::GetDiscoveredWriterForTopic {
+                topic_name,
+                reply_sender,
+            } => {
+                let result = self.get_discovered_writer_for_topic(&topic_name);
+                reply_sender.send(Ok(result))
             }
         }
     }
@@ -984,6 +1040,23 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                     qos,
                     dcps_listener,
                     mask,
+                    domain_participant_address,
+                )
+                .await,
+            ),
+            SubscriberServiceMail::CreateDynamicDataReader {
+                subscriber_handle,
+                topic_name,
+                dynamic_type,
+                qos,
+                domain_participant_address,
+                reply_sender,
+            } => reply_sender.send(
+                self.create_dynamic_data_reader(
+                    subscriber_handle,
+                    topic_name,
+                    dynamic_type,
+                    qos,
                     domain_participant_address,
                 )
                 .await,
@@ -1271,6 +1344,18 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             MessageServiceMail::AddBuiltinTopicsDetectorCacheChange { cache_change } => {
                 self.add_builtin_topics_detector_cache_change(cache_change)
                     .await
+            }
+            #[cfg(feature = "type_lookup")]
+            MessageServiceMail::AddTypeLookupRequestCacheChange {
+                cache_change,
+                participant_address,
+            } => {
+                self.handle_type_lookup_request(cache_change, participant_address)
+                    .await
+            }
+            #[cfg(feature = "type_lookup")]
+            MessageServiceMail::AddTypeLookupReplyCacheChange { cache_change } => {
+                self.handle_type_lookup_reply(cache_change).await
             }
             MessageServiceMail::Poke => self.poke().await,
         }

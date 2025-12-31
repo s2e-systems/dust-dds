@@ -42,7 +42,7 @@ opentelemetry_sdk = "0.31.0"
 tracing-opentelemetry = "0.32.0"
 
 [features]
-default = ["dcps", "rtps", "rtps_udp_transport", "std"]
+default = ["dcps", "rtps", "rtps_udp_transport", "std", "type_lookup"]
 dcps = ["xtypes", "transport", "dep:md5", "dep:tracing"]
 rtps_udp_transport = ["rtps", "dep:socket2", "dep:network-interface"]
 rtps = ["rtps_messages"]
@@ -50,6 +50,8 @@ rtps_messages = ["transport"]
 transport = ["xtypes"]
 xtypes = []
 std = ["critical-section/std"]
+# XTypes TypeLookup service for dynamic type discovery
+type_lookup = ["dcps"]
 
 [[bench]]
 name = "benchmark"

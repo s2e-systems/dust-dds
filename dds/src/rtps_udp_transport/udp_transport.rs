@@ -414,9 +414,27 @@ impl WriteMessage for MessageWriter {
                     }
                 }
             } else {
-                self.socket
+                match self
+                    .socket
                     .send_to(datagram, UdpLocator(destination_locator))
-                    .ok();
+                {
+                    Ok(bytes) => {
+                        tracing::debug!(
+                            "UDP sent {} bytes to {:?}:{}",
+                            bytes,
+                            destination_locator.address(),
+                            destination_locator.port()
+                        );
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            "UDP send failed to {:?}:{}: {}",
+                            destination_locator.address(),
+                            destination_locator.port(),
+                            e
+                        );
+                    }
+                }
             }
         }
         Box::pin(async {})

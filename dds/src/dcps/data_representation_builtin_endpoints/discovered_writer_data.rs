@@ -3,7 +3,7 @@ use super::parameter_id_values::{
     PID_ENDPOINT_GUID, PID_GROUP_DATA, PID_GROUP_ENTITYID, PID_LATENCY_BUDGET, PID_LIFESPAN,
     PID_LIVELINESS, PID_MULTICAST_LOCATOR, PID_OWNERSHIP, PID_OWNERSHIP_STRENGTH,
     PID_PARTICIPANT_GUID, PID_PARTITION, PID_PRESENTATION, PID_RELIABILITY, PID_TOPIC_DATA,
-    PID_TOPIC_NAME, PID_TYPE_NAME, PID_UNICAST_LOCATOR, PID_USER_DATA,
+    PID_TOPIC_NAME, PID_TYPE_INFORMATION, PID_TYPE_NAME, PID_UNICAST_LOCATOR, PID_USER_DATA,
 };
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData},
@@ -36,6 +36,10 @@ pub struct WriterProxy {
 pub struct DiscoveredWriterData {
     pub(crate) dds_publication_data: PublicationBuiltinTopicData,
     pub(crate) writer_proxy: WriterProxy,
+    /// XTypes TypeInformation, stored as raw XCDR-encoded bytes for wire compatibility.
+    /// This allows discovery to work with TypeInformation from other XTypes implementations
+    /// without requiring full deserialization of the complex TypeInformation structure.
+    pub(crate) type_information: Option<Vec<u8>>,
 }
 impl TypeSupport for DiscoveredWriterData {
     #[inline]
@@ -214,6 +218,11 @@ impl TypeSupport for DiscoveredWriterData {
             PID_MULTICAST_LOCATOR,
             Vec::<Locator>::default(),
         );
+        builder.add_member_with_default(
+            "type_information",
+            PID_TYPE_INFORMATION,
+            Vec::<u8>::default(),
+        );
 
         builder.builder.build()
     }
@@ -332,6 +341,11 @@ impl TypeSupport for DiscoveredWriterData {
                 )
                 .expect("Must match"),
             },
+            type_information: src
+                .remove_value(PID_TYPE_INFORMATION as u32)
+                .ok()
+                .and_then(|v| Vec::<u8>::try_from_storage(v).ok())
+                .filter(|v| !v.is_empty()),
         }
     }
 
@@ -426,6 +440,10 @@ impl TypeSupport for DiscoveredWriterData {
             PID_MULTICAST_LOCATOR as u32,
             self.writer_proxy.multicast_locator_list.into_storage(),
         );
+        data.set_value(
+            PID_TYPE_INFORMATION as u32,
+            self.type_information.unwrap_or_default().into_storage(),
+        );
         data
     }
 }
@@ -479,6 +497,7 @@ mod tests {
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
             },
+            type_information: None,
         }
         .create_dynamic_sample();
 
@@ -546,8 +565,8 @@ mod tests {
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
             },
-        }
-        .create_dynamic_sample();
+            type_information: None,
+        };
 
         let data = [
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
@@ -571,9 +590,67 @@ mod tests {
             b'c', b'd', 0, 0x00, // string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
-        assert_eq!(
-            CdrDeserializer::deserialize_builtin(DiscoveredWriterData::get_type(), &data).unwrap(),
-            expected
-        );
+        // Deserialize to DynamicData and then create the sample to compare at struct level
+        let deserialized_dynamic =
+            CdrDeserializer::deserialize_builtin(DiscoveredWriterData::get_type(), &data).unwrap();
+        let actual = DiscoveredWriterData::create_sample(deserialized_dynamic);
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn serialize_deserialize_with_type_information() {
+        use crate::infrastructure::qos_policy::DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER;
+
+        let type_info = vec![0x01u8, 0x02, 0x03, 0x04];
+        let data = DiscoveredWriterData {
+            dds_publication_data: PublicationBuiltinTopicData {
+                key: BuiltInTopicKey {
+                    value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
+                },
+                participant_key: BuiltInTopicKey {
+                    value: [6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 0, 9, 0, 0, 0],
+                },
+                topic_name: "ab".to_string(),
+                type_name: "cd".to_string(),
+                durability: Default::default(),
+                deadline: Default::default(),
+                latency_budget: Default::default(),
+                liveliness: Default::default(),
+                reliability: DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
+                lifespan: Default::default(),
+                user_data: Default::default(),
+                ownership: Default::default(),
+                ownership_strength: Default::default(),
+                destination_order: Default::default(),
+                presentation: Default::default(),
+                partition: Default::default(),
+                topic_data: Default::default(),
+                group_data: Default::default(),
+                representation: Default::default(),
+            },
+            writer_proxy: WriterProxy {
+                remote_writer_guid: Guid::new(
+                    [21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32],
+                    EntityId::new([21, 22, 23], BUILT_IN_WRITER_WITH_KEY),
+                ),
+                remote_group_entity_id: EntityId::new([21, 22, 23], BUILT_IN_READER_GROUP),
+                unicast_locator_list: vec![],
+                multicast_locator_list: vec![],
+            },
+            type_information: Some(type_info.clone()),
+        };
+
+        // Serialize
+        let dynamic_sample = data.create_dynamic_sample();
+        let serialized = RtpsPlCdrSerializer::serialize(&dynamic_sample).unwrap();
+
+        // Deserialize
+        let deserialized_dynamic =
+            CdrDeserializer::deserialize_builtin(DiscoveredWriterData::get_type(), &serialized)
+                .unwrap();
+        let deserialized = DiscoveredWriterData::create_sample(deserialized_dynamic);
+
+        // Verify type_information is preserved
+        assert_eq!(deserialized.type_information, Some(type_info));
     }
 }

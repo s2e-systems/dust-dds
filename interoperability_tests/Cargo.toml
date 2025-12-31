@@ -14,7 +14,8 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
-dust_dds = { path = "../dds" }
+dust_dds = { path = "../dds", features = ["type_lookup"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
 
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 
@@ -60,3 +61,11 @@ path = "dust_dds_subscriber_nested.rs"
 [[bin]]
 name = "dust_dds_publisher_nested"
 path = "dust_dds_publisher_nested.rs"
+
+[[bin]]
+name = "dust_dds_dynamic_subscriber"
+path = "dust_dds_dynamic_subscriber.rs"
+
+[[bin]]
+name = "dust_dds_typelookup_subscriber"
+path = "dust_dds_typelookup_subscriber.rs"
