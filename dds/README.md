@@ -142,8 +142,17 @@ When implementing applications that already make use of async, then the async AP
 
 ## Dust DDS extensions
 
+### Dust DDS C Bindings
+
+Dust DDS provides [C bindings](https://dust-dds.s2e-systems.com/product/c-binding/) as an extension, enabling integration with existing C and C++ codebases and facilitating adoption in environments where Rust cannot be used directly. The bindings expose a stable, C-compatible API that mirrors the core DDS concepts while preserving Dust DDS’s focus on correctness and performance. This extension makes it possible to incrementally introduce Dust DDS into legacy systems, mixed-language projects, or constrained embedded environments, without requiring a full rewrite in Rust.
+
+### Dust DDS for microcontrollers
+
+Dust DDS can be deployed on [microcontrollers](https://dust-dds.s2e-systems.com/product/microcontrollers/) and other *no_std* targets, enabling DDS-based communication in highly constrained environments. For this purpose, Dust DDS provides a pre-made runtime built on top of the Embassy async framework, offering a ready-to-use execution model tailored to embedded systems. In addition, S2E offers services to assist with porting Dust DDS to custom or proprietary runtimes, allowing integration into environments where Embassy is not available or where specific platform requirements apply.
+
 ### DDS over the Internet
-Standard DDS implementations are limited to local networks because they rely on UDP multicast for participant discovery, which is not permitted across the internet. If you want to connect your devices over the internet, our [Global DDS](https://www.s2e-systems.com/products/global-dds/) offers a plug-and-play solution without code modifications or additional software needed.
+
+Standard DDS implementations are limited to local networks because they rely on UDP multicast for participant discovery, which is not permitted across the internet. If you want to connect your devices over the internet, our [Global DDS](https://dust-dds.s2e-systems.com/product/global-dds/) offers a plug-and-play solution without code modifications or additional software needed.
 
 ### DDS REST API
 
