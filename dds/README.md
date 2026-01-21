@@ -5,7 +5,7 @@
 [![Docs.rs](https://docs.rs/dust_dds/badge.svg)](https://docs.rs/dust_dds)
 [![License](https://img.shields.io/crates/l/dust_dds.svg)](https://github.com/s2e-systems/dust-dds/blob/master/LICENSE)
 
-Dust DDS is a native [Rust](https://www.rust-lang.org/) implementation of the [Data Distribution Services (DDS)](https://www.omg.org/omg-dds-portal/) using the [Real-time Publisher-Subscriber (RTPS)](https://www.omg.org/spec/DDSI-RTPS/About-DDSI-RTPS/) wire protocol developed by [S2E Software Systems](https://www.s2e-systems.com).
+[Dust DDS](https://dust-dds.s2e-systems.com) is a native Rust implementation of the [Data Distribution Service (DDS)](https://www.omg.org/omg-dds-portal/) middleware using the [Real-time Publisher-Subscriber (RTPS)](https://www.omg.org/spec/DDSI-RTPS/About-DDSI-RTPS/) wire protocol developed by [S2E Software Systems](https://www.s2e-systems.com).
 
 This crate provides a Rust implementation of the minimum DDS profile. It uses only stable Rust and has no `unsafe` code while providing a large code coverage validated by our CI systems to ensure its quality.
 
