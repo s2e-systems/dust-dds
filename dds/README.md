@@ -1,5 +1,6 @@
 # Dust DDS
 
+[![CircleCI](https://dl.circleci.com/status-badge/img/gh/s2e-systems/dust-dds/tree/main.svg?style=svg)](https://dl.circleci.com/status-badge/redirect/gh/s2e-systems/dust-dds/tree/main)
 [![Crates.io](https://img.shields.io/crates/v/dust_dds.svg)](https://crates.io/crates/dust_dds)
 [![Docs.rs](https://docs.rs/dust_dds/badge.svg)](https://docs.rs/dust_dds)
 [![License](https://img.shields.io/crates/l/dust_dds.svg)](https://github.com/s2e-systems/dust-dds/blob/master/LICENSE)
