@@ -4,11 +4,12 @@ First off, thanks for taking the time to contribute!
 
 If you are using Dust DDS and want to give back, we would appreciate to have you open GitHub issues and PRs for features, bugs and documentation improvements.
 
-> And if you like the project, but just don't have time to contribute, that's fine. There are other easy ways to support the project and show your appreciation, which we would also be very happy about:
-> - Star the project
-> - Share it on social media
-> - Refer this project in your project's readme
-> - Mention the project at local meetups and tell your friends/colleagues
+And if you like the project, but just don't have time to contribute, that's fine. There are other easy ways to support the project and show your appreciation, which we would also be very happy about:
+- Sponsor us
+- Star the project
+- Share it on social media
+- Refer this project in your project's readme
+- Mention the project at local meetups and tell your friends/colleagues
 
 ## Code of Conduct
 
@@ -24,7 +25,7 @@ When contributing to this project, you must agree that you have authored 100% of
 
 ## How to Contribute
 
-Contributions are made to this repo via Issues and Pull Requests (PRs). In general, we try our best to make sure issues/PRs are handled in a timely manner but, depending on the impact and our availability, it could take a while to get things solved. If an issue is urgent or has commercial value to you, you can always contact us on our [website](www.s2e-systems.com) and make use of our professional support services.
+Contributions are made to this repo via Issues and Pull Requests (PRs). In general, we try our best to make sure issues/PRs are handled in a timely manner but, depending on the impact and our availability, it could take a while to get things solved. If an issue is urgent or has commercial value to you, you can always contact us on our [website](https://dust-dds.s2e-systems.com) and make use of our professional support services.
 
 Before contributing search for existing Issues and PRs before creating your own. If there is no issue for your intended contribution, start by creating one. In this way can discuss the scope of the feature to be implemented. This helps to align the expectations and increases the likelihood that your contribution will be accepted once submitted.
 
