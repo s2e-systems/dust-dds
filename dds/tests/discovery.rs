@@ -3,11 +3,15 @@ use std::time::Instant;
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
-        qos::{DataReaderQos, DataWriterQos, PublisherQos, QosKind, SubscriberQos},
+        instance::InstanceHandle,
+        qos::{
+            DataReaderQos, DataWriterQos, DomainParticipantQos, PublisherQos, QosKind,
+            SubscriberQos,
+        },
         qos_policy::{
-            DataRepresentationQosPolicy, OwnershipQosPolicy, OwnershipQosPolicyKind,
-            PartitionQosPolicy, UserDataQosPolicy, XCDR_DATA_REPRESENTATION,
-            XCDR2_DATA_REPRESENTATION,
+            DataRepresentationQosPolicy, DiscoveryConfigQosPolicy, OwnershipQosPolicy,
+            OwnershipQosPolicyKind, PartitionQosPolicy, UserDataQosPolicy,
+            XCDR_DATA_REPRESENTATION, XCDR2_DATA_REPRESENTATION,
         },
         status::{NO_STATUS, StatusKind},
         time::Duration,
@@ -1132,4 +1136,43 @@ fn participant_removed_after_lease_duration() {
     let discovered_participant = participant1.get_discovered_participants().unwrap();
 
     assert_eq!(discovered_participant.len(), 1);
+}
+
+/// Test that configurable participant_lease_duration via QoS is applied correctly.
+///
+/// This test verifies that the participant_lease_duration QoS policy is properly
+/// stored in the participant and can be retrieved.
+#[test]
+fn participant_lease_duration_is_configurable_via_qos() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+
+    // Configure a short lease duration via QoS
+    let lease_duration_secs = 5;
+    let qos = DomainParticipantQos {
+        discovery_config: DiscoveryConfigQosPolicy {
+            participant_lease_duration: Duration::new(lease_duration_secs, 0),
+        },
+        ..Default::default()
+    };
+
+    // Create a participant with the configured lease duration
+    let participant = domain_participant_factory
+        .create_participant(domain_id, QosKind::Specific(qos), NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    // Verify the QoS was applied
+    let applied_qos = participant.get_qos().unwrap();
+    assert_eq!(
+        applied_qos.discovery_config.participant_lease_duration,
+        Duration::new(lease_duration_secs, 0)
+    );
+
+    // The participant should be created successfully with the configured lease
+    assert!(participant.get_instance_handle() != InstanceHandle::default());
+
+    // Clean up
+    domain_participant_factory
+        .delete_participant(&participant)
+        .unwrap();
 }

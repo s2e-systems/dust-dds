@@ -171,6 +171,23 @@ impl<T: TransportParticipantFactory> DcpsParticipantFactory<T> {
             }
         });
 
+        // Start periodic participant liveliness check task
+        let participant_address = participant_sender.clone();
+        let mut timer_handle_clone = timer_handle.clone();
+        let liveliness_check_interval = core::time::Duration::from_secs(10);
+
+        spawner_handle.spawn(async move {
+            while participant_address
+                .send(DcpsDomainParticipantMail::Discovery(
+                    DiscoveryServiceMail::CheckParticipantLiveness,
+                ))
+                .await
+                .is_ok()
+            {
+                timer_handle_clone.delay(liveliness_check_interval).await;
+            }
+        });
+
         // Start regular message writing
         let participant_address = participant_sender.clone();
         spawner_handle.spawn(async move {

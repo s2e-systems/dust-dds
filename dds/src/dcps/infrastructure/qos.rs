@@ -6,12 +6,13 @@ use crate::{
 use super::{
     qos_policy::{
         DataRepresentationQosPolicy, DeadlineQosPolicy, DestinationOrderQosPolicy,
-        DurabilityQosPolicy, EntityFactoryQosPolicy, GroupDataQosPolicy, HistoryQosPolicy,
-        HistoryQosPolicyKind, LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy,
-        OwnershipQosPolicy, OwnershipStrengthQosPolicy, PartitionQosPolicy, PresentationQosPolicy,
-        ReaderDataLifecycleQosPolicy, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
-        ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy,
-        TransportPriorityQosPolicy, UserDataQosPolicy, WriterDataLifecycleQosPolicy,
+        DiscoveryConfigQosPolicy, DurabilityQosPolicy, EntityFactoryQosPolicy, GroupDataQosPolicy,
+        HistoryQosPolicy, HistoryQosPolicyKind, LatencyBudgetQosPolicy, LifespanQosPolicy,
+        LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy, PartitionQosPolicy,
+        PresentationQosPolicy, ReaderDataLifecycleQosPolicy, ReliabilityQosPolicy,
+        ReliabilityQosPolicyKind, ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy,
+        TopicDataQosPolicy, TransportPriorityQosPolicy, UserDataQosPolicy,
+        WriterDataLifecycleQosPolicy,
     },
     time::DurationKind,
 };
@@ -39,6 +40,9 @@ pub struct DomainParticipantQos {
     pub user_data: UserDataQosPolicy,
     /// Value of the entity factory QoS policy.
     pub entity_factory: EntityFactoryQosPolicy,
+    /// Value of the discovery config QoS policy (vendor extension).
+    /// Controls RTPS discovery parameters like participant lease duration.
+    pub discovery_config: DiscoveryConfigQosPolicy,
 }
 
 /// QoS policies applicable to the [`Publisher`](crate::publication::publisher::Publisher)
