@@ -434,11 +434,17 @@ impl DynamicData {
     pub fn clear_nonkey_values(&mut self) -> XTypesResult<()> {
         for index in 0..self.type_ref.get_member_count() {
             let member = self.type_ref.get_member_by_index(index)?;
+            let member_id = member.get_id();
+
             if !member.get_descriptor()?.is_key {
-                let member_id = member.get_id();
                 self.abstract_data.remove(&member_id);
+            } else if let Some(DataStorage::ComplexValue(comple_value)) =
+                self.abstract_data.get_mut(&member_id)
+            {
+                comple_value.clear_nonkey_values()?;
             }
         }
+
         Ok(())
     }
 
