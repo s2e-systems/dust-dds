@@ -131,6 +131,7 @@ impl Default for ShapesDemoApp {
         let participant = participant_factory
             .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
             .unwrap();
+        participant.ignore_participant(participant.get_instance_handle()).unwrap();
         let publisher = participant
             .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
             .unwrap();
