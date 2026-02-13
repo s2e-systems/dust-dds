@@ -52,7 +52,6 @@ int main(int argc, char *argv[])
 		DDS_FATAL("dds_waitset_wait: %s\n", dds_strretcode(-rc));
 	}
 
-
 	interoperability_test_HelloWorldType msg = {8, 'a'};
 	dds_write(data_writer, &msg);
 

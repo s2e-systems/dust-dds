@@ -71,9 +71,7 @@ fn main() {
     let samples = reader
         .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         .unwrap();
-
-    let hello_world = samples[0].data.as_ref().unwrap();
-    println!("Received: {hello_world:?}",);
+    println!("read: {samples:?}");
 
     // Sleep to allow sending acknowledgements
     std::thread::sleep(std::time::Duration::from_secs(2));
