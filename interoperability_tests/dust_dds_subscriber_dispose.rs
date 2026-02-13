@@ -71,6 +71,7 @@ fn main() {
     let mut samples = reader
         .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         .unwrap();
+    assert_eq!(samples.size(), 1);
     println!("read: {samples:?}");
 
     if samples[0].sample_info.instance_state == InstanceStateKind::Alive {
@@ -82,6 +83,7 @@ fn main() {
         samples = reader
             .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
             .unwrap();
+        assert_eq!(samples.size(), 1);
         println!("read: {samples:?}");
         assert_eq!(samples[0].sample_info.instance_handle, instance_handle);
     }
