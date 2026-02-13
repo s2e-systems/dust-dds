@@ -17,33 +17,33 @@ jobs:
       xcode: 16.4.0
     resource_class: m4pro.medium
     steps:
-    - checkout
-    - rust/install
-    - run:
-        name: Run Hello world example
-        command: |
-          cargo run --example hello_world_publisher &
-          pid=$!
-          cargo run --example hello_world_subscriber
-          wait $pid
+      - checkout
+      - rust/install
+      - run:
+          name: Run Hello world example
+          command: |
+            cargo run --example hello_world_publisher &
+            pid=$!
+            cargo run --example hello_world_subscriber
+            wait $pid
   hello_world_on_windows:
     machine:
-      image: 'windows-server-2019-vs2019:2024.05.1'
+      image: "windows-server-2019-vs2019:2024.05.1"
       resource_class: windows.medium
       shell: powershell.exe -ExecutionPolicy Bypass
     steps:
-    - checkout
-    - run:
-        name: Install Rust
-        command: |
-          curl -o rustup.sh https://sh.rustup.rs
-          bash rustup.sh -y
-    - run:
-        name: Run Hello world example
-        command: |
-          $publisher = Start-Process cargo -ArgumentList 'run --example hello_world_publisher' -PassThru
-          cargo run --example hello_world_subscriber
-          $publisher.WaitForExit()
+      - checkout
+      - run:
+          name: Install Rust
+          command: |
+            curl -o rustup.sh https://sh.rustup.rs
+            bash rustup.sh -y
+      - run:
+          name: Run Hello world example
+          command: |
+            $publisher = Start-Process cargo -ArgumentList 'run --example hello_world_publisher' -PassThru
+            cargo run --example hello_world_subscriber
+            $publisher.WaitForExit()
 
   build_and_push_docker_image:
     docker:
@@ -209,46 +209,60 @@ jobs:
             cargo run --package dust_dds_interoperability --bin dust_dds_publisher
             wait $pid
       - run:
-          name: Cyclone Big data publisher interoperability test
+          name: Cyclone publisher big data interoperability test
           command: |
-            build/cyclone_dds/CycloneDdsBigDataSubscriber &
+            cargo run --package dust_dds_interoperability --bin dust_dds_subscriber_big_data &
             pid=$!
-            cargo run --package dust_dds_interoperability --bin dust_dds_big_data_publisher
+            build/cyclone_dds/CycloneDdsPublisherBigData
             wait $pid
       - run:
-          name: Cyclone Big data subscriber interoperability test
+          name: Cyclone subscriber big data interoperability test
           command: |
-            build/cyclone_dds/CycloneDdsBigDataPublisher &
+            build/cyclone_dds/CycloneDdsSubscriberBigData &
             pid=$!
-            cargo run --package dust_dds_interoperability --bin dust_dds_big_data_subscriber
+            cargo run --package dust_dds_interoperability --bin dust_dds_publisher_big_data
             wait $pid
       - run:
           name: Cyclone publisher dispose interoperability test
-          command: |
-            build/cyclone_dds/CycloneDdsSubscriberDispose &
-            pid=$!
-            cargo run --package dust_dds_interoperability --bin dust_dds_publisher_dispose
-            wait $pid
-      - run:
-          name: Cyclone subscriber dispose interoperability test
           command: |
             cargo run --package dust_dds_interoperability --bin dust_dds_subscriber_dispose &
             pid=$!
             build/cyclone_dds/CycloneDdsPublisherDispose
             wait $pid
       - run:
+          name: Cyclone subscriber dispose interoperability test
+          command: |
+            build/cyclone_dds/CycloneDdsSubscriberDispose &
+            pid=$!
+            cargo run --package dust_dds_interoperability --bin dust_dds_publisher_dispose
+            wait $pid
+      - run:
           name: Cyclone publisher nested interoperability test
+          command: |
+            cargo run --package dust_dds_interoperability --bin dust_dds_subscriber_nested &
+            pid=$!
+            build/cyclone_dds/CycloneDdsPublisherNested
+            wait $pid
+      - run:
+          name: Cyclone subscriber nested interoperability test
           command: |
             build/cyclone_dds/CycloneDdsSubscriberNested &
             pid=$!
             cargo run --package dust_dds_interoperability --bin dust_dds_publisher_nested
             wait $pid
       - run:
-          name: Cyclone subscriber nested interoperability test
+          name: Cyclone publisher inheritance interoperability test
           command: |
-            cargo run --package dust_dds_interoperability --bin dust_dds_subscriber_nested &
+            cargo run --package dust_dds_interoperability --bin dust_dds_subscriber_inheritance &
             pid=$!
-            build/cyclone_dds/CycloneDdsPublisherNested
+            build/cyclone_dds/CycloneDdsPublisherInheritance
+            wait $pid
+      - run:
+          name: Cyclone subscriber inheritance interoperability test
+          command: |
+            build/cyclone_dds/CycloneDdsSubscriberInheritance &
+            pid=$!
+            cargo run --package dust_dds_interoperability --bin dust_dds_publisher_inheritance
             wait $pid
 
   multi_machine_tests:

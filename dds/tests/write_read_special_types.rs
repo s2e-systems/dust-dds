@@ -5,10 +5,10 @@ use dust_dds::{
     infrastructure::{
         qos::{DataReaderQos, DataWriterQos, QosKind},
         qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
-        sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
+        sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE, InstanceStateKind},
         status::{NO_STATUS, StatusKind},
         time::{Duration, DurationKind},
-        type_support::DdsType,
+        type_support::{DdsType, TypeSupport},
     },
     listener::NO_LISTENER,
     wait_set::{Condition, WaitSet},
@@ -446,4 +446,288 @@ fn enum_should_be_always_same_instance() {
         .unwrap();
     assert_eq!(samples.len(), 1);
     assert_eq!(samples[0].data.as_ref().unwrap(), &UnKeyedData::Off);
+}
+
+#[test]
+fn struct_with_nested_key_should_read_write_dispose() {
+    #[derive(DdsType, Default, Debug, Clone, PartialEq, Eq)]
+    struct Animal {
+        #[dust_dds(key)]
+        id: u32,
+        name: String,
+        age: u8,
+    }
+
+    #[derive(DdsType, Default, Debug, Clone, PartialEq, Eq)]
+    struct Cat {
+        #[dust_dds(key)]
+        animal: Animal,
+        lives: u8,
+    }
+
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+
+    let participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic = participant
+        .create_topic::<Cat>(
+            "CatTopic",
+            <Cat as TypeSupport>::get_type_name(),
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let publisher = participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+    let writer = publisher
+        .create_datawriter::<Cat>(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber = participant
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+    let reader = subscriber
+        .create_datareader::<Cat>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let cond = writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    let data = Cat {
+        animal: Animal {
+            id: 1,
+            name: "Zoe".to_string(),
+            age: 1,
+        },
+        lives: 7,
+    };
+
+    writer.write(data.clone(), None).unwrap();
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    let samples = reader
+        .take(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+
+    assert_eq!(samples.len(), 1);
+    assert!(samples[0].data.is_some());
+    assert_eq!(samples[0].data.as_ref().unwrap(), &data);
+
+    let instance_handle = samples[0].sample_info.instance_handle;
+
+    let data_to_dispose = Cat {
+        animal: Animal {
+            id: 1,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    assert_eq!(data.animal.id, data_to_dispose.animal.id);
+    assert_ne!(data, data_to_dispose);
+
+    writer.dispose(data_to_dispose, None).unwrap();
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    let samples = reader
+        .take(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+
+    assert_eq!(samples.len(), 1);
+    assert!(samples[0].data.is_none());
+    assert!(matches!(
+        samples[0].sample_info.instance_state,
+        InstanceStateKind::NotAliveDisposed
+    ));
+    assert_eq!(samples[0].sample_info.instance_handle, instance_handle);
+}
+
+#[test]
+fn struct_with_multiple_nested_keys_should_read_write_dispose() {
+    #[derive(DdsType, Default, Debug, Clone, PartialEq, Eq)]
+    struct Animal {
+        #[dust_dds(key)]
+        id: u32,
+        name: String,
+        age: u8,
+    }
+
+    #[derive(DdsType, Default, Debug, Clone, PartialEq, Eq)]
+    struct Mammal {
+        #[dust_dds(key)]
+        animal: Animal,
+        produce_milk: bool,
+        #[dust_dds(key)]
+        id: u32,
+    }
+
+    #[derive(DdsType, Default, Debug, Clone, PartialEq, Eq)]
+    struct Cat {
+        #[dust_dds(key)]
+        mammal: Mammal,
+        lives: u8,
+    }
+
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+
+    let participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic = participant
+        .create_topic::<Cat>(
+            "CatTopic",
+            <Cat as TypeSupport>::get_type_name(),
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let publisher = participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+    let writer = publisher
+        .create_datawriter::<Cat>(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber = participant
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+    let reader = subscriber
+        .create_datareader::<Cat>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let cond = writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    let data = Cat {
+        mammal: Mammal {
+            animal: Animal {
+                id: 1,
+                name: "Zoe".to_string(),
+                age: 1,
+            },
+            produce_milk: true,
+            id: u32::MAX - 1,
+        },
+        lives: 7,
+    };
+
+    writer.write(data.clone(), None).unwrap();
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    let samples = reader
+        .take(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+
+    assert_eq!(samples.len(), 1);
+    assert!(samples[0].data.is_some());
+    assert_eq!(samples[0].data.as_ref().unwrap(), &data);
+
+    let instance_handle = samples[0].sample_info.instance_handle;
+
+    let data_to_dispose = Cat {
+        mammal: Mammal {
+            animal: Animal {
+                id: 1,
+                ..Default::default()
+            },
+            id: u32::MAX - 1,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    assert_eq!(data.mammal.animal.id, data_to_dispose.mammal.animal.id);
+    assert_eq!(data.mammal.id, data_to_dispose.mammal.id);
+    assert_ne!(data, data_to_dispose);
+
+    writer.dispose(data_to_dispose, None).unwrap();
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    let samples = reader
+        .take(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+
+    assert_eq!(samples.len(), 1);
+    assert!(samples[0].data.is_none());
+    assert!(matches!(
+        samples[0].sample_info.instance_state,
+        InstanceStateKind::NotAliveDisposed
+    ));
+    assert_eq!(samples[0].sample_info.instance_handle, instance_handle);
 }

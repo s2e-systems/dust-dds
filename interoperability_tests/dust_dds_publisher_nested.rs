@@ -75,6 +75,7 @@ fn main() {
         value_list: vec![30, 40, 50],
         last: 60,
     };
+    println!("write: {data:?}");
     writer.write(data, None).unwrap();
 
     writer
