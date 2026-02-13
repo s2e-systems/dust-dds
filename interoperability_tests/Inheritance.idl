@@ -1,0 +1,13 @@
+module interoperability {
+    module test {
+        struct Animal {
+            @key uint32 id;
+            string name;
+            uint8 age;
+        };
+
+        struct Cat : Animal {
+            uint8 lives;
+        };
+    };
+};
