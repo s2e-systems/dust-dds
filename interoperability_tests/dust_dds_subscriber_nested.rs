@@ -69,7 +69,7 @@ fn main() {
     wait_set.wait(Duration::new(30, 0)).unwrap();
 
     let samples = reader
-        .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .read(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         .unwrap();
     assert_eq!(samples.len(), 1);
     assert!(samples[0].data.is_some());
