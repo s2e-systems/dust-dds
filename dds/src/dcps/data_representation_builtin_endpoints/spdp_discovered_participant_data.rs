@@ -14,7 +14,9 @@ use crate::{
     },
     transport::types::{GuidPrefix, Locator, Long, ProtocolVersion, VendorId},
     xtypes::{
-        binding::XTypesBinding, data_storage::DataStorageMapping, dynamic_type::DynamicTypeBuilder,
+        binding::XTypesBinding,
+        data_storage::DataStorageMapping,
+        dynamic_type::{DynamicTypeBuilder, MemberKey},
     },
 };
 use alloc::{string::String, vec, vec::Vec};
@@ -151,7 +153,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParti
                         try_construct_kind:
                             dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                         label: alloc::vec::Vec::new(),
-                        is_key: false,
+                        key: None,
                         is_optional: false,
                         is_must_understand: true,
                         is_shared: false,
@@ -171,7 +173,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParti
                         try_construct_kind:
                             dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                         label: alloc::vec::Vec::new(),
-                        is_key: true,
+                        key: Some(MemberKey::Key),
                         is_optional: false,
                         is_must_understand: true,
                         is_shared: false,
@@ -196,7 +198,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParti
                         try_construct_kind:
                             dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                         label: alloc::vec::Vec::new(),
-                        is_key: false,
+                        key: None,
                         is_optional: true,
                         is_must_understand: true,
                         is_shared: false,

@@ -32,7 +32,7 @@ pub mod interoperability {
         #[derive(DdsType, Default, Debug, Clone, PartialEq, Eq)]
         #[dust_dds(name = "interoperability::test::Cat")]
         pub struct Cat {
-            #[dust_dds(key)]
+            #[dust_dds(key(transparent))]
             pub parent: Animal,
             pub lives: u8,
         }

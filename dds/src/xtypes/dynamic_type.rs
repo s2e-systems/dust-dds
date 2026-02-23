@@ -203,6 +203,15 @@ pub struct TypeDescriptor {
 pub type MemberId = u32;
 pub type UnionCaseLabelSeq = Vec<i32>;
 
+/// Member key.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MemberKey {
+    /// The whole member is a key.
+    Key,
+    /// The member itself is not a key, but it contains one or more members that are keys.
+    Transparent,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct MemberDescriptor {
     pub name: ObjectName,
@@ -212,7 +221,7 @@ pub struct MemberDescriptor {
     pub index: u32,
     pub label: UnionCaseLabelSeq,
     pub try_construct_kind: TryConstructKind,
-    pub is_key: bool,
+    pub key: Option<MemberKey>,
     pub is_optional: bool,
     pub is_must_understand: bool,
     pub is_shared: bool,
@@ -357,10 +366,13 @@ impl DynamicType {
     // DDS::ReturnCode_t get_verbatim_text(inout VerbatimTextDescriptor descriptor, in unsigned long idx);
 
     pub(crate) fn clear_nonkey_members(&mut self) {
-        self.member_list.retain(|m| m.descriptor.is_key);
-        for m in self.member_list.iter_mut() {
-            m.descriptor.r#type.clear_nonkey_members();
-        }
+        self.member_list.retain_mut(|member| {
+            let is_key = member.descriptor.key.is_some();
+            if is_key {
+                member.descriptor.r#type.clear_nonkey_members();
+            }
+            is_key
+        });
     }
 }
 
@@ -436,12 +448,18 @@ impl DynamicData {
             let member = self.type_ref.get_member_by_index(index)?;
             let member_id = member.get_id();
 
-            if !member.get_descriptor()?.is_key {
-                self.abstract_data.remove(&member_id);
-            } else if let Some(DataStorage::ComplexValue(comple_value)) =
-                self.abstract_data.get_mut(&member_id)
-            {
-                comple_value.clear_nonkey_values()?;
+            match member.get_descriptor()?.key {
+                Some(MemberKey::Key) => (),
+                Some(MemberKey::Transparent) => {
+                    if let Some(DataStorage::ComplexValue(complex_value)) =
+                        self.abstract_data.get_mut(&member_id)
+                    {
+                        complex_value.clear_nonkey_values()?;
+                    }
+                }
+                None => {
+                    self.abstract_data.remove(&member_id);
+                }
             }
         }
 

@@ -460,7 +460,7 @@ fn struct_with_nested_key_should_read_write_dispose() {
 
     #[derive(DdsType, Default, Debug, Clone, PartialEq, Eq)]
     struct Cat {
-        #[dust_dds(key)]
+        #[dust_dds(key(transparent))]
         animal: Animal,
         lives: u8,
     }
@@ -593,7 +593,7 @@ fn struct_with_multiple_nested_keys_should_read_write_dispose() {
 
     #[derive(DdsType, Default, Debug, Clone, PartialEq, Eq)]
     struct Mammal {
-        #[dust_dds(key)]
+        #[dust_dds(key(transparent))]
         animal: Animal,
         produce_milk: bool,
         #[dust_dds(key)]
@@ -602,7 +602,7 @@ fn struct_with_multiple_nested_keys_should_read_write_dispose() {
 
     #[derive(DdsType, Default, Debug, Clone, PartialEq, Eq)]
     struct Cat {
-        #[dust_dds(key)]
+        #[dust_dds(key(transparent))]
         mammal: Mammal,
         lives: u8,
     }
