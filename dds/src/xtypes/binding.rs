@@ -91,19 +91,6 @@ impl XTypesBinding for char {
     }
 }
 
-impl<const N: usize> XTypesBinding for [u8; N] {
-    fn get_dynamic_type() -> DynamicType {
-        DynamicTypeBuilderFactory::create_array_type(u8::get_dynamic_type(), vec![N as u32]).build()
-    }
-}
-
-impl<const N: usize> XTypesBinding for [i16; N] {
-    fn get_dynamic_type() -> DynamicType {
-        DynamicTypeBuilderFactory::create_array_type(i16::get_dynamic_type(), vec![N as u32])
-            .build()
-    }
-}
-
 impl XTypesBinding for &'_ [u8] {
     fn get_dynamic_type() -> DynamicType {
         DynamicTypeBuilderFactory::create_sequence_type(u8::get_dynamic_type(), u32::MAX).build()
@@ -180,6 +167,12 @@ impl XTypesBinding for Vec<String> {
 impl<T: TypeSupport> XTypesBinding for T {
     fn get_dynamic_type() -> DynamicType {
         T::get_type()
+    }
+}
+
+impl<T: XTypesBinding, const N: usize> XTypesBinding for [T; N] {
+    fn get_dynamic_type() -> DynamicType {
+        DynamicTypeBuilderFactory::create_array_type(T::get_dynamic_type(), vec![N as u32]).build()
     }
 }
 
