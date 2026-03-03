@@ -16,8 +16,6 @@ categories.workspace = true
 [dependencies]
 dust_dds = { path = "../dds" }
 
-serde = { version = "1.0", default-features = false, features = ["derive"] }
-
 [build-dependencies]
 dust_dds_gen = { path = "../dds_gen" }
 
@@ -30,12 +28,12 @@ name = "dust_dds_subscriber"
 path = "dust_dds_subscriber.rs"
 
 [[bin]]
-name = "dust_dds_big_data_subscriber"
-path = "dust_dds_big_data_subscriber.rs"
+name = "dust_dds_subscriber_big_data"
+path = "dust_dds_subscriber_big_data.rs"
 
 [[bin]]
-name = "dust_dds_big_data_publisher"
-path = "dust_dds_big_data_publisher.rs"
+name = "dust_dds_publisher_big_data"
+path = "dust_dds_publisher_big_data.rs"
 
 [[bin]]
 name = "multiple_subscriber_test_subscriber"
@@ -60,3 +58,11 @@ path = "dust_dds_subscriber_nested.rs"
 [[bin]]
 name = "dust_dds_publisher_nested"
 path = "dust_dds_publisher_nested.rs"
+
+[[bin]]
+name = "dust_dds_subscriber_inheritance"
+path = "dust_dds_subscriber_inheritance.rs"
+
+[[bin]]
+name = "dust_dds_publisher_inheritance"
+path = "dust_dds_publisher_inheritance.rs"

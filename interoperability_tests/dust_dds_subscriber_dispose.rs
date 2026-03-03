@@ -69,22 +69,30 @@ fn main() {
     wait_set.wait(Duration::new(30, 0)).unwrap();
 
     let mut samples = reader
-        .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .read(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         .unwrap();
+    assert_eq!(samples.len(), 1);
+    println!("read: {samples:?}");
 
-    if samples[0].sample_info.instance_state != InstanceStateKind::NotAliveDisposed {
+    if samples[0].sample_info.instance_state == InstanceStateKind::Alive {
+        let instance_handle = samples[0].sample_info.instance_handle;
+        assert!(samples[0].data.is_some());
+
         wait_set.wait(Duration::new(30, 0)).unwrap();
+
         samples = reader
-            .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+            .read(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
             .unwrap();
+        assert_eq!(samples.len(), 1);
+        println!("read: {samples:?}");
+        assert_eq!(samples[0].sample_info.instance_handle, instance_handle);
     }
 
+    assert!(samples[0].data.is_none());
     assert_eq!(
         samples[0].sample_info.instance_state,
         InstanceStateKind::NotAliveDisposed,
     );
-
-    println!("Received disposed instance state");
 
     // Sleep to allow sending acknowledgements
     std::thread::sleep(std::time::Duration::from_secs(5));

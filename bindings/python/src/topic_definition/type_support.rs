@@ -84,7 +84,7 @@ pub fn convert_python_type_to_dynamic_type(
                 index: index as u32,
                 label: vec![],
                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-                is_key: false,
+                key: None,
                 is_optional: false,
                 is_must_understand: true,
                 is_shared: false,
