@@ -26,14 +26,6 @@ macro_rules! impl_get_sequence_values {
     };
 }
 
-macro_rules! impl_set_sequence_values {
-    ($fn_name:ident, $ty:ty) => {
-        pub fn $fn_name(&mut self, id: MemberId, value: Vec<$ty>) -> XTypesResult<()> {
-            self.set_sequence_values(id, value)
-        }
-    };
-}
-
 // ---------- TypeKinds (begin) -------------------
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[repr(u8)]
@@ -757,43 +749,7 @@ impl DynamicData {
     impl_get_sequence_values!(get_string_values, SequenceString, String);
     impl_get_sequence_values!(get_uint8_values, SequenceUInt8, u8);
     impl_get_sequence_values!(get_int8_values, SequenceInt8, i8);
-
-    impl_set_sequence_values!(set_int32_values, i32);
-    impl_set_sequence_values!(set_uint32_values, u32);
-    impl_set_sequence_values!(set_int16_values, i16);
-    impl_set_sequence_values!(set_uint16_values, u16);
-    impl_set_sequence_values!(set_int64_values, i64);
-    impl_set_sequence_values!(set_uint64_values, u64);
-    impl_set_sequence_values!(set_float32_values, f32);
-    impl_set_sequence_values!(set_float64_values, f64);
-    impl_set_sequence_values!(set_char8_values, char);
-    impl_set_sequence_values!(set_byte_values, u8);
-    impl_set_sequence_values!(set_boolean_values, bool);
-    impl_set_sequence_values!(set_string_values, String);
-    impl_set_sequence_values!(set_uint8_values, u8);
-    impl_set_sequence_values!(set_int8_values, i8);
-
-    pub fn get_complex_values(&self, id: MemberId) -> XTypesResult<&[DynamicData]> {
-        if let DataStorage::SequenceComplexValue(d) = self
-            .abstract_data
-            .get(&id)
-            .ok_or(XTypesError::InvalidId(id))?
-        {
-            Ok(d.as_slice())
-        } else {
-            Err(XTypesError::InvalidType)
-        }
-    }
-
-    pub fn set_complex_values(
-        &mut self,
-        id: MemberId,
-        value: Vec<DynamicData>,
-    ) -> XTypesResult<()> {
-        self.abstract_data
-            .insert(id, DataStorage::SequenceComplexValue(value));
-        Ok(())
-    }
+    impl_get_sequence_values!(get_complex_values, SequenceComplexValue, DynamicData);
 
     pub fn set_value(&mut self, id: MemberId, value: DataStorage) {
         self.abstract_data.insert(id, value);

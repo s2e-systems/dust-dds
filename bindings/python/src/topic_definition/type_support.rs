@@ -156,7 +156,7 @@ pub fn convert_python_instance_to_dynamic_data(
                     .get_kind()
                 {
                     dust_dds::xtypes::dynamic_type::TypeKind::UINT8 => dynamic_data
-                        .set_uint8_values(member.get_id(), value.extract()?)
+                        .set_sequence_values::<u8>(member.get_id(), value.extract()?)
                         .unwrap(),
                     kind => todo!("Not implemented for {kind:?}"),
                 }
