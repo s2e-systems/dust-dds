@@ -19,7 +19,9 @@ use crate::{
     },
     transport::types::{ENTITYID_UNKNOWN, EntityId, Guid, Locator},
     xtypes::{
-        binding::XTypesBinding, data_storage::DataStorageMapping, dynamic_type::DynamicTypeBuilder,
+        binding::XTypesBinding,
+        data_storage::DataStorageMapping,
+        dynamic_type::{DynamicTypeBuilder, MemberKey},
     },
 };
 use alloc::{string::String, vec::Vec};
@@ -61,7 +63,7 @@ impl TypeSupport for DiscoveredWriterData {
                         try_construct_kind:
                             dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                         label: alloc::vec::Vec::new(),
-                        is_key: false,
+                        key: None,
                         is_optional: false,
                         is_must_understand: true,
                         is_shared: false,
@@ -81,7 +83,7 @@ impl TypeSupport for DiscoveredWriterData {
                         try_construct_kind:
                             dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                         label: alloc::vec::Vec::new(),
-                        is_key: true,
+                        key: Some(MemberKey::Key),
                         is_optional: false,
                         is_must_understand: true,
                         is_shared: false,
@@ -106,7 +108,7 @@ impl TypeSupport for DiscoveredWriterData {
                         try_construct_kind:
                             dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                         label: alloc::vec::Vec::new(),
-                        is_key: false,
+                        key: None,
                         is_optional: true,
                         is_must_understand: true,
                         is_shared: false,

@@ -1,7 +1,6 @@
 module interoperability {
 	module test {
-		struct HelloWorldType
-		{
+		struct HelloWorldType {
 			octet id;
 			char msg;
 		};

@@ -6642,7 +6642,7 @@ fn get_topic_kind(type_support: &DynamicType) -> TopicKind {
     for index in 0..type_support.get_member_count() {
         if let Ok(m) = type_support.get_member_by_index(index) {
             if let Ok(d) = m.get_descriptor() {
-                if d.is_key {
+                if d.key.is_some() {
                     return TopicKind::WithKey;
                 }
             }
@@ -7318,7 +7318,8 @@ impl DataWriterEntity {
                     .type_support
                     .get_member_by_index(index)?
                     .get_descriptor()?
-                    .is_key
+                    .key
+                    .is_some()
                 {
                     has_key = true;
                     break;
@@ -7380,7 +7381,8 @@ impl DataWriterEntity {
                     .type_support
                     .get_member_by_index(index)?
                     .get_descriptor()?
-                    .is_key
+                    .key
+                    .is_some()
                 {
                     has_key = true;
                     break;

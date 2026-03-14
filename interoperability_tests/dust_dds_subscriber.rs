@@ -9,7 +9,7 @@ use dust_dds::{
             DurabilityQosPolicy, DurabilityQosPolicyKind, ReliabilityQosPolicy,
             ReliabilityQosPolicyKind,
         },
-        sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
+        sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE, InstanceStateKind},
         status::{NO_STATUS, StatusKind},
         time::{Duration, DurationKind},
     },
@@ -69,11 +69,15 @@ fn main() {
     wait_set.wait(Duration::new(30, 0)).unwrap();
 
     let samples = reader
-        .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .read(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         .unwrap();
-
-    let hello_world = samples[0].data.as_ref().unwrap();
-    println!("Received: {hello_world:?}",);
+    assert_eq!(samples.len(), 1);
+    assert!(samples[0].data.is_some());
+    assert_eq!(
+        samples[0].sample_info.instance_state,
+        InstanceStateKind::Alive,
+    );
+    println!("read: {samples:?}");
 
     // Sleep to allow sending acknowledgements
     std::thread::sleep(std::time::Duration::from_secs(2));

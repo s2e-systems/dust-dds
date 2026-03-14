@@ -40,6 +40,7 @@ pub const DCPS_PARTICIPANT: &str = "DCPSParticipant";
 #[dust_dds(extensibility = "final", nested)]
 pub struct BuiltInTopicKey {
     /// InstanceHandle value as an array of 16 octets.
+    #[dust_dds(key)]
     pub value: [u8; 16], // Originally in the DDS idl [i32;3]
 }
 
