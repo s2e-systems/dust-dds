@@ -1,6 +1,6 @@
 use super::error::XTypesError;
 use crate::xtypes::{
-    data_storage::{DataStorage, DataStorageMapping},
+    data_storage::{DataStorage, DataStorageMapping, DataStorageSequenceMapping},
     error::XTypesResult,
     type_object::TypeObject,
 };
@@ -9,22 +9,6 @@ use alloc::{boxed::Box, collections::BTreeMap, string::String, vec, vec::Vec};
 pub type BoundSeq = Vec<u32>;
 pub type IncludePathSeq = Vec<String>;
 pub type ObjectName = String;
-
-macro_rules! impl_get_sequence_values {
-    ($fn_name:ident, $variant:ident, $ty:ty) => {
-        pub fn $fn_name(&self, id: MemberId) -> XTypesResult<&[$ty]> {
-            if let DataStorage::$variant(d) = self
-                .abstract_data
-                .get(&id)
-                .ok_or(XTypesError::InvalidId(id))?
-            {
-                Ok(d.as_slice())
-            } else {
-                Err(XTypesError::InvalidType)
-            }
-        }
-    };
-}
 
 // ---------- TypeKinds (begin) -------------------
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -735,21 +719,16 @@ impl DynamicData {
         Ok(())
     }
 
-    impl_get_sequence_values!(get_int32_values, SequenceInt32, i32);
-    impl_get_sequence_values!(get_uint32_values, SequenceUInt32, u32);
-    impl_get_sequence_values!(get_int16_values, SequenceInt16, i16);
-    impl_get_sequence_values!(get_uint16_values, SequenceUInt16, u16);
-    impl_get_sequence_values!(get_int64_values, SequenceInt64, i64);
-    impl_get_sequence_values!(get_uint64_values, SequenceUInt64, u64);
-    impl_get_sequence_values!(get_float32_values, SequenceFloat32, f32);
-    impl_get_sequence_values!(get_float64_values, SequenceFloat64, f64);
-    impl_get_sequence_values!(get_char8_values, SequenceChar8, char);
-    impl_get_sequence_values!(get_byte_values, SequenceUInt8, u8);
-    impl_get_sequence_values!(get_boolean_values, SequenceBoolean, bool);
-    impl_get_sequence_values!(get_string_values, SequenceString, String);
-    impl_get_sequence_values!(get_uint8_values, SequenceUInt8, u8);
-    impl_get_sequence_values!(get_int8_values, SequenceInt8, i8);
-    impl_get_sequence_values!(get_complex_values, SequenceComplexValue, DynamicData);
+    pub fn get_sequence_values<T>(&self, id: MemberId) -> XTypesResult<&[T]>
+    where
+        T: DataStorageSequenceMapping,
+    {
+        let data_storage = self
+            .abstract_data
+            .get(&id)
+            .ok_or(XTypesError::InvalidId(id))?;
+        <T as DataStorageSequenceMapping>::borrow_sequence(data_storage)
+    }
 
     pub fn set_value(&mut self, id: MemberId, value: DataStorage) {
         self.abstract_data.insert(id, value);

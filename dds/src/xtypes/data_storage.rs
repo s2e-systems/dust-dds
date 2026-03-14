@@ -46,6 +46,10 @@ pub trait DataStorageMapping: Sized {
     fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self>;
 }
 
+pub trait DataStorageSequenceMapping: Sized {
+    fn borrow_sequence(data_storage: &DataStorage) -> XTypesResult<&[Self]>;
+}
+
 impl DataStorageMapping for u8 {
     fn into_storage(self) -> DataStorage {
         DataStorage::UInt8(self)
@@ -246,6 +250,15 @@ impl DataStorageMapping for Vec<u8> {
     }
 }
 
+impl DataStorageSequenceMapping for u8 {
+    fn borrow_sequence(data_storage: &DataStorage) -> XTypesResult<&[Self]> {
+        match data_storage {
+            DataStorage::SequenceUInt8(x) => Ok(x.as_slice()),
+            _ => Err(XTypesError::InvalidType),
+        }
+    }
+}
+
 impl DataStorageMapping for Vec<i8> {
     fn into_storage(self) -> DataStorage {
         DataStorage::SequenceInt8(self)
@@ -254,6 +267,15 @@ impl DataStorageMapping for Vec<i8> {
     fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
         match data_storage {
             DataStorage::SequenceInt8(x) => Ok(x),
+            _ => Err(XTypesError::InvalidType),
+        }
+    }
+}
+
+impl DataStorageSequenceMapping for i8 {
+    fn borrow_sequence(data_storage: &DataStorage) -> XTypesResult<&[Self]> {
+        match data_storage {
+            DataStorage::SequenceInt8(x) => Ok(x.as_slice()),
             _ => Err(XTypesError::InvalidType),
         }
     }
@@ -272,6 +294,15 @@ impl DataStorageMapping for Vec<u16> {
     }
 }
 
+impl DataStorageSequenceMapping for u16 {
+    fn borrow_sequence(data_storage: &DataStorage) -> XTypesResult<&[Self]> {
+        match data_storage {
+            DataStorage::SequenceUInt16(x) => Ok(x.as_slice()),
+            _ => Err(XTypesError::InvalidType),
+        }
+    }
+}
+
 impl DataStorageMapping for Vec<i16> {
     fn into_storage(self) -> DataStorage {
         DataStorage::SequenceInt16(self)
@@ -280,6 +311,15 @@ impl DataStorageMapping for Vec<i16> {
     fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
         match data_storage {
             DataStorage::SequenceInt16(x) => Ok(x),
+            _ => Err(XTypesError::InvalidType),
+        }
+    }
+}
+
+impl DataStorageSequenceMapping for i16 {
+    fn borrow_sequence(data_storage: &DataStorage) -> XTypesResult<&[Self]> {
+        match data_storage {
+            DataStorage::SequenceInt16(x) => Ok(x.as_slice()),
             _ => Err(XTypesError::InvalidType),
         }
     }
@@ -298,6 +338,15 @@ impl DataStorageMapping for Vec<u32> {
     }
 }
 
+impl DataStorageSequenceMapping for u32 {
+    fn borrow_sequence(data_storage: &DataStorage) -> XTypesResult<&[Self]> {
+        match data_storage {
+            DataStorage::SequenceUInt32(x) => Ok(x.as_slice()),
+            _ => Err(XTypesError::InvalidType),
+        }
+    }
+}
+
 impl DataStorageMapping for Vec<i32> {
     fn into_storage(self) -> DataStorage {
         DataStorage::SequenceInt32(self)
@@ -306,6 +355,15 @@ impl DataStorageMapping for Vec<i32> {
     fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
         match data_storage {
             DataStorage::SequenceInt32(x) => Ok(x),
+            _ => Err(XTypesError::InvalidType),
+        }
+    }
+}
+
+impl DataStorageSequenceMapping for i32 {
+    fn borrow_sequence(data_storage: &DataStorage) -> XTypesResult<&[Self]> {
+        match data_storage {
+            DataStorage::SequenceInt32(x) => Ok(x.as_slice()),
             _ => Err(XTypesError::InvalidType),
         }
     }
@@ -324,6 +382,15 @@ impl DataStorageMapping for Vec<u64> {
     }
 }
 
+impl DataStorageSequenceMapping for u64 {
+    fn borrow_sequence(data_storage: &DataStorage) -> XTypesResult<&[Self]> {
+        match data_storage {
+            DataStorage::SequenceUInt64(x) => Ok(x.as_slice()),
+            _ => Err(XTypesError::InvalidType),
+        }
+    }
+}
+
 impl DataStorageMapping for Vec<i64> {
     fn into_storage(self) -> DataStorage {
         DataStorage::SequenceInt64(self)
@@ -332,6 +399,15 @@ impl DataStorageMapping for Vec<i64> {
     fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
         match data_storage {
             DataStorage::SequenceInt64(x) => Ok(x),
+            _ => Err(XTypesError::InvalidType),
+        }
+    }
+}
+
+impl DataStorageSequenceMapping for i64 {
+    fn borrow_sequence(data_storage: &DataStorage) -> XTypesResult<&[Self]> {
+        match data_storage {
+            DataStorage::SequenceInt64(x) => Ok(x.as_slice()),
             _ => Err(XTypesError::InvalidType),
         }
     }
@@ -350,6 +426,15 @@ impl DataStorageMapping for Vec<f32> {
     }
 }
 
+impl DataStorageSequenceMapping for f32 {
+    fn borrow_sequence(data_storage: &DataStorage) -> XTypesResult<&[Self]> {
+        match data_storage {
+            DataStorage::SequenceFloat32(x) => Ok(x.as_slice()),
+            _ => Err(XTypesError::InvalidType),
+        }
+    }
+}
+
 impl DataStorageMapping for Vec<f64> {
     fn into_storage(self) -> DataStorage {
         DataStorage::SequenceFloat64(self)
@@ -358,6 +443,15 @@ impl DataStorageMapping for Vec<f64> {
     fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
         match data_storage {
             DataStorage::SequenceFloat64(x) => Ok(x),
+            _ => Err(XTypesError::InvalidType),
+        }
+    }
+}
+
+impl DataStorageSequenceMapping for f64 {
+    fn borrow_sequence(data_storage: &DataStorage) -> XTypesResult<&[Self]> {
+        match data_storage {
+            DataStorage::SequenceFloat64(x) => Ok(x.as_slice()),
             _ => Err(XTypesError::InvalidType),
         }
     }
@@ -376,6 +470,15 @@ impl DataStorageMapping for Vec<char> {
     }
 }
 
+impl DataStorageSequenceMapping for char {
+    fn borrow_sequence(data_storage: &DataStorage) -> XTypesResult<&[Self]> {
+        match data_storage {
+            DataStorage::SequenceChar8(x) => Ok(x.as_slice()),
+            _ => Err(XTypesError::InvalidType),
+        }
+    }
+}
+
 impl DataStorageMapping for Vec<bool> {
     fn into_storage(self) -> DataStorage {
         DataStorage::SequenceBoolean(self)
@@ -384,6 +487,15 @@ impl DataStorageMapping for Vec<bool> {
     fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
         match data_storage {
             DataStorage::SequenceBoolean(x) => Ok(x),
+            _ => Err(XTypesError::InvalidType),
+        }
+    }
+}
+
+impl DataStorageSequenceMapping for bool {
+    fn borrow_sequence(data_storage: &DataStorage) -> XTypesResult<&[Self]> {
+        match data_storage {
+            DataStorage::SequenceBoolean(x) => Ok(x.as_slice()),
             _ => Err(XTypesError::InvalidType),
         }
     }
@@ -402,6 +514,15 @@ impl DataStorageMapping for Vec<String> {
     }
 }
 
+impl DataStorageSequenceMapping for String {
+    fn borrow_sequence(data_storage: &DataStorage) -> XTypesResult<&[Self]> {
+        match data_storage {
+            DataStorage::SequenceString(x) => Ok(x.as_slice()),
+            _ => Err(XTypesError::InvalidType),
+        }
+    }
+}
+
 impl DataStorageMapping for Vec<DynamicData> {
     fn into_storage(self) -> DataStorage {
         DataStorage::SequenceComplexValue(self)
@@ -410,6 +531,15 @@ impl DataStorageMapping for Vec<DynamicData> {
     fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
         match data_storage {
             DataStorage::SequenceComplexValue(x) => Ok(x),
+            _ => Err(XTypesError::InvalidType),
+        }
+    }
+}
+
+impl DataStorageSequenceMapping for DynamicData {
+    fn borrow_sequence(data_storage: &DataStorage) -> XTypesResult<&[Self]> {
+        match data_storage {
+            DataStorage::SequenceComplexValue(x) => Ok(x.as_slice()),
             _ => Err(XTypesError::InvalidType),
         }
     }

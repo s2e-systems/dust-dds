@@ -263,23 +263,45 @@ trait XTypesSerializer {
             .expect("sequence has element type");
         match element_type.get_descriptor().kind {
             TypeKind::NONE => todo!(),
-            TypeKind::BOOLEAN => self.serialize_sequence_basic(v.get_boolean_values(member_id)?),
+            TypeKind::BOOLEAN => {
+                self.serialize_sequence_basic(v.get_sequence_values::<bool>(member_id)?)
+            }
             TypeKind::BYTE => todo!(),
-            TypeKind::INT16 => self.serialize_sequence_basic(v.get_int16_values(member_id)?),
-            TypeKind::INT32 => self.serialize_sequence_basic(v.get_int32_values(member_id)?),
-            TypeKind::INT64 => self.serialize_sequence_basic(v.get_int64_values(member_id)?),
-            TypeKind::UINT16 => self.serialize_sequence_basic(v.get_uint16_values(member_id)?),
-            TypeKind::UINT32 => self.serialize_sequence_basic(v.get_uint32_values(member_id)?),
-            TypeKind::UINT64 => self.serialize_sequence_basic(v.get_uint64_values(member_id)?),
-            TypeKind::FLOAT32 => self.serialize_sequence_basic(v.get_float32_values(member_id)?),
-            TypeKind::FLOAT64 => self.serialize_sequence_basic(v.get_float64_values(member_id)?),
+            TypeKind::INT16 => {
+                self.serialize_sequence_basic(v.get_sequence_values::<i16>(member_id)?)
+            }
+            TypeKind::INT32 => {
+                self.serialize_sequence_basic(v.get_sequence_values::<i32>(member_id)?)
+            }
+            TypeKind::INT64 => {
+                self.serialize_sequence_basic(v.get_sequence_values::<i64>(member_id)?)
+            }
+            TypeKind::UINT16 => {
+                self.serialize_sequence_basic(v.get_sequence_values::<u16>(member_id)?)
+            }
+            TypeKind::UINT32 => {
+                self.serialize_sequence_basic(v.get_sequence_values::<u32>(member_id)?)
+            }
+            TypeKind::UINT64 => {
+                self.serialize_sequence_basic(v.get_sequence_values::<u64>(member_id)?)
+            }
+            TypeKind::FLOAT32 => {
+                self.serialize_sequence_basic(v.get_sequence_values::<f32>(member_id)?)
+            }
+            TypeKind::FLOAT64 => {
+                self.serialize_sequence_basic(v.get_sequence_values::<f64>(member_id)?)
+            }
             TypeKind::FLOAT128 => todo!(),
-            TypeKind::INT8 => self.serialize_sequence_basic(v.get_int8_values(member_id)?),
-            TypeKind::UINT8 => self.serialize_sequence_basic(v.get_uint8_values(member_id)?),
+            TypeKind::INT8 => {
+                self.serialize_sequence_basic(v.get_sequence_values::<i8>(member_id)?)
+            }
+            TypeKind::UINT8 => {
+                self.serialize_sequence_basic(v.get_sequence_values::<u8>(member_id)?)
+            }
             TypeKind::CHAR8 => todo!(),
             TypeKind::CHAR16 => todo!(),
             TypeKind::STRING8 => {
-                let list = v.get_string_values(member_id)?;
+                let list = v.get_sequence_values::<String>(member_id)?;
                 self.serialize_primitive_type(&(list.len() as u32));
                 for v in list {
                     self.serialize_string(v);
@@ -291,7 +313,7 @@ trait XTypesSerializer {
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
             TypeKind::STRUCTURE => {
-                let list = v.get_complex_values(member_id)?;
+                let list = v.get_sequence_values::<DynamicData>(member_id)?;
                 self.serialize_primitive_type(&(list.len() as u32));
                 for v in list {
                     self.serialize_complex(v)?;
@@ -318,22 +340,32 @@ trait XTypesSerializer {
         match element_type.get_descriptor().kind {
             TypeKind::NONE => todo!(),
             TypeKind::BOOLEAN => todo!(),
-            TypeKind::BYTE => self.serialize_array_basic(v.get_byte_values(member_id)?),
-            TypeKind::INT16 => self.serialize_array_basic(v.get_int16_values(member_id)?),
-            TypeKind::INT32 => self.serialize_array_basic(v.get_int32_values(member_id)?),
-            TypeKind::INT64 => self.serialize_array_basic(v.get_int64_values(member_id)?),
-            TypeKind::UINT16 => self.serialize_array_basic(v.get_uint16_values(member_id)?),
-            TypeKind::UINT32 => self.serialize_array_basic(v.get_uint32_values(member_id)?),
-            TypeKind::UINT64 => self.serialize_array_basic(v.get_uint64_values(member_id)?),
-            TypeKind::FLOAT32 => self.serialize_array_basic(v.get_float32_values(member_id)?),
-            TypeKind::FLOAT64 => self.serialize_array_basic(v.get_float64_values(member_id)?),
+            TypeKind::BYTE => self.serialize_array_basic(v.get_sequence_values::<u8>(member_id)?),
+            TypeKind::INT16 => self.serialize_array_basic(v.get_sequence_values::<i16>(member_id)?),
+            TypeKind::INT32 => self.serialize_array_basic(v.get_sequence_values::<i32>(member_id)?),
+            TypeKind::INT64 => self.serialize_array_basic(v.get_sequence_values::<i64>(member_id)?),
+            TypeKind::UINT16 => {
+                self.serialize_array_basic(v.get_sequence_values::<u16>(member_id)?)
+            }
+            TypeKind::UINT32 => {
+                self.serialize_array_basic(v.get_sequence_values::<u32>(member_id)?)
+            }
+            TypeKind::UINT64 => {
+                self.serialize_array_basic(v.get_sequence_values::<u64>(member_id)?)
+            }
+            TypeKind::FLOAT32 => {
+                self.serialize_array_basic(v.get_sequence_values::<f32>(member_id)?)
+            }
+            TypeKind::FLOAT64 => {
+                self.serialize_array_basic(v.get_sequence_values::<f64>(member_id)?)
+            }
             TypeKind::FLOAT128 => todo!(),
-            TypeKind::INT8 => self.serialize_array_basic(v.get_int8_values(member_id)?),
-            TypeKind::UINT8 => self.serialize_array_basic(v.get_uint8_values(member_id)?),
+            TypeKind::INT8 => self.serialize_array_basic(v.get_sequence_values::<i8>(member_id)?),
+            TypeKind::UINT8 => self.serialize_array_basic(v.get_sequence_values::<u8>(member_id)?),
             TypeKind::CHAR8 => todo!(),
             TypeKind::CHAR16 => todo!(),
             TypeKind::STRING8 => {
-                for v in v.get_string_values(member_id)? {
+                for v in v.get_sequence_values::<String>(member_id)? {
                     self.serialize_string(v);
                 }
             }
@@ -343,7 +375,7 @@ trait XTypesSerializer {
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
             TypeKind::STRUCTURE => {
-                for v in v.get_complex_values(member_id)? {
+                for v in v.get_sequence_values::<DynamicData>(member_id)? {
                     self.serialize_complex(v)?;
                 }
             }
@@ -446,7 +478,7 @@ impl<'a, W: Write> XTypesSerializer for RtpsPlCdrSerializer<'a, W> {
             if let Some(element_type) = element_type {
                 // Sequence
                 if element_type.get_kind() == TypeKind::STRUCTURE {
-                    for vi in v.get_complex_values(member_id)? {
+                    for vi in v.get_sequence_values::<DynamicData>(member_id)? {
                         let padded_length = count_bytes_pl_cdr_complex(vi)?;
                         LittleEndian::write_u16(
                             &(member_id as u16),

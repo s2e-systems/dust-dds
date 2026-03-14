@@ -244,7 +244,9 @@ pub fn convert_dynamic_data_to_python_instance(
                             name,
                             PyBytes::new(
                                 py,
-                                dynamic_data.get_uint8_values(member.get_id()).unwrap(),
+                                dynamic_data
+                                    .get_sequence_values::<u8>(member.get_id())
+                                    .unwrap(),
                             ),
                         )?;
                     }
@@ -389,7 +391,7 @@ my_data = MyDataType(id=10, value=100, data=bytes([0,1,2,3,4]), name='mytype')
             assert_eq!(dynamic_data.get_uint8_value(0).unwrap(), &10);
             assert_eq!(dynamic_data.get_int32_value(1).unwrap(), &100);
             assert_eq!(
-                dynamic_data.get_uint8_values(2).unwrap(),
+                dynamic_data.get_sequence_values::<u8>(2).unwrap(),
                 vec![0, 1, 2, 3, 4]
             );
             assert_eq!(
