@@ -21,8 +21,7 @@ use crate::{
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
         status::StatusKind,
     },
-    runtime::{DdsRuntime, Spawner},
-    transport::interface::TransportParticipantFactory,
+    runtime::DdsRuntime,
 };
 use alloc::string::String;
 
@@ -176,30 +175,6 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
     }
 }
 
-impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
-    #[doc(hidden)]
-    pub fn new<T: TransportParticipantFactory>(
-        runtime: R,
-        app_id: [u8; 4],
-        host_id: [u8; 4],
-        transport: T,
-    ) -> DomainParticipantFactoryAsync<R> {
-        let mut domain_participant_factory =
-            DcpsParticipantFactory::new(app_id, host_id, transport);
-        let (domain_participant_factory_sender, mailbox_recv) = mpsc_channel();
-        runtime.spawner().spawn(async move {
-            while let Some(m) = mailbox_recv.receive().await {
-                domain_participant_factory.handle(m).await;
-            }
-        });
-
-        DomainParticipantFactoryAsync {
-            runtime,
-            domain_participant_factory_sender,
-        }
-    }
-}
-
 #[cfg(feature = "std")]
 impl DomainParticipantFactoryAsync<crate::std_runtime::StdRuntime> {
     /// This operation returns the [`DomainParticipantFactoryAsync`] singleton. The operation is idempotent, that is, it can be called multiple
@@ -240,12 +215,19 @@ impl DomainParticipantFactoryAsync<crate::std_runtime::StdRuntime> {
 
             let app_id = std::process::id().to_ne_bytes();
             let transport = crate::rtps_udp_transport::udp_transport::RtpsUdpTransportParticipantFactory::default();
-            DomainParticipantFactoryAsync::new(
+            let mut domain_participant_factory =
+            DcpsParticipantFactory::new(app_id, host_id, transport);
+            let (domain_participant_factory_sender, mailbox_recv) = mpsc_channel();
+            runtime.spawner().spawn(async move {
+                while let Some(m) = mailbox_recv.receive().await {
+                    domain_participant_factory.handle(m).await;
+                }
+            });
+
+            DomainParticipantFactoryAsync {
                 runtime,
-                app_id,
-                host_id,
-                transport,
-            )
+                domain_participant_factory_sender,
+            }
         })
     }
 }
