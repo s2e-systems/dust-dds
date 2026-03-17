@@ -8,7 +8,6 @@ use crate::{
     dcps::{
         actor::ActorAddress,
         channels::{mpsc::MpscSender, oneshot::OneshotSender},
-        domain_participant_factory::DcpsParticipantFactory,
         domain_participant_mail::DcpsDomainParticipantMail,
         listeners::{
             data_reader_listener::DcpsDataReaderListener,
@@ -35,14 +34,13 @@ use crate::{
         },
         time::{Duration, Time},
     },
-    runtime::DdsRuntime,
-    transport::{interface::TransportParticipantFactory, types::CacheChange},
+    transport::{types::CacheChange},
     xtypes::dynamic_type::{DynamicData, DynamicType},
 };
 use alloc::vec::Vec;
 
-pub enum DcpsMail<R: DdsRuntime> {
-    ParticipantFactory(ParticipantFactoryMail<R>),
+pub enum DcpsMail {
+    ParticipantFactory(ParticipantFactoryMail),
     Participant(ParticipantServiceMail),
     Topic(TopicServiceMail),
     Publisher(PublisherServiceMail),
@@ -54,15 +52,12 @@ pub enum DcpsMail<R: DdsRuntime> {
     Discovery(DiscoveryServiceMail),
 }
 
-pub enum ParticipantFactoryMail<R: DdsRuntime> {
+pub enum ParticipantFactoryMail {
     CreateParticipant {
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
         dcps_listener: Option<DcpsDomainParticipantListener>,
         status_kind: Vec<StatusKind>,
-        clock_handle: R::ClockHandle,
-        timer_handle: R::TimerHandle,
-        spawner_handle: R::SpawnerHandle,
         #[allow(clippy::type_complexity)]
         reply_sender: OneshotSender<
             DdsResult<(
@@ -586,56 +581,4 @@ pub enum DiscoveryServiceMail {
         participant_address: MpscSender<DcpsDomainParticipantMail>,
     },
     AnnounceDeletedParticipant,
-}
-
-impl<T: TransportParticipantFactory> DcpsParticipantFactory<T> {
-    pub async fn handle<R: DdsRuntime>(&mut self, message: DcpsMail<R>) {
-        match message {
-            DcpsMail::ParticipantFactory(ParticipantFactoryMail::CreateParticipant {
-                domain_id,
-                qos,
-                dcps_listener,
-                status_kind,
-                clock_handle,
-                timer_handle,
-                spawner_handle,
-                reply_sender,
-            }) => reply_sender.send(
-                self.create_participant::<R>(
-                    domain_id,
-                    qos,
-                    dcps_listener,
-                    status_kind,
-                    clock_handle,
-                    timer_handle,
-                    spawner_handle,
-                )
-                .await,
-            ),
-            DcpsMail::ParticipantFactory(ParticipantFactoryMail::DeleteParticipant {
-                handle,
-                reply_sender,
-            }) => reply_sender.send(self.delete_participant(handle)),
-            DcpsMail::ParticipantFactory(ParticipantFactoryMail::SetDefaultParticipantQos {
-                qos,
-                reply_sender,
-            }) => reply_sender.send(self.set_default_participant_qos(qos)),
-            DcpsMail::ParticipantFactory(ParticipantFactoryMail::GetDefaultParticipantQos {
-                reply_sender,
-            }) => reply_sender.send(self.get_default_participant_qos()),
-            DcpsMail::ParticipantFactory(ParticipantFactoryMail::SetQos { qos, reply_sender }) => {
-                reply_sender.send(self.set_qos(qos))
-            }
-            DcpsMail::ParticipantFactory(ParticipantFactoryMail::GetQos { reply_sender }) => {
-                reply_sender.send(self.get_qos())
-            }
-            DcpsMail::ParticipantFactory(ParticipantFactoryMail::SetConfiguration {
-                configuration,
-            }) => self.set_configuration(configuration),
-            DcpsMail::ParticipantFactory(ParticipantFactoryMail::GetConfiguration {
-                reply_sender,
-            }) => reply_sender.send(self.get_configuration()),
-            _ => todo!(),
-        }
-    }
 }

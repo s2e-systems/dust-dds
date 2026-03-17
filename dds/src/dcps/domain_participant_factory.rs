@@ -7,6 +7,7 @@ use crate::{
             oneshot::oneshot,
         },
         domain_participant::DcpsDomainParticipant,
+        domain_participant_factory_mail::{DcpsMail, ParticipantFactoryMail},
         domain_participant_mail::{
             DcpsDomainParticipantMail, DiscoveryServiceMail, MessageServiceMail,
             ParticipantServiceMail,
@@ -27,24 +28,26 @@ use crate::{
 };
 use alloc::{borrow::ToOwned, string::String, vec::Vec};
 
-pub struct DcpsParticipantFactory<T> {
+pub struct DcpsParticipantFactory<R, T> {
     domain_participant_list: Vec<(InstanceHandle, MpscSender<DcpsDomainParticipantMail>)>,
     qos: DomainParticipantFactoryQos,
     default_participant_qos: DomainParticipantQos,
     configuration: DustDdsConfiguration,
+    runtime: R,
     transport: T,
     entity_counter: u32,
     app_id: [u8; 4],
     host_id: [u8; 4],
 }
 
-impl<T: TransportParticipantFactory> DcpsParticipantFactory<T> {
-    pub fn new(app_id: [u8; 4], host_id: [u8; 4], transport: T) -> Self {
+impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T> {
+    pub fn new(app_id: [u8; 4], host_id: [u8; 4], runtime: R, transport: T) -> Self {
         Self {
             domain_participant_list: Default::default(),
             qos: Default::default(),
             default_participant_qos: Default::default(),
             configuration: Default::default(),
+            runtime,
             transport,
             entity_counter: 0,
             app_id,
@@ -78,7 +81,7 @@ impl<T: TransportParticipantFactory> DcpsParticipantFactory<T> {
     }
 
     #[allow(clippy::type_complexity, clippy::too_many_arguments)]
-    pub async fn create_participant<R: DdsRuntime>(
+    pub async fn create_participant(
         &mut self,
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
@@ -264,5 +267,54 @@ impl<T: TransportParticipantFactory> DcpsParticipantFactory<T> {
 
     pub fn get_configuration(&mut self) -> DustDdsConfiguration {
         self.configuration.clone()
+    }
+}
+
+impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T> {
+    pub async fn handle(&mut self, message: DcpsMail) {
+        match message {
+            DcpsMail::ParticipantFactory(ParticipantFactoryMail::CreateParticipant {
+                domain_id,
+                qos,
+                dcps_listener,
+                status_kind,
+                reply_sender,
+            }) => reply_sender.send(
+                self.create_participant(
+                    domain_id,
+                    qos,
+                    dcps_listener,
+                    status_kind,
+                    self.runtime.clock(),
+                    self.runtime.timer(),
+                    self.runtime.spawner(),
+                )
+                .await,
+            ),
+            DcpsMail::ParticipantFactory(ParticipantFactoryMail::DeleteParticipant {
+                handle,
+                reply_sender,
+            }) => reply_sender.send(self.delete_participant(handle)),
+            DcpsMail::ParticipantFactory(ParticipantFactoryMail::SetDefaultParticipantQos {
+                qos,
+                reply_sender,
+            }) => reply_sender.send(self.set_default_participant_qos(qos)),
+            DcpsMail::ParticipantFactory(ParticipantFactoryMail::GetDefaultParticipantQos {
+                reply_sender,
+            }) => reply_sender.send(self.get_default_participant_qos()),
+            DcpsMail::ParticipantFactory(ParticipantFactoryMail::SetQos { qos, reply_sender }) => {
+                reply_sender.send(self.set_qos(qos))
+            }
+            DcpsMail::ParticipantFactory(ParticipantFactoryMail::GetQos { reply_sender }) => {
+                reply_sender.send(self.get_qos())
+            }
+            DcpsMail::ParticipantFactory(ParticipantFactoryMail::SetConfiguration {
+                configuration,
+            }) => self.set_configuration(configuration),
+            DcpsMail::ParticipantFactory(ParticipantFactoryMail::GetConfiguration {
+                reply_sender,
+            }) => reply_sender.send(self.get_configuration()),
+            _ => todo!(),
+        }
     }
 }

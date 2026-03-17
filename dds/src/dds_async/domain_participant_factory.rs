@@ -21,7 +21,6 @@ use crate::{
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
         status::StatusKind,
     },
-    runtime::DdsRuntime,
 };
 use alloc::string::String;
 
@@ -29,12 +28,11 @@ use alloc::string::String;
 /// Unlike the sync version, the [`DomainParticipantFactoryAsync`] is not a singleton and can be created by means of
 /// a constructor by passing a DDS runtime. This allows the factory
 /// to spin tasks on an existing runtime which can be shared with other things outside Dust DDS.
-pub struct DomainParticipantFactoryAsync<R: DdsRuntime> {
-    runtime: R,
-    domain_participant_factory_sender: MpscSender<DcpsMail<R>>,
+pub struct DomainParticipantFactoryAsync {
+    domain_participant_factory_sender: MpscSender<DcpsMail>,
 }
 
-impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
+impl DomainParticipantFactoryAsync {
     /// Async version of [`create_participant`](crate::domain::domain_participant_factory::DomainParticipantFactory::create_participant).
     pub async fn create_participant(
         &self,
@@ -43,9 +41,6 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
         a_listener: Option<impl DomainParticipantListener + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<DomainParticipantAsync> {
-        let clock_handle = self.runtime.clock();
-        let timer_handle = self.runtime.timer();
-        let spawner_handle = self.runtime.spawner();
         let status_kind = mask.to_vec();
         let dcps_listener = a_listener.map(DcpsDomainParticipantListener::new);
         let (reply_sender, reply_receiver) = oneshot();
@@ -57,9 +52,6 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
                     dcps_listener,
                     status_kind,
                     reply_sender,
-                    clock_handle: clock_handle.clone(),
-                    timer_handle: timer_handle.clone(),
-                    spawner_handle: spawner_handle.clone(),
                 },
             ))
             .await?;
@@ -192,22 +184,20 @@ impl<R: DdsRuntime> DomainParticipantFactoryAsync<R> {
 }
 
 #[cfg(feature = "std")]
-impl DomainParticipantFactoryAsync<crate::std_runtime::StdRuntime> {
+impl DomainParticipantFactoryAsync {
     /// This operation returns the [`DomainParticipantFactoryAsync`] singleton. The operation is idempotent, that is, it can be called multiple
     /// times without side-effects and it will return the same [`DomainParticipantFactoryAsync`] instance.
     #[tracing::instrument]
-    pub fn get_instance() -> &'static DomainParticipantFactoryAsync<crate::std_runtime::StdRuntime>
-    {
+    pub fn get_instance() -> &'static DomainParticipantFactoryAsync {
         use core::net::IpAddr;
         use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
         use std::sync::OnceLock;
         use tracing::warn;
 
-        static PARTICIPANT_FACTORY_ASYNC: OnceLock<
-            DomainParticipantFactoryAsync<crate::std_runtime::StdRuntime>,
-        > = OnceLock::new();
+        static PARTICIPANT_FACTORY_ASYNC: OnceLock<DomainParticipantFactoryAsync> = OnceLock::new();
         PARTICIPANT_FACTORY_ASYNC.get_or_init(|| {
             let executor = crate::std_runtime::executor::Executor::new();
+            let executor_handle = executor.handle();
             let timer_driver = crate::std_runtime::timer::TimerDriver::new();
             let runtime = crate::std_runtime::StdRuntime::new(executor, timer_driver);
             let interface_address = NetworkInterface::show()
@@ -232,16 +222,15 @@ impl DomainParticipantFactoryAsync<crate::std_runtime::StdRuntime> {
             let app_id = std::process::id().to_ne_bytes();
             let transport = crate::rtps_udp_transport::udp_transport::RtpsUdpTransportParticipantFactory::default();
             let mut domain_participant_factory =
-            DcpsParticipantFactory::new(app_id, host_id, transport);
+            DcpsParticipantFactory::new(app_id, host_id, runtime, transport);
             let (domain_participant_factory_sender, mailbox_recv) = mpsc_channel();
-            runtime.spawner().spawn(async move {
+            executor_handle.spawn(async move {
                 while let Some(m) = mailbox_recv.receive().await {
                     domain_participant_factory.handle(m).await;
                 }
             });
 
             DomainParticipantFactoryAsync {
-                runtime,
                 domain_participant_factory_sender,
             }
         })
