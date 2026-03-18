@@ -1,8 +1,98 @@
 # Dust DDS
 
-Dust DDS is a native [Rust](https://www.rust-lang.org/) implementation of the [Data Distribution Services (DDS)](https://www.omg.org/omg-dds-portal/) using the [Real-time Publisher-Subscriber (RTPS)](https://www.omg.org/spec/DDSI-RTPS/About-DDSI-RTPS/) wire protocol developed by [S2E Software Systems](https://www.s2e-systems.com).
+[![CircleCI](https://dl.circleci.com/status-badge/img/gh/s2e-systems/dust-dds/tree/main.svg?style=svg)](https://dl.circleci.com/status-badge/redirect/gh/s2e-systems/dust-dds/tree/main)
+[![Crates.io](https://img.shields.io/crates/v/dust_dds.svg)](https://crates.io/crates/dust_dds)
+[![Docs.rs](https://docs.rs/dust_dds/badge.svg)](https://docs.rs/dust_dds)
+[![License](https://img.shields.io/crates/l/dust_dds.svg)](https://github.com/s2e-systems/dust-dds/blob/master/LICENSE)
+
+[Dust DDS](https://dust-dds.s2e-systems.com) is a native Rust implementation of the [Data Distribution Service (DDS)](https://www.omg.org/omg-dds-portal/) middleware using the [Real-time Publisher-Subscriber (RTPS)](https://www.omg.org/spec/DDSI-RTPS/About-DDSI-RTPS/) wire protocol developed by [S2E Software Systems](https://www.s2e-systems.com).
 
 This crate provides a Rust implementation of the minimum DDS profile. It uses only stable Rust and has no `unsafe` code while providing a large code coverage validated by our CI systems to ensure its quality.
+
+
+## Example
+
+A basic example on how to use Dust DDS. The publisher side can be implemented as:
+
+```rust
+use dust_dds::{
+    domain::domain_participant_factory::DomainParticipantFactory,
+    listener::NO_LISTENER,
+    infrastructure::{qos::QosKind, status::NO_STATUS, type_support::DdsType},
+};
+
+#[derive(DdsType)]
+struct HelloWorldType {
+    #[dust_dds(key)]
+    id: u8,
+    msg: String,
+}
+
+let domain_id = 0;
+let participant_factory = DomainParticipantFactory::get_instance();
+
+let participant = participant_factory
+    .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+    .unwrap();
+
+let topic = participant
+    .create_topic::<HelloWorldType>("HelloWorld", "HelloWorldType", QosKind::Default, NO_LISTENER, NO_STATUS)
+    .unwrap();
+
+let publisher = participant
+    .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+    .unwrap();
+
+let writer = publisher
+    .create_datawriter::<HelloWorldType>(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
+    .unwrap();
+
+let hello_world = HelloWorldType {
+    id: 8,
+    msg: "Hello world!".to_string(),
+};
+writer.write(hello_world, None).unwrap();
+```
+
+The subscriber side can be implemented as:
+
+```rust
+use dust_dds::{
+    domain::domain_participant_factory::DomainParticipantFactory,
+    listener::NO_LISTENER,
+    infrastructure::{qos::QosKind, status::NO_STATUS, type_support::DdsType},
+};
+
+#[derive(Debug, DdsType)]
+struct HelloWorldType {
+    #[dust_dds(key)]
+    id: u8,
+    msg: String,
+}
+
+let domain_id = 0;
+let participant_factory = DomainParticipantFactory::get_instance();
+
+let participant = participant_factory
+    .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+    .unwrap();
+
+let topic = participant
+    .create_topic::<HelloWorldType>("HelloWorld", "HelloWorldType", QosKind::Default, NO_LISTENER, NO_STATUS)
+    .unwrap();
+
+let subscriber = participant
+    .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+    .unwrap();
+
+let reader = subscriber
+    .create_datareader::<HelloWorldType>(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
+    .unwrap();
+
+if let Ok(hello_world_sample) = reader.read_next_sample() {
+    println!("Received: {:?}", hello_world_sample.data.unwrap());
+}
+```
 
 ## A brief introduction to DDS
 
@@ -23,90 +113,6 @@ If you answered yes to one or more of these questions, DDS is likely a strong ca
 1. Heavy database-centric workloads. If your system is primarily used to store and retrieve data from persistent data storage you are probably better off with a database-driven approach.
 2. Non-real-time web applications. If your main requirement is scalable centralized web-based communication you are probably better of with other message broker solutions
 3. Simple request-response workloads. If your application follows a standard request-response model then you are probably better off with REST or RPC-based communication even if DDS is able to handle request reply mechanisms.
-
-## Example
-
-A basic example on how to use Dust DDS. The publisher side can be implemented as:
-
-```rust
-    use dust_dds::{
-        domain::domain_participant_factory::DomainParticipantFactory,
-        listener::NO_LISTENER,
-        infrastructure::{qos::QosKind, status::NO_STATUS, type_support::DdsType},
-    };
-
-    #[derive(DdsType)]
-    struct HelloWorldType {
-        #[dust_dds(key)]
-        id: u8,
-        msg: String,
-    }
-
-    let domain_id = 0;
-    let participant_factory = DomainParticipantFactory::get_instance();
-
-    let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
-
-    let topic = participant
-        .create_topic::<HelloWorldType>("HelloWorld", "HelloWorldType", QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
-
-    let publisher = participant
-        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
-
-    let writer = publisher
-        .create_datawriter::<HelloWorldType>(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
-
-    let hello_world = HelloWorldType {
-        id: 8,
-        msg: "Hello world!".to_string(),
-    };
-    writer.write(hello_world, None).unwrap();
-```
-
-The subscriber side can be implemented as:
-
-```rust
-    use dust_dds::{
-        domain::domain_participant_factory::DomainParticipantFactory,
-        listener::NO_LISTENER,
-        infrastructure::{qos::QosKind, status::NO_STATUS, type_support::DdsType},
-    };
-
-    #[derive(Debug, DdsType)]
-    struct HelloWorldType {
-        #[dust_dds(key)]
-        id: u8,
-        msg: String,
-    }
-
-    let domain_id = 0;
-    let participant_factory = DomainParticipantFactory::get_instance();
-
-    let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
-
-    let topic = participant
-        .create_topic::<HelloWorldType>("HelloWorld", "HelloWorldType", QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
-
-    let subscriber = participant
-        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
-
-    let reader = subscriber
-        .create_datareader::<HelloWorldType>(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
-
-    if let Ok(hello_world_sample) = reader.read_next_sample() {
-        println!("Received: {:?}", hello_world_sample.data.unwrap());
-    }
-```
 
 ## IDL type generation
 
@@ -142,8 +148,17 @@ When implementing applications that already make use of async, then the async AP
 
 ## Dust DDS extensions
 
+### Dust DDS C Bindings
+
+Dust DDS provides [C bindings](https://dust-dds.s2e-systems.com/product/c-binding/) as an extension, enabling integration with existing C and C++ codebases and facilitating adoption in environments where Rust cannot be used directly. The bindings expose a stable, C-compatible API that mirrors the core DDS concepts while preserving Dust DDS’s focus on correctness and performance. This extension makes it possible to incrementally introduce Dust DDS into legacy systems, mixed-language projects, or constrained embedded environments, without requiring a full rewrite in Rust.
+
+### Dust DDS for microcontrollers
+
+Dust DDS can be deployed on [microcontrollers](https://dust-dds.s2e-systems.com/product/microcontrollers/) and other *no_std* targets, enabling DDS-based communication in highly constrained environments. For this purpose, Dust DDS provides a pre-made runtime built on top of the Embassy async framework, offering a ready-to-use execution model tailored to embedded systems. In addition, S2E offers services to assist with porting Dust DDS to custom or proprietary runtimes, allowing integration into environments where Embassy is not available or where specific platform requirements apply.
+
 ### DDS over the Internet
-Standard DDS implementations are limited to local networks because they rely on UDP multicast for participant discovery, which is not permitted across the internet. If you want to connect your devices over the internet, our [Global DDS](https://www.s2e-systems.com/products/global-dds/) offers a plug-and-play solution without code modifications or additional software needed.
+
+Standard DDS implementations are limited to local networks because they rely on UDP multicast for participant discovery, which is not permitted across the internet. If you want to connect your devices over the internet, our [Global DDS](https://dust-dds.s2e-systems.com/product/global-dds/) offers a plug-and-play solution without code modifications or additional software needed.
 
 ### DDS REST API
 
