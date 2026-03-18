@@ -5238,11 +5238,10 @@ where
                     }
 
                     impl Operator {
-                        fn from_str(operator: &str) -> Self {
-                            match operator {
-                                "=" => Self::Equal,
-                                "<=" => Self::LessThan,
-                                _ => panic!(),
+                        fn to_str(&self) -> &'static str {
+                            match self {
+                                Self::Equal => "=",
+                                Self::LessThan => "<=",
                             }
                         }
 
@@ -5260,16 +5259,14 @@ where
                         }
                     }
 
-                    let mut operators = ["<=", "="].iter();
+                    let mut operators = [Operator::LessThan, Operator::Equal].iter();
                     let filter = loop {
                         if let Some(operator) = operators.next() {
-                            if let Some(pos) =
-                                content_filtered_topic.filter_expression.find(operator)
+                            if let Some((variable_name, _)) = content_filtered_topic
+                                .filter_expression
+                                .split_once(operator.to_str())
                             {
-                                let variable_name =
-                                    content_filtered_topic.filter_expression.split_at(pos).0;
-                                let comparison_function = Operator::from_str(operator);
-                                break Some((variable_name, comparison_function));
+                                break Some((variable_name, operator));
                             }
                         } else {
                             break None;
