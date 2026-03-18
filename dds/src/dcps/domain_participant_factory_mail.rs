@@ -34,7 +34,7 @@ use crate::{
         },
         time::{Duration, Time},
     },
-    transport::{types::CacheChange},
+    transport::types::CacheChange,
     xtypes::dynamic_type::{DynamicData, DynamicType},
 };
 use alloc::vec::Vec;
@@ -58,6 +58,7 @@ pub enum ParticipantFactoryMail {
         qos: QosKind<DomainParticipantQos>,
         dcps_listener: Option<DcpsDomainParticipantListener>,
         status_kind: Vec<StatusKind>,
+        dcps_sender: MpscSender<DcpsMail>,
         #[allow(clippy::type_complexity)]
         reply_sender: OneshotSender<
             DdsResult<(

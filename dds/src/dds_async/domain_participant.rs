@@ -7,6 +7,7 @@ use crate::{
     dcps::{
         actor::ActorAddress,
         channels::{mpsc::MpscSender, oneshot::oneshot},
+        domain_participant_factory_mail::DcpsMail,
         domain_participant_mail::{DcpsDomainParticipantMail, ParticipantServiceMail},
         listeners::{
             domain_participant_listener::DcpsDomainParticipantListener,
@@ -38,34 +39,25 @@ use alloc::{
 };
 
 /// Async version of [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant).
+#[derive(Clone)]
 pub struct DomainParticipantAsync {
+    dcps_sender: MpscSender<DcpsMail>,
     participant_address: MpscSender<DcpsDomainParticipantMail>,
     builtin_subscriber_status_condition_address: ActorAddress<DcpsStatusCondition>,
     domain_id: DomainId,
     handle: InstanceHandle,
 }
 
-impl Clone for DomainParticipantAsync {
-    fn clone(&self) -> Self {
-        Self {
-            participant_address: self.participant_address.clone(),
-            builtin_subscriber_status_condition_address: self
-                .builtin_subscriber_status_condition_address
-                .clone(),
-            domain_id: self.domain_id,
-            handle: self.handle,
-        }
-    }
-}
-
 impl DomainParticipantAsync {
     pub(crate) fn new(
+        dcps_sender: MpscSender<DcpsMail>,
         participant_address: MpscSender<DcpsDomainParticipantMail>,
         builtin_subscriber_status_condition_address: ActorAddress<DcpsStatusCondition>,
         domain_id: DomainId,
         handle: InstanceHandle,
     ) -> Self {
         Self {
+            dcps_sender,
             participant_address,
             builtin_subscriber_status_condition_address,
             domain_id,
@@ -75,6 +67,10 @@ impl DomainParticipantAsync {
 
     pub(crate) fn participant_address(&self) -> &MpscSender<DcpsDomainParticipantMail> {
         &self.participant_address
+    }
+
+    pub(crate) fn dcps_sender(&self) -> &MpscSender<DcpsMail> {
+        &self.dcps_sender
     }
 }
 
@@ -205,6 +201,7 @@ impl DomainParticipantAsync {
                     dcps_listener,
                     mask: mask.to_vec(),
                     type_support: dynamic_type_representation,
+                    dcps_sender: self.dcps_sender.clone(),
                     participant_address: self.participant_address.clone(),
                     reply_sender,
                 },
@@ -606,6 +603,7 @@ impl DomainParticipantAsync {
             .send(DcpsDomainParticipantMail::Participant(
                 ParticipantServiceMail::SetQos {
                     qos,
+                    dcps_sender: self.dcps_sender.clone(),
                     participant_address: self.participant_address.clone(),
                     reply_sender,
                 },
@@ -660,6 +658,7 @@ impl DomainParticipantAsync {
         self.participant_address
             .send(DcpsDomainParticipantMail::Participant(
                 ParticipantServiceMail::Enable {
+                    dcps_sender: self.dcps_sender.clone(),
                     participant_address: self.participant_address.clone(),
                     reply_sender,
                 },

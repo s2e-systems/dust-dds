@@ -5,6 +5,7 @@ use super::{
 use crate::{
     dcps::{
         channels::{mpsc::MpscSender, oneshot::oneshot},
+        domain_participant_factory_mail::DcpsMail,
         domain_participant_mail::{DcpsDomainParticipantMail, PublisherServiceMail},
         listeners::{
             data_writer_listener::DcpsDataWriterListener, publisher_listener::DcpsPublisherListener,
@@ -47,6 +48,10 @@ impl PublisherAsync {
     pub(crate) fn participant_address(&self) -> &MpscSender<DcpsDomainParticipantMail> {
         self.participant.participant_address()
     }
+
+    pub(crate) fn dcps_sender(&self) -> &MpscSender<DcpsMail> {
+        self.participant.dcps_sender()
+    }
 }
 
 impl PublisherAsync {
@@ -70,6 +75,7 @@ impl PublisherAsync {
                     qos,
                     dcps_listener,
                     mask: mask.to_vec(),
+                    dcps_sender: self.dcps_sender().clone(),
                     participant_address: self.participant_address().clone(),
                     reply_sender,
                 },

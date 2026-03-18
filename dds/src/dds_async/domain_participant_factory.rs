@@ -51,6 +51,7 @@ impl DomainParticipantFactoryAsync {
                     qos,
                     dcps_listener,
                     status_kind,
+                    dcps_sender: self.domain_participant_factory_sender.clone(),
                     reply_sender,
                 },
             ))
@@ -60,6 +61,7 @@ impl DomainParticipantFactoryAsync {
             reply_receiver.await??;
 
         let domain_participant = DomainParticipantAsync::new(
+            self.domain_participant_factory_sender.clone(),
             participant_address.clone(),
             builtin_subscriber_status_condition_address,
             domain_id,

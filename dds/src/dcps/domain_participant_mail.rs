@@ -7,6 +7,7 @@ use crate::{
     dcps::{
         actor::{ActorAddress, MailHandler},
         channels::{mpsc::MpscSender, oneshot::OneshotSender},
+        domain_participant_factory_mail::DcpsMail,
         listeners::{
             data_reader_listener::DcpsDataReaderListener,
             data_writer_listener::DcpsDataWriterListener,
@@ -67,6 +68,7 @@ pub enum ParticipantServiceMail {
         dcps_listener: Option<DcpsTopicListener>,
         mask: Vec<StatusKind>,
         type_support: Arc<DynamicType>,
+        dcps_sender: MpscSender<DcpsMail>,
         participant_address: MpscSender<DcpsDomainParticipantMail>,
         reply_sender: OneshotSender<DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)>>,
     },
@@ -159,6 +161,7 @@ pub enum ParticipantServiceMail {
     },
     SetQos {
         qos: QosKind<DomainParticipantQos>,
+        dcps_sender: MpscSender<DcpsMail>,
         participant_address: MpscSender<DcpsDomainParticipantMail>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
@@ -171,6 +174,7 @@ pub enum ParticipantServiceMail {
         reply_sender: OneshotSender<DdsResult<()>>,
     },
     Enable {
+        dcps_sender: MpscSender<DcpsMail>,
         participant_address: MpscSender<DcpsDomainParticipantMail>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
@@ -195,6 +199,7 @@ pub enum TopicServiceMail {
     },
     Enable {
         topic_name: String,
+        dcps_sender: MpscSender<DcpsMail>,
         participant_address: MpscSender<DcpsDomainParticipantMail>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
@@ -211,6 +216,7 @@ pub enum PublisherServiceMail {
         qos: QosKind<DataWriterQos>,
         dcps_listener: Option<DcpsDataWriterListener>,
         mask: Vec<StatusKind>,
+        dcps_sender: MpscSender<DcpsMail>,
         participant_address: MpscSender<DcpsDomainParticipantMail>,
         reply_sender: OneshotSender<DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)>>,
     },
@@ -252,6 +258,7 @@ pub enum SubscriberServiceMail {
         qos: QosKind<DataReaderQos>,
         dcps_listener: Option<DcpsDataReaderListener>,
         mask: Vec<StatusKind>,
+        dcps_sender: MpscSender<DcpsMail>,
         domain_participant_address: MpscSender<DcpsDomainParticipantMail>,
         reply_sender: OneshotSender<DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)>>,
     },
@@ -336,6 +343,7 @@ pub enum WriterServiceMail {
         reply_sender: OneshotSender<DdsResult<Option<InstanceHandle>>>,
     },
     WriteWTimestamp {
+        dcps_sender: MpscSender<DcpsMail>,
         participant_address: MpscSender<DcpsDomainParticipantMail>,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
@@ -358,6 +366,7 @@ pub enum WriterServiceMail {
     EnableDataWriter {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
+        dcps_sender: MpscSender<DcpsMail>,
         participant_address: MpscSender<DcpsDomainParticipantMail>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
@@ -365,6 +374,7 @@ pub enum WriterServiceMail {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         qos: QosKind<DataWriterQos>,
+        dcps_sender: MpscSender<DcpsMail>,
         participant_address: MpscSender<DcpsDomainParticipantMail>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
@@ -374,6 +384,7 @@ pub enum ReaderServiceMail {
     Enable {
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
+        dcps_sender: MpscSender<DcpsMail>,
         participant_address: MpscSender<DcpsDomainParticipantMail>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
@@ -448,6 +459,7 @@ pub enum ReaderServiceMail {
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         qos: QosKind<DataReaderQos>,
+        dcps_sender: MpscSender<DcpsMail>,
         participant_address: MpscSender<DcpsDomainParticipantMail>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
@@ -467,6 +479,7 @@ pub enum ReaderServiceMail {
 
 pub enum MessageServiceMail {
     AddCacheChange {
+        dcps_sender: MpscSender<DcpsMail>,
         participant_address: MpscSender<DcpsDomainParticipantMail>,
         cache_change: CacheChange,
         subscriber_handle: InstanceHandle,
@@ -489,14 +502,17 @@ pub enum MessageServiceMail {
     },
     AddBuiltinParticipantsDetectorCacheChange {
         cache_change: CacheChange,
+        dcps_sender: MpscSender<DcpsMail>,
         participant_address: MpscSender<DcpsDomainParticipantMail>,
     },
     AddBuiltinPublicationsDetectorCacheChange {
         cache_change: CacheChange,
+        dcps_sender: MpscSender<DcpsMail>,
         participant_address: MpscSender<DcpsDomainParticipantMail>,
     },
     AddBuiltinSubscriptionsDetectorCacheChange {
         cache_change: CacheChange,
+        dcps_sender: MpscSender<DcpsMail>,
         participant_address: MpscSender<DcpsDomainParticipantMail>,
     },
     AddBuiltinTopicsDetectorCacheChange {
@@ -510,18 +526,21 @@ pub enum EventServiceMail {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         change_instance_handle: InstanceHandle,
+        dcps_sender: MpscSender<DcpsMail>,
         participant_address: MpscSender<DcpsDomainParticipantMail>,
     },
     RequestedDeadlineMissed {
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         change_instance_handle: InstanceHandle,
+        dcps_sender: MpscSender<DcpsMail>,
         participant_address: MpscSender<DcpsDomainParticipantMail>,
     },
 }
 
 pub enum DiscoveryServiceMail {
     AnnounceParticipant {
+        dcps_sender: MpscSender<DcpsMail>,
         participant_address: MpscSender<DcpsDomainParticipantMail>,
     },
     AnnounceDeletedParticipant,
@@ -613,6 +632,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                 dcps_listener,
                 mask,
                 type_support,
+                dcps_sender,
                 participant_address,
                 reply_sender,
             } => reply_sender.send(
@@ -623,6 +643,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                     dcps_listener,
                     mask,
                     type_support,
+                    dcps_sender,
                     participant_address,
                 )
                 .await,
@@ -715,10 +736,11 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             } => reply_sender.send(self.get_discovered_topic_data(topic_handle)),
             ParticipantServiceMail::SetQos {
                 qos,
+                dcps_sender,
                 participant_address,
                 reply_sender,
             } => reply_sender.send(
-                self.set_domain_participant_qos(qos, participant_address)
+                self.set_domain_participant_qos(qos, dcps_sender, participant_address)
                     .await,
             ),
             ParticipantServiceMail::GetQos { reply_sender } => {
@@ -732,9 +754,13 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                 reply_sender.send(self.set_domain_participant_listener(dcps_listener, status_kind))
             }
             ParticipantServiceMail::Enable {
+                dcps_sender,
                 participant_address,
                 reply_sender,
-            } => reply_sender.send(self.enable_domain_participant(participant_address).await),
+            } => reply_sender.send(
+                self.enable_domain_participant(dcps_sender, participant_address)
+                    .await,
+            ),
             ParticipantServiceMail::IsEmpty { reply_sender } => {
                 reply_sender.send(self.is_participant_empty())
             }
@@ -758,9 +784,13 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             } => reply_sender.send(self.get_topic_qos(topic_name)),
             TopicServiceMail::Enable {
                 topic_name,
+                dcps_sender,
                 participant_address,
                 reply_sender,
-            } => reply_sender.send(self.enable_topic(topic_name, participant_address).await),
+            } => reply_sender.send(
+                self.enable_topic(topic_name, dcps_sender, participant_address)
+                    .await,
+            ),
             TopicServiceMail::GetTypeSupport {
                 topic_name,
                 reply_sender,
@@ -776,6 +806,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                 qos,
                 dcps_listener,
                 mask,
+                dcps_sender,
                 participant_address,
                 reply_sender,
             } => reply_sender.send(
@@ -785,6 +816,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                     qos,
                     dcps_listener,
                     mask,
+                    dcps_sender,
                     participant_address,
                 )
                 .await,
@@ -897,6 +929,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                 dynamic_data,
             )),
             WriterServiceMail::WriteWTimestamp {
+                dcps_sender,
                 participant_address,
                 publisher_handle,
                 data_writer_handle,
@@ -905,6 +938,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                 reply_sender,
             } => {
                 self.write_w_timestamp(
+                    dcps_sender,
                     participant_address,
                     publisher_handle,
                     data_writer_handle,
@@ -941,16 +975,23 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             WriterServiceMail::EnableDataWriter {
                 publisher_handle,
                 data_writer_handle,
+                dcps_sender,
                 participant_address,
                 reply_sender,
             } => reply_sender.send(
-                self.enable_data_writer(publisher_handle, data_writer_handle, participant_address)
-                    .await,
+                self.enable_data_writer(
+                    publisher_handle,
+                    data_writer_handle,
+                    dcps_sender,
+                    participant_address,
+                )
+                .await,
             ),
             WriterServiceMail::SetDataWriterQos {
                 publisher_handle,
                 data_writer_handle,
                 qos,
+                dcps_sender,
                 participant_address,
                 reply_sender,
             } => reply_sender.send(
@@ -958,6 +999,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                     publisher_handle,
                     data_writer_handle,
                     qos,
+                    dcps_sender,
                     participant_address,
                 )
                 .await,
@@ -973,6 +1015,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                 qos,
                 dcps_listener,
                 mask,
+                dcps_sender,
                 domain_participant_address,
                 reply_sender,
             } => reply_sender.send(
@@ -982,6 +1025,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                     qos,
                     dcps_listener,
                     mask,
+                    dcps_sender,
                     domain_participant_address,
                 )
                 .await,
@@ -1119,11 +1163,17 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             ReaderServiceMail::Enable {
                 subscriber_handle,
                 data_reader_handle,
+                dcps_sender,
                 participant_address,
                 reply_sender,
             } => reply_sender.send(
-                self.enable_data_reader(subscriber_handle, data_reader_handle, participant_address)
-                    .await,
+                self.enable_data_reader(
+                    subscriber_handle,
+                    data_reader_handle,
+                    dcps_sender,
+                    participant_address,
+                )
+                .await,
             ),
             ReaderServiceMail::GetSubscriptionMatchedStatus {
                 subscriber_handle,
@@ -1170,6 +1220,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                 subscriber_handle,
                 data_reader_handle,
                 qos,
+                dcps_sender,
                 participant_address,
                 reply_sender,
             } => reply_sender.send(
@@ -1177,6 +1228,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                     subscriber_handle,
                     data_reader_handle,
                     qos,
+                    dcps_sender,
                     participant_address,
                 )
                 .await,
@@ -1199,12 +1251,14 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     async fn handle_message_service(&mut self, message_service_mail: MessageServiceMail) {
         match message_service_mail {
             MessageServiceMail::AddCacheChange {
+                dcps_sender,
                 participant_address,
                 cache_change,
                 subscriber_handle,
                 data_reader_handle,
             } => {
                 self.add_cache_change(
+                    dcps_sender,
                     participant_address,
                     cache_change,
                     subscriber_handle,
@@ -1238,30 +1292,36 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             ),
             MessageServiceMail::AddBuiltinParticipantsDetectorCacheChange {
                 cache_change,
+                dcps_sender,
                 participant_address,
             } => {
                 self.add_builtin_participants_detector_cache_change(
                     cache_change,
+                    dcps_sender,
                     participant_address,
                 )
                 .await
             }
             MessageServiceMail::AddBuiltinPublicationsDetectorCacheChange {
                 cache_change,
+                dcps_sender,
                 participant_address,
             } => {
                 self.add_builtin_publications_detector_cache_change(
                     cache_change,
+                    dcps_sender,
                     participant_address,
                 )
                 .await;
             }
             MessageServiceMail::AddBuiltinSubscriptionsDetectorCacheChange {
                 cache_change,
+                dcps_sender,
                 participant_address,
             } => {
                 self.add_builtin_subscriptions_detector_cache_change(
                     cache_change,
+                    dcps_sender,
                     participant_address,
                 )
                 .await
@@ -1280,12 +1340,14 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                 publisher_handle,
                 data_writer_handle,
                 change_instance_handle,
+                dcps_sender,
                 participant_address,
             } => {
                 self.offered_deadline_missed(
                     publisher_handle,
                     data_writer_handle,
                     change_instance_handle,
+                    dcps_sender,
                     participant_address,
                 )
                 .await
@@ -1294,12 +1356,14 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                 subscriber_handle,
                 data_reader_handle,
                 change_instance_handle,
+                dcps_sender,
                 participant_address,
             } => {
                 self.requested_deadline_missed(
                     subscriber_handle,
                     data_reader_handle,
                     change_instance_handle,
+                    dcps_sender,
                     participant_address,
                 )
                 .await
@@ -1310,9 +1374,11 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     async fn handle_discovery_service(&mut self, discovery_service_mail: DiscoveryServiceMail) {
         match discovery_service_mail {
             DiscoveryServiceMail::AnnounceParticipant {
+                dcps_sender,
                 participant_address,
             } => {
-                self.announce_participant(participant_address).await;
+                self.announce_participant(dcps_sender, participant_address)
+                    .await;
             }
             DiscoveryServiceMail::AnnounceDeletedParticipant => {
                 self.announce_deleted_participant().await;

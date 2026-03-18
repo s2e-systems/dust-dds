@@ -6,6 +6,7 @@ use crate::{
     dcps::{
         actor::ActorAddress,
         channels::{mpsc::MpscSender, oneshot::oneshot},
+        domain_participant_factory_mail::DcpsMail,
         domain_participant_mail::{DcpsDomainParticipantMail, ReaderServiceMail},
         listeners::data_reader_listener::DcpsDataReaderListener,
         status_condition::DcpsStatusCondition,
@@ -59,6 +60,10 @@ impl<Foo> DataReaderAsync<Foo> {
 
     pub(crate) fn participant_address(&self) -> &MpscSender<DcpsDomainParticipantMail> {
         self.subscriber.participant_address()
+    }
+
+    pub(crate) fn dcps_sender(&self) -> &MpscSender<DcpsMail> {
+        self.subscriber.dcps_sender()
     }
 
     pub(crate) fn change_foo_type<T>(self) -> DataReaderAsync<T> {
@@ -458,6 +463,7 @@ impl<Foo> DataReaderAsync<Foo> {
                     subscriber_handle: self.subscriber.get_instance_handle().await,
                     data_reader_handle: self.handle,
                     qos,
+                    dcps_sender: self.dcps_sender().clone(),
                     participant_address: self.participant_address().clone(),
                     reply_sender,
                 },
@@ -503,6 +509,7 @@ impl<Foo> DataReaderAsync<Foo> {
                 ReaderServiceMail::Enable {
                     subscriber_handle: self.subscriber.get_instance_handle().await,
                     data_reader_handle: self.handle,
+                    dcps_sender: self.dcps_sender().clone(),
                     participant_address: self.participant_address().clone(),
                     reply_sender,
                 },

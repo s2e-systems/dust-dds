@@ -6,6 +6,7 @@ use crate::{
     dcps::{
         actor::ActorAddress,
         channels::{mpsc::MpscSender, oneshot::oneshot},
+        domain_participant_factory_mail::DcpsMail,
         domain_participant_mail::{
             DcpsDomainParticipantMail, MessageServiceMail, WriterServiceMail,
         },
@@ -69,6 +70,10 @@ impl<Foo> DataWriterAsync<Foo> {
 
     pub(crate) fn participant_address(&self) -> &MpscSender<DcpsDomainParticipantMail> {
         self.publisher.participant_address()
+    }
+
+    pub(crate) fn dcps_sender(&self) -> &MpscSender<DcpsMail> {
+        self.publisher.dcps_sender()
     }
 
     pub(crate) fn change_foo_type<T>(self) -> DataWriterAsync<T> {
@@ -200,6 +205,7 @@ where
         self.participant_address()
             .send(DcpsDomainParticipantMail::Writer(
                 WriterServiceMail::WriteWTimestamp {
+                    dcps_sender: self.dcps_sender().clone(),
                     participant_address: self.participant_address().clone(),
                     publisher_handle: self.publisher.get_instance_handle().await,
                     data_writer_handle: self.handle,
@@ -395,6 +401,7 @@ impl<Foo> DataWriterAsync<Foo> {
                     publisher_handle: self.publisher.get_instance_handle().await,
                     data_writer_handle: self.handle,
                     qos,
+                    dcps_sender: self.dcps_sender().clone(),
                     participant_address: self.participant_address().clone(),
                     reply_sender,
                 },
@@ -440,6 +447,7 @@ impl<Foo> DataWriterAsync<Foo> {
                 WriterServiceMail::EnableDataWriter {
                     publisher_handle: self.publisher.get_instance_handle().await,
                     data_writer_handle: self.handle,
+                    dcps_sender: self.dcps_sender().clone(),
                     participant_address: self.participant_address().clone(),
                     reply_sender,
                 },

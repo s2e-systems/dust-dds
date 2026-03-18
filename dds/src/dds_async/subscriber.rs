@@ -7,6 +7,7 @@ use crate::{
     dcps::{
         actor::ActorAddress,
         channels::{mpsc::MpscSender, oneshot::oneshot},
+        domain_participant_factory_mail::DcpsMail,
         domain_participant_mail::{DcpsDomainParticipantMail, SubscriberServiceMail},
         listeners::{
             data_reader_listener::DcpsDataReaderListener,
@@ -57,6 +58,10 @@ impl SubscriberAsync {
     pub(crate) fn participant_address(&self) -> &MpscSender<DcpsDomainParticipantMail> {
         self.participant.participant_address()
     }
+
+    pub(crate) fn dcps_sender(&self) -> &MpscSender<DcpsMail> {
+        self.participant.dcps_sender()
+    }
 }
 
 impl SubscriberAsync {
@@ -79,6 +84,7 @@ impl SubscriberAsync {
                     qos,
                     dcps_listener,
                     mask: mask.to_vec(),
+                    dcps_sender: self.participant.dcps_sender().clone(),
                     domain_participant_address: self.participant_address().clone(),
                     reply_sender,
                 },

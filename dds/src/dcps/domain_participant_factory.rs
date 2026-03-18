@@ -90,6 +90,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
         clock_handle: R::ClockHandle,
         mut timer_handle: R::TimerHandle,
         spawner_handle: R::SpawnerHandle,
+        dcps_sender: MpscSender<DcpsMail>,
     ) -> DdsResult<(
         MpscSender<DcpsDomainParticipantMail>,
         InstanceHandle,
@@ -118,6 +119,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             listener_sender,
             status_kind,
             transport,
+            dcps_sender.clone(),
             participant_sender.clone(),
             clock_handle,
             timer_handle.clone(),
@@ -154,6 +156,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
 
         // Start the regular participant announcement task
         let participant_address = participant_sender.clone();
+        let dcps_sender_clone = dcps_sender.clone();
         let mut timer_handle_clone = timer_handle.clone();
         let participant_announcement_interval =
             self.configuration.participant_announcement_interval();
@@ -162,6 +165,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             while participant_address
                 .send(DcpsDomainParticipantMail::Discovery(
                     DiscoveryServiceMail::AnnounceParticipant {
+                        dcps_sender: dcps_sender_clone.clone(),
                         participant_address: participant_address.clone(),
                     },
                 ))
@@ -194,6 +198,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             participant_sender
                 .send(DcpsDomainParticipantMail::Participant(
                     ParticipantServiceMail::Enable {
+                        dcps_sender,
                         participant_address,
                         reply_sender,
                     },
@@ -278,6 +283,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 qos,
                 dcps_listener,
                 status_kind,
+                dcps_sender,
                 reply_sender,
             }) => reply_sender.send(
                 self.create_participant(
@@ -288,6 +294,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                     self.runtime.clock(),
                     self.runtime.timer(),
                     self.runtime.spawner(),
+                    dcps_sender,
                 )
                 .await,
             ),

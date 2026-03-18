@@ -148,6 +148,7 @@ impl TopicAsync {
             .participant_address()
             .send(DcpsDomainParticipantMail::Topic(TopicServiceMail::Enable {
                 topic_name: self.topic_name.clone(),
+                dcps_sender: self.participant.dcps_sender().clone(),
                 participant_address: self.participant.participant_address().clone(),
                 reply_sender,
             }))
