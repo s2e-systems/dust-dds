@@ -5232,12 +5232,51 @@ where
                     ) else {
                         return;
                     };
+                    enum Operator {
+                        LessThan,
+                        Equal,
+                    }
 
-                    if let Some((variable_name, _position_value)) = content_filtered_topic
-                        .filter_expression
-                        .trim()
-                        .split_once("=")
-                    {
+                    impl Operator {
+                        fn from_str(operator: &str) -> Self {
+                            match operator {
+                                "=" => Self::Equal,
+                                "<=" => Self::LessThan,
+                                _ => panic!(),
+                            }
+                        }
+
+                        fn compare_string(&self, lhs: &String, rhs: &String) -> bool {
+                            match self {
+                                Self::Equal => lhs == rhs,
+                                Self::LessThan => lhs <= rhs,
+                            }
+                        }
+                        fn compare_int32(&self, lhs: &i32, rhs: &i32) -> bool {
+                            match self {
+                                Self::Equal => lhs == rhs,
+                                Self::LessThan => lhs <= rhs,
+                            }
+                        }
+                    }
+
+                    let mut operators = ["<=", "="].iter();
+                    let filter = loop {
+                        if let Some(operator) = operators.next() {
+                            if let Some(pos) =
+                                content_filtered_topic.filter_expression.find(operator)
+                            {
+                                let variable_name =
+                                    content_filtered_topic.filter_expression.split_at(pos).0;
+                                let comparison_function = Operator::from_str(operator);
+                                break Some((variable_name, comparison_function));
+                            }
+                        } else {
+                            break None;
+                        };
+                    };
+
+                    if let Some((variable_name, comparison_function)) = filter {
                         let Some(member_id) = data.get_member_id_by_name(variable_name.trim())
                         else {
                             return;
@@ -5250,7 +5289,17 @@ where
                             crate::xtypes::dynamic_type::TypeKind::BOOLEAN => todo!(),
                             crate::xtypes::dynamic_type::TypeKind::BYTE => todo!(),
                             crate::xtypes::dynamic_type::TypeKind::INT16 => todo!(),
-                            crate::xtypes::dynamic_type::TypeKind::INT32 => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::INT32 => {
+                                let member_value = data.get_int32_value(member_id).unwrap();
+                                if !comparison_function.compare_int32(
+                                    member_value,
+                                    &content_filtered_topic.expression_parameters[0]
+                                        .parse()
+                                        .expect("valid number"),
+                                ) {
+                                    return;
+                                }
+                            }
                             crate::xtypes::dynamic_type::TypeKind::INT64 => todo!(),
                             crate::xtypes::dynamic_type::TypeKind::UINT16 => todo!(),
                             crate::xtypes::dynamic_type::TypeKind::UINT32 => todo!(),
@@ -5264,8 +5313,10 @@ where
                             crate::xtypes::dynamic_type::TypeKind::CHAR16 => todo!(),
                             crate::xtypes::dynamic_type::TypeKind::STRING8 => {
                                 let member_value = data.get_string_value(member_id).unwrap();
-                                if member_value != &content_filtered_topic.expression_parameters[0]
-                                {
+                                if !comparison_function.compare_string(
+                                    member_value,
+                                    &content_filtered_topic.expression_parameters[0],
+                                ) {
                                     return;
                                 }
                             }
