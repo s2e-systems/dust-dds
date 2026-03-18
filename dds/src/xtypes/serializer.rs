@@ -1144,28 +1144,28 @@ mod tests {
     #[test]
     fn serialize_appendable_struct() {
         let v = AppendableType { value: 7 }.create_dynamic_sample();
-        // assert_eq!(
-        //     serialize_v1_be(&v),
-        //     vec![
-        //         0x00, 0x00, 0x00, 0x02, // CDR Header (incl padding length)
-        //         0, 7, 0, 0 // value | padding (2 bytes)
-        //     ]
-        // );
-        // assert_eq!(
-        //     serialize_v1_le(&v),
-        //     vec![
-        //         0x00, 0x01, 0x00, 0x02, // CDR Header (incl padding length)
-        //         7, 0, 0, 0 // value | padding (2 bytes)
-        //     ]
-        // );
-        // assert_eq!(
-        //     serialize_v2_be(&v),
-        //     vec![
-        //         0x00, 0x08, 0x00, 0x02, // CDR Header (incl padding length)
-        //         0, 0, 0, 2, // DHEADER
-        //         0, 7, 0, 0 // value | padding (2 bytes)
-        //     ]
-        // );
+        assert_eq!(
+            serialize_v1_be(&v),
+            vec![
+                0x00, 0x00, 0x00, 0x02, // CDR Header (incl padding length)
+                0, 7, 0, 0 // value | padding (2 bytes)
+            ]
+        );
+        assert_eq!(
+            serialize_v1_le(&v),
+            vec![
+                0x00, 0x01, 0x00, 0x02, // CDR Header (incl padding length)
+                7, 0, 0, 0 // value | padding (2 bytes)
+            ]
+        );
+        assert_eq!(
+            serialize_v2_be(&v),
+            vec![
+                0x00, 0x08, 0x00, 0x02, // CDR Header (incl padding length)
+                0, 0, 0, 2, // DHEADER
+                0, 7, 0, 0 // value | padding (2 bytes)
+            ]
+        );
         assert_eq!(
             serialize_v2_le(&v),
             vec![
