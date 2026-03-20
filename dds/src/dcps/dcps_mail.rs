@@ -286,6 +286,7 @@ pub enum PublisherServiceMail {
         qos: QosKind<DataWriterQos>,
         dcps_listener: Option<DcpsDataWriterListener>,
         mask: Vec<StatusKind>,
+        dcps_sender: MpscSender<DcpsMail>,
         reply_sender: OneshotSender<DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)>>,
     },
     DeleteDataWriter {
@@ -435,6 +436,7 @@ pub enum WriterServiceMail {
         data_writer_handle: InstanceHandle,
         dynamic_data: DynamicData,
         timestamp: Time,
+        dcps_sender: MpscSender<DcpsMail>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
     DisposeWTimestamp {
@@ -455,6 +457,7 @@ pub enum WriterServiceMail {
         participant_handle: InstanceHandle,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
+        dcps_sender: MpscSender<DcpsMail>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
     SetDataWriterQos {
@@ -462,6 +465,7 @@ pub enum WriterServiceMail {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         qos: QosKind<DataWriterQos>,
+        dcps_sender: MpscSender<DcpsMail>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
 }

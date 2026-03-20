@@ -1,6 +1,9 @@
 use crate::{
     dcps::{
-        dcps_mail::{DcpsMail, ParticipantFactoryMail, ParticipantServiceMail, TopicServiceMail},
+        dcps_mail::{
+            DcpsMail, ParticipantFactoryMail, ParticipantServiceMail, PublisherServiceMail,
+            TopicServiceMail, WriterServiceMail,
+        },
         dcps_participant_factory::DcpsParticipantFactory,
     },
     runtime::DdsRuntime,
@@ -344,6 +347,253 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 self.find_participant(participant_handle)
                     .and_then(|p| p.get_type_support(topic_name)),
             ),
+            DcpsMail::Publisher(PublisherServiceMail::CreateDataWriter {
+                participant_handle,
+                publisher_handle,
+                topic_name,
+                qos,
+                dcps_listener,
+                mask,
+                dcps_sender,
+                reply_sender,
+            }) => match self.find_participant(participant_handle) {
+                Ok(p) => reply_sender.send(
+                    p.create_data_writer(
+                        publisher_handle,
+                        topic_name,
+                        qos,
+                        dcps_listener,
+                        mask,
+                        dcps_sender,
+                    )
+                    .await,
+                ),
+                Err(e) => reply_sender.send(Err(e)),
+            },
+            DcpsMail::Publisher(PublisherServiceMail::DeleteDataWriter {
+                participant_handle,
+                publisher_handle,
+                datawriter_handle,
+                reply_sender,
+            }) => match self.find_participant(participant_handle) {
+                Ok(p) => reply_sender.send(
+                    p.delete_data_writer(publisher_handle, datawriter_handle)
+                        .await,
+                ),
+                Err(e) => reply_sender.send(Err(e)),
+            },
+            DcpsMail::Publisher(PublisherServiceMail::GetDefaultDataWriterQos {
+                participant_handle,
+                publisher_handle,
+                reply_sender,
+            }) => reply_sender.send(
+                self.find_participant(participant_handle)
+                    .and_then(|p| p.get_default_datawriter_qos(publisher_handle)),
+            ),
+            DcpsMail::Publisher(PublisherServiceMail::SetDefaultDataWriterQos {
+                participant_handle,
+                publisher_handle,
+                qos,
+                reply_sender,
+            }) => reply_sender.send(
+                self.find_participant(participant_handle)
+                    .and_then(|p| p.set_default_datawriter_qos(publisher_handle, qos)),
+            ),
+            DcpsMail::Publisher(PublisherServiceMail::GetPublisherQos {
+                participant_handle,
+                publisher_handle,
+                reply_sender,
+            }) => reply_sender.send(
+                self.find_participant(participant_handle)
+                    .and_then(|p| p.get_publisher_qos(publisher_handle)),
+            ),
+            DcpsMail::Publisher(PublisherServiceMail::SetPublisherQos {
+                participant_handle,
+                publisher_handle,
+                qos,
+                reply_sender,
+            }) => reply_sender.send(
+                self.find_participant(participant_handle)
+                    .and_then(|p| p.set_publisher_qos(publisher_handle, qos)),
+            ),
+            DcpsMail::Publisher(PublisherServiceMail::SetPublisherListener {
+                participant_handle,
+                publisher_handle,
+                dcps_listener,
+                mask,
+                reply_sender,
+            }) => reply_sender.send(
+                self.find_participant(participant_handle)
+                    .and_then(|p| p.set_publisher_listener(publisher_handle, dcps_listener, mask)),
+            ),
+            DcpsMail::Writer(WriterServiceMail::SetListener {
+                participant_handle,
+                publisher_handle,
+                data_writer_handle,
+                dcps_listener,
+                listener_mask,
+                reply_sender,
+            }) => reply_sender.send(self.find_participant(participant_handle).and_then(|p| {
+                p.set_listener_data_writer(
+                    publisher_handle,
+                    data_writer_handle,
+                    dcps_listener,
+                    listener_mask,
+                )
+            })),
+            DcpsMail::Writer(WriterServiceMail::GetDataWriterQos {
+                participant_handle,
+                publisher_handle,
+                data_writer_handle,
+                reply_sender,
+            }) => reply_sender.send(
+                self.find_participant(participant_handle)
+                    .and_then(|p| p.get_data_writer_qos(publisher_handle, data_writer_handle)),
+            ),
+            DcpsMail::Writer(WriterServiceMail::GetMatchedSubscriptions {
+                participant_handle,
+                publisher_handle,
+                data_writer_handle,
+                reply_sender,
+            }) => {
+                reply_sender.send(self.find_participant(participant_handle).and_then(|p| {
+                    p.get_matched_subscriptions(publisher_handle, data_writer_handle)
+                }))
+            }
+            DcpsMail::Writer(WriterServiceMail::GetMatchedSubscriptionData {
+                participant_handle,
+                publisher_handle,
+                data_writer_handle,
+                subscription_handle,
+                reply_sender,
+            }) => reply_sender.send(self.find_participant(participant_handle).and_then(|p| {
+                p.get_matched_subscription_data(
+                    publisher_handle,
+                    data_writer_handle,
+                    subscription_handle,
+                )
+            })),
+            DcpsMail::Writer(WriterServiceMail::GetPublicationMatchedStatus {
+                participant_handle,
+                publisher_handle,
+                data_writer_handle,
+                reply_sender,
+            }) => match self.find_participant(participant_handle) {
+                Ok(p) => reply_sender.send(
+                    p.get_publication_matched_status(publisher_handle, data_writer_handle)
+                        .await,
+                ),
+                Err(e) => reply_sender.send(Err(e)),
+            },
+            DcpsMail::Writer(WriterServiceMail::UnregisterInstance {
+                participant_handle,
+                publisher_handle,
+                data_writer_handle,
+                dynamic_data,
+                timestamp,
+                reply_sender,
+            }) => match self.find_participant(participant_handle) {
+                Ok(p) => reply_sender.send(
+                    p.unregister_instance(
+                        publisher_handle,
+                        data_writer_handle,
+                        dynamic_data,
+                        timestamp,
+                    )
+                    .await,
+                ),
+                Err(e) => reply_sender.send(Err(e)),
+            },
+            DcpsMail::Writer(WriterServiceMail::LookupInstance {
+                participant_handle,
+                publisher_handle,
+                data_writer_handle,
+                dynamic_data,
+                reply_sender,
+            }) => reply_sender.send(self.find_participant(participant_handle).and_then(|p| {
+                p.lookup_instance(publisher_handle, data_writer_handle, dynamic_data)
+            })),
+            DcpsMail::Writer(WriterServiceMail::WriteWTimestamp {
+                participant_handle,
+                publisher_handle,
+                data_writer_handle,
+                dynamic_data,
+                timestamp,
+                dcps_sender,
+                reply_sender,
+            }) => match self.find_participant(participant_handle) {
+                Ok(p) => {
+                    p.write_w_timestamp(
+                        dcps_sender,
+                        publisher_handle,
+                        data_writer_handle,
+                        dynamic_data,
+                        timestamp,
+                        reply_sender,
+                    )
+                    .await
+                }
+                Err(e) => reply_sender.send(Err(e)),
+            },
+
+            DcpsMail::Writer(WriterServiceMail::DisposeWTimestamp {
+                participant_handle,
+                publisher_handle,
+                data_writer_handle,
+                dynamic_data,
+                timestamp,
+                reply_sender,
+            }) => match self.find_participant(participant_handle) {
+                Ok(p) => reply_sender.send(
+                    p.dispose_w_timestamp(
+                        publisher_handle,
+                        data_writer_handle,
+                        dynamic_data,
+                        timestamp,
+                    )
+                    .await,
+                ),
+                Err(e) => reply_sender.send(Err(e)),
+            },
+            DcpsMail::Writer(WriterServiceMail::GetOfferedDeadlineMissedStatus {
+                participant_handle,
+                publisher_handle,
+                data_writer_handle,
+                reply_sender,
+            }) => match self.find_participant(participant_handle) {
+                Ok(p) => reply_sender.send(
+                    p.get_offered_deadline_missed_status(publisher_handle, data_writer_handle)
+                        .await,
+                ),
+                Err(e) => reply_sender.send(Err(e)),
+            },
+            DcpsMail::Writer(WriterServiceMail::EnableDataWriter {
+                participant_handle,
+                publisher_handle,
+                data_writer_handle,
+                dcps_sender,
+                reply_sender,
+            }) => match self.find_participant(participant_handle) {
+                Ok(p) => reply_sender.send(
+                    p.enable_data_writer(publisher_handle, data_writer_handle, dcps_sender)
+                        .await,
+                ),
+                Err(e) => reply_sender.send(Err(e)),
+            },
+            DcpsMail::Writer(WriterServiceMail::SetDataWriterQos {
+                participant_handle,
+                publisher_handle,
+                data_writer_handle,
+                qos,
+                dcps_sender,
+                reply_sender,
+            }) => match self.find_participant(participant_handle) {
+                Ok(p) => reply_sender.send(
+                    p.set_data_writer_qos(publisher_handle, data_writer_handle, qos, dcps_sender)
+                        .await,
+                ),
+                Err(e) => reply_sender.send(Err(e)),
+            },
             _ => todo!(),
         }
     }
