@@ -338,6 +338,12 @@ where
             }
         }
 
+        // Create shared type information Arcs to avoid multiple allocations
+        let spdp_participant_type = Arc::new(SpdpDiscoveredParticipantData::get_type());
+        let discovered_topic_type = Arc::new(DiscoveredTopicData::get_type());
+        let discovered_writer_type = Arc::new(DiscoveredWriterData::get_type());
+        let discovered_reader_type = Arc::new(DiscoveredReaderData::get_type());
+
         let mut topic_list = Vec::new();
 
         let spdp_topic_participant_handle = [
@@ -367,7 +373,7 @@ where
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
             None,
             vec![],
-            Arc::new(SpdpDiscoveredParticipantData::get_type()),
+            Arc::clone(&spdp_participant_type),
         );
 
         topic_list.push(TopicDescriptionKind::Topic(spdp_topic_participant));
@@ -398,7 +404,7 @@ where
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
             None,
             vec![],
-            Arc::new(DiscoveredTopicData::get_type()),
+            Arc::clone(&discovered_topic_type),
         );
 
         topic_list.push(TopicDescriptionKind::Topic(sedp_topic_topics));
@@ -429,7 +435,7 @@ where
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
             None,
             vec![],
-            Arc::new(DiscoveredWriterData::get_type()),
+            Arc::clone(&discovered_writer_type),
         );
         topic_list.push(TopicDescriptionKind::Topic(sedp_topic_publications));
 
@@ -459,7 +465,7 @@ where
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
             None,
             vec![],
-            Arc::new(DiscoveredReaderData::get_type()),
+            Arc::clone(&discovered_reader_type),
         );
         topic_list.push(TopicDescriptionKind::Topic(sedp_topic_subscriptions));
 
@@ -504,7 +510,7 @@ where
             InstanceHandle::new(rtps_stateless_reader.guid().into()),
             spdp_reader_qos,
             String::from(DCPS_PARTICIPANT),
-            Arc::new(SpdpDiscoveredParticipantData::get_type()),
+            Arc::clone(&spdp_participant_type),
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
             None,
             Vec::new(),
@@ -523,7 +529,7 @@ where
             InstanceHandle::new(dcps_topic_transport_reader.guid().into()),
             sedp_data_reader_qos(),
             String::from(DCPS_TOPIC),
-            Arc::new(DiscoveredTopicData::get_type()),
+            Arc::clone(&discovered_topic_type),
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
             None,
             Vec::new(),
@@ -542,7 +548,7 @@ where
             InstanceHandle::new(dcps_publication_transport_reader.guid().into()),
             sedp_data_reader_qos(),
             String::from(DCPS_PUBLICATION),
-            Arc::new(DiscoveredWriterData::get_type()),
+            Arc::clone(&discovered_writer_type),
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
             None,
             Vec::new(),
@@ -561,7 +567,7 @@ where
             InstanceHandle::new(dcps_subscription_transport_reader.guid().into()),
             sedp_data_reader_qos(),
             String::from(DCPS_SUBSCRIPTION),
-            Arc::new(DiscoveredReaderData::get_type()),
+            Arc::clone(&discovered_reader_type),
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
             None,
             Vec::new(),
@@ -613,7 +619,7 @@ where
             TransportWriterKind::Stateless(dcps_participant_transport_writer),
             String::from(DCPS_PARTICIPANT),
             "SpdpDiscoveredParticipantData".to_string(),
-            Arc::new(SpdpDiscoveredParticipantData::get_type()),
+            Arc::clone(&spdp_participant_type),
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
             None,
             vec![],
@@ -630,7 +636,7 @@ where
             TransportWriterKind::Stateful(dcps_topics_transport_writer),
             String::from(DCPS_TOPIC),
             "DiscoveredTopicData".to_string(),
-            Arc::new(DiscoveredTopicData::get_type()),
+            Arc::clone(&discovered_topic_type),
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
             None,
             vec![],
@@ -646,7 +652,7 @@ where
             TransportWriterKind::Stateful(dcps_publications_transport_writer),
             String::from(DCPS_PUBLICATION),
             "DiscoveredWriterData".to_string(),
-            Arc::new(DiscoveredWriterData::get_type()),
+            Arc::clone(&discovered_writer_type),
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
             None,
             vec![],
@@ -662,7 +668,7 @@ where
             TransportWriterKind::Stateful(dcps_subscriptions_transport_writer),
             String::from(DCPS_SUBSCRIPTION),
             "DiscoveredReaderData".to_string(),
-            Arc::new(DiscoveredReaderData::get_type()),
+            Arc::clone(&discovered_reader_type),
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
             None,
             vec![],
