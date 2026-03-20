@@ -2,7 +2,7 @@ use crate::{
     dcps::{
         dcps_mail::{
             DcpsMail, ParticipantFactoryMail, ParticipantServiceMail, PublisherServiceMail,
-            TopicServiceMail, WriterServiceMail,
+            SubscriberServiceMail, TopicServiceMail, WriterServiceMail,
         },
         dcps_participant_factory::DcpsParticipantFactory,
     },
@@ -594,6 +594,95 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 ),
                 Err(e) => reply_sender.send(Err(e)),
             },
+            DcpsMail::Subscriber(SubscriberServiceMail::CreateDataReader {
+                participant_handle,
+                subscriber_handle,
+                topic_name,
+                qos,
+                dcps_listener,
+                mask,
+                dcps_sender,
+                reply_sender,
+            }) => match self.find_participant(participant_handle) {
+                Ok(p) => reply_sender.send(
+                    p.create_data_reader(
+                        subscriber_handle,
+                        topic_name,
+                        qos,
+                        dcps_listener,
+                        mask,
+                        dcps_sender,
+                    )
+                    .await,
+                ),
+                Err(e) => reply_sender.send(Err(e)),
+            },
+            DcpsMail::Subscriber(SubscriberServiceMail::DeleteDataReader {
+                participant_handle,
+                subscriber_handle,
+                datareader_handle,
+                reply_sender,
+            }) => match self.find_participant(participant_handle) {
+                Ok(p) => reply_sender.send(
+                    p.delete_data_reader(subscriber_handle, datareader_handle)
+                        .await,
+                ),
+                Err(e) => reply_sender.send(Err(e)),
+            },
+            DcpsMail::Subscriber(SubscriberServiceMail::LookupDataReader {
+                participant_handle,
+                subscriber_handle,
+                topic_name,
+                reply_sender,
+            }) => reply_sender.send(
+                self.find_participant(participant_handle)
+                    .and_then(|p| p.lookup_data_reader(subscriber_handle, topic_name)),
+            ),
+            DcpsMail::Subscriber(SubscriberServiceMail::SetDefaultDataReaderQos {
+                participant_handle,
+                subscriber_handle,
+                qos,
+                reply_sender,
+            }) => reply_sender.send(
+                self.find_participant(participant_handle)
+                    .and_then(|p| p.set_default_data_reader_qos(subscriber_handle, qos)),
+            ),
+            DcpsMail::Subscriber(SubscriberServiceMail::GetDefaultDataReaderQos {
+                participant_handle,
+                subscriber_handle,
+                reply_sender,
+            }) => reply_sender.send(
+                self.find_participant(participant_handle)
+                    .and_then(|p| p.get_default_data_reader_qos(subscriber_handle)),
+            ),
+            DcpsMail::Subscriber(SubscriberServiceMail::SetQos {
+                participant_handle,
+                subscriber_handle,
+                qos,
+                reply_sender,
+            }) => reply_sender.send(
+                self.find_participant(participant_handle)
+                    .and_then(|p| p.set_subscriber_qos(subscriber_handle, qos)),
+            ),
+            DcpsMail::Subscriber(SubscriberServiceMail::GetSubscriberQos {
+                participant_handle,
+                subscriber_handle,
+                reply_sender,
+            }) => reply_sender.send(
+                self.find_participant(participant_handle)
+                    .and_then(|p| p.get_subscriber_qos(subscriber_handle)),
+            ),
+            DcpsMail::Subscriber(SubscriberServiceMail::SetListener {
+                participant_handle,
+                subscriber_handle,
+                dcps_listener,
+                mask,
+                reply_sender,
+            }) => {
+                reply_sender.send(self.find_participant(participant_handle).and_then(|p| {
+                    p.set_subscriber_listener(subscriber_handle, dcps_listener, mask)
+                }))
+            }
             _ => todo!(),
         }
     }

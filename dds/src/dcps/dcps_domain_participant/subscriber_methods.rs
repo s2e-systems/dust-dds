@@ -1,0 +1,376 @@
+use std::pin::Pin;
+
+use crate::{
+    dcps::{
+        actor::{Actor, ActorAddress},
+        channels::mpsc::MpscSender,
+        dcps_domain_participant::{
+            DataReaderEntity, DcpsDomainParticipant, SubscriberEntity, TopicDescriptionKind,
+            TransportReaderKind, get_topic_kind,
+        },
+        dcps_mail::{DcpsMail, MessageServiceMail},
+        listeners::{
+            data_reader_listener::DcpsDataReaderListener,
+            subscriber_listener::DcpsSubscriberListener,
+        },
+        status_condition::DcpsStatusCondition,
+    },
+    infrastructure::{
+        error::{DdsError, DdsResult},
+        instance::InstanceHandle,
+        qos::{DataReaderQos, QosKind, SubscriberQos},
+        qos_policy::ReliabilityQosPolicyKind,
+        status::StatusKind,
+    },
+    rtps::{history_cache::HistoryCache, stateful_reader::RtpsStatefulReader},
+    runtime::DdsRuntime,
+    transport::types::{
+        CacheChange, EntityId, Guid, ReliabilityKind, TopicKind, USER_DEFINED_READER_NO_KEY,
+        USER_DEFINED_READER_WITH_KEY,
+    },
+};
+
+impl<R: DdsRuntime> DcpsDomainParticipant<R> {
+    #[allow(clippy::too_many_arguments)]
+    #[tracing::instrument(skip(self, dcps_listener, dcps_sender))]
+    pub async fn create_data_reader(
+        &mut self,
+        subscriber_handle: InstanceHandle,
+        topic_name: String,
+        qos: QosKind<DataReaderQos>,
+        dcps_listener: Option<DcpsDataReaderListener>,
+        mask: Vec<StatusKind>,
+        dcps_sender: MpscSender<DcpsMail>,
+    ) -> DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)> {
+        struct UserDefinedReaderHistoryCache {
+            dcps_sender: MpscSender<DcpsMail>,
+            participant_handle: InstanceHandle,
+            subscriber_handle: InstanceHandle,
+            data_reader_handle: InstanceHandle,
+        }
+
+        impl HistoryCache for UserDefinedReaderHistoryCache {
+            fn add_change(
+                &mut self,
+                cache_change: CacheChange,
+            ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+                Box::pin(async move {
+                    self.dcps_sender
+                        .send(DcpsMail::Message(MessageServiceMail::AddCacheChange {
+                            cache_change,
+                            participant_handle: self.participant_handle,
+                            subscriber_handle: self.subscriber_handle,
+                            data_reader_handle: self.data_reader_handle,
+                        }))
+                        .await
+                        .ok();
+                })
+            }
+
+            fn remove_change(
+                &mut self,
+                _sequence_number: i64,
+            ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
+                todo!()
+            }
+        }
+
+        let Some(topic) = self
+            .domain_participant
+            .topic_description_list
+            .iter()
+            .find(|x| x.topic_name() == topic_name)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        let topic = match topic {
+            TopicDescriptionKind::Topic(t) => t,
+            TopicDescriptionKind::ContentFilteredTopic(content_filtered_topic) => {
+                if let Some(TopicDescriptionKind::Topic(topic)) = self
+                    .domain_participant
+                    .topic_description_list
+                    .iter()
+                    .find(|x| x.topic_name() == content_filtered_topic.related_topic_name)
+                {
+                    topic
+                } else {
+                    return Err(DdsError::AlreadyDeleted);
+                }
+            }
+        };
+
+        let topic_kind = get_topic_kind(topic.type_support.as_ref());
+
+        let type_support = topic.type_support.clone();
+        let Some(subscriber) = self
+            .domain_participant
+            .user_defined_subscriber_list
+            .iter_mut()
+            .find(|x| x.instance_handle == subscriber_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        let qos = match qos {
+            QosKind::Default => subscriber.default_data_reader_qos.clone(),
+            QosKind::Specific(q) => {
+                if q.is_consistent().is_ok() {
+                    q
+                } else {
+                    return Err(DdsError::InconsistentPolicy);
+                }
+            }
+        };
+
+        let entity_kind = match topic_kind {
+            TopicKind::NoKey => USER_DEFINED_READER_NO_KEY,
+            TopicKind::WithKey => USER_DEFINED_READER_WITH_KEY,
+        };
+        let entity_id = EntityId::new(
+            [
+                subscriber.instance_handle[12],
+                self.reader_counter.to_ne_bytes()[0],
+                self.reader_counter.to_ne_bytes()[1],
+            ],
+            entity_kind,
+        );
+        let reader_handle = InstanceHandle::new([
+            self.domain_participant.instance_handle[0],
+            self.domain_participant.instance_handle[1],
+            self.domain_participant.instance_handle[2],
+            self.domain_participant.instance_handle[3],
+            self.domain_participant.instance_handle[4],
+            self.domain_participant.instance_handle[5],
+            self.domain_participant.instance_handle[6],
+            self.domain_participant.instance_handle[7],
+            self.domain_participant.instance_handle[8],
+            self.domain_participant.instance_handle[9],
+            self.domain_participant.instance_handle[10],
+            self.domain_participant.instance_handle[11],
+            entity_id.entity_key()[0],
+            entity_id.entity_key()[1],
+            entity_id.entity_key()[2],
+            entity_id.entity_kind(),
+        ]);
+        self.reader_counter += 1;
+        let reliablity_kind = match qos.reliability.kind {
+            ReliabilityQosPolicyKind::BestEffort => ReliabilityKind::BestEffort,
+            ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
+        };
+        let guid_prefix = Guid::from(*self.domain_participant.instance_handle.as_ref()).prefix();
+        let guid = Guid::new(guid_prefix, entity_id);
+
+        let transport_reader = TransportReaderKind::Stateful(RtpsStatefulReader::new(
+            guid,
+            Box::new(UserDefinedReaderHistoryCache {
+                dcps_sender: dcps_sender.clone(),
+                participant_handle: self.domain_participant.instance_handle,
+                subscriber_handle: subscriber.instance_handle,
+                data_reader_handle: reader_handle,
+            }),
+            reliablity_kind,
+        ));
+
+        let status_condition =
+            Actor::spawn::<R>(DcpsStatusCondition::default(), &self.spawner_handle);
+        let reader_status_condition_address = status_condition.address();
+        let listener_mask = mask.to_vec();
+        let listener_sender = dcps_listener.map(|l| l.spawn::<R>(&self.spawner_handle));
+        let data_reader = DataReaderEntity::new(
+            reader_handle,
+            qos,
+            topic_name,
+            type_support,
+            status_condition,
+            listener_sender,
+            listener_mask,
+            transport_reader,
+        );
+
+        let data_reader_handle = data_reader.instance_handle;
+
+        subscriber.data_reader_list.push(data_reader);
+
+        if subscriber.enabled && subscriber.qos.entity_factory.autoenable_created_entities {
+            self.enable_data_reader(subscriber_handle, data_reader_handle, dcps_sender)
+                .await?;
+        }
+        Ok((data_reader_handle, reader_status_condition_address))
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub async fn delete_data_reader(
+        &mut self,
+        subscriber_handle: InstanceHandle,
+        datareader_handle: InstanceHandle,
+    ) -> DdsResult<()> {
+        let Some(subscriber) = self
+            .domain_participant
+            .user_defined_subscriber_list
+            .iter_mut()
+            .find(|x: &&mut SubscriberEntity| x.instance_handle == subscriber_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        if let Some(index) = subscriber
+            .data_reader_list
+            .iter()
+            .position(|x| x.instance_handle == datareader_handle)
+        {
+            let data_reader = subscriber.data_reader_list.remove(index);
+            self.announce_deleted_data_reader(data_reader).await;
+        } else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        Ok(())
+    }
+
+    #[allow(clippy::type_complexity)]
+    #[tracing::instrument(skip(self))]
+    pub fn lookup_data_reader(
+        &mut self,
+        subscriber_handle: InstanceHandle,
+        topic_name: String,
+    ) -> DdsResult<Option<(InstanceHandle, ActorAddress<DcpsStatusCondition>)>> {
+        if !self
+            .domain_participant
+            .topic_description_list
+            .iter()
+            .any(|x| x.topic_name() == topic_name)
+        {
+            return Err(DdsError::BadParameter);
+        }
+
+        // Built-in subscriber is identified by the handle of the participant itself
+        if self.domain_participant.instance_handle == subscriber_handle {
+            Ok(self
+                .domain_participant
+                .builtin_subscriber
+                .data_reader_list
+                .iter_mut()
+                .find(|dr| dr.topic_name == topic_name)
+                .map(|x| (x.instance_handle, x.status_condition.address())))
+        } else {
+            let Some(s) = self
+                .domain_participant
+                .user_defined_subscriber_list
+                .iter_mut()
+                .find(|x| x.instance_handle == subscriber_handle)
+            else {
+                return Err(DdsError::AlreadyDeleted);
+            };
+            Ok(s.data_reader_list
+                .iter_mut()
+                .find(|dr| dr.topic_name == topic_name)
+                .map(|x| (x.instance_handle, x.status_condition.address())))
+        }
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn set_default_data_reader_qos(
+        &mut self,
+        subscriber_handle: InstanceHandle,
+        qos: QosKind<DataReaderQos>,
+    ) -> DdsResult<()> {
+        let Some(subscriber) = self
+            .domain_participant
+            .user_defined_subscriber_list
+            .iter_mut()
+            .find(|x| x.instance_handle == subscriber_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        let qos = match qos {
+            QosKind::Default => DataReaderQos::default(),
+            QosKind::Specific(q) => q,
+        };
+        qos.is_consistent()?;
+        subscriber.default_data_reader_qos = qos;
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn get_default_data_reader_qos(
+        &mut self,
+        subscriber_handle: InstanceHandle,
+    ) -> DdsResult<DataReaderQos> {
+        let Some(subscriber) = self
+            .domain_participant
+            .user_defined_subscriber_list
+            .iter_mut()
+            .find(|x| x.instance_handle == subscriber_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        Ok(subscriber.default_data_reader_qos.clone())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn set_subscriber_qos(
+        &mut self,
+        subscriber_handle: InstanceHandle,
+        qos: QosKind<SubscriberQos>,
+    ) -> DdsResult<()> {
+        let qos = match qos {
+            QosKind::Default => self.domain_participant.default_subscriber_qos.clone(),
+            QosKind::Specific(q) => q,
+        };
+
+        let Some(subscriber) = self
+            .domain_participant
+            .user_defined_subscriber_list
+            .iter_mut()
+            .find(|x| x.instance_handle == subscriber_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        if subscriber.enabled {
+            subscriber.qos.check_immutability(&qos)?;
+        }
+        subscriber.qos = qos;
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn get_subscriber_qos(
+        &mut self,
+        subscriber_handle: InstanceHandle,
+    ) -> DdsResult<SubscriberQos> {
+        let Some(subscriber) = self
+            .domain_participant
+            .user_defined_subscriber_list
+            .iter_mut()
+            .find(|x| x.instance_handle == subscriber_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        Ok(subscriber.qos.clone())
+    }
+
+    #[tracing::instrument(skip(self, listener_sender_task))]
+    pub fn set_subscriber_listener(
+        &mut self,
+        subscriber_handle: InstanceHandle,
+        listener_sender_task: Option<DcpsSubscriberListener>,
+        mask: Vec<StatusKind>,
+    ) -> DdsResult<()> {
+        let Some(subscriber) = self
+            .domain_participant
+            .user_defined_subscriber_list
+            .iter_mut()
+            .find(|x| x.instance_handle == subscriber_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        let listener_sender = listener_sender_task.map(|l| l.spawn::<R>(&self.spawner_handle));
+        subscriber.listener_sender = listener_sender;
+        subscriber.listener_mask = mask;
+        Ok(())
+    }
+}

@@ -334,6 +334,7 @@ pub enum SubscriberServiceMail {
         qos: QosKind<DataReaderQos>,
         dcps_listener: Option<DcpsDataReaderListener>,
         mask: Vec<StatusKind>,
+        dcps_sender: MpscSender<DcpsMail>,
         reply_sender: OneshotSender<DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)>>,
     },
     DeleteDataReader {
