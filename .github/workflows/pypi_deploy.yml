@@ -19,17 +19,17 @@ jobs:
     strategy:
       matrix:
         platform:
-          - runner: ubuntu-22.04
+          - runner: ubuntu-latest
             target: x86_64
-          - runner: ubuntu-22.04
+          - runner: ubuntu-latest
             target: x86
-          - runner: ubuntu-22.04
+          - runner: ubuntu-latest
             target: aarch64
-          - runner: ubuntu-22.04
+          - runner: ubuntu-latest
             target: armv7
-          - runner: ubuntu-22.04
+          - runner: ubuntu-latest
             target: s390x
-          - runner: ubuntu-22.04
+          - runner: ubuntu-latest
             target: ppc64le
     steps:
       - uses: actions/checkout@v4
@@ -54,13 +54,13 @@ jobs:
     strategy:
       matrix:
         platform:
-          - runner: ubuntu-22.04
+          - runner: ubuntu-latest
             target: x86_64
-          - runner: ubuntu-22.04
+          - runner: ubuntu-latest
             target: x86
-          - runner: ubuntu-22.04
+          - runner: ubuntu-latest
             target: aarch64
-          - runner: ubuntu-22.04
+          - runner: ubuntu-latest
             target: armv7
     steps:
       - uses: actions/checkout@v4
@@ -112,9 +112,9 @@ jobs:
     strategy:
       matrix:
         platform:
-          - runner: macos-26
+          - runner: macos-latest
             target: x86_64
-          - runner: macos-26
+          - runner: macos-latest
             target: aarch64
     steps:
       - uses: actions/checkout@v4
