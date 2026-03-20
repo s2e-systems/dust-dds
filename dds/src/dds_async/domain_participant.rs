@@ -620,7 +620,7 @@ impl DomainParticipantAsync {
                 },
             ))
             .await?;
-        reply_receiver.await
+        reply_receiver.await?
     }
 }
 
@@ -633,6 +633,7 @@ impl DomainParticipantAsync {
             .send(DcpsMail::Participant(ParticipantServiceMail::SetQos {
                 participant_handle: self.handle,
                 qos,
+                dcps_sender: self.dcps_sender.clone(),
                 reply_sender,
             }))
             .await?;
@@ -685,6 +686,7 @@ impl DomainParticipantAsync {
         self.dcps_sender
             .send(DcpsMail::Participant(ParticipantServiceMail::Enable {
                 participant_handle: self.handle,
+                dcps_sender: self.dcps_sender.clone(),
                 reply_sender,
             }))
             .await?;

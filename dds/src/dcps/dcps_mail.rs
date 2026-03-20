@@ -223,11 +223,12 @@ pub enum ParticipantServiceMail {
     },
     GetCurrentTime {
         participant_handle: InstanceHandle,
-        reply_sender: OneshotSender<Time>,
+        reply_sender: OneshotSender<DdsResult<Time>>,
     },
     SetQos {
         participant_handle: InstanceHandle,
         qos: QosKind<DomainParticipantQos>,
+        dcps_sender: MpscSender<DcpsMail>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
     GetQos {
@@ -242,11 +243,8 @@ pub enum ParticipantServiceMail {
     },
     Enable {
         participant_handle: InstanceHandle,
+        dcps_sender: MpscSender<DcpsMail>,
         reply_sender: OneshotSender<DdsResult<()>>,
-    },
-    IsEmpty {
-        participant_handle: InstanceHandle,
-        reply_sender: OneshotSender<bool>,
     },
 }
 

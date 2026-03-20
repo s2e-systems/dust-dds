@@ -156,7 +156,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             self.configuration.participant_announcement_interval();
 
         spawner_handle.spawn(async move {
-            while dcps_sender
+            while dcps_sender_clone
                 .send(DcpsMail::Discovery(
                     DiscoveryServiceMail::AnnounceParticipant { participant_handle },
                 ))
@@ -188,6 +188,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             participant_sender
                 .send(DcpsMail::Participant(ParticipantServiceMail::Enable {
                     participant_handle,
+                    dcps_sender: dcps_sender.clone(),
                     reply_sender,
                 }))
                 .await

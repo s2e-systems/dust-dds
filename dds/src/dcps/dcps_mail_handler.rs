@@ -61,178 +61,247 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             }) => reply_sender.send(self.find_participant(participant_handle).and_then(|p| {
                 p.delete_user_defined_publisher(participant_handle, publisher_handle)
             })),
-            // DcpsMail::Participant(ParticipantServiceMail::CreateUserDefinedSubscriber {
-            //     participant_handle,
-            //     qos,
-            //     dcps_listener,
-            //     mask,
-            //     reply_sender,
-            // }) => reply_sender.send(self.create_user_defined_subscriber(qos, dcps_listener, mask)),
-            // DcpsMail::Participant(ParticipantServiceMail::DeleteUserDefinedSubscriber {
-            //     participant_handle,
-            //     subscriber_handle,
-            //     reply_sender,
-            // }) => reply_sender
-            //     .send(self.delete_user_defined_subscriber(participant_handle, subscriber_handle)),
-            // DcpsMail::Participant(ParticipantServiceMail::CreateTopic {
-            //     participant_handle,
-            //     topic_name,
-            //     type_name,
-            //     qos,
-            //     dcps_listener,
-            //     mask,
-            //     type_support,
-            //     dcps_sender,
-            //     reply_sender,
-            // }) => reply_sender.send(
-            //     self.create_topic(
-            //         topic_name,
-            //         type_name,
-            //         qos,
-            //         dcps_listener,
-            //         mask,
-            //         type_support,
-            //         dcps_sender,
-            //     )
-            //     .await,
-            // ),
-            // DcpsMail::Participant(ParticipantServiceMail::DeleteUserDefinedTopic {
-            //     participant_handle,
-            //     topic_name,
-            //     reply_sender,
-            // }) => reply_sender.send(self.delete_user_defined_topic(participant_handle, topic_name)),
-            // DcpsMail::Participant(ParticipantServiceMail::CreateContentFilteredTopic {
-            //     participant_handle,
-            //     name,
-            //     related_topic_name,
-            //     filter_expression,
-            //     expression_parameters,
-            //     reply_sender,
-            // }) => reply_sender.send(
-            //     self.create_content_filtered_topic(
-            //         participant_handle,
-            //         name,
-            //         related_topic_name,
-            //         filter_expression,
-            //         expression_parameters,
-            //     )
-            //     .await,
-            // ),
-            // DcpsMail::Participant(ParticipantServiceMail::DeleteContentFilteredTopic {
-            //     participant_handle,
-            //     name,
-            //     reply_sender,
-            // }) => reply_sender.send(self.delete_content_filtered_topic(participant_handle, name)),
-            // DcpsMail::Participant(ParticipantServiceMail::FindTopic {
-            //     participant_handle,
-            //     topic_name,
-            //     type_support,
-            //     reply_sender,
-            // }) => reply_sender.send(self.find_topic(topic_name, type_support)),
-            // DcpsMail::Participant(ParticipantServiceMail::LookupTopicdescription {
-            //     participant_handle,
-            //     topic_name,
-            //     reply_sender,
-            // }) => reply_sender.send(self.lookup_topicdescription(topic_name)),
-            // DcpsMail::Participant(ParticipantServiceMail::IgnoreParticipant {
-            //     participant_handle,
-            //     handle,
-            //     reply_sender,
-            // }) => reply_sender.send(self.ignore_participant(handle).await),
-            // DcpsMail::Participant(ParticipantServiceMail::IgnoreSubscription {
-            //     participant_handle,
-            //     handle,
-            //     reply_sender,
-            // }) => reply_sender.send(self.ignore_subscription(handle)),
-            // DcpsMail::Participant(ParticipantServiceMail::IgnorePublication {
-            //     participant_handle,
-            //     handle,
-            //     reply_sender,
-            // }) => reply_sender.send(self.ignore_publication(handle)),
-            // DcpsMail::Participant(ParticipantServiceMail::DeleteContainedEntities {
-            //     participant_handle,
-            //     reply_sender,
-            // }) => reply_sender.send(self.delete_participant_contained_entities().await),
-            // DcpsMail::Participant(ParticipantServiceMail::SetDefaultPublisherQos {
-            //     participant_handle,
-            //     qos,
-            //     reply_sender,
-            // }) => reply_sender.send(self.set_default_publisher_qos(qos)),
-            // DcpsMail::Participant(ParticipantServiceMail::GetDefaultPublisherQos {
-            //     participant_handle,
-            //     reply_sender,
-            // }) => reply_sender.send(self.get_default_publisher_qos()),
-            // DcpsMail::Participant(ParticipantServiceMail::SetDefaultSubscriberQos {
-            //     participant_handle,
-            //     qos,
-            //     reply_sender,
-            // }) => reply_sender.send(self.set_default_subscriber_qos(qos)),
-            // DcpsMail::Participant(ParticipantServiceMail::GetDefaultSubscriberQos {
-            //     participant_handle,
-            //     reply_sender,
-            // }) => reply_sender.send(self.get_default_subscriber_qos()),
-            // DcpsMail::Participant(ParticipantServiceMail::SetDefaultTopicQos {
-            //     participant_handle,
-            //     qos,
-            //     reply_sender,
-            // }) => reply_sender.send(self.set_default_topic_qos(qos)),
-            // DcpsMail::Participant(ParticipantServiceMail::GetDefaultTopicQos {
-            //     participant_handle,
-            //     reply_sender,
-            // }) => reply_sender.send(self.get_default_topic_qos()),
-            // DcpsMail::Participant(ParticipantServiceMail::GetCurrentTime {
-            //     participant_handle,
-            //     reply_sender,
-            // }) => reply_sender.send(self.get_current_time()),
-            // DcpsMail::Participant(ParticipantServiceMail::GetDiscoveredParticipants {
-            //     participant_handle,
-            //     reply_sender,
-            // }) => reply_sender.send(self.get_discovered_participants()),
-            // DcpsMail::Participant(ParticipantServiceMail::GetDiscoveredParticipantData {
-            //     participant_handle,
-            //     discovered_participant_handle,
-            //     reply_sender,
-            // }) => reply_sender.send(self.get_discovered_participant_data(participant_handle)),
-            // DcpsMail::Participant(ParticipantServiceMail::GetDiscoveredTopics {
-            //     participant_handle,
-            //     reply_sender,
-            // }) => reply_sender.send(self.get_discovered_topics()),
-            // DcpsMail::Participant(ParticipantServiceMail::GetDiscoveredTopicData {
-            //     participant_handle,
-            //     topic_handle,
-            //     reply_sender,
-            // }) => reply_sender.send(self.get_discovered_topic_data(topic_handle)),
-            // DcpsMail::Participant(ParticipantServiceMail::SetQos {
-            //     participant_handle,
-            //     qos,
-            //     reply_sender,
-            // }) => reply_sender.send(
-            //     self. set_domain_participant_qos(qos, dcps_sender, participant_address)
-            //         .await,
-            // ),
-            // DcpsMail::Participant(ParticipantServiceMail::GetQos {
-            //     participant_handle,
-            //     reply_sender,
-            // }) => reply_sender.send(self.get_domain_participant_qos()),
-            // DcpsMail::Participant(ParticipantServiceMail::SetListener {
-            //     participant_handle,
-            //     dcps_listener,
-            //     status_kind,
-            //     reply_sender,
-            // }) => {
-            //     reply_sender.send(self.set_domain_participant_listener(dcps_listener, status_kind))
-            // }
-            // DcpsMail::Participant(ParticipantServiceMail::Enable {
-            //     participant_handle,
-            //     reply_sender,
-            // }) => reply_sender.send(
-            //     self.enable_domain_participant(dcps_sender, participant_address)
-            //         .await,
-            // ),
-            // DcpsMail::Participant(ParticipantServiceMail::IsEmpty {
-            //     participant_handle,
-            //     reply_sender,
-            // }) => reply_sender.send(self.is_participant_empty()),
+            DcpsMail::Participant(ParticipantServiceMail::CreateUserDefinedSubscriber {
+                participant_handle,
+                qos,
+                dcps_listener,
+                mask,
+                reply_sender,
+            }) => reply_sender.send(
+                self.find_participant(participant_handle)
+                    .and_then(|p| p.create_user_defined_subscriber(qos, dcps_listener, mask)),
+            ),
+            DcpsMail::Participant(ParticipantServiceMail::DeleteUserDefinedSubscriber {
+                participant_handle,
+                subscriber_handle,
+                reply_sender,
+            }) => reply_sender.send(self.find_participant(participant_handle).and_then(|p| {
+                p.delete_user_defined_subscriber(participant_handle, subscriber_handle)
+            })),
+            DcpsMail::Participant(ParticipantServiceMail::CreateTopic {
+                participant_handle,
+                topic_name,
+                type_name,
+                qos,
+                dcps_listener,
+                mask,
+                type_support,
+                dcps_sender,
+                reply_sender,
+            }) => match self.find_participant(participant_handle) {
+                Ok(p) => reply_sender.send(
+                    p.create_topic(
+                        topic_name,
+                        type_name,
+                        qos,
+                        dcps_listener,
+                        mask,
+                        type_support,
+                        dcps_sender,
+                    )
+                    .await,
+                ),
+                Err(e) => reply_sender.send(Err(e)),
+            },
+            DcpsMail::Participant(ParticipantServiceMail::DeleteUserDefinedTopic {
+                participant_handle,
+                topic_name,
+                reply_sender,
+            }) => reply_sender.send(
+                self.find_participant(participant_handle)
+                    .and_then(|p| p.delete_user_defined_topic(participant_handle, topic_name)),
+            ),
+            DcpsMail::Participant(ParticipantServiceMail::CreateContentFilteredTopic {
+                participant_handle,
+                name,
+                related_topic_name,
+                filter_expression,
+                expression_parameters,
+                reply_sender,
+            }) => match self.find_participant(participant_handle) {
+                Ok(p) => reply_sender.send(
+                    p.create_content_filtered_topic(
+                        participant_handle,
+                        name,
+                        related_topic_name,
+                        filter_expression,
+                        expression_parameters,
+                    )
+                    .await,
+                ),
+                Err(e) => reply_sender.send(Err(e)),
+            },
+            DcpsMail::Participant(ParticipantServiceMail::DeleteContentFilteredTopic {
+                participant_handle,
+                name,
+                reply_sender,
+            }) => reply_sender.send(
+                self.find_participant(participant_handle)
+                    .and_then(|p| p.delete_content_filtered_topic(participant_handle, name)),
+            ),
+            DcpsMail::Participant(ParticipantServiceMail::FindTopic {
+                participant_handle,
+                topic_name,
+                type_support,
+                reply_sender,
+            }) => reply_sender.send(
+                self.find_participant(participant_handle)
+                    .and_then(|p| p.find_topic(topic_name, type_support)),
+            ),
+            DcpsMail::Participant(ParticipantServiceMail::LookupTopicdescription {
+                participant_handle,
+                topic_name,
+                reply_sender,
+            }) => reply_sender.send(
+                self.find_participant(participant_handle)
+                    .and_then(|p| p.lookup_topicdescription(topic_name)),
+            ),
+            DcpsMail::Participant(ParticipantServiceMail::IgnoreParticipant {
+                participant_handle,
+                handle,
+                reply_sender,
+            }) => match self.find_participant(participant_handle) {
+                Ok(p) => reply_sender.send(p.ignore_participant(handle).await),
+                Err(e) => reply_sender.send(Err(e)),
+            },
+            DcpsMail::Participant(ParticipantServiceMail::IgnoreSubscription {
+                participant_handle,
+                handle,
+                reply_sender,
+            }) => reply_sender.send(
+                self.find_participant(participant_handle)
+                    .and_then(|p| p.ignore_subscription(handle)),
+            ),
+            DcpsMail::Participant(ParticipantServiceMail::IgnorePublication {
+                participant_handle,
+                handle,
+                reply_sender,
+            }) => reply_sender.send(
+                self.find_participant(participant_handle)
+                    .and_then(|p| p.ignore_publication(handle)),
+            ),
+            DcpsMail::Participant(ParticipantServiceMail::DeleteContainedEntities {
+                participant_handle,
+                reply_sender,
+            }) => match self.find_participant(participant_handle) {
+                Ok(p) => reply_sender.send(p.delete_participant_contained_entities().await),
+                Err(e) => reply_sender.send(Err(e)),
+            },
+            DcpsMail::Participant(ParticipantServiceMail::SetDefaultPublisherQos {
+                participant_handle,
+                qos,
+                reply_sender,
+            }) => reply_sender.send(
+                self.find_participant(participant_handle)
+                    .and_then(|p| p.set_default_publisher_qos(qos)),
+            ),
+            DcpsMail::Participant(ParticipantServiceMail::GetDefaultPublisherQos {
+                participant_handle,
+                reply_sender,
+            }) => reply_sender.send(
+                self.find_participant(participant_handle)
+                    .and_then(|p| p.get_default_publisher_qos()),
+            ),
+            DcpsMail::Participant(ParticipantServiceMail::SetDefaultSubscriberQos {
+                participant_handle,
+                qos,
+                reply_sender,
+            }) => reply_sender.send(
+                self.find_participant(participant_handle)
+                    .and_then(|p| p.set_default_subscriber_qos(qos)),
+            ),
+            DcpsMail::Participant(ParticipantServiceMail::GetDefaultSubscriberQos {
+                participant_handle,
+                reply_sender,
+            }) => reply_sender.send(
+                self.find_participant(participant_handle)
+                    .and_then(|p| p.get_default_subscriber_qos()),
+            ),
+            DcpsMail::Participant(ParticipantServiceMail::SetDefaultTopicQos {
+                participant_handle,
+                qos,
+                reply_sender,
+            }) => reply_sender.send(
+                self.find_participant(participant_handle)
+                    .and_then(|p| p.set_default_topic_qos(qos)),
+            ),
+            DcpsMail::Participant(ParticipantServiceMail::GetDefaultTopicQos {
+                participant_handle,
+                reply_sender,
+            }) => reply_sender.send(
+                self.find_participant(participant_handle)
+                    .and_then(|p| p.get_default_topic_qos()),
+            ),
+            DcpsMail::Participant(ParticipantServiceMail::GetCurrentTime {
+                participant_handle,
+                reply_sender,
+            }) => reply_sender.send(
+                self.find_participant(participant_handle)
+                    .and_then(|p| Ok(p.get_current_time())),
+            ),
+            DcpsMail::Participant(ParticipantServiceMail::GetDiscoveredParticipants {
+                participant_handle,
+                reply_sender,
+            }) => reply_sender.send(
+                self.find_participant(participant_handle)
+                    .and_then(|p| p.get_discovered_participants()),
+            ),
+            DcpsMail::Participant(ParticipantServiceMail::GetDiscoveredParticipantData {
+                participant_handle,
+                discovered_participant_handle,
+                reply_sender,
+            }) => reply_sender
+                .send(self.find_participant(participant_handle).and_then(|p| {
+                    p.get_discovered_participant_data(discovered_participant_handle)
+                })),
+            DcpsMail::Participant(ParticipantServiceMail::GetDiscoveredTopics {
+                participant_handle,
+                reply_sender,
+            }) => reply_sender.send(
+                self.find_participant(participant_handle)
+                    .and_then(|p| p.get_discovered_topics()),
+            ),
+            DcpsMail::Participant(ParticipantServiceMail::GetDiscoveredTopicData {
+                participant_handle,
+                topic_handle,
+                reply_sender,
+            }) => reply_sender.send(
+                self.find_participant(participant_handle)
+                    .and_then(|p| p.get_discovered_topic_data(topic_handle)),
+            ),
+            DcpsMail::Participant(ParticipantServiceMail::SetQos {
+                participant_handle,
+                qos,
+                dcps_sender,
+                reply_sender,
+            }) => match self.find_participant(participant_handle) {
+                Ok(p) => reply_sender.send(p.set_domain_participant_qos(qos, dcps_sender).await),
+                Err(e) => reply_sender.send(Err(e)),
+            },
+            DcpsMail::Participant(ParticipantServiceMail::GetQos {
+                participant_handle,
+                reply_sender,
+            }) => reply_sender.send(
+                self.find_participant(participant_handle)
+                    .and_then(|p| p.get_domain_participant_qos()),
+            ),
+            DcpsMail::Participant(ParticipantServiceMail::SetListener {
+                participant_handle,
+                dcps_listener,
+                status_kind,
+                reply_sender,
+            }) => reply_sender.send(
+                self.find_participant(participant_handle)
+                    .and_then(|p| p.set_domain_participant_listener(dcps_listener, status_kind)),
+            ),
+            DcpsMail::Participant(ParticipantServiceMail::Enable {
+                participant_handle,
+                dcps_sender,
+                reply_sender,
+            }) => match self.find_participant(participant_handle) {
+                Ok(p) => reply_sender.send(p.enable_domain_participant(dcps_sender).await),
+                Err(e) => reply_sender.send(Err(e)),
+            },
             _ => todo!(),
         }
     }
