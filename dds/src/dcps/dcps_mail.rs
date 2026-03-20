@@ -8,7 +8,6 @@ use crate::{
     dcps::{
         actor::ActorAddress,
         channels::{mpsc::MpscSender, oneshot::OneshotSender},
-        domain_participant_mail::DcpsDomainParticipantMail,
         listeners::{
             data_reader_listener::DcpsDataReaderListener,
             data_writer_listener::DcpsDataWriterListener,
@@ -59,18 +58,11 @@ pub enum ParticipantFactoryMail {
         dcps_listener: Option<DcpsDomainParticipantListener>,
         status_kind: Vec<StatusKind>,
         dcps_sender: MpscSender<DcpsMail>,
-        #[allow(clippy::type_complexity)]
-        reply_sender: OneshotSender<
-            DdsResult<(
-                MpscSender<DcpsDomainParticipantMail>,
-                InstanceHandle,
-                ActorAddress<DcpsStatusCondition>,
-            )>,
-        >,
+        reply_sender: OneshotSender<DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)>>,
     },
     DeleteParticipant {
-        handle: InstanceHandle,
-        reply_sender: OneshotSender<DdsResult<MpscSender<DcpsDomainParticipantMail>>>,
+        participant_handle: InstanceHandle,
+        reply_sender: OneshotSender<DdsResult<()>>,
     },
     SetDefaultParticipantQos {
         qos: QosKind<DomainParticipantQos>,
@@ -127,7 +119,7 @@ pub enum ParticipantServiceMail {
         dcps_listener: Option<DcpsTopicListener>,
         mask: Vec<StatusKind>,
         type_support: Arc<DynamicType>,
-        participant_address: MpscSender<DcpsDomainParticipantMail>,
+        dcps_sender: MpscSender<DcpsMail>,
         reply_sender: OneshotSender<DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)>>,
     },
     DeleteUserDefinedTopic {
@@ -236,7 +228,6 @@ pub enum ParticipantServiceMail {
     SetQos {
         participant_handle: InstanceHandle,
         qos: QosKind<DomainParticipantQos>,
-        participant_address: MpscSender<DcpsDomainParticipantMail>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
     GetQos {
@@ -251,7 +242,6 @@ pub enum ParticipantServiceMail {
     },
     Enable {
         participant_handle: InstanceHandle,
-        participant_address: MpscSender<DcpsDomainParticipantMail>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
     IsEmpty {
@@ -280,7 +270,6 @@ pub enum TopicServiceMail {
     Enable {
         participant_handle: InstanceHandle,
         topic_name: String,
-        participant_address: MpscSender<DcpsDomainParticipantMail>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
     GetTypeSupport {
@@ -298,7 +287,6 @@ pub enum PublisherServiceMail {
         qos: QosKind<DataWriterQos>,
         dcps_listener: Option<DcpsDataWriterListener>,
         mask: Vec<StatusKind>,
-        participant_address: MpscSender<DcpsDomainParticipantMail>,
         reply_sender: OneshotSender<DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)>>,
     },
     DeleteDataWriter {
@@ -346,7 +334,6 @@ pub enum SubscriberServiceMail {
         qos: QosKind<DataReaderQos>,
         dcps_listener: Option<DcpsDataReaderListener>,
         mask: Vec<StatusKind>,
-        domain_participant_address: MpscSender<DcpsDomainParticipantMail>,
         reply_sender: OneshotSender<DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)>>,
     },
     DeleteDataReader {
@@ -445,7 +432,6 @@ pub enum WriterServiceMail {
     },
     WriteWTimestamp {
         participant_handle: InstanceHandle,
-        participant_address: MpscSender<DcpsDomainParticipantMail>,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         dynamic_data: DynamicData,
@@ -470,7 +456,6 @@ pub enum WriterServiceMail {
         participant_handle: InstanceHandle,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        participant_address: MpscSender<DcpsDomainParticipantMail>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
     SetDataWriterQos {
@@ -478,7 +463,6 @@ pub enum WriterServiceMail {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         qos: QosKind<DataWriterQos>,
-        participant_address: MpscSender<DcpsDomainParticipantMail>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
 }
@@ -488,7 +472,6 @@ pub enum ReaderServiceMail {
         participant_handle: InstanceHandle,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
-        participant_address: MpscSender<DcpsDomainParticipantMail>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
     Read {
@@ -547,7 +530,6 @@ pub enum ReaderServiceMail {
     },
     WaitForHistoricalData {
         participant_handle: InstanceHandle,
-        participant_address: MpscSender<DcpsDomainParticipantMail>,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         max_wait: Duration,
@@ -571,7 +553,6 @@ pub enum ReaderServiceMail {
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         qos: QosKind<DataReaderQos>,
-        participant_address: MpscSender<DcpsDomainParticipantMail>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
     GetQos {
@@ -593,7 +574,6 @@ pub enum ReaderServiceMail {
 pub enum MessageServiceMail {
     AddCacheChange {
         participant_handle: InstanceHandle,
-        participant_address: MpscSender<DcpsDomainParticipantMail>,
         cache_change: CacheChange,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
@@ -619,17 +599,14 @@ pub enum MessageServiceMail {
     AddBuiltinParticipantsDetectorCacheChange {
         participant_handle: InstanceHandle,
         cache_change: CacheChange,
-        participant_address: MpscSender<DcpsDomainParticipantMail>,
     },
     AddBuiltinPublicationsDetectorCacheChange {
         participant_handle: InstanceHandle,
         cache_change: CacheChange,
-        participant_address: MpscSender<DcpsDomainParticipantMail>,
     },
     AddBuiltinSubscriptionsDetectorCacheChange {
         participant_handle: InstanceHandle,
         cache_change: CacheChange,
-        participant_address: MpscSender<DcpsDomainParticipantMail>,
     },
     AddBuiltinTopicsDetectorCacheChange {
         participant_handle: InstanceHandle,
@@ -644,23 +621,16 @@ pub enum EventServiceMail {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         change_instance_handle: InstanceHandle,
-        participant_address: MpscSender<DcpsDomainParticipantMail>,
     },
     RequestedDeadlineMissed {
         participant_handle: InstanceHandle,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         change_instance_handle: InstanceHandle,
-        participant_address: MpscSender<DcpsDomainParticipantMail>,
     },
 }
 
 pub enum DiscoveryServiceMail {
-    AnnounceParticipant {
-        participant_handle: InstanceHandle,
-        participant_address: MpscSender<DcpsDomainParticipantMail>,
-    },
-    AnnounceDeletedParticipant {
-        participant_handle: InstanceHandle,
-    },
+    AnnounceParticipant { participant_handle: InstanceHandle },
+    AnnounceDeletedParticipant { participant_handle: InstanceHandle },
 }

@@ -453,7 +453,7 @@ impl<Foo> DataReader<Foo> {
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     #[tracing::instrument(skip(self))]
     pub fn get_instance_handle(&self) -> InstanceHandle {
-        block_on(self.reader_async.get_instance_handle())
+        self.reader_async.get_instance_handle()
     }
 }
 

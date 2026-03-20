@@ -1,9 +1,9 @@
 pub mod actor;
 pub mod data_representation_builtin_endpoints;
-pub mod domain_participant;
-pub mod domain_participant_factory;
-pub mod domain_participant_factory_mail;
-pub mod domain_participant_mail;
+pub mod dcps_domain_participant;
+pub mod dcps_mail;
+pub mod dcps_mail_handler;
+pub mod dcps_participant_factory;
 pub mod listeners;
 pub mod status_condition;
 pub mod status_condition_mail;

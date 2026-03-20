@@ -415,7 +415,7 @@ impl<Foo> DataWriter<Foo> {
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     #[tracing::instrument(skip(self))]
     pub fn get_instance_handle(&self) -> InstanceHandle {
-        block_on(self.writer_async.get_instance_handle())
+        self.writer_async.get_instance_handle()
     }
 }
 

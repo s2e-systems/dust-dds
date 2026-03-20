@@ -568,6 +568,6 @@ impl DomainParticipant {
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     #[tracing::instrument(skip(self))]
     pub fn get_instance_handle(&self) -> InstanceHandle {
-        block_on(self.participant_async.get_instance_handle())
+        self.participant_async.get_instance_handle()
     }
 }

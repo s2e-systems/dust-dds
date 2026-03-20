@@ -344,7 +344,6 @@ pub enum WriterServiceMail {
     },
     WriteWTimestamp {
         dcps_sender: MpscSender<DcpsMail>,
-        participant_address: MpscSender<DcpsDomainParticipantMail>,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         dynamic_data: DynamicData,
@@ -480,7 +479,6 @@ pub enum ReaderServiceMail {
 pub enum MessageServiceMail {
     AddCacheChange {
         dcps_sender: MpscSender<DcpsMail>,
-        participant_address: MpscSender<DcpsDomainParticipantMail>,
         cache_change: CacheChange,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
@@ -1252,14 +1250,12 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         match message_service_mail {
             MessageServiceMail::AddCacheChange {
                 dcps_sender,
-                participant_address,
                 cache_change,
                 subscriber_handle,
                 data_reader_handle,
             } => {
                 self.add_cache_change(
                     dcps_sender,
-                    participant_address,
                     cache_change,
                     subscriber_handle,
                     data_reader_handle,
@@ -1295,36 +1291,24 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                 dcps_sender,
                 participant_address,
             } => {
-                self.add_builtin_participants_detector_cache_change(
-                    cache_change,
-                    dcps_sender,
-                    participant_address,
-                )
-                .await
+                self.add_builtin_participants_detector_cache_change(cache_change, dcps_sender)
+                    .await
             }
             MessageServiceMail::AddBuiltinPublicationsDetectorCacheChange {
                 cache_change,
                 dcps_sender,
                 participant_address,
             } => {
-                self.add_builtin_publications_detector_cache_change(
-                    cache_change,
-                    dcps_sender,
-                    participant_address,
-                )
-                .await;
+                self.add_builtin_publications_detector_cache_change(cache_change, dcps_sender)
+                    .await;
             }
             MessageServiceMail::AddBuiltinSubscriptionsDetectorCacheChange {
                 cache_change,
                 dcps_sender,
                 participant_address,
             } => {
-                self.add_builtin_subscriptions_detector_cache_change(
-                    cache_change,
-                    dcps_sender,
-                    participant_address,
-                )
-                .await
+                self.add_builtin_subscriptions_detector_cache_change(cache_change, dcps_sender)
+                    .await
             }
             MessageServiceMail::AddBuiltinTopicsDetectorCacheChange { cache_change } => {
                 self.add_builtin_topics_detector_cache_change(cache_change)

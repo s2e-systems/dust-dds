@@ -1,4 +1,3 @@
-use super::actor::MailHandler;
 use crate::{
     dcps::{
         actor::ActorAddress,
@@ -6,10 +5,9 @@ use crate::{
             mpsc::{MpscSender, mpsc_channel},
             oneshot::oneshot,
         },
-        domain_participant::DcpsDomainParticipant,
-        domain_participant_factory_mail::{DcpsMail, ParticipantFactoryMail},
-        domain_participant_mail::{
-            DcpsDomainParticipantMail, DiscoveryServiceMail, MessageServiceMail,
+        dcps_domain_participant::DcpsDomainParticipant,
+        dcps_mail::{
+            DcpsMail, DiscoveryServiceMail, MessageServiceMail, ParticipantFactoryMail,
             ParticipantServiceMail,
         },
         listeners::domain_participant_listener::DcpsDomainParticipantListener,
@@ -28,8 +26,8 @@ use crate::{
 };
 use alloc::{borrow::ToOwned, string::String, vec::Vec};
 
-pub struct DcpsParticipantFactory<R, T> {
-    domain_participant_list: Vec<(InstanceHandle, MpscSender<DcpsDomainParticipantMail>)>,
+pub struct DcpsParticipantFactory<R: DdsRuntime, T> {
+    domain_participant_list: Vec<DcpsDomainParticipant<R>>,
     qos: DomainParticipantFactoryQos,
     default_participant_qos: DomainParticipantQos,
     configuration: DustDdsConfiguration,
@@ -87,15 +85,8 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
         qos: QosKind<DomainParticipantQos>,
         dcps_listener: Option<DcpsDomainParticipantListener>,
         status_kind: Vec<StatusKind>,
-        clock_handle: R::ClockHandle,
-        mut timer_handle: R::TimerHandle,
-        spawner_handle: R::SpawnerHandle,
         dcps_sender: MpscSender<DcpsMail>,
-    ) -> DdsResult<(
-        MpscSender<DcpsDomainParticipantMail>,
-        InstanceHandle,
-        ActorAddress<DcpsStatusCondition>,
-    )> {
+    ) -> DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)> {
         let domain_participant_qos = match qos {
             QosKind::Default => self.default_participant_qos.clone(),
             QosKind::Specific(q) => q,
@@ -109,6 +100,10 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             .create_participant(domain_id, data_channel_sender)
             .await;
 
+        let clock_handle = self.runtime.clock();
+        let mut timer_handle = self.runtime.timer();
+        let spawner_handle = self.runtime.spawner();
+
         let listener_sender = dcps_listener.map(|l| l.spawn::<R>(&spawner_handle));
 
         let mut dcps_participant: DcpsDomainParticipant<R> = DcpsDomainParticipant::new(
@@ -120,37 +115,36 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             status_kind,
             transport,
             dcps_sender.clone(),
-            participant_sender.clone(),
             clock_handle,
             timer_handle.clone(),
             spawner_handle.clone(),
         );
-        let participant_instance_handle = dcps_participant.get_instance_handle();
+        let participant_handle = dcps_participant.get_instance_handle();
         let builtin_subscriber_status_condition_address = dcps_participant
             .get_builtin_subscriber_status_condition()
             .address();
 
-        spawner_handle.spawn(async move {
-            loop {
-                match select_future(
-                    participant_receiver.receive(),
-                    data_channel_receiver.receive(),
-                )
-                .await
-                {
-                    Either::A(dcps_domain_participant_mail) => {
-                        if let Some(dcps_domain_participant_mail) = dcps_domain_participant_mail {
-                            dcps_participant.handle(dcps_domain_participant_mail).await
-                        }
-                    }
-                    Either::B(data_message) => {
-                        if let Some(data_message) = data_message {
-                            dcps_participant.handle_data(data_message).await
-                        }
-                    }
-                }
-            }
-        });
+        // spawner_handle.spawn(async move {
+        //     loop {
+        //         match select_future(
+        //             participant_receiver.receive(),
+        //             data_channel_receiver.receive(),
+        //         )
+        //         .await
+        //         {
+        //             Either::A(dcps_domain_participant_mail) => {
+        //                 if let Some(dcps_domain_participant_mail) = dcps_domain_participant_mail {
+        //                     dcps_participant.handle(dcps_domain_participant_mail).await
+        //                 }
+        //             }
+        //             Either::B(data_message) => {
+        //                 if let Some(data_message) = data_message {
+        //                     dcps_participant.handle_data(data_message).await
+        //                 }
+        //             }
+        //         }
+        //     }
+        // });
 
         //****** Spawn the participant actor and tasks **********//
 
@@ -162,12 +156,9 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             self.configuration.participant_announcement_interval();
 
         spawner_handle.spawn(async move {
-            while participant_address
-                .send(DcpsDomainParticipantMail::Discovery(
-                    DiscoveryServiceMail::AnnounceParticipant {
-                        dcps_sender: dcps_sender_clone.clone(),
-                        participant_address: participant_address.clone(),
-                    },
+            while dcps_sender
+                .send(DcpsMail::Discovery(
+                    DiscoveryServiceMail::AnnounceParticipant { participant_handle },
                 ))
                 .await
                 .is_ok()
@@ -182,7 +173,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
         let participant_address = participant_sender.clone();
         spawner_handle.spawn(async move {
             while participant_address
-                .send(DcpsDomainParticipantMail::Message(MessageServiceMail::Poke))
+                .send(DcpsMail::Message(MessageServiceMail::Poke))
                 .await
                 .is_ok()
             {
@@ -194,44 +185,50 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
 
         if self.qos.entity_factory.autoenable_created_entities {
             let (reply_sender, _reply_receiver) = oneshot();
-            let participant_address = participant_sender.clone();
             participant_sender
-                .send(DcpsDomainParticipantMail::Participant(
-                    ParticipantServiceMail::Enable {
-                        dcps_sender,
-                        participant_address,
-                        reply_sender,
-                    },
-                ))
+                .send(DcpsMail::Participant(ParticipantServiceMail::Enable {
+                    participant_handle,
+                    reply_sender,
+                }))
                 .await
                 .ok();
         }
 
-        let participant_address = participant_sender.clone();
-        self.domain_participant_list
-            .push((participant_instance_handle, participant_sender));
+        self.domain_participant_list.push(dcps_participant);
 
         Ok((
-            participant_address,
-            participant_instance_handle,
+            participant_handle,
             builtin_subscriber_status_condition_address,
         ))
     }
 
-    pub fn delete_participant(
+    pub async fn delete_participant(
         &mut self,
-        handle: InstanceHandle,
-    ) -> DdsResult<MpscSender<DcpsDomainParticipantMail>> {
+        participant_handle: InstanceHandle,
+    ) -> DdsResult<()> {
         let index = self
             .domain_participant_list
             .iter()
-            .position(|(h, _)| h == &handle)
-            .ok_or(DdsError::PreconditionNotMet(String::from(
-                "Participant can only be deleted from its parent domain participant factory",
-            )))?;
+            .position(|h| h.get_instance_handle() == participant_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
+        if !self.domain_participant_list[index].is_participant_empty() {
+            return Err(DdsError::PreconditionNotMet(String::from(
+                "Domain participant still contains other entities",
+            )));
+        }
+        let mut participant = self.domain_participant_list.remove(index);
+        participant.announce_deleted_participant().await;
+        Ok(())
+    }
 
-        let (_, participant) = self.domain_participant_list.remove(index);
-        Ok(participant)
+    pub fn find_participant(
+        &mut self,
+        participant_handle: InstanceHandle,
+    ) -> DdsResult<&mut DcpsDomainParticipant<R>> {
+        self.domain_participant_list
+            .iter_mut()
+            .find(|x| x.get_instance_handle() == participant_handle)
+            .ok_or(DdsError::AlreadyDeleted)
     }
 
     pub fn set_default_participant_qos(
@@ -272,56 +269,5 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
 
     pub fn get_configuration(&mut self) -> DustDdsConfiguration {
         self.configuration.clone()
-    }
-}
-
-impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T> {
-    pub async fn handle(&mut self, message: DcpsMail) {
-        match message {
-            DcpsMail::ParticipantFactory(ParticipantFactoryMail::CreateParticipant {
-                domain_id,
-                qos,
-                dcps_listener,
-                status_kind,
-                dcps_sender,
-                reply_sender,
-            }) => reply_sender.send(
-                self.create_participant(
-                    domain_id,
-                    qos,
-                    dcps_listener,
-                    status_kind,
-                    self.runtime.clock(),
-                    self.runtime.timer(),
-                    self.runtime.spawner(),
-                    dcps_sender,
-                )
-                .await,
-            ),
-            DcpsMail::ParticipantFactory(ParticipantFactoryMail::DeleteParticipant {
-                handle,
-                reply_sender,
-            }) => reply_sender.send(self.delete_participant(handle)),
-            DcpsMail::ParticipantFactory(ParticipantFactoryMail::SetDefaultParticipantQos {
-                qos,
-                reply_sender,
-            }) => reply_sender.send(self.set_default_participant_qos(qos)),
-            DcpsMail::ParticipantFactory(ParticipantFactoryMail::GetDefaultParticipantQos {
-                reply_sender,
-            }) => reply_sender.send(self.get_default_participant_qos()),
-            DcpsMail::ParticipantFactory(ParticipantFactoryMail::SetQos { qos, reply_sender }) => {
-                reply_sender.send(self.set_qos(qos))
-            }
-            DcpsMail::ParticipantFactory(ParticipantFactoryMail::GetQos { reply_sender }) => {
-                reply_sender.send(self.get_qos())
-            }
-            DcpsMail::ParticipantFactory(ParticipantFactoryMail::SetConfiguration {
-                configuration,
-            }) => self.set_configuration(configuration),
-            DcpsMail::ParticipantFactory(ParticipantFactoryMail::GetConfiguration {
-                reply_sender,
-            }) => reply_sender.send(self.get_configuration()),
-            _ => todo!(),
-        }
     }
 }

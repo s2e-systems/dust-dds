@@ -6,10 +6,7 @@ use crate::{
     dcps::{
         actor::ActorAddress,
         channels::{mpsc::MpscSender, oneshot::oneshot},
-        domain_participant_factory_mail::DcpsMail,
-        domain_participant_mail::{
-            DcpsDomainParticipantMail, MessageServiceMail, WriterServiceMail,
-        },
+        dcps_mail::{DcpsMail, MessageServiceMail, WriterServiceMail},
         listeners::data_writer_listener::DcpsDataWriterListener,
         status_condition::DcpsStatusCondition,
     },
@@ -66,10 +63,6 @@ impl<Foo> DataWriterAsync<Foo> {
             topic,
             phantom: PhantomData,
         }
-    }
-
-    pub(crate) fn participant_address(&self) -> &MpscSender<DcpsDomainParticipantMail> {
-        self.publisher.participant_address()
     }
 
     pub(crate) fn dcps_sender(&self) -> &MpscSender<DcpsMail> {
@@ -139,16 +132,15 @@ where
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
         let dynamic_data = instance.create_dynamic_sample();
-        self.participant_address()
-            .send(DcpsDomainParticipantMail::Writer(
-                WriterServiceMail::UnregisterInstance {
-                    publisher_handle: self.publisher.get_instance_handle().await,
-                    data_writer_handle: self.handle,
-                    dynamic_data,
-                    timestamp,
-                    reply_sender,
-                },
-            ))
+        self.dcps_sender()
+            .send(DcpsMail::Writer(WriterServiceMail::UnregisterInstance {
+                participant_handle: self.publisher.get_participant().get_instance_handle(),
+                publisher_handle: self.publisher.get_instance_handle(),
+                data_writer_handle: self.handle,
+                dynamic_data,
+                timestamp,
+                reply_sender,
+            }))
             .await?;
         reply_receiver.await?
     }
@@ -168,15 +160,14 @@ where
     pub async fn lookup_instance(&self, instance: Foo) -> DdsResult<Option<InstanceHandle>> {
         let (reply_sender, reply_receiver) = oneshot();
         let dynamic_data = instance.create_dynamic_sample();
-        self.participant_address()
-            .send(DcpsDomainParticipantMail::Writer(
-                WriterServiceMail::LookupInstance {
-                    publisher_handle: self.publisher.get_instance_handle().await,
-                    data_writer_handle: self.handle,
-                    dynamic_data,
-                    reply_sender,
-                },
-            ))
+        self.dcps_sender()
+            .send(DcpsMail::Writer(WriterServiceMail::LookupInstance {
+                participant_handle: self.publisher.get_participant().get_instance_handle(),
+                publisher_handle: self.publisher.get_instance_handle(),
+                data_writer_handle: self.handle,
+                dynamic_data,
+                reply_sender,
+            }))
             .await?;
         reply_receiver.await?
     }
@@ -202,18 +193,15 @@ where
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
         let dynamic_data = data.create_dynamic_sample();
-        self.participant_address()
-            .send(DcpsDomainParticipantMail::Writer(
-                WriterServiceMail::WriteWTimestamp {
-                    dcps_sender: self.dcps_sender().clone(),
-                    participant_address: self.participant_address().clone(),
-                    publisher_handle: self.publisher.get_instance_handle().await,
-                    data_writer_handle: self.handle,
-                    dynamic_data,
-                    timestamp,
-                    reply_sender,
-                },
-            ))
+        self.dcps_sender()
+            .send(DcpsMail::Writer(WriterServiceMail::WriteWTimestamp {
+                participant_handle: self.publisher.get_participant().get_instance_handle(),
+                publisher_handle: self.publisher.get_instance_handle(),
+                data_writer_handle: self.handle,
+                dynamic_data,
+                timestamp,
+                reply_sender,
+            }))
             .await?;
         reply_receiver.await?
     }
@@ -239,16 +227,15 @@ where
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
         let dynamic_data = data.create_dynamic_sample();
-        self.participant_address()
-            .send(DcpsDomainParticipantMail::Writer(
-                WriterServiceMail::DisposeWTimestamp {
-                    publisher_handle: self.publisher.get_instance_handle().await,
-                    data_writer_handle: self.handle,
-                    dynamic_data,
-                    timestamp,
-                    reply_sender,
-                },
-            ))
+        self.dcps_sender()
+            .send(DcpsMail::Writer(WriterServiceMail::DisposeWTimestamp {
+                participant_handle: self.publisher.get_participant().get_instance_handle(),
+                publisher_handle: self.publisher.get_instance_handle(),
+                data_writer_handle: self.handle,
+                dynamic_data,
+                timestamp,
+                reply_sender,
+            }))
             .await?;
         reply_receiver.await?
     }
@@ -260,14 +247,15 @@ impl<Foo> DataWriterAsync<Foo> {
     /// to be handle on the user side if needed.
     #[tracing::instrument(skip(self))]
     pub async fn wait_for_acknowledgments(&self) -> DdsResult<()> {
-        let participant_address = self.participant_address().clone();
-        let publisher_handle = self.get_publisher().get_instance_handle().await;
+        let participant_address = self.dcps_sender().clone();
+        let publisher_handle = self.get_publisher().get_instance_handle();
         let data_writer_handle = self.handle;
         loop {
             let (reply_sender, reply_receiver) = oneshot();
             participant_address
-                .send(DcpsDomainParticipantMail::Message(
+                .send(DcpsMail::Message(
                     MessageServiceMail::AreAllChangesAcknowledged {
+                        participant_handle: self.publisher.get_participant().get_instance_handle(),
                         publisher_handle,
                         data_writer_handle,
                         reply_sender,
@@ -299,10 +287,11 @@ impl<Foo> DataWriterAsync<Foo> {
         &self,
     ) -> DdsResult<OfferedDeadlineMissedStatus> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant_address()
-            .send(DcpsDomainParticipantMail::Writer(
+        self.dcps_sender()
+            .send(DcpsMail::Writer(
                 WriterServiceMail::GetOfferedDeadlineMissedStatus {
-                    publisher_handle: self.publisher.get_instance_handle().await,
+                    participant_handle: self.publisher.get_participant().get_instance_handle(),
+                    publisher_handle: self.publisher.get_instance_handle(),
                     data_writer_handle: self.handle,
                     reply_sender,
                 },
@@ -323,10 +312,11 @@ impl<Foo> DataWriterAsync<Foo> {
     #[tracing::instrument(skip(self))]
     pub async fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant_address()
-            .send(DcpsDomainParticipantMail::Writer(
+        self.dcps_sender()
+            .send(DcpsMail::Writer(
                 WriterServiceMail::GetPublicationMatchedStatus {
-                    publisher_handle: self.publisher.get_instance_handle().await,
+                    participant_handle: self.publisher.get_participant().get_instance_handle(),
+                    publisher_handle: self.publisher.get_instance_handle(),
                     data_writer_handle: self.handle,
                     reply_sender,
                 },
@@ -360,10 +350,11 @@ impl<Foo> DataWriterAsync<Foo> {
         subscription_handle: InstanceHandle,
     ) -> DdsResult<SubscriptionBuiltinTopicData> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant_address()
-            .send(DcpsDomainParticipantMail::Writer(
+        self.dcps_sender()
+            .send(DcpsMail::Writer(
                 WriterServiceMail::GetMatchedSubscriptionData {
-                    publisher_handle: self.publisher.get_instance_handle().await,
+                    participant_handle: self.publisher.get_participant().get_instance_handle(),
+                    publisher_handle: self.publisher.get_instance_handle(),
                     data_writer_handle: self.handle,
                     subscription_handle,
                     reply_sender,
@@ -377,10 +368,11 @@ impl<Foo> DataWriterAsync<Foo> {
     #[tracing::instrument(skip(self))]
     pub async fn get_matched_subscriptions(&self) -> DdsResult<Vec<InstanceHandle>> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant_address()
-            .send(DcpsDomainParticipantMail::Writer(
+        self.dcps_sender()
+            .send(DcpsMail::Writer(
                 WriterServiceMail::GetMatchedSubscriptions {
-                    publisher_handle: self.publisher.get_instance_handle().await,
+                    participant_handle: self.publisher.get_participant().get_instance_handle(),
+                    publisher_handle: self.publisher.get_instance_handle(),
                     data_writer_handle: self.handle,
                     reply_sender,
                 },
@@ -395,17 +387,14 @@ impl<Foo> DataWriterAsync<Foo> {
     #[tracing::instrument(skip(self))]
     pub async fn set_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant_address()
-            .send(DcpsDomainParticipantMail::Writer(
-                WriterServiceMail::SetDataWriterQos {
-                    publisher_handle: self.publisher.get_instance_handle().await,
-                    data_writer_handle: self.handle,
-                    qos,
-                    dcps_sender: self.dcps_sender().clone(),
-                    participant_address: self.participant_address().clone(),
-                    reply_sender,
-                },
-            ))
+        self.dcps_sender()
+            .send(DcpsMail::Writer(WriterServiceMail::SetDataWriterQos {
+                participant_handle: self.publisher.get_participant().get_instance_handle(),
+                publisher_handle: self.publisher.get_instance_handle(),
+                data_writer_handle: self.handle,
+                qos,
+                reply_sender,
+            }))
             .await?;
         reply_receiver.await?
     }
@@ -414,14 +403,13 @@ impl<Foo> DataWriterAsync<Foo> {
     #[tracing::instrument(skip(self))]
     pub async fn get_qos(&self) -> DdsResult<DataWriterQos> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant_address()
-            .send(DcpsDomainParticipantMail::Writer(
-                WriterServiceMail::GetDataWriterQos {
-                    publisher_handle: self.publisher.get_instance_handle().await,
-                    data_writer_handle: self.handle,
-                    reply_sender,
-                },
-            ))
+        self.dcps_sender()
+            .send(DcpsMail::Writer(WriterServiceMail::GetDataWriterQos {
+                participant_handle: self.publisher.get_participant().get_instance_handle(),
+                publisher_handle: self.publisher.get_instance_handle(),
+                data_writer_handle: self.handle,
+                reply_sender,
+            }))
             .await?;
         reply_receiver.await?
     }
@@ -442,23 +430,20 @@ impl<Foo> DataWriterAsync<Foo> {
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant_address()
-            .send(DcpsDomainParticipantMail::Writer(
-                WriterServiceMail::EnableDataWriter {
-                    publisher_handle: self.publisher.get_instance_handle().await,
-                    data_writer_handle: self.handle,
-                    dcps_sender: self.dcps_sender().clone(),
-                    participant_address: self.participant_address().clone(),
-                    reply_sender,
-                },
-            ))
+        self.dcps_sender()
+            .send(DcpsMail::Writer(WriterServiceMail::EnableDataWriter {
+                participant_handle: self.publisher.get_participant().get_instance_handle(),
+                publisher_handle: self.publisher.get_instance_handle(),
+                data_writer_handle: self.handle,
+                reply_sender,
+            }))
             .await?;
         reply_receiver.await?
     }
 
     /// Async version of [`get_instance_handle`](crate::publication::data_writer::DataWriter::get_instance_handle).
     #[tracing::instrument(skip(self))]
-    pub async fn get_instance_handle(&self) -> InstanceHandle {
+    pub fn get_instance_handle(&self) -> InstanceHandle {
         self.handle
     }
 }
@@ -472,16 +457,15 @@ impl<Foo> DataWriterAsync<Foo> {
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
         let dcps_listener = a_listener.map(DcpsDataWriterListener::new);
-        self.participant_address()
-            .send(DcpsDomainParticipantMail::Writer(
-                WriterServiceMail::SetListener {
-                    publisher_handle: self.publisher.get_instance_handle().await,
-                    data_writer_handle: self.handle,
-                    dcps_listener,
-                    listener_mask: mask.to_vec(),
-                    reply_sender,
-                },
-            ))
+        self.dcps_sender()
+            .send(DcpsMail::Writer(WriterServiceMail::SetListener {
+                participant_handle: self.publisher.get_participant().get_instance_handle(),
+                publisher_handle: self.publisher.get_instance_handle(),
+                data_writer_handle: self.handle,
+                dcps_listener,
+                listener_mask: mask.to_vec(),
+                reply_sender,
+            }))
             .await?;
         reply_receiver.await?
     }

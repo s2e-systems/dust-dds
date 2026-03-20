@@ -288,6 +288,6 @@ impl Publisher {
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     #[tracing::instrument(skip(self))]
     pub fn get_instance_handle(&self) -> InstanceHandle {
-        block_on(self.publisher_async.get_instance_handle())
+        self.publisher_async.get_instance_handle()
     }
 }

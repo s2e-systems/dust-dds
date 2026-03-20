@@ -7,8 +7,7 @@ use crate::{
     dcps::{
         actor::ActorAddress,
         channels::{mpsc::MpscSender, oneshot::oneshot},
-        domain_participant_factory_mail::DcpsMail,
-        domain_participant_mail::{DcpsDomainParticipantMail, SubscriberServiceMail},
+        dcps_mail::{DcpsMail, SubscriberServiceMail},
         listeners::{
             data_reader_listener::DcpsDataReaderListener,
             subscriber_listener::DcpsSubscriberListener,
@@ -55,10 +54,6 @@ impl SubscriberAsync {
         }
     }
 
-    pub(crate) fn participant_address(&self) -> &MpscSender<DcpsDomainParticipantMail> {
-        self.participant.participant_address()
-    }
-
     pub(crate) fn dcps_sender(&self) -> &MpscSender<DcpsMail> {
         self.participant.dcps_sender()
     }
@@ -76,16 +71,15 @@ impl SubscriberAsync {
     ) -> DdsResult<DataReaderAsync<Foo>> {
         let dcps_listener = a_listener.map(DcpsDataReaderListener::new);
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant_address()
-            .send(DcpsDomainParticipantMail::Subscriber(
+        self.dcps_sender()
+            .send(DcpsMail::Subscriber(
                 SubscriberServiceMail::CreateDataReader {
+                    participant_handle: self.participant.get_instance_handle(),
                     subscriber_handle: self.handle,
                     topic_name: a_topic.get_name(),
                     qos,
                     dcps_listener,
                     mask: mask.to_vec(),
-                    dcps_sender: self.participant.dcps_sender().clone(),
-                    domain_participant_address: self.participant_address().clone(),
                     reply_sender,
                 },
             ))
@@ -107,11 +101,12 @@ impl SubscriberAsync {
         a_datareader: &DataReaderAsync<Foo>,
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant_address()
-            .send(DcpsDomainParticipantMail::Subscriber(
+        self.dcps_sender()
+            .send(DcpsMail::Subscriber(
                 SubscriberServiceMail::DeleteDataReader {
+                    participant_handle: self.participant.get_instance_handle(),
                     subscriber_handle: self.handle,
-                    datareader_handle: a_datareader.get_instance_handle().await,
+                    datareader_handle: a_datareader.get_instance_handle(),
                     reply_sender,
                 },
             ))
@@ -127,9 +122,10 @@ impl SubscriberAsync {
     ) -> DdsResult<Option<DataReaderAsync<Foo>>> {
         if let Some(topic) = self.participant.lookup_topicdescription(topic_name).await? {
             let (reply_sender, reply_receiver) = oneshot();
-            self.participant_address()
-                .send(DcpsDomainParticipantMail::Subscriber(
+            self.dcps_sender()
+                .send(DcpsMail::Subscriber(
                     SubscriberServiceMail::LookupDataReader {
+                        participant_handle: self.participant.get_instance_handle(),
                         subscriber_handle: self.handle,
                         topic_name: String::from(topic_name),
                         reply_sender,
@@ -179,9 +175,10 @@ impl SubscriberAsync {
     #[tracing::instrument(skip(self))]
     pub async fn set_default_datareader_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant_address()
-            .send(DcpsDomainParticipantMail::Subscriber(
+        self.dcps_sender()
+            .send(DcpsMail::Subscriber(
                 SubscriberServiceMail::SetDefaultDataReaderQos {
+                    participant_handle: self.participant.get_instance_handle(),
                     subscriber_handle: self.handle,
                     qos,
                     reply_sender,
@@ -196,9 +193,10 @@ impl SubscriberAsync {
     #[tracing::instrument(skip(self))]
     pub async fn get_default_datareader_qos(&self) -> DdsResult<DataReaderQos> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant_address()
-            .send(DcpsDomainParticipantMail::Subscriber(
+        self.dcps_sender()
+            .send(DcpsMail::Subscriber(
                 SubscriberServiceMail::GetDefaultDataReaderQos {
+                    participant_handle: self.participant.get_instance_handle(),
                     subscriber_handle: self.handle,
                     reply_sender,
                 },
@@ -220,14 +218,13 @@ impl SubscriberAsync {
     #[tracing::instrument(skip(self))]
     pub async fn set_qos(&self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant_address()
-            .send(DcpsDomainParticipantMail::Subscriber(
-                SubscriberServiceMail::SetQos {
-                    subscriber_handle: self.handle,
-                    qos,
-                    reply_sender,
-                },
-            ))
+        self.dcps_sender()
+            .send(DcpsMail::Subscriber(SubscriberServiceMail::SetQos {
+                participant_handle: self.participant.get_instance_handle(),
+                subscriber_handle: self.handle,
+                qos,
+                reply_sender,
+            }))
             .await?;
         reply_receiver.await?
     }
@@ -236,9 +233,10 @@ impl SubscriberAsync {
     #[tracing::instrument(skip(self))]
     pub async fn get_qos(&self) -> DdsResult<SubscriberQos> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.participant_address()
-            .send(DcpsDomainParticipantMail::Subscriber(
+        self.dcps_sender()
+            .send(DcpsMail::Subscriber(
                 SubscriberServiceMail::GetSubscriberQos {
+                    participant_handle: self.participant.get_instance_handle(),
                     subscriber_handle: self.handle,
                     reply_sender,
                 },
@@ -256,15 +254,14 @@ impl SubscriberAsync {
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
         let dcps_listener = a_listener.map(|l| DcpsSubscriberListener::new(l));
-        self.participant_address()
-            .send(DcpsDomainParticipantMail::Subscriber(
-                SubscriberServiceMail::SetListener {
-                    subscriber_handle: self.handle,
-                    dcps_listener,
-                    mask: mask.to_vec(),
-                    reply_sender,
-                },
-            ))
+        self.dcps_sender()
+            .send(DcpsMail::Subscriber(SubscriberServiceMail::SetListener {
+                participant_handle: self.participant.get_instance_handle(),
+                subscriber_handle: self.handle,
+                dcps_listener,
+                mask: mask.to_vec(),
+                reply_sender,
+            }))
             .await?;
         reply_receiver.await?
     }
@@ -289,7 +286,7 @@ impl SubscriberAsync {
 
     /// Async version of [`get_instance_handle`](crate::subscription::subscriber::Subscriber::get_instance_handle).
     #[tracing::instrument(skip(self))]
-    pub async fn get_instance_handle(&self) -> InstanceHandle {
+    pub fn get_instance_handle(&self) -> InstanceHandle {
         self.handle
     }
 }

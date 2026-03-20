@@ -142,7 +142,7 @@ impl Topic {
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     #[tracing::instrument(skip(self))]
     pub fn get_instance_handle(&self) -> InstanceHandle {
-        block_on(self.topic_async.get_instance_handle())
+        self.topic_async.get_instance_handle()
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
