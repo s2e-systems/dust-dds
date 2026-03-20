@@ -268,6 +268,7 @@ pub enum TopicServiceMail {
     Enable {
         participant_handle: InstanceHandle,
         topic_name: String,
+        dcps_sender: MpscSender<DcpsMail>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
     GetTypeSupport {

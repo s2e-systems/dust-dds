@@ -1,6 +1,6 @@
 use crate::{
     dcps::{
-        dcps_mail::{DcpsMail, ParticipantFactoryMail, ParticipantServiceMail},
+        dcps_mail::{DcpsMail, ParticipantFactoryMail, ParticipantServiceMail, TopicServiceMail},
         dcps_participant_factory::DcpsParticipantFactory,
     },
     runtime::DdsRuntime,
@@ -302,6 +302,48 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 Ok(p) => reply_sender.send(p.enable_domain_participant(dcps_sender).await),
                 Err(e) => reply_sender.send(Err(e)),
             },
+            DcpsMail::Topic(TopicServiceMail::GetInconsistentTopicStatus {
+                participant_handle,
+                topic_name,
+                reply_sender,
+            }) => match self.find_participant(participant_handle) {
+                Ok(p) => reply_sender.send(p.get_inconsistent_topic_status(topic_name).await),
+                Err(e) => reply_sender.send(Err(e)),
+            },
+            DcpsMail::Topic(TopicServiceMail::SetQos {
+                participant_handle,
+                topic_name,
+                topic_qos,
+                reply_sender,
+            }) => reply_sender.send(
+                self.find_participant(participant_handle)
+                    .and_then(|p| p.set_topic_qos(topic_name, topic_qos)),
+            ),
+            DcpsMail::Topic(TopicServiceMail::GetQos {
+                participant_handle,
+                topic_name,
+                reply_sender,
+            }) => reply_sender.send(
+                self.find_participant(participant_handle)
+                    .and_then(|p| p.get_topic_qos(topic_name)),
+            ),
+            DcpsMail::Topic(TopicServiceMail::Enable {
+                participant_handle,
+                topic_name,
+                dcps_sender,
+                reply_sender,
+            }) => match self.find_participant(participant_handle) {
+                Ok(p) => reply_sender.send(p.enable_topic(topic_name, dcps_sender).await),
+                Err(e) => reply_sender.send(Err(e)),
+            },
+            DcpsMail::Topic(TopicServiceMail::GetTypeSupport {
+                participant_handle,
+                topic_name,
+                reply_sender,
+            }) => reply_sender.send(
+                self.find_participant(participant_handle)
+                    .and_then(|p| p.get_type_support(topic_name)),
+            ),
             _ => todo!(),
         }
     }
