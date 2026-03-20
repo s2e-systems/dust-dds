@@ -476,6 +476,7 @@ pub enum ReaderServiceMail {
         participant_handle: InstanceHandle,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
+        dcps_sender: MpscSender<DcpsMail>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
     Read {
@@ -537,7 +538,8 @@ pub enum ReaderServiceMail {
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         max_wait: Duration,
-        reply_sender: OneshotSender<Pin<Box<dyn Future<Output = DdsResult<()>> + Send>>>,
+        dcps_sender: MpscSender<DcpsMail>,
+        reply_sender: OneshotSender<DdsResult<Pin<Box<dyn Future<Output = DdsResult<()>> + Send>>>>,
     },
     GetMatchedPublicationData {
         participant_handle: InstanceHandle,
@@ -557,6 +559,7 @@ pub enum ReaderServiceMail {
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         qos: QosKind<DataReaderQos>,
+        dcps_sender: MpscSender<DcpsMail>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
     GetQos {
@@ -581,6 +584,7 @@ pub enum MessageServiceMail {
         cache_change: CacheChange,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
+        dcps_sender: MpscSender<DcpsMail>,
     },
     RemoveWriterChange {
         participant_handle: InstanceHandle,
@@ -603,20 +607,25 @@ pub enum MessageServiceMail {
     AddBuiltinParticipantsDetectorCacheChange {
         participant_handle: InstanceHandle,
         cache_change: CacheChange,
+        dcps_sender: MpscSender<DcpsMail>,
     },
     AddBuiltinPublicationsDetectorCacheChange {
         participant_handle: InstanceHandle,
         cache_change: CacheChange,
+        dcps_sender: MpscSender<DcpsMail>,
     },
     AddBuiltinSubscriptionsDetectorCacheChange {
         participant_handle: InstanceHandle,
         cache_change: CacheChange,
+        dcps_sender: MpscSender<DcpsMail>,
     },
     AddBuiltinTopicsDetectorCacheChange {
         participant_handle: InstanceHandle,
         cache_change: CacheChange,
     },
-    Poke,
+    Poke {
+        participant_handle: InstanceHandle,
+    },
 }
 
 pub enum EventServiceMail {
@@ -625,16 +634,20 @@ pub enum EventServiceMail {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         change_instance_handle: InstanceHandle,
+        dcps_sender: MpscSender<DcpsMail>,
     },
     RequestedDeadlineMissed {
         participant_handle: InstanceHandle,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         change_instance_handle: InstanceHandle,
+        dcps_sender: MpscSender<DcpsMail>,
     },
 }
 
 pub enum DiscoveryServiceMail {
-    AnnounceParticipant { participant_handle: InstanceHandle },
-    AnnounceDeletedParticipant { participant_handle: InstanceHandle },
+    AnnounceParticipant {
+        participant_handle: InstanceHandle,
+        dcps_sender: MpscSender<DcpsMail>,
+    },
 }

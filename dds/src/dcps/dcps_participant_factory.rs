@@ -149,7 +149,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
         //****** Spawn the participant actor and tasks **********//
 
         // Start the regular participant announcement task
-        let participant_address = participant_sender.clone();
         let dcps_sender_clone = dcps_sender.clone();
         let mut timer_handle_clone = timer_handle.clone();
         let participant_announcement_interval =
@@ -158,7 +157,10 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
         spawner_handle.spawn(async move {
             while dcps_sender_clone
                 .send(DcpsMail::Discovery(
-                    DiscoveryServiceMail::AnnounceParticipant { participant_handle },
+                    DiscoveryServiceMail::AnnounceParticipant {
+                        participant_handle,
+                        dcps_sender: dcps_sender_clone.clone(),
+                    },
                 ))
                 .await
                 .is_ok()
@@ -173,7 +175,9 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
         let participant_address = participant_sender.clone();
         spawner_handle.spawn(async move {
             while participant_address
-                .send(DcpsMail::Message(MessageServiceMail::Poke))
+                .send(DcpsMail::Message(MessageServiceMail::Poke {
+                    participant_handle,
+                }))
                 .await
                 .is_ok()
             {

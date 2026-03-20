@@ -54,6 +54,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                 &mut self,
                 cache_change: CacheChange,
             ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+                let dcps_sender = self.dcps_sender.clone();
                 Box::pin(async move {
                     self.dcps_sender
                         .send(DcpsMail::Message(MessageServiceMail::AddCacheChange {
@@ -61,6 +62,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                             participant_handle: self.participant_handle,
                             subscriber_handle: self.subscriber_handle,
                             data_reader_handle: self.data_reader_handle,
+                            dcps_sender,
                         }))
                         .await
                         .ok();

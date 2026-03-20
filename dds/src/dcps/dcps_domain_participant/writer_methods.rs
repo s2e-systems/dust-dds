@@ -514,6 +514,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                             publisher_handle,
                             data_writer_handle,
                             change_instance_handle: instance_handle,
+                            dcps_sender: dcps_sender_clone.clone(),
                         }))
                         .await
                         .ok();

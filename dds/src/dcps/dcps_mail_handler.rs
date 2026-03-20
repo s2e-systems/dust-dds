@@ -1,8 +1,9 @@
 use crate::{
     dcps::{
         dcps_mail::{
-            DcpsMail, ParticipantFactoryMail, ParticipantServiceMail, PublisherServiceMail,
-            SubscriberServiceMail, TopicServiceMail, WriterServiceMail,
+            DcpsMail, DiscoveryServiceMail, EventServiceMail, MessageServiceMail,
+            ParticipantFactoryMail, ParticipantServiceMail, PublisherServiceMail,
+            ReaderServiceMail, SubscriberServiceMail, TopicServiceMail, WriterServiceMail,
         },
         dcps_participant_factory::DcpsParticipantFactory,
     },
@@ -683,7 +684,345 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                     p.set_subscriber_listener(subscriber_handle, dcps_listener, mask)
                 }))
             }
-            _ => todo!(),
+            DcpsMail::Reader(ReaderServiceMail::Read {
+                participant_handle,
+                subscriber_handle,
+                data_reader_handle,
+                max_samples,
+                sample_states,
+                view_states,
+                instance_states,
+                specific_instance_handle,
+                reply_sender,
+            }) => match self.find_participant(participant_handle) {
+                Ok(p) => reply_sender.send(
+                    p.read(
+                        subscriber_handle,
+                        data_reader_handle,
+                        max_samples,
+                        sample_states,
+                        view_states,
+                        instance_states,
+                        specific_instance_handle,
+                    )
+                    .await,
+                ),
+                Err(e) => reply_sender.send(Err(e)),
+            },
+            DcpsMail::Reader(ReaderServiceMail::Take {
+                participant_handle,
+                subscriber_handle,
+                data_reader_handle,
+                max_samples,
+                sample_states,
+                view_states,
+                instance_states,
+                specific_instance_handle,
+                reply_sender,
+            }) => match self.find_participant(participant_handle) {
+                Ok(p) => reply_sender.send(
+                    p.take(
+                        subscriber_handle,
+                        data_reader_handle,
+                        max_samples,
+                        sample_states,
+                        view_states,
+                        instance_states,
+                        specific_instance_handle,
+                    )
+                    .await,
+                ),
+                Err(e) => reply_sender.send(Err(e)),
+            },
+            DcpsMail::Reader(ReaderServiceMail::ReadNextInstance {
+                participant_handle,
+                subscriber_handle,
+                data_reader_handle,
+                max_samples,
+                previous_handle,
+                sample_states,
+                view_states,
+                instance_states,
+                reply_sender,
+            }) => match self.find_participant(participant_handle) {
+                Ok(p) => reply_sender.send(
+                    p.read_next_instance(
+                        subscriber_handle,
+                        data_reader_handle,
+                        max_samples,
+                        previous_handle,
+                        sample_states,
+                        view_states,
+                        instance_states,
+                    )
+                    .await,
+                ),
+                Err(e) => reply_sender.send(Err(e)),
+            },
+            DcpsMail::Reader(ReaderServiceMail::TakeNextInstance {
+                participant_handle,
+                subscriber_handle,
+                data_reader_handle,
+                max_samples,
+                previous_handle,
+                sample_states,
+                view_states,
+                instance_states,
+                reply_sender,
+            }) => match self.find_participant(participant_handle) {
+                Ok(p) => reply_sender.send(
+                    p.take_next_instance(
+                        subscriber_handle,
+                        data_reader_handle,
+                        max_samples,
+                        previous_handle,
+                        sample_states,
+                        view_states,
+                        instance_states,
+                    )
+                    .await,
+                ),
+                Err(e) => reply_sender.send(Err(e)),
+            },
+            DcpsMail::Reader(ReaderServiceMail::Enable {
+                participant_handle,
+                subscriber_handle,
+                data_reader_handle,
+                dcps_sender,
+                reply_sender,
+            }) => match self.find_participant(participant_handle) {
+                Ok(p) => reply_sender.send(
+                    p.enable_data_reader(subscriber_handle, data_reader_handle, dcps_sender)
+                        .await,
+                ),
+                Err(e) => reply_sender.send(Err(e)),
+            },
+            DcpsMail::Reader(ReaderServiceMail::GetSubscriptionMatchedStatus {
+                participant_handle,
+                subscriber_handle,
+                data_reader_handle,
+                reply_sender,
+            }) => match self.find_participant(participant_handle) {
+                Ok(p) => reply_sender.send(
+                    p.get_subscription_matched_status(subscriber_handle, data_reader_handle)
+                        .await,
+                ),
+                Err(e) => reply_sender.send(Err(e)),
+            },
+            DcpsMail::Reader(ReaderServiceMail::WaitForHistoricalData {
+                participant_handle,
+                subscriber_handle,
+                data_reader_handle,
+                max_wait,
+                dcps_sender,
+                reply_sender,
+            }) => reply_sender.send(self.find_participant(participant_handle).and_then(|p| {
+                Ok(p.wait_for_historical_data(
+                    dcps_sender,
+                    subscriber_handle,
+                    data_reader_handle,
+                    max_wait,
+                ))
+            })),
+            DcpsMail::Reader(ReaderServiceMail::GetMatchedPublicationData {
+                participant_handle,
+                subscriber_handle,
+                data_reader_handle,
+                publication_handle,
+                reply_sender,
+            }) => reply_sender.send(self.find_participant(participant_handle).and_then(|p| {
+                p.get_matched_publication_data(
+                    subscriber_handle,
+                    data_reader_handle,
+                    publication_handle,
+                )
+            })),
+            DcpsMail::Reader(ReaderServiceMail::GetMatchedPublications {
+                participant_handle,
+                subscriber_handle,
+                data_reader_handle,
+                reply_sender,
+            }) => {
+                reply_sender.send(self.find_participant(participant_handle).and_then(|p| {
+                    p.get_matched_publications(subscriber_handle, data_reader_handle)
+                }))
+            }
+            DcpsMail::Reader(ReaderServiceMail::GetQos {
+                participant_handle,
+                subscriber_handle,
+                data_reader_handle,
+                reply_sender,
+            }) => reply_sender.send(
+                self.find_participant(participant_handle)
+                    .and_then(|p| p.get_data_reader_qos(subscriber_handle, data_reader_handle)),
+            ),
+            DcpsMail::Reader(ReaderServiceMail::SetQos {
+                participant_handle,
+                subscriber_handle,
+                data_reader_handle,
+                qos,
+                dcps_sender,
+                reply_sender,
+            }) => match self.find_participant(participant_handle) {
+                Ok(p) => reply_sender.send(
+                    p.set_data_reader_qos(subscriber_handle, data_reader_handle, qos, dcps_sender)
+                        .await,
+                ),
+                Err(e) => reply_sender.send(Err(e)),
+            },
+            DcpsMail::Reader(ReaderServiceMail::SetListener {
+                participant_handle,
+                subscriber_handle,
+                data_reader_handle,
+                dcps_listener,
+                listener_mask,
+                reply_sender,
+            }) => reply_sender.send(self.find_participant(participant_handle).and_then(|p| {
+                p.set_data_reader_listener(
+                    subscriber_handle,
+                    data_reader_handle,
+                    dcps_listener,
+                    listener_mask,
+                )
+            })),
+            DcpsMail::Message(MessageServiceMail::AddCacheChange {
+                participant_handle,
+                dcps_sender,
+                cache_change,
+                subscriber_handle,
+                data_reader_handle,
+            }) => {
+                if let Ok(p) = self.find_participant(participant_handle) {
+                    p.add_cache_change(
+                        dcps_sender,
+                        cache_change,
+                        subscriber_handle,
+                        data_reader_handle,
+                    )
+                    .await
+                }
+            }
+            DcpsMail::Message(MessageServiceMail::RemoveWriterChange {
+                participant_handle,
+                publisher_handle,
+                data_writer_handle,
+                sequence_number,
+            }) => {
+                if let Ok(p) = self.find_participant(participant_handle) {
+                    p.remove_writer_change(publisher_handle, data_writer_handle, sequence_number)
+                        .await
+                }
+            }
+            DcpsMail::Message(MessageServiceMail::AreAllChangesAcknowledged {
+                participant_handle,
+                publisher_handle,
+                data_writer_handle,
+                reply_sender,
+            }) => match self.find_participant(participant_handle) {
+                Ok(p) => reply_sender.send(
+                    p.are_all_changes_acknowledged(publisher_handle, data_writer_handle)
+                        .await,
+                ),
+                Err(e) => reply_sender.send(Err(e)),
+            },
+            DcpsMail::Message(MessageServiceMail::IsHistoricalDataReceived {
+                participant_handle,
+                subscriber_handle,
+                data_reader_handle,
+                reply_sender,
+            }) => match self.find_participant(participant_handle) {
+                Ok(p) => reply_sender.send(
+                    p.is_historical_data_received(subscriber_handle, data_reader_handle)
+                        .await,
+                ),
+                Err(e) => reply_sender.send(Err(e)),
+            },
+            DcpsMail::Message(MessageServiceMail::AddBuiltinParticipantsDetectorCacheChange {
+                participant_handle,
+                cache_change,
+                dcps_sender,
+            }) => {
+                if let Ok(p) = self.find_participant(participant_handle) {
+                    p.add_builtin_participants_detector_cache_change(cache_change, dcps_sender)
+                        .await
+                }
+            }
+            DcpsMail::Message(MessageServiceMail::AddBuiltinPublicationsDetectorCacheChange {
+                participant_handle,
+                cache_change,
+                dcps_sender,
+            }) => {
+                if let Ok(p) = self.find_participant(participant_handle) {
+                    p.add_builtin_publications_detector_cache_change(cache_change, dcps_sender)
+                        .await
+                };
+            }
+            DcpsMail::Message(MessageServiceMail::AddBuiltinSubscriptionsDetectorCacheChange {
+                participant_handle,
+                cache_change,
+                dcps_sender,
+            }) => {
+                if let Ok(p) = self.find_participant(participant_handle) {
+                    p.add_builtin_subscriptions_detector_cache_change(cache_change, dcps_sender)
+                        .await
+                }
+            }
+            DcpsMail::Message(MessageServiceMail::AddBuiltinTopicsDetectorCacheChange {
+                participant_handle,
+                cache_change,
+            }) => {
+                if let Ok(p) = self.find_participant(participant_handle) {
+                    p.add_builtin_topics_detector_cache_change(cache_change)
+                        .await
+                }
+            }
+            DcpsMail::Message(MessageServiceMail::Poke { participant_handle }) => {
+                if let Ok(p) = self.find_participant(participant_handle) {
+                    p.poke().await
+                }
+            }
+            DcpsMail::Event(EventServiceMail::OfferedDeadlineMissed {
+                participant_handle,
+                publisher_handle,
+                data_writer_handle,
+                change_instance_handle,
+                dcps_sender,
+            }) => {
+                if let Ok(p) = self.find_participant(participant_handle) {
+                    p.offered_deadline_missed(
+                        publisher_handle,
+                        data_writer_handle,
+                        change_instance_handle,
+                        dcps_sender,
+                    )
+                    .await
+                }
+            }
+            DcpsMail::Event(EventServiceMail::RequestedDeadlineMissed {
+                participant_handle,
+                subscriber_handle,
+                data_reader_handle,
+                change_instance_handle,
+                dcps_sender,
+            }) => {
+                if let Ok(p) = self.find_participant(participant_handle) {
+                    p.requested_deadline_missed(
+                        subscriber_handle,
+                        data_reader_handle,
+                        change_instance_handle,
+                        dcps_sender,
+                    )
+                    .await
+                }
+            }
+            DcpsMail::Discovery(DiscoveryServiceMail::AnnounceParticipant {
+                participant_handle,
+                dcps_sender,
+            }) => {
+                if let Ok(p) = self.find_participant(participant_handle) {
+                    p.announce_participant(dcps_sender).await
+                }
+            }
         }
     }
 }
