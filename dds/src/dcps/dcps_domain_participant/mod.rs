@@ -347,6 +347,12 @@ where
             }
         }
 
+        // Create shared type information Arcs to avoid multiple allocations
+        let spdp_participant_type = Arc::new(SpdpDiscoveredParticipantData::get_type());
+        let discovered_topic_type = Arc::new(DiscoveredTopicData::get_type());
+        let discovered_writer_type = Arc::new(DiscoveredWriterData::get_type());
+        let discovered_reader_type = Arc::new(DiscoveredReaderData::get_type());
+
         let mut topic_list = Vec::new();
 
         let spdp_topic_participant_handle = [
@@ -376,7 +382,7 @@ where
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
             None,
             vec![],
-            Arc::new(SpdpDiscoveredParticipantData::get_type()),
+            Arc::clone(&spdp_participant_type),
         );
 
         topic_list.push(TopicDescriptionKind::Topic(spdp_topic_participant));
@@ -407,7 +413,7 @@ where
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
             None,
             vec![],
-            Arc::new(DiscoveredTopicData::get_type()),
+            Arc::clone(&discovered_topic_type),
         );
 
         topic_list.push(TopicDescriptionKind::Topic(sedp_topic_topics));
@@ -438,7 +444,7 @@ where
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
             None,
             vec![],
-            Arc::new(DiscoveredWriterData::get_type()),
+            Arc::clone(&discovered_writer_type),
         );
         topic_list.push(TopicDescriptionKind::Topic(sedp_topic_publications));
 
@@ -468,7 +474,7 @@ where
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
             None,
             vec![],
-            Arc::new(DiscoveredReaderData::get_type()),
+            Arc::clone(&discovered_reader_type),
         );
         topic_list.push(TopicDescriptionKind::Topic(sedp_topic_subscriptions));
 
@@ -514,7 +520,7 @@ where
             InstanceHandle::new(rtps_stateless_reader.guid().into()),
             spdp_reader_qos,
             String::from(DCPS_PARTICIPANT),
-            Arc::new(SpdpDiscoveredParticipantData::get_type()),
+            Arc::clone(&spdp_participant_type),
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
             None,
             Vec::new(),
@@ -534,7 +540,7 @@ where
             InstanceHandle::new(dcps_topic_transport_reader.guid().into()),
             sedp_data_reader_qos(),
             String::from(DCPS_TOPIC),
-            Arc::new(DiscoveredTopicData::get_type()),
+            Arc::clone(&discovered_topic_type),
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
             None,
             Vec::new(),
@@ -554,7 +560,7 @@ where
             InstanceHandle::new(dcps_publication_transport_reader.guid().into()),
             sedp_data_reader_qos(),
             String::from(DCPS_PUBLICATION),
-            Arc::new(DiscoveredWriterData::get_type()),
+            Arc::clone(&discovered_writer_type),
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
             None,
             Vec::new(),
@@ -574,7 +580,7 @@ where
             InstanceHandle::new(dcps_subscription_transport_reader.guid().into()),
             sedp_data_reader_qos(),
             String::from(DCPS_SUBSCRIPTION),
-            Arc::new(DiscoveredReaderData::get_type()),
+            Arc::clone(&discovered_reader_type),
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
             None,
             Vec::new(),
@@ -626,7 +632,7 @@ where
             TransportWriterKind::Stateless(dcps_participant_transport_writer),
             String::from(DCPS_PARTICIPANT),
             "SpdpDiscoveredParticipantData".to_string(),
-            Arc::new(SpdpDiscoveredParticipantData::get_type()),
+            Arc::clone(&spdp_participant_type),
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
             None,
             vec![],
@@ -643,7 +649,7 @@ where
             TransportWriterKind::Stateful(dcps_topics_transport_writer),
             String::from(DCPS_TOPIC),
             "DiscoveredTopicData".to_string(),
-            Arc::new(DiscoveredTopicData::get_type()),
+            Arc::clone(&discovered_topic_type),
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
             None,
             vec![],
@@ -659,7 +665,7 @@ where
             TransportWriterKind::Stateful(dcps_publications_transport_writer),
             String::from(DCPS_PUBLICATION),
             "DiscoveredWriterData".to_string(),
-            Arc::new(DiscoveredWriterData::get_type()),
+            Arc::clone(&discovered_writer_type),
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
             None,
             vec![],
@@ -675,7 +681,7 @@ where
             TransportWriterKind::Stateful(dcps_subscriptions_transport_writer),
             String::from(DCPS_SUBSCRIPTION),
             "DiscoveredReaderData".to_string(),
-            Arc::new(DiscoveredReaderData::get_type()),
+            Arc::clone(&discovered_reader_type),
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
             None,
             vec![],
@@ -2625,12 +2631,48 @@ where
                     ) else {
                         return;
                     };
+                    enum Operator {
+                        LessThan,
+                        Equal,
+                    }
 
-                    if let Some((variable_name, _position_value)) = content_filtered_topic
-                        .filter_expression
-                        .trim()
-                        .split_once("=")
-                    {
+                    impl Operator {
+                        fn to_str(&self) -> &'static str {
+                            match self {
+                                Self::Equal => "=",
+                                Self::LessThan => "<=",
+                            }
+                        }
+
+                        fn compare_string(&self, lhs: &String, rhs: &String) -> bool {
+                            match self {
+                                Self::Equal => lhs == rhs,
+                                Self::LessThan => lhs <= rhs,
+                            }
+                        }
+                        fn compare_int32(&self, lhs: &i32, rhs: &i32) -> bool {
+                            match self {
+                                Self::Equal => lhs == rhs,
+                                Self::LessThan => lhs <= rhs,
+                            }
+                        }
+                    }
+
+                    let mut operators = [Operator::LessThan, Operator::Equal].iter();
+                    let filter = loop {
+                        if let Some(operator) = operators.next() {
+                            if let Some((variable_name, _)) = content_filtered_topic
+                                .filter_expression
+                                .split_once(operator.to_str())
+                            {
+                                break Some((variable_name, operator));
+                            }
+                        } else {
+                            break None;
+                        };
+                    };
+
+                    if let Some((variable_name, comparison_function)) = filter {
                         let Some(member_id) = data.get_member_id_by_name(variable_name.trim())
                         else {
                             return;
@@ -2643,7 +2685,17 @@ where
                             crate::xtypes::dynamic_type::TypeKind::BOOLEAN => todo!(),
                             crate::xtypes::dynamic_type::TypeKind::BYTE => todo!(),
                             crate::xtypes::dynamic_type::TypeKind::INT16 => todo!(),
-                            crate::xtypes::dynamic_type::TypeKind::INT32 => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::INT32 => {
+                                let member_value = data.get_int32_value(member_id).unwrap();
+                                if !comparison_function.compare_int32(
+                                    member_value,
+                                    &content_filtered_topic.expression_parameters[0]
+                                        .parse()
+                                        .expect("valid number"),
+                                ) {
+                                    return;
+                                }
+                            }
                             crate::xtypes::dynamic_type::TypeKind::INT64 => todo!(),
                             crate::xtypes::dynamic_type::TypeKind::UINT16 => todo!(),
                             crate::xtypes::dynamic_type::TypeKind::UINT32 => todo!(),
@@ -2657,8 +2709,10 @@ where
                             crate::xtypes::dynamic_type::TypeKind::CHAR16 => todo!(),
                             crate::xtypes::dynamic_type::TypeKind::STRING8 => {
                                 let member_value = data.get_string_value(member_id).unwrap();
-                                if member_value != &content_filtered_topic.expression_parameters[0]
-                                {
+                                if !comparison_function.compare_string(
+                                    member_value,
+                                    &content_filtered_topic.expression_parameters[0],
+                                ) {
                                     return;
                                 }
                             }

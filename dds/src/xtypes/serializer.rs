@@ -522,12 +522,18 @@ impl<'a, W: Write, E: EndiannessWrite> XTypesSerializer for Xcdr2Serializer<'a, 
     }
 
     fn serialize_appendable_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
+        // DHEADER
+        let mut byte_conter = ByteCounter::new();
+        let mut byte_conter_serializer = Xcdr2Serializer {
+            writer: CdrWriter::new(&mut byte_conter, LittleEndian, EncodingVersion2),
+        };
+        for member_id in 0..v.get_item_count() {
+            byte_conter_serializer.serialize_dynamic_data_member(v, member_id)?;
+        }
+        (byte_conter.0 as u32).serialize(&mut self.writer);
+
         for field_index in 0..v.get_item_count() {
             let member_id = v.get_member_id_at_index(field_index)?;
-            // DHEADER
-            let length = count_bytes_cdr2(v, member_id)? as u32;
-            length.serialize(&mut self.writer);
-            // Value
             self.serialize_dynamic_data_member(v, member_id)?;
         }
         Ok(())
@@ -1329,88 +1335,82 @@ mod tests {
         );
     }
 
-    // #[derive(TypeSupport, Clone)]
-    // struct FinalOptionalType {
-    //     field: u8,
-    //     #[dust_dds(optional)]
-    //     optional_field: i32,
-    // }
+    #[test]
+    fn serialize_appendable_shapes() {
+        #[derive(Debug, PartialEq, TypeSupport)]
+        #[dust_dds(extensibility = "appendable")]
+        struct AppendableShapesType {
+            #[dust_dds(key)]
+            color: String,
+            x: i32,
+            y: i32,
+            shapesize: i32,
+            additional_payload_size: Vec<u8>,
+        }
+        let v = AppendableShapesType {
+            color: String::from("BLUE"),
+            x: 10,
+            y: 20,
+            shapesize: 30,
+            additional_payload_size: vec![],
+        }
+        .create_dynamic_sample();
 
-    // #[test]
-    // fn serialize_final_optional_struct_some() {
-    //     let some = FinalOptionalType {
-    //         field: 6,
-    //         optional_field: Some(7),
-    //     };
-    //     //PLAIN_CDR:
-    //     assert_eq!(
-    //         serialize_v1_be(some.clone()),
-    //         vec![
-    //             6, 0, 0, 0, // u8 | padding
-    //             0, 0, 0, 2, // HEADER (FLAGS+ID | length)
-    //             0, 7, // optional_field value
-    //         ]
-    //     );
-    //     assert_eq!(
-    //         serialize_v1_le(some.clone()),
-    //         vec![
-    //             6, 0, 0, 0, // u8 | padding
-    //             0, 0, 2, 0, // HEADER (FLAGS+ID | length)
-    //             7, 0 // optional_field value
-    //         ]
-    //     );
-    //     //PLAIN_CDR2:
-    //     assert_eq!(
-    //         serialize_v2_be(some.clone()),
-    //         vec![
-    //             6, 1, // u8 | boolean for option
-    //             0, 7 // optional_field value
-    //         ]
-    //     );
-    //     assert_eq!(
-    //         serialize_v2_le(some.clone()),
-    //         vec![
-    //             6, 1, // u8 | boolean for option
-    //             7, 0 // optional_field value
-    //         ]
-    //     );
-    // }
-
-    // #[test]
-    // fn serialize_final_optional_struct_none() {
-    //     let none = FinalOptionalType {
-    //         field: 6,
-    //         optional_field: None,
-    //     };
-    //     // PLAIN_CDR:
-    //     assert_eq!(
-    //         serialize_v1_be(none.clone()),
-    //         vec![
-    //             6, 0, 0, 0, // u8 | padding
-    //             0, 0, 0, 0, // HEADER (FLAGS+ID | length)
-    //         ]
-    //     );
-    //     assert_eq!(
-    //         serialize_v1_le(none.clone()),
-    //         vec![
-    //             6, 0, 0, 0, // u8 | padding
-    //             0, 0, 0, 0, // HEADER (FLAGS+ID | length)
-    //         ]
-    //     );
-    //     // PLAIN_CDR2:
-    //     assert_eq!(
-    //         serialize_v2_be(none.clone()),
-    //         vec![
-    //         6, 0, // u8 | boolean for option
-    //     ]
-    //     );
-    //     assert_eq!(
-    //         serialize_v2_le(none.clone()),
-    //         vec![
-    //         6, 0, // u8 | boolean for option
-    //     ]
-    //     );
-    // }
+        assert_eq!(
+            serialize_v1_be(&v),
+            vec![
+                0x00, 0x00, 0x00, 0x00, // CDR_BE
+                0, 0, 0, 5, // color: length
+                b'B', b'L', b'U', b'E', // color
+                0, 0, 0, 0, // color: terminating 0 | padding
+                0, 0, 0, 10, // x
+                0, 0, 0, 20, // y
+                0, 0, 0, 30, // shapesize
+                0, 0, 0, 0, // additional_payload_size: length
+            ]
+        );
+        assert_eq!(
+            serialize_v1_le(&v),
+            vec![
+                0x00, 0x01, 0x00, 0x00, // CDR_LE
+                5, 0, 0, 0, // color: length
+                b'B', b'L', b'U', b'E', // color
+                0, 0, 0, 0, // color: terminating 0 | padding
+                10, 0, 0, 0, // x
+                20, 0, 0, 0, // y
+                30, 0, 0, 0, // shapesize
+                0, 0, 0, 0, // additional_payload_size: length
+            ]
+        );
+        assert_eq!(
+            serialize_v2_be(&v),
+            vec![
+                0x00, 0x08, 0x00, 0x00, // D_CDR2_BE
+                0, 0, 0, 28, // Dheader
+                0, 0, 0, 5, // color: length
+                b'B', b'L', b'U', b'E', // color
+                0, 0, 0, 0, // color: terminating 0 | padding
+                0, 0, 0, 10, // x
+                0, 0, 0, 20, // y
+                0, 0, 0, 30, // shapesize
+                0, 0, 0, 0, // additional_payload_size: length
+            ]
+        );
+        assert_eq!(
+            serialize_v2_le(&v),
+            vec![
+                0x00, 0x09, 0x00, 0x00, // D_CDR2_LE
+                28, 0, 0, 0, // Dheader
+                5, 0, 0, 0, // color: length
+                b'B', b'L', b'U', b'E', // color
+                0, 0, 0, 0, // color: terminating 0 | padding
+                10, 0, 0, 0, // x
+                20, 0, 0, 0, // y
+                30, 0, 0, 0, // shapesize
+                0, 0, 0, 0, // additional_payload_size: length
+            ]
+        );
+    }
 }
 
 #[cfg(test)]
