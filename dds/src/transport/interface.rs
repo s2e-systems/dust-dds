@@ -27,6 +27,6 @@ pub trait TransportParticipantFactory: Send + 'static {
     fn create_participant(
         &self,
         domain_id: i32,
-        data_receiver: impl ReceiveMessage + Clone,
+        data_receiver: impl ReceiveMessage,
     ) -> impl Future<Output = RtpsTransportParticipant> + Send;
 }

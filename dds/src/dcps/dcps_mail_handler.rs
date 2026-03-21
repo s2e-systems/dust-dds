@@ -241,7 +241,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 reply_sender,
             }) => reply_sender.send(
                 self.find_participant(participant_handle)
-                    .and_then(|p| Ok(p.get_current_time())),
+                    .map(|p| p.get_current_time()),
             ),
             DcpsMail::Participant(ParticipantServiceMail::GetDiscoveredParticipants {
                 participant_handle,
@@ -816,13 +816,13 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 max_wait,
                 dcps_sender,
                 reply_sender,
-            }) => reply_sender.send(self.find_participant(participant_handle).and_then(|p| {
-                Ok(p.wait_for_historical_data(
+            }) => reply_sender.send(self.find_participant(participant_handle).map(|p| {
+                p.wait_for_historical_data(
                     dcps_sender,
                     subscriber_handle,
                     data_reader_handle,
                     max_wait,
-                ))
+                )
             })),
             DcpsMail::Reader(ReaderServiceMail::GetMatchedPublicationData {
                 participant_handle,

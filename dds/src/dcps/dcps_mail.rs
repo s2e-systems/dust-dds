@@ -539,6 +539,7 @@ pub enum ReaderServiceMail {
         data_reader_handle: InstanceHandle,
         max_wait: Duration,
         dcps_sender: MpscSender<DcpsMail>,
+        #[allow(clippy::type_complexity)]
         reply_sender: OneshotSender<DdsResult<Pin<Box<dyn Future<Output = DdsResult<()>> + Send>>>>,
     },
     GetMatchedPublicationData {
