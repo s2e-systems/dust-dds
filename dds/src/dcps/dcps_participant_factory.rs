@@ -20,7 +20,7 @@ use crate::{
     runtime::{DdsRuntime, Spawner, Timer},
     transport::{
         interface::{ReceiveMessage, TransportParticipantFactory},
-        types::GuidPrefix,
+        types::{ENTITYID_PARTICIPANT, Guid, GuidPrefix},
     },
 };
 use alloc::{borrow::ToOwned, string::String, vec::Vec};
@@ -98,7 +98,8 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                         participant_handle: self.participant_handle,
                         data_message,
                     }))
-                    .await;
+                    .await
+                    .ok();
             }
         }
 
@@ -108,13 +109,14 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
         };
 
         let guid_prefix = self.create_new_guid_prefix();
+        let participant_handle = InstanceHandle::from(Guid::new(guid_prefix, ENTITYID_PARTICIPANT));
         let transport = self
             .transport
             .create_participant(
                 domain_id,
                 TransportDataReceiver {
-                    participant_handle: todo!(),
-                    dcps_sender: dcps_sender,
+                    participant_handle,
+                    dcps_sender: dcps_sender.clone(),
                 },
             )
             .await;
@@ -125,7 +127,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
 
         let listener_sender = dcps_listener.map(|l| l.spawn::<R>(&spawner_handle));
 
-        let mut dcps_participant: DcpsDomainParticipant<R> = DcpsDomainParticipant::new(
+        let dcps_participant: DcpsDomainParticipant<R> = DcpsDomainParticipant::new(
             domain_id,
             self.configuration.domain_tag().to_owned(),
             guid_prefix,
@@ -169,9 +171,9 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
         });
 
         // Start regular message writing
-        let participant_address = dcps_sender.clone();
+        let dcps_sender_clone = dcps_sender.clone();
         spawner_handle.spawn(async move {
-            while dcps_sender
+            while dcps_sender_clone
                 .send(DcpsMail::Message(MessageServiceMail::Poke {
                     participant_handle,
                 }))
