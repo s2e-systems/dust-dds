@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use alloc::{string::String, sync::Arc};
 
 use crate::{
     dcps::{

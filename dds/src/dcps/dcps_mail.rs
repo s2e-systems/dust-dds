@@ -1,4 +1,5 @@
-use std::{pin::Pin, sync::Arc};
+use alloc::{boxed::Box, string::String, sync::Arc};
+use core::pin::Pin;
 
 use crate::{
     builtin_topics::{

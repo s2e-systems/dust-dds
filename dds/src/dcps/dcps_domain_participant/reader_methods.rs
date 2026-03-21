@@ -1,4 +1,5 @@
-use std::pin::Pin;
+use alloc::{vec::Vec, boxed::Box, string::String};
+use core::pin::Pin;
 
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,

@@ -1,11 +1,7 @@
 use super::domain_participant::DomainParticipantAsync;
 use crate::{
     dcps::{
-        channels::{
-            mpsc::{MpscSender, mpsc_channel},
-            oneshot::oneshot,
-        },
-        dcps_participant_factory::DcpsParticipantFactory,
+        channels::{mpsc::MpscSender, oneshot::oneshot},
         dcps_mail::{DcpsMail, ParticipantFactoryMail},
         listeners::domain_participant_listener::DcpsDomainParticipantListener,
     },
@@ -198,8 +194,8 @@ impl DomainParticipantFactoryAsync {
             let app_id = std::process::id().to_ne_bytes();
             let transport = crate::rtps_udp_transport::udp_transport::RtpsUdpTransportParticipantFactory::default();
             let mut domain_participant_factory =
-            DcpsParticipantFactory::new(app_id, host_id, runtime, transport);
-            let (dcps_sender, mailbox_recv) = mpsc_channel();
+            crate::dcps::dcps_participant_factory::DcpsParticipantFactory::new(app_id, host_id, runtime, transport);
+            let (dcps_sender, mailbox_recv) = crate::dcps::channels::mpsc::mpsc_channel();
             executor_handle.spawn(async move {
                 while let Some(m) = mailbox_recv.receive().await {
                     domain_participant_factory.handle(m).await;
