@@ -1,4 +1,5 @@
-use alloc::{vec::Vec, string::String};
+use alloc::{string::String, vec::Vec};
+
 use crate::{
     dcps::{
         actor::{Actor, ActorAddress},
