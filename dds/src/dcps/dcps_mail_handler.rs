@@ -976,6 +976,14 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                         .await
                 }
             }
+            DcpsMail::Message(MessageServiceMail::HandleData {
+                participant_handle,
+                data_message,
+            }) => {
+                if let Ok(p) = self.find_participant(participant_handle) {
+                    p.handle_data(data_message).await;
+                }
+            }
             DcpsMail::Message(MessageServiceMail::Poke { participant_handle }) => {
                 if let Ok(p) = self.find_participant(participant_handle) {
                     p.poke().await

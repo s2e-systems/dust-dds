@@ -623,6 +623,10 @@ pub enum MessageServiceMail {
         participant_handle: InstanceHandle,
         cache_change: CacheChange,
     },
+    HandleData {
+        participant_handle: InstanceHandle,
+        data_message: Arc<[u8]>,
+    },
     Poke {
         participant_handle: InstanceHandle,
     },

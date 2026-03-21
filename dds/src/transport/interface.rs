@@ -1,4 +1,4 @@
-use crate::{dcps::channels::mpsc::MpscSender, transport::types::Locator};
+use crate::transport::types::Locator;
 use alloc::{boxed::Box, sync::Arc, vec::Vec};
 use core::{future::Future, pin::Pin};
 
@@ -8,6 +8,10 @@ pub trait WriteMessage {
         buf: &[u8],
         locators: &[Locator],
     ) -> Pin<Box<dyn Future<Output = ()> + Send>>;
+}
+
+pub trait ReceiveMessage: Send + Clone + 'static {
+    fn receive_message(&self, data_message: Arc<[u8]>) -> impl Future<Output = ()> + Send;
 }
 
 pub struct RtpsTransportParticipant {
@@ -23,6 +27,6 @@ pub trait TransportParticipantFactory: Send + 'static {
     fn create_participant(
         &self,
         domain_id: i32,
-        data_channel_sender: MpscSender<Arc<[u8]>>,
+        data_receiver: impl ReceiveMessage + Clone,
     ) -> impl Future<Output = RtpsTransportParticipant> + Send;
 }

@@ -1,8 +1,9 @@
 use crate::{
-    dcps::channels::mpsc::MpscSender,
     std_runtime::{self},
     transport::{
-        interface::{RtpsTransportParticipant, TransportParticipantFactory, WriteMessage},
+        interface::{
+            ReceiveMessage, RtpsTransportParticipant, TransportParticipantFactory, WriteMessage,
+        },
         types::LOCATOR_KIND_UDP_V6,
     },
 };
@@ -155,7 +156,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
     async fn create_participant(
         &self,
         domain_id: i32,
-        data_channel_sender: MpscSender<Arc<[u8]>>,
+        data_channel_sender: impl ReceiveMessage,
     ) -> RtpsTransportParticipant {
         let interface_address_list = NetworkInterface::show()
             .expect("Could not scan interfaces")
@@ -244,9 +245,8 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                     if let Ok(size) = metatraffic_multicast_socket.recv(&mut buf) {
                         if size > 0 {
                             std_runtime::executor::block_on(
-                                data_channel_sender_clone.send(Arc::from(&buf[..size])),
-                            )
-                            .expect("chanel_message sender alive");
+                                data_channel_sender_clone.receive_message(Arc::from(&buf[..size])),
+                            );
                         }
                     }
                 }
@@ -262,9 +262,8 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                     if let Ok(size) = metatraffic_unicast_socket.recv(&mut buf) {
                         if size > 0 {
                             std_runtime::executor::block_on(
-                                data_channel_sender_clone.send(Arc::from(&buf[..size])),
+                                data_channel_sender_clone.receive_message(Arc::from(&buf[..size])),
                             )
-                            .expect("chanel_message sender alive")
                         }
                     }
                 }
@@ -280,9 +279,8 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                     if let Ok(size) = default_unicast_socket.recv(&mut buf) {
                         if size > 0 {
                             std_runtime::executor::block_on(
-                                data_channel_sender_clone.send(Arc::from(&buf[..size])),
+                                data_channel_sender_clone.receive_message(Arc::from(&buf[..size])),
                             )
-                            .expect("chanel_message sender alive");
                         }
                     }
                 }
