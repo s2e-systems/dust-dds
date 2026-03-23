@@ -101,7 +101,8 @@ impl DomainParticipantAsync {
         self.dcps_sender
             .send(DcpsMail::Participant(
                 ParticipantServiceMail::DeleteUserDefinedPublisher {
-                    participant_handle: a_publisher.get_participant().handle,
+                    participant_handle: self.handle,
+                    parent_participant_handle: a_publisher.get_participant().handle,
                     publisher_handle: a_publisher.get_instance_handle(),
                     reply_sender,
                 },
@@ -145,7 +146,8 @@ impl DomainParticipantAsync {
         self.dcps_sender
             .send(DcpsMail::Participant(
                 ParticipantServiceMail::DeleteUserDefinedSubscriber {
-                    participant_handle: a_subscriber.get_participant().handle,
+                    participant_handle: self.handle,
+                    parent_participant_handle: a_subscriber.get_participant().handle,
                     subscriber_handle: a_subscriber.get_instance_handle(),
                     reply_sender,
                 },
@@ -218,6 +220,7 @@ impl DomainParticipantAsync {
             .send(DcpsMail::Participant(
                 ParticipantServiceMail::DeleteUserDefinedTopic {
                     participant_handle: a_topic.get_participant().handle,
+                    parent_participant_handle: self.handle,
                     topic_name: a_topic.get_name(),
                     reply_sender,
                 },

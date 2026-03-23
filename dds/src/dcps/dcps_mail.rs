@@ -97,6 +97,7 @@ pub enum ParticipantServiceMail {
     },
     DeleteUserDefinedPublisher {
         participant_handle: InstanceHandle,
+        parent_participant_handle: InstanceHandle,
         publisher_handle: InstanceHandle,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
@@ -109,6 +110,7 @@ pub enum ParticipantServiceMail {
     },
     DeleteUserDefinedSubscriber {
         participant_handle: InstanceHandle,
+        parent_participant_handle: InstanceHandle,
         subscriber_handle: InstanceHandle,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
@@ -125,6 +127,7 @@ pub enum ParticipantServiceMail {
     },
     DeleteUserDefinedTopic {
         participant_handle: InstanceHandle,
+        parent_participant_handle: InstanceHandle,
         topic_name: String,
         reply_sender: OneshotSender<DdsResult<()>>,
     },

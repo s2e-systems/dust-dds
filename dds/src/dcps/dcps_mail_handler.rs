@@ -60,10 +60,11 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             ),
             DcpsMail::Participant(ParticipantServiceMail::DeleteUserDefinedPublisher {
                 participant_handle,
+                parent_participant_handle,
                 publisher_handle,
                 reply_sender,
             }) => reply_sender.send(self.find_participant(participant_handle).and_then(|p| {
-                p.delete_user_defined_publisher(participant_handle, publisher_handle)
+                p.delete_user_defined_publisher(parent_participant_handle, publisher_handle)
             })),
             DcpsMail::Participant(ParticipantServiceMail::CreateUserDefinedSubscriber {
                 participant_handle,
@@ -77,10 +78,11 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             ),
             DcpsMail::Participant(ParticipantServiceMail::DeleteUserDefinedSubscriber {
                 participant_handle,
+                parent_participant_handle,
                 subscriber_handle,
                 reply_sender,
             }) => reply_sender.send(self.find_participant(participant_handle).and_then(|p| {
-                p.delete_user_defined_subscriber(participant_handle, subscriber_handle)
+                p.delete_user_defined_subscriber(parent_participant_handle, subscriber_handle)
             })),
             DcpsMail::Participant(ParticipantServiceMail::CreateTopic {
                 participant_handle,
@@ -109,12 +111,14 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             },
             DcpsMail::Participant(ParticipantServiceMail::DeleteUserDefinedTopic {
                 participant_handle,
+                parent_participant_handle,
                 topic_name,
                 reply_sender,
-            }) => reply_sender.send(
-                self.find_participant(participant_handle)
-                    .and_then(|p| p.delete_user_defined_topic(participant_handle, topic_name)),
-            ),
+            }) => {
+                reply_sender.send(self.find_participant(participant_handle).and_then(|p| {
+                    p.delete_user_defined_topic(parent_participant_handle, topic_name)
+                }))
+            }
             DcpsMail::Participant(ParticipantServiceMail::CreateContentFilteredTopic {
                 participant_handle,
                 name,
