@@ -94,6 +94,11 @@ jobs:
             valgrind --tool=massif --massif-out-file=massif.out $TEST_BIN read_only_unread_samples --exact
       - store_artifacts:
           path: massif.out
+      - run:
+          name: Convert heap usage data to text
+          command: ms_print massif.out > massif_report.txt
+      - store_artifacts:
+          path: massif_report.txt
   tests:
     docker:
       - image: cimg/rust:1.87.0
