@@ -1,12 +1,12 @@
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
+        listener::NO_LISTENER,
         qos::QosKind,
         status::{NO_STATUS, StatusKind},
         time::Duration,
         type_support::DdsType,
     },
-    listener::NO_LISTENER,
     wait_set::{Condition, WaitSet},
 };
 

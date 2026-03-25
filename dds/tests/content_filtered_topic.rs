@@ -1,13 +1,13 @@
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
+        listener::NO_LISTENER,
         qos::{DataReaderQos, DataWriterQos, QosKind},
         qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         status::{NO_STATUS, StatusKind},
         time::{Duration, DurationKind},
     },
-    listener::NO_LISTENER,
     wait_set::{Condition, WaitSet},
 };
 use dust_dds_derive::DdsType;

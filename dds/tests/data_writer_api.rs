@@ -2,12 +2,12 @@ use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         error::DdsError,
+        listener::NO_LISTENER,
         qos::{DataWriterQos, QosKind},
         qos_policy::{HistoryQosPolicy, HistoryQosPolicyKind, Length, ResourceLimitsQosPolicy},
         status::NO_STATUS,
         type_support::DdsType,
     },
-    listener::NO_LISTENER,
 };
 
 mod utils;

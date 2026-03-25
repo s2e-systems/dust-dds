@@ -4,6 +4,7 @@ use self::interoperability::test::HelloWorldType;
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
+        listener::NO_LISTENER,
         qos::{DataReaderQos, QosKind},
         qos_policy::{
             DurabilityQosPolicy, DurabilityQosPolicyKind, ReliabilityQosPolicy,
@@ -13,7 +14,6 @@ use dust_dds::{
         status::{NO_STATUS, StatusKind},
         time::{Duration, DurationKind},
     },
-    listener::NO_LISTENER,
     wait_set::{Condition, WaitSet},
 };
 

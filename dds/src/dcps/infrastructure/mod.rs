@@ -7,6 +7,9 @@ pub mod error;
 /// Classes related to the instance handle that identifies the entities.
 pub mod instance;
 
+/// Classes related to the listener infrastructure.
+pub mod listener;
+
 /// Classes related to the qos policies for the different entities.
 pub mod qos;
 

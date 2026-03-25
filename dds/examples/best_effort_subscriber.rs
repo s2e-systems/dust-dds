@@ -7,12 +7,12 @@ use dust_dds::{
     dds_async::data_reader::DataReaderAsync,
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
+        listener::NO_LISTENER,
         qos::QosKind,
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         status::{NO_STATUS, StatusKind},
         type_support::DdsType,
     },
-    listener::NO_LISTENER,
     subscription::data_reader_listener::DataReaderListener,
 };
 

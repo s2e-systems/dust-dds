@@ -3,6 +3,7 @@ use dust_dds::{
     infrastructure::{
         error::DdsError,
         instance::InstanceHandle,
+        listener::NO_LISTENER,
         qos::{DataReaderQos, DataWriterQos, QosKind, TopicQos},
         qos_policy::{
             DeadlineQosPolicy, DestinationOrderQosPolicy, DestinationOrderQosPolicyKind,
@@ -19,7 +20,6 @@ use dust_dds::{
         time::{Duration, DurationKind, Time},
         type_support::DdsType,
     },
-    listener::NO_LISTENER,
     topic_definition::topic_description::TopicDescription,
     wait_set::{Condition, WaitSet},
 };

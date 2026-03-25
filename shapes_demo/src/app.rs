@@ -9,6 +9,7 @@ use dust_dds::{
         domain_participant::DomainParticipant, domain_participant_factory::DomainParticipantFactory,
     },
     infrastructure::{
+        listener::NO_LISTENER,
         qos::{DataReaderQos, DataWriterQos, QosKind},
         qos_policy::{
             DestinationOrderQosPolicy, DestinationOrderQosPolicyKind, HistoryQosPolicy,
@@ -19,7 +20,6 @@ use dust_dds::{
         status::NO_STATUS,
         time::DurationKind,
     },
-    listener::NO_LISTENER,
     publication::{data_writer::DataWriter, publisher::Publisher},
     subscription::{data_reader::DataReader, subscriber::Subscriber},
 };

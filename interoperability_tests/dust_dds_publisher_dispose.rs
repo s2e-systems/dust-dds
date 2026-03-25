@@ -4,6 +4,7 @@ use self::interoperability::test::DisposeDataType;
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
+        listener::NO_LISTENER,
         qos::{DataWriterQos, QosKind},
         qos_policy::{
             DurabilityQosPolicy, DurabilityQosPolicyKind, ReliabilityQosPolicy,
@@ -13,7 +14,6 @@ use dust_dds::{
         time::{Duration, DurationKind},
         type_support::TypeSupport,
     },
-    listener::NO_LISTENER,
     wait_set::{Condition, WaitSet},
 };
 

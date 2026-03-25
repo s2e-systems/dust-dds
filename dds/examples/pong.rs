@@ -1,12 +1,12 @@
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
+        listener::NO_LISTENER,
         qos::{DataReaderQos, DataWriterQos, QosKind},
         qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
         status::{NO_STATUS, StatusKind},
         time::{Duration, DurationKind},
     },
-    listener::NO_LISTENER,
     wait_set::{Condition, WaitSet},
 };
 use dust_dds_derive::DdsType;

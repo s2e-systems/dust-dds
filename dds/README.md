@@ -17,8 +17,7 @@ A basic example on how to use Dust DDS. The publisher side can be implemented as
 ```rust
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
-    listener::NO_LISTENER,
-    infrastructure::{qos::QosKind, status::NO_STATUS, type_support::DdsType},
+    infrastructure::{listener::NO_LISTENER, qos::QosKind, status::NO_STATUS, type_support::DdsType},
 };
 
 #[derive(DdsType)]
@@ -59,8 +58,7 @@ The subscriber side can be implemented as:
 ```rust
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
-    listener::NO_LISTENER,
-    infrastructure::{qos::QosKind, status::NO_STATUS, type_support::DdsType},
+    infrastructure::{listener::NO_LISTENER, qos::QosKind, status::NO_STATUS, type_support::DdsType},
 };
 
 #[derive(Debug, DdsType)]

@@ -5,6 +5,7 @@ use dust_dds::{
         wait_set::{ConditionAsync, WaitSetAsync},
     },
     infrastructure::{
+        listener::NO_LISTENER,
         qos::{DataReaderQos, DataWriterQos, QosKind},
         qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
@@ -12,7 +13,6 @@ use dust_dds::{
         time::{Duration, DurationKind},
         type_support::DdsType,
     },
-    listener::NO_LISTENER,
 };
 
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
