@@ -1,5 +1,3 @@
-use alloc::sync::Arc;
-
 use crate::{
     dcps::{
         actor::ActorAddress,
@@ -19,7 +17,7 @@ use crate::{
     },
     runtime::{DdsRuntime, Spawner, Timer},
     transport::{
-        interface::{ReceiveMessage, TransportParticipantFactory},
+        interface::{TransportDataReceiver, TransportParticipantFactory},
         types::{ENTITYID_PARTICIPANT, Guid, GuidPrefix},
     },
 };
@@ -86,23 +84,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
         status_kind: Vec<StatusKind>,
         dcps_sender: MpscSender<DcpsMail>,
     ) -> DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)> {
-        #[derive(Clone)]
-        struct TransportDataReceiver {
-            participant_handle: InstanceHandle,
-            dcps_sender: MpscSender<DcpsMail>,
-        }
-        impl ReceiveMessage for TransportDataReceiver {
-            async fn receive_message(&self, data_message: Arc<[u8]>) {
-                self.dcps_sender
-                    .send(DcpsMail::Message(MessageServiceMail::HandleData {
-                        participant_handle: self.participant_handle,
-                        data_message,
-                    }))
-                    .await
-                    .ok();
-            }
-        }
-
         let domain_participant_qos = match qos {
             QosKind::Default => self.default_participant_qos.clone(),
             QosKind::Specific(q) => q,
@@ -114,10 +95,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             .transport
             .create_participant(
                 domain_id,
-                TransportDataReceiver {
-                    participant_handle,
-                    dcps_sender: dcps_sender.clone(),
-                },
+                TransportDataReceiver::new(participant_handle, dcps_sender.clone()),
             )
             .await;
 

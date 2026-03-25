@@ -2,7 +2,8 @@ use crate::{
     std_runtime::{self},
     transport::{
         interface::{
-            ReceiveMessage, RtpsTransportParticipant, TransportParticipantFactory, WriteMessage,
+            RtpsTransportParticipant, TransportDataReceiver, TransportParticipantFactory,
+            WriteMessage,
         },
         types::LOCATOR_KIND_UDP_V6,
     },
@@ -156,7 +157,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
     async fn create_participant(
         &self,
         domain_id: i32,
-        data_channel_sender: impl ReceiveMessage,
+        data_channel_sender: TransportDataReceiver,
     ) -> RtpsTransportParticipant {
         let interface_address_list = NetworkInterface::show()
             .expect("Could not scan interfaces")
