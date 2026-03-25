@@ -54,7 +54,7 @@ pub struct RtpsTransportParticipant {
 }
 pub trait TransportParticipantFactory: Send + 'static {
     fn create_participant(
-        &self,
+        &mut self,
         domain_id: i32,
         data_receiver: TransportDataReceiver,
     ) -> impl Future<Output = RtpsTransportParticipant> + Send;
