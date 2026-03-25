@@ -178,10 +178,15 @@ jobs:
           name: Check compilation time
           command: cargo build --package dust_dds --timings --tests --examples      
       - run:
-          name: Check binary size
+          name: Check binary size hello_world_publisher
           command: cargo bloat -p dust_dds --example hello_world_publisher --release --wide -n 100 --filter dust_dds > hello_world_publisher_bloat.txt
       - store_artifacts:
           path: hello_world_publisher_bloat.txt
+      - run:
+          name: Check binary size hello_world_subscriber
+          command: cargo bloat -p dust_dds --example hello_world_subscriber --release --wide -n 100 --filter dust_dds > hello_world_subscriber_bloat.txt
+      - store_artifacts:
+          path: hello_world_subscriber_bloat.txt
       - run:
           name: Install nightly toolchain
           command: rustup toolchain install nightly
