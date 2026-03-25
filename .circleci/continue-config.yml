@@ -173,17 +173,19 @@ jobs:
           command: cargo build --package dust_dds --timings --tests --examples      
       - run:
           name: Check binary size
-          command: cargo bloat --release --wide --filter dust_dds -n 100
+          command: cargo bloat -p dust_dds --example hello_world_publisher --release --wide -n 100 --filter dust_dds > hello_world_publisher_bloat.txt
+      - store_artifacts:
+          path: hello_world_publisher_bloat.txt
       - run:
           name: Install nightly toolchain
           command: rustup toolchain install nightly
       - run:
           name: Print type sizes
-          command: cargo +nightly rustc --package dust_dds --release -- -Zprint-type-sizes > type_sizes
+          command: cargo +nightly rustc --package dust_dds --release -- -Zprint-type-sizes > type_sizes.txt
       - store_artifacts:
           path: ./target/cargo-timings
       - store_artifacts:
-          path: type_sizes
+          path: type_sizes.txt
 
   interoperability_tests:
     docker:
