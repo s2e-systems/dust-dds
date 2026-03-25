@@ -91,10 +91,13 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
 
         let guid_prefix = self.create_new_guid_prefix();
         let participant_handle = InstanceHandle::from(Guid::new(guid_prefix, ENTITYID_PARTICIPANT));
-        let transport = self.transport.create_participant(
-            domain_id,
-            TransportDataReceiver::new(participant_handle, dcps_sender.clone()),
-        );
+        let transport = self
+            .transport
+            .create_participant(
+                domain_id,
+                TransportDataReceiver::new(participant_handle, dcps_sender.clone()),
+            )
+            .await;
 
         let clock_handle = self.runtime.clock();
         let mut timer_handle = self.runtime.timer();

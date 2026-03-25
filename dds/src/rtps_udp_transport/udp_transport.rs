@@ -154,7 +154,7 @@ impl Default for RtpsUdpTransportParticipantFactory {
 }
 
 impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
-    fn create_participant(
+    async fn create_participant(
         &self,
         domain_id: i32,
         data_channel_sender: TransportDataReceiver,
