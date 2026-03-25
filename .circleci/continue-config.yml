@@ -149,8 +149,16 @@ jobs:
       - run:
           name: Check binary size
           command: cargo bloat --release --wide --filter dust_dds -n 100
+      - run:
+          name: Install nightly toolchain
+          command: rustup toolchain install nightly
+      - run:
+          name: Print type sizes
+          command: cargo +nightly rustc --package dust_dds --release -- -Zprint-type-sizes > type_sizes
       - store_artifacts:
           path: ./target/cargo-timings
+      - store_artifacts:
+          path: type_sizes
 
   interoperability_tests:
     docker:
