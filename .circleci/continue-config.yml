@@ -71,7 +71,7 @@ jobs:
       - run: cargo --version
       - run: cargo clippy --all-features --all-targets --all
       - run: cargo fmt --check --all
-  benchmark:
+  performance_benchmark:
     docker:
       - image: cimg/rust:1.87.0
     resource_class: large
@@ -84,6 +84,12 @@ jobs:
       # Performance regression is not explicitly checked due to measurement instability issues
       - store_artifacts:
           path: ./target/criterion
+  memory_benchmark:
+    docker:
+      - image: cimg/rust:1.87.0
+    resource_class: large
+    steps:
+      - checkout
       - run:
           name: Install Valgrind and jq
           command: sudo apt-get update && sudo apt-get install -y valgrind jq
@@ -91,7 +97,7 @@ jobs:
           name: Measure heap usage
           command: |
             TEST_BIN=$(cargo test --package dust_dds --test write_read_samples read_only_unread_samples --no-run --message-format=json -- --exact | jq -r 'select(.profile.test == true) | .executable' | grep -v null)
-            valgrind --tool=massif --massif-out-file=massif.out $TEST_BIN read_only_unread_samples --exact
+            valgrind --tool=massif --massif-out-file=massif.out $TEST_BIN read_only_unread_samples -- --exact
       - store_artifacts:
           path: massif.out
       - run:
@@ -336,7 +342,8 @@ workflows:
       - tests
       - hello_world_on_macos
       - hello_world_on_windows
-      - benchmark
+      - performance_benchmark
+      - memory_benchmark
       - build_metrics
       - code_checks
       - multi_machine_tests
