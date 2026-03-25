@@ -150,9 +150,19 @@ jobs:
     resource_class: large
     steps:
       - checkout
+      - restore_cache:
+          keys:
+            - cargo-bloat-bin-v1-{{ arch }}
       - run:
           name: Install cargo-bloat
-          command: cargo install cargo-bloat
+          command: |
+            if ! command -v cargo-bloat &> /dev/null; then
+              cargo install cargo-bloat
+            fi
+      - save_cache:
+          key: cargo-bloat-bin-v1-{{ arch }}
+          paths:
+            - ~/.cargo/bin/cargo-bloat
       - run: 
           name: Check compilation time
           command: cargo build --package dust_dds --timings --tests --examples      
