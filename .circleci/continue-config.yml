@@ -140,7 +140,15 @@ jobs:
     resource_class: large
     steps:
       - checkout
-      - run: cargo build --package dust_dds --timings --tests --examples
+      - run:
+          name: Install cargo-bloat
+          command: cargo install cargo-bloat
+      - run: 
+          name: Check compilation time
+          command: cargo build --package dust_dds --timings --tests --examples      
+      - run:
+          name: Check binary size
+          command: cargo bloat --release --wide --filter dust_dds -n 100
       - store_artifacts:
           path: ./target/cargo-timings
 
