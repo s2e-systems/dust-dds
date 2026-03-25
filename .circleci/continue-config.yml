@@ -134,7 +134,7 @@ jobs:
 
       - store_artifacts:
           path: /tmp/coverage
-  compilation_times:
+  compilation_metrics:
     docker:
       - image: cimg/rust:1.87.0
     resource_class: large
@@ -310,7 +310,7 @@ workflows:
       - hello_world_on_macos
       - hello_world_on_windows
       - benchmark
-      - compilation_times
+      - build_metrics
       - code_checks
       - multi_machine_tests
       - shapes_demo_build
