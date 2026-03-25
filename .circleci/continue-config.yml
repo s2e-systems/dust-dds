@@ -84,6 +84,16 @@ jobs:
       # Performance regression is not explicitly checked due to measurement instability issues
       - store_artifacts:
           path: ./target/criterion
+      - run:
+          name: Install Valgrind and jq
+          command: sudo apt-get update && sudo apt-get install -y valgrind jq
+      - run:
+          name: Measure heap usage
+          command: |
+            TEST_BIN=$(cargo test --package dust_dds --test write_read_samples read_only_unread_samples --exact --no-run --message-format=json | jq -r 'select(.profile.test == true) | .executable' | grep -v null)
+            valgrind --tool=massif --massif-out-file=massif.out $TEST_BIN read_only_unread_samples --exact
+      - store_artifacts:
+          path: massif.out
   tests:
     docker:
       - image: cimg/rust:1.87.0
