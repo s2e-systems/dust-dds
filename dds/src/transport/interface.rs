@@ -57,5 +57,5 @@ pub trait TransportParticipantFactory: Send + 'static {
         &self,
         domain_id: i32,
         data_receiver: TransportDataReceiver,
-    ) -> impl Future<Output = RtpsTransportParticipant> + Send;
+    ) -> RtpsTransportParticipant;
 }
