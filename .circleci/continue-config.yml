@@ -149,7 +149,7 @@ jobs:
 
       - store_artifacts:
           path: /tmp/coverage
-  compilation_metrics:
+  build_metrics:
     docker:
       - image: cimg/rust:1.87.0
     resource_class: large
