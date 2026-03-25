@@ -14,6 +14,8 @@ use crate::{
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
         status::StatusKind,
     },
+    runtime::{DdsRuntime, Spawner},
+    transport::interface::TransportParticipantFactory,
 };
 
 /// Async version of [`DomainParticipantFactory`](crate::domain::domain_participant_factory::DomainParticipantFactory).
@@ -169,7 +171,6 @@ impl DomainParticipantFactoryAsync {
         static PARTICIPANT_FACTORY_ASYNC: OnceLock<DomainParticipantFactoryAsync> = OnceLock::new();
         PARTICIPANT_FACTORY_ASYNC.get_or_init(|| {
             let executor = crate::std_runtime::executor::Executor::new();
-            let executor_handle = executor.handle();
             let timer_driver = crate::std_runtime::timer::TimerDriver::new();
             let runtime = crate::std_runtime::StdRuntime::new(executor, timer_driver);
             let interface_address = NetworkInterface::show()
@@ -193,18 +194,30 @@ impl DomainParticipantFactoryAsync {
 
             let app_id = std::process::id().to_ne_bytes();
             let transport = crate::rtps_udp_transport::udp_transport::RtpsUdpTransportParticipantFactory::default();
-            let mut domain_participant_factory =
-            crate::dcps::dcps_participant_factory::DcpsParticipantFactory::new(app_id, host_id, runtime, transport);
-            let (dcps_sender, mailbox_recv) = crate::dcps::channels::mpsc::mpsc_channel();
-            executor_handle.spawn(async move {
-                while let Some(m) = mailbox_recv.receive().await {
-                    domain_participant_factory.handle(m).await;
-                }
-            });
-
-            DomainParticipantFactoryAsync {
-                dcps_sender,
-            }
+            Self::new(runtime, app_id, host_id, transport)
         })
+    }
+}
+
+impl DomainParticipantFactoryAsync {
+    #[doc(hidden)]
+    pub fn new<R: DdsRuntime, T: TransportParticipantFactory>(
+        runtime: R,
+        app_id: [u8; 4],
+        host_id: [u8; 4],
+        transport: T,
+    ) -> DomainParticipantFactoryAsync {
+        let spawner_handle = runtime.spawner();
+        let mut domain_participant_factory =
+            crate::dcps::dcps_participant_factory::DcpsParticipantFactory::new(
+                app_id, host_id, runtime, transport,
+            );
+        let (dcps_sender, mailbox_recv) = crate::dcps::channels::mpsc::mpsc_channel();
+        spawner_handle.spawn(async move {
+            while let Some(m) = mailbox_recv.receive().await {
+                domain_participant_factory.handle(m).await;
+            }
+        });
+        DomainParticipantFactoryAsync { dcps_sender }
     }
 }
