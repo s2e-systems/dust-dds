@@ -1,9 +1,8 @@
 use crate::{
     dcps::{
         actor::ActorAddress,
-        channels::oneshot::oneshot,
         dcps_domain_participant::DcpsDomainParticipant,
-        dcps_mail::{DcpsMail, DiscoveryServiceMail, MessageServiceMail, ParticipantServiceMail},
+        dcps_mail::{DcpsMail, DiscoveryServiceMail, MessageServiceMail},
         listeners::domain_participant_listener::DcpsDomainParticipantListener,
         status_condition::DcpsStatusCondition,
     },
@@ -165,7 +164,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
         if self.qos.entity_factory.autoenable_created_entities {
             dcps_participant
                 .enable_domain_participant(dcps_sender.clone())
-                .await;
+                .await?;
         }
 
         self.domain_participant_list.push(dcps_participant);

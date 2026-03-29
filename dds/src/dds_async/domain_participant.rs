@@ -6,7 +6,7 @@ use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     dcps::{
         actor::ActorAddress,
-        channels::{mpsc::MpscSender, oneshot::oneshot},
+        channels::oneshot::oneshot,
         dcps_mail::{DcpsMail, ParticipantServiceMail},
         listeners::{
             domain_participant_listener::DcpsDomainParticipantListener,

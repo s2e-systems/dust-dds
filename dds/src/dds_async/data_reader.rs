@@ -5,7 +5,7 @@ use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     dcps::{
         actor::ActorAddress,
-        channels::{mpsc::MpscSender, oneshot::oneshot},
+        channels::oneshot::oneshot,
         dcps_mail::{DcpsMail, ReaderServiceMail},
         listeners::data_reader_listener::DcpsDataReaderListener,
         status_condition::DcpsStatusCondition,
