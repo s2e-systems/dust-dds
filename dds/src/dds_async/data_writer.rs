@@ -11,7 +11,7 @@ use crate::{
         status_condition::DcpsStatusCondition,
     },
     dds_async::{
-        data_writer_listener::DataWriterListener, domain_participant_factory::DCPS_SENDER,
+        data_writer_listener::DataWriterListener, domain_participant_factory::DcpsSender,
         topic_description::TopicDescriptionAsync,
     },
     infrastructure::{
@@ -66,7 +66,7 @@ impl<Foo> DataWriterAsync<Foo> {
         }
     }
 
-    pub(crate) fn dcps_sender(&self) -> &DCPS_SENDER {
+    pub(crate) fn dcps_sender(&self) -> &DcpsSender {
         self.publisher.dcps_sender()
     }
 

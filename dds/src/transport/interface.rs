@@ -1,6 +1,6 @@
 use crate::{
     dcps::dcps_mail::{DcpsMail, MessageServiceMail},
-    dds_async::domain_participant_factory::DCPS_SENDER,
+    dds_async::domain_participant_factory::DcpsSender,
     infrastructure::instance::InstanceHandle,
     transport::types::Locator,
 };
@@ -18,10 +18,10 @@ pub trait WriteMessage {
 #[derive(Clone)]
 pub struct TransportDataReceiver {
     participant_handle: InstanceHandle,
-    dcps_sender: DCPS_SENDER,
+    dcps_sender: DcpsSender,
 }
 impl TransportDataReceiver {
-    pub(crate) fn new(participant_handle: InstanceHandle, dcps_sender: DCPS_SENDER) -> Self {
+    pub(crate) fn new(participant_handle: InstanceHandle, dcps_sender: DcpsSender) -> Self {
         Self {
             participant_handle,
             dcps_sender,

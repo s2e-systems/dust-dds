@@ -13,7 +13,7 @@ use crate::{
         status_condition_mail::DcpsStatusConditionMail,
         xtypes_glue::key_and_instance_handle::get_instance_handle_from_dynamic_data,
     },
-    dds_async::domain_participant_factory::DCPS_SENDER,
+    dds_async::domain_participant_factory::DcpsSender,
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
@@ -252,7 +252,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     #[tracing::instrument(skip(self, dcps_sender, reply_sender))]
     pub async fn write_w_timestamp(
         &mut self,
-        dcps_sender: DCPS_SENDER,
+        dcps_sender: DcpsSender,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         dynamic_data: DynamicData,
@@ -442,8 +442,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                     if let Some(smallest_seq_num_instance) = s.samples.pop_front() {
                         data_writer
                             .transport_writer
-                            .remove_change(smallest_seq_num_instance)
-                            .await;
+                            .remove_change(smallest_seq_num_instance);
                     }
                 }
             }
@@ -617,7 +616,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        dcps_sender: DCPS_SENDER,
+        dcps_sender: DcpsSender,
     ) -> DdsResult<()> {
         let Some(publisher) = self
             .domain_participant
@@ -661,7 +660,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         qos: QosKind<DataWriterQos>,
-        dcps_sender: DCPS_SENDER,
+        dcps_sender: DcpsSender,
     ) -> DdsResult<()> {
         let Some(publisher) = self
             .domain_participant

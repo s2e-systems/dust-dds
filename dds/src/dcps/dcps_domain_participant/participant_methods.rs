@@ -21,7 +21,7 @@ use crate::{
         },
         status_condition::DcpsStatusCondition,
     },
-    dds_async::domain_participant_factory::DCPS_SENDER,
+    dds_async::domain_participant_factory::DcpsSender,
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
@@ -235,7 +235,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         dcps_listener: Option<DcpsTopicListener>,
         mask: Vec<StatusKind>,
         type_support: Arc<DynamicType>,
-        dcps_sender: DCPS_SENDER,
+        dcps_sender: DcpsSender,
     ) -> DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)> {
         if self
             .domain_participant
@@ -712,7 +712,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     pub async fn set_domain_participant_qos(
         &mut self,
         qos: QosKind<DomainParticipantQos>,
-        dcps_sender: DCPS_SENDER,
+        dcps_sender: DcpsSender,
     ) -> DdsResult<()> {
         let qos = match qos {
             QosKind::Default => DomainParticipantQos::default(),
@@ -745,7 +745,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     }
 
     #[tracing::instrument(skip(self, dcps_sender))]
-    pub async fn enable_domain_participant(&mut self, dcps_sender: DCPS_SENDER) -> DdsResult<()> {
+    pub async fn enable_domain_participant(&mut self, dcps_sender: DcpsSender) -> DdsResult<()> {
         if !self.domain_participant.enabled {
             for t in &mut self.domain_participant.topic_description_list {
                 if let TopicDescriptionKind::Topic(t) = t {

@@ -7,7 +7,7 @@ use crate::{
         listeners::domain_participant_listener::DcpsDomainParticipantListener,
         status_condition::DcpsStatusCondition,
     },
-    dds_async::{configuration::DustDdsConfiguration, domain_participant_factory::DCPS_SENDER},
+    dds_async::{configuration::DustDdsConfiguration, domain_participant_factory::DcpsSender},
     infrastructure::{
         domain::DomainId,
         error::{DdsError, DdsResult},
@@ -82,7 +82,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
         qos: QosKind<DomainParticipantQos>,
         dcps_listener: Option<DcpsDomainParticipantListener>,
         status_kind: Vec<StatusKind>,
-        dcps_sender: DCPS_SENDER,
+        dcps_sender: DcpsSender,
     ) -> DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)> {
         let domain_participant_qos = match qos {
             QosKind::Default => self.default_participant_qos.clone(),
@@ -105,7 +105,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
 
         let listener_sender = dcps_listener.map(|l| l.spawn::<R>(&spawner_handle));
 
-        let dcps_participant: DcpsDomainParticipant<R> = DcpsDomainParticipant::new(
+        let mut dcps_participant: DcpsDomainParticipant<R> = DcpsDomainParticipant::new(
             domain_id,
             self.configuration.domain_tag().to_owned(),
             guid_prefix,
@@ -163,13 +163,8 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
         });
 
         if self.qos.entity_factory.autoenable_created_entities {
-            let (reply_sender, _reply_receiver) = oneshot();
-            dcps_sender
-                .send(DcpsMail::Participant(ParticipantServiceMail::Enable {
-                    participant_handle,
-                    dcps_sender: dcps_sender.clone(),
-                    reply_sender,
-                }))
+            dcps_participant
+                .enable_domain_participant(dcps_sender.clone())
                 .await;
         }
 

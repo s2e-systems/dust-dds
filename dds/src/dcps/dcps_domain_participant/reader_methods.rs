@@ -10,7 +10,7 @@ use crate::{
         listeners::data_reader_listener::DcpsDataReaderListener,
         status_condition_mail::DcpsStatusConditionMail,
     },
-    dds_async::domain_participant_factory::DCPS_SENDER,
+    dds_async::domain_participant_factory::DcpsSender,
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
@@ -217,7 +217,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     //#[tracing::instrument(skip(self, dcps_sender))]
     pub fn wait_for_historical_data(
         &mut self,
-        dcps_sender: DCPS_SENDER,
+        dcps_sender: DcpsSender,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         max_wait: Duration,
@@ -323,7 +323,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         qos: QosKind<DataReaderQos>,
-        dcps_sender: DCPS_SENDER,
+        dcps_sender: DcpsSender,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
             .domain_participant
@@ -460,7 +460,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         &mut self,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
-        dcps_sender: DCPS_SENDER,
+        dcps_sender: DcpsSender,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
             .domain_participant

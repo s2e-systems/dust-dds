@@ -12,7 +12,7 @@ use crate::{
         },
         status_condition::DcpsStatusCondition,
     },
-    dds_async::domain_participant_factory::DCPS_SENDER,
+    dds_async::domain_participant_factory::DcpsSender,
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
@@ -36,7 +36,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         qos: QosKind<DataWriterQos>,
         dcps_listener: Option<DcpsDataWriterListener>,
         mask: Vec<StatusKind>,
-        dcps_sender: DCPS_SENDER,
+        dcps_sender: DcpsSender,
     ) -> DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)> {
         let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant

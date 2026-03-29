@@ -16,7 +16,7 @@ use crate::{
         status_condition::DcpsStatusCondition,
     },
     dds_async::{
-        content_filtered_topic::ContentFilteredTopicAsync, domain_participant_factory::DCPS_SENDER,
+        content_filtered_topic::ContentFilteredTopicAsync, domain_participant_factory::DcpsSender,
         domain_participant_listener::DomainParticipantListener,
         topic_description::TopicDescriptionAsync,
     },
@@ -40,7 +40,7 @@ use alloc::{
 /// Async version of [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant).
 #[derive(Clone)]
 pub struct DomainParticipantAsync {
-    dcps_sender: DCPS_SENDER,
+    dcps_sender: DcpsSender,
     builtin_subscriber_status_condition_address: ActorAddress<DcpsStatusCondition>,
     domain_id: DomainId,
     handle: InstanceHandle,
@@ -48,7 +48,7 @@ pub struct DomainParticipantAsync {
 
 impl DomainParticipantAsync {
     pub(crate) fn new(
-        dcps_sender: DCPS_SENDER,
+        dcps_sender: DcpsSender,
         builtin_subscriber_status_condition_address: ActorAddress<DcpsStatusCondition>,
         domain_id: DomainId,
         handle: InstanceHandle,
@@ -61,7 +61,7 @@ impl DomainParticipantAsync {
         }
     }
 
-    pub(crate) fn dcps_sender(&self) -> &DCPS_SENDER {
+    pub(crate) fn dcps_sender(&self) -> &DcpsSender {
         &self.dcps_sender
     }
 }

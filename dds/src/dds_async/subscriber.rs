@@ -15,7 +15,7 @@ use crate::{
         status_condition::DcpsStatusCondition,
     },
     dds_async::{
-        domain_participant_factory::DCPS_SENDER, topic_description::TopicDescriptionAsync,
+        domain_participant_factory::DcpsSender, topic_description::TopicDescriptionAsync,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -56,7 +56,7 @@ impl SubscriberAsync {
         }
     }
 
-    pub(crate) fn dcps_sender(&self) -> &DCPS_SENDER {
+    pub(crate) fn dcps_sender(&self) -> &DcpsSender {
         self.participant.dcps_sender()
     }
 }

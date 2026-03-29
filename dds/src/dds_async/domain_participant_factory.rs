@@ -19,8 +19,8 @@ use crate::{
     runtime::{DdsRuntime, Spawner},
     transport::interface::TransportParticipantFactory,
 };
-const DCPS_CHANNEL_SIZE: usize = 3;
-pub(crate) type DCPS_SENDER =
+const DCPS_CHANNEL_SIZE: usize = 8;
+pub(crate) type DcpsSender =
     embassy_sync::channel::Sender<'static, CriticalSectionRawMutex, DcpsMail, DCPS_CHANNEL_SIZE>;
 static DCPS_CHANNEL: embassy_sync::channel::Channel<
     CriticalSectionRawMutex,
@@ -33,7 +33,7 @@ static DCPS_CHANNEL: embassy_sync::channel::Channel<
 /// a constructor by passing a DDS runtime. This allows the factory
 /// to spin tasks on an existing runtime which can be shared with other things outside Dust DDS.
 pub struct DomainParticipantFactoryAsync {
-    dcps_sender: DCPS_SENDER,
+    dcps_sender: DcpsSender,
 }
 
 impl DomainParticipantFactoryAsync {
@@ -222,10 +222,9 @@ impl DomainParticipantFactoryAsync {
             crate::dcps::dcps_participant_factory::DcpsParticipantFactory::new(
                 app_id, host_id, runtime, transport,
             );
-        let mailbox_recv = DCPS_CHANNEL.receiver();
         spawner_handle.spawn(async move {
             loop {
-                let m = mailbox_recv.receive().await;
+                let m = DCPS_CHANNEL.receive().await;
                 domain_participant_factory.handle(m).await;
             }
         });

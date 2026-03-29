@@ -15,7 +15,7 @@ use crate::{
         },
         status_condition::DcpsStatusCondition,
     },
-    dds_async::domain_participant_factory::DCPS_SENDER,
+    dds_async::domain_participant_factory::DcpsSender,
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
@@ -41,10 +41,10 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         qos: QosKind<DataReaderQos>,
         dcps_listener: Option<DcpsDataReaderListener>,
         mask: Vec<StatusKind>,
-        dcps_sender: DCPS_SENDER,
+        dcps_sender: DcpsSender,
     ) -> DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)> {
         struct UserDefinedReaderHistoryCache {
-            dcps_sender: DCPS_SENDER,
+            dcps_sender: DcpsSender,
             participant_handle: InstanceHandle,
             subscriber_handle: InstanceHandle,
             data_reader_handle: InstanceHandle,

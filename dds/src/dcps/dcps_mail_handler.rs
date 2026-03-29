@@ -914,7 +914,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             }) => {
                 if let Ok(p) = self.find_participant(participant_handle) {
                     p.remove_writer_change(publisher_handle, data_writer_handle, sequence_number)
-                        .await
                 }
             }
             DcpsMail::Message(MessageServiceMail::AreAllChangesAcknowledged {
