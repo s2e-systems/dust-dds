@@ -4,12 +4,13 @@ use core::pin::Pin;
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     dcps::{
-        channels::{mpsc::MpscSender, oneshot::oneshot},
+        channels::oneshot::oneshot,
         dcps_domain_participant::{DcpsDomainParticipant, TransportReaderKind, poll_timeout},
         dcps_mail::{DcpsMail, MessageServiceMail},
         listeners::data_reader_listener::DcpsDataReaderListener,
         status_condition_mail::DcpsStatusConditionMail,
     },
+    dds_async::domain_participant_factory::DCPS_SENDER,
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
@@ -216,7 +217,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     //#[tracing::instrument(skip(self, dcps_sender))]
     pub fn wait_for_historical_data(
         &mut self,
-        dcps_sender: MpscSender<DcpsMail>,
+        dcps_sender: DCPS_SENDER,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         max_wait: Duration,
@@ -239,7 +240,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                                     reply_sender,
                                 },
                             ))
-                            .await?;
+                            .await;
 
                         let reply = reply_receiver.await;
                         match reply {
@@ -322,7 +323,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         qos: QosKind<DataReaderQos>,
-        dcps_sender: MpscSender<DcpsMail>,
+        dcps_sender: DCPS_SENDER,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
             .domain_participant
@@ -459,7 +460,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         &mut self,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
-        dcps_sender: MpscSender<DcpsMail>,
+        dcps_sender: DCPS_SENDER,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
             .domain_participant

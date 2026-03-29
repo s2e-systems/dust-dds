@@ -3,10 +3,7 @@ use alloc::{collections::VecDeque, string::String, vec::Vec};
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     dcps::{
-        channels::{
-            mpsc::MpscSender,
-            oneshot::{OneshotSender, oneshot},
-        },
+        channels::oneshot::{OneshotSender, oneshot},
         dcps_domain_participant::{
             DcpsDomainParticipant, InstancePublicationTime, InstanceSamples, TransportWriterKind,
             serialize,
@@ -16,6 +13,7 @@ use crate::{
         status_condition_mail::DcpsStatusConditionMail,
         xtypes_glue::key_and_instance_handle::get_instance_handle_from_dynamic_data,
     },
+    dds_async::domain_participant_factory::DCPS_SENDER,
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
@@ -254,7 +252,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     #[tracing::instrument(skip(self, dcps_sender, reply_sender))]
     pub async fn write_w_timestamp(
         &mut self,
-        dcps_sender: MpscSender<DcpsMail>,
+        dcps_sender: DCPS_SENDER,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         dynamic_data: DynamicData,
@@ -413,8 +411,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                                                                 reply_sender,
                                                             },
                                                         ))
-                                                        .await
-                                                        .ok();
+                                                        .await;
                                                 }
                                                 Either::B(_) => {
                                                     reply_sender.send(Err(DdsError::Timeout))
@@ -434,8 +431,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                                                         reply_sender,
                                                     },
                                                 ))
-                                                .await
-                                                .ok();
+                                                .await;
                                         }
                                     });
                                     return;
@@ -516,8 +512,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                             change_instance_handle: instance_handle,
                             dcps_sender: dcps_sender_clone.clone(),
                         }))
-                        .await
-                        .ok();
+                        .await;
                 }
             });
         }
@@ -542,8 +537,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                         data_writer_handle,
                         sequence_number,
                     }))
-                    .await
-                    .ok();
+                    .await;
             });
         }
 
@@ -623,7 +617,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        dcps_sender: MpscSender<DcpsMail>,
+        dcps_sender: DCPS_SENDER,
     ) -> DdsResult<()> {
         let Some(publisher) = self
             .domain_participant
@@ -661,13 +655,13 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         Ok(())
     }
 
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self, dcps_sender))]
     pub async fn set_data_writer_qos(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         qos: QosKind<DataWriterQos>,
-        dcps_sender: MpscSender<DcpsMail>,
+        dcps_sender: DCPS_SENDER,
     ) -> DdsResult<()> {
         let Some(publisher) = self
             .domain_participant

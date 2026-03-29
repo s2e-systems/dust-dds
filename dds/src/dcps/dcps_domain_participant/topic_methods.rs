@@ -2,11 +2,10 @@ use alloc::{string::String, sync::Arc};
 
 use crate::{
     dcps::{
-        channels::mpsc::MpscSender,
         dcps_domain_participant::{DcpsDomainParticipant, TopicDescriptionKind},
-        dcps_mail::DcpsMail,
         status_condition_mail::DcpsStatusConditionMail,
     },
+    dds_async::domain_participant_factory::DCPS_SENDER,
     infrastructure::{
         error::{DdsError, DdsResult},
         qos::{QosKind, TopicQos},
@@ -93,11 +92,11 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         Ok(topic.qos.clone())
     }
 
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self, dcps_sender))]
     pub async fn enable_topic(
         &mut self,
         topic_name: String,
-        dcps_sender: MpscSender<DcpsMail>,
+        dcps_sender: DCPS_SENDER,
     ) -> DdsResult<()> {
         let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant

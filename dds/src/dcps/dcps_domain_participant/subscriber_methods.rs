@@ -4,7 +4,6 @@ use core::pin::Pin;
 use crate::{
     dcps::{
         actor::{Actor, ActorAddress},
-        channels::mpsc::MpscSender,
         dcps_domain_participant::{
             DataReaderEntity, DcpsDomainParticipant, SubscriberEntity, TopicDescriptionKind,
             TransportReaderKind, get_topic_kind,
@@ -16,6 +15,7 @@ use crate::{
         },
         status_condition::DcpsStatusCondition,
     },
+    dds_async::domain_participant_factory::DCPS_SENDER,
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
@@ -41,10 +41,10 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         qos: QosKind<DataReaderQos>,
         dcps_listener: Option<DcpsDataReaderListener>,
         mask: Vec<StatusKind>,
-        dcps_sender: MpscSender<DcpsMail>,
+        dcps_sender: DCPS_SENDER,
     ) -> DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)> {
         struct UserDefinedReaderHistoryCache {
-            dcps_sender: MpscSender<DcpsMail>,
+            dcps_sender: DCPS_SENDER,
             participant_handle: InstanceHandle,
             subscriber_handle: InstanceHandle,
             data_reader_handle: InstanceHandle,
@@ -65,8 +65,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                             data_reader_handle: self.data_reader_handle,
                             dcps_sender,
                         }))
-                        .await
-                        .ok();
+                        .await;
                 })
             }
 

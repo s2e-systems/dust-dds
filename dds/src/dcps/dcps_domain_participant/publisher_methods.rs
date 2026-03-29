@@ -3,17 +3,16 @@ use alloc::{string::String, vec::Vec};
 use crate::{
     dcps::{
         actor::{Actor, ActorAddress},
-        channels::mpsc::MpscSender,
         dcps_domain_participant::{
             DataWriterEntity, DcpsDomainParticipant, TopicDescriptionKind, TransportWriterKind,
             get_topic_kind,
         },
-        dcps_mail::DcpsMail,
         listeners::{
             data_writer_listener::DcpsDataWriterListener, publisher_listener::DcpsPublisherListener,
         },
         status_condition::DcpsStatusCondition,
     },
+    dds_async::domain_participant_factory::DCPS_SENDER,
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
@@ -37,7 +36,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         qos: QosKind<DataWriterQos>,
         dcps_listener: Option<DcpsDataWriterListener>,
         mask: Vec<StatusKind>,
-        dcps_sender: MpscSender<DcpsMail>,
+        dcps_sender: DCPS_SENDER,
     ) -> DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)> {
         let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant

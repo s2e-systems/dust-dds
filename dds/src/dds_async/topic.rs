@@ -72,7 +72,7 @@ impl TopicAsync {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 }
@@ -110,7 +110,7 @@ impl TopicAsync {
                 topic_qos: qos,
                 reply_sender,
             }))
-            .await?;
+            .await;
 
         reply_receiver.await?
     }
@@ -126,7 +126,7 @@ impl TopicAsync {
                 topic_name: self.topic_name.clone(),
                 reply_sender,
             }))
-            .await?;
+            .await;
 
         reply_receiver.await?
     }
@@ -156,7 +156,7 @@ impl TopicAsync {
                 dcps_sender,
                 reply_sender,
             }))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -189,7 +189,7 @@ impl TopicAsync {
                 topic_name: self.topic_name.clone(),
                 reply_sender,
             }))
-            .await?;
+            .await;
 
         reply_receiver.await?
     }

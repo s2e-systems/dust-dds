@@ -10,12 +10,10 @@ use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     dcps::{
         actor::{Actor, ActorAddress},
-        channels::mpsc::MpscSender,
         dcps_domain_participant::{
             BUILT_IN_TOPIC_NAME_LIST, ContentFilteredTopicEntity, DcpsDomainParticipant,
             PublisherEntity, SubscriberEntity, TopicDescriptionKind, TopicEntity,
         },
-        dcps_mail::DcpsMail,
         listeners::{
             domain_participant_listener::DcpsDomainParticipantListener,
             publisher_listener::DcpsPublisherListener, subscriber_listener::DcpsSubscriberListener,
@@ -23,6 +21,7 @@ use crate::{
         },
         status_condition::DcpsStatusCondition,
     },
+    dds_async::domain_participant_factory::DCPS_SENDER,
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
@@ -227,7 +226,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     }
 
     #[allow(clippy::too_many_arguments)]
-    #[tracing::instrument(skip(self, dcps_listener, type_support))]
+    #[tracing::instrument(skip(self, dcps_listener, type_support, dcps_sender))]
     pub async fn create_topic(
         &mut self,
         topic_name: String,
@@ -236,7 +235,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         dcps_listener: Option<DcpsTopicListener>,
         mask: Vec<StatusKind>,
         type_support: Arc<DynamicType>,
-        dcps_sender: MpscSender<DcpsMail>,
+        dcps_sender: DCPS_SENDER,
     ) -> DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)> {
         if self
             .domain_participant
@@ -709,11 +708,11 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         self.clock_handle.now()
     }
 
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self, dcps_sender))]
     pub async fn set_domain_participant_qos(
         &mut self,
         qos: QosKind<DomainParticipantQos>,
-        dcps_sender: MpscSender<DcpsMail>,
+        dcps_sender: DCPS_SENDER,
     ) -> DdsResult<()> {
         let qos = match qos {
             QosKind::Default => DomainParticipantQos::default(),
@@ -745,11 +744,8 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         Ok(())
     }
 
-    #[tracing::instrument(skip(self))]
-    pub async fn enable_domain_participant(
-        &mut self,
-        dcps_sender: MpscSender<DcpsMail>,
-    ) -> DdsResult<()> {
+    #[tracing::instrument(skip(self, dcps_sender))]
+    pub async fn enable_domain_participant(&mut self, dcps_sender: DCPS_SENDER) -> DdsResult<()> {
         if !self.domain_participant.enabled {
             for t in &mut self.domain_participant.topic_description_list {
                 if let TopicDescriptionKind::Topic(t) = t {

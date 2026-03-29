@@ -5,13 +5,14 @@ use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     dcps::{
         actor::ActorAddress,
-        channels::{mpsc::MpscSender, oneshot::oneshot},
+        channels::oneshot::oneshot,
         dcps_mail::{DcpsMail, MessageServiceMail, WriterServiceMail},
         listeners::data_writer_listener::DcpsDataWriterListener,
         status_condition::DcpsStatusCondition,
     },
     dds_async::{
-        data_writer_listener::DataWriterListener, topic_description::TopicDescriptionAsync,
+        data_writer_listener::DataWriterListener, domain_participant_factory::DCPS_SENDER,
+        topic_description::TopicDescriptionAsync,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -65,7 +66,7 @@ impl<Foo> DataWriterAsync<Foo> {
         }
     }
 
-    pub(crate) fn dcps_sender(&self) -> &MpscSender<DcpsMail> {
+    pub(crate) fn dcps_sender(&self) -> &DCPS_SENDER {
         self.publisher.dcps_sender()
     }
 
@@ -141,7 +142,7 @@ where
                 timestamp,
                 reply_sender,
             }))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -168,7 +169,7 @@ where
                 dynamic_data,
                 reply_sender,
             }))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -203,7 +204,7 @@ where
                 dcps_sender: self.dcps_sender().clone(),
                 reply_sender,
             }))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -237,7 +238,7 @@ where
                 timestamp,
                 reply_sender,
             }))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 }
@@ -262,8 +263,7 @@ impl<Foo> DataWriterAsync<Foo> {
                         reply_sender,
                     },
                 ))
-                .await
-                .ok();
+                .await;
             let reply = reply_receiver.await;
             match reply {
                 Ok(are_changes_acknowledged) => match are_changes_acknowledged {
@@ -297,7 +297,7 @@ impl<Foo> DataWriterAsync<Foo> {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -322,7 +322,7 @@ impl<Foo> DataWriterAsync<Foo> {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -361,7 +361,7 @@ impl<Foo> DataWriterAsync<Foo> {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -378,7 +378,7 @@ impl<Foo> DataWriterAsync<Foo> {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 }
@@ -397,7 +397,7 @@ impl<Foo> DataWriterAsync<Foo> {
                 dcps_sender: self.dcps_sender().clone(),
                 reply_sender,
             }))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -412,7 +412,7 @@ impl<Foo> DataWriterAsync<Foo> {
                 data_writer_handle: self.handle,
                 reply_sender,
             }))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -440,7 +440,7 @@ impl<Foo> DataWriterAsync<Foo> {
                 dcps_sender: self.dcps_sender().clone(),
                 reply_sender,
             }))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -469,7 +469,7 @@ impl<Foo> DataWriterAsync<Foo> {
                 listener_mask: mask.to_vec(),
                 reply_sender,
             }))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 }

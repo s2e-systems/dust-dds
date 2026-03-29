@@ -36,8 +36,8 @@ use crate::{
     dds_async::{
         content_filtered_topic::ContentFilteredTopicAsync, data_reader::DataReaderAsync,
         data_writer::DataWriterAsync, domain_participant::DomainParticipantAsync,
-        publisher::PublisherAsync, subscriber::SubscriberAsync, topic::TopicAsync,
-        topic_description::TopicDescriptionAsync,
+        domain_participant_factory::DCPS_SENDER, publisher::PublisherAsync,
+        subscriber::SubscriberAsync, topic::TopicAsync, topic_description::TopicDescriptionAsync,
     },
     infrastructure::{
         domain::DomainId,
@@ -141,7 +141,7 @@ const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR: EntityId =
 
 struct DcpsParticipantReaderHistoryCache {
     participant_handle: InstanceHandle,
-    dcps_sender: MpscSender<DcpsMail>,
+    dcps_sender: DCPS_SENDER,
 }
 
 impl HistoryCache for DcpsParticipantReaderHistoryCache {
@@ -159,8 +159,7 @@ impl HistoryCache for DcpsParticipantReaderHistoryCache {
                         dcps_sender,
                     },
                 ))
-                .await
-                .ok();
+                .await;
         })
     }
 
@@ -170,7 +169,7 @@ impl HistoryCache for DcpsParticipantReaderHistoryCache {
 }
 
 struct DcpsTopicsReaderHistoryCache {
-    dcps_sender: MpscSender<DcpsMail>,
+    dcps_sender: DCPS_SENDER,
     participant_handle: InstanceHandle,
 }
 
@@ -188,8 +187,7 @@ impl HistoryCache for DcpsTopicsReaderHistoryCache {
                         cache_change,
                     },
                 ))
-                .await
-                .ok();
+                .await;
         })
     }
 
@@ -200,7 +198,7 @@ impl HistoryCache for DcpsTopicsReaderHistoryCache {
 
 struct DcpsSubscriptionsReaderHistoryCache {
     participant_handle: InstanceHandle,
-    dcps_sender: MpscSender<DcpsMail>,
+    dcps_sender: DCPS_SENDER,
 }
 
 impl HistoryCache for DcpsSubscriptionsReaderHistoryCache {
@@ -218,8 +216,7 @@ impl HistoryCache for DcpsSubscriptionsReaderHistoryCache {
                         dcps_sender,
                     },
                 ))
-                .await
-                .ok();
+                .await;
         })
     }
 
@@ -229,7 +226,7 @@ impl HistoryCache for DcpsSubscriptionsReaderHistoryCache {
 }
 
 struct DcpsPublicationsReaderHistoryCache {
-    dcps_sender: MpscSender<DcpsMail>,
+    dcps_sender: DCPS_SENDER,
     participant_handle: InstanceHandle,
 }
 
@@ -249,8 +246,7 @@ impl HistoryCache for DcpsPublicationsReaderHistoryCache {
                         dcps_sender,
                     },
                 ))
-                .await
-                .ok();
+                .await;
         })
     }
 
@@ -303,7 +299,7 @@ where
         listener_sender: Option<MpscSender<ListenerMail>>,
         status_kind: Vec<StatusKind>,
         transport: RtpsTransportParticipant,
-        dcps_sender: MpscSender<DcpsMail>,
+        dcps_sender: DCPS_SENDER,
         clock_handle: R::ClockHandle,
         timer_handle: R::TimerHandle,
         spawner_handle: R::SpawnerHandle,
@@ -745,7 +741,7 @@ where
         }
     }
 
-    fn get_participant_async(&self, dcps_sender: MpscSender<DcpsMail>) -> DomainParticipantAsync {
+    fn get_participant_async(&self, dcps_sender: DCPS_SENDER) -> DomainParticipantAsync {
         DomainParticipantAsync::new(
             dcps_sender,
             self.domain_participant
@@ -759,7 +755,7 @@ where
 
     fn get_subscriber_async(
         &self,
-        dcps_sender: MpscSender<DcpsMail>,
+        dcps_sender: DCPS_SENDER,
         subscriber_handle: InstanceHandle,
     ) -> DdsResult<SubscriberAsync> {
         Ok(SubscriberAsync::new(
@@ -777,7 +773,7 @@ where
 
     fn get_data_reader_async<Foo>(
         &self,
-        dcps_sender: MpscSender<DcpsMail>,
+        dcps_sender: DCPS_SENDER,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
     ) -> DdsResult<DataReaderAsync<Foo>> {
@@ -802,7 +798,7 @@ where
 
     fn get_publisher_async(
         &self,
-        dcps_sender: MpscSender<DcpsMail>,
+        dcps_sender: DCPS_SENDER,
         publisher_handle: InstanceHandle,
     ) -> DdsResult<PublisherAsync> {
         Ok(PublisherAsync::new(
@@ -813,7 +809,7 @@ where
 
     fn get_data_writer_async<Foo>(
         &self,
-        dcps_sender: MpscSender<DcpsMail>,
+        dcps_sender: DCPS_SENDER,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
     ) -> DdsResult<DataWriterAsync<Foo>> {
@@ -838,7 +834,7 @@ where
 
     fn get_topic_description_async(
         &self,
-        dcps_sender: MpscSender<DcpsMail>,
+        dcps_sender: DCPS_SENDER,
         topic_name: String,
     ) -> DdsResult<TopicDescriptionAsync> {
         match self
@@ -891,7 +887,7 @@ where
     }
 
     #[tracing::instrument(skip(self, dcps_sender))]
-    pub async fn announce_participant(&mut self, dcps_sender: MpscSender<DcpsMail>) {
+    pub async fn announce_participant(&mut self, dcps_sender: DCPS_SENDER) {
         if self.domain_participant.enabled {
             let builtin_topic_key = *self.domain_participant.instance_handle.as_ref();
             let guid = Guid::from(builtin_topic_key);
@@ -998,7 +994,7 @@ where
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        dcps_sender: MpscSender<DcpsMail>,
+        dcps_sender: DCPS_SENDER,
     ) {
         let Some(publisher) = self
             .domain_participant
@@ -1119,7 +1115,7 @@ where
         &mut self,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
-        dcps_sender: MpscSender<DcpsMail>,
+        dcps_sender: DCPS_SENDER,
     ) {
         let Some(subscriber) = self
             .domain_participant
@@ -1246,8 +1242,8 @@ where
         }
     }
 
-    #[tracing::instrument(skip(self))]
-    async fn announce_topic(&mut self, topic_name: String, dcps_sender: MpscSender<DcpsMail>) {
+    #[tracing::instrument(skip(self, dcps_sender))]
+    async fn announce_topic(&mut self, topic_name: String, dcps_sender: DCPS_SENDER) {
         let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
             .topic_description_list
@@ -1306,7 +1302,7 @@ where
         discovered_reader_data: DiscoveredReaderData,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        dcps_sender: MpscSender<DcpsMail>,
+        dcps_sender: DCPS_SENDER,
     ) {
         let default_unicast_locator_list = if let Some(p) = self
             .domain_participant
@@ -1764,7 +1760,7 @@ where
         discovered_writer_data: DiscoveredWriterData,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
-        dcps_sender: MpscSender<DcpsMail>,
+        dcps_sender: DCPS_SENDER,
     ) {
         let default_unicast_locator_list = if let Some(p) = self
             .domain_participant
@@ -2222,11 +2218,11 @@ where
         }
     }
 
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self, dcps_sender))]
     pub async fn add_builtin_participants_detector_cache_change(
         &mut self,
         cache_change: CacheChange,
-        dcps_sender: MpscSender<DcpsMail>,
+        dcps_sender: DCPS_SENDER,
     ) {
         match cache_change.kind {
             ChangeKind::Alive => {
@@ -2277,7 +2273,7 @@ where
     pub async fn add_builtin_publications_detector_cache_change(
         &mut self,
         cache_change: CacheChange,
-        dcps_sender: MpscSender<DcpsMail>,
+        dcps_sender: DCPS_SENDER,
     ) {
         match cache_change.kind {
             ChangeKind::Alive => {
@@ -2387,7 +2383,7 @@ where
     pub async fn add_builtin_subscriptions_detector_cache_change(
         &mut self,
         cache_change: CacheChange,
-        dcps_sender: MpscSender<DcpsMail>,
+        dcps_sender: DCPS_SENDER,
     ) {
         match cache_change.kind {
             ChangeKind::Alive => {
@@ -2584,7 +2580,7 @@ where
     #[tracing::instrument(skip(self, dcps_sender))]
     pub async fn add_cache_change(
         &mut self,
-        dcps_sender: MpscSender<DcpsMail>,
+        dcps_sender: DCPS_SENDER,
         cache_change: CacheChange,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
@@ -2757,8 +2753,7 @@ where
                                             dcps_sender: dcps_sender.clone(),
                                         },
                                     ))
-                                    .await
-                                    .ok();
+                                    .await;
                             }
                         });
                     }
@@ -3026,7 +3021,7 @@ where
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         change_instance_handle: InstanceHandle,
-        dcps_sender: MpscSender<DcpsMail>,
+        dcps_sender: DCPS_SENDER,
     ) {
         let current_time = self.get_current_time();
         let Some(publisher) = self
@@ -3191,7 +3186,7 @@ where
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         change_instance_handle: InstanceHandle,
-        dcps_sender: MpscSender<DcpsMail>,
+        dcps_sender: DCPS_SENDER,
     ) {
         let current_time = self.get_current_time();
         let Some(subscriber) = self
@@ -3341,11 +3336,11 @@ where
             .await;
     }
 
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self, dcps_sender))]
     async fn add_discovered_participant(
         &mut self,
         discovered_participant_data: SpdpDiscoveredParticipantData,
-        dcps_sender: MpscSender<DcpsMail>,
+        dcps_sender: DCPS_SENDER,
     ) {
         // Check that the domainId of the discovered participant equals the local one.
         // If it is not equal then there the local endpoints are not configured to
