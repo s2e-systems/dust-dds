@@ -37,14 +37,13 @@ where
     A: MailHandler,
     <A as MailHandler>::Mail: Send,
 {
-    pub async fn send_actor_mail(&self, mail: A::Mail) -> DdsResult<()>
+    pub fn send_actor_mail(&self, mail: A::Mail) -> DdsResult<()>
     where
         A: MailHandler,
         A::Mail: Send + 'static,
     {
         self.mail_sender
             .send(mail)
-            .await
             .map_err(|_| DdsError::AlreadyDeleted)
     }
 }
@@ -80,10 +79,9 @@ where
         }
     }
 
-    pub async fn send_actor_mail(&self, mail: A::Mail) {
+    pub fn send_actor_mail(&self, mail: A::Mail) {
         self.mail_sender
             .send(mail)
-            .await
             .expect("Message will always be sent when actor exists");
     }
 }

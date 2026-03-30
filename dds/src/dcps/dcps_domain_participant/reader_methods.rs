@@ -183,7 +183,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn get_subscription_matched_status(
+    pub fn get_subscription_matched_status(
         &mut self,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
@@ -204,12 +204,11 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             return Err(DdsError::AlreadyDeleted);
         };
         let status = data_reader.get_subscription_matched_status();
-        data_reader
-            .status_condition
-            .send_actor_mail(DcpsStatusConditionMail::RemoveCommunicationState {
+        data_reader.status_condition.send_actor_mail(
+            DcpsStatusConditionMail::RemoveCommunicationState {
                 state: StatusKind::SubscriptionMatched,
-            })
-            .await;
+            },
+        );
         Ok(status)
     }
 

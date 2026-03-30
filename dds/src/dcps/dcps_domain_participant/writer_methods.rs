@@ -28,7 +28,7 @@ use crate::{
 
 impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     #[tracing::instrument(skip(self))]
-    pub async fn get_publication_matched_status(
+    pub fn get_publication_matched_status(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
@@ -51,12 +51,11 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
 
         let status = data_writer.get_publication_matched_status();
 
-        data_writer
-            .status_condition
-            .send_actor_mail(DcpsStatusConditionMail::RemoveCommunicationState {
+        data_writer.status_condition.send_actor_mail(
+            DcpsStatusConditionMail::RemoveCommunicationState {
                 state: StatusKind::PublicationMatched,
-            })
-            .await;
+            },
+        );
         Ok(status)
     }
 

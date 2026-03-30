@@ -312,7 +312,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 topic_name,
                 reply_sender,
             }) => match self.find_participant(participant_handle) {
-                Ok(p) => reply_sender.send(p.get_inconsistent_topic_status(topic_name).await),
+                Ok(p) => reply_sender.send(p.get_inconsistent_topic_status(topic_name)),
                 Err(e) => reply_sender.send(Err(e)),
             },
             DcpsMail::Topic(TopicServiceMail::SetQos {
@@ -473,10 +473,8 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 data_writer_handle,
                 reply_sender,
             }) => match self.find_participant(participant_handle) {
-                Ok(p) => reply_sender.send(
-                    p.get_publication_matched_status(publisher_handle, data_writer_handle)
-                        .await,
-                ),
+                Ok(p) => reply_sender
+                    .send(p.get_publication_matched_status(publisher_handle, data_writer_handle)),
                 Err(e) => reply_sender.send(Err(e)),
             },
             DcpsMail::Writer(WriterServiceMail::UnregisterInstance {
@@ -785,10 +783,8 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 data_reader_handle,
                 reply_sender,
             }) => match self.find_participant(participant_handle) {
-                Ok(p) => reply_sender.send(
-                    p.get_subscription_matched_status(subscriber_handle, data_reader_handle)
-                        .await,
-                ),
+                Ok(p) => reply_sender
+                    .send(p.get_subscription_matched_status(subscriber_handle, data_reader_handle)),
                 Err(e) => reply_sender.send(Err(e)),
             },
             DcpsMail::Reader(ReaderServiceMail::WaitForHistoricalData {

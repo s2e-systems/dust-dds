@@ -16,7 +16,7 @@ use crate::{
 
 impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     #[tracing::instrument(skip(self))]
-    pub async fn get_inconsistent_topic_status(
+    pub fn get_inconsistent_topic_status(
         &mut self,
         topic_name: String,
     ) -> DdsResult<InconsistentTopicStatus> {
@@ -34,8 +34,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             .status_condition
             .send_actor_mail(DcpsStatusConditionMail::RemoveCommunicationState {
                 state: StatusKind::InconsistentTopic,
-            })
-            .await;
+            });
 
         Ok(status)
     }

@@ -41,7 +41,7 @@ impl DcpsStatusCondition {
         if self.get_trigger_value() {
             for w in self.registered_notifications.drain(..) {
                 // Do not care if there is no channel waiting for response
-                w.send(()).await.ok();
+                w.send(()).ok();
             }
         }
     }
@@ -70,7 +70,7 @@ impl DcpsStatusCondition {
     pub async fn register_notification(&mut self) -> MpscReceiver<()> {
         let (sender, receiver) = mpsc_channel();
         if self.get_trigger_value() {
-            sender.send(()).await.ok();
+            sender.send(()).ok();
         } else {
             self.registered_notifications.push(sender);
         }

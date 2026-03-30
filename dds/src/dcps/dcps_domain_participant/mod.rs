@@ -1348,7 +1348,6 @@ where
                         };
                         if let Some(l) = &data_writer.listener_sender {
                             l.send(ListenerMail::PublicationMatched { the_writer, status })
-                                .await
                                 .ok();
                         }
                     } else if publisher
@@ -1378,7 +1377,6 @@ where
                         let status = data_writer.get_publication_matched_status();
                         if let Some(l) = &publisher.listener_sender {
                             l.send(ListenerMail::PublicationMatched { the_writer, status })
-                                .await
                                 .ok();
                         }
                     } else if self
@@ -1409,7 +1407,6 @@ where
                         let status = data_writer.get_publication_matched_status();
                         if let Some(l) = &self.domain_participant.listener_sender {
                             l.send(ListenerMail::PublicationMatched { the_writer, status })
-                                .await
                                 .ok();
                         }
                     }
@@ -1429,12 +1426,11 @@ where
                     else {
                         return;
                     };
-                    data_writer
-                        .status_condition
-                        .send_actor_mail(DcpsStatusConditionMail::AddCommunicationState {
+                    data_writer.status_condition.send_actor_mail(
+                        DcpsStatusConditionMail::AddCommunicationState {
                             state: StatusKind::PublicationMatched,
-                        })
-                        .await;
+                        },
+                    );
                 } else {
                     data_writer.add_incompatible_subscription(
                         InstanceHandle::new(
@@ -1470,7 +1466,6 @@ where
                         };
                         if let Some(l) = &data_writer.listener_sender {
                             l.send(ListenerMail::OfferedIncompatibleQos { the_writer, status })
-                                .await
                                 .ok();
                         }
                     } else if publisher
@@ -1500,7 +1495,6 @@ where
                         let status = data_writer.get_offered_incompatible_qos_status();
                         if let Some(l) = &publisher.listener_sender {
                             l.send(ListenerMail::OfferedIncompatibleQos { the_writer, status })
-                                .await
                                 .ok();
                         }
                     } else if self
@@ -1531,7 +1525,6 @@ where
                         let status = data_writer.get_offered_incompatible_qos_status();
                         if let Some(l) = &self.domain_participant.listener_sender {
                             l.send(ListenerMail::OfferedIncompatibleQos { the_writer, status })
-                                .await
                                 .ok();
                         }
                     }
@@ -1551,12 +1544,11 @@ where
                     else {
                         return;
                     };
-                    data_writer
-                        .status_condition
-                        .send_actor_mail(DcpsStatusConditionMail::AddCommunicationState {
+                    data_writer.status_condition.send_actor_mail(
+                        DcpsStatusConditionMail::AddCommunicationState {
                             state: StatusKind::OfferedIncompatibleQos,
-                        })
-                        .await;
+                        },
+                    );
                 }
             }
         }
@@ -1591,12 +1583,11 @@ where
         {
             data_writer.remove_matched_subscription(&subscription_handle);
 
-            data_writer
-                .status_condition
-                .send_actor_mail(DcpsStatusConditionMail::AddCommunicationState {
+            data_writer.status_condition.send_actor_mail(
+                DcpsStatusConditionMail::AddCommunicationState {
                     state: StatusKind::PublicationMatched,
-                })
-                .await;
+                },
+            );
         }
     }
 
@@ -1804,7 +1795,6 @@ where
                         let status = data_reader.get_subscription_matched_status();
                         if let Some(l) = &data_reader.listener_sender {
                             l.send(ListenerMail::SubscriptionMatched { the_reader, status })
-                                .await
                                 .ok();
                         }
                     } else if subscriber
@@ -1834,7 +1824,6 @@ where
                         let status = data_reader.get_subscription_matched_status();
                         if let Some(l) = &subscriber.listener_sender {
                             l.send(ListenerMail::SubscriptionMatched { the_reader, status })
-                                .await
                                 .ok();
                         }
                     } else if self
@@ -1865,7 +1854,6 @@ where
                         let status = data_reader.get_subscription_matched_status();
                         if let Some(l) = &self.domain_participant.listener_sender {
                             l.send(ListenerMail::SubscriptionMatched { the_reader, status })
-                                .await
                                 .ok();
                         }
                     }
@@ -1885,12 +1873,11 @@ where
                     else {
                         return;
                     };
-                    data_reader
-                        .status_condition
-                        .send_actor_mail(DcpsStatusConditionMail::AddCommunicationState {
+                    data_reader.status_condition.send_actor_mail(
+                        DcpsStatusConditionMail::AddCommunicationState {
                             state: StatusKind::SubscriptionMatched,
-                        })
-                        .await;
+                        },
+                    );
                 } else {
                     data_reader.add_requested_incompatible_qos(
                         InstanceHandle::new(
@@ -1926,7 +1913,6 @@ where
                         };
                         if let Some(l) = &data_reader.listener_sender {
                             l.send(ListenerMail::RequestedIncompatibleQos { the_reader, status })
-                                .await
                                 .ok();
                         }
                     } else if subscriber
@@ -1956,7 +1942,6 @@ where
                         let status = data_reader.get_requested_incompatible_qos_status();
                         if let Some(l) = &subscriber.listener_sender {
                             l.send(ListenerMail::RequestedIncompatibleQos { the_reader, status })
-                                .await
                                 .ok();
                         }
                     } else if self
@@ -1987,7 +1972,6 @@ where
                         let status = data_reader.get_requested_incompatible_qos_status();
                         if let Some(l) = &self.domain_participant.listener_sender {
                             l.send(ListenerMail::RequestedIncompatibleQos { the_reader, status })
-                                .await
                                 .ok();
                         }
                     }
@@ -2007,12 +1991,11 @@ where
                     else {
                         return;
                     };
-                    data_reader
-                        .status_condition
-                        .send_actor_mail(DcpsStatusConditionMail::AddCommunicationState {
+                    data_reader.status_condition.send_actor_mail(
+                        DcpsStatusConditionMail::AddCommunicationState {
                             state: StatusKind::RequestedIncompatibleQos,
-                        })
-                        .await;
+                        },
+                    );
                 }
             }
         }
@@ -2408,14 +2391,11 @@ where
                             {
                                 topic.inconsistent_topic_status.total_count += 1;
                                 topic.inconsistent_topic_status.total_count_change += 1;
-                                topic
-                                    .status_condition
-                                    .send_actor_mail(
-                                        DcpsStatusConditionMail::AddCommunicationState {
-                                            state: StatusKind::InconsistentTopic,
-                                        },
-                                    )
-                                    .await;
+                                topic.status_condition.send_actor_mail(
+                                    DcpsStatusConditionMail::AddCommunicationState {
+                                        state: StatusKind::InconsistentTopic,
+                                    },
+                                );
                             }
                         }
                     }
@@ -2650,9 +2630,7 @@ where
                         };
 
                         if let Some(l) = &subscriber.listener_sender {
-                            l.send(ListenerMail::DataOnReaders { the_subscriber })
-                                .await
-                                .ok();
+                            l.send(ListenerMail::DataOnReaders { the_subscriber }).ok();
                         }
                     } else if data_reader_on_data_available_active {
                         let Ok(the_reader) =
@@ -2678,9 +2656,7 @@ where
                         };
                         if let Some(l) = &data_reader.listener_sender {
                             info!("Triggering data reader DataAvailable listener");
-                            l.send(ListenerMail::DataAvailable { the_reader })
-                                .await
-                                .ok();
+                            l.send(ListenerMail::DataAvailable { the_reader }).ok();
                         }
                     }
 
@@ -2693,12 +2669,11 @@ where
                         return;
                     };
 
-                    subscriber
-                        .status_condition
-                        .send_actor_mail(DcpsStatusConditionMail::AddCommunicationState {
+                    subscriber.status_condition.send_actor_mail(
+                        DcpsStatusConditionMail::AddCommunicationState {
                             state: StatusKind::DataOnReaders,
-                        })
-                        .await;
+                        },
+                    );
                     let Some(data_reader) = subscriber
                         .data_reader_list
                         .iter_mut()
@@ -2706,12 +2681,11 @@ where
                     else {
                         return;
                     };
-                    data_reader
-                        .status_condition
-                        .send_actor_mail(DcpsStatusConditionMail::AddCommunicationState {
+                    data_reader.status_condition.send_actor_mail(
+                        DcpsStatusConditionMail::AddCommunicationState {
                             state: StatusKind::DataAvailable,
-                        })
-                        .await;
+                        },
+                    );
                 }
                 Ok(AddChangeResult::NotAdded) => (), // Do nothing
                 Ok(AddChangeResult::Rejected(instance_handle, sample_rejected_status_kind)) => {
@@ -2749,7 +2723,6 @@ where
                         };
                         if let Some(l) = &data_reader.listener_sender {
                             l.send(ListenerMail::SampleRejected { the_reader, status })
-                                .await
                                 .ok();
                         };
                     } else if subscriber
@@ -2780,7 +2753,6 @@ where
                         let status = data_reader.get_sample_rejected_status();
                         if let Some(l) = &subscriber.listener_sender {
                             l.send(ListenerMail::SampleRejected { status, the_reader })
-                                .await
                                 .ok();
                         }
                     } else if self
@@ -2812,7 +2784,6 @@ where
                         let status = data_reader.get_sample_rejected_status();
                         if let Some(l) = &self.domain_participant.listener_sender {
                             l.send(ListenerMail::SampleRejected { status, the_reader })
-                                .await
                                 .ok();
                         }
                     }
@@ -2833,12 +2804,11 @@ where
                     else {
                         return;
                     };
-                    data_reader
-                        .status_condition
-                        .send_actor_mail(DcpsStatusConditionMail::AddCommunicationState {
+                    data_reader.status_condition.send_actor_mail(
+                        DcpsStatusConditionMail::AddCommunicationState {
                             state: StatusKind::SampleRejected,
-                        })
-                        .await;
+                        },
+                    );
                 }
                 Err(_) => (),
             }
@@ -2941,7 +2911,6 @@ where
 
             if let Some(l) = &data_writer.listener_sender {
                 l.send(ListenerMail::OfferedDeadlineMissed { the_writer, status })
-                    .await
                     .ok();
             }
         } else if publisher
@@ -2970,7 +2939,6 @@ where
             let status = data_writer.get_offered_deadline_missed_status().await;
             if let Some(l) = &publisher.listener_sender {
                 l.send(ListenerMail::OfferedDeadlineMissed { the_writer, status })
-                    .await
                     .ok();
             }
         } else if self
@@ -3001,7 +2969,6 @@ where
             let status = data_writer.get_offered_deadline_missed_status().await;
             if let Some(l) = &self.domain_participant.listener_sender {
                 l.send(ListenerMail::OfferedDeadlineMissed { the_writer, status })
-                    .await
                     .ok();
             }
         }
@@ -3021,12 +2988,11 @@ where
         else {
             return;
         };
-        data_writer
-            .status_condition
-            .send_actor_mail(DcpsStatusConditionMail::AddCommunicationState {
+        data_writer.status_condition.send_actor_mail(
+            DcpsStatusConditionMail::AddCommunicationState {
                 state: StatusKind::OfferedDeadlineMissed,
-            })
-            .await;
+            },
+        );
     }
 
     #[tracing::instrument(skip(self))]
@@ -3092,7 +3058,6 @@ where
             };
             if let Some(l) = &data_reader.listener_sender {
                 l.send(ListenerMail::RequestedDeadlineMissed { the_reader, status })
-                    .await
                     .ok();
             }
         } else if subscriber
@@ -3122,7 +3087,6 @@ where
             let status = data_reader.get_requested_deadline_missed_status();
             if let Some(l) = &subscriber.listener_sender {
                 l.send(ListenerMail::RequestedDeadlineMissed { status, the_reader })
-                    .await
                     .ok();
             }
         } else if self
@@ -3153,7 +3117,6 @@ where
             let status = data_reader.get_requested_deadline_missed_status();
             if let Some(l) = &self.domain_participant.listener_sender {
                 l.send(ListenerMail::RequestedDeadlineMissed { status, the_reader })
-                    .await
                     .ok();
             }
         }
@@ -3173,12 +3136,11 @@ where
             return;
         };
 
-        data_reader
-            .status_condition
-            .send_actor_mail(DcpsStatusConditionMail::AddCommunicationState {
+        data_reader.status_condition.send_actor_mail(
+            DcpsStatusConditionMail::AddCommunicationState {
                 state: StatusKind::RequestedDeadlineMissed,
-            })
-            .await;
+            },
+        );
     }
 
     #[tracing::instrument(skip(self))]
@@ -4977,8 +4939,7 @@ impl DataWriterEntity {
         self.status_condition
             .send_actor_mail(DcpsStatusConditionMail::RemoveCommunicationState {
                 state: StatusKind::OfferedDeadlineMissed,
-            })
-            .await;
+            });
 
         status
     }
@@ -5782,8 +5743,7 @@ impl DataReaderEntity {
         self.status_condition
             .send_actor_mail(DcpsStatusConditionMail::AddCommunicationState {
                 state: StatusKind::SubscriptionMatched,
-            })
-            .await;
+            });
     }
 
     async fn read(
@@ -5801,8 +5761,7 @@ impl DataReaderEntity {
         self.status_condition
             .send_actor_mail(DcpsStatusConditionMail::RemoveCommunicationState {
                 state: StatusKind::DataAvailable,
-            })
-            .await;
+            });
 
         let indexed_sample_list = self.create_indexed_sample_collection(
             max_samples,
@@ -5850,8 +5809,7 @@ impl DataReaderEntity {
         self.status_condition
             .send_actor_mail(DcpsStatusConditionMail::RemoveCommunicationState {
                 state: StatusKind::DataAvailable,
-            })
-            .await;
+            });
 
         let mut change_index_list: Vec<usize>;
         let samples;

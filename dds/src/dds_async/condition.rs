@@ -30,8 +30,7 @@ impl StatusConditionAsync {
     pub(crate) async fn register_notification(&self) -> DdsResult<MpscReceiver<()>> {
         let (reply_sender, reply_receiver) = oneshot();
         self.address
-            .send_actor_mail(DcpsStatusConditionMail::RegisterNotification { reply_sender })
-            .await?;
+            .send_actor_mail(DcpsStatusConditionMail::RegisterNotification { reply_sender })?;
         reply_receiver.await
     }
 }
@@ -41,22 +40,20 @@ impl StatusConditionAsync {
     #[tracing::instrument(skip(self))]
     pub async fn get_enabled_statuses(&self) -> DdsResult<Vec<StatusKind>> {
         let (reply_sender, reply_receiver) = oneshot();
-        self.address
-            .send_actor_mail(DcpsStatusConditionMail::GetStatusConditionEnabledStatuses {
-                reply_sender,
-            })
-            .await?;
+        self.address.send_actor_mail(
+            DcpsStatusConditionMail::GetStatusConditionEnabledStatuses { reply_sender },
+        )?;
         reply_receiver.await
     }
 
     /// Async version of [`set_enabled_statuses`](crate::infrastructure::condition::StatusCondition::set_enabled_statuses).
     #[tracing::instrument(skip(self))]
     pub async fn set_enabled_statuses(&self, mask: &[StatusKind]) -> DdsResult<()> {
-        self.address
-            .send_actor_mail(DcpsStatusConditionMail::SetStatusConditionEnabledStatuses {
+        self.address.send_actor_mail(
+            DcpsStatusConditionMail::SetStatusConditionEnabledStatuses {
                 status_mask: mask.to_vec(),
-            })
-            .await?;
+            },
+        )?;
         Ok(())
     }
 
@@ -75,8 +72,7 @@ impl StatusConditionAsync {
         self.address
             .send_actor_mail(DcpsStatusConditionMail::GetStatusConditionTriggerValue {
                 reply_sender,
-            })
-            .await?;
+            })?;
         reply_receiver.await
     }
 }

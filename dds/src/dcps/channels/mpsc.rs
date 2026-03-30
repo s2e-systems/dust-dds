@@ -72,7 +72,7 @@ impl<T> core::fmt::Debug for MpscSender<T> {
 }
 
 impl<T> MpscSender<T> {
-    pub async fn send(&self, value: T) -> Result<(), MpscSenderError> {
+    pub fn send(&self, value: T) -> Result<(), MpscSenderError> {
         critical_section::with(|cs| {
             let mut inner_lock = self.inner.borrow(cs).borrow_mut();
             if inner_lock.is_closed {
