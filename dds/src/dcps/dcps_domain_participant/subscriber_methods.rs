@@ -6,8 +6,8 @@ use crate::{
         actor::{Actor, ActorAddress},
         channels::mpsc::MpscSender,
         dcps_domain_participant::{
-            DataReaderEntity, DcpsDomainParticipant, SubscriberEntity, TopicDescriptionKind,
-            RtpsReaderKind, get_topic_kind,
+            DataReaderEntity, DcpsDomainParticipant, RtpsReaderKind, SubscriberEntity,
+            TopicDescriptionKind, get_topic_kind,
         },
         dcps_mail::{DcpsMail, MessageServiceMail},
         listeners::{
@@ -33,7 +33,7 @@ use crate::{
 
 impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     #[allow(clippy::too_many_arguments)]
-    #[tracing::instrument(skip(self, dcps_listener, dcps_sender))]
+    #[tracing::instrument(skip(self, dcps_listener))]
     pub async fn create_data_reader(
         &mut self,
         subscriber_handle: InstanceHandle,
@@ -41,7 +41,6 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         qos: QosKind<DataReaderQos>,
         dcps_listener: Option<DcpsDataReaderListener>,
         mask: Vec<StatusKind>,
-        dcps_sender: MpscSender<DcpsMail>,
     ) -> DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)> {
         struct UserDefinedReaderHistoryCache {
             dcps_sender: MpscSender<DcpsMail>,
@@ -55,7 +54,6 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                 &mut self,
                 cache_change: CacheChange,
             ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-                let dcps_sender = self.dcps_sender.clone();
                 Box::pin(async move {
                     self.dcps_sender
                         .send(DcpsMail::Message(MessageServiceMail::AddCacheChange {
@@ -63,7 +61,6 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                             participant_handle: self.participant_handle,
                             subscriber_handle: self.subscriber_handle,
                             data_reader_handle: self.data_reader_handle,
-                            dcps_sender,
                         }))
                         .await
                         .ok();
@@ -167,7 +164,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         let transport_reader = RtpsReaderKind::Stateful(RtpsStatefulReader::new(
             guid,
             Box::new(UserDefinedReaderHistoryCache {
-                dcps_sender: dcps_sender.clone(),
+                dcps_sender: self.dcps_sender.clone(),
                 participant_handle: self.domain_participant.instance_handle,
                 subscriber_handle: subscriber.instance_handle,
                 data_reader_handle: reader_handle,
@@ -196,7 +193,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         subscriber.data_reader_list.push(data_reader);
 
         if subscriber.enabled && subscriber.qos.entity_factory.autoenable_created_entities {
-            self.enable_data_reader(subscriber_handle, data_reader_handle, dcps_sender)
+            self.enable_data_reader(subscriber_handle, data_reader_handle)
                 .await?;
         }
         Ok((data_reader_handle, reader_status_condition_address))

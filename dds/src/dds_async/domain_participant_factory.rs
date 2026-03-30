@@ -45,7 +45,6 @@ impl DomainParticipantFactoryAsync {
                     qos,
                     dcps_listener,
                     status_kind,
-                    dcps_sender: self.dcps_sender.clone(),
                     reply_sender,
                 },
             ))
@@ -208,11 +207,15 @@ impl DomainParticipantFactoryAsync {
         transport: T,
     ) -> DomainParticipantFactoryAsync {
         let spawner_handle = runtime.spawner();
+        let (dcps_sender, mailbox_recv) = crate::dcps::channels::mpsc::mpsc_channel();
         let mut domain_participant_factory =
             crate::dcps::dcps_participant_factory::DcpsParticipantFactory::new(
-                app_id, host_id, runtime, transport,
+                app_id,
+                host_id,
+                runtime,
+                transport,
+                dcps_sender.clone(),
             );
-        let (dcps_sender, mailbox_recv) = crate::dcps::channels::mpsc::mpsc_channel();
         spawner_handle.spawn(async move {
             while let Some(m) = mailbox_recv.receive().await {
                 domain_participant_factory.handle(m).await;

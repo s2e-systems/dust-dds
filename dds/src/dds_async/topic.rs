@@ -146,14 +146,12 @@ impl TopicAsync {
     /// Async version of [`enable`](crate::topic_definition::topic::Topic::enable).
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
-        let dcps_sender = self.participant.dcps_sender().clone();
         let (reply_sender, reply_receiver) = oneshot();
         self.participant
             .dcps_sender()
             .send(DcpsMail::Topic(TopicServiceMail::Enable {
                 participant_handle: self.participant.get_instance_handle(),
                 topic_name: self.topic_name.clone(),
-                dcps_sender,
                 reply_sender,
             }))
             .await?;

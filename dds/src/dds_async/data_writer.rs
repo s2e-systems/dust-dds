@@ -200,7 +200,6 @@ where
                 data_writer_handle: self.handle,
                 dynamic_data,
                 timestamp,
-                dcps_sender: self.dcps_sender().clone(),
                 reply_sender,
             }))
             .await?;
@@ -394,7 +393,6 @@ impl<Foo> DataWriterAsync<Foo> {
                 publisher_handle: self.publisher.get_instance_handle(),
                 data_writer_handle: self.handle,
                 qos,
-                dcps_sender: self.dcps_sender().clone(),
                 reply_sender,
             }))
             .await?;
@@ -437,7 +435,6 @@ impl<Foo> DataWriterAsync<Foo> {
                 participant_handle: self.publisher.get_participant().get_instance_handle(),
                 publisher_handle: self.publisher.get_instance_handle(),
                 data_writer_handle: self.handle,
-                dcps_sender: self.dcps_sender().clone(),
                 reply_sender,
             }))
             .await?;

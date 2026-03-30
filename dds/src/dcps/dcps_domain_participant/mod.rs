@@ -155,14 +155,12 @@ impl HistoryCache for DcpsParticipantReaderHistoryCache {
         &mut self,
         cache_change: CacheChange,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        let dcps_sender = self.dcps_sender.clone();
         Box::pin(async move {
             self.dcps_sender
                 .send(DcpsMail::Message(
                     MessageServiceMail::AddBuiltinParticipantsDetectorCacheChange {
                         cache_change,
                         participant_handle: self.participant_handle,
-                        dcps_sender,
                     },
                 ))
                 .await
@@ -214,14 +212,12 @@ impl HistoryCache for DcpsSubscriptionsReaderHistoryCache {
         &mut self,
         cache_change: CacheChange,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        let dcps_sender = self.dcps_sender.clone();
         Box::pin(async move {
             self.dcps_sender
                 .send(DcpsMail::Message(
                     MessageServiceMail::AddBuiltinSubscriptionsDetectorCacheChange {
                         cache_change,
                         participant_handle: self.participant_handle,
-                        dcps_sender,
                     },
                 ))
                 .await
@@ -245,14 +241,12 @@ impl HistoryCache for DcpsPublicationsReaderHistoryCache {
         cache_change: CacheChange,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         let participant_handle = self.participant_handle;
-        let dcps_sender = self.dcps_sender.clone();
         Box::pin(async move {
             self.dcps_sender
                 .send(DcpsMail::Message(
                     MessageServiceMail::AddBuiltinPublicationsDetectorCacheChange {
                         participant_handle,
                         cache_change,
-                        dcps_sender,
                     },
                 ))
                 .await
@@ -294,6 +288,7 @@ pub struct DcpsDomainParticipant<R: DdsRuntime> {
     clock_handle: R::ClockHandle,
     timer_handle: R::TimerHandle,
     spawner_handle: R::SpawnerHandle,
+    dcps_sender: MpscSender<DcpsMail>,
 }
 
 impl<R> DcpsDomainParticipant<R>
@@ -748,12 +743,13 @@ where
             clock_handle,
             timer_handle,
             spawner_handle,
+            dcps_sender,
         }
     }
 
-    fn get_participant_async(&self, dcps_sender: MpscSender<DcpsMail>) -> DomainParticipantAsync {
+    fn get_participant_async(&self) -> DomainParticipantAsync {
         DomainParticipantAsync::new(
-            dcps_sender,
+            self.dcps_sender.clone(),
             self.domain_participant
                 .builtin_subscriber()
                 .status_condition
@@ -765,7 +761,6 @@ where
 
     fn get_subscriber_async(
         &self,
-        dcps_sender: MpscSender<DcpsMail>,
         subscriber_handle: InstanceHandle,
     ) -> DdsResult<SubscriberAsync> {
         Ok(SubscriberAsync::new(
@@ -777,13 +772,12 @@ where
                 .ok_or(DdsError::AlreadyDeleted)?
                 .status_condition
                 .address(),
-            self.get_participant_async(dcps_sender),
+            self.get_participant_async(),
         ))
     }
 
     fn get_data_reader_async<Foo>(
         &self,
-        dcps_sender: MpscSender<DcpsMail>,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
     ) -> DdsResult<DataReaderAsync<Foo>> {
@@ -801,25 +795,20 @@ where
         Ok(DataReaderAsync::new(
             data_reader_handle,
             data_reader.status_condition.address(),
-            self.get_subscriber_async(dcps_sender.clone(), subscriber_handle)?,
-            self.get_topic_description_async(dcps_sender, data_reader.topic_name.clone())?,
+            self.get_subscriber_async(subscriber_handle)?,
+            self.get_topic_description_async(data_reader.topic_name.clone())?,
         ))
     }
 
-    fn get_publisher_async(
-        &self,
-        dcps_sender: MpscSender<DcpsMail>,
-        publisher_handle: InstanceHandle,
-    ) -> DdsResult<PublisherAsync> {
+    fn get_publisher_async(&self, publisher_handle: InstanceHandle) -> DdsResult<PublisherAsync> {
         Ok(PublisherAsync::new(
             publisher_handle,
-            self.get_participant_async(dcps_sender),
+            self.get_participant_async(),
         ))
     }
 
     fn get_data_writer_async<Foo>(
         &self,
-        dcps_sender: MpscSender<DcpsMail>,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
     ) -> DdsResult<DataWriterAsync<Foo>> {
@@ -837,16 +826,12 @@ where
         Ok(DataWriterAsync::new(
             data_writer_handle,
             data_writer.status_condition.address(),
-            self.get_publisher_async(dcps_sender.clone(), publisher_handle)?,
-            self.get_topic_description_async(dcps_sender, data_writer.topic_name.clone())?,
+            self.get_publisher_async(publisher_handle)?,
+            self.get_topic_description_async(data_writer.topic_name.clone())?,
         ))
     }
 
-    fn get_topic_description_async(
-        &self,
-        dcps_sender: MpscSender<DcpsMail>,
-        topic_name: String,
-    ) -> DdsResult<TopicDescriptionAsync> {
+    fn get_topic_description_async(&self, topic_name: String) -> DdsResult<TopicDescriptionAsync> {
         match self
             .domain_participant
             .topic_description_list
@@ -859,7 +844,7 @@ where
                     topic.status_condition.address(),
                     topic.type_name.clone(),
                     topic_name,
-                    self.get_participant_async(dcps_sender),
+                    self.get_participant_async(),
                 )))
             }
             Some(TopicDescriptionKind::ContentFilteredTopic(t)) => {
@@ -875,7 +860,7 @@ where
                         related_topic.status_condition.address(),
                         related_topic.type_name.clone(),
                         t.related_topic_name.clone(),
-                        self.get_participant_async(dcps_sender),
+                        self.get_participant_async(),
                     );
                     Ok(TopicDescriptionAsync::ContentFilteredTopic(
                         ContentFilteredTopicAsync::new(name, topic),
@@ -896,8 +881,8 @@ where
         &self.domain_participant.builtin_subscriber.status_condition
     }
 
-    #[tracing::instrument(skip(self, dcps_sender))]
-    pub async fn announce_participant(&mut self, dcps_sender: MpscSender<DcpsMail>) {
+    #[tracing::instrument(skip(self))]
+    pub async fn announce_participant(&mut self) {
         if self.domain_participant.enabled {
             let builtin_topic_key = *self.domain_participant.instance_handle.as_ref();
             let guid = Guid::from(builtin_topic_key);
@@ -952,7 +937,6 @@ where
             let timestamp = self.get_current_time();
             let (reply_sender, _) = oneshot();
             self.write_w_timestamp(
-                dcps_sender,
                 self.domain_participant.builtin_publisher.instance_handle,
                 data_writer_handle,
                 spdp_discovered_participant_data.create_dynamic_sample(),
@@ -999,12 +983,11 @@ where
         }
     }
 
-    #[tracing::instrument(skip(self, dcps_sender))]
+    #[tracing::instrument(skip(self))]
     async fn announce_data_writer(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        dcps_sender: MpscSender<DcpsMail>,
     ) {
         let Some(publisher) = self
             .domain_participant
@@ -1077,7 +1060,6 @@ where
         let timestamp = self.get_current_time();
         let (reply_sender, _) = oneshot();
         self.write_w_timestamp(
-            dcps_sender,
             self.domain_participant.builtin_publisher.instance_handle,
             data_writer_handle,
             discovered_writer_data.create_dynamic_sample(),
@@ -1120,12 +1102,11 @@ where
         }
     }
 
-    #[tracing::instrument(skip(self, dcps_sender))]
+    #[tracing::instrument(skip(self))]
     async fn announce_data_reader(
         &mut self,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
-        dcps_sender: MpscSender<DcpsMail>,
     ) {
         let Some(subscriber) = self
             .domain_participant
@@ -1210,7 +1191,6 @@ where
         let timestamp = self.get_current_time();
         let (reply_sender, _) = oneshot();
         self.write_w_timestamp(
-            dcps_sender,
             self.domain_participant.builtin_publisher.instance_handle,
             data_writer_handle,
             discovered_reader_data.create_dynamic_sample(),
@@ -1253,7 +1233,7 @@ where
     }
 
     #[tracing::instrument(skip(self))]
-    async fn announce_topic(&mut self, topic_name: String, dcps_sender: MpscSender<DcpsMail>) {
+    async fn announce_topic(&mut self, topic_name: String) {
         let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
             .topic_description_list
@@ -1296,7 +1276,6 @@ where
         let timestamp = self.get_current_time();
         let (reply_sender, _) = oneshot();
         self.write_w_timestamp(
-            dcps_sender,
             self.domain_participant.builtin_publisher.instance_handle,
             data_writer_handle,
             discovered_topic_data.create_dynamic_sample(),
@@ -1306,13 +1285,12 @@ where
         .await;
     }
 
-    #[tracing::instrument(skip(self, dcps_sender))]
+    #[tracing::instrument(skip(self))]
     async fn add_discovered_reader(
         &mut self,
         discovered_reader_data: DiscoveredReaderData,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        dcps_sender: MpscSender<DcpsMail>,
     ) {
         let default_unicast_locator_list = if let Some(p) = self
             .domain_participant
@@ -1478,11 +1456,9 @@ where
                         .contains(&StatusKind::PublicationMatched)
                     {
                         let status = data_writer.get_publication_matched_status();
-                        let Ok(the_writer) = self.get_data_writer_async(
-                            dcps_sender,
-                            publisher_handle,
-                            data_writer_handle,
-                        ) else {
+                        let Ok(the_writer) =
+                            self.get_data_writer_async(publisher_handle, data_writer_handle)
+                        else {
                             return;
                         };
                         let Some(publisher) = self
@@ -1509,11 +1485,9 @@ where
                         .listener_mask
                         .contains(&StatusKind::PublicationMatched)
                     {
-                        let Ok(the_writer) = self.get_data_writer_async(
-                            dcps_sender,
-                            publisher_handle,
-                            data_writer_handle,
-                        ) else {
+                        let Ok(the_writer) =
+                            self.get_data_writer_async(publisher_handle, data_writer_handle)
+                        else {
                             return;
                         };
                         let Some(publisher) = self
@@ -1542,11 +1516,9 @@ where
                         .listener_mask
                         .contains(&StatusKind::PublicationMatched)
                     {
-                        let Ok(the_writer) = self.get_data_writer_async(
-                            dcps_sender,
-                            publisher_handle,
-                            data_writer_handle,
-                        ) else {
+                        let Ok(the_writer) =
+                            self.get_data_writer_async(publisher_handle, data_writer_handle)
+                        else {
                             return;
                         };
                         let Some(publisher) = self
@@ -1606,11 +1578,9 @@ where
                         .contains(&StatusKind::OfferedIncompatibleQos)
                     {
                         let status = data_writer.get_offered_incompatible_qos_status();
-                        let Ok(the_writer) = self.get_data_writer_async(
-                            dcps_sender,
-                            publisher_handle,
-                            data_writer_handle,
-                        ) else {
+                        let Ok(the_writer) =
+                            self.get_data_writer_async(publisher_handle, data_writer_handle)
+                        else {
                             return;
                         };
                         let Some(publisher) = self
@@ -1637,11 +1607,9 @@ where
                         .listener_mask
                         .contains(&StatusKind::OfferedIncompatibleQos)
                     {
-                        let Ok(the_writer) = self.get_data_writer_async(
-                            dcps_sender,
-                            publisher_handle,
-                            data_writer_handle,
-                        ) else {
+                        let Ok(the_writer) =
+                            self.get_data_writer_async(publisher_handle, data_writer_handle)
+                        else {
                             return;
                         };
                         let Some(publisher) = self
@@ -1670,11 +1638,9 @@ where
                         .listener_mask
                         .contains(&StatusKind::OfferedIncompatibleQos)
                     {
-                        let Ok(the_writer) = self.get_data_writer_async(
-                            dcps_sender,
-                            publisher_handle,
-                            data_writer_handle,
-                        ) else {
+                        let Ok(the_writer) =
+                            self.get_data_writer_async(publisher_handle, data_writer_handle)
+                        else {
                             return;
                         };
                         let Some(publisher) = self
@@ -1764,13 +1730,12 @@ where
         }
     }
 
-    #[tracing::instrument(skip(self, dcps_sender))]
+    #[tracing::instrument(skip(self))]
     async fn add_discovered_writer(
         &mut self,
         discovered_writer_data: DiscoveredWriterData,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
-        dcps_sender: MpscSender<DcpsMail>,
     ) {
         let default_unicast_locator_list = if let Some(p) = self
             .domain_participant
@@ -1946,11 +1911,9 @@ where
                         .listener_mask
                         .contains(&StatusKind::SubscriptionMatched)
                     {
-                        let Ok(the_reader) = self.get_data_reader_async(
-                            dcps_sender,
-                            subscriber_handle,
-                            data_reader_handle,
-                        ) else {
+                        let Ok(the_reader) =
+                            self.get_data_reader_async(subscriber_handle, data_reader_handle)
+                        else {
                             return;
                         };
                         let Some(subscriber) = self
@@ -1978,11 +1941,9 @@ where
                         .listener_mask
                         .contains(&StatusKind::SubscriptionMatched)
                     {
-                        let Ok(the_reader) = self.get_data_reader_async(
-                            dcps_sender,
-                            subscriber_handle,
-                            data_reader_handle,
-                        ) else {
+                        let Ok(the_reader) =
+                            self.get_data_reader_async(subscriber_handle, data_reader_handle)
+                        else {
                             return;
                         };
                         let Some(subscriber) = self
@@ -2011,11 +1972,9 @@ where
                         .listener_mask
                         .contains(&StatusKind::SubscriptionMatched)
                     {
-                        let Ok(the_reader) = self.get_data_reader_async(
-                            dcps_sender,
-                            subscriber_handle,
-                            data_reader_handle,
-                        ) else {
+                        let Ok(the_reader) =
+                            self.get_data_reader_async(subscriber_handle, data_reader_handle)
+                        else {
                             return;
                         };
                         let Some(subscriber) = self
@@ -2075,11 +2034,9 @@ where
                         .contains(&StatusKind::RequestedIncompatibleQos)
                     {
                         let status = data_reader.get_requested_incompatible_qos_status();
-                        let Ok(the_reader) = self.get_data_reader_async(
-                            dcps_sender,
-                            subscriber_handle,
-                            data_reader_handle,
-                        ) else {
+                        let Ok(the_reader) =
+                            self.get_data_reader_async(subscriber_handle, data_reader_handle)
+                        else {
                             return;
                         };
                         let Some(subscriber) = self
@@ -2106,11 +2063,9 @@ where
                         .listener_mask
                         .contains(&StatusKind::RequestedIncompatibleQos)
                     {
-                        let Ok(the_reader) = self.get_data_reader_async(
-                            dcps_sender,
-                            subscriber_handle,
-                            data_reader_handle,
-                        ) else {
+                        let Ok(the_reader) =
+                            self.get_data_reader_async(subscriber_handle, data_reader_handle)
+                        else {
                             return;
                         };
                         let Some(subscriber) = self
@@ -2139,11 +2094,9 @@ where
                         .listener_mask
                         .contains(&StatusKind::RequestedIncompatibleQos)
                     {
-                        let Ok(the_reader) = self.get_data_reader_async(
-                            dcps_sender,
-                            subscriber_handle,
-                            data_reader_handle,
-                        ) else {
+                        let Ok(the_reader) =
+                            self.get_data_reader_async(subscriber_handle, data_reader_handle)
+                        else {
                             return;
                         };
                         let Some(subscriber) = self
@@ -2232,7 +2185,6 @@ where
     pub async fn add_builtin_participants_detector_cache_change(
         &mut self,
         cache_change: CacheChange,
-        dcps_sender: MpscSender<DcpsMail>,
     ) {
         match cache_change.kind {
             ChangeKind::Alive => {
@@ -2243,7 +2195,7 @@ where
                     let discovered_participant_data =
                         SpdpDiscoveredParticipantData::create_sample(dynamic_data);
 
-                    self.add_discovered_participant(discovered_participant_data, dcps_sender)
+                    self.add_discovered_participant(discovered_participant_data)
                         .await;
                 }
             }
@@ -2279,11 +2231,10 @@ where
         }
     }
 
-    #[tracing::instrument(skip(self, dcps_sender))]
+    #[tracing::instrument(skip(self))]
     pub async fn add_builtin_publications_detector_cache_change(
         &mut self,
         cache_change: CacheChange,
-        dcps_sender: MpscSender<DcpsMail>,
     ) {
         match cache_change.kind {
             ChangeKind::Alive => {
@@ -2336,7 +2287,6 @@ where
                             discovered_writer_data.clone(),
                             subscriber_handle,
                             data_reader_handle,
-                            dcps_sender.clone(),
                         )
                         .await;
                     }
@@ -2389,11 +2339,10 @@ where
         }
     }
 
-    #[tracing::instrument(skip(self, dcps_sender))]
+    #[tracing::instrument(skip(self))]
     pub async fn add_builtin_subscriptions_detector_cache_change(
         &mut self,
         cache_change: CacheChange,
-        dcps_sender: MpscSender<DcpsMail>,
     ) {
         match cache_change.kind {
             ChangeKind::Alive => {
@@ -2476,7 +2425,6 @@ where
                             discovered_reader_data.clone(),
                             publisher_handle,
                             data_writer_handle,
-                            dcps_sender.clone(),
                         )
                         .await;
                     }
@@ -2587,10 +2535,9 @@ where
         }
     }
 
-    #[tracing::instrument(skip(self, dcps_sender))]
+    #[tracing::instrument(skip(self))]
     pub async fn add_cache_change(
         &mut self,
-        dcps_sender: MpscSender<DcpsMail>,
         cache_change: CacheChange,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
@@ -2748,7 +2695,7 @@ where
                         data_reader.qos.deadline.period
                     {
                         let mut timer_handle = self.timer_handle.clone();
-                        let dcps_sender = dcps_sender.clone();
+                        let dcps_sender = self.dcps_sender.clone();
 
                         self.spawner_handle.spawn(async move {
                             loop {
@@ -2760,7 +2707,6 @@ where
                                             subscriber_handle,
                                             data_reader_handle,
                                             change_instance_handle,
-                                            dcps_sender: dcps_sender.clone(),
                                         },
                                     ))
                                     .await
@@ -2785,8 +2731,7 @@ where
                         .listener_mask
                         .contains(&StatusKind::DataOnReaders)
                     {
-                        let Ok(the_subscriber) =
-                            self.get_subscriber_async(dcps_sender, subscriber_handle)
+                        let Ok(the_subscriber) = self.get_subscriber_async(subscriber_handle)
                         else {
                             return;
                         };
@@ -2805,11 +2750,9 @@ where
                                 .ok();
                         }
                     } else if data_reader_on_data_available_active {
-                        let Ok(the_reader) = self.get_data_reader_async(
-                            dcps_sender,
-                            subscriber_handle,
-                            data_reader_handle,
-                        ) else {
+                        let Ok(the_reader) =
+                            self.get_data_reader_async(subscriber_handle, data_reader_handle)
+                        else {
                             return;
                         };
                         let Some(subscriber) = self
@@ -2878,11 +2821,9 @@ where
                         .contains(&StatusKind::SampleRejected)
                     {
                         let status = data_reader.get_sample_rejected_status();
-                        let Ok(the_reader) = self.get_data_reader_async(
-                            dcps_sender,
-                            subscriber_handle,
-                            data_reader_handle,
-                        ) else {
+                        let Ok(the_reader) =
+                            self.get_data_reader_async(subscriber_handle, data_reader_handle)
+                        else {
                             return;
                         };
                         let Some(subscriber) = self
@@ -2910,11 +2851,9 @@ where
                         .listener_mask
                         .contains(&StatusKind::SampleRejected)
                     {
-                        let Ok(the_reader) = self.get_data_reader_async(
-                            dcps_sender,
-                            subscriber_handle,
-                            data_reader_handle,
-                        ) else {
+                        let Ok(the_reader) =
+                            self.get_data_reader_async(subscriber_handle, data_reader_handle)
+                        else {
                             return;
                         };
                         let Some(subscriber) = self
@@ -2944,11 +2883,9 @@ where
                         .listener_mask
                         .contains(&StatusKind::SampleRejected)
                     {
-                        let Ok(the_reader) = self.get_data_reader_async(
-                            dcps_sender,
-                            subscriber_handle,
-                            data_reader_handle,
-                        ) else {
+                        let Ok(the_reader) =
+                            self.get_data_reader_async(subscriber_handle, data_reader_handle)
+                        else {
                             return;
                         };
                         let Some(subscriber) = self
@@ -3026,13 +2963,12 @@ where
         }
     }
 
-    #[tracing::instrument(skip(self, dcps_sender))]
+    #[tracing::instrument(skip(self))]
     pub async fn offered_deadline_missed(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         change_instance_handle: InstanceHandle,
-        dcps_sender: MpscSender<DcpsMail>,
     ) {
         let current_time = self.get_current_time();
         let Some(publisher) = self
@@ -3077,8 +3013,7 @@ where
             .contains(&StatusKind::OfferedDeadlineMissed)
         {
             let status = data_writer.get_offered_deadline_missed_status().await;
-            let Ok(the_writer) =
-                self.get_data_writer_async(dcps_sender, publisher_handle, data_writer_handle)
+            let Ok(the_writer) = self.get_data_writer_async(publisher_handle, data_writer_handle)
             else {
                 return;
             };
@@ -3108,8 +3043,7 @@ where
             .listener_mask
             .contains(&StatusKind::OfferedDeadlineMissed)
         {
-            let Ok(the_writer) =
-                self.get_data_writer_async(dcps_sender, publisher_handle, data_writer_handle)
+            let Ok(the_writer) = self.get_data_writer_async(publisher_handle, data_writer_handle)
             else {
                 return;
             };
@@ -3139,8 +3073,7 @@ where
             .listener_mask
             .contains(&StatusKind::OfferedDeadlineMissed)
         {
-            let Ok(the_writer) =
-                self.get_data_writer_async(dcps_sender, publisher_handle, data_writer_handle)
+            let Ok(the_writer) = self.get_data_writer_async(publisher_handle, data_writer_handle)
             else {
                 return;
             };
@@ -3191,13 +3124,12 @@ where
             .await;
     }
 
-    #[tracing::instrument(skip(self, dcps_sender))]
+    #[tracing::instrument(skip(self))]
     pub async fn requested_deadline_missed(
         &mut self,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         change_instance_handle: InstanceHandle,
-        dcps_sender: MpscSender<DcpsMail>,
     ) {
         let current_time = self.get_current_time();
         let Some(subscriber) = self
@@ -3234,8 +3166,7 @@ where
             .contains(&StatusKind::RequestedDeadlineMissed)
         {
             let status = data_reader.get_requested_deadline_missed_status();
-            let Ok(the_reader) =
-                self.get_data_reader_async(dcps_sender, subscriber_handle, data_reader_handle)
+            let Ok(the_reader) = self.get_data_reader_async(subscriber_handle, data_reader_handle)
             else {
                 return;
             };
@@ -3263,8 +3194,7 @@ where
             .listener_mask
             .contains(&StatusKind::RequestedDeadlineMissed)
         {
-            let Ok(the_reader) =
-                self.get_data_reader_async(dcps_sender, subscriber_handle, data_reader_handle)
+            let Ok(the_reader) = self.get_data_reader_async(subscriber_handle, data_reader_handle)
             else {
                 return;
             };
@@ -3295,8 +3225,7 @@ where
             .listener_mask
             .contains(&StatusKind::RequestedDeadlineMissed)
         {
-            let Ok(the_reader) =
-                self.get_data_reader_async(dcps_sender, subscriber_handle, data_reader_handle)
+            let Ok(the_reader) = self.get_data_reader_async(subscriber_handle, data_reader_handle)
             else {
                 return;
             };
@@ -3351,7 +3280,6 @@ where
     async fn add_discovered_participant(
         &mut self,
         discovered_participant_data: SpdpDiscoveredParticipantData,
-        dcps_sender: MpscSender<DcpsMail>,
     ) {
         // Check that the domainId of the discovered participant equals the local one.
         // If it is not equal then there the local endpoints are not configured to
@@ -3394,7 +3322,7 @@ where
             self.add_matched_topics_detector(&discovered_participant_data);
             self.add_matched_topics_announcer(&discovered_participant_data);
 
-            self.announce_participant(dcps_sender).await;
+            self.announce_participant().await;
 
             self.domain_participant
                 .add_discovered_participant(discovered_participant_data);

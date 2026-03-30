@@ -2,9 +2,7 @@ use alloc::{string::String, sync::Arc};
 
 use crate::{
     dcps::{
-        channels::mpsc::MpscSender,
         dcps_domain_participant::{DcpsDomainParticipant, TopicDescriptionKind},
-        dcps_mail::DcpsMail,
         status_condition_mail::DcpsStatusConditionMail,
     },
     infrastructure::{
@@ -94,11 +92,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn enable_topic(
-        &mut self,
-        topic_name: String,
-        dcps_sender: MpscSender<DcpsMail>,
-    ) -> DdsResult<()> {
+    pub async fn enable_topic(&mut self, topic_name: String) -> DdsResult<()> {
         let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
             .topic_description_list
@@ -110,7 +104,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
 
         if !topic.enabled {
             topic.enabled = true;
-            self.announce_topic(topic_name, dcps_sender).await;
+            self.announce_topic(topic_name).await;
         }
 
         Ok(())

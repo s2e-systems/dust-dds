@@ -10,12 +10,10 @@ use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     dcps::{
         actor::{Actor, ActorAddress},
-        channels::mpsc::MpscSender,
         dcps_domain_participant::{
             BUILT_IN_TOPIC_NAME_LIST, ContentFilteredTopicEntity, DcpsDomainParticipant,
             PublisherEntity, SubscriberEntity, TopicDescriptionKind, TopicEntity,
         },
-        dcps_mail::DcpsMail,
         listeners::{
             domain_participant_listener::DcpsDomainParticipantListener,
             publisher_listener::DcpsPublisherListener, subscriber_listener::DcpsSubscriberListener,
@@ -236,7 +234,6 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         dcps_listener: Option<DcpsTopicListener>,
         mask: Vec<StatusKind>,
         type_support: Arc<DynamicType>,
-        dcps_sender: MpscSender<DcpsMail>,
     ) -> DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)> {
         if self
             .domain_participant
@@ -300,7 +297,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                 .entity_factory
                 .autoenable_created_entities
         {
-            self.enable_topic(topic_name, dcps_sender).await?;
+            self.enable_topic(topic_name).await?;
         }
 
         Ok((topic_handle, topic_status_condition_address))
@@ -713,7 +710,6 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     pub async fn set_domain_participant_qos(
         &mut self,
         qos: QosKind<DomainParticipantQos>,
-        dcps_sender: MpscSender<DcpsMail>,
     ) -> DdsResult<()> {
         let qos = match qos {
             QosKind::Default => DomainParticipantQos::default(),
@@ -722,7 +718,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
 
         self.domain_participant.qos = qos;
         if self.domain_participant.enabled {
-            self.announce_participant(dcps_sender).await;
+            self.announce_participant().await;
         }
         Ok(())
     }
@@ -746,10 +742,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn enable_domain_participant(
-        &mut self,
-        dcps_sender: MpscSender<DcpsMail>,
-    ) -> DdsResult<()> {
+    pub async fn enable_domain_participant(&mut self) -> DdsResult<()> {
         if !self.domain_participant.enabled {
             for t in &mut self.domain_participant.topic_description_list {
                 if let TopicDescriptionKind::Topic(t) = t {
@@ -767,7 +760,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             self.domain_participant.builtin_subscriber.enabled = true;
             self.domain_participant.enabled = true;
 
-            self.announce_participant(dcps_sender).await;
+            self.announce_participant().await;
         }
 
         Ok(())

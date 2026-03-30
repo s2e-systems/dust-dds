@@ -71,7 +71,6 @@ impl PublisherAsync {
                     qos,
                     dcps_listener,
                     mask: mask.to_vec(),
-                    dcps_sender: self.dcps_sender().clone(),
                     reply_sender,
                 },
             ))

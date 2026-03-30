@@ -3,12 +3,10 @@ use alloc::{string::String, vec::Vec};
 use crate::{
     dcps::{
         actor::{Actor, ActorAddress},
-        channels::mpsc::MpscSender,
         dcps_domain_participant::{
-            DataWriterEntity, DcpsDomainParticipant, TopicDescriptionKind, RtpsWriterKind,
+            DataWriterEntity, DcpsDomainParticipant, RtpsWriterKind, TopicDescriptionKind,
             get_topic_kind,
         },
-        dcps_mail::DcpsMail,
         listeners::{
             data_writer_listener::DcpsDataWriterListener, publisher_listener::DcpsPublisherListener,
         },
@@ -29,7 +27,7 @@ use crate::{
 
 impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     #[allow(clippy::too_many_arguments)]
-    #[tracing::instrument(skip(self, dcps_listener, dcps_sender))]
+    #[tracing::instrument(skip(self, dcps_listener))]
     pub async fn create_data_writer(
         &mut self,
         publisher_handle: InstanceHandle,
@@ -37,7 +35,6 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         qos: QosKind<DataWriterQos>,
         dcps_listener: Option<DcpsDataWriterListener>,
         mask: Vec<StatusKind>,
-        dcps_sender: MpscSender<DcpsMail>,
     ) -> DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)> {
         let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
@@ -130,7 +127,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         publisher.data_writer_list.push(data_writer);
 
         if publisher.enabled && publisher.qos.entity_factory.autoenable_created_entities {
-            self.enable_data_writer(publisher_handle, writer_handle, dcps_sender)
+            self.enable_data_writer(publisher_handle, writer_handle)
                 .await?;
         }
 
