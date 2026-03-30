@@ -5,7 +5,7 @@ use crate::{
         actor::{Actor, ActorAddress},
         channels::mpsc::MpscSender,
         dcps_domain_participant::{
-            DataWriterEntity, DcpsDomainParticipant, TopicDescriptionKind, TransportWriterKind,
+            DataWriterEntity, DcpsDomainParticipant, TopicDescriptionKind, RtpsWriterKind,
             get_topic_kind,
         },
         dcps_mail::DcpsMail,
@@ -116,7 +116,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         let listener_sender = dcps_listener.map(|l| l.spawn::<R>(&self.spawner_handle));
         let data_writer = DataWriterEntity::new(
             writer_handle,
-            TransportWriterKind::Stateful(transport_writer),
+            RtpsWriterKind::Stateful(transport_writer),
             topic_name,
             type_name,
             type_support,

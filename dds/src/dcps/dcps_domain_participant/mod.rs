@@ -524,7 +524,7 @@ where
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
             None,
             Vec::new(),
-            TransportReaderKind::Stateless(rtps_stateless_reader),
+            RtpsReaderKind::Stateless(rtps_stateless_reader),
         );
 
         let dcps_topic_transport_reader = RtpsStatefulReader::new(
@@ -544,7 +544,7 @@ where
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
             None,
             Vec::new(),
-            TransportReaderKind::Stateful(dcps_topic_transport_reader),
+            RtpsReaderKind::Stateful(dcps_topic_transport_reader),
         );
 
         let dcps_publication_transport_reader = RtpsStatefulReader::new(
@@ -564,7 +564,7 @@ where
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
             None,
             Vec::new(),
-            TransportReaderKind::Stateful(dcps_publication_transport_reader),
+            RtpsReaderKind::Stateful(dcps_publication_transport_reader),
         );
 
         let dcps_subscription_transport_reader = RtpsStatefulReader::new(
@@ -584,7 +584,7 @@ where
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
             None,
             Vec::new(),
-            TransportReaderKind::Stateful(dcps_subscription_transport_reader),
+            RtpsReaderKind::Stateful(dcps_subscription_transport_reader),
         );
 
         let data_reader_list = vec![
@@ -629,7 +629,7 @@ where
         }
         let dcps_participant_writer = DataWriterEntity::new(
             InstanceHandle::new(dcps_participant_transport_writer.guid().into()),
-            TransportWriterKind::Stateless(dcps_participant_transport_writer),
+            RtpsWriterKind::Stateless(dcps_participant_transport_writer),
             String::from(DCPS_PARTICIPANT),
             "SpdpDiscoveredParticipantData".to_string(),
             Arc::clone(&spdp_participant_type),
@@ -646,7 +646,7 @@ where
 
         let dcps_topics_writer = DataWriterEntity::new(
             InstanceHandle::new(dcps_topics_transport_writer.guid().into()),
-            TransportWriterKind::Stateful(dcps_topics_transport_writer),
+            RtpsWriterKind::Stateful(dcps_topics_transport_writer),
             String::from(DCPS_TOPIC),
             "DiscoveredTopicData".to_string(),
             Arc::clone(&discovered_topic_type),
@@ -662,7 +662,7 @@ where
 
         let dcps_publications_writer = DataWriterEntity::new(
             InstanceHandle::new(dcps_publications_transport_writer.guid().into()),
-            TransportWriterKind::Stateful(dcps_publications_transport_writer),
+            RtpsWriterKind::Stateful(dcps_publications_transport_writer),
             String::from(DCPS_PUBLICATION),
             "DiscoveredWriterData".to_string(),
             Arc::clone(&discovered_writer_type),
@@ -678,7 +678,7 @@ where
         );
         let dcps_subscriptions_writer = DataWriterEntity::new(
             InstanceHandle::new(dcps_subscriptions_transport_writer.guid().into()),
-            TransportWriterKind::Stateful(dcps_subscriptions_transport_writer),
+            RtpsWriterKind::Stateful(dcps_subscriptions_transport_writer),
             String::from(DCPS_SUBSCRIPTION),
             "DiscoveredReaderData".to_string(),
             Arc::clone(&discovered_reader_type),
@@ -1463,7 +1463,7 @@ where
                         multicast_locator_list,
                         expects_inline_qos: false,
                     };
-                    if let TransportWriterKind::Stateful(w) = &mut data_writer.transport_writer {
+                    if let RtpsWriterKind::Stateful(w) = &mut data_writer.transport_writer {
                         w.add_matched_reader(reader_proxy);
                     }
 
@@ -1932,7 +1932,7 @@ where
                         reliability_kind,
                         durability_kind,
                     };
-                    if let TransportReaderKind::Stateful(r) = &mut data_reader.transport_reader {
+                    if let RtpsReaderKind::Stateful(r) = &mut data_reader.transport_reader {
                         r.add_matched_writer(&writer_proxy);
                     }
 
@@ -3416,7 +3416,7 @@ where
                 for matched_publication in &data_reader.matched_publication_list {
                     if matched_publication.key.value[0..12] == prefix {
                         // Remove matched writers
-                        if let TransportReaderKind::Stateful(stateful_reader) =
+                        if let RtpsReaderKind::Stateful(stateful_reader) =
                             &mut data_reader.transport_reader
                         {
                             stateful_reader
@@ -3432,7 +3432,7 @@ where
                 for matched_subscription in &data_writer.matched_subscription_list {
                     if matched_subscription.key.value[..12] == prefix {
                         // Remove readers
-                        if let TransportWriterKind::Stateful(stateful_writer) =
+                        if let RtpsWriterKind::Stateful(stateful_writer) =
                             &mut data_writer.transport_writer
                         {
                             stateful_writer
@@ -3498,8 +3498,8 @@ where
                 })
             {
                 match &mut dw.transport_writer {
-                    TransportWriterKind::Stateful(w) => w.add_matched_reader(reader_proxy),
-                    TransportWriterKind::Stateless(_) => panic!("Invalid built-in writer type"),
+                    RtpsWriterKind::Stateful(w) => w.add_matched_reader(reader_proxy),
+                    RtpsWriterKind::Stateless(_) => panic!("Invalid built-in writer type"),
                 }
             }
         }
@@ -3517,7 +3517,7 @@ where
                     == ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER
             })
         {
-            if let TransportWriterKind::Stateful(w) = &mut dw.transport_writer {
+            if let RtpsWriterKind::Stateful(w) = &mut dw.transport_writer {
                 let guid = Guid::new(prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
                 w.delete_matched_reader(guid);
             }
@@ -3565,8 +3565,8 @@ where
                 })
             {
                 match &mut dr.transport_reader {
-                    TransportReaderKind::Stateful(r) => r.add_matched_writer(&writer_proxy),
-                    TransportReaderKind::Stateless(_) => panic!("Invalid built-in reader type"),
+                    RtpsReaderKind::Stateful(r) => r.add_matched_writer(&writer_proxy),
+                    RtpsReaderKind::Stateless(_) => panic!("Invalid built-in reader type"),
                 }
             }
         }
@@ -3584,7 +3584,7 @@ where
                     == ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR
             })
         {
-            if let TransportReaderKind::Stateful(r) = &mut dr.transport_reader {
+            if let RtpsReaderKind::Stateful(r) = &mut dr.transport_reader {
                 let guid = Guid::new(prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER);
                 r.delete_matched_writer(guid);
             }
@@ -3633,8 +3633,8 @@ where
                 })
             {
                 match &mut dw.transport_writer {
-                    TransportWriterKind::Stateful(w) => w.add_matched_reader(reader_proxy),
-                    TransportWriterKind::Stateless(_) => panic!("Invalid built-in writer type"),
+                    RtpsWriterKind::Stateful(w) => w.add_matched_reader(reader_proxy),
+                    RtpsWriterKind::Stateless(_) => panic!("Invalid built-in writer type"),
                 }
             }
         }
@@ -3652,7 +3652,7 @@ where
                     == ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER
             })
         {
-            if let TransportWriterKind::Stateful(w) = &mut dw.transport_writer {
+            if let RtpsWriterKind::Stateful(w) = &mut dw.transport_writer {
                 let guid = Guid::new(prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
                 w.delete_matched_reader(guid);
             }
@@ -3700,8 +3700,8 @@ where
                 })
             {
                 match &mut dr.transport_reader {
-                    TransportReaderKind::Stateful(r) => r.add_matched_writer(&writer_proxy),
-                    TransportReaderKind::Stateless(_) => panic!("Invalid built-in reader type"),
+                    RtpsReaderKind::Stateful(r) => r.add_matched_writer(&writer_proxy),
+                    RtpsReaderKind::Stateless(_) => panic!("Invalid built-in reader type"),
                 }
             }
         }
@@ -3719,7 +3719,7 @@ where
                     == ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR
             })
         {
-            if let TransportReaderKind::Stateful(r) = &mut dr.transport_reader {
+            if let RtpsReaderKind::Stateful(r) = &mut dr.transport_reader {
                 let guid = Guid::new(prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
                 r.delete_matched_writer(guid);
             }
@@ -3767,8 +3767,8 @@ where
                 })
             {
                 match &mut dw.transport_writer {
-                    TransportWriterKind::Stateful(w) => w.add_matched_reader(reader_proxy),
-                    TransportWriterKind::Stateless(_) => panic!("Invalid built-in writer type"),
+                    RtpsWriterKind::Stateful(w) => w.add_matched_reader(reader_proxy),
+                    RtpsWriterKind::Stateless(_) => panic!("Invalid built-in writer type"),
                 }
             }
         }
@@ -3785,7 +3785,7 @@ where
                 dw.transport_writer.guid().entity_id() == ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER
             })
         {
-            if let TransportWriterKind::Stateful(w) = &mut dw.transport_writer {
+            if let RtpsWriterKind::Stateful(w) = &mut dw.transport_writer {
                 let guid = Guid::new(prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR);
                 w.delete_matched_reader(guid);
             }
@@ -3832,8 +3832,8 @@ where
                 })
             {
                 match &mut dr.transport_reader {
-                    TransportReaderKind::Stateful(r) => r.add_matched_writer(&writer_proxy),
-                    TransportReaderKind::Stateless(_) => panic!("Invalid built-in reader type"),
+                    RtpsReaderKind::Stateful(r) => r.add_matched_writer(&writer_proxy),
+                    RtpsReaderKind::Stateless(_) => panic!("Invalid built-in reader type"),
                 }
             }
         }
@@ -3850,7 +3850,7 @@ where
                 dr.transport_reader.guid().entity_id() == ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR
             })
         {
-            if let TransportReaderKind::Stateful(r) = &mut dr.transport_reader {
+            if let RtpsReaderKind::Stateful(r) = &mut dr.transport_reader {
                 let guid = Guid::new(prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER);
                 r.delete_matched_writer(guid);
             }
@@ -3874,7 +3874,7 @@ where
                         {
                             for dr in &mut subscriber.data_reader_list {
                                 match &mut dr.transport_reader {
-                                    TransportReaderKind::Stateful(r) => {
+                                    RtpsReaderKind::Stateful(r) => {
                                         r.on_data_submessage_received(
                                             data_submessage,
                                             message_receiver.source_guid_prefix(),
@@ -3882,7 +3882,7 @@ where
                                         )
                                         .await;
                                     }
-                                    TransportReaderKind::Stateless(r) => {
+                                    RtpsReaderKind::Stateless(r) => {
                                         r.on_data_submessage_received(
                                             data_submessage,
                                             message_receiver.source_guid_prefix(),
@@ -3905,7 +3905,7 @@ where
                         {
                             for dr in &mut subscriber.data_reader_list {
                                 match &mut dr.transport_reader {
-                                    TransportReaderKind::Stateful(r) => {
+                                    RtpsReaderKind::Stateful(r) => {
                                         r.on_data_frag_submessage_received(
                                             data_frag_submessage,
                                             message_receiver.source_guid_prefix(),
@@ -3913,7 +3913,7 @@ where
                                         )
                                         .await;
                                     }
-                                    TransportReaderKind::Stateless(_) => (),
+                                    RtpsReaderKind::Stateless(_) => (),
                                 }
                             }
                         }
@@ -3929,13 +3929,13 @@ where
                         {
                             for dr in &mut subscriber.data_reader_list {
                                 match &mut dr.transport_reader {
-                                    TransportReaderKind::Stateful(r) => {
+                                    RtpsReaderKind::Stateful(r) => {
                                         r.on_gap_submessage_received(
                                             gap_submessage,
                                             message_receiver.source_guid_prefix(),
                                         );
                                     }
-                                    TransportReaderKind::Stateless(_) => (),
+                                    RtpsReaderKind::Stateless(_) => (),
                                 }
                             }
                         }
@@ -3951,7 +3951,7 @@ where
                         {
                             for dr in &mut subscriber.data_reader_list {
                                 match &mut dr.transport_reader {
-                                    TransportReaderKind::Stateful(r) => {
+                                    RtpsReaderKind::Stateful(r) => {
                                         r.on_heartbeat_submessage_received(
                                             heartbeat_submessage,
                                             message_receiver.source_guid_prefix(),
@@ -3959,7 +3959,7 @@ where
                                         )
                                         .await;
                                     }
-                                    TransportReaderKind::Stateless(_) => (),
+                                    RtpsReaderKind::Stateless(_) => (),
                                 }
                             }
                         }
@@ -3975,13 +3975,13 @@ where
                         {
                             for dr in &mut subscriber.data_reader_list {
                                 match &mut dr.transport_reader {
-                                    TransportReaderKind::Stateful(r) => {
+                                    RtpsReaderKind::Stateful(r) => {
                                         r.on_heartbeat_frag_submessage_received(
                                             heartbeat_frag_submessage,
                                             message_receiver.source_guid_prefix(),
                                         );
                                     }
-                                    TransportReaderKind::Stateless(_) => (),
+                                    RtpsReaderKind::Stateless(_) => (),
                                 }
                             }
                         }
@@ -3997,7 +3997,7 @@ where
                         {
                             for dw in &mut publisher.data_writer_list {
                                 match &mut dw.transport_writer {
-                                    TransportWriterKind::Stateful(w) => {
+                                    RtpsWriterKind::Stateful(w) => {
                                         if w.on_acknack_submessage_received(
                                             ack_nack_submessage,
                                             message_receiver.source_guid_prefix(),
@@ -4013,7 +4013,7 @@ where
                                             }
                                         }
                                     }
-                                    TransportWriterKind::Stateless(_) => (),
+                                    RtpsWriterKind::Stateless(_) => (),
                                 }
                             }
                         }
@@ -4029,7 +4029,7 @@ where
                         {
                             for dw in &mut publisher.data_writer_list {
                                 match &mut dw.transport_writer {
-                                    TransportWriterKind::Stateful(w) => {
+                                    RtpsWriterKind::Stateful(w) => {
                                         w.on_nack_frag_submessage_received(
                                             nack_frag_submessage,
                                             message_receiver.source_guid_prefix(),
@@ -4037,7 +4037,7 @@ where
                                         )
                                         .await
                                     }
-                                    TransportWriterKind::Stateless(_) => (),
+                                    RtpsWriterKind::Stateless(_) => (),
                                 }
                             }
                         }
@@ -4059,7 +4059,7 @@ where
         {
             for dw in &mut publisher.data_writer_list {
                 match &mut dw.transport_writer {
-                    TransportWriterKind::Stateful(writer) => {
+                    RtpsWriterKind::Stateful(writer) => {
                         writer
                             .write_message(
                                 self.transport.message_writer.as_ref(),
@@ -4067,7 +4067,7 @@ where
                             )
                             .await
                     }
-                    TransportWriterKind::Stateless(_writer) => {}
+                    RtpsWriterKind::Stateless(_writer) => {}
                 }
             }
         }
@@ -4630,16 +4630,16 @@ impl PublisherEntity {
     }
 }
 
-enum TransportWriterKind {
+enum RtpsWriterKind {
     Stateful(RtpsStatefulWriter),
     Stateless(RtpsStatelessWriter),
 }
 
-impl TransportWriterKind {
+impl RtpsWriterKind {
     fn guid(&self) -> Guid {
         match self {
-            TransportWriterKind::Stateful(w) => w.guid(),
-            TransportWriterKind::Stateless(w) => w.guid(),
+            RtpsWriterKind::Stateful(w) => w.guid(),
+            RtpsWriterKind::Stateless(w) => w.guid(),
         }
     }
 
@@ -4650,17 +4650,17 @@ impl TransportWriterKind {
         clock: &impl Clock,
     ) {
         match self {
-            TransportWriterKind::Stateful(w) => {
+            RtpsWriterKind::Stateful(w) => {
                 w.add_change(cache_change, message_writer, clock).await
             }
-            TransportWriterKind::Stateless(w) => w.add_change(cache_change, message_writer).await,
+            RtpsWriterKind::Stateless(w) => w.add_change(cache_change, message_writer).await,
         }
     }
 
     async fn remove_change(&mut self, sequence_number: i64) {
         match self {
-            TransportWriterKind::Stateful(w) => w.remove_change(sequence_number),
-            TransportWriterKind::Stateless(w) => w.remove_change(sequence_number),
+            RtpsWriterKind::Stateful(w) => w.remove_change(sequence_number),
+            RtpsWriterKind::Stateless(w) => w.remove_change(sequence_number),
         }
     }
 }
@@ -4677,7 +4677,7 @@ struct InstanceSamples {
 
 struct DataWriterEntity {
     instance_handle: InstanceHandle,
-    transport_writer: TransportWriterKind,
+    transport_writer: RtpsWriterKind,
     topic_name: String,
     type_name: String,
     type_support: Arc<DynamicType>,
@@ -4703,7 +4703,7 @@ impl DataWriterEntity {
     #[allow(clippy::too_many_arguments)]
     const fn new(
         instance_handle: InstanceHandle,
-        transport_writer: TransportWriterKind,
+        transport_writer: RtpsWriterKind,
         topic_name: String,
         type_name: String,
         type_support: Arc<DynamicType>,
@@ -4957,10 +4957,10 @@ impl DataWriterEntity {
 
     async fn are_all_changes_acknowledged(&self) -> bool {
         match &self.transport_writer {
-            TransportWriterKind::Stateful(w) => {
+            RtpsWriterKind::Stateful(w) => {
                 w.is_change_acknowledged(self.last_change_sequence_number)
             }
-            TransportWriterKind::Stateless(_) => true,
+            RtpsWriterKind::Stateless(_) => true,
         }
     }
 
@@ -5068,16 +5068,16 @@ struct IndexedSample {
     sample: (Option<DynamicData>, SampleInfo),
 }
 
-enum TransportReaderKind {
+enum RtpsReaderKind {
     Stateful(RtpsStatefulReader),
     Stateless(RtpsStatelessReader),
 }
 
-impl TransportReaderKind {
+impl RtpsReaderKind {
     fn guid(&self) -> Guid {
         match self {
-            TransportReaderKind::Stateful(r) => r.guid(),
-            TransportReaderKind::Stateless(r) => r.guid(),
+            RtpsReaderKind::Stateful(r) => r.guid(),
+            RtpsReaderKind::Stateless(r) => r.guid(),
         }
     }
 }
@@ -5107,7 +5107,7 @@ struct DataReaderEntity {
     listener_mask: Vec<StatusKind>,
     instances: Vec<InstanceState>,
     instance_ownership: Vec<InstanceOwnership>,
-    transport_reader: TransportReaderKind,
+    transport_reader: RtpsReaderKind,
 }
 
 impl DataReaderEntity {
@@ -5120,7 +5120,7 @@ impl DataReaderEntity {
         status_condition: Actor<DcpsStatusCondition>,
         listener_sender: Option<MpscSender<ListenerMail>>,
         listener_mask: Vec<StatusKind>,
-        transport_reader: TransportReaderKind,
+        transport_reader: RtpsReaderKind,
     ) -> Self {
         Self {
             instance_handle,

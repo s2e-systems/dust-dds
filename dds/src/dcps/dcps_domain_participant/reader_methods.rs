@@ -5,7 +5,7 @@ use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     dcps::{
         channels::{mpsc::MpscSender, oneshot::oneshot},
-        dcps_domain_participant::{DcpsDomainParticipant, TransportReaderKind, poll_timeout},
+        dcps_domain_participant::{DcpsDomainParticipant, RtpsReaderKind, poll_timeout},
         dcps_mail::{DcpsMail, MessageServiceMail},
         listeners::data_reader_listener::DcpsDataReaderListener,
         status_condition_mail::DcpsStatusConditionMail,
@@ -447,7 +447,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             | DurabilityQosPolicyKind::Persistent => (),
         };
 
-        if let TransportReaderKind::Stateful(r) = &data_reader.transport_reader {
+        if let RtpsReaderKind::Stateful(r) = &data_reader.transport_reader {
             Ok(r.is_historical_data_received())
         } else {
             Ok(true)

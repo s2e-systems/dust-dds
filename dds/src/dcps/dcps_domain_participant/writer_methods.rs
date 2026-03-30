@@ -8,7 +8,7 @@ use crate::{
             oneshot::{OneshotSender, oneshot},
         },
         dcps_domain_participant::{
-            DcpsDomainParticipant, InstancePublicationTime, InstanceSamples, TransportWriterKind,
+            DcpsDomainParticipant, InstancePublicationTime, InstanceSamples, RtpsWriterKind,
             serialize,
         },
         dcps_mail::{DcpsMail, EventServiceMail, MessageServiceMail, WriterServiceMail},
@@ -370,7 +370,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                 if s.samples.len() == depth as usize {
                     if let Some(&smallest_seq_num_instance) = s.samples.front() {
                         if data_writer.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
-                            if let TransportWriterKind::Stateful(w) = &data_writer.transport_writer
+                            if let RtpsWriterKind::Stateful(w) = &data_writer.transport_writer
                             {
                                 if !w.is_change_acknowledged(smallest_seq_num_instance) {
                                     if data_writer.acknowledgement_notification.is_some() {

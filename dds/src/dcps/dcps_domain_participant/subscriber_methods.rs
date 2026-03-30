@@ -7,7 +7,7 @@ use crate::{
         channels::mpsc::MpscSender,
         dcps_domain_participant::{
             DataReaderEntity, DcpsDomainParticipant, SubscriberEntity, TopicDescriptionKind,
-            TransportReaderKind, get_topic_kind,
+            RtpsReaderKind, get_topic_kind,
         },
         dcps_mail::{DcpsMail, MessageServiceMail},
         listeners::{
@@ -164,7 +164,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         let guid_prefix = Guid::from(*self.domain_participant.instance_handle.as_ref()).prefix();
         let guid = Guid::new(guid_prefix, entity_id);
 
-        let transport_reader = TransportReaderKind::Stateful(RtpsStatefulReader::new(
+        let transport_reader = RtpsReaderKind::Stateful(RtpsStatefulReader::new(
             guid,
             Box::new(UserDefinedReaderHistoryCache {
                 dcps_sender: dcps_sender.clone(),
