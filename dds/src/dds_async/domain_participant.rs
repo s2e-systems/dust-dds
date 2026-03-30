@@ -294,7 +294,7 @@ impl DomainParticipantAsync {
     {
         let type_support = Arc::new(Foo::get_type());
         let topic_name = String::from(topic_name);
-        let participant_address = self.dcps_sender.clone();
+        let participant_address = self.dcps_sender;
         let participant_async = self.clone();
         loop {
             let (reply_sender, reply_receiver) = oneshot();

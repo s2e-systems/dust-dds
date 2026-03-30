@@ -43,13 +43,13 @@ impl MailHandler for DcpsStatusCondition {
                 reply_sender.send(self.get_trigger_value())
             }
             DcpsStatusConditionMail::AddCommunicationState { state } => {
-                self.add_communication_state(state).await
+                self.add_communication_state(state)
             }
             DcpsStatusConditionMail::RemoveCommunicationState { state } => {
                 self.remove_communication_state(state)
             }
             DcpsStatusConditionMail::RegisterNotification { reply_sender } => {
-                reply_sender.send(self.register_notification().await)
+                reply_sender.send(self.register_notification())
             }
         }
     }

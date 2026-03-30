@@ -101,7 +101,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             .transport
             .create_participant(
                 domain_id,
-                TransportDataReceiver::new(participant_handle, self.dcps_sender.clone()),
+                TransportDataReceiver::new(participant_handle, self.dcps_sender),
             )
             .await;
 
@@ -119,7 +119,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             listener_sender,
             status_kind,
             transport,
-            self.dcps_sender.clone(),
+            self.dcps_sender,
             clock_handle,
             timer_handle.clone(),
             spawner_handle.clone(),
@@ -132,7 +132,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
         //****** Spawn the participant actor and tasks **********//
 
         // Start the regular participant announcement task
-        let dcps_sender_clone = self.dcps_sender.clone();
+        let dcps_sender_clone = self.dcps_sender;
         let mut timer_handle_clone = timer_handle.clone();
         let participant_announcement_interval =
             self.configuration.participant_announcement_interval();
@@ -152,7 +152,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
         });
 
         // Start regular message writing
-        let dcps_sender_clone = self.dcps_sender.clone();
+        let dcps_sender_clone = self.dcps_sender;
         spawner_handle.spawn(async move {
             loop {
                 dcps_sender_clone

@@ -64,7 +64,7 @@ impl DomainParticipantFactoryAsync {
             reply_receiver.await??;
 
         let domain_participant = DomainParticipantAsync::new(
-            self.dcps_sender.clone(),
+            self.dcps_sender,
             builtin_subscriber_status_condition_address,
             domain_id,
             participant_handle,
@@ -94,7 +94,7 @@ impl DomainParticipantFactoryAsync {
         &self,
         _domain_id: DomainId,
     ) -> DdsResult<Option<DomainParticipantAsync>> {
-        todo!()
+        async { todo!() }.await
     }
 
     /// Async version of [`set_default_participant_qos`](crate::domain::domain_participant_factory::DomainParticipantFactory::set_default_participant_qos).

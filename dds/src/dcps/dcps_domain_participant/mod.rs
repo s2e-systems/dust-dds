@@ -619,7 +619,7 @@ where
 
     fn get_participant_async(&self) -> DomainParticipantAsync {
         DomainParticipantAsync::new(
-            self.dcps_sender.clone(),
+            self.dcps_sender,
             self.domain_participant
                 .builtin_subscriber()
                 .status_condition
@@ -2028,9 +2028,7 @@ where
             .iter()
             .any(|x| &x.key().value == publication_handle.as_ref())
         {
-            data_reader
-                .remove_matched_publication(&publication_handle)
-                .await;
+            data_reader.remove_matched_publication(&publication_handle);
         }
     }
 
@@ -2581,7 +2579,7 @@ where
                         data_reader.qos.deadline.period
                     {
                         let mut timer_handle = self.timer_handle.clone();
-                        let dcps_sender = self.dcps_sender.clone();
+                        let dcps_sender = self.dcps_sender;
 
                         self.spawner_handle.spawn(async move {
                             loop {
@@ -2887,7 +2885,7 @@ where
             .listener_mask
             .contains(&StatusKind::OfferedDeadlineMissed)
         {
-            let status = data_writer.get_offered_deadline_missed_status().await;
+            let status = data_writer.get_offered_deadline_missed_status();
             let Ok(the_writer) = self.get_data_writer_async(publisher_handle, data_writer_handle)
             else {
                 return;
@@ -2936,7 +2934,7 @@ where
             else {
                 return;
             };
-            let status = data_writer.get_offered_deadline_missed_status().await;
+            let status = data_writer.get_offered_deadline_missed_status();
             if let Some(l) = &publisher.listener_sender {
                 l.send(ListenerMail::OfferedDeadlineMissed { the_writer, status })
                     .ok();
@@ -2966,7 +2964,7 @@ where
             else {
                 return;
             };
-            let status = data_writer.get_offered_deadline_missed_status().await;
+            let status = data_writer.get_offered_deadline_missed_status();
             if let Some(l) = &self.domain_participant.listener_sender {
                 l.send(ListenerMail::OfferedDeadlineMissed { the_writer, status })
                     .ok();
@@ -4924,7 +4922,7 @@ impl DataWriterEntity {
             .map(|x| x.last_write_time)
     }
 
-    async fn are_all_changes_acknowledged(&self) -> bool {
+    fn are_all_changes_acknowledged(&self) -> bool {
         match &self.transport_writer {
             RtpsWriterKind::Stateful(w) => {
                 w.is_change_acknowledged(self.last_change_sequence_number)
@@ -4933,7 +4931,7 @@ impl DataWriterEntity {
         }
     }
 
-    async fn get_offered_deadline_missed_status(&mut self) -> OfferedDeadlineMissedStatus {
+    fn get_offered_deadline_missed_status(&mut self) -> OfferedDeadlineMissedStatus {
         let status = self.offered_deadline_missed_status.clone();
         self.offered_deadline_missed_status.total_count_change = 0;
         self.status_condition
@@ -5728,7 +5726,7 @@ impl DataReaderEntity {
             .map(|x| x.last_received_time)
     }
 
-    async fn remove_matched_publication(&mut self, publication_handle: &InstanceHandle) {
+    fn remove_matched_publication(&mut self, publication_handle: &InstanceHandle) {
         let Some(i) = self
             .matched_publication_list
             .iter()
@@ -5746,7 +5744,7 @@ impl DataReaderEntity {
             });
     }
 
-    async fn read(
+    fn read(
         &mut self,
         max_samples: i32,
         sample_states: &[SampleStateKind],
@@ -5786,7 +5784,7 @@ impl DataReaderEntity {
         Ok(samples)
     }
 
-    async fn take(
+    fn take(
         &mut self,
         max_samples: i32,
         sample_states: Vec<SampleStateKind>,
@@ -5826,7 +5824,7 @@ impl DataReaderEntity {
         Ok(samples)
     }
 
-    async fn take_next_instance(
+    fn take_next_instance(
         &mut self,
         max_samples: i32,
         previous_handle: Option<InstanceHandle>,
@@ -5839,21 +5837,18 @@ impl DataReaderEntity {
         }
 
         match self.next_instance(previous_handle) {
-            Some(next_handle) => {
-                self.take(
-                    max_samples,
-                    sample_states,
-                    view_states,
-                    instance_states,
-                    Some(next_handle),
-                )
-                .await
-            }
+            Some(next_handle) => self.take(
+                max_samples,
+                sample_states,
+                view_states,
+                instance_states,
+                Some(next_handle),
+            ),
             None => Err(DdsError::NoData),
         }
     }
 
-    async fn read_next_instance(
+    fn read_next_instance(
         &mut self,
         max_samples: i32,
         previous_handle: Option<InstanceHandle>,
@@ -5866,16 +5861,13 @@ impl DataReaderEntity {
         }
 
         match self.next_instance(previous_handle) {
-            Some(next_handle) => {
-                self.read(
-                    max_samples,
-                    sample_states,
-                    view_states,
-                    instance_states,
-                    Some(next_handle),
-                )
-                .await
-            }
+            Some(next_handle) => self.read(
+                max_samples,
+                sample_states,
+                view_states,
+                instance_states,
+                Some(next_handle),
+            ),
             None => Err(DdsError::NoData),
         }
     }

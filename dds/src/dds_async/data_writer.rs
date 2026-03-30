@@ -248,7 +248,7 @@ impl<Foo> DataWriterAsync<Foo> {
     /// to be handle on the user side if needed.
     #[tracing::instrument(skip(self))]
     pub async fn wait_for_acknowledgments(&self) -> DdsResult<()> {
-        let participant_address = self.dcps_sender().clone();
+        let participant_address = *self.dcps_sender();
         let publisher_handle = self.get_publisher().get_instance_handle();
         let data_writer_handle = self.handle;
         loop {

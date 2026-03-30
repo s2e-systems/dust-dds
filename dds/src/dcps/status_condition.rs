@@ -36,7 +36,7 @@ impl Default for DcpsStatusCondition {
 }
 
 impl DcpsStatusCondition {
-    pub async fn add_communication_state(&mut self, state: StatusKind) {
+    pub fn add_communication_state(&mut self, state: StatusKind) {
         self.status_changes.push(state);
         if self.get_trigger_value() {
             for w in self.registered_notifications.drain(..) {
@@ -67,7 +67,7 @@ impl DcpsStatusCondition {
         false
     }
 
-    pub async fn register_notification(&mut self) -> MpscReceiver<()> {
+    pub fn register_notification(&mut self) -> MpscReceiver<()> {
         let (sender, receiver) = mpsc_channel();
         if self.get_trigger_value() {
             sender.send(()).ok();

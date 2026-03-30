@@ -33,7 +33,7 @@ impl ContentFilteredTopicAsync {
 
     /// Async version of [`get_expression_parameters`](crate::topic_definition::content_filtered_topic::ContentFilteredTopic::get_expression_parameters).
     pub async fn get_expression_parameters(&self) -> DdsResult<Vec<String>> {
-        todo!()
+        async { todo!() }.await
     }
 
     /// Async version of [`set_expression_parameters`](crate::topic_definition::content_filtered_topic::ContentFilteredTopic::set_expression_parameters).
@@ -41,7 +41,7 @@ impl ContentFilteredTopicAsync {
         &self,
         _expression_parameters: Vec<String>,
     ) -> DdsResult<()> {
-        todo!()
+        async { todo!() }.await
     }
 }
 

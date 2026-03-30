@@ -384,7 +384,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                                         Some(acknowledgment_notification_sender);
                                     let participant_handle =
                                         self.domain_participant.instance_handle;
-                                    let dcps_sender = self.dcps_sender.clone();
+                                    let dcps_sender = self.dcps_sender;
                                     self.spawner_handle.spawn(async move {
                                         if let DurationKind::Finite(t) = max_blocking_time {
                                             let max_blocking_time_wait =
@@ -491,7 +491,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             }
         }
 
-        let dcps_sender_clone = self.dcps_sender.clone();
+        let dcps_sender_clone = self.dcps_sender;
         let participant_handle = self.domain_participant.instance_handle;
         if let DurationKind::Finite(deadline_missed_period) = data_writer.qos.deadline.period {
             let mut timer_handle = self.timer_handle.clone();
@@ -520,7 +520,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                 return;
             }
 
-            let dcps_sender_clone = self.dcps_sender.clone();
+            let dcps_sender_clone = self.dcps_sender;
             self.spawner_handle.spawn(async move {
                 timer_handle.delay(sleep_duration.into()).await;
                 dcps_sender_clone
@@ -602,7 +602,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             return Err(DdsError::AlreadyDeleted);
         };
 
-        Ok(data_writer.get_offered_deadline_missed_status().await)
+        Ok(data_writer.get_offered_deadline_missed_status())
     }
 
     #[tracing::instrument(skip(self))]
@@ -708,6 +708,6 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         else {
             return Err(DdsError::AlreadyDeleted);
         };
-        Ok(data_writer.are_all_changes_acknowledged().await)
+        Ok(data_writer.are_all_changes_acknowledged())
     }
 }

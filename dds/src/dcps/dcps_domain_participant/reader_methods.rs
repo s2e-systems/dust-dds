@@ -57,15 +57,13 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             return Err(DdsError::AlreadyDeleted);
         };
 
-        data_reader
-            .read(
-                max_samples,
-                &sample_states,
-                &view_states,
-                &instance_states,
-                specific_instance_handle,
-            )
-            .await
+        data_reader.read(
+            max_samples,
+            &sample_states,
+            &view_states,
+            &instance_states,
+            specific_instance_handle,
+        )
     }
 
     #[allow(clippy::too_many_arguments, clippy::type_complexity)]
@@ -95,15 +93,13 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         else {
             return Err(DdsError::AlreadyDeleted);
         };
-        data_reader
-            .take(
-                max_samples,
-                sample_states,
-                view_states,
-                instance_states,
-                specific_instance_handle,
-            )
-            .await
+        data_reader.take(
+            max_samples,
+            sample_states,
+            view_states,
+            instance_states,
+            specific_instance_handle,
+        )
     }
 
     #[allow(clippy::too_many_arguments, clippy::type_complexity)]
@@ -133,15 +129,13 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         else {
             return Err(DdsError::AlreadyDeleted);
         };
-        data_reader
-            .read_next_instance(
-                max_samples,
-                previous_handle,
-                &sample_states,
-                &view_states,
-                &instance_states,
-            )
-            .await
+        data_reader.read_next_instance(
+            max_samples,
+            previous_handle,
+            &sample_states,
+            &view_states,
+            &instance_states,
+        )
     }
 
     #[allow(clippy::too_many_arguments, clippy::type_complexity)]
@@ -171,15 +165,13 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         else {
             return Err(DdsError::AlreadyDeleted);
         };
-        data_reader
-            .take_next_instance(
-                max_samples,
-                previous_handle,
-                sample_states,
-                view_states,
-                instance_states,
-            )
-            .await
+        data_reader.take_next_instance(
+            max_samples,
+            previous_handle,
+            sample_states,
+            view_states,
+            instance_states,
+        )
     }
 
     #[tracing::instrument(skip(self))]
@@ -221,7 +213,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     ) -> Pin<Box<dyn Future<Output = DdsResult<()>> + Send>> {
         let participant_handle = self.domain_participant.instance_handle;
         let timer_handle = self.timer_handle.clone();
-        let dcps_sender = self.dcps_sender.clone();
+        let dcps_sender = self.dcps_sender;
         Box::pin(async move {
             poll_timeout(
                 timer_handle,
