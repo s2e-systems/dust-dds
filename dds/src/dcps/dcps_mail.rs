@@ -18,7 +18,7 @@ use crate::{
         },
         status_condition::DcpsStatusCondition,
     },
-    dds_async::{configuration::DustDdsConfiguration, domain_participant_factory::DcpsSender},
+    dds_async::configuration::DustDdsConfiguration,
     infrastructure::{
         domain::DomainId,
         error::DdsResult,
@@ -34,7 +34,6 @@ use crate::{
         },
         time::{Duration, Time},
     },
-    transport::types::CacheChange,
     xtypes::dynamic_type::{DynamicData, DynamicType},
 };
 use alloc::vec::Vec;
@@ -58,7 +57,6 @@ pub enum ParticipantFactoryMail {
         qos: QosKind<DomainParticipantQos>,
         dcps_listener: Option<DcpsDomainParticipantListener>,
         status_kind: Vec<StatusKind>,
-        dcps_sender: DcpsSender,
         reply_sender: OneshotSender<DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)>>,
     },
     DeleteParticipant {
@@ -122,7 +120,6 @@ pub enum ParticipantServiceMail {
         dcps_listener: Option<DcpsTopicListener>,
         mask: Vec<StatusKind>,
         type_support: Arc<DynamicType>,
-        dcps_sender: DcpsSender,
         reply_sender: OneshotSender<DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)>>,
     },
     DeleteUserDefinedTopic {
@@ -232,7 +229,6 @@ pub enum ParticipantServiceMail {
     SetQos {
         participant_handle: InstanceHandle,
         qos: QosKind<DomainParticipantQos>,
-        dcps_sender: DcpsSender,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
     GetQos {
@@ -247,7 +243,6 @@ pub enum ParticipantServiceMail {
     },
     Enable {
         participant_handle: InstanceHandle,
-        dcps_sender: DcpsSender,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
 }
@@ -272,7 +267,6 @@ pub enum TopicServiceMail {
     Enable {
         participant_handle: InstanceHandle,
         topic_name: String,
-        dcps_sender: DcpsSender,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
     GetTypeSupport {
@@ -290,7 +284,6 @@ pub enum PublisherServiceMail {
         qos: QosKind<DataWriterQos>,
         dcps_listener: Option<DcpsDataWriterListener>,
         mask: Vec<StatusKind>,
-        dcps_sender: DcpsSender,
         reply_sender: OneshotSender<DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)>>,
     },
     DeleteDataWriter {
@@ -338,7 +331,6 @@ pub enum SubscriberServiceMail {
         qos: QosKind<DataReaderQos>,
         dcps_listener: Option<DcpsDataReaderListener>,
         mask: Vec<StatusKind>,
-        dcps_sender: DcpsSender,
         reply_sender: OneshotSender<DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)>>,
     },
     DeleteDataReader {
@@ -441,7 +433,6 @@ pub enum WriterServiceMail {
         data_writer_handle: InstanceHandle,
         dynamic_data: DynamicData,
         timestamp: Time,
-        dcps_sender: DcpsSender,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
     DisposeWTimestamp {
@@ -462,7 +453,6 @@ pub enum WriterServiceMail {
         participant_handle: InstanceHandle,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        dcps_sender: DcpsSender,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
     SetDataWriterQos {
@@ -470,7 +460,6 @@ pub enum WriterServiceMail {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         qos: QosKind<DataWriterQos>,
-        dcps_sender: DcpsSender,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
 }
@@ -480,7 +469,6 @@ pub enum ReaderServiceMail {
         participant_handle: InstanceHandle,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
-        dcps_sender: DcpsSender,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
     Read {
@@ -542,7 +530,6 @@ pub enum ReaderServiceMail {
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         max_wait: Duration,
-        dcps_sender: DcpsSender,
         #[allow(clippy::type_complexity)]
         reply_sender: OneshotSender<DdsResult<Pin<Box<dyn Future<Output = DdsResult<()>> + Send>>>>,
     },
@@ -564,7 +551,6 @@ pub enum ReaderServiceMail {
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         qos: QosKind<DataReaderQos>,
-        dcps_sender: DcpsSender,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
     GetQos {
@@ -584,13 +570,6 @@ pub enum ReaderServiceMail {
 }
 
 pub enum MessageServiceMail {
-    AddCacheChange {
-        participant_handle: InstanceHandle,
-        cache_change: CacheChange,
-        subscriber_handle: InstanceHandle,
-        data_reader_handle: InstanceHandle,
-        dcps_sender: DcpsSender,
-    },
     RemoveWriterChange {
         participant_handle: InstanceHandle,
         publisher_handle: InstanceHandle,
@@ -609,25 +588,6 @@ pub enum MessageServiceMail {
         data_reader_handle: InstanceHandle,
         reply_sender: OneshotSender<DdsResult<bool>>,
     },
-    AddBuiltinParticipantsDetectorCacheChange {
-        participant_handle: InstanceHandle,
-        cache_change: CacheChange,
-        dcps_sender: DcpsSender,
-    },
-    AddBuiltinPublicationsDetectorCacheChange {
-        participant_handle: InstanceHandle,
-        cache_change: CacheChange,
-        dcps_sender: DcpsSender,
-    },
-    AddBuiltinSubscriptionsDetectorCacheChange {
-        participant_handle: InstanceHandle,
-        cache_change: CacheChange,
-        dcps_sender: DcpsSender,
-    },
-    AddBuiltinTopicsDetectorCacheChange {
-        participant_handle: InstanceHandle,
-        cache_change: CacheChange,
-    },
     HandleData {
         participant_handle: InstanceHandle,
         data_message: Arc<[u8]>,
@@ -643,20 +603,15 @@ pub enum EventServiceMail {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         change_instance_handle: InstanceHandle,
-        dcps_sender: DcpsSender,
     },
     RequestedDeadlineMissed {
         participant_handle: InstanceHandle,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         change_instance_handle: InstanceHandle,
-        dcps_sender: DcpsSender,
     },
 }
 
 pub enum DiscoveryServiceMail {
-    AnnounceParticipant {
-        participant_handle: InstanceHandle,
-        dcps_sender: DcpsSender,
-    },
+    AnnounceParticipant { participant_handle: InstanceHandle },
 }

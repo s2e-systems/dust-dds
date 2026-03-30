@@ -55,7 +55,6 @@ impl DomainParticipantFactoryAsync {
                     qos,
                     dcps_listener,
                     status_kind,
-                    dcps_sender: self.dcps_sender.clone(),
                     reply_sender,
                 },
             ))
@@ -220,7 +219,11 @@ impl DomainParticipantFactoryAsync {
         let spawner_handle = runtime.spawner();
         let mut domain_participant_factory =
             crate::dcps::dcps_participant_factory::DcpsParticipantFactory::new(
-                app_id, host_id, runtime, transport,
+                app_id,
+                host_id,
+                runtime,
+                transport,
+                DCPS_CHANNEL.sender(),
             );
         spawner_handle.spawn(async move {
             loop {

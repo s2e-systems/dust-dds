@@ -5,7 +5,6 @@ use crate::{
         dcps_domain_participant::{DcpsDomainParticipant, TopicDescriptionKind},
         status_condition_mail::DcpsStatusConditionMail,
     },
-    dds_async::domain_participant_factory::DcpsSender,
     infrastructure::{
         error::{DdsError, DdsResult},
         qos::{QosKind, TopicQos},
@@ -92,12 +91,8 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         Ok(topic.qos.clone())
     }
 
-    #[tracing::instrument(skip(self, dcps_sender))]
-    pub async fn enable_topic(
-        &mut self,
-        topic_name: String,
-        dcps_sender: DcpsSender,
-    ) -> DdsResult<()> {
+    #[tracing::instrument(skip(self))]
+    pub async fn enable_topic(&mut self, topic_name: String) -> DdsResult<()> {
         let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
             .topic_description_list
@@ -109,7 +104,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
 
         if !topic.enabled {
             topic.enabled = true;
-            self.announce_topic(topic_name, dcps_sender).await;
+            self.announce_topic(topic_name).await;
         }
 
         Ok(())

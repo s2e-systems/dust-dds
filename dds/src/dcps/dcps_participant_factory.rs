@@ -32,10 +32,17 @@ pub struct DcpsParticipantFactory<R: DdsRuntime, T> {
     entity_counter: u32,
     app_id: [u8; 4],
     host_id: [u8; 4],
+    dcps_sender: DcpsSender,
 }
 
 impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T> {
-    pub fn new(app_id: [u8; 4], host_id: [u8; 4], runtime: R, transport: T) -> Self {
+    pub fn new(
+        app_id: [u8; 4],
+        host_id: [u8; 4],
+        runtime: R,
+        transport: T,
+        dcps_sender: DcpsSender,
+    ) -> Self {
         Self {
             domain_participant_list: Default::default(),
             qos: Default::default(),
@@ -46,6 +53,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             entity_counter: 0,
             app_id,
             host_id,
+            dcps_sender,
         }
     }
 
@@ -81,7 +89,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
         qos: QosKind<DomainParticipantQos>,
         dcps_listener: Option<DcpsDomainParticipantListener>,
         status_kind: Vec<StatusKind>,
-        dcps_sender: DcpsSender,
     ) -> DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)> {
         let domain_participant_qos = match qos {
             QosKind::Default => self.default_participant_qos.clone(),
@@ -94,7 +101,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             .transport
             .create_participant(
                 domain_id,
-                TransportDataReceiver::new(participant_handle, dcps_sender.clone()),
+                TransportDataReceiver::new(participant_handle, self.dcps_sender.clone()),
             )
             .await;
 
@@ -112,7 +119,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             listener_sender,
             status_kind,
             transport,
-            dcps_sender.clone(),
+            self.dcps_sender.clone(),
             clock_handle,
             timer_handle.clone(),
             spawner_handle.clone(),
@@ -125,7 +132,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
         //****** Spawn the participant actor and tasks **********//
 
         // Start the regular participant announcement task
-        let dcps_sender_clone = dcps_sender.clone();
+        let dcps_sender_clone = self.dcps_sender.clone();
         let mut timer_handle_clone = timer_handle.clone();
         let participant_announcement_interval =
             self.configuration.participant_announcement_interval();
@@ -134,12 +141,10 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             loop {
                 dcps_sender_clone
                     .send(DcpsMail::Discovery(
-                        DiscoveryServiceMail::AnnounceParticipant {
-                            participant_handle,
-                            dcps_sender: dcps_sender_clone.clone(),
-                        },
+                        DiscoveryServiceMail::AnnounceParticipant { participant_handle },
                     ))
                     .await;
+
                 timer_handle_clone
                     .delay(participant_announcement_interval)
                     .await;
@@ -147,7 +152,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
         });
 
         // Start regular message writing
-        let dcps_sender_clone = dcps_sender.clone();
+        let dcps_sender_clone = self.dcps_sender.clone();
         spawner_handle.spawn(async move {
             loop {
                 dcps_sender_clone
@@ -162,9 +167,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
         });
 
         if self.qos.entity_factory.autoenable_created_entities {
-            dcps_participant
-                .enable_domain_participant(dcps_sender.clone())
-                .await?;
+            dcps_participant.enable_domain_participant().await?;
         }
 
         self.domain_participant_list.push(dcps_participant);

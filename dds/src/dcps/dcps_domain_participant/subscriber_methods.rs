@@ -1,21 +1,18 @@
-use alloc::{boxed::Box, string::String, vec::Vec};
-use core::pin::Pin;
+use alloc::{string::String, vec::Vec};
 
 use crate::{
     dcps::{
         actor::{Actor, ActorAddress},
         dcps_domain_participant::{
-            DataReaderEntity, DcpsDomainParticipant, SubscriberEntity, TopicDescriptionKind,
-            TransportReaderKind, get_topic_kind,
+            DataReaderEntity, DcpsDomainParticipant, RtpsReaderKind, SubscriberEntity,
+            TopicDescriptionKind, get_topic_kind,
         },
-        dcps_mail::{DcpsMail, MessageServiceMail},
         listeners::{
             data_reader_listener::DcpsDataReaderListener,
             subscriber_listener::DcpsSubscriberListener,
         },
         status_condition::DcpsStatusCondition,
     },
-    dds_async::domain_participant_factory::DcpsSender,
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
@@ -23,17 +20,17 @@ use crate::{
         qos_policy::ReliabilityQosPolicyKind,
         status::StatusKind,
     },
-    rtps::{history_cache::HistoryCache, stateful_reader::RtpsStatefulReader},
+    rtps::stateful_reader::RtpsStatefulReader,
     runtime::DdsRuntime,
     transport::types::{
-        CacheChange, EntityId, Guid, ReliabilityKind, TopicKind, USER_DEFINED_READER_NO_KEY,
+        EntityId, Guid, ReliabilityKind, TopicKind, USER_DEFINED_READER_NO_KEY,
         USER_DEFINED_READER_WITH_KEY,
     },
 };
 
 impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     #[allow(clippy::too_many_arguments)]
-    #[tracing::instrument(skip(self, dcps_listener, dcps_sender))]
+    #[tracing::instrument(skip(self, dcps_listener))]
     pub async fn create_data_reader(
         &mut self,
         subscriber_handle: InstanceHandle,
@@ -41,42 +38,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         qos: QosKind<DataReaderQos>,
         dcps_listener: Option<DcpsDataReaderListener>,
         mask: Vec<StatusKind>,
-        dcps_sender: DcpsSender,
     ) -> DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)> {
-        struct UserDefinedReaderHistoryCache {
-            dcps_sender: DcpsSender,
-            participant_handle: InstanceHandle,
-            subscriber_handle: InstanceHandle,
-            data_reader_handle: InstanceHandle,
-        }
-
-        impl HistoryCache for UserDefinedReaderHistoryCache {
-            fn add_change(
-                &mut self,
-                cache_change: CacheChange,
-            ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-                let dcps_sender = self.dcps_sender.clone();
-                Box::pin(async move {
-                    self.dcps_sender
-                        .send(DcpsMail::Message(MessageServiceMail::AddCacheChange {
-                            cache_change,
-                            participant_handle: self.participant_handle,
-                            subscriber_handle: self.subscriber_handle,
-                            data_reader_handle: self.data_reader_handle,
-                            dcps_sender,
-                        }))
-                        .await;
-                })
-            }
-
-            fn remove_change(
-                &mut self,
-                _sequence_number: i64,
-            ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
-                todo!()
-            }
-        }
-
         let Some(topic) = self
             .domain_participant
             .topic_description_list
@@ -163,16 +125,8 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         let guid_prefix = Guid::from(*self.domain_participant.instance_handle.as_ref()).prefix();
         let guid = Guid::new(guid_prefix, entity_id);
 
-        let transport_reader = TransportReaderKind::Stateful(RtpsStatefulReader::new(
-            guid,
-            Box::new(UserDefinedReaderHistoryCache {
-                dcps_sender: dcps_sender.clone(),
-                participant_handle: self.domain_participant.instance_handle,
-                subscriber_handle: subscriber.instance_handle,
-                data_reader_handle: reader_handle,
-            }),
-            reliablity_kind,
-        ));
+        let transport_reader =
+            RtpsReaderKind::Stateful(RtpsStatefulReader::new(guid, reliablity_kind));
 
         let status_condition =
             Actor::spawn::<R>(DcpsStatusCondition::default(), &self.spawner_handle);
@@ -195,7 +149,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         subscriber.data_reader_list.push(data_reader);
 
         if subscriber.enabled && subscriber.qos.entity_factory.autoenable_created_entities {
-            self.enable_data_reader(subscriber_handle, data_reader_handle, dcps_sender)
+            self.enable_data_reader(subscriber_handle, data_reader_handle)
                 .await?;
         }
         Ok((data_reader_handle, reader_status_condition_address))

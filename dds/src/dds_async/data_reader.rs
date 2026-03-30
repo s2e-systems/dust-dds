@@ -408,7 +408,6 @@ impl<Foo> DataReaderAsync<Foo> {
                 subscriber_handle: self.subscriber.get_instance_handle(),
                 data_reader_handle: self.handle,
                 max_wait,
-                dcps_sender: self.dcps_sender().clone(),
                 reply_sender,
             }))
             .await;
@@ -465,7 +464,6 @@ impl<Foo> DataReaderAsync<Foo> {
                 subscriber_handle: self.subscriber.get_instance_handle(),
                 data_reader_handle: self.handle,
                 qos,
-                dcps_sender: self.dcps_sender().clone(),
                 reply_sender,
             }))
             .await;
@@ -508,7 +506,6 @@ impl<Foo> DataReaderAsync<Foo> {
                 participant_handle: self.subscriber.get_participant().get_instance_handle(),
                 subscriber_handle: self.subscriber.get_instance_handle(),
                 data_reader_handle: self.handle,
-                dcps_sender: self.dcps_sender().clone(),
                 reply_sender,
             }))
             .await;

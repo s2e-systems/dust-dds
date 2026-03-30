@@ -4,7 +4,7 @@ use crate::{
     dcps::{
         actor::{Actor, ActorAddress},
         dcps_domain_participant::{
-            DataWriterEntity, DcpsDomainParticipant, TopicDescriptionKind, TransportWriterKind,
+            DataWriterEntity, DcpsDomainParticipant, RtpsWriterKind, TopicDescriptionKind,
             get_topic_kind,
         },
         listeners::{
@@ -12,7 +12,6 @@ use crate::{
         },
         status_condition::DcpsStatusCondition,
     },
-    dds_async::domain_participant_factory::DcpsSender,
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
@@ -28,7 +27,7 @@ use crate::{
 
 impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     #[allow(clippy::too_many_arguments)]
-    #[tracing::instrument(skip(self, dcps_listener, dcps_sender))]
+    #[tracing::instrument(skip(self, dcps_listener))]
     pub async fn create_data_writer(
         &mut self,
         publisher_handle: InstanceHandle,
@@ -36,7 +35,6 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         qos: QosKind<DataWriterQos>,
         dcps_listener: Option<DcpsDataWriterListener>,
         mask: Vec<StatusKind>,
-        dcps_sender: DcpsSender,
     ) -> DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)> {
         let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
@@ -115,7 +113,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         let listener_sender = dcps_listener.map(|l| l.spawn::<R>(&self.spawner_handle));
         let data_writer = DataWriterEntity::new(
             writer_handle,
-            TransportWriterKind::Stateful(transport_writer),
+            RtpsWriterKind::Stateful(transport_writer),
             topic_name,
             type_name,
             type_support,
@@ -129,7 +127,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         publisher.data_writer_list.push(data_writer);
 
         if publisher.enabled && publisher.qos.entity_factory.autoenable_created_entities {
-            self.enable_data_writer(publisher_handle, writer_handle, dcps_sender)
+            self.enable_data_writer(publisher_handle, writer_handle)
                 .await?;
         }
 
