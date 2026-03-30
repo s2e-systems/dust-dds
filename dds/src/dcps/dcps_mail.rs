@@ -34,7 +34,6 @@ use crate::{
         },
         time::{Duration, Time},
     },
-    transport::types::CacheChange,
     xtypes::dynamic_type::{DynamicData, DynamicType},
 };
 use alloc::vec::Vec;
@@ -571,12 +570,6 @@ pub enum ReaderServiceMail {
 }
 
 pub enum MessageServiceMail {
-    AddCacheChange {
-        participant_handle: InstanceHandle,
-        cache_change: CacheChange,
-        subscriber_handle: InstanceHandle,
-        data_reader_handle: InstanceHandle,
-    },
     RemoveWriterChange {
         participant_handle: InstanceHandle,
         publisher_handle: InstanceHandle,
@@ -594,22 +587,6 @@ pub enum MessageServiceMail {
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         reply_sender: OneshotSender<DdsResult<bool>>,
-    },
-    AddBuiltinParticipantsDetectorCacheChange {
-        participant_handle: InstanceHandle,
-        cache_change: CacheChange,
-    },
-    AddBuiltinPublicationsDetectorCacheChange {
-        participant_handle: InstanceHandle,
-        cache_change: CacheChange,
-    },
-    AddBuiltinSubscriptionsDetectorCacheChange {
-        participant_handle: InstanceHandle,
-        cache_change: CacheChange,
-    },
-    AddBuiltinTopicsDetectorCacheChange {
-        participant_handle: InstanceHandle,
-        cache_change: CacheChange,
     },
     HandleData {
         participant_handle: InstanceHandle,

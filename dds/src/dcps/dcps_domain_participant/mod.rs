@@ -27,7 +27,7 @@ use crate::{
                 SpdpDiscoveredParticipantData,
             },
         },
-        dcps_mail::{DcpsMail, EventServiceMail, MessageServiceMail},
+        dcps_mail::{DcpsMail, EventServiceMail},
         listeners::domain_participant_listener::ListenerMail,
         status_condition::DcpsStatusCondition,
         status_condition_mail::DcpsStatusConditionMail,
@@ -69,7 +69,6 @@ use crate::{
         type_support::TypeSupport,
     },
     rtps::{
-        history_cache::HistoryCache,
         message_receiver::MessageReceiver,
         stateful_reader::RtpsStatefulReader,
         stateful_writer::RtpsStatefulWriter,
@@ -144,120 +143,6 @@ const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER: EntityId =
 
 const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR: EntityId =
     EntityId::new([0, 0, 0x04], BUILT_IN_READER_WITH_KEY);
-
-struct DcpsParticipantReaderHistoryCache {
-    participant_handle: InstanceHandle,
-    dcps_sender: MpscSender<DcpsMail>,
-}
-
-impl HistoryCache for DcpsParticipantReaderHistoryCache {
-    fn add_change(
-        &mut self,
-        cache_change: CacheChange,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async move {
-            self.dcps_sender
-                .send(DcpsMail::Message(
-                    MessageServiceMail::AddBuiltinParticipantsDetectorCacheChange {
-                        cache_change,
-                        participant_handle: self.participant_handle,
-                    },
-                ))
-                .await
-                .ok();
-        })
-    }
-
-    fn remove_change(&mut self, _sequence_number: i64) -> Pin<Box<dyn Future<Output = ()> + Send>> {
-        todo!()
-    }
-}
-
-struct DcpsTopicsReaderHistoryCache {
-    dcps_sender: MpscSender<DcpsMail>,
-    participant_handle: InstanceHandle,
-}
-
-impl HistoryCache for DcpsTopicsReaderHistoryCache {
-    fn add_change(
-        &mut self,
-        cache_change: CacheChange,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        let participant_handle = self.participant_handle;
-        Box::pin(async move {
-            self.dcps_sender
-                .send(DcpsMail::Message(
-                    MessageServiceMail::AddBuiltinTopicsDetectorCacheChange {
-                        participant_handle,
-                        cache_change,
-                    },
-                ))
-                .await
-                .ok();
-        })
-    }
-
-    fn remove_change(&mut self, _sequence_number: i64) -> Pin<Box<dyn Future<Output = ()> + Send>> {
-        todo!()
-    }
-}
-
-struct DcpsSubscriptionsReaderHistoryCache {
-    participant_handle: InstanceHandle,
-    dcps_sender: MpscSender<DcpsMail>,
-}
-
-impl HistoryCache for DcpsSubscriptionsReaderHistoryCache {
-    fn add_change(
-        &mut self,
-        cache_change: CacheChange,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async move {
-            self.dcps_sender
-                .send(DcpsMail::Message(
-                    MessageServiceMail::AddBuiltinSubscriptionsDetectorCacheChange {
-                        cache_change,
-                        participant_handle: self.participant_handle,
-                    },
-                ))
-                .await
-                .ok();
-        })
-    }
-
-    fn remove_change(&mut self, _sequence_number: i64) -> Pin<Box<dyn Future<Output = ()> + Send>> {
-        todo!()
-    }
-}
-
-struct DcpsPublicationsReaderHistoryCache {
-    dcps_sender: MpscSender<DcpsMail>,
-    participant_handle: InstanceHandle,
-}
-
-impl HistoryCache for DcpsPublicationsReaderHistoryCache {
-    fn add_change(
-        &mut self,
-        cache_change: CacheChange,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        let participant_handle = self.participant_handle;
-        Box::pin(async move {
-            self.dcps_sender
-                .send(DcpsMail::Message(
-                    MessageServiceMail::AddBuiltinPublicationsDetectorCacheChange {
-                        participant_handle,
-                        cache_change,
-                    },
-                ))
-                .await
-                .ok();
-        })
-    }
-
-    fn remove_change(&mut self, _sequence_number: i64) -> Pin<Box<dyn Future<Output = ()> + Send>> {
-        todo!()
-    }
-}
 
 fn poll_timeout<T>(
     mut timer_handle: impl Timer,
@@ -509,13 +394,10 @@ where
             ..Default::default()
         };
 
-        let rtps_stateless_reader = RtpsStatelessReader::new(
-            Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER),
-            Box::new(DcpsParticipantReaderHistoryCache {
-                dcps_sender: dcps_sender.clone(),
-                participant_handle,
-            }),
-        );
+        let rtps_stateless_reader = RtpsStatelessReader::new(Guid::new(
+            guid_prefix,
+            ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
+        ));
 
         let dcps_participant_reader = DataReaderEntity::new(
             InstanceHandle::new(rtps_stateless_reader.guid().into()),
@@ -530,10 +412,6 @@ where
 
         let dcps_topic_transport_reader = RtpsStatefulReader::new(
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR),
-            Box::new(DcpsTopicsReaderHistoryCache {
-                dcps_sender: dcps_sender.clone(),
-                participant_handle,
-            }),
             ReliabilityKind::Reliable,
         );
 
@@ -550,10 +428,6 @@ where
 
         let dcps_publication_transport_reader = RtpsStatefulReader::new(
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR),
-            Box::new(DcpsPublicationsReaderHistoryCache {
-                dcps_sender: dcps_sender.clone(),
-                participant_handle,
-            }),
             ReliabilityKind::Reliable,
         );
 
@@ -570,10 +444,6 @@ where
 
         let dcps_subscription_transport_reader = RtpsStatefulReader::new(
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR),
-            Box::new(DcpsSubscriptionsReaderHistoryCache {
-                dcps_sender: dcps_sender.clone(),
-                participant_handle,
-            }),
             ReliabilityKind::Reliable,
         );
 
@@ -2182,6 +2052,42 @@ where
     }
 
     #[tracing::instrument(skip(self))]
+    async fn add_cache_change(
+        &mut self,
+        cache_change: CacheChange,
+        subscriber_handle: InstanceHandle,
+        data_reader_handle: InstanceHandle,
+    ) {
+        let reader_guid = Guid::from(<[u8; 16]>::from(data_reader_handle));
+        match reader_guid.entity_id() {
+            ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER => {
+                self.add_builtin_participants_detector_cache_change(cache_change)
+                    .await
+            }
+            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR => {
+                self.add_builtin_publications_detector_cache_change(cache_change)
+                    .await
+            }
+            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR => {
+                self.add_builtin_subscriptions_detector_cache_change(cache_change)
+                    .await
+            }
+            ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR => {
+                self.add_builtin_topics_detector_cache_change(cache_change)
+                    .await
+            }
+            _ => {
+                self.add_user_defined_cache_change(
+                    cache_change,
+                    subscriber_handle,
+                    data_reader_handle,
+                )
+                .await
+            }
+        }
+    }
+
+    #[tracing::instrument(skip(self))]
     pub async fn add_builtin_participants_detector_cache_change(
         &mut self,
         cache_change: CacheChange,
@@ -2536,7 +2442,7 @@ where
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn add_cache_change(
+    pub async fn add_user_defined_cache_change(
         &mut self,
         cache_change: CacheChange,
         subscriber_handle: InstanceHandle,
@@ -3946,7 +3852,15 @@ where
                                             message_receiver.source_guid_prefix(),
                                             message_receiver.source_timestamp(),
                                         ) {
-                                            r.history_cache_mut().add_change(change).await;
+                                            let subscriber_handle = subscriber.instance_handle;
+                                            let reader_handle = dr.instance_handle;
+                                            return self
+                                                .add_cache_change(
+                                                    change,
+                                                    subscriber_handle,
+                                                    reader_handle,
+                                                )
+                                                .await;
                                         }
                                     }
                                 }
@@ -3960,7 +3874,15 @@ where
                                             message_receiver.source_guid_prefix(),
                                             message_receiver.source_timestamp(),
                                         ) {
-                                            r.history_cache_mut().add_change(change).await;
+                                            let subscriber_handle = subscriber.instance_handle;
+                                            let reader_handle = dr.instance_handle;
+                                            return self
+                                                .add_cache_change(
+                                                    change,
+                                                    subscriber_handle,
+                                                    reader_handle,
+                                                )
+                                                .await;
                                         }
                                     }
                                 }
@@ -3978,7 +3900,11 @@ where
                             ) {
                                 // Stateless reader behavior. We add the change if the data is correct. No error is printed
                                 // because all readers would get changes marked with ENTITYID_UNKNOWN
-                                r.history_cache_mut().add_change(change).await;
+                                let subscriber_handle = subscriber.instance_handle;
+                                let reader_handle = dr.instance_handle;
+                                return self
+                                    .add_cache_change(change, subscriber_handle, reader_handle)
+                                    .await;
                             }
                         }
                     }

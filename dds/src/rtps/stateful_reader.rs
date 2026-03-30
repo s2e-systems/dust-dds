@@ -1,27 +1,18 @@
 use super::writer_proxy::RtpsWriterProxy;
-use crate::{
-    rtps::history_cache::HistoryCache,
-    transport::types::{Guid, ReliabilityKind, WriterProxy},
-};
-use alloc::{boxed::Box, vec::Vec};
+use crate::transport::types::{Guid, ReliabilityKind, WriterProxy};
+use alloc::vec::Vec;
 
 pub struct RtpsStatefulReader {
     guid: Guid,
     matched_writers: Vec<RtpsWriterProxy>,
     reliability: ReliabilityKind,
-    history_cache: Box<dyn HistoryCache + Send + Sync>,
 }
 
 impl RtpsStatefulReader {
-    pub fn new(
-        guid: Guid,
-        history_cache: Box<dyn HistoryCache + Send + Sync>,
-        reliability: ReliabilityKind,
-    ) -> Self {
+    pub fn new(guid: Guid, reliability: ReliabilityKind) -> Self {
         Self {
             guid,
             matched_writers: Vec::new(),
-            history_cache,
             reliability,
         }
     }
@@ -58,10 +49,6 @@ impl RtpsStatefulReader {
         self.matched_writers
             .iter_mut()
             .find(|x| x.remote_writer_guid() == a_writer_guid)
-    }
-
-    pub fn history_cache_mut(&mut self) -> &mut Box<dyn HistoryCache + Send + Sync> {
-        &mut self.history_cache
     }
 
     pub fn reliability(&self) -> ReliabilityKind {

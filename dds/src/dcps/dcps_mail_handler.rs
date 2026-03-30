@@ -860,17 +860,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                     listener_mask,
                 )
             })),
-            DcpsMail::Message(MessageServiceMail::AddCacheChange {
-                participant_handle,
-                cache_change,
-                subscriber_handle,
-                data_reader_handle,
-            }) => {
-                if let Ok(p) = self.find_participant(participant_handle) {
-                    p.add_cache_change(cache_change, subscriber_handle, data_reader_handle)
-                        .await
-                }
-            }
             DcpsMail::Message(MessageServiceMail::RemoveWriterChange {
                 participant_handle,
                 publisher_handle,
@@ -906,42 +895,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 ),
                 Err(e) => reply_sender.send(Err(e)),
             },
-            DcpsMail::Message(MessageServiceMail::AddBuiltinParticipantsDetectorCacheChange {
-                participant_handle,
-                cache_change,
-            }) => {
-                if let Ok(p) = self.find_participant(participant_handle) {
-                    p.add_builtin_participants_detector_cache_change(cache_change)
-                        .await
-                }
-            }
-            DcpsMail::Message(MessageServiceMail::AddBuiltinPublicationsDetectorCacheChange {
-                participant_handle,
-                cache_change,
-            }) => {
-                if let Ok(p) = self.find_participant(participant_handle) {
-                    p.add_builtin_publications_detector_cache_change(cache_change)
-                        .await
-                };
-            }
-            DcpsMail::Message(MessageServiceMail::AddBuiltinSubscriptionsDetectorCacheChange {
-                participant_handle,
-                cache_change,
-            }) => {
-                if let Ok(p) = self.find_participant(participant_handle) {
-                    p.add_builtin_subscriptions_detector_cache_change(cache_change)
-                        .await
-                }
-            }
-            DcpsMail::Message(MessageServiceMail::AddBuiltinTopicsDetectorCacheChange {
-                participant_handle,
-                cache_change,
-            }) => {
-                if let Ok(p) = self.find_participant(participant_handle) {
-                    p.add_builtin_topics_detector_cache_change(cache_change)
-                        .await
-                }
-            }
             DcpsMail::Message(MessageServiceMail::HandleData {
                 participant_handle,
                 data_message,
