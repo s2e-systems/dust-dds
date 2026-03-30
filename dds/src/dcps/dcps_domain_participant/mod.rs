@@ -77,7 +77,13 @@ use crate::{
         stateless_writer::RtpsStatelessWriter,
         types::{PROTOCOLVERSION, VENDOR_ID_S2E},
     },
-    rtps_messages::overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
+    rtps_messages::{
+        overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
+        submessages::{
+            data::DataSubmessage, data_frag::DataFragSubmessage, gap::GapSubmessage,
+            heartbeat::HeartbeatSubmessage,
+        },
+    },
     runtime::{Clock, DdsRuntime, Spawner, Timer},
     transport::{
         self,
@@ -3857,6 +3863,7 @@ where
         }
     }
 
+    #[tracing::instrument(skip(self, data_message))]
     pub async fn handle_data(&mut self, data_message: Arc<[u8]>) {
         if let Ok(rtps_message) = RtpsMessageRead::try_from(data_message.as_ref()) {
             let mut message_receiver = MessageReceiver::new(&rtps_message);
@@ -3864,105 +3871,19 @@ where
             while let Some(submessage) = message_receiver.next() {
                 match submessage {
                     RtpsSubmessageReadKind::Data(data_submessage) => {
-                        for subscriber in self
-                            .domain_participant
-                            .user_defined_subscriber_list
-                            .iter_mut()
-                            .chain(core::iter::once(
-                                &mut self.domain_participant.builtin_subscriber,
-                            ))
-                        {
-                            for dr in &mut subscriber.data_reader_list {
-                                match &mut dr.transport_reader {
-                                    RtpsReaderKind::Stateful(r) => {
-                                        r.on_data_submessage_received(
-                                            data_submessage,
-                                            message_receiver.source_guid_prefix(),
-                                            message_receiver.source_timestamp(),
-                                        )
-                                        .await;
-                                    }
-                                    RtpsReaderKind::Stateless(r) => {
-                                        r.on_data_submessage_received(
-                                            data_submessage,
-                                            message_receiver.source_guid_prefix(),
-                                            message_receiver.source_timestamp(),
-                                        )
-                                        .await;
-                                    }
-                                }
-                            }
-                        }
+                        self.handle_data_submessage(&message_receiver, data_submessage)
+                            .await;
                     }
                     RtpsSubmessageReadKind::DataFrag(data_frag_submessage) => {
-                        for subscriber in self
-                            .domain_participant
-                            .user_defined_subscriber_list
-                            .iter_mut()
-                            .chain(core::iter::once(
-                                &mut self.domain_participant.builtin_subscriber,
-                            ))
-                        {
-                            for dr in &mut subscriber.data_reader_list {
-                                match &mut dr.transport_reader {
-                                    RtpsReaderKind::Stateful(r) => {
-                                        r.on_data_frag_submessage_received(
-                                            data_frag_submessage,
-                                            message_receiver.source_guid_prefix(),
-                                            message_receiver.source_timestamp(),
-                                        )
-                                        .await;
-                                    }
-                                    RtpsReaderKind::Stateless(_) => (),
-                                }
-                            }
-                        }
+                        self.handle_data_frag_submessage(&message_receiver, data_frag_submessage)
+                            .await;
                     }
                     RtpsSubmessageReadKind::Gap(gap_submessage) => {
-                        for subscriber in self
-                            .domain_participant
-                            .user_defined_subscriber_list
-                            .iter_mut()
-                            .chain(core::iter::once(
-                                &mut self.domain_participant.builtin_subscriber,
-                            ))
-                        {
-                            for dr in &mut subscriber.data_reader_list {
-                                match &mut dr.transport_reader {
-                                    RtpsReaderKind::Stateful(r) => {
-                                        r.on_gap_submessage_received(
-                                            gap_submessage,
-                                            message_receiver.source_guid_prefix(),
-                                        );
-                                    }
-                                    RtpsReaderKind::Stateless(_) => (),
-                                }
-                            }
-                        }
+                        self.handle_gap_submessage(&message_receiver, gap_submessage);
                     }
                     RtpsSubmessageReadKind::Heartbeat(heartbeat_submessage) => {
-                        for subscriber in self
-                            .domain_participant
-                            .user_defined_subscriber_list
-                            .iter_mut()
-                            .chain(core::iter::once(
-                                &mut self.domain_participant.builtin_subscriber,
-                            ))
-                        {
-                            for dr in &mut subscriber.data_reader_list {
-                                match &mut dr.transport_reader {
-                                    RtpsReaderKind::Stateful(r) => {
-                                        r.on_heartbeat_submessage_received(
-                                            heartbeat_submessage,
-                                            message_receiver.source_guid_prefix(),
-                                            self.transport.message_writer.as_ref(),
-                                        )
-                                        .await;
-                                    }
-                                    RtpsReaderKind::Stateless(_) => (),
-                                }
-                            }
-                        }
+                        self.handle_heartbeat_submessage(&message_receiver, heartbeat_submessage)
+                            .await;
                     }
                     RtpsSubmessageReadKind::HeartbeatFrag(heartbeat_frag_submessage) => {
                         for subscriber in self
@@ -3976,10 +3897,22 @@ where
                             for dr in &mut subscriber.data_reader_list {
                                 match &mut dr.transport_reader {
                                     RtpsReaderKind::Stateful(r) => {
-                                        r.on_heartbeat_frag_submessage_received(
-                                            heartbeat_frag_submessage,
+                                        let writer_guid = Guid::new(
                                             message_receiver.source_guid_prefix(),
+                                            heartbeat_frag_submessage.writer_id(),
                                         );
+                                        if let Some(writer_proxy) =
+                                            r.matched_writer_lookup(writer_guid)
+                                        {
+                                            if writer_proxy.last_received_heartbeat_count()
+                                                < heartbeat_frag_submessage.count()
+                                            {
+                                                writer_proxy
+                                                    .set_last_received_heartbeat_frag_count(
+                                                        heartbeat_frag_submessage.count(),
+                                                    );
+                                            }
+                                        }
                                     }
                                     RtpsReaderKind::Stateless(_) => (),
                                 }
@@ -4043,6 +3976,229 @@ where
                         }
                     }
                     _ => (),
+                }
+            }
+        }
+    }
+
+    async fn handle_data_submessage(
+        &mut self,
+        message_receiver: &MessageReceiver<'_>,
+        data_submessage: &DataSubmessage,
+    ) {
+        for subscriber in self
+            .domain_participant
+            .user_defined_subscriber_list
+            .iter_mut()
+            .chain(core::iter::once(
+                &mut self.domain_participant.builtin_subscriber,
+            ))
+        {
+            for dr in &mut subscriber.data_reader_list {
+                match &mut dr.transport_reader {
+                    RtpsReaderKind::Stateful(r) => {
+                        let writer_guid = Guid::new(
+                            message_receiver.source_guid_prefix(),
+                            data_submessage.writer_id(),
+                        );
+                        let sequence_number = data_submessage.writer_sn();
+                        let reliability = r.reliability();
+                        if let Some(writer_proxy) = r.matched_writer_lookup(writer_guid) {
+                            match reliability {
+                                ReliabilityKind::BestEffort => {
+                                    let expected_seq_num = writer_proxy.available_changes_max() + 1;
+                                    if sequence_number >= expected_seq_num {
+                                        writer_proxy.received_change_set(sequence_number);
+                                        if sequence_number > expected_seq_num {
+                                            writer_proxy.lost_changes_update(sequence_number);
+                                        }
+
+                                        if let Ok(change) = CacheChange::try_from_data_submessage(
+                                            data_submessage,
+                                            message_receiver.source_guid_prefix(),
+                                            message_receiver.source_timestamp(),
+                                        ) {
+                                            r.history_cache_mut().add_change(change).await;
+                                        }
+                                    }
+                                }
+                                ReliabilityKind::Reliable => {
+                                    let expected_seq_num = writer_proxy.available_changes_max() + 1;
+                                    if sequence_number == expected_seq_num {
+                                        writer_proxy.received_change_set(sequence_number);
+
+                                        if let Ok(change) = CacheChange::try_from_data_submessage(
+                                            data_submessage,
+                                            message_receiver.source_guid_prefix(),
+                                            message_receiver.source_timestamp(),
+                                        ) {
+                                            r.history_cache_mut().add_change(change).await;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    RtpsReaderKind::Stateless(r) => {
+                        if data_submessage.reader_id() == ENTITYID_UNKNOWN
+                            || data_submessage.reader_id() == r.guid().entity_id()
+                        {
+                            if let Ok(change) = CacheChange::try_from_data_submessage(
+                                data_submessage,
+                                message_receiver.source_guid_prefix(),
+                                message_receiver.source_timestamp(),
+                            ) {
+                                // Stateless reader behavior. We add the change if the data is correct. No error is printed
+                                // because all readers would get changes marked with ENTITYID_UNKNOWN
+                                r.history_cache_mut().add_change(change).await;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[inline]
+    fn handle_gap_submessage(
+        &mut self,
+        message_receiver: &MessageReceiver<'_>,
+        gap_submessage: &GapSubmessage,
+    ) {
+        for subscriber in self
+            .domain_participant
+            .user_defined_subscriber_list
+            .iter_mut()
+            .chain(core::iter::once(
+                &mut self.domain_participant.builtin_subscriber,
+            ))
+        {
+            for dr in &mut subscriber.data_reader_list {
+                match &mut dr.transport_reader {
+                    RtpsReaderKind::Stateful(r) => {
+                        let writer_guid = Guid::new(
+                            message_receiver.source_guid_prefix(),
+                            gap_submessage.writer_id(),
+                        );
+                        if let Some(writer_proxy) = r.matched_writer_lookup(writer_guid) {
+                            for seq_num in
+                                gap_submessage.gap_start()..gap_submessage.gap_list().base()
+                            {
+                                writer_proxy.irrelevant_change_set(seq_num)
+                            }
+
+                            for seq_num in gap_submessage.gap_list().set() {
+                                writer_proxy.irrelevant_change_set(seq_num)
+                            }
+                        }
+                    }
+                    RtpsReaderKind::Stateless(_) => (),
+                }
+            }
+        }
+    }
+
+    async fn handle_heartbeat_submessage(
+        &mut self,
+        message_receiver: &MessageReceiver<'_>,
+        heartbeat_submessage: &HeartbeatSubmessage,
+    ) {
+        for subscriber in self
+            .domain_participant
+            .user_defined_subscriber_list
+            .iter_mut()
+            .chain(core::iter::once(
+                &mut self.domain_participant.builtin_subscriber,
+            ))
+        {
+            for dr in &mut subscriber.data_reader_list {
+                match &mut dr.transport_reader {
+                    RtpsReaderKind::Stateful(r) => {
+                        let writer_guid = Guid::new(
+                            message_receiver.source_guid_prefix(),
+                            heartbeat_submessage.writer_id(),
+                        );
+                        let reader_guid = r.guid();
+                        if let Some(writer_proxy) = r.matched_writer_lookup(writer_guid) {
+                            if writer_proxy.last_received_heartbeat_count()
+                                < heartbeat_submessage.count()
+                            {
+                                writer_proxy.set_last_received_heartbeat_count(
+                                    heartbeat_submessage.count(),
+                                );
+                                writer_proxy.missing_changes_update(heartbeat_submessage.last_sn());
+                                writer_proxy.lost_changes_update(heartbeat_submessage.first_sn());
+
+                                let must_send_acknacks = !heartbeat_submessage.final_flag()
+                                    || (!heartbeat_submessage.liveliness_flag()
+                                        && writer_proxy.missing_changes().count() > 0);
+                                writer_proxy.set_must_send_acknacks(must_send_acknacks);
+
+                                writer_proxy
+                                    .write_message(
+                                        &reader_guid,
+                                        self.transport.message_writer.as_ref(),
+                                    )
+                                    .await;
+                            }
+                        }
+                    }
+                    RtpsReaderKind::Stateless(_) => (),
+                }
+            }
+        }
+    }
+
+    async fn handle_data_frag_submessage(
+        &mut self,
+        message_receiver: &MessageReceiver<'_>,
+        data_frag_submessage: &DataFragSubmessage,
+    ) {
+        for subscriber in self
+            .domain_participant
+            .user_defined_subscriber_list
+            .iter_mut()
+            .chain(core::iter::once(
+                &mut self.domain_participant.builtin_subscriber,
+            ))
+        {
+            for dr in &mut subscriber.data_reader_list {
+                match &mut dr.transport_reader {
+                    RtpsReaderKind::Stateful(r) => {
+                        let writer_guid = Guid::new(
+                            message_receiver.source_guid_prefix(),
+                            data_frag_submessage.writer_id(),
+                        );
+                        let sequence_number = data_frag_submessage.writer_sn();
+                        let reliability = r.reliability();
+                        if let Some(writer_proxy) = r.matched_writer_lookup(writer_guid) {
+                            match reliability {
+                                ReliabilityKind::BestEffort => {
+                                    let expected_seq_num = writer_proxy.available_changes_max() + 1;
+                                    if sequence_number >= expected_seq_num {
+                                        writer_proxy.push_data_frag(data_frag_submessage.clone());
+                                    }
+                                }
+                                ReliabilityKind::Reliable => {
+                                    let expected_seq_num = writer_proxy.available_changes_max() + 1;
+                                    if sequence_number == expected_seq_num {
+                                        writer_proxy.push_data_frag(data_frag_submessage.clone());
+                                    }
+                                }
+                            }
+
+                            if let Some(data_submessage) =
+                                writer_proxy.reconstruct_data_from_frag(sequence_number)
+                            {
+                                writer_proxy.delete_data_fragments(data_submessage.writer_sn());
+
+                                return self
+                                    .handle_data_submessage(message_receiver, &data_submessage)
+                                    .await;
+                            }
+                        };
+                    }
+                    RtpsReaderKind::Stateless(_) => (),
                 }
             }
         }
@@ -4650,9 +4806,7 @@ impl RtpsWriterKind {
         clock: &impl Clock,
     ) {
         match self {
-            RtpsWriterKind::Stateful(w) => {
-                w.add_change(cache_change, message_writer, clock).await
-            }
+            RtpsWriterKind::Stateful(w) => w.add_change(cache_change, message_writer, clock).await,
             RtpsWriterKind::Stateless(w) => w.add_change(cache_change, message_writer).await,
         }
     }
