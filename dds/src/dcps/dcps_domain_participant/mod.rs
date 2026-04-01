@@ -5356,7 +5356,7 @@ impl DataReaderEntity {
             }
             Ok(DynamicType::new(
                 key_holder_type_descriptor,
-                key_member_list,
+                Vec::leak(key_member_list),
             ))
         }
 

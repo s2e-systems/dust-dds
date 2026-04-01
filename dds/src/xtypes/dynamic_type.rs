@@ -68,7 +68,7 @@ impl DynamicTypeBuilderFactory {
                 extensibility_kind: ExtensibilityKind::Final,
                 is_nested: false,
             })),
-            member_list: Vec::new(),
+            member_list: &[],
         }
     }
 
@@ -315,7 +315,7 @@ impl DynamicTypeBuilder {
     pub fn build(self) -> DynamicType {
         DynamicType {
             descriptor: Box::leak(Box::new(self.descriptor)),
-            member_list: self.member_list,
+            member_list: Vec::leak(self.member_list),
         }
     }
 }
@@ -323,11 +323,14 @@ impl DynamicTypeBuilder {
 #[derive(Debug, Clone, PartialEq)]
 pub struct DynamicType {
     descriptor: &'static TypeDescriptor,
-    member_list: Vec<DynamicTypeMember>,
+    member_list: &'static [DynamicTypeMember],
 }
 
 impl DynamicType {
-    pub fn new(descriptor: &'static TypeDescriptor, member_list: Vec<DynamicTypeMember>) -> Self {
+    pub fn new(
+        descriptor: &'static TypeDescriptor,
+        member_list: &'static [DynamicTypeMember],
+    ) -> Self {
         Self {
             descriptor,
             member_list,
@@ -397,11 +400,7 @@ impl DynamicData {
         todo!()
     }
 
-    pub fn get_member_id_by_name(
-        &self,
-        type_ref: &DynamicType,
-        name: &str,
-    ) -> Option<MemberId> {
+    pub fn get_member_id_by_name(&self, type_ref: &DynamicType, name: &str) -> Option<MemberId> {
         type_ref
             .member_list
             .iter()
