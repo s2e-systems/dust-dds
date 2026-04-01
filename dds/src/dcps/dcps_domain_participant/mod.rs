@@ -2089,10 +2089,21 @@ where
         &mut self,
         cache_change: CacheChange,
     ) {
+        let spdp_type_support =
+            if let Some(TopicDescriptionKind::Topic(discovered_participant_data_type)) = self
+                .domain_participant
+                .topic_description_list
+                .iter()
+                .find(|n| n.topic_name() == DCPS_PARTICIPANT)
+            {
+                discovered_participant_data_type.type_support.as_ref()
+            } else {
+                return;
+            };
         match cache_change.kind {
             ChangeKind::Alive => {
                 if let Ok(dynamic_data) = CdrDeserializer::deserialize_builtin(
-                    SpdpDiscoveredParticipantData::get_type(),
+                    spdp_type_support,
                     cache_change.data_value.as_ref(),
                 ) {
                     let discovered_participant_data =
@@ -2139,10 +2150,21 @@ where
         &mut self,
         cache_change: CacheChange,
     ) {
+        let sedp_writer_type_support =
+            if let Some(TopicDescriptionKind::Topic(discovered_participant_data_type)) = self
+                .domain_participant
+                .topic_description_list
+                .iter()
+                .find(|n| n.topic_name() == DCPS_PUBLICATION)
+            {
+                discovered_participant_data_type.type_support.as_ref()
+            } else {
+                return;
+            };
         match cache_change.kind {
             ChangeKind::Alive => {
                 if let Ok(dynamic_data) = CdrDeserializer::deserialize_builtin(
-                    DiscoveredWriterData::get_type(),
+                    sedp_writer_type_support,
                     cache_change.data_value.as_ref(),
                 ) {
                     let discovered_writer_data = DiscoveredWriterData::create_sample(dynamic_data);
@@ -2247,10 +2269,21 @@ where
         &mut self,
         cache_change: CacheChange,
     ) {
+        let sedp_reader_type_support =
+            if let Some(TopicDescriptionKind::Topic(discovered_participant_data_type)) = self
+                .domain_participant
+                .topic_description_list
+                .iter()
+                .find(|n| n.topic_name() == DCPS_SUBSCRIPTION)
+            {
+                discovered_participant_data_type.type_support.as_ref()
+            } else {
+                return;
+            };
         match cache_change.kind {
             ChangeKind::Alive => {
                 if let Ok(dynamic_data) = CdrDeserializer::deserialize_builtin(
-                    DiscoveredReaderData::get_type(),
+                    sedp_reader_type_support,
                     cache_change.data_value.as_ref(),
                 ) {
                     let discovered_reader_data = DiscoveredReaderData::create_sample(dynamic_data);
@@ -2383,10 +2416,21 @@ where
 
     #[tracing::instrument(skip(self))]
     pub async fn add_builtin_topics_detector_cache_change(&mut self, cache_change: CacheChange) {
+        let sedp_topic_type_support =
+            if let Some(TopicDescriptionKind::Topic(discovered_participant_data_type)) = self
+                .domain_participant
+                .topic_description_list
+                .iter()
+                .find(|n| n.topic_name() == DCPS_TOPIC)
+            {
+                discovered_participant_data_type.type_support.as_ref()
+            } else {
+                return;
+            };
         match cache_change.kind {
             ChangeKind::Alive => {
                 if let Ok(dynamic_data) = CdrDeserializer::deserialize_builtin(
-                    TopicBuiltinTopicData::get_type(),
+                    sedp_topic_type_support,
                     cache_change.data_value.as_ref(),
                 ) {
                     let topic_builtin_topic_data =

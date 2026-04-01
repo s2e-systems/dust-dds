@@ -52,7 +52,7 @@ impl CdrDeserializer {
     }
 
     pub fn deserialize_builtin(
-        dynamic_type: DynamicType,
+        dynamic_type: &DynamicType,
         buffer: &[u8],
     ) -> XTypesResult<DynamicData> {
         if buffer.len() < 4 {
