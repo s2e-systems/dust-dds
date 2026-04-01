@@ -63,7 +63,7 @@ impl CdrDeserializer {
         match representation_identifier {
             PL_CDR_LE => {
                 let mut deserializer = RtpsPlCdrDeserializer::new(&buffer[4..]);
-                deserializer.deserialize_structure(&dynamic_type, &mut dynamic_data)?;
+                deserializer.deserialize_structure(dynamic_type, &mut dynamic_data)?;
             }
             _ => return Err(XTypesError::NotSupported(representation_identifier)),
         }
