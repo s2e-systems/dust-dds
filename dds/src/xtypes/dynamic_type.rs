@@ -397,9 +397,9 @@ impl DynamicData {
         todo!()
     }
 
-    pub fn get_member_id_by_name<'a>(
+    pub fn get_member_id_by_name(
         &self,
-        type_ref: &'a DynamicType,
+        type_ref: &DynamicType,
         name: &str,
     ) -> Option<MemberId> {
         type_ref

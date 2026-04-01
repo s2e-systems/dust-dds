@@ -51,7 +51,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
             fn add_member<T: XTypesBinding>(&mut self, name: &'static str, id: i16) {
                 self.builder
                     .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                        name: name,
+                        name,
                         id: id as u32,
                         r#type: T::get_dynamic_type(),
                         default_value: None,
@@ -71,7 +71,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
             fn add_key_member<T: XTypesBinding>(&mut self, name: &'static str, id: i16) {
                 self.builder
                     .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                        name: name,
+                        name,
                         id: id as u32,
                         r#type: T::get_dynamic_type(),
                         default_value: None,
@@ -96,7 +96,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
             ) {
                 self.builder
                     .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                        name: name,
+                        name,
                         id: id as u32,
                         r#type: T::get_dynamic_type(),
                         default_value: Some(default.into_storage()),

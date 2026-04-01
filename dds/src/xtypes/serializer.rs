@@ -227,7 +227,7 @@ trait XTypesSerializer {
         for field_index in 0..v.get_item_count() {
             let member_id = v.get_member_id_at_index(field_index)?;
 
-            self.serialize_dynamic_data_member(&dynamic_type, v, member_id)?;
+            self.serialize_dynamic_data_member(dynamic_type, v, member_id)?;
         }
         Ok(())
     }
@@ -537,7 +537,7 @@ impl<'a, W: Write> XTypesSerializer for RtpsPlCdrSerializer<'a, W> {
                 if element_type.get_kind() == TypeKind::STRUCTURE {
                     for vi in v.get_complex_values(member_id)? {
                         let padded_length =
-                            count_bytes_pl_cdr_complex(&element_type, vi)?;
+                            count_bytes_pl_cdr_complex(element_type, vi)?;
                         LittleEndian::write_u16(
                             &(member_id as u16),
                             &mut self.cdr1_le_serializer.writer,
@@ -546,7 +546,7 @@ impl<'a, W: Write> XTypesSerializer for RtpsPlCdrSerializer<'a, W> {
                             &padded_length,
                             &mut self.cdr1_le_serializer.writer,
                         );
-                        self.serialize_complex(&element_type, vi)?
+                        self.serialize_complex(element_type, vi)?
                     }
                     self.cdr1_le_serializer.writer.pad(4);
                 } else {
