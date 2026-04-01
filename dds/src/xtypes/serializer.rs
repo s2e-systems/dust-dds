@@ -536,8 +536,7 @@ impl<'a, W: Write> XTypesSerializer for RtpsPlCdrSerializer<'a, W> {
                 // Sequence
                 if element_type.get_kind() == TypeKind::STRUCTURE {
                     for vi in v.get_complex_values(member_id)? {
-                        let padded_length =
-                            count_bytes_pl_cdr_complex(element_type, vi)?;
+                        let padded_length = count_bytes_pl_cdr_complex(element_type, vi)?;
                         LittleEndian::write_u16(
                             &(member_id as u16),
                             &mut self.cdr1_le_serializer.writer,
