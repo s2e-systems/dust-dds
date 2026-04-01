@@ -5,10 +5,7 @@ use crate::{
         type_support::TypeSupport,
     },
     transport::types::{DurabilityKind, ReliabilityKind},
-    xtypes::{
-        binding::XTypesBinding,
-        dynamic_type::{DynamicDataFactory, TypeKind},
-    },
+    xtypes::{binding::XTypesBinding, dynamic_type::DynamicDataFactory},
 };
 use alloc::{string::String, vec::Vec};
 use core::cmp::Ordering;
