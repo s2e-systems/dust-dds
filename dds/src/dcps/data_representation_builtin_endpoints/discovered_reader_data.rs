@@ -337,8 +337,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
     }
 
     fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
-        let mut data =
-            dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type());
+        let mut data = dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data();
         data.set_value(
             PID_ENDPOINT_GUID as u32,
             self.dds_subscription_data.key.into_storage(),
@@ -506,7 +505,10 @@ mod tests {
             4, 0, 0, 0, // ,
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
-        assert_eq!(RtpsPlCdrSerializer::serialize(&data).unwrap(), expected);
+        assert_eq!(
+            RtpsPlCdrSerializer::serialize(&DiscoveredReaderData::get_type(), &data).unwrap(),
+            expected
+        );
     }
 
     #[test]
@@ -579,7 +581,10 @@ mod tests {
             4, 0, 0, 0, // ,
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
-        assert_eq!(RtpsPlCdrSerializer::serialize(&data).unwrap(), expected);
+        assert_eq!(
+            RtpsPlCdrSerializer::serialize(&DiscoveredReaderData::get_type(), &data).unwrap(),
+            expected
+        );
     }
 
     #[test]

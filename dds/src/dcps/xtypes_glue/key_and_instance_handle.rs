@@ -1,7 +1,7 @@
 use crate::{
     infrastructure::instance::InstanceHandle,
     xtypes::{
-        dynamic_type::{DynamicData, TypeKind},
+        dynamic_type::{DynamicData, DynamicType, TypeKind},
         error::XTypesError,
         read_write::Write,
         serializer::Cdr2BeSerializer,
@@ -9,6 +9,7 @@ use crate::{
 };
 
 pub fn get_instance_handle_from_dynamic_data(
+    dynamic_type: &DynamicType,
     mut dynamic_data: DynamicData,
 ) -> Result<InstanceHandle, XTypesError> {
     struct Md5 {
@@ -47,9 +48,14 @@ pub fn get_instance_handle_from_dynamic_data(
         context: md5::Context::new(),
         length: 0,
     };
-    let key = if dynamic_data.type_ref().get_kind() == TypeKind::STRUCTURE {
-        dynamic_data.clear_nonkey_values()?;
-        Cdr2BeSerializer::serialize_final_without_header(md5_collection, &dynamic_data)?.into_key()
+    let key = if dynamic_type.get_kind() == TypeKind::STRUCTURE {
+        dynamic_data.clear_nonkey_values(dynamic_type)?;
+        Cdr2BeSerializer::serialize_final_without_header(
+            md5_collection,
+            dynamic_type,
+            &dynamic_data,
+        )?
+        .into_key()
     } else {
         [0; 16]
     };

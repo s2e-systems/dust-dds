@@ -235,7 +235,10 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             return Err(DdsError::NotEnabled);
         }
 
-        let instance_handle = match get_instance_handle_from_dynamic_data(dynamic_data) {
+        let instance_handle = match get_instance_handle_from_dynamic_data(
+            data_writer.type_support.as_ref(),
+            dynamic_data,
+        ) {
             Ok(k) => k,
             Err(e) => {
                 return Err(e.into());
@@ -279,7 +282,10 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             return;
         }
 
-        let instance_handle = match get_instance_handle_from_dynamic_data(dynamic_data.clone()) {
+        let instance_handle = match get_instance_handle_from_dynamic_data(
+            data_writer.type_support.as_ref(),
+            dynamic_data.clone(),
+        ) {
             Ok(h) => h,
             Err(e) => {
                 reply_sender.send(Err(e.into()));
@@ -349,7 +355,11 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             }
         }
 
-        let serialized_data = match serialize(&dynamic_data, &data_writer.qos.representation) {
+        let serialized_data = match serialize(
+            data_writer.type_support.as_ref(),
+            &dynamic_data,
+            &data_writer.qos.representation,
+        ) {
             Ok(s) => s,
             Err(e) => {
                 reply_sender.send(Err(e));

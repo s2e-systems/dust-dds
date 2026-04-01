@@ -367,9 +367,8 @@ impl DynamicType {
 pub struct DynamicDataFactory;
 
 impl DynamicDataFactory {
-    pub fn create_data(r#type: DynamicType) -> DynamicData {
+    pub fn create_data() -> DynamicData {
         DynamicData {
-            type_ref: r#type,
             abstract_data: BTreeMap::new(),
         }
     }
@@ -377,17 +376,16 @@ impl DynamicDataFactory {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct DynamicData {
-    type_ref: DynamicType,
     abstract_data: BTreeMap<MemberId, DataStorage>,
 }
 
 impl DynamicData {
-    pub fn type_ref(&self) -> &DynamicType {
-        &self.type_ref
-    }
-
-    pub fn get_descriptor(&self, id: MemberId) -> XTypesResult<&MemberDescriptor> {
-        self.type_ref
+    pub fn get_descriptor<'a>(
+        &self,
+        type_ref: &'a DynamicType,
+        id: MemberId,
+    ) -> XTypesResult<&'a MemberDescriptor> {
+        type_ref
             .member_list
             .iter()
             .find(|m| m.get_id() == id)
@@ -399,8 +397,12 @@ impl DynamicData {
         todo!()
     }
 
-    pub fn get_member_id_by_name(&self, name: &str) -> Option<MemberId> {
-        self.type_ref
+    pub fn get_member_id_by_name<'a>(
+        &self,
+        type_ref: &'a DynamicType,
+        name: &str,
+    ) -> Option<MemberId> {
+        type_ref
             .member_list
             .iter()
             .find(|m| m.get_name() == name)
@@ -416,10 +418,7 @@ impl DynamicData {
     }
 
     pub fn get_item_count(&self) -> u32 {
-        match self.type_ref.get_kind() {
-            TypeKind::STRUCTURE => self.abstract_data.len() as u32,
-            _ => todo!(),
-        }
+        self.abstract_data.len() as u32
     }
 
     pub fn clear_all_values(&mut self) -> XTypesResult<()> {
@@ -427,9 +426,9 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn clear_nonkey_values(&mut self) -> XTypesResult<()> {
-        for index in 0..self.type_ref.get_member_count() {
-            let member = self.type_ref.get_member_by_index(index)?;
+    pub fn clear_nonkey_values(&mut self, type_ref: &DynamicType) -> XTypesResult<()> {
+        for index in 0..type_ref.get_member_count() {
+            let member = type_ref.get_member_by_index(index)?;
             if !member.get_descriptor()?.is_key {
                 let member_id = member.get_id();
                 self.abstract_data.remove(&member_id);

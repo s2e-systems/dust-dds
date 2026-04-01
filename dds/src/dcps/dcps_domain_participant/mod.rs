@@ -829,8 +829,7 @@ where
                 .find(|x| x.topic_name == DCPS_PARTICIPANT)
             {
                 let builtin_topic_key = *self.domain_participant.instance_handle.as_ref();
-                let mut dynamic_data =
-                    DynamicDataFactory::create_data(SpdpDiscoveredParticipantData::get_type());
+                let mut dynamic_data = DynamicDataFactory::create_data();
                 dynamic_data
                     .set_complex_value(
                         PID_PARTICIPANT_GUID as u32,
@@ -949,8 +948,7 @@ where
             .iter_mut()
             .find(|x| x.topic_name == DCPS_PUBLICATION)
         {
-            let mut dynamic_data =
-                DynamicDataFactory::create_data(DiscoveredWriterData::get_type());
+            let mut dynamic_data = DynamicDataFactory::create_data();
             dynamic_data
                 .set_complex_value(
                     PID_ENDPOINT_GUID as u32,
@@ -1080,8 +1078,7 @@ where
             .iter_mut()
             .find(|x| x.topic_name == DCPS_SUBSCRIPTION)
         {
-            let mut dynamic_data =
-                DynamicDataFactory::create_data(DiscoveredReaderData::get_type());
+            let mut dynamic_data = DynamicDataFactory::create_data();
             dynamic_data
                 .set_complex_value(
                     PID_ENDPOINT_GUID as u32,
@@ -2109,7 +2106,7 @@ where
                 let discovered_participant_handle = if let Some(h) = cache_change.instance_handle {
                     InstanceHandle::new(h)
                 } else if let Ok(dynamic_data) = CdrDeserializer::deserialize(
-                    InstanceHandle::get_dynamic_type(),
+                    &InstanceHandle::get_dynamic_type(),
                     cache_change.data_value.as_ref(),
                 ) {
                     InstanceHandle::create_sample(dynamic_data)
@@ -2202,7 +2199,7 @@ where
                 let discovered_writer_handle = if let Some(h) = cache_change.instance_handle {
                     InstanceHandle::new(h)
                 } else if let Ok(dynamic_data) = CdrDeserializer::deserialize(
-                    InstanceHandle::get_dynamic_type(),
+                    &InstanceHandle::get_dynamic_type(),
                     cache_change.data_value.as_ref(),
                 ) {
                     InstanceHandle::create_sample(dynamic_data)
@@ -2340,7 +2337,7 @@ where
                 let discovered_reader_handle = if let Some(h) = cache_change.instance_handle {
                     InstanceHandle::new(h)
                 } else if let Ok(dynamic_data) = CdrDeserializer::deserialize(
-                    InstanceHandle::get_dynamic_type(),
+                    &InstanceHandle::get_dynamic_type(),
                     cache_change.data_value.as_ref(),
                 ) {
                     InstanceHandle::create_sample(dynamic_data)
@@ -2485,7 +2482,7 @@ where
             {
                 if cache_change.kind == ChangeKind::Alive {
                     let Ok(data) = CdrDeserializer::deserialize(
-                        data_reader.type_support.as_ref().clone(),
+                        data_reader.type_support.as_ref(),
                         cache_change.data_value.as_ref(),
                     ) else {
                         return;
@@ -2532,11 +2529,15 @@ where
                     };
 
                     if let Some((variable_name, comparison_function)) = filter {
-                        let Some(member_id) = data.get_member_id_by_name(variable_name.trim())
-                        else {
+                        let Some(member_id) = data.get_member_id_by_name(
+                            data_reader.type_support.as_ref(),
+                            variable_name.trim(),
+                        ) else {
                             return;
                         };
-                        let Ok(member_descriptor) = data.get_descriptor(member_id) else {
+                        let Ok(member_descriptor) =
+                            data.get_descriptor(data_reader.type_support.as_ref(), member_id)
+                        else {
                             return;
                         };
                         match member_descriptor.r#type.get_kind() {
@@ -4792,7 +4793,10 @@ impl DataWriterEntity {
             return Err(DdsError::IllegalOperation);
         }
 
-        let instance_handle = get_instance_handle_from_dynamic_data(dynamic_data.clone())?;
+        let instance_handle = get_instance_handle_from_dynamic_data(
+            self.type_support.as_ref(),
+            dynamic_data.clone(),
+        )?;
         if !self.registered_instance_list.contains(&instance_handle) {
             return Err(DdsError::BadParameter);
         }
@@ -4805,8 +4809,12 @@ impl DataWriterEntity {
             self.instance_publication_time.remove(i);
         }
 
-        dynamic_data.clear_nonkey_values()?;
-        let serialized_key = serialize(&dynamic_data, &self.qos.representation)?;
+        dynamic_data.clear_nonkey_values(self.type_support.as_ref())?;
+        let serialized_key = serialize(
+            self.type_support.as_ref(),
+            &dynamic_data,
+            &self.qos.representation,
+        )?;
 
         self.last_change_sequence_number += 1;
         let cache_change = CacheChange {
@@ -4854,7 +4862,10 @@ impl DataWriterEntity {
             return Err(DdsError::IllegalOperation);
         }
 
-        let instance_handle = get_instance_handle_from_dynamic_data(dynamic_data.clone())?;
+        let instance_handle = get_instance_handle_from_dynamic_data(
+            self.type_support.as_ref(),
+            dynamic_data.clone(),
+        )?;
         if !self.registered_instance_list.contains(&instance_handle) {
             return Err(DdsError::BadParameter);
         }
@@ -4867,8 +4878,12 @@ impl DataWriterEntity {
             self.instance_publication_time.remove(i);
         }
 
-        dynamic_data.clear_nonkey_values()?;
-        let serialized_key = serialize(&dynamic_data, &self.qos.representation)?;
+        dynamic_data.clear_nonkey_values(self.type_support.as_ref())?;
+        let serialized_key = serialize(
+            self.type_support.as_ref(),
+            &dynamic_data,
+            &self.qos.representation,
+        )?;
 
         self.last_change_sequence_number += 1;
         let kind = if self
@@ -5348,27 +5363,31 @@ impl DataReaderEntity {
         let (data_value, instance_handle) = match cache_change.kind {
             ChangeKind::Alive | ChangeKind::AliveFiltered => {
                 let data_value = CdrDeserializer::deserialize(
-                    self.type_support.as_ref().clone(),
+                    self.type_support.as_ref(),
                     cache_change.data_value.as_ref(),
                 )?;
-                let instance_handle = get_instance_handle_from_dynamic_data(data_value.clone())?;
+                let instance_handle = get_instance_handle_from_dynamic_data(
+                    self.type_support.as_ref(),
+                    data_value.clone(),
+                )?;
                 (data_value, instance_handle)
             }
             ChangeKind::NotAliveDisposed
             | ChangeKind::NotAliveUnregistered
             | ChangeKind::NotAliveDisposedUnregistered => match cache_change.instance_handle {
                 Some(i) => {
-                    let key_holder = create_key_holder(self.type_support.as_ref())?;
-                    let data_value = DynamicDataFactory::create_data(key_holder);
+                    let data_value = DynamicDataFactory::create_data();
                     let instance_handle = InstanceHandle::new(i);
                     (data_value, instance_handle)
                 }
                 None => {
                     let key_holder = create_key_holder(self.type_support.as_ref())?;
-                    let data_value =
-                        CdrDeserializer::deserialize(key_holder, cache_change.data_value.as_ref())?;
+                    let data_value = CdrDeserializer::deserialize(
+                        &key_holder,
+                        cache_change.data_value.as_ref(),
+                    )?;
                     let instance_handle =
-                        get_instance_handle_from_dynamic_data(data_value.clone())?;
+                        get_instance_handle_from_dynamic_data(&key_holder, data_value.clone())?;
                     (data_value, instance_handle)
                 }
             },
@@ -5946,24 +5965,25 @@ impl DataReaderEntity {
 }
 
 fn serialize(
+    dynamic_type: &DynamicType,
     dynamic_data: &DynamicData,
     representation: &DataRepresentationQosPolicy,
 ) -> DdsResult<Vec<u8>> {
     Ok(
         if representation.value.is_empty() || representation.value[0] == XCDR_DATA_REPRESENTATION {
             if cfg!(target_endian = "big") {
-                Cdr1BeSerializer::serialize(dynamic_data)?
+                Cdr1BeSerializer::serialize(dynamic_type, dynamic_data)?
             } else {
-                Cdr1LeSerializer::serialize(dynamic_data)?
+                Cdr1LeSerializer::serialize(dynamic_type, dynamic_data)?
             }
         } else if representation.value[0] == XCDR2_DATA_REPRESENTATION {
             if cfg!(target_endian = "big") {
-                Cdr2BeSerializer::serialize(dynamic_data)?
+                Cdr2BeSerializer::serialize(dynamic_type, dynamic_data)?
             } else {
-                Cdr2LeSerializer::serialize(dynamic_data)?
+                Cdr2LeSerializer::serialize(dynamic_type, dynamic_data)?
             }
         } else if representation.value[0] == BUILT_IN_DATA_REPRESENTATION {
-            RtpsPlCdrSerializer::serialize(dynamic_data)?
+            RtpsPlCdrSerializer::serialize(dynamic_type, dynamic_data)?
         } else {
             panic!("Invalid data representation")
         },

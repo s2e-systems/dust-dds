@@ -369,8 +369,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParti
     }
 
     fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
-        let mut data =
-            dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type());
+        let mut data = dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data();
         data.set_value(
             PID_PARTICIPANT_GUID as u32,
             self.dds_participant_data.key.into_storage(),
@@ -563,7 +562,11 @@ mod tests {
             b'a', b'b', 0, 0x00, // DomainTag: string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ];
-        assert_eq!(RtpsPlCdrSerializer::serialize(&data).unwrap(), expected);
+        assert_eq!(
+            RtpsPlCdrSerializer::serialize(&SpdpDiscoveredParticipantData::get_type(), &data)
+                .unwrap(),
+            expected
+        );
     }
 
     #[test]
@@ -615,7 +618,11 @@ mod tests {
             0x02, 0x00, 0x00, 0x00, //
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ];
-        assert_eq!(RtpsPlCdrSerializer::serialize(&data).unwrap(), expected);
+        assert_eq!(
+            RtpsPlCdrSerializer::serialize(&SpdpDiscoveredParticipantData::get_type(), &data)
+                .unwrap(),
+            expected
+        );
     }
 
     #[test]

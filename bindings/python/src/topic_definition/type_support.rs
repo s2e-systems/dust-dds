@@ -100,13 +100,10 @@ pub fn convert_python_instance_to_dynamic_data(
     python_instance: Bound<'_, PyAny>,
 ) -> PyResult<dust_dds::xtypes::dynamic_type::DynamicData> {
     let r#type = convert_python_type_to_dynamic_type(&python_instance.getattr("__class__")?)?;
-    let mut dynamic_data = dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(r#type);
+    let mut dynamic_data = dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data();
 
-    for member_index in 0..dynamic_data.type_ref().get_member_count() {
-        let member = dynamic_data
-            .type_ref()
-            .get_member_by_index(member_index)
-            .unwrap();
+    for member_index in 0..r#type.get_member_count() {
+        let member = r#type.get_member_by_index(member_index).unwrap();
         let member_descriptor = member.get_descriptor().unwrap();
         let member_kind = member_descriptor.r#type.get_kind();
         let value = python_instance.getattr(member.get_name())?;
@@ -172,15 +169,15 @@ pub fn convert_python_instance_to_dynamic_data(
 pub fn convert_dynamic_data_to_python_instance(
     py: Python,
     r#type: &Py<PyAny>,
+    dynamic_type: &dust_dds::xtypes::dynamic_type::DynamicType,
     dynamic_data: dust_dds::xtypes::dynamic_type::DynamicData,
 ) -> PyResult<Py<PyAny>> {
     // Call the empty constructor of the type
     let py_type = r#type.cast_bound::<PyType>(py)?;
     let data = r#type.bind(py).call_method("__new__", (py_type,), None)?;
 
-    for member_index in 0..dynamic_data.type_ref().get_member_count() {
-        let member = dynamic_data
-            .type_ref()
+    for member_index in 0..dynamic_type.get_member_count() {
+        let member = dynamic_type
             .get_member_by_index(member_index)
             .expect("Must exist");
         let name = member.get_name();
@@ -442,8 +439,13 @@ class MyDataType:
             let locals = PyDict::new(py);
             py.run(code, Some(&globals), Some(&locals)).unwrap();
             let r#type = locals.get_item("MyDataType").unwrap().unwrap().unbind();
-            let created_data =
-                convert_dynamic_data_to_python_instance(py, &r#type, dynamic_data).unwrap();
+            let created_data = convert_dynamic_data_to_python_instance(
+                py,
+                &r#type,
+                &MyDataType::get_type(),
+                dynamic_data,
+            )
+            .unwrap();
 
             assert_eq!(
                 created_data

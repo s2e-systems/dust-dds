@@ -23,6 +23,7 @@ use crate::{
         type_support::{PythonDdsData, convert_dynamic_data_to_python_instance},
     },
 };
+use dust_dds::infrastructure::type_support::TypeSupport;
 use pyo3::{
     exceptions::{PyTypeError, PyValueError},
     prelude::*,
@@ -466,7 +467,13 @@ impl Sample {
     ) -> Self {
         let data = if let Some(dynamic_data) = sample.data {
             Python::attach(|py| {
-                convert_dynamic_data_to_python_instance(py, type_, dynamic_data.into()).ok()
+                convert_dynamic_data_to_python_instance(
+                    py,
+                    type_,
+                    &PythonDdsData::get_type(),
+                    dynamic_data.into(),
+                )
+                .ok()
             })
         } else {
             None
