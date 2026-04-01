@@ -1,6 +1,8 @@
 use crate::{
     infrastructure::type_support::TypeSupport,
-    xtypes::dynamic_type::{DynamicType, DynamicTypeBuilderFactory, TypeKind},
+    xtypes::dynamic_type::{
+        DynamicType, DynamicTypeBuilderFactory, ExtensibilityKind, TypeDescriptor, TypeKind,
+    },
 };
 use alloc::{string::String, vec::Vec};
 
@@ -10,48 +12,152 @@ pub trait XTypesBinding {
 
 impl XTypesBinding for u8 {
     fn get_dynamic_type() -> DynamicType {
-        DynamicTypeBuilderFactory::get_primitive_type(TypeKind::UINT8)
+        DynamicType::new(
+            &TypeDescriptor {
+                kind: TypeKind::UINT8,
+                name: "",
+                base_type: None,
+                discriminator_type: None,
+                bound: None,
+                element_type: None,
+                key_element_type: None,
+                extensibility_kind: ExtensibilityKind::Final,
+                is_nested: false,
+            },
+            &[],
+        )
     }
 }
 impl XTypesBinding for i8 {
     fn get_dynamic_type() -> DynamicType {
-        DynamicTypeBuilderFactory::get_primitive_type(TypeKind::INT8)
+        DynamicType::new(
+            &TypeDescriptor {
+                kind: TypeKind::INT8,
+                name: "",
+                base_type: None,
+                discriminator_type: None,
+                bound: None,
+                element_type: None,
+                key_element_type: None,
+                extensibility_kind: ExtensibilityKind::Final,
+                is_nested: false,
+            },
+            &[],
+        )
     }
 }
 
 impl XTypesBinding for u16 {
     fn get_dynamic_type() -> DynamicType {
-        DynamicTypeBuilderFactory::get_primitive_type(TypeKind::UINT16)
+        DynamicType::new(
+            &TypeDescriptor {
+                kind: TypeKind::UINT16,
+                name: "",
+                base_type: None,
+                discriminator_type: None,
+                bound: None,
+                element_type: None,
+                key_element_type: None,
+                extensibility_kind: ExtensibilityKind::Final,
+                is_nested: false,
+            },
+            &[],
+        )
     }
 }
 
 impl XTypesBinding for i16 {
     fn get_dynamic_type() -> DynamicType {
-        DynamicTypeBuilderFactory::get_primitive_type(TypeKind::INT16)
+        DynamicType::new(
+            &TypeDescriptor {
+                kind: TypeKind::INT16,
+                name: "",
+                base_type: None,
+                discriminator_type: None,
+                bound: None,
+                element_type: None,
+                key_element_type: None,
+                extensibility_kind: ExtensibilityKind::Final,
+                is_nested: false,
+            },
+            &[],
+        )
     }
 }
 
 impl XTypesBinding for u32 {
     fn get_dynamic_type() -> DynamicType {
-        DynamicTypeBuilderFactory::get_primitive_type(TypeKind::UINT32)
+        DynamicType::new(
+            &TypeDescriptor {
+                kind: TypeKind::UINT32,
+                name: "",
+                base_type: None,
+                discriminator_type: None,
+                bound: None,
+                element_type: None,
+                key_element_type: None,
+                extensibility_kind: ExtensibilityKind::Final,
+                is_nested: false,
+            },
+            &[],
+        )
     }
 }
 
 impl XTypesBinding for i32 {
     fn get_dynamic_type() -> DynamicType {
-        DynamicTypeBuilderFactory::get_primitive_type(TypeKind::INT32)
+        DynamicType::new(
+            &TypeDescriptor {
+                kind: TypeKind::INT32,
+                name: "",
+                base_type: None,
+                discriminator_type: None,
+                bound: None,
+                element_type: None,
+                key_element_type: None,
+                extensibility_kind: ExtensibilityKind::Final,
+                is_nested: false,
+            },
+            &[],
+        )
     }
 }
 
 impl XTypesBinding for u64 {
     fn get_dynamic_type() -> DynamicType {
-        DynamicTypeBuilderFactory::get_primitive_type(TypeKind::UINT64)
+        DynamicType::new(
+            &TypeDescriptor {
+                kind: TypeKind::UINT64,
+                name: "",
+                base_type: None,
+                discriminator_type: None,
+                bound: None,
+                element_type: None,
+                key_element_type: None,
+                extensibility_kind: ExtensibilityKind::Final,
+                is_nested: false,
+            },
+            &[],
+        )
     }
 }
 
 impl XTypesBinding for i64 {
     fn get_dynamic_type() -> DynamicType {
-        DynamicTypeBuilderFactory::get_primitive_type(TypeKind::INT64)
+        DynamicType::new(
+            &TypeDescriptor {
+                kind: TypeKind::INT64,
+                name: "",
+                base_type: None,
+                discriminator_type: None,
+                bound: None,
+                element_type: None,
+                key_element_type: None,
+                extensibility_kind: ExtensibilityKind::Final,
+                is_nested: false,
+            },
+            &[],
+        )
     }
 }
 
@@ -69,25 +175,77 @@ impl XTypesBinding for &'_ str {
 
 impl XTypesBinding for bool {
     fn get_dynamic_type() -> DynamicType {
-        DynamicTypeBuilderFactory::get_primitive_type(TypeKind::BOOLEAN)
+        DynamicType::new(
+            &TypeDescriptor {
+                kind: TypeKind::BOOLEAN,
+                name: "",
+                base_type: None,
+                discriminator_type: None,
+                bound: None,
+                element_type: None,
+                key_element_type: None,
+                extensibility_kind: ExtensibilityKind::Final,
+                is_nested: false,
+            },
+            &[],
+        )
     }
 }
 
 impl XTypesBinding for f32 {
     fn get_dynamic_type() -> DynamicType {
-        DynamicTypeBuilderFactory::get_primitive_type(TypeKind::FLOAT32)
+        DynamicType::new(
+            &TypeDescriptor {
+                kind: TypeKind::FLOAT32,
+                name: "",
+                base_type: None,
+                discriminator_type: None,
+                bound: None,
+                element_type: None,
+                key_element_type: None,
+                extensibility_kind: ExtensibilityKind::Final,
+                is_nested: false,
+            },
+            &[],
+        )
     }
 }
 
 impl XTypesBinding for f64 {
     fn get_dynamic_type() -> DynamicType {
-        DynamicTypeBuilderFactory::get_primitive_type(TypeKind::FLOAT64)
+        DynamicType::new(
+            &TypeDescriptor {
+                kind: TypeKind::FLOAT64,
+                name: "",
+                base_type: None,
+                discriminator_type: None,
+                bound: None,
+                element_type: None,
+                key_element_type: None,
+                extensibility_kind: ExtensibilityKind::Final,
+                is_nested: false,
+            },
+            &[],
+        )
     }
 }
 
 impl XTypesBinding for char {
     fn get_dynamic_type() -> DynamicType {
-        DynamicTypeBuilderFactory::get_primitive_type(TypeKind::CHAR8)
+        DynamicType::new(
+            &TypeDescriptor {
+                kind: TypeKind::CHAR8,
+                name: "",
+                base_type: None,
+                discriminator_type: None,
+                bound: None,
+                element_type: None,
+                key_element_type: None,
+                extensibility_kind: ExtensibilityKind::Final,
+                is_nested: false,
+            },
+            &[],
+        )
     }
 }
 

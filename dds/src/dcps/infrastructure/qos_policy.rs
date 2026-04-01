@@ -1105,11 +1105,7 @@ impl TypeSupport for HistoryQosPolicyKind {
                 kind: dust_dds::xtypes::dynamic_type::TypeKind::ENUM,
                 name: Self::get_type_name(),
                 base_type: None,
-                discriminator_type: Some(
-                    dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::get_primitive_type(
-                        dust_dds::xtypes::dynamic_type::TypeKind::UINT8,
-                    ),
-                ),
+                discriminator_type: Some(u8::get_dynamic_type()),
                 bound: None,
                 element_type: None,
                 key_element_type: None,
@@ -1209,10 +1205,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for HistoryQosPolicy {
             .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
                 name: "depth",
                 id: 1,
-                r#type:
-                    dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::get_primitive_type(
-                        TypeKind::INT32,
-                    ),
+                r#type: i32::get_dynamic_type(),
                 default_value: None,
                 index: 1u32,
                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,

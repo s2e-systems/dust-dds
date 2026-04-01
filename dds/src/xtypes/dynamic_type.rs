@@ -327,7 +327,7 @@ pub struct DynamicType {
 }
 
 impl DynamicType {
-    pub fn new(
+    pub const fn new(
         descriptor: &'static TypeDescriptor,
         member_list: &'static [DynamicTypeMember],
     ) -> Self {
