@@ -36,7 +36,7 @@ impl TypeSupport for DiscoveredTopicData {
         let mut builder = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
             dust_dds::xtypes::dynamic_type::TypeDescriptor {
                 kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
-                name: alloc::string::String::from(Self::get_type_name()),
+                name: Self::get_type_name(),
                 base_type: None,
                 discriminator_type: None,
                 bound: None,
@@ -48,7 +48,7 @@ impl TypeSupport for DiscoveredTopicData {
         );
         builder
             .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                name: alloc::string::String::from("key"),
+                name: "key",
                 id: PID_ENDPOINT_GUID as u32,
                 r#type: <BuiltInTopicKey as XTypesBinding>::get_dynamic_type(),
                 default_value: None,
@@ -64,7 +64,7 @@ impl TypeSupport for DiscoveredTopicData {
             .unwrap();
         builder
             .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                name: alloc::string::String::from("name"),
+                name: "name",
                 id: PID_TOPIC_NAME as u32,
                 r#type: <String as XTypesBinding>::get_dynamic_type(),
                 default_value: None,
@@ -80,7 +80,7 @@ impl TypeSupport for DiscoveredTopicData {
             .unwrap();
         builder
             .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                name: alloc::string::String::from("type_name"),
+                name: "type_name",
                 id: PID_TYPE_NAME as u32,
                 r#type: <String as XTypesBinding>::get_dynamic_type(),
                 default_value: None,
@@ -96,7 +96,7 @@ impl TypeSupport for DiscoveredTopicData {
             .unwrap();
         builder
             .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                name: alloc::string::String::from("durability"),
+                name: "durability",
                 id: PID_DURABILITY as u32,
                 r#type: <DurabilityQosPolicy as XTypesBinding>::get_dynamic_type(),
                 default_value: Some(<DurabilityQosPolicy as Default>::default().into_storage()),
@@ -112,7 +112,7 @@ impl TypeSupport for DiscoveredTopicData {
             .unwrap();
         builder
             .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                name: alloc::string::String::from("deadline"),
+                name: "deadline",
                 id: PID_DEADLINE as u32,
                 r#type: <DeadlineQosPolicy as XTypesBinding>::get_dynamic_type(),
                 default_value: Some(<DeadlineQosPolicy as Default>::default().into_storage()),
@@ -128,7 +128,7 @@ impl TypeSupport for DiscoveredTopicData {
             .unwrap();
         builder
             .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                name: alloc::string::String::from("latency_budget"),
+                name: "latency_budget",
                 id: PID_LATENCY_BUDGET as u32,
                 r#type: <LatencyBudgetQosPolicy as XTypesBinding>::get_dynamic_type(),
                 default_value: Some(<LatencyBudgetQosPolicy as Default>::default().into_storage()),
@@ -144,7 +144,7 @@ impl TypeSupport for DiscoveredTopicData {
             .unwrap();
         builder
             .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                name: alloc::string::String::from("liveliness"),
+                name: "liveliness",
                 id: PID_LIVELINESS as u32,
                 r#type: <LivelinessQosPolicy as XTypesBinding>::get_dynamic_type(),
                 default_value: Some(<LivelinessQosPolicy as Default>::default().into_storage()),
@@ -160,7 +160,7 @@ impl TypeSupport for DiscoveredTopicData {
             .unwrap();
         builder
             .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                name: alloc::string::String::from("reliability"),
+                name: "reliability",
                 id: PID_RELIABILITY as u32,
                 r#type: <ReliabilityQosPolicy as XTypesBinding>::get_dynamic_type(),
                 default_value: Some(
@@ -178,7 +178,7 @@ impl TypeSupport for DiscoveredTopicData {
             .unwrap();
         builder
             .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                name: alloc::string::String::from("transport_priority"),
+                name: "transport_priority",
                 id: PID_TRANSPORT_PRIORITY as u32,
                 r#type: <TransportPriorityQosPolicy as XTypesBinding>::get_dynamic_type(),
                 default_value: Some(
@@ -196,7 +196,7 @@ impl TypeSupport for DiscoveredTopicData {
             .unwrap();
         builder
             .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                name: alloc::string::String::from("lifespan"),
+                name: "lifespan",
                 id: PID_LIFESPAN as u32,
                 r#type: <LifespanQosPolicy as XTypesBinding>::get_dynamic_type(),
                 default_value: Some(<LifespanQosPolicy as Default>::default().into_storage()),
@@ -212,7 +212,7 @@ impl TypeSupport for DiscoveredTopicData {
             .unwrap();
         builder
             .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                name: alloc::string::String::from("destination_order"),
+                name: "destination_order",
                 id: PID_DESTINATION_ORDER as u32,
                 r#type: <DestinationOrderQosPolicy as XTypesBinding>::get_dynamic_type(),
                 default_value: Some(
@@ -230,7 +230,7 @@ impl TypeSupport for DiscoveredTopicData {
             .unwrap();
         builder
             .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                name: alloc::string::String::from("history"),
+                name: "history",
                 id: PID_HISTORY as u32,
                 r#type: <HistoryQosPolicy as XTypesBinding>::get_dynamic_type(),
                 default_value: Some(<HistoryQosPolicy as Default>::default().into_storage()),
@@ -246,7 +246,7 @@ impl TypeSupport for DiscoveredTopicData {
             .unwrap();
         builder
             .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                name: alloc::string::String::from("resource_limits"),
+                name: "resource_limits",
                 id: PID_RESOURCE_LIMITS as u32,
                 r#type: <ResourceLimitsQosPolicy as XTypesBinding>::get_dynamic_type(),
                 default_value: Some(<ResourceLimitsQosPolicy as Default>::default().into_storage()),
@@ -262,7 +262,7 @@ impl TypeSupport for DiscoveredTopicData {
             .unwrap();
         builder
             .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                name: alloc::string::String::from("ownership"),
+                name: "ownership",
                 id: PID_OWNERSHIP as u32,
                 r#type: <OwnershipQosPolicy as XTypesBinding>::get_dynamic_type(),
                 default_value: Some(<OwnershipQosPolicy as Default>::default().into_storage()),
@@ -278,7 +278,7 @@ impl TypeSupport for DiscoveredTopicData {
             .unwrap();
         builder
             .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                name: alloc::string::String::from("topic_data"),
+                name: "topic_data",
                 id: PID_TOPIC_DATA as u32,
                 r#type: <TopicDataQosPolicy as XTypesBinding>::get_dynamic_type(),
                 default_value: Some(<TopicDataQosPolicy as Default>::default().into_storage()),
@@ -294,7 +294,7 @@ impl TypeSupport for DiscoveredTopicData {
             .unwrap();
         builder
             .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                name: alloc::string::String::from("representation"),
+                name: "representation",
                 id: PID_DATA_REPRESENTATION as u32,
                 r#type: <DataRepresentationQosPolicy as XTypesBinding>::get_dynamic_type(),
                 default_value: Some(

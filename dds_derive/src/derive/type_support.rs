@@ -31,7 +31,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 let mut builder = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
                     dust_dds::xtypes::dynamic_type::TypeDescriptor {
                         kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
-                        name: alloc::string::String::from(#type_name),
+                        name: #type_name,
                         base_type: None,
                         discriminator_type: None,
                         bound: None,
@@ -80,7 +80,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 member_builder_seq.extend(
                     quote! {
                          builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                            name: alloc::string::String::from(#field_name),
+                            name: #field_name,
                             id: #member_id,
                             r#type: <#member_type as dust_dds::xtypes::binding::XTypesBinding>::get_dynamic_type(),
                             default_value: #default_value,
@@ -155,7 +155,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     let mut builder = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
                         dust_dds::xtypes::dynamic_type::TypeDescriptor {
                             kind: dust_dds::xtypes::dynamic_type::TypeKind::UNION,
-                            name: alloc::string::String::from(#type_name),
+                            name: #type_name,
                             base_type: None,
                             discriminator_type: None,
                             bound: None,
@@ -192,7 +192,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     let mut builder = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
                         dust_dds::xtypes::dynamic_type::TypeDescriptor {
                             kind: dust_dds::xtypes::dynamic_type::TypeKind::ENUM,
-                            name: alloc::string::String::from(#type_name),
+                            name: #type_name,
                             base_type: None,
                             discriminator_type: Some(#discriminator_type),
                             bound: None,

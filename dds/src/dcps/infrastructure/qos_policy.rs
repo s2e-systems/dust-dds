@@ -916,7 +916,7 @@ pub enum ReliabilityQosPolicyKind {
 //         let builder = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
 //             dust_dds::xtypes::dynamic_type::TypeDescriptor {
 //                 kind: dust_dds::xtypes::dynamic_type::TypeKind::ENUM,
-//                 name: alloc::string::String::from("ReliabilityQosPolicyKind"),
+//                 name: "ReliabilityQosPolicyKind",
 //                 base_type: None,
 //                 discriminator_type: Some(
 //                     dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::get_primitive_type(
@@ -1103,7 +1103,7 @@ impl TypeSupport for HistoryQosPolicyKind {
         let builder = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
             dust_dds::xtypes::dynamic_type::TypeDescriptor {
                 kind: dust_dds::xtypes::dynamic_type::TypeKind::ENUM,
-                name: alloc::string::String::from(Self::get_type_name()),
+                name: Self::get_type_name(),
                 base_type: None,
                 discriminator_type: Some(
                     dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::get_primitive_type(
@@ -1179,7 +1179,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for HistoryQosPolicy {
         let mut builder = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
             dust_dds::xtypes::dynamic_type::TypeDescriptor {
                 kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
-                name: alloc::string::String::from(Self::get_type_name()),
+                name: Self::get_type_name(),
                 base_type: None,
                 discriminator_type: None,
                 bound: None,
@@ -1191,7 +1191,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for HistoryQosPolicy {
         );
         builder
             .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                name: alloc::string::String::from("kind"),
+                name: "kind",
                 id: 0,
                 r#type: HistoryQosPolicyKind::get_type(),
                 default_value: None,
@@ -1207,7 +1207,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for HistoryQosPolicy {
             .unwrap();
         builder
             .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                name: alloc::string::String::from("depth"),
+                name: "depth",
                 id: 1,
                 r#type:
                     dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::get_primitive_type(

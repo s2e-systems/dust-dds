@@ -8,7 +8,7 @@ use alloc::{boxed::Box, collections::BTreeMap, string::String, vec::Vec};
 
 pub type BoundSeq = Option<u32>;
 pub type IncludePathSeq = Vec<String>;
-pub type ObjectName = String;
+pub type ObjectName = &'static str;
 
 // ---------- TypeKinds (begin) -------------------
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -59,7 +59,7 @@ impl DynamicTypeBuilderFactory {
         DynamicType {
             descriptor: Box::leak(Box::new(TypeDescriptor {
                 kind,
-                name: String::new(),
+                name: "",
                 base_type: None,
                 discriminator_type: None,
                 bound: None,
@@ -91,7 +91,7 @@ impl DynamicTypeBuilderFactory {
         DynamicTypeBuilder {
             descriptor: TypeDescriptor {
                 kind: TypeKind::STRING8,
-                name: String::new(),
+                name: "",
                 base_type: None,
                 discriminator_type: None,
                 bound: Some(bound),
@@ -112,7 +112,7 @@ impl DynamicTypeBuilderFactory {
         DynamicTypeBuilder {
             descriptor: TypeDescriptor {
                 kind: TypeKind::SEQUENCE,
-                name: String::new(),
+                name: "",
                 base_type: None,
                 discriminator_type: None,
                 bound: Some(bound),
@@ -129,7 +129,7 @@ impl DynamicTypeBuilderFactory {
         DynamicTypeBuilder {
             descriptor: TypeDescriptor {
                 kind: TypeKind::ARRAY,
-                name: String::new(),
+                name: "",
                 base_type: None,
                 discriminator_type: None,
                 bound,
@@ -236,8 +236,8 @@ impl DynamicTypeMember {
     pub fn get_id(&self) -> MemberId {
         self.descriptor.id
     }
-    pub fn get_name(&self) -> &ObjectName {
-        &self.descriptor.name
+    pub fn get_name(&self) -> ObjectName {
+        self.descriptor.name
     }
 }
 
@@ -252,7 +252,7 @@ impl DynamicTypeBuilder {
     }
 
     pub fn get_name(&self) -> ObjectName {
-        self.descriptor.name.clone()
+        self.descriptor.name
     }
 
     pub fn get_kind(&self) -> TypeKind {
@@ -331,7 +331,7 @@ impl DynamicType {
         &self.descriptor
     }
     pub fn get_name(&self) -> ObjectName {
-        self.descriptor.name.clone()
+        self.descriptor.name
     }
     pub fn get_kind(&self) -> TypeKind {
         self.descriptor.kind

@@ -28,7 +28,7 @@ pub fn convert_python_type_to_dynamic_type(
 ) -> PyResult<dust_dds::xtypes::dynamic_type::DynamicType> {
     let dataclass_fields = python_type.getattr("__annotations__")?;
     let fields_dict = dataclass_fields.cast::<PyDict>()?;
-    let name = python_type.getattr("__name__")?.extract::<String>()?;
+    let name = String::leak(python_type.getattr("__name__")?.extract::<String>()?);
     let mut builder = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
         dust_dds::xtypes::dynamic_type::TypeDescriptor {
             kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
@@ -44,7 +44,7 @@ pub fn convert_python_type_to_dynamic_type(
     );
 
     for (index, (field_name, field_dict)) in fields_dict.iter().enumerate() {
-        let name = field_name.extract()?;
+        let name = String::leak(field_name.extract::<String>()?);
         let r#type = if let Ok(dustdds_type) = field_dict.extract::<TypeKind>() {
             let xtypes_type_kind = match dustdds_type {
                 TypeKind::boolean => dust_dds::xtypes::dynamic_type::TypeKind::BOOLEAN,
