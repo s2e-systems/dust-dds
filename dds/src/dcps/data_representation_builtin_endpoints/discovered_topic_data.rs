@@ -39,7 +39,7 @@ impl TypeSupport for DiscoveredTopicData {
                 name: alloc::string::String::from(Self::get_type_name()),
                 base_type: None,
                 discriminator_type: None,
-                bound: alloc::vec::Vec::new(),
+                bound: None,
                 element_type: None,
                 key_element_type: None,
                 extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Mutable,

@@ -382,7 +382,12 @@ trait XTypesDeserialize {
             .element_type
             .as_ref()
             .expect("Sequence must have element type");
-        let bound = member.get_descriptor()?.r#type.get_descriptor().bound[0];
+        let bound = member
+            .get_descriptor()?
+            .r#type
+            .get_descriptor()
+            .bound
+            .ok_or(XTypesError::InvalidType)?;
         match sequence_type.get_kind() {
             TypeKind::NONE => todo!(),
             TypeKind::BOOLEAN => dynamic_data.set_boolean_values(

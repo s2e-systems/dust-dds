@@ -105,14 +105,14 @@ impl Cdr2BeSerializer {
         pad_entire_serialization(&mut buffer);
         Ok(buffer)
     }
-    pub fn serialize_without_header<W: Write>(
+    pub fn serialize_final_without_header<W: Write>(
         mut buffer: W,
         dynamic_data: &DynamicData,
     ) -> XTypesResult<W> {
         let mut s = Xcdr2Serializer {
             writer: CdrWriter::new(&mut buffer, BigEndian, EncodingVersion2),
         };
-        s.serialize_dynamic_data(dynamic_data)?;
+        s.serialize_final_struct(dynamic_data)?;
         Ok(buffer)
     }
 }

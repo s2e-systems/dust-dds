@@ -4,9 +4,9 @@ use crate::xtypes::{
     error::XTypesResult,
     type_object::TypeObject,
 };
-use alloc::{boxed::Box, collections::BTreeMap, string::String, vec, vec::Vec};
+use alloc::{boxed::Box, collections::BTreeMap, string::String, vec::Vec};
 
-pub type BoundSeq = Vec<u32>;
+pub type BoundSeq = Option<u32>;
 pub type IncludePathSeq = Vec<String>;
 pub type ObjectName = String;
 
@@ -57,17 +57,17 @@ pub struct DynamicTypeBuilderFactory;
 impl DynamicTypeBuilderFactory {
     pub fn get_primitive_type(kind: TypeKind) -> DynamicType {
         DynamicType {
-            descriptor: Box::new(TypeDescriptor {
+            descriptor: Box::leak(Box::new(TypeDescriptor {
                 kind,
                 name: String::new(),
                 base_type: None,
                 discriminator_type: None,
-                bound: Vec::new(),
+                bound: None,
                 element_type: None,
                 key_element_type: None,
                 extensibility_kind: ExtensibilityKind::Final,
                 is_nested: false,
-            }),
+            })),
             member_list: Vec::new(),
         }
     }
@@ -94,7 +94,7 @@ impl DynamicTypeBuilderFactory {
                 name: String::new(),
                 base_type: None,
                 discriminator_type: None,
-                bound: vec![bound],
+                bound: Some(bound),
                 element_type: None,
                 key_element_type: None,
                 extensibility_kind: ExtensibilityKind::Final,
@@ -115,7 +115,7 @@ impl DynamicTypeBuilderFactory {
                 name: String::new(),
                 base_type: None,
                 discriminator_type: None,
-                bound: vec![bound],
+                bound: Some(bound),
                 element_type: Some(element_type),
                 key_element_type: None,
                 extensibility_kind: ExtensibilityKind::Final,
@@ -314,7 +314,7 @@ impl DynamicTypeBuilder {
 
     pub fn build(self) -> DynamicType {
         DynamicType {
-            descriptor: Box::new(self.descriptor),
+            descriptor: Box::leak(Box::new(self.descriptor)),
             member_list: self.member_list,
         }
     }
@@ -322,7 +322,7 @@ impl DynamicTypeBuilder {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct DynamicType {
-    descriptor: Box<TypeDescriptor>,
+    descriptor: &'static TypeDescriptor,
     member_list: Vec<DynamicTypeMember>,
 }
 
@@ -384,10 +384,6 @@ pub struct DynamicData {
 impl DynamicData {
     pub fn type_ref(&self) -> &DynamicType {
         &self.type_ref
-    }
-
-    pub(crate) fn make_descriptor_extensibility_kind_final(&mut self) {
-        self.type_ref.descriptor.extensibility_kind = ExtensibilityKind::Final
     }
 
     pub fn get_descriptor(&self, id: MemberId) -> XTypesResult<&MemberDescriptor> {

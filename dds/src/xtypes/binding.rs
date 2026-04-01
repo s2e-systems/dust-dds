@@ -2,7 +2,7 @@ use crate::{
     infrastructure::type_support::TypeSupport,
     xtypes::dynamic_type::{DynamicType, DynamicTypeBuilderFactory, TypeKind},
 };
-use alloc::{string::String, vec, vec::Vec};
+use alloc::{string::String, vec::Vec};
 
 pub trait XTypesBinding {
     fn get_dynamic_type() -> DynamicType;
@@ -172,7 +172,7 @@ impl<T: TypeSupport> XTypesBinding for T {
 
 impl<T: XTypesBinding, const N: usize> XTypesBinding for [T; N] {
     fn get_dynamic_type() -> DynamicType {
-        DynamicTypeBuilderFactory::create_array_type(T::get_dynamic_type(), vec![N as u32]).build()
+        DynamicTypeBuilderFactory::create_array_type(T::get_dynamic_type(), Some(N as u32)).build()
     }
 }
 

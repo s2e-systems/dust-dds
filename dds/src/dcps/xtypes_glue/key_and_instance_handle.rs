@@ -49,8 +49,7 @@ pub fn get_instance_handle_from_dynamic_data(
     };
     let key = if dynamic_data.type_ref().get_kind() == TypeKind::STRUCTURE {
         dynamic_data.clear_nonkey_values()?;
-        dynamic_data.make_descriptor_extensibility_kind_final();
-        Cdr2BeSerializer::serialize_without_header(md5_collection, &dynamic_data)?.into_key()
+        Cdr2BeSerializer::serialize_final_without_header(md5_collection, &dynamic_data)?.into_key()
     } else {
         [0; 16]
     };
