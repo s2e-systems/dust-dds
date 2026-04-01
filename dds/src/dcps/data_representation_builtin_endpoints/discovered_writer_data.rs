@@ -60,7 +60,7 @@ impl TypeSupport for DiscoveredWriterData {
                         index: self.index,
                         try_construct_kind:
                             dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-                        label: alloc::vec::Vec::new(),
+                        label: None,
                         is_key: false,
                         is_optional: false,
                         is_must_understand: true,
@@ -80,7 +80,7 @@ impl TypeSupport for DiscoveredWriterData {
                         index: self.index,
                         try_construct_kind:
                             dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-                        label: alloc::vec::Vec::new(),
+                        label: None,
                         is_key: true,
                         is_optional: false,
                         is_must_understand: true,
@@ -105,7 +105,7 @@ impl TypeSupport for DiscoveredWriterData {
                         index: self.index,
                         try_construct_kind:
                             dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-                        label: alloc::vec::Vec::new(),
+                        label: None,
                         is_key: false,
                         is_optional: true,
                         is_must_understand: true,

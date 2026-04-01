@@ -86,7 +86,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                             default_value: #default_value,
                             index: #index,
                             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-                            label: alloc::vec::Vec::new(),
+                            label: None,
                             is_key: #is_key,
                             is_optional: #is_optional,
                             is_must_understand: true,

@@ -201,7 +201,7 @@ pub struct TypeDescriptor {
 }
 
 pub type MemberId = u32;
-pub type UnionCaseLabelSeq = Vec<i32>;
+pub type UnionCaseLabelSeq = Option<i32>;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct MemberDescriptor {
