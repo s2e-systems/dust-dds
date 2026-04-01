@@ -576,11 +576,11 @@ pub enum MessageServiceMail {
         data_writer_handle: InstanceHandle,
         sequence_number: i64,
     },
-    AreAllChangesAcknowledged {
+    NotifyAcknowledgments {
         participant_handle: InstanceHandle,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        reply_sender: OneshotSender<DdsResult<bool>>,
+        reply_sender: OneshotSender<DdsResult<()>>,
     },
     IsHistoricalDataReceived {
         participant_handle: InstanceHandle,

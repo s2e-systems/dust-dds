@@ -871,16 +871,21 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                         .await
                 }
             }
-            DcpsMail::Message(MessageServiceMail::AreAllChangesAcknowledged {
+            DcpsMail::Message(MessageServiceMail::NotifyAcknowledgments {
                 participant_handle,
                 publisher_handle,
                 data_writer_handle,
                 reply_sender,
             }) => match self.find_participant(participant_handle) {
-                Ok(p) => reply_sender.send(
-                    p.are_all_changes_acknowledged(publisher_handle, data_writer_handle)
-                        .await,
-                ),
+                Ok(p) => {
+                    p.notify_acknowledgments(
+                        publisher_handle,
+                        data_writer_handle,
+                        reply_sender,
+                    )
+                    .await
+                }
+
                 Err(e) => reply_sender.send(Err(e)),
             },
             DcpsMail::Message(MessageServiceMail::IsHistoricalDataReceived {

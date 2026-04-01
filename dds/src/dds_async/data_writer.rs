@@ -14,7 +14,7 @@ use crate::{
         data_writer_listener::DataWriterListener, topic_description::TopicDescriptionAsync,
     },
     infrastructure::{
-        error::{DdsError, DdsResult},
+        error::DdsResult,
         instance::InstanceHandle,
         qos::{DataWriterQos, QosKind},
         status::{
@@ -25,7 +25,7 @@ use crate::{
         type_support::TypeSupport,
     },
 };
-use alloc::{string::String, vec::Vec};
+use alloc::vec::Vec;
 use core::marker::PhantomData;
 
 /// Async version of [`DataWriter`](crate::publication::data_writer::DataWriter).
@@ -250,29 +250,19 @@ impl<Foo> DataWriterAsync<Foo> {
         let participant_address = self.dcps_sender().clone();
         let publisher_handle = self.get_publisher().get_instance_handle();
         let data_writer_handle = self.handle;
-        loop {
-            let (reply_sender, reply_receiver) = oneshot();
-            participant_address
-                .send(DcpsMail::Message(
-                    MessageServiceMail::AreAllChangesAcknowledged {
-                        participant_handle: self.publisher.get_participant().get_instance_handle(),
-                        publisher_handle,
-                        data_writer_handle,
-                        reply_sender,
-                    },
-                ))
-                .await
-                .ok();
-            let reply = reply_receiver.await;
-            match reply {
-                Ok(are_changes_acknowledged) => match are_changes_acknowledged {
-                    Ok(true) => return Ok(()),
-                    Ok(false) => (),
-                    Err(e) => return Err(e),
+        let (reply_sender, reply_receiver) = oneshot();
+        participant_address
+            .send(DcpsMail::Message(
+                MessageServiceMail::NotifyAcknowledgments {
+                    participant_handle: self.publisher.get_participant().get_instance_handle(),
+                    publisher_handle,
+                    data_writer_handle,
+                    reply_sender,
                 },
-                Err(_) => return Err(DdsError::Error(String::from("Channel error"))),
-            }
-        }
+            ))
+            .await
+            .ok();
+        reply_receiver.await?
     }
 
     /// Async version of [`get_liveliness_lost_status`](crate::publication::data_writer::DataWriter::get_liveliness_lost_status).

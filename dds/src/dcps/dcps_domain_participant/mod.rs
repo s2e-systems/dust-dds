@@ -3778,6 +3778,17 @@ where
                                             {
                                                 x.send(());
                                             }
+
+                                            if w.is_change_acknowledged(
+                                                dw.last_change_sequence_number,
+                                            ) {
+                                                for n in dw
+                                                    .wait_for_acknowledgments_notification
+                                                    .drain(..)
+                                                {
+                                                    n.send(Ok(()));
+                                                }
+                                            }
                                         }
                                     }
                                     RtpsWriterKind::Stateless(_) => (),
@@ -4704,7 +4715,12 @@ struct DataWriterEntity {
     offered_deadline_missed_status: OfferedDeadlineMissedStatus,
     instance_publication_time: Vec<InstancePublicationTime>,
     instance_samples: Vec<InstanceSamples>,
+    /// Member used for notifying reliable writers which are waiting to send
+    /// their samples without losing data
     acknowledgement_notification: Option<OneshotSender<()>>,
+    /// Member used to notify the external user which called the
+    /// wait_for_acknowledgments method
+    wait_for_acknowledgments_notification: Vec<OneshotSender<DdsResult<()>>>,
 }
 
 impl DataWriterEntity {
@@ -4742,6 +4758,7 @@ impl DataWriterEntity {
             instance_publication_time: Vec::new(),
             instance_samples: Vec::new(),
             acknowledgement_notification: None,
+            wait_for_acknowledgments_notification: Vec::new(),
         }
     }
 
@@ -4961,15 +4978,6 @@ impl DataWriterEntity {
             .iter()
             .find(|x| x.instance == instance_handle)
             .map(|x| x.last_write_time)
-    }
-
-    async fn are_all_changes_acknowledged(&self) -> bool {
-        match &self.transport_writer {
-            RtpsWriterKind::Stateful(w) => {
-                w.is_change_acknowledged(self.last_change_sequence_number)
-            }
-            RtpsWriterKind::Stateless(_) => true,
-        }
     }
 
     async fn get_offered_deadline_missed_status(&mut self) -> OfferedDeadlineMissedStatus {

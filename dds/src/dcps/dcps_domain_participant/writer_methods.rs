@@ -692,28 +692,44 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         Ok(())
     }
 
-    #[tracing::instrument(skip(self))]
-    pub async fn are_all_changes_acknowledged(
+    // This is a slighlty special function in the send that the answer is sent from
+    // here directly because the reply sender is used as the notification mechanism
+    // to notify the caller that all the changes are acknowledged.
+    #[tracing::instrument(skip(self, notify_sender))]
+    pub async fn notify_acknowledgments(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-    ) -> DdsResult<bool> {
+        notify_sender: OneshotSender<DdsResult<()>>,
+    ) {
         let Some(publisher) = self
             .domain_participant
             .user_defined_publisher_list
-            .iter()
+            .iter_mut()
             .find(|x| x.instance_handle == publisher_handle)
         else {
-            return Err(DdsError::AlreadyDeleted);
+            return notify_sender.send(Err(DdsError::AlreadyDeleted));
         };
 
         let Some(data_writer) = publisher
             .data_writer_list
-            .iter()
+            .iter_mut()
             .find(|x| x.instance_handle == data_writer_handle)
         else {
-            return Err(DdsError::AlreadyDeleted);
+            return notify_sender.send(Err(DdsError::AlreadyDeleted));
         };
-        Ok(data_writer.are_all_changes_acknowledged().await)
+
+        match &data_writer.transport_writer {
+            RtpsWriterKind::Stateful(w) => {
+                if w.is_change_acknowledged(data_writer.last_change_sequence_number) {
+                    notify_sender.send(Ok(()));
+                } else {
+                    data_writer
+                        .wait_for_acknowledgments_notification
+                        .push(notify_sender);
+                }
+            }
+            RtpsWriterKind::Stateless(_) => notify_sender.send(Ok(())),
+        }
     }
 }
