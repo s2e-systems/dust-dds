@@ -385,53 +385,53 @@ trait XTypesDeserialize {
         let bound = member.get_descriptor()?.r#type.get_descriptor().bound[0];
         match sequence_type.get_kind() {
             TypeKind::NONE => todo!(),
-            TypeKind::BOOLEAN => dynamic_data.set_boolean_values(
+            TypeKind::BOOLEAN => dynamic_data.set_sequence_values::<bool>(
                 member.get_id(),
                 self.deserialize_primitive_type_array(bound)?,
             ),
             TypeKind::BYTE => todo!(),
-            TypeKind::INT16 => dynamic_data.set_int16_values(
+            TypeKind::INT16 => dynamic_data.set_sequence_values::<i16>(
                 member.get_id(),
                 self.deserialize_primitive_type_array(bound)?,
             ),
-            TypeKind::INT32 => dynamic_data.set_int32_values(
+            TypeKind::INT32 => dynamic_data.set_sequence_values::<i32>(
                 member.get_id(),
                 self.deserialize_primitive_type_array(bound)?,
             ),
-            TypeKind::INT64 => dynamic_data.set_int64_values(
+            TypeKind::INT64 => dynamic_data.set_sequence_values::<i64>(
                 member.get_id(),
                 self.deserialize_primitive_type_array(bound)?,
             ),
-            TypeKind::UINT16 => dynamic_data.set_uint16_values(
+            TypeKind::UINT16 => dynamic_data.set_sequence_values::<u16>(
                 member.get_id(),
                 self.deserialize_primitive_type_array(bound)?,
             ),
-            TypeKind::UINT32 => dynamic_data.set_uint32_values(
+            TypeKind::UINT32 => dynamic_data.set_sequence_values::<u32>(
                 member.get_id(),
                 self.deserialize_primitive_type_array(bound)?,
             ),
-            TypeKind::UINT64 => dynamic_data.set_uint64_values(
+            TypeKind::UINT64 => dynamic_data.set_sequence_values::<u64>(
                 member.get_id(),
                 self.deserialize_primitive_type_array(bound)?,
             ),
-            TypeKind::FLOAT32 => dynamic_data.set_float32_values(
+            TypeKind::FLOAT32 => dynamic_data.set_sequence_values::<f32>(
                 member.get_id(),
                 self.deserialize_primitive_type_array(bound)?,
             ),
-            TypeKind::FLOAT64 => dynamic_data.set_float64_values(
+            TypeKind::FLOAT64 => dynamic_data.set_sequence_values::<f64>(
                 member.get_id(),
                 self.deserialize_primitive_type_array(bound)?,
             ),
             TypeKind::FLOAT128 => todo!(),
-            TypeKind::INT8 => dynamic_data.set_int8_values(
+            TypeKind::INT8 => dynamic_data.set_sequence_values::<i8>(
                 member.get_id(),
                 self.deserialize_primitive_type_array(bound)?,
             ),
-            TypeKind::UINT8 => dynamic_data.set_uint8_values(
+            TypeKind::UINT8 => dynamic_data.set_sequence_values::<u8>(
                 member.get_id(),
                 self.deserialize_primitive_type_array(bound)?,
             ),
-            TypeKind::CHAR8 => dynamic_data.set_char8_values(
+            TypeKind::CHAR8 => dynamic_data.set_sequence_values::<char>(
                 member.get_id(),
                 self.deserialize_primitive_type_array(bound)?,
             ),
@@ -511,43 +511,70 @@ trait XTypesDeserialize {
             .expect("Sequence must have element type");
         match sequence_type.get_kind() {
             TypeKind::NONE => todo!(),
-            TypeKind::BOOLEAN => dynamic_data
-                .set_boolean_values(member.get_id(), self.deserialize_primitive_type_sequence()?),
+            TypeKind::BOOLEAN => dynamic_data.set_sequence_values::<bool>(
+                member.get_id(),
+                self.deserialize_primitive_type_sequence()?,
+            ),
             TypeKind::BYTE => todo!(),
-            TypeKind::INT16 => dynamic_data
-                .set_int16_values(member.get_id(), self.deserialize_primitive_type_sequence()?),
-            TypeKind::INT32 => dynamic_data
-                .set_int32_values(member.get_id(), self.deserialize_primitive_type_sequence()?),
-            TypeKind::INT64 => dynamic_data
-                .set_int64_values(member.get_id(), self.deserialize_primitive_type_sequence()?),
-            TypeKind::UINT16 => dynamic_data
-                .set_uint16_values(member.get_id(), self.deserialize_primitive_type_sequence()?),
-            TypeKind::UINT32 => dynamic_data
-                .set_uint32_values(member.get_id(), self.deserialize_primitive_type_sequence()?),
-            TypeKind::UINT64 => dynamic_data
-                .set_uint64_values(member.get_id(), self.deserialize_primitive_type_sequence()?),
-            TypeKind::FLOAT32 => dynamic_data
-                .set_float32_values(member.get_id(), self.deserialize_primitive_type_sequence()?),
-            TypeKind::FLOAT64 => dynamic_data
-                .set_float64_values(member.get_id(), self.deserialize_primitive_type_sequence()?),
+            TypeKind::INT16 => dynamic_data.set_sequence_values::<i16>(
+                member.get_id(),
+                self.deserialize_primitive_type_sequence()?,
+            ),
+            TypeKind::INT32 => dynamic_data.set_sequence_values::<i32>(
+                member.get_id(),
+                self.deserialize_primitive_type_sequence()?,
+            ),
+            TypeKind::INT64 => dynamic_data.set_sequence_values::<i64>(
+                member.get_id(),
+                self.deserialize_primitive_type_sequence()?,
+            ),
+            TypeKind::UINT16 => dynamic_data.set_sequence_values::<u16>(
+                member.get_id(),
+                self.deserialize_primitive_type_sequence()?,
+            ),
+            TypeKind::UINT32 => dynamic_data.set_sequence_values::<u32>(
+                member.get_id(),
+                self.deserialize_primitive_type_sequence()?,
+            ),
+            TypeKind::UINT64 => dynamic_data.set_sequence_values::<u64>(
+                member.get_id(),
+                self.deserialize_primitive_type_sequence()?,
+            ),
+            TypeKind::FLOAT32 => dynamic_data.set_sequence_values::<f32>(
+                member.get_id(),
+                self.deserialize_primitive_type_sequence()?,
+            ),
+            TypeKind::FLOAT64 => dynamic_data.set_sequence_values::<f64>(
+                member.get_id(),
+                self.deserialize_primitive_type_sequence()?,
+            ),
             TypeKind::FLOAT128 => todo!(),
-            TypeKind::INT8 => dynamic_data
-                .set_int8_values(member.get_id(), self.deserialize_primitive_type_sequence()?),
-            TypeKind::UINT8 => dynamic_data
-                .set_uint8_values(member.get_id(), self.deserialize_primitive_type_sequence()?),
-            TypeKind::CHAR8 => dynamic_data
-                .set_char8_values(member.get_id(), self.deserialize_primitive_type_sequence()?),
+            TypeKind::INT8 => dynamic_data.set_sequence_values::<i8>(
+                member.get_id(),
+                self.deserialize_primitive_type_sequence()?,
+            ),
+            TypeKind::UINT8 => dynamic_data.set_sequence_values::<u8>(
+                member.get_id(),
+                self.deserialize_primitive_type_sequence()?,
+            ),
+            TypeKind::CHAR8 => dynamic_data.set_sequence_values::<char>(
+                member.get_id(),
+                self.deserialize_primitive_type_sequence()?,
+            ),
             TypeKind::CHAR16 => todo!(),
-            TypeKind::STRING8 => {
-                dynamic_data.set_string_values(member.get_id(), self.deserialize_string_sequence()?)
-            }
+            TypeKind::STRING8 => dynamic_data.set_sequence_values::<String>(
+                member.get_id(),
+                self.deserialize_string_sequence()?,
+            ),
             TypeKind::STRING16 => todo!(),
             TypeKind::ALIAS => todo!(),
             TypeKind::ENUM => todo!(),
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
-            TypeKind::STRUCTURE => dynamic_data
-                .set_complex_values(member.get_id(), self.deserialize_complex_sequence(member)?),
+            TypeKind::STRUCTURE => dynamic_data.set_sequence_values::<DynamicData>(
+                member.get_id(),
+                self.deserialize_complex_sequence(member)?,
+            ),
             TypeKind::UNION => todo!(),
             TypeKind::BITSET => todo!(),
             TypeKind::SEQUENCE => todo!(),
@@ -827,7 +854,7 @@ impl<'a> XTypesDeserialize for RtpsPlCdrDeserializer<'a> {
                         )?,
                     );
                 }
-                dynamic_data.set_complex_values(pid as u32, sequence)?;
+                dynamic_data.set_sequence_values::<DynamicData>(pid as u32, sequence)?;
             } else if self.cdr1_deserializer.reader.seek_to_pid_le(pid)? {
                 self.deserialize_final_member(member, dynamic_data)?;
             } else if member_descriptor.is_optional {
