@@ -5330,6 +5330,21 @@ impl DataReaderEntity {
         cache_change: CacheChange,
         reception_timestamp: Time,
     ) -> DdsResult<ReaderSample> {
+        fn create_key_holder(foo_type: &DynamicType) -> DdsResult<DynamicType> {
+            let key_holder_type_descriptor = foo_type.get_descriptor();
+            let mut key_member_list = Vec::new();
+            for member_index in 0..foo_type.get_member_count() {
+                let member = foo_type.get_member_by_index(member_index)?;
+                if member.get_descriptor()?.is_key {
+                    key_member_list.push(member.clone());
+                }
+            }
+            Ok(DynamicType::new(
+                key_holder_type_descriptor,
+                key_member_list,
+            ))
+        }
+
         let (data_value, instance_handle) = match cache_change.kind {
             ChangeKind::Alive | ChangeKind::AliveFiltered => {
                 let data_value = CdrDeserializer::deserialize(
@@ -5343,15 +5358,13 @@ impl DataReaderEntity {
             | ChangeKind::NotAliveUnregistered
             | ChangeKind::NotAliveDisposedUnregistered => match cache_change.instance_handle {
                 Some(i) => {
-                    let mut key_holder = self.type_support.as_ref().clone();
-                    key_holder.clear_nonkey_members();
+                    let key_holder = create_key_holder(self.type_support.as_ref())?;
                     let data_value = DynamicDataFactory::create_data(key_holder);
                     let instance_handle = InstanceHandle::new(i);
                     (data_value, instance_handle)
                 }
                 None => {
-                    let mut key_holder = self.type_support.as_ref().clone();
-                    key_holder.clear_nonkey_members();
+                    let key_holder = create_key_holder(self.type_support.as_ref())?;
                     let data_value =
                         CdrDeserializer::deserialize(key_holder, cache_change.data_value.as_ref())?;
                     let instance_handle =
