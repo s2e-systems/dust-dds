@@ -878,12 +878,8 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 reply_sender,
             }) => match self.find_participant(participant_handle) {
                 Ok(p) => {
-                    p.notify_acknowledgments(
-                        publisher_handle,
-                        data_writer_handle,
-                        reply_sender,
-                    )
-                    .await
+                    p.notify_acknowledgments(publisher_handle, data_writer_handle, reply_sender)
+                        .await
                 }
 
                 Err(e) => reply_sender.send(Err(e)),
