@@ -24,6 +24,7 @@ impl Clock for StdClock {
     }
 }
 
+#[derive(Default)]
 pub struct StdRuntime {
     timer_driver: TimerDriver,
     executor: Executor,
