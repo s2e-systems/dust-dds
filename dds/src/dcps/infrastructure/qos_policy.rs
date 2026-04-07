@@ -901,44 +901,6 @@ pub enum ReliabilityQosPolicyKind {
     Reliable = 2,
 }
 
-// const BEST_EFFORT: i32 = 1;
-// const RELIABLE: i32 = 2;
-
-// impl dust_dds::infrastructure::type_support::TypeSupport for ReliabilityQosPolicyKind {
-//     fn get_type() -> dust_dds::xtypes::dynamic_type::DynamicType {
-//         extern crate alloc;
-//         let builder = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
-//             dust_dds::xtypes::dynamic_type::TypeDescriptor {
-//                 kind: dust_dds::xtypes::dynamic_type::TypeKind::ENUM,
-//                 name: "ReliabilityQosPolicyKind",
-//                 base_type: None,
-//                 discriminator_type: Some(
-//                     dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::get_primitive_type(
-//                         dust_dds::xtypes::dynamic_type::TypeKind::INT32,
-//                     ),
-//                 ),
-//                 bound: alloc::vec::Vec::new(),
-//                 element_type: None,
-//                 key_element_type: None,
-//                 extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
-//                 is_nested: false,
-//             },
-//         );
-//         builder.build()
-//     }
-
-//     fn create_sample(src: crate::xtypes::dynamic_type::DynamicData) -> Self {
-//         let discriminator = src.get_int32_value(0).ex
-//     }
-
-//     fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
-//         let mut data =
-//             dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type());
-//         data.set_int32_value(0, self as i32).unwrap();
-//         data
-//     }
-// }
-
 impl PartialOrd for ReliabilityQosPolicyKind {
     fn partial_cmp(&self, other: &ReliabilityQosPolicyKind) -> Option<Ordering> {
         match self {
