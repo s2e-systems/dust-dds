@@ -16,7 +16,7 @@ use crate::{
         },
         type_support::TypeSupport,
     },
-    xtypes::{binding::XTypesBinding, data_storage::DataStorageMapping},
+    xtypes::{binding::XTypesBinding, data_storage::DataStorageMapping, dynamic_type::DynamicType},
 };
 use alloc::string::String;
 
@@ -27,291 +27,290 @@ pub struct DiscoveredTopicData {
 
 impl TypeSupport for DiscoveredTopicData {
     #[inline]
-    fn get_type_name() -> &'static str {
-        "TopicBuiltinTopicData"
-    }
+    const TYPE_NAME: &'static str = "TopicBuiltinTopicData";
 
-    fn get_type() -> dust_dds::xtypes::dynamic_type::DynamicType {
-        extern crate alloc;
-        let mut builder = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
-            dust_dds::xtypes::dynamic_type::TypeDescriptor {
-                kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
-                name: Self::get_type_name(),
-                base_type: None,
-                discriminator_type: None,
-                bound: None,
-                element_type: None,
-                key_element_type: None,
-                extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Mutable,
-                is_nested: false,
-            },
-        );
-        builder
-            .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                name: "key",
-                id: PID_ENDPOINT_GUID as u32,
-                r#type: <BuiltInTopicKey as XTypesBinding>::get_dynamic_type(),
-                default_value: None,
-                index: 0u32,
-                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-                label: None,
-                is_key: true,
-                is_optional: false,
-                is_must_understand: true,
-                is_shared: false,
-                is_default_label: false,
-            })
-            .unwrap();
-        builder
-            .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                name: "name",
-                id: PID_TOPIC_NAME as u32,
-                r#type: <String as XTypesBinding>::get_dynamic_type(),
-                default_value: None,
-                index: 1u32,
-                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-                label: None,
-                is_key: false,
-                is_optional: false,
-                is_must_understand: true,
-                is_shared: false,
-                is_default_label: false,
-            })
-            .unwrap();
-        builder
-            .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                name: "type_name",
-                id: PID_TYPE_NAME as u32,
-                r#type: <String as XTypesBinding>::get_dynamic_type(),
-                default_value: None,
-                index: 2u32,
-                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-                label: None,
-                is_key: false,
-                is_optional: false,
-                is_must_understand: true,
-                is_shared: false,
-                is_default_label: false,
-            })
-            .unwrap();
-        builder
-            .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                name: "durability",
-                id: PID_DURABILITY as u32,
-                r#type: <DurabilityQosPolicy as XTypesBinding>::get_dynamic_type(),
-                default_value: Some(<DurabilityQosPolicy as Default>::default().into_storage()),
-                index: 3u32,
-                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-                label: None,
-                is_key: false,
-                is_optional: true,
-                is_must_understand: true,
-                is_shared: false,
-                is_default_label: false,
-            })
-            .unwrap();
-        builder
-            .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                name: "deadline",
-                id: PID_DEADLINE as u32,
-                r#type: <DeadlineQosPolicy as XTypesBinding>::get_dynamic_type(),
-                default_value: Some(<DeadlineQosPolicy as Default>::default().into_storage()),
-                index: 4u32,
-                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-                label: None,
-                is_key: false,
-                is_optional: true,
-                is_must_understand: true,
-                is_shared: false,
-                is_default_label: false,
-            })
-            .unwrap();
-        builder
-            .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                name: "latency_budget",
-                id: PID_LATENCY_BUDGET as u32,
-                r#type: <LatencyBudgetQosPolicy as XTypesBinding>::get_dynamic_type(),
-                default_value: Some(<LatencyBudgetQosPolicy as Default>::default().into_storage()),
-                index: 5u32,
-                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-                label: None,
-                is_key: false,
-                is_optional: true,
-                is_must_understand: true,
-                is_shared: false,
-                is_default_label: false,
-            })
-            .unwrap();
-        builder
-            .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                name: "liveliness",
-                id: PID_LIVELINESS as u32,
-                r#type: <LivelinessQosPolicy as XTypesBinding>::get_dynamic_type(),
-                default_value: Some(<LivelinessQosPolicy as Default>::default().into_storage()),
-                index: 6u32,
-                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-                label: None,
-                is_key: false,
-                is_optional: true,
-                is_must_understand: true,
-                is_shared: false,
-                is_default_label: false,
-            })
-            .unwrap();
-        builder
-            .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                name: "reliability",
-                id: PID_RELIABILITY as u32,
-                r#type: <ReliabilityQosPolicy as XTypesBinding>::get_dynamic_type(),
-                default_value: Some(
-                    DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS.into_storage(),
-                ),
-                index: 7u32,
-                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-                label: None,
-                is_key: false,
-                is_optional: true,
-                is_must_understand: true,
-                is_shared: false,
-                is_default_label: false,
-            })
-            .unwrap();
-        builder
-            .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                name: "transport_priority",
-                id: PID_TRANSPORT_PRIORITY as u32,
-                r#type: <TransportPriorityQosPolicy as XTypesBinding>::get_dynamic_type(),
-                default_value: Some(
-                    <TransportPriorityQosPolicy as Default>::default().into_storage(),
-                ),
-                index: 8u32,
-                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-                label: None,
-                is_key: false,
-                is_optional: true,
-                is_must_understand: true,
-                is_shared: false,
-                is_default_label: false,
-            })
-            .unwrap();
-        builder
-            .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                name: "lifespan",
-                id: PID_LIFESPAN as u32,
-                r#type: <LifespanQosPolicy as XTypesBinding>::get_dynamic_type(),
-                default_value: Some(<LifespanQosPolicy as Default>::default().into_storage()),
-                index: 9u32,
-                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-                label: None,
-                is_key: false,
-                is_optional: true,
-                is_must_understand: true,
-                is_shared: false,
-                is_default_label: false,
-            })
-            .unwrap();
-        builder
-            .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                name: "destination_order",
-                id: PID_DESTINATION_ORDER as u32,
-                r#type: <DestinationOrderQosPolicy as XTypesBinding>::get_dynamic_type(),
-                default_value: Some(
-                    <DestinationOrderQosPolicy as Default>::default().into_storage(),
-                ),
-                index: 10u32,
-                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-                label: None,
-                is_key: false,
-                is_optional: true,
-                is_must_understand: true,
-                is_shared: false,
-                is_default_label: false,
-            })
-            .unwrap();
-        builder
-            .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                name: "history",
-                id: PID_HISTORY as u32,
-                r#type: <HistoryQosPolicy as XTypesBinding>::get_dynamic_type(),
-                default_value: Some(<HistoryQosPolicy as Default>::default().into_storage()),
-                index: 11u32,
-                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-                label: None,
-                is_key: false,
-                is_optional: true,
-                is_must_understand: true,
-                is_shared: false,
-                is_default_label: false,
-            })
-            .unwrap();
-        builder
-            .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                name: "resource_limits",
-                id: PID_RESOURCE_LIMITS as u32,
-                r#type: <ResourceLimitsQosPolicy as XTypesBinding>::get_dynamic_type(),
-                default_value: Some(<ResourceLimitsQosPolicy as Default>::default().into_storage()),
-                index: 12u32,
-                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-                label: None,
-                is_key: false,
-                is_optional: true,
-                is_must_understand: true,
-                is_shared: false,
-                is_default_label: false,
-            })
-            .unwrap();
-        builder
-            .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                name: "ownership",
-                id: PID_OWNERSHIP as u32,
-                r#type: <OwnershipQosPolicy as XTypesBinding>::get_dynamic_type(),
-                default_value: Some(<OwnershipQosPolicy as Default>::default().into_storage()),
-                index: 13u32,
-                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-                label: None,
-                is_key: false,
-                is_optional: true,
-                is_must_understand: true,
-                is_shared: false,
-                is_default_label: false,
-            })
-            .unwrap();
-        builder
-            .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                name: "topic_data",
-                id: PID_TOPIC_DATA as u32,
-                r#type: <TopicDataQosPolicy as XTypesBinding>::get_dynamic_type(),
-                default_value: Some(<TopicDataQosPolicy as Default>::default().into_storage()),
-                index: 14u32,
-                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-                label: None,
-                is_key: false,
-                is_optional: true,
-                is_must_understand: true,
-                is_shared: false,
-                is_default_label: false,
-            })
-            .unwrap();
-        builder
-            .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                name: "representation",
-                id: PID_DATA_REPRESENTATION as u32,
-                r#type: <DataRepresentationQosPolicy as XTypesBinding>::get_dynamic_type(),
-                default_value: Some(
-                    <DataRepresentationQosPolicy as Default>::default().into_storage(),
-                ),
-                index: 15u32,
-                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-                label: None,
-                is_key: false,
-                is_optional: true,
-                is_must_understand: true,
-                is_shared: false,
-                is_default_label: false,
-            })
-            .unwrap();
-        builder.build()
-    }
+    const r#TYPE: &'static DynamicType = todo!();
+    // fn get_type() -> dust_dds::xtypes::dynamic_type::DynamicType {
+    //     extern crate alloc;
+    //     let mut builder = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
+    //         dust_dds::xtypes::dynamic_type::TypeDescriptor {
+    //             kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
+    //             name: Self::get_type_name(),
+    //             base_type: None,
+    //             discriminator_type: None,
+    //             bound: None,
+    //             element_type: None,
+    //             key_element_type: None,
+    //             extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Mutable,
+    //             is_nested: false,
+    //         },
+    //     );
+    //     builder
+    //         .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+    //             name: "key",
+    //             id: PID_ENDPOINT_GUID as u32,
+    //             r#type: <BuiltInTopicKey as XTypesBinding>::get_dynamic_type(),
+    //             default_value: None,
+    //             index: 0u32,
+    //             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+    //             label: None,
+    //             is_key: true,
+    //             is_optional: false,
+    //             is_must_understand: true,
+    //             is_shared: false,
+    //             is_default_label: false,
+    //         })
+    //         .unwrap();
+    //     builder
+    //         .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+    //             name: "name",
+    //             id: PID_TOPIC_NAME as u32,
+    //             r#type: <String as XTypesBinding>::get_dynamic_type(),
+    //             default_value: None,
+    //             index: 1u32,
+    //             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+    //             label: None,
+    //             is_key: false,
+    //             is_optional: false,
+    //             is_must_understand: true,
+    //             is_shared: false,
+    //             is_default_label: false,
+    //         })
+    //         .unwrap();
+    //     builder
+    //         .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+    //             name: "type_name",
+    //             id: PID_TYPE_NAME as u32,
+    //             r#type: <String as XTypesBinding>::get_dynamic_type(),
+    //             default_value: None,
+    //             index: 2u32,
+    //             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+    //             label: None,
+    //             is_key: false,
+    //             is_optional: false,
+    //             is_must_understand: true,
+    //             is_shared: false,
+    //             is_default_label: false,
+    //         })
+    //         .unwrap();
+    //     builder
+    //         .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+    //             name: "durability",
+    //             id: PID_DURABILITY as u32,
+    //             r#type: <DurabilityQosPolicy as XTypesBinding>::get_dynamic_type(),
+    //             default_value: Some(<DurabilityQosPolicy as Default>::default().into_storage()),
+    //             index: 3u32,
+    //             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+    //             label: None,
+    //             is_key: false,
+    //             is_optional: true,
+    //             is_must_understand: true,
+    //             is_shared: false,
+    //             is_default_label: false,
+    //         })
+    //         .unwrap();
+    //     builder
+    //         .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+    //             name: "deadline",
+    //             id: PID_DEADLINE as u32,
+    //             r#type: <DeadlineQosPolicy as XTypesBinding>::get_dynamic_type(),
+    //             default_value: Some(<DeadlineQosPolicy as Default>::default().into_storage()),
+    //             index: 4u32,
+    //             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+    //             label: None,
+    //             is_key: false,
+    //             is_optional: true,
+    //             is_must_understand: true,
+    //             is_shared: false,
+    //             is_default_label: false,
+    //         })
+    //         .unwrap();
+    //     builder
+    //         .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+    //             name: "latency_budget",
+    //             id: PID_LATENCY_BUDGET as u32,
+    //             r#type: <LatencyBudgetQosPolicy as XTypesBinding>::get_dynamic_type(),
+    //             default_value: Some(<LatencyBudgetQosPolicy as Default>::default().into_storage()),
+    //             index: 5u32,
+    //             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+    //             label: None,
+    //             is_key: false,
+    //             is_optional: true,
+    //             is_must_understand: true,
+    //             is_shared: false,
+    //             is_default_label: false,
+    //         })
+    //         .unwrap();
+    //     builder
+    //         .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+    //             name: "liveliness",
+    //             id: PID_LIVELINESS as u32,
+    //             r#type: <LivelinessQosPolicy as XTypesBinding>::get_dynamic_type(),
+    //             default_value: Some(<LivelinessQosPolicy as Default>::default().into_storage()),
+    //             index: 6u32,
+    //             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+    //             label: None,
+    //             is_key: false,
+    //             is_optional: true,
+    //             is_must_understand: true,
+    //             is_shared: false,
+    //             is_default_label: false,
+    //         })
+    //         .unwrap();
+    //     builder
+    //         .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+    //             name: "reliability",
+    //             id: PID_RELIABILITY as u32,
+    //             r#type: <ReliabilityQosPolicy as XTypesBinding>::get_dynamic_type(),
+    //             default_value: Some(
+    //                 DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS.into_storage(),
+    //             ),
+    //             index: 7u32,
+    //             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+    //             label: None,
+    //             is_key: false,
+    //             is_optional: true,
+    //             is_must_understand: true,
+    //             is_shared: false,
+    //             is_default_label: false,
+    //         })
+    //         .unwrap();
+    //     builder
+    //         .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+    //             name: "transport_priority",
+    //             id: PID_TRANSPORT_PRIORITY as u32,
+    //             r#type: <TransportPriorityQosPolicy as XTypesBinding>::get_dynamic_type(),
+    //             default_value: Some(
+    //                 <TransportPriorityQosPolicy as Default>::default().into_storage(),
+    //             ),
+    //             index: 8u32,
+    //             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+    //             label: None,
+    //             is_key: false,
+    //             is_optional: true,
+    //             is_must_understand: true,
+    //             is_shared: false,
+    //             is_default_label: false,
+    //         })
+    //         .unwrap();
+    //     builder
+    //         .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+    //             name: "lifespan",
+    //             id: PID_LIFESPAN as u32,
+    //             r#type: <LifespanQosPolicy as XTypesBinding>::get_dynamic_type(),
+    //             default_value: Some(<LifespanQosPolicy as Default>::default().into_storage()),
+    //             index: 9u32,
+    //             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+    //             label: None,
+    //             is_key: false,
+    //             is_optional: true,
+    //             is_must_understand: true,
+    //             is_shared: false,
+    //             is_default_label: false,
+    //         })
+    //         .unwrap();
+    //     builder
+    //         .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+    //             name: "destination_order",
+    //             id: PID_DESTINATION_ORDER as u32,
+    //             r#type: <DestinationOrderQosPolicy as XTypesBinding>::get_dynamic_type(),
+    //             default_value: Some(
+    //                 <DestinationOrderQosPolicy as Default>::default().into_storage(),
+    //             ),
+    //             index: 10u32,
+    //             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+    //             label: None,
+    //             is_key: false,
+    //             is_optional: true,
+    //             is_must_understand: true,
+    //             is_shared: false,
+    //             is_default_label: false,
+    //         })
+    //         .unwrap();
+    //     builder
+    //         .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+    //             name: "history",
+    //             id: PID_HISTORY as u32,
+    //             r#type: <HistoryQosPolicy as XTypesBinding>::get_dynamic_type(),
+    //             default_value: Some(<HistoryQosPolicy as Default>::default().into_storage()),
+    //             index: 11u32,
+    //             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+    //             label: None,
+    //             is_key: false,
+    //             is_optional: true,
+    //             is_must_understand: true,
+    //             is_shared: false,
+    //             is_default_label: false,
+    //         })
+    //         .unwrap();
+    //     builder
+    //         .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+    //             name: "resource_limits",
+    //             id: PID_RESOURCE_LIMITS as u32,
+    //             r#type: <ResourceLimitsQosPolicy as XTypesBinding>::get_dynamic_type(),
+    //             default_value: Some(<ResourceLimitsQosPolicy as Default>::default().into_storage()),
+    //             index: 12u32,
+    //             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+    //             label: None,
+    //             is_key: false,
+    //             is_optional: true,
+    //             is_must_understand: true,
+    //             is_shared: false,
+    //             is_default_label: false,
+    //         })
+    //         .unwrap();
+    //     builder
+    //         .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+    //             name: "ownership",
+    //             id: PID_OWNERSHIP as u32,
+    //             r#type: <OwnershipQosPolicy as XTypesBinding>::get_dynamic_type(),
+    //             default_value: Some(<OwnershipQosPolicy as Default>::default().into_storage()),
+    //             index: 13u32,
+    //             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+    //             label: None,
+    //             is_key: false,
+    //             is_optional: true,
+    //             is_must_understand: true,
+    //             is_shared: false,
+    //             is_default_label: false,
+    //         })
+    //         .unwrap();
+    //     builder
+    //         .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+    //             name: "topic_data",
+    //             id: PID_TOPIC_DATA as u32,
+    //             r#type: <TopicDataQosPolicy as XTypesBinding>::get_dynamic_type(),
+    //             default_value: Some(<TopicDataQosPolicy as Default>::default().into_storage()),
+    //             index: 14u32,
+    //             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+    //             label: None,
+    //             is_key: false,
+    //             is_optional: true,
+    //             is_must_understand: true,
+    //             is_shared: false,
+    //             is_default_label: false,
+    //         })
+    //         .unwrap();
+    //     builder
+    //         .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+    //             name: "representation",
+    //             id: PID_DATA_REPRESENTATION as u32,
+    //             r#type: <DataRepresentationQosPolicy as XTypesBinding>::get_dynamic_type(),
+    //             default_value: Some(
+    //                 <DataRepresentationQosPolicy as Default>::default().into_storage(),
+    //             ),
+    //             index: 15u32,
+    //             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+    //             label: None,
+    //             is_key: false,
+    //             is_optional: true,
+    //             is_must_understand: true,
+    //             is_shared: false,
+    //             is_default_label: false,
+    //         })
+    //         .unwrap();
+    //     builder.build()
+    // }
 
     fn create_sample(mut src: crate::xtypes::dynamic_type::DynamicData) -> Self {
         Self {
@@ -517,7 +516,7 @@ mod tests {
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
         assert_eq!(
-            RtpsPlCdrSerializer::serialize(&DiscoveredTopicData::get_type(), &data).unwrap(),
+            RtpsPlCdrSerializer::serialize(DiscoveredTopicData::TYPE, &data).unwrap(),
             expected
         );
     }
@@ -565,7 +564,7 @@ mod tests {
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
         assert_eq!(
-            CdrDeserializer::deserialize_builtin(&DiscoveredTopicData::get_type(), &data).unwrap(),
+            CdrDeserializer::deserialize_builtin(DiscoveredTopicData::TYPE, &data).unwrap(),
             expected
         );
     }

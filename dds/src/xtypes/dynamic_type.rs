@@ -108,7 +108,10 @@ impl DynamicTypeBuilderFactory {
         unimplemented!("wstring not supported in Rust")
     }
 
-    pub fn create_sequence_type(element_type: DynamicType, bound: u32) -> DynamicTypeBuilder {
+    pub fn create_sequence_type(
+        element_type: &'static DynamicType,
+        bound: u32,
+    ) -> DynamicTypeBuilder {
         DynamicTypeBuilder {
             descriptor: TypeDescriptor {
                 kind: TypeKind::SEQUENCE,
@@ -125,7 +128,10 @@ impl DynamicTypeBuilderFactory {
         }
     }
 
-    pub fn create_array_type(element_type: DynamicType, bound: BoundSeq) -> DynamicTypeBuilder {
+    pub fn create_array_type(
+        element_type: &'static DynamicType,
+        bound: BoundSeq,
+    ) -> DynamicTypeBuilder {
         DynamicTypeBuilder {
             descriptor: TypeDescriptor {
                 kind: TypeKind::ARRAY,
@@ -191,11 +197,11 @@ pub enum TryConstructKind {
 pub struct TypeDescriptor {
     pub kind: TypeKind,
     pub name: ObjectName,
-    pub base_type: Option<DynamicType>,
-    pub discriminator_type: Option<DynamicType>,
+    pub base_type: Option<&'static DynamicType>,
+    pub discriminator_type: Option<&'static DynamicType>,
     pub bound: BoundSeq,
-    pub element_type: Option<DynamicType>,
-    pub key_element_type: Option<DynamicType>,
+    pub element_type: Option<&'static DynamicType>,
+    pub key_element_type: Option<&'static DynamicType>,
     pub extensibility_kind: ExtensibilityKind,
     pub is_nested: bool,
 }
@@ -207,7 +213,7 @@ pub type UnionCaseLabelSeq = Option<i32>;
 pub struct MemberDescriptor {
     pub name: ObjectName,
     pub id: MemberId,
-    pub r#type: DynamicType,
+    pub r#type: &'static DynamicType,
     pub default_value: Option<DataStorage>,
     pub index: u32,
     pub label: UnionCaseLabelSeq,
@@ -221,7 +227,7 @@ pub struct MemberDescriptor {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct DynamicTypeMember {
-    descriptor: MemberDescriptor,
+    pub descriptor: MemberDescriptor,
 }
 
 impl DynamicTypeMember {
@@ -322,21 +328,11 @@ impl DynamicTypeBuilder {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct DynamicType {
-    descriptor: &'static TypeDescriptor,
-    member_list: &'static [DynamicTypeMember],
+    pub descriptor: &'static TypeDescriptor,
+    pub member_list: &'static [DynamicTypeMember],
 }
 
 impl DynamicType {
-    pub const fn new(
-        descriptor: &'static TypeDescriptor,
-        member_list: &'static [DynamicTypeMember],
-    ) -> Self {
-        Self {
-            descriptor,
-            member_list,
-        }
-    }
-
     pub fn get_descriptor(&self) -> &'static TypeDescriptor {
         self.descriptor
     }

@@ -169,7 +169,7 @@ impl DomainParticipantAsync {
     where
         Foo: TypeSupport,
     {
-        let type_support = Arc::new(Foo::get_type());
+        let type_support = Arc::new(Foo::TYPE.clone());
 
         self.create_dynamic_topic(topic_name, type_name, qos, a_listener, mask, type_support)
             .await
@@ -292,7 +292,7 @@ impl DomainParticipantAsync {
     where
         Foo: TypeSupport,
     {
-        let type_support = Arc::new(Foo::get_type());
+        let type_support = Arc::new(Foo::TYPE.clone());
         let topic_name = String::from(topic_name);
         let participant_address = self.dcps_sender.clone();
         let participant_async = self.clone();

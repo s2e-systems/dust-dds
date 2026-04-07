@@ -26,23 +26,21 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
     let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
     let (get_type_quote, create_dynamic_sample_quote, create_sample_quote) = match &input.data {
         syn::Data::Struct(data_struct) => {
-            let struct_builder = quote! {
-                extern crate alloc;
-                let mut builder = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
-                    dust_dds::xtypes::dynamic_type::TypeDescriptor {
-                        kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
-                        name: #type_name,
-                        base_type: None,
-                        discriminator_type: None,
-                        bound: None,
-                        element_type: None,
-                        key_element_type: None,
-                        extensibility_kind: #extensibility_kind,
-                        is_nested: #is_nested,
-                    });
+            let struct_descriptor = quote! {
+                &dust_dds::xtypes::dynamic_type::TypeDescriptor {
+                    kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
+                    name: #type_name,
+                    base_type: None,
+                    discriminator_type: None,
+                    bound: None,
+                    element_type: None,
+                    key_element_type: None,
+                    extensibility_kind: #extensibility_kind,
+                    is_nested: #is_nested,
+                }
             };
 
-            let mut member_builder_seq = quote! {};
+            let mut member_list = Vec::new();
             let mut member_sample_seq = Vec::new();
             let mut member_dynamic_sample_seq = Vec::new();
 
@@ -77,24 +75,25 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     }
                     _ => quote! {None},
                 };
-                member_builder_seq.extend(
+                member_list.push(
                     quote! {
-                         builder.add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                            name: #field_name,
-                            id: #member_id,
-                            r#type: <#member_type as dust_dds::xtypes::binding::XTypesBinding>::get_dynamic_type(),
-                            default_value: #default_value,
-                            index: #index,
-                            try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-                            label: None,
-                            is_key: #is_key,
-                            is_optional: #is_optional,
-                            is_must_understand: true,
-                            is_shared: false,
-                            is_default_label: false,
-                        })
-                        .unwrap();
-                    },
+                         dust_dds::xtypes::dynamic_type::DynamicTypeMember {
+                            descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
+                                name: #field_name,
+                                id: #member_id,
+                                r#type: <#member_type as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION,
+                                default_value: #default_value,
+                                index: #index,
+                                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+                                label: None,
+                                is_key: #is_key,
+                                is_optional: #is_optional,
+                                is_must_understand: true,
+                                is_shared: false,
+                                is_default_label: false,
+                            }
+                        }
+                    }
                 );
 
                 if !field_attributes.non_serialized {
@@ -125,9 +124,11 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 .is_none();
 
             let get_type_quote = quote! {
-                #struct_builder
-                #member_builder_seq
-                builder.build()
+                const r#TYPE: &'static dust_dds::xtypes::dynamic_type::DynamicType =
+                    &dust_dds::xtypes::dynamic_type::DynamicType {
+                        descriptor: #struct_descriptor,
+                        member_list: &[#(#member_list,)*]
+                    };
             };
 
             let create_dynamic_sample_quote = quote! {
@@ -150,25 +151,25 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
             // Separate between Unions and Enumeration which are both
             // mapped as Rust enum types
             if is_enum_xtypes_union(data_enum) {
-                let union_builder = quote! {
-                    extern crate alloc;
-                    let mut builder = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
-                        dust_dds::xtypes::dynamic_type::TypeDescriptor {
-                            kind: dust_dds::xtypes::dynamic_type::TypeKind::UNION,
-                            name: #type_name,
-                            base_type: None,
-                            discriminator_type: None,
-                            bound: None,
-                            element_type: None,
-                            key_element_type: None,
-                            extensibility_kind: #extensibility_kind,
-                            is_nested: #is_nested,
-                        });
+                let union_descriptor = quote! {
+                    &dust_dds::xtypes::dynamic_type::TypeDescriptor {
+                        kind: dust_dds::xtypes::dynamic_type::TypeKind::UNION,
+                        name: #type_name,
+                        base_type: None,
+                        discriminator_type: None,
+                        bound: None,
+                        element_type: None,
+                        key_element_type: None,
+                        extensibility_kind: #extensibility_kind,
+                        is_nested: #is_nested,
+                    }
                 };
                 let get_type_quote = quote! {
-                    #union_builder
-
-                    builder.build()
+                    const r#TYPE: &'static dust_dds::xtypes::dynamic_type::DynamicType =
+                        &dust_dds::xtypes::dynamic_type::DynamicType {
+                            descriptor: #union_descriptor,
+                            member_list: &[]
+                        };
                 };
 
                 let create_dynamic_sample_quote = quote! {todo!()};
@@ -183,29 +184,29 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
             } else {
                 // Note: Mapping has to be done with a match self strategy because the enum might not be copy so casting it using e.g. "self as i64" would
                 // be consuming it.
-                let discriminator_type = quote! {dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::get_primitive_type(dust_dds::xtypes::dynamic_type::TypeKind::INT32)};
+                let discriminator_type = quote! {<i32 as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION};
                 let discriminator_dynamic_value =
                     quote! {data.set_int32_value(0, self as i32).unwrap();};
 
-                let enum_builder = quote! {
-                    extern crate alloc;
-                    let mut builder = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
-                        dust_dds::xtypes::dynamic_type::TypeDescriptor {
-                            kind: dust_dds::xtypes::dynamic_type::TypeKind::ENUM,
-                            name: #type_name,
-                            base_type: None,
-                            discriminator_type: Some(#discriminator_type),
-                            bound: None,
-                            element_type: None,
-                            key_element_type: None,
-                            extensibility_kind: #extensibility_kind,
-                            is_nested: #is_nested,
-                        });
+                let enum_descriptor = quote! {
+                    &dust_dds::xtypes::dynamic_type::TypeDescriptor {
+                        kind: dust_dds::xtypes::dynamic_type::TypeKind::ENUM,
+                        name: #type_name,
+                        base_type: None,
+                        discriminator_type: Some(#discriminator_type),
+                        bound: None,
+                        element_type: None,
+                        key_element_type: None,
+                        extensibility_kind: #extensibility_kind,
+                        is_nested: #is_nested,
+                    }
                 };
                 let get_type_quote = quote! {
-                    #enum_builder
-
-                    builder.build()
+                    const r#TYPE: &'static dust_dds::xtypes::dynamic_type::DynamicType =
+                        &dust_dds::xtypes::dynamic_type::DynamicType {
+                            descriptor: #enum_descriptor,
+                            member_list: &[]
+                        };
                 };
 
                 let create_dynamic_sample_quote = quote! {
@@ -243,14 +244,9 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
     Ok(quote! {
         #[automatically_derived]
         impl #impl_generics dust_dds::infrastructure::type_support::TypeSupport for #ident #type_generics #where_clause {
-            #[inline]
-            fn get_type_name() -> &'static str {
-                #type_name
-            }
+            const TYPE_NAME: &'static str = #type_name;
 
-            fn get_type() -> dust_dds::xtypes::dynamic_type::DynamicType {
-                #get_type_quote
-            }
+            #get_type_quote
 
             fn create_sample(mut src: dust_dds::xtypes::dynamic_type::DynamicData) -> Self {
                 #create_sample_quote

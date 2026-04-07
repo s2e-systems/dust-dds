@@ -3,11 +3,11 @@ pub use dust_dds_derive::TypeSupport;
 
 /// The TypeSupport trait represents a type that can be transmitted by DDS.
 pub trait TypeSupport {
-    /// This operation returns the default name for the data-type represented by the TypeSupport.
-    fn get_type_name() -> &'static str;
+    /// This constant represents the default name for the data-type represented by the TypeSupport.
+    const TYPE_NAME: &'static str;
 
-    /// This operation returns a ['DynamicType'] object corresponding to the TypeSupport’s data type
-    fn get_type() -> DynamicType;
+    /// This constant represent the ['DynamicType'] object corresponding to the TypeSupport’s data type
+    const r#TYPE: &'static DynamicType;
 
     /// Create a sample of the TypeSupport’s data type with the contents of an input DynamicData object.
     fn create_sample(src: DynamicData) -> Self;

@@ -128,154 +128,152 @@ pub struct SpdpDiscoveredParticipantData {
 }
 
 impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParticipantData {
-    #[inline]
-    fn get_type_name() -> &'static str {
-        "SpdpDiscoveredParticipantData"
-    }
+    const TYPE_NAME: &'static str = "SpdpDiscoveredParticipantData";
 
-    fn get_type() -> dust_dds::xtypes::dynamic_type::DynamicType {
-        extern crate alloc;
-        struct ConvenienceDynamicTypeBuilder {
-            builder: DynamicTypeBuilder,
-            index: u32,
-        }
-        impl ConvenienceDynamicTypeBuilder {
-            fn add_member<T: XTypesBinding>(&mut self, name: &'static str, id: i16) {
-                self.builder
-                    .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                        name,
-                        id: id as u32,
-                        r#type: T::get_dynamic_type(),
-                        default_value: None,
-                        index: self.index,
-                        try_construct_kind:
-                            dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-                        label: None,
-                        is_key: false,
-                        is_optional: false,
-                        is_must_understand: true,
-                        is_shared: false,
-                        is_default_label: false,
-                    })
-                    .unwrap();
-                self.index += 1;
-            }
-            fn add_key_member<T: XTypesBinding>(&mut self, name: &'static str, id: i16) {
-                self.builder
-                    .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                        name,
-                        id: id as u32,
-                        r#type: T::get_dynamic_type(),
-                        default_value: None,
-                        index: self.index,
-                        try_construct_kind:
-                            dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-                        label: None,
-                        is_key: true,
-                        is_optional: false,
-                        is_must_understand: true,
-                        is_shared: false,
-                        is_default_label: false,
-                    })
-                    .unwrap();
-                self.index += 1;
-            }
-            fn add_member_with_default<T: XTypesBinding + DataStorageMapping>(
-                &mut self,
-                name: &'static str,
-                id: i16,
-                default: T,
-            ) {
-                self.builder
-                    .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                        name,
-                        id: id as u32,
-                        r#type: T::get_dynamic_type(),
-                        default_value: Some(default.into_storage()),
-                        index: self.index,
-                        try_construct_kind:
-                            dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-                        label: None,
-                        is_key: false,
-                        is_optional: true,
-                        is_must_understand: true,
-                        is_shared: false,
-                        is_default_label: false,
-                    })
-                    .unwrap();
-                self.index += 1;
-            }
-        }
-        let mut builder = ConvenienceDynamicTypeBuilder {
-            builder: dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
-                dust_dds::xtypes::dynamic_type::TypeDescriptor {
-                    kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
-                    name: Self::get_type_name(),
-                    base_type: None,
-                    discriminator_type: None,
-                    bound: None,
-                    element_type: None,
-                    key_element_type: None,
-                    extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Mutable,
-                    is_nested: false,
-                },
-            ),
-            index: 0,
-        };
-        builder.add_key_member::<BuiltInTopicKey>("key", PID_PARTICIPANT_GUID);
-        builder.add_member_with_default("user_data", PID_USER_DATA, UserDataQosPolicy::default());
-        builder.add_member_with_default::<DomainId>("domain_id", PID_DOMAIN_ID, -1);
-        builder.add_member_with_default(
-            "domain_tag",
-            PID_DOMAIN_TAG,
-            String::from(DEFAULT_DOMAIN_TAG),
-        );
-        builder.add_member::<ProtocolVersion>("protocol_version", PID_PROTOCOL_VERSION);
-        // builder.add_member::<GuidPrefix>("guid_prefix", PID_PARTICIPANT_GUID);
-        builder.add_member::<VendorId>("vendor_id", PID_VENDORID);
-        builder.add_member_with_default(
-            "expects_inline_qos",
-            PID_EXPECTS_INLINE_QOS,
-            DEFAULT_EXPECTS_INLINE_QOS,
-        );
-        builder.add_member_with_default(
-            "metatraffic_unicast_locator_list",
-            PID_METATRAFFIC_UNICAST_LOCATOR,
-            Vec::<Locator>::new(),
-        );
-        builder.add_member_with_default(
-            "metatraffic_multicast_locator_list",
-            PID_METATRAFFIC_MULTICAST_LOCATOR,
-            Vec::<Locator>::new(),
-        );
-        builder.add_member_with_default(
-            "default_unicast_locator_list",
-            PID_DEFAULT_UNICAST_LOCATOR,
-            Vec::<Locator>::new(),
-        );
-        builder.add_member_with_default(
-            "default_multicast_locator_list",
-            PID_DEFAULT_MULTICAST_LOCATOR,
-            Vec::<Locator>::new(),
-        );
-        builder.add_member::<BuiltinEndpointSet>(
-            "available_builtin_endpoints",
-            PID_BUILTIN_ENDPOINT_SET,
-        );
-        builder.add_member_with_default(
-            "manual_liveliness_count",
-            PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
-            0,
-        );
-        builder.add_member_with_default(
-            "builtin_endpoint_qos",
-            PID_BUILTIN_ENDPOINT_QOS,
-            BuiltinEndpointQos::default(),
-        );
-        // of interoperability reasons the lease_duration is made mandatory
-        builder.add_member::<Duration>("lease_duration", PID_PARTICIPANT_LEASE_DURATION);
-        builder.builder.build()
-    }
+    const r#TYPE: &'static crate::xtypes::dynamic_type::DynamicType = todo!();
+    // fn get_type() -> dust_dds::xtypes::dynamic_type::DynamicType {
+    //     extern crate alloc;
+    //     struct ConvenienceDynamicTypeBuilder {
+    //         builder: DynamicTypeBuilder,
+    //         index: u32,
+    //     }
+    //     impl ConvenienceDynamicTypeBuilder {
+    //         fn add_member<T: XTypesBinding>(&mut self, name: &'static str, id: i16) {
+    //             self.builder
+    //                 .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+    //                     name,
+    //                     id: id as u32,
+    //                     r#type: T::get_dynamic_type(),
+    //                     default_value: None,
+    //                     index: self.index,
+    //                     try_construct_kind:
+    //                         dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+    //                     label: None,
+    //                     is_key: false,
+    //                     is_optional: false,
+    //                     is_must_understand: true,
+    //                     is_shared: false,
+    //                     is_default_label: false,
+    //                 })
+    //                 .unwrap();
+    //             self.index += 1;
+    //         }
+    //         fn add_key_member<T: XTypesBinding>(&mut self, name: &'static str, id: i16) {
+    //             self.builder
+    //                 .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+    //                     name,
+    //                     id: id as u32,
+    //                     r#type: T::get_dynamic_type(),
+    //                     default_value: None,
+    //                     index: self.index,
+    //                     try_construct_kind:
+    //                         dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+    //                     label: None,
+    //                     is_key: true,
+    //                     is_optional: false,
+    //                     is_must_understand: true,
+    //                     is_shared: false,
+    //                     is_default_label: false,
+    //                 })
+    //                 .unwrap();
+    //             self.index += 1;
+    //         }
+    //         fn add_member_with_default<T: XTypesBinding + DataStorageMapping>(
+    //             &mut self,
+    //             name: &'static str,
+    //             id: i16,
+    //             default: T,
+    //         ) {
+    //             self.builder
+    //                 .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
+    //                     name,
+    //                     id: id as u32,
+    //                     r#type: T::get_dynamic_type(),
+    //                     default_value: Some(default.into_storage()),
+    //                     index: self.index,
+    //                     try_construct_kind:
+    //                         dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+    //                     label: None,
+    //                     is_key: false,
+    //                     is_optional: true,
+    //                     is_must_understand: true,
+    //                     is_shared: false,
+    //                     is_default_label: false,
+    //                 })
+    //                 .unwrap();
+    //             self.index += 1;
+    //         }
+    //     }
+    //     let mut builder = ConvenienceDynamicTypeBuilder {
+    //         builder: dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
+    //             dust_dds::xtypes::dynamic_type::TypeDescriptor {
+    //                 kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
+    //                 name: Self::get_type_name(),
+    //                 base_type: None,
+    //                 discriminator_type: None,
+    //                 bound: None,
+    //                 element_type: None,
+    //                 key_element_type: None,
+    //                 extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Mutable,
+    //                 is_nested: false,
+    //             },
+    //         ),
+    //         index: 0,
+    //     };
+    //     builder.add_key_member::<BuiltInTopicKey>("key", PID_PARTICIPANT_GUID);
+    //     builder.add_member_with_default("user_data", PID_USER_DATA, UserDataQosPolicy::default());
+    //     builder.add_member_with_default::<DomainId>("domain_id", PID_DOMAIN_ID, -1);
+    //     builder.add_member_with_default(
+    //         "domain_tag",
+    //         PID_DOMAIN_TAG,
+    //         String::from(DEFAULT_DOMAIN_TAG),
+    //     );
+    //     builder.add_member::<ProtocolVersion>("protocol_version", PID_PROTOCOL_VERSION);
+    //     // builder.add_member::<GuidPrefix>("guid_prefix", PID_PARTICIPANT_GUID);
+    //     builder.add_member::<VendorId>("vendor_id", PID_VENDORID);
+    //     builder.add_member_with_default(
+    //         "expects_inline_qos",
+    //         PID_EXPECTS_INLINE_QOS,
+    //         DEFAULT_EXPECTS_INLINE_QOS,
+    //     );
+    //     builder.add_member_with_default(
+    //         "metatraffic_unicast_locator_list",
+    //         PID_METATRAFFIC_UNICAST_LOCATOR,
+    //         Vec::<Locator>::new(),
+    //     );
+    //     builder.add_member_with_default(
+    //         "metatraffic_multicast_locator_list",
+    //         PID_METATRAFFIC_MULTICAST_LOCATOR,
+    //         Vec::<Locator>::new(),
+    //     );
+    //     builder.add_member_with_default(
+    //         "default_unicast_locator_list",
+    //         PID_DEFAULT_UNICAST_LOCATOR,
+    //         Vec::<Locator>::new(),
+    //     );
+    //     builder.add_member_with_default(
+    //         "default_multicast_locator_list",
+    //         PID_DEFAULT_MULTICAST_LOCATOR,
+    //         Vec::<Locator>::new(),
+    //     );
+    //     builder.add_member::<BuiltinEndpointSet>(
+    //         "available_builtin_endpoints",
+    //         PID_BUILTIN_ENDPOINT_SET,
+    //     );
+    //     builder.add_member_with_default(
+    //         "manual_liveliness_count",
+    //         PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
+    //         0,
+    //     );
+    //     builder.add_member_with_default(
+    //         "builtin_endpoint_qos",
+    //         PID_BUILTIN_ENDPOINT_QOS,
+    //         BuiltinEndpointQos::default(),
+    //     );
+    //     // of interoperability reasons the lease_duration is made mandatory
+    //     builder.add_member::<Duration>("lease_duration", PID_PARTICIPANT_LEASE_DURATION);
+    //     builder.builder.build()
+    // }
 
     fn create_sample(mut src: crate::xtypes::dynamic_type::DynamicData) -> Self {
         Self {
@@ -563,8 +561,7 @@ mod tests {
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ];
         assert_eq!(
-            RtpsPlCdrSerializer::serialize(&SpdpDiscoveredParticipantData::get_type(), &data)
-                .unwrap(),
+            RtpsPlCdrSerializer::serialize(SpdpDiscoveredParticipantData::TYPE, &data).unwrap(),
             expected
         );
     }
@@ -619,8 +616,7 @@ mod tests {
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ];
         assert_eq!(
-            RtpsPlCdrSerializer::serialize(&SpdpDiscoveredParticipantData::get_type(), &data)
-                .unwrap(),
+            RtpsPlCdrSerializer::serialize(SpdpDiscoveredParticipantData::TYPE, &data).unwrap(),
             expected
         );
     }
@@ -741,7 +737,7 @@ mod tests {
         ];
 
         assert_eq!(
-            CdrDeserializer::deserialize_builtin(&SpdpDiscoveredParticipantData::get_type(), &data)
+            CdrDeserializer::deserialize_builtin(SpdpDiscoveredParticipantData::TYPE, &data)
                 .unwrap(),
             expected
         );

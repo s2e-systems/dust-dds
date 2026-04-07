@@ -95,7 +95,6 @@ use crate::{
         },
     },
     xtypes::{
-        binding::XTypesBinding,
         deserializer::CdrDeserializer,
         dynamic_type::{DynamicData, DynamicDataFactory, DynamicType},
         serializer::{
@@ -234,10 +233,10 @@ where
         }
 
         // Create shared type information Arcs to avoid multiple allocations
-        let spdp_participant_type = Arc::new(SpdpDiscoveredParticipantData::get_type());
-        let discovered_topic_type = Arc::new(DiscoveredTopicData::get_type());
-        let discovered_writer_type = Arc::new(DiscoveredWriterData::get_type());
-        let discovered_reader_type = Arc::new(DiscoveredReaderData::get_type());
+        let spdp_participant_type = Arc::new(SpdpDiscoveredParticipantData::TYPE.clone());
+        let discovered_topic_type = Arc::new(DiscoveredTopicData::TYPE.clone());
+        let discovered_writer_type = Arc::new(DiscoveredWriterData::TYPE.clone());
+        let discovered_reader_type = Arc::new(DiscoveredReaderData::TYPE.clone());
 
         let mut topic_list = Vec::new();
 
@@ -2117,7 +2116,7 @@ where
                 let discovered_participant_handle = if let Some(h) = cache_change.instance_handle {
                     InstanceHandle::new(h)
                 } else if let Ok(dynamic_data) = CdrDeserializer::deserialize(
-                    &InstanceHandle::get_dynamic_type(),
+                    InstanceHandle::TYPE,
                     cache_change.data_value.as_ref(),
                 ) {
                     InstanceHandle::create_sample(dynamic_data)
@@ -2221,7 +2220,7 @@ where
                 let discovered_writer_handle = if let Some(h) = cache_change.instance_handle {
                     InstanceHandle::new(h)
                 } else if let Ok(dynamic_data) = CdrDeserializer::deserialize(
-                    &InstanceHandle::get_dynamic_type(),
+                    InstanceHandle::TYPE,
                     cache_change.data_value.as_ref(),
                 ) {
                     InstanceHandle::create_sample(dynamic_data)
@@ -2370,7 +2369,7 @@ where
                 let discovered_reader_handle = if let Some(h) = cache_change.instance_handle {
                     InstanceHandle::new(h)
                 } else if let Ok(dynamic_data) = CdrDeserializer::deserialize(
-                    &InstanceHandle::get_dynamic_type(),
+                    InstanceHandle::TYPE,
                     cache_change.data_value.as_ref(),
                 ) {
                     InstanceHandle::create_sample(dynamic_data)
@@ -5398,10 +5397,10 @@ impl DataReaderEntity {
                     key_member_list.push(member.clone());
                 }
             }
-            Ok(DynamicType::new(
-                key_holder_type_descriptor,
-                Vec::leak(key_member_list),
-            ))
+            Ok(DynamicType {
+                descriptor: key_holder_type_descriptor,
+                member_list: Vec::leak(key_member_list),
+            })
         }
 
         let (data_value, instance_handle) = match cache_change.kind {
