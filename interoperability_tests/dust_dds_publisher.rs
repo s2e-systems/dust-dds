@@ -28,7 +28,7 @@ fn main() {
     let topic = participant
         .create_topic::<HelloWorldType>(
             "HelloWorld",
-            HelloWorldType::get_type_name(),
+            HelloWorldType::TYPE_NAME,
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,

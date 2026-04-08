@@ -28,7 +28,7 @@ fn main() {
     let topic = participant
         .create_topic::<Nested>(
             "Nested",
-            Nested::get_type_name(),
+            Nested::TYPE_NAME,
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,

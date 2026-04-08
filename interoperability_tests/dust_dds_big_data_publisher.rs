@@ -28,7 +28,7 @@ fn main() {
     let topic = participant
         .create_topic::<BigDataType>(
             "BigData",
-            BigDataType::get_type_name(),
+            BigDataType::TYPE_NAME,
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
