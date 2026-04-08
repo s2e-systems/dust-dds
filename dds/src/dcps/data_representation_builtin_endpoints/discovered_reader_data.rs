@@ -159,11 +159,11 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
         Self {
             dds_subscription_data: SubscriptionBuiltinTopicData {
                 key,
-                participant_key: DataStorageMapping::try_from_storage(
-                    src.remove_value(PID_PARTICIPANT_GUID as u32)
-                        .expect("Must exist"),
-                )
-                .expect("Must match"),
+                participant_key: src
+                    .remove_value(PID_ENDPOINT_GUID as u32)
+                    .map_or(BuiltInTopicKey::default(), |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
                 topic_name: DataStorageMapping::try_from_storage(
                     src.remove_value(PID_TOPIC_NAME as u32).expect("Must exist"),
                 )
@@ -279,10 +279,12 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
             PID_ENDPOINT_GUID as u32,
             self.dds_subscription_data.key.into_storage(),
         );
-        data.set_value(
-            PID_PARTICIPANT_GUID as u32,
-            self.dds_subscription_data.participant_key.into_storage(),
-        );
+        if self.dds_subscription_data.participant_key != BuiltInTopicKey::default() {
+            data.set_value(
+                PID_PARTICIPANT_GUID as u32,
+                self.dds_subscription_data.participant_key.into_storage(),
+            );
+        }
         data.set_value(
             PID_TOPIC_NAME as u32,
             self.dds_subscription_data.topic_name.into_storage(),
