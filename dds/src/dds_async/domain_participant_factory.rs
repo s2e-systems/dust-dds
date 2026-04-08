@@ -18,7 +18,7 @@ use crate::{
     transport::interface::TransportParticipantFactory,
 };
 
-const DCPS_CHANNEL_SIZE: usize = 4;
+const DCPS_CHANNEL_SIZE: usize = 256;
 
 #[doc(hidden)]
 pub type DcpsChannel = embassy_sync::channel::Channel<
