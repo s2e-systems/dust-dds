@@ -5885,8 +5885,7 @@ impl DataReaderEntity {
         }
 
         self.status_condition
-            .add_communication_state(StatusKind::DataAvailable)
-            .await;
+            .remove_communication_state(StatusKind::DataAvailable);
 
         let indexed_sample_list = self.create_indexed_sample_collection(
             max_samples,
