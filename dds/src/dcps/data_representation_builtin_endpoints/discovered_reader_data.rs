@@ -172,7 +172,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
                     src.remove_value(PID_TYPE_NAME as u32).expect("Must exist"),
                 )
                 .expect("Must match"),
-                
+
                 durability: src
                     .remove_value(PID_DURABILITY as u32)
                     .map_or(DurabilityQosPolicy::const_default(), |x| {

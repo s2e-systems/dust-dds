@@ -118,7 +118,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                         None => {
                             let index = Index::from(field_index);
                             if is_optional {
-                                member_sample_seq.push(quote! { 
+                                member_sample_seq.push(quote! {
                                     src.remove_value(#member_id).map_or(#default_value, |x| {
                                         DataStorageMapping::try_from_storage(x).expect("Must match")
                                     }),
