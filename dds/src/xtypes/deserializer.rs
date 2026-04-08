@@ -855,7 +855,7 @@ mod tests {
         .create_dynamic_sample();
         assert_eq!(
             CdrDeserializer::deserialize(
-                &FinalType::TYPE,
+                FinalType::TYPE,
                 &[
                     0x00, 0x00, 0x00, 0x00, // CDR_BE
                     0, 7, 0, 0, 0, 0, 0, 0, // field_u16 | padding (6 bytes)
@@ -867,7 +867,7 @@ mod tests {
         );
         assert_eq!(
             CdrDeserializer::deserialize(
-                &FinalType::TYPE,
+                FinalType::TYPE,
                 &[
                     0x00, 0x01, 0x00, 0x00, // CDR_LE
                     7, 0, 0, 0, 0, 0, 0, 0, // field_u16 | padding (6 bytes)
@@ -879,7 +879,7 @@ mod tests {
         );
         assert_eq!(
             CdrDeserializer::deserialize(
-                &FinalType::TYPE,
+                FinalType::TYPE,
                 &[
                     0x00, 0x06, 0x00, 0x00, // CDR2_BE
                     0, 7, 0, 0, // field_u16 | padding (2 bytes)
@@ -891,7 +891,7 @@ mod tests {
         );
         assert_eq!(
             CdrDeserializer::deserialize(
-                &FinalType::TYPE,
+                FinalType::TYPE,
                 &[
                     0x00, 0x07, 0x00, 0x00, // CDR2_LE
                     7, 0, 0, 0, // field_u16 | padding (2 bytes)
@@ -929,7 +929,7 @@ mod tests {
 
         assert_eq!(
             CdrDeserializer::deserialize(
-                &NestedFinalType::TYPE,
+                NestedFinalType::TYPE,
                 &[
                     0x00, 0x00, 0x00, 0x00, // CDR_BE
                     0, 7, 0, 0, 0, 0, 0, 0, // nested FinalType (u16) | padding (6 bytes)
@@ -942,7 +942,7 @@ mod tests {
         );
         assert_eq!(
             CdrDeserializer::deserialize(
-                &NestedFinalType::TYPE,
+                NestedFinalType::TYPE,
                 &[
                     0x00, 0x01, 0x00, 0x00, // CDR_LE
                     7, 0, 0, 0, 0, 0, 0, 0, // nested FinalType (u16) | padding (6 bytes)
@@ -956,7 +956,7 @@ mod tests {
 
         assert_eq!(
             CdrDeserializer::deserialize(
-                &NestedFinalType::TYPE,
+                NestedFinalType::TYPE,
                 &[
                     0x00, 0x06, 0x00, 0x00, // CDR2_BE
                     0, 7, 0, 0, // nested FinalType (u16) | padding
@@ -970,7 +970,7 @@ mod tests {
 
         assert_eq!(
             CdrDeserializer::deserialize(
-                &NestedFinalType::TYPE,
+                NestedFinalType::TYPE,
                 &[
                     0x00, 0x07, 0x00, 0x00, // CDR2_LE
                     7, 0, 0, 0, // nested FinalType (u16) | padding (2 bytes)
@@ -1000,7 +1000,7 @@ mod tests {
         .create_dynamic_sample();
         assert_eq!(
             CdrDeserializer::deserialize(
-                &FinalTypeWithSequence::TYPE,
+                FinalTypeWithSequence::TYPE,
                 &[
                     0x00, 0x00, 0x00, 0x00, // CDR_BE
                     0, 7, 0, 0, 0, 0, 0, 0, // field_u16 | padding (6 bytes)
@@ -1015,7 +1015,7 @@ mod tests {
         );
         assert_eq!(
             CdrDeserializer::deserialize(
-                &FinalTypeWithSequence::TYPE,
+                FinalTypeWithSequence::TYPE,
                 &[
                     0x00, 0x01, 0x00, 0x00, // CDR_LE
                     7, 0, 0, 0, 0, 0, 0, 0, // field_u16 | padding (6 bytes)
@@ -1030,7 +1030,7 @@ mod tests {
         );
         assert_eq!(
             CdrDeserializer::deserialize(
-                &FinalTypeWithSequence::TYPE,
+                FinalTypeWithSequence::TYPE,
                 &[
                     0x00, 0x06, 0x00, 0x00, // CDR2_BE
                     0, 7, 0, 0, // field_u16 | padding (2 bytes)
@@ -1045,7 +1045,7 @@ mod tests {
         );
         assert_eq!(
             CdrDeserializer::deserialize(
-                &FinalTypeWithSequence::TYPE,
+                FinalTypeWithSequence::TYPE,
                 &[
                     0x00, 0x07, 0x00, 0x00, // CDR2_LE
                     7, 0, 0, 0, // field_u16 | padding (2 bytes)
@@ -1067,7 +1067,7 @@ mod tests {
         let expected = FinalString(String::from("Hola")).create_dynamic_sample();
         assert_eq!(
             CdrDeserializer::deserialize(
-                &FinalString::TYPE,
+                FinalString::TYPE,
                 &[
                     0x00, 0x00, 0x00, 0x00, // CDR_BE
                     0, 0, 0, 5, //length
@@ -1080,7 +1080,7 @@ mod tests {
         );
         assert_eq!(
             CdrDeserializer::deserialize(
-                &FinalString::TYPE,
+                FinalString::TYPE,
                 &[
                     0x00, 0x01, 0x00, 0x00, // CDR_LE
                     5, 0, 0, 0, //length
@@ -1093,7 +1093,7 @@ mod tests {
         );
         assert_eq!(
             CdrDeserializer::deserialize(
-                &FinalString::TYPE,
+                FinalString::TYPE,
                 &[
                     0x00, 0x06, 0x00, 0x00, // CDR2_BE
                     0, 0, 0, 5, //length
@@ -1106,7 +1106,7 @@ mod tests {
         );
         assert_eq!(
             CdrDeserializer::deserialize(
-                &FinalString::TYPE,
+                FinalString::TYPE,
                 &[
                     0x00, 0x07, 0x00, 0x00, // CDR2_LE
                     5, 0, 0, 0, //length
@@ -1126,7 +1126,7 @@ mod tests {
         let expected = ByteArray([1u8, 2]).create_dynamic_sample();
         assert_eq!(
             CdrDeserializer::deserialize(
-                &ByteArray::TYPE,
+                ByteArray::TYPE,
                 &[
                     0x00, 0x00, 0x00, 0x00, // CDR_BE
                     1, 2
@@ -1137,7 +1137,7 @@ mod tests {
         );
         assert_eq!(
             CdrDeserializer::deserialize(
-                &ByteArray::TYPE,
+                ByteArray::TYPE,
                 &[
                     0x00, 0x01, 0x00, 0x00, // CDR_LE
                     1, 2
@@ -1148,7 +1148,7 @@ mod tests {
         );
         assert_eq!(
             CdrDeserializer::deserialize(
-                &ByteArray::TYPE,
+                ByteArray::TYPE,
                 &[
                     0x00, 0x06, 0x00, 0x00, // CDR2_BE
                     1, 2
@@ -1159,7 +1159,7 @@ mod tests {
         );
         assert_eq!(
             CdrDeserializer::deserialize(
-                &ByteArray::TYPE,
+                ByteArray::TYPE,
                 &[
                     0x00, 0x07, 0x00, 0x00, // CD2R_LE
                     1, 2
@@ -1180,7 +1180,7 @@ mod tests {
         let expected = Sequence(vec![Atype(1), Atype(2)]).create_dynamic_sample();
         assert_eq!(
             CdrDeserializer::deserialize(
-                &Sequence::TYPE,
+                Sequence::TYPE,
                 &[
                     0x00, 0x00, 0x00, 0x00, // CDR_BE
                     0, 0, 0, 2, // length
@@ -1209,7 +1209,7 @@ mod tests {
         .create_dynamic_sample();
         assert_eq!(
             CdrDeserializer::deserialize(
-                &MutableType::TYPE,
+                MutableType::TYPE,
                 &[
                     0x00, 0x02, 0x00, 0x00, // PL_CDR_BE
                     0x00, 0x05A, 0, 1, // PID | length
@@ -1224,7 +1224,7 @@ mod tests {
         );
         assert_eq!(
             CdrDeserializer::deserialize(
-                &MutableType::TYPE,
+                MutableType::TYPE,
                 &[
                     0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
                     0x05A, 0x00, 1, 0, // PID | length
@@ -1239,7 +1239,7 @@ mod tests {
         );
         assert_eq!(
             CdrDeserializer::deserialize(
-                &MutableType::TYPE,
+                MutableType::TYPE,
                 &[
                     0x00, 0x06, 0x00, 0x00, // PL_CDR2_BE
                     0x00, 0x05A, 0, 1, // PID | length
@@ -1254,7 +1254,7 @@ mod tests {
         );
         assert_eq!(
             CdrDeserializer::deserialize(
-                &MutableType::TYPE,
+                MutableType::TYPE,
                 &[
                     0x00, 0x07, 0x00, 0x00, // PL_CDR2_LE
                     0x05A, 0x00, 1, 0, // PID | length
@@ -1285,7 +1285,7 @@ mod tests {
         .create_dynamic_sample();
         assert_eq!(
             CdrDeserializer::deserialize(
-                &AppendableType::TYPE,
+                AppendableType::TYPE,
                 &[
                     0x00, 0x00, 0x00, 0x00, // CDR_BE
                     7, 0, 0, 0, // key | padding
@@ -1297,7 +1297,7 @@ mod tests {
         );
         assert_eq!(
             CdrDeserializer::deserialize(
-                &AppendableType::TYPE,
+                AppendableType::TYPE,
                 &[
                     0x00, 0x01, 0x00, 0x00, // CDR_LE
                     7, 0, 0, 0, // key | padding
@@ -1309,7 +1309,7 @@ mod tests {
         );
         assert_eq!(
             CdrDeserializer::deserialize(
-                &AppendableType::TYPE,
+                AppendableType::TYPE,
                 &[
                     0x00, 0x08, 0x00, 0x00, // D_CDR2_BE
                     0, 0, 0, 8, // DHEADER
@@ -1322,7 +1322,7 @@ mod tests {
         );
         assert_eq!(
             CdrDeserializer::deserialize(
-                &AppendableType::TYPE,
+                AppendableType::TYPE,
                 &[
                     0x00, 0x09, 0x00, 0x00, // D_CDR2_LE
                     0, 0, 0, 8, // DHEADER
@@ -1357,7 +1357,7 @@ mod tests {
         .create_dynamic_sample();
         assert_eq!(
             CdrDeserializer::deserialize(
-                &AppendableShapesType::TYPE,
+                AppendableShapesType::TYPE,
                 &[
                     0x00, 0x00, 0x00, 0x00, // CDR_BE
                     0, 0, 0, 5, // color: length
@@ -1374,7 +1374,7 @@ mod tests {
         );
         assert_eq!(
             CdrDeserializer::deserialize(
-                &AppendableShapesType::TYPE,
+                AppendableShapesType::TYPE,
                 &[
                     0x00, 0x01, 0x00, 0x00, // CDR_LE
                     5, 0, 0, 0, // color: length
@@ -1391,7 +1391,7 @@ mod tests {
         );
         assert_eq!(
             CdrDeserializer::deserialize(
-                &AppendableShapesType::TYPE,
+                AppendableShapesType::TYPE,
                 &[
                     0x00, 0x08, 0x00, 0x00, // D_CDR2_BE
                     0, 0, 0, 28, // Dheader
@@ -1409,7 +1409,7 @@ mod tests {
         );
         assert_eq!(
             CdrDeserializer::deserialize(
-                &AppendableShapesType::TYPE,
+                AppendableShapesType::TYPE,
                 &[
                     0x00, 0x09, 0x00, 0x00, // D_CDR2_LE
                     28, 0, 0, 0, // Dheader
