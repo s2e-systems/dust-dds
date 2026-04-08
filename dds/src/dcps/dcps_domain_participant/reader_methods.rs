@@ -8,7 +8,6 @@ use crate::{
         dcps_domain_participant::{DcpsDomainParticipant, RtpsReaderKind, poll_timeout},
         dcps_mail::{DcpsMail, MessageServiceMail},
         listeners::data_reader_listener::DcpsDataReaderListener,
-        status_condition_mail::DcpsStatusConditionMail,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -206,10 +205,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         let status = data_reader.get_subscription_matched_status();
         data_reader
             .status_condition
-            .send_actor_mail(DcpsStatusConditionMail::RemoveCommunicationState {
-                state: StatusKind::SubscriptionMatched,
-            })
-            .await;
+            .remove_communication_state(StatusKind::SubscriptionMatched);
         Ok(status)
     }
 

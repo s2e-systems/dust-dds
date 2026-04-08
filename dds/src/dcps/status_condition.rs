@@ -1,8 +1,37 @@
 use crate::{
     dcps::channels::mpsc::{MpscReceiver, MpscSender, mpsc_channel},
-    infrastructure::status::StatusKind,
+    infrastructure::{instance::InstanceHandle, status::StatusKind},
 };
 use alloc::{vec, vec::Vec};
+
+#[derive(Clone)]
+pub enum StatusConditionEntity {
+    DomainParticipant {
+        participant_handle: InstanceHandle,
+    },
+    Publisher {
+        participant_handle: InstanceHandle,
+        publisher_handle: InstanceHandle,
+    },
+    Subscriber {
+        participant_handle: InstanceHandle,
+        subscriber_handle: InstanceHandle,
+    },
+    Topic {
+        participant_handle: InstanceHandle,
+        topic_handle: InstanceHandle,
+    },
+    DataWriter {
+        participant_handle: InstanceHandle,
+        publisher_handle: InstanceHandle,
+        writer_handle: InstanceHandle,
+    },
+    DataReader {
+        participant_handle: InstanceHandle,
+        subscriber_handle: InstanceHandle,
+        reader_handle: InstanceHandle,
+    },
+}
 
 #[derive(Debug)]
 pub struct DcpsStatusCondition {

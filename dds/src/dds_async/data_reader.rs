@@ -4,11 +4,10 @@ use super::{condition::StatusConditionAsync, subscriber::SubscriberAsync};
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     dcps::{
-        actor::ActorAddress,
         channels::{mpsc::MpscSender, oneshot::oneshot},
         dcps_mail::{DcpsMail, ReaderServiceMail},
         listeners::data_reader_listener::DcpsDataReaderListener,
-        status_condition::DcpsStatusCondition,
+        status_condition::StatusConditionEntity,
     },
     dds_async::{
         data_reader_listener::DataReaderListener, topic_description::TopicDescriptionAsync,
@@ -35,7 +34,6 @@ use core::marker::PhantomData;
 /// Async version of [`DataReader`](crate::subscription::data_reader::DataReader).
 pub struct DataReaderAsync<Foo> {
     handle: InstanceHandle,
-    status_condition_address: ActorAddress<DcpsStatusCondition>,
     subscriber: SubscriberAsync,
     topic: TopicDescriptionAsync,
     phantom: PhantomData<Foo>,
@@ -44,13 +42,11 @@ pub struct DataReaderAsync<Foo> {
 impl<Foo> DataReaderAsync<Foo> {
     pub(crate) fn new(
         handle: InstanceHandle,
-        status_condition_address: ActorAddress<DcpsStatusCondition>,
         subscriber: SubscriberAsync,
         topic: TopicDescriptionAsync,
     ) -> Self {
         Self {
             handle,
-            status_condition_address,
             subscriber,
             topic,
             phantom: PhantomData,
@@ -64,7 +60,6 @@ impl<Foo> DataReaderAsync<Foo> {
     pub(crate) fn change_foo_type<T>(self) -> DataReaderAsync<T> {
         DataReaderAsync {
             handle: self.handle,
-            status_condition_address: self.status_condition_address,
             subscriber: self.subscriber,
             topic: self.topic,
             phantom: PhantomData,
@@ -76,7 +71,6 @@ impl<Foo> Clone for DataReaderAsync<Foo> {
     fn clone(&self) -> Self {
         Self {
             handle: self.handle,
-            status_condition_address: self.status_condition_address.clone(),
             subscriber: self.subscriber.clone(),
             topic: self.topic.clone(),
             phantom: self.phantom,
@@ -487,7 +481,17 @@ impl<Foo> DataReaderAsync<Foo> {
     /// Async version of [`get_statuscondition`](crate::subscription::data_reader::DataReader::get_statuscondition).
     #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> StatusConditionAsync {
-        StatusConditionAsync::new(self.status_condition_address.clone())
+        StatusConditionAsync::new(
+            self.dcps_sender().clone(),
+            StatusConditionEntity::DataReader {
+                participant_handle: self
+                    .get_subscriber()
+                    .get_participant()
+                    .get_instance_handle(),
+                subscriber_handle: self.get_subscriber().get_instance_handle(),
+                reader_handle: self.handle,
+            },
+        )
     }
 
     /// Async version of [`get_status_changes`](crate::subscription::data_reader::DataReader::get_status_changes).

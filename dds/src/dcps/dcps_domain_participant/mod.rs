@@ -1,6 +1,7 @@
 mod participant_methods;
 mod publisher_methods;
 mod reader_methods;
+mod status_condition_methods;
 mod subscriber_methods;
 mod topic_methods;
 mod writer_methods;
@@ -12,7 +13,6 @@ use crate::{
         TopicBuiltinTopicData,
     },
     dcps::{
-        actor::Actor,
         channels::{
             mpsc::MpscSender,
             oneshot::{OneshotSender, oneshot},
@@ -30,7 +30,6 @@ use crate::{
         dcps_mail::{DcpsMail, EventServiceMail},
         listeners::domain_participant_listener::ListenerMail,
         status_condition::DcpsStatusCondition,
-        status_condition_mail::DcpsStatusConditionMail,
         xtypes_glue::key_and_instance_handle::get_instance_handle_from_dynamic_data,
     },
     dds_async::{
@@ -265,7 +264,7 @@ where
             "SpdpDiscoveredParticipantData".to_string(),
             String::from(DCPS_PARTICIPANT),
             InstanceHandle::new(spdp_topic_participant_handle),
-            Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
+            DcpsStatusCondition::default(),
             None,
             vec![],
             spdp_participant_type,
@@ -296,7 +295,7 @@ where
             "DiscoveredTopicData".to_string(),
             String::from(DCPS_TOPIC),
             InstanceHandle::new(sedp_topic_topics_handle),
-            Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
+            DcpsStatusCondition::default(),
             None,
             vec![],
             discovered_topic_type,
@@ -327,7 +326,7 @@ where
             "DiscoveredWriterData".to_string(),
             String::from(DCPS_PUBLICATION),
             InstanceHandle::new(sedp_topic_publications_handle),
-            Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
+            DcpsStatusCondition::default(),
             None,
             vec![],
             discovered_writer_type,
@@ -357,7 +356,7 @@ where
             "DiscoveredReaderData".to_string(),
             String::from(DCPS_SUBSCRIPTION),
             InstanceHandle::new(sedp_topic_subscriptions_handle),
-            Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
+            DcpsStatusCondition::default(),
             None,
             vec![],
             discovered_reader_type,
@@ -404,7 +403,7 @@ where
             spdp_reader_qos,
             String::from(DCPS_PARTICIPANT),
             spdp_participant_type,
-            Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
+            DcpsStatusCondition::default(),
             None,
             Vec::new(),
             RtpsReaderKind::Stateless(rtps_stateless_reader),
@@ -420,7 +419,7 @@ where
             sedp_data_reader_qos(),
             String::from(DCPS_TOPIC),
             discovered_topic_type,
-            Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
+            DcpsStatusCondition::default(),
             None,
             Vec::new(),
             RtpsReaderKind::Stateful(dcps_topic_transport_reader),
@@ -436,7 +435,7 @@ where
             sedp_data_reader_qos(),
             String::from(DCPS_PUBLICATION),
             discovered_writer_type,
-            Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
+            DcpsStatusCondition::default(),
             None,
             Vec::new(),
             RtpsReaderKind::Stateful(dcps_publication_transport_reader),
@@ -452,7 +451,7 @@ where
             sedp_data_reader_qos(),
             String::from(DCPS_SUBSCRIPTION),
             discovered_reader_type,
-            Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
+            DcpsStatusCondition::default(),
             None,
             Vec::new(),
             RtpsReaderKind::Stateful(dcps_subscription_transport_reader),
@@ -486,7 +485,7 @@ where
             InstanceHandle::new(builtin_subscriber_handle),
             SubscriberQos::default(),
             data_reader_list,
-            Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
+            DcpsStatusCondition::default(),
             None,
             vec![],
         );
@@ -504,7 +503,7 @@ where
             String::from(DCPS_PARTICIPANT),
             "SpdpDiscoveredParticipantData".to_string(),
             spdp_participant_type,
-            Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
+            DcpsStatusCondition::default(),
             None,
             vec![],
             spdp_writer_qos,
@@ -521,7 +520,7 @@ where
             String::from(DCPS_TOPIC),
             "DiscoveredTopicData".to_string(),
             discovered_topic_type,
-            Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
+            DcpsStatusCondition::default(),
             None,
             vec![],
             sedp_data_writer_qos(),
@@ -537,7 +536,7 @@ where
             String::from(DCPS_PUBLICATION),
             "DiscoveredWriterData".to_string(),
             discovered_writer_type,
-            Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
+            DcpsStatusCondition::default(),
             None,
             vec![],
             sedp_data_writer_qos(),
@@ -553,7 +552,7 @@ where
             String::from(DCPS_SUBSCRIPTION),
             "DiscoveredReaderData".to_string(),
             discovered_reader_type,
-            Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
+            DcpsStatusCondition::default(),
             None,
             vec![],
             sedp_data_writer_qos(),
@@ -620,10 +619,6 @@ where
     fn get_participant_async(&self) -> DomainParticipantAsync {
         DomainParticipantAsync::new(
             self.dcps_sender.clone(),
-            self.domain_participant
-                .builtin_subscriber()
-                .status_condition
-                .address(),
             self.domain_participant.domain_id,
             self.domain_participant.instance_handle,
         )
@@ -635,13 +630,6 @@ where
     ) -> DdsResult<SubscriberAsync> {
         Ok(SubscriberAsync::new(
             subscriber_handle,
-            self.domain_participant
-                .user_defined_subscriber_list
-                .iter()
-                .find(|x| x.instance_handle == subscriber_handle)
-                .ok_or(DdsError::AlreadyDeleted)?
-                .status_condition
-                .address(),
             self.get_participant_async(),
         ))
     }
@@ -664,7 +652,6 @@ where
 
         Ok(DataReaderAsync::new(
             data_reader_handle,
-            data_reader.status_condition.address(),
             self.get_subscriber_async(subscriber_handle)?,
             self.get_topic_description_async(data_reader.topic_name.clone())?,
         ))
@@ -695,7 +682,6 @@ where
 
         Ok(DataWriterAsync::new(
             data_writer_handle,
-            data_writer.status_condition.address(),
             self.get_publisher_async(publisher_handle)?,
             self.get_topic_description_async(data_writer.topic_name.clone())?,
         ))
@@ -711,7 +697,6 @@ where
             Some(TopicDescriptionKind::Topic(topic)) => {
                 Ok(TopicDescriptionAsync::Topic(TopicAsync::new(
                     topic.instance_handle,
-                    topic.status_condition.address(),
                     topic.type_name.clone(),
                     topic_name,
                     self.get_participant_async(),
@@ -727,7 +712,6 @@ where
                     let name = t.topic_name.clone();
                     let topic = TopicAsync::new(
                         related_topic.instance_handle,
-                        related_topic.status_condition.address(),
                         related_topic.type_name.clone(),
                         t.related_topic_name.clone(),
                         self.get_participant_async(),
@@ -747,7 +731,7 @@ where
         self.domain_participant.instance_handle
     }
 
-    pub fn get_builtin_subscriber_status_condition(&self) -> &Actor<DcpsStatusCondition> {
+    pub fn get_builtin_subscriber_status_condition(&self) -> &DcpsStatusCondition {
         &self.domain_participant.builtin_subscriber.status_condition
     }
 
@@ -1428,9 +1412,7 @@ where
                     };
                     data_writer
                         .status_condition
-                        .send_actor_mail(DcpsStatusConditionMail::AddCommunicationState {
-                            state: StatusKind::PublicationMatched,
-                        })
+                        .add_communication_state(StatusKind::PublicationMatched)
                         .await;
                 } else {
                     data_writer.add_incompatible_subscription(
@@ -1550,9 +1532,7 @@ where
                     };
                     data_writer
                         .status_condition
-                        .send_actor_mail(DcpsStatusConditionMail::AddCommunicationState {
-                            state: StatusKind::OfferedIncompatibleQos,
-                        })
+                        .add_communication_state(StatusKind::OfferedIncompatibleQos)
                         .await;
                 }
             }
@@ -1590,9 +1570,7 @@ where
 
             data_writer
                 .status_condition
-                .send_actor_mail(DcpsStatusConditionMail::AddCommunicationState {
-                    state: StatusKind::PublicationMatched,
-                })
+                .add_communication_state(StatusKind::PublicationMatched)
                 .await;
         }
     }
@@ -1884,9 +1862,7 @@ where
                     };
                     data_reader
                         .status_condition
-                        .send_actor_mail(DcpsStatusConditionMail::AddCommunicationState {
-                            state: StatusKind::SubscriptionMatched,
-                        })
+                        .add_communication_state(StatusKind::SubscriptionMatched)
                         .await;
                 } else {
                     data_reader.add_requested_incompatible_qos(
@@ -2006,9 +1982,7 @@ where
                     };
                     data_reader
                         .status_condition
-                        .send_actor_mail(DcpsStatusConditionMail::AddCommunicationState {
-                            state: StatusKind::RequestedIncompatibleQos,
-                        })
+                        .add_communication_state(StatusKind::RequestedIncompatibleQos)
                         .await;
                 }
             }
@@ -2451,11 +2425,7 @@ where
                                 topic.inconsistent_topic_status.total_count_change += 1;
                                 topic
                                     .status_condition
-                                    .send_actor_mail(
-                                        DcpsStatusConditionMail::AddCommunicationState {
-                                            state: StatusKind::InconsistentTopic,
-                                        },
-                                    )
+                                    .add_communication_state(StatusKind::InconsistentTopic)
                                     .await;
                             }
                         }
@@ -2740,9 +2710,7 @@ where
 
                     subscriber
                         .status_condition
-                        .send_actor_mail(DcpsStatusConditionMail::AddCommunicationState {
-                            state: StatusKind::DataOnReaders,
-                        })
+                        .add_communication_state(StatusKind::DataOnReaders)
                         .await;
                     let Some(data_reader) = subscriber
                         .data_reader_list
@@ -2753,9 +2721,7 @@ where
                     };
                     data_reader
                         .status_condition
-                        .send_actor_mail(DcpsStatusConditionMail::AddCommunicationState {
-                            state: StatusKind::DataAvailable,
-                        })
+                        .add_communication_state(StatusKind::DataAvailable)
                         .await;
                 }
                 Ok(AddChangeResult::NotAdded) => (), // Do nothing
@@ -2880,9 +2846,7 @@ where
                     };
                     data_reader
                         .status_condition
-                        .send_actor_mail(DcpsStatusConditionMail::AddCommunicationState {
-                            state: StatusKind::SampleRejected,
-                        })
+                        .add_communication_state(StatusKind::SampleRejected)
                         .await;
                 }
                 Err(_) => (),
@@ -3068,9 +3032,7 @@ where
         };
         data_writer
             .status_condition
-            .send_actor_mail(DcpsStatusConditionMail::AddCommunicationState {
-                state: StatusKind::OfferedDeadlineMissed,
-            })
+            .add_communication_state(StatusKind::OfferedDeadlineMissed)
             .await;
     }
 
@@ -3220,9 +3182,7 @@ where
 
         data_reader
             .status_condition
-            .send_actor_mail(DcpsStatusConditionMail::AddCommunicationState {
-                state: StatusKind::RequestedDeadlineMissed,
-            })
+            .add_communication_state(StatusKind::RequestedDeadlineMissed)
             .await;
     }
 
@@ -4584,7 +4544,7 @@ struct SubscriberEntity {
     data_reader_list: Vec<DataReaderEntity>,
     enabled: bool,
     default_data_reader_qos: DataReaderQos,
-    status_condition: Actor<DcpsStatusCondition>,
+    status_condition: DcpsStatusCondition,
     listener_sender: Option<MpscSender<ListenerMail>>,
     listener_mask: Vec<StatusKind>,
 }
@@ -4594,7 +4554,7 @@ impl SubscriberEntity {
         instance_handle: InstanceHandle,
         qos: SubscriberQos,
         data_reader_list: Vec<DataReaderEntity>,
-        status_condition: Actor<DcpsStatusCondition>,
+        status_condition: DcpsStatusCondition,
         listener_sender: Option<MpscSender<ListenerMail>>,
         listener_mask: Vec<StatusKind>,
     ) -> Self {
@@ -4632,7 +4592,7 @@ struct TopicEntity {
     instance_handle: InstanceHandle,
     enabled: bool,
     inconsistent_topic_status: InconsistentTopicStatus,
-    status_condition: Actor<DcpsStatusCondition>,
+    status_condition: DcpsStatusCondition,
     _listener_sender: Option<MpscSender<ListenerMail>>,
     _status_kind: Vec<StatusKind>,
     type_support: &'static dyn DynamicType,
@@ -4645,7 +4605,7 @@ impl TopicEntity {
         type_name: String,
         topic_name: String,
         instance_handle: InstanceHandle,
-        status_condition: Actor<DcpsStatusCondition>,
+        status_condition: DcpsStatusCondition,
         listener_sender: Option<MpscSender<ListenerMail>>,
         status_kind: Vec<StatusKind>,
         type_support: &'static dyn DynamicType,
@@ -4749,7 +4709,7 @@ struct DataWriterEntity {
     incompatible_subscription_list: Vec<InstanceHandle>,
     offered_incompatible_qos_status: OfferedIncompatibleQosStatus,
     enabled: bool,
-    status_condition: Actor<DcpsStatusCondition>,
+    status_condition: DcpsStatusCondition,
     listener_sender: Option<MpscSender<ListenerMail>>,
     listener_mask: Vec<StatusKind>,
     max_seq_num: Option<i64>,
@@ -4775,7 +4735,7 @@ impl DataWriterEntity {
         topic_name: String,
         type_name: String,
         type_support: &'static dyn DynamicType,
-        status_condition: Actor<DcpsStatusCondition>,
+        status_condition: DcpsStatusCondition,
         listener_sender: Option<MpscSender<ListenerMail>>,
         listener_mask: Vec<StatusKind>,
         qos: DataWriterQos,
@@ -5030,10 +4990,7 @@ impl DataWriterEntity {
         let status = self.offered_deadline_missed_status.clone();
         self.offered_deadline_missed_status.total_count_change = 0;
         self.status_condition
-            .send_actor_mail(DcpsStatusConditionMail::RemoveCommunicationState {
-                state: StatusKind::OfferedDeadlineMissed,
-            })
-            .await;
+            .remove_communication_state(StatusKind::OfferedDeadlineMissed);
 
         status
     }
@@ -5164,7 +5121,7 @@ struct DataReaderEntity {
     enabled: bool,
     data_available_status_changed_flag: bool,
     incompatible_writer_list: Vec<InstanceHandle>,
-    status_condition: Actor<DcpsStatusCondition>,
+    status_condition: DcpsStatusCondition,
     listener_sender: Option<MpscSender<ListenerMail>>,
     listener_mask: Vec<StatusKind>,
     instances: Vec<InstanceState>,
@@ -5179,7 +5136,7 @@ impl DataReaderEntity {
         qos: DataReaderQos,
         topic_name: String,
         type_support: &'static dyn DynamicType,
-        status_condition: Actor<DcpsStatusCondition>,
+        status_condition: DcpsStatusCondition,
         listener_sender: Option<MpscSender<ListenerMail>>,
         listener_mask: Vec<StatusKind>,
         transport_reader: RtpsReaderKind,
@@ -5914,9 +5871,7 @@ impl DataReaderEntity {
         self.subscription_matched_status.current_count = self.matched_publication_list.len() as i32;
         self.subscription_matched_status.current_count_change -= 1;
         self.status_condition
-            .send_actor_mail(DcpsStatusConditionMail::AddCommunicationState {
-                state: StatusKind::SubscriptionMatched,
-            })
+            .add_communication_state(StatusKind::SubscriptionMatched)
             .await;
     }
 
@@ -5933,9 +5888,7 @@ impl DataReaderEntity {
         }
 
         self.status_condition
-            .send_actor_mail(DcpsStatusConditionMail::RemoveCommunicationState {
-                state: StatusKind::DataAvailable,
-            })
+            .add_communication_state(StatusKind::DataAvailable)
             .await;
 
         let indexed_sample_list = self.create_indexed_sample_collection(
@@ -5982,10 +5935,7 @@ impl DataReaderEntity {
         )?;
 
         self.status_condition
-            .send_actor_mail(DcpsStatusConditionMail::RemoveCommunicationState {
-                state: StatusKind::DataAvailable,
-            })
-            .await;
+            .remove_communication_state(StatusKind::DataAvailable);
 
         let mut change_index_list: Vec<usize>;
         let samples;

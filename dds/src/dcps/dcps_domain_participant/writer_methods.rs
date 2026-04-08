@@ -10,7 +10,6 @@ use crate::{
         },
         dcps_mail::{DcpsMail, EventServiceMail, MessageServiceMail, WriterServiceMail},
         listeners::data_writer_listener::DcpsDataWriterListener,
-        status_condition_mail::DcpsStatusConditionMail,
         xtypes_glue::key_and_instance_handle::get_instance_handle_from_dynamic_data,
     },
     infrastructure::{
@@ -53,10 +52,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
 
         data_writer
             .status_condition
-            .send_actor_mail(DcpsStatusConditionMail::RemoveCommunicationState {
-                state: StatusKind::PublicationMatched,
-            })
-            .await;
+            .remove_communication_state(StatusKind::PublicationMatched);
         Ok(status)
     }
 

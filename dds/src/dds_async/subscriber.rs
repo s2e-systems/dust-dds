@@ -5,14 +5,13 @@ use super::{
 };
 use crate::{
     dcps::{
-        actor::ActorAddress,
         channels::{mpsc::MpscSender, oneshot::oneshot},
         dcps_mail::{DcpsMail, SubscriberServiceMail},
         listeners::{
             data_reader_listener::DcpsDataReaderListener,
             subscriber_listener::DcpsSubscriberListener,
         },
-        status_condition::DcpsStatusCondition,
+        status_condition::StatusConditionEntity,
     },
     dds_async::topic_description::TopicDescriptionAsync,
     infrastructure::{
@@ -27,7 +26,6 @@ use alloc::{string::String, vec::Vec};
 /// Async version of [`Subscriber`](crate::subscription::subscriber::Subscriber).
 pub struct SubscriberAsync {
     handle: InstanceHandle,
-    status_condition_address: ActorAddress<DcpsStatusCondition>,
     participant: DomainParticipantAsync,
 }
 
@@ -35,21 +33,15 @@ impl Clone for SubscriberAsync {
     fn clone(&self) -> Self {
         Self {
             handle: self.handle,
-            status_condition_address: self.status_condition_address.clone(),
             participant: self.participant.clone(),
         }
     }
 }
 
 impl SubscriberAsync {
-    pub(crate) fn new(
-        handle: InstanceHandle,
-        status_condition_address: ActorAddress<DcpsStatusCondition>,
-        participant: DomainParticipantAsync,
-    ) -> Self {
+    pub(crate) fn new(handle: InstanceHandle, participant: DomainParticipantAsync) -> Self {
         Self {
             handle,
-            status_condition_address,
             participant,
         }
     }
@@ -84,14 +76,9 @@ impl SubscriberAsync {
                 },
             ))
             .await?;
-        let (guid, reader_status_condition_address) = reply_receiver.await??;
+        let guid = reply_receiver.await??;
 
-        Ok(DataReaderAsync::new(
-            guid,
-            reader_status_condition_address,
-            self.clone(),
-            a_topic.clone(),
-        ))
+        Ok(DataReaderAsync::new(guid, self.clone(), a_topic.clone()))
     }
 
     /// Async version of [`delete_datareader`](crate::subscription::subscriber::Subscriber::delete_datareader).
@@ -132,10 +119,9 @@ impl SubscriberAsync {
                     },
                 ))
                 .await?;
-            if let Some((reader_handle, reader_status_condition_address)) = reply_receiver.await?? {
+            if let Some(reader_handle) = reply_receiver.await?? {
                 Ok(Some(DataReaderAsync::new(
                     reader_handle,
-                    reader_status_condition_address,
                     self.clone(),
                     topic,
                 )))
@@ -269,7 +255,13 @@ impl SubscriberAsync {
     /// Async version of [`get_statuscondition`](crate::subscription::subscriber::Subscriber::get_statuscondition).
     #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> StatusConditionAsync {
-        StatusConditionAsync::new(self.status_condition_address.clone())
+        StatusConditionAsync::new(
+            self.dcps_sender().clone(),
+            StatusConditionEntity::Subscriber {
+                participant_handle: self.get_participant().get_instance_handle(),
+                subscriber_handle: self.handle,
+            },
+        )
     }
 
     /// Async version of [`get_status_changes`](crate::subscription::subscriber::Subscriber::get_status_changes).

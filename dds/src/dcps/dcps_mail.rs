@@ -7,8 +7,7 @@ use crate::{
         TopicBuiltinTopicData,
     },
     dcps::{
-        actor::ActorAddress,
-        channels::oneshot::OneshotSender,
+        channels::{mpsc::MpscReceiver, oneshot::OneshotSender},
         listeners::{
             data_reader_listener::DcpsDataReaderListener,
             data_writer_listener::DcpsDataWriterListener,
@@ -16,7 +15,7 @@ use crate::{
             publisher_listener::DcpsPublisherListener, subscriber_listener::DcpsSubscriberListener,
             topic_listener::DcpsTopicListener,
         },
-        status_condition::DcpsStatusCondition,
+        status_condition::StatusConditionEntity,
     },
     dds_async::configuration::DustDdsConfiguration,
     infrastructure::{
@@ -46,6 +45,7 @@ pub enum DcpsMail {
     Writer(WriterServiceMail),
     Subscriber(SubscriberServiceMail),
     Reader(ReaderServiceMail),
+    StatusCondition(StatusConditionMail),
     Message(MessageServiceMail),
     Event(EventServiceMail),
     Discovery(DiscoveryServiceMail),
@@ -57,7 +57,7 @@ pub enum ParticipantFactoryMail {
         qos: QosKind<DomainParticipantQos>,
         dcps_listener: Option<DcpsDomainParticipantListener>,
         status_kind: Vec<StatusKind>,
-        reply_sender: OneshotSender<DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)>>,
+        reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
     },
     DeleteParticipant {
         participant_handle: InstanceHandle,
@@ -104,7 +104,7 @@ pub enum ParticipantServiceMail {
         qos: QosKind<SubscriberQos>,
         dcps_listener: Option<DcpsSubscriberListener>,
         mask: Vec<StatusKind>,
-        reply_sender: OneshotSender<DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)>>,
+        reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
     },
     DeleteUserDefinedSubscriber {
         participant_handle: InstanceHandle,
@@ -120,7 +120,7 @@ pub enum ParticipantServiceMail {
         dcps_listener: Option<DcpsTopicListener>,
         mask: Vec<StatusKind>,
         type_support: &'static dyn DynamicType,
-        reply_sender: OneshotSender<DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)>>,
+        reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
     },
     DeleteUserDefinedTopic {
         participant_handle: InstanceHandle,
@@ -145,18 +145,12 @@ pub enum ParticipantServiceMail {
         participant_handle: InstanceHandle,
         topic_name: String,
         type_support: &'static dyn DynamicType,
-        #[allow(clippy::type_complexity)]
-        reply_sender: OneshotSender<
-            DdsResult<Option<(InstanceHandle, ActorAddress<DcpsStatusCondition>, String)>>,
-        >,
+        reply_sender: OneshotSender<DdsResult<Option<(InstanceHandle, String)>>>,
     },
     LookupTopicdescription {
         participant_handle: InstanceHandle,
         topic_name: String,
-        #[allow(clippy::type_complexity)]
-        reply_sender: OneshotSender<
-            DdsResult<Option<(String, InstanceHandle, ActorAddress<DcpsStatusCondition>)>>,
-        >,
+        reply_sender: OneshotSender<DdsResult<Option<(String, InstanceHandle)>>>,
     },
     IgnoreParticipant {
         participant_handle: InstanceHandle,
@@ -284,7 +278,7 @@ pub enum PublisherServiceMail {
         qos: QosKind<DataWriterQos>,
         dcps_listener: Option<DcpsDataWriterListener>,
         mask: Vec<StatusKind>,
-        reply_sender: OneshotSender<DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)>>,
+        reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
     },
     DeleteDataWriter {
         participant_handle: InstanceHandle,
@@ -331,7 +325,7 @@ pub enum SubscriberServiceMail {
         qos: QosKind<DataReaderQos>,
         dcps_listener: Option<DcpsDataReaderListener>,
         mask: Vec<StatusKind>,
-        reply_sender: OneshotSender<DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)>>,
+        reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
     },
     DeleteDataReader {
         participant_handle: InstanceHandle,
@@ -343,9 +337,7 @@ pub enum SubscriberServiceMail {
         participant_handle: InstanceHandle,
         subscriber_handle: InstanceHandle,
         topic_name: String,
-        #[allow(clippy::type_complexity)]
-        reply_sender:
-            OneshotSender<DdsResult<Option<(InstanceHandle, ActorAddress<DcpsStatusCondition>)>>>,
+        reply_sender: OneshotSender<DdsResult<Option<InstanceHandle>>>,
     },
     SetDefaultDataReaderQos {
         participant_handle: InstanceHandle,
@@ -566,6 +558,25 @@ pub enum ReaderServiceMail {
         dcps_listener: Option<DcpsDataReaderListener>,
         listener_mask: Vec<StatusKind>,
         reply_sender: OneshotSender<DdsResult<()>>,
+    },
+}
+
+pub enum StatusConditionMail {
+    GetStatusConditionEnabledStatuses {
+        entity: StatusConditionEntity,
+        reply_sender: OneshotSender<Vec<StatusKind>>,
+    },
+    SetStatusConditionEnabledStatuses {
+        entity: StatusConditionEntity,
+        status_mask: Vec<StatusKind>,
+    },
+    GetStatusConditionTriggerValue {
+        entity: StatusConditionEntity,
+        reply_sender: OneshotSender<bool>,
+    },
+    RegisterNotification {
+        entity: StatusConditionEntity,
+        reply_sender: OneshotSender<MpscReceiver<()>>,
     },
 }
 

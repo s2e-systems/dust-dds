@@ -3,7 +3,8 @@ use crate::{
         dcps_mail::{
             DcpsMail, DiscoveryServiceMail, EventServiceMail, MessageServiceMail,
             ParticipantFactoryMail, ParticipantServiceMail, PublisherServiceMail,
-            ReaderServiceMail, SubscriberServiceMail, TopicServiceMail, WriterServiceMail,
+            ReaderServiceMail, StatusConditionMail, SubscriberServiceMail, TopicServiceMail,
+            WriterServiceMail,
         },
         dcps_participant_factory::DcpsParticipantFactory,
     },
@@ -592,7 +593,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 qos,
                 dcps_listener,
                 mask,
-
                 reply_sender,
             }) => match self.find_participant(participant_handle) {
                 Ok(p) => reply_sender.send(
@@ -870,6 +870,30 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                     p.remove_writer_change(publisher_handle, data_writer_handle, sequence_number)
                         .await
                 }
+            }
+            DcpsMail::StatusCondition(StatusConditionMail::GetStatusConditionEnabledStatuses {
+                entity,
+                reply_sender,
+            }) => {
+                self.get_status_condition_enabled_statuses(entity, reply_sender);
+            }
+            DcpsMail::StatusCondition(StatusConditionMail::GetStatusConditionTriggerValue {
+                entity,
+                reply_sender,
+            }) => {
+                self.get_status_condition_trigger_value(entity, reply_sender);
+            }
+            DcpsMail::StatusCondition(StatusConditionMail::RegisterNotification {
+                entity,
+                reply_sender,
+            }) => {
+                self.register_notification(entity, reply_sender);
+            }
+            DcpsMail::StatusCondition(StatusConditionMail::SetStatusConditionEnabledStatuses {
+                entity,
+                status_mask,
+            }) => {
+                self.set_status_condition_enabled_statuses(entity, status_mask);
             }
             DcpsMail::Message(MessageServiceMail::NotifyAcknowledgments {
                 participant_handle,

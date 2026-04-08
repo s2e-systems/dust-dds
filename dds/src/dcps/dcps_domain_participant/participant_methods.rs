@@ -8,7 +8,6 @@ use alloc::{
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     dcps::{
-        actor::{Actor, ActorAddress},
         dcps_domain_participant::{
             BUILT_IN_TOPIC_NAME_LIST, ContentFilteredTopicEntity, DcpsDomainParticipant,
             PublisherEntity, SubscriberEntity, TopicDescriptionKind, TopicEntity,
@@ -129,14 +128,12 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         qos: QosKind<SubscriberQos>,
         dcps_listener: Option<DcpsSubscriberListener>,
         mask: Vec<StatusKind>,
-    ) -> DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)> {
+    ) -> DdsResult<InstanceHandle> {
         let subscriber_qos = match qos {
             QosKind::Default => self.domain_participant.default_subscriber_qos.clone(),
             QosKind::Specific(q) => q,
         };
-        let status_condition =
-            Actor::spawn::<R>(DcpsStatusCondition::default(), &self.spawner_handle);
-        let subscriber_status_condition_address = status_condition.address();
+        let status_condition = DcpsStatusCondition::default();
         let subscriber_handle = InstanceHandle::new([
             self.domain_participant.instance_handle[0],
             self.domain_participant.instance_handle[1],
@@ -184,7 +181,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             .user_defined_subscriber_list
             .push(subscriber);
 
-        Ok((subscriber_handle, subscriber_status_condition_address))
+        Ok(subscriber_handle)
     }
 
     #[tracing::instrument(skip(self))]
@@ -233,7 +230,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         dcps_listener: Option<DcpsTopicListener>,
         mask: Vec<StatusKind>,
         type_support: &'static dyn DynamicType,
-    ) -> DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)> {
+    ) -> DdsResult<InstanceHandle> {
         if self
             .domain_participant
             .topic_description_list
@@ -246,9 +243,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             )));
         }
 
-        let status_condition =
-            Actor::spawn::<R>(DcpsStatusCondition::default(), &self.spawner_handle);
-        let topic_status_condition_address = status_condition.address();
+        let status_condition = DcpsStatusCondition::default();
         let qos = match qos {
             QosKind::Default => self.domain_participant.default_topic_qos.clone(),
             QosKind::Specific(q) => q,
@@ -299,7 +294,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             self.enable_topic(topic_name).await?;
         }
 
-        Ok((topic_handle, topic_status_condition_address))
+        Ok(topic_handle)
     }
 
     #[tracing::instrument(skip(self))]
@@ -416,24 +411,19 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         Ok(())
     }
 
-    #[allow(clippy::type_complexity)]
     #[tracing::instrument(skip(self, type_support))]
     pub fn find_topic(
         &mut self,
         topic_name: String,
         type_support: &'static dyn DynamicType,
-    ) -> DdsResult<Option<(InstanceHandle, ActorAddress<DcpsStatusCondition>, String)>> {
+    ) -> DdsResult<Option<(InstanceHandle, String)>> {
         if let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
             .topic_description_list
             .iter()
             .find(|x| x.topic_name() == topic_name)
         {
-            Ok(Some((
-                topic.instance_handle,
-                topic.status_condition.address(),
-                topic.type_name.clone(),
-            )))
+            Ok(Some((topic.instance_handle, topic.type_name.clone())))
         } else {
             if let Some(discovered_topic_data) = self.domain_participant.find_topic(&topic_name) {
                 let qos = TopicQos {
@@ -471,8 +461,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                     USER_DEFINED_TOPIC,
                 ]);
                 self.topic_counter += 1;
-                let status_condition =
-                    Actor::spawn::<R>(DcpsStatusCondition::default(), &self.spawner_handle);
+                let status_condition = DcpsStatusCondition::default();
                 let mut topic = TopicEntity::new(
                     qos,
                     type_name.clone(),
@@ -484,7 +473,6 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                     type_support,
                 );
                 topic.enabled = true;
-                let topic_status_condition_address = topic.status_condition.address();
 
                 match self
                     .domain_participant
@@ -502,33 +490,24 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                         .push(TopicDescriptionKind::Topic(topic)),
                 }
 
-                return Ok(Some((
-                    topic_handle,
-                    topic_status_condition_address,
-                    type_name,
-                )));
+                return Ok(Some((topic_handle, type_name)));
             }
             Ok(None)
         }
     }
 
-    #[allow(clippy::type_complexity)]
     #[tracing::instrument(skip(self))]
     pub fn lookup_topicdescription(
         &mut self,
         topic_name: String,
-    ) -> DdsResult<Option<(String, InstanceHandle, ActorAddress<DcpsStatusCondition>)>> {
+    ) -> DdsResult<Option<(String, InstanceHandle)>> {
         if let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
             .topic_description_list
             .iter()
             .find(|x| x.topic_name() == topic_name)
         {
-            Ok(Some((
-                topic.type_name.clone(),
-                topic.instance_handle,
-                topic.status_condition.address(),
-            )))
+            Ok(Some((topic.type_name.clone(), topic.instance_handle)))
         } else {
             Ok(None)
         }

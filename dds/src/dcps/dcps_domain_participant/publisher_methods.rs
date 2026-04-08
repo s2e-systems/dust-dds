@@ -2,7 +2,6 @@ use alloc::{string::String, vec::Vec};
 
 use crate::{
     dcps::{
-        actor::{Actor, ActorAddress},
         dcps_domain_participant::{
             DataWriterEntity, DcpsDomainParticipant, RtpsWriterKind, TopicDescriptionKind,
             get_topic_kind,
@@ -35,7 +34,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         qos: QosKind<DataWriterQos>,
         dcps_listener: Option<DcpsDataWriterListener>,
         mask: Vec<StatusKind>,
-    ) -> DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)> {
+    ) -> DdsResult<InstanceHandle> {
         let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
             .topic_description_list
@@ -92,9 +91,8 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         ]);
         self.writer_counter += 1;
 
-        let status_condition =
-            Actor::spawn::<R>(DcpsStatusCondition::default(), &self.spawner_handle);
-        let writer_status_condition_address = status_condition.address();
+        let status_condition = DcpsStatusCondition::default();
+
         let qos = match qos {
             QosKind::Default => publisher.default_datawriter_qos.clone(),
             QosKind::Specific(q) => {
@@ -131,7 +129,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                 .await?;
         }
 
-        Ok((data_writer_handle, writer_status_condition_address))
+        Ok(data_writer_handle)
     }
 
     #[tracing::instrument(skip(self))]

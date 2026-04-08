@@ -5,7 +5,6 @@ use super::{
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     dcps::{
-        actor::ActorAddress,
         channels::{mpsc::MpscSender, oneshot::oneshot},
         dcps_mail::{DcpsMail, ParticipantServiceMail},
         listeners::{
@@ -13,7 +12,6 @@ use crate::{
             publisher_listener::DcpsPublisherListener, subscriber_listener::DcpsSubscriberListener,
             topic_listener::DcpsTopicListener,
         },
-        status_condition::DcpsStatusCondition,
     },
     dds_async::{
         content_filtered_topic::ContentFilteredTopicAsync,
@@ -40,7 +38,6 @@ use alloc::{
 #[derive(Clone)]
 pub struct DomainParticipantAsync {
     dcps_sender: MpscSender<DcpsMail>,
-    builtin_subscriber_status_condition_address: ActorAddress<DcpsStatusCondition>,
     domain_id: DomainId,
     handle: InstanceHandle,
 }
@@ -48,13 +45,11 @@ pub struct DomainParticipantAsync {
 impl DomainParticipantAsync {
     pub(crate) fn new(
         dcps_sender: MpscSender<DcpsMail>,
-        builtin_subscriber_status_condition_address: ActorAddress<DcpsStatusCondition>,
         domain_id: DomainId,
         handle: InstanceHandle,
     ) -> Self {
         Self {
             dcps_sender,
-            builtin_subscriber_status_condition_address,
             domain_id,
             handle,
         }
@@ -131,9 +126,8 @@ impl DomainParticipantAsync {
                 },
             ))
             .await?;
-        let (guid, subscriber_status_condition_address) = reply_receiver.await??;
-        let subscriber =
-            SubscriberAsync::new(guid, subscriber_status_condition_address, self.clone());
+        let guid = reply_receiver.await??;
+        let subscriber = SubscriberAsync::new(guid, self.clone());
 
         Ok(subscriber)
     }
@@ -197,11 +191,10 @@ impl DomainParticipantAsync {
                 reply_sender,
             }))
             .await?;
-        let (guid, topic_status_condition_address) = reply_receiver.await??;
+        let guid = reply_receiver.await??;
 
         Ok(TopicDescriptionAsync::Topic(TopicAsync::new(
             guid,
-            topic_status_condition_address,
             String::from(type_name),
             String::from(topic_name),
             self.clone(),
@@ -303,12 +296,9 @@ impl DomainParticipantAsync {
                     reply_sender,
                 }))
                 .await?;
-            if let Some((guid, topic_status_condition_address, type_name)) =
-                reply_receiver.await??
-            {
+            if let Some((guid, type_name)) = reply_receiver.await?? {
                 return Ok(TopicDescriptionAsync::Topic(TopicAsync::new(
                     guid,
-                    topic_status_condition_address,
                     type_name,
                     topic_name,
                     participant_async,
@@ -333,12 +323,9 @@ impl DomainParticipantAsync {
                 },
             ))
             .await?;
-        if let Some((type_name, topic_handle, topic_status_condition_address)) =
-            reply_receiver.await??
-        {
+        if let Some((type_name, topic_handle)) = reply_receiver.await?? {
             Ok(Some(TopicDescriptionAsync::Topic(TopicAsync::new(
                 topic_handle,
-                topic_status_condition_address,
                 type_name,
                 String::from(topic_name),
                 self.clone(),
@@ -351,11 +338,7 @@ impl DomainParticipantAsync {
     /// Async version of [`get_builtin_subscriber`](crate::domain::domain_participant::DomainParticipant::get_builtin_subscriber).
     #[tracing::instrument(skip(self))]
     pub fn get_builtin_subscriber(&self) -> SubscriberAsync {
-        SubscriberAsync::new(
-            self.handle,
-            self.builtin_subscriber_status_condition_address.clone(),
-            self.clone(),
-        )
+        SubscriberAsync::new(self.handle, self.clone())
     }
 
     /// Async version of [`ignore_participant`](crate::domain::domain_participant::DomainParticipant::ignore_participant).

@@ -4,10 +4,9 @@ use super::{
 };
 use crate::{
     dcps::{
-        actor::ActorAddress,
         channels::oneshot::oneshot,
         dcps_mail::{DcpsMail, TopicServiceMail},
-        status_condition::DcpsStatusCondition,
+        status_condition::StatusConditionEntity,
     },
     infrastructure::{
         error::DdsResult,
@@ -22,7 +21,6 @@ use alloc::{string::String, vec::Vec};
 /// Async version of [`Topic`](crate::topic_definition::topic::Topic).
 pub struct TopicAsync {
     handle: InstanceHandle,
-    status_condition_address: ActorAddress<DcpsStatusCondition>,
     type_name: String,
     topic_name: String,
     participant: DomainParticipantAsync,
@@ -32,7 +30,6 @@ impl Clone for TopicAsync {
     fn clone(&self) -> Self {
         Self {
             handle: self.handle,
-            status_condition_address: self.status_condition_address.clone(),
             type_name: self.type_name.clone(),
             topic_name: self.topic_name.clone(),
             participant: self.participant.clone(),
@@ -43,14 +40,12 @@ impl Clone for TopicAsync {
 impl TopicAsync {
     pub(crate) fn new(
         handle: InstanceHandle,
-        status_condition_address: ActorAddress<DcpsStatusCondition>,
         type_name: String,
         topic_name: String,
         participant: DomainParticipantAsync,
     ) -> Self {
         Self {
             handle,
-            status_condition_address,
             type_name,
             topic_name,
             participant,
@@ -134,7 +129,13 @@ impl TopicAsync {
     /// Async version of [`get_statuscondition`](crate::topic_definition::topic::Topic::get_statuscondition).
     #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> StatusConditionAsync {
-        StatusConditionAsync::new(self.status_condition_address.clone())
+        StatusConditionAsync::new(
+            self.participant.dcps_sender().clone(),
+            StatusConditionEntity::Topic {
+                participant_handle: self.get_participant().get_instance_handle(),
+                topic_handle: self.handle,
+            },
+        )
     }
 
     /// Async version of [`get_status_changes`](crate::topic_definition::topic::Topic::get_status_changes).

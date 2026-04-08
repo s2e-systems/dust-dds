@@ -75,14 +75,9 @@ impl PublisherAsync {
                 },
             ))
             .await?;
-        let (guid, writer_status_condition_address) = reply_receiver.await??;
+        let guid = reply_receiver.await??;
 
-        Ok(DataWriterAsync::new(
-            guid,
-            writer_status_condition_address,
-            self.clone(),
-            a_topic.clone(),
-        ))
+        Ok(DataWriterAsync::new(guid, self.clone(), a_topic.clone()))
     }
 
     /// Async version of [`delete_datawriter`](crate::publication::publisher::Publisher::delete_datawriter).

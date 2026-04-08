@@ -4,11 +4,10 @@ use super::{condition::StatusConditionAsync, publisher::PublisherAsync};
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     dcps::{
-        actor::ActorAddress,
         channels::{mpsc::MpscSender, oneshot::oneshot},
         dcps_mail::{DcpsMail, MessageServiceMail, WriterServiceMail},
         listeners::data_writer_listener::DcpsDataWriterListener,
-        status_condition::DcpsStatusCondition,
+        status_condition::StatusConditionEntity,
     },
     dds_async::{
         data_writer_listener::DataWriterListener, topic_description::TopicDescriptionAsync,
@@ -31,7 +30,6 @@ use core::marker::PhantomData;
 /// Async version of [`DataWriter`](crate::publication::data_writer::DataWriter).
 pub struct DataWriterAsync<Foo> {
     handle: InstanceHandle,
-    status_condition_address: ActorAddress<DcpsStatusCondition>,
     publisher: PublisherAsync,
     topic: TopicDescriptionAsync,
     phantom: PhantomData<Foo>,
@@ -41,7 +39,6 @@ impl<Foo> Clone for DataWriterAsync<Foo> {
     fn clone(&self) -> Self {
         Self {
             handle: self.handle,
-            status_condition_address: self.status_condition_address.clone(),
             publisher: self.publisher.clone(),
             topic: self.topic.clone(),
             phantom: self.phantom,
@@ -52,13 +49,11 @@ impl<Foo> Clone for DataWriterAsync<Foo> {
 impl<Foo> DataWriterAsync<Foo> {
     pub(crate) fn new(
         handle: InstanceHandle,
-        status_condition_address: ActorAddress<DcpsStatusCondition>,
         publisher: PublisherAsync,
         topic: TopicDescriptionAsync,
     ) -> Self {
         Self {
             handle,
-            status_condition_address,
             publisher,
             topic,
             phantom: PhantomData,
@@ -72,7 +67,6 @@ impl<Foo> DataWriterAsync<Foo> {
     pub(crate) fn change_foo_type<T>(self) -> DataWriterAsync<T> {
         DataWriterAsync {
             handle: self.handle,
-            status_condition_address: self.status_condition_address,
             publisher: self.publisher,
             topic: self.topic,
             phantom: PhantomData,
@@ -407,7 +401,14 @@ impl<Foo> DataWriterAsync<Foo> {
     /// Async version of [`get_statuscondition`](crate::publication::data_writer::DataWriter::get_statuscondition).
     #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> StatusConditionAsync {
-        StatusConditionAsync::new(self.status_condition_address.clone())
+        StatusConditionAsync::new(
+            self.dcps_sender().clone(),
+            StatusConditionEntity::DataWriter {
+                participant_handle: self.get_publisher().get_participant().get_instance_handle(),
+                publisher_handle: self.get_publisher().get_instance_handle(),
+                writer_handle: self.handle,
+            },
+        )
     }
 
     /// Async version of [`get_status_changes`](crate::publication::data_writer::DataWriter::get_status_changes).

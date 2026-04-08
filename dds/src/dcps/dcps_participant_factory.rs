@@ -1,11 +1,9 @@
 use crate::{
     dcps::{
-        actor::ActorAddress,
         channels::mpsc::MpscSender,
         dcps_domain_participant::DcpsDomainParticipant,
         dcps_mail::{DcpsMail, DiscoveryServiceMail, MessageServiceMail},
         listeners::domain_participant_listener::DcpsDomainParticipantListener,
-        status_condition::DcpsStatusCondition,
     },
     dds_async::configuration::DustDdsConfiguration,
     infrastructure::{
@@ -83,14 +81,14 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
         ]
     }
 
-    #[allow(clippy::type_complexity, clippy::too_many_arguments)]
+    #[allow(clippy::too_many_arguments)]
     pub async fn create_participant(
         &mut self,
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
         dcps_listener: Option<DcpsDomainParticipantListener>,
         status_kind: Vec<StatusKind>,
-    ) -> DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)> {
+    ) -> DdsResult<InstanceHandle> {
         let domain_participant_qos = match qos {
             QosKind::Default => self.default_participant_qos.clone(),
             QosKind::Specific(q) => q,
@@ -126,9 +124,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             spawner_handle.clone(),
         );
         let participant_handle = dcps_participant.get_instance_handle();
-        let builtin_subscriber_status_condition_address = dcps_participant
-            .get_builtin_subscriber_status_condition()
-            .address();
 
         //****** Spawn the participant actor and tasks **********//
 
@@ -174,10 +169,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
 
         self.domain_participant_list.push(dcps_participant);
 
-        Ok((
-            participant_handle,
-            builtin_subscriber_status_condition_address,
-        ))
+        Ok(participant_handle)
     }
 
     pub async fn delete_participant(

@@ -50,15 +50,10 @@ impl DomainParticipantFactoryAsync {
             ))
             .await?;
 
-        let (participant_handle, builtin_subscriber_status_condition_address) =
-            reply_receiver.await??;
+        let participant_handle = reply_receiver.await??;
 
-        let domain_participant = DomainParticipantAsync::new(
-            self.dcps_sender.clone(),
-            builtin_subscriber_status_condition_address,
-            domain_id,
-            participant_handle,
-        );
+        let domain_participant =
+            DomainParticipantAsync::new(self.dcps_sender.clone(), domain_id, participant_handle);
 
         Ok(domain_participant)
     }

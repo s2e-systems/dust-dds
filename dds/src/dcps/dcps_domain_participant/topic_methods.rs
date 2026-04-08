@@ -1,10 +1,7 @@
 use alloc::string::String;
 
 use crate::{
-    dcps::{
-        dcps_domain_participant::{DcpsDomainParticipant, TopicDescriptionKind},
-        status_condition_mail::DcpsStatusConditionMail,
-    },
+    dcps::dcps_domain_participant::{DcpsDomainParticipant, TopicDescriptionKind},
     infrastructure::{
         error::{DdsError, DdsResult},
         qos::{QosKind, TopicQos},
@@ -32,10 +29,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         topic.inconsistent_topic_status.total_count_change = 0;
         topic
             .status_condition
-            .send_actor_mail(DcpsStatusConditionMail::RemoveCommunicationState {
-                state: StatusKind::InconsistentTopic,
-            })
-            .await;
+            .remove_communication_state(StatusKind::InconsistentTopic);
 
         Ok(status)
     }

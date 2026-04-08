@@ -2,7 +2,6 @@ use alloc::{string::String, vec::Vec};
 
 use crate::{
     dcps::{
-        actor::{Actor, ActorAddress},
         dcps_domain_participant::{
             DataReaderEntity, DcpsDomainParticipant, RtpsReaderKind, SubscriberEntity,
             TopicDescriptionKind, get_topic_kind,
@@ -38,7 +37,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         qos: QosKind<DataReaderQos>,
         dcps_listener: Option<DcpsDataReaderListener>,
         mask: Vec<StatusKind>,
-    ) -> DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)> {
+    ) -> DdsResult<InstanceHandle> {
         let Some(topic) = self
             .domain_participant
             .topic_description_list
@@ -128,9 +127,8 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         let transport_reader =
             RtpsReaderKind::Stateful(RtpsStatefulReader::new(guid, reliablity_kind));
 
-        let status_condition =
-            Actor::spawn::<R>(DcpsStatusCondition::default(), &self.spawner_handle);
-        let reader_status_condition_address = status_condition.address();
+        let status_condition = DcpsStatusCondition::default();
+
         let listener_mask = mask.to_vec();
         let listener_sender = dcps_listener.map(|l| l.spawn::<R>(&self.spawner_handle));
         let data_reader = DataReaderEntity::new(
@@ -152,7 +150,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             self.enable_data_reader(subscriber_handle, data_reader_handle)
                 .await?;
         }
-        Ok((data_reader_handle, reader_status_condition_address))
+        Ok(data_reader_handle)
     }
 
     #[tracing::instrument(skip(self))]
@@ -183,13 +181,12 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         Ok(())
     }
 
-    #[allow(clippy::type_complexity)]
     #[tracing::instrument(skip(self))]
     pub fn lookup_data_reader(
         &mut self,
         subscriber_handle: InstanceHandle,
         topic_name: String,
-    ) -> DdsResult<Option<(InstanceHandle, ActorAddress<DcpsStatusCondition>)>> {
+    ) -> DdsResult<Option<InstanceHandle>> {
         if !self
             .domain_participant
             .topic_description_list
@@ -207,7 +204,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                 .data_reader_list
                 .iter_mut()
                 .find(|dr| dr.topic_name == topic_name)
-                .map(|x| (x.instance_handle, x.status_condition.address())))
+                .map(|x| x.instance_handle))
         } else {
             let Some(s) = self
                 .domain_participant
@@ -220,7 +217,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             Ok(s.data_reader_list
                 .iter_mut()
                 .find(|dr| dr.topic_name == topic_name)
-                .map(|x| (x.instance_handle, x.status_condition.address())))
+                .map(|x| x.instance_handle))
         }
     }
 
