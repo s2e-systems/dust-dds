@@ -155,7 +155,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             self.announce_deleted_data_writer(data_writer);
             Ok(())
         } else {
-            return Err(DdsError::AlreadyDeleted);
+            Err(DdsError::AlreadyDeleted)
         }
     }
 
