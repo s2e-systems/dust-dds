@@ -5,14 +5,9 @@ use crate::{
     transport::types::Locator,
 };
 use alloc::{boxed::Box, sync::Arc, vec::Vec};
-use core::{future::Future, pin::Pin};
 
 pub trait WriteMessage {
-    fn write_message(
-        &self,
-        buf: &[u8],
-        locators: &[Locator],
-    ) -> Pin<Box<dyn Future<Output = ()> + Send>>;
+    fn write_message(&self, buf: &[u8], locators: &[Locator]);
 }
 
 #[derive(Clone)]
@@ -51,5 +46,5 @@ pub trait TransportParticipantFactory: Send + 'static {
         &mut self,
         domain_id: i32,
         data_receiver: TransportDataReceiver,
-    ) -> impl Future<Output = RtpsTransportParticipant> + Send;
+    ) -> RtpsTransportParticipant;
 }

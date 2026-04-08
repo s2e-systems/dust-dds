@@ -8,11 +8,7 @@ use crate::{
         types::LOCATOR_KIND_UDP_V6,
     },
 };
-use core::{
-    future::Future,
-    net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4},
-    pin::Pin,
-};
+use core::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4};
 use dust_dds::transport::types::{LOCATOR_KIND_UDP_V4, Locator};
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use socket2::Socket;
@@ -154,7 +150,7 @@ impl Default for RtpsUdpTransportParticipantFactory {
 }
 
 impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
-    async fn create_participant(
+    fn create_participant(
         &mut self,
         domain_id: i32,
         data_channel_sender: TransportDataReceiver,
@@ -383,11 +379,7 @@ impl MessageWriter {
     }
 }
 impl WriteMessage for MessageWriter {
-    fn write_message(
-        &self,
-        datagram: &[u8],
-        locator_list: &[Locator],
-    ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
+    fn write_message(&self, datagram: &[u8], locator_list: &[Locator]) {
         for &destination_locator in locator_list {
             if UdpLocator(destination_locator).is_multicast() {
                 let socket2: socket2::Socket = self.socket.try_clone().unwrap().into();
@@ -415,6 +407,5 @@ impl WriteMessage for MessageWriter {
                     .ok();
             }
         }
-        Box::pin(async {})
     }
 }
