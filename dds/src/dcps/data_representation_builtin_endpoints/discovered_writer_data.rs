@@ -19,7 +19,10 @@ use crate::{
         type_support::TypeSupport,
     },
     transport::types::{ENTITYID_UNKNOWN, EntityId, Guid, Locator},
-    xtypes::{data_storage::DataStorageMapping, dynamic_type::DynamicType},
+    xtypes::{
+        data_storage::DataStorageMapping,
+        dynamic_type::{DynamicType, StaticTypeInformation},
+    },
 };
 use alloc::{string::String, vec::Vec};
 
@@ -39,7 +42,7 @@ pub struct DiscoveredWriterData {
 impl TypeSupport for DiscoveredWriterData {
     const TYPE_NAME: &'static str = "DiscoveredWriterData";
 
-    const r#TYPE: &'static DynamicType = &DynamicType {
+    const r#TYPE: &'static dyn DynamicType = &StaticTypeInformation {
         descriptor: &ConvenienceTypeBuilder::type_descriptor(Self::TYPE_NAME),
         member_list: &[
             ConvenienceTypeBuilder::key_member::<BuiltInTopicKey>(0, "key", PID_ENDPOINT_GUID),

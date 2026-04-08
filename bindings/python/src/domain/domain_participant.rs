@@ -141,9 +141,8 @@ impl DomainParticipant {
             .unwrap()
             .insert(type_name.clone(), type_.clone());
 
-        let dynamic_type_representation = Box::leak(Box::new(Python::attach(|py| {
-            convert_python_type_to_dynamic_type(type_.bind(py))
-        })?));
+        let dynamic_type_representation =
+            Python::attach(|py| convert_python_type_to_dynamic_type(type_.bind(py)).unwrap());
 
         let r = self.0.create_dynamic_topic(
             &topic_name,

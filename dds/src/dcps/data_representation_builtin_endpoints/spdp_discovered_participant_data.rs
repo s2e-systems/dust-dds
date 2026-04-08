@@ -15,7 +15,7 @@ use crate::{
         type_support::TypeSupport,
     },
     transport::types::{GuidPrefix, Locator, Long, ProtocolVersion, VendorId},
-    xtypes::{data_storage::DataStorageMapping, dynamic_type::DynamicType},
+    xtypes::{data_storage::DataStorageMapping, dynamic_type::StaticTypeInformation},
 };
 use alloc::{string::String, vec, vec::Vec};
 
@@ -130,7 +130,7 @@ pub struct SpdpDiscoveredParticipantData {
 impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParticipantData {
     const TYPE_NAME: &'static str = "SpdpDiscoveredParticipantData";
 
-    const r#TYPE: &'static crate::xtypes::dynamic_type::DynamicType = &DynamicType {
+    const r#TYPE: &'static dyn crate::xtypes::dynamic_type::DynamicType = &StaticTypeInformation {
         descriptor: &ConvenienceTypeBuilder::type_descriptor(Self::TYPE_NAME),
         member_list: &[
             ConvenienceTypeBuilder::key_member::<BuiltInTopicKey>(0, "key", PID_PARTICIPANT_GUID),
@@ -379,7 +379,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParti
                 .available_builtin_endpoints
                 .into_storage(),
         );
-        if self.participant_proxy.manual_liveliness_count != Default::default() {
+        if self.participant_proxy.manual_liveliness_count != i32::default() {
             data.set_value(
                 PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT as u32,
                 self.participant_proxy

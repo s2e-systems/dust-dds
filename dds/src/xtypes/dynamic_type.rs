@@ -8,7 +8,7 @@ use alloc::{boxed::Box, collections::BTreeMap, string::String, vec::Vec};
 
 pub type BoundSeq = Option<u32>;
 pub type IncludePathSeq = Vec<String>;
-pub type ObjectName = &'static str;
+pub type ObjectName<'a> = &'a str;
 
 // ---------- TypeKinds (begin) -------------------
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -55,8 +55,8 @@ pub enum TypeKind {
 pub struct DynamicTypeBuilderFactory;
 
 impl DynamicTypeBuilderFactory {
-    pub fn get_primitive_type(kind: TypeKind) -> DynamicType {
-        DynamicType {
+    pub fn get_primitive_type(kind: TypeKind) -> impl DynamicType {
+        StaticTypeInformation {
             descriptor: Box::leak(Box::new(TypeDescriptor {
                 kind,
                 name: "",
@@ -79,7 +79,7 @@ impl DynamicTypeBuilderFactory {
         }
     }
 
-    pub fn create_type_copy(r#_type: DynamicType) -> DynamicTypeBuilder {
+    pub fn create_type_copy(r#_type: impl DynamicType) -> DynamicTypeBuilder {
         todo!()
     }
 
@@ -109,7 +109,7 @@ impl DynamicTypeBuilderFactory {
     }
 
     pub fn create_sequence_type(
-        element_type: &'static DynamicType,
+        element_type: &'static dyn DynamicType,
         bound: u32,
     ) -> DynamicTypeBuilder {
         DynamicTypeBuilder {
@@ -129,7 +129,7 @@ impl DynamicTypeBuilderFactory {
     }
 
     pub fn create_array_type(
-        element_type: &'static DynamicType,
+        element_type: &'static dyn DynamicType,
         bound: BoundSeq,
     ) -> DynamicTypeBuilder {
         DynamicTypeBuilder {
@@ -149,8 +149,8 @@ impl DynamicTypeBuilderFactory {
     }
 
     pub fn create_map_type(
-        _key_element_type: DynamicType,
-        _element_type: DynamicType,
+        _key_element_type: &'static dyn DynamicType,
+        _element_type: &'static dyn DynamicType,
         _bound: u32,
     ) -> DynamicTypeBuilder {
         todo!()
@@ -177,7 +177,7 @@ impl DynamicTypeBuilderFactory {
     }
 }
 
-pub type Parameters = BTreeMap<ObjectName, ObjectName>;
+pub type Parameters = BTreeMap<ObjectName<'static>, ObjectName<'static>>;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ExtensibilityKind {
@@ -193,15 +193,14 @@ pub enum TryConstructKind {
     Trim,
 }
 
-#[derive(Debug, Clone, PartialEq)]
 pub struct TypeDescriptor {
     pub kind: TypeKind,
-    pub name: ObjectName,
-    pub base_type: Option<&'static DynamicType>,
-    pub discriminator_type: Option<&'static DynamicType>,
+    pub name: ObjectName<'static>,
+    pub base_type: Option<&'static dyn DynamicType>,
+    pub discriminator_type: Option<&'static dyn DynamicType>,
     pub bound: BoundSeq,
-    pub element_type: Option<&'static DynamicType>,
-    pub key_element_type: Option<&'static DynamicType>,
+    pub element_type: Option<&'static dyn DynamicType>,
+    pub key_element_type: Option<&'static dyn DynamicType>,
     pub extensibility_kind: ExtensibilityKind,
     pub is_nested: bool,
 }
@@ -209,11 +208,10 @@ pub struct TypeDescriptor {
 pub type MemberId = u32;
 pub type UnionCaseLabelSeq = Option<i32>;
 
-#[derive(Debug, Clone, PartialEq)]
 pub struct MemberDescriptor {
-    pub name: ObjectName,
+    pub name: ObjectName<'static>,
     pub id: MemberId,
-    pub r#type: &'static DynamicType,
+    pub r#type: &'static dyn DynamicType,
     pub default_value: Option<&'static str>,
     pub index: u32,
     pub label: UnionCaseLabelSeq,
@@ -225,7 +223,6 @@ pub struct MemberDescriptor {
     pub is_default_label: bool,
 }
 
-#[derive(Debug, Clone, PartialEq)]
 pub struct DynamicTypeMember {
     pub descriptor: MemberDescriptor,
 }
@@ -242,7 +239,7 @@ impl DynamicTypeMember {
     pub fn get_id(&self) -> MemberId {
         self.descriptor.id
     }
-    pub fn get_name(&self) -> ObjectName {
+    pub fn get_name(&self) -> ObjectName<'static> {
         self.descriptor.name
     }
 }
@@ -257,7 +254,7 @@ impl DynamicTypeBuilder {
         Ok(&self.descriptor)
     }
 
-    pub fn get_name(&self) -> ObjectName {
+    pub fn get_name(&self) -> ObjectName<'static> {
         self.descriptor.name
     }
 
@@ -277,7 +274,7 @@ impl DynamicTypeBuilder {
 
     pub fn get_all_members_by_name(
         &self,
-    ) -> Result<Vec<(ObjectName, DynamicTypeMember)>, XTypesError> {
+    ) -> Result<Vec<(ObjectName<'static>, DynamicTypeMember)>, XTypesError> {
         todo!()
     }
 
@@ -318,40 +315,72 @@ impl DynamicTypeBuilder {
         todo!()
     }
 
-    pub fn build(self) -> DynamicType {
-        DynamicType {
+    pub fn build(self) -> &'static dyn DynamicType {
+        Box::leak(Box::new(StaticTypeInformation {
             descriptor: Box::leak(Box::new(self.descriptor)),
             member_list: Vec::leak(self.member_list),
-        }
+        }))
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct DynamicType {
+pub trait DynamicType: Send + Sync {
+    fn get_descriptor(&self) -> &TypeDescriptor;
+
+    fn get_name(&self) -> ObjectName<'static>;
+
+    fn get_kind(&self) -> TypeKind;
+
+    fn get_member_by_name(&self, name: ObjectName) -> Result<&DynamicTypeMember, XTypesError>;
+    // DDS::ReturnCode_t get_all_members_by_name(inout DynamicTypeMembersByName member);
+    fn get_member(&self, id: MemberId) -> Result<&DynamicTypeMember, XTypesError>;
+    // DDS::ReturnCode_t get_all_members(inout DynamicTypeMembersById member);
+
+    fn get_member_count(&self) -> u32;
+    fn get_member_by_index(&self, index: u32) -> Result<&DynamicTypeMember, XTypesError>;
+
+    // fn get_annotation_count(&self) -> u32;
+    // DDS::ReturnCode_t get_annotation(inout AnnotationDescriptor descriptor, in unsigned long idx);
+    // unsigned long get_verbatim_text_count();
+    // DDS::ReturnCode_t get_verbatim_text(inout VerbatimTextDescriptor descriptor, in unsigned long idx);
+}
+
+pub struct StaticTypeInformation {
     pub descriptor: &'static TypeDescriptor,
     pub member_list: &'static [DynamicTypeMember],
 }
 
-impl DynamicType {
-    pub fn get_descriptor(&self) -> &'static TypeDescriptor {
+impl DynamicType for StaticTypeInformation {
+    fn get_descriptor(&self) -> &TypeDescriptor {
         self.descriptor
     }
-    pub fn get_name(&self) -> ObjectName {
+    fn get_name(&self) -> ObjectName<'static> {
         self.descriptor.name
     }
-    pub fn get_kind(&self) -> TypeKind {
+    fn get_kind(&self) -> TypeKind {
         self.descriptor.kind
     }
 
-    // DDS::ReturnCode_t get_member_by_name(inout DynamicTypeMember member, in ObjectName name);
+    fn get_member_by_name(&self, name: ObjectName) -> Result<&DynamicTypeMember, XTypesError> {
+        self.member_list
+            .iter()
+            .find(|m| m.get_name() == name)
+            .ok_or(XTypesError::InvalidName)
+    }
+
     // DDS::ReturnCode_t get_all_members_by_name(inout DynamicTypeMembersByName member);
-    // DDS::ReturnCode_t get_member(inout DynamicTypeMember member, in MemberId id);
+    fn get_member(&self, id: MemberId) -> Result<&DynamicTypeMember, XTypesError> {
+        self.member_list
+            .iter()
+            .find(|m| m.get_id() == id)
+            .ok_or(XTypesError::InvalidId(id))
+    }
+
     // DDS::ReturnCode_t get_all_members(inout DynamicTypeMembersById member);
 
-    pub fn get_member_count(&self) -> u32 {
+    fn get_member_count(&self) -> u32 {
         self.member_list.len() as u32
     }
-    pub fn get_member_by_index(&self, index: u32) -> Result<&DynamicTypeMember, XTypesError> {
+    fn get_member_by_index(&self, index: u32) -> Result<&DynamicTypeMember, XTypesError> {
         self.member_list
             .get(index as usize)
             .ok_or(XTypesError::InvalidIndex(index))
@@ -381,27 +410,22 @@ pub struct DynamicData {
 impl DynamicData {
     pub fn get_descriptor<'a>(
         &self,
-        type_ref: &'a DynamicType,
+        type_ref: &'a dyn DynamicType,
         id: MemberId,
     ) -> XTypesResult<&'a MemberDescriptor> {
-        type_ref
-            .member_list
-            .iter()
-            .find(|m| m.get_id() == id)
-            .map(|m| &m.descriptor)
-            .ok_or(XTypesError::InvalidId(id))
+        Ok(&type_ref.get_member(id)?.descriptor)
     }
 
     pub fn set_descriptor(&mut self, _id: MemberId, _value: MemberDescriptor) -> XTypesResult<()> {
         todo!()
     }
 
-    pub fn get_member_id_by_name(&self, type_ref: &DynamicType, name: &str) -> Option<MemberId> {
-        type_ref
-            .member_list
-            .iter()
-            .find(|m| m.get_name() == name)
-            .map(|m| m.get_id())
+    pub fn get_member_id_by_name(
+        &self,
+        type_ref: &dyn DynamicType,
+        name: &str,
+    ) -> Option<MemberId> {
+        type_ref.get_member_by_name(name).ok().map(|m| m.get_id())
     }
 
     pub fn get_member_id_at_index(&self, index: u32) -> XTypesResult<MemberId> {
@@ -421,7 +445,7 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn clear_nonkey_values(&mut self, type_ref: &DynamicType) -> XTypesResult<()> {
+    pub fn clear_nonkey_values(&mut self, type_ref: &dyn DynamicType) -> XTypesResult<()> {
         for index in 0..type_ref.get_member_count() {
             let member = type_ref.get_member_by_index(index)?;
             if !member.get_descriptor()?.is_key {

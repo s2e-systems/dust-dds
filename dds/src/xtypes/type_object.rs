@@ -6,7 +6,7 @@ pub trait XTypesTypeObject {
 
 use crate::xtypes::dynamic_type::TypeKind;
 
-use super::dynamic_type::{DynamicType, TryConstructKind};
+use super::dynamic_type::TryConstructKind;
 
 /* Manually created from dds-xtypes_typeobject.idl */
 
@@ -307,12 +307,10 @@ pub enum TypeIdentifier {
     },
     // ============ The remaining cases - use EquivalenceKind =========
     EkComplete {
-        // equivalence_hash: EquivalenceHash, // Original in IDL
-        complete: Box<DynamicType>,
+        equivalence_hash: EquivalenceHash,
     },
     EkMinimal {
-        minimal: Box<MinimalTypeObject>,
-        // equivalence_hash: EquivalenceHash, // Original in IDL
+        equivalence_hash: EquivalenceHash,
     },
     // =================== Future extensibility ============
     // default:

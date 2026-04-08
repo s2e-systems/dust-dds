@@ -23,7 +23,7 @@ const PL_CDR2_LE: RepresentationIdentifier = [0x00, 0x0b];
 
 pub struct CdrDeserializer;
 impl CdrDeserializer {
-    pub fn deserialize(dynamic_type: &DynamicType, buffer: &[u8]) -> XTypesResult<DynamicData> {
+    pub fn deserialize(dynamic_type: &dyn DynamicType, buffer: &[u8]) -> XTypesResult<DynamicData> {
         if buffer.len() < 4 {
             return Err(XTypesError::NotEnoughData);
         }
@@ -52,7 +52,7 @@ impl CdrDeserializer {
     }
 
     pub fn deserialize_builtin(
-        dynamic_type: &DynamicType,
+        dynamic_type: &dyn DynamicType,
         buffer: &[u8],
     ) -> XTypesResult<DynamicData> {
         if buffer.len() < 4 {
@@ -207,7 +207,7 @@ impl EndiannessRead for LittleEndian {
 trait XTypesDeserialize {
     fn deserialize_complex_value(
         &mut self,
-        dynamic_type: &DynamicType,
+        dynamic_type: &dyn DynamicType,
     ) -> XTypesResult<DynamicData> {
         let mut dynamic_data = DynamicDataFactory::create_data();
         self.deserialize_structure(dynamic_type, &mut dynamic_data)?;
@@ -216,7 +216,7 @@ trait XTypesDeserialize {
 
     fn deserialize_structure(
         &mut self,
-        dynamic_type: &DynamicType,
+        dynamic_type: &dyn DynamicType,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
         // Deserialize the top-level which must be either a struct, an enum or a union.
@@ -264,7 +264,7 @@ trait XTypesDeserialize {
 
     fn deserialize_final_struct(
         &mut self,
-        dynamic_type: &DynamicType,
+        dynamic_type: &dyn DynamicType,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
         for member_index in 0..dynamic_type.get_member_count() {
@@ -276,7 +276,7 @@ trait XTypesDeserialize {
 
     fn deserialize_appendable_struct(
         &mut self,
-        dynamic_type: &DynamicType,
+        dynamic_type: &dyn DynamicType,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
         self.deserialize_final_struct(dynamic_type, dynamic_data)
@@ -284,7 +284,7 @@ trait XTypesDeserialize {
 
     fn deserialize_mutable_struct(
         &mut self,
-        dynamic_type: &DynamicType,
+        dynamic_type: &dyn DynamicType,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()>;
 
@@ -493,7 +493,6 @@ trait XTypesDeserialize {
             .r#type
             .get_descriptor()
             .element_type
-            .as_ref()
             .expect("must have element type");
         let length = self.deserialize_primitive_type::<u32>()?;
         for _ in 0..length {
@@ -734,7 +733,7 @@ impl<'a, E: EndiannessRead, V: CdrVersion> Read for CdrReader<'a, E, V> {
 impl<'a, E: EndiannessRead> XTypesDeserialize for Cdr1Deserializer<'a, E> {
     fn deserialize_mutable_struct(
         &mut self,
-        dynamic_type: &DynamicType,
+        dynamic_type: &dyn DynamicType,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
         for member_index in 0..dynamic_type.get_member_count() {
@@ -764,7 +763,7 @@ impl<'a, E: EndiannessRead> XTypesDeserialize for Cdr2Deserializer<'a, E> {
 
     fn deserialize_mutable_struct(
         &mut self,
-        dynamic_type: &DynamicType,
+        dynamic_type: &dyn DynamicType,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
         for member_index in 0..dynamic_type.get_member_count() {
@@ -784,7 +783,7 @@ impl<'a, E: EndiannessRead> XTypesDeserialize for Cdr2Deserializer<'a, E> {
 
     fn deserialize_appendable_struct(
         &mut self,
-        dynamic_type: &DynamicType,
+        dynamic_type: &dyn DynamicType,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
         let _dheader = self.deserialize_primitive_type::<u32>()?;
@@ -795,7 +794,7 @@ impl<'a, E: EndiannessRead> XTypesDeserialize for Cdr2Deserializer<'a, E> {
 impl<'a> XTypesDeserialize for RtpsPlCdrDeserializer<'a> {
     fn deserialize_mutable_struct(
         &mut self,
-        dynamic_type: &DynamicType,
+        dynamic_type: &dyn DynamicType,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
         for member_index in 0..dynamic_type.get_member_count() {
@@ -813,7 +812,6 @@ impl<'a> XTypesDeserialize for RtpsPlCdrDeserializer<'a> {
                                 .r#type
                                 .get_descriptor()
                                 .element_type
-                                .as_ref()
                                 .expect("must have element_type"),
                         )?,
                     );

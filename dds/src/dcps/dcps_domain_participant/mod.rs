@@ -96,7 +96,8 @@ use crate::{
     },
     xtypes::{
         deserializer::CdrDeserializer,
-        dynamic_type::{DynamicData, DynamicDataFactory, DynamicType},
+        dynamic_type::{DynamicData, DynamicDataFactory, DynamicType, DynamicTypeMember},
+        error::XTypesError,
         serializer::{
             Cdr1BeSerializer, Cdr1LeSerializer, Cdr2BeSerializer, Cdr2LeSerializer,
             RtpsPlCdrSerializer,
@@ -4139,7 +4140,7 @@ where
 }
 
 #[tracing::instrument(skip(type_support))]
-fn get_topic_kind(type_support: &DynamicType) -> TopicKind {
+fn get_topic_kind(type_support: &dyn DynamicType) -> TopicKind {
     for index in 0..type_support.get_member_count() {
         if let Ok(m) = type_support.get_member_by_index(index) {
             if let Ok(d) = m.get_descriptor() {
@@ -4634,7 +4635,7 @@ struct TopicEntity {
     status_condition: Actor<DcpsStatusCondition>,
     _listener_sender: Option<MpscSender<ListenerMail>>,
     _status_kind: Vec<StatusKind>,
-    type_support: &'static DynamicType,
+    type_support: &'static dyn DynamicType,
 }
 
 impl TopicEntity {
@@ -4647,7 +4648,7 @@ impl TopicEntity {
         status_condition: Actor<DcpsStatusCondition>,
         listener_sender: Option<MpscSender<ListenerMail>>,
         status_kind: Vec<StatusKind>,
-        type_support: &'static DynamicType,
+        type_support: &'static dyn DynamicType,
     ) -> Self {
         Self {
             qos,
@@ -4742,7 +4743,7 @@ struct DataWriterEntity {
     transport_writer: RtpsWriterKind,
     topic_name: String,
     type_name: String,
-    type_support: &'static DynamicType,
+    type_support: &'static dyn DynamicType,
     matched_subscription_list: Vec<SubscriptionBuiltinTopicData>,
     publication_matched_status: PublicationMatchedStatus,
     incompatible_subscription_list: Vec<InstanceHandle>,
@@ -4773,7 +4774,7 @@ impl DataWriterEntity {
         transport_writer: RtpsWriterKind,
         topic_name: String,
         type_name: String,
-        type_support: &'static DynamicType,
+        type_support: &'static dyn DynamicType,
         status_condition: Actor<DcpsStatusCondition>,
         listener_sender: Option<MpscSender<ListenerMail>>,
         listener_mask: Vec<StatusKind>,
@@ -5154,7 +5155,7 @@ struct DataReaderEntity {
     sample_list: Vec<ReaderSample>,
     qos: DataReaderQos,
     topic_name: String,
-    type_support: &'static DynamicType,
+    type_support: &'static dyn DynamicType,
     requested_deadline_missed_status: RequestedDeadlineMissedStatus,
     requested_incompatible_qos_status: RequestedIncompatibleQosStatus,
     sample_rejected_status: SampleRejectedStatus,
@@ -5177,7 +5178,7 @@ impl DataReaderEntity {
         instance_handle: InstanceHandle,
         qos: DataReaderQos,
         topic_name: String,
-        type_support: &'static DynamicType,
+        type_support: &'static dyn DynamicType,
         status_condition: Actor<DcpsStatusCondition>,
         listener_sender: Option<MpscSender<ListenerMail>>,
         listener_mask: Vec<StatusKind>,
@@ -5375,18 +5376,82 @@ impl DataReaderEntity {
         cache_change: CacheChange,
         reception_timestamp: Time,
     ) -> DdsResult<ReaderSample> {
-        fn create_key_holder(foo_type: &DynamicType) -> DdsResult<DynamicType> {
+        struct KeyHolder<'a> {
+            descriptor: &'a crate::xtypes::dynamic_type::TypeDescriptor,
+            member_list: Vec<&'a DynamicTypeMember>,
+        }
+
+        impl<'a> DynamicType for KeyHolder<'a> {
+            fn get_descriptor(&self) -> &crate::xtypes::dynamic_type::TypeDescriptor {
+                &self.descriptor
+            }
+
+            fn get_name(&self) -> crate::xtypes::dynamic_type::ObjectName<'static> {
+                self.descriptor.name
+            }
+
+            fn get_kind(&self) -> crate::xtypes::dynamic_type::TypeKind {
+                self.descriptor.kind
+            }
+
+            fn get_member_by_name(
+                &self,
+                name: crate::xtypes::dynamic_type::ObjectName,
+            ) -> Result<
+                &crate::xtypes::dynamic_type::DynamicTypeMember,
+                crate::xtypes::error::XTypesError,
+            > {
+                self.member_list
+                    .iter()
+                    .find(|x| x.get_name() == name)
+                    .map(|x| *x)
+                    .ok_or(XTypesError::InvalidName)
+            }
+
+            fn get_member(
+                &self,
+                id: crate::xtypes::dynamic_type::MemberId,
+            ) -> Result<
+                &crate::xtypes::dynamic_type::DynamicTypeMember,
+                crate::xtypes::error::XTypesError,
+            > {
+                self.member_list
+                    .iter()
+                    .find(|x| x.get_id() == id)
+                    .map(|x| *x)
+                    .ok_or(XTypesError::InvalidId(id))
+            }
+
+            fn get_member_count(&self) -> u32 {
+                self.member_list.len() as u32
+            }
+
+            fn get_member_by_index(
+                &self,
+                index: u32,
+            ) -> Result<
+                &crate::xtypes::dynamic_type::DynamicTypeMember,
+                crate::xtypes::error::XTypesError,
+            > {
+                self.member_list
+                    .get(index as usize)
+                    .map(|x| *x)
+                    .ok_or(XTypesError::InvalidIndex(index))
+            }
+        }
+
+        fn create_key_holder<'a>(foo_type: &'a dyn DynamicType) -> DdsResult<KeyHolder<'a>> {
             let key_holder_type_descriptor = foo_type.get_descriptor();
             let mut key_member_list = Vec::new();
             for member_index in 0..foo_type.get_member_count() {
                 let member = foo_type.get_member_by_index(member_index)?;
                 if member.get_descriptor()?.is_key {
-                    key_member_list.push(member.clone());
+                    key_member_list.push(member);
                 }
             }
-            Ok(DynamicType {
+            Ok(KeyHolder {
                 descriptor: key_holder_type_descriptor,
-                member_list: Vec::leak(key_member_list),
+                member_list: key_member_list,
             })
         }
 
@@ -5993,7 +6058,7 @@ impl DataReaderEntity {
 }
 
 fn serialize(
-    dynamic_type: &DynamicType,
+    dynamic_type: &dyn DynamicType,
     dynamic_data: &DynamicData,
     representation: &DataRepresentationQosPolicy,
 ) -> DdsResult<Vec<u8>> {

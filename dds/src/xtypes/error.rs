@@ -8,6 +8,7 @@ pub enum XTypesError {
     PidNotFound(u16),
     InvalidId(u32),
     InvalidIndex(u32),
+    InvalidName,
     NotEnoughData,
     NotSupported([u8; 2]),
     /// An operation was invoked on an inappropriate object or

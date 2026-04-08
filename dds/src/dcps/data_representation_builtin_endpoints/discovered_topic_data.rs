@@ -19,7 +19,10 @@ use crate::{
         },
         type_support::TypeSupport,
     },
-    xtypes::{data_storage::DataStorageMapping, dynamic_type::DynamicType},
+    xtypes::{
+        data_storage::DataStorageMapping,
+        dynamic_type::{DynamicType, StaticTypeInformation},
+    },
 };
 use alloc::string::String;
 
@@ -31,7 +34,7 @@ pub struct DiscoveredTopicData {
 impl TypeSupport for DiscoveredTopicData {
     const TYPE_NAME: &'static str = "TopicBuiltinTopicData";
 
-    const r#TYPE: &'static DynamicType = &DynamicType {
+    const r#TYPE: &'static dyn DynamicType = &StaticTypeInformation {
         descriptor: &ConvenienceTypeBuilder::type_descriptor(Self::TYPE_NAME),
         member_list: &[
             ConvenienceTypeBuilder::key_member::<BuiltInTopicKey>(0, "key", PID_ENDPOINT_GUID),

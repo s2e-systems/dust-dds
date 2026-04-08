@@ -7,7 +7,7 @@ pub trait TypeSupport {
     const TYPE_NAME: &'static str;
 
     /// This constant represent the ['DynamicType'] object corresponding to the TypeSupport’s data type
-    const r#TYPE: &'static DynamicType;
+    const r#TYPE: &'static dyn DynamicType;
 
     /// Create a sample of the TypeSupport’s data type with the contents of an input DynamicData object.
     fn create_sample(src: DynamicData) -> Self;

@@ -9,7 +9,7 @@ use crate::{
 };
 
 pub fn get_instance_handle_from_dynamic_data(
-    dynamic_type: &DynamicType,
+    dynamic_type: &dyn DynamicType,
     mut dynamic_data: DynamicData,
 ) -> Result<InstanceHandle, XTypesError> {
     struct Md5 {

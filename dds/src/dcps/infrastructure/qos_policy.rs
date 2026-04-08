@@ -7,7 +7,7 @@ use crate::{
     transport::types::{DurabilityKind, ReliabilityKind},
     xtypes::{
         binding::XTypesBinding,
-        dynamic_type::{DynamicDataFactory, DynamicType, DynamicTypeMember},
+        dynamic_type::{DynamicDataFactory, DynamicType, DynamicTypeMember, StaticTypeInformation},
     },
 };
 use alloc::{string::String, vec::Vec};
@@ -28,7 +28,7 @@ pub enum Length {
 impl TypeSupport for Length {
     const TYPE_NAME: &'static str = "Length";
 
-    const r#TYPE: &'static DynamicType = i32::TYPE_INFORMATION;
+    const r#TYPE: &'static dyn DynamicType = i32::TYPE_INFORMATION;
 
     fn create_dynamic_sample(self) -> crate::xtypes::dynamic_type::DynamicData {
         let value = match self {
@@ -1051,7 +1051,7 @@ pub enum HistoryQosPolicyKind {
 impl TypeSupport for HistoryQosPolicyKind {
     const TYPE_NAME: &'static str = "HistoryQosPolicyKind";
 
-    const r#TYPE: &'static crate::xtypes::dynamic_type::DynamicType = &DynamicType {
+    const r#TYPE: &'static dyn crate::xtypes::dynamic_type::DynamicType = &StaticTypeInformation {
         descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
             kind: dust_dds::xtypes::dynamic_type::TypeKind::ENUM,
             name: Self::TYPE_NAME,
@@ -1117,8 +1117,8 @@ impl HistoryQosPolicy {
 impl dust_dds::infrastructure::type_support::TypeSupport for HistoryQosPolicy {
     const TYPE_NAME: &'static str = "HistoryQosPolicy";
 
-    const r#TYPE: &'static dust_dds::xtypes::dynamic_type::DynamicType =
-        &dust_dds::xtypes::dynamic_type::DynamicType {
+    const r#TYPE: &'static dyn dust_dds::xtypes::dynamic_type::DynamicType =
+        &StaticTypeInformation {
             descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
                 kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
                 name: Self::TYPE_NAME,
