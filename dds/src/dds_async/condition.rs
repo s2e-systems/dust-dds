@@ -1,19 +1,17 @@
 use crate::{
     dcps::{
-        channels::{
-            mpsc::{MpscReceiver, MpscSender},
-            oneshot::oneshot,
-        },
+        channels::{mpsc::MpscReceiver, oneshot::oneshot},
         dcps_mail::{DcpsMail, StatusConditionMail},
         status_condition::StatusConditionEntity,
     },
+    dds_async::domain_participant_factory::DcpsSender,
     infrastructure::{error::DdsResult, status::StatusKind},
 };
 use alloc::vec::Vec;
 
 /// Async version of [`StatusCondition`](crate::infrastructure::condition::StatusCondition).
 pub struct StatusConditionAsync {
-    dcps_sender: MpscSender<DcpsMail>,
+    dcps_sender: DcpsSender,
     entity: StatusConditionEntity,
 }
 
@@ -27,7 +25,7 @@ impl Clone for StatusConditionAsync {
 }
 
 impl StatusConditionAsync {
-    pub(crate) fn new(dcps_sender: MpscSender<DcpsMail>, entity: StatusConditionEntity) -> Self {
+    pub(crate) fn new(dcps_sender: DcpsSender, entity: StatusConditionEntity) -> Self {
         Self {
             dcps_sender,
             entity,
@@ -43,7 +41,7 @@ impl StatusConditionAsync {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 }
@@ -60,7 +58,7 @@ impl StatusConditionAsync {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -76,7 +74,7 @@ impl StatusConditionAsync {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -99,7 +97,7 @@ impl StatusConditionAsync {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 }

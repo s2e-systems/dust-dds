@@ -138,26 +138,4 @@ impl DomainParticipantFactory {
             participant_factory_async: DomainParticipantFactoryAsync::get_instance(),
         })
     }
-
-    #[doc(hidden)]
-    pub fn get_custom_instance<
-        R: crate::runtime::DdsRuntime,
-        T: crate::transport::interface::TransportParticipantFactory,
-    >(
-        runtime: R,
-        app_id: [u8; 4],
-        host_id: [u8; 4],
-        transport: T,
-    ) -> &'static Self {
-        static PARTICIPANT_FACTORY_ASYNC: std::sync::OnceLock<DomainParticipantFactoryAsync> =
-            std::sync::OnceLock::new();
-
-        static PARTICIPANT_FACTORY: std::sync::OnceLock<DomainParticipantFactory> =
-            std::sync::OnceLock::new();
-        PARTICIPANT_FACTORY.get_or_init(|| DomainParticipantFactory {
-            participant_factory_async: PARTICIPANT_FACTORY_ASYNC.get_or_init(|| {
-                DomainParticipantFactoryAsync::new(runtime, app_id, host_id, transport)
-            }),
-        })
-    }
 }

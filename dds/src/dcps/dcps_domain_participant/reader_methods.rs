@@ -235,7 +235,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                                     reply_sender,
                                 },
                             ))
-                            .await?;
+                            .await;
 
                         let reply = reply_receiver.await;
                         match reply {

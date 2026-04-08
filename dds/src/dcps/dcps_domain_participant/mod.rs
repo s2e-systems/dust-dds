@@ -35,8 +35,8 @@ use crate::{
     dds_async::{
         content_filtered_topic::ContentFilteredTopicAsync, data_reader::DataReaderAsync,
         data_writer::DataWriterAsync, domain_participant::DomainParticipantAsync,
-        publisher::PublisherAsync, subscriber::SubscriberAsync, topic::TopicAsync,
-        topic_description::TopicDescriptionAsync,
+        domain_participant_factory::DcpsSender, publisher::PublisherAsync,
+        subscriber::SubscriberAsync, topic::TopicAsync, topic_description::TopicDescriptionAsync,
     },
     infrastructure::{
         domain::DomainId,
@@ -172,7 +172,7 @@ pub struct DcpsDomainParticipant<R: DdsRuntime> {
     clock_handle: R::ClockHandle,
     timer_handle: R::TimerHandle,
     spawner_handle: R::SpawnerHandle,
-    dcps_sender: MpscSender<DcpsMail>,
+    dcps_sender: DcpsSender,
 }
 
 impl<R> DcpsDomainParticipant<R>
@@ -188,7 +188,7 @@ where
         listener_sender: Option<MpscSender<ListenerMail>>,
         status_kind: Vec<StatusKind>,
         transport: RtpsTransportParticipant,
-        dcps_sender: MpscSender<DcpsMail>,
+        dcps_sender: DcpsSender,
         clock_handle: R::ClockHandle,
         timer_handle: R::TimerHandle,
         spawner_handle: R::SpawnerHandle,
@@ -2629,8 +2629,7 @@ where
                                             change_instance_handle,
                                         },
                                     ))
-                                    .await
-                                    .ok();
+                                    .await;
                             }
                         });
                     }

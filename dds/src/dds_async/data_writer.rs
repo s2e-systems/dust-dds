@@ -4,13 +4,14 @@ use super::{condition::StatusConditionAsync, publisher::PublisherAsync};
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     dcps::{
-        channels::{mpsc::MpscSender, oneshot::oneshot},
+        channels::oneshot::oneshot,
         dcps_mail::{DcpsMail, MessageServiceMail, WriterServiceMail},
         listeners::data_writer_listener::DcpsDataWriterListener,
         status_condition::StatusConditionEntity,
     },
     dds_async::{
-        data_writer_listener::DataWriterListener, topic_description::TopicDescriptionAsync,
+        data_writer_listener::DataWriterListener, domain_participant_factory::DcpsSender,
+        topic_description::TopicDescriptionAsync,
     },
     infrastructure::{
         error::DdsResult,
@@ -60,7 +61,7 @@ impl<Foo> DataWriterAsync<Foo> {
         }
     }
 
-    pub(crate) fn dcps_sender(&self) -> &MpscSender<DcpsMail> {
+    pub(crate) fn dcps_sender(&self) -> &DcpsSender {
         self.publisher.dcps_sender()
     }
 
@@ -135,7 +136,7 @@ where
                 timestamp,
                 reply_sender,
             }))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -162,7 +163,7 @@ where
                 dynamic_data,
                 reply_sender,
             }))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -196,7 +197,7 @@ where
                 timestamp,
                 reply_sender,
             }))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -230,7 +231,7 @@ where
                 timestamp,
                 reply_sender,
             }))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 }
@@ -254,8 +255,7 @@ impl<Foo> DataWriterAsync<Foo> {
                     reply_sender,
                 },
             ))
-            .await
-            .ok();
+            .await;
         reply_receiver.await?
     }
 
@@ -280,7 +280,7 @@ impl<Foo> DataWriterAsync<Foo> {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -305,7 +305,7 @@ impl<Foo> DataWriterAsync<Foo> {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -344,7 +344,7 @@ impl<Foo> DataWriterAsync<Foo> {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -361,7 +361,7 @@ impl<Foo> DataWriterAsync<Foo> {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 }
@@ -379,7 +379,7 @@ impl<Foo> DataWriterAsync<Foo> {
                 qos,
                 reply_sender,
             }))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -394,7 +394,7 @@ impl<Foo> DataWriterAsync<Foo> {
                 data_writer_handle: self.handle,
                 reply_sender,
             }))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -428,7 +428,7 @@ impl<Foo> DataWriterAsync<Foo> {
                 data_writer_handle: self.handle,
                 reply_sender,
             }))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -457,7 +457,7 @@ impl<Foo> DataWriterAsync<Foo> {
                 listener_mask: mask.to_vec(),
                 reply_sender,
             }))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 }

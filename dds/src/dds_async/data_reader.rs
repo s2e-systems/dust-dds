@@ -4,13 +4,14 @@ use super::{condition::StatusConditionAsync, subscriber::SubscriberAsync};
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     dcps::{
-        channels::{mpsc::MpscSender, oneshot::oneshot},
+        channels::oneshot::oneshot,
         dcps_mail::{DcpsMail, ReaderServiceMail},
         listeners::data_reader_listener::DcpsDataReaderListener,
         status_condition::StatusConditionEntity,
     },
     dds_async::{
-        data_reader_listener::DataReaderListener, topic_description::TopicDescriptionAsync,
+        data_reader_listener::DataReaderListener, domain_participant_factory::DcpsSender,
+        topic_description::TopicDescriptionAsync,
     },
     infrastructure::{
         error::DdsResult,
@@ -53,7 +54,7 @@ impl<Foo> DataReaderAsync<Foo> {
         }
     }
 
-    pub(crate) fn dcps_sender(&self) -> &MpscSender<DcpsMail> {
+    pub(crate) fn dcps_sender(&self) -> &DcpsSender {
         self.subscriber.dcps_sender()
     }
 
@@ -101,7 +102,7 @@ impl<Foo: TypeSupport> DataReaderAsync<Foo> {
                 specific_instance_handle: None,
                 reply_sender,
             }))
-            .await?;
+            .await;
         let samples = reply_receiver.await??;
 
         Ok(samples
@@ -132,7 +133,7 @@ impl<Foo: TypeSupport> DataReaderAsync<Foo> {
                 specific_instance_handle: None,
                 reply_sender,
             }))
-            .await?;
+            .await;
         let samples = reply_receiver.await??;
 
         Ok(samples
@@ -157,7 +158,7 @@ impl<Foo: TypeSupport> DataReaderAsync<Foo> {
                 specific_instance_handle: None,
                 reply_sender,
             }))
-            .await?;
+            .await;
         let mut samples = reply_receiver.await??;
         let (data, sample_info) = samples.pop().expect("Would return NoData if empty");
         Ok(Sample::new(data, sample_info))
@@ -179,7 +180,7 @@ impl<Foo: TypeSupport> DataReaderAsync<Foo> {
                 specific_instance_handle: None,
                 reply_sender,
             }))
-            .await?;
+            .await;
         let mut samples = reply_receiver.await??;
         let (data, sample_info) = samples.pop().expect("Would return NoData if empty");
         Ok(Sample::new(data, sample_info))
@@ -208,7 +209,7 @@ impl<Foo: TypeSupport> DataReaderAsync<Foo> {
                 specific_instance_handle: Some(a_handle),
                 reply_sender,
             }))
-            .await?;
+            .await;
         let samples = reply_receiver.await??;
         Ok(samples
             .into_iter()
@@ -239,7 +240,7 @@ impl<Foo: TypeSupport> DataReaderAsync<Foo> {
                 specific_instance_handle: Some(a_handle),
                 reply_sender,
             }))
-            .await?;
+            .await;
         let samples = reply_receiver.await??;
 
         Ok(samples
@@ -271,7 +272,7 @@ impl<Foo: TypeSupport> DataReaderAsync<Foo> {
                 instance_states: instance_states.to_vec(),
                 reply_sender,
             }))
-            .await?;
+            .await;
         let samples = reply_receiver.await??;
         Ok(samples
             .into_iter()
@@ -302,7 +303,7 @@ impl<Foo: TypeSupport> DataReaderAsync<Foo> {
                 instance_states: instance_states.to_vec(),
                 reply_sender,
             }))
-            .await?;
+            .await;
         let samples = reply_receiver.await??;
         Ok(samples
             .into_iter()
@@ -375,7 +376,7 @@ impl<Foo> DataReaderAsync<Foo> {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -403,7 +404,7 @@ impl<Foo> DataReaderAsync<Foo> {
                 max_wait,
                 reply_sender,
             }))
-            .await?;
+            .await;
         reply_receiver.await??.await
     }
 
@@ -424,7 +425,7 @@ impl<Foo> DataReaderAsync<Foo> {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
 
         reply_receiver.await?
     }
@@ -442,7 +443,7 @@ impl<Foo> DataReaderAsync<Foo> {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 }
@@ -459,7 +460,7 @@ impl<Foo> DataReaderAsync<Foo> {
                 qos,
                 reply_sender,
             }))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -474,7 +475,7 @@ impl<Foo> DataReaderAsync<Foo> {
                 data_reader_handle: self.handle,
                 reply_sender,
             }))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -511,7 +512,7 @@ impl<Foo> DataReaderAsync<Foo> {
                 data_reader_handle: self.handle,
                 reply_sender,
             }))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -541,7 +542,7 @@ impl<Foo> DataReaderAsync<Foo> {
                 listener_mask: mask.to_vec(),
                 reply_sender,
             }))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 }

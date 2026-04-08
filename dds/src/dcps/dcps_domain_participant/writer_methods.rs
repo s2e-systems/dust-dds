@@ -412,8 +412,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                                                                 reply_sender,
                                                             },
                                                         ))
-                                                        .await
-                                                        .ok();
+                                                        .await;
                                                 }
                                                 Either::B(_) => {
                                                     reply_sender.send(Err(DdsError::Timeout))
@@ -432,8 +431,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                                                         reply_sender,
                                                     },
                                                 ))
-                                                .await
-                                                .ok();
+                                                .await;
                                         }
                                     });
                                     return;
@@ -513,8 +511,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                             data_writer_handle,
                             change_instance_handle: instance_handle,
                         }))
-                        .await
-                        .ok();
+                        .await;
                 }
             });
         }
@@ -539,8 +536,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                         data_writer_handle,
                         sequence_number,
                     }))
-                    .await
-                    .ok();
+                    .await;
             });
         }
 

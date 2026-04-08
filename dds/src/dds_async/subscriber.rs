@@ -5,7 +5,7 @@ use super::{
 };
 use crate::{
     dcps::{
-        channels::{mpsc::MpscSender, oneshot::oneshot},
+        channels::oneshot::oneshot,
         dcps_mail::{DcpsMail, SubscriberServiceMail},
         listeners::{
             data_reader_listener::DcpsDataReaderListener,
@@ -13,7 +13,7 @@ use crate::{
         },
         status_condition::StatusConditionEntity,
     },
-    dds_async::topic_description::TopicDescriptionAsync,
+    dds_async::{domain_participant_factory::DcpsSender, topic_description::TopicDescriptionAsync},
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
@@ -46,7 +46,7 @@ impl SubscriberAsync {
         }
     }
 
-    pub(crate) fn dcps_sender(&self) -> &MpscSender<DcpsMail> {
+    pub(crate) fn dcps_sender(&self) -> &DcpsSender {
         self.participant.dcps_sender()
     }
 }
@@ -75,7 +75,7 @@ impl SubscriberAsync {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         let guid = reply_receiver.await??;
 
         Ok(DataReaderAsync::new(guid, self.clone(), a_topic.clone()))
@@ -97,7 +97,7 @@ impl SubscriberAsync {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -118,7 +118,7 @@ impl SubscriberAsync {
                         reply_sender,
                     },
                 ))
-                .await?;
+                .await;
             if let Some(reader_handle) = reply_receiver.await?? {
                 Ok(Some(DataReaderAsync::new(
                     reader_handle,
@@ -170,7 +170,7 @@ impl SubscriberAsync {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
 
         reply_receiver.await?
     }
@@ -187,7 +187,7 @@ impl SubscriberAsync {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -211,7 +211,7 @@ impl SubscriberAsync {
                 qos,
                 reply_sender,
             }))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -227,7 +227,7 @@ impl SubscriberAsync {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -248,7 +248,7 @@ impl SubscriberAsync {
                 mask: mask.to_vec(),
                 reply_sender,
             }))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 

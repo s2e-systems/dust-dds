@@ -5,7 +5,7 @@ use super::{
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     dcps::{
-        channels::{mpsc::MpscSender, oneshot::oneshot},
+        channels::oneshot::oneshot,
         dcps_mail::{DcpsMail, ParticipantServiceMail},
         listeners::{
             domain_participant_listener::DcpsDomainParticipantListener,
@@ -14,7 +14,7 @@ use crate::{
         },
     },
     dds_async::{
-        content_filtered_topic::ContentFilteredTopicAsync,
+        content_filtered_topic::ContentFilteredTopicAsync, domain_participant_factory::DcpsSender,
         domain_participant_listener::DomainParticipantListener,
         topic_description::TopicDescriptionAsync,
     },
@@ -37,14 +37,14 @@ use alloc::{
 /// Async version of [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant).
 #[derive(Clone)]
 pub struct DomainParticipantAsync {
-    dcps_sender: MpscSender<DcpsMail>,
+    dcps_sender: DcpsSender,
     domain_id: DomainId,
     handle: InstanceHandle,
 }
 
 impl DomainParticipantAsync {
     pub(crate) fn new(
-        dcps_sender: MpscSender<DcpsMail>,
+        dcps_sender: DcpsSender,
         domain_id: DomainId,
         handle: InstanceHandle,
     ) -> Self {
@@ -55,7 +55,7 @@ impl DomainParticipantAsync {
         }
     }
 
-    pub(crate) fn dcps_sender(&self) -> &MpscSender<DcpsMail> {
+    pub(crate) fn dcps_sender(&self) -> &DcpsSender {
         &self.dcps_sender
     }
 }
@@ -81,7 +81,7 @@ impl DomainParticipantAsync {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         let guid = reply_receiver.await??;
         let publisher = PublisherAsync::new(guid, self.clone());
 
@@ -101,7 +101,7 @@ impl DomainParticipantAsync {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -125,7 +125,7 @@ impl DomainParticipantAsync {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         let guid = reply_receiver.await??;
         let subscriber = SubscriberAsync::new(guid, self.clone());
 
@@ -145,7 +145,7 @@ impl DomainParticipantAsync {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -190,7 +190,7 @@ impl DomainParticipantAsync {
                 type_support: dynamic_type_representation,
                 reply_sender,
             }))
-            .await?;
+            .await;
         let guid = reply_receiver.await??;
 
         Ok(TopicDescriptionAsync::Topic(TopicAsync::new(
@@ -214,7 +214,7 @@ impl DomainParticipantAsync {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -245,7 +245,7 @@ impl DomainParticipantAsync {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         reply_receiver.await??;
         Ok(TopicDescriptionAsync::ContentFilteredTopic(
             ContentFilteredTopicAsync::new(name.clone(), topic),
@@ -295,7 +295,7 @@ impl DomainParticipantAsync {
                     type_support: Foo::TYPE,
                     reply_sender,
                 }))
-                .await?;
+                .await;
             if let Some((guid, type_name)) = reply_receiver.await?? {
                 return Ok(TopicDescriptionAsync::Topic(TopicAsync::new(
                     guid,
@@ -322,7 +322,7 @@ impl DomainParticipantAsync {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         if let Some((type_name, topic_handle)) = reply_receiver.await?? {
             Ok(Some(TopicDescriptionAsync::Topic(TopicAsync::new(
                 topic_handle,
@@ -353,7 +353,7 @@ impl DomainParticipantAsync {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -375,7 +375,7 @@ impl DomainParticipantAsync {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -391,7 +391,7 @@ impl DomainParticipantAsync {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -412,7 +412,7 @@ impl DomainParticipantAsync {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -434,7 +434,7 @@ impl DomainParticipantAsync {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -449,7 +449,7 @@ impl DomainParticipantAsync {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -465,7 +465,7 @@ impl DomainParticipantAsync {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -480,7 +480,7 @@ impl DomainParticipantAsync {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -496,7 +496,7 @@ impl DomainParticipantAsync {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -511,7 +511,7 @@ impl DomainParticipantAsync {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -526,7 +526,7 @@ impl DomainParticipantAsync {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -545,7 +545,7 @@ impl DomainParticipantAsync {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -560,7 +560,7 @@ impl DomainParticipantAsync {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -579,7 +579,7 @@ impl DomainParticipantAsync {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -600,7 +600,7 @@ impl DomainParticipantAsync {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 }
@@ -616,7 +616,7 @@ impl DomainParticipantAsync {
                 qos,
                 reply_sender,
             }))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -629,7 +629,7 @@ impl DomainParticipantAsync {
                 participant_handle: self.handle,
                 reply_sender,
             }))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -649,7 +649,7 @@ impl DomainParticipantAsync {
                 status_kind: mask.to_vec(),
                 reply_sender,
             }))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -668,7 +668,7 @@ impl DomainParticipantAsync {
                 participant_handle: self.handle,
                 reply_sender,
             }))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 

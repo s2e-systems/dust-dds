@@ -4,13 +4,13 @@ use super::{
 };
 use crate::{
     dcps::{
-        channels::{mpsc::MpscSender, oneshot::oneshot},
+        channels::oneshot::oneshot,
         dcps_mail::{DcpsMail, PublisherServiceMail},
         listeners::{
             data_writer_listener::DcpsDataWriterListener, publisher_listener::DcpsPublisherListener,
         },
     },
-    dds_async::topic_description::TopicDescriptionAsync,
+    dds_async::{domain_participant_factory::DcpsSender, topic_description::TopicDescriptionAsync},
     infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,
@@ -44,7 +44,7 @@ impl PublisherAsync {
         }
     }
 
-    pub(crate) fn dcps_sender(&self) -> &MpscSender<DcpsMail> {
+    pub(crate) fn dcps_sender(&self) -> &DcpsSender {
         self.participant.dcps_sender()
     }
 }
@@ -74,7 +74,7 @@ impl PublisherAsync {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         let guid = reply_receiver.await??;
 
         Ok(DataWriterAsync::new(guid, self.clone(), a_topic.clone()))
@@ -96,7 +96,7 @@ impl PublisherAsync {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -164,7 +164,7 @@ impl PublisherAsync {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -180,7 +180,7 @@ impl PublisherAsync {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -207,7 +207,7 @@ impl PublisherAsync {
                 qos,
                 reply_sender,
             }))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -221,7 +221,7 @@ impl PublisherAsync {
                 publisher_handle: self.handle,
                 reply_sender,
             }))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 
@@ -244,7 +244,7 @@ impl PublisherAsync {
                     reply_sender,
                 },
             ))
-            .await?;
+            .await;
         reply_receiver.await?
     }
 

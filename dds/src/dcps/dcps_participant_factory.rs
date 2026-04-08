@@ -1,11 +1,10 @@
 use crate::{
     dcps::{
-        channels::mpsc::MpscSender,
         dcps_domain_participant::DcpsDomainParticipant,
         dcps_mail::{DcpsMail, DiscoveryServiceMail, MessageServiceMail},
         listeners::domain_participant_listener::DcpsDomainParticipantListener,
     },
-    dds_async::configuration::DustDdsConfiguration,
+    dds_async::{configuration::DustDdsConfiguration, domain_participant_factory::DcpsSender},
     infrastructure::{
         domain::DomainId,
         error::{DdsError, DdsResult},
@@ -31,7 +30,7 @@ pub struct DcpsParticipantFactory<R: DdsRuntime, T> {
     entity_counter: u32,
     app_id: [u8; 4],
     host_id: [u8; 4],
-    dcps_sender: MpscSender<DcpsMail>,
+    dcps_sender: DcpsSender,
 }
 
 impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T> {
@@ -40,7 +39,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
         host_id: [u8; 4],
         runtime: R,
         transport: T,
-        dcps_sender: MpscSender<DcpsMail>,
+        dcps_sender: DcpsSender,
     ) -> Self {
         Self {
             domain_participant_list: Default::default(),
@@ -134,13 +133,13 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             self.configuration.participant_announcement_interval();
 
         spawner_handle.spawn(async move {
-            while dcps_sender_clone
-                .send(DcpsMail::Discovery(
-                    DiscoveryServiceMail::AnnounceParticipant { participant_handle },
-                ))
-                .await
-                .is_ok()
-            {
+            loop {
+                dcps_sender_clone
+                    .send(DcpsMail::Discovery(
+                        DiscoveryServiceMail::AnnounceParticipant { participant_handle },
+                    ))
+                    .await;
+
                 timer_handle_clone
                     .delay(participant_announcement_interval)
                     .await;
@@ -150,13 +149,13 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
         // Start regular message writing
         let dcps_sender_clone = self.dcps_sender.clone();
         spawner_handle.spawn(async move {
-            while dcps_sender_clone
-                .send(DcpsMail::Message(MessageServiceMail::Poke {
-                    participant_handle,
-                }))
-                .await
-                .is_ok()
-            {
+            loop {
+                dcps_sender_clone
+                    .send(DcpsMail::Message(MessageServiceMail::Poke {
+                        participant_handle,
+                    }))
+                    .await;
+
                 timer_handle
                     .delay(core::time::Duration::from_millis(50))
                     .await;
