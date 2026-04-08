@@ -11,6 +11,8 @@ use crate::{
     transport::interface::TransportParticipantFactory,
 };
 
+use alloc::vec::Vec;
+
 impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T> {
     pub fn get_status_condition_enabled_statuses(
         &mut self,
