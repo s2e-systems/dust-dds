@@ -1329,7 +1329,6 @@ where
                         };
                         if let Some(l) = &data_writer.listener_sender {
                             l.send(ListenerMail::PublicationMatched { the_writer, status })
-                                .await
                                 .ok();
                         }
                     } else if publisher
@@ -1359,7 +1358,6 @@ where
                         let status = data_writer.get_publication_matched_status();
                         if let Some(l) = &publisher.listener_sender {
                             l.send(ListenerMail::PublicationMatched { the_writer, status })
-                                .await
                                 .ok();
                         }
                     } else if self
@@ -1390,7 +1388,6 @@ where
                         let status = data_writer.get_publication_matched_status();
                         if let Some(l) = &self.domain_participant.listener_sender {
                             l.send(ListenerMail::PublicationMatched { the_writer, status })
-                                .await
                                 .ok();
                         }
                     }
@@ -1448,7 +1445,6 @@ where
                         };
                         if let Some(l) = &data_writer.listener_sender {
                             l.send(ListenerMail::OfferedIncompatibleQos { the_writer, status })
-                                .await
                                 .ok();
                         }
                     } else if publisher
@@ -1478,7 +1474,6 @@ where
                         let status = data_writer.get_offered_incompatible_qos_status();
                         if let Some(l) = &publisher.listener_sender {
                             l.send(ListenerMail::OfferedIncompatibleQos { the_writer, status })
-                                .await
                                 .ok();
                         }
                     } else if self
@@ -1509,7 +1504,6 @@ where
                         let status = data_writer.get_offered_incompatible_qos_status();
                         if let Some(l) = &self.domain_participant.listener_sender {
                             l.send(ListenerMail::OfferedIncompatibleQos { the_writer, status })
-                                .await
                                 .ok();
                         }
                     }
@@ -1776,7 +1770,6 @@ where
                         let status = data_reader.get_subscription_matched_status();
                         if let Some(l) = &data_reader.listener_sender {
                             l.send(ListenerMail::SubscriptionMatched { the_reader, status })
-                                .await
                                 .ok();
                         }
                     } else if subscriber
@@ -1806,7 +1799,6 @@ where
                         let status = data_reader.get_subscription_matched_status();
                         if let Some(l) = &subscriber.listener_sender {
                             l.send(ListenerMail::SubscriptionMatched { the_reader, status })
-                                .await
                                 .ok();
                         }
                     } else if self
@@ -1837,7 +1829,6 @@ where
                         let status = data_reader.get_subscription_matched_status();
                         if let Some(l) = &self.domain_participant.listener_sender {
                             l.send(ListenerMail::SubscriptionMatched { the_reader, status })
-                                .await
                                 .ok();
                         }
                     }
@@ -1895,7 +1886,6 @@ where
                         };
                         if let Some(l) = &data_reader.listener_sender {
                             l.send(ListenerMail::RequestedIncompatibleQos { the_reader, status })
-                                .await
                                 .ok();
                         }
                     } else if subscriber
@@ -1925,7 +1915,6 @@ where
                         let status = data_reader.get_requested_incompatible_qos_status();
                         if let Some(l) = &subscriber.listener_sender {
                             l.send(ListenerMail::RequestedIncompatibleQos { the_reader, status })
-                                .await
                                 .ok();
                         }
                     } else if self
@@ -1956,7 +1945,6 @@ where
                         let status = data_reader.get_requested_incompatible_qos_status();
                         if let Some(l) = &self.domain_participant.listener_sender {
                             l.send(ListenerMail::RequestedIncompatibleQos { the_reader, status })
-                                .await
                                 .ok();
                         }
                     }
@@ -2658,9 +2646,7 @@ where
                         };
 
                         if let Some(l) = &subscriber.listener_sender {
-                            l.send(ListenerMail::DataOnReaders { the_subscriber })
-                                .await
-                                .ok();
+                            l.send(ListenerMail::DataOnReaders { the_subscriber }).ok();
                         }
                     } else if data_reader_on_data_available_active {
                         let Ok(the_reader) =
@@ -2686,9 +2672,7 @@ where
                         };
                         if let Some(l) = &data_reader.listener_sender {
                             info!("Triggering data reader DataAvailable listener");
-                            l.send(ListenerMail::DataAvailable { the_reader })
-                                .await
-                                .ok();
+                            l.send(ListenerMail::DataAvailable { the_reader }).ok();
                         }
                     }
 
@@ -2751,7 +2735,6 @@ where
                         };
                         if let Some(l) = &data_reader.listener_sender {
                             l.send(ListenerMail::SampleRejected { the_reader, status })
-                                .await
                                 .ok();
                         };
                     } else if subscriber
@@ -2782,7 +2765,6 @@ where
                         let status = data_reader.get_sample_rejected_status();
                         if let Some(l) = &subscriber.listener_sender {
                             l.send(ListenerMail::SampleRejected { status, the_reader })
-                                .await
                                 .ok();
                         }
                     } else if self
@@ -2814,7 +2796,6 @@ where
                         let status = data_reader.get_sample_rejected_status();
                         if let Some(l) = &self.domain_participant.listener_sender {
                             l.send(ListenerMail::SampleRejected { status, the_reader })
-                                .await
                                 .ok();
                         }
                     }
@@ -2940,7 +2921,6 @@ where
 
             if let Some(l) = &data_writer.listener_sender {
                 l.send(ListenerMail::OfferedDeadlineMissed { the_writer, status })
-                    .await
                     .ok();
             }
         } else if publisher
@@ -2969,7 +2949,6 @@ where
             let status = data_writer.get_offered_deadline_missed_status().await;
             if let Some(l) = &publisher.listener_sender {
                 l.send(ListenerMail::OfferedDeadlineMissed { the_writer, status })
-                    .await
                     .ok();
             }
         } else if self
@@ -3000,7 +2979,6 @@ where
             let status = data_writer.get_offered_deadline_missed_status().await;
             if let Some(l) = &self.domain_participant.listener_sender {
                 l.send(ListenerMail::OfferedDeadlineMissed { the_writer, status })
-                    .await
                     .ok();
             }
         }
@@ -3088,7 +3066,6 @@ where
             };
             if let Some(l) = &data_reader.listener_sender {
                 l.send(ListenerMail::RequestedDeadlineMissed { the_reader, status })
-                    .await
                     .ok();
             }
         } else if subscriber
@@ -3118,7 +3095,6 @@ where
             let status = data_reader.get_requested_deadline_missed_status();
             if let Some(l) = &subscriber.listener_sender {
                 l.send(ListenerMail::RequestedDeadlineMissed { status, the_reader })
-                    .await
                     .ok();
             }
         } else if self
@@ -3149,7 +3125,6 @@ where
             let status = data_reader.get_requested_deadline_missed_status();
             if let Some(l) = &self.domain_participant.listener_sender {
                 l.send(ListenerMail::RequestedDeadlineMissed { status, the_reader })
-                    .await
                     .ok();
             }
         }
