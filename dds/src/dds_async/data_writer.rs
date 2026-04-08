@@ -242,7 +242,7 @@ impl<Foo> DataWriterAsync<Foo> {
     /// to be handle on the user side if needed.
     #[tracing::instrument(skip(self))]
     pub async fn wait_for_acknowledgments(&self) -> DdsResult<()> {
-        let participant_address = self.dcps_sender().clone();
+        let participant_address = *self.dcps_sender();
         let publisher_handle = self.get_publisher().get_instance_handle();
         let data_writer_handle = self.handle;
         let (reply_sender, reply_receiver) = oneshot();
@@ -402,7 +402,7 @@ impl<Foo> DataWriterAsync<Foo> {
     #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> StatusConditionAsync {
         StatusConditionAsync::new(
-            self.dcps_sender().clone(),
+            *self.dcps_sender(),
             StatusConditionEntity::DataWriter {
                 participant_handle: self.get_publisher().get_participant().get_instance_handle(),
                 publisher_handle: self.get_publisher().get_instance_handle(),

@@ -18,7 +18,7 @@ pub struct StatusConditionAsync {
 impl Clone for StatusConditionAsync {
     fn clone(&self) -> Self {
         Self {
-            dcps_sender: self.dcps_sender.clone(),
+            dcps_sender: self.dcps_sender,
             entity: self.entity.clone(),
         }
     }

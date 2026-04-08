@@ -78,7 +78,7 @@ impl DomainParticipantFactoryAsync {
         let participant_handle = reply_receiver.await??;
 
         let domain_participant =
-            DomainParticipantAsync::new(self.dcps_sender.clone(), domain_id, participant_handle);
+            DomainParticipantAsync::new(self.dcps_sender, domain_id, participant_handle);
 
         Ok(domain_participant)
     }
