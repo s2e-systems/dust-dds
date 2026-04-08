@@ -1412,8 +1412,7 @@ where
                     };
                     data_writer
                         .status_condition
-                        .add_communication_state(StatusKind::PublicationMatched)
-                        .await;
+                        .add_communication_state(StatusKind::PublicationMatched);
                 } else {
                     data_writer.add_incompatible_subscription(
                         InstanceHandle::new(
@@ -1532,8 +1531,7 @@ where
                     };
                     data_writer
                         .status_condition
-                        .add_communication_state(StatusKind::OfferedIncompatibleQos)
-                        .await;
+                        .add_communication_state(StatusKind::OfferedIncompatibleQos);
                 }
             }
         }
@@ -1570,8 +1568,7 @@ where
 
             data_writer
                 .status_condition
-                .add_communication_state(StatusKind::PublicationMatched)
-                .await;
+                .add_communication_state(StatusKind::PublicationMatched);
         }
     }
 
@@ -1862,8 +1859,7 @@ where
                     };
                     data_reader
                         .status_condition
-                        .add_communication_state(StatusKind::SubscriptionMatched)
-                        .await;
+                        .add_communication_state(StatusKind::SubscriptionMatched);
                 } else {
                     data_reader.add_requested_incompatible_qos(
                         InstanceHandle::new(
@@ -1982,8 +1978,7 @@ where
                     };
                     data_reader
                         .status_condition
-                        .add_communication_state(StatusKind::RequestedIncompatibleQos)
-                        .await;
+                        .add_communication_state(StatusKind::RequestedIncompatibleQos);
                 }
             }
         }
@@ -2425,8 +2420,7 @@ where
                                 topic.inconsistent_topic_status.total_count_change += 1;
                                 topic
                                     .status_condition
-                                    .add_communication_state(StatusKind::InconsistentTopic)
-                                    .await;
+                                    .add_communication_state(StatusKind::InconsistentTopic);
                             }
                         }
                     }
@@ -2709,8 +2703,7 @@ where
 
                     subscriber
                         .status_condition
-                        .add_communication_state(StatusKind::DataOnReaders)
-                        .await;
+                        .add_communication_state(StatusKind::DataOnReaders);
                     let Some(data_reader) = subscriber
                         .data_reader_list
                         .iter_mut()
@@ -2720,8 +2713,7 @@ where
                     };
                     data_reader
                         .status_condition
-                        .add_communication_state(StatusKind::DataAvailable)
-                        .await;
+                        .add_communication_state(StatusKind::DataAvailable);
                 }
                 Ok(AddChangeResult::NotAdded) => (), // Do nothing
                 Ok(AddChangeResult::Rejected(instance_handle, sample_rejected_status_kind)) => {
@@ -2845,8 +2837,7 @@ where
                     };
                     data_reader
                         .status_condition
-                        .add_communication_state(StatusKind::SampleRejected)
-                        .await;
+                        .add_communication_state(StatusKind::SampleRejected);
                 }
                 Err(_) => (),
             }
@@ -3031,8 +3022,7 @@ where
         };
         data_writer
             .status_condition
-            .add_communication_state(StatusKind::OfferedDeadlineMissed)
-            .await;
+            .add_communication_state(StatusKind::OfferedDeadlineMissed);
     }
 
     #[tracing::instrument(skip(self))]
@@ -3181,8 +3171,7 @@ where
 
         data_reader
             .status_condition
-            .add_communication_state(StatusKind::RequestedDeadlineMissed)
-            .await;
+            .add_communication_state(StatusKind::RequestedDeadlineMissed);
     }
 
     #[tracing::instrument(skip(self))]
@@ -5867,8 +5856,7 @@ impl DataReaderEntity {
         self.subscription_matched_status.current_count = self.matched_publication_list.len() as i32;
         self.subscription_matched_status.current_count_change -= 1;
         self.status_condition
-            .add_communication_state(StatusKind::SubscriptionMatched)
-            .await;
+            .add_communication_state(StatusKind::SubscriptionMatched);
     }
 
     async fn read(

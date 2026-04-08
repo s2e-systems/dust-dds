@@ -7,7 +7,7 @@ use crate::{
         TopicBuiltinTopicData,
     },
     dcps::{
-        channels::{mpsc::MpscReceiver, oneshot::OneshotSender},
+        channels::oneshot::OneshotSender,
         listeners::{
             data_reader_listener::DcpsDataReaderListener,
             data_writer_listener::DcpsDataWriterListener,
@@ -577,7 +577,8 @@ pub enum StatusConditionMail {
     },
     RegisterNotification {
         entity: StatusConditionEntity,
-        reply_sender: OneshotSender<DdsResult<MpscReceiver<()>>>,
+        notification_sender: OneshotSender<()>,
+        reply_sender: OneshotSender<DdsResult<()>>,
     },
 }
 

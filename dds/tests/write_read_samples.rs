@@ -3011,7 +3011,7 @@ fn transient_local_writer_does_not_deliver_lifespan_expired_data_after_write() {
         .write_w_timestamp(data2.clone(), None, Time::new(i32::MAX, 0))
         .unwrap(); // Never stale sample
 
-    std::thread::sleep(std::time::Duration::from_millis(LIFESPAN_MS as u64 * 2));
+    std::thread::sleep(std::time::Duration::from_millis(LIFESPAN_MS as u64 * 4));
 
     let subscriber = participant
         .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)

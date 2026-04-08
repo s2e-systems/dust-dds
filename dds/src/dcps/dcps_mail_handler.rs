@@ -885,9 +885,13 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             }
             DcpsMail::StatusCondition(StatusConditionMail::RegisterNotification {
                 entity,
+                notification_sender,
                 reply_sender,
             }) => {
-                reply_sender.send(self.register_notification(entity).await);
+                reply_sender.send(
+                    self.register_notification(entity, notification_sender)
+                        .await,
+                );
             }
             DcpsMail::StatusCondition(StatusConditionMail::SetStatusConditionEnabledStatuses {
                 entity,

@@ -1,8 +1,9 @@
-use core::task::Poll;
-
 use super::condition::StatusConditionAsync;
-use crate::infrastructure::error::{DdsError, DdsResult};
-use alloc::{boxed::Box, string::String, vec, vec::Vec};
+use crate::{
+    dcps::channels::oneshot::oneshot,
+    infrastructure::error::{DdsError, DdsResult},
+};
+use alloc::{string::String, vec::Vec};
 
 /// Async version of [`Condition`](crate::infrastructure::wait_set::Condition).
 pub enum ConditionAsync {
@@ -63,30 +64,27 @@ impl WaitSetAsync {
         }
 
         // No status condition is yet triggered so now we have to wait for at least one status condition to trigger
-        let mut notification_channels = Vec::new();
+        let (notification_sender, notification_receiver) = oneshot();
+
         for condition in &self.conditions {
             match condition {
-                ConditionAsync::StatusCondition(status_condition_async) => notification_channels
-                    .push(status_condition_async.register_notification().await?),
-            }
-        }
-        let mut notification_futures: Vec<_> = notification_channels
-            .iter_mut()
-            .map(|x| Box::pin(x.receive()))
-            .collect();
-
-        let condition_index = core::future::poll_fn(move |cx| {
-            for (condition_index, notification) in notification_futures.iter_mut().enumerate() {
-                if notification.as_mut().poll(cx).is_ready() {
-                    return Poll::Ready(Ok::<usize, DdsError>(condition_index));
+                ConditionAsync::StatusCondition(status_condition_async) => {
+                    status_condition_async
+                        .register_notification(notification_sender.clone())
+                        .await?;
                 }
             }
+        }
 
-            Poll::Pending
-        })
-        .await?;
+        // Wait until a condition sends a notification and then collect the active ones
+        notification_receiver.await?;
+        for condition in &self.conditions {
+            if condition.get_trigger_value().await? {
+                trigger_conditions.push(condition.clone());
+            }
+        }
 
-        Ok(vec![self.conditions[condition_index].clone()])
+        Ok(trigger_conditions)
     }
 
     /// Async version of [`attach_condition`](crate::infrastructure::wait_set::WaitSet::attach_condition).
