@@ -2960,7 +2960,7 @@ fn transient_local_writer_does_not_deliver_lifespan_expired_data_at_write() {
 
 #[test]
 fn transient_local_writer_does_not_deliver_lifespan_expired_data_after_write() {
-    const LIFESPAN_MS: u32 = 100;
+    const LIFESPAN_MS: u32 = 10;
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()

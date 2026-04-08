@@ -875,25 +875,26 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 entity,
                 reply_sender,
             }) => {
-                self.get_status_condition_enabled_statuses(entity, reply_sender);
+                reply_sender.send(self.get_status_condition_enabled_statuses(entity));
             }
             DcpsMail::StatusCondition(StatusConditionMail::GetStatusConditionTriggerValue {
                 entity,
                 reply_sender,
             }) => {
-                self.get_status_condition_trigger_value(entity, reply_sender);
+                reply_sender.send(self.get_status_condition_trigger_value(entity));
             }
             DcpsMail::StatusCondition(StatusConditionMail::RegisterNotification {
                 entity,
                 reply_sender,
             }) => {
-                self.register_notification(entity, reply_sender);
+                reply_sender.send(self.register_notification(entity).await);
             }
             DcpsMail::StatusCondition(StatusConditionMail::SetStatusConditionEnabledStatuses {
                 entity,
                 status_mask,
+                reply_sender,
             }) => {
-                self.set_status_condition_enabled_statuses(entity, status_mask);
+                reply_sender.send(self.set_status_condition_enabled_statuses(entity, status_mask));
             }
             DcpsMail::Message(MessageServiceMail::NotifyAcknowledgments {
                 participant_handle,

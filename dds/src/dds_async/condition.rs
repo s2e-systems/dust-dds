@@ -44,7 +44,7 @@ impl StatusConditionAsync {
                 },
             ))
             .await?;
-        reply_receiver.await
+        reply_receiver.await?
     }
 }
 
@@ -61,21 +61,23 @@ impl StatusConditionAsync {
                 },
             ))
             .await?;
-        reply_receiver.await
+        reply_receiver.await?
     }
 
     /// Async version of [`set_enabled_statuses`](crate::infrastructure::condition::StatusCondition::set_enabled_statuses).
     #[tracing::instrument(skip(self))]
     pub async fn set_enabled_statuses(&self, mask: &[StatusKind]) -> DdsResult<()> {
+        let (reply_sender, reply_receiver) = oneshot();
         self.dcps_sender
             .send(DcpsMail::StatusCondition(
                 StatusConditionMail::SetStatusConditionEnabledStatuses {
                     entity: self.entity.clone(),
                     status_mask: mask.to_vec(),
+                    reply_sender,
                 },
             ))
             .await?;
-        Ok(())
+        reply_receiver.await?
     }
 
     /// Async version of [`get_entity`](crate::infrastructure::condition::StatusCondition::get_entity).
@@ -98,6 +100,6 @@ impl StatusConditionAsync {
                 },
             ))
             .await?;
-        reply_receiver.await
+        reply_receiver.await?
     }
 }

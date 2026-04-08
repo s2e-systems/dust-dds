@@ -6,13 +6,6 @@ use alloc::{vec, vec::Vec};
 
 #[derive(Clone)]
 pub enum StatusConditionEntity {
-    DomainParticipant {
-        participant_handle: InstanceHandle,
-    },
-    Publisher {
-        participant_handle: InstanceHandle,
-        publisher_handle: InstanceHandle,
-    },
     Subscriber {
         participant_handle: InstanceHandle,
         subscriber_handle: InstanceHandle,

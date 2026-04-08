@@ -564,19 +564,20 @@ pub enum ReaderServiceMail {
 pub enum StatusConditionMail {
     GetStatusConditionEnabledStatuses {
         entity: StatusConditionEntity,
-        reply_sender: OneshotSender<Vec<StatusKind>>,
+        reply_sender: OneshotSender<DdsResult<Vec<StatusKind>>>,
     },
     SetStatusConditionEnabledStatuses {
         entity: StatusConditionEntity,
         status_mask: Vec<StatusKind>,
+        reply_sender: OneshotSender<DdsResult<()>>,
     },
     GetStatusConditionTriggerValue {
         entity: StatusConditionEntity,
-        reply_sender: OneshotSender<bool>,
+        reply_sender: OneshotSender<DdsResult<bool>>,
     },
     RegisterNotification {
         entity: StatusConditionEntity,
-        reply_sender: OneshotSender<MpscReceiver<()>>,
+        reply_sender: OneshotSender<DdsResult<MpscReceiver<()>>>,
     },
 }
 
