@@ -65,7 +65,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
                 "latency_budget",
                 PID_LATENCY_BUDGET,
             ),
-            ConvenienceTypeBuilder::member_with_default::<LatencyBudgetQosPolicy>(
+            ConvenienceTypeBuilder::member_with_default::<LivelinessQosPolicy>(
                 7,
                 "liveliness",
                 PID_LIVELINESS,
