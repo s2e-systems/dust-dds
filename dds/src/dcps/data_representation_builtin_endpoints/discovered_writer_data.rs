@@ -161,7 +161,7 @@ impl TypeSupport for DiscoveredWriterData {
             dds_publication_data: PublicationBuiltinTopicData {
                 key,
                 participant_key: src
-                    .remove_value(PID_ENDPOINT_GUID as u32)
+                    .remove_value(PID_PARTICIPANT_GUID as u32)
                     .map_or(BuiltInTopicKey::default(), |x| {
                         DataStorageMapping::try_from_storage(x).expect("Must match")
                     }),

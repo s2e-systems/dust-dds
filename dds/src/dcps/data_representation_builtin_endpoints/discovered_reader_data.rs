@@ -160,7 +160,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
             dds_subscription_data: SubscriptionBuiltinTopicData {
                 key,
                 participant_key: src
-                    .remove_value(PID_ENDPOINT_GUID as u32)
+                    .remove_value(PID_PARTICIPANT_GUID as u32)
                     .map_or(BuiltInTopicKey::default(), |x| {
                         DataStorageMapping::try_from_storage(x).expect("Must match")
                     }),
