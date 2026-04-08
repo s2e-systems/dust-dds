@@ -33,7 +33,6 @@ use crate::{
 };
 use alloc::{
     string::{String, ToString},
-    sync::Arc,
     vec::Vec,
 };
 
@@ -169,9 +168,7 @@ impl DomainParticipantAsync {
     where
         Foo: TypeSupport,
     {
-        let type_support = Arc::new(Foo::TYPE.clone());
-
-        self.create_dynamic_topic(topic_name, type_name, qos, a_listener, mask, type_support)
+        self.create_dynamic_topic(topic_name, type_name, qos, a_listener, mask, Foo::TYPE)
             .await
     }
 
@@ -184,7 +181,7 @@ impl DomainParticipantAsync {
         qos: QosKind<TopicQos>,
         a_listener: Option<impl TopicListener + Send + 'static>,
         mask: &[StatusKind],
-        dynamic_type_representation: Arc<DynamicType>,
+        dynamic_type_representation: &'static DynamicType,
     ) -> DdsResult<TopicDescriptionAsync> {
         let (reply_sender, reply_receiver) = oneshot();
         let dcps_listener = a_listener.map(DcpsTopicListener::new);
@@ -292,7 +289,6 @@ impl DomainParticipantAsync {
     where
         Foo: TypeSupport,
     {
-        let type_support = Arc::new(Foo::TYPE.clone());
         let topic_name = String::from(topic_name);
         let participant_address = self.dcps_sender.clone();
         let participant_async = self.clone();
@@ -303,7 +299,7 @@ impl DomainParticipantAsync {
                 .send(DcpsMail::Participant(ParticipantServiceMail::FindTopic {
                     participant_handle: self.handle,
                     topic_name: topic_name.clone(),
-                    type_support: type_support.clone(),
+                    type_support: Foo::TYPE,
                     reply_sender,
                 }))
                 .await?;

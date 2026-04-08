@@ -17,7 +17,7 @@ use crate::{
     topic_definition::{topic_description::TopicDescription, topic_listener::TopicListener},
     xtypes::dynamic_type::DynamicType,
 };
-use alloc::{string::String, sync::Arc, vec::Vec};
+use alloc::{string::String, vec::Vec};
 
 /// The [`DomainParticipant`] represents the participation of the application on a communication plane that isolates applications running on the
 /// same set of physical computers from each other. A domain establishes a *virtual network* linking all applications that
@@ -159,7 +159,7 @@ impl DomainParticipant {
         qos: QosKind<TopicQos>,
         a_listener: Option<impl TopicListener + Send + 'static>,
         mask: &[StatusKind],
-        dynamic_type_representation: Arc<DynamicType>,
+        dynamic_type_representation: &'static DynamicType,
     ) -> DdsResult<TopicDescription> {
         block_on(self.participant_async.create_dynamic_topic(
             topic_name,

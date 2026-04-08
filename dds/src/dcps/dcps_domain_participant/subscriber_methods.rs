@@ -64,9 +64,9 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             }
         };
 
-        let topic_kind = get_topic_kind(topic.type_support.as_ref());
+        let topic_kind = get_topic_kind(topic.type_support);
 
-        let type_support = topic.type_support.clone();
+        let type_support = topic.type_support;
         let Some(subscriber) = self
             .domain_participant
             .user_defined_subscriber_list

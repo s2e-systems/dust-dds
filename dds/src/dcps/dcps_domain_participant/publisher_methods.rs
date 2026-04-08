@@ -45,8 +45,8 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             return Err(DdsError::AlreadyDeleted);
         };
 
-        let topic_kind = get_topic_kind(topic.type_support.as_ref());
-        let type_support = topic.type_support.clone();
+        let topic_kind = get_topic_kind(topic.type_support);
+        let type_support = topic.type_support;
         let type_name = topic.type_name.clone();
 
         let Some(publisher) = self

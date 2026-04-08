@@ -233,10 +233,10 @@ where
         }
 
         // Create shared type information Arcs to avoid multiple allocations
-        let spdp_participant_type = Arc::new(SpdpDiscoveredParticipantData::TYPE.clone());
-        let discovered_topic_type = Arc::new(DiscoveredTopicData::TYPE.clone());
-        let discovered_writer_type = Arc::new(DiscoveredWriterData::TYPE.clone());
-        let discovered_reader_type = Arc::new(DiscoveredReaderData::TYPE.clone());
+        let spdp_participant_type = SpdpDiscoveredParticipantData::TYPE;
+        let discovered_topic_type = DiscoveredTopicData::TYPE;
+        let discovered_writer_type = DiscoveredWriterData::TYPE;
+        let discovered_reader_type = DiscoveredReaderData::TYPE;
 
         let mut topic_list = Vec::new();
 
@@ -267,7 +267,7 @@ where
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
             None,
             vec![],
-            Arc::clone(&spdp_participant_type),
+            spdp_participant_type,
         );
 
         topic_list.push(TopicDescriptionKind::Topic(spdp_topic_participant));
@@ -298,7 +298,7 @@ where
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
             None,
             vec![],
-            Arc::clone(&discovered_topic_type),
+            discovered_topic_type,
         );
 
         topic_list.push(TopicDescriptionKind::Topic(sedp_topic_topics));
@@ -329,7 +329,7 @@ where
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
             None,
             vec![],
-            Arc::clone(&discovered_writer_type),
+            discovered_writer_type,
         );
         topic_list.push(TopicDescriptionKind::Topic(sedp_topic_publications));
 
@@ -359,7 +359,7 @@ where
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
             None,
             vec![],
-            Arc::clone(&discovered_reader_type),
+            discovered_reader_type,
         );
         topic_list.push(TopicDescriptionKind::Topic(sedp_topic_subscriptions));
 
@@ -402,7 +402,7 @@ where
             InstanceHandle::new(rtps_stateless_reader.guid().into()),
             spdp_reader_qos,
             String::from(DCPS_PARTICIPANT),
-            Arc::clone(&spdp_participant_type),
+            spdp_participant_type,
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
             None,
             Vec::new(),
@@ -418,7 +418,7 @@ where
             InstanceHandle::new(dcps_topic_transport_reader.guid().into()),
             sedp_data_reader_qos(),
             String::from(DCPS_TOPIC),
-            Arc::clone(&discovered_topic_type),
+            discovered_topic_type,
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
             None,
             Vec::new(),
@@ -434,7 +434,7 @@ where
             InstanceHandle::new(dcps_publication_transport_reader.guid().into()),
             sedp_data_reader_qos(),
             String::from(DCPS_PUBLICATION),
-            Arc::clone(&discovered_writer_type),
+            discovered_writer_type,
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
             None,
             Vec::new(),
@@ -450,7 +450,7 @@ where
             InstanceHandle::new(dcps_subscription_transport_reader.guid().into()),
             sedp_data_reader_qos(),
             String::from(DCPS_SUBSCRIPTION),
-            Arc::clone(&discovered_reader_type),
+            discovered_reader_type,
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
             None,
             Vec::new(),
@@ -502,7 +502,7 @@ where
             RtpsWriterKind::Stateless(dcps_participant_transport_writer),
             String::from(DCPS_PARTICIPANT),
             "SpdpDiscoveredParticipantData".to_string(),
-            Arc::clone(&spdp_participant_type),
+            spdp_participant_type,
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
             None,
             vec![],
@@ -519,7 +519,7 @@ where
             RtpsWriterKind::Stateful(dcps_topics_transport_writer),
             String::from(DCPS_TOPIC),
             "DiscoveredTopicData".to_string(),
-            Arc::clone(&discovered_topic_type),
+            discovered_topic_type,
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
             None,
             vec![],
@@ -535,7 +535,7 @@ where
             RtpsWriterKind::Stateful(dcps_publications_transport_writer),
             String::from(DCPS_PUBLICATION),
             "DiscoveredWriterData".to_string(),
-            Arc::clone(&discovered_writer_type),
+            discovered_writer_type,
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
             None,
             vec![],
@@ -551,7 +551,7 @@ where
             RtpsWriterKind::Stateful(dcps_subscriptions_transport_writer),
             String::from(DCPS_SUBSCRIPTION),
             "DiscoveredReaderData".to_string(),
-            Arc::clone(&discovered_reader_type),
+            discovered_reader_type,
             Actor::spawn::<R>(DcpsStatusCondition::default(), &spawner_handle),
             None,
             vec![],
@@ -2095,7 +2095,7 @@ where
                 .iter()
                 .find(|n| n.topic_name() == DCPS_PARTICIPANT)
             {
-                discovered_participant_data_type.type_support.as_ref()
+                discovered_participant_data_type.type_support
             } else {
                 return;
             };
@@ -2156,7 +2156,7 @@ where
                 .iter()
                 .find(|n| n.topic_name() == DCPS_PUBLICATION)
             {
-                discovered_participant_data_type.type_support.as_ref()
+                discovered_participant_data_type.type_support
             } else {
                 return;
             };
@@ -2275,7 +2275,7 @@ where
                 .iter()
                 .find(|n| n.topic_name() == DCPS_SUBSCRIPTION)
             {
-                discovered_participant_data_type.type_support.as_ref()
+                discovered_participant_data_type.type_support
             } else {
                 return;
             };
@@ -2422,7 +2422,7 @@ where
                 .iter()
                 .find(|n| n.topic_name() == DCPS_TOPIC)
             {
-                discovered_participant_data_type.type_support.as_ref()
+                discovered_participant_data_type.type_support
             } else {
                 return;
             };
@@ -2525,7 +2525,7 @@ where
             {
                 if cache_change.kind == ChangeKind::Alive {
                     let Ok(data) = CdrDeserializer::deserialize(
-                        data_reader.type_support.as_ref(),
+                        data_reader.type_support,
                         cache_change.data_value.as_ref(),
                     ) else {
                         return;
@@ -2572,14 +2572,13 @@ where
                     };
 
                     if let Some((variable_name, comparison_function)) = filter {
-                        let Some(member_id) = data.get_member_id_by_name(
-                            data_reader.type_support.as_ref(),
-                            variable_name.trim(),
-                        ) else {
+                        let Some(member_id) = data
+                            .get_member_id_by_name(data_reader.type_support, variable_name.trim())
+                        else {
                             return;
                         };
                         let Ok(member_descriptor) =
-                            data.get_descriptor(data_reader.type_support.as_ref(), member_id)
+                            data.get_descriptor(data_reader.type_support, member_id)
                         else {
                             return;
                         };
@@ -4635,7 +4634,7 @@ struct TopicEntity {
     status_condition: Actor<DcpsStatusCondition>,
     _listener_sender: Option<MpscSender<ListenerMail>>,
     _status_kind: Vec<StatusKind>,
-    type_support: Arc<DynamicType>,
+    type_support: &'static DynamicType,
 }
 
 impl TopicEntity {
@@ -4648,7 +4647,7 @@ impl TopicEntity {
         status_condition: Actor<DcpsStatusCondition>,
         listener_sender: Option<MpscSender<ListenerMail>>,
         status_kind: Vec<StatusKind>,
-        type_support: Arc<DynamicType>,
+        type_support: &'static DynamicType,
     ) -> Self {
         Self {
             qos,
@@ -4743,7 +4742,7 @@ struct DataWriterEntity {
     transport_writer: RtpsWriterKind,
     topic_name: String,
     type_name: String,
-    type_support: Arc<DynamicType>,
+    type_support: &'static DynamicType,
     matched_subscription_list: Vec<SubscriptionBuiltinTopicData>,
     publication_matched_status: PublicationMatchedStatus,
     incompatible_subscription_list: Vec<InstanceHandle>,
@@ -4774,7 +4773,7 @@ impl DataWriterEntity {
         transport_writer: RtpsWriterKind,
         topic_name: String,
         type_name: String,
-        type_support: Arc<DynamicType>,
+        type_support: &'static DynamicType,
         status_condition: Actor<DcpsStatusCondition>,
         listener_sender: Option<MpscSender<ListenerMail>>,
         listener_mask: Vec<StatusKind>,
@@ -4836,10 +4835,8 @@ impl DataWriterEntity {
             return Err(DdsError::IllegalOperation);
         }
 
-        let instance_handle = get_instance_handle_from_dynamic_data(
-            self.type_support.as_ref(),
-            dynamic_data.clone(),
-        )?;
+        let instance_handle =
+            get_instance_handle_from_dynamic_data(self.type_support, dynamic_data.clone())?;
         if !self.registered_instance_list.contains(&instance_handle) {
             return Err(DdsError::BadParameter);
         }
@@ -4852,12 +4849,8 @@ impl DataWriterEntity {
             self.instance_publication_time.remove(i);
         }
 
-        dynamic_data.clear_nonkey_values(self.type_support.as_ref())?;
-        let serialized_key = serialize(
-            self.type_support.as_ref(),
-            &dynamic_data,
-            &self.qos.representation,
-        )?;
+        dynamic_data.clear_nonkey_values(self.type_support)?;
+        let serialized_key = serialize(self.type_support, &dynamic_data, &self.qos.representation)?;
 
         self.last_change_sequence_number += 1;
         let cache_change = CacheChange {
@@ -4905,10 +4898,8 @@ impl DataWriterEntity {
             return Err(DdsError::IllegalOperation);
         }
 
-        let instance_handle = get_instance_handle_from_dynamic_data(
-            self.type_support.as_ref(),
-            dynamic_data.clone(),
-        )?;
+        let instance_handle =
+            get_instance_handle_from_dynamic_data(self.type_support, dynamic_data.clone())?;
         if !self.registered_instance_list.contains(&instance_handle) {
             return Err(DdsError::BadParameter);
         }
@@ -4921,12 +4912,8 @@ impl DataWriterEntity {
             self.instance_publication_time.remove(i);
         }
 
-        dynamic_data.clear_nonkey_values(self.type_support.as_ref())?;
-        let serialized_key = serialize(
-            self.type_support.as_ref(),
-            &dynamic_data,
-            &self.qos.representation,
-        )?;
+        dynamic_data.clear_nonkey_values(self.type_support)?;
+        let serialized_key = serialize(self.type_support, &dynamic_data, &self.qos.representation)?;
 
         self.last_change_sequence_number += 1;
         let kind = if self
@@ -5167,7 +5154,7 @@ struct DataReaderEntity {
     sample_list: Vec<ReaderSample>,
     qos: DataReaderQos,
     topic_name: String,
-    type_support: Arc<DynamicType>,
+    type_support: &'static DynamicType,
     requested_deadline_missed_status: RequestedDeadlineMissedStatus,
     requested_incompatible_qos_status: RequestedIncompatibleQosStatus,
     sample_rejected_status: SampleRejectedStatus,
@@ -5190,7 +5177,7 @@ impl DataReaderEntity {
         instance_handle: InstanceHandle,
         qos: DataReaderQos,
         topic_name: String,
-        type_support: Arc<DynamicType>,
+        type_support: &'static DynamicType,
         status_condition: Actor<DcpsStatusCondition>,
         listener_sender: Option<MpscSender<ListenerMail>>,
         listener_mask: Vec<StatusKind>,
@@ -5406,13 +5393,11 @@ impl DataReaderEntity {
         let (data_value, instance_handle) = match cache_change.kind {
             ChangeKind::Alive | ChangeKind::AliveFiltered => {
                 let data_value = CdrDeserializer::deserialize(
-                    self.type_support.as_ref(),
+                    self.type_support,
                     cache_change.data_value.as_ref(),
                 )?;
-                let instance_handle = get_instance_handle_from_dynamic_data(
-                    self.type_support.as_ref(),
-                    data_value.clone(),
-                )?;
+                let instance_handle =
+                    get_instance_handle_from_dynamic_data(self.type_support, data_value.clone())?;
                 (data_value, instance_handle)
             }
             ChangeKind::NotAliveDisposed
@@ -5424,7 +5409,7 @@ impl DataReaderEntity {
                     (data_value, instance_handle)
                 }
                 None => {
-                    let key_holder = create_key_holder(self.type_support.as_ref())?;
+                    let key_holder = create_key_holder(self.type_support)?;
                     let data_value = CdrDeserializer::deserialize(
                         &key_holder,
                         cache_change.data_value.as_ref(),

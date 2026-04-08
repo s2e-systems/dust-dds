@@ -1,4 +1,4 @@
-use alloc::{string::String, sync::Arc};
+use alloc::{string::String};
 
 use crate::{
     dcps::{
@@ -111,7 +111,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn get_type_support(&mut self, topic_name: String) -> DdsResult<Arc<DynamicType>> {
+    pub fn get_type_support(&mut self, topic_name: String) -> DdsResult<&'static DynamicType> {
         let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
             .topic_description_list
@@ -120,6 +120,6 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         else {
             return Err(DdsError::AlreadyDeleted);
         };
-        Ok(topic.type_support.clone())
+        Ok(topic.type_support)
     }
 }

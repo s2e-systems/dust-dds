@@ -119,7 +119,7 @@ pub enum ParticipantServiceMail {
         qos: QosKind<TopicQos>,
         dcps_listener: Option<DcpsTopicListener>,
         mask: Vec<StatusKind>,
-        type_support: Arc<DynamicType>,
+        type_support: &'static DynamicType,
         reply_sender: OneshotSender<DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)>>,
     },
     DeleteUserDefinedTopic {
@@ -144,7 +144,7 @@ pub enum ParticipantServiceMail {
     FindTopic {
         participant_handle: InstanceHandle,
         topic_name: String,
-        type_support: Arc<DynamicType>,
+        type_support: &'static DynamicType,
         #[allow(clippy::type_complexity)]
         reply_sender: OneshotSender<
             DdsResult<Option<(InstanceHandle, ActorAddress<DcpsStatusCondition>, String)>>,
@@ -272,7 +272,7 @@ pub enum TopicServiceMail {
     GetTypeSupport {
         participant_handle: InstanceHandle,
         topic_name: String,
-        reply_sender: OneshotSender<DdsResult<Arc<DynamicType>>>,
+        reply_sender: OneshotSender<DdsResult<&'static DynamicType>>,
     },
 }
 

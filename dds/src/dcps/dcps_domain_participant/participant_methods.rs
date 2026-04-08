@@ -1,7 +1,6 @@
 use alloc::{
     format,
     string::{String, ToString},
-    sync::Arc,
     vec,
     vec::Vec,
 };
@@ -233,7 +232,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         qos: QosKind<TopicQos>,
         dcps_listener: Option<DcpsTopicListener>,
         mask: Vec<StatusKind>,
-        type_support: Arc<DynamicType>,
+        type_support: &'static DynamicType,
     ) -> DdsResult<(InstanceHandle, ActorAddress<DcpsStatusCondition>)> {
         if self
             .domain_participant
@@ -328,10 +327,24 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             return Err(DdsError::AlreadyDeleted);
         };
 
-        if Arc::strong_count(&topic.type_support) > 1 {
-            return Err(DdsError::PreconditionNotMet(
-                "Topic still attached to some data writer or data reader".to_string(),
-            ));
+        for publisher in self.domain_participant.user_defined_publisher_list.iter() {
+            for writer in publisher.data_writer_list.iter() {
+                if writer.type_support == topic.type_support {
+                    return Err(DdsError::PreconditionNotMet(
+                        "Topic still attached to some data writer or data reader".to_string(),
+                    ));
+                }
+            }
+        }
+
+        for subscriber in self.domain_participant.user_defined_subscriber_list.iter() {
+            for reader in subscriber.data_reader_list.iter() {
+                if reader.type_support == topic.type_support {
+                    return Err(DdsError::PreconditionNotMet(
+                        "Topic still attached to some data writer or data reader".to_string(),
+                    ));
+                }
+            }
         }
 
         self.domain_participant
@@ -408,7 +421,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     pub fn find_topic(
         &mut self,
         topic_name: String,
-        type_support: Arc<DynamicType>,
+        type_support: &'static DynamicType,
     ) -> DdsResult<Option<(InstanceHandle, ActorAddress<DcpsStatusCondition>, String)>> {
         if let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant

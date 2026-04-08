@@ -17,7 +17,7 @@ use crate::{
     },
     xtypes::dynamic_type::DynamicType,
 };
-use alloc::{string::String, sync::Arc, vec::Vec};
+use alloc::{string::String, vec::Vec};
 
 /// Async version of [`Topic`](crate::topic_definition::topic::Topic).
 pub struct TopicAsync {
@@ -178,7 +178,7 @@ impl TopicAsync {
 impl TopicAsync {
     #[doc(hidden)]
     #[tracing::instrument(skip(self))]
-    pub async fn get_type_support(&self) -> DdsResult<Arc<DynamicType>> {
+    pub async fn get_type_support(&self) -> DdsResult<&'static DynamicType> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant
             .dcps_sender()
