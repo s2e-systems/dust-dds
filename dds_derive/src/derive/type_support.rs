@@ -66,15 +66,11 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 let member_type = &field.ty;
                 let is_key = field_attributes.key;
                 let is_optional = field_attributes.optional;
-                let default_value = match field_attributes.default_value {
-                    Some(expr) => {
-                        quote! {Some(dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(#expr))}
-                    }
-                    None if is_optional => {
-                        quote! {Some(dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(<#member_type as Default>::default()))}
-                    }
-                    _ => quote! {None},
-                };
+                let default_value = field_attributes
+                    .default_value
+                    .map(|x| quote! {#x})
+                    .unwrap_or(quote! {Default::default()});
+
                 member_list.push(
                     quote! {
                          dust_dds::xtypes::dynamic_type::DynamicTypeMember {
@@ -82,7 +78,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                                 name: #field_name,
                                 id: #member_id,
                                 r#type: <#member_type as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION,
-                                default_value: #default_value,
+                                default_value: None,
                                 index: #index,
                                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                                 label: None,
@@ -99,18 +95,45 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 if !field_attributes.non_serialized {
                     match &field.ident {
                         Some(field_ident) => {
-                            member_sample_seq.push(quote! {
-                                #field_ident: dust_dds::xtypes::data_storage::DataStorageMapping::try_from_storage(src.remove_value(#member_id).expect("Must exist")).expect("Must match"),
-                            });
-                            member_dynamic_sample_seq
-                                .push(quote! {data.set_value(#member_id, dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(self.#field_ident));});
+                            if is_optional {
+                                member_sample_seq.push(quote! {
+                                    #field_ident: src.remove_value(#member_id).map_or(#default_value, |x| {
+                                        dust_dds::xtypes::data_storage::DataStorageMapping::try_from_storage(x).expect("Must match")
+                                    }),
+                                });
+                                member_dynamic_sample_seq
+                                    .push(quote! {
+                                        if self.#field_ident != #default_value {
+                                            data.set_value(#member_id, dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(self.#field_ident));
+                                        }
+                                    });
+                            } else {
+                                member_sample_seq.push(quote! {
+                                    #field_ident: dust_dds::xtypes::data_storage::DataStorageMapping::try_from_storage(src.remove_value(#member_id).expect("Must exist")).expect("Must match"),
+                                });
+                                member_dynamic_sample_seq
+                                    .push(quote! {data.set_value(#member_id, dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(self.#field_ident));});
+                            }
                         }
                         None => {
                             let index = Index::from(field_index);
-                            member_sample_seq.push(quote! { dust_dds::xtypes::data_storage::DataStorageMapping::try_from_storage(src.remove_value(#member_id).expect("Must exist")).expect("Must match"),});
-                            member_dynamic_sample_seq.push(quote! {
-                                data.set_value(#member_id, dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(self.#index));
-                            })
+                            if is_optional {
+                                member_sample_seq.push(quote! { 
+                                    src.remove_value(#member_id).map_or(#default_value, |x| {
+                                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                                    }),
+                                });
+                                member_dynamic_sample_seq.push(quote! {
+                                    if self.#index != #default_value {
+                                        data.set_value(#member_id, dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(self.#index));
+                                    }
+                                })
+                            } else {
+                                member_sample_seq.push(quote! { dust_dds::xtypes::data_storage::DataStorageMapping::try_from_storage(src.remove_value(#member_id).expect("Must exist")).expect("Must match"),});
+                                member_dynamic_sample_seq.push(quote! {
+                                    data.set_value(#member_id, dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(self.#index));
+                                })
+                            }
                         }
                     }
                 }
@@ -184,7 +207,8 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
             } else {
                 // Note: Mapping has to be done with a match self strategy because the enum might not be copy so casting it using e.g. "self as i64" would
                 // be consuming it.
-                let discriminator_type = quote! {<i32 as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION};
+                let discriminator_type =
+                    quote! {<i32 as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION};
                 let discriminator_dynamic_value =
                     quote! {data.set_int32_value(0, self as i32).unwrap();};
 

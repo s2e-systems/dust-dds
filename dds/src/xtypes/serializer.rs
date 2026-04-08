@@ -279,12 +279,12 @@ trait XTypesSerializer {
             TypeKind::STRING16 => todo!(),
             TypeKind::ALIAS => todo!(),
             TypeKind::ENUM => {
-                self.serialize_enum(&member_descriptor.r#type, v.get_complex_value(member_id)?)?
+                self.serialize_enum(member_descriptor.r#type, v.get_complex_value(member_id)?)?
             }
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
             TypeKind::STRUCTURE => {
-                self.serialize_complex(&member_descriptor.r#type, v.get_complex_value(member_id)?)?
+                self.serialize_complex(member_descriptor.r#type, v.get_complex_value(member_id)?)?
             }
             TypeKind::UNION => todo!(),
             TypeKind::BITSET => todo!(),
@@ -519,13 +519,6 @@ impl<'a, W: Write> XTypesSerializer for RtpsPlCdrSerializer<'a, W> {
         for field_index in 0..v.get_item_count() {
             let member_id = v.get_member_id_at_index(field_index)?;
             let member_descriptor = v.get_descriptor(dynamic_type, member_id)?;
-            if member_descriptor.is_optional {
-                if let Some(default_value) = &member_descriptor.default_value {
-                    if v.get_value(member_id)? == default_value {
-                        continue;
-                    }
-                }
-            }
 
             let element_type = member_descriptor
                 .r#type

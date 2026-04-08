@@ -46,33 +46,52 @@ pub fn convert_python_type_to_dynamic_type(
     for (index, (field_name, field_dict)) in fields_dict.iter().enumerate() {
         let name = String::leak(field_name.extract::<String>()?);
         let r#type = if let Ok(dustdds_type) = field_dict.extract::<TypeKind>() {
-            let xtypes_type_kind = match dustdds_type {
-                TypeKind::boolean => dust_dds::xtypes::dynamic_type::TypeKind::BOOLEAN,
-                TypeKind::char8 => dust_dds::xtypes::dynamic_type::TypeKind::CHAR8,
-                TypeKind::int8 => dust_dds::xtypes::dynamic_type::TypeKind::INT8,
-                TypeKind::uint8 => dust_dds::xtypes::dynamic_type::TypeKind::UINT8,
-                TypeKind::int16 => dust_dds::xtypes::dynamic_type::TypeKind::INT16,
-                TypeKind::uint16 => dust_dds::xtypes::dynamic_type::TypeKind::UINT16,
-                TypeKind::int32 => dust_dds::xtypes::dynamic_type::TypeKind::INT32,
-                TypeKind::uint32 => dust_dds::xtypes::dynamic_type::TypeKind::UINT32,
-                TypeKind::int64 => dust_dds::xtypes::dynamic_type::TypeKind::INT64,
-                TypeKind::uint64 => dust_dds::xtypes::dynamic_type::TypeKind::UINT64,
-                TypeKind::float32 => dust_dds::xtypes::dynamic_type::TypeKind::FLOAT32,
-                TypeKind::float64 => dust_dds::xtypes::dynamic_type::TypeKind::FLOAT64,
-            };
-            dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::get_primitive_type(
-                xtypes_type_kind,
-            )
+            match dustdds_type {
+                TypeKind::boolean => {
+                    <bool as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION
+                }
+                TypeKind::char8 => {
+                    <char as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION
+                }
+                TypeKind::int8 => {
+                    <i8 as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION
+                }
+                TypeKind::uint8 => {
+                    <u8 as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION
+                }
+                TypeKind::int16 => {
+                    <i16 as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION
+                }
+                TypeKind::uint16 => {
+                    <u16 as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION
+                }
+                TypeKind::int32 => {
+                    <i32 as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION
+                }
+                TypeKind::uint32 => {
+                    <u32 as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION
+                }
+                TypeKind::int64 => {
+                    <i64 as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION
+                }
+                TypeKind::uint64 => {
+                    <u64 as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION
+                }
+                TypeKind::float32 => {
+                    <f32 as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION
+                }
+                TypeKind::float64 => {
+                    <f64 as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION
+                }
+            }
         } else {
             let type_name = field_dict.getattr("__name__")?.extract::<String>()?;
             match type_name.as_str() {
-                    "int" => dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::get_primitive_type(dust_dds::xtypes::dynamic_type::TypeKind::INT32),
-                    "bytes" => dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_sequence_type(
-                        dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::get_primitive_type(dust_dds::xtypes::dynamic_type::TypeKind::UINT8),
-                        u32::MAX).build(),
-                    "str" => dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_string_type(u32::MAX).build(),
-                   _ => unimplemented!("Mapping not implemented for {type_name}")
-                }
+                "int" => <i32 as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION,
+                "bytes" => <&[u8] as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION,
+                "str" => <&str as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION,
+                _ => unimplemented!("Mapping not implemented for {type_name}"),
+            }
         };
 
         builder
@@ -271,13 +290,10 @@ impl From<PythonDdsData> for dust_dds::xtypes::dynamic_type::DynamicData {
 }
 
 impl TypeSupport for PythonDdsData {
-    fn get_type_name() -> &'static str {
-        todo!()
-    }
+    const TYPE_NAME: &'static str = "";
 
-    fn get_type() -> dust_dds::xtypes::dynamic_type::DynamicType {
-        todo!()
-    }
+    const r#TYPE: &'static dust_dds::xtypes::dynamic_type::DynamicType =
+        <u8 as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION;
 
     fn create_sample(src: dust_dds::xtypes::dynamic_type::DynamicData) -> Self {
         Self(src)
@@ -442,7 +458,7 @@ class MyDataType:
             let created_data = convert_dynamic_data_to_python_instance(
                 py,
                 &r#type,
-                &MyDataType::get_type(),
+                MyDataType::TYPE,
                 dynamic_data,
             )
             .unwrap();

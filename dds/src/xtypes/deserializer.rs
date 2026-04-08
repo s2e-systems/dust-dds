@@ -354,13 +354,13 @@ trait XTypesDeserialize {
             TypeKind::ALIAS => todo!(),
             TypeKind::ENUM => dynamic_data.set_complex_value(
                 member.get_id(),
-                self.deserialize_complex_value(&member_descriptor.r#type)?,
+                self.deserialize_complex_value(member_descriptor.r#type)?,
             ),
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
             TypeKind::STRUCTURE => dynamic_data.set_complex_value(
                 member.get_id(),
-                self.deserialize_complex_value(&member_descriptor.r#type)?,
+                self.deserialize_complex_value(member_descriptor.r#type)?,
             ),
             TypeKind::UNION => todo!(),
             TypeKind::BITSET => todo!(),
@@ -745,14 +745,7 @@ impl<'a, E: EndiannessRead> XTypesDeserialize for Cdr1Deserializer<'a, E> {
             self.reader.set_position(0);
             if self.reader.seek_to_pid_le(pid)? {
                 self.deserialize_final_member(member, dynamic_data)?;
-            } else if member_descriptor.is_optional {
-                let default_value = member_descriptor
-                    .default_value
-                    .as_ref()
-                    .cloned()
-                    .expect("default value must exist for optional type");
-                dynamic_data.set_value(pid as u32, default_value);
-            } else {
+            } else if !member_descriptor.is_optional {
                 return Err(XTypesError::PidNotFound(pid));
             }
         }
@@ -782,14 +775,7 @@ impl<'a, E: EndiannessRead> XTypesDeserialize for Cdr2Deserializer<'a, E> {
             self.reader.set_position(0);
             if self.reader.seek_to_pid_le(pid)? {
                 self.deserialize_final_member(member, dynamic_data)?;
-            } else if member_descriptor.is_optional {
-                let default_value = member_descriptor
-                    .default_value
-                    .as_ref()
-                    .cloned()
-                    .expect("default value must exist for optional type");
-                dynamic_data.set_value(pid as u32, default_value);
-            } else {
+            } else if !member_descriptor.is_optional {
                 return Err(XTypesError::PidNotFound(pid));
             }
         }
@@ -832,17 +818,13 @@ impl<'a> XTypesDeserialize for RtpsPlCdrDeserializer<'a> {
                         )?,
                     );
                 }
-                dynamic_data.set_complex_values(pid as u32, sequence)?;
+                // Only add empty sequences to non-optional members
+                if !(sequence.is_empty() && member_descriptor.is_optional) {
+                    dynamic_data.set_complex_values(pid as u32, sequence)?;
+                }
             } else if self.cdr1_deserializer.reader.seek_to_pid_le(pid)? {
                 self.deserialize_final_member(member, dynamic_data)?;
-            } else if member_descriptor.is_optional {
-                let default_value = member_descriptor
-                    .default_value
-                    .as_ref()
-                    .cloned()
-                    .expect("default value must exist for optional type");
-                dynamic_data.set_value(pid as u32, default_value);
-            } else {
+            } else if !member_descriptor.is_optional {
                 return Err(XTypesError::PidNotFound(pid));
             }
         }

@@ -7,18 +7,16 @@ use super::parameter_id_values::{
 };
 use crate::{
     builtin_topics::{BuiltInTopicKey, SubscriptionBuiltinTopicData},
+    dcps::data_representation_builtin_endpoints::ConvenienceTypeBuilder,
     infrastructure::qos_policy::{
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS, DataRepresentationQosPolicy,
         DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
         LatencyBudgetQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy,
-        PresentationQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
+        PresentationQosPolicy, ReliabilityQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy,
+        UserDataQosPolicy,
     },
     transport::types::{ENTITYID_UNKNOWN, EntityId, Guid, Locator},
-    xtypes::{
-        binding::XTypesBinding,
-        data_storage::DataStorageMapping,
-        dynamic_type::{DynamicType, DynamicTypeBuilder},
-    },
+    xtypes::{data_storage::DataStorageMapping, dynamic_type::DynamicType},
 };
 use alloc::{string::String, vec::Vec};
 
@@ -40,183 +38,110 @@ pub struct DiscoveredReaderData {
 impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderData {
     const TYPE_NAME: &'static str = "DiscoveredReaderData";
 
-    const r#TYPE: &'static DynamicType = todo!();
-    // fn get_type() -> dust_dds::xtypes::dynamic_type::DynamicType {
-    //     extern crate alloc;
-    //     struct ConvenienceDynamicTypeBuilder {
-    //         builder: DynamicTypeBuilder,
-    //         index: u32,
-    //     }
-    //     impl ConvenienceDynamicTypeBuilder {
-    //         fn add_member<T: XTypesBinding>(&mut self, name: &'static str, id: i16) {
-    //             self.builder
-    //                 .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-    //                     name,
-    //                     id: id as u32,
-    //                     r#type: T::get_dynamic_type(),
-    //                     default_value: None,
-    //                     index: self.index,
-    //                     try_construct_kind:
-    //                         dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-    //                     label: None,
-    //                     is_key: false,
-    //                     is_optional: false,
-    //                     is_must_understand: true,
-    //                     is_shared: false,
-    //                     is_default_label: false,
-    //                 })
-    //                 .unwrap();
-    //             self.index += 1;
-    //         }
-    //         fn add_key_member<T: XTypesBinding>(&mut self, name: &'static str, id: i16) {
-    //             self.builder
-    //                 .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-    //                     name,
-    //                     id: id as u32,
-    //                     r#type: T::get_dynamic_type(),
-    //                     default_value: None,
-    //                     index: self.index,
-    //                     try_construct_kind:
-    //                         dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-    //                     label: None,
-    //                     is_key: true,
-    //                     is_optional: false,
-    //                     is_must_understand: true,
-    //                     is_shared: false,
-    //                     is_default_label: false,
-    //                 })
-    //                 .unwrap();
-    //             self.index += 1;
-    //         }
-    //         fn add_member_with_default<T: XTypesBinding + DataStorageMapping>(
-    //             &mut self,
-    //             name: &'static str,
-    //             id: i16,
-    //             default: T,
-    //         ) {
-    //             self.builder
-    //                 .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-    //                     name,
-    //                     id: id as u32,
-    //                     r#type: T::get_dynamic_type(),
-    //                     default_value: Some(default.into_storage()),
-    //                     index: self.index,
-    //                     try_construct_kind:
-    //                         dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-    //                     label: None,
-    //                     is_key: false,
-    //                     is_optional: true,
-    //                     is_must_understand: true,
-    //                     is_shared: false,
-    //                     is_default_label: false,
-    //                 })
-    //                 .unwrap();
-    //             self.index += 1;
-    //         }
-    //     }
-    //     let mut builder = ConvenienceDynamicTypeBuilder {
-    //         builder: dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
-    //             dust_dds::xtypes::dynamic_type::TypeDescriptor {
-    //                 kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
-    //                 name: Self::get_type_name(),
-    //                 base_type: None,
-    //                 discriminator_type: None,
-    //                 bound: None,
-    //                 element_type: None,
-    //                 key_element_type: None,
-    //                 extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Mutable,
-    //                 is_nested: false,
-    //             },
-    //         ),
-    //         index: 0,
-    //     };
-
-    //     builder.add_key_member::<BuiltInTopicKey>("key", PID_ENDPOINT_GUID);
-    //     // for interoperability reasons this is omitted when default (as opposed to standard):
-    //     builder.add_member_with_default(
-    //         "participant_key",
-    //         PID_PARTICIPANT_GUID,
-    //         BuiltInTopicKey::default(),
-    //     );
-
-    //     builder.add_member::<String>("topic_name", PID_TOPIC_NAME);
-    //     builder.add_member::<String>("type_name", PID_TYPE_NAME);
-    //     builder.add_member_with_default(
-    //         "durability",
-    //         PID_DURABILITY,
-    //         DurabilityQosPolicy::default(),
-    //     );
-    //     builder.add_member_with_default("deadline", PID_DEADLINE, DeadlineQosPolicy::default());
-    //     builder.add_member_with_default(
-    //         "latency_budget",
-    //         PID_LATENCY_BUDGET,
-    //         LatencyBudgetQosPolicy::default(),
-    //     );
-    //     builder.add_member_with_default(
-    //         "liveliness",
-    //         PID_LIVELINESS,
-    //         LivelinessQosPolicy::default(),
-    //     );
-    //     builder.add_member_with_default(
-    //         "reliability",
-    //         PID_RELIABILITY,
-    //         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-    //     );
-    //     builder.add_member_with_default("ownership", PID_OWNERSHIP, OwnershipQosPolicy::default());
-    //     builder.add_member_with_default(
-    //         "destination_order",
-    //         PID_DESTINATION_ORDER,
-    //         DestinationOrderQosPolicy::default(),
-    //     );
-    //     builder.add_member_with_default("user_data", PID_USER_DATA, UserDataQosPolicy::default());
-    //     builder.add_member_with_default(
-    //         "time_based_filter",
-    //         PID_TIME_BASED_FILTER,
-    //         TimeBasedFilterQosPolicy::default(),
-    //     );
-    //     builder.add_member_with_default(
-    //         "presentation",
-    //         PID_PRESENTATION,
-    //         PresentationQosPolicy::default(),
-    //     );
-    //     builder.add_member_with_default("partition", PID_PARTITION, PartitionQosPolicy::default());
-    //     builder.add_member_with_default(
-    //         "topic_data",
-    //         PID_TOPIC_DATA,
-    //         TopicDataQosPolicy::default(),
-    //     );
-    //     builder.add_member_with_default(
-    //         "group_data",
-    //         PID_GROUP_DATA,
-    //         GroupDataQosPolicy::default(),
-    //     );
-    //     builder.add_member_with_default(
-    //         "representation",
-    //         PID_DATA_REPRESENTATION,
-    //         DataRepresentationQosPolicy::default(),
-    //     );
-    //     builder.add_member_with_default(
-    //         "remote_group_entity_id",
-    //         PID_GROUP_ENTITYID,
-    //         ENTITYID_UNKNOWN,
-    //     );
-    //     builder.add_member_with_default(
-    //         "unicast_locator_list",
-    //         PID_UNICAST_LOCATOR,
-    //         Vec::<Locator>::default(),
-    //     );
-    //     builder.add_member_with_default(
-    //         "multicast_locator_list",
-    //         PID_MULTICAST_LOCATOR,
-    //         Vec::<Locator>::default(),
-    //     );
-    //     builder.add_member_with_default(
-    //         "expects_inline_qos",
-    //         PID_EXPECTS_INLINE_QOS,
-    //         DEFAULT_EXPECTS_INLINE_QOS,
-    //     );
-    //     builder.builder.build()
-    // }
+    const r#TYPE: &'static DynamicType = &DynamicType {
+        descriptor: &ConvenienceTypeBuilder::type_descriptor(Self::TYPE_NAME),
+        member_list: &[
+            ConvenienceTypeBuilder::key_member::<BuiltInTopicKey>(0, "key", PID_ENDPOINT_GUID),
+            // for interoperability reasons this is omitted when default (as opposed to standard):
+            ConvenienceTypeBuilder::member_with_default::<BuiltInTopicKey>(
+                1,
+                "participant_key",
+                PID_PARTICIPANT_GUID,
+            ),
+            ConvenienceTypeBuilder::member::<String>(2, "topic_name", PID_TOPIC_NAME),
+            ConvenienceTypeBuilder::member::<String>(3, "type_name", PID_TYPE_NAME),
+            ConvenienceTypeBuilder::member_with_default::<DurabilityQosPolicy>(
+                4,
+                "durability",
+                PID_DURABILITY,
+            ),
+            ConvenienceTypeBuilder::member_with_default::<DeadlineQosPolicy>(
+                5,
+                "deadline",
+                PID_DEADLINE,
+            ),
+            ConvenienceTypeBuilder::member_with_default::<LatencyBudgetQosPolicy>(
+                6,
+                "latency_budget",
+                PID_LATENCY_BUDGET,
+            ),
+            ConvenienceTypeBuilder::member_with_default::<LatencyBudgetQosPolicy>(
+                7,
+                "liveliness",
+                PID_LIVELINESS,
+            ),
+            ConvenienceTypeBuilder::member_with_default::<ReliabilityQosPolicy>(
+                8,
+                "reliability",
+                PID_RELIABILITY,
+            ),
+            ConvenienceTypeBuilder::member_with_default::<OwnershipQosPolicy>(
+                9,
+                "ownership",
+                PID_OWNERSHIP,
+            ),
+            ConvenienceTypeBuilder::member_with_default::<DestinationOrderQosPolicy>(
+                10,
+                "destination_order",
+                PID_DESTINATION_ORDER,
+            ),
+            ConvenienceTypeBuilder::member_with_default::<UserDataQosPolicy>(
+                11,
+                "user_data",
+                PID_USER_DATA,
+            ),
+            ConvenienceTypeBuilder::member_with_default::<TimeBasedFilterQosPolicy>(
+                12,
+                "time_based_filter",
+                PID_TIME_BASED_FILTER,
+            ),
+            ConvenienceTypeBuilder::member_with_default::<PresentationQosPolicy>(
+                13,
+                "presentation",
+                PID_PRESENTATION,
+            ),
+            ConvenienceTypeBuilder::member_with_default::<PartitionQosPolicy>(
+                14,
+                "partition",
+                PID_PARTITION,
+            ),
+            ConvenienceTypeBuilder::member_with_default::<TopicDataQosPolicy>(
+                15,
+                "topic_data",
+                PID_TOPIC_DATA,
+            ),
+            ConvenienceTypeBuilder::member_with_default::<GroupDataQosPolicy>(
+                16,
+                "group_data",
+                PID_GROUP_DATA,
+            ),
+            ConvenienceTypeBuilder::member_with_default::<DataRepresentationQosPolicy>(
+                17,
+                "representation",
+                PID_DATA_REPRESENTATION,
+            ),
+            ConvenienceTypeBuilder::member_with_default::<EntityId>(
+                18,
+                "remote_group_entity_id",
+                PID_GROUP_ENTITYID,
+            ),
+            ConvenienceTypeBuilder::member_with_default::<Vec<Locator>>(
+                19,
+                "unicast_locator_list",
+                PID_UNICAST_LOCATOR,
+            ),
+            ConvenienceTypeBuilder::member_with_default::<Vec<Locator>>(
+                20,
+                "multicast_locator_list",
+                PID_MULTICAST_LOCATOR,
+            ),
+            ConvenienceTypeBuilder::member_with_default::<bool>(
+                21,
+                "expects_inline_qos",
+                PID_EXPECTS_INLINE_QOS,
+            ),
+        ],
+    };
 
     fn create_sample(mut src: crate::xtypes::dynamic_type::DynamicData) -> Self {
         let key = BuiltInTopicKey::try_from_storage(
@@ -247,91 +172,103 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
                     src.remove_value(PID_TYPE_NAME as u32).expect("Must exist"),
                 )
                 .expect("Must match"),
-                durability: DataStorageMapping::try_from_storage(
-                    src.remove_value(PID_DURABILITY as u32).expect("Must exist"),
-                )
-                .expect("Must match"),
-                deadline: DataStorageMapping::try_from_storage(
-                    src.remove_value(PID_DEADLINE as u32).expect("Must exist"),
-                )
-                .expect("Must match"),
-                latency_budget: DataStorageMapping::try_from_storage(
-                    src.remove_value(PID_LATENCY_BUDGET as u32)
-                        .expect("Must exist"),
-                )
-                .expect("Must match"),
-                liveliness: DataStorageMapping::try_from_storage(
-                    src.remove_value(PID_LIVELINESS as u32).expect("Must exist"),
-                )
-                .expect("Must match"),
-                reliability: DataStorageMapping::try_from_storage(
-                    src.remove_value(PID_RELIABILITY as u32)
-                        .expect("Must exist"),
-                )
-                .expect("Must match"),
-                time_based_filter: DataStorageMapping::try_from_storage(
-                    src.remove_value(PID_TIME_BASED_FILTER as u32)
-                        .expect("Must exist"),
-                )
-                .expect("Must match"),
-                user_data: DataStorageMapping::try_from_storage(
-                    src.remove_value(PID_USER_DATA as u32).expect("Must exist"),
-                )
-                .expect("Must match"),
-                ownership: DataStorageMapping::try_from_storage(
-                    src.remove_value(PID_OWNERSHIP as u32).expect("Must exist"),
-                )
-                .expect("Must match"),
-                destination_order: DataStorageMapping::try_from_storage(
-                    src.remove_value(PID_DESTINATION_ORDER as u32)
-                        .expect("Must exist"),
-                )
-                .expect("Must match"),
-                presentation: DataStorageMapping::try_from_storage(
-                    src.remove_value(PID_PRESENTATION as u32)
-                        .expect("Must exist"),
-                )
-                .expect("Must match"),
-                partition: DataStorageMapping::try_from_storage(
-                    src.remove_value(PID_PARTITION as u32).expect("Must exist"),
-                )
-                .expect("Must match"),
-                topic_data: DataStorageMapping::try_from_storage(
-                    src.remove_value(PID_TOPIC_DATA as u32).expect("Must exist"),
-                )
-                .expect("Must match"),
-                group_data: DataStorageMapping::try_from_storage(
-                    src.remove_value(PID_GROUP_DATA as u32).expect("Must exist"),
-                )
-                .expect("Must match"),
-                representation: DataStorageMapping::try_from_storage(
-                    src.remove_value(PID_DATA_REPRESENTATION as u32)
-                        .expect("Must exist"),
-                )
-                .expect("Must match"),
+                
+                durability: src
+                    .remove_value(PID_DURABILITY as u32)
+                    .map_or(DurabilityQosPolicy::const_default(), |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
+                deadline: src
+                    .remove_value(PID_DEADLINE as u32)
+                    .map_or(DeadlineQosPolicy::const_default(), |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
+                latency_budget: src
+                    .remove_value(PID_LATENCY_BUDGET as u32)
+                    .map_or(LatencyBudgetQosPolicy::const_default(), |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
+                liveliness: src
+                    .remove_value(PID_LIVELINESS as u32)
+                    .map_or(LivelinessQosPolicy::const_default(), |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
+                reliability: src
+                    .remove_value(PID_RELIABILITY as u32)
+                    .map_or(DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS, |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
+                time_based_filter: src
+                    .remove_value(PID_TIME_BASED_FILTER as u32)
+                    .map_or(TimeBasedFilterQosPolicy::const_default(), |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
+                user_data: src
+                    .remove_value(PID_USER_DATA as u32)
+                    .map_or(UserDataQosPolicy::const_default(), |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
+
+                ownership: src
+                    .remove_value(PID_OWNERSHIP as u32)
+                    .map_or(OwnershipQosPolicy::const_default(), |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
+
+                destination_order: src
+                    .remove_value(PID_DESTINATION_ORDER as u32)
+                    .map_or(DestinationOrderQosPolicy::const_default(), |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
+
+                presentation: src
+                    .remove_value(PID_PRESENTATION as u32)
+                    .map_or(PresentationQosPolicy::const_default(), |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
+                partition: src
+                    .remove_value(PID_PARTITION as u32)
+                    .map_or(PartitionQosPolicy::const_default(), |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
+                topic_data: src
+                    .remove_value(PID_TOPIC_DATA as u32)
+                    .map_or(TopicDataQosPolicy::const_default(), |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
+                group_data: src
+                    .remove_value(PID_GROUP_DATA as u32)
+                    .map_or(GroupDataQosPolicy::const_default(), |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
+                representation: src
+                    .remove_value(PID_DATA_REPRESENTATION as u32)
+                    .map_or(DataRepresentationQosPolicy::const_default(), |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
             },
             reader_proxy: ReaderProxy {
                 remote_reader_guid,
-                remote_group_entity_id: DataStorageMapping::try_from_storage(
-                    src.remove_value(PID_GROUP_ENTITYID as u32)
-                        .expect("Must exist"),
-                )
-                .expect("Must match"),
-                unicast_locator_list: DataStorageMapping::try_from_storage(
-                    src.remove_value(PID_UNICAST_LOCATOR as u32)
-                        .expect("Must exist"),
-                )
-                .expect("Must match"),
-                multicast_locator_list: DataStorageMapping::try_from_storage(
-                    src.remove_value(PID_MULTICAST_LOCATOR as u32)
-                        .expect("Must exist"),
-                )
-                .expect("Must match"),
-                expects_inline_qos: DataStorageMapping::try_from_storage(
-                    src.remove_value(PID_EXPECTS_INLINE_QOS as u32)
-                        .expect("Must exist"),
-                )
-                .expect("Must match"),
+                remote_group_entity_id: src
+                    .remove_value(PID_GROUP_ENTITYID as u32)
+                    .map_or(ENTITYID_UNKNOWN, |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
+                unicast_locator_list: src
+                    .remove_value(PID_UNICAST_LOCATOR as u32)
+                    .map_or(Default::default(), |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
+                multicast_locator_list: src
+                    .remove_value(PID_MULTICAST_LOCATOR as u32)
+                    .map_or(Default::default(), |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
+                expects_inline_qos: src
+                    .remove_value(PID_EXPECTS_INLINE_QOS as u32)
+                    .map_or(DEFAULT_EXPECTS_INLINE_QOS, |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
             },
         }
     }
@@ -354,78 +291,120 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
             PID_TYPE_NAME as u32,
             self.dds_subscription_data.type_name.into_storage(),
         );
-        data.set_value(
-            PID_DURABILITY as u32,
-            self.dds_subscription_data.durability.into_storage(),
-        );
-        data.set_value(
-            PID_DEADLINE as u32,
-            self.dds_subscription_data.deadline.into_storage(),
-        );
-        data.set_value(
-            PID_LATENCY_BUDGET as u32,
-            self.dds_subscription_data.latency_budget.into_storage(),
-        );
-        data.set_value(
-            PID_LIVELINESS as u32,
-            self.dds_subscription_data.liveliness.into_storage(),
-        );
-        data.set_value(
-            PID_RELIABILITY as u32,
-            self.dds_subscription_data.reliability.into_storage(),
-        );
-        data.set_value(
-            PID_OWNERSHIP as u32,
-            self.dds_subscription_data.ownership.into_storage(),
-        );
-        data.set_value(
-            PID_DESTINATION_ORDER as u32,
-            self.dds_subscription_data.destination_order.into_storage(),
-        );
-        data.set_value(
-            PID_USER_DATA as u32,
-            self.dds_subscription_data.user_data.into_storage(),
-        );
-        data.set_value(
-            PID_TIME_BASED_FILTER as u32,
-            self.dds_subscription_data.time_based_filter.into_storage(),
-        );
-        data.set_value(
-            PID_PRESENTATION as u32,
-            self.dds_subscription_data.presentation.into_storage(),
-        );
-        data.set_value(
-            PID_PARTITION as u32,
-            self.dds_subscription_data.partition.into_storage(),
-        );
-        data.set_value(
-            PID_TOPIC_DATA as u32,
-            self.dds_subscription_data.topic_data.into_storage(),
-        );
-        data.set_value(
-            PID_GROUP_DATA as u32,
-            self.dds_subscription_data.group_data.into_storage(),
-        );
-        data.set_value(
-            PID_DATA_REPRESENTATION as u32,
-            self.dds_subscription_data.representation.into_storage(),
-        );
-        data.set_value(
-            PID_GROUP_ENTITYID as u32,
-            self.reader_proxy.remote_group_entity_id.into_storage(),
-        );
-        data.set_value(
-            PID_UNICAST_LOCATOR as u32,
-            self.reader_proxy.unicast_locator_list.into_storage(),
-        );
-        data.set_value(
-            PID_MULTICAST_LOCATOR as u32,
-            self.reader_proxy.multicast_locator_list.into_storage(),
-        );
-        data.set_value(
-            PID_EXPECTS_INLINE_QOS as u32,
-            self.reader_proxy.expects_inline_qos.into_storage(),
-        );
+        if self.dds_subscription_data.durability != DurabilityQosPolicy::const_default() {
+            data.set_value(
+                PID_DURABILITY as u32,
+                self.dds_subscription_data.durability.into_storage(),
+            );
+        }
+        if self.dds_subscription_data.deadline != DeadlineQosPolicy::const_default() {
+            data.set_value(
+                PID_DEADLINE as u32,
+                self.dds_subscription_data.deadline.into_storage(),
+            );
+        }
+        if self.dds_subscription_data.latency_budget != LatencyBudgetQosPolicy::const_default() {
+            data.set_value(
+                PID_LATENCY_BUDGET as u32,
+                self.dds_subscription_data.latency_budget.into_storage(),
+            );
+        }
+        if self.dds_subscription_data.liveliness != LivelinessQosPolicy::const_default() {
+            data.set_value(
+                PID_LIVELINESS as u32,
+                self.dds_subscription_data.liveliness.into_storage(),
+            );
+        }
+        if self.dds_subscription_data.reliability
+            != DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS
+        {
+            data.set_value(
+                PID_RELIABILITY as u32,
+                self.dds_subscription_data.reliability.into_storage(),
+            );
+        }
+        if self.dds_subscription_data.ownership != OwnershipQosPolicy::const_default() {
+            data.set_value(
+                PID_OWNERSHIP as u32,
+                self.dds_subscription_data.ownership.into_storage(),
+            );
+        }
+        if self.dds_subscription_data.destination_order
+            != DestinationOrderQosPolicy::const_default()
+        {
+            data.set_value(
+                PID_DESTINATION_ORDER as u32,
+                self.dds_subscription_data.destination_order.into_storage(),
+            );
+        }
+        if self.dds_subscription_data.user_data != UserDataQosPolicy::const_default() {
+            data.set_value(
+                PID_USER_DATA as u32,
+                self.dds_subscription_data.user_data.into_storage(),
+            );
+        }
+        if self.dds_subscription_data.time_based_filter != TimeBasedFilterQosPolicy::const_default()
+        {
+            data.set_value(
+                PID_TIME_BASED_FILTER as u32,
+                self.dds_subscription_data.time_based_filter.into_storage(),
+            );
+        }
+        if self.dds_subscription_data.presentation != PresentationQosPolicy::const_default() {
+            data.set_value(
+                PID_PRESENTATION as u32,
+                self.dds_subscription_data.presentation.into_storage(),
+            );
+        }
+        if self.dds_subscription_data.partition != PartitionQosPolicy::const_default() {
+            data.set_value(
+                PID_PARTITION as u32,
+                self.dds_subscription_data.partition.into_storage(),
+            );
+        }
+        if self.dds_subscription_data.topic_data != TopicDataQosPolicy::const_default() {
+            data.set_value(
+                PID_TOPIC_DATA as u32,
+                self.dds_subscription_data.topic_data.into_storage(),
+            );
+        }
+        if self.dds_subscription_data.group_data != GroupDataQosPolicy::const_default() {
+            data.set_value(
+                PID_GROUP_DATA as u32,
+                self.dds_subscription_data.group_data.into_storage(),
+            );
+        }
+        if self.dds_subscription_data.representation != DataRepresentationQosPolicy::const_default()
+        {
+            data.set_value(
+                PID_DATA_REPRESENTATION as u32,
+                self.dds_subscription_data.representation.into_storage(),
+            );
+        }
+        if self.reader_proxy.remote_group_entity_id != ENTITYID_UNKNOWN {
+            data.set_value(
+                PID_GROUP_ENTITYID as u32,
+                self.reader_proxy.remote_group_entity_id.into_storage(),
+            );
+        }
+        if !self.reader_proxy.unicast_locator_list.is_empty() {
+            data.set_value(
+                PID_UNICAST_LOCATOR as u32,
+                self.reader_proxy.unicast_locator_list.into_storage(),
+            );
+        }
+        if !self.reader_proxy.multicast_locator_list.is_empty() {
+            data.set_value(
+                PID_MULTICAST_LOCATOR as u32,
+                self.reader_proxy.multicast_locator_list.into_storage(),
+            );
+        }
+        if self.reader_proxy.expects_inline_qos != DEFAULT_EXPECTS_INLINE_QOS {
+            data.set_value(
+                PID_EXPECTS_INLINE_QOS as u32,
+                self.reader_proxy.expects_inline_qos.into_storage(),
+            );
+        }
         data
     }
 }

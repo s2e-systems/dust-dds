@@ -7,15 +7,15 @@ use super::parameter_id_values::{
 };
 use crate::{
     builtin_topics::{BuiltInTopicKey, ParticipantBuiltinTopicData},
-    dcps::data_representation_builtin_endpoints::parameter_id_values::DEFAULT_DOMAIN_TAG,
+    dcps::data_representation_builtin_endpoints::{
+        ConvenienceTypeBuilder, parameter_id_values::DEFAULT_DOMAIN_TAG,
+    },
     infrastructure::{
         domain::DomainId, instance::InstanceHandle, qos_policy::UserDataQosPolicy, time::Duration,
         type_support::TypeSupport,
     },
     transport::types::{GuidPrefix, Locator, Long, ProtocolVersion, VendorId},
-    xtypes::{
-        binding::XTypesBinding, data_storage::DataStorageMapping, dynamic_type::DynamicTypeBuilder,
-    },
+    xtypes::{data_storage::DataStorageMapping, dynamic_type::DynamicType},
 };
 use alloc::{string::String, vec, vec::Vec};
 
@@ -130,150 +130,71 @@ pub struct SpdpDiscoveredParticipantData {
 impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParticipantData {
     const TYPE_NAME: &'static str = "SpdpDiscoveredParticipantData";
 
-    const r#TYPE: &'static crate::xtypes::dynamic_type::DynamicType = todo!();
-    // fn get_type() -> dust_dds::xtypes::dynamic_type::DynamicType {
-    //     extern crate alloc;
-    //     struct ConvenienceDynamicTypeBuilder {
-    //         builder: DynamicTypeBuilder,
-    //         index: u32,
-    //     }
-    //     impl ConvenienceDynamicTypeBuilder {
-    //         fn add_member<T: XTypesBinding>(&mut self, name: &'static str, id: i16) {
-    //             self.builder
-    //                 .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-    //                     name,
-    //                     id: id as u32,
-    //                     r#type: T::get_dynamic_type(),
-    //                     default_value: None,
-    //                     index: self.index,
-    //                     try_construct_kind:
-    //                         dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-    //                     label: None,
-    //                     is_key: false,
-    //                     is_optional: false,
-    //                     is_must_understand: true,
-    //                     is_shared: false,
-    //                     is_default_label: false,
-    //                 })
-    //                 .unwrap();
-    //             self.index += 1;
-    //         }
-    //         fn add_key_member<T: XTypesBinding>(&mut self, name: &'static str, id: i16) {
-    //             self.builder
-    //                 .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-    //                     name,
-    //                     id: id as u32,
-    //                     r#type: T::get_dynamic_type(),
-    //                     default_value: None,
-    //                     index: self.index,
-    //                     try_construct_kind:
-    //                         dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-    //                     label: None,
-    //                     is_key: true,
-    //                     is_optional: false,
-    //                     is_must_understand: true,
-    //                     is_shared: false,
-    //                     is_default_label: false,
-    //                 })
-    //                 .unwrap();
-    //             self.index += 1;
-    //         }
-    //         fn add_member_with_default<T: XTypesBinding + DataStorageMapping>(
-    //             &mut self,
-    //             name: &'static str,
-    //             id: i16,
-    //             default: T,
-    //         ) {
-    //             self.builder
-    //                 .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-    //                     name,
-    //                     id: id as u32,
-    //                     r#type: T::get_dynamic_type(),
-    //                     default_value: Some(default.into_storage()),
-    //                     index: self.index,
-    //                     try_construct_kind:
-    //                         dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-    //                     label: None,
-    //                     is_key: false,
-    //                     is_optional: true,
-    //                     is_must_understand: true,
-    //                     is_shared: false,
-    //                     is_default_label: false,
-    //                 })
-    //                 .unwrap();
-    //             self.index += 1;
-    //         }
-    //     }
-    //     let mut builder = ConvenienceDynamicTypeBuilder {
-    //         builder: dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
-    //             dust_dds::xtypes::dynamic_type::TypeDescriptor {
-    //                 kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
-    //                 name: Self::get_type_name(),
-    //                 base_type: None,
-    //                 discriminator_type: None,
-    //                 bound: None,
-    //                 element_type: None,
-    //                 key_element_type: None,
-    //                 extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Mutable,
-    //                 is_nested: false,
-    //             },
-    //         ),
-    //         index: 0,
-    //     };
-    //     builder.add_key_member::<BuiltInTopicKey>("key", PID_PARTICIPANT_GUID);
-    //     builder.add_member_with_default("user_data", PID_USER_DATA, UserDataQosPolicy::default());
-    //     builder.add_member_with_default::<DomainId>("domain_id", PID_DOMAIN_ID, -1);
-    //     builder.add_member_with_default(
-    //         "domain_tag",
-    //         PID_DOMAIN_TAG,
-    //         String::from(DEFAULT_DOMAIN_TAG),
-    //     );
-    //     builder.add_member::<ProtocolVersion>("protocol_version", PID_PROTOCOL_VERSION);
-    //     // builder.add_member::<GuidPrefix>("guid_prefix", PID_PARTICIPANT_GUID);
-    //     builder.add_member::<VendorId>("vendor_id", PID_VENDORID);
-    //     builder.add_member_with_default(
-    //         "expects_inline_qos",
-    //         PID_EXPECTS_INLINE_QOS,
-    //         DEFAULT_EXPECTS_INLINE_QOS,
-    //     );
-    //     builder.add_member_with_default(
-    //         "metatraffic_unicast_locator_list",
-    //         PID_METATRAFFIC_UNICAST_LOCATOR,
-    //         Vec::<Locator>::new(),
-    //     );
-    //     builder.add_member_with_default(
-    //         "metatraffic_multicast_locator_list",
-    //         PID_METATRAFFIC_MULTICAST_LOCATOR,
-    //         Vec::<Locator>::new(),
-    //     );
-    //     builder.add_member_with_default(
-    //         "default_unicast_locator_list",
-    //         PID_DEFAULT_UNICAST_LOCATOR,
-    //         Vec::<Locator>::new(),
-    //     );
-    //     builder.add_member_with_default(
-    //         "default_multicast_locator_list",
-    //         PID_DEFAULT_MULTICAST_LOCATOR,
-    //         Vec::<Locator>::new(),
-    //     );
-    //     builder.add_member::<BuiltinEndpointSet>(
-    //         "available_builtin_endpoints",
-    //         PID_BUILTIN_ENDPOINT_SET,
-    //     );
-    //     builder.add_member_with_default(
-    //         "manual_liveliness_count",
-    //         PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
-    //         0,
-    //     );
-    //     builder.add_member_with_default(
-    //         "builtin_endpoint_qos",
-    //         PID_BUILTIN_ENDPOINT_QOS,
-    //         BuiltinEndpointQos::default(),
-    //     );
-    //     // of interoperability reasons the lease_duration is made mandatory
-    //     builder.add_member::<Duration>("lease_duration", PID_PARTICIPANT_LEASE_DURATION);
-    //     builder.builder.build()
-    // }
+    const r#TYPE: &'static crate::xtypes::dynamic_type::DynamicType = &DynamicType {
+        descriptor: &ConvenienceTypeBuilder::type_descriptor(Self::TYPE_NAME),
+        member_list: &[
+            ConvenienceTypeBuilder::key_member::<BuiltInTopicKey>(0, "key", PID_PARTICIPANT_GUID),
+            ConvenienceTypeBuilder::member_with_default::<UserDataQosPolicy>(
+                1,
+                "user_data",
+                PID_USER_DATA,
+            ),
+            ConvenienceTypeBuilder::member_with_default::<DomainId>(2, "domain_id", PID_DOMAIN_ID),
+            ConvenienceTypeBuilder::member_with_default::<String>(3, "domain_tag", PID_DOMAIN_TAG),
+            ConvenienceTypeBuilder::member::<ProtocolVersion>(
+                4,
+                "protocol_version",
+                PID_PROTOCOL_VERSION,
+            ),
+            ConvenienceTypeBuilder::member::<VendorId>(5, "vendor_id", PID_VENDORID),
+            ConvenienceTypeBuilder::member_with_default::<bool>(
+                6,
+                "expects_inline_qos",
+                PID_EXPECTS_INLINE_QOS,
+            ),
+            ConvenienceTypeBuilder::member_with_default::<Vec<Locator>>(
+                7,
+                "metatraffic_unicast_locator_list",
+                PID_METATRAFFIC_UNICAST_LOCATOR,
+            ),
+            ConvenienceTypeBuilder::member_with_default::<Vec<Locator>>(
+                8,
+                "metatraffic_multicast_locator_list",
+                PID_METATRAFFIC_MULTICAST_LOCATOR,
+            ),
+            ConvenienceTypeBuilder::member_with_default::<Vec<Locator>>(
+                9,
+                "default_unicast_locator_list",
+                PID_DEFAULT_UNICAST_LOCATOR,
+            ),
+            ConvenienceTypeBuilder::member_with_default::<Vec<Locator>>(
+                10,
+                "default_multicast_locator_list",
+                PID_DEFAULT_MULTICAST_LOCATOR,
+            ),
+            ConvenienceTypeBuilder::member::<BuiltinEndpointSet>(
+                11,
+                "available_builtin_endpoints",
+                PID_BUILTIN_ENDPOINT_SET,
+            ),
+            ConvenienceTypeBuilder::member_with_default::<Count>(
+                12,
+                "manual_liveliness_count",
+                PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
+            ),
+            ConvenienceTypeBuilder::member_with_default::<BuiltinEndpointQos>(
+                13,
+                "builtin_endpoint_qos",
+                PID_BUILTIN_ENDPOINT_QOS,
+            ),
+            // Because of interoperability reasons the lease_duration is made mandatory
+            ConvenienceTypeBuilder::member::<Duration>(
+                14,
+                "lease_duration",
+                PID_PARTICIPANT_LEASE_DURATION,
+            ),
+        ],
+    };
 
     fn create_sample(mut src: crate::xtypes::dynamic_type::DynamicData) -> Self {
         Self {
@@ -284,17 +205,19 @@ impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParti
                         .clone(),
                 )
                 .expect("Type must match"),
-                user_data: DataStorageMapping::try_from_storage(
-                    src.remove_value(PID_USER_DATA as u32).expect("Must exist"),
-                )
-                .expect("Type must match"),
+                user_data: src
+                    .remove_value(PID_USER_DATA as u32)
+                    .map_or(UserDataQosPolicy::const_default(), |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
             },
             participant_proxy: ParticipantProxy {
                 domain_id: None,
-                domain_tag: DataStorageMapping::try_from_storage(
-                    src.remove_value(PID_DOMAIN_TAG as u32).expect("Must exist"),
-                )
-                .expect("Type must match"),
+                domain_tag: src
+                    .remove_value(PID_DOMAIN_TAG as u32)
+                    .map_or(String::from(DEFAULT_DOMAIN_TAG), |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
                 protocol_version: DataStorageMapping::try_from_storage(
                     src.remove_value(PID_PROTOCOL_VERSION as u32)
                         .expect("Must exist"),
@@ -312,46 +235,46 @@ impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParti
                     src.remove_value(PID_VENDORID as u32).expect("Must exist"),
                 )
                 .expect("Type must match"),
-                expects_inline_qos: DataStorageMapping::try_from_storage(
-                    src.remove_value(PID_EXPECTS_INLINE_QOS as u32)
-                        .expect("Must exist"),
-                )
-                .expect("Type must match"),
-                metatraffic_unicast_locator_list: DataStorageMapping::try_from_storage(
-                    src.remove_value(PID_METATRAFFIC_UNICAST_LOCATOR as u32)
-                        .expect("Must exist"),
-                )
-                .expect("Type must match"),
-                metatraffic_multicast_locator_list: DataStorageMapping::try_from_storage(
-                    src.remove_value(PID_METATRAFFIC_MULTICAST_LOCATOR as u32)
-                        .expect("Must exist"),
-                )
-                .expect("Type must match"),
-                default_unicast_locator_list: DataStorageMapping::try_from_storage(
-                    src.remove_value(PID_DEFAULT_UNICAST_LOCATOR as u32)
-                        .expect("Must exist"),
-                )
-                .expect("Type must match"),
-                default_multicast_locator_list: DataStorageMapping::try_from_storage(
-                    src.remove_value(PID_DEFAULT_MULTICAST_LOCATOR as u32)
-                        .expect("Must exist"),
-                )
-                .expect("Type must match"),
+                expects_inline_qos: src
+                    .remove_value(PID_EXPECTS_INLINE_QOS as u32)
+                    .map_or(DEFAULT_EXPECTS_INLINE_QOS, |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
+                metatraffic_unicast_locator_list: src
+                    .remove_value(PID_METATRAFFIC_UNICAST_LOCATOR as u32)
+                    .map_or(Default::default(), |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
+                metatraffic_multicast_locator_list: src
+                    .remove_value(PID_METATRAFFIC_MULTICAST_LOCATOR as u32)
+                    .map_or(Default::default(), |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
+                default_unicast_locator_list: src
+                    .remove_value(PID_DEFAULT_UNICAST_LOCATOR as u32)
+                    .map_or(Default::default(), |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
+                default_multicast_locator_list: src
+                    .remove_value(PID_DEFAULT_MULTICAST_LOCATOR as u32)
+                    .map_or(Default::default(), |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
                 available_builtin_endpoints: DataStorageMapping::try_from_storage(
                     src.remove_value(PID_BUILTIN_ENDPOINT_SET as u32)
                         .expect("Must exist"),
                 )
                 .expect("Type must match"),
-                manual_liveliness_count: DataStorageMapping::try_from_storage(
-                    src.remove_value(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT as u32)
-                        .expect("Must exist"),
-                )
-                .expect("Type must match"),
-                builtin_endpoint_qos: DataStorageMapping::try_from_storage(
-                    src.remove_value(PID_BUILTIN_ENDPOINT_QOS as u32)
-                        .expect("Must exist"),
-                )
-                .expect("Type must match"),
+                manual_liveliness_count: src
+                    .remove_value(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT as u32)
+                    .map_or(Default::default(), |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
+                builtin_endpoint_qos: src
+                    .remove_value(PID_BUILTIN_ENDPOINT_QOS as u32)
+                    .map_or(Default::default(), |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
             },
             lease_duration: DataStorageMapping::try_from_storage(
                 src.remove_value(PID_PARTICIPANT_LEASE_DURATION as u32)
@@ -372,17 +295,21 @@ impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParti
             PID_PARTICIPANT_GUID as u32,
             self.dds_participant_data.key.into_storage(),
         );
-        data.set_value(
-            PID_USER_DATA as u32,
-            self.dds_participant_data.user_data.into_storage(),
-        );
+        if self.dds_participant_data.user_data != Default::default() {
+            data.set_value(
+                PID_USER_DATA as u32,
+                self.dds_participant_data.user_data.into_storage(),
+            );
+        }
         if let Some(domain_id) = self.participant_proxy.domain_id {
             data.set_value(PID_DOMAIN_ID as u32, domain_id.into_storage());
         }
-        data.set_value(
-            PID_DOMAIN_TAG as u32,
-            self.participant_proxy.domain_tag.into_storage(),
-        );
+        if self.participant_proxy.domain_tag != DEFAULT_DOMAIN_TAG {
+            data.set_value(
+                PID_DOMAIN_TAG as u32,
+                self.participant_proxy.domain_tag.into_storage(),
+            );
+        }
         data.set_value(
             PID_PROTOCOL_VERSION as u32,
             self.participant_proxy.protocol_version.into_storage(),
@@ -392,50 +319,80 @@ impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParti
             PID_VENDORID as u32,
             self.participant_proxy.vendor_id.into_storage(),
         );
-        data.set_value(
-            PID_EXPECTS_INLINE_QOS as u32,
-            self.participant_proxy.expects_inline_qos.into_storage(),
-        );
-        data.set_value(
-            PID_METATRAFFIC_UNICAST_LOCATOR as u32,
-            self.participant_proxy
-                .metatraffic_unicast_locator_list
-                .into_storage(),
-        );
-        data.set_value(
-            PID_METATRAFFIC_MULTICAST_LOCATOR as u32,
-            self.participant_proxy
-                .metatraffic_multicast_locator_list
-                .into_storage(),
-        );
-        data.set_value(
-            PID_DEFAULT_UNICAST_LOCATOR as u32,
-            self.participant_proxy
-                .default_unicast_locator_list
-                .into_storage(),
-        );
-        data.set_value(
-            PID_DEFAULT_MULTICAST_LOCATOR as u32,
-            self.participant_proxy
-                .default_multicast_locator_list
-                .into_storage(),
-        );
+        if self.participant_proxy.expects_inline_qos != DEFAULT_EXPECTS_INLINE_QOS {
+            data.set_value(
+                PID_EXPECTS_INLINE_QOS as u32,
+                self.participant_proxy.expects_inline_qos.into_storage(),
+            );
+        }
+        if !self
+            .participant_proxy
+            .metatraffic_unicast_locator_list
+            .is_empty()
+        {
+            data.set_value(
+                PID_METATRAFFIC_UNICAST_LOCATOR as u32,
+                self.participant_proxy
+                    .metatraffic_unicast_locator_list
+                    .into_storage(),
+            );
+        }
+        if !self
+            .participant_proxy
+            .metatraffic_multicast_locator_list
+            .is_empty()
+        {
+            data.set_value(
+                PID_METATRAFFIC_MULTICAST_LOCATOR as u32,
+                self.participant_proxy
+                    .metatraffic_multicast_locator_list
+                    .into_storage(),
+            );
+        }
+        if !self
+            .participant_proxy
+            .default_unicast_locator_list
+            .is_empty()
+        {
+            data.set_value(
+                PID_DEFAULT_UNICAST_LOCATOR as u32,
+                self.participant_proxy
+                    .default_unicast_locator_list
+                    .into_storage(),
+            );
+        }
+        if !self
+            .participant_proxy
+            .default_multicast_locator_list
+            .is_empty()
+        {
+            data.set_value(
+                PID_DEFAULT_MULTICAST_LOCATOR as u32,
+                self.participant_proxy
+                    .default_multicast_locator_list
+                    .into_storage(),
+            );
+        }
         data.set_value(
             PID_BUILTIN_ENDPOINT_SET as u32,
             self.participant_proxy
                 .available_builtin_endpoints
                 .into_storage(),
         );
-        data.set_value(
-            PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT as u32,
-            self.participant_proxy
-                .manual_liveliness_count
-                .into_storage(),
-        );
-        data.set_value(
-            PID_BUILTIN_ENDPOINT_QOS as u32,
-            self.participant_proxy.builtin_endpoint_qos.into_storage(),
-        );
+        if self.participant_proxy.manual_liveliness_count != Default::default() {
+            data.set_value(
+                PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT as u32,
+                self.participant_proxy
+                    .manual_liveliness_count
+                    .into_storage(),
+            );
+        }
+        if self.participant_proxy.builtin_endpoint_qos != Default::default() {
+            data.set_value(
+                PID_BUILTIN_ENDPOINT_QOS as u32,
+                self.participant_proxy.builtin_endpoint_qos.into_storage(),
+            );
+        }
         data.set_value(
             PID_PARTICIPANT_LEASE_DURATION as u32,
             self.lease_duration.into_storage(),

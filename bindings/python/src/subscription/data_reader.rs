@@ -470,7 +470,7 @@ impl Sample {
                 convert_dynamic_data_to_python_instance(
                     py,
                     type_,
-                    &PythonDdsData::get_type(),
+                    PythonDdsData::TYPE,
                     dynamic_data.into(),
                 )
                 .ok()

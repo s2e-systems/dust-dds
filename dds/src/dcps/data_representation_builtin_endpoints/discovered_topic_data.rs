@@ -1,10 +1,13 @@
 use crate::{
     builtin_topics::{BuiltInTopicKey, TopicBuiltinTopicData},
-    dcps::data_representation_builtin_endpoints::parameter_id_values::{
-        PID_DATA_REPRESENTATION, PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY,
-        PID_ENDPOINT_GUID, PID_HISTORY, PID_LATENCY_BUDGET, PID_LIFESPAN, PID_LIVELINESS,
-        PID_OWNERSHIP, PID_RELIABILITY, PID_RESOURCE_LIMITS, PID_TOPIC_DATA, PID_TOPIC_NAME,
-        PID_TRANSPORT_PRIORITY, PID_TYPE_NAME,
+    dcps::data_representation_builtin_endpoints::{
+        ConvenienceTypeBuilder,
+        parameter_id_values::{
+            PID_DATA_REPRESENTATION, PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY,
+            PID_ENDPOINT_GUID, PID_HISTORY, PID_LATENCY_BUDGET, PID_LIFESPAN, PID_LIVELINESS,
+            PID_OWNERSHIP, PID_RELIABILITY, PID_RESOURCE_LIMITS, PID_TOPIC_DATA, PID_TOPIC_NAME,
+            PID_TRANSPORT_PRIORITY, PID_TYPE_NAME,
+        },
     },
     infrastructure::{
         qos_policy::{
@@ -16,7 +19,7 @@ use crate::{
         },
         type_support::TypeSupport,
     },
-    xtypes::{binding::XTypesBinding, data_storage::DataStorageMapping, dynamic_type::DynamicType},
+    xtypes::{data_storage::DataStorageMapping, dynamic_type::DynamicType},
 };
 use alloc::string::String;
 
@@ -26,291 +29,81 @@ pub struct DiscoveredTopicData {
 }
 
 impl TypeSupport for DiscoveredTopicData {
-    #[inline]
     const TYPE_NAME: &'static str = "TopicBuiltinTopicData";
 
-    const r#TYPE: &'static DynamicType = todo!();
-    // fn get_type() -> dust_dds::xtypes::dynamic_type::DynamicType {
-    //     extern crate alloc;
-    //     let mut builder = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
-    //         dust_dds::xtypes::dynamic_type::TypeDescriptor {
-    //             kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
-    //             name: Self::get_type_name(),
-    //             base_type: None,
-    //             discriminator_type: None,
-    //             bound: None,
-    //             element_type: None,
-    //             key_element_type: None,
-    //             extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Mutable,
-    //             is_nested: false,
-    //         },
-    //     );
-    //     builder
-    //         .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-    //             name: "key",
-    //             id: PID_ENDPOINT_GUID as u32,
-    //             r#type: <BuiltInTopicKey as XTypesBinding>::get_dynamic_type(),
-    //             default_value: None,
-    //             index: 0u32,
-    //             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-    //             label: None,
-    //             is_key: true,
-    //             is_optional: false,
-    //             is_must_understand: true,
-    //             is_shared: false,
-    //             is_default_label: false,
-    //         })
-    //         .unwrap();
-    //     builder
-    //         .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-    //             name: "name",
-    //             id: PID_TOPIC_NAME as u32,
-    //             r#type: <String as XTypesBinding>::get_dynamic_type(),
-    //             default_value: None,
-    //             index: 1u32,
-    //             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-    //             label: None,
-    //             is_key: false,
-    //             is_optional: false,
-    //             is_must_understand: true,
-    //             is_shared: false,
-    //             is_default_label: false,
-    //         })
-    //         .unwrap();
-    //     builder
-    //         .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-    //             name: "type_name",
-    //             id: PID_TYPE_NAME as u32,
-    //             r#type: <String as XTypesBinding>::get_dynamic_type(),
-    //             default_value: None,
-    //             index: 2u32,
-    //             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-    //             label: None,
-    //             is_key: false,
-    //             is_optional: false,
-    //             is_must_understand: true,
-    //             is_shared: false,
-    //             is_default_label: false,
-    //         })
-    //         .unwrap();
-    //     builder
-    //         .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-    //             name: "durability",
-    //             id: PID_DURABILITY as u32,
-    //             r#type: <DurabilityQosPolicy as XTypesBinding>::get_dynamic_type(),
-    //             default_value: Some(<DurabilityQosPolicy as Default>::default().into_storage()),
-    //             index: 3u32,
-    //             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-    //             label: None,
-    //             is_key: false,
-    //             is_optional: true,
-    //             is_must_understand: true,
-    //             is_shared: false,
-    //             is_default_label: false,
-    //         })
-    //         .unwrap();
-    //     builder
-    //         .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-    //             name: "deadline",
-    //             id: PID_DEADLINE as u32,
-    //             r#type: <DeadlineQosPolicy as XTypesBinding>::get_dynamic_type(),
-    //             default_value: Some(<DeadlineQosPolicy as Default>::default().into_storage()),
-    //             index: 4u32,
-    //             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-    //             label: None,
-    //             is_key: false,
-    //             is_optional: true,
-    //             is_must_understand: true,
-    //             is_shared: false,
-    //             is_default_label: false,
-    //         })
-    //         .unwrap();
-    //     builder
-    //         .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-    //             name: "latency_budget",
-    //             id: PID_LATENCY_BUDGET as u32,
-    //             r#type: <LatencyBudgetQosPolicy as XTypesBinding>::get_dynamic_type(),
-    //             default_value: Some(<LatencyBudgetQosPolicy as Default>::default().into_storage()),
-    //             index: 5u32,
-    //             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-    //             label: None,
-    //             is_key: false,
-    //             is_optional: true,
-    //             is_must_understand: true,
-    //             is_shared: false,
-    //             is_default_label: false,
-    //         })
-    //         .unwrap();
-    //     builder
-    //         .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-    //             name: "liveliness",
-    //             id: PID_LIVELINESS as u32,
-    //             r#type: <LivelinessQosPolicy as XTypesBinding>::get_dynamic_type(),
-    //             default_value: Some(<LivelinessQosPolicy as Default>::default().into_storage()),
-    //             index: 6u32,
-    //             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-    //             label: None,
-    //             is_key: false,
-    //             is_optional: true,
-    //             is_must_understand: true,
-    //             is_shared: false,
-    //             is_default_label: false,
-    //         })
-    //         .unwrap();
-    //     builder
-    //         .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-    //             name: "reliability",
-    //             id: PID_RELIABILITY as u32,
-    //             r#type: <ReliabilityQosPolicy as XTypesBinding>::get_dynamic_type(),
-    //             default_value: Some(
-    //                 DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS.into_storage(),
-    //             ),
-    //             index: 7u32,
-    //             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-    //             label: None,
-    //             is_key: false,
-    //             is_optional: true,
-    //             is_must_understand: true,
-    //             is_shared: false,
-    //             is_default_label: false,
-    //         })
-    //         .unwrap();
-    //     builder
-    //         .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-    //             name: "transport_priority",
-    //             id: PID_TRANSPORT_PRIORITY as u32,
-    //             r#type: <TransportPriorityQosPolicy as XTypesBinding>::get_dynamic_type(),
-    //             default_value: Some(
-    //                 <TransportPriorityQosPolicy as Default>::default().into_storage(),
-    //             ),
-    //             index: 8u32,
-    //             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-    //             label: None,
-    //             is_key: false,
-    //             is_optional: true,
-    //             is_must_understand: true,
-    //             is_shared: false,
-    //             is_default_label: false,
-    //         })
-    //         .unwrap();
-    //     builder
-    //         .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-    //             name: "lifespan",
-    //             id: PID_LIFESPAN as u32,
-    //             r#type: <LifespanQosPolicy as XTypesBinding>::get_dynamic_type(),
-    //             default_value: Some(<LifespanQosPolicy as Default>::default().into_storage()),
-    //             index: 9u32,
-    //             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-    //             label: None,
-    //             is_key: false,
-    //             is_optional: true,
-    //             is_must_understand: true,
-    //             is_shared: false,
-    //             is_default_label: false,
-    //         })
-    //         .unwrap();
-    //     builder
-    //         .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-    //             name: "destination_order",
-    //             id: PID_DESTINATION_ORDER as u32,
-    //             r#type: <DestinationOrderQosPolicy as XTypesBinding>::get_dynamic_type(),
-    //             default_value: Some(
-    //                 <DestinationOrderQosPolicy as Default>::default().into_storage(),
-    //             ),
-    //             index: 10u32,
-    //             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-    //             label: None,
-    //             is_key: false,
-    //             is_optional: true,
-    //             is_must_understand: true,
-    //             is_shared: false,
-    //             is_default_label: false,
-    //         })
-    //         .unwrap();
-    //     builder
-    //         .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-    //             name: "history",
-    //             id: PID_HISTORY as u32,
-    //             r#type: <HistoryQosPolicy as XTypesBinding>::get_dynamic_type(),
-    //             default_value: Some(<HistoryQosPolicy as Default>::default().into_storage()),
-    //             index: 11u32,
-    //             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-    //             label: None,
-    //             is_key: false,
-    //             is_optional: true,
-    //             is_must_understand: true,
-    //             is_shared: false,
-    //             is_default_label: false,
-    //         })
-    //         .unwrap();
-    //     builder
-    //         .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-    //             name: "resource_limits",
-    //             id: PID_RESOURCE_LIMITS as u32,
-    //             r#type: <ResourceLimitsQosPolicy as XTypesBinding>::get_dynamic_type(),
-    //             default_value: Some(<ResourceLimitsQosPolicy as Default>::default().into_storage()),
-    //             index: 12u32,
-    //             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-    //             label: None,
-    //             is_key: false,
-    //             is_optional: true,
-    //             is_must_understand: true,
-    //             is_shared: false,
-    //             is_default_label: false,
-    //         })
-    //         .unwrap();
-    //     builder
-    //         .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-    //             name: "ownership",
-    //             id: PID_OWNERSHIP as u32,
-    //             r#type: <OwnershipQosPolicy as XTypesBinding>::get_dynamic_type(),
-    //             default_value: Some(<OwnershipQosPolicy as Default>::default().into_storage()),
-    //             index: 13u32,
-    //             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-    //             label: None,
-    //             is_key: false,
-    //             is_optional: true,
-    //             is_must_understand: true,
-    //             is_shared: false,
-    //             is_default_label: false,
-    //         })
-    //         .unwrap();
-    //     builder
-    //         .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-    //             name: "topic_data",
-    //             id: PID_TOPIC_DATA as u32,
-    //             r#type: <TopicDataQosPolicy as XTypesBinding>::get_dynamic_type(),
-    //             default_value: Some(<TopicDataQosPolicy as Default>::default().into_storage()),
-    //             index: 14u32,
-    //             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-    //             label: None,
-    //             is_key: false,
-    //             is_optional: true,
-    //             is_must_understand: true,
-    //             is_shared: false,
-    //             is_default_label: false,
-    //         })
-    //         .unwrap();
-    //     builder
-    //         .add_member(dust_dds::xtypes::dynamic_type::MemberDescriptor {
-    //             name: "representation",
-    //             id: PID_DATA_REPRESENTATION as u32,
-    //             r#type: <DataRepresentationQosPolicy as XTypesBinding>::get_dynamic_type(),
-    //             default_value: Some(
-    //                 <DataRepresentationQosPolicy as Default>::default().into_storage(),
-    //             ),
-    //             index: 15u32,
-    //             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-    //             label: None,
-    //             is_key: false,
-    //             is_optional: true,
-    //             is_must_understand: true,
-    //             is_shared: false,
-    //             is_default_label: false,
-    //         })
-    //         .unwrap();
-    //     builder.build()
-    // }
+    const r#TYPE: &'static DynamicType = &DynamicType {
+        descriptor: &ConvenienceTypeBuilder::type_descriptor(Self::TYPE_NAME),
+        member_list: &[
+            ConvenienceTypeBuilder::key_member::<BuiltInTopicKey>(0, "key", PID_ENDPOINT_GUID),
+            ConvenienceTypeBuilder::member::<String>(1, "name", PID_TOPIC_NAME),
+            ConvenienceTypeBuilder::member::<String>(2, "type_name", PID_TYPE_NAME),
+            ConvenienceTypeBuilder::member_with_default::<DurabilityQosPolicy>(
+                3,
+                "durability",
+                PID_DURABILITY,
+            ),
+            ConvenienceTypeBuilder::member_with_default::<DeadlineQosPolicy>(
+                4,
+                "deadline",
+                PID_DEADLINE,
+            ),
+            ConvenienceTypeBuilder::member_with_default::<LatencyBudgetQosPolicy>(
+                5,
+                "latency_budget",
+                PID_LATENCY_BUDGET,
+            ),
+            ConvenienceTypeBuilder::member_with_default::<LivelinessQosPolicy>(
+                6,
+                "liveliness",
+                PID_LIVELINESS,
+            ),
+            ConvenienceTypeBuilder::member_with_default::<ReliabilityQosPolicy>(
+                7,
+                "reliability",
+                PID_RELIABILITY,
+            ),
+            ConvenienceTypeBuilder::member_with_default::<TransportPriorityQosPolicy>(
+                8,
+                "transport_priority",
+                PID_TRANSPORT_PRIORITY,
+            ),
+            ConvenienceTypeBuilder::member_with_default::<LifespanQosPolicy>(
+                9,
+                "lifespan",
+                PID_LIFESPAN,
+            ),
+            ConvenienceTypeBuilder::member_with_default::<DestinationOrderQosPolicy>(
+                10,
+                "destination_order",
+                PID_DESTINATION_ORDER,
+            ),
+            ConvenienceTypeBuilder::member_with_default::<HistoryQosPolicy>(
+                11,
+                "history",
+                PID_HISTORY,
+            ),
+            ConvenienceTypeBuilder::member_with_default::<ResourceLimitsQosPolicy>(
+                12,
+                "resource_limits",
+                PID_RESOURCE_LIMITS,
+            ),
+            ConvenienceTypeBuilder::member_with_default::<OwnershipQosPolicy>(
+                13,
+                "ownership",
+                PID_OWNERSHIP,
+            ),
+            ConvenienceTypeBuilder::member_with_default::<TopicDataQosPolicy>(
+                14,
+                "topic_data",
+                PID_TOPIC_DATA,
+            ),
+            ConvenienceTypeBuilder::member_with_default::<DataRepresentationQosPolicy>(
+                15,
+                "representation",
+                PID_DATA_REPRESENTATION,
+            ),
+        ],
+    };
 
     fn create_sample(mut src: crate::xtypes::dynamic_type::DynamicData) -> Self {
         Self {
@@ -328,64 +121,71 @@ impl TypeSupport for DiscoveredTopicData {
                     src.remove_value(PID_TOPIC_NAME as u32).expect("Must exist"),
                 )
                 .expect("Must match"),
-                durability: DataStorageMapping::try_from_storage(
-                    src.remove_value(PID_DURABILITY as u32).expect("Must exist"),
-                )
-                .expect("Must match"),
-                deadline: DataStorageMapping::try_from_storage(
-                    src.remove_value(PID_DEADLINE as u32).expect("Must exist"),
-                )
-                .expect("Must match"),
-                latency_budget: DataStorageMapping::try_from_storage(
-                    src.remove_value(PID_LATENCY_BUDGET as u32)
-                        .expect("Must exist"),
-                )
-                .expect("Must match"),
-                liveliness: DataStorageMapping::try_from_storage(
-                    src.remove_value(PID_LIVELINESS as u32).expect("Must exist"),
-                )
-                .expect("Must match"),
-                reliability: DataStorageMapping::try_from_storage(
-                    src.remove_value(PID_RELIABILITY as u32)
-                        .expect("Must exist"),
-                )
-                .expect("Must match"),
-                destination_order: DataStorageMapping::try_from_storage(
-                    src.remove_value(PID_DESTINATION_ORDER as u32)
-                        .expect("Must exist"),
-                )
-                .expect("Must match"),
-                topic_data: DataStorageMapping::try_from_storage(
-                    src.remove_value(PID_TOPIC_DATA as u32).expect("Must exist"),
-                )
-                .expect("Must match"),
-                representation: DataStorageMapping::try_from_storage(
-                    src.remove_value(PID_DATA_REPRESENTATION as u32)
-                        .expect("Must exist"),
-                )
-                .expect("Must match"),
-                transport_priority: DataStorageMapping::try_from_storage(
-                    src.remove_value(PID_TRANSPORT_PRIORITY as u32)
-                        .expect("Must exist"),
-                )
-                .expect("Must match"),
-                lifespan: DataStorageMapping::try_from_storage(
-                    src.remove_value(PID_LIFESPAN as u32).expect("Must exist"),
-                )
-                .expect("Must match"),
-                history: DataStorageMapping::try_from_storage(
-                    src.remove_value(PID_HISTORY as u32).expect("Must exist"),
-                )
-                .expect("Must match"),
-                resource_limits: DataStorageMapping::try_from_storage(
-                    src.remove_value(PID_RESOURCE_LIMITS as u32)
-                        .expect("Must exist"),
-                )
-                .expect("Must match"),
-                ownership: DataStorageMapping::try_from_storage(
-                    src.remove_value(PID_OWNERSHIP as u32).expect("Must exist"),
-                )
-                .expect("Must match"),
+                durability: src
+                    .remove_value(PID_DURABILITY as u32)
+                    .map_or(DurabilityQosPolicy::const_default(), |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
+                deadline: src
+                    .remove_value(PID_DEADLINE as u32)
+                    .map_or(DeadlineQosPolicy::const_default(), |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
+                latency_budget: src
+                    .remove_value(PID_LATENCY_BUDGET as u32)
+                    .map_or(LatencyBudgetQosPolicy::const_default(), |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
+                liveliness: src
+                    .remove_value(PID_LIVELINESS as u32)
+                    .map_or(LivelinessQosPolicy::const_default(), |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
+                reliability: src
+                    .remove_value(PID_RELIABILITY as u32)
+                    .map_or(DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS, |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
+                destination_order: src
+                    .remove_value(PID_DESTINATION_ORDER as u32)
+                    .map_or(DestinationOrderQosPolicy::const_default(), |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
+                topic_data: src
+                    .remove_value(PID_TOPIC_DATA as u32)
+                    .map_or(TopicDataQosPolicy::const_default(), |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
+                representation: src
+                    .remove_value(PID_DATA_REPRESENTATION as u32)
+                    .map_or(DataRepresentationQosPolicy::const_default(), |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
+                transport_priority: src
+                    .remove_value(PID_TRANSPORT_PRIORITY as u32)
+                    .map_or(TransportPriorityQosPolicy::const_default(), |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
+                lifespan: src
+                    .remove_value(PID_LIFESPAN as u32)
+                    .map_or(LifespanQosPolicy::const_default(), |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
+                history: src
+                    .remove_value(PID_HISTORY as u32)
+                    .map_or(HistoryQosPolicy::const_default(), |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
+                resource_limits: src
+                    .remove_value(PID_RESOURCE_LIMITS as u32)
+                    .map_or(ResourceLimitsQosPolicy::const_default(), |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
+                ownership: src
+                    .remove_value(PID_OWNERSHIP as u32)
+                    .map_or(OwnershipQosPolicy::const_default(), |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
             },
         }
     }
@@ -404,62 +204,90 @@ impl TypeSupport for DiscoveredTopicData {
             PID_TYPE_NAME as u32,
             self.topic_builtin_topic_data.type_name.into_storage(),
         );
-        data.set_value(
-            PID_DURABILITY as u32,
-            self.topic_builtin_topic_data.durability.into_storage(),
-        );
-        data.set_value(
-            PID_DEADLINE as u32,
-            self.topic_builtin_topic_data.deadline.into_storage(),
-        );
-        data.set_value(
-            PID_LATENCY_BUDGET as u32,
-            self.topic_builtin_topic_data.latency_budget.into_storage(),
-        );
-        data.set_value(
-            PID_LIVELINESS as u32,
-            self.topic_builtin_topic_data.liveliness.into_storage(),
-        );
-        data.set_value(
-            PID_RELIABILITY as u32,
-            self.topic_builtin_topic_data.reliability.into_storage(),
-        );
-        data.set_value(
-            PID_TRANSPORT_PRIORITY as u32,
-            self.topic_builtin_topic_data
-                .transport_priority
-                .into_storage(),
-        );
-        data.set_value(
-            PID_LIFESPAN as u32,
-            self.topic_builtin_topic_data.lifespan.into_storage(),
-        );
-        data.set_value(
-            PID_DESTINATION_ORDER as u32,
-            self.topic_builtin_topic_data
-                .destination_order
-                .into_storage(),
-        );
-        data.set_value(
-            PID_HISTORY as u32,
-            self.topic_builtin_topic_data.history.into_storage(),
-        );
-        data.set_value(
-            PID_RESOURCE_LIMITS as u32,
-            self.topic_builtin_topic_data.resource_limits.into_storage(),
-        );
-        data.set_value(
-            PID_OWNERSHIP as u32,
-            self.topic_builtin_topic_data.ownership.into_storage(),
-        );
-        data.set_value(
-            PID_TOPIC_DATA as u32,
-            self.topic_builtin_topic_data.topic_data.into_storage(),
-        );
-        data.set_value(
-            PID_DATA_REPRESENTATION as u32,
-            self.topic_builtin_topic_data.representation.into_storage(),
-        );
+        if self.topic_builtin_topic_data.durability != Default::default() {
+            data.set_value(
+                PID_DURABILITY as u32,
+                self.topic_builtin_topic_data.durability.into_storage(),
+            );
+        }
+        if self.topic_builtin_topic_data.deadline != Default::default() {
+            data.set_value(
+                PID_DEADLINE as u32,
+                self.topic_builtin_topic_data.deadline.into_storage(),
+            );
+        }
+        if self.topic_builtin_topic_data.latency_budget != Default::default() {
+            data.set_value(
+                PID_LATENCY_BUDGET as u32,
+                self.topic_builtin_topic_data.latency_budget.into_storage(),
+            );
+        }
+        if self.topic_builtin_topic_data.liveliness != Default::default() {
+            data.set_value(
+                PID_LIVELINESS as u32,
+                self.topic_builtin_topic_data.liveliness.into_storage(),
+            );
+        }
+        if self.topic_builtin_topic_data.reliability
+            != DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS
+        {
+            data.set_value(
+                PID_RELIABILITY as u32,
+                self.topic_builtin_topic_data.reliability.into_storage(),
+            );
+        }
+        if self.topic_builtin_topic_data.transport_priority != Default::default() {
+            data.set_value(
+                PID_TRANSPORT_PRIORITY as u32,
+                self.topic_builtin_topic_data
+                    .transport_priority
+                    .into_storage(),
+            );
+        }
+        if self.topic_builtin_topic_data.lifespan != Default::default() {
+            data.set_value(
+                PID_LIFESPAN as u32,
+                self.topic_builtin_topic_data.lifespan.into_storage(),
+            );
+        }
+        if self.topic_builtin_topic_data.destination_order != Default::default() {
+            data.set_value(
+                PID_DESTINATION_ORDER as u32,
+                self.topic_builtin_topic_data
+                    .destination_order
+                    .into_storage(),
+            );
+        }
+        if self.topic_builtin_topic_data.history != Default::default() {
+            data.set_value(
+                PID_HISTORY as u32,
+                self.topic_builtin_topic_data.history.into_storage(),
+            );
+        }
+        if self.topic_builtin_topic_data.resource_limits != Default::default() {
+            data.set_value(
+                PID_RESOURCE_LIMITS as u32,
+                self.topic_builtin_topic_data.resource_limits.into_storage(),
+            );
+        }
+        if self.topic_builtin_topic_data.ownership != Default::default() {
+            data.set_value(
+                PID_OWNERSHIP as u32,
+                self.topic_builtin_topic_data.ownership.into_storage(),
+            );
+        }
+        if self.topic_builtin_topic_data.topic_data != Default::default() {
+            data.set_value(
+                PID_TOPIC_DATA as u32,
+                self.topic_builtin_topic_data.topic_data.into_storage(),
+            );
+        }
+        if self.topic_builtin_topic_data.representation != Default::default() {
+            data.set_value(
+                PID_DATA_REPRESENTATION as u32,
+                self.topic_builtin_topic_data.representation.into_storage(),
+            );
+        }
         data
     }
 }

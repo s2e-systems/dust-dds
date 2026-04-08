@@ -214,7 +214,7 @@ pub struct MemberDescriptor {
     pub name: ObjectName,
     pub id: MemberId,
     pub r#type: &'static DynamicType,
-    pub default_value: Option<DataStorage>,
+    pub default_value: Option<&'static str>,
     pub index: u32,
     pub label: UnionCaseLabelSeq,
     pub try_construct_kind: TryConstructKind,

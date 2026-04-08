@@ -1,5 +1,3 @@
-use std::u32;
-
 use crate::{
     infrastructure::type_support::TypeSupport,
     xtypes::dynamic_type::{DynamicType, ExtensibilityKind, TypeDescriptor, TypeKind},
@@ -248,9 +246,20 @@ impl XTypesBinding for char {
 }
 
 impl XTypesBinding for &'_ [u8] {
-    const TYPE_INFORMATION: &'static DynamicType =
-        // DynamicTypeBuilderFactory::create_sequence_type(u8::get_dynamic_type(), u32::MAX).build()
-        todo!();
+    const TYPE_INFORMATION: &'static DynamicType = &DynamicType {
+        descriptor: &TypeDescriptor {
+            kind: TypeKind::SEQUENCE,
+            name: "",
+            base_type: None,
+            discriminator_type: None,
+            bound: Some(u32::MAX),
+            element_type: Some(u8::TYPE_INFORMATION),
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Final,
+            is_nested: false,
+        },
+        member_list: &[],
+    };
 }
 
 impl<T: XTypesBinding> XTypesBinding for Vec<T> {
@@ -277,7 +286,7 @@ impl<T: TypeSupport> XTypesBinding for T {
 impl<T: XTypesBinding, const N: usize> XTypesBinding for [T; N] {
     const TYPE_INFORMATION: &'static DynamicType = &DynamicType {
         descriptor: &TypeDescriptor {
-            kind: TypeKind::SEQUENCE,
+            kind: TypeKind::ARRAY,
             name: "",
             base_type: None,
             discriminator_type: None,
