@@ -244,7 +244,7 @@ impl DomainParticipantFactoryAsync {
         spawner_handle.spawn(async move {
             loop {
                 let m = dcps_receiver.receive().await;
-                domain_participant_factory.handle(m).await;
+                domain_participant_factory.handle(m);
             }
         });
         DomainParticipantFactoryAsync {

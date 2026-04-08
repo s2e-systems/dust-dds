@@ -81,7 +81,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub async fn create_participant(
+    pub fn create_participant(
         &mut self,
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
@@ -160,7 +160,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
         });
 
         if self.qos.entity_factory.autoenable_created_entities {
-            dcps_participant.enable_domain_participant().await?;
+            dcps_participant.enable_domain_participant()?;
         }
 
         self.domain_participant_list.push(dcps_participant);
@@ -168,10 +168,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
         Ok(participant_handle)
     }
 
-    pub async fn delete_participant(
-        &mut self,
-        participant_handle: InstanceHandle,
-    ) -> DdsResult<()> {
+    pub fn delete_participant(&mut self, participant_handle: InstanceHandle) -> DdsResult<()> {
         let index = self
             .domain_participant_list
             .iter()
@@ -183,7 +180,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             )));
         }
         let mut participant = self.domain_participant_list.remove(index);
-        participant.announce_deleted_participant().await;
+        participant.announce_deleted_participant();
         Ok(())
     }
 

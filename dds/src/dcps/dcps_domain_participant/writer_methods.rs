@@ -27,7 +27,7 @@ use crate::{
 
 impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     #[tracing::instrument(skip(self))]
-    pub async fn get_publication_matched_status(
+    pub fn get_publication_matched_status(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
@@ -171,7 +171,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn unregister_instance(
+    pub fn unregister_instance(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
@@ -194,14 +194,12 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             return Err(DdsError::AlreadyDeleted);
         };
 
-        data_writer
-            .unregister_w_timestamp(
-                dynamic_data,
-                timestamp,
-                self.transport.message_writer.as_ref(),
-                &self.clock_handle,
-            )
-            .await
+        data_writer.unregister_w_timestamp(
+            dynamic_data,
+            timestamp,
+            self.transport.message_writer.as_ref(),
+            &self.clock_handle,
+        )
     }
 
     #[tracing::instrument(skip(self))]
@@ -246,7 +244,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     }
 
     #[tracing::instrument(skip(self, reply_sender))]
-    pub async fn write_w_timestamp(
+    pub fn write_w_timestamp(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
@@ -442,8 +440,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                     if let Some(smallest_seq_num_instance) = s.samples.pop_front() {
                         data_writer
                             .transport_writer
-                            .remove_change(smallest_seq_num_instance)
-                            .await;
+                            .remove_change(smallest_seq_num_instance);
                     }
                 }
             }
@@ -540,20 +537,17 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             });
         }
 
-        data_writer
-            .transport_writer
-            .add_change(
-                change,
-                self.transport.message_writer.as_ref(),
-                &self.clock_handle,
-            )
-            .await;
+        data_writer.transport_writer.add_change(
+            change,
+            self.transport.message_writer.as_ref(),
+            &self.clock_handle,
+        );
 
         reply_sender.send(Ok(()));
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn dispose_w_timestamp(
+    pub fn dispose_w_timestamp(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
@@ -576,18 +570,16 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             return Err(DdsError::AlreadyDeleted);
         };
 
-        data_writer
-            .dispose_w_timestamp(
-                dynamic_data,
-                timestamp,
-                self.transport.message_writer.as_ref(),
-                &self.clock_handle,
-            )
-            .await
+        data_writer.dispose_w_timestamp(
+            dynamic_data,
+            timestamp,
+            self.transport.message_writer.as_ref(),
+            &self.clock_handle,
+        )
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn get_offered_deadline_missed_status(
+    pub fn get_offered_deadline_missed_status(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
@@ -608,11 +600,11 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             return Err(DdsError::AlreadyDeleted);
         };
 
-        Ok(data_writer.get_offered_deadline_missed_status().await)
+        Ok(data_writer.get_offered_deadline_missed_status())
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn enable_data_writer(
+    pub fn enable_data_writer(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
@@ -642,18 +634,16 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                     discovered_reader_data,
                     publisher_handle,
                     data_writer_handle,
-                )
-                .await;
+                );
             }
 
-            self.announce_data_writer(publisher_handle, data_writer_handle)
-                .await;
+            self.announce_data_writer(publisher_handle, data_writer_handle);
         }
         Ok(())
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn set_data_writer_qos(
+    pub fn set_data_writer_qos(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
@@ -686,8 +676,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         data_writer.qos = qos;
 
         if data_writer.enabled {
-            self.announce_data_writer(publisher_handle, data_writer_handle)
-                .await;
+            self.announce_data_writer(publisher_handle, data_writer_handle);
         }
         Ok(())
     }
@@ -696,7 +685,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     // here directly because the reply sender is used as the notification mechanism
     // to notify the caller that all the changes are acknowledged.
     #[tracing::instrument(skip(self, notify_sender))]
-    pub async fn notify_acknowledgments(
+    pub fn notify_acknowledgments(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,

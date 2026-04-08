@@ -32,7 +32,7 @@ impl RtpsStatelessWriter {
         self.guid
     }
 
-    pub async fn add_change(
+    pub fn add_change(
         &mut self,
         cache_change: CacheChange,
         message_writer: &(impl WriteMessage + ?Sized),

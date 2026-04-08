@@ -25,7 +25,7 @@ use crate::{
 impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     #[allow(clippy::too_many_arguments, clippy::type_complexity)]
     #[tracing::instrument(skip(self))]
-    pub async fn read(
+    pub fn read(
         &mut self,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
@@ -56,20 +56,18 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             return Err(DdsError::AlreadyDeleted);
         };
 
-        data_reader
-            .read(
-                max_samples,
-                &sample_states,
-                &view_states,
-                &instance_states,
-                specific_instance_handle,
-            )
-            .await
+        data_reader.read(
+            max_samples,
+            &sample_states,
+            &view_states,
+            &instance_states,
+            specific_instance_handle,
+        )
     }
 
     #[allow(clippy::too_many_arguments, clippy::type_complexity)]
     #[tracing::instrument(skip(self))]
-    pub async fn take(
+    pub fn take(
         &mut self,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
@@ -94,20 +92,18 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         else {
             return Err(DdsError::AlreadyDeleted);
         };
-        data_reader
-            .take(
-                max_samples,
-                sample_states,
-                view_states,
-                instance_states,
-                specific_instance_handle,
-            )
-            .await
+        data_reader.take(
+            max_samples,
+            sample_states,
+            view_states,
+            instance_states,
+            specific_instance_handle,
+        )
     }
 
     #[allow(clippy::too_many_arguments, clippy::type_complexity)]
     #[tracing::instrument(skip(self))]
-    pub async fn read_next_instance(
+    pub fn read_next_instance(
         &mut self,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
@@ -132,20 +128,18 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         else {
             return Err(DdsError::AlreadyDeleted);
         };
-        data_reader
-            .read_next_instance(
-                max_samples,
-                previous_handle,
-                &sample_states,
-                &view_states,
-                &instance_states,
-            )
-            .await
+        data_reader.read_next_instance(
+            max_samples,
+            previous_handle,
+            &sample_states,
+            &view_states,
+            &instance_states,
+        )
     }
 
     #[allow(clippy::too_many_arguments, clippy::type_complexity)]
     #[tracing::instrument(skip(self))]
-    pub async fn take_next_instance(
+    pub fn take_next_instance(
         &mut self,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
@@ -170,19 +164,17 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         else {
             return Err(DdsError::AlreadyDeleted);
         };
-        data_reader
-            .take_next_instance(
-                max_samples,
-                previous_handle,
-                sample_states,
-                view_states,
-                instance_states,
-            )
-            .await
+        data_reader.take_next_instance(
+            max_samples,
+            previous_handle,
+            sample_states,
+            view_states,
+            instance_states,
+        )
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn get_subscription_matched_status(
+    pub fn get_subscription_matched_status(
         &mut self,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
@@ -313,7 +305,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn set_data_reader_qos(
+    pub fn set_data_reader_qos(
         &mut self,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
@@ -347,8 +339,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         data_reader.qos = qos;
 
         if data_reader.enabled {
-            self.announce_data_reader(subscriber_handle, data_reader_handle)
-                .await;
+            self.announce_data_reader(subscriber_handle, data_reader_handle);
         }
         Ok(())
     }
@@ -408,7 +399,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn is_historical_data_received(
+    pub fn is_historical_data_received(
         &mut self,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
@@ -450,7 +441,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn enable_data_reader(
+    pub fn enable_data_reader(
         &mut self,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
@@ -480,12 +471,10 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                     discovered_writer_data,
                     subscriber_handle,
                     data_reader_handle,
-                )
-                .await;
+                );
             }
 
-            self.announce_data_reader(subscriber_handle, data_reader_handle)
-                .await;
+            self.announce_data_reader(subscriber_handle, data_reader_handle);
         }
         Ok(())
     }

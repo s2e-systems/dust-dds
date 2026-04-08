@@ -13,7 +13,7 @@ use crate::{
 };
 
 impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T> {
-    pub async fn handle(&mut self, message: DcpsMail) {
+    pub fn handle(&mut self, message: DcpsMail) {
         match message {
             DcpsMail::ParticipantFactory(ParticipantFactoryMail::CreateParticipant {
                 domain_id,
@@ -21,14 +21,16 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 dcps_listener,
                 status_kind,
                 reply_sender,
-            }) => reply_sender.send(
-                self.create_participant(domain_id, qos, dcps_listener, status_kind)
-                    .await,
-            ),
+            }) => reply_sender.send(self.create_participant(
+                domain_id,
+                qos,
+                dcps_listener,
+                status_kind,
+            )),
             DcpsMail::ParticipantFactory(ParticipantFactoryMail::DeleteParticipant {
                 participant_handle,
                 reply_sender,
-            }) => reply_sender.send(self.delete_participant(participant_handle).await),
+            }) => reply_sender.send(self.delete_participant(participant_handle)),
             DcpsMail::ParticipantFactory(ParticipantFactoryMail::SetDefaultParticipantQos {
                 qos,
                 reply_sender,
@@ -94,17 +96,14 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 type_support,
                 reply_sender,
             }) => match self.find_participant(participant_handle) {
-                Ok(p) => reply_sender.send(
-                    p.create_topic(
-                        topic_name,
-                        type_name,
-                        qos,
-                        dcps_listener,
-                        mask,
-                        type_support,
-                    )
-                    .await,
-                ),
+                Ok(p) => reply_sender.send(p.create_topic(
+                    topic_name,
+                    type_name,
+                    qos,
+                    dcps_listener,
+                    mask,
+                    type_support,
+                )),
                 Err(e) => reply_sender.send(Err(e)),
             },
             DcpsMail::Participant(ParticipantServiceMail::DeleteUserDefinedTopic {
@@ -125,16 +124,13 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 expression_parameters,
                 reply_sender,
             }) => match self.find_participant(participant_handle) {
-                Ok(p) => reply_sender.send(
-                    p.create_content_filtered_topic(
-                        participant_handle,
-                        name,
-                        related_topic_name,
-                        filter_expression,
-                        expression_parameters,
-                    )
-                    .await,
-                ),
+                Ok(p) => reply_sender.send(p.create_content_filtered_topic(
+                    participant_handle,
+                    name,
+                    related_topic_name,
+                    filter_expression,
+                    expression_parameters,
+                )),
                 Err(e) => reply_sender.send(Err(e)),
             },
             DcpsMail::Participant(ParticipantServiceMail::DeleteContentFilteredTopic {
@@ -167,7 +163,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 handle,
                 reply_sender,
             }) => match self.find_participant(participant_handle) {
-                Ok(p) => reply_sender.send(p.ignore_participant(handle).await),
+                Ok(p) => reply_sender.send(p.ignore_participant(handle)),
                 Err(e) => reply_sender.send(Err(e)),
             },
             DcpsMail::Participant(ParticipantServiceMail::IgnoreSubscription {
@@ -190,7 +186,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 participant_handle,
                 reply_sender,
             }) => match self.find_participant(participant_handle) {
-                Ok(p) => reply_sender.send(p.delete_participant_contained_entities().await),
+                Ok(p) => reply_sender.send(p.delete_participant_contained_entities()),
                 Err(e) => reply_sender.send(Err(e)),
             },
             DcpsMail::Participant(ParticipantServiceMail::SetDefaultPublisherQos {
@@ -281,7 +277,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
 
                 reply_sender,
             }) => match self.find_participant(participant_handle) {
-                Ok(p) => reply_sender.send(p.set_domain_participant_qos(qos).await),
+                Ok(p) => reply_sender.send(p.set_domain_participant_qos(qos)),
                 Err(e) => reply_sender.send(Err(e)),
             },
             DcpsMail::Participant(ParticipantServiceMail::GetQos {
@@ -305,7 +301,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
 
                 reply_sender,
             }) => match self.find_participant(participant_handle) {
-                Ok(p) => reply_sender.send(p.enable_domain_participant().await),
+                Ok(p) => reply_sender.send(p.enable_domain_participant()),
                 Err(e) => reply_sender.send(Err(e)),
             },
             DcpsMail::Topic(TopicServiceMail::GetInconsistentTopicStatus {
@@ -313,7 +309,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 topic_name,
                 reply_sender,
             }) => match self.find_participant(participant_handle) {
-                Ok(p) => reply_sender.send(p.get_inconsistent_topic_status(topic_name).await),
+                Ok(p) => reply_sender.send(p.get_inconsistent_topic_status(topic_name)),
                 Err(e) => reply_sender.send(Err(e)),
             },
             DcpsMail::Topic(TopicServiceMail::SetQos {
@@ -339,7 +335,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
 
                 reply_sender,
             }) => match self.find_participant(participant_handle) {
-                Ok(p) => reply_sender.send(p.enable_topic(topic_name).await),
+                Ok(p) => reply_sender.send(p.enable_topic(topic_name)),
                 Err(e) => reply_sender.send(Err(e)),
             },
             DcpsMail::Topic(TopicServiceMail::GetTypeSupport {
@@ -359,10 +355,13 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 mask,
                 reply_sender,
             }) => match self.find_participant(participant_handle) {
-                Ok(p) => reply_sender.send(
-                    p.create_data_writer(publisher_handle, topic_name, qos, dcps_listener, mask)
-                        .await,
-                ),
+                Ok(p) => reply_sender.send(p.create_data_writer(
+                    publisher_handle,
+                    topic_name,
+                    qos,
+                    dcps_listener,
+                    mask,
+                )),
                 Err(e) => reply_sender.send(Err(e)),
             },
             DcpsMail::Publisher(PublisherServiceMail::DeleteDataWriter {
@@ -371,10 +370,9 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 datawriter_handle,
                 reply_sender,
             }) => match self.find_participant(participant_handle) {
-                Ok(p) => reply_sender.send(
-                    p.delete_data_writer(publisher_handle, datawriter_handle)
-                        .await,
-                ),
+                Ok(p) => {
+                    reply_sender.send(p.delete_data_writer(publisher_handle, datawriter_handle))
+                }
                 Err(e) => reply_sender.send(Err(e)),
             },
             DcpsMail::Publisher(PublisherServiceMail::GetDefaultDataWriterQos {
@@ -474,10 +472,8 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 data_writer_handle,
                 reply_sender,
             }) => match self.find_participant(participant_handle) {
-                Ok(p) => reply_sender.send(
-                    p.get_publication_matched_status(publisher_handle, data_writer_handle)
-                        .await,
-                ),
+                Ok(p) => reply_sender
+                    .send(p.get_publication_matched_status(publisher_handle, data_writer_handle)),
                 Err(e) => reply_sender.send(Err(e)),
             },
             DcpsMail::Writer(WriterServiceMail::UnregisterInstance {
@@ -488,15 +484,12 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 timestamp,
                 reply_sender,
             }) => match self.find_participant(participant_handle) {
-                Ok(p) => reply_sender.send(
-                    p.unregister_instance(
-                        publisher_handle,
-                        data_writer_handle,
-                        dynamic_data,
-                        timestamp,
-                    )
-                    .await,
-                ),
+                Ok(p) => reply_sender.send(p.unregister_instance(
+                    publisher_handle,
+                    data_writer_handle,
+                    dynamic_data,
+                    timestamp,
+                )),
                 Err(e) => reply_sender.send(Err(e)),
             },
             DcpsMail::Writer(WriterServiceMail::LookupInstance {
@@ -516,16 +509,13 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 timestamp,
                 reply_sender,
             }) => match self.find_participant(participant_handle) {
-                Ok(p) => {
-                    p.write_w_timestamp(
-                        publisher_handle,
-                        data_writer_handle,
-                        dynamic_data,
-                        timestamp,
-                        reply_sender,
-                    )
-                    .await
-                }
+                Ok(p) => p.write_w_timestamp(
+                    publisher_handle,
+                    data_writer_handle,
+                    dynamic_data,
+                    timestamp,
+                    reply_sender,
+                ),
                 Err(e) => reply_sender.send(Err(e)),
             },
 
@@ -537,15 +527,12 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 timestamp,
                 reply_sender,
             }) => match self.find_participant(participant_handle) {
-                Ok(p) => reply_sender.send(
-                    p.dispose_w_timestamp(
-                        publisher_handle,
-                        data_writer_handle,
-                        dynamic_data,
-                        timestamp,
-                    )
-                    .await,
-                ),
+                Ok(p) => reply_sender.send(p.dispose_w_timestamp(
+                    publisher_handle,
+                    data_writer_handle,
+                    dynamic_data,
+                    timestamp,
+                )),
                 Err(e) => reply_sender.send(Err(e)),
             },
             DcpsMail::Writer(WriterServiceMail::GetOfferedDeadlineMissedStatus {
@@ -555,8 +542,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 reply_sender,
             }) => match self.find_participant(participant_handle) {
                 Ok(p) => reply_sender.send(
-                    p.get_offered_deadline_missed_status(publisher_handle, data_writer_handle)
-                        .await,
+                    p.get_offered_deadline_missed_status(publisher_handle, data_writer_handle),
                 ),
                 Err(e) => reply_sender.send(Err(e)),
             },
@@ -566,10 +552,9 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 data_writer_handle,
                 reply_sender,
             }) => match self.find_participant(participant_handle) {
-                Ok(p) => reply_sender.send(
-                    p.enable_data_writer(publisher_handle, data_writer_handle)
-                        .await,
-                ),
+                Ok(p) => {
+                    reply_sender.send(p.enable_data_writer(publisher_handle, data_writer_handle))
+                }
                 Err(e) => reply_sender.send(Err(e)),
             },
             DcpsMail::Writer(WriterServiceMail::SetDataWriterQos {
@@ -580,10 +565,11 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
 
                 reply_sender,
             }) => match self.find_participant(participant_handle) {
-                Ok(p) => reply_sender.send(
-                    p.set_data_writer_qos(publisher_handle, data_writer_handle, qos)
-                        .await,
-                ),
+                Ok(p) => reply_sender.send(p.set_data_writer_qos(
+                    publisher_handle,
+                    data_writer_handle,
+                    qos,
+                )),
                 Err(e) => reply_sender.send(Err(e)),
             },
             DcpsMail::Subscriber(SubscriberServiceMail::CreateDataReader {
@@ -595,10 +581,13 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 mask,
                 reply_sender,
             }) => match self.find_participant(participant_handle) {
-                Ok(p) => reply_sender.send(
-                    p.create_data_reader(subscriber_handle, topic_name, qos, dcps_listener, mask)
-                        .await,
-                ),
+                Ok(p) => reply_sender.send(p.create_data_reader(
+                    subscriber_handle,
+                    topic_name,
+                    qos,
+                    dcps_listener,
+                    mask,
+                )),
                 Err(e) => reply_sender.send(Err(e)),
             },
             DcpsMail::Subscriber(SubscriberServiceMail::DeleteDataReader {
@@ -607,10 +596,9 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 datareader_handle,
                 reply_sender,
             }) => match self.find_participant(participant_handle) {
-                Ok(p) => reply_sender.send(
-                    p.delete_data_reader(subscriber_handle, datareader_handle)
-                        .await,
-                ),
+                Ok(p) => {
+                    reply_sender.send(p.delete_data_reader(subscriber_handle, datareader_handle))
+                }
                 Err(e) => reply_sender.send(Err(e)),
             },
             DcpsMail::Subscriber(SubscriberServiceMail::LookupDataReader {
@@ -678,18 +666,15 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 specific_instance_handle,
                 reply_sender,
             }) => match self.find_participant(participant_handle) {
-                Ok(p) => reply_sender.send(
-                    p.read(
-                        subscriber_handle,
-                        data_reader_handle,
-                        max_samples,
-                        sample_states,
-                        view_states,
-                        instance_states,
-                        specific_instance_handle,
-                    )
-                    .await,
-                ),
+                Ok(p) => reply_sender.send(p.read(
+                    subscriber_handle,
+                    data_reader_handle,
+                    max_samples,
+                    sample_states,
+                    view_states,
+                    instance_states,
+                    specific_instance_handle,
+                )),
                 Err(e) => reply_sender.send(Err(e)),
             },
             DcpsMail::Reader(ReaderServiceMail::Take {
@@ -703,18 +688,15 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 specific_instance_handle,
                 reply_sender,
             }) => match self.find_participant(participant_handle) {
-                Ok(p) => reply_sender.send(
-                    p.take(
-                        subscriber_handle,
-                        data_reader_handle,
-                        max_samples,
-                        sample_states,
-                        view_states,
-                        instance_states,
-                        specific_instance_handle,
-                    )
-                    .await,
-                ),
+                Ok(p) => reply_sender.send(p.take(
+                    subscriber_handle,
+                    data_reader_handle,
+                    max_samples,
+                    sample_states,
+                    view_states,
+                    instance_states,
+                    specific_instance_handle,
+                )),
                 Err(e) => reply_sender.send(Err(e)),
             },
             DcpsMail::Reader(ReaderServiceMail::ReadNextInstance {
@@ -728,18 +710,15 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 instance_states,
                 reply_sender,
             }) => match self.find_participant(participant_handle) {
-                Ok(p) => reply_sender.send(
-                    p.read_next_instance(
-                        subscriber_handle,
-                        data_reader_handle,
-                        max_samples,
-                        previous_handle,
-                        sample_states,
-                        view_states,
-                        instance_states,
-                    )
-                    .await,
-                ),
+                Ok(p) => reply_sender.send(p.read_next_instance(
+                    subscriber_handle,
+                    data_reader_handle,
+                    max_samples,
+                    previous_handle,
+                    sample_states,
+                    view_states,
+                    instance_states,
+                )),
                 Err(e) => reply_sender.send(Err(e)),
             },
             DcpsMail::Reader(ReaderServiceMail::TakeNextInstance {
@@ -753,18 +732,15 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 instance_states,
                 reply_sender,
             }) => match self.find_participant(participant_handle) {
-                Ok(p) => reply_sender.send(
-                    p.take_next_instance(
-                        subscriber_handle,
-                        data_reader_handle,
-                        max_samples,
-                        previous_handle,
-                        sample_states,
-                        view_states,
-                        instance_states,
-                    )
-                    .await,
-                ),
+                Ok(p) => reply_sender.send(p.take_next_instance(
+                    subscriber_handle,
+                    data_reader_handle,
+                    max_samples,
+                    previous_handle,
+                    sample_states,
+                    view_states,
+                    instance_states,
+                )),
                 Err(e) => reply_sender.send(Err(e)),
             },
             DcpsMail::Reader(ReaderServiceMail::Enable {
@@ -773,10 +749,9 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 data_reader_handle,
                 reply_sender,
             }) => match self.find_participant(participant_handle) {
-                Ok(p) => reply_sender.send(
-                    p.enable_data_reader(subscriber_handle, data_reader_handle)
-                        .await,
-                ),
+                Ok(p) => {
+                    reply_sender.send(p.enable_data_reader(subscriber_handle, data_reader_handle))
+                }
                 Err(e) => reply_sender.send(Err(e)),
             },
             DcpsMail::Reader(ReaderServiceMail::GetSubscriptionMatchedStatus {
@@ -785,10 +760,8 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 data_reader_handle,
                 reply_sender,
             }) => match self.find_participant(participant_handle) {
-                Ok(p) => reply_sender.send(
-                    p.get_subscription_matched_status(subscriber_handle, data_reader_handle)
-                        .await,
-                ),
+                Ok(p) => reply_sender
+                    .send(p.get_subscription_matched_status(subscriber_handle, data_reader_handle)),
                 Err(e) => reply_sender.send(Err(e)),
             },
             DcpsMail::Reader(ReaderServiceMail::WaitForHistoricalData {
@@ -839,10 +812,11 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 qos,
                 reply_sender,
             }) => match self.find_participant(participant_handle) {
-                Ok(p) => reply_sender.send(
-                    p.set_data_reader_qos(subscriber_handle, data_reader_handle, qos)
-                        .await,
-                ),
+                Ok(p) => reply_sender.send(p.set_data_reader_qos(
+                    subscriber_handle,
+                    data_reader_handle,
+                    qos,
+                )),
                 Err(e) => reply_sender.send(Err(e)),
             },
             DcpsMail::Reader(ReaderServiceMail::SetListener {
@@ -868,7 +842,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             }) => {
                 if let Ok(p) = self.find_participant(participant_handle) {
                     p.remove_writer_change(publisher_handle, data_writer_handle, sequence_number)
-                        .await
                 }
             }
             DcpsMail::StatusCondition(StatusConditionMail::GetStatusConditionEnabledStatuses {
@@ -888,10 +861,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 notification_sender,
                 reply_sender,
             }) => {
-                reply_sender.send(
-                    self.register_notification(entity, notification_sender)
-                        .await,
-                );
+                reply_sender.send(self.register_notification(entity, notification_sender));
             }
             DcpsMail::StatusCondition(StatusConditionMail::SetStatusConditionEnabledStatuses {
                 entity,
@@ -908,7 +878,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             }) => match self.find_participant(participant_handle) {
                 Ok(p) => {
                     p.notify_acknowledgments(publisher_handle, data_writer_handle, reply_sender)
-                        .await
                 }
 
                 Err(e) => reply_sender.send(Err(e)),
@@ -919,10 +888,8 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 data_reader_handle,
                 reply_sender,
             }) => match self.find_participant(participant_handle) {
-                Ok(p) => reply_sender.send(
-                    p.is_historical_data_received(subscriber_handle, data_reader_handle)
-                        .await,
-                ),
+                Ok(p) => reply_sender
+                    .send(p.is_historical_data_received(subscriber_handle, data_reader_handle)),
                 Err(e) => reply_sender.send(Err(e)),
             },
             DcpsMail::Message(MessageServiceMail::HandleData {
@@ -930,12 +897,12 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                 data_message,
             }) => {
                 if let Ok(p) = self.find_participant(participant_handle) {
-                    p.handle_data(data_message).await;
+                    p.handle_data(data_message);
                 }
             }
             DcpsMail::Message(MessageServiceMail::Poke { participant_handle }) => {
                 if let Ok(p) = self.find_participant(participant_handle) {
-                    p.poke().await
+                    p.poke()
                 }
             }
             DcpsMail::Event(EventServiceMail::OfferedDeadlineMissed {
@@ -950,7 +917,6 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                         data_writer_handle,
                         change_instance_handle,
                     )
-                    .await
                 }
             }
             DcpsMail::Event(EventServiceMail::RequestedDeadlineMissed {
@@ -965,14 +931,13 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                         data_reader_handle,
                         change_instance_handle,
                     )
-                    .await
                 }
             }
             DcpsMail::Discovery(DiscoveryServiceMail::AnnounceParticipant {
                 participant_handle,
             }) => {
                 if let Ok(p) = self.find_participant(participant_handle) {
-                    p.announce_participant().await
+                    p.announce_participant()
                 }
             }
         }

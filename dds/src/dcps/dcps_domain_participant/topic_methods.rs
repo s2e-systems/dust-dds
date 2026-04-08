@@ -13,7 +13,7 @@ use crate::{
 
 impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     #[tracing::instrument(skip(self))]
-    pub async fn get_inconsistent_topic_status(
+    pub fn get_inconsistent_topic_status(
         &mut self,
         topic_name: String,
     ) -> DdsResult<InconsistentTopicStatus> {
@@ -86,7 +86,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn enable_topic(&mut self, topic_name: String) -> DdsResult<()> {
+    pub fn enable_topic(&mut self, topic_name: String) -> DdsResult<()> {
         let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
             .topic_description_list
@@ -98,7 +98,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
 
         if !topic.enabled {
             topic.enabled = true;
-            self.announce_topic(topic_name).await;
+            self.announce_topic(topic_name);
         }
 
         Ok(())

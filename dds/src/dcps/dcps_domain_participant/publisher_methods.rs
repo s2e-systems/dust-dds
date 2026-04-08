@@ -27,7 +27,7 @@ use crate::{
 impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     #[allow(clippy::too_many_arguments)]
     #[tracing::instrument(skip(self, dcps_listener))]
-    pub async fn create_data_writer(
+    pub fn create_data_writer(
         &mut self,
         publisher_handle: InstanceHandle,
         topic_name: String,
@@ -125,15 +125,14 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         publisher.data_writer_list.push(data_writer);
 
         if publisher.enabled && publisher.qos.entity_factory.autoenable_created_entities {
-            self.enable_data_writer(publisher_handle, writer_handle)
-                .await?;
+            self.enable_data_writer(publisher_handle, writer_handle)?;
         }
 
         Ok(data_writer_handle)
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn delete_data_writer(
+    pub fn delete_data_writer(
         &mut self,
         publisher_handle: InstanceHandle,
         datawriter_handle: InstanceHandle,
@@ -153,7 +152,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             .position(|x| x.instance_handle == datawriter_handle)
         {
             let data_writer = publisher.data_writer_list.remove(index);
-            self.announce_deleted_data_writer(data_writer).await;
+            self.announce_deleted_data_writer(data_writer);
             Ok(())
         } else {
             return Err(DdsError::AlreadyDeleted);
