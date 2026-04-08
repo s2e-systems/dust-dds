@@ -5383,7 +5383,7 @@ impl DataReaderEntity {
 
         impl<'a> DynamicType for KeyHolder<'a> {
             fn get_descriptor(&self) -> &crate::xtypes::dynamic_type::TypeDescriptor {
-                &self.descriptor
+                self.descriptor
             }
 
             fn get_name(&self) -> crate::xtypes::dynamic_type::ObjectName<'static> {
@@ -5404,7 +5404,7 @@ impl DataReaderEntity {
                 self.member_list
                     .iter()
                     .find(|x| x.get_name() == name)
-                    .map(|x| *x)
+                    .copied()
                     .ok_or(XTypesError::InvalidName)
             }
 
@@ -5418,7 +5418,7 @@ impl DataReaderEntity {
                 self.member_list
                     .iter()
                     .find(|x| x.get_id() == id)
-                    .map(|x| *x)
+                    .copied()
                     .ok_or(XTypesError::InvalidId(id))
             }
 
@@ -5435,7 +5435,7 @@ impl DataReaderEntity {
             > {
                 self.member_list
                     .get(index as usize)
-                    .map(|x| *x)
+                    .copied()
                     .ok_or(XTypesError::InvalidIndex(index))
             }
         }
