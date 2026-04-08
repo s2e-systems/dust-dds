@@ -4411,10 +4411,6 @@ impl DomainParticipantEntity {
         }
     }
 
-    fn builtin_subscriber(&self) -> &SubscriberEntity {
-        &self.builtin_subscriber
-    }
-
     fn add_discovered_topic(&mut self, topic_builtin_topic_data: TopicBuiltinTopicData) {
         match self
             .discovered_topic_list
@@ -4571,6 +4567,7 @@ impl SubscriberEntity {
     }
 }
 
+#[allow(clippy::large_enum_variant)]
 enum TopicDescriptionKind {
     Topic(TopicEntity),
     ContentFilteredTopic(ContentFilteredTopicEntity),

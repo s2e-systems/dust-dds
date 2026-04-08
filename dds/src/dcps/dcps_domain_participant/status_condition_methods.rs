@@ -1,7 +1,6 @@
 use crate::{
     dcps::{
-        channels::{mpsc::MpscReceiver, oneshot::OneshotSender},
-        dcps_participant_factory::DcpsParticipantFactory,
+        channels::mpsc::MpscReceiver, dcps_participant_factory::DcpsParticipantFactory,
         status_condition::StatusConditionEntity,
     },
     infrastructure::{
