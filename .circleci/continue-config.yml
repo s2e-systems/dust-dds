@@ -219,6 +219,7 @@ jobs:
       - run:
           name: Build dust binaries
           command: |
+            cargo update --package dust_dds_interoperability
             cargo build --package dust_dds_interoperability
       - run:
           name: FastDDS publisher interoperability test
