@@ -232,6 +232,8 @@ where
             }
         }
 
+        let mut data_reader_list = Vec::with_capacity(4);
+
         // Create shared type information Arcs to avoid multiple allocations
         let spdp_participant_type = SpdpDiscoveredParticipantData::TYPE;
         let discovered_topic_type = DiscoveredTopicData::TYPE;
@@ -407,6 +409,7 @@ where
             Vec::new(),
             RtpsReaderKind::Stateless(rtps_stateless_reader),
         );
+        data_reader_list.push(dcps_participant_reader);
 
         let dcps_topic_transport_reader = RtpsStatefulReader::new(
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR),
@@ -422,6 +425,7 @@ where
             Vec::new(),
             RtpsReaderKind::Stateful(dcps_topic_transport_reader),
         );
+        data_reader_list.push(dcps_topic_reader);
 
         let dcps_publication_transport_reader = RtpsStatefulReader::new(
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR),
@@ -437,6 +441,7 @@ where
             Vec::new(),
             RtpsReaderKind::Stateful(dcps_publication_transport_reader),
         );
+        data_reader_list.push(dcps_publication_reader);
 
         let dcps_subscription_transport_reader = RtpsStatefulReader::new(
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR),
@@ -452,13 +457,8 @@ where
             Vec::new(),
             RtpsReaderKind::Stateful(dcps_subscription_transport_reader),
         );
+        data_reader_list.push(dcps_subscription_reader);
 
-        let data_reader_list = vec![
-            dcps_participant_reader,
-            dcps_topic_reader,
-            dcps_publication_reader,
-            dcps_subscription_reader,
-        ];
         let builtin_subscriber_handle = [
             participant_handle[0],
             participant_handle[1],
