@@ -53,12 +53,12 @@ jobs:
       - setup_remote_docker
       - run:
           name: Build Docker image
-          command: docker build --file .circleci/Dockerfile --tag s2esystems/dust_dds_interoperability:1.85.0 .
+          command: docker build --file .circleci/Dockerfile --tag s2esystems/dust_dds_interoperability:1.87.0 .
       - run:
           name: Push image to DockerHub
           command: |
             echo $DOCKERHUB_ACCESS_TOKEN | docker login --username $DOCKERHUB_USERNAME --password-stdin
-            docker push s2esystems/dust_dds_interoperability:1.85.0
+            docker push s2esystems/dust_dds_interoperability:1.87.0
 
   code_checks:
     docker:
@@ -200,7 +200,7 @@ jobs:
 
   interoperability_tests:
     docker:
-      - image: s2esystems/dust_dds_interoperability:1.85.0
+      - image: s2esystems/dust_dds_interoperability:1.87.0
     steps:
       - checkout
       - run:
