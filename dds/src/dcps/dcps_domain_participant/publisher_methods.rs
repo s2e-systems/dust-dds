@@ -9,7 +9,6 @@ use crate::{
         listeners::{
             data_writer_listener::DcpsDataWriterListener, publisher_listener::DcpsPublisherListener,
         },
-        status_condition::DcpsStatusCondition,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -91,8 +90,6 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         ]);
         self.writer_counter += 1;
 
-        let status_condition = DcpsStatusCondition::default();
-
         let qos = match qos {
             QosKind::Default => publisher.default_datawriter_qos.clone(),
             QosKind::Specific(q) => {
@@ -115,7 +112,6 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             topic_name,
             type_name,
             type_support,
-            status_condition,
             listener_sender,
             mask,
             qos,

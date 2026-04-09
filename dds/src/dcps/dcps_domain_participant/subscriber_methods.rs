@@ -10,7 +10,6 @@ use crate::{
             data_reader_listener::DcpsDataReaderListener,
             subscriber_listener::DcpsSubscriberListener,
         },
-        status_condition::DcpsStatusCondition,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -127,8 +126,6 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         let transport_reader =
             RtpsReaderKind::Stateful(RtpsStatefulReader::new(guid, reliablity_kind));
 
-        let status_condition = DcpsStatusCondition::default();
-
         let listener_mask = mask.to_vec();
         let listener_sender = dcps_listener.map(|l| l.spawn::<R>(&self.spawner_handle));
         let data_reader = DataReaderEntity::new(
@@ -136,7 +133,6 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             qos,
             topic_name,
             type_support,
-            status_condition,
             listener_sender,
             listener_mask,
             transport_reader,

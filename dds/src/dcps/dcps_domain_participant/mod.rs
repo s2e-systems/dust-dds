@@ -403,7 +403,6 @@ where
             spdp_reader_qos,
             String::from(DCPS_PARTICIPANT),
             spdp_participant_type,
-            DcpsStatusCondition::default(),
             None,
             Vec::new(),
             RtpsReaderKind::Stateless(rtps_stateless_reader),
@@ -419,7 +418,6 @@ where
             sedp_data_reader_qos(),
             String::from(DCPS_TOPIC),
             discovered_topic_type,
-            DcpsStatusCondition::default(),
             None,
             Vec::new(),
             RtpsReaderKind::Stateful(dcps_topic_transport_reader),
@@ -435,7 +433,6 @@ where
             sedp_data_reader_qos(),
             String::from(DCPS_PUBLICATION),
             discovered_writer_type,
-            DcpsStatusCondition::default(),
             None,
             Vec::new(),
             RtpsReaderKind::Stateful(dcps_publication_transport_reader),
@@ -451,7 +448,6 @@ where
             sedp_data_reader_qos(),
             String::from(DCPS_SUBSCRIPTION),
             discovered_reader_type,
-            DcpsStatusCondition::default(),
             None,
             Vec::new(),
             RtpsReaderKind::Stateful(dcps_subscription_transport_reader),
@@ -485,7 +481,6 @@ where
             InstanceHandle::new(builtin_subscriber_handle),
             SubscriberQos::default(),
             data_reader_list,
-            DcpsStatusCondition::default(),
             None,
             vec![],
         );
@@ -503,7 +498,6 @@ where
             String::from(DCPS_PARTICIPANT),
             "SpdpDiscoveredParticipantData".to_string(),
             spdp_participant_type,
-            DcpsStatusCondition::default(),
             None,
             vec![],
             spdp_writer_qos,
@@ -520,7 +514,6 @@ where
             String::from(DCPS_TOPIC),
             "DiscoveredTopicData".to_string(),
             discovered_topic_type,
-            DcpsStatusCondition::default(),
             None,
             vec![],
             sedp_data_writer_qos(),
@@ -536,7 +529,6 @@ where
             String::from(DCPS_PUBLICATION),
             "DiscoveredWriterData".to_string(),
             discovered_writer_type,
-            DcpsStatusCondition::default(),
             None,
             vec![],
             sedp_data_writer_qos(),
@@ -552,7 +544,6 @@ where
             String::from(DCPS_SUBSCRIPTION),
             "DiscoveredReaderData".to_string(),
             discovered_reader_type,
-            DcpsStatusCondition::default(),
             None,
             vec![],
             sedp_data_writer_qos(),
@@ -4461,11 +4452,10 @@ struct SubscriberEntity {
 }
 
 impl SubscriberEntity {
-    const fn new(
+    fn new(
         instance_handle: InstanceHandle,
         qos: SubscriberQos,
         data_reader_list: Vec<DataReaderEntity>,
-        status_condition: DcpsStatusCondition,
         listener_sender: Option<MpscSender<ListenerMail>>,
         listener_mask: Vec<StatusKind>,
     ) -> Self {
@@ -4475,7 +4465,7 @@ impl SubscriberEntity {
             data_reader_list,
             enabled: false,
             default_data_reader_qos: DataReaderQos::const_default(),
-            status_condition,
+            status_condition: DcpsStatusCondition::default(),
             listener_sender,
             listener_mask,
         }
@@ -4641,13 +4631,12 @@ struct DataWriterEntity {
 
 impl DataWriterEntity {
     #[allow(clippy::too_many_arguments)]
-    const fn new(
+    fn new(
         instance_handle: InstanceHandle,
         transport_writer: RtpsWriterKind,
         topic_name: String,
         type_name: String,
         type_support: &'static dyn DynamicType,
-        status_condition: DcpsStatusCondition,
         listener_sender: Option<MpscSender<ListenerMail>>,
         listener_mask: Vec<StatusKind>,
         qos: DataWriterQos,
@@ -4663,7 +4652,7 @@ impl DataWriterEntity {
             incompatible_subscription_list: Vec::new(),
             offered_incompatible_qos_status: OfferedIncompatibleQosStatus::const_default(),
             enabled: false,
-            status_condition,
+            status_condition: DcpsStatusCondition::default(),
             listener_sender,
             listener_mask,
             max_seq_num: None,
@@ -5041,12 +5030,11 @@ struct DataReaderEntity {
 
 impl DataReaderEntity {
     #[allow(clippy::too_many_arguments)]
-    const fn new(
+    fn new(
         instance_handle: InstanceHandle,
         qos: DataReaderQos,
         topic_name: String,
         type_support: &'static dyn DynamicType,
-        status_condition: DcpsStatusCondition,
         listener_sender: Option<MpscSender<ListenerMail>>,
         listener_mask: Vec<StatusKind>,
         transport_reader: RtpsReaderKind,
@@ -5065,7 +5053,7 @@ impl DataReaderEntity {
             enabled: false,
             data_available_status_changed_flag: false,
             incompatible_writer_list: Vec::new(),
-            status_condition,
+            status_condition: DcpsStatusCondition::default(),
             listener_sender,
             listener_mask,
             instances: Vec::new(),

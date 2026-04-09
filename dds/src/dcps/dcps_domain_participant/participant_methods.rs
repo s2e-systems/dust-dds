@@ -133,7 +133,6 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             QosKind::Default => self.domain_participant.default_subscriber_qos.clone(),
             QosKind::Specific(q) => q,
         };
-        let status_condition = DcpsStatusCondition::default();
         let subscriber_handle = InstanceHandle::new([
             self.domain_participant.instance_handle[0],
             self.domain_participant.instance_handle[1],
@@ -162,7 +161,6 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             subscriber_handle,
             subscriber_qos,
             data_reader_list,
-            status_condition,
             listener_sender,
             listener_mask,
         );
