@@ -1,3 +1,5 @@
+use core::ops::DerefMut;
+
 use super::domain_participant::DomainParticipant;
 use crate::{
     configuration::DustDdsConfiguration,
@@ -130,6 +132,13 @@ impl DomainParticipantFactory {
     /// Get the current configuration of the [`DomainParticipantFactory`] singleton
     pub fn get_configuration(&self) -> DdsResult<DustDdsConfiguration> {
         block_on(self.participant_factory_async.get_configuration())
+    }
+
+    /// Get a mutable reference to the transport object
+    pub fn get_mut_transport(
+        &self,
+    ) -> impl DerefMut<Target = RtpsUdpTransportParticipantFactory> + '_ {
+        block_on(self.participant_factory_async.get_mut_transport())
     }
 }
 

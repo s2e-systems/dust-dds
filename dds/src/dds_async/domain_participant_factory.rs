@@ -1,3 +1,7 @@
+use core::ops::DerefMut;
+
+use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, mutex::Mutex};
+
 use super::domain_participant::DomainParticipantAsync;
 use crate::{
     dcps::{
@@ -56,7 +60,7 @@ pub struct DomainParticipantFactoryAsync<T: TransportParticipantFactory> {
     entity_counter: core::sync::atomic::AtomicU32,
     app_id: [u8; 4],
     host_id: [u8; 4],
-    transport: T,
+    transport: embassy_sync::mutex::Mutex<CriticalSectionRawMutex, T>,
 }
 
 impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
@@ -70,7 +74,7 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
     ) -> DdsResult<DomainParticipantAsync> {
         let guid_prefix = self.create_new_guid_prefix();
         let participant_handle = InstanceHandle::from(Guid::new(guid_prefix, ENTITYID_PARTICIPANT));
-        let transport_participant = self.transport.create_participant(
+        let transport_participant = self.transport.lock().await.create_participant(
             domain_id,
             TransportDataReceiver::new(participant_handle, self.dcps_sender),
         );
@@ -191,6 +195,11 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
             .await;
         reply_receiver.await
     }
+
+    /// Get a mutable reference to the transport object
+    pub async fn get_mut_transport(&self) -> impl DerefMut<Target = T> + '_ {
+        self.transport.lock().await
+    }
 }
 
 #[cfg(feature = "std")]
@@ -267,7 +276,7 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
             app_id,
             host_id,
             entity_counter: core::sync::atomic::AtomicU32::new(0),
-            transport,
+            transport: Mutex::new(transport),
         }
     }
 
