@@ -161,13 +161,16 @@ impl SubscriberAsync {
     #[tracing::instrument(skip(self))]
     pub async fn set_default_datareader_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
-        *self.dcps_sender().reserve().await =
-            DcpsMail::Subscriber(SubscriberServiceMail::SetDefaultDataReaderQos {
-                participant_handle: self.participant.get_instance_handle(),
-                subscriber_handle: self.handle,
-                qos,
-                reply_sender,
-            });
+        self.dcps_sender()
+            .send(DcpsMail::Subscriber(
+                SubscriberServiceMail::SetDefaultDataReaderQos {
+                    participant_handle: self.participant.get_instance_handle(),
+                    subscriber_handle: self.handle,
+                    qos,
+                    reply_sender,
+                },
+            ))
+            .await;
 
         reply_receiver.await?
     }

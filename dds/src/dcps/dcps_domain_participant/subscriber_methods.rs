@@ -230,14 +230,12 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         else {
             return Err(DdsError::AlreadyDeleted);
         };
-        match qos {
-            QosKind::Default => subscriber.default_data_reader_qos = DataReaderQos::default(),
-            QosKind::Specific(q) => {
-                q.is_consistent()?;
-                subscriber.default_data_reader_qos = q;
-            }
+        let qos = match qos {
+            QosKind::Default => DataReaderQos::default(),
+            QosKind::Specific(q) => q,
         };
-
+        qos.is_consistent()?;
+        subscriber.default_data_reader_qos = qos;
         Ok(())
     }
 
