@@ -190,8 +190,6 @@ impl DomainParticipantFactoryAsync {
         static PARTICIPANT_FACTORY_ASYNC: OnceLock<DomainParticipantFactoryAsync> = OnceLock::new();
         PARTICIPANT_FACTORY_ASYNC.get_or_init(|| {
 
-            static DCPS_CHANNEL : DcpsChannel = DcpsChannel::new();
-
             let executor = crate::std_runtime::executor::Executor::new();
             let timer_driver = crate::std_runtime::timer::TimerDriver::new();
             let runtime = crate::std_runtime::StdRuntime::new(executor, timer_driver);
@@ -216,7 +214,7 @@ impl DomainParticipantFactoryAsync {
 
             let app_id = std::process::id().to_ne_bytes();
             let transport = crate::rtps_udp_transport::udp_transport::RtpsUdpTransportParticipantFactory::default();
-            Self::new(runtime, app_id, host_id, transport, &DCPS_CHANNEL)
+            Self::new(runtime, app_id, host_id, transport)
         })
     }
 }
@@ -228,8 +226,8 @@ impl DomainParticipantFactoryAsync {
         app_id: [u8; 4],
         host_id: [u8; 4],
         transport: T,
-        dcps_channel: &'static DcpsChannel,
     ) -> DomainParticipantFactoryAsync {
+        static DCPS_CHANNEL: DcpsChannel = DcpsChannel::new();
         let spawner_handle = runtime.spawner();
 
         let mut domain_participant_factory =
@@ -238,9 +236,9 @@ impl DomainParticipantFactoryAsync {
                 host_id,
                 runtime,
                 transport,
-                dcps_channel.sender(),
+                DCPS_CHANNEL.sender(),
             );
-        let dcps_receiver = dcps_channel.receiver();
+        let dcps_receiver = DCPS_CHANNEL.receiver();
         spawner_handle.spawn(async move {
             loop {
                 let m = dcps_receiver.receive().await;
@@ -248,7 +246,7 @@ impl DomainParticipantFactoryAsync {
             }
         });
         DomainParticipantFactoryAsync {
-            dcps_sender: dcps_channel.sender(),
+            dcps_sender: DCPS_CHANNEL.sender(),
         }
     }
 }
