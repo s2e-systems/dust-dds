@@ -8,12 +8,11 @@ use crate::{
         status::StatusKind,
     },
     runtime::DdsRuntime,
-    transport::interface::TransportParticipantFactory,
 };
 
 use alloc::vec::Vec;
 
-impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T> {
+impl<R: DdsRuntime> DcpsParticipantFactory<R> {
     pub fn get_status_condition_enabled_statuses(
         &mut self,
         entity: StatusConditionEntity,

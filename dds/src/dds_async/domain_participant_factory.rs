@@ -11,11 +11,15 @@ use crate::{
     infrastructure::{
         domain::DomainId,
         error::DdsResult,
+        instance::InstanceHandle,
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
         status::StatusKind,
     },
     runtime::{DdsRuntime, Spawner},
-    transport::interface::TransportParticipantFactory,
+    transport::{
+        interface::{TransportDataReceiver, TransportParticipantFactory},
+        types::{ENTITYID_PARTICIPANT, Guid, GuidPrefix},
+    },
 };
 
 const DCPS_CHANNEL_SIZE: usize = 256;
@@ -47,11 +51,15 @@ pub type DcpsReceiver = embassy_sync::channel::Receiver<
 /// Unlike the sync version, the [`DomainParticipantFactoryAsync`] is not a singleton and can be created by means of
 /// a constructor by passing a DDS runtime. This allows the factory
 /// to spin tasks on an existing runtime which can be shared with other things outside Dust DDS.
-pub struct DomainParticipantFactoryAsync {
+pub struct DomainParticipantFactoryAsync<T: TransportParticipantFactory> {
     dcps_sender: DcpsSender,
+    entity_counter: core::sync::atomic::AtomicU32,
+    app_id: [u8; 4],
+    host_id: [u8; 4],
+    transport: T,
 }
 
-impl DomainParticipantFactoryAsync {
+impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
     /// Async version of [`create_participant`](crate::domain::domain_participant_factory::DomainParticipantFactory::create_participant).
     pub async fn create_participant(
         &self,
@@ -60,17 +68,26 @@ impl DomainParticipantFactoryAsync {
         a_listener: Option<impl DomainParticipantListener + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<DomainParticipantAsync> {
+        let guid_prefix = self.create_new_guid_prefix();
+        let participant_handle = InstanceHandle::from(Guid::new(guid_prefix, ENTITYID_PARTICIPANT));
+        let transport_participant = self.transport.create_participant(
+            domain_id,
+            TransportDataReceiver::new(participant_handle, self.dcps_sender),
+        );
+
         let status_kind = mask.to_vec();
         let dcps_listener = a_listener.map(DcpsDomainParticipantListener::new);
         let (reply_sender, reply_receiver) = oneshot();
         self.dcps_sender
             .send(DcpsMail::ParticipantFactory(
                 ParticipantFactoryMail::CreateParticipant {
+                    guid_prefix,
                     domain_id,
                     qos,
                     dcps_listener,
                     status_kind,
                     reply_sender,
+                    transport_participant,
                 },
             ))
             .await;
@@ -177,17 +194,25 @@ impl DomainParticipantFactoryAsync {
 }
 
 #[cfg(feature = "std")]
-impl DomainParticipantFactoryAsync {
+impl
+    DomainParticipantFactoryAsync<
+        crate::rtps_udp_transport::udp_transport::RtpsUdpTransportParticipantFactory,
+    >
+{
     /// This operation returns the [`DomainParticipantFactoryAsync`] singleton. The operation is idempotent, that is, it can be called multiple
     /// times without side-effects and it will return the same [`DomainParticipantFactoryAsync`] instance.
     #[tracing::instrument]
-    pub fn get_instance() -> &'static DomainParticipantFactoryAsync {
+    pub fn get_instance() -> &'static Self {
         use core::net::IpAddr;
         use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
         use std::sync::OnceLock;
         use tracing::warn;
 
-        static PARTICIPANT_FACTORY_ASYNC: OnceLock<DomainParticipantFactoryAsync> = OnceLock::new();
+        static PARTICIPANT_FACTORY_ASYNC: OnceLock<
+            DomainParticipantFactoryAsync<
+                crate::rtps_udp_transport::udp_transport::RtpsUdpTransportParticipantFactory,
+            >,
+        > = OnceLock::new();
         PARTICIPANT_FACTORY_ASYNC.get_or_init(|| {
 
             let executor = crate::std_runtime::executor::Executor::new();
@@ -219,23 +244,15 @@ impl DomainParticipantFactoryAsync {
     }
 }
 
-impl DomainParticipantFactoryAsync {
+impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
     #[doc(hidden)]
-    pub fn new<R: DdsRuntime, T: TransportParticipantFactory>(
-        runtime: R,
-        app_id: [u8; 4],
-        host_id: [u8; 4],
-        transport: T,
-    ) -> DomainParticipantFactoryAsync {
+    pub fn new<R: DdsRuntime>(runtime: R, app_id: [u8; 4], host_id: [u8; 4], transport: T) -> Self {
         static DCPS_CHANNEL: DcpsChannel = DcpsChannel::new();
         let spawner_handle = runtime.spawner();
 
         let mut domain_participant_factory =
             crate::dcps::dcps_participant_factory::DcpsParticipantFactory::new(
-                app_id,
-                host_id,
                 runtime,
-                transport,
                 DCPS_CHANNEL.sender(),
             );
         let dcps_receiver = DCPS_CHANNEL.receiver();
@@ -245,8 +262,38 @@ impl DomainParticipantFactoryAsync {
                 domain_participant_factory.handle(m);
             }
         });
-        DomainParticipantFactoryAsync {
+        Self {
             dcps_sender: DCPS_CHANNEL.sender(),
+            app_id,
+            host_id,
+            entity_counter: core::sync::atomic::AtomicU32::new(0),
+            transport,
         }
+    }
+
+    fn get_unique_participant_id(&self) -> u32 {
+        let id = self
+            .entity_counter
+            .fetch_add(1, core::sync::atomic::Ordering::Relaxed);
+        id
+    }
+
+    fn create_new_guid_prefix(&self) -> GuidPrefix {
+        let instance_id = self.get_unique_participant_id().to_ne_bytes();
+
+        [
+            self.host_id[0],
+            self.host_id[1],
+            self.host_id[2],
+            self.host_id[3], // Host ID
+            self.app_id[0],
+            self.app_id[1],
+            self.app_id[2],
+            self.app_id[3], // App ID
+            instance_id[0],
+            instance_id[1],
+            instance_id[2],
+            instance_id[3], // Instance ID
+        ]
     }
 }

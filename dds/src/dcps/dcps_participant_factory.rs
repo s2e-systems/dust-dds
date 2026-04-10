@@ -13,92 +13,45 @@ use crate::{
         status::StatusKind,
     },
     runtime::{DdsRuntime, Spawner, Timer},
-    transport::{
-        interface::{TransportDataReceiver, TransportParticipantFactory},
-        types::{ENTITYID_PARTICIPANT, Guid, GuidPrefix},
-    },
+    transport::{interface::RtpsTransportParticipant, types::GuidPrefix},
 };
 use alloc::{borrow::ToOwned, string::String, vec::Vec};
 
-pub struct DcpsParticipantFactory<R: DdsRuntime, T> {
+pub struct DcpsParticipantFactory<R: DdsRuntime> {
     domain_participant_list: Vec<DcpsDomainParticipant<R>>,
     qos: DomainParticipantFactoryQos,
     default_participant_qos: DomainParticipantQos,
     configuration: DustDdsConfiguration,
     runtime: R,
-    transport: T,
-    entity_counter: u32,
-    app_id: [u8; 4],
-    host_id: [u8; 4],
     dcps_sender: DcpsSender,
 }
 
-impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T> {
-    pub fn new(
-        app_id: [u8; 4],
-        host_id: [u8; 4],
-        runtime: R,
-        transport: T,
-        dcps_sender: DcpsSender,
-    ) -> Self {
+impl<R: DdsRuntime> DcpsParticipantFactory<R> {
+    pub fn new(runtime: R, dcps_sender: DcpsSender) -> Self {
         Self {
             domain_participant_list: Default::default(),
             qos: Default::default(),
             default_participant_qos: Default::default(),
             configuration: Default::default(),
             runtime,
-            transport,
-            entity_counter: 0,
-            app_id,
-            host_id,
             dcps_sender,
         }
-    }
-
-    fn get_unique_participant_id(&mut self) -> u32 {
-        let id = self.entity_counter;
-        self.entity_counter += 1;
-        id
-    }
-
-    fn create_new_guid_prefix(&mut self) -> GuidPrefix {
-        let instance_id = self.get_unique_participant_id().to_ne_bytes();
-
-        [
-            self.host_id[0],
-            self.host_id[1],
-            self.host_id[2],
-            self.host_id[3], // Host ID
-            self.app_id[0],
-            self.app_id[1],
-            self.app_id[2],
-            self.app_id[3], // App ID
-            instance_id[0],
-            instance_id[1],
-            instance_id[2],
-            instance_id[3], // Instance ID
-        ]
     }
 
     #[allow(clippy::too_many_arguments)]
     pub fn create_participant(
         &mut self,
+        guid_prefix: GuidPrefix,
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
         dcps_listener: Option<DcpsDomainParticipantListener>,
         status_kind: Vec<StatusKind>,
+        transport_participant: RtpsTransportParticipant,
     ) -> DdsResult<InstanceHandle> {
         let domain_participant_qos = match qos {
             QosKind::Default => self.default_participant_qos.clone(),
             QosKind::Specific(q) => q,
         };
-
-        let guid_prefix = self.create_new_guid_prefix();
-        let participant_handle = InstanceHandle::from(Guid::new(guid_prefix, ENTITYID_PARTICIPANT));
-        let transport = self.transport.create_participant(
-            domain_id,
-            TransportDataReceiver::new(participant_handle, self.dcps_sender),
-        );
 
         let clock_handle = self.runtime.clock();
         let mut timer_handle = self.runtime.timer();
@@ -113,7 +66,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
             domain_participant_qos,
             listener_sender,
             status_kind,
-            transport,
+            transport_participant,
             self.dcps_sender,
             clock_handle,
             timer_handle.clone(),

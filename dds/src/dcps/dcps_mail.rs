@@ -33,6 +33,7 @@ use crate::{
         },
         time::{Duration, Time},
     },
+    transport::{interface::RtpsTransportParticipant, types::GuidPrefix},
     xtypes::dynamic_type::{DynamicData, DynamicType},
 };
 use alloc::vec::Vec;
@@ -53,11 +54,13 @@ pub enum DcpsMail {
 
 pub enum ParticipantFactoryMail {
     CreateParticipant {
+        guid_prefix: GuidPrefix,
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
         dcps_listener: Option<DcpsDomainParticipantListener>,
         status_kind: Vec<StatusKind>,
         reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
+        transport_participant: RtpsTransportParticipant,
     },
     DeleteParticipant {
         participant_handle: InstanceHandle,

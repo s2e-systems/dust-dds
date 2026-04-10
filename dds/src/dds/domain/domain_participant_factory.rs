@@ -9,6 +9,7 @@ use crate::{
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
         status::StatusKind,
     },
+    rtps_udp_transport::udp_transport::RtpsUdpTransportParticipantFactory,
     std_runtime::executor::block_on,
 };
 use tracing::warn;
@@ -17,12 +18,17 @@ use tracing::warn;
 /// [`DomainParticipantFactory`] itself has no factory. It is a pre-existing singleton object that can be accessed by means of the
 /// [`DomainParticipantFactory::get_instance`] operation.
 pub struct DomainParticipantFactory {
-    participant_factory_async: &'static DomainParticipantFactoryAsync,
+    participant_factory_async:
+        &'static DomainParticipantFactoryAsync<RtpsUdpTransportParticipantFactory>,
 }
 
 impl DomainParticipantFactory {
     /// Construct a new ['DomainParticipantFactory'] from an existing ['DomainParticipantFactoryAsync'] static reference
-    pub fn new(participant_factory_async: &'static DomainParticipantFactoryAsync) -> Self {
+    pub fn new(
+        participant_factory_async: &'static DomainParticipantFactoryAsync<
+            RtpsUdpTransportParticipantFactory,
+        >,
+    ) -> Self {
         Self {
             participant_factory_async,
         }
@@ -136,28 +142,6 @@ impl DomainParticipantFactory {
             std::sync::OnceLock::new();
         PARTICIPANT_FACTORY.get_or_init(|| DomainParticipantFactory {
             participant_factory_async: DomainParticipantFactoryAsync::get_instance(),
-        })
-    }
-
-    #[doc(hidden)]
-    pub fn get_custom_instance<
-        R: crate::runtime::DdsRuntime,
-        T: crate::transport::interface::TransportParticipantFactory,
-    >(
-        runtime: R,
-        app_id: [u8; 4],
-        host_id: [u8; 4],
-        transport: T,
-    ) -> &'static Self {
-        static PARTICIPANT_FACTORY_ASYNC: std::sync::OnceLock<DomainParticipantFactoryAsync> =
-            std::sync::OnceLock::new();
-
-        static PARTICIPANT_FACTORY: std::sync::OnceLock<DomainParticipantFactory> =
-            std::sync::OnceLock::new();
-        PARTICIPANT_FACTORY.get_or_init(|| DomainParticipantFactory {
-            participant_factory_async: PARTICIPANT_FACTORY_ASYNC.get_or_init(|| {
-                DomainParticipantFactoryAsync::new(runtime, app_id, host_id, transport)
-            }),
         })
     }
 }

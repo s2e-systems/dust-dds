@@ -9,23 +9,26 @@ use crate::{
         dcps_participant_factory::DcpsParticipantFactory,
     },
     runtime::DdsRuntime,
-    transport::interface::TransportParticipantFactory,
 };
 
-impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T> {
+impl<R: DdsRuntime> DcpsParticipantFactory<R> {
     pub fn handle(&mut self, message: DcpsMail) {
         match message {
             DcpsMail::ParticipantFactory(ParticipantFactoryMail::CreateParticipant {
+                guid_prefix,
                 domain_id,
                 qos,
                 dcps_listener,
                 status_kind,
                 reply_sender,
+                transport_participant,
             }) => reply_sender.send(self.create_participant(
+                guid_prefix,
                 domain_id,
                 qos,
                 dcps_listener,
                 status_kind,
+                transport_participant,
             )),
             DcpsMail::ParticipantFactory(ParticipantFactoryMail::DeleteParticipant {
                 participant_handle,
