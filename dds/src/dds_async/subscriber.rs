@@ -256,7 +256,7 @@ impl SubscriberAsync {
     #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> StatusConditionAsync {
         StatusConditionAsync::new(
-            *self.dcps_sender(),
+            self.dcps_sender().clone(),
             StatusConditionEntity::Subscriber {
                 participant_handle: self.get_participant().get_instance_handle(),
                 subscriber_handle: self.handle,

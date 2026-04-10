@@ -283,7 +283,7 @@ impl DomainParticipantAsync {
         Foo: TypeSupport,
     {
         let topic_name = String::from(topic_name);
-        let participant_address = self.dcps_sender;
+        let participant_address = self.dcps_sender.clone();
         let participant_async = self.clone();
         loop {
             let (reply_sender, reply_receiver) = oneshot();

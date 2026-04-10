@@ -483,7 +483,7 @@ impl<Foo> DataReaderAsync<Foo> {
     #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> StatusConditionAsync {
         StatusConditionAsync::new(
-            *self.dcps_sender(),
+            self.dcps_sender().clone(),
             StatusConditionEntity::DataReader {
                 participant_handle: self
                     .get_subscriber()

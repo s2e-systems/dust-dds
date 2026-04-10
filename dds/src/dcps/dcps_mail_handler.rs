@@ -940,6 +940,7 @@ impl<R: DdsRuntime, T: TransportParticipantFactory> DcpsParticipantFactory<R, T>
                     p.announce_participant()
                 }
             }
+            DcpsMail::None => panic!("Should never need to be handled"),
         }
     }
 }
