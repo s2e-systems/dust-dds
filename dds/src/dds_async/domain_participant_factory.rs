@@ -280,15 +280,11 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
         }
     }
 
-    fn get_unique_participant_id(&self) -> u32 {
-        let id = self
-            .entity_counter
-            .fetch_add(1, core::sync::atomic::Ordering::Relaxed);
-        id
-    }
-
     fn create_new_guid_prefix(&self) -> GuidPrefix {
-        let instance_id = self.get_unique_participant_id().to_ne_bytes();
+        let instance_id = self
+            .entity_counter
+            .fetch_add(1, core::sync::atomic::Ordering::Relaxed)
+            .to_ne_bytes();
 
         [
             self.host_id[0],
