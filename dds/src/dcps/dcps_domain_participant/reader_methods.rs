@@ -210,7 +210,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     ) -> Pin<Box<dyn Future<Output = DdsResult<()>> + Send>> {
         let participant_handle = self.domain_participant.instance_handle;
         let timer_handle = self.timer_handle.clone();
-        let dcps_sender = self.dcps_sender.clone();
+        let dcps_sender = self.dcps_sender;
         Box::pin(async move {
             poll_timeout(
                 timer_handle,

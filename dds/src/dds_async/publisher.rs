@@ -155,13 +155,16 @@ impl PublisherAsync {
     #[tracing::instrument(skip(self))]
     pub async fn set_default_datawriter_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
-        *self.dcps_sender().reserve().await =
-            DcpsMail::Publisher(PublisherServiceMail::SetDefaultDataWriterQos {
-                participant_handle: self.participant.get_instance_handle(),
-                publisher_handle: self.handle,
-                qos,
-                reply_sender,
-            });
+        self.dcps_sender()
+            .send(DcpsMail::Publisher(
+                PublisherServiceMail::SetDefaultDataWriterQos {
+                    participant_handle: self.participant.get_instance_handle(),
+                    publisher_handle: self.handle,
+                    qos,
+                    reply_sender,
+                },
+            ))
+            .await;
         reply_receiver.await?
     }
 

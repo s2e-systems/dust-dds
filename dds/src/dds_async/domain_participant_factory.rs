@@ -1,10 +1,7 @@
 use super::domain_participant::DomainParticipantAsync;
 use crate::{
     dcps::{
-        channels::{
-            oneshot::oneshot,
-            zerocopy::{ZeroCopyChannel, ZeroCopyReceiver, ZeroCopySender},
-        },
+        channels::oneshot::oneshot,
         dcps_mail::{DcpsMail, ParticipantFactoryMail},
         listeners::domain_participant_listener::DcpsDomainParticipantListener,
     },
@@ -24,13 +21,27 @@ use crate::{
 const DCPS_CHANNEL_SIZE: usize = 256;
 
 #[doc(hidden)]
-pub type DcpsChannel = ZeroCopyChannel<DcpsMail, DCPS_CHANNEL_SIZE>;
+pub type DcpsChannel = embassy_sync::channel::Channel<
+    embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex,
+    DcpsMail,
+    DCPS_CHANNEL_SIZE,
+>;
 
 #[doc(hidden)]
-pub type DcpsSender = ZeroCopySender<DcpsMail, DCPS_CHANNEL_SIZE>;
+pub type DcpsSender = embassy_sync::channel::Sender<
+    'static,
+    embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex,
+    DcpsMail,
+    DCPS_CHANNEL_SIZE,
+>;
 
 #[doc(hidden)]
-pub type DcpsReceiver = ZeroCopyReceiver<DcpsMail, DCPS_CHANNEL_SIZE>;
+pub type DcpsReceiver = embassy_sync::channel::Receiver<
+    'static,
+    embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex,
+    DcpsMail,
+    DCPS_CHANNEL_SIZE,
+>;
 
 /// Async version of [`DomainParticipantFactory`](crate::domain::domain_participant_factory::DomainParticipantFactory).
 /// Unlike the sync version, the [`DomainParticipantFactoryAsync`] is not a singleton and can be created by means of
@@ -67,7 +78,7 @@ impl DomainParticipantFactoryAsync {
         let participant_handle = reply_receiver.await??;
 
         let domain_participant =
-            DomainParticipantAsync::new(self.dcps_sender.clone(), domain_id, participant_handle);
+            DomainParticipantAsync::new(self.dcps_sender, domain_id, participant_handle);
 
         Ok(domain_participant)
     }
@@ -216,10 +227,8 @@ impl DomainParticipantFactoryAsync {
         host_id: [u8; 4],
         transport: T,
     ) -> DomainParticipantFactoryAsync {
-        static DCPS_CHANNEL: embassy_sync::lazy_lock::LazyLock<DcpsChannel> =
-            embassy_sync::lazy_lock::LazyLock::new(|| DcpsChannel::new());
+        static DCPS_CHANNEL: DcpsChannel = DcpsChannel::new();
         let spawner_handle = runtime.spawner();
-        let (dcps_sender, dcps_receiver) = DCPS_CHANNEL.get().split();
 
         let mut domain_participant_factory =
             crate::dcps::dcps_participant_factory::DcpsParticipantFactory::new(
@@ -227,14 +236,17 @@ impl DomainParticipantFactoryAsync {
                 host_id,
                 runtime,
                 transport,
-                dcps_sender.clone(),
+                DCPS_CHANNEL.sender(),
             );
+        let dcps_receiver = DCPS_CHANNEL.receiver();
         spawner_handle.spawn(async move {
             loop {
-                let mut m = dcps_receiver.receive().await;
-                domain_participant_factory.handle(std::mem::take(&mut *m));
+                let m = dcps_receiver.receive().await;
+                domain_participant_factory.handle(m);
             }
         });
-        DomainParticipantFactoryAsync { dcps_sender }
+        DomainParticipantFactoryAsync {
+            dcps_sender: DCPS_CHANNEL.sender(),
+        }
     }
 }

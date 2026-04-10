@@ -609,7 +609,7 @@ where
 
     fn get_participant_async(&self) -> DomainParticipantAsync {
         DomainParticipantAsync::new(
-            self.dcps_sender.clone(),
+            self.dcps_sender,
             self.domain_participant.domain_id,
             self.domain_participant.instance_handle,
         )
@@ -2557,7 +2557,7 @@ where
                         data_reader.qos.deadline.period
                     {
                         let mut timer_handle = self.timer_handle.clone();
-                        let dcps_sender = self.dcps_sender.clone();
+                        let dcps_sender = self.dcps_sender;
 
                         self.spawner_handle.spawn(async move {
                             loop {

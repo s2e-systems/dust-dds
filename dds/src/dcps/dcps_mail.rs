@@ -37,7 +37,6 @@ use crate::{
 };
 use alloc::vec::Vec;
 
-#[derive(Default)]
 pub enum DcpsMail {
     ParticipantFactory(ParticipantFactoryMail),
     Participant(ParticipantServiceMail),
@@ -50,8 +49,6 @@ pub enum DcpsMail {
     Message(MessageServiceMail),
     Event(EventServiceMail),
     Discovery(DiscoveryServiceMail),
-    #[default]
-    None,
 }
 
 pub enum ParticipantFactoryMail {
