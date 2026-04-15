@@ -19,7 +19,7 @@ use crate::{
         status::StatusKind,
     },
     rtps::stateful_reader::RtpsStatefulReader,
-    runtime::DdsRuntime,
+    runtime::{Clock, DdsRuntime},
     transport::types::{
         EntityId, Guid, ReliabilityKind, TopicKind, USER_DEFINED_READER_NO_KEY,
         USER_DEFINED_READER_WITH_KEY,
@@ -28,7 +28,7 @@ use crate::{
 
 impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     #[allow(clippy::too_many_arguments)]
-    #[tracing::instrument(skip(self, dcps_listener))]
+    #[tracing::instrument(skip(self, dcps_listener, clock))]
     pub fn create_data_reader(
         &mut self,
         subscriber_handle: InstanceHandle,
@@ -36,6 +36,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         qos: QosKind<DataReaderQos>,
         dcps_listener: Option<DcpsDataReaderListener>,
         mask: Vec<StatusKind>,
+        clock: &impl Clock,
     ) -> DdsResult<InstanceHandle> {
         let Some(topic) = self
             .domain_participant
@@ -143,16 +144,17 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         subscriber.data_reader_list.push(data_reader);
 
         if subscriber.enabled && subscriber.qos.entity_factory.autoenable_created_entities {
-            self.enable_data_reader(subscriber_handle, data_reader_handle)?;
+            self.enable_data_reader(subscriber_handle, data_reader_handle, clock)?;
         }
         Ok(data_reader_handle)
     }
 
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self, clock))]
     pub fn delete_data_reader(
         &mut self,
         subscriber_handle: InstanceHandle,
         datareader_handle: InstanceHandle,
+        clock: &impl Clock,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
             .domain_participant
@@ -169,7 +171,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             .position(|x| x.instance_handle == datareader_handle)
         {
             let data_reader = subscriber.data_reader_list.remove(index);
-            self.announce_deleted_data_reader(data_reader);
+            self.announce_deleted_data_reader(data_reader, clock);
         } else {
             return Err(DdsError::AlreadyDeleted);
         };

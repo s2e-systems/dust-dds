@@ -18,11 +18,11 @@ use crate::{
 use alloc::{string::String, vec::Vec};
 
 pub struct DcpsParticipantFactory<R: DdsRuntime> {
-    domain_participant_list: Vec<DcpsDomainParticipant<R>>,
-    qos: DomainParticipantFactoryQos,
-    default_participant_qos: DomainParticipantQos,
-    runtime: R,
-    dcps_sender: DcpsSender,
+    pub domain_participant_list: Vec<DcpsDomainParticipant<R>>,
+    pub qos: DomainParticipantFactoryQos,
+    pub default_participant_qos: DomainParticipantQos,
+    pub runtime: R,
+    pub dcps_sender: DcpsSender,
 }
 
 impl<R: DdsRuntime> DcpsParticipantFactory<R> {
@@ -53,7 +53,6 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
             QosKind::Specific(q) => q,
         };
 
-        let clock_handle = self.runtime.clock();
         let mut timer_handle = self.runtime.timer();
         let spawner_handle = self.runtime.spawner();
 
@@ -68,7 +67,6 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
             status_kind,
             transport_participant,
             self.dcps_sender,
-            clock_handle,
             timer_handle.clone(),
             spawner_handle.clone(),
         );
@@ -111,7 +109,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
         });
 
         if self.qos.entity_factory.autoenable_created_entities {
-            dcps_participant.enable_domain_participant()?;
+            dcps_participant.enable_domain_participant(&self.runtime.clock())?;
         }
 
         self.domain_participant_list.push(dcps_participant);
@@ -131,7 +129,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
             )));
         }
         let mut participant = self.domain_participant_list.remove(index);
-        participant.announce_deleted_participant();
+        participant.announce_deleted_participant(&self.runtime.clock());
         Ok(())
     }
 

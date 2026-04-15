@@ -18,7 +18,7 @@ use crate::{
         status::{StatusKind, SubscriptionMatchedStatus},
         time::Duration,
     },
-    runtime::DdsRuntime,
+    runtime::{Clock, DdsRuntime},
     xtypes::dynamic_type::DynamicData,
 };
 
@@ -304,12 +304,13 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         Ok(data_reader.get_matched_publications())
     }
 
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self, clock))]
     pub fn set_data_reader_qos(
         &mut self,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         qos: QosKind<DataReaderQos>,
+        clock: &impl Clock,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
             .domain_participant
@@ -339,7 +340,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         data_reader.qos = qos;
 
         if data_reader.enabled {
-            self.announce_data_reader(subscriber_handle, data_reader_handle);
+            self.announce_data_reader(subscriber_handle, data_reader_handle, clock);
         }
         Ok(())
     }
@@ -440,11 +441,12 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         }
     }
 
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self, clock))]
     pub fn enable_data_reader(
         &mut self,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
+        clock: &impl Clock,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
             .domain_participant
@@ -474,7 +476,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                 );
             }
 
-            self.announce_data_reader(subscriber_handle, data_reader_handle);
+            self.announce_data_reader(subscriber_handle, data_reader_handle, clock);
         }
         Ok(())
     }

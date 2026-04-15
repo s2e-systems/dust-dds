@@ -20,7 +20,7 @@ use crate::{
         status::{OfferedDeadlineMissedStatus, PublicationMatchedStatus, StatusKind},
         time::{Duration, DurationKind, Time},
     },
-    runtime::{DdsRuntime, Either, Spawner, Timer, select_future},
+    runtime::{Clock, DdsRuntime, Either, Spawner, Timer, select_future},
     transport::types::{CacheChange, ChangeKind},
     xtypes::dynamic_type::DynamicData,
 };
@@ -170,13 +170,14 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             .cloned()
     }
 
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self, clock))]
     pub fn unregister_instance(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         dynamic_data: DynamicData,
         timestamp: Time,
+        clock: &impl Clock,
     ) -> DdsResult<()> {
         let Some(publisher) = self
             .domain_participant
@@ -198,7 +199,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             dynamic_data,
             timestamp,
             self.transport.message_writer.as_ref(),
-            &self.clock_handle,
+            clock,
         )
     }
 
@@ -243,16 +244,17 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             .then_some(instance_handle))
     }
 
-    #[tracing::instrument(skip(self, reply_sender))]
+    #[tracing::instrument(skip(self, reply_sender, clock))]
     pub fn write_w_timestamp(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         dynamic_data: DynamicData,
         timestamp: Time,
+        clock: &impl Clock,
         reply_sender: OneshotSender<DdsResult<()>>,
     ) {
-        let now = self.get_current_time();
+        let now = self.get_current_time(clock);
         let Some(publisher) = core::iter::once(&mut self.domain_participant.builtin_publisher)
             .chain(&mut self.domain_participant.user_defined_publisher_list)
             .find(|x| x.instance_handle == publisher_handle)
@@ -540,19 +542,20 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         data_writer.transport_writer.add_change(
             change,
             self.transport.message_writer.as_ref(),
-            &self.clock_handle,
+            clock,
         );
 
         reply_sender.send(Ok(()));
     }
 
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self, clock))]
     pub fn dispose_w_timestamp(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         dynamic_data: DynamicData,
         timestamp: Time,
+        clock: &impl Clock,
     ) -> DdsResult<()> {
         let Some(publisher) = self
             .domain_participant
@@ -574,7 +577,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             dynamic_data,
             timestamp,
             self.transport.message_writer.as_ref(),
-            &self.clock_handle,
+            clock,
         )
     }
 
@@ -603,11 +606,12 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         Ok(data_writer.get_offered_deadline_missed_status())
     }
 
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self, clock))]
     pub fn enable_data_writer(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
+        clock: &impl Clock,
     ) -> DdsResult<()> {
         let Some(publisher) = self
             .domain_participant
@@ -637,17 +641,18 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                 );
             }
 
-            self.announce_data_writer(publisher_handle, data_writer_handle);
+            self.announce_data_writer(publisher_handle, data_writer_handle, clock);
         }
         Ok(())
     }
 
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self, clock))]
     pub fn set_data_writer_qos(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         qos: QosKind<DataWriterQos>,
+        clock: &impl Clock,
     ) -> DdsResult<()> {
         let Some(publisher) = self
             .domain_participant
@@ -676,7 +681,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         data_writer.qos = qos;
 
         if data_writer.enabled {
-            self.announce_data_writer(publisher_handle, data_writer_handle);
+            self.announce_data_writer(publisher_handle, data_writer_handle, clock);
         }
         Ok(())
     }

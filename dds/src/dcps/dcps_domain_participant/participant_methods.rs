@@ -219,7 +219,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     }
 
     #[allow(clippy::too_many_arguments)]
-    #[tracing::instrument(skip(self, dcps_listener, type_support))]
+    #[tracing::instrument(skip(self, dcps_listener, type_support, clock))]
     pub fn create_topic(
         &mut self,
         topic_name: String,
@@ -228,6 +228,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         dcps_listener: Option<DcpsTopicListener>,
         mask: Vec<StatusKind>,
         type_support: &'static dyn DynamicType,
+        clock: &impl Clock,
     ) -> DdsResult<InstanceHandle> {
         if self
             .domain_participant
@@ -289,7 +290,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                 .entity_factory
                 .autoenable_created_entities
         {
-            self.enable_topic(topic_name)?;
+            self.enable_topic(topic_name, clock)?;
         }
 
         Ok(topic_handle)
@@ -551,8 +552,8 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         Ok(())
     }
 
-    #[tracing::instrument(skip(self))]
-    pub fn delete_participant_contained_entities(&mut self) -> DdsResult<()> {
+    #[tracing::instrument(skip(self, clock))]
+    pub fn delete_participant_contained_entities(&mut self, clock: &impl Clock) -> DdsResult<()> {
         let deleted_publisher_list: Vec<PublisherEntity> = self
             .domain_participant
             .user_defined_publisher_list
@@ -560,7 +561,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             .collect();
         for mut publisher in deleted_publisher_list {
             for data_writer in publisher.data_writer_list.drain(..) {
-                self.announce_deleted_data_writer(data_writer);
+                self.announce_deleted_data_writer(data_writer, clock);
             }
         }
 
@@ -571,7 +572,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             .collect();
         for mut subscriber in deleted_subscriber_list {
             for data_reader in subscriber.data_reader_list.drain(..) {
-                self.announce_deleted_data_reader(data_reader);
+                self.announce_deleted_data_reader(data_reader, clock);
             }
         }
 
@@ -691,15 +692,16 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         Ok(handle.clone())
     }
 
-    #[tracing::instrument(skip(self))]
-    pub fn get_current_time(&mut self) -> Time {
-        self.clock_handle.now()
+    #[tracing::instrument(skip(self, clock))]
+    pub fn get_current_time(&mut self, clock: &impl Clock) -> Time {
+        clock.now()
     }
 
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self, clock))]
     pub fn set_domain_participant_qos(
         &mut self,
         qos: QosKind<DomainParticipantQos>,
+        clock: &impl Clock,
     ) -> DdsResult<()> {
         let qos = match qos {
             QosKind::Default => DomainParticipantQos::default(),
@@ -708,7 +710,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
 
         self.domain_participant.qos = qos;
         if self.domain_participant.enabled {
-            self.announce_participant();
+            self.announce_participant(clock);
         }
         Ok(())
     }
@@ -731,8 +733,8 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         Ok(())
     }
 
-    #[tracing::instrument(skip(self))]
-    pub fn enable_domain_participant(&mut self) -> DdsResult<()> {
+    #[tracing::instrument(skip(self, clock))]
+    pub fn enable_domain_participant(&mut self, clock: &impl Clock) -> DdsResult<()> {
         if !self.domain_participant.enabled {
             for t in &mut self.domain_participant.topic_description_list {
                 if let TopicDescriptionKind::Topic(t) = t {
@@ -750,7 +752,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             self.domain_participant.builtin_subscriber.enabled = true;
             self.domain_participant.enabled = true;
 
-            self.announce_participant();
+            self.announce_participant(clock);
         }
 
         Ok(())
