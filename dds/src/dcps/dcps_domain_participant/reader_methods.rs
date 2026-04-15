@@ -131,9 +131,9 @@ impl DcpsDomainParticipant {
         data_reader.read_next_instance(
             max_samples,
             previous_handle,
-            &sample_states,
-            &view_states,
-            &instance_states,
+            sample_states,
+            view_states,
+            instance_states,
         )
     }
 

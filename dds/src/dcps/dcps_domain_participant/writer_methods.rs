@@ -355,7 +355,7 @@ impl DcpsDomainParticipant {
 
         let serialized_data = match serialize(
             data_writer.type_support,
-            &dynamic_data,
+            dynamic_data,
             &data_writer.qos.representation,
         ) {
             Ok(s) => s,

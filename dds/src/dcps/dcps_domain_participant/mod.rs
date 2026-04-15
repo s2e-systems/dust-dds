@@ -107,7 +107,6 @@ use alloc::{
     boxed::Box,
     collections::{BTreeSet, VecDeque},
     string::{String, ToString},
-    sync::Arc,
     vec,
     vec::Vec,
 };
@@ -3028,7 +3027,7 @@ impl DcpsDomainParticipant {
         };
 
         if let DurationKind::Finite(deadline) = data_reader.qos.deadline.period {
-            if let Some(t) = data_reader.get_instance_received_time(&change_instance_handle) {
+            if let Some(t) = data_reader.get_instance_received_time(change_instance_handle) {
                 if current_time - t < deadline {
                     return;
                 }
@@ -3037,7 +3036,7 @@ impl DcpsDomainParticipant {
             }
         }
 
-        data_reader.remove_instance_ownership(&change_instance_handle);
+        data_reader.remove_instance_ownership(change_instance_handle);
         data_reader.increment_requested_deadline_missed_status(*change_instance_handle);
 
         if data_reader
@@ -5279,7 +5278,7 @@ impl DataReaderEntity {
                 .instances
                 .iter()
                 .map(|x| x.handle())
-                .filter(|&h| h > &p)
+                .filter(|&h| h > p)
                 .min()
                 .cloned(),
             None => self.instances.iter().map(|x| x.handle()).min().cloned(),

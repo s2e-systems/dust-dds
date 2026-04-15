@@ -116,7 +116,7 @@ impl DcpsDomainParticipant {
                 "Publisher still contains data writers".to_string(),
             ));
         }
-        let Some(_) = self.domain_participant.remove_publisher(&publisher_handle) else {
+        let Some(_) = self.domain_participant.remove_publisher(publisher_handle) else {
             return Err(DdsError::AlreadyDeleted);
         };
 
@@ -212,7 +212,7 @@ impl DcpsDomainParticipant {
         }
         let Some(_) = self
             .domain_participant
-            .remove_subscriber(&subscriber_handle)
+            .remove_subscriber(subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
