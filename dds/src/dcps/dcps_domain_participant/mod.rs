@@ -765,7 +765,7 @@ impl DcpsDomainParticipant {
                 )
                 .into(),
             );
-            let timestamp = self.get_current_time(runtime);
+            let timestamp = runtime.clock().now();
             let publisher_handle = self.domain_participant.builtin_publisher.instance_handle;
             let (reply_sender, _) = oneshot();
             self.write_w_timestamp(
@@ -782,7 +782,7 @@ impl DcpsDomainParticipant {
     #[tracing::instrument(skip(self, runtime))]
     pub fn announce_deleted_participant(&mut self, runtime: &impl DdsRuntime) {
         if self.domain_participant.enabled {
-            let timestamp = self.get_current_time(runtime);
+            let timestamp = runtime.clock().now();
             if let Some(dw) = self
                 .domain_participant
                 .builtin_publisher
@@ -888,7 +888,7 @@ impl DcpsDomainParticipant {
             )
             .into(),
         );
-        let timestamp = self.get_current_time(runtime);
+        let timestamp = runtime.clock().now();
         let publisher_handle = self.domain_participant.builtin_publisher.instance_handle;
         let (reply_sender, _) = oneshot();
         self.write_w_timestamp(
@@ -907,7 +907,7 @@ impl DcpsDomainParticipant {
         data_writer: DataWriterEntity,
         runtime: &impl DdsRuntime,
     ) {
-        let timestamp = self.get_current_time(runtime);
+        let timestamp = runtime.clock().now();
         if let Some(dw) = self
             .domain_participant
             .builtin_publisher
@@ -1023,7 +1023,7 @@ impl DcpsDomainParticipant {
             )
             .into(),
         );
-        let timestamp = self.get_current_time(runtime);
+        let timestamp = runtime.clock().now();
         let publisher_handle = self.domain_participant.builtin_publisher.instance_handle;
         let (reply_sender, _) = oneshot();
         self.write_w_timestamp(
@@ -1042,7 +1042,7 @@ impl DcpsDomainParticipant {
         data_reader: DataReaderEntity,
         runtime: &impl DdsRuntime,
     ) {
-        let timestamp = self.get_current_time(runtime);
+        let timestamp = runtime.clock().now();
         if let Some(dw) = self
             .domain_participant
             .builtin_publisher
@@ -1111,7 +1111,7 @@ impl DcpsDomainParticipant {
             )
             .into(),
         );
-        let timestamp = self.get_current_time(runtime);
+        let timestamp = runtime.clock().now();
         let publisher_handle = self.domain_participant.builtin_publisher.instance_handle;
         let (reply_sender, _) = oneshot();
         self.write_w_timestamp(
@@ -2078,7 +2078,7 @@ impl DcpsDomainParticipant {
             ChangeKind::AliveFiltered | ChangeKind::NotAliveUnregistered => (), // Do nothing,
         }
 
-        let reception_timestamp = self.get_current_time(runtime);
+        let reception_timestamp = runtime.clock().now();
         if let Some(reader) = self
             .domain_participant
             .builtin_subscriber
@@ -2195,7 +2195,7 @@ impl DcpsDomainParticipant {
             ChangeKind::AliveFiltered | ChangeKind::NotAliveUnregistered => (),
         }
 
-        let reception_timestamp = self.get_current_time(runtime);
+        let reception_timestamp = runtime.clock().now();
         if let Some(reader) = self
             .domain_participant
             .builtin_subscriber
@@ -2343,7 +2343,7 @@ impl DcpsDomainParticipant {
             ChangeKind::AliveFiltered | ChangeKind::NotAliveUnregistered => (),
         }
 
-        let reception_timestamp = self.get_current_time(runtime);
+        let reception_timestamp = runtime.clock().now();
         if let Some(reader) = self
             .domain_participant
             .builtin_subscriber
@@ -2409,7 +2409,7 @@ impl DcpsDomainParticipant {
             | ChangeKind::NotAliveDisposedUnregistered => (),
         }
 
-        let reception_timestamp = self.get_current_time(runtime);
+        let reception_timestamp = runtime.clock().now();
         if let Some(reader) = self
             .domain_participant
             .builtin_subscriber
@@ -2430,7 +2430,7 @@ impl DcpsDomainParticipant {
         data_reader_handle: &InstanceHandle,
         runtime: &impl DdsRuntime,
     ) {
-        let reception_timestamp = self.get_current_time(runtime);
+        let reception_timestamp = runtime.clock().now();
         let Some(subscriber) = self
             .domain_participant
             .user_defined_subscriber_list
@@ -2847,7 +2847,7 @@ impl DcpsDomainParticipant {
         change_instance_handle: &InstanceHandle,
         runtime: &impl DdsRuntime,
     ) {
-        let current_time = self.get_current_time(runtime);
+        let current_time = runtime.clock().now();
         let Some(publisher) = self
             .domain_participant
             .user_defined_publisher_list
@@ -3003,7 +3003,7 @@ impl DcpsDomainParticipant {
         change_instance_handle: &InstanceHandle,
         runtime: &impl DdsRuntime,
     ) {
-        let current_time = self.get_current_time(runtime);
+        let current_time = runtime.clock().now();
         let Some(subscriber) = self
             .domain_participant
             .user_defined_subscriber_list
@@ -3197,7 +3197,6 @@ impl DcpsDomainParticipant {
     }
 
     /// Remove discovered [domain participant](SpdpDiscoveredParticipantData) with the speficied [handle](InstanceHandle).
-    #[tracing::instrument(skip(self))]
     fn remove_discovered_participant(&mut self, handle: &InstanceHandle) {
         self.domain_participant
             .discovered_participant_list

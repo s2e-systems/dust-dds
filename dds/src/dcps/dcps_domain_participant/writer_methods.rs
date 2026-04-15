@@ -20,7 +20,7 @@ use crate::{
         status::{OfferedDeadlineMissedStatus, PublicationMatchedStatus, StatusKind},
         time::{Duration, DurationKind, Time},
     },
-    runtime::{DdsRuntime, Either, Spawner, Timer, select_future},
+    runtime::{Clock, DdsRuntime, Either, Spawner, Timer, select_future},
     transport::types::{CacheChange, ChangeKind},
     xtypes::dynamic_type::DynamicData,
 };
@@ -258,7 +258,7 @@ impl DcpsDomainParticipant {
         runtime: &impl DdsRuntime,
         reply_sender: OneshotSender<DdsResult<()>>,
     ) {
-        let now = self.get_current_time(runtime);
+        let now = runtime.clock().now();
         let Some(publisher) = core::iter::once(&mut self.domain_participant.builtin_publisher)
             .chain(&mut self.domain_participant.user_defined_publisher_list)
             .find(|x| &x.instance_handle == publisher_handle)

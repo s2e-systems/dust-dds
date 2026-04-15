@@ -9,7 +9,7 @@ use crate::{
         dcps_participant_factory::DcpsParticipantFactory,
     },
     infrastructure::error::DdsError,
-    runtime::DdsRuntime,
+    runtime::{Clock, DdsRuntime},
 };
 
 impl<R: DdsRuntime> DcpsParticipantFactory<R> {
@@ -265,7 +265,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                     .iter_mut()
                     .find(|x| x.get_instance_handle() == &participant_handle)
                     .ok_or(DdsError::AlreadyDeleted)
-                    .map(|p| p.get_current_time(&self.runtime)),
+                    .map(|_| self.runtime.clock().now()),
             ),
             DcpsMail::Participant(ParticipantServiceMail::GetDiscoveredParticipants {
                 participant_handle,

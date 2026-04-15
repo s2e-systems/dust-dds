@@ -24,9 +24,8 @@ use crate::{
         instance::InstanceHandle,
         qos::{DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
         status::StatusKind,
-        time::Time,
     },
-    runtime::{Clock, DdsRuntime},
+    runtime::DdsRuntime,
     transport::types::{USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC, USER_DEFINED_WRITER_GROUP},
     xtypes::dynamic_type::DynamicType,
 };
@@ -694,11 +693,6 @@ impl DcpsDomainParticipant {
         };
 
         Ok(handle.clone())
-    }
-
-    #[tracing::instrument(skip(self, runtime))]
-    pub fn get_current_time(&mut self, runtime: &impl DdsRuntime) -> Time {
-        runtime.clock().now()
     }
 
     #[tracing::instrument(skip(self, runtime))]
