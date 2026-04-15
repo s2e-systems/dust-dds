@@ -164,114 +164,85 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
                 key,
                 participant_key: src
                     .remove_value(PID_PARTICIPANT_GUID as u32)
-                    .map_or(BuiltInTopicKey::default(), |x| {
-                        DataStorageMapping::try_from_storage(x).expect("Must match")
-                    }),
-                topic_name: DataStorageMapping::try_from_storage(
+                    .map_or(BuiltInTopicKey::default(), DataStorageMapping::from_storage),
+                topic_name: DataStorageMapping::from_storage(
                     src.remove_value(PID_TOPIC_NAME as u32).expect("Must exist"),
-                )
-                .expect("Must match"),
-                type_name: DataStorageMapping::try_from_storage(
+                ),
+                type_name: DataStorageMapping::from_storage(
                     src.remove_value(PID_TYPE_NAME as u32).expect("Must exist"),
-                )
-                .expect("Must match"),
+                ),
 
-                durability: src
-                    .remove_value(PID_DURABILITY as u32)
-                    .map_or(DurabilityQosPolicy::const_default(), |x| {
-                        DataStorageMapping::try_from_storage(x).expect("Must match")
-                    }),
-                deadline: src
-                    .remove_value(PID_DEADLINE as u32)
-                    .map_or(DeadlineQosPolicy::const_default(), |x| {
-                        DataStorageMapping::try_from_storage(x).expect("Must match")
-                    }),
-                latency_budget: src
-                    .remove_value(PID_LATENCY_BUDGET as u32)
-                    .map_or(LatencyBudgetQosPolicy::const_default(), |x| {
-                        DataStorageMapping::try_from_storage(x).expect("Must match")
-                    }),
-                liveliness: src
-                    .remove_value(PID_LIVELINESS as u32)
-                    .map_or(LivelinessQosPolicy::const_default(), |x| {
-                        DataStorageMapping::try_from_storage(x).expect("Must match")
-                    }),
-                reliability: src
-                    .remove_value(PID_RELIABILITY as u32)
-                    .map_or(DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS, |x| {
-                        DataStorageMapping::try_from_storage(x).expect("Must match")
-                    }),
-                time_based_filter: src
-                    .remove_value(PID_TIME_BASED_FILTER as u32)
-                    .map_or(TimeBasedFilterQosPolicy::const_default(), |x| {
-                        DataStorageMapping::try_from_storage(x).expect("Must match")
-                    }),
-                user_data: src
-                    .remove_value(PID_USER_DATA as u32)
-                    .map_or(UserDataQosPolicy::const_default(), |x| {
-                        DataStorageMapping::try_from_storage(x).expect("Must match")
-                    }),
-
-                ownership: src
-                    .remove_value(PID_OWNERSHIP as u32)
-                    .map_or(OwnershipQosPolicy::const_default(), |x| {
-                        DataStorageMapping::try_from_storage(x).expect("Must match")
-                    }),
-
-                destination_order: src
-                    .remove_value(PID_DESTINATION_ORDER as u32)
-                    .map_or(DestinationOrderQosPolicy::const_default(), |x| {
-                        DataStorageMapping::try_from_storage(x).expect("Must match")
-                    }),
-
-                presentation: src
-                    .remove_value(PID_PRESENTATION as u32)
-                    .map_or(PresentationQosPolicy::const_default(), |x| {
-                        DataStorageMapping::try_from_storage(x).expect("Must match")
-                    }),
-                partition: src
-                    .remove_value(PID_PARTITION as u32)
-                    .map_or(PartitionQosPolicy::const_default(), |x| {
-                        DataStorageMapping::try_from_storage(x).expect("Must match")
-                    }),
-                topic_data: src
-                    .remove_value(PID_TOPIC_DATA as u32)
-                    .map_or(TopicDataQosPolicy::const_default(), |x| {
-                        DataStorageMapping::try_from_storage(x).expect("Must match")
-                    }),
-                group_data: src
-                    .remove_value(PID_GROUP_DATA as u32)
-                    .map_or(GroupDataQosPolicy::const_default(), |x| {
-                        DataStorageMapping::try_from_storage(x).expect("Must match")
-                    }),
-                representation: src
-                    .remove_value(PID_DATA_REPRESENTATION as u32)
-                    .map_or(DataRepresentationQosPolicy::const_default(), |x| {
-                        DataStorageMapping::try_from_storage(x).expect("Must match")
-                    }),
+                durability: src.remove_value(PID_DURABILITY as u32).map_or(
+                    DurabilityQosPolicy::const_default(),
+                    DataStorageMapping::from_storage,
+                ),
+                deadline: src.remove_value(PID_DEADLINE as u32).map_or(
+                    DeadlineQosPolicy::const_default(),
+                    DataStorageMapping::from_storage,
+                ),
+                latency_budget: src.remove_value(PID_LATENCY_BUDGET as u32).map_or(
+                    LatencyBudgetQosPolicy::const_default(),
+                    DataStorageMapping::from_storage,
+                ),
+                liveliness: src.remove_value(PID_LIVELINESS as u32).map_or(
+                    LivelinessQosPolicy::const_default(),
+                    DataStorageMapping::from_storage,
+                ),
+                reliability: src.remove_value(PID_RELIABILITY as u32).map_or(
+                    DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+                    DataStorageMapping::from_storage,
+                ),
+                time_based_filter: src.remove_value(PID_TIME_BASED_FILTER as u32).map_or(
+                    TimeBasedFilterQosPolicy::const_default(),
+                    DataStorageMapping::from_storage,
+                ),
+                user_data: src.remove_value(PID_USER_DATA as u32).map_or(
+                    UserDataQosPolicy::const_default(),
+                    DataStorageMapping::from_storage,
+                ),
+                ownership: src.remove_value(PID_OWNERSHIP as u32).map_or(
+                    OwnershipQosPolicy::const_default(),
+                    DataStorageMapping::from_storage,
+                ),
+                destination_order: src.remove_value(PID_DESTINATION_ORDER as u32).map_or(
+                    DestinationOrderQosPolicy::const_default(),
+                    DataStorageMapping::from_storage,
+                ),
+                presentation: src.remove_value(PID_PRESENTATION as u32).map_or(
+                    PresentationQosPolicy::const_default(),
+                    DataStorageMapping::from_storage,
+                ),
+                partition: src.remove_value(PID_PARTITION as u32).map_or(
+                    PartitionQosPolicy::const_default(),
+                    DataStorageMapping::from_storage,
+                ),
+                topic_data: src.remove_value(PID_TOPIC_DATA as u32).map_or(
+                    TopicDataQosPolicy::const_default(),
+                    DataStorageMapping::from_storage,
+                ),
+                group_data: src.remove_value(PID_GROUP_DATA as u32).map_or(
+                    GroupDataQosPolicy::const_default(),
+                    DataStorageMapping::from_storage,
+                ),
+                representation: src.remove_value(PID_DATA_REPRESENTATION as u32).map_or(
+                    DataRepresentationQosPolicy::const_default(),
+                    DataStorageMapping::from_storage,
+                ),
             },
             reader_proxy: ReaderProxy {
                 remote_reader_guid,
                 remote_group_entity_id: src
                     .remove_value(PID_GROUP_ENTITYID as u32)
-                    .map_or(ENTITYID_UNKNOWN, |x| {
-                        DataStorageMapping::try_from_storage(x).expect("Must match")
-                    }),
+                    .map_or(ENTITYID_UNKNOWN, DataStorageMapping::from_storage),
                 unicast_locator_list: src
                     .remove_value(PID_UNICAST_LOCATOR as u32)
-                    .map_or(Default::default(), |x| {
-                        DataStorageMapping::try_from_storage(x).expect("Must match")
-                    }),
+                    .map_or(Default::default(), DataStorageMapping::from_storage),
                 multicast_locator_list: src
                     .remove_value(PID_MULTICAST_LOCATOR as u32)
-                    .map_or(Default::default(), |x| {
-                        DataStorageMapping::try_from_storage(x).expect("Must match")
-                    }),
+                    .map_or(Default::default(), DataStorageMapping::from_storage),
                 expects_inline_qos: src
                     .remove_value(PID_EXPECTS_INLINE_QOS as u32)
-                    .map_or(DEFAULT_EXPECTS_INLINE_QOS, |x| {
-                        DataStorageMapping::try_from_storage(x).expect("Must match")
-                    }),
+                    .map_or(DEFAULT_EXPECTS_INLINE_QOS, DataStorageMapping::from_storage),
             },
         }
     }
