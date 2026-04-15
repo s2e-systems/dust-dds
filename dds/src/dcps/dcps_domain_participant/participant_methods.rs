@@ -210,10 +210,7 @@ impl DcpsDomainParticipant {
                 "Subscriber still contains data readers".to_string(),
             ));
         }
-        let Some(_) = self
-            .domain_participant
-            .remove_subscriber(subscriber_handle)
-        else {
+        let Some(_) = self.domain_participant.remove_subscriber(subscriber_handle) else {
             return Err(DdsError::AlreadyDeleted);
         };
 
@@ -550,7 +547,9 @@ impl DcpsDomainParticipant {
             return Err(DdsError::NotEnabled);
         }
 
-        self.domain_participant.ignored_subscriptions.insert(*handle);
+        self.domain_participant
+            .ignored_subscriptions
+            .insert(*handle);
         Ok(())
     }
 
