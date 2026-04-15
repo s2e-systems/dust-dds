@@ -18,7 +18,7 @@ use crate::{
 use alloc::{string::String, vec::Vec};
 
 pub struct DcpsParticipantFactory<R: DdsRuntime> {
-    pub domain_participant_list: Vec<DcpsDomainParticipant<R>>,
+    pub domain_participant_list: Vec<DcpsDomainParticipant>,
     pub qos: DomainParticipantFactoryQos,
     pub default_participant_qos: DomainParticipantQos,
     pub runtime: R,
@@ -55,9 +55,9 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
 
         let spawner_handle = self.runtime.spawner();
 
-        let listener_sender = dcps_listener.map(|l| l.spawn::<R>(&spawner_handle));
+        let listener_sender = dcps_listener.map(|l| l.spawn(&self.runtime.spawner()));
 
-        let mut dcps_participant: DcpsDomainParticipant<R> = DcpsDomainParticipant::new(
+        let mut dcps_participant = DcpsDomainParticipant::new(
             domain_id,
             domain_tag,
             guid_prefix,
@@ -66,7 +66,6 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
             status_kind,
             transport_participant,
             self.dcps_sender,
-            spawner_handle.clone(),
         );
         let participant_handle = dcps_participant.get_instance_handle();
 
@@ -106,8 +105,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
         });
 
         if self.qos.entity_factory.autoenable_created_entities {
-            dcps_participant
-                .enable_domain_participant(&self.runtime.clock(), self.runtime.timer())?;
+            dcps_participant.enable_domain_participant(&self.runtime)?;
         }
 
         self.domain_participant_list.push(dcps_participant);
@@ -127,14 +125,14 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
             )));
         }
         let mut participant = self.domain_participant_list.remove(index);
-        participant.announce_deleted_participant(&self.runtime.clock());
+        participant.announce_deleted_participant(&self.runtime);
         Ok(())
     }
 
     pub fn find_participant(
         &mut self,
         participant_handle: InstanceHandle,
-    ) -> DdsResult<&mut DcpsDomainParticipant<R>> {
+    ) -> DdsResult<&mut DcpsDomainParticipant> {
         self.domain_participant_list
             .iter_mut()
             .find(|x| x.get_instance_handle() == participant_handle)

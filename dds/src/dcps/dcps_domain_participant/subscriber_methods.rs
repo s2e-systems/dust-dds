@@ -19,16 +19,16 @@ use crate::{
         status::StatusKind,
     },
     rtps::stateful_reader::RtpsStatefulReader,
-    runtime::{Clock, DdsRuntime, Timer},
+    runtime::DdsRuntime,
     transport::types::{
         EntityId, Guid, ReliabilityKind, TopicKind, USER_DEFINED_READER_NO_KEY,
         USER_DEFINED_READER_WITH_KEY,
     },
 };
 
-impl<R: DdsRuntime> DcpsDomainParticipant<R> {
+impl DcpsDomainParticipant {
     #[allow(clippy::too_many_arguments)]
-    #[tracing::instrument(skip(self, dcps_listener, clock, timer))]
+    #[tracing::instrument(skip(self, dcps_listener, runtime))]
     pub fn create_data_reader(
         &mut self,
         subscriber_handle: InstanceHandle,
@@ -36,8 +36,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         qos: QosKind<DataReaderQos>,
         dcps_listener: Option<DcpsDataReaderListener>,
         mask: Vec<StatusKind>,
-        clock: &impl Clock,
-        timer: impl Timer,
+        runtime: &impl DdsRuntime,
     ) -> DdsResult<InstanceHandle> {
         let Some(topic) = self
             .domain_participant
@@ -129,7 +128,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             RtpsReaderKind::Stateful(RtpsStatefulReader::new(guid, reliablity_kind));
 
         let listener_mask = mask.to_vec();
-        let listener_sender = dcps_listener.map(|l| l.spawn::<R>(&self.spawner_handle));
+        let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
         let data_reader = DataReaderEntity::new(
             reader_handle,
             qos,
@@ -145,17 +144,17 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         subscriber.data_reader_list.push(data_reader);
 
         if subscriber.enabled && subscriber.qos.entity_factory.autoenable_created_entities {
-            self.enable_data_reader(subscriber_handle, data_reader_handle, clock, timer)?;
+            self.enable_data_reader(subscriber_handle, data_reader_handle, runtime)?;
         }
         Ok(data_reader_handle)
     }
 
-    #[tracing::instrument(skip(self, clock))]
+    #[tracing::instrument(skip(self, runtime))]
     pub fn delete_data_reader(
         &mut self,
         subscriber_handle: InstanceHandle,
         datareader_handle: InstanceHandle,
-        clock: &impl Clock,
+        runtime: &impl DdsRuntime,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
             .domain_participant
@@ -172,7 +171,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             .position(|x| x.instance_handle == datareader_handle)
         {
             let data_reader = subscriber.data_reader_list.remove(index);
-            self.announce_deleted_data_reader(data_reader, clock);
+            self.announce_deleted_data_reader(data_reader, runtime);
         } else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -303,12 +302,13 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         Ok(subscriber.qos.clone())
     }
 
-    #[tracing::instrument(skip(self, listener_sender_task))]
+    #[tracing::instrument(skip(self, listener_sender_task, runtime))]
     pub fn set_subscriber_listener(
         &mut self,
         subscriber_handle: InstanceHandle,
         listener_sender_task: Option<DcpsSubscriberListener>,
         mask: Vec<StatusKind>,
+        runtime: &impl DdsRuntime,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
             .domain_participant
@@ -319,7 +319,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             return Err(DdsError::AlreadyDeleted);
         };
 
-        let listener_sender = listener_sender_task.map(|l| l.spawn::<R>(&self.spawner_handle));
+        let listener_sender = listener_sender_task.map(|l| l.spawn(&runtime.spawner()));
         subscriber.listener_sender = listener_sender;
         subscriber.listener_mask = mask;
         Ok(())

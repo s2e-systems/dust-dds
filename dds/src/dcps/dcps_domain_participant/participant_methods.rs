@@ -26,18 +26,19 @@ use crate::{
         status::StatusKind,
         time::Time,
     },
-    runtime::{Clock, DdsRuntime, Timer},
+    runtime::{Clock, DdsRuntime},
     transport::types::{USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC, USER_DEFINED_WRITER_GROUP},
     xtypes::dynamic_type::DynamicType,
 };
 
-impl<R: DdsRuntime> DcpsDomainParticipant<R> {
-    #[tracing::instrument(skip(self, dcps_listener))]
+impl DcpsDomainParticipant {
+    #[tracing::instrument(skip(self, dcps_listener, runtime))]
     pub fn create_user_defined_publisher(
         &mut self,
         qos: QosKind<PublisherQos>,
         dcps_listener: Option<DcpsPublisherListener>,
         mask: Vec<StatusKind>,
+        runtime: &impl DdsRuntime,
     ) -> DdsResult<InstanceHandle> {
         let publisher_qos = match qos {
             QosKind::Default => self.domain_participant.default_publisher_qos.clone(),
@@ -64,7 +65,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         ]);
         self.publisher_counter += 1;
         let data_writer_list = Default::default();
-        let listener_sender = dcps_listener.map(|l| l.spawn::<R>(&self.spawner_handle));
+        let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
         let mut publisher = PublisherEntity::new(
             publisher_qos,
             publisher_handle,
@@ -122,12 +123,13 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         Ok(())
     }
 
-    #[tracing::instrument(skip(self, dcps_listener))]
+    #[tracing::instrument(skip(self, dcps_listener, runtime))]
     pub fn create_user_defined_subscriber(
         &mut self,
         qos: QosKind<SubscriberQos>,
         dcps_listener: Option<DcpsSubscriberListener>,
         mask: Vec<StatusKind>,
+        runtime: &impl DdsRuntime,
     ) -> DdsResult<InstanceHandle> {
         let subscriber_qos = match qos {
             QosKind::Default => self.domain_participant.default_subscriber_qos.clone(),
@@ -156,7 +158,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         let listener_mask = mask.to_vec();
         let data_reader_list = Default::default();
 
-        let listener_sender = dcps_listener.map(|l| l.spawn::<R>(&self.spawner_handle));
+        let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
         let mut subscriber = SubscriberEntity::new(
             subscriber_handle,
             subscriber_qos,
@@ -219,7 +221,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     }
 
     #[allow(clippy::too_many_arguments)]
-    #[tracing::instrument(skip(self, dcps_listener, type_support, clock, timer))]
+    #[tracing::instrument(skip(self, dcps_listener, type_support, runtime))]
     pub fn create_topic(
         &mut self,
         topic_name: String,
@@ -228,8 +230,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         dcps_listener: Option<DcpsTopicListener>,
         mask: Vec<StatusKind>,
         type_support: &'static dyn DynamicType,
-        clock: &impl Clock,
-        timer: impl Timer,
+        runtime: &impl DdsRuntime,
     ) -> DdsResult<InstanceHandle> {
         if self
             .domain_participant
@@ -268,7 +269,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             USER_DEFINED_TOPIC,
         ]);
         self.topic_counter += 1;
-        let listener_sender = dcps_listener.map(|l| l.spawn::<R>(&self.spawner_handle));
+        let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
         let topic = TopicEntity::new(
             qos,
             type_name,
@@ -291,7 +292,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                 .entity_factory
                 .autoenable_created_entities
         {
-            self.enable_topic(topic_name, clock, timer)?;
+            self.enable_topic(topic_name, runtime)?;
         }
 
         Ok(topic_handle)
@@ -553,8 +554,11 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         Ok(())
     }
 
-    #[tracing::instrument(skip(self, clock))]
-    pub fn delete_participant_contained_entities(&mut self, clock: &impl Clock) -> DdsResult<()> {
+    #[tracing::instrument(skip(self, runtime))]
+    pub fn delete_participant_contained_entities(
+        &mut self,
+        runtime: &impl DdsRuntime,
+    ) -> DdsResult<()> {
         let deleted_publisher_list: Vec<PublisherEntity> = self
             .domain_participant
             .user_defined_publisher_list
@@ -562,7 +566,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             .collect();
         for mut publisher in deleted_publisher_list {
             for data_writer in publisher.data_writer_list.drain(..) {
-                self.announce_deleted_data_writer(data_writer, clock);
+                self.announce_deleted_data_writer(data_writer, runtime);
             }
         }
 
@@ -573,7 +577,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             .collect();
         for mut subscriber in deleted_subscriber_list {
             for data_reader in subscriber.data_reader_list.drain(..) {
-                self.announce_deleted_data_reader(data_reader, clock);
+                self.announce_deleted_data_reader(data_reader, runtime);
             }
         }
 
@@ -693,17 +697,16 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         Ok(handle.clone())
     }
 
-    #[tracing::instrument(skip(self, clock))]
-    pub fn get_current_time(&mut self, clock: &impl Clock) -> Time {
-        clock.now()
+    #[tracing::instrument(skip(self, runtime))]
+    pub fn get_current_time(&mut self, runtime: &impl DdsRuntime) -> Time {
+        runtime.clock().now()
     }
 
-    #[tracing::instrument(skip(self, clock, timer))]
+    #[tracing::instrument(skip(self, runtime))]
     pub fn set_domain_participant_qos(
         &mut self,
         qos: QosKind<DomainParticipantQos>,
-        clock: &impl Clock,
-        timer: impl Timer,
+        runtime: &impl DdsRuntime,
     ) -> DdsResult<()> {
         let qos = match qos {
             QosKind::Default => DomainParticipantQos::default(),
@@ -712,7 +715,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
 
         self.domain_participant.qos = qos;
         if self.domain_participant.enabled {
-            self.announce_participant(clock, timer);
+            self.announce_participant(runtime);
         }
         Ok(())
     }
@@ -722,25 +725,22 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         Ok(self.domain_participant.qos.clone())
     }
 
-    #[tracing::instrument(skip(self, dcps_listener))]
+    #[tracing::instrument(skip(self, dcps_listener, runtime))]
     pub fn set_domain_participant_listener(
         &mut self,
         dcps_listener: Option<DcpsDomainParticipantListener>,
         status_kind: Vec<StatusKind>,
+        runtime: &impl DdsRuntime,
     ) -> DdsResult<()> {
-        let listener_sender = dcps_listener.map(|l| l.spawn::<R>(&self.spawner_handle));
+        let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
         self.domain_participant.listener_sender = listener_sender;
         self.domain_participant.listener_mask = status_kind;
 
         Ok(())
     }
 
-    #[tracing::instrument(skip(self, clock, timer))]
-    pub fn enable_domain_participant(
-        &mut self,
-        clock: &impl Clock,
-        timer: impl Timer,
-    ) -> DdsResult<()> {
+    #[tracing::instrument(skip(self, runtime))]
+    pub fn enable_domain_participant(&mut self, runtime: &impl DdsRuntime) -> DdsResult<()> {
         if !self.domain_participant.enabled {
             for t in &mut self.domain_participant.topic_description_list {
                 if let TopicDescriptionKind::Topic(t) = t {
@@ -758,7 +758,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             self.domain_participant.builtin_subscriber.enabled = true;
             self.domain_participant.enabled = true;
 
-            self.announce_participant(clock, timer);
+            self.announce_participant(runtime);
         }
 
         Ok(())

@@ -17,15 +17,15 @@ use crate::{
         status::StatusKind,
     },
     rtps::stateful_writer::RtpsStatefulWriter,
-    runtime::{Clock, DdsRuntime, Timer},
+    runtime::DdsRuntime,
     transport::types::{
         EntityId, Guid, TopicKind, USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
     },
 };
 
-impl<R: DdsRuntime> DcpsDomainParticipant<R> {
+impl DcpsDomainParticipant {
     #[allow(clippy::too_many_arguments)]
-    #[tracing::instrument(skip(self, dcps_listener, clock, timer))]
+    #[tracing::instrument(skip(self, dcps_listener, runtime))]
     pub fn create_data_writer(
         &mut self,
         publisher_handle: InstanceHandle,
@@ -33,8 +33,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         qos: QosKind<DataWriterQos>,
         dcps_listener: Option<DcpsDataWriterListener>,
         mask: Vec<StatusKind>,
-        clock: &impl Clock,
-        timer: impl Timer,
+        runtime: &impl DdsRuntime,
     ) -> DdsResult<InstanceHandle> {
         let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
@@ -107,7 +106,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             Guid::new(guid.prefix(), entity_id),
             self.transport.fragment_size,
         );
-        let listener_sender = dcps_listener.map(|l| l.spawn::<R>(&self.spawner_handle));
+        let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
         let data_writer = DataWriterEntity::new(
             writer_handle,
             RtpsWriterKind::Stateful(transport_writer),
@@ -123,18 +122,18 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         publisher.data_writer_list.push(data_writer);
 
         if publisher.enabled && publisher.qos.entity_factory.autoenable_created_entities {
-            self.enable_data_writer(publisher_handle, writer_handle, clock, timer)?;
+            self.enable_data_writer(publisher_handle, writer_handle, runtime)?;
         }
 
         Ok(data_writer_handle)
     }
 
-    #[tracing::instrument(skip(self, clock))]
+    #[tracing::instrument(skip(self, runtime))]
     pub fn delete_data_writer(
         &mut self,
         publisher_handle: InstanceHandle,
         datawriter_handle: InstanceHandle,
-        clock: &impl Clock,
+        runtime: &impl DdsRuntime,
     ) -> DdsResult<()> {
         let Some(publisher) = self
             .domain_participant
@@ -151,7 +150,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             .position(|x| x.instance_handle == datawriter_handle)
         {
             let data_writer = publisher.data_writer_list.remove(index);
-            self.announce_deleted_data_writer(data_writer, clock);
+            self.announce_deleted_data_writer(data_writer, runtime);
             Ok(())
         } else {
             Err(DdsError::AlreadyDeleted)
@@ -238,12 +237,13 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         Ok(publisher.qos.clone())
     }
 
-    #[tracing::instrument(skip(self, dcps_listener))]
+    #[tracing::instrument(skip(self, dcps_listener, runtime))]
     pub fn set_publisher_listener(
         &mut self,
         publisher_handle: InstanceHandle,
         dcps_listener: Option<DcpsPublisherListener>,
         mask: Vec<StatusKind>,
+        runtime: &impl DdsRuntime,
     ) -> DdsResult<()> {
         let Some(publisher) = self
             .domain_participant
@@ -253,7 +253,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         else {
             return Err(DdsError::AlreadyDeleted);
         };
-        let listener_sender = dcps_listener.map(|l| l.spawn::<R>(&self.spawner_handle));
+        let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
         publisher.listener_sender = listener_sender;
         publisher.listener_mask = mask;
         Ok(())

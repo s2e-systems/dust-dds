@@ -20,12 +20,12 @@ use crate::{
         status::{OfferedDeadlineMissedStatus, PublicationMatchedStatus, StatusKind},
         time::{Duration, DurationKind, Time},
     },
-    runtime::{Clock, DdsRuntime, Either, Spawner, Timer, select_future},
+    runtime::{DdsRuntime, Either, Spawner, Timer, select_future},
     transport::types::{CacheChange, ChangeKind},
     xtypes::dynamic_type::DynamicData,
 };
 
-impl<R: DdsRuntime> DcpsDomainParticipant<R> {
+impl DcpsDomainParticipant {
     #[tracing::instrument(skip(self))]
     pub fn get_publication_matched_status(
         &mut self,
@@ -56,13 +56,14 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         Ok(status)
     }
 
-    #[tracing::instrument(skip(self, dcps_listener))]
+    #[tracing::instrument(skip(self, dcps_listener, runtime))]
     pub fn set_listener_data_writer(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         dcps_listener: Option<DcpsDataWriterListener>,
         listener_mask: Vec<StatusKind>,
+        runtime: &impl DdsRuntime,
     ) -> DdsResult<()> {
         let Some(publisher) = self
             .domain_participant
@@ -80,7 +81,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             return Ok(());
         };
 
-        let listener_sender = dcps_listener.map(|l| l.spawn::<R>(&self.spawner_handle));
+        let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
         data_writer.listener_sender = listener_sender;
         data_writer.listener_mask = listener_mask;
 
@@ -170,14 +171,14 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             .cloned()
     }
 
-    #[tracing::instrument(skip(self, clock))]
+    #[tracing::instrument(skip(self, runtime))]
     pub fn unregister_instance(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         dynamic_data: DynamicData,
         timestamp: Time,
-        clock: &impl Clock,
+        runtime: &impl DdsRuntime,
     ) -> DdsResult<()> {
         let Some(publisher) = self
             .domain_participant
@@ -199,7 +200,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             dynamic_data,
             timestamp,
             self.transport.message_writer.as_ref(),
-            clock,
+            runtime,
         )
     }
 
@@ -245,18 +246,17 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     }
 
     #[allow(clippy::too_many_arguments)]
-    #[tracing::instrument(skip(self, reply_sender, clock, timer))]
+    #[tracing::instrument(skip(self, reply_sender, runtime))]
     pub fn write_w_timestamp(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         dynamic_data: DynamicData,
         timestamp: Time,
-        clock: &impl Clock,
-        timer: impl Timer,
+        runtime: &impl DdsRuntime,
         reply_sender: OneshotSender<DdsResult<()>>,
     ) {
-        let now = self.get_current_time(clock);
+        let now = self.get_current_time(runtime);
         let Some(publisher) = core::iter::once(&mut self.domain_participant.builtin_publisher)
             .chain(&mut self.domain_participant.user_defined_publisher_list)
             .find(|x| x.instance_handle == publisher_handle)
@@ -391,8 +391,8 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                                     let participant_handle =
                                         self.domain_participant.instance_handle;
                                     let dcps_sender = self.dcps_sender;
-                                    let mut timer_handle = timer.clone();
-                                    self.spawner_handle.spawn(async move {
+                                    let mut timer_handle = runtime.timer();
+                                    runtime.spawner().spawn(async move {
                                         if let DurationKind::Finite(t) = max_blocking_time {
                                             let max_blocking_time_wait =
                                                 timer_handle.delay(t.into());
@@ -501,8 +501,8 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         let dcps_sender_clone = self.dcps_sender;
         let participant_handle = self.domain_participant.instance_handle;
         if let DurationKind::Finite(deadline_missed_period) = data_writer.qos.deadline.period {
-            let mut timer_handle = timer.clone();
-            self.spawner_handle.spawn(async move {
+            let mut timer_handle = runtime.timer();
+            runtime.spawner().spawn(async move {
                 loop {
                     timer_handle.delay(deadline_missed_period.into()).await;
                     dcps_sender_clone
@@ -527,8 +527,8 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             }
 
             let dcps_sender_clone = self.dcps_sender;
-            let mut timer_handle = timer.clone();
-            self.spawner_handle.spawn(async move {
+            let mut timer_handle = runtime.timer();
+            runtime.spawner().spawn(async move {
                 timer_handle.delay(sleep_duration.into()).await;
                 dcps_sender_clone
                     .send(DcpsMail::Message(MessageServiceMail::RemoveWriterChange {
@@ -544,20 +544,20 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         data_writer.transport_writer.add_change(
             change,
             self.transport.message_writer.as_ref(),
-            clock,
+            runtime,
         );
 
         reply_sender.send(Ok(()));
     }
 
-    #[tracing::instrument(skip(self, clock))]
+    #[tracing::instrument(skip(self, runtime))]
     pub fn dispose_w_timestamp(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         dynamic_data: DynamicData,
         timestamp: Time,
-        clock: &impl Clock,
+        runtime: &impl DdsRuntime,
     ) -> DdsResult<()> {
         let Some(publisher) = self
             .domain_participant
@@ -579,7 +579,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             dynamic_data,
             timestamp,
             self.transport.message_writer.as_ref(),
-            clock,
+            runtime,
         )
     }
 
@@ -608,13 +608,12 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         Ok(data_writer.get_offered_deadline_missed_status())
     }
 
-    #[tracing::instrument(skip(self, clock, timer))]
+    #[tracing::instrument(skip(self, runtime))]
     pub fn enable_data_writer(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        clock: &impl Clock,
-        timer: impl Timer,
+        runtime: &impl DdsRuntime,
     ) -> DdsResult<()> {
         let Some(publisher) = self
             .domain_participant
@@ -644,19 +643,18 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                 );
             }
 
-            self.announce_data_writer(publisher_handle, data_writer_handle, clock, timer);
+            self.announce_data_writer(publisher_handle, data_writer_handle, runtime);
         }
         Ok(())
     }
 
-    #[tracing::instrument(skip(self, clock, timer))]
+    #[tracing::instrument(skip(self, runtime))]
     pub fn set_data_writer_qos(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         qos: QosKind<DataWriterQos>,
-        clock: &impl Clock,
-        timer: impl Timer,
+        runtime: &impl DdsRuntime,
     ) -> DdsResult<()> {
         let Some(publisher) = self
             .domain_participant
@@ -685,7 +683,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         data_writer.qos = qos;
 
         if data_writer.enabled {
-            self.announce_data_writer(publisher_handle, data_writer_handle, clock, timer);
+            self.announce_data_writer(publisher_handle, data_writer_handle, runtime);
         }
         Ok(())
     }
