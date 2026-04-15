@@ -2003,7 +2003,6 @@ impl DcpsDomainParticipant {
         }
     }
 
-    #[tracing::instrument(skip(self, runtime))]
     fn add_cache_change(
         &mut self,
         cache_change: &CacheChange,
@@ -2034,7 +2033,6 @@ impl DcpsDomainParticipant {
         }
     }
 
-    #[tracing::instrument(skip(self, runtime))]
     pub fn add_builtin_participants_detector_cache_change(
         &mut self,
         cache_change: &CacheChange,
@@ -2094,7 +2092,6 @@ impl DcpsDomainParticipant {
         }
     }
 
-    #[tracing::instrument(skip(self, runtime))]
     pub fn add_builtin_publications_detector_cache_change(
         &mut self,
         cache_change: &CacheChange,
@@ -2212,7 +2209,6 @@ impl DcpsDomainParticipant {
         }
     }
 
-    #[tracing::instrument(skip(self, runtime))]
     pub fn add_builtin_subscriptions_detector_cache_change(
         &mut self,
         cache_change: &CacheChange,
@@ -2361,7 +2357,6 @@ impl DcpsDomainParticipant {
         }
     }
 
-    #[tracing::instrument(skip(self, runtime))]
     pub fn add_builtin_topics_detector_cache_change(
         &mut self,
         cache_change: &CacheChange,
@@ -2428,7 +2423,6 @@ impl DcpsDomainParticipant {
         }
     }
 
-    #[tracing::instrument(skip(self, runtime))]
     pub fn add_user_defined_cache_change(
         &mut self,
         cache_change: &CacheChange,
