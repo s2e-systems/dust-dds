@@ -88,25 +88,30 @@ pub struct RtpsUdpTransportParticipantFactory {
 impl RtpsUdpTransportParticipantFactory {
     /// Set the name of the specific interface to use or None for communicating
     /// through all available interfaces
-    pub fn set_interface_name(&mut self, interface_name: Option<String>) {
+    pub fn set_interface_name(&mut self, interface_name: Option<String>) -> &mut Self {
         self.interface_name = interface_name;
+        self
     }
 
     /// Set the value of the SO_RCVBUF option on the UDP socket. [`None`] corresponds to the OS default
-    pub fn set_udp_receive_buffer_size(&mut self, udp_receive_buffer_size: Option<usize>) {
+    pub fn set_udp_receive_buffer_size(
+        &mut self,
+        udp_receive_buffer_size: Option<usize>,
+    ) -> &mut Self {
         self.udp_receive_buffer_size = udp_receive_buffer_size;
+        self
     }
 
     /// Set the fragment size in a range between 8 to 65000. This value is the maximum size of the payload
     /// transmitted in a single RTPS data submessage. Sizes larger than this value will be transmitted in
     /// separate message using RTPS data fragments
-    pub fn set_fragment_size(&mut self, fragment_size: usize) -> DdsResult<()> {
+    pub fn set_fragment_size(&mut self, fragment_size: usize) -> DdsResult<&mut Self> {
         let fragment_size_range = 8..=65000;
         if !fragment_size_range.contains(&self.fragment_size) {
             return Err(DdsError::BadParameter);
         }
         self.fragment_size = fragment_size;
-        Ok(())
+        Ok(self)
     }
 
     /// Get the value of the currently configured interface name
