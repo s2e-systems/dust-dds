@@ -61,6 +61,7 @@ pub struct DomainParticipantFactoryAsync<T: TransportParticipantFactory> {
     app_id: [u8; 4],
     host_id: [u8; 4],
     transport: embassy_sync::mutex::Mutex<CriticalSectionRawMutex, T>,
+    configuration: embassy_sync::mutex::Mutex<CriticalSectionRawMutex, DustDdsConfiguration>,
 }
 
 impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
@@ -72,6 +73,7 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
         a_listener: Option<impl DomainParticipantListener + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<DomainParticipantAsync> {
+        let configuration = self.configuration.lock().await;
         let guid_prefix = self.create_new_guid_prefix();
         let participant_handle = InstanceHandle::from(Guid::new(guid_prefix, ENTITYID_PARTICIPANT));
         let transport_participant = self.transport.lock().await.create_participant(
@@ -79,6 +81,8 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
             TransportDataReceiver::new(participant_handle, self.dcps_sender),
         );
 
+        let domain_tag = configuration.domain_tag().to_owned();
+        let participant_announcement_interval = configuration.participant_announcement_interval();
         let status_kind = mask.to_vec();
         let dcps_listener = a_listener.map(DcpsDomainParticipantListener::new);
         let (reply_sender, reply_receiver) = oneshot();
@@ -92,6 +96,8 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                     status_kind,
                     reply_sender,
                     transport_participant,
+                    domain_tag,
+                    participant_announcement_interval,
                 },
             ))
             .await;
@@ -175,30 +181,14 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
         reply_receiver.await
     }
 
-    /// Async version of [`set_configuration`](crate::domain::domain_participant_factory::DomainParticipantFactory::set_configuration).
-    pub async fn set_configuration(&self, configuration: DustDdsConfiguration) -> DdsResult<()> {
-        self.dcps_sender
-            .send(DcpsMail::ParticipantFactory(
-                ParticipantFactoryMail::SetConfiguration { configuration },
-            ))
-            .await;
-        Ok(())
-    }
-
-    /// Async version of [`get_configuration`](crate::domain::domain_participant_factory::DomainParticipantFactory::get_configuration).
-    pub async fn get_configuration(&self) -> DdsResult<DustDdsConfiguration> {
-        let (reply_sender, reply_receiver) = oneshot();
-        self.dcps_sender
-            .send(DcpsMail::ParticipantFactory(
-                ParticipantFactoryMail::GetConfiguration { reply_sender },
-            ))
-            .await;
-        reply_receiver.await
-    }
-
     /// Get a mutable reference to the transport object
     pub async fn get_mut_transport(&self) -> impl DerefMut<Target = T> + '_ {
         self.transport.lock().await
+    }
+
+    /// Get a mutable reference to the configuration object
+    pub async fn get_mut_configuration(&self) -> impl DerefMut<Target = DustDdsConfiguration> + '_ {
+        self.configuration.lock().await
     }
 }
 
@@ -248,14 +238,21 @@ impl
 
             let app_id = std::process::id().to_ne_bytes();
             let transport = crate::rtps_udp_transport::udp_transport::RtpsUdpTransportParticipantFactory::default();
-            Self::new(runtime, app_id, host_id, transport)
+            let configuration = Default::default();
+            Self::new(runtime, app_id, host_id, transport, configuration)
         })
     }
 }
 
 impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
     #[doc(hidden)]
-    pub fn new<R: DdsRuntime>(runtime: R, app_id: [u8; 4], host_id: [u8; 4], transport: T) -> Self {
+    pub fn new<R: DdsRuntime>(
+        runtime: R,
+        app_id: [u8; 4],
+        host_id: [u8; 4],
+        transport: T,
+        configuration: DustDdsConfiguration,
+    ) -> Self {
         static DCPS_CHANNEL: DcpsChannel = DcpsChannel::new();
         let spawner_handle = runtime.spawner();
 
@@ -277,6 +274,7 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
             host_id,
             entity_counter: core::sync::atomic::AtomicU32::new(0),
             transport: Mutex::new(transport),
+            configuration: Mutex::new(configuration),
         }
     }
 

@@ -22,6 +22,8 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 status_kind,
                 reply_sender,
                 transport_participant,
+                domain_tag,
+                participant_announcement_interval,
             }) => reply_sender.send(self.create_participant(
                 guid_prefix,
                 domain_id,
@@ -29,6 +31,8 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 dcps_listener,
                 status_kind,
                 transport_participant,
+                domain_tag,
+                participant_announcement_interval,
             )),
             DcpsMail::ParticipantFactory(ParticipantFactoryMail::DeleteParticipant {
                 participant_handle,
@@ -47,12 +51,6 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
             DcpsMail::ParticipantFactory(ParticipantFactoryMail::GetQos { reply_sender }) => {
                 reply_sender.send(self.get_qos())
             }
-            DcpsMail::ParticipantFactory(ParticipantFactoryMail::SetConfiguration {
-                configuration,
-            }) => self.set_configuration(configuration),
-            DcpsMail::ParticipantFactory(ParticipantFactoryMail::GetConfiguration {
-                reply_sender,
-            }) => reply_sender.send(self.get_configuration()),
             DcpsMail::Participant(ParticipantServiceMail::CreateUserDefinedPublisher {
                 qos,
                 participant_handle,

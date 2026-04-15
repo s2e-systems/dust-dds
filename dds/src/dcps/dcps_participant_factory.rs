@@ -4,7 +4,7 @@ use crate::{
         dcps_mail::{DcpsMail, DiscoveryServiceMail, MessageServiceMail},
         listeners::domain_participant_listener::DcpsDomainParticipantListener,
     },
-    dds_async::{configuration::DustDdsConfiguration, domain_participant_factory::DcpsSender},
+    dds_async::domain_participant_factory::DcpsSender,
     infrastructure::{
         domain::DomainId,
         error::{DdsError, DdsResult},
@@ -15,13 +15,12 @@ use crate::{
     runtime::{DdsRuntime, Spawner, Timer},
     transport::{interface::RtpsTransportParticipant, types::GuidPrefix},
 };
-use alloc::{borrow::ToOwned, string::String, vec::Vec};
+use alloc::{string::String, vec::Vec};
 
 pub struct DcpsParticipantFactory<R: DdsRuntime> {
     domain_participant_list: Vec<DcpsDomainParticipant<R>>,
     qos: DomainParticipantFactoryQos,
     default_participant_qos: DomainParticipantQos,
-    configuration: DustDdsConfiguration,
     runtime: R,
     dcps_sender: DcpsSender,
 }
@@ -32,7 +31,6 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
             domain_participant_list: Default::default(),
             qos: Default::default(),
             default_participant_qos: Default::default(),
-            configuration: Default::default(),
             runtime,
             dcps_sender,
         }
@@ -47,6 +45,8 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
         dcps_listener: Option<DcpsDomainParticipantListener>,
         status_kind: Vec<StatusKind>,
         transport_participant: RtpsTransportParticipant,
+        domain_tag: String,
+        participant_announcement_interval: core::time::Duration,
     ) -> DdsResult<InstanceHandle> {
         let domain_participant_qos = match qos {
             QosKind::Default => self.default_participant_qos.clone(),
@@ -61,7 +61,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
 
         let mut dcps_participant: DcpsDomainParticipant<R> = DcpsDomainParticipant::new(
             domain_id,
-            self.configuration.domain_tag().to_owned(),
+            domain_tag,
             guid_prefix,
             domain_participant_qos,
             listener_sender,
@@ -79,8 +79,6 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
         // Start the regular participant announcement task
         let dcps_sender_clone = self.dcps_sender;
         let mut timer_handle_clone = timer_handle.clone();
-        let participant_announcement_interval =
-            self.configuration.participant_announcement_interval();
 
         spawner_handle.spawn(async move {
             loop {
@@ -177,13 +175,5 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
 
     pub fn get_qos(&mut self) -> DomainParticipantFactoryQos {
         self.qos.clone()
-    }
-
-    pub fn set_configuration(&mut self, configuration: DustDdsConfiguration) {
-        self.configuration = configuration;
-    }
-
-    pub fn get_configuration(&mut self) -> DustDdsConfiguration {
-        self.configuration.clone()
     }
 }

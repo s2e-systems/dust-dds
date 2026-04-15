@@ -17,7 +17,6 @@ use crate::{
         },
         status_condition::StatusConditionEntity,
     },
-    dds_async::configuration::DustDdsConfiguration,
     infrastructure::{
         domain::DomainId,
         error::DdsResult,
@@ -52,6 +51,7 @@ pub enum DcpsMail {
     Discovery(DiscoveryServiceMail),
 }
 
+#[allow(clippy::large_enum_variant)]
 pub enum ParticipantFactoryMail {
     CreateParticipant {
         guid_prefix: GuidPrefix,
@@ -61,6 +61,8 @@ pub enum ParticipantFactoryMail {
         status_kind: Vec<StatusKind>,
         reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
         transport_participant: RtpsTransportParticipant,
+        domain_tag: String,
+        participant_announcement_interval: core::time::Duration,
     },
     DeleteParticipant {
         participant_handle: InstanceHandle,
@@ -79,12 +81,6 @@ pub enum ParticipantFactoryMail {
     },
     GetQos {
         reply_sender: OneshotSender<DomainParticipantFactoryQos>,
-    },
-    SetConfiguration {
-        configuration: DustDdsConfiguration,
-    },
-    GetConfiguration {
-        reply_sender: OneshotSender<DustDdsConfiguration>,
     },
 }
 

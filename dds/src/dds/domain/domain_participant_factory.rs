@@ -121,24 +121,16 @@ impl DomainParticipantFactory {
 }
 
 impl DomainParticipantFactory {
-    /// Set the configuration of the [`DomainParticipantFactory`] singleton
-    pub fn set_configuration(&self, configuration: DustDdsConfiguration) -> DdsResult<()> {
-        block_on(
-            self.participant_factory_async
-                .set_configuration(configuration),
-        )
-    }
-
-    /// Get the current configuration of the [`DomainParticipantFactory`] singleton
-    pub fn get_configuration(&self) -> DdsResult<DustDdsConfiguration> {
-        block_on(self.participant_factory_async.get_configuration())
-    }
-
     /// Get a mutable reference to the transport object
     pub fn get_mut_transport(
         &self,
     ) -> impl DerefMut<Target = RtpsUdpTransportParticipantFactory> + '_ {
         block_on(self.participant_factory_async.get_mut_transport())
+    }
+
+    /// Get a mutable reference to the configuration object
+    pub fn get_mut_configuration(&self) -> impl DerefMut<Target = DustDdsConfiguration> + '_ {
+        block_on(self.participant_factory_async.get_mut_configuration())
     }
 }
 

@@ -21,9 +21,7 @@ fn main() {
         .build()
         .unwrap();
 
-    participant_factory
-        .set_configuration(configuration)
-        .unwrap();
+    *participant_factory.get_mut_configuration() = configuration;
 
     let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
