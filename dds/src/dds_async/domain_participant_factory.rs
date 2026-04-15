@@ -1,4 +1,5 @@
 use core::ops::DerefMut;
+use alloc::borrow::ToOwned;
 
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, mutex::Mutex};
 
