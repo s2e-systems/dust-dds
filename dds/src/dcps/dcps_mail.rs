@@ -1,4 +1,4 @@
-use alloc::{boxed::Box, string::String, sync::Arc};
+use alloc::{boxed::Box, string::String};
 use core::pin::Pin;
 
 use crate::{
@@ -602,7 +602,7 @@ pub enum MessageServiceMail {
     },
     HandleData {
         participant_handle: InstanceHandle,
-        data_message: Arc<[u8]>,
+        data_message: Vec<u8>,
     },
     Poke {
         participant_handle: InstanceHandle,

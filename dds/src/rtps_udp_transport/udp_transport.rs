@@ -233,7 +233,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                     if let Ok(size) = metatraffic_multicast_socket.recv(&mut buf) {
                         if size > 0 {
                             std_runtime::executor::block_on(
-                                data_channel_sender_clone.receive_message(Arc::from(&buf[..size])),
+                                data_channel_sender_clone.receive_message(buf[..size].to_vec()),
                             );
                         }
                     }
@@ -250,7 +250,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                     if let Ok(size) = metatraffic_unicast_socket.recv(&mut buf) {
                         if size > 0 {
                             std_runtime::executor::block_on(
-                                data_channel_sender_clone.receive_message(Arc::from(&buf[..size])),
+                                data_channel_sender_clone.receive_message(buf[..size].to_vec()),
                             )
                         }
                     }
@@ -267,7 +267,7 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                     if let Ok(size) = default_unicast_socket.recv(&mut buf) {
                         if size > 0 {
                             std_runtime::executor::block_on(
-                                data_channel_sender_clone.receive_message(Arc::from(&buf[..size])),
+                                data_channel_sender_clone.receive_message(buf[..size].to_vec()),
                             )
                         }
                     }

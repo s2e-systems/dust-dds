@@ -4,7 +4,7 @@ use crate::{
     infrastructure::instance::InstanceHandle,
     transport::types::Locator,
 };
-use alloc::{boxed::Box, sync::Arc, vec::Vec};
+use alloc::{boxed::Box, vec::Vec};
 
 pub trait WriteMessage {
     fn write_message(&self, buf: &[u8], locators: &[Locator]);
@@ -23,7 +23,7 @@ impl TransportDataReceiver {
         }
     }
 
-    pub async fn receive_message(&self, data_message: Arc<[u8]>) {
+    pub async fn receive_message(&self, data_message: Vec<u8>) {
         self.dcps_sender
             .send(DcpsMail::Message(MessageServiceMail::HandleData {
                 participant_handle: self.participant_handle,

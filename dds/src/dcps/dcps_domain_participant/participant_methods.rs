@@ -535,22 +535,22 @@ impl DcpsDomainParticipant {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn ignore_publication(&mut self, handle: InstanceHandle) -> DdsResult<()> {
+    pub fn ignore_publication(&mut self, handle: &InstanceHandle) -> DdsResult<()> {
         if !self.domain_participant.enabled {
             return Err(DdsError::NotEnabled);
         }
 
-        self.domain_participant.ignored_publications.insert(handle);
+        self.domain_participant.ignored_publications.insert(*handle);
         Ok(())
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn ignore_subscription(&mut self, handle: InstanceHandle) -> DdsResult<()> {
+    pub fn ignore_subscription(&mut self, handle: &InstanceHandle) -> DdsResult<()> {
         if !self.domain_participant.enabled {
             return Err(DdsError::NotEnabled);
         }
 
-        self.domain_participant.ignored_subscriptions.insert(handle);
+        self.domain_participant.ignored_subscriptions.insert(*handle);
         Ok(())
     }
 

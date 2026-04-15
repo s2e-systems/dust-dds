@@ -31,7 +31,7 @@ impl DcpsDomainParticipant {
     #[tracing::instrument(skip(self, dcps_listener, runtime))]
     pub fn create_data_reader(
         &mut self,
-        subscriber_handle: InstanceHandle,
+        subscriber_handle: &InstanceHandle,
         topic_name: String,
         qos: QosKind<DataReaderQos>,
         dcps_listener: Option<DcpsDataReaderListener>,
@@ -70,7 +70,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| x.instance_handle == subscriber_handle)
+            .find(|x| &x.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -144,7 +144,7 @@ impl DcpsDomainParticipant {
         subscriber.data_reader_list.push(data_reader);
 
         if subscriber.enabled && subscriber.qos.entity_factory.autoenable_created_entities {
-            self.enable_data_reader(subscriber_handle, data_reader_handle, runtime)?;
+            self.enable_data_reader(subscriber_handle, &data_reader_handle, runtime)?;
         }
         Ok(data_reader_handle)
     }
@@ -152,15 +152,15 @@ impl DcpsDomainParticipant {
     #[tracing::instrument(skip(self, runtime))]
     pub fn delete_data_reader(
         &mut self,
-        subscriber_handle: InstanceHandle,
-        datareader_handle: InstanceHandle,
+        subscriber_handle: &InstanceHandle,
+        datareader_handle: &InstanceHandle,
         runtime: &impl DdsRuntime,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x: &&mut SubscriberEntity| x.instance_handle == subscriber_handle)
+            .find(|x: &&mut SubscriberEntity| &x.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -168,7 +168,7 @@ impl DcpsDomainParticipant {
         if let Some(index) = subscriber
             .data_reader_list
             .iter()
-            .position(|x| x.instance_handle == datareader_handle)
+            .position(|x| &x.instance_handle == datareader_handle)
         {
             let data_reader = subscriber.data_reader_list.remove(index);
             self.announce_deleted_data_reader(data_reader, runtime);
@@ -181,7 +181,7 @@ impl DcpsDomainParticipant {
     #[tracing::instrument(skip(self))]
     pub fn lookup_data_reader(
         &mut self,
-        subscriber_handle: InstanceHandle,
+        subscriber_handle: &InstanceHandle,
         topic_name: String,
     ) -> DdsResult<Option<InstanceHandle>> {
         if !self
@@ -194,7 +194,7 @@ impl DcpsDomainParticipant {
         }
 
         // Built-in subscriber is identified by the handle of the participant itself
-        if self.domain_participant.instance_handle == subscriber_handle {
+        if &self.domain_participant.instance_handle == subscriber_handle {
             Ok(self
                 .domain_participant
                 .builtin_subscriber
@@ -207,7 +207,7 @@ impl DcpsDomainParticipant {
                 .domain_participant
                 .user_defined_subscriber_list
                 .iter_mut()
-                .find(|x| x.instance_handle == subscriber_handle)
+                .find(|x| &x.instance_handle == subscriber_handle)
             else {
                 return Err(DdsError::AlreadyDeleted);
             };
@@ -221,14 +221,14 @@ impl DcpsDomainParticipant {
     #[tracing::instrument(skip(self))]
     pub fn set_default_data_reader_qos(
         &mut self,
-        subscriber_handle: InstanceHandle,
+        subscriber_handle: &InstanceHandle,
         qos: QosKind<DataReaderQos>,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| x.instance_handle == subscriber_handle)
+            .find(|x| &x.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -244,13 +244,13 @@ impl DcpsDomainParticipant {
     #[tracing::instrument(skip(self))]
     pub fn get_default_data_reader_qos(
         &mut self,
-        subscriber_handle: InstanceHandle,
+        subscriber_handle: &InstanceHandle,
     ) -> DdsResult<DataReaderQos> {
         let Some(subscriber) = self
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| x.instance_handle == subscriber_handle)
+            .find(|x| &x.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -261,7 +261,7 @@ impl DcpsDomainParticipant {
     #[tracing::instrument(skip(self))]
     pub fn set_subscriber_qos(
         &mut self,
-        subscriber_handle: InstanceHandle,
+        subscriber_handle: &InstanceHandle,
         qos: QosKind<SubscriberQos>,
     ) -> DdsResult<()> {
         let qos = match qos {
@@ -273,7 +273,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| x.instance_handle == subscriber_handle)
+            .find(|x| &x.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -288,13 +288,13 @@ impl DcpsDomainParticipant {
     #[tracing::instrument(skip(self))]
     pub fn get_subscriber_qos(
         &mut self,
-        subscriber_handle: InstanceHandle,
+        subscriber_handle: &InstanceHandle,
     ) -> DdsResult<SubscriberQos> {
         let Some(subscriber) = self
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| x.instance_handle == subscriber_handle)
+            .find(|x| &x.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -305,7 +305,7 @@ impl DcpsDomainParticipant {
     #[tracing::instrument(skip(self, listener_sender_task, runtime))]
     pub fn set_subscriber_listener(
         &mut self,
-        subscriber_handle: InstanceHandle,
+        subscriber_handle: &InstanceHandle,
         listener_sender_task: Option<DcpsSubscriberListener>,
         mask: Vec<StatusKind>,
         runtime: &impl DdsRuntime,
@@ -314,7 +314,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| x.instance_handle == subscriber_handle)
+            .find(|x| &x.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
