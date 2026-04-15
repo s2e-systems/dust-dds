@@ -5648,26 +5648,20 @@ impl DataReaderEntity {
 
         let sample_writer_guid = sample.writer_guid;
         tracing::debug!(cache_change = ?sample, "Adding change to data reader history cache");
-        self.sample_list.push(sample);
-        self.data_available_status_changed_flag = true;
-
         match self.qos.destination_order.kind {
+            DestinationOrderQosPolicyKind::ByReceptionTimestamp => self.sample_list.push(sample),
             DestinationOrderQosPolicyKind::BySourceTimestamp => {
-                self.sample_list.sort_by(|a, b| {
-                    a.source_timestamp
-                        .as_ref()
-                        .expect("Missing source timestamp")
-                        .cmp(
-                            b.source_timestamp
-                                .as_ref()
-                                .expect("Missing source timestamp"),
-                        )
-                });
+                // Insert the element at the place where the first source timestamp is bigger than the currently received one
+                let insert_position = self
+                    .sample_list
+                    .iter()
+                    .position(|x| x.source_timestamp > sample.source_timestamp)
+                    .unwrap_or(0);
+                self.sample_list.insert(insert_position, sample);
             }
-            DestinationOrderQosPolicyKind::ByReceptionTimestamp => self
-                .sample_list
-                .sort_by(|a, b| a.reception_timestamp.cmp(&b.reception_timestamp)),
         }
+
+        self.data_available_status_changed_flag = true;
 
         match self
             .instance_ownership
