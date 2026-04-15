@@ -29,21 +29,21 @@ impl DcpsDomainParticipant {
     #[tracing::instrument(skip(self))]
     pub fn get_publication_matched_status(
         &mut self,
-        publisher_handle: InstanceHandle,
-        data_writer_handle: InstanceHandle,
+        publisher_handle: &InstanceHandle,
+        data_writer_handle: &InstanceHandle,
     ) -> DdsResult<PublicationMatchedStatus> {
         let Some(publisher) = self
             .domain_participant
             .user_defined_publisher_list
             .iter_mut()
-            .find(|x| x.instance_handle == publisher_handle)
+            .find(|x| &x.instance_handle == publisher_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
         let Some(data_writer) = publisher
             .data_writer_list
             .iter_mut()
-            .find(|x| x.instance_handle == data_writer_handle)
+            .find(|x| &x.instance_handle == data_writer_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -611,22 +611,22 @@ impl DcpsDomainParticipant {
     #[tracing::instrument(skip(self, runtime))]
     pub fn enable_data_writer(
         &mut self,
-        publisher_handle: InstanceHandle,
-        data_writer_handle: InstanceHandle,
+        publisher_handle: &InstanceHandle,
+        data_writer_handle: &InstanceHandle,
         runtime: &impl DdsRuntime,
     ) -> DdsResult<()> {
         let Some(publisher) = self
             .domain_participant
             .user_defined_publisher_list
             .iter_mut()
-            .find(|x| x.instance_handle == publisher_handle)
+            .find(|x| &x.instance_handle == publisher_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
         let Some(data_writer) = publisher
             .data_writer_list
             .iter_mut()
-            .find(|x| x.instance_handle == data_writer_handle)
+            .find(|x| &x.instance_handle == data_writer_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -637,7 +637,7 @@ impl DcpsDomainParticipant {
                 self.domain_participant.discovered_reader_list.to_vec();
             for discovered_reader_data in discovered_reader_list {
                 self.add_discovered_reader(
-                    discovered_reader_data,
+                    &discovered_reader_data,
                     publisher_handle,
                     data_writer_handle,
                 );
@@ -651,8 +651,8 @@ impl DcpsDomainParticipant {
     #[tracing::instrument(skip(self, runtime))]
     pub fn set_data_writer_qos(
         &mut self,
-        publisher_handle: InstanceHandle,
-        data_writer_handle: InstanceHandle,
+        publisher_handle: &InstanceHandle,
+        data_writer_handle: &InstanceHandle,
         qos: QosKind<DataWriterQos>,
         runtime: &impl DdsRuntime,
     ) -> DdsResult<()> {
@@ -660,7 +660,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .user_defined_publisher_list
             .iter_mut()
-            .find(|x| x.instance_handle == publisher_handle)
+            .find(|x| &x.instance_handle == publisher_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -671,7 +671,7 @@ impl DcpsDomainParticipant {
         let Some(data_writer) = publisher
             .data_writer_list
             .iter_mut()
-            .find(|x| x.instance_handle == data_writer_handle)
+            .find(|x| &x.instance_handle == data_writer_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };

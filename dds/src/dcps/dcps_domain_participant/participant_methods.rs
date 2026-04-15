@@ -94,10 +94,10 @@ impl DcpsDomainParticipant {
     #[tracing::instrument(skip(self))]
     pub fn delete_user_defined_publisher(
         &mut self,
-        participant_handle: InstanceHandle,
-        publisher_handle: InstanceHandle,
+        participant_handle: &InstanceHandle,
+        publisher_handle: &InstanceHandle,
     ) -> DdsResult<()> {
-        if participant_handle != self.domain_participant.instance_handle {
+        if participant_handle != &self.domain_participant.instance_handle {
             return Err(DdsError::PreconditionNotMet(
                 "Publisher can only be deleted from its parent participant".to_string(),
             ));
@@ -106,7 +106,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .user_defined_publisher_list
             .iter()
-            .find(|x| x.instance_handle == publisher_handle)
+            .find(|x| &x.instance_handle == publisher_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -187,10 +187,10 @@ impl DcpsDomainParticipant {
     #[tracing::instrument(skip(self))]
     pub fn delete_user_defined_subscriber(
         &mut self,
-        participant_handle: InstanceHandle,
-        subscriber_handle: InstanceHandle,
+        participant_handle: &InstanceHandle,
+        subscriber_handle: &InstanceHandle,
     ) -> DdsResult<()> {
-        if self.domain_participant.instance_handle != participant_handle {
+        if &self.domain_participant.instance_handle != participant_handle {
             return Err(DdsError::PreconditionNotMet(
                 "Subscriber can only be deleted from its parent participant".to_string(),
             ));
@@ -200,7 +200,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .user_defined_subscriber_list
             .iter()
-            .find(|x| x.instance_handle == subscriber_handle)
+            .find(|x| &x.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -301,10 +301,10 @@ impl DcpsDomainParticipant {
     #[tracing::instrument(skip(self))]
     pub fn delete_user_defined_topic(
         &mut self,
-        participant_handle: InstanceHandle,
+        participant_handle: &InstanceHandle,
         topic_name: String,
     ) -> DdsResult<()> {
-        if self.domain_participant.instance_handle != participant_handle {
+        if &self.domain_participant.instance_handle != participant_handle {
             return Err(DdsError::PreconditionNotMet(
                 "Topic can only be deleted from its parent participant".to_string(),
             ));
@@ -353,7 +353,7 @@ impl DcpsDomainParticipant {
     #[tracing::instrument(skip(self))]
     pub fn create_content_filtered_topic(
         &mut self,
-        participant_handle: InstanceHandle,
+        participant_handle: &InstanceHandle,
         name: String,
         related_topic_name: String,
         filter_expression: String,
@@ -406,7 +406,7 @@ impl DcpsDomainParticipant {
     #[tracing::instrument(skip(self))]
     pub fn delete_content_filtered_topic(
         &mut self,
-        participant_handle: InstanceHandle,
+        participant_handle: &InstanceHandle,
         name: String,
     ) -> DdsResult<()> {
         Ok(())
@@ -516,14 +516,14 @@ impl DcpsDomainParticipant {
 
     /// Ignore participant with the specified [`handle`](InstanceHandle).
     #[tracing::instrument(skip(self))]
-    pub fn ignore_participant(&mut self, handle: InstanceHandle) -> DdsResult<()> {
+    pub fn ignore_participant(&mut self, handle: &InstanceHandle) -> DdsResult<()> {
         // Check enabled
         if !self.domain_participant.enabled {
             return Err(DdsError::NotEnabled);
         }
 
         // Add to ignored participants
-        if !self.domain_participant.ignored_participants.insert(handle) {
+        if !self.domain_participant.ignored_participants.insert(*handle) {
             // Already ignored
             return Ok(());
         }
@@ -657,13 +657,13 @@ impl DcpsDomainParticipant {
     #[tracing::instrument(skip(self))]
     pub fn get_discovered_participant_data(
         &mut self,
-        participant_handle: InstanceHandle,
+        participant_handle: &InstanceHandle,
     ) -> DdsResult<ParticipantBuiltinTopicData> {
         let Some(handle) = self
             .domain_participant
             .discovered_participant_list
             .iter()
-            .find(|p| &p.dds_participant_data.key().value == participant_handle.as_ref())
+            .find(|p| &p.dds_participant_data.key().value == participant_handle)
         else {
             return Err(DdsError::BadParameter);
         };
@@ -683,11 +683,11 @@ impl DcpsDomainParticipant {
     #[tracing::instrument(skip(self))]
     pub fn get_discovered_topic_data(
         &mut self,
-        topic_handle: InstanceHandle,
+        topic_handle: &InstanceHandle,
     ) -> DdsResult<TopicBuiltinTopicData> {
         let Some(handle) = self
             .domain_participant
-            .get_discovered_topic_data(&topic_handle)
+            .get_discovered_topic_data(topic_handle)
         else {
             return Err(DdsError::PreconditionNotMet(String::from(
                 "Topic with this handle not discovered",

@@ -28,7 +28,7 @@ impl DcpsDomainParticipant {
     #[tracing::instrument(skip(self, dcps_listener, runtime))]
     pub fn create_data_writer(
         &mut self,
-        publisher_handle: InstanceHandle,
+        publisher_handle: &InstanceHandle,
         topic_name: String,
         qos: QosKind<DataWriterQos>,
         dcps_listener: Option<DcpsDataWriterListener>,
@@ -52,7 +52,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .user_defined_publisher_list
             .iter_mut()
-            .find(|x| x.instance_handle == publisher_handle)
+            .find(|x| &x.instance_handle == publisher_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -122,7 +122,7 @@ impl DcpsDomainParticipant {
         publisher.data_writer_list.push(data_writer);
 
         if publisher.enabled && publisher.qos.entity_factory.autoenable_created_entities {
-            self.enable_data_writer(publisher_handle, writer_handle, runtime)?;
+            self.enable_data_writer(publisher_handle, &writer_handle, runtime)?;
         }
 
         Ok(data_writer_handle)

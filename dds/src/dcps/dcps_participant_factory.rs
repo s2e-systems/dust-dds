@@ -67,7 +67,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
             transport_participant,
             self.dcps_sender,
         );
-        let participant_handle = dcps_participant.get_instance_handle();
+        let participant_handle = *dcps_participant.get_instance_handle();
 
         //****** Spawn the participant actor and tasks **********//
 
@@ -113,7 +113,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
         Ok(participant_handle)
     }
 
-    pub fn delete_participant(&mut self, participant_handle: InstanceHandle) -> DdsResult<()> {
+    pub fn delete_participant(&mut self, participant_handle: &InstanceHandle) -> DdsResult<()> {
         let index = self
             .domain_participant_list
             .iter()
@@ -131,7 +131,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
 
     pub fn find_participant(
         &mut self,
-        participant_handle: InstanceHandle,
+        participant_handle: &InstanceHandle,
     ) -> DdsResult<&mut DcpsDomainParticipant> {
         self.domain_participant_list
             .iter_mut()
