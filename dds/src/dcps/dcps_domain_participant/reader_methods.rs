@@ -18,7 +18,7 @@ use crate::{
         status::{StatusKind, SubscriptionMatchedStatus},
         time::Duration,
     },
-    runtime::{Clock, DdsRuntime},
+    runtime::{Clock, DdsRuntime, Timer},
     xtypes::dynamic_type::DynamicData,
 };
 
@@ -207,13 +207,13 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         max_wait: Duration,
+        timer: impl Timer,
     ) -> Pin<Box<dyn Future<Output = DdsResult<()>> + Send>> {
         let participant_handle = self.domain_participant.instance_handle;
-        let timer_handle = self.timer_handle.clone();
         let dcps_sender = self.dcps_sender;
         Box::pin(async move {
             poll_timeout(
-                timer_handle,
+                timer,
                 max_wait.into(),
                 Box::pin(async move {
                     loop {
@@ -304,13 +304,14 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         Ok(data_reader.get_matched_publications())
     }
 
-    #[tracing::instrument(skip(self, clock))]
+    #[tracing::instrument(skip(self, clock, timer))]
     pub fn set_data_reader_qos(
         &mut self,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         qos: QosKind<DataReaderQos>,
         clock: &impl Clock,
+        timer: impl Timer,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
             .domain_participant
@@ -340,7 +341,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         data_reader.qos = qos;
 
         if data_reader.enabled {
-            self.announce_data_reader(subscriber_handle, data_reader_handle, clock);
+            self.announce_data_reader(subscriber_handle, data_reader_handle, clock, timer);
         }
         Ok(())
     }
@@ -441,12 +442,13 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         }
     }
 
-    #[tracing::instrument(skip(self, clock))]
+    #[tracing::instrument(skip(self, clock, timer))]
     pub fn enable_data_reader(
         &mut self,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         clock: &impl Clock,
+        timer: impl Timer,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
             .domain_participant
@@ -476,7 +478,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                 );
             }
 
-            self.announce_data_reader(subscriber_handle, data_reader_handle, clock);
+            self.announce_data_reader(subscriber_handle, data_reader_handle, clock, timer);
         }
         Ok(())
     }

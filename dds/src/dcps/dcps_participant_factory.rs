@@ -53,7 +53,6 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
             QosKind::Specific(q) => q,
         };
 
-        let mut timer_handle = self.runtime.timer();
         let spawner_handle = self.runtime.spawner();
 
         let listener_sender = dcps_listener.map(|l| l.spawn::<R>(&spawner_handle));
@@ -67,7 +66,6 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
             status_kind,
             transport_participant,
             self.dcps_sender,
-            timer_handle.clone(),
             spawner_handle.clone(),
         );
         let participant_handle = dcps_participant.get_instance_handle();
@@ -76,7 +74,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
 
         // Start the regular participant announcement task
         let dcps_sender_clone = self.dcps_sender;
-        let mut timer_handle_clone = timer_handle.clone();
+        let mut timer_handle = self.runtime.timer().clone();
 
         spawner_handle.spawn(async move {
             loop {
@@ -86,14 +84,13 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                     ))
                     .await;
 
-                timer_handle_clone
-                    .delay(participant_announcement_interval)
-                    .await;
+                timer_handle.delay(participant_announcement_interval).await;
             }
         });
 
         // Start regular message writing
         let dcps_sender_clone = self.dcps_sender;
+        let mut timer_handle = self.runtime.timer();
         spawner_handle.spawn(async move {
             loop {
                 dcps_sender_clone
@@ -109,7 +106,8 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
         });
 
         if self.qos.entity_factory.autoenable_created_entities {
-            dcps_participant.enable_domain_participant(&self.runtime.clock())?;
+            dcps_participant
+                .enable_domain_participant(&self.runtime.clock(), self.runtime.timer())?;
         }
 
         self.domain_participant_list.push(dcps_participant);

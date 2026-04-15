@@ -169,7 +169,6 @@ pub struct DcpsDomainParticipant<R: DdsRuntime> {
     publisher_counter: u8,
     subscriber_counter: u8,
     domain_participant: DomainParticipantEntity,
-    timer_handle: R::TimerHandle,
     spawner_handle: R::SpawnerHandle,
     dcps_sender: DcpsSender,
 }
@@ -188,7 +187,6 @@ where
         status_kind: Vec<StatusKind>,
         transport: RtpsTransportParticipant,
         dcps_sender: DcpsSender,
-        timer_handle: R::TimerHandle,
         spawner_handle: R::SpawnerHandle,
     ) -> Self {
         let guid = Guid::new(guid_prefix, ENTITYID_PARTICIPANT);
@@ -598,7 +596,6 @@ where
             publisher_counter: 0,
             subscriber_counter: 0,
             domain_participant,
-            timer_handle,
             spawner_handle,
             dcps_sender,
         }
@@ -723,8 +720,8 @@ where
         &self.domain_participant.builtin_subscriber.status_condition
     }
 
-    #[tracing::instrument(skip(self, clock))]
-    pub fn announce_participant(&mut self, clock: &impl Clock) {
+    #[tracing::instrument(skip(self, clock, timer))]
+    pub fn announce_participant(&mut self, clock: &impl Clock, timer: impl Timer) {
         if self.domain_participant.enabled {
             let builtin_topic_key = *self.domain_participant.instance_handle.as_ref();
             let guid = Guid::from(builtin_topic_key);
@@ -784,6 +781,7 @@ where
                 spdp_discovered_participant_data.create_dynamic_sample(),
                 timestamp,
                 clock,
+                timer,
                 reply_sender,
             );
         }
@@ -823,12 +821,13 @@ where
         }
     }
 
-    #[tracing::instrument(skip(self, clock))]
+    #[tracing::instrument(skip(self, clock, timer))]
     fn announce_data_writer(
         &mut self,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         clock: &impl Clock,
+        timer: impl Timer,
     ) {
         let Some(publisher) = self
             .domain_participant
@@ -906,6 +905,7 @@ where
             discovered_writer_data.create_dynamic_sample(),
             timestamp,
             clock,
+            timer,
             reply_sender,
         );
     }
@@ -941,12 +941,13 @@ where
         }
     }
 
-    #[tracing::instrument(skip(self, clock))]
+    #[tracing::instrument(skip(self, clock, timer))]
     fn announce_data_reader(
         &mut self,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         clock: &impl Clock,
+        timer: impl Timer,
     ) {
         let Some(subscriber) = self
             .domain_participant
@@ -1036,6 +1037,7 @@ where
             discovered_reader_data.create_dynamic_sample(),
             timestamp,
             clock,
+            timer,
             reply_sender,
         );
     }
@@ -1070,8 +1072,8 @@ where
         }
     }
 
-    #[tracing::instrument(skip(self, clock))]
-    fn announce_topic(&mut self, topic_name: String, clock: &impl Clock) {
+    #[tracing::instrument(skip(self, clock, timer))]
+    fn announce_topic(&mut self, topic_name: String, clock: &impl Clock, timer: impl Timer) {
         let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
             .topic_description_list
@@ -1119,6 +1121,7 @@ where
             discovered_topic_data.create_dynamic_sample(),
             timestamp,
             clock,
+            timer,
             reply_sender,
         );
     }
@@ -1990,18 +1993,19 @@ where
         }
     }
 
-    #[tracing::instrument(skip(self, clock))]
+    #[tracing::instrument(skip(self, clock, timer))]
     fn add_cache_change(
         &mut self,
         cache_change: CacheChange,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         clock: &impl Clock,
+        timer: impl Timer,
     ) {
         let reader_guid = Guid::from(<[u8; 16]>::from(data_reader_handle));
         match reader_guid.entity_id() {
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER => {
-                self.add_builtin_participants_detector_cache_change(cache_change, clock)
+                self.add_builtin_participants_detector_cache_change(cache_change, clock, timer)
             }
             ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR => {
                 self.add_builtin_publications_detector_cache_change(cache_change, clock)
@@ -2017,15 +2021,17 @@ where
                 subscriber_handle,
                 data_reader_handle,
                 clock,
+                timer,
             ),
         }
     }
 
-    #[tracing::instrument(skip(self, clock))]
+    #[tracing::instrument(skip(self, clock, timer))]
     pub fn add_builtin_participants_detector_cache_change(
         &mut self,
         cache_change: CacheChange,
         clock: &impl Clock,
+        timer: impl Timer,
     ) {
         let spdp_type_support =
             if let Some(TopicDescriptionKind::Topic(discovered_participant_data_type)) = self
@@ -2047,7 +2053,7 @@ where
                     let discovered_participant_data =
                         SpdpDiscoveredParticipantData::create_sample(dynamic_data);
 
-                    self.add_discovered_participant(discovered_participant_data, clock);
+                    self.add_discovered_participant(discovered_participant_data, clock, timer);
                 }
             }
             ChangeKind::NotAliveDisposed | ChangeKind::NotAliveDisposedUnregistered => {
@@ -2415,13 +2421,14 @@ where
         }
     }
 
-    #[tracing::instrument(skip(self, clock))]
+    #[tracing::instrument(skip(self, clock, timer))]
     pub fn add_user_defined_cache_change(
         &mut self,
         cache_change: CacheChange,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         clock: &impl Clock,
+        mut timer: impl Timer,
     ) {
         let reception_timestamp = self.get_current_time(clock);
         let Some(subscriber) = self
@@ -2578,12 +2585,11 @@ where
                     if let DurationKind::Finite(deadline_missed_period) =
                         data_reader.qos.deadline.period
                     {
-                        let mut timer_handle = self.timer_handle.clone();
                         let dcps_sender = self.dcps_sender;
 
                         self.spawner_handle.spawn(async move {
                             loop {
-                                timer_handle.delay(deadline_missed_period.into()).await;
+                                timer.delay(deadline_missed_period.into()).await;
                                 dcps_sender
                                     .send(DcpsMail::Event(
                                         EventServiceMail::RequestedDeadlineMissed {
@@ -3133,11 +3139,12 @@ where
             .add_communication_state(StatusKind::RequestedDeadlineMissed);
     }
 
-    #[tracing::instrument(skip(self, clock))]
+    #[tracing::instrument(skip(self, clock, timer))]
     fn add_discovered_participant(
         &mut self,
         discovered_participant_data: SpdpDiscoveredParticipantData,
         clock: &impl Clock,
+        timer: impl Timer,
     ) {
         // Check that the domainId of the discovered participant equals the local one.
         // If it is not equal then there the local endpoints are not configured to
@@ -3180,7 +3187,7 @@ where
             self.add_matched_topics_detector(&discovered_participant_data);
             self.add_matched_topics_announcer(&discovered_participant_data);
 
-            self.announce_participant(clock);
+            self.announce_participant(clock, timer);
 
             self.domain_participant
                 .add_discovered_participant(discovered_participant_data);
@@ -3649,21 +3656,27 @@ where
         }
     }
 
-    #[tracing::instrument(skip(self, data_message, clock))]
-    pub fn handle_data(&mut self, data_message: Arc<[u8]>, clock: &impl Clock) {
+    #[tracing::instrument(skip(self, data_message, clock, timer))]
+    pub fn handle_data(&mut self, data_message: Arc<[u8]>, clock: &impl Clock, timer: impl Timer) {
         if let Ok(rtps_message) = RtpsMessageRead::try_from(data_message.as_ref()) {
             let mut message_receiver = MessageReceiver::new(&rtps_message);
 
             while let Some(submessage) = message_receiver.next() {
                 match submessage {
                     RtpsSubmessageReadKind::Data(data_submessage) => {
-                        self.handle_data_submessage(&message_receiver, data_submessage, clock);
+                        self.handle_data_submessage(
+                            &message_receiver,
+                            data_submessage,
+                            clock,
+                            timer.clone(),
+                        );
                     }
                     RtpsSubmessageReadKind::DataFrag(data_frag_submessage) => {
                         self.handle_data_frag_submessage(
                             &message_receiver,
                             data_frag_submessage,
                             clock,
+                            timer.clone(),
                         );
                     }
                     RtpsSubmessageReadKind::Gap(gap_submessage) => {
@@ -3781,6 +3794,7 @@ where
         message_receiver: &MessageReceiver<'_>,
         data_submessage: &DataSubmessage,
         clock: &impl Clock,
+        timer: impl Timer,
     ) {
         for subscriber in self
             .domain_participant
@@ -3821,6 +3835,7 @@ where
                                                 subscriber_handle,
                                                 reader_handle,
                                                 clock,
+                                                timer,
                                             );
                                         }
                                     }
@@ -3842,6 +3857,7 @@ where
                                                 subscriber_handle,
                                                 reader_handle,
                                                 clock,
+                                                timer,
                                             );
                                         }
                                     }
@@ -3867,6 +3883,7 @@ where
                                     subscriber_handle,
                                     reader_handle,
                                     clock,
+                                    timer,
                                 );
                             }
                         }
@@ -3969,6 +3986,7 @@ where
         message_receiver: &MessageReceiver<'_>,
         data_frag_submessage: &DataFragSubmessage,
         clock: &impl Clock,
+        timer: impl Timer,
     ) {
         for subscriber in self
             .domain_participant
@@ -4012,6 +4030,7 @@ where
                                     message_receiver,
                                     &data_submessage,
                                     clock,
+                                    timer,
                                 );
                             }
                         };

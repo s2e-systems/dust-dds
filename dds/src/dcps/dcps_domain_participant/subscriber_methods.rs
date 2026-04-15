@@ -19,7 +19,7 @@ use crate::{
         status::StatusKind,
     },
     rtps::stateful_reader::RtpsStatefulReader,
-    runtime::{Clock, DdsRuntime},
+    runtime::{Clock, DdsRuntime, Timer},
     transport::types::{
         EntityId, Guid, ReliabilityKind, TopicKind, USER_DEFINED_READER_NO_KEY,
         USER_DEFINED_READER_WITH_KEY,
@@ -28,7 +28,7 @@ use crate::{
 
 impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     #[allow(clippy::too_many_arguments)]
-    #[tracing::instrument(skip(self, dcps_listener, clock))]
+    #[tracing::instrument(skip(self, dcps_listener, clock, timer))]
     pub fn create_data_reader(
         &mut self,
         subscriber_handle: InstanceHandle,
@@ -37,6 +37,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         dcps_listener: Option<DcpsDataReaderListener>,
         mask: Vec<StatusKind>,
         clock: &impl Clock,
+        timer: impl Timer,
     ) -> DdsResult<InstanceHandle> {
         let Some(topic) = self
             .domain_participant
@@ -144,7 +145,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         subscriber.data_reader_list.push(data_reader);
 
         if subscriber.enabled && subscriber.qos.entity_factory.autoenable_created_entities {
-            self.enable_data_reader(subscriber_handle, data_reader_handle, clock)?;
+            self.enable_data_reader(subscriber_handle, data_reader_handle, clock, timer)?;
         }
         Ok(data_reader_handle)
     }

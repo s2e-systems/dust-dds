@@ -17,7 +17,7 @@ use crate::{
         status::StatusKind,
     },
     rtps::stateful_writer::RtpsStatefulWriter,
-    runtime::{Clock, DdsRuntime},
+    runtime::{Clock, DdsRuntime, Timer},
     transport::types::{
         EntityId, Guid, TopicKind, USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
     },
@@ -25,7 +25,7 @@ use crate::{
 
 impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     #[allow(clippy::too_many_arguments)]
-    #[tracing::instrument(skip(self, dcps_listener, clock))]
+    #[tracing::instrument(skip(self, dcps_listener, clock, timer))]
     pub fn create_data_writer(
         &mut self,
         publisher_handle: InstanceHandle,
@@ -34,6 +34,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         dcps_listener: Option<DcpsDataWriterListener>,
         mask: Vec<StatusKind>,
         clock: &impl Clock,
+        timer: impl Timer,
     ) -> DdsResult<InstanceHandle> {
         let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
@@ -122,7 +123,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         publisher.data_writer_list.push(data_writer);
 
         if publisher.enabled && publisher.qos.entity_factory.autoenable_created_entities {
-            self.enable_data_writer(publisher_handle, writer_handle, clock)?;
+            self.enable_data_writer(publisher_handle, writer_handle, clock, timer)?;
         }
 
         Ok(data_writer_handle)

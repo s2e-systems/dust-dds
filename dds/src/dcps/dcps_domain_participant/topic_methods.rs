@@ -7,7 +7,7 @@ use crate::{
         qos::{QosKind, TopicQos},
         status::{InconsistentTopicStatus, StatusKind},
     },
-    runtime::{Clock, DdsRuntime},
+    runtime::{Clock, DdsRuntime, Timer},
     xtypes::dynamic_type::DynamicType,
 };
 
@@ -85,8 +85,13 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         Ok(topic.qos.clone())
     }
 
-    #[tracing::instrument(skip(self, clock))]
-    pub fn enable_topic(&mut self, topic_name: String, clock: &impl Clock) -> DdsResult<()> {
+    #[tracing::instrument(skip(self, clock, timer))]
+    pub fn enable_topic(
+        &mut self,
+        topic_name: String,
+        clock: &impl Clock,
+        timer: impl Timer,
+    ) -> DdsResult<()> {
         let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
             .topic_description_list
@@ -98,7 +103,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
 
         if !topic.enabled {
             topic.enabled = true;
-            self.announce_topic(topic_name, clock);
+            self.announce_topic(topic_name, clock, timer);
         }
 
         Ok(())

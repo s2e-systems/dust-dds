@@ -26,7 +26,7 @@ use crate::{
         status::StatusKind,
         time::Time,
     },
-    runtime::{Clock, DdsRuntime},
+    runtime::{Clock, DdsRuntime, Timer},
     transport::types::{USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC, USER_DEFINED_WRITER_GROUP},
     xtypes::dynamic_type::DynamicType,
 };
@@ -219,7 +219,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     }
 
     #[allow(clippy::too_many_arguments)]
-    #[tracing::instrument(skip(self, dcps_listener, type_support, clock))]
+    #[tracing::instrument(skip(self, dcps_listener, type_support, clock, timer))]
     pub fn create_topic(
         &mut self,
         topic_name: String,
@@ -229,6 +229,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         mask: Vec<StatusKind>,
         type_support: &'static dyn DynamicType,
         clock: &impl Clock,
+        timer: impl Timer,
     ) -> DdsResult<InstanceHandle> {
         if self
             .domain_participant
@@ -290,7 +291,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                 .entity_factory
                 .autoenable_created_entities
         {
-            self.enable_topic(topic_name, clock)?;
+            self.enable_topic(topic_name, clock, timer)?;
         }
 
         Ok(topic_handle)
@@ -697,11 +698,12 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         clock.now()
     }
 
-    #[tracing::instrument(skip(self, clock))]
+    #[tracing::instrument(skip(self, clock, timer))]
     pub fn set_domain_participant_qos(
         &mut self,
         qos: QosKind<DomainParticipantQos>,
         clock: &impl Clock,
+        timer: impl Timer,
     ) -> DdsResult<()> {
         let qos = match qos {
             QosKind::Default => DomainParticipantQos::default(),
@@ -710,7 +712,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
 
         self.domain_participant.qos = qos;
         if self.domain_participant.enabled {
-            self.announce_participant(clock);
+            self.announce_participant(clock, timer);
         }
         Ok(())
     }
@@ -733,8 +735,12 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         Ok(())
     }
 
-    #[tracing::instrument(skip(self, clock))]
-    pub fn enable_domain_participant(&mut self, clock: &impl Clock) -> DdsResult<()> {
+    #[tracing::instrument(skip(self, clock, timer))]
+    pub fn enable_domain_participant(
+        &mut self,
+        clock: &impl Clock,
+        timer: impl Timer,
+    ) -> DdsResult<()> {
         if !self.domain_participant.enabled {
             for t in &mut self.domain_participant.topic_description_list {
                 if let TopicDescriptionKind::Topic(t) = t {
@@ -752,7 +758,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
             self.domain_participant.builtin_subscriber.enabled = true;
             self.domain_participant.enabled = true;
 
-            self.announce_participant(clock);
+            self.announce_participant(clock, timer);
         }
 
         Ok(())
