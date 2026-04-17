@@ -44,6 +44,10 @@ pub trait DataStorageMapping: Sized {
     fn into_storage(self) -> DataStorage;
 
     fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self>;
+
+    fn from_storage(data_storage: DataStorage) -> Self {
+        Self::try_from_storage(data_storage).expect("Must match")
+    }
 }
 
 impl DataStorageMapping for u8 {
