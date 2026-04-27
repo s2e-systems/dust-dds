@@ -4056,7 +4056,7 @@ fn get_topic_kind(type_support: &dyn DynamicType) -> TopicKind {
     for index in 0..type_support.get_member_count() {
         if let Ok(m) = type_support.get_member_by_index(index) {
             if let Ok(d) = m.get_descriptor() {
-                if d.is_key {
+                if d.key.is_some() {
                     return TopicKind::WithKey;
                 }
             }
@@ -4733,7 +4733,8 @@ impl DataWriterEntity {
                     .type_support
                     .get_member_by_index(index)?
                     .get_descriptor()?
-                    .is_key
+                    .key
+                    .is_some()
                 {
                     has_key = true;
                     break;
@@ -4795,7 +4796,8 @@ impl DataWriterEntity {
                     .type_support
                     .get_member_by_index(index)?
                     .get_descriptor()?
-                    .is_key
+                    .key
+                    .is_some()
                 {
                     has_key = true;
                     break;
@@ -5352,7 +5354,7 @@ impl DataReaderEntity {
             let mut key_member_list = Vec::new();
             for member_index in 0..foo_type.get_member_count() {
                 let member = foo_type.get_member_by_index(member_index)?;
-                if member.get_descriptor()?.is_key {
+                if member.get_descriptor()?.key.is_some() {
                     key_member_list.push(member);
                 }
             }
