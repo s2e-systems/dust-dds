@@ -5666,7 +5666,7 @@ impl DataReaderEntity {
             }
             DestinationOrderQosPolicyKind::ByReceptionTimestamp => self
                 .sample_list
-                .sort_by(|a, b| a.reception_timestamp.cmp(&b.reception_timestamp)),
+                .sort_by_key(|sample| sample.reception_timestamp),
         }
 
         match self
