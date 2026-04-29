@@ -1361,7 +1361,9 @@ mod tests {
         #[dust_dds(id = 10)]
         key: u8,
         participant_key: u16,
-        extra_field: u32,
+        #[dust_dds(id = 20)]
+        extra_field_1: u32,
+        extra_field_2: u32,
     }
 
     #[test]
@@ -1369,13 +1371,15 @@ mod tests {
         let _v = MutableTypeMixedId {
             key: 7,
             participant_key: 8,
-            extra_field: 100,
+            extra_field_1: 100,
+            extra_field_2: 200,
         };
         let type_info = MutableTypeMixedId::TYPE;
-        assert_eq!(type_info.get_member_count(), 3);
+        assert_eq!(type_info.get_member_count(), 4);
         assert_eq!(type_info.get_member_by_index(0).unwrap().get_descriptor().unwrap().id, 10);
         assert_eq!(type_info.get_member_by_index(1).unwrap().get_descriptor().unwrap().id, 0);
-        assert_eq!(type_info.get_member_by_index(2).unwrap().get_descriptor().unwrap().id, 1);
+        assert_eq!(type_info.get_member_by_index(2).unwrap().get_descriptor().unwrap().id, 20);
+        assert_eq!(type_info.get_member_by_index(3).unwrap().get_descriptor().unwrap().id, 1);
     }
 
     #[derive(TypeSupport, Clone)]
