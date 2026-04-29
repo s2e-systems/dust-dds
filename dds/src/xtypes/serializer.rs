@@ -1345,13 +1345,14 @@ mod tests {
 
     #[test]
     fn mutable_struct_with_optional_id() {
-        // Verify that struct with optional id compiles and can be instantiated
         let _v = MutableTypeAutoId {
             key: 7,
             participant_key: 8,
         };
-        // Verify the type information is accessible
-        let _ = MutableTypeAutoId::TYPE;
+        let type_info = MutableTypeAutoId::TYPE;
+        assert_eq!(type_info.get_member_count(), 2);
+        assert_eq!(type_info.get_member_by_index(0).unwrap().get_descriptor().unwrap().id, 0);
+        assert_eq!(type_info.get_member_by_index(1).unwrap().get_descriptor().unwrap().id, 1);
     }
 
     #[derive(TypeSupport, Clone)]
@@ -1365,14 +1366,16 @@ mod tests {
 
     #[test]
     fn mutable_struct_with_mixed_ids() {
-        // Verify that struct with mixed explicit and auto-generated IDs compiles
         let _v = MutableTypeMixedId {
             key: 7,
             participant_key: 8,
             extra_field: 100,
         };
-        // Verify the type information is accessible
-        let _ = MutableTypeMixedId::TYPE;
+        let type_info = MutableTypeMixedId::TYPE;
+        assert_eq!(type_info.get_member_count(), 3);
+        assert_eq!(type_info.get_member_by_index(0).unwrap().get_descriptor().unwrap().id, 10);
+        assert_eq!(type_info.get_member_by_index(1).unwrap().get_descriptor().unwrap().id, 0);
+        assert_eq!(type_info.get_member_by_index(2).unwrap().get_descriptor().unwrap().id, 1);
     }
 
     #[derive(TypeSupport, Clone)]
