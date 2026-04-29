@@ -1,0 +1,5 @@
+struct Message {
+    @key @id(1) int32 id;
+    @id(2) string content;
+    @id(3) int64 timestamp;
+};

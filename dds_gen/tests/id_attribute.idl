@@ -1,0 +1,5 @@
+struct Person {
+    @id(1) string name;
+    @id(2) int32 age;
+    @id(3) double height;
+};
