@@ -49,15 +49,13 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
             if matches!(input_attributes.extensibility, Extensibility::Mutable) {
                 for field in data_struct.fields.iter() {
                     let field_attributes = get_field_attributes(field)?;
-                    if let Some(provided_id) = field_attributes.id {
-                        if let syn::Expr::Lit(syn::ExprLit {
-                            lit: syn::Lit::Int(lit_int),
-                            ..
-                        }) = &provided_id
-                        {
-                            if let Ok(id_value) = lit_int.base10_parse::<i32>() {
-                                used_ids.insert(id_value);
-                            }
+                    if let Some(syn::Expr::Lit(syn::ExprLit {
+                        lit: syn::Lit::Int(lit_int),
+                        ..
+                    })) = field_attributes.id
+                    {
+                        if let Ok(id_value) = lit_int.base10_parse::<i32>() {
+                            used_ids.insert(id_value);
                         }
                     }
                 }
