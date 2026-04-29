@@ -432,31 +432,15 @@ impl<'a> RustGenerator<'a> {
             if identifier.as_str() == "key" {
                 self.writer.push_str("#[dust_dds(key)]");
             } else if identifier.as_str() == "id" {
-                // Handle @id(value) annotation
                 if let Some(annotation_appl_params) = inner_pairs
                     .clone()
                     .find(|p| p.as_rule() == Rule::annotation_appl_params)
                 {
-                    let mut params = annotation_appl_params.into_inner();
-                    // Try to find an annotation_appl_param (for named parameter like @id(value=10))
-                    if let Some(annotation_param) = params
-                        .clone()
-                        .find(|p| p.as_rule() == Rule::annotation_appl_param)
+                    if let Some(const_expr) = annotation_appl_params
+                        .into_inner()
+                        .find(|p| p.as_rule() == Rule::const_expr)
                     {
-                        let param_inner = annotation_param.into_inner();
-                        let param_value = param_inner
-                            .filter(|p| p.as_rule() == Rule::const_expr)
-                            .map(|p| p.as_str())
-                            .collect::<Vec<_>>()
-                            .join("");
-                        self.writer.push_str(&format!("#[dust_dds(id = {})]", param_value));
-                    } else {
-                        // For positional parameter like @id(10), take the first const_expr
-                        if let Some(const_expr) = params
-                            .find(|p| p.as_rule() == Rule::const_expr)
-                        {
-                            self.writer.push_str(&format!("#[dust_dds(id = {})]", const_expr.as_str()));
-                        }
+                        self.writer.push_str(&format!("#[dust_dds(id = {})]", const_expr.as_str()));
                     }
                 }
             }
