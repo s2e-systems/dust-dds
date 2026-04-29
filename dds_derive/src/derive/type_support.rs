@@ -54,9 +54,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                         ..
                     })) = field_attributes.id
                     {
-                        if let Ok(id_value) = lit_int.base10_parse::<i32>() {
-                            used_ids.insert(id_value);
-                        }
+                        used_ids.insert(lit_int.base10_parse::<i32>()?);
                     }
                 }
             }
