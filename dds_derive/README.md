@@ -17,5 +17,33 @@ struct HelloWorldType {
     id: u8,
     msg: String,
 }
-
 ```
+
+## Mutable Structs with Optional Field IDs
+
+For mutable extensibility types, you can now use optional field IDs. If not provided, IDs will auto-increment starting from 0:
+
+```rust
+#[derive(DdsType)]
+#[dust_dds(extensibility = "mutable")]
+struct MutableType {
+    #[dust_dds(key)]
+    id: u8,           // Auto-assigned ID: 0
+    name: String,     // Auto-assigned ID: 1
+    age: u32,         // Auto-assigned ID: 2
+}
+```
+
+You can also mix explicit and auto-generated IDs:
+
+```rust
+#[derive(DdsType)]
+#[dust_dds(extensibility = "mutable")]
+struct MixedIdType {
+    #[dust_dds(id = 10, key)]
+    id: u8,           // Explicit ID: 10
+    name: String,     // Auto-assigned ID: 11
+    age: u32,         // Auto-assigned ID: 12
+}
+```
+

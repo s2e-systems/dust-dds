@@ -43,6 +43,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
             let mut member_list = Vec::new();
             let mut member_sample_seq = Vec::new();
             let mut member_dynamic_sample_seq = Vec::new();
+            let mut next_auto_id: i32 = 0;
 
             for (field_index, field) in data_struct.fields.iter().enumerate() {
                 let field_attributes = get_field_attributes(field)?;
@@ -52,10 +53,26 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     Extensibility::Final | Extensibility::Appendable => {
                         syn::parse_str(&field_index.to_string())
                     }
-                    Extensibility::Mutable => field_attributes.id.ok_or(syn::Error::new(
-                        field.span(),
-                        "Mutable struct must define id attribute for every field",
-                    )),
+                    Extensibility::Mutable => {
+                        if let Some(provided_id) = field_attributes.id {
+                            // Extract numeric value from the expression to track for next auto-increment
+                            if let syn::Expr::Lit(syn::ExprLit {
+                                lit: syn::Lit::Int(lit_int),
+                                ..
+                            }) = &provided_id
+                            {
+                                if let Ok(id_value) = lit_int.base10_parse::<i32>() {
+                                    next_auto_id = id_value + 1;
+                                }
+                            }
+                            Ok(provided_id)
+                        } else {
+                            // Auto-generate ID if not provided
+                            let auto_id = next_auto_id;
+                            next_auto_id += 1;
+                            syn::parse_str(&auto_id.to_string())
+                        }
+                    }
                 }?;
                 let field_name = field
                     .ident

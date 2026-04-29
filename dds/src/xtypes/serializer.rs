@@ -1337,6 +1337,46 @@ mod tests {
 
     #[derive(TypeSupport, Clone)]
     #[dust_dds(extensibility = "mutable")]
+    struct MutableTypeAutoId {
+        #[dust_dds(key)]
+        key: u8,
+        participant_key: u16,
+    }
+
+    #[test]
+    fn mutable_struct_with_optional_id() {
+        // Verify that struct with optional id compiles and can be instantiated
+        let _v = MutableTypeAutoId {
+            key: 7,
+            participant_key: 8,
+        };
+        // Verify the type information is accessible
+        let _ = MutableTypeAutoId::TYPE;
+    }
+
+    #[derive(TypeSupport, Clone)]
+    #[dust_dds(extensibility = "mutable")]
+    struct MutableTypeMixedId {
+        #[dust_dds(id = 10)]
+        key: u8,
+        participant_key: u16,
+        extra_field: u32,
+    }
+
+    #[test]
+    fn mutable_struct_with_mixed_ids() {
+        // Verify that struct with mixed explicit and auto-generated IDs compiles
+        let _v = MutableTypeMixedId {
+            key: 7,
+            participant_key: 8,
+            extra_field: 100,
+        };
+        // Verify the type information is accessible
+        let _ = MutableTypeMixedId::TYPE;
+    }
+
+    #[derive(TypeSupport, Clone)]
+    #[dust_dds(extensibility = "mutable")]
     struct NestedMutableType {
         #[dust_dds(id = 96, key)]
         field_primitive: u8,
