@@ -13,7 +13,7 @@ use crate::{
         RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleRejectedStatus,
         SubscriptionMatchedStatus,
     },
-    runtime::{DdsRuntime, Spawner},
+    runtime::Spawner,
 };
 
 pub struct DcpsDomainParticipantListener {
@@ -68,10 +68,7 @@ impl DcpsDomainParticipantListener {
         Self { sender, task }
     }
 
-    pub fn spawn<R: DdsRuntime>(
-        self,
-        spawner_handle: &R::SpawnerHandle,
-    ) -> MpscSender<ListenerMail> {
+    pub fn spawn(self, spawner_handle: &impl Spawner) -> MpscSender<ListenerMail> {
         spawner_handle.spawn(self.task);
         self.sender
     }

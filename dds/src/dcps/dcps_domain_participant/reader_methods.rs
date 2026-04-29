@@ -18,30 +18,30 @@ use crate::{
         status::{StatusKind, SubscriptionMatchedStatus},
         time::Duration,
     },
-    runtime::DdsRuntime,
+    runtime::{DdsRuntime, Timer},
     xtypes::dynamic_type::DynamicData,
 };
 
-impl<R: DdsRuntime> DcpsDomainParticipant<R> {
+impl DcpsDomainParticipant {
     #[allow(clippy::too_many_arguments, clippy::type_complexity)]
     #[tracing::instrument(skip(self))]
     pub fn read(
         &mut self,
-        subscriber_handle: InstanceHandle,
-        data_reader_handle: InstanceHandle,
+        subscriber_handle: &InstanceHandle,
+        data_reader_handle: &InstanceHandle,
         max_samples: i32,
-        sample_states: Vec<SampleStateKind>,
-        view_states: Vec<ViewStateKind>,
-        instance_states: Vec<InstanceStateKind>,
-        specific_instance_handle: Option<InstanceHandle>,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
+        specific_instance_handle: &Option<InstanceHandle>,
     ) -> DdsResult<Vec<(Option<DynamicData>, SampleInfo)>> {
-        let subscriber = if subscriber_handle == self.domain_participant.instance_handle {
+        let subscriber = if subscriber_handle == &self.domain_participant.instance_handle {
             Some(&mut self.domain_participant.builtin_subscriber)
         } else {
             self.domain_participant
                 .user_defined_subscriber_list
                 .iter_mut()
-                .find(|x| x.instance_handle == subscriber_handle)
+                .find(|x| &x.instance_handle == subscriber_handle)
         };
 
         let Some(subscriber) = subscriber else {
@@ -51,16 +51,16 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         let Some(data_reader) = subscriber
             .data_reader_list
             .iter_mut()
-            .find(|x| x.instance_handle == data_reader_handle)
+            .find(|x| &x.instance_handle == data_reader_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
 
         data_reader.read(
             max_samples,
-            &sample_states,
-            &view_states,
-            &instance_states,
+            sample_states,
+            view_states,
+            instance_states,
             specific_instance_handle,
         )
     }
@@ -69,26 +69,26 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     #[tracing::instrument(skip(self))]
     pub fn take(
         &mut self,
-        subscriber_handle: InstanceHandle,
-        data_reader_handle: InstanceHandle,
+        subscriber_handle: &InstanceHandle,
+        data_reader_handle: &InstanceHandle,
         max_samples: i32,
-        sample_states: Vec<SampleStateKind>,
-        view_states: Vec<ViewStateKind>,
-        instance_states: Vec<InstanceStateKind>,
-        specific_instance_handle: Option<InstanceHandle>,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
+        specific_instance_handle: &Option<InstanceHandle>,
     ) -> DdsResult<Vec<(Option<DynamicData>, SampleInfo)>> {
         let Some(subscriber) = self
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| x.instance_handle == subscriber_handle)
+            .find(|x| &x.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
         let Some(data_reader) = subscriber
             .data_reader_list
             .iter_mut()
-            .find(|x| x.instance_handle == data_reader_handle)
+            .find(|x| &x.instance_handle == data_reader_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -105,35 +105,35 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     #[tracing::instrument(skip(self))]
     pub fn read_next_instance(
         &mut self,
-        subscriber_handle: InstanceHandle,
-        data_reader_handle: InstanceHandle,
+        subscriber_handle: &InstanceHandle,
+        data_reader_handle: &InstanceHandle,
         max_samples: i32,
-        previous_handle: Option<InstanceHandle>,
-        sample_states: Vec<SampleStateKind>,
-        view_states: Vec<ViewStateKind>,
-        instance_states: Vec<InstanceStateKind>,
+        previous_handle: &Option<InstanceHandle>,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<(Option<DynamicData>, SampleInfo)>> {
         let Some(subscriber) = self
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| x.instance_handle == subscriber_handle)
+            .find(|x| &x.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
         let Some(data_reader) = subscriber
             .data_reader_list
             .iter_mut()
-            .find(|x| x.instance_handle == data_reader_handle)
+            .find(|x| &x.instance_handle == data_reader_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
         data_reader.read_next_instance(
             max_samples,
             previous_handle,
-            &sample_states,
-            &view_states,
-            &instance_states,
+            sample_states,
+            view_states,
+            instance_states,
         )
     }
 
@@ -141,26 +141,26 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     #[tracing::instrument(skip(self))]
     pub fn take_next_instance(
         &mut self,
-        subscriber_handle: InstanceHandle,
-        data_reader_handle: InstanceHandle,
+        subscriber_handle: &InstanceHandle,
+        data_reader_handle: &InstanceHandle,
         max_samples: i32,
-        previous_handle: Option<InstanceHandle>,
-        sample_states: Vec<SampleStateKind>,
-        view_states: Vec<ViewStateKind>,
-        instance_states: Vec<InstanceStateKind>,
+        previous_handle: &Option<InstanceHandle>,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<(Option<DynamicData>, SampleInfo)>> {
         let Some(subscriber) = self
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| x.instance_handle == subscriber_handle)
+            .find(|x| &x.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
         let Some(data_reader) = subscriber
             .data_reader_list
             .iter_mut()
-            .find(|x| x.instance_handle == data_reader_handle)
+            .find(|x| &x.instance_handle == data_reader_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -176,21 +176,21 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     #[tracing::instrument(skip(self))]
     pub fn get_subscription_matched_status(
         &mut self,
-        subscriber_handle: InstanceHandle,
-        data_reader_handle: InstanceHandle,
+        subscriber_handle: &InstanceHandle,
+        data_reader_handle: &InstanceHandle,
     ) -> DdsResult<SubscriptionMatchedStatus> {
         let Some(subscriber) = self
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| x.instance_handle == subscriber_handle)
+            .find(|x| &x.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
         let Some(data_reader) = subscriber
             .data_reader_list
             .iter_mut()
-            .find(|x| x.instance_handle == data_reader_handle)
+            .find(|x| &x.instance_handle == data_reader_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -207,13 +207,13 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         max_wait: Duration,
+        timer: impl Timer,
     ) -> Pin<Box<dyn Future<Output = DdsResult<()>> + Send>> {
         let participant_handle = self.domain_participant.instance_handle;
-        let timer_handle = self.timer_handle.clone();
         let dcps_sender = self.dcps_sender;
         Box::pin(async move {
             poll_timeout(
-                timer_handle,
+                timer,
                 max_wait.into(),
                 Box::pin(async move {
                     loop {
@@ -248,22 +248,22 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     #[tracing::instrument(skip(self))]
     pub fn get_matched_publication_data(
         &mut self,
-        subscriber_handle: InstanceHandle,
-        data_reader_handle: InstanceHandle,
-        publication_handle: InstanceHandle,
+        subscriber_handle: &InstanceHandle,
+        data_reader_handle: &InstanceHandle,
+        publication_handle: &InstanceHandle,
     ) -> DdsResult<PublicationBuiltinTopicData> {
         let Some(subscriber) = self
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| x.instance_handle == subscriber_handle)
+            .find(|x| &x.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
         let Some(data_reader) = subscriber
             .data_reader_list
             .iter()
-            .find(|x| x.instance_handle == data_reader_handle)
+            .find(|x| &x.instance_handle == data_reader_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -282,21 +282,21 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     #[tracing::instrument(skip(self))]
     pub fn get_matched_publications(
         &mut self,
-        subscriber_handle: InstanceHandle,
-        data_reader_handle: InstanceHandle,
+        subscriber_handle: &InstanceHandle,
+        data_reader_handle: &InstanceHandle,
     ) -> DdsResult<Vec<InstanceHandle>> {
         let Some(subscriber) = self
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| x.instance_handle == subscriber_handle)
+            .find(|x| &x.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
         let Some(data_reader) = subscriber
             .data_reader_list
             .iter()
-            .find(|x| x.instance_handle == data_reader_handle)
+            .find(|x| &x.instance_handle == data_reader_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -304,18 +304,19 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         Ok(data_reader.get_matched_publications())
     }
 
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self, runtime))]
     pub fn set_data_reader_qos(
         &mut self,
-        subscriber_handle: InstanceHandle,
-        data_reader_handle: InstanceHandle,
+        subscriber_handle: &InstanceHandle,
+        data_reader_handle: &InstanceHandle,
         qos: QosKind<DataReaderQos>,
+        runtime: &impl DdsRuntime,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| x.instance_handle == subscriber_handle)
+            .find(|x| &x.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -326,7 +327,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         let Some(data_reader) = subscriber
             .data_reader_list
             .iter_mut()
-            .find(|x| x.instance_handle == data_reader_handle)
+            .find(|x| &x.instance_handle == data_reader_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -339,7 +340,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         data_reader.qos = qos;
 
         if data_reader.enabled {
-            self.announce_data_reader(subscriber_handle, data_reader_handle);
+            self.announce_data_reader(subscriber_handle, data_reader_handle, runtime);
         }
         Ok(())
     }
@@ -347,14 +348,14 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     #[tracing::instrument(skip(self))]
     pub fn get_data_reader_qos(
         &mut self,
-        subscriber_handle: InstanceHandle,
-        data_reader_handle: InstanceHandle,
+        subscriber_handle: &InstanceHandle,
+        data_reader_handle: &InstanceHandle,
     ) -> DdsResult<DataReaderQos> {
         let Some(subscriber) = self
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| x.instance_handle == subscriber_handle)
+            .find(|x| &x.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -362,37 +363,38 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         let Some(data_reader) = subscriber
             .data_reader_list
             .iter_mut()
-            .find(|x| x.instance_handle == data_reader_handle)
+            .find(|x| &x.instance_handle == data_reader_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
         Ok(data_reader.qos.clone())
     }
 
-    #[tracing::instrument(skip(self, dcps_listener))]
+    #[tracing::instrument(skip(self, dcps_listener, runtime))]
     pub fn set_data_reader_listener(
         &mut self,
-        subscriber_handle: InstanceHandle,
-        data_reader_handle: InstanceHandle,
+        subscriber_handle: &InstanceHandle,
+        data_reader_handle: &InstanceHandle,
         dcps_listener: Option<DcpsDataReaderListener>,
         listener_mask: Vec<StatusKind>,
+        runtime: &impl DdsRuntime,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| x.instance_handle == subscriber_handle)
+            .find(|x| &x.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
         let Some(data_reader) = subscriber
             .data_reader_list
             .iter_mut()
-            .find(|x| x.instance_handle == data_reader_handle)
+            .find(|x| &x.instance_handle == data_reader_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
-        let listener_sender = dcps_listener.map(|l| l.spawn::<R>(&self.spawner_handle));
+        let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
         data_reader.listener_sender = listener_sender;
         data_reader.listener_mask = listener_mask;
         Ok(())
@@ -401,14 +403,14 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
     #[tracing::instrument(skip(self))]
     pub fn is_historical_data_received(
         &mut self,
-        subscriber_handle: InstanceHandle,
-        data_reader_handle: InstanceHandle,
+        subscriber_handle: &InstanceHandle,
+        data_reader_handle: &InstanceHandle,
     ) -> DdsResult<bool> {
         let Some(subscriber) = self
             .domain_participant
             .user_defined_subscriber_list
             .iter()
-            .find(|x| x.instance_handle == subscriber_handle)
+            .find(|x| &x.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -416,7 +418,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         let Some(data_reader) = subscriber
             .data_reader_list
             .iter()
-            .find(|x| x.instance_handle == data_reader_handle)
+            .find(|x| &x.instance_handle == data_reader_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -440,24 +442,25 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         }
     }
 
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self, runtime))]
     pub fn enable_data_reader(
         &mut self,
-        subscriber_handle: InstanceHandle,
-        data_reader_handle: InstanceHandle,
+        subscriber_handle: &InstanceHandle,
+        data_reader_handle: &InstanceHandle,
+        runtime: &impl DdsRuntime,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| x.instance_handle == subscriber_handle)
+            .find(|x| &x.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
         let Some(data_reader) = subscriber
             .data_reader_list
             .iter_mut()
-            .find(|x| x.instance_handle == data_reader_handle)
+            .find(|x| &x.instance_handle == data_reader_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -468,13 +471,13 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
                 self.domain_participant.discovered_writer_list.to_vec();
             for discovered_writer_data in discovered_writer_list {
                 self.add_discovered_writer(
-                    discovered_writer_data,
+                    &discovered_writer_data,
                     subscriber_handle,
                     data_reader_handle,
                 );
             }
 
-            self.announce_data_reader(subscriber_handle, data_reader_handle);
+            self.announce_data_reader(subscriber_handle, data_reader_handle, runtime);
         }
         Ok(())
     }

@@ -11,7 +11,7 @@ use crate::{
     xtypes::dynamic_type::DynamicType,
 };
 
-impl<R: DdsRuntime> DcpsDomainParticipant<R> {
+impl DcpsDomainParticipant {
     #[tracing::instrument(skip(self))]
     pub fn get_inconsistent_topic_status(
         &mut self,
@@ -85,8 +85,8 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
         Ok(topic.qos.clone())
     }
 
-    #[tracing::instrument(skip(self))]
-    pub fn enable_topic(&mut self, topic_name: String) -> DdsResult<()> {
+    #[tracing::instrument(skip(self, runtime))]
+    pub fn enable_topic(&mut self, topic_name: String, runtime: &impl DdsRuntime) -> DdsResult<()> {
         let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
             .topic_description_list
@@ -98,7 +98,7 @@ impl<R: DdsRuntime> DcpsDomainParticipant<R> {
 
         if !topic.enabled {
             topic.enabled = true;
-            self.announce_topic(topic_name);
+            self.announce_topic(topic_name, runtime);
         }
 
         Ok(())

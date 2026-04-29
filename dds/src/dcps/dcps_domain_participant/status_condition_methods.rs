@@ -22,7 +22,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 participant_handle,
                 subscriber_handle,
             } => {
-                let dp = self.find_participant(participant_handle)?;
+                let dp = self.find_participant(&participant_handle)?;
                 let s = dp
                     .domain_participant
                     .user_defined_subscriber_list
@@ -38,7 +38,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 participant_handle,
                 topic_handle,
             } => {
-                let dp = self.find_participant(participant_handle)?;
+                let dp = self.find_participant(&participant_handle)?;
                 for t in dp.domain_participant.topic_description_list.iter_mut() {
                     match t {
                         super::TopicDescriptionKind::Topic(topic_entity) => {
@@ -56,7 +56,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 publisher_handle,
                 writer_handle,
             } => {
-                let dp = self.find_participant(participant_handle)?;
+                let dp = self.find_participant(&participant_handle)?;
                 for p in dp
                     .domain_participant
                     .user_defined_publisher_list
@@ -79,7 +79,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 subscriber_handle,
                 reader_handle,
             } => {
-                let dp = self.find_participant(participant_handle)?;
+                let dp = self.find_participant(&participant_handle)?;
                 for s in dp
                     .domain_participant
                     .user_defined_subscriber_list
@@ -112,7 +112,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 participant_handle,
                 subscriber_handle,
             } => {
-                let dp = self.find_participant(participant_handle)?;
+                let dp = self.find_participant(&participant_handle)?;
                 let s = dp
                     .domain_participant
                     .user_defined_subscriber_list
@@ -129,7 +129,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 participant_handle,
                 topic_handle,
             } => {
-                let dp = self.find_participant(participant_handle)?;
+                let dp = self.find_participant(&participant_handle)?;
                 for t in dp.domain_participant.topic_description_list.iter_mut() {
                     match t {
                         super::TopicDescriptionKind::Topic(topic_entity) => {
@@ -150,7 +150,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 publisher_handle,
                 writer_handle,
             } => {
-                let dp = self.find_participant(participant_handle)?;
+                let dp = self.find_participant(&participant_handle)?;
                 for p in dp
                     .domain_participant
                     .user_defined_publisher_list
@@ -174,7 +174,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 subscriber_handle,
                 reader_handle,
             } => {
-                let dp = self.find_participant(participant_handle)?;
+                let dp = self.find_participant(&participant_handle)?;
                 for s in dp
                     .domain_participant
                     .user_defined_subscriber_list
@@ -207,7 +207,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 participant_handle,
                 subscriber_handle,
             } => {
-                let dp = self.find_participant(participant_handle)?;
+                let dp = self.find_participant(&participant_handle)?;
                 let s = dp
                     .domain_participant
                     .user_defined_subscriber_list
@@ -223,7 +223,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 participant_handle,
                 topic_handle,
             } => {
-                let dp = self.find_participant(participant_handle)?;
+                let dp = self.find_participant(&participant_handle)?;
                 for t in dp.domain_participant.topic_description_list.iter_mut() {
                     match t {
                         super::TopicDescriptionKind::Topic(topic_entity) => {
@@ -241,7 +241,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 publisher_handle,
                 writer_handle,
             } => {
-                let dp = self.find_participant(participant_handle)?;
+                let dp = self.find_participant(&participant_handle)?;
                 for p in dp
                     .domain_participant
                     .user_defined_publisher_list
@@ -264,7 +264,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 subscriber_handle,
                 reader_handle,
             } => {
-                let dp = self.find_participant(participant_handle)?;
+                let dp = self.find_participant(&participant_handle)?;
                 for s in dp
                     .domain_participant
                     .user_defined_subscriber_list
@@ -297,7 +297,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 participant_handle,
                 subscriber_handle,
             } => {
-                let dp = self.find_participant(participant_handle)?;
+                let dp = self.find_participant(&participant_handle)?;
                 let s = dp
                     .domain_participant
                     .user_defined_subscriber_list
@@ -315,7 +315,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 participant_handle,
                 topic_handle,
             } => {
-                let dp = self.find_participant(participant_handle)?;
+                let dp = self.find_participant(&participant_handle)?;
                 for t in dp.domain_participant.topic_description_list.iter_mut() {
                     match t {
                         super::TopicDescriptionKind::Topic(topic_entity) => {
@@ -336,7 +336,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 publisher_handle,
                 writer_handle,
             } => {
-                let dp = self.find_participant(participant_handle)?;
+                let dp = self.find_participant(&participant_handle)?;
                 for p in dp
                     .domain_participant
                     .user_defined_publisher_list
@@ -361,7 +361,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 subscriber_handle,
                 reader_handle,
             } => {
-                let dp = self.find_participant(participant_handle)?;
+                let dp = self.find_participant(&participant_handle)?;
                 for s in dp
                     .domain_participant
                     .user_defined_subscriber_list

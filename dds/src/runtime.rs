@@ -8,7 +8,7 @@ pub trait Clock {
 }
 
 /// Provides delay/sleep functionality in an asynchronous context.
-pub trait Timer {
+pub trait Timer: Clone + Send + Sync + 'static {
     /// Creates a future that completes after the specified duration has elapsed.
     ///
     /// # Arguments
@@ -17,7 +17,7 @@ pub trait Timer {
 }
 
 /// Provides task spawning capabilities for asynchronous execution.
-pub trait Spawner {
+pub trait Spawner: Clone + Send + Sync + 'static {
     /// Spawns a new asynchronous task.
     ///
     /// # Arguments

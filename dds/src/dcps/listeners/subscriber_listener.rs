@@ -5,7 +5,7 @@ use alloc::boxed::Box;
 use crate::{
     dcps::channels::mpsc::{MpscSender, mpsc_channel},
     dds_async::subscriber_listener::SubscriberListener,
-    runtime::{DdsRuntime, Spawner},
+    runtime::Spawner,
 };
 
 use super::domain_participant_listener::ListenerMail;
@@ -67,7 +67,7 @@ impl DcpsSubscriberListener {
         Self { sender, task }
     }
 
-    pub fn spawn<R: DdsRuntime>(self, spawner: &R::SpawnerHandle) -> MpscSender<ListenerMail> {
+    pub fn spawn(self, spawner: &impl Spawner) -> MpscSender<ListenerMail> {
         spawner.spawn(self.task);
         self.sender
     }
