@@ -440,12 +440,11 @@ impl<'a> RustGenerator<'a> {
                         .into_inner()
                         .find(|p| p.as_rule() == Rule::const_expr)
                     {
-                        self.writer.push_str(&format!("#[dust_dds(id = {})]", const_expr.as_str()));
+                        self.writer
+                            .push_str(&format!("#[dust_dds(id = {})]", const_expr.as_str()));
                     }
                 }
             }
-
-
         }
 
         for declarator in declarators.into_inner() {

@@ -1351,8 +1351,24 @@ mod tests {
         };
         let type_info = MutableTypeAutoId::TYPE;
         assert_eq!(type_info.get_member_count(), 2);
-        assert_eq!(type_info.get_member_by_index(0).unwrap().get_descriptor().unwrap().id, 0);
-        assert_eq!(type_info.get_member_by_index(1).unwrap().get_descriptor().unwrap().id, 1);
+        assert_eq!(
+            type_info
+                .get_member_by_index(0)
+                .unwrap()
+                .get_descriptor()
+                .unwrap()
+                .id,
+            0
+        );
+        assert_eq!(
+            type_info
+                .get_member_by_index(1)
+                .unwrap()
+                .get_descriptor()
+                .unwrap()
+                .id,
+            1
+        );
     }
 
     #[derive(TypeSupport, Clone)]
@@ -1376,10 +1392,42 @@ mod tests {
         };
         let type_info = MutableTypeMixedId::TYPE;
         assert_eq!(type_info.get_member_count(), 4);
-        assert_eq!(type_info.get_member_by_index(0).unwrap().get_descriptor().unwrap().id, 10);
-        assert_eq!(type_info.get_member_by_index(1).unwrap().get_descriptor().unwrap().id, 0);
-        assert_eq!(type_info.get_member_by_index(2).unwrap().get_descriptor().unwrap().id, 20);
-        assert_eq!(type_info.get_member_by_index(3).unwrap().get_descriptor().unwrap().id, 1);
+        assert_eq!(
+            type_info
+                .get_member_by_index(0)
+                .unwrap()
+                .get_descriptor()
+                .unwrap()
+                .id,
+            10
+        );
+        assert_eq!(
+            type_info
+                .get_member_by_index(1)
+                .unwrap()
+                .get_descriptor()
+                .unwrap()
+                .id,
+            0
+        );
+        assert_eq!(
+            type_info
+                .get_member_by_index(2)
+                .unwrap()
+                .get_descriptor()
+                .unwrap()
+                .id,
+            20
+        );
+        assert_eq!(
+            type_info
+                .get_member_by_index(3)
+                .unwrap()
+                .get_descriptor()
+                .unwrap()
+                .id,
+            1
+        );
     }
 
     #[derive(TypeSupport, Clone)]
