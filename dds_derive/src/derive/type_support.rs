@@ -44,25 +44,11 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
             let mut member_sample_seq = Vec::new();
             let mut member_dynamic_sample_seq = Vec::new();
 
-            // For mutable structs, first pass: collect all explicitly assigned IDs
-            let mut used_ids = std::collections::HashSet::new();
-            if matches!(input_attributes.extensibility, Extensibility::Mutable) {
-                for field in data_struct.fields.iter() {
-                    let field_attributes = get_field_attributes(field)?;
-                    if let Some(syn::Expr::Lit(syn::ExprLit {
-                        lit: syn::Lit::Int(lit_int),
-                        ..
-                    })) = field_attributes.id
-                    {
-                        used_ids.insert(lit_int.base10_parse::<i32>()?);
-                    }
-                }
-            }
-
+            let mut next_auto_id = 0;
             for (field_index, field) in data_struct.fields.iter().enumerate() {
+                let index = field_index as u32;
                 let field_attributes = get_field_attributes(field)?;
 
-                let index = field_index as u32;
                 let member_id = match input_attributes.extensibility {
                     Extensibility::Final | Extensibility::Appendable => {
                         syn::parse_str(&field_index.to_string())
@@ -71,16 +57,17 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                         if let Some(provided_id) = field_attributes.id {
                             Ok(provided_id)
                         } else {
-                            // Find smallest unused ID starting from 0
-                            let mut auto_id = 0i32;
-                            while used_ids.contains(&auto_id) {
-                                auto_id += 1;
-                            }
-                            used_ids.insert(auto_id);
-                            syn::parse_str(&auto_id.to_string())
+                            syn::parse_str(&next_auto_id.to_string())
                         }
                     }
                 }?;
+                if let syn::Expr::Lit(syn::ExprLit {
+                    lit: syn::Lit::Int(lit_int),
+                    ..
+                }) = &member_id
+                {
+                    next_auto_id = lit_int.base10_parse::<u32>()? + 1;
+                }
                 let field_name = field
                     .ident
                     .as_ref()
@@ -103,7 +90,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                                 id: #member_id,
                                 r#type: <#member_type as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION,
                                 default_value: None,
-                                index: #index,
+                                index: #index as u32,
                                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                                 label: None,
                                 is_key: #is_key,

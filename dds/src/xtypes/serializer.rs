@@ -1337,101 +1337,6 @@ mod tests {
 
     #[derive(TypeSupport, Clone)]
     #[dust_dds(extensibility = "mutable")]
-    struct MutableTypeAutoId {
-        #[dust_dds(key)]
-        key: u8,
-        participant_key: u16,
-    }
-
-    #[test]
-    fn mutable_struct_with_optional_id() {
-        let _v = MutableTypeAutoId {
-            key: 7,
-            participant_key: 8,
-        };
-        let type_info = MutableTypeAutoId::TYPE;
-        assert_eq!(type_info.get_member_count(), 2);
-        assert_eq!(
-            type_info
-                .get_member_by_index(0)
-                .unwrap()
-                .get_descriptor()
-                .unwrap()
-                .id,
-            0
-        );
-        assert_eq!(
-            type_info
-                .get_member_by_index(1)
-                .unwrap()
-                .get_descriptor()
-                .unwrap()
-                .id,
-            1
-        );
-    }
-
-    #[derive(TypeSupport, Clone)]
-    #[dust_dds(extensibility = "mutable")]
-    struct MutableTypeMixedId {
-        #[dust_dds(id = 10)]
-        key: u8,
-        participant_key: u16,
-        #[dust_dds(id = 20)]
-        extra_field_1: u32,
-        extra_field_2: u32,
-    }
-
-    #[test]
-    fn mutable_struct_with_mixed_ids() {
-        let _v = MutableTypeMixedId {
-            key: 7,
-            participant_key: 8,
-            extra_field_1: 100,
-            extra_field_2: 200,
-        };
-        let type_info = MutableTypeMixedId::TYPE;
-        assert_eq!(type_info.get_member_count(), 4);
-        assert_eq!(
-            type_info
-                .get_member_by_index(0)
-                .unwrap()
-                .get_descriptor()
-                .unwrap()
-                .id,
-            10
-        );
-        assert_eq!(
-            type_info
-                .get_member_by_index(1)
-                .unwrap()
-                .get_descriptor()
-                .unwrap()
-                .id,
-            0
-        );
-        assert_eq!(
-            type_info
-                .get_member_by_index(2)
-                .unwrap()
-                .get_descriptor()
-                .unwrap()
-                .id,
-            20
-        );
-        assert_eq!(
-            type_info
-                .get_member_by_index(3)
-                .unwrap()
-                .get_descriptor()
-                .unwrap()
-                .id,
-            1
-        );
-    }
-
-    #[derive(TypeSupport, Clone)]
-    #[dust_dds(extensibility = "mutable")]
     struct NestedMutableType {
         #[dust_dds(id = 96, key)]
         field_primitive: u8,
@@ -1596,6 +1501,99 @@ mod tests {
                 30, 0, 0, 0, // shapesize
                 0, 0, 0, 0, // additional_payload_size: length
             ]
+        );
+    }
+
+    #[test]
+    fn mutable_struct_with_optional_id() {
+        #[derive(TypeSupport, Clone)]
+        #[dust_dds(extensibility = "mutable")]
+        struct MutableTypeAutoId {
+            #[dust_dds(key)]
+            key: u8,
+            participant_key: u16,
+        }
+
+        let type_info = MutableTypeAutoId::TYPE;
+        assert_eq!(
+            type_info
+                .get_member_by_index(0)
+                .unwrap()
+                .get_descriptor()
+                .unwrap()
+                .id,
+            0
+        );
+        assert_eq!(
+            type_info
+                .get_member_by_index(1)
+                .unwrap()
+                .get_descriptor()
+                .unwrap()
+                .id,
+            1
+        );
+    }
+
+    #[test]
+    fn mutable_struct_with_mixed_ids() {
+        #[derive(TypeSupport, Clone)]
+        #[dust_dds(extensibility = "mutable")]
+        struct MutableTypeMixedId {
+            #[dust_dds(id = 10)]
+            key: u8,
+            participant_key: u16,
+            #[dust_dds(id = 20)]
+            extra_field_1: u32,
+            extra_field_2: u32,
+            extra_field_3: u32,
+        }
+
+        let type_info = MutableTypeMixedId::TYPE;
+        assert_eq!(
+            type_info
+                .get_member_by_index(0)
+                .unwrap()
+                .get_descriptor()
+                .unwrap()
+                .id,
+            10
+        );
+        assert_eq!(
+            type_info
+                .get_member_by_index(1)
+                .unwrap()
+                .get_descriptor()
+                .unwrap()
+                .id,
+            11
+        );
+        assert_eq!(
+            type_info
+                .get_member_by_index(2)
+                .unwrap()
+                .get_descriptor()
+                .unwrap()
+                .id,
+            20
+        );
+        assert_eq!(
+            type_info
+                .get_member_by_index(3)
+                .unwrap()
+                .get_descriptor()
+                .unwrap()
+                .id,
+            21
+        );
+        assert_eq!(
+            type_info
+                .get_member_by_index(4)
+                .unwrap()
+                .get_descriptor()
+                .unwrap()
+                .id,
+            22
         );
     }
 }

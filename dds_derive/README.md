@@ -42,8 +42,8 @@ You can also mix explicit and auto-generated IDs:
 struct MixedIdType {
     #[dust_dds(id = 10, key)]
     id: u8,           // Explicit ID: 10
-    name: String,     // Auto-assigned ID: 0
-    age: u32,         // Auto-assigned ID: 1
-}
+    name: String,     // Auto-assigned ID: 11
+    #[dust_dds(id = 20)]
+    age: u32,         // Explicit ID: 20
+    residence: String,     // Auto-assigned ID: 21
 ```
-
