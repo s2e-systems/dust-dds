@@ -295,7 +295,6 @@ fn nested_types_should_read_and_write() {
     assert_eq!(samples[0].data.as_ref().unwrap(), &data);
 }
 
-#[ignore = "create_dynamic_sample not derived yet"]
 #[test]
 fn union_should_read_and_write() {
     #[derive(Clone, Debug, PartialEq, DdsType)]
