@@ -1,5 +1,5 @@
 module interoperability {
-	module test {
+    module test {
         enum VariantEnum {
             VARIANT_ENUM_X,
             VARIANT_ENUM_Y,
@@ -134,5 +134,5 @@ module interoperability {
             UnionType union_array[20];
             sequence<UnionType, 20> union_sequence;
         };
-	};
+    };
 };
