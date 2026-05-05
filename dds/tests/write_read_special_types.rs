@@ -9,7 +9,7 @@ use dust_dds::{
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         status::{NO_STATUS, StatusKind},
         time::{Duration, DurationKind},
-        type_support::DdsType,
+        type_support::{DdsType, TypeSupport},
     },
     wait_set::{Condition, WaitSet},
 };
@@ -297,16 +297,25 @@ fn nested_types_should_read_and_write() {
 
 #[ignore = "create_dynamic_sample not derived yet"]
 #[test]
-fn foo_xtypes_union_should_read_and_write() {
+fn union_should_read_and_write() {
     #[derive(Clone, Debug, PartialEq, DdsType)]
-    struct MyInnerType(u32);
+    struct VariantA(u32);
 
     #[derive(Clone, Debug, PartialEq, DdsType)]
-    #[repr(u8)]
+    struct VariantB {
+        a: u32,
+        b: i16,
+    }
+
+    #[derive(Clone, Debug, PartialEq, DdsType)]
+    #[dust_dds(discriminator = u8)]
     enum MyEnum {
-        _VariantA(MyInnerType) = 5,
-        VariantB { a: u32, b: i16 } = 6,
-        _VariantC = 7,
+        #[dust_dds(discriminator = 5)]
+        VariantA(VariantA),
+        #[dust_dds(discriminator = 10)]
+        VariantB(VariantB),
+        #[dust_dds(discriminator = 15)]
+        VariantC,
     }
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
@@ -318,7 +327,7 @@ fn foo_xtypes_union_should_read_and_write() {
     let topic = participant
         .create_topic::<MyEnum>(
             "MyEnumTopic",
-            "MyEnum",
+            MyEnum::TYPE_NAME,
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
@@ -373,7 +382,7 @@ fn foo_xtypes_union_should_read_and_write() {
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
-    let data = MyEnum::VariantB { a: 10, b: -20 };
+    let data = MyEnum::VariantB(VariantB { a: 10, b: -20 });
 
     writer.write(data.clone(), None).unwrap();
 
