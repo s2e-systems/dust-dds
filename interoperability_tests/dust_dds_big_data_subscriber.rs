@@ -13,6 +13,7 @@ use dust_dds::{
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         status::{NO_STATUS, StatusKind},
         time::{Duration, DurationKind},
+        type_support::TypeSupport,
     },
     wait_set::{Condition, WaitSet},
 };
@@ -28,7 +29,7 @@ fn main() {
     let topic = participant
         .create_topic::<BigDataType>(
             "BigData",
-            "BigDataType",
+            BigDataType::TYPE.get_name(),
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
