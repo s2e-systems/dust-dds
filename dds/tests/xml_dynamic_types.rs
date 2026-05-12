@@ -1,6 +1,6 @@
 use dust_dds::xtypes::dynamic_type::{DynamicTypeBuilderFactory, ExtensibilityKind, TypeKind};
 
-const PRIMITIVES_XML: &'static str = r#"<dds>
+const TYPES_XML_PRIMITIVES: &'static str = r#"<dds>
     <types>
         <module name="Test">
             <struct name="struct_primitives_final"   extensibility="final">
@@ -132,11 +132,28 @@ const PRIMITIVES_XML: &'static str = r#"<dds>
     </types>
 </dds>"#;
 
+const DATA_XML_STRUCT_PRIMITIVES: &'static str = r#"<struct_primitives>
+  <x1>0x01</x1>
+  <x2>2</x2>
+  <x3>3</x3>
+  <x4>4</x4>
+  <x5>0x05</x5>
+  <x6>6</x6>
+  <x7>7</x7>
+  <x8>8</x8>
+  <x9>true</x9>
+  <x10>10.100000</x10>
+  <x11>11.200000</x11>
+  <x12>12.300000</x12>
+  <x13>13</x13>
+  <x14>0x0e</x14>
+</struct_primitives>"#;
+
 #[cfg(feature = "xtypes-xml")]
 #[test]
 fn create_struct_primitive_int8_from_xml() {
     let builder = DynamicTypeBuilderFactory::create_type_w_document(
-        PRIMITIVES_XML,
+        TYPES_XML_PRIMITIVES,
         "struct_primitive_int8",
         vec![],
     )
@@ -153,7 +170,7 @@ fn create_struct_primitive_int8_from_xml() {
 #[test]
 fn create_struct_primitives_final_from_xml() {
     let builder = DynamicTypeBuilderFactory::create_type_w_document(
-        PRIMITIVES_XML,
+        TYPES_XML_PRIMITIVES,
         "struct_primitives_final",
         vec![],
     )
@@ -214,7 +231,7 @@ fn create_struct_primitives_final_from_xml() {
 #[test]
 fn create_struct_primitives_appendable_from_xml() {
     let builder = DynamicTypeBuilderFactory::create_type_w_document(
-        PRIMITIVES_XML,
+        TYPES_XML_PRIMITIVES,
         "struct_primitives_appendable",
         vec![],
     )
@@ -275,7 +292,7 @@ fn create_struct_primitives_appendable_from_xml() {
 #[test]
 fn create_union_primitives_from_xml() {
     let builder = DynamicTypeBuilderFactory::create_type_w_document(
-        PRIMITIVES_XML,
+        TYPES_XML_PRIMITIVES,
         "union_primitives",
         vec![],
     )
@@ -285,10 +302,7 @@ fn create_union_primitives_from_xml() {
 
     assert_eq!(ty.get_kind(), TypeKind::UNION);
     assert_eq!(
-        ty.get_descriptor()
-            .discriminator_type
-            .unwrap()
-            .get_kind(),
+        ty.get_descriptor().discriminator_type.unwrap().get_kind(),
         TypeKind::UINT8
     );
 
