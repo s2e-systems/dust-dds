@@ -39,10 +39,8 @@ pub struct DiscoveredReaderData {
 }
 
 impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderData {
-    const TYPE_NAME: &'static str = "DiscoveredReaderData";
-
     const r#TYPE: &'static dyn DynamicType = &StaticTypeInformation {
-        descriptor: &ConvenienceTypeBuilder::type_descriptor(Self::TYPE_NAME),
+        descriptor: &ConvenienceTypeBuilder::type_descriptor("DiscoveredReaderData"),
         member_list: &[
             ConvenienceTypeBuilder::key_member::<BuiltInTopicKey>(0, "key", PID_ENDPOINT_GUID),
             // for interoperability reasons this is omitted when default (as opposed to standard):

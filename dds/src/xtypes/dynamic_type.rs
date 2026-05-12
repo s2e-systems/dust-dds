@@ -1007,8 +1007,6 @@ impl DynamicData {
 }
 
 impl TypeSupport for DynamicData {
-    const TYPE_NAME: &'static str = "";
-
     const r#TYPE: &'static dyn DynamicType = &StaticTypeInformation {
         descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
             kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,

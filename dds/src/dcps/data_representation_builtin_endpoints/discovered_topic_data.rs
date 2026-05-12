@@ -32,10 +32,8 @@ pub struct DiscoveredTopicData {
 }
 
 impl TypeSupport for DiscoveredTopicData {
-    const TYPE_NAME: &'static str = "TopicBuiltinTopicData";
-
     const r#TYPE: &'static dyn DynamicType = &StaticTypeInformation {
-        descriptor: &ConvenienceTypeBuilder::type_descriptor(Self::TYPE_NAME),
+        descriptor: &ConvenienceTypeBuilder::type_descriptor("TopicBuiltinTopicData"),
         member_list: &[
             ConvenienceTypeBuilder::key_member::<BuiltInTopicKey>(0, "key", PID_ENDPOINT_GUID),
             ConvenienceTypeBuilder::member::<String>(1, "name", PID_TOPIC_NAME),
