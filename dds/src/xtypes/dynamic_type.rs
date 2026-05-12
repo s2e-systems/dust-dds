@@ -178,7 +178,7 @@ impl DynamicTypeBuilderFactory {
         
         let mut target_node = None;
         for node in doc.descendants() {
-            if node.is_element() && node.tag_name().name() == "struct" {
+            if node.is_element() && (node.tag_name().name() == "struct" || node.tag_name().name() == "union") {
                 if let Some(name) = node.attribute("name") {
                     if name == type_name {
                         target_node = Some(node);
@@ -189,6 +189,7 @@ impl DynamicTypeBuilderFactory {
         }
         
         let target_node = target_node.ok_or(XTypesError::InvalidData)?;
+        let is_union = target_node.tag_name().name() == "union";
         
         let ext_str = target_node.attribute("extensibility").unwrap_or("final");
         let extensibility_kind = match ext_str {
@@ -198,12 +199,48 @@ impl DynamicTypeBuilderFactory {
             _ => ExtensibilityKind::Final,
         };
         
+        let parse_type_kind = |m_type: &str| -> XTypesResult<TypeKind> {
+            match m_type {
+                "boolean" => Ok(TypeKind::BOOLEAN),
+                "byte" => Ok(TypeKind::BYTE),
+                "char8" => Ok(TypeKind::CHAR8),
+                "char16" => Ok(TypeKind::CHAR16),
+                "int32" => Ok(TypeKind::INT32),
+                "uint32" => Ok(TypeKind::UINT32),
+                "int8" => Ok(TypeKind::INT8),
+                "uint8" => Ok(TypeKind::UINT8),
+                "int16" => Ok(TypeKind::INT16),
+                "uint16" => Ok(TypeKind::UINT16),
+                "int64" => Ok(TypeKind::INT64),
+                "uint64" => Ok(TypeKind::UINT64),
+                "float32" => Ok(TypeKind::FLOAT32),
+                "float64" => Ok(TypeKind::FLOAT64),
+                "float128" => Ok(TypeKind::FLOAT128),
+                "string" => Ok(TypeKind::STRING8),
+                "wstring" => Ok(TypeKind::STRING16),
+                _ => Err(XTypesError::InvalidData),
+            }
+        };
+
+        let mut discriminator_type = None;
+        if is_union {
+            for child in target_node.children() {
+                if child.is_element() && child.tag_name().name() == "discriminator" {
+                    let d_type = child.attribute("type").ok_or(XTypesError::InvalidData)?;
+                    let type_kind = parse_type_kind(d_type)?;
+                    let type_ptr: &'static dyn DynamicType = Box::leak(Box::new(Self::get_primitive_type(type_kind)));
+                    discriminator_type = Some(type_ptr);
+                    break;
+                }
+            }
+        }
+        
         let name: &'static str = Box::leak(type_name.to_string().into_boxed_str());
         let descriptor = TypeDescriptor {
-            kind: TypeKind::STRUCTURE,
+            kind: if is_union { TypeKind::UNION } else { TypeKind::STRUCTURE },
             name,
             base_type: None,
-            discriminator_type: None,
+            discriminator_type,
             bound: None,
             element_type: None,
             key_element_type: None,
@@ -214,52 +251,85 @@ impl DynamicTypeBuilderFactory {
         let mut builder = Self::create_type(descriptor);
         
         let mut member_id = 0;
-        for child in target_node.children() {
-            if child.is_element() && child.tag_name().name() == "member" {
-                let m_name = child.attribute("name").ok_or(XTypesError::InvalidData)?;
-                let m_type = child.attribute("type").ok_or(XTypesError::InvalidData)?;
-                
-                let type_kind = match m_type {
-                    "boolean" => TypeKind::BOOLEAN,
-                    "byte" => TypeKind::BYTE,
-                    "char8" => TypeKind::CHAR8,
-                    "char16" => TypeKind::CHAR16,
-                    "int32" => TypeKind::INT32,
-                    "uint32" => TypeKind::UINT32,
-                    "int8" => TypeKind::INT8,
-                    "uint8" => TypeKind::UINT8,
-                    "int16" => TypeKind::INT16,
-                    "uint16" => TypeKind::UINT16,
-                    "int64" => TypeKind::INT64,
-                    "uint64" => TypeKind::UINT64,
-                    "float32" => TypeKind::FLOAT32,
-                    "float64" => TypeKind::FLOAT64,
-                    "float128" => TypeKind::FLOAT128,
-                    "string" => TypeKind::STRING8,
-                    "wstring" => TypeKind::STRING16,
-                    _ => return Err(XTypesError::InvalidData),
-                };
-                
-                let type_ptr: &'static dyn DynamicType = Box::leak(Box::new(Self::get_primitive_type(type_kind)));
-                let m_name_static = Box::leak(m_name.to_string().into_boxed_str());
-                
-                let member_desc = MemberDescriptor {
-                    name: m_name_static,
-                    id: member_id,
-                    r#type: type_ptr,
-                    default_value: None,
-                    index: member_id,
-                    label: None,
-                    try_construct_kind: TryConstructKind::Discard,
-                    is_key: child.attribute("key") == Some("true"),
-                    is_optional: child.attribute("optional") == Some("true"),
-                    is_must_understand: false,
-                    is_shared: false,
-                    is_default_label: false,
-                };
-                
-                builder.add_member(member_desc)?;
-                member_id += 1;
+        if is_union {
+            for child in target_node.children() {
+                if child.is_element() && child.tag_name().name() == "case" {
+                    let mut m_name = None;
+                    let mut m_type = None;
+                    let mut label = None;
+                    let mut is_default_label = false;
+
+                    for case_child in child.children() {
+                        if case_child.is_element() && case_child.tag_name().name() == "caseDiscriminator" {
+                            let value_str = case_child.attribute("value").ok_or(XTypesError::InvalidData)?;
+                            if value_str == "default" {
+                                is_default_label = true;
+                            } else if let Some(hex) = value_str.strip_prefix("0x") {
+                                label = Some(i32::from_str_radix(hex, 16).map_err(|_| XTypesError::InvalidData)?);
+                            } else {
+                                label = Some(value_str.parse::<i32>().map_err(|_| XTypesError::InvalidData)?);
+                            }
+                        } else if case_child.is_element() && case_child.tag_name().name() == "member" {
+                            m_name = case_child.attribute("name");
+                            m_type = case_child.attribute("type");
+                        }
+                    }
+
+                    let m_name = m_name.ok_or(XTypesError::InvalidData)?;
+                    let m_type = m_type.ok_or(XTypesError::InvalidData)?;
+                    
+                    let type_kind = parse_type_kind(m_type)?;
+                    let type_ptr: &'static dyn DynamicType = Box::leak(Box::new(Self::get_primitive_type(type_kind)));
+                    let m_name_static = Box::leak(m_name.to_string().into_boxed_str());
+
+                    let member_desc = MemberDescriptor {
+                        name: m_name_static,
+                        id: member_id,
+                        r#type: type_ptr,
+                        default_value: None,
+                        index: member_id,
+                        label,
+                        try_construct_kind: TryConstructKind::Discard,
+                        is_key: false,
+                        is_optional: false,
+                        is_must_understand: false,
+                        is_shared: false,
+                        is_default_label,
+                    };
+                    
+                    builder.add_member(member_desc)?;
+                    member_id += 1;
+                }
+            }
+        } else {
+            for child in target_node.children() {
+                if child.is_element() && child.tag_name().name() == "member" {
+                    let m_name = child.attribute("name").ok_or(XTypesError::InvalidData)?;
+                    let m_type = child.attribute("type").ok_or(XTypesError::InvalidData)?;
+                    
+                    let type_kind = parse_type_kind(m_type)?;
+                    
+                    let type_ptr: &'static dyn DynamicType = Box::leak(Box::new(Self::get_primitive_type(type_kind)));
+                    let m_name_static = Box::leak(m_name.to_string().into_boxed_str());
+                    
+                    let member_desc = MemberDescriptor {
+                        name: m_name_static,
+                        id: member_id,
+                        r#type: type_ptr,
+                        default_value: None,
+                        index: member_id,
+                        label: None,
+                        try_construct_kind: TryConstructKind::Discard,
+                        is_key: child.attribute("key") == Some("true"),
+                        is_optional: child.attribute("optional") == Some("true"),
+                        is_must_understand: false,
+                        is_shared: false,
+                        is_default_label: false,
+                    };
+                    
+                    builder.add_member(member_desc)?;
+                    member_id += 1;
+                }
             }
         }
         
