@@ -171,11 +171,99 @@ impl DynamicTypeBuilderFactory {
     #[cfg(feature = "xtypes-xml")]
     pub fn create_type_w_document(
         document: &str,
-        _type_name: &str,
+        type_name: &str,
         _include_paths: Vec<String>,
     ) -> XTypesResult<DynamicTypeBuilder> {
         let doc = roxmltree::Document::parse(document).map_err(|_| XTypesError::InvalidData)?;
-        todo!()
+        
+        let mut target_node = None;
+        for node in doc.descendants() {
+            if node.is_element() && node.tag_name().name() == "struct" {
+                if let Some(name) = node.attribute("name") {
+                    if name == type_name {
+                        target_node = Some(node);
+                        break;
+                    }
+                }
+            }
+        }
+        
+        let target_node = target_node.ok_or(XTypesError::InvalidData)?;
+        
+        let ext_str = target_node.attribute("extensibility").unwrap_or("final");
+        let extensibility_kind = match ext_str {
+            "final" => ExtensibilityKind::Final,
+            "appendable" => ExtensibilityKind::Appendable,
+            "mutable" => ExtensibilityKind::Mutable,
+            _ => ExtensibilityKind::Final,
+        };
+        
+        let name: &'static str = Box::leak(type_name.to_string().into_boxed_str());
+        let descriptor = TypeDescriptor {
+            kind: TypeKind::STRUCTURE,
+            name,
+            base_type: None,
+            discriminator_type: None,
+            bound: None,
+            element_type: None,
+            key_element_type: None,
+            extensibility_kind,
+            is_nested: target_node.attribute("nested") == Some("true"),
+        };
+        
+        let mut builder = Self::create_type(descriptor);
+        
+        let mut member_id = 0;
+        for child in target_node.children() {
+            if child.is_element() && child.tag_name().name() == "member" {
+                let m_name = child.attribute("name").ok_or(XTypesError::InvalidData)?;
+                let m_type = child.attribute("type").ok_or(XTypesError::InvalidData)?;
+                
+                let type_kind = match m_type {
+                    "boolean" => TypeKind::BOOLEAN,
+                    "byte" => TypeKind::BYTE,
+                    "char8" => TypeKind::CHAR8,
+                    "char16" => TypeKind::CHAR16,
+                    "int32" => TypeKind::INT32,
+                    "uint32" => TypeKind::UINT32,
+                    "int8" => TypeKind::INT8,
+                    "uint8" => TypeKind::UINT8,
+                    "int16" => TypeKind::INT16,
+                    "uint16" => TypeKind::UINT16,
+                    "int64" => TypeKind::INT64,
+                    "uint64" => TypeKind::UINT64,
+                    "float32" => TypeKind::FLOAT32,
+                    "float64" => TypeKind::FLOAT64,
+                    "float128" => TypeKind::FLOAT128,
+                    "string" => TypeKind::STRING8,
+                    "wstring" => TypeKind::STRING16,
+                    _ => return Err(XTypesError::InvalidData),
+                };
+                
+                let type_ptr: &'static dyn DynamicType = Box::leak(Box::new(Self::get_primitive_type(type_kind)));
+                let m_name_static = Box::leak(m_name.to_string().into_boxed_str());
+                
+                let member_desc = MemberDescriptor {
+                    name: m_name_static,
+                    id: member_id,
+                    r#type: type_ptr,
+                    default_value: None,
+                    index: member_id,
+                    label: None,
+                    try_construct_kind: TryConstructKind::Discard,
+                    is_key: child.attribute("key") == Some("true"),
+                    is_optional: child.attribute("optional") == Some("true"),
+                    is_must_understand: false,
+                    is_shared: false,
+                    is_default_label: false,
+                };
+                
+                builder.add_member(member_desc)?;
+                member_id += 1;
+            }
+        }
+        
+        Ok(builder)
     }
 }
 
