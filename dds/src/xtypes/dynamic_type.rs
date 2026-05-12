@@ -168,11 +168,13 @@ impl DynamicTypeBuilderFactory {
         todo!()
     }
 
+    #[cfg(feature = "xtypes-xml")]
     pub fn create_type_w_document(
-        _document: String,
-        _type_name: String,
+        document: &str,
+        _type_name: &str,
         _include_paths: Vec<String>,
-    ) -> DynamicTypeBuilder {
+    ) -> XTypesResult<DynamicTypeBuilder> {
+        let doc = roxmltree::Document::parse(document).map_err(|_| XTypesError::InvalidData)?;
         todo!()
     }
 }
