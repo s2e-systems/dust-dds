@@ -215,19 +215,6 @@ impl DataStorageMapping for String {
     }
 }
 
-impl DataStorageMapping for DynamicData {
-    fn into_storage(self) -> DataStorage {
-        DataStorage::ComplexValue(self)
-    }
-
-    fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
-        match data_storage {
-            DataStorage::ComplexValue(x) => Ok(x),
-            _ => Err(XTypesError::InvalidType),
-        }
-    }
-}
-
 // SequenceChar8(Vec<char>),
 // SequenceBoolean(Vec<bool>),
 // SequenceString(Vec<String>),
@@ -397,19 +384,6 @@ impl DataStorageMapping for Vec<String> {
     fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
         match data_storage {
             DataStorage::SequenceString(x) => Ok(x),
-            _ => Err(XTypesError::InvalidType),
-        }
-    }
-}
-
-impl DataStorageMapping for Vec<DynamicData> {
-    fn into_storage(self) -> DataStorage {
-        DataStorage::SequenceComplexValue(self)
-    }
-
-    fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
-        match data_storage {
-            DataStorage::SequenceComplexValue(x) => Ok(x),
             _ => Err(XTypesError::InvalidType),
         }
     }
@@ -601,21 +575,6 @@ impl<const N: usize> DataStorageMapping for [String; N] {
     fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
         match data_storage {
             DataStorage::SequenceString(x) => {
-                Self::try_from(x).map_err(|_| XTypesError::InvalidType)
-            }
-            _ => Err(XTypesError::InvalidType),
-        }
-    }
-}
-
-impl<const N: usize> DataStorageMapping for [DynamicData; N] {
-    fn into_storage(self) -> DataStorage {
-        DataStorage::SequenceComplexValue(self.to_vec())
-    }
-
-    fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
-        match data_storage {
-            DataStorage::SequenceComplexValue(x) => {
                 Self::try_from(x).map_err(|_| XTypesError::InvalidType)
             }
             _ => Err(XTypesError::InvalidType),

@@ -166,7 +166,7 @@ impl DomainParticipantAsync {
             .await
     }
 
-    #[doc(hidden)]
+    /// Async version of [`create_dynamic_topic`](crate::domain::domain_participant::DomainParticipant::create_dynamic_topic).
     #[tracing::instrument(skip(self, a_listener, dynamic_type_representation))]
     pub async fn create_dynamic_topic(
         &self,
