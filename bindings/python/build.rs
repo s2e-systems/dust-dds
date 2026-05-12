@@ -524,6 +524,10 @@ fn visit_fs_dir(dir: &Path, pyi_file: &mut File) -> io::Result<()> {
 }
 
 fn main() -> io::Result<()> {
+    println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=src");
+    println!("cargo:rerun-if-changed=../../dds/src/dds");
+
     let cargo_dir = std::env::var("CARGO_MANIFEST_DIR").expect("Variable should exist");
     let cargo_dir_path = Path::new(&cargo_dir);
     let mut pyi_file = File::create(cargo_dir_path.join("dust_dds.pyi"))?;
