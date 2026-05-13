@@ -166,7 +166,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
             };
 
             let create_dynamic_sample_quote = quote! {
-                let mut data = dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data();
+                let mut data = dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::TYPE);
                 #(#member_dynamic_sample_seq)*
                 data
             };
@@ -245,7 +245,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 };
 
                 let create_dynamic_sample_quote = quote! {
-                    let mut data = dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data();
+                    let mut data = dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::TYPE);
                     #discriminator_dynamic_value
                     data
                 };

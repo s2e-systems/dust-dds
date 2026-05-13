@@ -27,7 +27,7 @@ impl CdrDeserializer {
         if buffer.len() < 4 {
             return Err(XTypesError::NotEnoughData);
         }
-        let mut dynamic_data = DynamicDataFactory::create_data();
+        let mut dynamic_data = DynamicDataFactory::create_data(dynamic_type);
         let representation_identifier = [buffer[0], buffer[1]];
         match representation_identifier {
             CDR_BE | PL_CDR_BE => {
@@ -58,7 +58,7 @@ impl CdrDeserializer {
         if buffer.len() < 4 {
             return Err(XTypesError::NotEnoughData);
         }
-        let mut dynamic_data = DynamicDataFactory::create_data();
+        let mut dynamic_data = DynamicDataFactory::create_data(dynamic_type);
         let representation_identifier = [buffer[0], buffer[1]];
         match representation_identifier {
             PL_CDR_LE => {
@@ -209,7 +209,7 @@ trait XTypesDeserialize {
         &mut self,
         dynamic_type: &dyn DynamicType,
     ) -> XTypesResult<DynamicData> {
-        let mut dynamic_data = DynamicDataFactory::create_data();
+        let mut dynamic_data = DynamicDataFactory::create_data(dynamic_type);
         self.deserialize_structure(dynamic_type, &mut dynamic_data)?;
         Ok(dynamic_data)
     }

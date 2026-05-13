@@ -160,6 +160,12 @@ fn poll_timeout<T>(
     })
 }
 
+#[derive(Debug, Clone, TypeSupport)]
+pub struct BuiltInKeyHolder {
+    #[dust_dds(id=PID_PARTICIPANT_GUID as u32, key)]
+    pub(crate) key: BuiltInTopicKey,
+}
+
 pub struct DcpsDomainParticipant {
     transport: RtpsTransportParticipant,
     topic_counter: u16,
@@ -791,7 +797,7 @@ impl DcpsDomainParticipant {
                 .find(|x| x.topic_name == DCPS_PARTICIPANT)
             {
                 let builtin_topic_key = *self.domain_participant.instance_handle.as_ref();
-                let mut dynamic_data = DynamicDataFactory::create_data();
+                let mut dynamic_data = DynamicDataFactory::create_data(BuiltInKeyHolder::TYPE);
                 dynamic_data
                     .set_complex_value(
                         PID_PARTICIPANT_GUID as u32,
@@ -915,7 +921,7 @@ impl DcpsDomainParticipant {
             .iter_mut()
             .find(|x| x.topic_name == DCPS_PUBLICATION)
         {
-            let mut dynamic_data = DynamicDataFactory::create_data();
+            let mut dynamic_data = DynamicDataFactory::create_data(BuiltInKeyHolder::TYPE);
             dynamic_data
                 .set_complex_value(
                     PID_ENDPOINT_GUID as u32,
@@ -1050,7 +1056,7 @@ impl DcpsDomainParticipant {
             .iter_mut()
             .find(|x| x.topic_name == DCPS_SUBSCRIPTION)
         {
-            let mut dynamic_data = DynamicDataFactory::create_data();
+            let mut dynamic_data = DynamicDataFactory::create_data(BuiltInKeyHolder::TYPE);
             dynamic_data
                 .set_complex_value(
                     PID_ENDPOINT_GUID as u32,
@@ -5374,7 +5380,7 @@ impl DataReaderEntity {
             | ChangeKind::NotAliveUnregistered
             | ChangeKind::NotAliveDisposedUnregistered => match cache_change.instance_handle {
                 Some(i) => {
-                    let data_value = DynamicDataFactory::create_data();
+                    let data_value = DynamicDataFactory::create_data(self.type_support);
                     let instance_handle = InstanceHandle::new(i);
                     (data_value, instance_handle)
                 }

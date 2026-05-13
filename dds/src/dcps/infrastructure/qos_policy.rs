@@ -35,7 +35,7 @@ impl TypeSupport for Length {
             Length::Limited(length) => length,
             Length::Unlimited => LENGTH_UNLIMITED,
         };
-        let mut data = DynamicDataFactory::create_data();
+        let mut data = DynamicDataFactory::create_data(Self::TYPE);
         data.set_int32_value(0, value).unwrap();
         data
     }
@@ -1080,7 +1080,7 @@ impl TypeSupport for HistoryQosPolicyKind {
             HistoryQosPolicyKind::KeepLast(_) => 0,
             HistoryQosPolicyKind::KeepAll => 1,
         };
-        let mut data = DynamicDataFactory::create_data();
+        let mut data = DynamicDataFactory::create_data(Self::TYPE);
         data.set_uint8_value(0, value).unwrap();
         data
     }
@@ -1183,7 +1183,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for HistoryQosPolicy {
     }
 
     fn create_dynamic_sample(self) -> crate::xtypes::dynamic_type::DynamicData {
-        let mut data = DynamicDataFactory::create_data();
+        let mut data = DynamicDataFactory::create_data(Self::TYPE);
         match self.kind {
             HistoryQosPolicyKind::KeepLast(depth) => {
                 data.set_complex_value(0, self.kind.create_dynamic_sample())

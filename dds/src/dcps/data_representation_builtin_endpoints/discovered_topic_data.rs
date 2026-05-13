@@ -194,7 +194,7 @@ impl TypeSupport for DiscoveredTopicData {
     }
 
     fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
-        let mut data = dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data();
+        let mut data = dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::TYPE);
         data.set_value(
             PID_ENDPOINT_GUID as u32,
             self.topic_builtin_topic_data.key.into_storage(),

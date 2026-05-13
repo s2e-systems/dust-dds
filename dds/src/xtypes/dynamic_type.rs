@@ -577,7 +577,7 @@ impl DynamicType for StaticTypeInformation {
 pub struct DynamicDataFactory;
 
 impl DynamicDataFactory {
-    pub fn create_data() -> DynamicData {
+    pub fn create_data(r#_type: &dyn DynamicType) -> DynamicData {
         DynamicData {
             abstract_data: BTreeMap::new(),
         }

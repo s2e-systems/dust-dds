@@ -290,7 +290,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParti
     }
 
     fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
-        let mut data = dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data();
+        let mut data = dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::TYPE);
         data.set_value(
             PID_PARTICIPANT_GUID as u32,
             self.dds_participant_data.key.into_storage(),
