@@ -232,7 +232,6 @@ impl DcpsDomainParticipant {
         }
 
         let instance_handle = match get_instance_handle_from_dynamic_data(
-            data_writer.type_support,
             dynamic_data.clone(),
         ) {
             Ok(k) => k,
@@ -281,7 +280,6 @@ impl DcpsDomainParticipant {
         }
 
         let instance_handle = match get_instance_handle_from_dynamic_data(
-            data_writer.type_support,
             dynamic_data.clone(),
         ) {
             Ok(h) => h,
@@ -354,7 +352,6 @@ impl DcpsDomainParticipant {
         }
 
         let serialized_data = match serialize(
-            data_writer.type_support,
             dynamic_data,
             &data_writer.qos.representation,
         ) {

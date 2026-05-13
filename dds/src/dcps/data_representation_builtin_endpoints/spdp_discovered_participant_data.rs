@@ -517,10 +517,7 @@ mod tests {
             b'a', b'b', 0, 0x00, // DomainTag: string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ];
-        assert_eq!(
-            RtpsPlCdrSerializer::serialize(SpdpDiscoveredParticipantData::TYPE, &data).unwrap(),
-            expected
-        );
+        assert_eq!(RtpsPlCdrSerializer::serialize(&data).unwrap(), expected);
     }
 
     #[test]
@@ -572,10 +569,7 @@ mod tests {
             0x02, 0x00, 0x00, 0x00, //
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ];
-        assert_eq!(
-            RtpsPlCdrSerializer::serialize(SpdpDiscoveredParticipantData::TYPE, &data).unwrap(),
-            expected
-        );
+        assert_eq!(RtpsPlCdrSerializer::serialize(&data).unwrap(), expected);
     }
 
     #[test]

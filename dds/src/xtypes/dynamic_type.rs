@@ -577,37 +577,52 @@ impl DynamicType for StaticTypeInformation {
 pub struct DynamicDataFactory;
 
 impl DynamicDataFactory {
-    pub fn create_data(r#_type: &dyn DynamicType) -> DynamicData {
+    pub fn create_data(r#type: &'static dyn DynamicType) -> DynamicData {
         DynamicData {
+            r#type,
             abstract_data: BTreeMap::new(),
         }
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone)]
 pub struct DynamicData {
+    r#type: &'static dyn DynamicType,
     abstract_data: BTreeMap<MemberId, DataStorage>,
 }
 
+impl core::fmt::Debug for DynamicData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DynamicData")
+            .field("abstract_data", &self.abstract_data)
+            .finish()
+    }
+}
+
+impl PartialEq for DynamicData {
+    fn eq(&self, other: &Self) -> bool {
+        self.abstract_data == other.abstract_data
+    }
+}
+
 impl DynamicData {
-    pub fn get_descriptor<'a>(
-        &self,
-        type_ref: &'a dyn DynamicType,
-        id: MemberId,
-    ) -> XTypesResult<&'a MemberDescriptor> {
-        Ok(&type_ref.get_member(id)?.descriptor)
+    pub fn r#type(&self) -> &'static (dyn DynamicType + 'static) {
+        self.r#type
+    }
+
+    pub fn get_descriptor<'a>(&self, id: MemberId) -> XTypesResult<&'a MemberDescriptor> {
+        Ok(&self.r#type.get_member(id)?.descriptor)
     }
 
     pub fn set_descriptor(&mut self, _id: MemberId, _value: MemberDescriptor) -> XTypesResult<()> {
         todo!()
     }
 
-    pub fn get_member_id_by_name(
-        &self,
-        type_ref: &dyn DynamicType,
-        name: &str,
-    ) -> Option<MemberId> {
-        type_ref.get_member_by_name(name).ok().map(|m| m.get_id())
+    pub fn get_member_id_by_name(&self, name: &str) -> Option<MemberId> {
+        self.r#type
+            .get_member_by_name(name)
+            .ok()
+            .map(|m| m.get_id())
     }
 
     pub fn get_member_id_at_index(&self, index: u32) -> XTypesResult<MemberId> {
@@ -627,9 +642,9 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn clear_nonkey_values(&mut self, type_ref: &dyn DynamicType) -> XTypesResult<()> {
-        for index in 0..type_ref.get_member_count() {
-            let member = type_ref.get_member_by_index(index)?;
+    pub fn clear_nonkey_values(&mut self) -> XTypesResult<()> {
+        for index in 0..self.r#type.get_member_count() {
+            let member = self.r#type.get_member_by_index(index)?;
             if !member.get_descriptor()?.is_key {
                 let member_id = member.get_id();
                 self.abstract_data.remove(&member_id);
