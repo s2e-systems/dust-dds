@@ -1,5 +1,7 @@
 use pyo3::prelude::*;
 
+use crate::infrastructure::qos_policy::TypeConsistencyEnforcementQosPolicy;
+
 use super::qos_policy::{
     DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
     DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER, DataRepresentationQosPolicy, DeadlineQosPolicy,
@@ -469,6 +471,7 @@ impl DataReaderQos {
         time_based_filter = TimeBasedFilterQosPolicy::default(),
         reader_data_lifecycle = ReaderDataLifecycleQosPolicy::default(),
         representation = DataRepresentationQosPolicy::default(),
+        type_consistency = TypeConsistencyEnforcementQosPolicy::default(),
     ))]
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -485,6 +488,7 @@ impl DataReaderQos {
         time_based_filter: TimeBasedFilterQosPolicy,
         reader_data_lifecycle: ReaderDataLifecycleQosPolicy,
         representation: DataRepresentationQosPolicy,
+        type_consistency: TypeConsistencyEnforcementQosPolicy,
     ) -> Self {
         Self(dust_dds::infrastructure::qos::DataReaderQos {
             durability: durability.into(),
@@ -500,6 +504,7 @@ impl DataReaderQos {
             time_based_filter: time_based_filter.into(),
             reader_data_lifecycle: reader_data_lifecycle.into(),
             representation: representation.into(),
+            type_consistency: type_consistency.into(),
         })
     }
 

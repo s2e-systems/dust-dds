@@ -1,6 +1,6 @@
 use crate::{
     dcps::infrastructure::error::{DdsError, DdsResult},
-    infrastructure::time::Duration,
+    infrastructure::{qos_policy::TypeConsistencyEnforcementQosPolicy, time::Duration},
 };
 
 use super::{
@@ -249,6 +249,8 @@ pub struct DataReaderQos {
     pub reader_data_lifecycle: ReaderDataLifecycleQosPolicy,
     /// Value of the data representation QoS policy.
     pub representation: DataRepresentationQosPolicy,
+    /// Value of the type consistency enforcement QoS policy.
+    pub type_consistency: TypeConsistencyEnforcementQosPolicy,
 }
 
 impl DataReaderQos {
@@ -273,6 +275,7 @@ impl DataReaderQos {
             time_based_filter: TimeBasedFilterQosPolicy::const_default(),
             reader_data_lifecycle: ReaderDataLifecycleQosPolicy::const_default(),
             representation: DataRepresentationQosPolicy::const_default(),
+            type_consistency: TypeConsistencyEnforcementQosPolicy::const_default(),
         }
     }
 }
