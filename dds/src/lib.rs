@@ -11,22 +11,17 @@ mod dds;
 pub use dds::*;
 
 /// Contains the async version of the DDS API.
-#[cfg(feature = "dcps")]
 pub mod dds_async;
 
 /// Contains the DCPS logic which provides the behavior to the DDS API
 #[doc(hidden)]
-#[cfg(feature = "dcps")]
 pub mod dcps;
 
-#[cfg(feature = "dcps")]
 pub use dcps::{builtin_topics, infrastructure};
 
 #[doc(hidden)]
-#[cfg(feature = "rtps")]
 pub mod rtps;
 
-#[cfg(feature = "rtps_messages")]
 #[doc(hidden)]
 pub mod rtps_messages;
 
@@ -34,12 +29,10 @@ pub mod rtps_messages;
 #[doc(hidden)]
 pub mod rtps_udp_transport;
 
-#[cfg(feature = "transport")]
 #[doc(hidden)]
 /// Contains the Dust DDS transport interface definition.
 pub mod transport;
 
-#[cfg(feature = "dcps")]
 /// Contains the Dust DDS runtime abstractions.
 pub mod runtime;
 
@@ -48,7 +41,6 @@ pub mod runtime;
 pub mod std_runtime;
 
 /// Contains the XTypes serializer and deserializer
-#[cfg(feature = "xtypes")]
 #[doc(hidden)]
 pub mod xtypes;
 

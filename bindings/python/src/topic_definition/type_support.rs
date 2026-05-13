@@ -119,7 +119,7 @@ pub fn convert_python_instance_to_dynamic_data(
     python_instance: Bound<'_, PyAny>,
 ) -> PyResult<dust_dds::xtypes::dynamic_type::DynamicData> {
     let r#type = convert_python_type_to_dynamic_type(&python_instance.getattr("__class__")?)?;
-    let mut dynamic_data = dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data();
+    let mut dynamic_data = dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(r#type);
 
     for member_index in 0..dust_dds::xtypes::dynamic_type::DynamicType::get_member_count(r#type) {
         let member =

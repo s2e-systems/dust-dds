@@ -21,49 +21,80 @@ const D_CDR2_LE: RepresentationIdentifier = [0x00, 0x09];
 const PL_CDR2_BE: RepresentationIdentifier = [0x00, 0x0a];
 const PL_CDR2_LE: RepresentationIdentifier = [0x00, 0x0b];
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DeserializeKind {
+    Full,
+    KeyOnly,
+}
+
 pub struct CdrDeserializer;
 impl CdrDeserializer {
-    pub fn deserialize(dynamic_type: &dyn DynamicType, buffer: &[u8]) -> XTypesResult<DynamicData> {
+    pub fn deserialize(
+        dynamic_type: &'static dyn DynamicType,
+        buffer: &[u8],
+        deserialize_kind: DeserializeKind,
+    ) -> XTypesResult<DynamicData> {
         if buffer.len() < 4 {
             return Err(XTypesError::NotEnoughData);
         }
-        let mut dynamic_data = DynamicDataFactory::create_data();
+        let mut dynamic_data = DynamicDataFactory::create_data(dynamic_type);
         let representation_identifier = [buffer[0], buffer[1]];
-        match representation_identifier {
-            CDR_BE | PL_CDR_BE => {
-                let mut deserializer = Cdr1Deserializer::new(&buffer[4..], BigEndian);
-                deserializer.deserialize_structure(dynamic_type, &mut dynamic_data)?;
-            }
-            CDR_LE | PL_CDR_LE => {
-                let mut deserializer = Cdr1Deserializer::new(&buffer[4..], LittleEndian);
-                deserializer.deserialize_structure(dynamic_type, &mut dynamic_data)?;
-            }
-            CDR2_BE | D_CDR2_BE | PL_CDR2_BE => {
-                let mut deserializer = Cdr2Deserializer::new(&buffer[4..], BigEndian);
-                deserializer.deserialize_structure(dynamic_type, &mut dynamic_data)?;
-            }
-            CDR2_LE | D_CDR2_LE | PL_CDR2_LE => {
-                let mut deserializer = Cdr2Deserializer::new(&buffer[4..], LittleEndian);
-                deserializer.deserialize_structure(dynamic_type, &mut dynamic_data)?;
-            }
-            _ => return Err(XTypesError::InvalidData),
+        match deserialize_kind {
+            DeserializeKind::Full => match representation_identifier {
+                CDR_BE | PL_CDR_BE => {
+                    let mut deserializer = Cdr1Deserializer::new(&buffer[4..], BigEndian);
+                    deserializer.deserialize_structure(&mut dynamic_data)?;
+                }
+                CDR_LE | PL_CDR_LE => {
+                    let mut deserializer = Cdr1Deserializer::new(&buffer[4..], LittleEndian);
+                    deserializer.deserialize_structure(&mut dynamic_data)?;
+                }
+                CDR2_BE | D_CDR2_BE | PL_CDR2_BE => {
+                    let mut deserializer = Cdr2Deserializer::new(&buffer[4..], BigEndian);
+                    deserializer.deserialize_structure(&mut dynamic_data)?;
+                }
+                CDR2_LE | D_CDR2_LE | PL_CDR2_LE => {
+                    let mut deserializer = Cdr2Deserializer::new(&buffer[4..], LittleEndian);
+                    deserializer.deserialize_structure(&mut dynamic_data)?;
+                }
+                _ => return Err(XTypesError::InvalidData),
+            },
+            DeserializeKind::KeyOnly => match representation_identifier {
+                CDR_BE => {
+                    let mut deserializer = Cdr1KeyDeserializer::new(&buffer[4..], BigEndian);
+                    deserializer.deserialize_structure(&mut dynamic_data)?;
+                }
+                CDR_LE => {
+                    let mut deserializer = Cdr1KeyDeserializer::new(&buffer[4..], LittleEndian);
+                    deserializer.deserialize_structure(&mut dynamic_data)?;
+                }
+                CDR2_BE => {
+                    let mut deserializer = Cdr2KeyDeserializer::new(&buffer[4..], BigEndian);
+                    deserializer.deserialize_structure(&mut dynamic_data)?;
+                }
+                CDR2_LE => {
+                    let mut deserializer = Cdr2KeyDeserializer::new(&buffer[4..], LittleEndian);
+                    deserializer.deserialize_structure(&mut dynamic_data)?;
+                }
+                _ => return Err(XTypesError::InvalidData),
+            },
         }
         Ok(dynamic_data)
     }
 
     pub fn deserialize_builtin(
-        dynamic_type: &dyn DynamicType,
+        dynamic_type: &'static dyn DynamicType,
         buffer: &[u8],
     ) -> XTypesResult<DynamicData> {
         if buffer.len() < 4 {
             return Err(XTypesError::NotEnoughData);
         }
-        let mut dynamic_data = DynamicDataFactory::create_data();
+        let mut dynamic_data = DynamicDataFactory::create_data(dynamic_type);
         let representation_identifier = [buffer[0], buffer[1]];
         match representation_identifier {
             PL_CDR_LE => {
                 let mut deserializer = RtpsPlCdrDeserializer::new(&buffer[4..]);
-                deserializer.deserialize_structure(dynamic_type, &mut dynamic_data)?;
+                deserializer.deserialize_structure(&mut dynamic_data)?;
             }
             _ => return Err(XTypesError::NotSupported(representation_identifier)),
         }
@@ -207,37 +238,30 @@ impl EndiannessRead for LittleEndian {
 trait XTypesDeserialize {
     fn deserialize_complex_value(
         &mut self,
-        dynamic_type: &dyn DynamicType,
+        dynamic_type: &'static dyn DynamicType,
     ) -> XTypesResult<DynamicData> {
-        let mut dynamic_data = DynamicDataFactory::create_data();
-        self.deserialize_structure(dynamic_type, &mut dynamic_data)?;
+        let mut dynamic_data = DynamicDataFactory::create_data(dynamic_type);
+        self.deserialize_structure(&mut dynamic_data)?;
         Ok(dynamic_data)
     }
 
-    fn deserialize_structure(
-        &mut self,
-        dynamic_type: &dyn DynamicType,
-        dynamic_data: &mut DynamicData,
-    ) -> XTypesResult<()> {
+    fn deserialize_structure(&mut self, dynamic_data: &mut DynamicData) -> XTypesResult<()> {
         // Deserialize the top-level which must be either a struct, an enum or a union.
         // No other types are supported at this stage because this is what we can get from DDS
-        match dynamic_type.get_descriptor().kind {
+        match dynamic_data.r#type().get_descriptor().kind {
             TypeKind::STRUCTURE => {
                 // Extensibility kind must match the representation
-                match dynamic_type.get_descriptor().extensibility_kind {
-                    ExtensibilityKind::Final => {
-                        self.deserialize_final_struct(dynamic_type, dynamic_data)
-                    }
+                match dynamic_data.r#type().get_descriptor().extensibility_kind {
+                    ExtensibilityKind::Final => self.deserialize_final_struct(dynamic_data),
                     ExtensibilityKind::Appendable => {
-                        self.deserialize_appendable_struct(dynamic_type, dynamic_data)
+                        self.deserialize_appendable_struct(dynamic_data)
                     }
-                    ExtensibilityKind::Mutable => {
-                        self.deserialize_mutable_struct(dynamic_type, dynamic_data)
-                    }
+                    ExtensibilityKind::Mutable => self.deserialize_mutable_struct(dynamic_data),
                 }
             }
             TypeKind::ENUM => {
-                let discriminator_type = dynamic_type
+                let discriminator_type = dynamic_data
+                    .r#type()
                     .get_descriptor()
                     .discriminator_type
                     .as_ref()
@@ -254,7 +278,7 @@ trait XTypesDeserialize {
                     d => panic!("Invalid discriminator {d:?}"),
                 }
             }
-            //     TypeKind::UNION => todo!(),
+            TypeKind::UNION => todo!(),
             kind => {
                 debug!("Expected structure, enum or union. Got kind {kind:?} ");
                 Err(XTypesError::InvalidType)
@@ -262,13 +286,9 @@ trait XTypesDeserialize {
         }
     }
 
-    fn deserialize_final_struct(
-        &mut self,
-        dynamic_type: &dyn DynamicType,
-        dynamic_data: &mut DynamicData,
-    ) -> XTypesResult<()> {
-        for member_index in 0..dynamic_type.get_member_count() {
-            let member = dynamic_type.get_member_by_index(member_index)?;
+    fn deserialize_final_struct(&mut self, dynamic_data: &mut DynamicData) -> XTypesResult<()> {
+        for member_index in 0..dynamic_data.r#type().get_member_count() {
+            let member = dynamic_data.r#type().get_member_by_index(member_index)?;
             self.deserialize_final_member(member, dynamic_data)?;
         }
         Ok(())
@@ -276,17 +296,12 @@ trait XTypesDeserialize {
 
     fn deserialize_appendable_struct(
         &mut self,
-        dynamic_type: &dyn DynamicType,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
-        self.deserialize_final_struct(dynamic_type, dynamic_data)
+        self.deserialize_final_struct(dynamic_data)
     }
 
-    fn deserialize_mutable_struct(
-        &mut self,
-        dynamic_type: &dyn DynamicType,
-        dynamic_data: &mut DynamicData,
-    ) -> XTypesResult<()>;
+    fn deserialize_mutable_struct(&mut self, dynamic_data: &mut DynamicData) -> XTypesResult<()>;
 
     fn deserialize_string(&mut self) -> Result<String, XTypesError> {
         let length = self.deserialize_primitive_type::<u32>()?;
@@ -731,13 +746,9 @@ impl<'a, E: EndiannessRead, V: CdrVersion> Read for CdrReader<'a, E, V> {
 }
 
 impl<'a, E: EndiannessRead> XTypesDeserialize for Cdr1Deserializer<'a, E> {
-    fn deserialize_mutable_struct(
-        &mut self,
-        dynamic_type: &dyn DynamicType,
-        dynamic_data: &mut DynamicData,
-    ) -> XTypesResult<()> {
-        for member_index in 0..dynamic_type.get_member_count() {
-            let member = dynamic_type.get_member_by_index(member_index)?;
+    fn deserialize_mutable_struct(&mut self, dynamic_data: &mut DynamicData) -> XTypesResult<()> {
+        for member_index in 0..dynamic_data.r#type().get_member_count() {
+            let member = dynamic_data.r#type().get_member_by_index(member_index)?;
             let member_descriptor = member.get_descriptor()?;
             let pid = member.get_id() as u16;
 
@@ -761,13 +772,9 @@ impl<'a, E: EndiannessRead> XTypesDeserialize for Cdr2Deserializer<'a, E> {
         T::deserialize(&mut self.reader)
     }
 
-    fn deserialize_mutable_struct(
-        &mut self,
-        dynamic_type: &dyn DynamicType,
-        dynamic_data: &mut DynamicData,
-    ) -> XTypesResult<()> {
-        for member_index in 0..dynamic_type.get_member_count() {
-            let member = dynamic_type.get_member_by_index(member_index)?;
+    fn deserialize_mutable_struct(&mut self, dynamic_data: &mut DynamicData) -> XTypesResult<()> {
+        for member_index in 0..dynamic_data.r#type().get_member_count() {
+            let member = dynamic_data.r#type().get_member_by_index(member_index)?;
             let member_descriptor = member.get_descriptor()?;
             let pid = member.get_id() as u16;
 
@@ -783,22 +790,17 @@ impl<'a, E: EndiannessRead> XTypesDeserialize for Cdr2Deserializer<'a, E> {
 
     fn deserialize_appendable_struct(
         &mut self,
-        dynamic_type: &dyn DynamicType,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
         let _dheader = self.deserialize_primitive_type::<u32>()?;
-        self.deserialize_final_struct(dynamic_type, dynamic_data)
+        self.deserialize_final_struct(dynamic_data)
     }
 }
 
 impl<'a> XTypesDeserialize for RtpsPlCdrDeserializer<'a> {
-    fn deserialize_mutable_struct(
-        &mut self,
-        dynamic_type: &dyn DynamicType,
-        dynamic_data: &mut DynamicData,
-    ) -> XTypesResult<()> {
-        for member_index in 0..dynamic_type.get_member_count() {
-            let member = dynamic_type.get_member_by_index(member_index)?;
+    fn deserialize_mutable_struct(&mut self, dynamic_data: &mut DynamicData) -> XTypesResult<()> {
+        for member_index in 0..dynamic_data.r#type().get_member_count() {
+            let member = dynamic_data.r#type().get_member_by_index(member_index)?;
             let member_descriptor = member.get_descriptor()?;
             let pid = member.get_id() as u16;
 
@@ -834,6 +836,92 @@ impl<'a> XTypesDeserialize for RtpsPlCdrDeserializer<'a> {
     }
 }
 
+struct Cdr1KeyDeserializer<'a, E: EndiannessRead> {
+    reader: CdrReader<'a, E, CdrVersion1>,
+}
+
+impl<'a, E: EndiannessRead> Cdr1KeyDeserializer<'a, E> {
+    fn new(buffer: &'a [u8], endianness: E) -> Self {
+        Self {
+            reader: CdrReader::new(buffer, endianness, CdrVersion1),
+        }
+    }
+}
+
+impl<'a, E: EndiannessRead> XTypesDeserialize for Cdr1KeyDeserializer<'a, E> {
+    fn deserialize_structure(&mut self, dynamic_data: &mut DynamicData) -> XTypesResult<()> {
+        // Deserialize the top-level which must be either a struct, an enum or a union.
+        // No other types are supported at this stage because this is what we can get from DDS
+        match dynamic_data.r#type().get_descriptor().kind {
+            TypeKind::STRUCTURE => self.deserialize_final_struct(dynamic_data),
+            TypeKind::ENUM => {
+                let discriminator_type = dynamic_data
+                    .r#type()
+                    .get_descriptor()
+                    .discriminator_type
+                    .as_ref()
+                    .ok_or(XTypesError::InvalidType)?;
+                match discriminator_type.get_kind() {
+                    TypeKind::INT8 => {
+                        let value = self.deserialize_primitive_type::<i8>()?;
+                        dynamic_data.set_int8_value(0, value)
+                    }
+                    TypeKind::INT32 => {
+                        let value = self.deserialize_primitive_type::<i32>()?;
+                        dynamic_data.set_int32_value(0, value)
+                    }
+                    d => panic!("Invalid discriminator {d:?}"),
+                }
+            }
+            TypeKind::UNION => todo!(),
+            kind => {
+                debug!("Expected structure, enum or union. Got kind {kind:?} ");
+                Err(XTypesError::InvalidType)
+            }
+        }
+    }
+
+    fn deserialize_final_struct(&mut self, dynamic_data: &mut DynamicData) -> XTypesResult<()> {
+        for member_index in 0..dynamic_data.r#type().get_member_count() {
+            let member = dynamic_data.r#type().get_member_by_index(member_index)?;
+            if member.get_descriptor()?.is_key {
+                self.deserialize_final_member(member, dynamic_data)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn deserialize_mutable_struct(&mut self, _dynamic_data: &mut DynamicData) -> XTypesResult<()> {
+        unimplemented!("Not available for key")
+    }
+
+    fn deserialize_primitive_type<T: CdrPrimitiveTypeDeserialize>(&mut self) -> XTypesResult<T> {
+        T::deserialize(&mut self.reader)
+    }
+}
+
+struct Cdr2KeyDeserializer<'a, E: EndiannessRead> {
+    reader: CdrReader<'a, E, CdrVersion2>,
+}
+
+impl<'a, E: EndiannessRead> Cdr2KeyDeserializer<'a, E> {
+    fn new(buffer: &'a [u8], endianness: E) -> Self {
+        Self {
+            reader: CdrReader::new(buffer, endianness, CdrVersion2),
+        }
+    }
+}
+
+impl<'a, E: EndiannessRead> XTypesDeserialize for Cdr2KeyDeserializer<'a, E> {
+    fn deserialize_mutable_struct(&mut self, _dynamic_data: &mut DynamicData) -> XTypesResult<()> {
+        unimplemented!("Not available for key")
+    }
+
+    fn deserialize_primitive_type<T: CdrPrimitiveTypeDeserialize>(&mut self) -> XTypesResult<T> {
+        T::deserialize(&mut self.reader)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -858,7 +946,8 @@ mod tests {
                     0x00, 0x00, 0x00, 0x00, // CDR_BE
                     0, 7, 0, 0, 0, 0, 0, 0, // field_u16 | padding (6 bytes)
                     0, 0, 0, 0, 0, 0, 0, 9, // field_u64
-                ]
+                ],
+                DeserializeKind::Full,
             )
             .unwrap(),
             expected
@@ -870,7 +959,8 @@ mod tests {
                     0x00, 0x01, 0x00, 0x00, // CDR_LE
                     7, 0, 0, 0, 0, 0, 0, 0, // field_u16 | padding (6 bytes)
                     9, 0, 0, 0, 0, 0, 0, 0, // field_u64
-                ]
+                ],
+                DeserializeKind::Full,
             )
             .unwrap(),
             expected
@@ -883,6 +973,7 @@ mod tests {
                     0, 7, 0, 0, // field_u16 | padding (2 bytes)
                     0, 0, 0, 0, 0, 0, 0, 9, // field_u64
                 ],
+                DeserializeKind::Full,
             )
             .unwrap(),
             expected
@@ -894,7 +985,8 @@ mod tests {
                     0x00, 0x07, 0x00, 0x00, // CDR2_LE
                     7, 0, 0, 0, // field_u16 | padding (2 bytes)
                     9, 0, 0, 0, 0, 0, 0, 0, // field_u64
-                ]
+                ],
+                DeserializeKind::Full,
             )
             .unwrap(),
             expected
@@ -933,7 +1025,8 @@ mod tests {
                     0, 7, 0, 0, 0, 0, 0, 0, // nested FinalType (u16) | padding (6 bytes)
                     0, 0, 0, 0, 0, 0, 0, 9,  // nested FinalType (u64)
                     10, //u8
-                ]
+                ],
+                DeserializeKind::Full,
             )
             .unwrap(),
             expected
@@ -946,7 +1039,8 @@ mod tests {
                     7, 0, 0, 0, 0, 0, 0, 0, // nested FinalType (u16) | padding (6 bytes)
                     9, 0, 0, 0, 0, 0, 0, 0,  // nested FinalType (u64)
                     10, //u8
-                ]
+                ],
+                DeserializeKind::Full,
             )
             .unwrap(),
             expected
@@ -960,7 +1054,8 @@ mod tests {
                     0, 7, 0, 0, // nested FinalType (u16) | padding
                     0, 0, 0, 0, 0, 0, 0, 9,  // nested FinalType (u64)
                     10, //u8
-                ]
+                ],
+                DeserializeKind::Full,
             )
             .unwrap(),
             expected
@@ -974,7 +1069,8 @@ mod tests {
                     7, 0, 0, 0, // nested FinalType (u16) | padding (2 bytes)
                     9, 0, 0, 0, 0, 0, 0, 0,  // nested FinalType (u64)
                     10, //u8
-                ]
+                ],
+                DeserializeKind::Full,
             )
             .unwrap(),
             expected
@@ -1006,7 +1102,8 @@ mod tests {
                     0, 0, 0, 2, // field_seq_u32 Length (u32)
                     0, 0, 0, 1, // field_seq_u32[0]
                     0, 0, 0, 4, // field_seq_u32[0]
-                ]
+                ],
+                DeserializeKind::Full,
             )
             .unwrap(),
             expected
@@ -1021,7 +1118,8 @@ mod tests {
                     2, 0, 0, 0, // field_seq_u32 Length (u32)
                     1, 0, 0, 0, // field_seq_u32[0]
                     4, 0, 0, 0, // field_seq_u32[0]
-                ]
+                ],
+                DeserializeKind::Full,
             )
             .unwrap(),
             expected
@@ -1036,7 +1134,8 @@ mod tests {
                     0, 0, 0, 2, // field_seq_u32 Length (u32)
                     0, 0, 0, 1, // field_seq_u32[0]
                     0, 0, 0, 4, // field_seq_u32[0]
-                ]
+                ],
+                DeserializeKind::Full,
             )
             .unwrap(),
             expected
@@ -1051,7 +1150,8 @@ mod tests {
                     2, 0, 0, 0, // field_seq_u32 Length (u32)
                     1, 0, 0, 0, // field_seq_u32[0]
                     4, 0, 0, 0, // field_seq_u32[0]
-                ]
+                ],
+                DeserializeKind::Full,
             )
             .unwrap(),
             expected
@@ -1071,7 +1171,8 @@ mod tests {
                     0, 0, 0, 5, //length
                     b'H', b'o', b'l', b'a', // str
                     0x00, // terminating 0
-                ]
+                ],
+                DeserializeKind::Full,
             )
             .unwrap(),
             expected
@@ -1084,7 +1185,8 @@ mod tests {
                     5, 0, 0, 0, //length
                     b'H', b'o', b'l', b'a', // str
                     0x00, // terminating 0
-                ]
+                ],
+                DeserializeKind::Full,
             )
             .unwrap(),
             expected
@@ -1097,7 +1199,8 @@ mod tests {
                     0, 0, 0, 5, //length
                     b'H', b'o', b'l', b'a', // str
                     0x00, // terminating 0
-                ]
+                ],
+                DeserializeKind::Full,
             )
             .unwrap(),
             expected
@@ -1110,7 +1213,8 @@ mod tests {
                     5, 0, 0, 0, //length
                     b'H', b'o', b'l', b'a', // str
                     0x00, // terminating 0
-                ]
+                ],
+                DeserializeKind::Full,
             )
             .unwrap(),
             expected
@@ -1128,7 +1232,8 @@ mod tests {
                 &[
                     0x00, 0x00, 0x00, 0x00, // CDR_BE
                     1, 2
-                ]
+                ],
+                DeserializeKind::Full,
             )
             .unwrap(),
             expected
@@ -1139,7 +1244,8 @@ mod tests {
                 &[
                     0x00, 0x01, 0x00, 0x00, // CDR_LE
                     1, 2
-                ]
+                ],
+                DeserializeKind::Full,
             )
             .unwrap(),
             expected
@@ -1150,7 +1256,8 @@ mod tests {
                 &[
                     0x00, 0x06, 0x00, 0x00, // CDR2_BE
                     1, 2
-                ]
+                ],
+                DeserializeKind::Full,
             )
             .unwrap(),
             expected
@@ -1161,7 +1268,8 @@ mod tests {
                 &[
                     0x00, 0x07, 0x00, 0x00, // CD2R_LE
                     1, 2
-                ]
+                ],
+                DeserializeKind::Full,
             )
             .unwrap(),
             expected
@@ -1184,6 +1292,7 @@ mod tests {
                     0, 0, 0, 2, // length
                     1, 2, 77
                 ],
+                DeserializeKind::Full,
             )
             .unwrap(),
             expected
@@ -1215,7 +1324,8 @@ mod tests {
                     0x00, 0x050, 0, 4, // PID | length
                     0, 0, 0, 8, // participant_key
                     0, 0, 0, 0, // Sentinel
-                ]
+                ],
+                DeserializeKind::Full,
             )
             .unwrap(),
             expected
@@ -1230,7 +1340,8 @@ mod tests {
                     0x050, 0x00, 4, 0, // PID | length
                     8, 0, 0, 0, // participant_key
                     0, 0, 0, 0, // Sentinel
-                ]
+                ],
+                DeserializeKind::Full,
             )
             .unwrap(),
             expected
@@ -1246,6 +1357,7 @@ mod tests {
                     0, 0, 0, 8, // participant_key
                     0, 0, 0, 0, // Sentinel
                 ],
+                DeserializeKind::Full,
             )
             .unwrap(),
             expected
@@ -1260,7 +1372,8 @@ mod tests {
                     0x050, 0x00, 4, 0, // PID | length
                     8, 0, 0, 0, // participant_key
                     0, 0, 0, 0, // Sentinel
-                ]
+                ],
+                DeserializeKind::Full,
             )
             .unwrap(),
             expected
@@ -1288,7 +1401,8 @@ mod tests {
                     0x00, 0x00, 0x00, 0x00, // CDR_BE
                     7, 0, 0, 0, // key | padding
                     0, 0, 0, 8, // participant_key
-                ]
+                ],
+                DeserializeKind::Full,
             )
             .unwrap(),
             expected
@@ -1300,7 +1414,8 @@ mod tests {
                     0x00, 0x01, 0x00, 0x00, // CDR_LE
                     7, 0, 0, 0, // key | padding
                     8, 0, 0, 0, // participant_key
-                ]
+                ],
+                DeserializeKind::Full,
             )
             .unwrap(),
             expected
@@ -1314,6 +1429,7 @@ mod tests {
                     7, 0, 0, 0, // key | padding
                     0, 0, 0, 8, // participant_key
                 ],
+                DeserializeKind::Full,
             )
             .unwrap(),
             expected
@@ -1326,7 +1442,8 @@ mod tests {
                     0, 0, 0, 8, // DHEADER
                     7, 0, 0, 0, // key | padding
                     8, 0, 0, 0, // participant_key
-                ]
+                ],
+                DeserializeKind::Full,
             )
             .unwrap(),
             expected
@@ -1365,7 +1482,8 @@ mod tests {
                     0, 0, 0, 20, // y
                     0, 0, 0, 30, // shapesize
                     0, 0, 0, 0, // additional_payload_size: length
-                ]
+                ],
+                DeserializeKind::Full,
             )
             .unwrap(),
             expected
@@ -1382,7 +1500,8 @@ mod tests {
                     20, 0, 0, 0, // y
                     30, 0, 0, 0, // shapesize
                     0, 0, 0, 0, // additional_payload_size: length
-                ]
+                ],
+                DeserializeKind::Full,
             )
             .unwrap(),
             expected
@@ -1401,6 +1520,7 @@ mod tests {
                     0, 0, 0, 30, // shapesize
                     0, 0, 0, 0, // additional_payload_size: length
                 ],
+                DeserializeKind::Full,
             )
             .unwrap(),
             expected
@@ -1418,7 +1538,8 @@ mod tests {
                     20, 0, 0, 0, // y
                     30, 0, 0, 0, // shapesize
                     0, 0, 0, 0, // additional_payload_size: length
-                ]
+                ],
+                DeserializeKind::Full,
             )
             .unwrap(),
             expected

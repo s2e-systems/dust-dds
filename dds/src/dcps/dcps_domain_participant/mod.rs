@@ -21,7 +21,6 @@ use crate::{
             discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
             discovered_topic_data::DiscoveredTopicData,
             discovered_writer_data::{DiscoveredWriterData, WriterProxy},
-            parameter_id_values::{PID_ENDPOINT_GUID, PID_PARTICIPANT_GUID},
             spdp_discovered_participant_data::{
                 BuiltinEndpointQos, BuiltinEndpointSet, ParticipantProxy,
                 SpdpDiscoveredParticipantData,
@@ -94,9 +93,8 @@ use crate::{
         },
     },
     xtypes::{
-        deserializer::CdrDeserializer,
-        dynamic_type::{DynamicData, DynamicDataFactory, DynamicType, DynamicTypeMember},
-        error::XTypesError,
+        deserializer::{CdrDeserializer, DeserializeKind},
+        dynamic_type::{DynamicData, DynamicDataFactory, DynamicType},
         serializer::{
             Cdr1BeSerializer, Cdr1LeSerializer, Cdr2BeSerializer, Cdr2LeSerializer,
             RtpsPlCdrSerializer,
@@ -158,6 +156,12 @@ fn poll_timeout<T>(
 
         Poll::Pending
     })
+}
+
+#[derive(Debug, Clone, TypeSupport)]
+pub struct BuiltInKeyHolder {
+    #[dust_dds(key)]
+    pub(crate) key: BuiltInTopicKey,
 }
 
 pub struct DcpsDomainParticipant {
@@ -791,10 +795,10 @@ impl DcpsDomainParticipant {
                 .find(|x| x.topic_name == DCPS_PARTICIPANT)
             {
                 let builtin_topic_key = *self.domain_participant.instance_handle.as_ref();
-                let mut dynamic_data = DynamicDataFactory::create_data();
+                let mut dynamic_data = DynamicDataFactory::create_data(BuiltInKeyHolder::TYPE);
                 dynamic_data
                     .set_complex_value(
-                        PID_PARTICIPANT_GUID as u32,
+                        0,
                         BuiltInTopicKey {
                             value: builtin_topic_key,
                         }
@@ -915,10 +919,10 @@ impl DcpsDomainParticipant {
             .iter_mut()
             .find(|x| x.topic_name == DCPS_PUBLICATION)
         {
-            let mut dynamic_data = DynamicDataFactory::create_data();
+            let mut dynamic_data = DynamicDataFactory::create_data(BuiltInKeyHolder::TYPE);
             dynamic_data
                 .set_complex_value(
-                    PID_ENDPOINT_GUID as u32,
+                    0,
                     BuiltInTopicKey {
                         value: data_writer.transport_writer.guid().into(),
                     }
@@ -1050,10 +1054,10 @@ impl DcpsDomainParticipant {
             .iter_mut()
             .find(|x| x.topic_name == DCPS_SUBSCRIPTION)
         {
-            let mut dynamic_data = DynamicDataFactory::create_data();
+            let mut dynamic_data = DynamicDataFactory::create_data(BuiltInKeyHolder::TYPE);
             dynamic_data
                 .set_complex_value(
-                    PID_ENDPOINT_GUID as u32,
+                    0,
                     BuiltInTopicKey {
                         value: data_reader.transport_reader.guid().into(),
                     }
@@ -2065,10 +2069,11 @@ impl DcpsDomainParticipant {
                 let discovered_participant_handle = if let Some(h) = cache_change.instance_handle {
                     InstanceHandle::new(h)
                 } else if let Ok(dynamic_data) = CdrDeserializer::deserialize(
-                    InstanceHandle::TYPE,
+                    BuiltInKeyHolder::TYPE,
                     cache_change.data_value.as_ref(),
+                    DeserializeKind::Full,
                 ) {
-                    InstanceHandle::create_sample(dynamic_data)
+                    InstanceHandle::new(BuiltInKeyHolder::create_sample(dynamic_data).key.value)
                 } else {
                     return;
                 };
@@ -2167,10 +2172,11 @@ impl DcpsDomainParticipant {
                 let discovered_writer_handle = if let Some(h) = cache_change.instance_handle {
                     InstanceHandle::new(h)
                 } else if let Ok(dynamic_data) = CdrDeserializer::deserialize(
-                    InstanceHandle::TYPE,
+                    BuiltInKeyHolder::TYPE,
                     cache_change.data_value.as_ref(),
+                    DeserializeKind::Full,
                 ) {
-                    InstanceHandle::create_sample(dynamic_data)
+                    InstanceHandle::new(BuiltInKeyHolder::create_sample(dynamic_data).key.value)
                 } else {
                     return;
                 };
@@ -2316,6 +2322,7 @@ impl DcpsDomainParticipant {
                 } else if let Ok(dynamic_data) = CdrDeserializer::deserialize(
                     InstanceHandle::TYPE,
                     cache_change.data_value.as_ref(),
+                    DeserializeKind::Full,
                 ) {
                     InstanceHandle::create_sample(dynamic_data)
                 } else {
@@ -2469,6 +2476,7 @@ impl DcpsDomainParticipant {
                     let Ok(data) = CdrDeserializer::deserialize(
                         data_reader.type_support,
                         cache_change.data_value.as_ref(),
+                        DeserializeKind::Full,
                     ) else {
                         return;
                     };
@@ -2514,14 +2522,11 @@ impl DcpsDomainParticipant {
                     };
 
                     if let Some((variable_name, comparison_function)) = filter {
-                        let Some(member_id) = data
-                            .get_member_id_by_name(data_reader.type_support, variable_name.trim())
+                        let Some(member_id) = data.get_member_id_by_name(variable_name.trim())
                         else {
                             return;
                         };
-                        let Ok(member_descriptor) =
-                            data.get_descriptor(data_reader.type_support, member_id)
-                        else {
+                        let Ok(member_descriptor) = data.get_descriptor(member_id) else {
                             return;
                         };
                         match member_descriptor.r#type.get_kind() {
@@ -4745,8 +4750,7 @@ impl DataWriterEntity {
             return Err(DdsError::IllegalOperation);
         }
 
-        let instance_handle =
-            get_instance_handle_from_dynamic_data(self.type_support, dynamic_data.clone())?;
+        let instance_handle = get_instance_handle_from_dynamic_data(dynamic_data.clone())?;
         if !self.registered_instance_list.contains(&instance_handle) {
             return Err(DdsError::BadParameter);
         }
@@ -4759,8 +4763,8 @@ impl DataWriterEntity {
             self.instance_publication_time.remove(i);
         }
 
-        dynamic_data.clear_nonkey_values(self.type_support)?;
-        let serialized_key = serialize(self.type_support, &dynamic_data, &self.qos.representation)?;
+        dynamic_data.clear_nonkey_values()?;
+        let serialized_key = serialize(&dynamic_data, &self.qos.representation)?;
 
         self.last_change_sequence_number += 1;
         let cache_change = CacheChange {
@@ -4807,8 +4811,7 @@ impl DataWriterEntity {
             return Err(DdsError::IllegalOperation);
         }
 
-        let instance_handle =
-            get_instance_handle_from_dynamic_data(self.type_support, dynamic_data.clone())?;
+        let instance_handle = get_instance_handle_from_dynamic_data(dynamic_data.clone())?;
         if !self.registered_instance_list.contains(&instance_handle) {
             return Err(DdsError::BadParameter);
         }
@@ -4821,8 +4824,8 @@ impl DataWriterEntity {
             self.instance_publication_time.remove(i);
         }
 
-        dynamic_data.clear_nonkey_values(self.type_support)?;
-        let serialized_key = serialize(self.type_support, &dynamic_data, &self.qos.representation)?;
+        dynamic_data.clear_nonkey_values()?;
+        let serialized_key = serialize(&dynamic_data, &self.qos.representation)?;
 
         self.last_change_sequence_number += 1;
         let kind = if self
@@ -5281,111 +5284,32 @@ impl DataReaderEntity {
         &mut self,
         cache_change: &CacheChange,
     ) -> DdsResult<ReaderSample> {
-        struct KeyHolder<'a> {
-            descriptor: &'a crate::xtypes::dynamic_type::TypeDescriptor,
-            member_list: Vec<&'a DynamicTypeMember>,
-        }
-
-        impl<'a> DynamicType for KeyHolder<'a> {
-            fn get_descriptor(&self) -> &crate::xtypes::dynamic_type::TypeDescriptor {
-                self.descriptor
-            }
-
-            fn get_name(&self) -> crate::xtypes::dynamic_type::ObjectName<'static> {
-                self.descriptor.name
-            }
-
-            fn get_kind(&self) -> crate::xtypes::dynamic_type::TypeKind {
-                self.descriptor.kind
-            }
-
-            fn get_member_by_name(
-                &self,
-                name: crate::xtypes::dynamic_type::ObjectName,
-            ) -> Result<
-                &crate::xtypes::dynamic_type::DynamicTypeMember,
-                crate::xtypes::error::XTypesError,
-            > {
-                self.member_list
-                    .iter()
-                    .find(|x| x.get_name() == name)
-                    .copied()
-                    .ok_or(XTypesError::InvalidName)
-            }
-
-            fn get_member(
-                &self,
-                id: crate::xtypes::dynamic_type::MemberId,
-            ) -> Result<
-                &crate::xtypes::dynamic_type::DynamicTypeMember,
-                crate::xtypes::error::XTypesError,
-            > {
-                self.member_list
-                    .iter()
-                    .find(|x| x.get_id() == id)
-                    .copied()
-                    .ok_or(XTypesError::InvalidId(id))
-            }
-
-            fn get_member_count(&self) -> u32 {
-                self.member_list.len() as u32
-            }
-
-            fn get_member_by_index(
-                &self,
-                index: u32,
-            ) -> Result<
-                &crate::xtypes::dynamic_type::DynamicTypeMember,
-                crate::xtypes::error::XTypesError,
-            > {
-                self.member_list
-                    .get(index as usize)
-                    .copied()
-                    .ok_or(XTypesError::InvalidIndex(index))
-            }
-        }
-
-        fn create_key_holder<'a>(foo_type: &'a dyn DynamicType) -> DdsResult<KeyHolder<'a>> {
-            let key_holder_type_descriptor = foo_type.get_descriptor();
-            let mut key_member_list = Vec::new();
-            for member_index in 0..foo_type.get_member_count() {
-                let member = foo_type.get_member_by_index(member_index)?;
-                if member.get_descriptor()?.is_key {
-                    key_member_list.push(member);
-                }
-            }
-            Ok(KeyHolder {
-                descriptor: key_holder_type_descriptor,
-                member_list: key_member_list,
-            })
-        }
-
         let (data_value, instance_handle) = match cache_change.kind {
             ChangeKind::Alive | ChangeKind::AliveFiltered => {
                 let data_value = CdrDeserializer::deserialize(
                     self.type_support,
                     cache_change.data_value.as_ref(),
+                    DeserializeKind::Full,
                 )?;
-                let instance_handle =
-                    get_instance_handle_from_dynamic_data(self.type_support, data_value.clone())?;
+                let instance_handle = get_instance_handle_from_dynamic_data(data_value.clone())?;
                 (data_value, instance_handle)
             }
             ChangeKind::NotAliveDisposed
             | ChangeKind::NotAliveUnregistered
             | ChangeKind::NotAliveDisposedUnregistered => match cache_change.instance_handle {
                 Some(i) => {
-                    let data_value = DynamicDataFactory::create_data();
+                    let data_value = DynamicDataFactory::create_data(self.type_support);
                     let instance_handle = InstanceHandle::new(i);
                     (data_value, instance_handle)
                 }
                 None => {
-                    let key_holder = create_key_holder(self.type_support)?;
                     let data_value = CdrDeserializer::deserialize(
-                        &key_holder,
+                        self.type_support,
                         cache_change.data_value.as_ref(),
+                        DeserializeKind::KeyOnly,
                     )?;
                     let instance_handle =
-                        get_instance_handle_from_dynamic_data(&key_holder, data_value.clone())?;
+                        get_instance_handle_from_dynamic_data(data_value.clone())?;
                     (data_value, instance_handle)
                 }
             },
@@ -5942,25 +5866,24 @@ impl DataReaderEntity {
 }
 
 fn serialize(
-    dynamic_type: &dyn DynamicType,
     dynamic_data: &DynamicData,
     representation: &DataRepresentationQosPolicy,
 ) -> DdsResult<Vec<u8>> {
     Ok(
         if representation.value.is_empty() || representation.value[0] == XCDR_DATA_REPRESENTATION {
             if cfg!(target_endian = "big") {
-                Cdr1BeSerializer::serialize(dynamic_type, dynamic_data)?
+                Cdr1BeSerializer::serialize(dynamic_data)?
             } else {
-                Cdr1LeSerializer::serialize(dynamic_type, dynamic_data)?
+                Cdr1LeSerializer::serialize(dynamic_data)?
             }
         } else if representation.value[0] == XCDR2_DATA_REPRESENTATION {
             if cfg!(target_endian = "big") {
-                Cdr2BeSerializer::serialize(dynamic_type, dynamic_data)?
+                Cdr2BeSerializer::serialize(dynamic_data)?
             } else {
-                Cdr2LeSerializer::serialize(dynamic_type, dynamic_data)?
+                Cdr2LeSerializer::serialize(dynamic_data)?
             }
         } else if representation.value[0] == BUILT_IN_DATA_REPRESENTATION {
-            RtpsPlCdrSerializer::serialize(dynamic_type, dynamic_data)?
+            RtpsPlCdrSerializer::serialize(dynamic_data)?
         } else {
             panic!("Invalid data representation")
         },

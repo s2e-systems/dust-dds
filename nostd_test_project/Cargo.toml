@@ -14,7 +14,4 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
-dust_dds = { path = "../dds", default-features = false, features = [
-	"dcps",
-	"rtps",
-] }
+dust_dds = { path = "../dds", default-features = false }

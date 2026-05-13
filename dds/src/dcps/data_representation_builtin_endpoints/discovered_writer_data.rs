@@ -272,7 +272,7 @@ impl TypeSupport for DiscoveredWriterData {
     }
 
     fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
-        let mut data = dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data();
+        let mut data = dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::TYPE);
         data.set_value(
             PID_ENDPOINT_GUID as u32,
             self.dds_publication_data.key.into_storage(),
@@ -478,10 +478,7 @@ mod tests {
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
 
-        assert_eq!(
-            RtpsPlCdrSerializer::serialize(DiscoveredWriterData::TYPE, &data).unwrap(),
-            expected
-        );
+        assert_eq!(RtpsPlCdrSerializer::serialize(&data).unwrap(), expected);
     }
 
     #[test]

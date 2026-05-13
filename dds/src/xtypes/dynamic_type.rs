@@ -171,12 +171,194 @@ impl DynamicTypeBuilderFactory {
         todo!()
     }
 
+    #[cfg(feature = "xtypes-xml")]
     pub fn create_type_w_document(
-        _document: String,
-        _type_name: String,
+        document: &str,
+        type_name: &str,
         _include_paths: Vec<String>,
-    ) -> DynamicTypeBuilder {
-        todo!()
+    ) -> XTypesResult<DynamicTypeBuilder> {
+        let doc = roxmltree::Document::parse(document).map_err(|_| XTypesError::InvalidData)?;
+
+        let mut target_node = None;
+        for node in doc.descendants() {
+            if node.is_element()
+                && (node.tag_name().name() == "struct" || node.tag_name().name() == "union")
+            {
+                if let Some(name) = node.attribute("name") {
+                    if name == type_name {
+                        target_node = Some(node);
+                        break;
+                    }
+                }
+            }
+        }
+
+        let target_node = target_node.ok_or(XTypesError::InvalidData)?;
+        let is_union = target_node.tag_name().name() == "union";
+
+        let ext_str = target_node.attribute("extensibility").unwrap_or("final");
+        let extensibility_kind = match ext_str {
+            "final" => ExtensibilityKind::Final,
+            "appendable" => ExtensibilityKind::Appendable,
+            "mutable" => ExtensibilityKind::Mutable,
+            _ => ExtensibilityKind::Final,
+        };
+
+        let parse_type_kind = |m_type: &str| -> XTypesResult<TypeKind> {
+            match m_type {
+                "boolean" => Ok(TypeKind::BOOLEAN),
+                "byte" => Ok(TypeKind::BYTE),
+                "char8" => Ok(TypeKind::CHAR8),
+                "char16" => Ok(TypeKind::CHAR16),
+                "int32" => Ok(TypeKind::INT32),
+                "uint32" => Ok(TypeKind::UINT32),
+                "int8" => Ok(TypeKind::INT8),
+                "uint8" => Ok(TypeKind::UINT8),
+                "int16" => Ok(TypeKind::INT16),
+                "uint16" => Ok(TypeKind::UINT16),
+                "int64" => Ok(TypeKind::INT64),
+                "uint64" => Ok(TypeKind::UINT64),
+                "float32" => Ok(TypeKind::FLOAT32),
+                "float64" => Ok(TypeKind::FLOAT64),
+                "float128" => Ok(TypeKind::FLOAT128),
+                "string" => Ok(TypeKind::STRING8),
+                "wstring" => Ok(TypeKind::STRING16),
+                _ => Err(XTypesError::InvalidData),
+            }
+        };
+
+        let mut discriminator_type = None;
+        if is_union {
+            for child in target_node.children() {
+                if child.is_element() && child.tag_name().name() == "discriminator" {
+                    let d_type = child.attribute("type").ok_or(XTypesError::InvalidData)?;
+                    let type_kind = parse_type_kind(d_type)?;
+                    let type_ptr: &'static dyn DynamicType =
+                        Box::leak(Box::new(Self::get_primitive_type(type_kind)));
+                    discriminator_type = Some(type_ptr);
+                    break;
+                }
+            }
+        }
+
+        let name: &'static str = Box::leak(type_name.to_string().into_boxed_str());
+        let descriptor = TypeDescriptor {
+            kind: if is_union {
+                TypeKind::UNION
+            } else {
+                TypeKind::STRUCTURE
+            },
+            name,
+            base_type: None,
+            discriminator_type,
+            bound: None,
+            element_type: None,
+            key_element_type: None,
+            extensibility_kind,
+            is_nested: target_node.attribute("nested") == Some("true"),
+        };
+
+        let mut builder = Self::create_type(descriptor);
+
+        let mut member_id = 0;
+        if is_union {
+            for child in target_node.children() {
+                if child.is_element() && child.tag_name().name() == "case" {
+                    let mut m_name = None;
+                    let mut m_type = None;
+                    let mut label = None;
+                    let mut is_default_label = false;
+
+                    for case_child in child.children() {
+                        if case_child.is_element()
+                            && case_child.tag_name().name() == "caseDiscriminator"
+                        {
+                            let value_str = case_child
+                                .attribute("value")
+                                .ok_or(XTypesError::InvalidData)?;
+                            if value_str == "default" {
+                                is_default_label = true;
+                            } else if let Some(hex) = value_str.strip_prefix("0x") {
+                                label = Some(
+                                    i32::from_str_radix(hex, 16)
+                                        .map_err(|_| XTypesError::InvalidData)?,
+                                );
+                            } else {
+                                label = Some(
+                                    value_str
+                                        .parse::<i32>()
+                                        .map_err(|_| XTypesError::InvalidData)?,
+                                );
+                            }
+                        } else if case_child.is_element()
+                            && case_child.tag_name().name() == "member"
+                        {
+                            m_name = case_child.attribute("name");
+                            m_type = case_child.attribute("type");
+                        }
+                    }
+
+                    let m_name = m_name.ok_or(XTypesError::InvalidData)?;
+                    let m_type = m_type.ok_or(XTypesError::InvalidData)?;
+
+                    let type_kind = parse_type_kind(m_type)?;
+                    let type_ptr: &'static dyn DynamicType =
+                        Box::leak(Box::new(Self::get_primitive_type(type_kind)));
+                    let m_name_static = Box::leak(m_name.to_string().into_boxed_str());
+
+                    let member_desc = MemberDescriptor {
+                        name: m_name_static,
+                        id: member_id,
+                        r#type: type_ptr,
+                        default_value: None,
+                        index: member_id,
+                        label,
+                        try_construct_kind: TryConstructKind::Discard,
+                        is_key: false,
+                        is_optional: false,
+                        is_must_understand: false,
+                        is_shared: false,
+                        is_default_label,
+                    };
+
+                    builder.add_member(member_desc)?;
+                    member_id += 1;
+                }
+            }
+        } else {
+            for child in target_node.children() {
+                if child.is_element() && child.tag_name().name() == "member" {
+                    let m_name = child.attribute("name").ok_or(XTypesError::InvalidData)?;
+                    let m_type = child.attribute("type").ok_or(XTypesError::InvalidData)?;
+
+                    let type_kind = parse_type_kind(m_type)?;
+
+                    let type_ptr: &'static dyn DynamicType =
+                        Box::leak(Box::new(Self::get_primitive_type(type_kind)));
+                    let m_name_static = Box::leak(m_name.to_string().into_boxed_str());
+
+                    let member_desc = MemberDescriptor {
+                        name: m_name_static,
+                        id: member_id,
+                        r#type: type_ptr,
+                        default_value: None,
+                        index: member_id,
+                        label: None,
+                        try_construct_kind: TryConstructKind::Discard,
+                        is_key: child.attribute("key") == Some("true"),
+                        is_optional: child.attribute("optional") == Some("true"),
+                        is_must_understand: false,
+                        is_shared: false,
+                        is_default_label: false,
+                    };
+
+                    builder.add_member(member_desc)?;
+                    member_id += 1;
+                }
+            }
+        }
+
+        Ok(builder)
     }
 }
 
@@ -398,37 +580,52 @@ impl DynamicType for StaticTypeInformation {
 pub struct DynamicDataFactory;
 
 impl DynamicDataFactory {
-    pub fn create_data() -> DynamicData {
+    pub fn create_data(r#type: &'static dyn DynamicType) -> DynamicData {
         DynamicData {
+            r#type,
             abstract_data: BTreeMap::new(),
         }
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone)]
 pub struct DynamicData {
+    r#type: &'static dyn DynamicType,
     abstract_data: BTreeMap<MemberId, DataStorage>,
 }
 
+impl core::fmt::Debug for DynamicData {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("DynamicData")
+            .field("abstract_data", &self.abstract_data)
+            .finish()
+    }
+}
+
+impl PartialEq for DynamicData {
+    fn eq(&self, other: &Self) -> bool {
+        self.abstract_data == other.abstract_data
+    }
+}
+
 impl DynamicData {
-    pub fn get_descriptor<'a>(
-        &self,
-        type_ref: &'a dyn DynamicType,
-        id: MemberId,
-    ) -> XTypesResult<&'a MemberDescriptor> {
-        Ok(&type_ref.get_member(id)?.descriptor)
+    pub fn r#type(&self) -> &'static (dyn DynamicType + 'static) {
+        self.r#type
+    }
+
+    pub fn get_descriptor<'a>(&self, id: MemberId) -> XTypesResult<&'a MemberDescriptor> {
+        Ok(&self.r#type.get_member(id)?.descriptor)
     }
 
     pub fn set_descriptor(&mut self, _id: MemberId, _value: MemberDescriptor) -> XTypesResult<()> {
         todo!()
     }
 
-    pub fn get_member_id_by_name(
-        &self,
-        type_ref: &dyn DynamicType,
-        name: &str,
-    ) -> Option<MemberId> {
-        type_ref.get_member_by_name(name).ok().map(|m| m.get_id())
+    pub fn get_member_id_by_name(&self, name: &str) -> Option<MemberId> {
+        self.r#type
+            .get_member_by_name(name)
+            .ok()
+            .map(|m| m.get_id())
     }
 
     pub fn get_member_id_at_index(&self, index: u32) -> XTypesResult<MemberId> {
@@ -448,9 +645,9 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn clear_nonkey_values(&mut self, type_ref: &dyn DynamicType) -> XTypesResult<()> {
-        for index in 0..type_ref.get_member_count() {
-            let member = type_ref.get_member_by_index(index)?;
+    pub fn clear_nonkey_values(&mut self) -> XTypesResult<()> {
+        for index in 0..self.r#type.get_member_count() {
+            let member = self.r#type.get_member_by_index(index)?;
             if !member.get_descriptor()?.is_key {
                 let member_id = member.get_id();
                 self.abstract_data.remove(&member_id);
@@ -1028,5 +1225,220 @@ impl TypeSupport for DynamicData {
 
     fn create_dynamic_sample(self) -> DynamicData {
         self
+    }
+}
+
+#[cfg(feature = "xtypes-xml")]
+impl DynamicData {
+    pub fn from_xml(&mut self, xml: &str) -> XTypesResult<()> {
+        let doc = roxmltree::Document::parse(xml).map_err(|_| XTypesError::InvalidData)?;
+        let root = doc.root_element();
+        self.populate_from_xml_node(root)
+    }
+
+    fn populate_from_xml_node(&mut self, node: roxmltree::Node) -> XTypesResult<()> {
+        for child in node.children().filter(|c| c.is_element()) {
+            let tag_name = child.tag_name().name();
+
+            if tag_name == "discriminator" && self.r#type.get_kind() == TypeKind::UNION {
+                continue;
+            }
+
+            if let Ok(member) = self.r#type.get_member_by_name(tag_name) {
+                let member_id = member.get_id();
+                let member_type = member.get_descriptor()?.r#type;
+
+                let data = Self::parse_xml_node_to_data(child, member_type)?;
+                self.set_value(member_id, data);
+            }
+        }
+        Ok(())
+    }
+
+    fn parse_xml_node_to_data(
+        node: roxmltree::Node,
+        r#type: &'static dyn DynamicType,
+    ) -> XTypesResult<DataStorage> {
+        let kind = r#type.get_kind();
+        let text = node.text().unwrap_or("").trim();
+
+        let parse_int = |s: &str| -> Result<i64, ()> {
+            if let Some(hex) = s.strip_prefix("0x") {
+                i64::from_str_radix(hex, 16).map_err(|_| ())
+            } else {
+                s.parse::<i64>().map_err(|_| ())
+            }
+        };
+
+        let parse_uint = |s: &str| -> Result<u64, ()> {
+            if let Some(hex) = s.strip_prefix("0x") {
+                u64::from_str_radix(hex, 16).map_err(|_| ())
+            } else {
+                s.parse::<u64>().map_err(|_| ())
+            }
+        };
+
+        match kind {
+            TypeKind::BOOLEAN => {
+                let val = text == "true" || text == "1";
+                Ok(DataStorage::Boolean(val))
+            }
+            TypeKind::BYTE | TypeKind::UINT8 => {
+                let val = parse_uint(text).map_err(|_| XTypesError::InvalidData)? as u8;
+                Ok(DataStorage::UInt8(val))
+            }
+            TypeKind::INT8 => {
+                let val = parse_int(text).map_err(|_| XTypesError::InvalidData)? as i8;
+                Ok(DataStorage::Int8(val))
+            }
+            TypeKind::UINT16 => {
+                let val = parse_uint(text).map_err(|_| XTypesError::InvalidData)? as u16;
+                Ok(DataStorage::UInt16(val))
+            }
+            TypeKind::INT16 => {
+                let val = parse_int(text).map_err(|_| XTypesError::InvalidData)? as i16;
+                Ok(DataStorage::Int16(val))
+            }
+            TypeKind::UINT32 => {
+                let val = parse_uint(text).map_err(|_| XTypesError::InvalidData)? as u32;
+                Ok(DataStorage::UInt32(val))
+            }
+            TypeKind::INT32 => {
+                let val = parse_int(text).map_err(|_| XTypesError::InvalidData)? as i32;
+                Ok(DataStorage::Int32(val))
+            }
+            TypeKind::UINT64 => {
+                let val = parse_uint(text).map_err(|_| XTypesError::InvalidData)?;
+                Ok(DataStorage::UInt64(val))
+            }
+            TypeKind::INT64 => {
+                let val = parse_int(text).map_err(|_| XTypesError::InvalidData)?;
+                Ok(DataStorage::Int64(val))
+            }
+            TypeKind::FLOAT32 => {
+                let val = text.parse::<f32>().map_err(|_| XTypesError::InvalidData)?;
+                Ok(DataStorage::Float32(val))
+            }
+            TypeKind::FLOAT64 => {
+                let val = text.parse::<f64>().map_err(|_| XTypesError::InvalidData)?;
+                Ok(DataStorage::Float64(val))
+            }
+            TypeKind::FLOAT128 => {
+                let val = text.parse::<f64>().map_err(|_| XTypesError::InvalidData)?;
+                Ok(DataStorage::Float64(val))
+            }
+            TypeKind::CHAR8 => {
+                let val = parse_uint(text)
+                    .ok()
+                    .map(|v| v as u8 as char)
+                    .unwrap_or_else(|| text.chars().next().unwrap_or('\0'));
+                Ok(DataStorage::Char8(val))
+            }
+            TypeKind::STRING8 => {
+                let val = node.text().unwrap_or("");
+                Ok(DataStorage::String(String::from(val)))
+            }
+            TypeKind::STRUCTURE | TypeKind::UNION => {
+                let mut inner_data = DynamicDataFactory::create_data(r#type);
+                inner_data.populate_from_xml_node(node)?;
+                Ok(DataStorage::ComplexValue(inner_data))
+            }
+            TypeKind::SEQUENCE | TypeKind::ARRAY => {
+                let element_type = r#type
+                    .get_descriptor()
+                    .element_type
+                    .ok_or(XTypesError::InvalidData)?;
+                let element_kind = element_type.get_kind();
+
+                macro_rules! parse_seq {
+                    ($parse_fn:ident, $storage_variant:ident, $cast_type:ty) => {{
+                        let mut vec = Vec::new();
+                        for item in node.children().filter(|c| c.is_element()) {
+                            let item_text = item.text().unwrap_or("").trim();
+                            let val = $parse_fn(item_text).map_err(|_| XTypesError::InvalidData)?
+                                as $cast_type;
+                            vec.push(val);
+                        }
+                        Ok(DataStorage::$storage_variant(vec))
+                    }};
+                }
+
+                match element_kind {
+                    TypeKind::INT32 => parse_seq!(parse_int, SequenceInt32, i32),
+                    TypeKind::UINT32 => parse_seq!(parse_uint, SequenceUInt32, u32),
+                    TypeKind::INT8 => parse_seq!(parse_int, SequenceInt8, i8),
+                    TypeKind::UINT8 | TypeKind::BYTE => {
+                        parse_seq!(parse_uint, SequenceUInt8, u8)
+                    }
+                    TypeKind::INT16 => parse_seq!(parse_int, SequenceInt16, i16),
+                    TypeKind::UINT16 => parse_seq!(parse_uint, SequenceUInt16, u16),
+                    TypeKind::INT64 => parse_seq!(parse_int, SequenceInt64, i64),
+                    TypeKind::UINT64 => parse_seq!(parse_uint, SequenceUInt64, u64),
+                    TypeKind::FLOAT32 => {
+                        let mut vec = Vec::new();
+                        for item in node.children().filter(|c| c.is_element()) {
+                            let item_text = item.text().unwrap_or("").trim();
+                            vec.push(
+                                item_text
+                                    .parse::<f32>()
+                                    .map_err(|_| XTypesError::InvalidData)?,
+                            );
+                        }
+                        Ok(DataStorage::SequenceFloat32(vec))
+                    }
+                    TypeKind::FLOAT64 => {
+                        let mut vec = Vec::new();
+                        for item in node.children().filter(|c| c.is_element()) {
+                            let item_text = item.text().unwrap_or("").trim();
+                            vec.push(
+                                item_text
+                                    .parse::<f64>()
+                                    .map_err(|_| XTypesError::InvalidData)?,
+                            );
+                        }
+                        Ok(DataStorage::SequenceFloat64(vec))
+                    }
+                    TypeKind::BOOLEAN => {
+                        let mut vec = Vec::new();
+                        for item in node.children().filter(|c| c.is_element()) {
+                            let item_text = item.text().unwrap_or("").trim();
+                            vec.push(item_text == "true" || item_text == "1");
+                        }
+                        Ok(DataStorage::SequenceBoolean(vec))
+                    }
+                    TypeKind::CHAR8 => {
+                        let mut vec = Vec::new();
+                        for item in node.children().filter(|c| c.is_element()) {
+                            let item_text = item.text().unwrap_or("");
+                            let val = parse_uint(item_text)
+                                .ok()
+                                .map(|v| v as u8 as char)
+                                .unwrap_or_else(|| item_text.chars().next().unwrap_or('\0'));
+                            vec.push(val);
+                        }
+                        Ok(DataStorage::SequenceChar8(vec))
+                    }
+                    TypeKind::STRING8 => {
+                        let mut vec = Vec::new();
+                        for item in node.children().filter(|c| c.is_element()) {
+                            let item_text = item.text().unwrap_or("");
+                            vec.push(String::from(item_text));
+                        }
+                        Ok(DataStorage::SequenceString(vec))
+                    }
+                    TypeKind::STRUCTURE | TypeKind::UNION => {
+                        let mut vec = Vec::new();
+                        for item in node.children().filter(|c| c.is_element()) {
+                            let mut inner_data = DynamicDataFactory::create_data(element_type);
+                            inner_data.populate_from_xml_node(item)?;
+                            vec.push(inner_data);
+                        }
+                        Ok(DataStorage::SequenceComplexValue(vec))
+                    }
+                    _ => Err(XTypesError::InvalidData),
+                }
+            }
+            _ => Err(XTypesError::InvalidData),
+        }
     }
 }
