@@ -351,7 +351,9 @@ trait XTypesDeserialize {
             TypeKind::FLOAT64 => {
                 dynamic_data.set_float64_value(member.get_id(), self.deserialize_primitive_type()?)
             }
-            TypeKind::FLOAT128 => todo!(),
+            TypeKind::FLOAT128 => {
+                dynamic_data.set_float64_value(member.get_id(), self.deserialize_primitive_type()?)
+            }
             TypeKind::INT8 => {
                 dynamic_data.set_int8_value(member.get_id(), self.deserialize_primitive_type()?)
             }
@@ -442,7 +444,10 @@ trait XTypesDeserialize {
                 member.get_id(),
                 self.deserialize_primitive_type_array(bound)?,
             ),
-            TypeKind::FLOAT128 => todo!(),
+            TypeKind::FLOAT128 => dynamic_data.set_float64_values(
+                member.get_id(),
+                self.deserialize_primitive_type_array(bound)?,
+            ),
             TypeKind::INT8 => dynamic_data.set_int8_values(
                 member.get_id(),
                 self.deserialize_primitive_type_array(bound)?,
@@ -549,7 +554,8 @@ trait XTypesDeserialize {
                 .set_float32_values(member.get_id(), self.deserialize_primitive_type_sequence()?),
             TypeKind::FLOAT64 => dynamic_data
                 .set_float64_values(member.get_id(), self.deserialize_primitive_type_sequence()?),
-            TypeKind::FLOAT128 => todo!(),
+            TypeKind::FLOAT128 => dynamic_data
+                .set_float64_values(member.get_id(), self.deserialize_primitive_type_sequence()?),
             TypeKind::INT8 => dynamic_data
                 .set_int8_values(member.get_id(), self.deserialize_primitive_type_sequence()?),
             TypeKind::UINT8 => dynamic_data
