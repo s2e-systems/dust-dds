@@ -505,7 +505,7 @@ fn dynamic_data_should_read_and_write() {
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
-    let mut data = DynamicDataFactory::create_data();
+    let mut data = DynamicDataFactory::create_data(dynamic_type);
     data.set_uint8_value(0, 10).unwrap();
     data.set_uint32_value(1, 100).unwrap();
 
