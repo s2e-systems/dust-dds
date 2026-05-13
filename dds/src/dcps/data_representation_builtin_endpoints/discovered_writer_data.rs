@@ -40,10 +40,8 @@ pub struct DiscoveredWriterData {
     pub(crate) writer_proxy: WriterProxy,
 }
 impl TypeSupport for DiscoveredWriterData {
-    const TYPE_NAME: &'static str = "DiscoveredWriterData";
-
     const r#TYPE: &'static dyn DynamicType = &StaticTypeInformation {
-        descriptor: &ConvenienceTypeBuilder::type_descriptor(Self::TYPE_NAME),
+        descriptor: &ConvenienceTypeBuilder::type_descriptor("DiscoveredWriterData"),
         member_list: &[
             ConvenienceTypeBuilder::key_member::<BuiltInTopicKey>(0, "key", PID_ENDPOINT_GUID),
             // for interoperability reasons this is omitted when default (as opposed to standard):

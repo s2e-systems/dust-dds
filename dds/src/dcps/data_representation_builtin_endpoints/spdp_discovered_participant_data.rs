@@ -128,10 +128,8 @@ pub struct SpdpDiscoveredParticipantData {
 }
 
 impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParticipantData {
-    const TYPE_NAME: &'static str = "SpdpDiscoveredParticipantData";
-
     const r#TYPE: &'static dyn crate::xtypes::dynamic_type::DynamicType = &StaticTypeInformation {
-        descriptor: &ConvenienceTypeBuilder::type_descriptor(Self::TYPE_NAME),
+        descriptor: &ConvenienceTypeBuilder::type_descriptor("SpdpDiscoveredParticipantData"),
         member_list: &[
             ConvenienceTypeBuilder::key_member::<BuiltInTopicKey>(0, "key", PID_PARTICIPANT_GUID),
             ConvenienceTypeBuilder::member_with_default::<UserDataQosPolicy>(

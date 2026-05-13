@@ -26,8 +26,6 @@ pub enum Length {
 }
 
 impl TypeSupport for Length {
-    const TYPE_NAME: &'static str = "Length";
-
     const r#TYPE: &'static dyn DynamicType = i32::TYPE_INFORMATION;
 
     fn create_dynamic_sample(self) -> crate::xtypes::dynamic_type::DynamicData {
@@ -1049,12 +1047,10 @@ pub enum HistoryQosPolicyKind {
 }
 
 impl TypeSupport for HistoryQosPolicyKind {
-    const TYPE_NAME: &'static str = "HistoryQosPolicyKind";
-
     const r#TYPE: &'static dyn crate::xtypes::dynamic_type::DynamicType = &StaticTypeInformation {
         descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
             kind: dust_dds::xtypes::dynamic_type::TypeKind::ENUM,
-            name: Self::TYPE_NAME,
+            name: "HistoryQosPolicyKind",
             base_type: None,
             discriminator_type: Some(u8::TYPE_INFORMATION),
             bound: None,
@@ -1115,13 +1111,11 @@ impl HistoryQosPolicy {
 }
 
 impl dust_dds::infrastructure::type_support::TypeSupport for HistoryQosPolicy {
-    const TYPE_NAME: &'static str = "HistoryQosPolicy";
-
     const r#TYPE: &'static dyn dust_dds::xtypes::dynamic_type::DynamicType =
         &StaticTypeInformation {
             descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
                 kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
-                name: Self::TYPE_NAME,
+                name: "HistoryQosPolicy",
                 base_type: None,
                 discriminator_type: None,
                 bound: None,

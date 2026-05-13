@@ -292,8 +292,6 @@ impl From<PythonDdsData> for dust_dds::xtypes::dynamic_type::DynamicData {
 }
 
 impl TypeSupport for PythonDdsData {
-    const TYPE_NAME: &'static str = "";
-
     const r#TYPE: &'static dyn dust_dds::xtypes::dynamic_type::DynamicType =
         <u8 as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION;
 

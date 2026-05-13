@@ -279,8 +279,6 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
     Ok(quote! {
         #[automatically_derived]
         impl #impl_generics dust_dds::infrastructure::type_support::TypeSupport for #ident #type_generics #where_clause {
-            const TYPE_NAME: &'static str = #type_name;
-
             #get_type_quote
 
             fn create_sample(mut src: dust_dds::xtypes::dynamic_type::DynamicData) -> Self {
