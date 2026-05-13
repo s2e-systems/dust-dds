@@ -1,6 +1,6 @@
 use super::dynamic_type::ExtensibilityKind;
 use crate::xtypes::{
-    dynamic_type::{DynamicData, DynamicType, TypeKind},
+    dynamic_type::{DynamicData, DynamicType, MemberId, TypeKind},
     error::{XTypesError, XTypesResult},
     read_write::Write,
 };
@@ -188,13 +188,11 @@ trait XTypesSerializer {
         dynamic_data: &DynamicData,
     ) -> XTypesResult<()> {
         match dynamic_type.get_kind() {
-            TypeKind::ENUM => {
-                self.serialize_enum(dynamic_type, dynamic_data)?;
-            }
-            TypeKind::STRUCTURE => self.serialize_complex(dynamic_type, dynamic_data)?,
+            TypeKind::ENUM => self.serialize_enum(dynamic_type, dynamic_data),
+            TypeKind::STRUCTURE => self.serialize_complex(dynamic_type, dynamic_data),
+            TypeKind::UNION => self.serialize_union(dynamic_type, dynamic_data),
             kind => unimplemented!("Should not reach for {kind:?}"),
         }
-        Ok(())
     }
 
     fn serialize_final_struct(
@@ -251,100 +249,311 @@ trait XTypesSerializer {
         self.serialize_primitive_type(&0u8);
     }
 
-    fn serialize_dynamic_data_member(
+    fn serialize_member_from_id(
         &mut self,
         dynamic_type: &dyn DynamicType,
-        v: &DynamicData,
-        member_id: u32,
+        dynamic_data: &DynamicData,
+        member_id: MemberId,
     ) -> Result<(), XTypesError> {
-        let member_descriptor = v.get_descriptor(dynamic_type, member_id)?;
-        match member_descriptor.r#type.get_kind() {
+        match dynamic_type.get_descriptor().kind {
             TypeKind::NONE => todo!(),
-            TypeKind::BOOLEAN => self.serialize_primitive_type(v.get_boolean_value(member_id)?),
+            TypeKind::BOOLEAN => {
+                self.serialize_primitive_type(dynamic_data.get_boolean_value(member_id)?)
+            }
             TypeKind::BYTE => todo!(),
-            TypeKind::INT16 => self.serialize_primitive_type(v.get_int16_value(member_id)?),
-            TypeKind::INT32 => self.serialize_primitive_type(v.get_int32_value(member_id)?),
-            TypeKind::INT64 => self.serialize_primitive_type(v.get_int64_value(member_id)?),
-            TypeKind::UINT16 => self.serialize_primitive_type(v.get_uint16_value(member_id)?),
-            TypeKind::UINT32 => self.serialize_primitive_type(v.get_uint32_value(member_id)?),
-            TypeKind::UINT64 => self.serialize_primitive_type(v.get_uint64_value(member_id)?),
-            TypeKind::FLOAT32 => self.serialize_primitive_type(v.get_float32_value(member_id)?),
-            TypeKind::FLOAT64 => self.serialize_primitive_type(v.get_float64_value(member_id)?),
+            TypeKind::INT16 => {
+                self.serialize_primitive_type(dynamic_data.get_int16_value(member_id)?)
+            }
+            TypeKind::INT32 => {
+                self.serialize_primitive_type(dynamic_data.get_int32_value(member_id)?)
+            }
+            TypeKind::INT64 => {
+                self.serialize_primitive_type(dynamic_data.get_int64_value(member_id)?)
+            }
+            TypeKind::UINT16 => {
+                self.serialize_primitive_type(dynamic_data.get_uint16_value(member_id)?)
+            }
+            TypeKind::UINT32 => {
+                self.serialize_primitive_type(dynamic_data.get_uint32_value(member_id)?)
+            }
+            TypeKind::UINT64 => {
+                self.serialize_primitive_type(dynamic_data.get_uint64_value(member_id)?)
+            }
+            TypeKind::FLOAT32 => {
+                self.serialize_primitive_type(dynamic_data.get_float32_value(member_id)?)
+            }
+            TypeKind::FLOAT64 => {
+                self.serialize_primitive_type(dynamic_data.get_float64_value(member_id)?)
+            }
             TypeKind::FLOAT128 => unimplemented!("not supported by Rust"),
-            TypeKind::INT8 => self.serialize_primitive_type(v.get_int8_value(member_id)?),
-            TypeKind::UINT8 => self.serialize_primitive_type(v.get_uint8_value(member_id)?),
-            TypeKind::CHAR8 => self.serialize_primitive_type(v.get_char8_value(member_id)?),
+            TypeKind::INT8 => {
+                self.serialize_primitive_type(dynamic_data.get_int8_value(member_id)?)
+            }
+            TypeKind::UINT8 => {
+                self.serialize_primitive_type(dynamic_data.get_uint8_value(member_id)?)
+            }
+            TypeKind::CHAR8 => {
+                self.serialize_primitive_type(dynamic_data.get_char8_value(member_id)?)
+            }
             TypeKind::CHAR16 => todo!(),
-            TypeKind::STRING8 => self.serialize_string(v.get_string_value(member_id)?),
+            TypeKind::STRING8 => self.serialize_string(dynamic_data.get_string_value(member_id)?),
             TypeKind::STRING16 => todo!(),
             TypeKind::ALIAS => todo!(),
             TypeKind::ENUM => {
-                self.serialize_enum(member_descriptor.r#type, v.get_complex_value(member_id)?)?
+                self.serialize_enum(dynamic_type, dynamic_data.get_complex_value(member_id)?)?
             }
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
             TypeKind::STRUCTURE => {
-                self.serialize_complex(member_descriptor.r#type, v.get_complex_value(member_id)?)?
+                self.serialize_complex(dynamic_type, dynamic_data.get_complex_value(member_id)?)?
             }
-            TypeKind::UNION => todo!(),
+            TypeKind::UNION => {
+                self.serialize_union(dynamic_type, dynamic_data.get_complex_value(member_id)?)?
+            }
             TypeKind::BITSET => todo!(),
-            TypeKind::SEQUENCE => self.serialize_sequence(dynamic_type, v, member_id)?,
-            TypeKind::ARRAY => self.serialize_array(dynamic_type, v, member_id)?,
+            TypeKind::SEQUENCE => self.serialize_sequence(dynamic_type, dynamic_data, member_id)?,
+            TypeKind::ARRAY => self.serialize_array(dynamic_type, dynamic_data, member_id)?,
             TypeKind::MAP => todo!(),
         }
         Ok(())
     }
 
-    fn serialize_sequence(
+    #[inline]
+    fn serialize_dynamic_data_member(
         &mut self,
         dynamic_type: &dyn DynamicType,
-        v: &DynamicData,
+        dynamic_data: &DynamicData,
         member_id: u32,
     ) -> Result<(), XTypesError> {
-        let member_descriptor = v.get_descriptor(dynamic_type, member_id)?;
-        let element_type = member_descriptor
-            .r#type
+        let member_dynamic_type = dynamic_type.get_member(member_id)?.get_descriptor()?.r#type;
+        self.serialize_member_from_id(member_dynamic_type, dynamic_data, member_id)
+    }
+
+    fn serialize_union(
+        &mut self,
+        dynamic_type: &dyn DynamicType,
+        dynamic_data: &DynamicData,
+    ) -> Result<(), XTypesError> {
+        // Discriminator
+        let discriminator_descriptor = dynamic_type
+            .get_descriptor()
+            .discriminator_type
+            .expect("union has discriminator type")
+            .get_descriptor();
+
+        let variant_id = match discriminator_descriptor.kind {
+            TypeKind::NONE => Err(XTypesError::InvalidType),
+            TypeKind::BOOLEAN => {
+                let discriminator = *dynamic_data.get_boolean_value(0)?;
+                self.serialize_primitive_type(&discriminator);
+                Ok(discriminator.into())
+            }
+            TypeKind::BYTE => {
+                let discriminator = *dynamic_data.get_uint8_value(0)?;
+                self.serialize_primitive_type(&discriminator);
+                Ok(discriminator.into())
+            }
+            TypeKind::INT16 => {
+                let discriminator = *dynamic_data.get_int16_value(0)?;
+                self.serialize_primitive_type(&discriminator);
+                discriminator
+                    .try_into()
+                    .map_err(|_| XTypesError::InvalidData)
+            }
+            TypeKind::INT32 => {
+                let discriminator = *dynamic_data.get_int32_value(0)?;
+                self.serialize_primitive_type(&discriminator);
+                discriminator
+                    .try_into()
+                    .map_err(|_| XTypesError::InvalidData)
+            }
+            TypeKind::INT64 => {
+                let discriminator = *dynamic_data.get_int64_value(0)?;
+                self.serialize_primitive_type(&discriminator);
+                discriminator
+                    .try_into()
+                    .map_err(|_| XTypesError::InvalidData)
+            }
+            TypeKind::UINT16 => {
+                let discriminator = *dynamic_data.get_uint16_value(0)?;
+                self.serialize_primitive_type(&discriminator);
+                Ok(discriminator.into())
+            }
+            TypeKind::UINT32 => {
+                let discriminator = *dynamic_data.get_uint32_value(0)?;
+                self.serialize_primitive_type(&discriminator);
+                Ok(discriminator)
+            }
+            TypeKind::UINT64 => {
+                let discriminator = *dynamic_data.get_uint64_value(0)?;
+                self.serialize_primitive_type(&discriminator);
+                discriminator
+                    .try_into()
+                    .map_err(|_| XTypesError::InvalidData)
+            }
+            TypeKind::FLOAT32 => Err(XTypesError::InvalidType),
+            TypeKind::FLOAT64 => Err(XTypesError::InvalidType),
+            TypeKind::FLOAT128 => Err(XTypesError::InvalidType),
+            TypeKind::INT8 => {
+                let discriminator = *dynamic_data.get_int8_value(0)?;
+                self.serialize_primitive_type(&discriminator);
+                discriminator
+                    .try_into()
+                    .map_err(|_| XTypesError::InvalidData)
+            }
+            TypeKind::UINT8 => {
+                let discriminator = *dynamic_data.get_uint8_value(0)?;
+                self.serialize_primitive_type(&discriminator);
+                Ok(discriminator.into())
+            }
+            TypeKind::CHAR8 => {
+                let discriminator = *dynamic_data.get_char8_value(0)?;
+                self.serialize_primitive_type(&discriminator);
+                Ok(discriminator.into())
+            }
+            TypeKind::CHAR16 => Err(XTypesError::InvalidType),
+            TypeKind::STRING8 => Err(XTypesError::InvalidType),
+            TypeKind::STRING16 => Err(XTypesError::InvalidType),
+            TypeKind::ALIAS => Err(XTypesError::InvalidType),
+            TypeKind::ENUM => {
+                // Discriminator
+                let discriminator_kind = discriminator_descriptor
+                    .discriminator_type
+                    .expect("enum has discriminator type")
+                    .get_kind();
+
+                match discriminator_kind {
+                    TypeKind::INT8 => {
+                        let discriminator =
+                            *dynamic_data.get_complex_value(0)?.get_int8_value(0)?;
+                        self.serialize_primitive_type(&discriminator);
+                        discriminator
+                            .try_into()
+                            .map_err(|_| XTypesError::InvalidData)
+                    }
+                    TypeKind::INT16 => {
+                        let discriminator =
+                            *dynamic_data.get_complex_value(0)?.get_int16_value(0)?;
+                        self.serialize_primitive_type(&discriminator);
+                        discriminator
+                            .try_into()
+                            .map_err(|_| XTypesError::InvalidData)
+                    }
+                    TypeKind::INT32 => {
+                        let discriminator =
+                            *dynamic_data.get_complex_value(0)?.get_int32_value(0)?;
+                        self.serialize_primitive_type(&discriminator);
+                        discriminator
+                            .try_into()
+                            .map_err(|_| XTypesError::InvalidData)
+                    }
+                    _ => Err(XTypesError::InvalidType),
+                }
+            }
+            TypeKind::BITMASK => Err(XTypesError::InvalidType),
+            TypeKind::ANNOTATION => Err(XTypesError::InvalidType),
+            TypeKind::STRUCTURE => Err(XTypesError::InvalidType),
+            TypeKind::UNION => Err(XTypesError::InvalidType),
+            TypeKind::BITSET => Err(XTypesError::InvalidType),
+            TypeKind::SEQUENCE => Err(XTypesError::InvalidType),
+            TypeKind::ARRAY => Err(XTypesError::InvalidType),
+            TypeKind::MAP => Err(XTypesError::InvalidType),
+        }?;
+
+        // Variant
+        let variant_dynamic_type = dynamic_type
+            .get_member(variant_id)?
+            .get_descriptor()?
+            .r#type;
+        // Skip if kind is none
+        if variant_dynamic_type.get_kind() == TypeKind::NONE {
+            return Ok(());
+        }
+        self.serialize_member_from_id(variant_dynamic_type, dynamic_data, 1)
+    }
+
+    fn serialize_sequence(
+        &mut self,
+        sequence_type: &dyn DynamicType,
+        sequence_data: &DynamicData,
+        member_id: MemberId,
+    ) -> Result<(), XTypesError> {
+        let sequence_element_type = sequence_type
             .get_descriptor()
             .element_type
-            .as_ref()
             .expect("sequence has element type");
-        match element_type.get_descriptor().kind {
+
+        match sequence_element_type.get_descriptor().kind {
             TypeKind::NONE => todo!(),
-            TypeKind::BOOLEAN => self.serialize_sequence_basic(v.get_boolean_values(member_id)?),
+            TypeKind::BOOLEAN => {
+                self.serialize_sequence_basic(sequence_data.get_boolean_values(member_id)?)
+            }
             TypeKind::BYTE => todo!(),
-            TypeKind::INT16 => self.serialize_sequence_basic(v.get_int16_values(member_id)?),
-            TypeKind::INT32 => self.serialize_sequence_basic(v.get_int32_values(member_id)?),
-            TypeKind::INT64 => self.serialize_sequence_basic(v.get_int64_values(member_id)?),
-            TypeKind::UINT16 => self.serialize_sequence_basic(v.get_uint16_values(member_id)?),
-            TypeKind::UINT32 => self.serialize_sequence_basic(v.get_uint32_values(member_id)?),
-            TypeKind::UINT64 => self.serialize_sequence_basic(v.get_uint64_values(member_id)?),
-            TypeKind::FLOAT32 => self.serialize_sequence_basic(v.get_float32_values(member_id)?),
-            TypeKind::FLOAT64 => self.serialize_sequence_basic(v.get_float64_values(member_id)?),
+            TypeKind::INT16 => {
+                self.serialize_sequence_basic(sequence_data.get_int16_values(member_id)?)
+            }
+            TypeKind::INT32 => {
+                self.serialize_sequence_basic(sequence_data.get_int32_values(member_id)?)
+            }
+            TypeKind::INT64 => {
+                self.serialize_sequence_basic(sequence_data.get_int64_values(member_id)?)
+            }
+            TypeKind::UINT16 => {
+                self.serialize_sequence_basic(sequence_data.get_uint16_values(member_id)?)
+            }
+            TypeKind::UINT32 => {
+                self.serialize_sequence_basic(sequence_data.get_uint32_values(member_id)?)
+            }
+            TypeKind::UINT64 => {
+                self.serialize_sequence_basic(sequence_data.get_uint64_values(member_id)?)
+            }
+            TypeKind::FLOAT32 => {
+                self.serialize_sequence_basic(sequence_data.get_float32_values(member_id)?)
+            }
+            TypeKind::FLOAT64 => {
+                self.serialize_sequence_basic(sequence_data.get_float64_values(member_id)?)
+            }
             TypeKind::FLOAT128 => todo!(),
-            TypeKind::INT8 => self.serialize_sequence_basic(v.get_int8_values(member_id)?),
-            TypeKind::UINT8 => self.serialize_sequence_basic(v.get_uint8_values(member_id)?),
+            TypeKind::INT8 => {
+                self.serialize_sequence_basic(sequence_data.get_int8_values(member_id)?)
+            }
+            TypeKind::UINT8 => {
+                self.serialize_sequence_basic(sequence_data.get_uint8_values(member_id)?)
+            }
             TypeKind::CHAR8 => todo!(),
             TypeKind::CHAR16 => todo!(),
             TypeKind::STRING8 => {
-                let list = v.get_string_values(member_id)?;
-                self.serialize_primitive_type(&(list.len() as u32));
-                for v in list {
-                    self.serialize_string(v);
+                let strings_data = sequence_data.get_string_values(member_id)?;
+                self.serialize_primitive_type(&(strings_data.len() as u32));
+                for string_data in strings_data {
+                    self.serialize_string(string_data);
                 }
             }
             TypeKind::STRING16 => todo!(),
             TypeKind::ALIAS => todo!(),
-            TypeKind::ENUM => todo!(),
+            TypeKind::ENUM => {
+                let enums_data = sequence_data.get_complex_values(member_id)?;
+                self.serialize_primitive_type(&(enums_data.len() as u32));
+                for enum_data in enums_data {
+                    self.serialize_enum(sequence_element_type, enum_data)?;
+                }
+            }
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
             TypeKind::STRUCTURE => {
-                let list = v.get_complex_values(member_id)?;
-                self.serialize_primitive_type(&(list.len() as u32));
-                for v in list {
-                    self.serialize_complex(dynamic_type, v)?;
+                let structures_data = sequence_data.get_complex_values(member_id)?;
+                self.serialize_primitive_type(&(structures_data.len() as u32));
+                for structure_data in structures_data {
+                    self.serialize_complex(sequence_element_type, structure_data)?;
                 }
             }
-            TypeKind::UNION => todo!(),
+            TypeKind::UNION => {
+                let unions_data = sequence_data.get_complex_values(member_id)?;
+                self.serialize_primitive_type(&(unions_data.len() as u32));
+                for union_data in unions_data {
+                    self.serialize_union(sequence_element_type, union_data)?;
+                }
+            }
             TypeKind::BITSET => todo!(),
             TypeKind::SEQUENCE => todo!(),
             TypeKind::ARRAY => todo!(),
@@ -356,50 +565,72 @@ trait XTypesSerializer {
 
     fn serialize_array(
         &mut self,
-        dynamic_type: &dyn DynamicType,
-        v: &DynamicData,
-        member_id: u32,
+        array_type: &dyn DynamicType,
+        array_data: &DynamicData,
+        member_id: MemberId,
     ) -> Result<(), XTypesError> {
-        let member_descriptor = v.get_descriptor(dynamic_type, member_id)?;
-        let element_type = member_descriptor
-            .r#type
+        let array_element_type = array_type
             .get_descriptor()
             .element_type
-            .as_ref()
             .expect("array has element type");
-        match element_type.get_descriptor().kind {
+
+        match array_element_type.get_descriptor().kind {
             TypeKind::NONE => todo!(),
-            TypeKind::BOOLEAN => todo!(),
+            TypeKind::BOOLEAN => {
+                self.serialize_array_basic(array_data.get_boolean_values(member_id)?)
+            }
             TypeKind::BYTE => todo!(),
-            TypeKind::INT16 => todo!(),
-            TypeKind::INT32 => todo!(),
-            TypeKind::INT64 => todo!(),
-            TypeKind::UINT16 => todo!(),
-            TypeKind::UINT32 => todo!(),
-            TypeKind::UINT64 => todo!(),
-            TypeKind::FLOAT32 => todo!(),
-            TypeKind::FLOAT64 => todo!(),
+            TypeKind::INT16 => self.serialize_array_basic(array_data.get_int16_values(member_id)?),
+            TypeKind::INT32 => self.serialize_array_basic(array_data.get_int32_values(member_id)?),
+            TypeKind::INT64 => self.serialize_array_basic(array_data.get_int64_values(member_id)?),
+            TypeKind::UINT16 => {
+                self.serialize_array_basic(array_data.get_uint16_values(member_id)?)
+            }
+            TypeKind::UINT32 => {
+                self.serialize_array_basic(array_data.get_uint32_values(member_id)?)
+            }
+            TypeKind::UINT64 => {
+                self.serialize_array_basic(array_data.get_uint64_values(member_id)?)
+            }
+            TypeKind::FLOAT32 => {
+                self.serialize_array_basic(array_data.get_float32_values(member_id)?)
+            }
+            TypeKind::FLOAT64 => {
+                self.serialize_array_basic(array_data.get_float64_values(member_id)?)
+            }
             TypeKind::FLOAT128 => todo!(),
-            TypeKind::INT8 => todo!(),
-            TypeKind::UINT8 => self.serialize_array_basic(v.get_uint8_values(member_id)?),
+            TypeKind::INT8 => self.serialize_array_basic(array_data.get_int8_values(member_id)?),
+            TypeKind::UINT8 => self.serialize_array_basic(array_data.get_uint8_values(member_id)?),
             TypeKind::CHAR8 => todo!(),
             TypeKind::CHAR16 => todo!(),
             TypeKind::STRING8 => {
-                for v in v.get_string_values(member_id)? {
-                    self.serialize_string(v);
+                let strings_data = array_data.get_string_values(member_id)?;
+                for string_data in strings_data {
+                    self.serialize_string(string_data);
                 }
             }
             TypeKind::STRING16 => todo!(),
             TypeKind::ALIAS => todo!(),
-            TypeKind::ENUM => todo!(),
+            TypeKind::ENUM => {
+                let enums_data = array_data.get_complex_values(member_id)?;
+                for enum_data in enums_data {
+                    self.serialize_enum(array_element_type, enum_data)?;
+                }
+            }
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
             TypeKind::STRUCTURE => {
-                for v in v.get_complex_values(member_id)? {
-                    self.serialize_complex(dynamic_type, v)?;
+                let structures_data = array_data.get_complex_values(member_id)?;
+                for structure_data in structures_data {
+                    self.serialize_complex(array_element_type, structure_data)?;
                 }
             }
-            TypeKind::UNION => todo!(),
+            TypeKind::UNION => {
+                let unions_data = array_data.get_complex_values(member_id)?;
+                for union_data in unions_data {
+                    self.serialize_union(array_element_type, union_data)?;
+                }
+            }
             TypeKind::BITSET => todo!(),
             TypeKind::SEQUENCE => todo!(),
             TypeKind::ARRAY => todo!(),
@@ -412,11 +643,30 @@ trait XTypesSerializer {
     fn serialize_enum(
         &mut self,
         dynamic_type: &dyn DynamicType,
-        v: &DynamicData,
+        dynamic_data: &DynamicData,
     ) -> Result<(), XTypesError> {
-        let _discriminator_type = dynamic_type.get_descriptor().discriminator_type.as_ref();
-        self.serialize_primitive_type(v.get_int32_value(0)?);
-        Ok(())
+        // Discriminator
+        let discriminator_kind = dynamic_type
+            .get_descriptor()
+            .discriminator_type
+            .expect("enum has discriminator type")
+            .get_kind();
+
+        match discriminator_kind {
+            TypeKind::INT8 => {
+                self.serialize_primitive_type(dynamic_data.get_int8_value(0)?);
+                Ok(())
+            }
+            TypeKind::INT16 => {
+                self.serialize_primitive_type(dynamic_data.get_int16_value(0)?);
+                Ok(())
+            }
+            TypeKind::INT32 => {
+                self.serialize_primitive_type(dynamic_data.get_int32_value(0)?);
+                Ok(())
+            }
+            _ => Err(XTypesError::InvalidType),
+        }
     }
 
     fn serialize_complex(

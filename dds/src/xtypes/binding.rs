@@ -10,6 +10,23 @@ pub trait XTypesBinding {
     const TYPE_INFORMATION: &'static dyn DynamicType;
 }
 
+impl XTypesBinding for () {
+    const TYPE_INFORMATION: &'static dyn DynamicType = &StaticTypeInformation {
+        descriptor: &TypeDescriptor {
+            kind: TypeKind::NONE,
+            name: "",
+            base_type: None,
+            discriminator_type: None,
+            bound: None,
+            element_type: None,
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Final,
+            is_nested: false,
+        },
+        member_list: &[],
+    };
+}
+
 impl XTypesBinding for u8 {
     const TYPE_INFORMATION: &'static dyn DynamicType = &StaticTypeInformation {
         descriptor: &TypeDescriptor {
