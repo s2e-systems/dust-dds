@@ -1,4 +1,6 @@
-use dust_dds::xtypes::dynamic_type::{DynamicTypeBuilderFactory, ExtensibilityKind, TypeKind};
+use dust_dds::xtypes::dynamic_type::{
+    DynamicDataFactory, DynamicTypeBuilderFactory, ExtensibilityKind, TypeKind,
+};
 
 const TYPES_XML_PRIMITIVES: &'static str = r#"<dds>
     <types>
@@ -225,6 +227,24 @@ fn create_struct_primitives_final_from_xml() {
 
     let m14 = ty.get_member_by_name("x14").unwrap();
     assert_eq!(m14.descriptor.r#type.get_kind(), TypeKind::CHAR8);
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn struct_primitives_final_data_from_xml() {
+    let builder = DynamicTypeBuilderFactory::create_type_w_document(
+        TYPES_XML_PRIMITIVES,
+        "struct_primitives_final",
+        vec![],
+    )
+    .unwrap();
+
+    let ty = builder.build();
+
+    let mut d = DynamicDataFactory::create_data(ty);
+    d.from_xml(DATA_XML_STRUCT_PRIMITIVES).unwrap();
+
+    assert_eq!(d.get_uint8_value(0).unwrap(), &1);
 }
 
 #[cfg(feature = "xtypes-xml")]
