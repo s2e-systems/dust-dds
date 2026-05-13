@@ -224,7 +224,7 @@ trait XTypesSerializer {
         match member_descriptor.r#type.get_kind() {
             TypeKind::NONE => todo!(),
             TypeKind::BOOLEAN => self.serialize_primitive_type(v.get_boolean_value(member_id)?),
-            TypeKind::BYTE => todo!(),
+            TypeKind::BYTE => self.serialize_primitive_type(v.get_byte_value(member_id)?),
             TypeKind::INT16 => self.serialize_primitive_type(v.get_int16_value(member_id)?),
             TypeKind::INT32 => self.serialize_primitive_type(v.get_int32_value(member_id)?),
             TypeKind::INT64 => self.serialize_primitive_type(v.get_int64_value(member_id)?),
