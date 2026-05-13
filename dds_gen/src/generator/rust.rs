@@ -431,6 +431,19 @@ impl<'a> RustGenerator<'a> {
 
             if identifier.as_str() == "key" {
                 self.writer.push_str("#[dust_dds(key)]");
+            } else if identifier.as_str() == "id" {
+                if let Some(annotation_appl_params) = inner_pairs
+                    .clone()
+                    .find(|p| p.as_rule() == Rule::annotation_appl_params)
+                {
+                    if let Some(const_expr) = annotation_appl_params
+                        .into_inner()
+                        .find(|p| p.as_rule() == Rule::const_expr)
+                    {
+                        self.writer
+                            .push_str(&format!("#[dust_dds(id = {})]", const_expr.as_str()));
+                    }
+                }
             }
         }
 
