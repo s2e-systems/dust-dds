@@ -28,7 +28,7 @@ fn main() {
     let topic = participant
         .create_topic::<DisposeDataType>(
             "DisposeData",
-            DisposeDataType::TYPE_NAME,
+            DisposeDataType::TYPE.get_name(),
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,

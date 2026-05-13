@@ -150,7 +150,9 @@ impl DomainParticipant {
         .map(TopicDescription::from)
     }
 
-    #[doc(hidden)]
+    /// This operation create a ['Topic'] is equivalent to [`DomainParticipant::create_topic`] but the DynamicType information
+    /// is passed as a function argument instead of retrieved from the Foo type. This allow the user to communicate using
+    /// arbitrary dynamic types which can also be defined at runtime.
     #[tracing::instrument(skip(self, a_listener, dynamic_type_representation))]
     pub fn create_dynamic_topic(
         &self,
