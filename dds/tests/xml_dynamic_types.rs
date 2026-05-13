@@ -263,6 +263,22 @@ const DATA_XML_STRUCT_PRIMITIVES: &str = r#"<struct_primitives>
   <x14>0x0e</x14>
 </struct_primitives>"#;
 
+const DATA_XML_ARRAY_NUM_10: &str = r#"<struct>
+  <x1>
+    <item>1</item>
+    <item>2</item>
+    <item>3</item>
+    <item>4</item>
+    <item>5</item>
+    <item>6</item>
+    <item>7</item>
+    <item>8</item>
+    <item>9</item>
+    <item>10</item>
+  </x1>
+</struct>
+"#;
+
 #[cfg(feature = "xtypes-xml")]
 #[test]
 fn create_struct_primitive_int8_from_xml() {
@@ -495,6 +511,24 @@ fn create_union_primitives_from_xml() {
     let m14 = ty.get_member_by_name("x14").unwrap();
     assert_eq!(m14.descriptor.r#type.get_kind(), TypeKind::CHAR8);
     assert_eq!(m14.descriptor.label, Some(14));
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn data_from_xml_array_num_10() {
+    let builder = DynamicTypeBuilderFactory::create_type_w_document(
+        TYPES_XML_ARRAYS,
+        "Test::int32x10",
+        vec![],
+    )
+    .unwrap();
+    let ty = builder.build();
+
+    let mut d = DynamicDataFactory::create_data(ty);
+    d.from_xml(DATA_XML_ARRAY_NUM_10).unwrap();
+
+    let expected_values = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    assert_eq!(d.get_int32_values(0).unwrap(), expected_values.as_slice());
 }
 
 #[cfg(feature = "xtypes-xml")]
