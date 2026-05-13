@@ -11,12 +11,13 @@ use crate::{
         PID_ENDPOINT_GUID, PID_GROUP_DATA, PID_HISTORY, PID_LATENCY_BUDGET, PID_LIFESPAN,
         PID_LIVELINESS, PID_OWNERSHIP, PID_OWNERSHIP_STRENGTH, PID_PARTICIPANT_GUID, PID_PARTITION,
         PID_PRESENTATION, PID_RELIABILITY, PID_RESOURCE_LIMITS, PID_TIME_BASED_FILTER,
-        PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TRANSPORT_PRIORITY, PID_TYPE_NAME, PID_USER_DATA,
+        PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TRANSPORT_PRIORITY, PID_TYPE_CONSISTENCY,
+        PID_TYPE_NAME, PID_USER_DATA,
     },
     infrastructure::{
         qos_policy::{
             DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-            DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
+            DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER, TypeConsistencyEnforcementQosPolicy,
         },
         type_support::TypeSupport,
     },
@@ -366,6 +367,8 @@ pub struct SubscriptionBuiltinTopicData {
     pub(crate) group_data: GroupDataQosPolicy,
     #[dust_dds(id=PID_DATA_REPRESENTATION as u32, optional)]
     pub(crate) representation: DataRepresentationQosPolicy,
+    #[dust_dds(id=PID_TYPE_CONSISTENCY as u32, optional)]
+    pub(crate) type_consistency: TypeConsistencyEnforcementQosPolicy,
 }
 
 impl SubscriptionBuiltinTopicData {

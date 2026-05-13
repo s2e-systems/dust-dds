@@ -7,13 +7,15 @@ use super::parameter_id_values::{
 };
 use crate::{
     builtin_topics::{BuiltInTopicKey, SubscriptionBuiltinTopicData},
-    dcps::data_representation_builtin_endpoints::ConvenienceTypeBuilder,
+    dcps::data_representation_builtin_endpoints::{
+        ConvenienceTypeBuilder, parameter_id_values::PID_TYPE_CONSISTENCY,
+    },
     infrastructure::qos_policy::{
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS, DataRepresentationQosPolicy,
         DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
         LatencyBudgetQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy,
         PresentationQosPolicy, ReliabilityQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy,
-        UserDataQosPolicy,
+        TypeConsistencyEnforcementQosPolicy, UserDataQosPolicy,
     },
     transport::types::{ENTITYID_UNKNOWN, EntityId, Guid, Locator},
     xtypes::{
@@ -247,6 +249,11 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
                     .map_or(DataRepresentationQosPolicy::const_default(), |x| {
                         DataStorageMapping::try_from_storage(x).expect("Must match")
                     }),
+                type_consistency: src
+                    .remove_value(PID_TYPE_CONSISTENCY as u32)
+                    .map_or(TypeConsistencyEnforcementQosPolicy::const_default(), |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
             },
             reader_proxy: ReaderProxy {
                 remote_reader_guid,
@@ -451,6 +458,7 @@ mod tests {
                 topic_data: Default::default(),
                 group_data: Default::default(),
                 representation: Default::default(),
+                type_consistency: Default::default(),
             },
             reader_proxy: ReaderProxy {
                 remote_reader_guid: Guid::new(
@@ -518,6 +526,7 @@ mod tests {
                 topic_data: Default::default(),
                 group_data: Default::default(),
                 representation: Default::default(),
+                type_consistency: Default::default(),
             },
             reader_proxy: ReaderProxy {
                 remote_reader_guid: Guid::new(
@@ -599,6 +608,7 @@ mod tests {
                 topic_data: Default::default(),
                 group_data: Default::default(),
                 representation: Default::default(),
+                type_consistency: Default::default(),
             },
         }
         .create_dynamic_sample();
