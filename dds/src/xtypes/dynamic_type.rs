@@ -179,15 +179,40 @@ impl DynamicTypeBuilderFactory {
     ) -> XTypesResult<DynamicTypeBuilder> {
         let doc = roxmltree::Document::parse(document).map_err(|_| XTypesError::InvalidData)?;
 
+        let path: Vec<&str> = type_name.split("::").collect();
+        let (struct_name, module_path) = path.split_last().ok_or(XTypesError::InvalidData)?;
+
         let mut target_node = None;
         for node in doc.descendants() {
             if node.is_element()
-                && (node.tag_name().name() == "struct" || node.tag_name().name() == "union")
+                && (node.tag_name().name() == "struct"
+                    || node.tag_name().name() == "union"
+                    || node.tag_name().name() == "enum")
             {
                 if let Some(name) = node.attribute("name") {
-                    if name == type_name {
-                        target_node = Some(node);
-                        break;
+                    if &name == struct_name {
+                        let mut current_node = node.parent();
+                        let mut matches = true;
+                        for &expected_mod in module_path.iter().rev() {
+                            let mut found = false;
+                            while let Some(parent) = current_node {
+                                current_node = parent.parent();
+                                if parent.is_element() && parent.tag_name().name() == "module" {
+                                    if parent.attribute("name") == Some(expected_mod) {
+                                        found = true;
+                                    }
+                                    break;
+                                }
+                            }
+                            if !found {
+                                matches = false;
+                                break;
+                            }
+                        }
+                        if matches {
+                            target_node = Some(node);
+                            break;
+                        }
                     }
                 }
             }
@@ -195,6 +220,7 @@ impl DynamicTypeBuilderFactory {
 
         let target_node = target_node.ok_or(XTypesError::InvalidData)?;
         let is_union = target_node.tag_name().name() == "union";
+        let is_enum = target_node.tag_name().name() == "enum";
 
         let ext_str = target_node.attribute("extensibility").unwrap_or("final");
         let extensibility_kind = match ext_str {
@@ -227,14 +253,56 @@ impl DynamicTypeBuilderFactory {
             }
         };
 
+        let resolve_member_type = |m_type: &str,
+                                   non_basic_type_name: Option<&str>,
+                                   string_max_length: Option<&str>,
+                                   array_dimensions: Option<&str>|
+         -> XTypesResult<&'static dyn DynamicType> {
+            let mut type_ptr: &'static dyn DynamicType = if m_type == "nonBasic" {
+                let non_basic_name = non_basic_type_name.ok_or(XTypesError::InvalidData)?;
+                let mut full_name = module_path.join("::");
+                if !full_name.is_empty() {
+                    full_name.push_str("::");
+                }
+                full_name.push_str(non_basic_name);
+                let nested_builder =
+                    Self::create_type_w_document(document, &full_name, _include_paths.clone())?;
+                nested_builder.build()
+            } else if m_type == "string" {
+                let bound = string_max_length.unwrap_or("0").parse().unwrap_or(0);
+                let builder = Self::create_string_type(bound);
+                builder.build()
+            } else if m_type == "wstring" {
+                let bound = string_max_length.unwrap_or("0").parse().unwrap_or(0);
+                let builder = Self::create_wstring_type(bound);
+                builder.build()
+            } else {
+                let type_kind = parse_type_kind(m_type)?;
+                Box::leak(Box::new(Self::get_primitive_type(type_kind)))
+            };
+
+            if let Some(dimensions) = array_dimensions {
+                let dims: Vec<u32> = dimensions
+                    .split(',')
+                    .filter_map(|s| s.trim().parse().ok())
+                    .collect();
+                for dim in dims.into_iter().rev() {
+                    let builder = Self::create_array_type(type_ptr, Some(dim));
+                    type_ptr = builder.build();
+                }
+            }
+            Ok(type_ptr)
+        };
+
         let mut discriminator_type = None;
         if is_union {
             for child in target_node.children() {
                 if child.is_element() && child.tag_name().name() == "discriminator" {
                     let d_type = child.attribute("type").ok_or(XTypesError::InvalidData)?;
-                    let type_kind = parse_type_kind(d_type)?;
-                    let type_ptr: &'static dyn DynamicType =
-                        Box::leak(Box::new(Self::get_primitive_type(type_kind)));
+                    let non_basic_type_name = child.attribute("nonBasicTypeName");
+                    let string_max_length = child.attribute("stringMaxLength");
+                    let type_ptr =
+                        resolve_member_type(d_type, non_basic_type_name, string_max_length, None)?;
                     discriminator_type = Some(type_ptr);
                     break;
                 }
@@ -245,6 +313,8 @@ impl DynamicTypeBuilderFactory {
         let descriptor = TypeDescriptor {
             kind: if is_union {
                 TypeKind::UNION
+            } else if is_enum {
+                TypeKind::ENUM
             } else {
                 TypeKind::STRUCTURE
             },
@@ -266,6 +336,9 @@ impl DynamicTypeBuilderFactory {
                 if child.is_element() && child.tag_name().name() == "case" {
                     let mut m_name = None;
                     let mut m_type = None;
+                    let mut non_basic_type_name = None;
+                    let mut string_max_length = None;
+                    let mut array_dimensions = None;
                     let mut label = None;
                     let mut is_default_label = false;
 
@@ -295,15 +368,21 @@ impl DynamicTypeBuilderFactory {
                         {
                             m_name = case_child.attribute("name");
                             m_type = case_child.attribute("type");
+                            non_basic_type_name = case_child.attribute("nonBasicTypeName");
+                            string_max_length = case_child.attribute("stringMaxLength");
+                            array_dimensions = case_child.attribute("arrayDimensions");
                         }
                     }
 
                     let m_name = m_name.ok_or(XTypesError::InvalidData)?;
                     let m_type = m_type.ok_or(XTypesError::InvalidData)?;
 
-                    let type_kind = parse_type_kind(m_type)?;
-                    let type_ptr: &'static dyn DynamicType =
-                        Box::leak(Box::new(Self::get_primitive_type(type_kind)));
+                    let type_ptr = resolve_member_type(
+                        m_type,
+                        non_basic_type_name,
+                        string_max_length,
+                        array_dimensions,
+                    )?;
                     let m_name_static = Box::leak(m_name.to_string().into_boxed_str());
 
                     let member_desc = MemberDescriptor {
@@ -325,16 +404,51 @@ impl DynamicTypeBuilderFactory {
                     member_id += 1;
                 }
             }
+        } else if is_enum {
+            for child in target_node.children() {
+                if child.is_element() && child.tag_name().name() == "enumerator" {
+                    let m_name = child.attribute("name").ok_or(XTypesError::InvalidData)?;
+                    let value = child.attribute("value").ok_or(XTypesError::InvalidData)?;
+                    let label = value.parse().map_err(|_| XTypesError::InvalidData)?;
+
+                    let type_ptr: &'static dyn DynamicType =
+                        Box::leak(Box::new(Self::get_primitive_type(TypeKind::INT32)));
+                    let m_name_static = Box::leak(m_name.to_string().into_boxed_str());
+
+                    let member_desc = MemberDescriptor {
+                        name: m_name_static,
+                        id: member_id,
+                        r#type: type_ptr,
+                        default_value: None,
+                        index: member_id,
+                        label: Some(label),
+                        try_construct_kind: TryConstructKind::Discard,
+                        is_key: false,
+                        is_optional: false,
+                        is_must_understand: false,
+                        is_shared: false,
+                        is_default_label: false,
+                    };
+
+                    builder.add_member(member_desc)?;
+                    member_id += 1;
+                }
+            }
         } else {
             for child in target_node.children() {
                 if child.is_element() && child.tag_name().name() == "member" {
                     let m_name = child.attribute("name").ok_or(XTypesError::InvalidData)?;
                     let m_type = child.attribute("type").ok_or(XTypesError::InvalidData)?;
+                    let non_basic_type_name = child.attribute("nonBasicTypeName");
+                    let string_max_length = child.attribute("stringMaxLength");
+                    let array_dimensions = child.attribute("arrayDimensions");
 
-                    let type_kind = parse_type_kind(m_type)?;
-
-                    let type_ptr: &'static dyn DynamicType =
-                        Box::leak(Box::new(Self::get_primitive_type(type_kind)));
+                    let type_ptr = resolve_member_type(
+                        m_type,
+                        non_basic_type_name,
+                        string_max_length,
+                        array_dimensions,
+                    )?;
                     let m_name_static = Box::leak(m_name.to_string().into_boxed_str());
 
                     let member_desc = MemberDescriptor {

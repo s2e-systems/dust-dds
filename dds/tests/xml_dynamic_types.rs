@@ -134,6 +134,118 @@ const TYPES_XML_PRIMITIVES: &str = r#"<dds>
     </types>
 </dds>"#;
 
+const TYPES_XML_ARRAYS: &str = r#"<dds>
+    <types>
+      <module name="Test">
+        <struct name="int32x10"   extensibility="final">
+            <member name="x1"   type="int32" arrayDimensions="10"  />
+        </struct>
+
+        <struct name="int32x10x2"   extensibility="final">
+            <member name="x1"   type="int32" arrayDimensions="10,2"  />
+        </struct>
+
+        <struct name="int32x20"   extensibility="final">
+            <member name="x1"   type="int32" arrayDimensions="20"  />
+        </struct>
+
+        <struct name="uint32x10"   extensibility="final">
+            <member name="x1"   type="uint32" arrayDimensions="10"  />
+        </struct>
+
+        <struct name="uint32x20"   extensibility="final">
+            <member name="x1"   type="uint32" arrayDimensions="20"  />
+        </struct>
+
+
+        <!-- arrays of string types -->
+        <struct name="string10x10"   extensibility="final">
+            <member name="x1"   type="string" stringMaxLength="10" arrayDimensions="10"  />
+        </struct>
+        <struct name="string20x10"   extensibility="final">
+            <member name="x1"   type="string" stringMaxLength="20" arrayDimensions="10"  />
+        </struct>
+
+        <!-- arrays of enum types -->
+        <enum name="E1" bitBound="32" extensibility="appendable">
+            <enumerator name="VAL0" value="0"/>
+            <enumerator name="VAL1" value="1"/>
+            <enumerator name="VAL2" value="2"/>
+        </enum>
+
+        <enum name="E2" bitBound="32" extensibility="appendable">
+            <enumerator name="VAL0" value="0"/>
+            <enumerator name="VAL1" value="1"/>
+            <enumerator name="VAL2" value="2"/>
+            <enumerator name="VAL3" value="3"/>
+        </enum>
+        <struct name="enum1"   extensibility="final">
+            <member name="x1"   type="nonBasic" nonBasicTypeName="E1"   />
+        </struct>
+        <struct name="enum2"   extensibility="final">
+            <member name="x1"   type="nonBasic" nonBasicTypeName="E2"  />
+        </struct>
+
+        <struct name="enum1x10"   extensibility="final">
+            <member name="x1"   type="nonBasic" nonBasicTypeName="E1" arrayDimensions="10"  />
+        </struct>
+        <struct name="enum2x10"   extensibility="final">
+            <member name="x1"   type="nonBasic" nonBasicTypeName="E2" arrayDimensions="10"  />
+        </struct>
+
+
+
+
+        <!-- check 'strongly assignable' element type -->
+         <!-- F_S__array20_uint32 -->
+        <struct name="F_S__array20_uint32"   extensibility="final">
+            <member name="x1"   type="uint32" arrayDimensions="20"  />
+        </struct>
+        <struct name="F_S__array20_uint32_alt"   extensibility="final">
+            <member name="altx1"   type="uint32" arrayDimensions="20"  />
+        </struct>
+
+        <struct name="A_S__array20_uint32"   extensibility="appendable">
+            <member name="x1"   type="uint32" arrayDimensions="20"  />
+        </struct>
+        <struct name="A_S__array20_uint32_alt"   extensibility="appendable">
+            <member name="altx1"   type="uint32" arrayDimensions="20"  />
+        </struct>
+
+        <struct name="M_S__array20_uint32"   extensibility="mutable">
+            <member name="x1"   type="uint32" arrayDimensions="20"  />
+        </struct>
+        <struct name="M_S__array20_uint32_alt"   extensibility="mutable">
+            <member name="altx1"   type="uint32" arrayDimensions="20"  />
+        </struct>
+
+        <!-- F_S__array10_F_S__array20_uint32 -->
+        <struct name="F_S__array10_F_S__array20_uint32"   extensibility="final">
+            <member name="x1"   type="nonBasic" nonBasicTypeName="F_S__array20_uint32" arrayDimensions="10"  />
+        </struct>
+        <struct name="F_S__array10_F_S__array20_uint32_alt"   extensibility="final">
+            <member name="altx1"   type="nonBasic" nonBasicTypeName="F_S__array20_uint32_alt" arrayDimensions="10"  />
+        </struct>
+
+        <struct name="F_S__array10_A_S__array20_uint32"   extensibility="final">
+            <member name="x1"   type="nonBasic" nonBasicTypeName="A_S__array20_uint32" arrayDimensions="10"  />
+        </struct>
+        <struct name="F_S__array10_A_S__array20_uint32_alt"   extensibility="final">
+            <member name="altx1"   type="nonBasic" nonBasicTypeName="A_S__array20_uint32_alt" arrayDimensions="10"  />
+        </struct>
+
+        <struct name="F_S__array10_M_S__array20_uint32"   extensibility="mutable">
+            <member name="x1"   type="nonBasic" nonBasicTypeName="M_S__array20_uint32" arrayDimensions="10"  />
+        </struct>
+        <struct name="F_S__array10_M_S__array20_uint32_alt"   extensibility="mutable">
+            <member name="altx1"   type="nonBasic" nonBasicTypeName="M_S__array20_uint32_alt" arrayDimensions="10"  />
+        </struct>
+
+      </module>
+    </types>
+</dds>
+"#;
+
 const DATA_XML_STRUCT_PRIMITIVES: &str = r#"<struct_primitives>
   <x1>0x01</x1>
   <x2>2</x2>
@@ -151,12 +263,28 @@ const DATA_XML_STRUCT_PRIMITIVES: &str = r#"<struct_primitives>
   <x14>0x0e</x14>
 </struct_primitives>"#;
 
+const DATA_XML_ARRAY_NUM_10: &str = r#"<struct>
+  <x1>
+    <item>1</item>
+    <item>2</item>
+    <item>3</item>
+    <item>4</item>
+    <item>5</item>
+    <item>6</item>
+    <item>7</item>
+    <item>8</item>
+    <item>9</item>
+    <item>10</item>
+  </x1>
+</struct>
+"#;
+
 #[cfg(feature = "xtypes-xml")]
 #[test]
 fn create_struct_primitive_int8_from_xml() {
     let builder = DynamicTypeBuilderFactory::create_type_w_document(
         TYPES_XML_PRIMITIVES,
-        "struct_primitive_int8",
+        "Test::struct_primitive_int8",
         vec![],
     )
     .unwrap();
@@ -173,7 +301,7 @@ fn create_struct_primitive_int8_from_xml() {
 fn create_struct_primitives_final_from_xml() {
     let builder = DynamicTypeBuilderFactory::create_type_w_document(
         TYPES_XML_PRIMITIVES,
-        "struct_primitives_final",
+        "Test::struct_primitives_final",
         vec![],
     )
     .unwrap();
@@ -234,7 +362,7 @@ fn create_struct_primitives_final_from_xml() {
 fn struct_primitives_final_data_from_xml() {
     let builder = DynamicTypeBuilderFactory::create_type_w_document(
         TYPES_XML_PRIMITIVES,
-        "struct_primitives_final",
+        "Test::struct_primitives_final",
         vec![],
     )
     .unwrap();
@@ -252,7 +380,7 @@ fn struct_primitives_final_data_from_xml() {
 fn create_struct_primitives_appendable_from_xml() {
     let builder = DynamicTypeBuilderFactory::create_type_w_document(
         TYPES_XML_PRIMITIVES,
-        "struct_primitives_appendable",
+        "Test::struct_primitives_appendable",
         vec![],
     )
     .unwrap();
@@ -313,7 +441,7 @@ fn create_struct_primitives_appendable_from_xml() {
 fn create_union_primitives_from_xml() {
     let builder = DynamicTypeBuilderFactory::create_type_w_document(
         TYPES_XML_PRIMITIVES,
-        "union_primitives",
+        "Test::union_primitives",
         vec![],
     )
     .unwrap();
@@ -383,4 +511,419 @@ fn create_union_primitives_from_xml() {
     let m14 = ty.get_member_by_name("x14").unwrap();
     assert_eq!(m14.descriptor.r#type.get_kind(), TypeKind::CHAR8);
     assert_eq!(m14.descriptor.label, Some(14));
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn data_from_xml_array_num_10() {
+    let builder = DynamicTypeBuilderFactory::create_type_w_document(
+        TYPES_XML_ARRAYS,
+        "Test::int32x10",
+        vec![],
+    )
+    .unwrap();
+    let ty = builder.build();
+
+    let mut d = DynamicDataFactory::create_data(ty);
+    d.from_xml(DATA_XML_ARRAY_NUM_10).unwrap();
+
+    let expected_values = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    assert_eq!(d.get_int32_values(0).unwrap(), expected_values.as_slice());
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn create_int32x10_from_xml() {
+    let builder = DynamicTypeBuilderFactory::create_type_w_document(
+        TYPES_XML_ARRAYS,
+        "Test::int32x10",
+        vec![],
+    )
+    .unwrap();
+    let ty = builder.build();
+    let m = ty.get_member_by_name("x1").unwrap();
+    assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
+    assert_eq!(m.descriptor.r#type.get_descriptor().bound, Some(10));
+    assert_eq!(
+        m.descriptor
+            .r#type
+            .get_descriptor()
+            .element_type
+            .unwrap()
+            .get_kind(),
+        TypeKind::INT32
+    );
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn create_int32x10x2_from_xml() {
+    let builder = DynamicTypeBuilderFactory::create_type_w_document(
+        TYPES_XML_ARRAYS,
+        "Test::int32x10x2",
+        vec![],
+    )
+    .unwrap();
+    let ty = builder.build();
+    let m = ty.get_member_by_name("x1").unwrap();
+    assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
+    assert_eq!(m.descriptor.r#type.get_descriptor().bound, Some(10));
+    let inner = m.descriptor.r#type.get_descriptor().element_type.unwrap();
+    assert_eq!(inner.get_kind(), TypeKind::ARRAY);
+    assert_eq!(inner.get_descriptor().bound, Some(2));
+    assert_eq!(
+        inner.get_descriptor().element_type.unwrap().get_kind(),
+        TypeKind::INT32
+    );
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn create_int32x20_from_xml() {
+    let builder = DynamicTypeBuilderFactory::create_type_w_document(
+        TYPES_XML_ARRAYS,
+        "Test::int32x20",
+        vec![],
+    )
+    .unwrap();
+    let ty = builder.build();
+    let m = ty.get_member_by_name("x1").unwrap();
+    assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
+    assert_eq!(m.descriptor.r#type.get_descriptor().bound, Some(20));
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn create_uint32x10_from_xml() {
+    let builder = DynamicTypeBuilderFactory::create_type_w_document(
+        TYPES_XML_ARRAYS,
+        "Test::uint32x10",
+        vec![],
+    )
+    .unwrap();
+    let ty = builder.build();
+    let m = ty.get_member_by_name("x1").unwrap();
+    assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
+    assert_eq!(m.descriptor.r#type.get_descriptor().bound, Some(10));
+    assert_eq!(
+        m.descriptor
+            .r#type
+            .get_descriptor()
+            .element_type
+            .unwrap()
+            .get_kind(),
+        TypeKind::UINT32
+    );
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn create_uint32x20_from_xml() {
+    let builder = DynamicTypeBuilderFactory::create_type_w_document(
+        TYPES_XML_ARRAYS,
+        "Test::uint32x20",
+        vec![],
+    )
+    .unwrap();
+    let ty = builder.build();
+    let m = ty.get_member_by_name("x1").unwrap();
+    assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
+    assert_eq!(m.descriptor.r#type.get_descriptor().bound, Some(20));
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn create_string10x10_from_xml() {
+    let builder = DynamicTypeBuilderFactory::create_type_w_document(
+        TYPES_XML_ARRAYS,
+        "Test::string10x10",
+        vec![],
+    )
+    .unwrap();
+    let ty = builder.build();
+    let m = ty.get_member_by_name("x1").unwrap();
+    assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
+    assert_eq!(m.descriptor.r#type.get_descriptor().bound, Some(10));
+    let inner = m.descriptor.r#type.get_descriptor().element_type.unwrap();
+    assert_eq!(inner.get_kind(), TypeKind::STRING8);
+    assert_eq!(inner.get_descriptor().bound, Some(10));
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn create_string20x10_from_xml() {
+    let builder = DynamicTypeBuilderFactory::create_type_w_document(
+        TYPES_XML_ARRAYS,
+        "Test::string20x10",
+        vec![],
+    )
+    .unwrap();
+    let ty = builder.build();
+    let m = ty.get_member_by_name("x1").unwrap();
+    assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
+    assert_eq!(m.descriptor.r#type.get_descriptor().bound, Some(10));
+    let inner = m.descriptor.r#type.get_descriptor().element_type.unwrap();
+    assert_eq!(inner.get_kind(), TypeKind::STRING8);
+    assert_eq!(inner.get_descriptor().bound, Some(20));
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn create_enum1_from_xml() {
+    let builder =
+        DynamicTypeBuilderFactory::create_type_w_document(TYPES_XML_ARRAYS, "Test::enum1", vec![])
+            .unwrap();
+    let ty = builder.build();
+    let m = ty.get_member_by_name("x1").unwrap();
+    // Enum is tested by parsing the struct member 'enum1' with nonBasicTypeName="E1"
+    assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ENUM);
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn create_enum2_from_xml() {
+    let builder =
+        DynamicTypeBuilderFactory::create_type_w_document(TYPES_XML_ARRAYS, "Test::enum2", vec![])
+            .unwrap();
+    let ty = builder.build();
+    let m = ty.get_member_by_name("x1").unwrap();
+    assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ENUM);
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn create_enum1x10_from_xml() {
+    let builder = DynamicTypeBuilderFactory::create_type_w_document(
+        TYPES_XML_ARRAYS,
+        "Test::enum1x10",
+        vec![],
+    )
+    .unwrap();
+    let ty = builder.build();
+    let m = ty.get_member_by_name("x1").unwrap();
+    assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
+    assert_eq!(m.descriptor.r#type.get_descriptor().bound, Some(10));
+    assert_eq!(
+        m.descriptor
+            .r#type
+            .get_descriptor()
+            .element_type
+            .unwrap()
+            .get_kind(),
+        TypeKind::ENUM
+    );
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn create_enum2x10_from_xml() {
+    let builder = DynamicTypeBuilderFactory::create_type_w_document(
+        TYPES_XML_ARRAYS,
+        "Test::enum2x10",
+        vec![],
+    )
+    .unwrap();
+    let ty = builder.build();
+    let m = ty.get_member_by_name("x1").unwrap();
+    assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
+    assert_eq!(m.descriptor.r#type.get_descriptor().bound, Some(10));
+    assert_eq!(
+        m.descriptor
+            .r#type
+            .get_descriptor()
+            .element_type
+            .unwrap()
+            .get_kind(),
+        TypeKind::ENUM
+    );
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn create_f_s_array20_uint32_from_xml() {
+    let builder = DynamicTypeBuilderFactory::create_type_w_document(
+        TYPES_XML_ARRAYS,
+        "Test::F_S__array20_uint32",
+        vec![],
+    )
+    .unwrap();
+    let ty = builder.build();
+    let m = ty.get_member_by_name("x1").unwrap();
+    assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
+    assert_eq!(m.descriptor.r#type.get_descriptor().bound, Some(20));
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn create_f_s_array20_uint32_alt_from_xml() {
+    let builder = DynamicTypeBuilderFactory::create_type_w_document(
+        TYPES_XML_ARRAYS,
+        "Test::F_S__array20_uint32_alt",
+        vec![],
+    )
+    .unwrap();
+    let ty = builder.build();
+    let m = ty.get_member_by_name("altx1").unwrap();
+    assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
+    assert_eq!(m.descriptor.r#type.get_descriptor().bound, Some(20));
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn create_a_s_array20_uint32_from_xml() {
+    let builder = DynamicTypeBuilderFactory::create_type_w_document(
+        TYPES_XML_ARRAYS,
+        "Test::A_S__array20_uint32",
+        vec![],
+    )
+    .unwrap();
+    let ty = builder.build();
+    let m = ty.get_member_by_name("x1").unwrap();
+    assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
+    assert_eq!(m.descriptor.r#type.get_descriptor().bound, Some(20));
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn create_a_s_array20_uint32_alt_from_xml() {
+    let builder = DynamicTypeBuilderFactory::create_type_w_document(
+        TYPES_XML_ARRAYS,
+        "Test::A_S__array20_uint32_alt",
+        vec![],
+    )
+    .unwrap();
+    let ty = builder.build();
+    let m = ty.get_member_by_name("altx1").unwrap();
+    assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
+    assert_eq!(m.descriptor.r#type.get_descriptor().bound, Some(20));
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn create_m_s_array20_uint32_from_xml() {
+    let builder = DynamicTypeBuilderFactory::create_type_w_document(
+        TYPES_XML_ARRAYS,
+        "Test::M_S__array20_uint32",
+        vec![],
+    )
+    .unwrap();
+    let ty = builder.build();
+    let m = ty.get_member_by_name("x1").unwrap();
+    assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
+    assert_eq!(m.descriptor.r#type.get_descriptor().bound, Some(20));
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn create_m_s_array20_uint32_alt_from_xml() {
+    let builder = DynamicTypeBuilderFactory::create_type_w_document(
+        TYPES_XML_ARRAYS,
+        "Test::M_S__array20_uint32_alt",
+        vec![],
+    )
+    .unwrap();
+    let ty = builder.build();
+    let m = ty.get_member_by_name("altx1").unwrap();
+    assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
+    assert_eq!(m.descriptor.r#type.get_descriptor().bound, Some(20));
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn create_f_s_array10_f_s_array20_uint32_from_xml() {
+    let builder = DynamicTypeBuilderFactory::create_type_w_document(
+        TYPES_XML_ARRAYS,
+        "Test::F_S__array10_F_S__array20_uint32",
+        vec![],
+    )
+    .unwrap();
+    let ty = builder.build();
+    let m = ty.get_member_by_name("x1").unwrap();
+    assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
+    assert_eq!(m.descriptor.r#type.get_descriptor().bound, Some(10));
+    // The nested type is a struct with an array
+    assert_eq!(
+        m.descriptor
+            .r#type
+            .get_descriptor()
+            .element_type
+            .unwrap()
+            .get_kind(),
+        TypeKind::STRUCTURE
+    );
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn create_f_s_array10_f_s_array20_uint32_alt_from_xml() {
+    let builder = DynamicTypeBuilderFactory::create_type_w_document(
+        TYPES_XML_ARRAYS,
+        "Test::F_S__array10_F_S__array20_uint32_alt",
+        vec![],
+    )
+    .unwrap();
+    let ty = builder.build();
+    let m = ty.get_member_by_name("altx1").unwrap();
+    assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
+    assert_eq!(m.descriptor.r#type.get_descriptor().bound, Some(10));
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn create_f_s_array10_a_s_array20_uint32_from_xml() {
+    let builder = DynamicTypeBuilderFactory::create_type_w_document(
+        TYPES_XML_ARRAYS,
+        "Test::F_S__array10_A_S__array20_uint32",
+        vec![],
+    )
+    .unwrap();
+    let ty = builder.build();
+    let m = ty.get_member_by_name("x1").unwrap();
+    assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
+    assert_eq!(m.descriptor.r#type.get_descriptor().bound, Some(10));
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn create_f_s_array10_a_s_array20_uint32_alt_from_xml() {
+    let builder = DynamicTypeBuilderFactory::create_type_w_document(
+        TYPES_XML_ARRAYS,
+        "Test::F_S__array10_A_S__array20_uint32_alt",
+        vec![],
+    )
+    .unwrap();
+    let ty = builder.build();
+    let m = ty.get_member_by_name("altx1").unwrap();
+    assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
+    assert_eq!(m.descriptor.r#type.get_descriptor().bound, Some(10));
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn create_f_s_array10_m_s_array20_uint32_from_xml() {
+    let builder = DynamicTypeBuilderFactory::create_type_w_document(
+        TYPES_XML_ARRAYS,
+        "Test::F_S__array10_M_S__array20_uint32",
+        vec![],
+    )
+    .unwrap();
+    let ty = builder.build();
+    let m = ty.get_member_by_name("x1").unwrap();
+    assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
+    assert_eq!(m.descriptor.r#type.get_descriptor().bound, Some(10));
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn create_f_s_array10_m_s_array20_uint32_alt_from_xml() {
+    let builder = DynamicTypeBuilderFactory::create_type_w_document(
+        TYPES_XML_ARRAYS,
+        "Test::F_S__array10_M_S__array20_uint32_alt",
+        vec![],
+    )
+    .unwrap();
+    let ty = builder.build();
+    let m = ty.get_member_by_name("altx1").unwrap();
+    assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
+    assert_eq!(m.descriptor.r#type.get_descriptor().bound, Some(10));
 }
