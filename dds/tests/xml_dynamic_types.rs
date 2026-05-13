@@ -156,7 +156,7 @@ const DATA_XML_STRUCT_PRIMITIVES: &str = r#"<struct_primitives>
 fn create_struct_primitive_int8_from_xml() {
     let builder = DynamicTypeBuilderFactory::create_type_w_document(
         TYPES_XML_PRIMITIVES,
-        "struct_primitive_int8",
+        "Test::struct_primitive_int8",
         vec![],
     )
     .unwrap();
@@ -173,7 +173,7 @@ fn create_struct_primitive_int8_from_xml() {
 fn create_struct_primitives_final_from_xml() {
     let builder = DynamicTypeBuilderFactory::create_type_w_document(
         TYPES_XML_PRIMITIVES,
-        "struct_primitives_final",
+        "Test::struct_primitives_final",
         vec![],
     )
     .unwrap();
@@ -234,7 +234,7 @@ fn create_struct_primitives_final_from_xml() {
 fn struct_primitives_final_data_from_xml() {
     let builder = DynamicTypeBuilderFactory::create_type_w_document(
         TYPES_XML_PRIMITIVES,
-        "struct_primitives_final",
+        "Test::struct_primitives_final",
         vec![],
     )
     .unwrap();
@@ -252,7 +252,7 @@ fn struct_primitives_final_data_from_xml() {
 fn create_struct_primitives_appendable_from_xml() {
     let builder = DynamicTypeBuilderFactory::create_type_w_document(
         TYPES_XML_PRIMITIVES,
-        "struct_primitives_appendable",
+        "Test::struct_primitives_appendable",
         vec![],
     )
     .unwrap();
@@ -313,7 +313,7 @@ fn create_struct_primitives_appendable_from_xml() {
 fn create_union_primitives_from_xml() {
     let builder = DynamicTypeBuilderFactory::create_type_w_document(
         TYPES_XML_PRIMITIVES,
-        "union_primitives",
+        "Test::union_primitives",
         vec![],
     )
     .unwrap();

@@ -179,15 +179,38 @@ impl DynamicTypeBuilderFactory {
     ) -> XTypesResult<DynamicTypeBuilder> {
         let doc = roxmltree::Document::parse(document).map_err(|_| XTypesError::InvalidData)?;
 
+        let path: Vec<&str> = type_name.split("::").collect();
+        let (struct_name, module_path) = path.split_last().ok_or(XTypesError::InvalidData)?;
+
         let mut target_node = None;
         for node in doc.descendants() {
             if node.is_element()
                 && (node.tag_name().name() == "struct" || node.tag_name().name() == "union")
             {
                 if let Some(name) = node.attribute("name") {
-                    if name == type_name {
-                        target_node = Some(node);
-                        break;
+                    if &name == struct_name {
+                        let mut current_node = node.parent();
+                        let mut matches = true;
+                        for &expected_mod in module_path.iter().rev() {
+                            let mut found = false;
+                            while let Some(parent) = current_node {
+                                current_node = parent.parent();
+                                if parent.is_element() && parent.tag_name().name() == "module" {
+                                    if parent.attribute("name") == Some(expected_mod) {
+                                        found = true;
+                                    }
+                                    break;
+                                }
+                            }
+                            if !found {
+                                matches = false;
+                                break;
+                            }
+                        }
+                        if matches {
+                            target_node = Some(node);
+                            break;
+                        }
                     }
                 }
             }
