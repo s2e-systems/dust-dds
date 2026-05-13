@@ -2,7 +2,7 @@ use dust_dds::xtypes::dynamic_type::{
     DynamicDataFactory, DynamicTypeBuilderFactory, ExtensibilityKind, TypeKind,
 };
 
-const TYPES_XML_PRIMITIVES: &'static str = r#"<dds>
+const TYPES_XML_PRIMITIVES: &str = r#"<dds>
     <types>
         <module name="Test">
             <struct name="struct_primitives_final"   extensibility="final">
@@ -134,7 +134,7 @@ const TYPES_XML_PRIMITIVES: &'static str = r#"<dds>
     </types>
 </dds>"#;
 
-const DATA_XML_STRUCT_PRIMITIVES: &'static str = r#"<struct_primitives>
+const DATA_XML_STRUCT_PRIMITIVES: &str = r#"<struct_primitives>
   <x1>0x01</x1>
   <x2>2</x2>
   <x3>3</x3>
