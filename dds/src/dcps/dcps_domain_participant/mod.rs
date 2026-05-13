@@ -21,7 +21,6 @@ use crate::{
             discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
             discovered_topic_data::DiscoveredTopicData,
             discovered_writer_data::{DiscoveredWriterData, WriterProxy},
-            parameter_id_values::{PID_ENDPOINT_GUID, PID_PARTICIPANT_GUID},
             spdp_discovered_participant_data::{
                 BuiltinEndpointQos, BuiltinEndpointSet, ParticipantProxy,
                 SpdpDiscoveredParticipantData,
@@ -161,7 +160,7 @@ fn poll_timeout<T>(
 
 #[derive(Debug, Clone, TypeSupport)]
 pub struct BuiltInKeyHolder {
-    #[dust_dds(id=PID_PARTICIPANT_GUID as u32, key)]
+    #[dust_dds(key)]
     pub(crate) key: BuiltInTopicKey,
 }
 
@@ -799,7 +798,7 @@ impl DcpsDomainParticipant {
                 let mut dynamic_data = DynamicDataFactory::create_data(BuiltInKeyHolder::TYPE);
                 dynamic_data
                     .set_complex_value(
-                        PID_PARTICIPANT_GUID as u32,
+                        0,
                         BuiltInTopicKey {
                             value: builtin_topic_key,
                         }
@@ -923,7 +922,7 @@ impl DcpsDomainParticipant {
             let mut dynamic_data = DynamicDataFactory::create_data(BuiltInKeyHolder::TYPE);
             dynamic_data
                 .set_complex_value(
-                    PID_ENDPOINT_GUID as u32,
+                    0,
                     BuiltInTopicKey {
                         value: data_writer.transport_writer.guid().into(),
                     }
@@ -1058,7 +1057,7 @@ impl DcpsDomainParticipant {
             let mut dynamic_data = DynamicDataFactory::create_data(BuiltInKeyHolder::TYPE);
             dynamic_data
                 .set_complex_value(
-                    PID_ENDPOINT_GUID as u32,
+                    0,
                     BuiltInTopicKey {
                         value: data_reader.transport_reader.guid().into(),
                     }
@@ -2070,11 +2069,11 @@ impl DcpsDomainParticipant {
                 let discovered_participant_handle = if let Some(h) = cache_change.instance_handle {
                     InstanceHandle::new(h)
                 } else if let Ok(dynamic_data) = CdrDeserializer::deserialize(
-                    InstanceHandle::TYPE,
+                    BuiltInKeyHolder::TYPE,
                     cache_change.data_value.as_ref(),
                     DeserializeKind::Full,
                 ) {
-                    InstanceHandle::create_sample(dynamic_data)
+                    InstanceHandle::new(BuiltInKeyHolder::create_sample(dynamic_data).key.value)
                 } else {
                     return;
                 };
@@ -2173,11 +2172,11 @@ impl DcpsDomainParticipant {
                 let discovered_writer_handle = if let Some(h) = cache_change.instance_handle {
                     InstanceHandle::new(h)
                 } else if let Ok(dynamic_data) = CdrDeserializer::deserialize(
-                    InstanceHandle::TYPE,
+                    BuiltInKeyHolder::TYPE,
                     cache_change.data_value.as_ref(),
                     DeserializeKind::Full,
                 ) {
-                    InstanceHandle::create_sample(dynamic_data)
+                    InstanceHandle::new(BuiltInKeyHolder::create_sample(dynamic_data).key.value)
                 } else {
                     return;
                 };

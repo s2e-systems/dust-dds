@@ -278,7 +278,7 @@ trait XTypesDeserialize {
                     d => panic!("Invalid discriminator {d:?}"),
                 }
             }
-            //     TypeKind::UNION => todo!(),
+            TypeKind::UNION => todo!(),
             kind => {
                 debug!("Expected structure, enum or union. Got kind {kind:?} ");
                 Err(XTypesError::InvalidType)
@@ -849,6 +849,48 @@ impl<'a, E: EndiannessRead> Cdr1KeyDeserializer<'a, E> {
 }
 
 impl<'a, E: EndiannessRead> XTypesDeserialize for Cdr1KeyDeserializer<'a, E> {
+    fn deserialize_structure(&mut self, dynamic_data: &mut DynamicData) -> XTypesResult<()> {
+        // Deserialize the top-level which must be either a struct, an enum or a union.
+        // No other types are supported at this stage because this is what we can get from DDS
+        match dynamic_data.r#type().get_descriptor().kind {
+            TypeKind::STRUCTURE => self.deserialize_final_struct(dynamic_data),
+            TypeKind::ENUM => {
+                let discriminator_type = dynamic_data
+                    .r#type()
+                    .get_descriptor()
+                    .discriminator_type
+                    .as_ref()
+                    .ok_or(XTypesError::InvalidType)?;
+                match discriminator_type.get_kind() {
+                    TypeKind::INT8 => {
+                        let value = self.deserialize_primitive_type::<i8>()?;
+                        dynamic_data.set_int8_value(0, value)
+                    }
+                    TypeKind::INT32 => {
+                        let value = self.deserialize_primitive_type::<i32>()?;
+                        dynamic_data.set_int32_value(0, value)
+                    }
+                    d => panic!("Invalid discriminator {d:?}"),
+                }
+            }
+            TypeKind::UNION => todo!(),
+            kind => {
+                debug!("Expected structure, enum or union. Got kind {kind:?} ");
+                Err(XTypesError::InvalidType)
+            }
+        }
+    }
+
+    fn deserialize_final_struct(&mut self, dynamic_data: &mut DynamicData) -> XTypesResult<()> {
+        for member_index in 0..dynamic_data.r#type().get_member_count() {
+            let member = dynamic_data.r#type().get_member_by_index(member_index)?;
+            if member.get_descriptor()?.is_key {
+                self.deserialize_final_member(member, dynamic_data)?;
+            }
+        }
+        Ok(())
+    }
+
     fn deserialize_mutable_struct(&mut self, _dynamic_data: &mut DynamicData) -> XTypesResult<()> {
         unimplemented!("Not available for key")
     }
