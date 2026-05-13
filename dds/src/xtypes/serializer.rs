@@ -265,7 +265,7 @@ trait XTypesSerializer {
         match element_type.get_descriptor().kind {
             TypeKind::NONE => todo!(),
             TypeKind::BOOLEAN => self.serialize_sequence_basic(v.get_boolean_values(member_id)?),
-            TypeKind::BYTE => todo!(),
+            TypeKind::BYTE => self.serialize_sequence_basic(v.get_byte_values(member_id)?),
             TypeKind::INT16 => self.serialize_sequence_basic(v.get_int16_values(member_id)?),
             TypeKind::INT32 => self.serialize_sequence_basic(v.get_int32_values(member_id)?),
             TypeKind::INT64 => self.serialize_sequence_basic(v.get_int64_values(member_id)?),
@@ -319,7 +319,7 @@ trait XTypesSerializer {
         match element_type.get_descriptor().kind {
             TypeKind::NONE => todo!(),
             TypeKind::BOOLEAN => todo!(),
-            TypeKind::BYTE => todo!(),
+            TypeKind::BYTE => self.serialize_array_basic(v.get_byte_values(member_id)?),
             TypeKind::INT16 => todo!(),
             TypeKind::INT32 => todo!(),
             TypeKind::INT64 => todo!(),
