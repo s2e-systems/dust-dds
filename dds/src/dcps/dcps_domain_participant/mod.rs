@@ -5026,7 +5026,6 @@ struct ReaderSample {
     sample_state: SampleStateKind,
     disposed_generation_count: i32,
     no_writers_generation_count: i32,
-    reception_timestamp: Time,
 }
 
 struct IndexedSample {
@@ -5281,7 +5280,6 @@ impl DataReaderEntity {
     fn convert_cache_change_to_sample(
         &mut self,
         cache_change: &CacheChange,
-        reception_timestamp: Time,
     ) -> DdsResult<ReaderSample> {
         struct KeyHolder<'a> {
             descriptor: &'a crate::xtypes::dynamic_type::TypeDescriptor,
@@ -5443,7 +5441,6 @@ impl DataReaderEntity {
             sample_state: SampleStateKind::NotRead,
             disposed_generation_count: instance.most_recent_disposed_generation_count,
             no_writers_generation_count: instance.most_recent_no_writers_generation_count,
-            reception_timestamp,
         })
     }
 
@@ -5452,7 +5449,7 @@ impl DataReaderEntity {
         cache_change: &CacheChange,
         reception_timestamp: Time,
     ) -> DdsResult<AddChangeResult> {
-        let sample = self.convert_cache_change_to_sample(cache_change, reception_timestamp)?;
+        let sample = self.convert_cache_change_to_sample(cache_change)?;
         let change_instance_handle = sample.instance_handle;
         // data_reader exclusive access if the writer is not the allowed to write the sample do an early return
         if self.qos.ownership.kind == OwnershipQosPolicyKind::Exclusive {
@@ -5648,26 +5645,21 @@ impl DataReaderEntity {
 
         let sample_writer_guid = sample.writer_guid;
         tracing::debug!(cache_change = ?sample, "Adding change to data reader history cache");
-        self.sample_list.push(sample);
-        self.data_available_status_changed_flag = true;
 
         match self.qos.destination_order.kind {
             DestinationOrderQosPolicyKind::BySourceTimestamp => {
-                self.sample_list.sort_by(|a, b| {
-                    a.source_timestamp
-                        .as_ref()
-                        .expect("Missing source timestamp")
-                        .cmp(
-                            b.source_timestamp
-                                .as_ref()
-                                .expect("Missing source timestamp"),
-                        )
-                });
+                // Insert the element at the place where the first source timestamp is bigger than the currently received one
+                let insert_position = self
+                    .sample_list
+                    .iter()
+                    .position(|x| x.source_timestamp > sample.source_timestamp)
+                    .unwrap_or(0);
+                self.sample_list.insert(insert_position, sample);
             }
-            DestinationOrderQosPolicyKind::ByReceptionTimestamp => self
-                .sample_list
-                .sort_by(|a, b| a.reception_timestamp.cmp(&b.reception_timestamp)),
+            DestinationOrderQosPolicyKind::ByReceptionTimestamp => self.sample_list.push(sample),
         }
+
+        self.data_available_status_changed_flag = true;
 
         match self
             .instance_ownership
