@@ -1200,6 +1200,31 @@ impl DynamicData {
     }
 }
 
+impl TypeSupport for DynamicData {
+    const r#TYPE: &'static dyn DynamicType = &StaticTypeInformation {
+        descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
+            kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
+            name: "",
+            base_type: None,
+            discriminator_type: None,
+            bound: None,
+            element_type: None,
+            key_element_type: None,
+            extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
+            is_nested: false,
+        },
+        member_list: &[],
+    };
+
+    fn create_sample(src: DynamicData) -> Self {
+        src
+    }
+
+    fn create_dynamic_sample(self) -> DynamicData {
+        self
+    }
+}
+
 #[cfg(feature = "xtypes-xml")]
 impl DynamicData {
     pub fn from_xml(&mut self, xml: &str) -> XTypesResult<()> {
