@@ -1141,7 +1141,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for HistoryQosPolicy {
                         try_construct_kind:
                             dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                         label: None,
-                        is_key: false,
+                        key: None,
                         is_optional: false,
                         is_must_understand: true,
                         is_shared: false,
@@ -1158,7 +1158,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for HistoryQosPolicy {
                         try_construct_kind:
                             dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                         label: None,
-                        is_key: false,
+                        key: None,
                         is_optional: false,
                         is_must_understand: true,
                         is_shared: false,

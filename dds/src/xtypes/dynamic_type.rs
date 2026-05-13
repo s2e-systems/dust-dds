@@ -208,6 +208,15 @@ pub struct TypeDescriptor {
 pub type MemberId = u32;
 pub type UnionCaseLabelSeq = Option<i32>;
 
+/// Member key.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MemberKey {
+    /// The whole member is a key.
+    Key,
+    /// The member itself is not a key, but it contains one or more members that are keys.
+    Transparent,
+}
+
 pub struct MemberDescriptor {
     pub name: ObjectName<'static>,
     pub id: MemberId,
@@ -216,7 +225,7 @@ pub struct MemberDescriptor {
     pub index: u32,
     pub label: UnionCaseLabelSeq,
     pub try_construct_kind: TryConstructKind,
-    pub is_key: bool,
+    pub key: Option<MemberKey>,
     pub is_optional: bool,
     pub is_must_understand: bool,
     pub is_shared: bool,
@@ -448,11 +457,33 @@ impl DynamicData {
     pub fn clear_nonkey_values(&mut self, type_ref: &dyn DynamicType) -> XTypesResult<()> {
         for index in 0..type_ref.get_member_count() {
             let member = type_ref.get_member_by_index(index)?;
-            if !member.get_descriptor()?.is_key {
-                let member_id = member.get_id();
-                self.abstract_data.remove(&member_id);
+            let member_id = member.get_id();
+            let member_descriptor = member.get_descriptor()?;
+
+            match member_descriptor.key {
+                Some(MemberKey::Key) => (),
+                Some(MemberKey::Transparent) => {
+                    let member_type_ref = member_descriptor.r#type;
+
+                    // TODO: let chains available from Rust 1.88
+                    if member_type_ref.get_kind() == TypeKind::STRUCTURE {
+                        if let Some(DataStorage::ComplexValue(complex_value)) =
+                            self.abstract_data.get_mut(&member_id)
+                        {
+                            complex_value.clear_nonkey_values(member_type_ref)?;
+                        } else {
+                            self.abstract_data.remove(&member_id);
+                        }
+                    } else {
+                        self.abstract_data.remove(&member_id);
+                    }
+                }
+                None => {
+                    self.abstract_data.remove(&member_id);
+                }
             }
         }
+
         Ok(())
     }
 

@@ -75,7 +75,10 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     .unwrap_or(field_index.to_string());
 
                 let member_type = &field.ty;
-                let is_key = field_attributes.key;
+                let key = match field_attributes.key {
+                    Some(key) => quote! { ::core::option::Option::Some(#key) },
+                    None => quote! { ::core::option::Option::None },
+                };
                 let is_optional = field_attributes.optional;
                 let default_value = field_attributes
                     .default_value
@@ -93,7 +96,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                                 index: #index as u32,
                                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
                                 label: None,
-                                is_key: #is_key,
+                                key: #key,
                                 is_optional: #is_optional,
                                 is_must_understand: true,
                                 is_shared: false,

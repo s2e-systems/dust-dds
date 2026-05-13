@@ -95,7 +95,9 @@ use crate::{
     },
     xtypes::{
         deserializer::CdrDeserializer,
-        dynamic_type::{DynamicData, DynamicDataFactory, DynamicType, DynamicTypeMember},
+        dynamic_type::{
+            DynamicData, DynamicDataFactory, DynamicType, DynamicTypeMember, MemberKey,
+        },
         error::XTypesError,
         serializer::{
             Cdr1BeSerializer, Cdr1LeSerializer, Cdr2BeSerializer, Cdr2LeSerializer,
@@ -4056,7 +4058,7 @@ fn get_topic_kind(type_support: &dyn DynamicType) -> TopicKind {
     for index in 0..type_support.get_member_count() {
         if let Ok(m) = type_support.get_member_by_index(index) {
             if let Ok(d) = m.get_descriptor() {
-                if d.is_key {
+                if d.key.is_some() {
                     return TopicKind::WithKey;
                 }
             }
@@ -4733,7 +4735,8 @@ impl DataWriterEntity {
                     .type_support
                     .get_member_by_index(index)?
                     .get_descriptor()?
-                    .is_key
+                    .key
+                    .is_some()
                 {
                     has_key = true;
                     break;
@@ -4795,7 +4798,8 @@ impl DataWriterEntity {
                     .type_support
                     .get_member_by_index(index)?
                     .get_descriptor()?
-                    .is_key
+                    .key
+                    .is_some()
                 {
                     has_key = true;
                     break;
@@ -5346,17 +5350,33 @@ impl DataReaderEntity {
         }
 
         fn create_key_holder<'a>(foo_type: &'a dyn DynamicType) -> DdsResult<KeyHolder<'a>> {
-            let key_holder_type_descriptor = foo_type.get_descriptor();
-            let mut key_member_list = Vec::new();
-            for member_index in 0..foo_type.get_member_count() {
-                let member = foo_type.get_member_by_index(member_index)?;
-                if member.get_descriptor()?.is_key {
-                    key_member_list.push(member);
+            fn collect_key_members<'a>(
+                foo_type: &'a dyn DynamicType,
+                key_members: &mut Vec<&'a DynamicTypeMember>,
+            ) -> DdsResult<()> {
+                for member_index in 0..foo_type.get_member_count() {
+                    let member = foo_type.get_member_by_index(member_index)?;
+                    let member_descriptor = member.get_descriptor()?;
+
+                    match member_descriptor.key {
+                        Some(MemberKey::Key) => key_members.push(member),
+                        Some(MemberKey::Transparent) => {
+                            collect_key_members(member_descriptor.r#type, key_members)?;
+                        }
+                        None => (),
+                    }
                 }
+
+                Ok(())
             }
+
+            let mut key_members = Vec::with_capacity(1);
+
+            collect_key_members(foo_type, &mut key_members)?;
+
             Ok(KeyHolder {
-                descriptor: key_holder_type_descriptor,
-                member_list: key_member_list,
+                descriptor: foo_type.get_descriptor(),
+                member_list: key_members,
             })
         }
 
