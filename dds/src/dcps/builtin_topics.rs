@@ -12,7 +12,7 @@ use crate::{
         PID_LIVELINESS, PID_OWNERSHIP, PID_OWNERSHIP_STRENGTH, PID_PARTICIPANT_GUID, PID_PARTITION,
         PID_PRESENTATION, PID_RELIABILITY, PID_RESOURCE_LIMITS, PID_TIME_BASED_FILTER,
         PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TRANSPORT_PRIORITY, PID_TYPE_CONSISTENCY,
-        PID_TYPE_NAME, PID_USER_DATA,
+        PID_TYPE_INFORMATION, PID_TYPE_NAME, PID_USER_DATA,
     },
     infrastructure::{
         qos_policy::{
@@ -21,6 +21,7 @@ use crate::{
         },
         type_support::TypeSupport,
     },
+    xtypes::type_object::TypeInformation,
 };
 use alloc::string::String;
 
@@ -339,6 +340,8 @@ pub struct SubscriptionBuiltinTopicData {
     pub(crate) topic_name: String,
     #[dust_dds(id=PID_TYPE_NAME as u32)]
     pub(crate) type_name: String,
+    #[dust_dds(id=PID_TYPE_INFORMATION as u32, optional)]
+    pub(crate) type_information: Option<TypeInformation>,
     #[dust_dds(id=PID_DURABILITY as u32, optional)]
     pub(crate) durability: DurabilityQosPolicy,
     #[dust_dds(id=PID_DEADLINE as u32, optional)]
