@@ -370,8 +370,9 @@ pub enum AnnotationParameterValue {
     TkFloat64 {
         float64_value: f64,
     },
-    // TypeKind::FLOAT128{
-    // float128_value: f128},
+    TkFloat128 {
+        float128_value: i128,
+    },
     TkChar8 {
         char_value: char,
     },
