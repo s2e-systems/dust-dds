@@ -1,6 +1,7 @@
 use crate::xtypes::error::XTypesError;
+use alloc::str::FromStr;
+use alloc::{string::ToString, vec::Vec};
 use dust_dds_derive::TypeSupport;
-use std::str::FromStr;
 
 #[derive(Clone, Copy, Debug)]
 struct U256 {
@@ -20,9 +21,9 @@ impl U256 {
         }
     }
 
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
         match self.hi.cmp(&other.hi) {
-            std::cmp::Ordering::Equal => self.lo.cmp(&other.lo),
+            core::cmp::Ordering::Equal => self.lo.cmp(&other.lo),
             x => x,
         }
     }
@@ -107,7 +108,7 @@ impl FromStr for F128 {
 
         let scale = frac_part.len() as i32 - exp10_extra;
 
-        let digits = format!("{}{}", int_part, frac_part);
+        let digits = int_part.to_string() + frac_part;
 
         let mut mantissa: u128 = 0;
 
@@ -154,12 +155,12 @@ impl FromStr for F128 {
             }
         }
 
-        while num.cmp(&den) == std::cmp::Ordering::Less {
+        while num.cmp(&den) == core::cmp::Ordering::Less {
             num = num.shl1();
             exp2 -= 1;
         }
 
-        while num.cmp(&den.shl1()) != std::cmp::Ordering::Less {
+        while num.cmp(&den.shl1()) != core::cmp::Ordering::Less {
             den = den.shl1();
             exp2 += 1;
         }
@@ -172,7 +173,7 @@ impl FromStr for F128 {
         for i in (0..112).rev() {
             num = num.shl1();
 
-            if num.cmp(&den) != std::cmp::Ordering::Less {
+            if num.cmp(&den) != core::cmp::Ordering::Less {
                 num = num.sub(den);
                 frac |= 1u128 << i;
             }
@@ -181,7 +182,7 @@ impl FromStr for F128 {
         // Guard bit
         num = num.shl1();
 
-        let guard = num.cmp(&den) != std::cmp::Ordering::Less;
+        let guard = num.cmp(&den) != core::cmp::Ordering::Less;
 
         if guard {
             num = num.sub(den);
