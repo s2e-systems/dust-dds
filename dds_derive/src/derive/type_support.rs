@@ -149,13 +149,10 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     }
                 }
             }
-            let is_tuple = data_struct
-                .fields
-                .iter()
-                .next()
-                .expect("Not empty")
-                .ident
-                .is_none();
+            let is_tuple = match data_struct.fields.iter().next() {
+                Some(s) => s.ident.is_none(),
+                None => false,
+            };
 
             let get_type_quote = quote! {
                 const r#TYPE: &'static dyn dust_dds::xtypes::dynamic_type::DynamicType =
