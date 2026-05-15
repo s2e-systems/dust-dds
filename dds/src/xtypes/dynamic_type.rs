@@ -2,7 +2,7 @@ use super::error::XTypesError;
 use crate::{
     infrastructure::type_support::TypeSupport,
     xtypes::{
-        data_storage::{DataStorage, DataStorageMapping},
+        data_storage::{DataStorage, DataStorageMapping, F128},
         error::XTypesResult,
         type_object::TypeObject,
     },
@@ -1175,6 +1175,23 @@ impl DynamicData {
         Ok(())
     }
 
+    pub fn get_float128_values(&self, id: MemberId) -> XTypesResult<&[F128]> {
+        if let DataStorage::SequenceFloat128(d) = self
+            .abstract_data
+            .get(&id)
+            .ok_or(XTypesError::InvalidId(id))?
+        {
+            Ok(d.as_slice())
+        } else {
+            Err(XTypesError::InvalidType)
+        }
+    }
+
+    pub fn set_float128_values(&mut self, id: MemberId, value: Vec<F128>) -> XTypesResult<()> {
+        self.abstract_data.insert(id, value.into_storage());
+        Ok(())
+    }
+
     pub fn get_char8_values(&self, id: MemberId) -> XTypesResult<&[char]> {
         if let DataStorage::SequenceChar8(d) = self
             .abstract_data
@@ -1438,8 +1455,8 @@ impl DynamicData {
                 Ok(DataStorage::Float64(val))
             }
             TypeKind::FLOAT128 => {
-                let val = text.parse::<f64>().map_err(|_| XTypesError::InvalidData)?;
-                Ok(DataStorage::Float64(val))
+                let val = text.parse::<F128>().map_err(|_| XTypesError::InvalidData)?;
+                Ok(DataStorage::Float128(val))
             }
             TypeKind::CHAR8 => {
                 let val = parse_uint(text)
