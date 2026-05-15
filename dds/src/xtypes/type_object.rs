@@ -4,7 +4,7 @@ pub trait XTypesTypeObject {
     fn type_object() -> TypeObject;
 }
 
-use crate::xtypes::{dynamic_type::TypeKind};
+use crate::xtypes::dynamic_type::TypeKind;
 
 use super::dynamic_type::TryConstructKind;
 
