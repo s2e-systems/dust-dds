@@ -7,3 +7,4 @@ pub mod error;
 pub mod read_write;
 pub mod serializer;
 pub mod type_object;
+pub mod f128;

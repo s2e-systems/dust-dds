@@ -777,7 +777,7 @@ impl Write for ByteCounter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{infrastructure::type_support::TypeSupport, xtypes::data_storage::F128};
+    use crate::{infrastructure::type_support::TypeSupport, xtypes::f128::F128};
     extern crate std;
 
     fn serialize_v1_be(v: &DynamicData) -> std::vec::Vec<u8> {
@@ -893,12 +893,15 @@ mod tests {
         #[derive(TypeSupport, Clone)]
         struct BasicTypes {
             f1: F128,
-            f2: u8
+            f2: u8,
         }
 
         let v = BasicTypes {
-            f1: F128([0x40, 0x00, 0x8C, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCD]),
-            f2: 7
+            f1: F128([
+                0x40, 0x00, 0x8C, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC,
+                0xCC, 0xCD,
+            ]),
+            f2: 7,
         }
         .create_dynamic_sample();
         assert_eq!(

@@ -2,8 +2,9 @@ use super::error::XTypesError;
 use crate::{
     infrastructure::type_support::TypeSupport,
     xtypes::{
-        data_storage::{DataStorage, DataStorageMapping, F128},
+        data_storage::{DataStorage, DataStorageMapping},
         error::XTypesResult,
+        f128::F128,
         type_object::TypeObject,
     },
 };
