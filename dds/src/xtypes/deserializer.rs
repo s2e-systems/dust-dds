@@ -2,7 +2,10 @@ use crate::xtypes::{
     dynamic_type::{
         DynamicData, DynamicDataFactory, DynamicType, DynamicTypeMember, ExtensibilityKind,
         TypeKind,
-    }, error::{XTypesError, XTypesResult}, f128::F128, read_write::Read
+    },
+    error::{XTypesError, XTypesResult},
+    f128::F128,
+    read_write::Read,
 };
 use alloc::{string::String, vec::Vec};
 use tracing::debug;

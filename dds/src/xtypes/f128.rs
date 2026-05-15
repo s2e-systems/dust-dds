@@ -87,7 +87,7 @@ impl FromStr for F128 {
         }
 
         let negative = input.starts_with('-');
-        let input = input.trim_start_matches(&['+', '-']);
+        let input = input.trim_start_matches(['+', '-']);
 
         let (base, exp10_part) = match input.find(['e', 'E']) {
             Some(pos) => (&input[..pos], &input[pos + 1..]),

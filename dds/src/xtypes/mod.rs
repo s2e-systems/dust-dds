@@ -4,7 +4,7 @@ pub mod data_storage;
 pub mod deserializer;
 pub mod dynamic_type;
 pub mod error;
+pub mod f128;
 pub mod read_write;
 pub mod serializer;
 pub mod type_object;
-pub mod f128;
