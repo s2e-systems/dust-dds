@@ -947,6 +947,23 @@ impl DynamicData {
         Ok(())
     }
 
+    pub fn get_float128_value(&self, id: MemberId) -> XTypesResult<&i128> {
+        if let DataStorage::Float128(d) = self
+            .abstract_data
+            .get(&id)
+            .ok_or(XTypesError::InvalidId(id))?
+        {
+            Ok(d)
+        } else {
+            Err(XTypesError::InvalidType)
+        }
+    }
+
+    pub fn set_float128_value(&mut self, id: MemberId, value: i128) -> XTypesResult<()> {
+        self.abstract_data.insert(id, DataStorage::Float128(value));
+        Ok(())
+    }
+
     pub fn get_char8_value(&self, id: MemberId) -> XTypesResult<&char> {
         if let DataStorage::Char8(d) = self
             .abstract_data
@@ -1175,7 +1192,7 @@ impl DynamicData {
         Ok(())
     }
 
-    pub fn get_float128_values(&self, id: MemberId) -> XTypesResult<&[f32]> {
+    pub fn get_float128_values(&self, id: MemberId) -> XTypesResult<&[i128]> {
         if let DataStorage::SequenceFloat128(d) = self
             .abstract_data
             .get(&id)
@@ -1187,8 +1204,9 @@ impl DynamicData {
         }
     }
 
-    pub fn set_float128_values(&mut self, id: MemberId, value: Vec<f32>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, value.into_storage());
+    pub fn set_float128_values(&mut self, id: MemberId, value: Vec<i128>) -> XTypesResult<()> {
+        self.abstract_data
+            .insert(id, DataStorage::SequenceFloat128(value));
         Ok(())
     }
 
@@ -1455,10 +1473,13 @@ impl DynamicData {
                 Ok(DataStorage::Float64(val))
             }
             TypeKind::FLOAT128 => {
-                use crate::xtypes::f128::F128;
-
-                let val = text.parse::<f32>().map_err(|_| XTypesError::InvalidData)?;
-                Ok(DataStorage::Float128(F128::from(val)))
+                let val = text
+                    .parse::<f32>()
+                    .map_err(|_| XTypesError::InvalidData)?
+                    .to_be_bytes();
+                Ok(DataStorage::Float128(i128::from_be_bytes([
+                    val[3], val[2], val[1], val[0], 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                ])))
             }
             TypeKind::CHAR8 => {
                 let val = parse_uint(text)

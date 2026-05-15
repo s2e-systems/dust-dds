@@ -233,7 +233,7 @@ trait XTypesSerializer {
             TypeKind::UINT64 => self.serialize_primitive_type(v.get_uint64_value(member_id)?),
             TypeKind::FLOAT32 => self.serialize_primitive_type(v.get_float32_value(member_id)?),
             TypeKind::FLOAT64 => self.serialize_primitive_type(v.get_float64_value(member_id)?),
-            TypeKind::FLOAT128 => self.serialize_primitive_type(v.get_float64_value(member_id)?),
+            TypeKind::FLOAT128 => self.serialize_primitive_type(v.get_float128_value(member_id)?),
             TypeKind::INT8 => self.serialize_primitive_type(v.get_int8_value(member_id)?),
             TypeKind::UINT8 => self.serialize_primitive_type(v.get_uint8_value(member_id)?),
             TypeKind::CHAR8 => self.serialize_primitive_type(v.get_char8_value(member_id)?),
@@ -274,7 +274,7 @@ trait XTypesSerializer {
             TypeKind::UINT64 => self.serialize_sequence_basic(v.get_uint64_values(member_id)?),
             TypeKind::FLOAT32 => self.serialize_sequence_basic(v.get_float32_values(member_id)?),
             TypeKind::FLOAT64 => self.serialize_sequence_basic(v.get_float64_values(member_id)?),
-            TypeKind::FLOAT128 => self.serialize_sequence_basic(v.get_float64_values(member_id)?),
+            TypeKind::FLOAT128 => self.serialize_sequence_basic(v.get_float128_values(member_id)?),
             TypeKind::INT8 => self.serialize_sequence_basic(v.get_int8_values(member_id)?),
             TypeKind::UINT8 => self.serialize_sequence_basic(v.get_uint8_values(member_id)?),
             TypeKind::CHAR8 => todo!(),
@@ -328,7 +328,7 @@ trait XTypesSerializer {
             TypeKind::UINT64 => self.serialize_array_basic(v.get_uint64_values(member_id)?),
             TypeKind::FLOAT32 => self.serialize_array_basic(v.get_float32_values(member_id)?),
             TypeKind::FLOAT64 => self.serialize_array_basic(v.get_float64_values(member_id)?),
-            TypeKind::FLOAT128 => todo!(),
+            TypeKind::FLOAT128 => self.serialize_array_basic(v.get_float128_values(member_id)?),
             TypeKind::INT8 => self.serialize_array_basic(v.get_int8_values(member_id)?),
             TypeKind::UINT8 => self.serialize_array_basic(v.get_uint8_values(member_id)?),
             TypeKind::CHAR8 => self.serialize_array_basic(v.get_char8_values(member_id)?),
@@ -629,6 +629,15 @@ impl CdrPrimitiveTypeSerialize for u64 {
         E::write_u64(self, writer);
     }
 }
+impl CdrPrimitiveTypeSerialize for i128 {
+    fn serialize<W: Write, E: EndiannessWrite, V: CdrVersion>(
+        &self,
+        writer: &mut CdrWriter<W, E, V>,
+    ) {
+        writer.pad(i128::BITS as usize / 8);
+        E::write_i128(self, writer);
+    }
+}
 impl CdrPrimitiveTypeSerialize for f32 {
     fn serialize<W: Write, E: EndiannessWrite, V: CdrVersion>(
         &self,
@@ -670,6 +679,7 @@ trait EndiannessWrite {
     fn write_u32<C: Write>(v: &u32, writer: &mut C);
     fn write_i64<C: Write>(v: &i64, writer: &mut C);
     fn write_u64<C: Write>(v: &u64, writer: &mut C);
+    fn write_i128<C: Write>(v: &i128, writer: &mut C);
     fn write_f32<C: Write>(v: &f32, writer: &mut C);
     fn write_f64<C: Write>(v: &f64, writer: &mut C);
 }
@@ -691,6 +701,9 @@ impl EndiannessWrite for BigEndian {
         writer.write(&v.to_be_bytes())
     }
     fn write_u64<C: Write>(v: &u64, writer: &mut C) {
+        writer.write(&v.to_be_bytes())
+    }
+    fn write_i128<C: Write>(v: &i128, writer: &mut C) {
         writer.write(&v.to_be_bytes())
     }
     fn write_f32<C: Write>(v: &f32, writer: &mut C) {
@@ -718,6 +731,9 @@ impl EndiannessWrite for LittleEndian {
         writer.write(&v.to_le_bytes())
     }
     fn write_u64<C: Write>(v: &u64, writer: &mut C) {
+        writer.write(&v.to_le_bytes())
+    }
+    fn write_i128<C: Write>(v: &i128, writer: &mut C) {
         writer.write(&v.to_le_bytes())
     }
     fn write_f32<C: Write>(v: &f32, writer: &mut C) {
@@ -777,7 +793,7 @@ impl Write for ByteCounter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{infrastructure::type_support::TypeSupport};
+    use crate::infrastructure::type_support::TypeSupport;
     extern crate std;
 
     fn serialize_v1_be(v: &DynamicData) -> std::vec::Vec<u8> {

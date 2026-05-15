@@ -4,7 +4,6 @@ use crate::xtypes::{
         TypeKind,
     },
     error::{XTypesError, XTypesResult},
-    f128::F128,
     read_write::Read,
 };
 use alloc::{string::String, vec::Vec};
@@ -160,9 +159,9 @@ trait EndiannessRead {
     fn read_u32<R: Read>(reader: &mut R) -> XTypesResult<u32>;
     fn read_i64<R: Read>(reader: &mut R) -> XTypesResult<i64>;
     fn read_u64<R: Read>(reader: &mut R) -> XTypesResult<u64>;
+    fn read_i128<R: Read>(reader: &mut R) -> XTypesResult<i128>;
     fn read_f32<R: Read>(reader: &mut R) -> XTypesResult<f32>;
     fn read_f64<R: Read>(reader: &mut R) -> XTypesResult<f64>;
-    fn read_f128<R: Read>(reader: &mut R) -> XTypesResult<F128>;
 }
 
 struct BigEndian;
@@ -192,19 +191,16 @@ impl EndiannessRead for BigEndian {
         Ok(u64::from_be_bytes(*reader.read_array::<8>()?))
     }
 
+    fn read_i128<R: Read>(reader: &mut R) -> XTypesResult<i128> {
+        Ok(i128::from_be_bytes(*reader.read_array::<16>()?))
+    }
+
     fn read_f32<R: Read>(reader: &mut R) -> XTypesResult<f32> {
         Ok(f32::from_be_bytes(*reader.read_array::<4>()?))
     }
 
     fn read_f64<R: Read>(reader: &mut R) -> XTypesResult<f64> {
         Ok(f64::from_be_bytes(*reader.read_array::<8>()?))
-    }
-
-    fn read_f128<R: Read>(reader: &mut R) -> XTypesResult<F128> {
-        let bytes = reader.read_array::<16>()?;
-        Ok(F128::from(f32::from_be_bytes([
-            bytes[0], bytes[1], bytes[2], bytes[3],
-        ])))
     }
 }
 
@@ -235,19 +231,16 @@ impl EndiannessRead for LittleEndian {
         Ok(u64::from_le_bytes(*reader.read_array::<8>()?))
     }
 
+    fn read_i128<R: Read>(reader: &mut R) -> XTypesResult<i128> {
+        Ok(i128::from_le_bytes(*reader.read_array::<16>()?))
+    }
+
     fn read_f32<R: Read>(reader: &mut R) -> XTypesResult<f32> {
         Ok(f32::from_le_bytes(*reader.read_array::<4>()?))
     }
 
     fn read_f64<R: Read>(reader: &mut R) -> XTypesResult<f64> {
         Ok(f64::from_le_bytes(*reader.read_array::<8>()?))
-    }
-
-    fn read_f128<R: Read>(reader: &mut R) -> XTypesResult<F128> {
-        let bytes = reader.read_array::<16>()?;
-        Ok(F128::from(f32::from_le_bytes([
-            bytes[12], bytes[13], bytes[14], bytes[15],
-        ])))
     }
 }
 
@@ -370,7 +363,7 @@ trait XTypesDeserialize {
                 dynamic_data.set_float64_value(member.get_id(), self.deserialize_primitive_type()?)
             }
             TypeKind::FLOAT128 => {
-                dynamic_data.set_float64_value(member.get_id(), self.deserialize_primitive_type()?)
+                dynamic_data.set_float128_value(member.get_id(), self.deserialize_primitive_type()?)
             }
             TypeKind::INT8 => {
                 dynamic_data.set_int8_value(member.get_id(), self.deserialize_primitive_type()?)
@@ -577,7 +570,7 @@ trait XTypesDeserialize {
             TypeKind::FLOAT64 => dynamic_data
                 .set_float64_values(member.get_id(), self.deserialize_primitive_type_sequence()?),
             TypeKind::FLOAT128 => dynamic_data
-                .set_float64_values(member.get_id(), self.deserialize_primitive_type_sequence()?),
+                .set_float128_values(member.get_id(), self.deserialize_primitive_type_sequence()?),
             TypeKind::INT8 => dynamic_data
                 .set_int8_values(member.get_id(), self.deserialize_primitive_type_sequence()?),
             TypeKind::UINT8 => dynamic_data
@@ -674,6 +667,14 @@ impl CdrPrimitiveTypeDeserialize for i64 {
         E::read_i64(reader)
     }
 }
+impl CdrPrimitiveTypeDeserialize for i128 {
+    fn deserialize<'a, E: EndiannessRead, V: CdrVersion>(
+        reader: &mut CdrReader<'a, E, V>,
+    ) -> XTypesResult<Self> {
+        reader.seek_padding((i64::BITS / 8) as usize);
+        E::read_i128(reader)
+    }
+}
 impl CdrPrimitiveTypeDeserialize for f32 {
     fn deserialize<'a, E: EndiannessRead, V: CdrVersion>(
         reader: &mut CdrReader<'a, E, V>,
@@ -688,14 +689,6 @@ impl CdrPrimitiveTypeDeserialize for f64 {
     ) -> XTypesResult<Self> {
         reader.seek_padding((64 / 8) as usize);
         E::read_f64(reader)
-    }
-}
-impl CdrPrimitiveTypeDeserialize for F128 {
-    fn deserialize<'a, E: EndiannessRead, V: CdrVersion>(
-        reader: &mut CdrReader<'a, E, V>,
-    ) -> XTypesResult<Self> {
-        reader.seek_padding((64 / 8) as usize);
-        E::read_f128(reader)
     }
 }
 impl CdrPrimitiveTypeDeserialize for bool {
