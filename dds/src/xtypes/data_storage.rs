@@ -625,3 +625,16 @@ impl<const N: usize, T: TypeSupport> DataStorageMapping for [T; N] {
         }
     }
 }
+
+impl<T: TypeSupport> DataStorageMapping for Option<T> {
+    fn into_storage(self) -> DataStorage {
+        DataStorage::ComplexValue(T::create_dynamic_sample(self))
+    }
+
+    fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
+        match data_storage {
+            DataStorage::ComplexValue(x) => Ok(T::create_sample(x)),
+            _ => Err(XTypesError::InvalidType),
+        }
+    }
+}
