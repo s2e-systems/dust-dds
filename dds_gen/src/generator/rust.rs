@@ -413,6 +413,7 @@ impl<'a> RustGenerator<'a> {
             .find(|p| p.as_rule() == Rule::declarators)
             .expect("Declarator must exist according to grammar");
 
+        let mut is_optional = false;
         for annotation_appl in inner_pairs
             .clone()
             .filter(|p| p.as_rule() == Rule::annotation_appl)
@@ -444,6 +445,9 @@ impl<'a> RustGenerator<'a> {
                             .push_str(&format!("#[dust_dds(id = {})]", const_expr.as_str()));
                     }
                 }
+            } else if identifier.as_str() == "optional" {
+                is_optional = true;
+                self.writer.push_str("#[dust_dds(optional)]");
             }
         }
 
@@ -467,16 +471,28 @@ impl<'a> RustGenerator<'a> {
                         .expect("Identifier must exist according to grammar");
                     self.generate(identifier);
                     self.writer.push(':');
+                    if is_optional {
+                        self.writer.push_str(" Option<");
+                    }
                     self.writer.push('[');
                     self.generate(type_spec.clone());
                     self.writer.push(';');
                     self.generate(fixed_array_size);
                     self.writer.push(']');
+                    if is_optional {
+                        self.writer.push('>');
+                    }
                 }
                 Rule::simple_declarator => {
                     self.generate(array_or_simple_declarator);
                     self.writer.push(':');
+                    if is_optional {
+                        self.writer.push_str(" Option<");
+                    }
                     self.generate(type_spec.clone());
+                    if is_optional {
+                        self.writer.push('>');
+                    }
                 }
                 _ => panic!("Not allowed by the grammar"),
             }
