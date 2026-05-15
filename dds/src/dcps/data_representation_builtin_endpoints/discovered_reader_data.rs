@@ -16,10 +16,7 @@ use crate::{
         UserDataQosPolicy,
     },
     transport::types::{ENTITYID_UNKNOWN, EntityId, Guid, Locator},
-    xtypes::{
-        data_storage::DataStorageMapping,
-        dynamic_type::{DynamicType, StaticTypeInformation},
-    },
+    xtypes::{data_storage::DataStorageMapping, dynamic_type::DynamicType},
 };
 use alloc::{string::String, vec::Vec};
 
@@ -39,7 +36,7 @@ pub struct DiscoveredReaderData {
 }
 
 impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderData {
-    const r#TYPE: &'static dyn DynamicType = &StaticTypeInformation {
+    const r#TYPE: DynamicType = DynamicType {
         descriptor: &ConvenienceTypeBuilder::type_descriptor("DiscoveredReaderData"),
         member_list: &[
             ConvenienceTypeBuilder::key_member::<BuiltInTopicKey>(0, "key", PID_ENDPOINT_GUID),

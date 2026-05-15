@@ -11,7 +11,7 @@ pub enum DurationKind {
 }
 
 impl TypeSupport for DurationKind {
-    const r#TYPE: &'static dyn crate::xtypes::dynamic_type::DynamicType = Duration::TYPE;
+    const r#TYPE: crate::xtypes::dynamic_type::DynamicType = Duration::TYPE;
 
     fn create_sample(src: crate::xtypes::dynamic_type::DynamicData) -> Self {
         let duration = Duration::create_sample(src);

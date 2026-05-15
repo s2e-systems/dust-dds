@@ -15,7 +15,7 @@ use crate::{
         type_support::TypeSupport,
     },
     transport::types::{GuidPrefix, Locator, Long, ProtocolVersion, VendorId},
-    xtypes::{data_storage::DataStorageMapping, dynamic_type::StaticTypeInformation},
+    xtypes::{data_storage::DataStorageMapping, dynamic_type::DynamicType},
 };
 use alloc::{string::String, vec, vec::Vec};
 
@@ -128,7 +128,7 @@ pub struct SpdpDiscoveredParticipantData {
 }
 
 impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParticipantData {
-    const r#TYPE: &'static dyn crate::xtypes::dynamic_type::DynamicType = &StaticTypeInformation {
+    const r#TYPE: DynamicType = DynamicType {
         descriptor: &ConvenienceTypeBuilder::type_descriptor("SpdpDiscoveredParticipantData"),
         member_list: &[
             ConvenienceTypeBuilder::key_member::<BuiltInTopicKey>(0, "key", PID_PARTICIPANT_GUID),

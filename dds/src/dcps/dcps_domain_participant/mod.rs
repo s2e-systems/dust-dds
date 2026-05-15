@@ -4057,7 +4057,7 @@ impl DcpsDomainParticipant {
 }
 
 #[tracing::instrument(skip(type_support))]
-fn get_topic_kind(type_support: &dyn DynamicType) -> TopicKind {
+fn get_topic_kind(type_support: &DynamicType) -> TopicKind {
     for index in 0..type_support.get_member_count() {
         if let Ok(m) = type_support.get_member_by_index(index) {
             if let Ok(d) = m.get_descriptor() {
@@ -4548,7 +4548,7 @@ struct TopicEntity {
     status_condition: DcpsStatusCondition,
     _listener_sender: Option<MpscSender<ListenerMail>>,
     _status_kind: Vec<StatusKind>,
-    type_support: &'static dyn DynamicType,
+    type_support: DynamicType,
 }
 
 impl TopicEntity {
@@ -4561,7 +4561,7 @@ impl TopicEntity {
         status_condition: DcpsStatusCondition,
         listener_sender: Option<MpscSender<ListenerMail>>,
         status_kind: Vec<StatusKind>,
-        type_support: &'static dyn DynamicType,
+        type_support: DynamicType,
     ) -> Self {
         Self {
             qos,
@@ -4658,7 +4658,7 @@ struct DataWriterEntity {
     transport_writer: RtpsWriterKind,
     topic_name: String,
     type_name: String,
-    type_support: &'static dyn DynamicType,
+    type_support: DynamicType,
     matched_subscription_list: Vec<SubscriptionBuiltinTopicData>,
     publication_matched_status: PublicationMatchedStatus,
     incompatible_subscription_list: Vec<InstanceHandle>,
@@ -4689,7 +4689,7 @@ impl DataWriterEntity {
         transport_writer: RtpsWriterKind,
         topic_name: String,
         type_name: String,
-        type_support: &'static dyn DynamicType,
+        type_support: DynamicType,
         listener_sender: Option<MpscSender<ListenerMail>>,
         listener_mask: Vec<StatusKind>,
         qos: DataWriterQos,
@@ -5061,7 +5061,7 @@ struct DataReaderEntity {
     sample_list: Vec<ReaderSample>,
     qos: DataReaderQos,
     topic_name: String,
-    type_support: &'static dyn DynamicType,
+    type_support: DynamicType,
     requested_deadline_missed_status: RequestedDeadlineMissedStatus,
     requested_incompatible_qos_status: RequestedIncompatibleQosStatus,
     sample_rejected_status: SampleRejectedStatus,
@@ -5084,7 +5084,7 @@ impl DataReaderEntity {
         instance_handle: InstanceHandle,
         qos: DataReaderQos,
         topic_name: String,
-        type_support: &'static dyn DynamicType,
+        type_support: DynamicType,
         listener_sender: Option<MpscSender<ListenerMail>>,
         listener_mask: Vec<StatusKind>,
         transport_reader: RtpsReaderKind,

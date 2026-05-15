@@ -7,7 +7,7 @@ use crate::{
     transport::types::{DurabilityKind, ReliabilityKind},
     xtypes::{
         binding::XTypesBinding,
-        dynamic_type::{DynamicDataFactory, DynamicType, DynamicTypeMember, StaticTypeInformation},
+        dynamic_type::{DynamicDataFactory, DynamicType, DynamicTypeMember},
     },
 };
 use alloc::{string::String, vec::Vec};
@@ -26,7 +26,7 @@ pub enum Length {
 }
 
 impl TypeSupport for Length {
-    const r#TYPE: &'static dyn DynamicType = i32::TYPE_INFORMATION;
+    const r#TYPE: DynamicType = i32::TYPE_INFORMATION;
 
     fn create_dynamic_sample(self) -> crate::xtypes::dynamic_type::DynamicData {
         let value = match self {
@@ -1047,7 +1047,7 @@ pub enum HistoryQosPolicyKind {
 }
 
 impl TypeSupport for HistoryQosPolicyKind {
-    const r#TYPE: &'static dyn crate::xtypes::dynamic_type::DynamicType = &StaticTypeInformation {
+    const r#TYPE: DynamicType = DynamicType {
         descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
             kind: dust_dds::xtypes::dynamic_type::TypeKind::ENUM,
             name: "HistoryQosPolicyKind",
@@ -1111,56 +1111,55 @@ impl HistoryQosPolicy {
 }
 
 impl dust_dds::infrastructure::type_support::TypeSupport for HistoryQosPolicy {
-    const r#TYPE: &'static dyn dust_dds::xtypes::dynamic_type::DynamicType =
-        &StaticTypeInformation {
-            descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
-                kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
-                name: "HistoryQosPolicy",
-                base_type: None,
-                discriminator_type: None,
-                bound: None,
-                element_type: None,
-                key_element_type: None,
-                extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Appendable,
-                is_nested: true,
+    const r#TYPE: DynamicType = DynamicType {
+        descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
+            kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
+            name: "HistoryQosPolicy",
+            base_type: None,
+            discriminator_type: None,
+            bound: None,
+            element_type: None,
+            key_element_type: None,
+            extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Appendable,
+            is_nested: true,
+        },
+        member_list: &[
+            DynamicTypeMember {
+                descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
+                    name: "kind",
+                    id: 0,
+                    r#type: HistoryQosPolicyKind::TYPE_INFORMATION,
+                    default_value: None,
+                    index: 0u32,
+                    try_construct_kind:
+                        dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+                    label: None,
+                    is_key: false,
+                    is_optional: false,
+                    is_must_understand: true,
+                    is_shared: false,
+                    is_default_label: false,
+                },
             },
-            member_list: &[
-                DynamicTypeMember {
-                    descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                        name: "kind",
-                        id: 0,
-                        r#type: HistoryQosPolicyKind::TYPE_INFORMATION,
-                        default_value: None,
-                        index: 0u32,
-                        try_construct_kind:
-                            dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-                        label: None,
-                        is_key: false,
-                        is_optional: false,
-                        is_must_understand: true,
-                        is_shared: false,
-                        is_default_label: false,
-                    },
+            DynamicTypeMember {
+                descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
+                    name: "depth",
+                    id: 1,
+                    r#type: i32::TYPE_INFORMATION,
+                    default_value: None,
+                    index: 1u32,
+                    try_construct_kind:
+                        dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+                    label: None,
+                    is_key: false,
+                    is_optional: false,
+                    is_must_understand: true,
+                    is_shared: false,
+                    is_default_label: false,
                 },
-                DynamicTypeMember {
-                    descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                        name: "depth",
-                        id: 1,
-                        r#type: i32::TYPE_INFORMATION,
-                        default_value: None,
-                        index: 1u32,
-                        try_construct_kind:
-                            dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-                        label: None,
-                        is_key: false,
-                        is_optional: false,
-                        is_must_understand: true,
-                        is_shared: false,
-                        is_default_label: false,
-                    },
-                },
-            ],
-        };
+            },
+        ],
+    };
 
     fn create_sample(src: crate::xtypes::dynamic_type::DynamicData) -> Self {
         let kind = src.get_complex_value(0).cloned().unwrap();

@@ -161,7 +161,7 @@ impl DomainParticipant {
         qos: QosKind<TopicQos>,
         a_listener: Option<impl TopicListener + Send + 'static>,
         mask: &[StatusKind],
-        dynamic_type_representation: &'static dyn DynamicType,
+        dynamic_type_representation: DynamicType,
     ) -> DdsResult<TopicDescription> {
         block_on(self.participant_async.create_dynamic_topic(
             topic_name,

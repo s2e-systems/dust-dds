@@ -225,7 +225,7 @@ impl DcpsDomainParticipant {
         qos: QosKind<TopicQos>,
         dcps_listener: Option<DcpsTopicListener>,
         mask: Vec<StatusKind>,
-        type_support: &'static dyn DynamicType,
+        type_support: DynamicType,
         runtime: &impl DdsRuntime,
     ) -> DdsResult<InstanceHandle> {
         if self
@@ -321,7 +321,7 @@ impl DcpsDomainParticipant {
 
         for publisher in self.domain_participant.user_defined_publisher_list.iter() {
             for writer in publisher.data_writer_list.iter() {
-                if core::ptr::addr_eq(writer.type_support, topic.type_support) {
+                if writer.type_support == topic.type_support {
                     return Err(DdsError::PreconditionNotMet(
                         "Topic still attached to some data writer or data reader".to_string(),
                     ));
@@ -331,7 +331,7 @@ impl DcpsDomainParticipant {
 
         for subscriber in self.domain_participant.user_defined_subscriber_list.iter() {
             for reader in subscriber.data_reader_list.iter() {
-                if core::ptr::addr_eq(reader.type_support, topic.type_support) {
+                if reader.type_support == topic.type_support {
                     return Err(DdsError::PreconditionNotMet(
                         "Topic still attached to some data writer or data reader".to_string(),
                     ));
@@ -412,7 +412,7 @@ impl DcpsDomainParticipant {
     pub fn find_topic(
         &mut self,
         topic_name: String,
-        type_support: &'static dyn DynamicType,
+        type_support: DynamicType,
     ) -> DdsResult<Option<(InstanceHandle, String)>> {
         if let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant

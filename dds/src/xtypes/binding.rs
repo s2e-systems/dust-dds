@@ -1,17 +1,15 @@
 use crate::{
     infrastructure::type_support::TypeSupport,
-    xtypes::dynamic_type::{
-        DynamicType, ExtensibilityKind, StaticTypeInformation, TypeDescriptor, TypeKind,
-    },
+    xtypes::dynamic_type::{DynamicType, ExtensibilityKind, TypeDescriptor, TypeKind},
 };
 use alloc::{string::String, vec::Vec};
 
 pub trait XTypesBinding {
-    const TYPE_INFORMATION: &'static dyn DynamicType;
+    const TYPE_INFORMATION: DynamicType;
 }
 
 impl XTypesBinding for u8 {
-    const TYPE_INFORMATION: &'static dyn DynamicType = &StaticTypeInformation {
+    const TYPE_INFORMATION: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::UINT8,
             name: "",
@@ -27,7 +25,7 @@ impl XTypesBinding for u8 {
     };
 }
 impl XTypesBinding for i8 {
-    const TYPE_INFORMATION: &'static dyn DynamicType = &StaticTypeInformation {
+    const TYPE_INFORMATION: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::INT8,
             name: "",
@@ -44,7 +42,7 @@ impl XTypesBinding for i8 {
 }
 
 impl XTypesBinding for u16 {
-    const TYPE_INFORMATION: &'static dyn DynamicType = &StaticTypeInformation {
+    const TYPE_INFORMATION: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::UINT16,
             name: "",
@@ -61,7 +59,7 @@ impl XTypesBinding for u16 {
 }
 
 impl XTypesBinding for i16 {
-    const TYPE_INFORMATION: &'static dyn DynamicType = &StaticTypeInformation {
+    const TYPE_INFORMATION: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::INT16,
             name: "",
@@ -78,7 +76,7 @@ impl XTypesBinding for i16 {
 }
 
 impl XTypesBinding for u32 {
-    const TYPE_INFORMATION: &'static dyn DynamicType = &StaticTypeInformation {
+    const TYPE_INFORMATION: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::UINT32,
             name: "",
@@ -95,7 +93,7 @@ impl XTypesBinding for u32 {
 }
 
 impl XTypesBinding for i32 {
-    const TYPE_INFORMATION: &'static dyn DynamicType = &StaticTypeInformation {
+    const TYPE_INFORMATION: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::INT32,
             name: "",
@@ -112,7 +110,7 @@ impl XTypesBinding for i32 {
 }
 
 impl XTypesBinding for u64 {
-    const TYPE_INFORMATION: &'static dyn DynamicType = &StaticTypeInformation {
+    const TYPE_INFORMATION: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::UINT64,
             name: "",
@@ -129,7 +127,7 @@ impl XTypesBinding for u64 {
 }
 
 impl XTypesBinding for i64 {
-    const TYPE_INFORMATION: &'static dyn DynamicType = &StaticTypeInformation {
+    const TYPE_INFORMATION: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::INT64,
             name: "",
@@ -146,7 +144,7 @@ impl XTypesBinding for i64 {
 }
 
 impl XTypesBinding for String {
-    const TYPE_INFORMATION: &'static dyn DynamicType = &StaticTypeInformation {
+    const TYPE_INFORMATION: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::STRING8,
             name: "",
@@ -163,7 +161,7 @@ impl XTypesBinding for String {
 }
 
 impl XTypesBinding for &'_ str {
-    const TYPE_INFORMATION: &'static dyn DynamicType = &StaticTypeInformation {
+    const TYPE_INFORMATION: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::STRING8,
             name: "",
@@ -180,7 +178,7 @@ impl XTypesBinding for &'_ str {
 }
 
 impl XTypesBinding for bool {
-    const TYPE_INFORMATION: &'static dyn DynamicType = &StaticTypeInformation {
+    const TYPE_INFORMATION: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::BOOLEAN,
             name: "",
@@ -197,7 +195,7 @@ impl XTypesBinding for bool {
 }
 
 impl XTypesBinding for f32 {
-    const TYPE_INFORMATION: &'static dyn DynamicType = &StaticTypeInformation {
+    const TYPE_INFORMATION: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::FLOAT32,
             name: "",
@@ -214,7 +212,7 @@ impl XTypesBinding for f32 {
 }
 
 impl XTypesBinding for f64 {
-    const TYPE_INFORMATION: &'static dyn DynamicType = &StaticTypeInformation {
+    const TYPE_INFORMATION: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::FLOAT64,
             name: "",
@@ -231,7 +229,7 @@ impl XTypesBinding for f64 {
 }
 
 impl XTypesBinding for char {
-    const TYPE_INFORMATION: &'static dyn DynamicType = &StaticTypeInformation {
+    const TYPE_INFORMATION: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::CHAR8,
             name: "",
@@ -248,7 +246,7 @@ impl XTypesBinding for char {
 }
 
 impl XTypesBinding for &'_ [u8] {
-    const TYPE_INFORMATION: &'static dyn DynamicType = &StaticTypeInformation {
+    const TYPE_INFORMATION: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::SEQUENCE,
             name: "",
@@ -265,7 +263,7 @@ impl XTypesBinding for &'_ [u8] {
 }
 
 impl<T: XTypesBinding> XTypesBinding for Vec<T> {
-    const TYPE_INFORMATION: &'static dyn DynamicType = &StaticTypeInformation {
+    const TYPE_INFORMATION: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::SEQUENCE,
             name: "",
@@ -282,11 +280,11 @@ impl<T: XTypesBinding> XTypesBinding for Vec<T> {
 }
 
 impl<T: TypeSupport> XTypesBinding for T {
-    const TYPE_INFORMATION: &'static dyn DynamicType = T::TYPE;
+    const TYPE_INFORMATION: DynamicType = T::TYPE;
 }
 
 impl<T: XTypesBinding, const N: usize> XTypesBinding for [T; N] {
-    const TYPE_INFORMATION: &'static dyn DynamicType = &StaticTypeInformation {
+    const TYPE_INFORMATION: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::ARRAY,
             name: "",
@@ -303,5 +301,5 @@ impl<T: XTypesBinding, const N: usize> XTypesBinding for [T; N] {
 }
 
 impl<T: XTypesBinding> XTypesBinding for Option<T> {
-    const TYPE_INFORMATION: &'static dyn DynamicType = T::TYPE_INFORMATION;
+    const TYPE_INFORMATION: DynamicType = T::TYPE_INFORMATION;
 }

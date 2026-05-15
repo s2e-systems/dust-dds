@@ -118,7 +118,7 @@ pub enum ParticipantServiceMail {
         qos: QosKind<TopicQos>,
         dcps_listener: Option<DcpsTopicListener>,
         mask: Vec<StatusKind>,
-        type_support: &'static dyn DynamicType,
+        type_support: DynamicType,
         reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
     },
     DeleteUserDefinedTopic {
@@ -143,7 +143,7 @@ pub enum ParticipantServiceMail {
     FindTopic {
         participant_handle: InstanceHandle,
         topic_name: String,
-        type_support: &'static dyn DynamicType,
+        type_support: DynamicType,
         reply_sender: OneshotSender<DdsResult<Option<(InstanceHandle, String)>>>,
     },
     LookupTopicdescription {
@@ -265,7 +265,7 @@ pub enum TopicServiceMail {
     GetTypeSupport {
         participant_handle: InstanceHandle,
         topic_name: String,
-        reply_sender: OneshotSender<DdsResult<&'static dyn DynamicType>>,
+        reply_sender: OneshotSender<DdsResult<DynamicType>>,
     },
 }
 

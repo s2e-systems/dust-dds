@@ -21,7 +21,7 @@ use crate::{
     transport::types::{ENTITYID_UNKNOWN, EntityId, Guid, Locator},
     xtypes::{
         data_storage::DataStorageMapping,
-        dynamic_type::{DynamicType, StaticTypeInformation},
+        dynamic_type::{DynamicType},
     },
 };
 use alloc::{string::String, vec::Vec};
@@ -40,7 +40,7 @@ pub struct DiscoveredWriterData {
     pub(crate) writer_proxy: WriterProxy,
 }
 impl TypeSupport for DiscoveredWriterData {
-    const r#TYPE: &'static dyn DynamicType = &StaticTypeInformation {
+    const r#TYPE: DynamicType = DynamicType {
         descriptor: &ConvenienceTypeBuilder::type_descriptor("DiscoveredWriterData"),
         member_list: &[
             ConvenienceTypeBuilder::key_member::<BuiltInTopicKey>(0, "key", PID_ENDPOINT_GUID),

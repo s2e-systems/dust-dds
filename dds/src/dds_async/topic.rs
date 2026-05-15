@@ -179,7 +179,7 @@ impl TopicAsync {
 impl TopicAsync {
     #[doc(hidden)]
     #[tracing::instrument(skip(self))]
-    pub async fn get_type_support(&self) -> DdsResult<&'static dyn DynamicType> {
+    pub async fn get_type_support(&self) -> DdsResult<DynamicType> {
         let (reply_sender, reply_receiver) = oneshot();
         self.participant
             .dcps_sender()

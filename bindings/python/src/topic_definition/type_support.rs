@@ -25,7 +25,7 @@ pub enum TypeKind {
 
 pub fn convert_python_type_to_dynamic_type(
     python_type: &Bound<'_, PyAny>,
-) -> PyResult<&'static dyn dust_dds::xtypes::dynamic_type::DynamicType> {
+) -> PyResult<dust_dds::xtypes::dynamic_type::DynamicType> {
     let dataclass_fields = python_type.getattr("__annotations__")?;
     let fields_dict = dataclass_fields.cast::<PyDict>()?;
     let name = String::leak(python_type.getattr("__name__")?.extract::<String>()?);
@@ -121,9 +121,9 @@ pub fn convert_python_instance_to_dynamic_data(
     let r#type = convert_python_type_to_dynamic_type(&python_instance.getattr("__class__")?)?;
     let mut dynamic_data = dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(r#type);
 
-    for member_index in 0..dust_dds::xtypes::dynamic_type::DynamicType::get_member_count(r#type) {
+    for member_index in 0..dust_dds::xtypes::dynamic_type::DynamicType::get_member_count(&r#type) {
         let member =
-            dust_dds::xtypes::dynamic_type::DynamicType::get_member_by_index(r#type, member_index)
+            dust_dds::xtypes::dynamic_type::DynamicType::get_member_by_index(&r#type, member_index)
                 .unwrap();
         let member_descriptor = member.get_descriptor().unwrap();
         let member_kind = member_descriptor.r#type.get_kind();
@@ -190,7 +190,7 @@ pub fn convert_python_instance_to_dynamic_data(
 pub fn convert_dynamic_data_to_python_instance(
     py: Python,
     r#type: &Py<PyAny>,
-    dynamic_type: &dyn dust_dds::xtypes::dynamic_type::DynamicType,
+    dynamic_type: &dust_dds::xtypes::dynamic_type::DynamicType,
     dynamic_data: dust_dds::xtypes::dynamic_type::DynamicData,
 ) -> PyResult<Py<PyAny>> {
     // Call the empty constructor of the type
@@ -292,7 +292,7 @@ impl From<PythonDdsData> for dust_dds::xtypes::dynamic_type::DynamicData {
 }
 
 impl TypeSupport for PythonDdsData {
-    const r#TYPE: &'static dyn dust_dds::xtypes::dynamic_type::DynamicType =
+    const r#TYPE: dust_dds::xtypes::dynamic_type::DynamicType =
         <u8 as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION;
 
     fn create_sample(src: dust_dds::xtypes::dynamic_type::DynamicData) -> Self {
@@ -337,16 +337,16 @@ class MyDataType:
             let dynamic_type = convert_python_type_to_dynamic_type(&my_data_type).unwrap();
 
             assert_eq!(
-                dust_dds::xtypes::dynamic_type::DynamicType::get_name(dynamic_type),
+                dust_dds::xtypes::dynamic_type::DynamicType::get_name(&dynamic_type),
                 "MyDataType"
             );
             assert_eq!(
-                dust_dds::xtypes::dynamic_type::DynamicType::get_member_count(dynamic_type),
+                dust_dds::xtypes::dynamic_type::DynamicType::get_member_count(&dynamic_type),
                 4
             );
 
             let member =
-                dust_dds::xtypes::dynamic_type::DynamicType::get_member_by_index(dynamic_type, 0)
+                dust_dds::xtypes::dynamic_type::DynamicType::get_member_by_index(&dynamic_type, 0)
                     .unwrap();
             assert_eq!(member.get_name(), "id");
             assert_eq!(
@@ -355,7 +355,7 @@ class MyDataType:
             );
 
             let member =
-                dust_dds::xtypes::dynamic_type::DynamicType::get_member_by_index(dynamic_type, 1)
+                dust_dds::xtypes::dynamic_type::DynamicType::get_member_by_index(&dynamic_type, 1)
                     .unwrap();
             assert_eq!(member.get_name(), "value");
             assert_eq!(
@@ -364,7 +364,7 @@ class MyDataType:
             );
 
             let member =
-                dust_dds::xtypes::dynamic_type::DynamicType::get_member_by_index(dynamic_type, 2)
+                dust_dds::xtypes::dynamic_type::DynamicType::get_member_by_index(&dynamic_type, 2)
                     .unwrap();
             assert_eq!(member.get_name(), "data");
             assert_eq!(
@@ -373,7 +373,7 @@ class MyDataType:
             );
 
             let member =
-                dust_dds::xtypes::dynamic_type::DynamicType::get_member_by_index(dynamic_type, 3)
+                dust_dds::xtypes::dynamic_type::DynamicType::get_member_by_index(&dynamic_type, 3)
                     .unwrap();
             assert_eq!(member.get_name(), "name");
             assert_eq!(
@@ -472,7 +472,7 @@ class MyDataType:
             let created_data = convert_dynamic_data_to_python_instance(
                 py,
                 &r#type,
-                MyDataType::TYPE,
+                &MyDataType::TYPE,
                 dynamic_data,
             )
             .unwrap();
