@@ -4,7 +4,7 @@ pub trait XTypesTypeObject {
     fn type_object() -> TypeObject;
 }
 
-use crate::xtypes::{dynamic_type::TypeKind, f128::F128};
+use crate::xtypes::{dynamic_type::TypeKind};
 
 use super::dynamic_type::TryConstructKind;
 
@@ -371,7 +371,7 @@ pub enum AnnotationParameterValue {
         float64_value: f64,
     },
     TkFloat128 {
-        float128_value: F128,
+        float128_value: i128,
     },
     TkChar8 {
         char_value: char,

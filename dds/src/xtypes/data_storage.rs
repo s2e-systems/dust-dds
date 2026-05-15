@@ -2,8 +2,7 @@ use crate::{
     infrastructure::type_support::TypeSupport,
     xtypes::{
         dynamic_type::DynamicData,
-        error::{XTypesError, XTypesResult},
-        f128::F128,
+        error::{XTypesError, XTypesResult}, f128::F128,
     },
 };
 use alloc::{string::String, vec::Vec};
@@ -36,7 +35,7 @@ pub enum DataStorage {
     SequenceUInt64(Vec<u64>),
     SequenceFloat32(Vec<f32>),
     SequenceFloat64(Vec<f64>),
-    SequenceFloat128(Vec<F128>),
+    SequenceFloat128(Vec<f32>),
     SequenceChar8(Vec<char>),
     SequenceBoolean(Vec<bool>),
     SequenceString(Vec<String>),

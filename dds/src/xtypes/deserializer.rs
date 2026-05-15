@@ -201,7 +201,10 @@ impl EndiannessRead for BigEndian {
     }
 
     fn read_f128<R: Read>(reader: &mut R) -> XTypesResult<F128> {
-        Ok(F128(*reader.read_array::<16>()?))
+        let bytes = reader.read_array::<16>()?;
+        Ok(F128::from(f32::from_be_bytes([
+            bytes[0], bytes[1], bytes[2], bytes[3],
+        ])))
     }
 }
 
@@ -241,7 +244,10 @@ impl EndiannessRead for LittleEndian {
     }
 
     fn read_f128<R: Read>(reader: &mut R) -> XTypesResult<F128> {
-        Ok(F128(*reader.read_array::<16>()?))
+        let bytes = reader.read_array::<16>()?;
+        Ok(F128::from(f32::from_le_bytes([
+            bytes[12], bytes[13], bytes[14], bytes[15],
+        ])))
     }
 }
 
@@ -688,7 +694,7 @@ impl CdrPrimitiveTypeDeserialize for F128 {
     fn deserialize<'a, E: EndiannessRead, V: CdrVersion>(
         reader: &mut CdrReader<'a, E, V>,
     ) -> XTypesResult<Self> {
-        reader.seek_padding((128 / 8) as usize);
+        reader.seek_padding((64 / 8) as usize);
         E::read_f128(reader)
     }
 }

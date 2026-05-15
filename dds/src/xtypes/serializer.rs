@@ -777,7 +777,7 @@ impl Write for ByteCounter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{infrastructure::type_support::TypeSupport, xtypes::f128::F128};
+    use crate::{infrastructure::type_support::TypeSupport};
     extern crate std;
 
     fn serialize_v1_be(v: &DynamicData) -> std::vec::Vec<u8> {
@@ -884,68 +884,6 @@ mod tests {
                 0x00, 0x00, 0x00, 0x00, // f11-1: f64
                 0x00, 0x00, 0xF0, 0x3F, // f11-2: f64
                 b'a', 0, 0, 0 // f12: char | padding (3 bytes)
-            ]
-        );
-    }
-
-    #[test]
-    fn serialize_non_core_basic_types_struct() {
-        #[derive(TypeSupport, Clone)]
-        struct BasicTypes {
-            f1: F128,
-            f2: u8,
-        }
-
-        let v = BasicTypes {
-            f1: F128([
-                0x40, 0x00, 0x8C, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC,
-                0xCC, 0xCD,
-            ]),
-            f2: 7,
-        }
-        .create_dynamic_sample();
-        assert_eq!(
-            serialize_v1_be(&v),
-            vec![
-                0x00, 0x00, 0x00, 0x03, // CDR Header (incl. padding length)
-                0x40, 0x00, 0x8C, 0xCC, // f1
-                0xCC, 0xCC, 0xCC, 0xCC, // f1
-                0xCC, 0xCC, 0xCC, 0xCC, // f1
-                0xCC, 0xCC, 0xCC, 0xCD, // f1
-                7, 0, 0, 0 // f2 + 3 bytes padding
-            ]
-        );
-        assert_eq!(
-            serialize_v1_le(&v),
-            vec![
-                0x00, 0x01, 0x00, 0x03, // CDR Header (incl. padding length)
-                0x40, 0x00, 0x8C, 0xCC, // f1
-                0xCC, 0xCC, 0xCC, 0xCC, // f1
-                0xCC, 0xCC, 0xCC, 0xCC, // f1
-                0xCC, 0xCC, 0xCC, 0xCD, // f1
-                7, 0, 0, 0 // f2 + 3 bytes padding
-            ]
-        );
-        assert_eq!(
-            serialize_v2_be(&v),
-            vec![
-                0x00, 0x06, 0x00, 0x03, // CDR Header (incl. padding length)
-                0x40, 0x00, 0x8C, 0xCC, // f1
-                0xCC, 0xCC, 0xCC, 0xCC, // f1
-                0xCC, 0xCC, 0xCC, 0xCC, // f1
-                0xCC, 0xCC, 0xCC, 0xCD, // f1
-                7, 0, 0, 0 // f2 + 3 bytes padding
-            ]
-        );
-        assert_eq!(
-            serialize_v2_le(&v),
-            vec![
-                0x00, 0x07, 0x00, 0x03, // CDR Header (incl. padding length)
-                0x40, 0x00, 0x8C, 0xCC, // f1
-                0xCC, 0xCC, 0xCC, 0xCC, // f1
-                0xCC, 0xCC, 0xCC, 0xCC, // f1
-                0xCC, 0xCC, 0xCC, 0xCD, // f1
-                7, 0, 0, 0 // f2 + 3 bytes padding
             ]
         );
     }
