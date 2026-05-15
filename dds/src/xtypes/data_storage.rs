@@ -217,6 +217,16 @@ impl DataStorageMapping for String {
     }
 }
 
+impl<T: DataStorageMapping> DataStorageMapping for Option<T> {
+    fn into_storage(self) -> DataStorage {
+        T::into_storage(self.expect("Only options with value are converted"))
+    }
+
+    fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
+        Ok(Some(T::try_from_storage(data_storage)?))
+    }
+}
+
 // SequenceChar8(Vec<char>),
 // SequenceBoolean(Vec<bool>),
 // SequenceString(Vec<String>),
