@@ -141,7 +141,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
         ],
     };
 
-    fn create_sample(mut src: crate::xtypes::dynamic_type::DynamicData) -> Self {
+    fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData) -> Self {
         let key = BuiltInTopicKey::try_from_storage(
             src.remove_value(PID_ENDPOINT_GUID as u32)
                 .expect("Must exist"),

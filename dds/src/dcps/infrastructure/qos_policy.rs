@@ -38,7 +38,7 @@ impl TypeSupport for Length {
         data
     }
 
-    fn create_sample(src: crate::xtypes::dynamic_type::DynamicData) -> Self {
+    fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData) -> Self {
         let value = src.get_int32_value(0).cloned().unwrap();
         match value {
             LENGTH_UNLIMITED => Length::Unlimited,
@@ -1062,7 +1062,7 @@ impl TypeSupport for HistoryQosPolicyKind {
         member_list: &[],
     };
 
-    fn create_sample(src: crate::xtypes::dynamic_type::DynamicData) -> Self {
+    fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData) -> Self {
         let discriminant = src.get_uint8_value(0).unwrap();
         match discriminant {
             0 => Self::KeepLast(1),
@@ -1161,10 +1161,10 @@ impl dust_dds::infrastructure::type_support::TypeSupport for HistoryQosPolicy {
         ],
     };
 
-    fn create_sample(src: crate::xtypes::dynamic_type::DynamicData) -> Self {
-        let kind = src.get_complex_value(0).cloned().unwrap();
+    fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData) -> Self {
+        let mut kind = src.get_complex_value(0).cloned().unwrap();
         let depth = src.get_int32_value(1).unwrap();
-        let qos_policy_kind = HistoryQosPolicyKind::create_sample(kind);
+        let qos_policy_kind = HistoryQosPolicyKind::create_sample(&mut kind);
         match qos_policy_kind {
             HistoryQosPolicyKind::KeepLast(_) => HistoryQosPolicy {
                 kind: HistoryQosPolicyKind::KeepLast(*depth as u32),

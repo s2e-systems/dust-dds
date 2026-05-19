@@ -7,7 +7,7 @@ pub trait TypeSupport {
     const r#TYPE: DynamicType;
 
     /// Create a sample of the TypeSupport’s data type with the contents of an input DynamicData object.
-    fn create_sample(src: DynamicData) -> Self;
+    fn create_sample(src: &mut DynamicData) -> Self;
 
     /// Create a 'DynamicData' object with the contents of an input sample of the TypeSupport’s data type.
     fn create_dynamic_sample(self) -> DynamicData;

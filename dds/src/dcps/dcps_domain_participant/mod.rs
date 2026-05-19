@@ -2055,12 +2055,12 @@ impl DcpsDomainParticipant {
             };
         match cache_change.kind {
             ChangeKind::Alive => {
-                if let Ok(dynamic_data) = CdrDeserializer::deserialize_builtin(
+                if let Ok(mut dynamic_data) = CdrDeserializer::deserialize_builtin(
                     spdp_type_support,
                     cache_change.data_value.as_ref(),
                 ) {
                     let discovered_participant_data =
-                        SpdpDiscoveredParticipantData::create_sample(dynamic_data);
+                        SpdpDiscoveredParticipantData::create_sample(&mut dynamic_data);
 
                     self.add_discovered_participant(discovered_participant_data, runtime);
                 }
@@ -2068,12 +2068,14 @@ impl DcpsDomainParticipant {
             ChangeKind::NotAliveDisposed | ChangeKind::NotAliveDisposedUnregistered => {
                 let discovered_participant_handle = if let Some(h) = cache_change.instance_handle {
                     InstanceHandle::new(h)
-                } else if let Ok(dynamic_data) = CdrDeserializer::deserialize(
+                } else if let Ok(mut dynamic_data) = CdrDeserializer::deserialize(
                     BuiltInKeyHolder::TYPE,
                     cache_change.data_value.as_ref(),
                     DeserializeKind::Full,
                 ) {
-                    InstanceHandle::new(BuiltInKeyHolder::create_sample(dynamic_data).key.value)
+                    InstanceHandle::new(
+                        BuiltInKeyHolder::create_sample(&mut dynamic_data).key.value,
+                    )
                 } else {
                     return;
                 };
@@ -2115,11 +2117,12 @@ impl DcpsDomainParticipant {
             };
         match cache_change.kind {
             ChangeKind::Alive => {
-                if let Ok(dynamic_data) = CdrDeserializer::deserialize_builtin(
+                if let Ok(mut dynamic_data) = CdrDeserializer::deserialize_builtin(
                     sedp_writer_type_support,
                     cache_change.data_value.as_ref(),
                 ) {
-                    let discovered_writer_data = DiscoveredWriterData::create_sample(dynamic_data);
+                    let discovered_writer_data =
+                        DiscoveredWriterData::create_sample(&mut dynamic_data);
                     let publication_builtin_topic_data =
                         &discovered_writer_data.dds_publication_data;
                     if self
@@ -2171,12 +2174,14 @@ impl DcpsDomainParticipant {
             ChangeKind::NotAliveDisposed | ChangeKind::NotAliveDisposedUnregistered => {
                 let discovered_writer_handle = if let Some(h) = cache_change.instance_handle {
                     InstanceHandle::new(h)
-                } else if let Ok(dynamic_data) = CdrDeserializer::deserialize(
+                } else if let Ok(mut dynamic_data) = CdrDeserializer::deserialize(
                     BuiltInKeyHolder::TYPE,
                     cache_change.data_value.as_ref(),
                     DeserializeKind::Full,
                 ) {
-                    InstanceHandle::new(BuiltInKeyHolder::create_sample(dynamic_data).key.value)
+                    InstanceHandle::new(
+                        BuiltInKeyHolder::create_sample(&mut dynamic_data).key.value,
+                    )
                 } else {
                     return;
                 };
@@ -2233,11 +2238,12 @@ impl DcpsDomainParticipant {
             };
         match cache_change.kind {
             ChangeKind::Alive => {
-                if let Ok(dynamic_data) = CdrDeserializer::deserialize_builtin(
+                if let Ok(mut dynamic_data) = CdrDeserializer::deserialize_builtin(
                     sedp_reader_type_support,
                     cache_change.data_value.as_ref(),
                 ) {
-                    let discovered_reader_data = DiscoveredReaderData::create_sample(dynamic_data);
+                    let discovered_reader_data =
+                        DiscoveredReaderData::create_sample(&mut dynamic_data);
                     if self
                         .domain_participant
                         .find_topic(&discovered_reader_data.dds_subscription_data.topic_name)
@@ -2319,12 +2325,12 @@ impl DcpsDomainParticipant {
             ChangeKind::NotAliveDisposed | ChangeKind::NotAliveDisposedUnregistered => {
                 let discovered_reader_handle = if let Some(h) = cache_change.instance_handle {
                     InstanceHandle::new(h)
-                } else if let Ok(dynamic_data) = CdrDeserializer::deserialize(
+                } else if let Ok(mut dynamic_data) = CdrDeserializer::deserialize(
                     InstanceHandle::TYPE,
                     cache_change.data_value.as_ref(),
                     DeserializeKind::Full,
                 ) {
-                    InstanceHandle::create_sample(dynamic_data)
+                    InstanceHandle::create_sample(&mut dynamic_data)
                 } else {
                     return;
                 };
@@ -2382,12 +2388,12 @@ impl DcpsDomainParticipant {
             };
         match cache_change.kind {
             ChangeKind::Alive => {
-                if let Ok(dynamic_data) = CdrDeserializer::deserialize_builtin(
+                if let Ok(mut dynamic_data) = CdrDeserializer::deserialize_builtin(
                     sedp_topic_type_support,
                     cache_change.data_value.as_ref(),
                 ) {
                     let topic_builtin_topic_data =
-                        TopicBuiltinTopicData::create_sample(dynamic_data);
+                        TopicBuiltinTopicData::create_sample(&mut dynamic_data);
 
                     self.domain_participant
                         .add_discovered_topic(topic_builtin_topic_data.clone());

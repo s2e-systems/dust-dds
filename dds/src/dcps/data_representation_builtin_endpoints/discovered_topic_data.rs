@@ -103,7 +103,7 @@ impl TypeSupport for DiscoveredTopicData {
         ],
     };
 
-    fn create_sample(mut src: crate::xtypes::dynamic_type::DynamicData) -> Self {
+    fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData) -> Self {
         Self {
             topic_builtin_topic_data: TopicBuiltinTopicData {
                 key: DataStorageMapping::try_from_storage(

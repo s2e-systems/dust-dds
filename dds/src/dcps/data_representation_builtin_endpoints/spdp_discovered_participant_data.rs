@@ -11,11 +11,10 @@ use crate::{
         ConvenienceTypeBuilder, parameter_id_values::DEFAULT_DOMAIN_TAG,
     },
     infrastructure::{
-        domain::DomainId, instance::InstanceHandle, qos_policy::UserDataQosPolicy, time::Duration,
-        type_support::TypeSupport,
+        domain::DomainId, instance::InstanceHandle, time::Duration, type_support::TypeSupport,
     },
     transport::types::{GuidPrefix, Locator, Long, ProtocolVersion, VendorId},
-    xtypes::{data_storage::DataStorageMapping, dynamic_type::DynamicType},
+    xtypes::{binding::XTypesBinding, data_storage::DataStorageMapping, dynamic_type::DynamicType},
 };
 use alloc::{string::String, vec, vec::Vec};
 
@@ -129,14 +128,18 @@ pub struct SpdpDiscoveredParticipantData {
 
 impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParticipantData {
     const r#TYPE: DynamicType = DynamicType {
-        descriptor: &ConvenienceTypeBuilder::type_descriptor("SpdpDiscoveredParticipantData"),
+        descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
+            kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
+            name: "SpdpDiscoveredParticipantData",
+            base_type: Some(ParticipantBuiltinTopicData::TYPE_INFORMATION),
+            discriminator_type: None,
+            bound: None,
+            element_type: None,
+            key_element_type: None,
+            extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Mutable,
+            is_nested: false,
+        },
         member_list: &[
-            ConvenienceTypeBuilder::key_member::<BuiltInTopicKey>(0, "key", PID_PARTICIPANT_GUID),
-            ConvenienceTypeBuilder::member_with_default::<UserDataQosPolicy>(
-                1,
-                "user_data",
-                PID_USER_DATA,
-            ),
             ConvenienceTypeBuilder::member_with_default::<DomainId>(2, "domain_id", PID_DOMAIN_ID),
             ConvenienceTypeBuilder::member_with_default::<String>(3, "domain_tag", PID_DOMAIN_TAG),
             ConvenienceTypeBuilder::member::<ProtocolVersion>(
@@ -194,21 +197,9 @@ impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParti
         ],
     };
 
-    fn create_sample(mut src: crate::xtypes::dynamic_type::DynamicData) -> Self {
+    fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData) -> Self {
         Self {
-            dds_participant_data: ParticipantBuiltinTopicData {
-                key: DataStorageMapping::try_from_storage(
-                    src.get_value(PID_PARTICIPANT_GUID as u32)
-                        .expect("Must exist")
-                        .clone(),
-                )
-                .expect("Type must match"),
-                user_data: src
-                    .remove_value(PID_USER_DATA as u32)
-                    .map_or(UserDataQosPolicy::const_default(), |x| {
-                        DataStorageMapping::try_from_storage(x).expect("Must match")
-                    }),
-            },
+            dds_participant_data: ParticipantBuiltinTopicData::create_sample(src),
             participant_proxy: ParticipantProxy {
                 domain_id: None,
                 domain_tag: src

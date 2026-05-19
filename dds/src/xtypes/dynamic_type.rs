@@ -1348,8 +1348,8 @@ impl TypeSupport for DynamicData {
         member_list: &[],
     };
 
-    fn create_sample(src: DynamicData) -> Self {
-        src
+    fn create_sample(src: &mut DynamicData) -> Self {
+        src.clone()
     }
 
     fn create_dynamic_sample(self) -> DynamicData {

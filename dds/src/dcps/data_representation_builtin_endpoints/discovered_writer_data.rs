@@ -19,10 +19,7 @@ use crate::{
         type_support::TypeSupport,
     },
     transport::types::{ENTITYID_UNKNOWN, EntityId, Guid, Locator},
-    xtypes::{
-        data_storage::DataStorageMapping,
-        dynamic_type::{DynamicType},
-    },
+    xtypes::{data_storage::DataStorageMapping, dynamic_type::DynamicType},
 };
 use alloc::{string::String, vec::Vec};
 
@@ -145,7 +142,7 @@ impl TypeSupport for DiscoveredWriterData {
         ],
     };
 
-    fn create_sample(mut src: crate::xtypes::dynamic_type::DynamicData) -> Self {
+    fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData) -> Self {
         let key = BuiltInTopicKey::try_from_storage(
             src.remove_value(PID_ENDPOINT_GUID as u32)
                 .expect("Must exist"),

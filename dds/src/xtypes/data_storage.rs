@@ -599,8 +599,8 @@ impl<T: TypeSupport> DataStorageMapping for T {
         DataStorage::ComplexValue(T::create_dynamic_sample(self))
     }
 
-    fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
-        match data_storage {
+    fn try_from_storage(mut data_storage: DataStorage) -> XTypesResult<Self> {
+        match &mut data_storage {
             DataStorage::ComplexValue(x) => Ok(T::create_sample(x)),
             _ => Err(XTypesError::InvalidType),
         }
@@ -612,8 +612,8 @@ impl<T: TypeSupport> DataStorageMapping for Vec<T> {
         DataStorage::SequenceComplexValue(self.into_iter().map(T::create_dynamic_sample).collect())
     }
 
-    fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
-        match data_storage {
+    fn try_from_storage(mut data_storage: DataStorage) -> XTypesResult<Self> {
+        match &mut data_storage {
             DataStorage::SequenceComplexValue(x) => {
                 Ok(x.into_iter().map(T::create_sample).collect())
             }
@@ -627,8 +627,8 @@ impl<const N: usize, T: TypeSupport> DataStorageMapping for [T; N] {
         DataStorage::SequenceComplexValue(self.into_iter().map(T::create_dynamic_sample).collect())
     }
 
-    fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
-        match data_storage {
+    fn try_from_storage(mut data_storage: DataStorage) -> XTypesResult<Self> {
+        match &mut data_storage {
             DataStorage::SequenceComplexValue(x) => {
                 Self::try_from(x.into_iter().map(T::create_sample).collect::<Vec<_>>())
                     .map_err(|_| XTypesError::InvalidType)
