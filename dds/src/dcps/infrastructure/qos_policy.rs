@@ -7,7 +7,7 @@ use crate::{
     transport::types::{DurabilityKind, ReliabilityKind},
     xtypes::{
         binding::XTypesBinding,
-        dynamic_type::{DynamicDataFactory, DynamicType, DynamicTypeMember},
+        dynamic_type::{DynamicData, DynamicDataFactory, DynamicType, DynamicTypeMember},
     },
 };
 use alloc::{string::String, vec::Vec};
@@ -28,14 +28,12 @@ pub enum Length {
 impl TypeSupport for Length {
     const r#TYPE: DynamicType = i32::TYPE_INFORMATION;
 
-    fn create_dynamic_sample(self) -> crate::xtypes::dynamic_type::DynamicData {
+    fn create_dynamic_sample(self, data: &mut DynamicData) {
         let value = match self {
             Length::Limited(length) => length,
             Length::Unlimited => LENGTH_UNLIMITED,
         };
-        let mut data = DynamicDataFactory::create_data(Self::TYPE);
         data.set_int32_value(0, value).unwrap();
-        data
     }
 
     fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData) -> Self {
@@ -1071,14 +1069,12 @@ impl TypeSupport for HistoryQosPolicyKind {
         }
     }
 
-    fn create_dynamic_sample(self) -> crate::xtypes::dynamic_type::DynamicData {
+    fn create_dynamic_sample(self, data: &mut DynamicData) {
         let value = match self {
             HistoryQosPolicyKind::KeepLast(_) => 0,
             HistoryQosPolicyKind::KeepAll => 1,
         };
-        let mut data = DynamicDataFactory::create_data(Self::TYPE);
         data.set_uint8_value(0, value).unwrap();
-        data
     }
 }
 
@@ -1175,21 +1171,18 @@ impl dust_dds::infrastructure::type_support::TypeSupport for HistoryQosPolicy {
         }
     }
 
-    fn create_dynamic_sample(self) -> crate::xtypes::dynamic_type::DynamicData {
-        let mut data = DynamicDataFactory::create_data(Self::TYPE);
+    fn create_dynamic_sample(self, data: &mut DynamicData) {
+        let mut kind_data = DynamicDataFactory::create_data(HistoryQosPolicyKind::TYPE);
+        self.kind.create_dynamic_sample(&mut kind_data);
+        data.set_complex_value(0, kind_data).unwrap();
         match self.kind {
             HistoryQosPolicyKind::KeepLast(depth) => {
-                data.set_complex_value(0, self.kind.create_dynamic_sample())
-                    .unwrap();
                 data.set_int32_value(1, depth as i32).unwrap();
             }
             HistoryQosPolicyKind::KeepAll => {
-                data.set_complex_value(0, self.kind.create_dynamic_sample())
-                    .unwrap();
                 data.set_int32_value(1, 0).unwrap();
             }
         }
-        data
     }
 }
 

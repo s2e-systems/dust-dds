@@ -969,11 +969,12 @@ mod tests {
             field_u16: u16,
             field_u64: u64,
         }
-        let expected = FinalType {
+        let mut expected = DynamicDataFactory::create_data(FinalType::TYPE);
+        FinalType {
             field_u16: 7,
             field_u64: 9,
         }
-        .create_dynamic_sample();
+        .create_dynamic_sample(&mut expected);
         assert_eq!(
             CdrDeserializer::deserialize(
                 FinalType::TYPE,
@@ -1043,14 +1044,15 @@ mod tests {
             field_u8: u8,
         }
 
-        let expected = NestedFinalType {
+        let mut expected = DynamicDataFactory::create_data(NestedFinalType::TYPE);
+        NestedFinalType {
             field_nested: FinalType {
                 field_u16: 7,
                 field_u64: 9,
             },
             field_u8: 10,
         }
-        .create_dynamic_sample();
+        .create_dynamic_sample(&mut expected);
 
         assert_eq!(
             CdrDeserializer::deserialize(
@@ -1121,12 +1123,13 @@ mod tests {
             field_seq_u32: Vec<u32>,
         }
 
-        let expected = FinalTypeWithSequence {
+        let mut expected = DynamicDataFactory::create_data(FinalTypeWithSequence::TYPE);
+        FinalTypeWithSequence {
             field_u16: 7,
             field_u64: 9,
             field_seq_u32: vec![1, 4],
         }
-        .create_dynamic_sample();
+        .create_dynamic_sample(&mut expected);
         assert_eq!(
             CdrDeserializer::deserialize(
                 FinalTypeWithSequence::TYPE,
@@ -1197,7 +1200,8 @@ mod tests {
     fn deserialize_string() {
         #[derive(Debug, PartialEq, TypeSupport)]
         struct FinalString(String);
-        let expected = FinalString(String::from("Hola")).create_dynamic_sample();
+        let mut expected = DynamicDataFactory::create_data(FinalString::TYPE);
+        FinalString(String::from("Hola")).create_dynamic_sample(&mut expected);
         assert_eq!(
             CdrDeserializer::deserialize(
                 FinalString::TYPE,
@@ -1260,7 +1264,8 @@ mod tests {
     fn deserialize_bytes() {
         #[derive(Debug, PartialEq, TypeSupport)]
         struct ByteArray([u8; 2]);
-        let expected = ByteArray([1u8, 2]).create_dynamic_sample();
+        let mut expected = DynamicDataFactory::create_data(ByteArray::TYPE);
+        ByteArray([1u8, 2]).create_dynamic_sample(&mut expected);
         assert_eq!(
             CdrDeserializer::deserialize(
                 ByteArray::TYPE,
@@ -1318,7 +1323,8 @@ mod tests {
         #[derive(Debug, PartialEq, TypeSupport)]
         struct Sequence(Vec<Atype>);
 
-        let expected = Sequence(vec![Atype(1), Atype(2)]).create_dynamic_sample();
+        let mut expected = DynamicDataFactory::create_data(Sequence::TYPE);
+        Sequence(vec![Atype(1), Atype(2)]).create_dynamic_sample(&mut expected);
         assert_eq!(
             CdrDeserializer::deserialize(
                 Sequence::TYPE,
@@ -1344,11 +1350,12 @@ mod tests {
             #[dust_dds(id = 0x50)]
             participant_key: u32,
         }
-        let expected = MutableType {
+        let mut expected = DynamicDataFactory::create_data(MutableType::TYPE);
+        MutableType {
             key: 7,
             participant_key: 8,
         }
-        .create_dynamic_sample();
+        .create_dynamic_sample(&mut expected);
         assert_eq!(
             CdrDeserializer::deserialize(
                 MutableType::TYPE,
@@ -1424,11 +1431,12 @@ mod tests {
             key: u8,
             participant_key: u32,
         }
-        let expected = AppendableType {
+        let mut expected = DynamicDataFactory::create_data(AppendableType::TYPE);
+        AppendableType {
             key: 7,
             participant_key: 8,
         }
-        .create_dynamic_sample();
+        .create_dynamic_sample(&mut expected);
         assert_eq!(
             CdrDeserializer::deserialize(
                 AppendableType::TYPE,
@@ -1497,14 +1505,15 @@ mod tests {
             shapesize: i32,
             additional_payload_size: Vec<u8>,
         }
-        let expected = AppendableShapesType {
+        let mut expected = DynamicDataFactory::create_data(AppendableShapesType::TYPE);
+        AppendableShapesType {
             color: String::from("BLUE"),
             x: 10,
             y: 20,
             shapesize: 30,
             additional_payload_size: vec![],
         }
-        .create_dynamic_sample();
+        .create_dynamic_sample(&mut expected);
         assert_eq!(
             CdrDeserializer::deserialize(
                 AppendableShapesType::TYPE,

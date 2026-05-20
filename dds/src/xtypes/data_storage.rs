@@ -1,7 +1,7 @@
 use crate::{
     infrastructure::type_support::TypeSupport,
     xtypes::{
-        dynamic_type::DynamicData,
+        dynamic_type::{DynamicData, DynamicDataFactory},
         error::{XTypesError, XTypesResult},
     },
 };
@@ -596,7 +596,9 @@ impl<const N: usize> DataStorageMapping for [String; N] {
 
 impl<T: TypeSupport> DataStorageMapping for T {
     fn into_storage(self) -> DataStorage {
-        DataStorage::ComplexValue(T::create_dynamic_sample(self))
+        let mut data = DynamicDataFactory::create_data(T::TYPE);
+        self.create_dynamic_sample(&mut data);
+        DataStorage::ComplexValue(data)
     }
 
     fn try_from_storage(mut data_storage: DataStorage) -> XTypesResult<Self> {
@@ -609,7 +611,15 @@ impl<T: TypeSupport> DataStorageMapping for T {
 
 impl<T: TypeSupport> DataStorageMapping for Vec<T> {
     fn into_storage(self) -> DataStorage {
-        DataStorage::SequenceComplexValue(self.into_iter().map(T::create_dynamic_sample).collect())
+        DataStorage::SequenceComplexValue(
+            self.into_iter()
+                .map(|x| {
+                    let mut data = DynamicDataFactory::create_data(T::TYPE);
+                    x.create_dynamic_sample(&mut data);
+                    data
+                })
+                .collect(),
+        )
     }
 
     fn try_from_storage(mut data_storage: DataStorage) -> XTypesResult<Self> {
@@ -624,7 +634,15 @@ impl<T: TypeSupport> DataStorageMapping for Vec<T> {
 
 impl<const N: usize, T: TypeSupport> DataStorageMapping for [T; N] {
     fn into_storage(self) -> DataStorage {
-        DataStorage::SequenceComplexValue(self.into_iter().map(T::create_dynamic_sample).collect())
+        DataStorage::SequenceComplexValue(
+            self.into_iter()
+                .map(|x| {
+                    let mut data = DynamicDataFactory::create_data(T::TYPE);
+                    x.create_dynamic_sample(&mut data);
+                    data
+                })
+                .collect(),
+        )
     }
 
     fn try_from_storage(mut data_storage: DataStorage) -> XTypesResult<Self> {

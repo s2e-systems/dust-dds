@@ -163,9 +163,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
             };
 
             let create_dynamic_sample_quote = quote! {
-                let mut data = dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::TYPE);
                 #(#member_dynamic_sample_seq)*
-                data
             };
             let create_sample_quote = if is_tuple {
                 quote! {Self(#(#member_sample_seq)*)}
@@ -242,9 +240,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 };
 
                 let create_dynamic_sample_quote = quote! {
-                    let mut data = dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::TYPE);
                     #discriminator_dynamic_value
-                    data
                 };
                 let enum_variant_mapping = read_enum_variant_discriminant_mapping(data_enum);
                 let mut create_sample_quote_variants = Vec::new();
@@ -282,7 +278,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 #create_sample_quote
             }
 
-            fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
+            fn create_dynamic_sample(self, data: &mut dust_dds::xtypes::dynamic_type::DynamicData) {
                 #create_dynamic_sample_quote
             }
         }

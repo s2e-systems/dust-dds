@@ -1,4 +1,4 @@
-use crate::infrastructure::type_support::TypeSupport;
+use crate::{infrastructure::type_support::TypeSupport, xtypes::dynamic_type::DynamicData};
 use core::ops::{Add, Sub};
 
 /// Enumeration representing whether a duration is finite or infinite
@@ -21,12 +21,12 @@ impl TypeSupport for DurationKind {
         }
     }
 
-    fn create_dynamic_sample(self) -> crate::xtypes::dynamic_type::DynamicData {
+    fn create_dynamic_sample(self, data: &mut DynamicData) {
         let value = match self {
             DurationKind::Finite(duration) => duration,
             DurationKind::Infinite => DURATION_INFINITE,
         };
-        value.create_dynamic_sample()
+        value.create_dynamic_sample(data)
     }
 }
 

@@ -793,7 +793,9 @@ impl Write for ByteCounter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::infrastructure::type_support::TypeSupport;
+    use crate::{
+        infrastructure::type_support::TypeSupport, xtypes::dynamic_type::DynamicDataFactory,
+    };
     extern crate std;
 
     fn serialize_v1_be(v: &DynamicData) -> std::vec::Vec<u8> {
@@ -827,7 +829,8 @@ mod tests {
             f12: char,
         }
 
-        let v = BasicTypes {
+        let mut v = DynamicDataFactory::create_data(BasicTypes::TYPE);
+        BasicTypes {
             f1: true,
             f2: 2,
             f3: 3,
@@ -841,7 +844,7 @@ mod tests {
             f11: 1.0,
             f12: 'a',
         }
-        .create_dynamic_sample();
+        .create_dynamic_sample(&mut v);
         assert_eq!(
             serialize_v1_be(&v),
             vec![
@@ -913,7 +916,8 @@ mod tests {
             version: [u8; 2],
         }
 
-        let v = U8Array { version: [1, 2] }.create_dynamic_sample();
+        let mut v = DynamicDataFactory::create_data(U8Array::TYPE);
+        U8Array { version: [1, 2] }.create_dynamic_sample(&mut v);
         assert_eq!(
             serialize_v1_be(&v),
             vec![
@@ -950,14 +954,15 @@ mod tests {
             address2: [u8; 3],
         }
 
-        let v = LocatorContainer {
+        let mut v = DynamicDataFactory::create_data(LocatorContainer::TYPE);
+        LocatorContainer {
             locator: Locator {
                 kind: 1,
                 address1: [3, 4],
                 address2: [5, 6, 7],
             },
         }
-        .create_dynamic_sample();
+        .create_dynamic_sample(&mut v);
         assert_eq!(
             serialize_v1_be(&v),
             vec![
@@ -976,7 +981,8 @@ mod tests {
         #[derive(TypeSupport, Clone)]
         struct StringData(String);
 
-        let v = StringData(String::from("Hola")).create_dynamic_sample();
+        let mut v = DynamicDataFactory::create_data(StringData::TYPE);
+        StringData(String::from("Hola")).create_dynamic_sample(&mut v);
         assert_eq!(
             serialize_v1_be(&v),
             vec![
@@ -1022,10 +1028,11 @@ mod tests {
             name: Vec<String>,
         }
 
-        let v = StringList {
+        let mut v = DynamicDataFactory::create_data(StringList::TYPE);
+        StringList {
             name: vec!["one".to_string(), "two".to_string()],
         }
-        .create_dynamic_sample();
+        .create_dynamic_sample(&mut v);
         assert_eq!(
             serialize_v1_be(&v),
             vec![
@@ -1047,11 +1054,12 @@ mod tests {
 
     #[test]
     fn serialize_final_struct() {
-        let v = FinalType {
+        let mut v = DynamicDataFactory::create_data(FinalType::TYPE);
+        FinalType {
             field_u16: 7,
             field_u64: 9,
         }
-        .create_dynamic_sample();
+        .create_dynamic_sample(&mut v);
         // PLAIN_CDR:
         assert_eq!(
             serialize_v1_be(&v),
@@ -1096,14 +1104,15 @@ mod tests {
 
     #[test]
     fn serialize_nested_final_struct() {
-        let v = NestedFinalType {
+        let mut v = DynamicDataFactory::create_data(NestedFinalType::TYPE);
+        NestedFinalType {
             field_nested: FinalType {
                 field_u16: 7,
                 field_u64: 9,
             },
             field_u8: 10,
         }
-        .create_dynamic_sample();
+        .create_dynamic_sample(&mut v);
         assert_eq!(
             serialize_v1_be(&v),
             vec![
@@ -1150,7 +1159,8 @@ mod tests {
 
     #[test]
     fn serialize_appendable_struct() {
-        let v = AppendableType { value: 7 }.create_dynamic_sample();
+        let mut v = DynamicDataFactory::create_data(AppendableType::TYPE);
+        AppendableType { value: 7 }.create_dynamic_sample(&mut v);
         assert_eq!(
             serialize_v1_be(&v),
             vec![
@@ -1194,11 +1204,12 @@ mod tests {
 
     #[test]
     fn serialize_mutable_struct() {
-        let v = MutableType {
+        let mut v = DynamicDataFactory::create_data(MutableType::TYPE);
+        MutableType {
             key: 7,
             participant_key: 8,
         }
-        .create_dynamic_sample();
+        .create_dynamic_sample(&mut v);
         assert_eq!(
             serialize_v1_be(&v),
             vec![
@@ -1263,7 +1274,8 @@ mod tests {
 
     #[test]
     fn serialize_nested_mutable_struct() {
-        let v = NestedMutableType {
+        let mut v = DynamicDataFactory::create_data(NestedMutableType::TYPE);
+        NestedMutableType {
             field_primitive: 5,
             field_mutable: MutableType {
                 key: 7,
@@ -1271,7 +1283,7 @@ mod tests {
             },
             field_final: TinyFinalType { primitive: 9 },
         }
-        .create_dynamic_sample();
+        .create_dynamic_sample(&mut v);
         assert_eq!(
             serialize_v1_be(&v),
             vec![
@@ -1354,14 +1366,15 @@ mod tests {
             shapesize: i32,
             additional_payload_size: Vec<u8>,
         }
-        let v = AppendableShapesType {
+        let mut v = DynamicDataFactory::create_data(AppendableShapesType::TYPE);
+        AppendableShapesType {
             color: String::from("BLUE"),
             x: 10,
             y: 20,
             shapesize: 30,
             additional_payload_size: vec![],
         }
-        .create_dynamic_sample();
+        .create_dynamic_sample(&mut v);
 
         assert_eq!(
             serialize_v1_be(&v),
@@ -1516,11 +1529,15 @@ mod tests {
 #[cfg(test)]
 mod rtps_pl_tests {
     use super::*;
-    use crate::infrastructure::type_support::TypeSupport;
+    use crate::{
+        infrastructure::type_support::TypeSupport, xtypes::dynamic_type::DynamicDataFactory,
+    };
     extern crate std;
 
     fn test_serialize_type_support<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
-        RtpsPlCdrSerializer::serialize(&v.create_dynamic_sample()).unwrap()
+        let mut data = DynamicDataFactory::create_data(T::TYPE);
+        v.create_dynamic_sample(&mut data);
+        RtpsPlCdrSerializer::serialize(&data).unwrap()
     }
 
     #[derive(TypeSupport)]

@@ -10,7 +10,7 @@ pub trait TypeSupport {
     fn create_sample(src: &mut DynamicData) -> Self;
 
     /// Create a 'DynamicData' object with the contents of an input sample of the TypeSupport’s data type.
-    fn create_dynamic_sample(self) -> DynamicData;
+    fn create_dynamic_sample(self, data: &mut DynamicData);
 }
 
 /// This is a convenience derive to allow the user to easily derive all the different traits needed for a type to be used for

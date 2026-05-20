@@ -772,10 +772,12 @@ impl DcpsDomainParticipant {
             let timestamp = runtime.clock().now();
             let publisher_handle = self.domain_participant.builtin_publisher.instance_handle;
             let (reply_sender, _) = oneshot();
+            let mut data = DynamicDataFactory::create_data(SpdpDiscoveredParticipantData::TYPE);
+            spdp_discovered_participant_data.create_dynamic_sample(&mut data);
             self.write_w_timestamp(
                 &publisher_handle,
                 &data_writer_handle,
-                &spdp_discovered_participant_data.create_dynamic_sample(),
+                &data,
                 timestamp,
                 runtime,
                 reply_sender,
@@ -796,15 +798,12 @@ impl DcpsDomainParticipant {
             {
                 let builtin_topic_key = *self.domain_participant.instance_handle.as_ref();
                 let mut dynamic_data = DynamicDataFactory::create_data(BuiltInKeyHolder::TYPE);
-                dynamic_data
-                    .set_complex_value(
-                        0,
-                        BuiltInTopicKey {
-                            value: builtin_topic_key,
-                        }
-                        .create_dynamic_sample(),
-                    )
-                    .unwrap();
+                let mut topic_key_data = DynamicDataFactory::create_data(BuiltInTopicKey::TYPE);
+                BuiltInTopicKey {
+                    value: builtin_topic_key,
+                }
+                .create_dynamic_sample(&mut topic_key_data);
+                dynamic_data.set_complex_value(0, topic_key_data).unwrap();
 
                 dw.unregister_w_timestamp(
                     dynamic_data,
@@ -895,10 +894,12 @@ impl DcpsDomainParticipant {
         let timestamp = runtime.clock().now();
         let publisher_handle = self.domain_participant.builtin_publisher.instance_handle;
         let (reply_sender, _) = oneshot();
+        let mut data = DynamicDataFactory::create_data(DiscoveredWriterData::TYPE);
+        discovered_writer_data.create_dynamic_sample(&mut data);
         self.write_w_timestamp(
             &publisher_handle,
             &data_writer_handle,
-            &discovered_writer_data.create_dynamic_sample(),
+            &data,
             timestamp,
             runtime,
             reply_sender,
@@ -920,15 +921,12 @@ impl DcpsDomainParticipant {
             .find(|x| x.topic_name == DCPS_PUBLICATION)
         {
             let mut dynamic_data = DynamicDataFactory::create_data(BuiltInKeyHolder::TYPE);
-            dynamic_data
-                .set_complex_value(
-                    0,
-                    BuiltInTopicKey {
-                        value: data_writer.transport_writer.guid().into(),
-                    }
-                    .create_dynamic_sample(),
-                )
-                .unwrap();
+            let mut topic_key_data = DynamicDataFactory::create_data(BuiltInTopicKey::TYPE);
+            BuiltInTopicKey {
+                value: data_writer.transport_writer.guid().into(),
+            }
+            .create_dynamic_sample(&mut topic_key_data);
+            dynamic_data.set_complex_value(0, topic_key_data).unwrap();
 
             dw.unregister_w_timestamp(
                 dynamic_data,
@@ -1030,10 +1028,12 @@ impl DcpsDomainParticipant {
         let timestamp = runtime.clock().now();
         let publisher_handle = self.domain_participant.builtin_publisher.instance_handle;
         let (reply_sender, _) = oneshot();
+        let mut data = DynamicDataFactory::create_data(DiscoveredReaderData::TYPE);
+        discovered_reader_data.create_dynamic_sample(&mut data);
         self.write_w_timestamp(
             &publisher_handle,
             &data_writer_handle,
-            &discovered_reader_data.create_dynamic_sample(),
+            &data,
             timestamp,
             runtime,
             reply_sender,
@@ -1055,15 +1055,12 @@ impl DcpsDomainParticipant {
             .find(|x| x.topic_name == DCPS_SUBSCRIPTION)
         {
             let mut dynamic_data = DynamicDataFactory::create_data(BuiltInKeyHolder::TYPE);
-            dynamic_data
-                .set_complex_value(
-                    0,
-                    BuiltInTopicKey {
-                        value: data_reader.transport_reader.guid().into(),
-                    }
-                    .create_dynamic_sample(),
-                )
-                .unwrap();
+            let mut topic_key_data = DynamicDataFactory::create_data(BuiltInTopicKey::TYPE);
+            BuiltInTopicKey {
+                value: data_reader.transport_reader.guid().into(),
+            }
+            .create_dynamic_sample(&mut topic_key_data);
+            dynamic_data.set_complex_value(0, topic_key_data).unwrap();
             dw.unregister_w_timestamp(
                 dynamic_data,
                 timestamp,
@@ -1118,10 +1115,12 @@ impl DcpsDomainParticipant {
         let timestamp = runtime.clock().now();
         let publisher_handle = self.domain_participant.builtin_publisher.instance_handle;
         let (reply_sender, _) = oneshot();
+        let mut data = DynamicDataFactory::create_data(DiscoveredTopicData::TYPE);
+        discovered_topic_data.create_dynamic_sample(&mut data);
         self.write_w_timestamp(
             &publisher_handle,
             &data_writer_handle,
-            &discovered_topic_data.create_dynamic_sample(),
+            &data,
             timestamp,
             runtime,
             reply_sender,

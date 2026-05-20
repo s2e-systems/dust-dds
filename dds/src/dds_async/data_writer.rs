@@ -24,6 +24,7 @@ use crate::{
         time::Time,
         type_support::TypeSupport,
     },
+    xtypes::dynamic_type::DynamicDataFactory,
 };
 use alloc::vec::Vec;
 use core::marker::PhantomData;
@@ -126,7 +127,8 @@ where
         timestamp: Time,
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
-        let dynamic_data = instance.create_dynamic_sample();
+        let mut dynamic_data = DynamicDataFactory::create_data(Foo::TYPE);
+        instance.create_dynamic_sample(&mut dynamic_data);
         self.dcps_sender()
             .send(DcpsMail::Writer(WriterServiceMail::UnregisterInstance {
                 participant_handle: self.publisher.get_participant().get_instance_handle(),
@@ -154,7 +156,8 @@ where
     #[tracing::instrument(skip(self, instance))]
     pub async fn lookup_instance(&self, instance: Foo) -> DdsResult<Option<InstanceHandle>> {
         let (reply_sender, reply_receiver) = oneshot();
-        let dynamic_data = instance.create_dynamic_sample();
+        let mut dynamic_data = DynamicDataFactory::create_data(Foo::TYPE);
+        instance.create_dynamic_sample(&mut dynamic_data);
         self.dcps_sender()
             .send(DcpsMail::Writer(WriterServiceMail::LookupInstance {
                 participant_handle: self.publisher.get_participant().get_instance_handle(),
@@ -187,7 +190,8 @@ where
         timestamp: Time,
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
-        let dynamic_data = data.create_dynamic_sample();
+        let mut dynamic_data = DynamicDataFactory::create_data(Foo::TYPE);
+        data.create_dynamic_sample(&mut dynamic_data);
         self.dcps_sender()
             .send(DcpsMail::Writer(WriterServiceMail::WriteWTimestamp {
                 participant_handle: self.publisher.get_participant().get_instance_handle(),
@@ -221,7 +225,8 @@ where
         timestamp: Time,
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
-        let dynamic_data = data.create_dynamic_sample();
+        let mut dynamic_data = DynamicDataFactory::create_data(Foo::TYPE);
+        data.create_dynamic_sample(&mut dynamic_data);
         self.dcps_sender()
             .send(DcpsMail::Writer(WriterServiceMail::DisposeWTimestamp {
                 participant_handle: self.publisher.get_participant().get_instance_handle(),

@@ -1352,8 +1352,8 @@ impl TypeSupport for DynamicData {
         src.clone()
     }
 
-    fn create_dynamic_sample(self) -> DynamicData {
-        self
+    fn create_dynamic_sample(self, data: &mut DynamicData) {
+        *data = self;
     }
 }
 

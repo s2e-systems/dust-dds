@@ -271,8 +271,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
         }
     }
 
-    fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
-        let mut data = dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::TYPE);
+    fn create_dynamic_sample(self, data: &mut dust_dds::xtypes::dynamic_type::DynamicData) {
         data.set_value(
             PID_ENDPOINT_GUID as u32,
             self.dds_subscription_data.key.into_storage(),
@@ -405,7 +404,6 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
                 self.reader_proxy.expects_inline_qos.into_storage(),
             );
         }
-        data
     }
 }
 
@@ -419,12 +417,16 @@ mod tests {
             BUILT_IN_WRITER_WITH_KEY, EntityId, Guid, USER_DEFINED_READER_WITH_KEY,
             USER_DEFINED_UNKNOWN,
         },
-        xtypes::{deserializer::CdrDeserializer, serializer::RtpsPlCdrSerializer},
+        xtypes::{
+            deserializer::CdrDeserializer, dynamic_type::DynamicDataFactory,
+            serializer::RtpsPlCdrSerializer,
+        },
     };
 
     #[test]
     fn serialize_all_default() {
-        let data = DiscoveredReaderData {
+        let mut data = DynamicDataFactory::create_data(DiscoveredReaderData::TYPE);
+        DiscoveredReaderData {
             dds_subscription_data: SubscriptionBuiltinTopicData {
                 key: BuiltInTopicKey {
                     value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
@@ -460,7 +462,7 @@ mod tests {
                 expects_inline_qos: false,
             },
         }
-        .create_dynamic_sample();
+        .create_dynamic_sample(&mut data);
 
         let expected = [
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
@@ -489,7 +491,8 @@ mod tests {
 
     #[test]
     fn serialize_with_partition() {
-        let data = DiscoveredReaderData {
+        let mut data = DynamicDataFactory::create_data(DiscoveredReaderData::TYPE);
+        DiscoveredReaderData {
             dds_subscription_data: SubscriptionBuiltinTopicData {
                 key: BuiltInTopicKey {
                     value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
@@ -527,7 +530,7 @@ mod tests {
                 expects_inline_qos: false,
             },
         }
-        .create_dynamic_sample();
+        .create_dynamic_sample(&mut data);
 
         let expected = [
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
@@ -562,7 +565,8 @@ mod tests {
 
     #[test]
     fn deserialize_all_default() {
-        let expected = DiscoveredReaderData {
+        let mut expected = DynamicDataFactory::create_data(DiscoveredReaderData::TYPE);
+        DiscoveredReaderData {
             reader_proxy: ReaderProxy {
                 remote_reader_guid: Guid::new(
                     [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0],
@@ -598,7 +602,7 @@ mod tests {
                 representation: Default::default(),
             },
         }
-        .create_dynamic_sample();
+        .create_dynamic_sample(&mut expected);
 
         let data = [
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE

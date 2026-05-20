@@ -268,8 +268,7 @@ impl TypeSupport for DiscoveredWriterData {
         }
     }
 
-    fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
-        let mut data = dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::TYPE);
+    fn create_dynamic_sample(self, data: &mut dust_dds::xtypes::dynamic_type::DynamicData) {
         data.set_value(
             PID_ENDPOINT_GUID as u32,
             self.dds_publication_data.key.into_storage(),
@@ -396,7 +395,6 @@ impl TypeSupport for DiscoveredWriterData {
                 self.writer_proxy.multicast_locator_list.into_storage(),
             );
         }
-        data
     }
 }
 
@@ -409,12 +407,16 @@ mod tests {
             BUILT_IN_PARTICIPANT, BUILT_IN_READER_GROUP, BUILT_IN_WRITER_WITH_KEY, EntityId, Guid,
             USER_DEFINED_UNKNOWN,
         },
-        xtypes::{deserializer::CdrDeserializer, serializer::RtpsPlCdrSerializer},
+        xtypes::{
+            deserializer::CdrDeserializer, dynamic_type::DynamicDataFactory,
+            serializer::RtpsPlCdrSerializer,
+        },
     };
 
     #[test]
     fn serialize_all_default() {
-        let data = DiscoveredWriterData {
+        let mut data = DynamicDataFactory::create_data(DiscoveredWriterData::TYPE);
+        DiscoveredWriterData {
             dds_publication_data: PublicationBuiltinTopicData {
                 key: BuiltInTopicKey {
                     value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
@@ -450,7 +452,7 @@ mod tests {
                 multicast_locator_list: vec![],
             },
         }
-        .create_dynamic_sample();
+        .create_dynamic_sample(&mut data);
 
         let expected = [
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
@@ -480,7 +482,8 @@ mod tests {
 
     #[test]
     fn deserialize_all_default() {
-        let expected = DiscoveredWriterData {
+        let mut expected = DynamicDataFactory::create_data(DiscoveredWriterData::TYPE);
+        DiscoveredWriterData {
             dds_publication_data: PublicationBuiltinTopicData {
                 key: BuiltInTopicKey {
                     value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
@@ -517,7 +520,7 @@ mod tests {
                 multicast_locator_list: vec![],
             },
         }
-        .create_dynamic_sample();
+        .create_dynamic_sample(&mut expected);
 
         let data = [
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE

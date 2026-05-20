@@ -278,8 +278,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParti
         }
     }
 
-    fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
-        let mut data = dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::TYPE);
+    fn create_dynamic_sample(self, data: &mut dust_dds::xtypes::dynamic_type::DynamicData) {
         data.set_value(
             PID_PARTICIPANT_GUID as u32,
             self.dds_participant_data.key.into_storage(),
@@ -386,7 +385,6 @@ impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParti
             PID_PARTICIPANT_LEASE_DURATION as u32,
             self.lease_duration.into_storage(),
         );
-        data
     }
 }
 
@@ -398,15 +396,18 @@ mod tests {
         dcps::data_representation_builtin_endpoints::parameter_id_values::DEFAULT_PARTICIPANT_LEASE_DURATION,
         infrastructure::qos_policy::UserDataQosPolicy,
         rtps::types::PROTOCOLVERSION_2_4,
-        xtypes::{deserializer::CdrDeserializer, serializer::RtpsPlCdrSerializer},
+        xtypes::{
+            deserializer::CdrDeserializer, dynamic_type::DynamicDataFactory,
+            serializer::RtpsPlCdrSerializer,
+        },
     };
 
     #[test]
     fn serialize_spdp_discovered_participant_data() {
         let locator1 = Locator::new(11, 12, [1; 16]);
         let locator2 = Locator::new(21, 22, [2; 16]);
-
-        let data = SpdpDiscoveredParticipantData {
+        let mut data = DynamicDataFactory::create_data(SpdpDiscoveredParticipantData::TYPE);
+        SpdpDiscoveredParticipantData {
             dds_participant_data: ParticipantBuiltinTopicData {
                 key: BuiltInTopicKey {
                     value: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0xc1],
@@ -437,7 +438,7 @@ mod tests {
             lease_duration: Duration::new(10, 11),
             discovered_participant_list: vec![],
         }
-        .create_dynamic_sample();
+        .create_dynamic_sample(&mut data);
 
         let expected = [
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
@@ -511,7 +512,8 @@ mod tests {
 
     #[test]
     fn serialize_spdp_discovered_participant_data_all_default() {
-        let data = SpdpDiscoveredParticipantData {
+        let mut data = DynamicDataFactory::create_data(SpdpDiscoveredParticipantData::TYPE);
+        SpdpDiscoveredParticipantData {
             dds_participant_data: ParticipantBuiltinTopicData {
                 key: BuiltInTopicKey {
                     value: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0xc1],
@@ -538,7 +540,7 @@ mod tests {
             lease_duration: DEFAULT_PARTICIPANT_LEASE_DURATION,
             discovered_participant_list: Vec::new(),
         }
-        .create_dynamic_sample();
+        .create_dynamic_sample(&mut data);
 
         let expected = [
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
@@ -584,7 +586,8 @@ mod tests {
         );
         let lease_duration = Duration::new(10, 11);
 
-        let expected = SpdpDiscoveredParticipantData {
+        let mut expected = DynamicDataFactory::create_data(SpdpDiscoveredParticipantData::TYPE);
+        SpdpDiscoveredParticipantData {
             dds_participant_data: ParticipantBuiltinTopicData {
                 key: BuiltInTopicKey {
                     value: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0xc1],
@@ -609,7 +612,7 @@ mod tests {
             lease_duration,
             discovered_participant_list: vec![],
         }
-        .create_dynamic_sample();
+        .create_dynamic_sample(&mut expected);
 
         let data = [
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
