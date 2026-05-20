@@ -43,38 +43,38 @@ impl CdrDeserializer {
             DeserializeKind::Full => match representation_identifier {
                 CDR_BE | PL_CDR_BE => {
                     let mut deserializer = Cdr1Deserializer::new(&buffer[4..], BigEndian);
-                    deserializer.deserialize_xtype(&mut dynamic_data)?;
+                    deserializer.deserialize_xtype(&dynamic_type, &mut dynamic_data)?;
                 }
                 CDR_LE | PL_CDR_LE => {
                     let mut deserializer = Cdr1Deserializer::new(&buffer[4..], LittleEndian);
-                    deserializer.deserialize_xtype(&mut dynamic_data)?;
+                    deserializer.deserialize_xtype(&dynamic_type, &mut dynamic_data)?;
                 }
                 CDR2_BE | D_CDR2_BE | PL_CDR2_BE => {
                     let mut deserializer = Cdr2Deserializer::new(&buffer[4..], BigEndian);
-                    deserializer.deserialize_xtype(&mut dynamic_data)?;
+                    deserializer.deserialize_xtype(&dynamic_type, &mut dynamic_data)?;
                 }
                 CDR2_LE | D_CDR2_LE | PL_CDR2_LE => {
                     let mut deserializer = Cdr2Deserializer::new(&buffer[4..], LittleEndian);
-                    deserializer.deserialize_xtype(&mut dynamic_data)?;
+                    deserializer.deserialize_xtype(&dynamic_type, &mut dynamic_data)?;
                 }
                 _ => return Err(XTypesError::InvalidData),
             },
             DeserializeKind::KeyOnly => match representation_identifier {
                 CDR_BE => {
                     let mut deserializer = Cdr1KeyDeserializer::new(&buffer[4..], BigEndian);
-                    deserializer.deserialize_xtype(&mut dynamic_data)?;
+                    deserializer.deserialize_xtype(&dynamic_type, &mut dynamic_data)?;
                 }
                 CDR_LE => {
                     let mut deserializer = Cdr1KeyDeserializer::new(&buffer[4..], LittleEndian);
-                    deserializer.deserialize_xtype(&mut dynamic_data)?;
+                    deserializer.deserialize_xtype(&dynamic_type, &mut dynamic_data)?;
                 }
                 CDR2_BE => {
                     let mut deserializer = Cdr2KeyDeserializer::new(&buffer[4..], BigEndian);
-                    deserializer.deserialize_xtype(&mut dynamic_data)?;
+                    deserializer.deserialize_xtype(&dynamic_type, &mut dynamic_data)?;
                 }
                 CDR2_LE => {
                     let mut deserializer = Cdr2KeyDeserializer::new(&buffer[4..], LittleEndian);
-                    deserializer.deserialize_xtype(&mut dynamic_data)?;
+                    deserializer.deserialize_xtype(&dynamic_type, &mut dynamic_data)?;
                 }
                 _ => return Err(XTypesError::InvalidData),
             },
@@ -94,7 +94,7 @@ impl CdrDeserializer {
         match representation_identifier {
             PL_CDR_LE => {
                 let mut deserializer = RtpsPlCdrDeserializer::new(&buffer[4..]);
-                deserializer.deserialize_xtype(&mut dynamic_data)?;
+                deserializer.deserialize_xtype(&dynamic_type, &mut dynamic_data)?;
             }
             _ => return Err(XTypesError::NotSupported(representation_identifier)),
         }
@@ -250,27 +250,39 @@ trait XTypesDeserialize {
         dynamic_type: DynamicType,
     ) -> XTypesResult<DynamicData> {
         let mut dynamic_data = DynamicDataFactory::create_data(dynamic_type);
-        self.deserialize_xtype(&mut dynamic_data)?;
+        let dynamic_type = dynamic_data.r#type();
+        self.deserialize_xtype(&dynamic_type, &mut dynamic_data)?;
         Ok(dynamic_data)
     }
 
-    fn deserialize_xtype(&mut self, dynamic_data: &mut DynamicData) -> XTypesResult<()> {
+    fn deserialize_xtype(
+        &mut self,
+        dynamic_type: &DynamicType,
+        dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()> {
+        // We start by deserializing the base type if it exists before proceeding with the rest of the type
+        if let Some(b) = &dynamic_type.descriptor.base_type {
+            self.deserialize_xtype(b, dynamic_data)?;
+        }
+
         // Deserialize the top-level which must be either a struct, an enum or a union.
         // No other types are supported at this stage because this is what we can get from DDS
-        let dynamic_type = dynamic_data.r#type();
         match dynamic_type.get_descriptor().kind {
             TypeKind::STRUCTURE => {
                 // Extensibility kind must match the representation
                 match dynamic_type.get_descriptor().extensibility_kind {
-                    ExtensibilityKind::Final => self.deserialize_final_struct(dynamic_data),
-                    ExtensibilityKind::Appendable => {
-                        self.deserialize_appendable_struct(dynamic_data)
+                    ExtensibilityKind::Final => {
+                        self.deserialize_final_struct(dynamic_type, dynamic_data)
                     }
-                    ExtensibilityKind::Mutable => self.deserialize_mutable_struct(dynamic_data),
+                    ExtensibilityKind::Appendable => {
+                        self.deserialize_appendable_struct(dynamic_type, dynamic_data)
+                    }
+                    ExtensibilityKind::Mutable => {
+                        self.deserialize_mutable_struct(dynamic_type, dynamic_data)
+                    }
                 }
             }
             TypeKind::ENUM => {
-                let dynamic_type = dynamic_data.r#type();
                 let discriminator_type = dynamic_type
                     .get_descriptor()
                     .discriminator_type
@@ -296,8 +308,11 @@ trait XTypesDeserialize {
         }
     }
 
-    fn deserialize_final_struct(&mut self, dynamic_data: &mut DynamicData) -> XTypesResult<()> {
-        let dynamic_type = dynamic_data.r#type();
+    fn deserialize_final_struct(
+        &mut self,
+        dynamic_type: &DynamicType,
+        dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()> {
         for member_index in 0..dynamic_type.get_member_count() {
             let member = dynamic_type.get_member_by_index(member_index)?;
             self.deserialize_final_member(member, dynamic_data)?;
@@ -307,12 +322,17 @@ trait XTypesDeserialize {
 
     fn deserialize_appendable_struct(
         &mut self,
+        dynamic_type: &DynamicType,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
-        self.deserialize_final_struct(dynamic_data)
+        self.deserialize_final_struct(dynamic_type, dynamic_data)
     }
 
-    fn deserialize_mutable_struct(&mut self, dynamic_data: &mut DynamicData) -> XTypesResult<()>;
+    fn deserialize_mutable_struct(
+        &mut self,
+        dynamic_type: &DynamicType,
+        dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()>;
 
     fn deserialize_string(&mut self) -> Result<String, XTypesError> {
         let length = self.deserialize_primitive_type::<u32>()?;
@@ -777,8 +797,11 @@ impl<'a, E: EndiannessRead, V: CdrVersion> Read for CdrReader<'a, E, V> {
 }
 
 impl<'a, E: EndiannessRead> XTypesDeserialize for Cdr1Deserializer<'a, E> {
-    fn deserialize_mutable_struct(&mut self, dynamic_data: &mut DynamicData) -> XTypesResult<()> {
-        let dynamic_type = dynamic_data.r#type();
+    fn deserialize_mutable_struct(
+        &mut self,
+        dynamic_type: &DynamicType,
+        dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()> {
         for member_index in 0..dynamic_type.get_member_count() {
             let member = dynamic_type.get_member_by_index(member_index)?;
             let member_descriptor = member.get_descriptor()?;
@@ -804,8 +827,11 @@ impl<'a, E: EndiannessRead> XTypesDeserialize for Cdr2Deserializer<'a, E> {
         T::deserialize(&mut self.reader)
     }
 
-    fn deserialize_mutable_struct(&mut self, dynamic_data: &mut DynamicData) -> XTypesResult<()> {
-        let dynamic_type = dynamic_data.r#type();
+    fn deserialize_mutable_struct(
+        &mut self,
+        dynamic_type: &DynamicType,
+        dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()> {
         for member_index in 0..dynamic_type.get_member_count() {
             let member = dynamic_type.get_member_by_index(member_index)?;
             let member_descriptor = member.get_descriptor()?;
@@ -823,16 +849,20 @@ impl<'a, E: EndiannessRead> XTypesDeserialize for Cdr2Deserializer<'a, E> {
 
     fn deserialize_appendable_struct(
         &mut self,
+        dynamic_type: &DynamicType,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
         let _dheader = self.deserialize_primitive_type::<u32>()?;
-        self.deserialize_final_struct(dynamic_data)
+        self.deserialize_final_struct(dynamic_type, dynamic_data)
     }
 }
 
 impl<'a> XTypesDeserialize for RtpsPlCdrDeserializer<'a> {
-    fn deserialize_mutable_struct(&mut self, dynamic_data: &mut DynamicData) -> XTypesResult<()> {
-        let dynamic_type = dynamic_data.r#type();
+    fn deserialize_mutable_struct(
+        &mut self,
+        dynamic_type: &DynamicType,
+        dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()> {
         for member_index in 0..dynamic_type.get_member_count() {
             let member = dynamic_type.get_member_by_index(member_index)?;
             let member_descriptor = member.get_descriptor()?;
@@ -858,7 +888,7 @@ impl<'a> XTypesDeserialize for RtpsPlCdrDeserializer<'a> {
                 }
             } else if self.cdr1_deserializer.reader.seek_to_pid_le(pid)? {
                 self.deserialize_final_member(member, dynamic_data)?;
-            } else if !member_descriptor.is_optional {
+            } else if member_descriptor.is_key {
                 return Err(XTypesError::PidNotFound(pid));
             }
         }
@@ -883,40 +913,11 @@ impl<'a, E: EndiannessRead> Cdr1KeyDeserializer<'a, E> {
 }
 
 impl<'a, E: EndiannessRead> XTypesDeserialize for Cdr1KeyDeserializer<'a, E> {
-    fn deserialize_xtype(&mut self, dynamic_data: &mut DynamicData) -> XTypesResult<()> {
-        // Deserialize the top-level which must be either a struct, an enum or a union.
-        // No other types are supported at this stage because this is what we can get from DDS
-        let dynamic_type = dynamic_data.r#type();
-        match dynamic_type.get_descriptor().kind {
-            TypeKind::STRUCTURE => self.deserialize_final_struct(dynamic_data),
-            TypeKind::ENUM => {
-                let discriminator_type = dynamic_type
-                    .get_descriptor()
-                    .discriminator_type
-                    .as_ref()
-                    .ok_or(XTypesError::InvalidType)?;
-                match discriminator_type.get_kind() {
-                    TypeKind::INT8 => {
-                        let value = self.deserialize_primitive_type::<i8>()?;
-                        dynamic_data.set_int8_value(0, value)
-                    }
-                    TypeKind::INT32 => {
-                        let value = self.deserialize_primitive_type::<i32>()?;
-                        dynamic_data.set_int32_value(0, value)
-                    }
-                    d => panic!("Invalid discriminator {d:?}"),
-                }
-            }
-            TypeKind::UNION => todo!(),
-            kind => {
-                debug!("Expected structure, enum or union. Got kind {kind:?} ");
-                Err(XTypesError::InvalidType)
-            }
-        }
-    }
-
-    fn deserialize_final_struct(&mut self, dynamic_data: &mut DynamicData) -> XTypesResult<()> {
-        let dynamic_type = dynamic_data.r#type();
+    fn deserialize_final_struct(
+        &mut self,
+        dynamic_type: &DynamicType,
+        dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()> {
         for member_index in 0..dynamic_type.get_member_count() {
             let member = dynamic_type.get_member_by_index(member_index)?;
             if member.get_descriptor()?.is_key {
@@ -926,7 +927,11 @@ impl<'a, E: EndiannessRead> XTypesDeserialize for Cdr1KeyDeserializer<'a, E> {
         Ok(())
     }
 
-    fn deserialize_mutable_struct(&mut self, _dynamic_data: &mut DynamicData) -> XTypesResult<()> {
+    fn deserialize_mutable_struct(
+        &mut self,
+        _dynamic_type: &DynamicType,
+        _dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()> {
         unimplemented!("Not available for key")
     }
 
@@ -948,7 +953,11 @@ impl<'a, E: EndiannessRead> Cdr2KeyDeserializer<'a, E> {
 }
 
 impl<'a, E: EndiannessRead> XTypesDeserialize for Cdr2KeyDeserializer<'a, E> {
-    fn deserialize_mutable_struct(&mut self, _dynamic_data: &mut DynamicData) -> XTypesResult<()> {
+    fn deserialize_mutable_struct(
+        &mut self,
+        _dynamic_type: &DynamicType,
+        _dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()> {
         unimplemented!("Not available for key")
     }
 
