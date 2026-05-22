@@ -828,7 +828,6 @@ fn reader_matched_to_already_existing_writer_with_matched_reader() {
     assert!(wait_set2.wait(Duration::new(5, 0)).is_ok());
 }
 
-#[ignore = "Failing after dynamic type refactor"]
 #[test]
 fn discovered_participant_removed_after_deletion() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
