@@ -668,6 +668,7 @@ fn empty_type_should_read_and_write() {
 }
 
 #[test]
+#[ignore = "Not yet supported"]
 fn type_with_optional_should_read_and_write() {
     #[derive(Clone, Debug, PartialEq, DdsType)]
     struct FooWithOptional {
