@@ -482,10 +482,8 @@ mod tests {
             0x07, 0x00, 0x08, 0x00, // PID_TYPE_NAME, Length: 8
             3, 0x00, 0x00, 0x00, // string length (incl. terminator)
             b'c', b'd', 0, 0x00, // string + padding (1 byte)
-          
             0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
             21, 22, 23, 0xc2, //
-            
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
         assert_eq!(RtpsPlCdrSerializer::serialize(&data).unwrap(), expected);
@@ -558,10 +556,8 @@ mod tests {
             b'o', b'n', b'e', 0, // String
             4, 0, 0, 0, // String length
             b't', b'w', b'o', 0, // String
-           
             0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
             21, 22, 23, 0xc2, //
-            
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
         assert_eq!(RtpsPlCdrSerializer::serialize(&data).unwrap(), expected);
