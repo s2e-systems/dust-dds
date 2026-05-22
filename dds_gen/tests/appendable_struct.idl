@@ -9,3 +9,10 @@ struct Data {
     @key int16 id;
     double x;
 };
+
+@appendable
+struct MultiDimensionalPoint {
+    double x;
+    double y;
+    @optional double z;
+};

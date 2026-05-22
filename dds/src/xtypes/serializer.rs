@@ -1,6 +1,6 @@
 use super::dynamic_type::ExtensibilityKind;
 use crate::xtypes::{
-    dynamic_type::{DynamicData, TypeKind},
+    dynamic_type::{DynamicData, DynamicType, TypeKind},
     error::{XTypesError, XTypesResult},
     read_write::Write,
 };
@@ -428,46 +428,71 @@ impl<'a, W: Write> XTypesSerializer for RtpsPlCdrSerializer<'a, W> {
     }
 
     fn serialize_mutable_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
-        for field_index in 0..v.get_item_count() {
-            let member_id = v.get_member_id_at_index(field_index)?;
-            let member_descriptor = v.get_descriptor(member_id)?;
+        fn serialize_all_fields<'a, W: Write>(
+            serializer: &mut RtpsPlCdrSerializer<'a, W>,
+            dynamic_type: &DynamicType,
+            v: &DynamicData,
+        ) -> Result<(), XTypesError> {
+            for field_index in 0..dynamic_type.get_member_count() {
+                let member = dynamic_type.get_member_by_index(field_index)?;
+                let member_id = member.get_id();
 
-            let element_type = member_descriptor.r#type.get_descriptor().element_type;
-            if let Some(element_type) = element_type {
-                // Sequence
-                if element_type.get_kind() == TypeKind::STRUCTURE {
-                    for vi in v.get_complex_values(member_id)? {
-                        let padded_length = count_bytes_pl_cdr_complex(vi)?;
+                let element_type = member.descriptor.r#type.get_descriptor().element_type;
+                if v.get_value(member_id).is_err() {
+                    continue;
+                }
+
+                if let Some(element_type) = element_type {
+                    // Sequence
+                    if element_type.get_kind() == TypeKind::STRUCTURE {
+                        for vi in v.get_complex_values(member_id)? {
+                            let padded_length = count_bytes_pl_cdr_complex(vi)?;
+                            LittleEndian::write_u16(
+                                &(member_id as u16),
+                                &mut serializer.cdr1_le_serializer.writer,
+                            );
+                            LittleEndian::write_u16(
+                                &padded_length,
+                                &mut serializer.cdr1_le_serializer.writer,
+                            );
+                            serializer.serialize_complex(vi)?
+                        }
+                        serializer.cdr1_le_serializer.writer.pad(4);
+                    } else {
+                        let padded_length = count_bytes_pl_cdr(v, member_id)?;
                         LittleEndian::write_u16(
                             &(member_id as u16),
-                            &mut self.cdr1_le_serializer.writer,
+                            &mut serializer.cdr1_le_serializer.writer,
                         );
                         LittleEndian::write_u16(
                             &padded_length,
-                            &mut self.cdr1_le_serializer.writer,
+                            &mut serializer.cdr1_le_serializer.writer,
                         );
-                        self.serialize_complex(vi)?
+                        serializer.serialize_dynamic_data_member(v, member_id)?;
+                        serializer.cdr1_le_serializer.writer.pad(4);
                     }
-                    self.cdr1_le_serializer.writer.pad(4);
                 } else {
+                    // Structure
                     let padded_length = count_bytes_pl_cdr(v, member_id)?;
                     LittleEndian::write_u16(
                         &(member_id as u16),
-                        &mut self.cdr1_le_serializer.writer,
+                        &mut serializer.cdr1_le_serializer.writer,
                     );
-                    LittleEndian::write_u16(&padded_length, &mut self.cdr1_le_serializer.writer);
-                    self.serialize_dynamic_data_member(v, member_id)?;
-                    self.cdr1_le_serializer.writer.pad(4);
+                    LittleEndian::write_u16(
+                        &padded_length,
+                        &mut serializer.cdr1_le_serializer.writer,
+                    );
+                    serializer.serialize_dynamic_data_member(v, member_id)?;
+                    serializer.cdr1_le_serializer.writer.pad(4);
                 }
-            } else {
-                // Structure
-                let padded_length = count_bytes_pl_cdr(v, member_id)?;
-                LittleEndian::write_u16(&(member_id as u16), &mut self.cdr1_le_serializer.writer);
-                LittleEndian::write_u16(&padded_length, &mut self.cdr1_le_serializer.writer);
-                self.serialize_dynamic_data_member(v, member_id)?;
-                self.cdr1_le_serializer.writer.pad(4);
             }
+            Ok(())
         }
+
+        if let Some(b) = &v.r#type().get_descriptor().base_type {
+            serialize_all_fields(self, b, v)?;
+        }
+        serialize_all_fields(self, &v.r#type(), v)?;
         LittleEndian::write_u16(&PID_SENTINEL, &mut self.cdr1_le_serializer.writer);
         LittleEndian::write_u16(&0, &mut self.cdr1_le_serializer.writer);
         Ok(())
@@ -793,7 +818,9 @@ impl Write for ByteCounter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::infrastructure::type_support::TypeSupport;
+    use crate::{
+        infrastructure::type_support::TypeSupport, xtypes::dynamic_type::DynamicDataFactory,
+    };
     extern crate std;
 
     fn serialize_v1_be(v: &DynamicData) -> std::vec::Vec<u8> {
@@ -827,7 +854,8 @@ mod tests {
             f12: char,
         }
 
-        let v = BasicTypes {
+        let mut v = DynamicDataFactory::create_data(BasicTypes::TYPE);
+        BasicTypes {
             f1: true,
             f2: 2,
             f3: 3,
@@ -841,7 +869,7 @@ mod tests {
             f11: 1.0,
             f12: 'a',
         }
-        .create_dynamic_sample();
+        .create_dynamic_sample(&mut v);
         assert_eq!(
             serialize_v1_be(&v),
             vec![
@@ -913,7 +941,8 @@ mod tests {
             version: [u8; 2],
         }
 
-        let v = U8Array { version: [1, 2] }.create_dynamic_sample();
+        let mut v = DynamicDataFactory::create_data(U8Array::TYPE);
+        U8Array { version: [1, 2] }.create_dynamic_sample(&mut v);
         assert_eq!(
             serialize_v1_be(&v),
             vec![
@@ -942,7 +971,7 @@ mod tests {
             #[dust_dds(id = 73)]
             locator: Locator,
         }
-        #[derive(TypeSupport)]
+        #[derive(TypeSupport, Default, PartialEq, Eq)]
         #[dust_dds(extensibility = "final", nested)]
         struct Locator {
             kind: i32,
@@ -950,14 +979,15 @@ mod tests {
             address2: [u8; 3],
         }
 
-        let v = LocatorContainer {
+        let mut v = DynamicDataFactory::create_data(LocatorContainer::TYPE);
+        LocatorContainer {
             locator: Locator {
                 kind: 1,
                 address1: [3, 4],
                 address2: [5, 6, 7],
             },
         }
-        .create_dynamic_sample();
+        .create_dynamic_sample(&mut v);
         assert_eq!(
             serialize_v1_be(&v),
             vec![
@@ -976,7 +1006,8 @@ mod tests {
         #[derive(TypeSupport, Clone)]
         struct StringData(String);
 
-        let v = StringData(String::from("Hola")).create_dynamic_sample();
+        let mut v = DynamicDataFactory::create_data(StringData::TYPE);
+        StringData(String::from("Hola")).create_dynamic_sample(&mut v);
         assert_eq!(
             serialize_v1_be(&v),
             vec![
@@ -1022,10 +1053,11 @@ mod tests {
             name: Vec<String>,
         }
 
-        let v = StringList {
+        let mut v = DynamicDataFactory::create_data(StringList::TYPE);
+        StringList {
             name: vec!["one".to_string(), "two".to_string()],
         }
-        .create_dynamic_sample();
+        .create_dynamic_sample(&mut v);
         assert_eq!(
             serialize_v1_be(&v),
             vec![
@@ -1047,11 +1079,12 @@ mod tests {
 
     #[test]
     fn serialize_final_struct() {
-        let v = FinalType {
+        let mut v = DynamicDataFactory::create_data(FinalType::TYPE);
+        FinalType {
             field_u16: 7,
             field_u64: 9,
         }
-        .create_dynamic_sample();
+        .create_dynamic_sample(&mut v);
         // PLAIN_CDR:
         assert_eq!(
             serialize_v1_be(&v),
@@ -1096,14 +1129,15 @@ mod tests {
 
     #[test]
     fn serialize_nested_final_struct() {
-        let v = NestedFinalType {
+        let mut v = DynamicDataFactory::create_data(NestedFinalType::TYPE);
+        NestedFinalType {
             field_nested: FinalType {
                 field_u16: 7,
                 field_u64: 9,
             },
             field_u8: 10,
         }
-        .create_dynamic_sample();
+        .create_dynamic_sample(&mut v);
         assert_eq!(
             serialize_v1_be(&v),
             vec![
@@ -1150,7 +1184,8 @@ mod tests {
 
     #[test]
     fn serialize_appendable_struct() {
-        let v = AppendableType { value: 7 }.create_dynamic_sample();
+        let mut v = DynamicDataFactory::create_data(AppendableType::TYPE);
+        AppendableType { value: 7 }.create_dynamic_sample(&mut v);
         assert_eq!(
             serialize_v1_be(&v),
             vec![
@@ -1183,7 +1218,7 @@ mod tests {
         );
     }
 
-    #[derive(TypeSupport, Clone)]
+    #[derive(TypeSupport, Clone, Default, PartialEq)]
     #[dust_dds(extensibility = "mutable")]
     struct MutableType {
         #[dust_dds(id = 90, key)]
@@ -1194,11 +1229,12 @@ mod tests {
 
     #[test]
     fn serialize_mutable_struct() {
-        let v = MutableType {
+        let mut v = DynamicDataFactory::create_data(MutableType::TYPE);
+        MutableType {
             key: 7,
             participant_key: 8,
         }
-        .create_dynamic_sample();
+        .create_dynamic_sample(&mut v);
         assert_eq!(
             serialize_v1_be(&v),
             vec![
@@ -1245,7 +1281,7 @@ mod tests {
         );
     }
 
-    #[derive(TypeSupport, Clone)]
+    #[derive(TypeSupport, Clone, Default, PartialEq)]
     struct TinyFinalType {
         primitive: u16,
     }
@@ -1263,7 +1299,8 @@ mod tests {
 
     #[test]
     fn serialize_nested_mutable_struct() {
-        let v = NestedMutableType {
+        let mut v = DynamicDataFactory::create_data(NestedMutableType::TYPE);
+        NestedMutableType {
             field_primitive: 5,
             field_mutable: MutableType {
                 key: 7,
@@ -1271,7 +1308,7 @@ mod tests {
             },
             field_final: TinyFinalType { primitive: 9 },
         }
-        .create_dynamic_sample();
+        .create_dynamic_sample(&mut v);
         assert_eq!(
             serialize_v1_be(&v),
             vec![
@@ -1354,14 +1391,15 @@ mod tests {
             shapesize: i32,
             additional_payload_size: Vec<u8>,
         }
-        let v = AppendableShapesType {
+        let mut v = DynamicDataFactory::create_data(AppendableShapesType::TYPE);
+        AppendableShapesType {
             color: String::from("BLUE"),
             x: 10,
             y: 20,
             shapesize: 30,
             additional_payload_size: vec![],
         }
-        .create_dynamic_sample();
+        .create_dynamic_sample(&mut v);
 
         assert_eq!(
             serialize_v1_be(&v),
@@ -1516,11 +1554,15 @@ mod tests {
 #[cfg(test)]
 mod rtps_pl_tests {
     use super::*;
-    use crate::infrastructure::type_support::TypeSupport;
+    use crate::{
+        infrastructure::type_support::TypeSupport, xtypes::dynamic_type::DynamicDataFactory,
+    };
     extern crate std;
 
     fn test_serialize_type_support<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
-        RtpsPlCdrSerializer::serialize(&v.create_dynamic_sample()).unwrap()
+        let mut data = DynamicDataFactory::create_data(T::TYPE);
+        v.create_dynamic_sample(&mut data);
+        RtpsPlCdrSerializer::serialize(&data).unwrap()
     }
 
     #[derive(TypeSupport)]
@@ -1551,7 +1593,7 @@ mod rtps_pl_tests {
         );
     }
 
-    #[derive(TypeSupport)]
+    #[derive(TypeSupport, Default, PartialEq)]
     struct Time {
         sec: u32,
         nanosec: i32,
@@ -1682,7 +1724,7 @@ mod rtps_pl_tests {
 
     #[test]
     fn serialize_locator() {
-        #[derive(TypeSupport)]
+        #[derive(TypeSupport, Default, PartialEq)]
         struct Locator {
             kind: i32,
             port: u32,

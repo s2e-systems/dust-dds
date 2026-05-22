@@ -22,6 +22,15 @@ fn appendable_struct() {
                 pub id: i16,
                 pub x: f64,
             }
+
+            #[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]
+            #[dust_dds(extensibility = "appendable")]
+            pub struct MultiDimensionalPoint {
+                pub x: f64,
+                pub y: f64,
+                #[dust_dds(optional)]
+                pub z: Option<f64>,
+            }
     "#
         .parse()
         .unwrap(),

@@ -772,10 +772,12 @@ impl DcpsDomainParticipant {
             let timestamp = runtime.clock().now();
             let publisher_handle = self.domain_participant.builtin_publisher.instance_handle;
             let (reply_sender, _) = oneshot();
+            let mut data = DynamicDataFactory::create_data(SpdpDiscoveredParticipantData::TYPE);
+            spdp_discovered_participant_data.create_dynamic_sample(&mut data);
             self.write_w_timestamp(
                 &publisher_handle,
                 &data_writer_handle,
-                &spdp_discovered_participant_data.create_dynamic_sample(),
+                &data,
                 timestamp,
                 runtime,
                 reply_sender,
@@ -796,15 +798,12 @@ impl DcpsDomainParticipant {
             {
                 let builtin_topic_key = *self.domain_participant.instance_handle.as_ref();
                 let mut dynamic_data = DynamicDataFactory::create_data(BuiltInKeyHolder::TYPE);
-                dynamic_data
-                    .set_complex_value(
-                        0,
-                        BuiltInTopicKey {
-                            value: builtin_topic_key,
-                        }
-                        .create_dynamic_sample(),
-                    )
-                    .unwrap();
+                let mut topic_key_data = DynamicDataFactory::create_data(BuiltInTopicKey::TYPE);
+                BuiltInTopicKey {
+                    value: builtin_topic_key,
+                }
+                .create_dynamic_sample(&mut topic_key_data);
+                dynamic_data.set_complex_value(0, topic_key_data).unwrap();
 
                 dw.unregister_w_timestamp(
                     dynamic_data,
@@ -895,10 +894,12 @@ impl DcpsDomainParticipant {
         let timestamp = runtime.clock().now();
         let publisher_handle = self.domain_participant.builtin_publisher.instance_handle;
         let (reply_sender, _) = oneshot();
+        let mut data = DynamicDataFactory::create_data(DiscoveredWriterData::TYPE);
+        discovered_writer_data.create_dynamic_sample(&mut data);
         self.write_w_timestamp(
             &publisher_handle,
             &data_writer_handle,
-            &discovered_writer_data.create_dynamic_sample(),
+            &data,
             timestamp,
             runtime,
             reply_sender,
@@ -920,15 +921,12 @@ impl DcpsDomainParticipant {
             .find(|x| x.topic_name == DCPS_PUBLICATION)
         {
             let mut dynamic_data = DynamicDataFactory::create_data(BuiltInKeyHolder::TYPE);
-            dynamic_data
-                .set_complex_value(
-                    0,
-                    BuiltInTopicKey {
-                        value: data_writer.transport_writer.guid().into(),
-                    }
-                    .create_dynamic_sample(),
-                )
-                .unwrap();
+            let mut topic_key_data = DynamicDataFactory::create_data(BuiltInTopicKey::TYPE);
+            BuiltInTopicKey {
+                value: data_writer.transport_writer.guid().into(),
+            }
+            .create_dynamic_sample(&mut topic_key_data);
+            dynamic_data.set_complex_value(0, topic_key_data).unwrap();
 
             dw.unregister_w_timestamp(
                 dynamic_data,
@@ -1030,10 +1028,12 @@ impl DcpsDomainParticipant {
         let timestamp = runtime.clock().now();
         let publisher_handle = self.domain_participant.builtin_publisher.instance_handle;
         let (reply_sender, _) = oneshot();
+        let mut data = DynamicDataFactory::create_data(DiscoveredReaderData::TYPE);
+        discovered_reader_data.create_dynamic_sample(&mut data);
         self.write_w_timestamp(
             &publisher_handle,
             &data_writer_handle,
-            &discovered_reader_data.create_dynamic_sample(),
+            &data,
             timestamp,
             runtime,
             reply_sender,
@@ -1055,15 +1055,12 @@ impl DcpsDomainParticipant {
             .find(|x| x.topic_name == DCPS_SUBSCRIPTION)
         {
             let mut dynamic_data = DynamicDataFactory::create_data(BuiltInKeyHolder::TYPE);
-            dynamic_data
-                .set_complex_value(
-                    0,
-                    BuiltInTopicKey {
-                        value: data_reader.transport_reader.guid().into(),
-                    }
-                    .create_dynamic_sample(),
-                )
-                .unwrap();
+            let mut topic_key_data = DynamicDataFactory::create_data(BuiltInTopicKey::TYPE);
+            BuiltInTopicKey {
+                value: data_reader.transport_reader.guid().into(),
+            }
+            .create_dynamic_sample(&mut topic_key_data);
+            dynamic_data.set_complex_value(0, topic_key_data).unwrap();
             dw.unregister_w_timestamp(
                 dynamic_data,
                 timestamp,
@@ -1118,10 +1115,12 @@ impl DcpsDomainParticipant {
         let timestamp = runtime.clock().now();
         let publisher_handle = self.domain_participant.builtin_publisher.instance_handle;
         let (reply_sender, _) = oneshot();
+        let mut data = DynamicDataFactory::create_data(DiscoveredTopicData::TYPE);
+        discovered_topic_data.create_dynamic_sample(&mut data);
         self.write_w_timestamp(
             &publisher_handle,
             &data_writer_handle,
-            &discovered_topic_data.create_dynamic_sample(),
+            &data,
             timestamp,
             runtime,
             reply_sender,
@@ -2055,12 +2054,12 @@ impl DcpsDomainParticipant {
             };
         match cache_change.kind {
             ChangeKind::Alive => {
-                if let Ok(dynamic_data) = CdrDeserializer::deserialize_builtin(
+                if let Ok(mut dynamic_data) = CdrDeserializer::deserialize_builtin(
                     spdp_type_support,
                     cache_change.data_value.as_ref(),
                 ) {
                     let discovered_participant_data =
-                        SpdpDiscoveredParticipantData::create_sample(dynamic_data);
+                        SpdpDiscoveredParticipantData::create_sample(&mut dynamic_data);
 
                     self.add_discovered_participant(discovered_participant_data, runtime);
                 }
@@ -2068,12 +2067,14 @@ impl DcpsDomainParticipant {
             ChangeKind::NotAliveDisposed | ChangeKind::NotAliveDisposedUnregistered => {
                 let discovered_participant_handle = if let Some(h) = cache_change.instance_handle {
                     InstanceHandle::new(h)
-                } else if let Ok(dynamic_data) = CdrDeserializer::deserialize(
+                } else if let Ok(mut dynamic_data) = CdrDeserializer::deserialize(
                     BuiltInKeyHolder::TYPE,
                     cache_change.data_value.as_ref(),
                     DeserializeKind::Full,
                 ) {
-                    InstanceHandle::new(BuiltInKeyHolder::create_sample(dynamic_data).key.value)
+                    InstanceHandle::new(
+                        BuiltInKeyHolder::create_sample(&mut dynamic_data).key.value,
+                    )
                 } else {
                     return;
                 };
@@ -2115,11 +2116,12 @@ impl DcpsDomainParticipant {
             };
         match cache_change.kind {
             ChangeKind::Alive => {
-                if let Ok(dynamic_data) = CdrDeserializer::deserialize_builtin(
+                if let Ok(mut dynamic_data) = CdrDeserializer::deserialize_builtin(
                     sedp_writer_type_support,
                     cache_change.data_value.as_ref(),
                 ) {
-                    let discovered_writer_data = DiscoveredWriterData::create_sample(dynamic_data);
+                    let discovered_writer_data =
+                        DiscoveredWriterData::create_sample(&mut dynamic_data);
                     let publication_builtin_topic_data =
                         &discovered_writer_data.dds_publication_data;
                     if self
@@ -2171,12 +2173,14 @@ impl DcpsDomainParticipant {
             ChangeKind::NotAliveDisposed | ChangeKind::NotAliveDisposedUnregistered => {
                 let discovered_writer_handle = if let Some(h) = cache_change.instance_handle {
                     InstanceHandle::new(h)
-                } else if let Ok(dynamic_data) = CdrDeserializer::deserialize(
+                } else if let Ok(mut dynamic_data) = CdrDeserializer::deserialize(
                     BuiltInKeyHolder::TYPE,
                     cache_change.data_value.as_ref(),
                     DeserializeKind::Full,
                 ) {
-                    InstanceHandle::new(BuiltInKeyHolder::create_sample(dynamic_data).key.value)
+                    InstanceHandle::new(
+                        BuiltInKeyHolder::create_sample(&mut dynamic_data).key.value,
+                    )
                 } else {
                     return;
                 };
@@ -2233,11 +2237,12 @@ impl DcpsDomainParticipant {
             };
         match cache_change.kind {
             ChangeKind::Alive => {
-                if let Ok(dynamic_data) = CdrDeserializer::deserialize_builtin(
+                if let Ok(mut dynamic_data) = CdrDeserializer::deserialize_builtin(
                     sedp_reader_type_support,
                     cache_change.data_value.as_ref(),
                 ) {
-                    let discovered_reader_data = DiscoveredReaderData::create_sample(dynamic_data);
+                    let discovered_reader_data =
+                        DiscoveredReaderData::create_sample(&mut dynamic_data);
                     if self
                         .domain_participant
                         .find_topic(&discovered_reader_data.dds_subscription_data.topic_name)
@@ -2319,12 +2324,12 @@ impl DcpsDomainParticipant {
             ChangeKind::NotAliveDisposed | ChangeKind::NotAliveDisposedUnregistered => {
                 let discovered_reader_handle = if let Some(h) = cache_change.instance_handle {
                     InstanceHandle::new(h)
-                } else if let Ok(dynamic_data) = CdrDeserializer::deserialize(
+                } else if let Ok(mut dynamic_data) = CdrDeserializer::deserialize(
                     InstanceHandle::TYPE,
                     cache_change.data_value.as_ref(),
                     DeserializeKind::Full,
                 ) {
-                    InstanceHandle::create_sample(dynamic_data)
+                    InstanceHandle::create_sample(&mut dynamic_data)
                 } else {
                     return;
                 };
@@ -2382,12 +2387,12 @@ impl DcpsDomainParticipant {
             };
         match cache_change.kind {
             ChangeKind::Alive => {
-                if let Ok(dynamic_data) = CdrDeserializer::deserialize_builtin(
+                if let Ok(mut dynamic_data) = CdrDeserializer::deserialize_builtin(
                     sedp_topic_type_support,
                     cache_change.data_value.as_ref(),
                 ) {
                     let topic_builtin_topic_data =
-                        TopicBuiltinTopicData::create_sample(dynamic_data);
+                        TopicBuiltinTopicData::create_sample(&mut dynamic_data);
 
                     self.domain_participant
                         .add_discovered_topic(topic_builtin_topic_data.clone());
@@ -4057,7 +4062,14 @@ impl DcpsDomainParticipant {
 }
 
 #[tracing::instrument(skip(type_support))]
-fn get_topic_kind(type_support: &dyn DynamicType) -> TopicKind {
+fn get_topic_kind(type_support: &DynamicType) -> TopicKind {
+    // Check if topic has any member with key. This should include members in the base type if defined.
+    if let Some(b) = &type_support.descriptor.base_type {
+        let topic_kind = get_topic_kind(b);
+        if topic_kind == TopicKind::WithKey {
+            return topic_kind;
+        }
+    }
     for index in 0..type_support.get_member_count() {
         if let Ok(m) = type_support.get_member_by_index(index) {
             if let Ok(d) = m.get_descriptor() {
@@ -4548,7 +4560,7 @@ struct TopicEntity {
     status_condition: DcpsStatusCondition,
     _listener_sender: Option<MpscSender<ListenerMail>>,
     _status_kind: Vec<StatusKind>,
-    type_support: &'static dyn DynamicType,
+    type_support: DynamicType,
 }
 
 impl TopicEntity {
@@ -4561,7 +4573,7 @@ impl TopicEntity {
         status_condition: DcpsStatusCondition,
         listener_sender: Option<MpscSender<ListenerMail>>,
         status_kind: Vec<StatusKind>,
-        type_support: &'static dyn DynamicType,
+        type_support: DynamicType,
     ) -> Self {
         Self {
             qos,
@@ -4658,7 +4670,7 @@ struct DataWriterEntity {
     transport_writer: RtpsWriterKind,
     topic_name: String,
     type_name: String,
-    type_support: &'static dyn DynamicType,
+    type_support: DynamicType,
     matched_subscription_list: Vec<SubscriptionBuiltinTopicData>,
     publication_matched_status: PublicationMatchedStatus,
     incompatible_subscription_list: Vec<InstanceHandle>,
@@ -4689,7 +4701,7 @@ impl DataWriterEntity {
         transport_writer: RtpsWriterKind,
         topic_name: String,
         type_name: String,
-        type_support: &'static dyn DynamicType,
+        type_support: DynamicType,
         listener_sender: Option<MpscSender<ListenerMail>>,
         listener_mask: Vec<StatusKind>,
         qos: DataWriterQos,
@@ -4731,22 +4743,7 @@ impl DataWriterEntity {
             return Err(DdsError::NotEnabled);
         }
 
-        let has_key = {
-            let mut has_key = false;
-            for index in 0..self.type_support.get_member_count() {
-                if self
-                    .type_support
-                    .get_member_by_index(index)?
-                    .get_descriptor()?
-                    .is_key
-                {
-                    has_key = true;
-                    break;
-                }
-            }
-            has_key
-        };
-        if !has_key {
+        if get_topic_kind(&self.type_support) == TopicKind::NoKey {
             return Err(DdsError::IllegalOperation);
         }
 
@@ -4792,22 +4789,7 @@ impl DataWriterEntity {
             return Err(DdsError::NotEnabled);
         }
 
-        let has_key = {
-            let mut has_key = false;
-            for index in 0..self.type_support.get_member_count() {
-                if self
-                    .type_support
-                    .get_member_by_index(index)?
-                    .get_descriptor()?
-                    .is_key
-                {
-                    has_key = true;
-                    break;
-                }
-            }
-            has_key
-        };
-        if !has_key {
+        if get_topic_kind(&self.type_support) == TopicKind::NoKey {
             return Err(DdsError::IllegalOperation);
         }
 
@@ -5061,7 +5043,7 @@ struct DataReaderEntity {
     sample_list: Vec<ReaderSample>,
     qos: DataReaderQos,
     topic_name: String,
-    type_support: &'static dyn DynamicType,
+    type_support: DynamicType,
     requested_deadline_missed_status: RequestedDeadlineMissedStatus,
     requested_incompatible_qos_status: RequestedIncompatibleQosStatus,
     sample_rejected_status: SampleRejectedStatus,
@@ -5084,7 +5066,7 @@ impl DataReaderEntity {
         instance_handle: InstanceHandle,
         qos: DataReaderQos,
         topic_name: String,
-        type_support: &'static dyn DynamicType,
+        type_support: DynamicType,
         listener_sender: Option<MpscSender<ListenerMail>>,
         listener_mask: Vec<StatusKind>,
         transport_reader: RtpsReaderKind,

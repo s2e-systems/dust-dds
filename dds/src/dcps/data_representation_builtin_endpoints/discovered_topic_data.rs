@@ -19,10 +19,7 @@ use crate::{
         },
         type_support::TypeSupport,
     },
-    xtypes::{
-        data_storage::DataStorageMapping,
-        dynamic_type::{DynamicType, StaticTypeInformation},
-    },
+    xtypes::{data_storage::DataStorageMapping, dynamic_type::DynamicType},
 };
 use alloc::string::String;
 
@@ -32,7 +29,7 @@ pub struct DiscoveredTopicData {
 }
 
 impl TypeSupport for DiscoveredTopicData {
-    const r#TYPE: &'static dyn DynamicType = &StaticTypeInformation {
+    const r#TYPE: DynamicType = DynamicType {
         descriptor: &ConvenienceTypeBuilder::type_descriptor("TopicBuiltinTopicData"),
         member_list: &[
             ConvenienceTypeBuilder::key_member::<BuiltInTopicKey>(0, "key", PID_ENDPOINT_GUID),
@@ -106,7 +103,7 @@ impl TypeSupport for DiscoveredTopicData {
         ],
     };
 
-    fn create_sample(mut src: crate::xtypes::dynamic_type::DynamicData) -> Self {
+    fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData) -> Self {
         Self {
             topic_builtin_topic_data: TopicBuiltinTopicData {
                 key: DataStorageMapping::try_from_storage(
@@ -191,8 +188,7 @@ impl TypeSupport for DiscoveredTopicData {
         }
     }
 
-    fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
-        let mut data = dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::TYPE);
+    fn create_dynamic_sample(self, data: &mut dust_dds::xtypes::dynamic_type::DynamicData) {
         data.set_value(
             PID_ENDPOINT_GUID as u32,
             self.topic_builtin_topic_data.key.into_storage(),
@@ -289,7 +285,6 @@ impl TypeSupport for DiscoveredTopicData {
                 self.topic_builtin_topic_data.representation.into_storage(),
             );
         }
-        data
     }
 }
 
@@ -299,13 +294,17 @@ mod tests {
     use crate::{
         builtin_topics::BuiltInTopicKey,
         infrastructure::qos::TopicQos,
-        xtypes::{deserializer::CdrDeserializer, serializer::RtpsPlCdrSerializer},
+        xtypes::{
+            deserializer::CdrDeserializer, dynamic_type::DynamicDataFactory,
+            serializer::RtpsPlCdrSerializer,
+        },
     };
 
     #[test]
     fn serialize_all_default() {
         let topic_qos = TopicQos::default();
-        let data = DiscoveredTopicData {
+        let mut data = DynamicDataFactory::create_data(DiscoveredTopicData::TYPE);
+        DiscoveredTopicData {
             topic_builtin_topic_data: TopicBuiltinTopicData {
                 key: BuiltInTopicKey {
                     value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
@@ -327,21 +326,21 @@ mod tests {
                 representation: topic_qos.representation,
             },
         }
-        .create_dynamic_sample();
+        .create_dynamic_sample(&mut data);
 
         let expected = [
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+            0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
+            1, 0, 0, 0, // ,
+            2, 0, 0, 0, // ,
+            3, 0, 0, 0, // ,
+            4, 0, 0, 0, // ,
             0x05, 0x00, 8, 0, // PID_TOPIC_NAME, length
             3, 0x00, 0x00, 0x00, // string length (incl. terminator)
             b'a', b'b', 0, 0x00, // string + padding (1 byte)
             0x07, 0x00, 8, 0, // PID_TYPE_NAME, length
             3, 0x00, 0x00, 0x00, // string length (incl. terminator)
             b'c', b'd', 0, 0x00, // string + padding (1 byte)
-            0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
-            1, 0, 0, 0, // ,
-            2, 0, 0, 0, // ,
-            3, 0, 0, 0, // ,
-            4, 0, 0, 0, // ,
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
         assert_eq!(RtpsPlCdrSerializer::serialize(&data).unwrap(), expected);
@@ -350,7 +349,8 @@ mod tests {
     #[test]
     fn deserialize_all_default() {
         let topic_qos = TopicQos::default();
-        let expected = DiscoveredTopicData {
+        let mut expected = DynamicDataFactory::create_data(DiscoveredTopicData::TYPE);
+        DiscoveredTopicData {
             topic_builtin_topic_data: TopicBuiltinTopicData {
                 key: BuiltInTopicKey {
                     value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
@@ -372,7 +372,7 @@ mod tests {
                 representation: topic_qos.representation,
             },
         }
-        .create_dynamic_sample();
+        .create_dynamic_sample(&mut expected);
 
         let data = [
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE

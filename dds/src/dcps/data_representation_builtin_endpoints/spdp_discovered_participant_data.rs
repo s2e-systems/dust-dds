@@ -6,16 +6,15 @@ use super::parameter_id_values::{
     PID_PROTOCOL_VERSION, PID_USER_DATA, PID_VENDORID,
 };
 use crate::{
-    builtin_topics::{BuiltInTopicKey, ParticipantBuiltinTopicData},
+    builtin_topics::ParticipantBuiltinTopicData,
     dcps::data_representation_builtin_endpoints::{
         ConvenienceTypeBuilder, parameter_id_values::DEFAULT_DOMAIN_TAG,
     },
     infrastructure::{
-        domain::DomainId, instance::InstanceHandle, qos_policy::UserDataQosPolicy, time::Duration,
-        type_support::TypeSupport,
+        domain::DomainId, instance::InstanceHandle, time::Duration, type_support::TypeSupport,
     },
     transport::types::{GuidPrefix, Locator, Long, ProtocolVersion, VendorId},
-    xtypes::{data_storage::DataStorageMapping, dynamic_type::StaticTypeInformation},
+    xtypes::{binding::XTypesBinding, data_storage::DataStorageMapping, dynamic_type::DynamicType},
 };
 use alloc::{string::String, vec, vec::Vec};
 
@@ -128,15 +127,19 @@ pub struct SpdpDiscoveredParticipantData {
 }
 
 impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParticipantData {
-    const r#TYPE: &'static dyn crate::xtypes::dynamic_type::DynamicType = &StaticTypeInformation {
-        descriptor: &ConvenienceTypeBuilder::type_descriptor("SpdpDiscoveredParticipantData"),
+    const r#TYPE: DynamicType = DynamicType {
+        descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
+            kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
+            name: "SpdpDiscoveredParticipantData",
+            base_type: Some(ParticipantBuiltinTopicData::TYPE_INFORMATION),
+            discriminator_type: None,
+            bound: None,
+            element_type: None,
+            key_element_type: None,
+            extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Mutable,
+            is_nested: false,
+        },
         member_list: &[
-            ConvenienceTypeBuilder::key_member::<BuiltInTopicKey>(0, "key", PID_PARTICIPANT_GUID),
-            ConvenienceTypeBuilder::member_with_default::<UserDataQosPolicy>(
-                1,
-                "user_data",
-                PID_USER_DATA,
-            ),
             ConvenienceTypeBuilder::member_with_default::<DomainId>(2, "domain_id", PID_DOMAIN_ID),
             ConvenienceTypeBuilder::member_with_default::<String>(3, "domain_tag", PID_DOMAIN_TAG),
             ConvenienceTypeBuilder::member::<ProtocolVersion>(
@@ -194,21 +197,13 @@ impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParti
         ],
     };
 
-    fn create_sample(mut src: crate::xtypes::dynamic_type::DynamicData) -> Self {
+    fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData) -> Self {
+        let dds_participant_data = ParticipantBuiltinTopicData::create_sample(src);
+        let guid_prefix = dds_participant_data.key.value[0..12]
+            .try_into()
+            .expect("Must match");
         Self {
-            dds_participant_data: ParticipantBuiltinTopicData {
-                key: DataStorageMapping::try_from_storage(
-                    src.get_value(PID_PARTICIPANT_GUID as u32)
-                        .expect("Must exist")
-                        .clone(),
-                )
-                .expect("Type must match"),
-                user_data: src
-                    .remove_value(PID_USER_DATA as u32)
-                    .map_or(UserDataQosPolicy::const_default(), |x| {
-                        DataStorageMapping::try_from_storage(x).expect("Must match")
-                    }),
-            },
+            dds_participant_data,
             participant_proxy: ParticipantProxy {
                 domain_id: None,
                 domain_tag: src
@@ -221,14 +216,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParti
                         .expect("Must exist"),
                 )
                 .expect("Type must match"),
-                guid_prefix: <BuiltInTopicKey>::try_from_storage(
-                    src.remove_value(PID_PARTICIPANT_GUID as u32)
-                        .expect("Must exist"),
-                )
-                .expect("Type must match")
-                .value[0..12]
-                    .try_into()
-                    .expect("Must match"),
+                guid_prefix,
                 vendor_id: DataStorageMapping::try_from_storage(
                     src.remove_value(PID_VENDORID as u32).expect("Must exist"),
                 )
@@ -287,8 +275,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParti
         }
     }
 
-    fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
-        let mut data = dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::TYPE);
+    fn create_dynamic_sample(self, data: &mut dust_dds::xtypes::dynamic_type::DynamicData) {
         data.set_value(
             PID_PARTICIPANT_GUID as u32,
             self.dds_participant_data.key.into_storage(),
@@ -395,7 +382,6 @@ impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParti
             PID_PARTICIPANT_LEASE_DURATION as u32,
             self.lease_duration.into_storage(),
         );
-        data
     }
 }
 
@@ -407,15 +393,18 @@ mod tests {
         dcps::data_representation_builtin_endpoints::parameter_id_values::DEFAULT_PARTICIPANT_LEASE_DURATION,
         infrastructure::qos_policy::UserDataQosPolicy,
         rtps::types::PROTOCOLVERSION_2_4,
-        xtypes::{deserializer::CdrDeserializer, serializer::RtpsPlCdrSerializer},
+        xtypes::{
+            deserializer::CdrDeserializer, dynamic_type::DynamicDataFactory,
+            serializer::RtpsPlCdrSerializer,
+        },
     };
 
     #[test]
     fn serialize_spdp_discovered_participant_data() {
         let locator1 = Locator::new(11, 12, [1; 16]);
         let locator2 = Locator::new(21, 22, [2; 16]);
-
-        let data = SpdpDiscoveredParticipantData {
+        let mut data = DynamicDataFactory::create_data(SpdpDiscoveredParticipantData::TYPE);
+        SpdpDiscoveredParticipantData {
             dds_participant_data: ParticipantBuiltinTopicData {
                 key: BuiltInTopicKey {
                     value: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0xc1],
@@ -446,29 +435,29 @@ mod tests {
             lease_duration: Duration::new(10, 11),
             discovered_participant_list: vec![],
         }
-        .create_dynamic_sample();
+        .create_dynamic_sample(&mut data);
 
         let expected = [
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
-            2, 0x00, 8, 0x00, // PID_PARTICIPANT_LEASE_DURATION
-            10, 0x00, 0x00, 0x00, // Duration: seconds
-            11, 0x00, 0x00, 0x00, // Duration: fraction
+            0x50, 0x00, 16, 0x00, // PID_PARTICIPANT_GUID, Length
+            8, 8, 8, 8, // GuidPrefix
+            8, 8, 8, 8, // GuidPrefix
+            8, 8, 8, 8, // GuidPrefix
+            0, 0, 1, 0xc1, // EntityId
+            44, 0x00, 8, 0x00, // PID_USER_DATA, Length
+            2, 0, 0, 0, // sequence length
+            97, 53, 0, 0, // data, padding (2 bytes)
             15, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
             0x00, 0x00, 0x00, 0x00, // DomainId
+            0x14, 0x40, 0x08, 0x00, // PID_DOMAIN_TAG, Length: 8
+            3, 0x00, 0x00, 0x00, // DomainTag: string length (incl. terminator)
+            b'a', b'b', 0, 0x00, // DomainTag: string + padding (1 byte)
             21, 0x00, 4, 0x00, // PID_PROTOCOL_VERSION, Length
             0x02, 0x04, 0x00, 0x00, // ProtocolVersion
             22, 0x00, 4, 0x00, // PID_VENDORID
             73, 74, 0x00, 0x00, // VendorId
-            44, 0x00, 8, 0x00, // PID_USER_DATA, Length
-            2, 0, 0, 0, // sequence length
-            97, 53, 0, 0, // data, padding (2 bytes)
-            49, 0x00, 24, 0x00, // PID_DEFAULT_UNICAST_LOCATOR
-            11, 0x00, 0x00, 0x00, // Locator{kind
-            12, 0x00, 0x00, 0x00, // port,
-            0x01, 0x01, 0x01, 0x01, //
-            0x01, 0x01, 0x01, 0x01, // address
-            0x01, 0x01, 0x01, 0x01, //
-            0x01, 0x01, 0x01, 0x01, // }
+            0x43, 0x00, 0x04, 0x00, // PID_EXPECTS_INLINE_QOS, Length: 4,
+            0x01, 0x00, 0x00, 0x00, // True
             50, 0x00, 24, 0x00, // PID_METATRAFFIC_UNICAST_LOCATOR
             11, 0x00, 0x00, 0x00, // Locator{kind
             12, 0x00, 0x00, 0x00, // port,
@@ -490,10 +479,13 @@ mod tests {
             0x01, 0x01, 0x01, 0x01, // address
             0x01, 0x01, 0x01, 0x01, //
             0x01, 0x01, 0x01, 0x01, // }
-            52, 0x00, 4, 0x00, // PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT
-            0x02, 0x00, 0x00, 0x00, // Count
-            0x43, 0x00, 0x04, 0x00, // PID_EXPECTS_INLINE_QOS, Length: 4,
-            0x01, 0x00, 0x00, 0x00, // True
+            49, 0x00, 24, 0x00, // PID_DEFAULT_UNICAST_LOCATOR
+            11, 0x00, 0x00, 0x00, // Locator{kind
+            12, 0x00, 0x00, 0x00, // port,
+            0x01, 0x01, 0x01, 0x01, //
+            0x01, 0x01, 0x01, 0x01, // address
+            0x01, 0x01, 0x01, 0x01, //
+            0x01, 0x01, 0x01, 0x01, // }
             72, 0x00, 24, 0x00, // PID_DEFAULT_MULTICAST_LOCATOR
             11, 0x00, 0x00, 0x00, // Locator{kind
             12, 0x00, 0x00, 0x00, // port,
@@ -501,18 +493,15 @@ mod tests {
             0x01, 0x01, 0x01, 0x01, // address
             0x01, 0x01, 0x01, 0x01, //
             0x01, 0x01, 0x01, 0x01, // }
-            0x50, 0x00, 16, 0x00, // PID_PARTICIPANT_GUID, Length
-            8, 8, 8, 8, // GuidPrefix
-            8, 8, 8, 8, // GuidPrefix
-            8, 8, 8, 8, // GuidPrefix
-            0, 0, 1, 0xc1, // EntityId
             88, 0x00, 4, 0x00, // PID_BUILTIN_ENDPOINT_SET
             0x02, 0x00, 0x00, 0x00, //
+            52, 0x00, 4, 0x00, // PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT
+            0x02, 0x00, 0x00, 0x00, // Count
             119, 0x00, 4, 0x00, // PID_BUILTIN_ENDPOINT_QOS
             0x00, 0x00, 0x00, 0x20, //
-            0x14, 0x40, 0x08, 0x00, // PID_DOMAIN_TAG, Length: 8
-            3, 0x00, 0x00, 0x00, // DomainTag: string length (incl. terminator)
-            b'a', b'b', 0, 0x00, // DomainTag: string + padding (1 byte)
+            2, 0x00, 8, 0x00, // PID_PARTICIPANT_LEASE_DURATION
+            10, 0x00, 0x00, 0x00, // Duration: seconds
+            11, 0x00, 0x00, 0x00, // Duration: fraction
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ];
         assert_eq!(RtpsPlCdrSerializer::serialize(&data).unwrap(), expected);
@@ -520,7 +509,8 @@ mod tests {
 
     #[test]
     fn serialize_spdp_discovered_participant_data_all_default() {
-        let data = SpdpDiscoveredParticipantData {
+        let mut data = DynamicDataFactory::create_data(SpdpDiscoveredParticipantData::TYPE);
+        SpdpDiscoveredParticipantData {
             dds_participant_data: ParticipantBuiltinTopicData {
                 key: BuiltInTopicKey {
                     value: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0xc1],
@@ -547,24 +537,24 @@ mod tests {
             lease_duration: DEFAULT_PARTICIPANT_LEASE_DURATION,
             discovered_participant_list: Vec::new(),
         }
-        .create_dynamic_sample();
+        .create_dynamic_sample(&mut data);
 
         let expected = [
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
-            0x02, 0x00, 8, 0x00, // PID_PARTICIPANT_LEASE_DURATION
-            100, 0x00, 0x00, 0x00, // Duration: seconds
-            0, 0x00, 0x00, 0x00, // Duration: fraction
-            0x15, 0x00, 4, 0x00, // PID_PROTOCOL_VERSION, Length
-            0x02, 0x04, 0x00, 0x00, // ProtocolVersion
-            0x16, 0x00, 4, 0x00, // PID_VENDORID
-            73, 74, 0x00, 0x00, // VendorId
             0x50, 0x00, 16, 0x00, // PID_PARTICIPANT_GUID, Length
             8, 8, 8, 8, // GuidPrefix
             8, 8, 8, 8, // GuidPrefix
             8, 8, 8, 8, // GuidPrefix
             0, 0, 1, 0xc1, // EntityId
+            0x15, 0x00, 4, 0x00, // PID_PROTOCOL_VERSION, Length
+            0x02, 0x04, 0x00, 0x00, // ProtocolVersion
+            0x16, 0x00, 4, 0x00, // PID_VENDORID
+            73, 74, 0x00, 0x00, // VendorId
             88, 0x00, 4, 0x00, // PID_BUILTIN_ENDPOINT_SET
             0x02, 0x00, 0x00, 0x00, //
+            0x02, 0x00, 8, 0x00, // PID_PARTICIPANT_LEASE_DURATION
+            100, 0x00, 0x00, 0x00, // Duration: seconds
+            0, 0x00, 0x00, 0x00, // Duration: fraction
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ];
         assert_eq!(RtpsPlCdrSerializer::serialize(&data).unwrap(), expected);
@@ -593,7 +583,8 @@ mod tests {
         );
         let lease_duration = Duration::new(10, 11);
 
-        let expected = SpdpDiscoveredParticipantData {
+        let mut expected = DynamicDataFactory::create_data(SpdpDiscoveredParticipantData::TYPE);
+        SpdpDiscoveredParticipantData {
             dds_participant_data: ParticipantBuiltinTopicData {
                 key: BuiltInTopicKey {
                     value: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0xc1],
@@ -618,7 +609,7 @@ mod tests {
             lease_duration,
             discovered_participant_list: vec![],
         }
-        .create_dynamic_sample();
+        .create_dynamic_sample(&mut expected);
 
         let data = [
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE

@@ -63,7 +63,7 @@ impl DcpsDomainParticipant {
             }
         };
 
-        let topic_kind = get_topic_kind(topic.type_support);
+        let topic_kind = get_topic_kind(&topic.type_support);
 
         let type_support = topic.type_support;
         let Some(subscriber) = self

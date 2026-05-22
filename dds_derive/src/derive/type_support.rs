@@ -77,10 +77,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 let member_type = &field.ty;
                 let is_key = field_attributes.key;
                 let is_optional = field_attributes.optional;
-                let default_value = field_attributes
-                    .default_value
-                    .map(|x| quote! {#x})
-                    .unwrap_or(quote! {Default::default()});
+                let default_value = field_attributes.default_value.map(|x| quote! {#x});
 
                 member_list.push(
                     quote! {
@@ -104,17 +101,24 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 );
 
                 if !field_attributes.non_serialized {
+                    let field_type = &field.ty;
+                    let field_default_value = default_value
+                        .unwrap_or(quote! { <#field_type as ::core::default::Default>::default()});
                     match &field.ident {
                         Some(field_ident) => {
-                            if is_optional {
+                            // In Mutable structs every field is optional even when not explicitly marked as such
+                            if input_attributes.extensibility == Extensibility::Mutable
+                                || is_optional
+                            {
                                 member_sample_seq.push(quote! {
-                                    #field_ident: src.remove_value(#member_id).map_or(#default_value, |x| {
+                                    #field_ident: src.remove_value(#member_id).map_or(#field_default_value, |x| {
                                         dust_dds::xtypes::data_storage::DataStorageMapping::try_from_storage(x).expect("Must match")
                                     }),
                                 });
+
                                 member_dynamic_sample_seq
                                     .push(quote! {
-                                        if self.#field_ident != #default_value {
+                                        if self.#field_ident != #field_default_value {
                                             data.set_value(#member_id, dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(self.#field_ident));
                                         }
                                     });
@@ -128,14 +132,17 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                         }
                         None => {
                             let index = Index::from(field_index);
-                            if is_optional {
+                            // In Mutable structs every field is optional even when not explicitly marked as such
+                            if input_attributes.extensibility == Extensibility::Mutable
+                                || is_optional
+                            {
                                 member_sample_seq.push(quote! {
-                                    src.remove_value(#member_id).map_or(#default_value, |x| {
+                                    src.remove_value(#member_id).map_or(#field_default_value, |x| {
                                         DataStorageMapping::try_from_storage(x).expect("Must match")
                                     }),
                                 });
                                 member_dynamic_sample_seq.push(quote! {
-                                    if self.#index != #default_value {
+                                    if self.#index != #field_default_value {
                                         data.set_value(#member_id, dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(self.#index));
                                     }
                                 })
@@ -149,26 +156,21 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     }
                 }
             }
-            let is_tuple = data_struct
-                .fields
-                .iter()
-                .next()
-                .expect("Not empty")
-                .ident
-                .is_none();
+            let is_tuple = match data_struct.fields.iter().next() {
+                Some(s) => s.ident.is_none(),
+                None => false,
+            };
 
             let get_type_quote = quote! {
-                const r#TYPE: &'static dyn dust_dds::xtypes::dynamic_type::DynamicType =
-                    &dust_dds::xtypes::dynamic_type::StaticTypeInformation {
+                const r#TYPE: dust_dds::xtypes::dynamic_type::DynamicType =
+                    dust_dds::xtypes::dynamic_type::DynamicType {
                         descriptor: #struct_descriptor,
                         member_list: &[#(#member_list,)*]
                     };
             };
 
             let create_dynamic_sample_quote = quote! {
-                let mut data = dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::TYPE);
                 #(#member_dynamic_sample_seq)*
-                data
             };
             let create_sample_quote = if is_tuple {
                 quote! {Self(#(#member_sample_seq)*)}
@@ -199,8 +201,8 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     }
                 };
                 let get_type_quote = quote! {
-                    const r#TYPE: &'static dyn dust_dds::xtypes::dynamic_type::DynamicType =
-                        &dust_dds::xtypes::dynamic_type::StaticTypeInformation {
+                    const r#TYPE: dust_dds::xtypes::dynamic_type::DynamicType =
+                        dust_dds::xtypes::dynamic_type::DynamicType {
                             descriptor: #union_descriptor,
                             member_list: &[]
                         };
@@ -237,17 +239,15 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     }
                 };
                 let get_type_quote = quote! {
-                    const r#TYPE: &'static dyn dust_dds::xtypes::dynamic_type::DynamicType =
-                        &dust_dds::xtypes::dynamic_type::StaticTypeInformation {
+                    const r#TYPE: dust_dds::xtypes::dynamic_type::DynamicType =
+                        dust_dds::xtypes::dynamic_type::DynamicType {
                             descriptor: #enum_descriptor,
                             member_list: &[]
                         };
                 };
 
                 let create_dynamic_sample_quote = quote! {
-                    let mut data = dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::TYPE);
                     #discriminator_dynamic_value
-                    data
                 };
                 let enum_variant_mapping = read_enum_variant_discriminant_mapping(data_enum);
                 let mut create_sample_quote_variants = Vec::new();
@@ -281,17 +281,18 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
         impl #impl_generics dust_dds::infrastructure::type_support::TypeSupport for #ident #type_generics #where_clause {
             #get_type_quote
 
-            fn create_sample(mut src: dust_dds::xtypes::dynamic_type::DynamicData) -> Self {
+            fn create_sample(src: &mut dust_dds::xtypes::dynamic_type::DynamicData) -> Self {
                 #create_sample_quote
             }
 
-            fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
+            fn create_dynamic_sample(self, data: &mut dust_dds::xtypes::dynamic_type::DynamicData) {
                 #create_dynamic_sample_quote
             }
         }
     })
 }
 
+#[derive(PartialEq, Eq, Clone, Copy)]
 enum Extensibility {
     Final,
     Appendable,

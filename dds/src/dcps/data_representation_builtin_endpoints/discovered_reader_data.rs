@@ -16,10 +16,7 @@ use crate::{
         UserDataQosPolicy,
     },
     transport::types::{ENTITYID_UNKNOWN, EntityId, Guid, Locator},
-    xtypes::{
-        data_storage::DataStorageMapping,
-        dynamic_type::{DynamicType, StaticTypeInformation},
-    },
+    xtypes::{data_storage::DataStorageMapping, dynamic_type::DynamicType},
 };
 use alloc::{string::String, vec::Vec};
 
@@ -39,7 +36,7 @@ pub struct DiscoveredReaderData {
 }
 
 impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderData {
-    const r#TYPE: &'static dyn DynamicType = &StaticTypeInformation {
+    const r#TYPE: DynamicType = DynamicType {
         descriptor: &ConvenienceTypeBuilder::type_descriptor("DiscoveredReaderData"),
         member_list: &[
             ConvenienceTypeBuilder::key_member::<BuiltInTopicKey>(0, "key", PID_ENDPOINT_GUID),
@@ -144,7 +141,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
         ],
     };
 
-    fn create_sample(mut src: crate::xtypes::dynamic_type::DynamicData) -> Self {
+    fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData) -> Self {
         let key = BuiltInTopicKey::try_from_storage(
             src.remove_value(PID_ENDPOINT_GUID as u32)
                 .expect("Must exist"),
@@ -274,8 +271,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
         }
     }
 
-    fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData {
-        let mut data = dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::TYPE);
+    fn create_dynamic_sample(self, data: &mut dust_dds::xtypes::dynamic_type::DynamicData) {
         data.set_value(
             PID_ENDPOINT_GUID as u32,
             self.dds_subscription_data.key.into_storage(),
@@ -408,7 +404,6 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
                 self.reader_proxy.expects_inline_qos.into_storage(),
             );
         }
-        data
     }
 }
 
@@ -422,12 +417,16 @@ mod tests {
             BUILT_IN_WRITER_WITH_KEY, EntityId, Guid, USER_DEFINED_READER_WITH_KEY,
             USER_DEFINED_UNKNOWN,
         },
-        xtypes::{deserializer::CdrDeserializer, serializer::RtpsPlCdrSerializer},
+        xtypes::{
+            deserializer::CdrDeserializer, dynamic_type::DynamicDataFactory,
+            serializer::RtpsPlCdrSerializer,
+        },
     };
 
     #[test]
     fn serialize_all_default() {
-        let data = DiscoveredReaderData {
+        let mut data = DynamicDataFactory::create_data(DiscoveredReaderData::TYPE);
+        DiscoveredReaderData {
             dds_subscription_data: SubscriptionBuiltinTopicData {
                 key: BuiltInTopicKey {
                     value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
@@ -463,28 +462,28 @@ mod tests {
                 expects_inline_qos: false,
             },
         }
-        .create_dynamic_sample();
+        .create_dynamic_sample(&mut data);
 
         let expected = [
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+            0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
+            1, 0, 0, 0, // ,
+            2, 0, 0, 0, // ,
+            3, 0, 0, 0, // ,
+            4, 0, 0, 0, // ,
+            0x50, 0x00, 16, 0, //PID_PARTICIPANT_GUID, length
+            6, 0, 0, 0, // ,
+            7, 0, 0, 0, // ,
+            8, 0, 0, 0, // ,
+            9, 0, 0, 0, // ,
             0x05, 0x00, 0x08, 0x00, // PID_TOPIC_NAME, Length: 8
             3, 0x00, 0x00, 0x00, // string length (incl. terminator)
             b'a', b'b', 0, 0x00, // string + padding (1 byte)
             0x07, 0x00, 0x08, 0x00, // PID_TYPE_NAME, Length: 8
             3, 0x00, 0x00, 0x00, // string length (incl. terminator)
             b'c', b'd', 0, 0x00, // string + padding (1 byte)
-            0x50, 0x00, 16, 0, //PID_PARTICIPANT_GUID, length
-            6, 0, 0, 0, // ,
-            7, 0, 0, 0, // ,
-            8, 0, 0, 0, // ,
-            9, 0, 0, 0, // ,
             0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
             21, 22, 23, 0xc2, //
-            0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
-            1, 0, 0, 0, // ,
-            2, 0, 0, 0, // ,
-            3, 0, 0, 0, // ,
-            4, 0, 0, 0, // ,
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
         assert_eq!(RtpsPlCdrSerializer::serialize(&data).unwrap(), expected);
@@ -492,7 +491,8 @@ mod tests {
 
     #[test]
     fn serialize_with_partition() {
-        let data = DiscoveredReaderData {
+        let mut data = DynamicDataFactory::create_data(DiscoveredReaderData::TYPE);
+        DiscoveredReaderData {
             dds_subscription_data: SubscriptionBuiltinTopicData {
                 key: BuiltInTopicKey {
                     value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
@@ -530,10 +530,20 @@ mod tests {
                 expects_inline_qos: false,
             },
         }
-        .create_dynamic_sample();
+        .create_dynamic_sample(&mut data);
 
         let expected = [
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+            0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
+            1, 0, 0, 0, // ,
+            2, 0, 0, 0, // ,
+            3, 0, 0, 0, // ,
+            4, 0, 0, 0, // ,
+            0x50, 0x00, 16, 0, //PID_PARTICIPANT_GUID, length
+            6, 0, 0, 0, // ,
+            7, 0, 0, 0, // ,
+            8, 0, 0, 0, // ,
+            9, 0, 0, 0, // ,
             0x05, 0x00, 0x08, 0x00, // PID_TOPIC_NAME, Length: 8
             3, 0x00, 0x00, 0x00, // string length (incl. terminator)
             b'a', b'b', 0, 0x00, // string + padding (1 byte)
@@ -546,18 +556,8 @@ mod tests {
             b'o', b'n', b'e', 0, // String
             4, 0, 0, 0, // String length
             b't', b'w', b'o', 0, // String
-            0x50, 0x00, 16, 0, //PID_PARTICIPANT_GUID, length
-            6, 0, 0, 0, // ,
-            7, 0, 0, 0, // ,
-            8, 0, 0, 0, // ,
-            9, 0, 0, 0, // ,
             0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
             21, 22, 23, 0xc2, //
-            0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
-            1, 0, 0, 0, // ,
-            2, 0, 0, 0, // ,
-            3, 0, 0, 0, // ,
-            4, 0, 0, 0, // ,
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
         assert_eq!(RtpsPlCdrSerializer::serialize(&data).unwrap(), expected);
@@ -565,7 +565,8 @@ mod tests {
 
     #[test]
     fn deserialize_all_default() {
-        let expected = DiscoveredReaderData {
+        let mut expected = DynamicDataFactory::create_data(DiscoveredReaderData::TYPE);
+        DiscoveredReaderData {
             reader_proxy: ReaderProxy {
                 remote_reader_guid: Guid::new(
                     [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0],
@@ -601,7 +602,7 @@ mod tests {
                 representation: Default::default(),
             },
         }
-        .create_dynamic_sample();
+        .create_dynamic_sample(&mut expected);
 
         let data = [
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
