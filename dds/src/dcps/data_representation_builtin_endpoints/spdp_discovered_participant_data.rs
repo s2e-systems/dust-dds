@@ -6,7 +6,7 @@ use super::parameter_id_values::{
     PID_PROTOCOL_VERSION, PID_USER_DATA, PID_VENDORID,
 };
 use crate::{
-    builtin_topics::{BuiltInTopicKey, ParticipantBuiltinTopicData},
+    builtin_topics::ParticipantBuiltinTopicData,
     dcps::data_representation_builtin_endpoints::{
         ConvenienceTypeBuilder, parameter_id_values::DEFAULT_DOMAIN_TAG,
     },
@@ -198,8 +198,12 @@ impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParti
     };
 
     fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData) -> Self {
+        let dds_participant_data = ParticipantBuiltinTopicData::create_sample(src);
+        let guid_prefix = dds_participant_data.key.value[0..12]
+            .try_into()
+            .expect("Must match");
         Self {
-            dds_participant_data: ParticipantBuiltinTopicData::create_sample(src),
+            dds_participant_data,
             participant_proxy: ParticipantProxy {
                 domain_id: None,
                 domain_tag: src
@@ -212,14 +216,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParti
                         .expect("Must exist"),
                 )
                 .expect("Type must match"),
-                guid_prefix: <BuiltInTopicKey>::try_from_storage(
-                    src.remove_value(PID_PARTICIPANT_GUID as u32)
-                        .expect("Must exist"),
-                )
-                .expect("Type must match")
-                .value[0..12]
-                    .try_into()
-                    .expect("Must match"),
+                guid_prefix,
                 vendor_id: DataStorageMapping::try_from_storage(
                     src.remove_value(PID_VENDORID as u32).expect("Must exist"),
                 )

@@ -79,8 +79,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 let is_optional = field_attributes.optional;
                 let default_value = field_attributes
                     .default_value
-                    .map(|x| quote! {#x})
-                    .unwrap_or(quote! {Default::default()});
+                    .map(|x| quote! {#x});
 
                 member_list.push(
                     quote! {
@@ -104,17 +103,21 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 );
 
                 if !field_attributes.non_serialized {
+                    let field_type = &field.ty;
+                    let field_default_value = default_value.unwrap_or(quote!{ <#field_type as ::core::default::Default>::default()});
                     match &field.ident {
                         Some(field_ident) => {
-                            if is_optional {
+                            // In Mutable structs every field is optional even when not explicitly marked as such
+                            if input_attributes.extensibility == Extensibility::Mutable || is_optional {
                                 member_sample_seq.push(quote! {
-                                    #field_ident: src.remove_value(#member_id).map_or(#default_value, |x| {
+                                    #field_ident: src.remove_value(#member_id).map_or(#field_default_value, |x| {
                                         dust_dds::xtypes::data_storage::DataStorageMapping::try_from_storage(x).expect("Must match")
                                     }),
                                 });
+                                
                                 member_dynamic_sample_seq
                                     .push(quote! {
-                                        if self.#field_ident != #default_value {
+                                        if self.#field_ident != #field_default_value {
                                             data.set_value(#member_id, dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(self.#field_ident));
                                         }
                                     });
@@ -128,14 +131,15 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                         }
                         None => {
                             let index = Index::from(field_index);
-                            if is_optional {
+                            // In Mutable structs every field is optional even when not explicitly marked as such
+                            if input_attributes.extensibility == Extensibility::Mutable || is_optional {
                                 member_sample_seq.push(quote! {
-                                    src.remove_value(#member_id).map_or(#default_value, |x| {
+                                    src.remove_value(#member_id).map_or(#field_default_value, |x| {
                                         DataStorageMapping::try_from_storage(x).expect("Must match")
                                     }),
                                 });
                                 member_dynamic_sample_seq.push(quote! {
-                                    if self.#index != #default_value {
+                                    if self.#index != #field_default_value {
                                         data.set_value(#member_id, dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(self.#index));
                                     }
                                 })
@@ -285,6 +289,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
     })
 }
 
+#[derive(PartialEq, Eq, Clone, Copy)]
 enum Extensibility {
     Final,
     Appendable,

@@ -971,7 +971,7 @@ mod tests {
             #[dust_dds(id = 73)]
             locator: Locator,
         }
-        #[derive(TypeSupport)]
+        #[derive(TypeSupport, Default, PartialEq, Eq)]
         #[dust_dds(extensibility = "final", nested)]
         struct Locator {
             kind: i32,
@@ -1218,7 +1218,7 @@ mod tests {
         );
     }
 
-    #[derive(TypeSupport, Clone)]
+    #[derive(TypeSupport, Clone, Default, PartialEq)]
     #[dust_dds(extensibility = "mutable")]
     struct MutableType {
         #[dust_dds(id = 90, key)]
@@ -1281,7 +1281,7 @@ mod tests {
         );
     }
 
-    #[derive(TypeSupport, Clone)]
+    #[derive(TypeSupport, Clone, Default, PartialEq)]
     struct TinyFinalType {
         primitive: u16,
     }
@@ -1593,7 +1593,7 @@ mod rtps_pl_tests {
         );
     }
 
-    #[derive(TypeSupport)]
+    #[derive(TypeSupport, Default, PartialEq)]
     struct Time {
         sec: u32,
         nanosec: i32,
@@ -1724,7 +1724,7 @@ mod rtps_pl_tests {
 
     #[test]
     fn serialize_locator() {
-        #[derive(TypeSupport)]
+        #[derive(TypeSupport, Default, PartialEq)]
         struct Locator {
             kind: i32,
             port: u32,
