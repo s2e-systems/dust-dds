@@ -442,25 +442,25 @@ mod tests {
 
         let expected = [
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
-            2, 0x00, 8, 0x00, // PID_PARTICIPANT_LEASE_DURATION
-            10, 0x00, 0x00, 0x00, // Duration: seconds
-            11, 0x00, 0x00, 0x00, // Duration: fraction
+            0x50, 0x00, 16, 0x00, // PID_PARTICIPANT_GUID, Length
+            8, 8, 8, 8, // GuidPrefix
+            8, 8, 8, 8, // GuidPrefix
+            8, 8, 8, 8, // GuidPrefix
+            0, 0, 1, 0xc1, // EntityId
+            44, 0x00, 8, 0x00, // PID_USER_DATA, Length
+            2, 0, 0, 0, // sequence length
+            97, 53, 0, 0, // data, padding (2 bytes)
             15, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
             0x00, 0x00, 0x00, 0x00, // DomainId
+            0x14, 0x40, 0x08, 0x00, // PID_DOMAIN_TAG, Length: 8
+            3, 0x00, 0x00, 0x00, // DomainTag: string length (incl. terminator)
+            b'a', b'b', 0, 0x00, // DomainTag: string + padding (1 byte)
             21, 0x00, 4, 0x00, // PID_PROTOCOL_VERSION, Length
             0x02, 0x04, 0x00, 0x00, // ProtocolVersion
             22, 0x00, 4, 0x00, // PID_VENDORID
             73, 74, 0x00, 0x00, // VendorId
-            44, 0x00, 8, 0x00, // PID_USER_DATA, Length
-            2, 0, 0, 0, // sequence length
-            97, 53, 0, 0, // data, padding (2 bytes)
-            49, 0x00, 24, 0x00, // PID_DEFAULT_UNICAST_LOCATOR
-            11, 0x00, 0x00, 0x00, // Locator{kind
-            12, 0x00, 0x00, 0x00, // port,
-            0x01, 0x01, 0x01, 0x01, //
-            0x01, 0x01, 0x01, 0x01, // address
-            0x01, 0x01, 0x01, 0x01, //
-            0x01, 0x01, 0x01, 0x01, // }
+            0x43, 0x00, 0x04, 0x00, // PID_EXPECTS_INLINE_QOS, Length: 4,
+            0x01, 0x00, 0x00, 0x00, // True
             50, 0x00, 24, 0x00, // PID_METATRAFFIC_UNICAST_LOCATOR
             11, 0x00, 0x00, 0x00, // Locator{kind
             12, 0x00, 0x00, 0x00, // port,
@@ -482,10 +482,13 @@ mod tests {
             0x01, 0x01, 0x01, 0x01, // address
             0x01, 0x01, 0x01, 0x01, //
             0x01, 0x01, 0x01, 0x01, // }
-            52, 0x00, 4, 0x00, // PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT
-            0x02, 0x00, 0x00, 0x00, // Count
-            0x43, 0x00, 0x04, 0x00, // PID_EXPECTS_INLINE_QOS, Length: 4,
-            0x01, 0x00, 0x00, 0x00, // True
+            49, 0x00, 24, 0x00, // PID_DEFAULT_UNICAST_LOCATOR
+            11, 0x00, 0x00, 0x00, // Locator{kind
+            12, 0x00, 0x00, 0x00, // port,
+            0x01, 0x01, 0x01, 0x01, //
+            0x01, 0x01, 0x01, 0x01, // address
+            0x01, 0x01, 0x01, 0x01, //
+            0x01, 0x01, 0x01, 0x01, // }
             72, 0x00, 24, 0x00, // PID_DEFAULT_MULTICAST_LOCATOR
             11, 0x00, 0x00, 0x00, // Locator{kind
             12, 0x00, 0x00, 0x00, // port,
@@ -493,18 +496,15 @@ mod tests {
             0x01, 0x01, 0x01, 0x01, // address
             0x01, 0x01, 0x01, 0x01, //
             0x01, 0x01, 0x01, 0x01, // }
-            0x50, 0x00, 16, 0x00, // PID_PARTICIPANT_GUID, Length
-            8, 8, 8, 8, // GuidPrefix
-            8, 8, 8, 8, // GuidPrefix
-            8, 8, 8, 8, // GuidPrefix
-            0, 0, 1, 0xc1, // EntityId
             88, 0x00, 4, 0x00, // PID_BUILTIN_ENDPOINT_SET
             0x02, 0x00, 0x00, 0x00, //
+            52, 0x00, 4, 0x00, // PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT
+            0x02, 0x00, 0x00, 0x00, // Count
             119, 0x00, 4, 0x00, // PID_BUILTIN_ENDPOINT_QOS
             0x00, 0x00, 0x00, 0x20, //
-            0x14, 0x40, 0x08, 0x00, // PID_DOMAIN_TAG, Length: 8
-            3, 0x00, 0x00, 0x00, // DomainTag: string length (incl. terminator)
-            b'a', b'b', 0, 0x00, // DomainTag: string + padding (1 byte)
+            2, 0x00, 8, 0x00, // PID_PARTICIPANT_LEASE_DURATION
+            10, 0x00, 0x00, 0x00, // Duration: seconds
+            11, 0x00, 0x00, 0x00, // Duration: fraction
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ];
         assert_eq!(RtpsPlCdrSerializer::serialize(&data).unwrap(), expected);
@@ -544,20 +544,20 @@ mod tests {
 
         let expected = [
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
-            0x02, 0x00, 8, 0x00, // PID_PARTICIPANT_LEASE_DURATION
-            100, 0x00, 0x00, 0x00, // Duration: seconds
-            0, 0x00, 0x00, 0x00, // Duration: fraction
-            0x15, 0x00, 4, 0x00, // PID_PROTOCOL_VERSION, Length
-            0x02, 0x04, 0x00, 0x00, // ProtocolVersion
-            0x16, 0x00, 4, 0x00, // PID_VENDORID
-            73, 74, 0x00, 0x00, // VendorId
             0x50, 0x00, 16, 0x00, // PID_PARTICIPANT_GUID, Length
             8, 8, 8, 8, // GuidPrefix
             8, 8, 8, 8, // GuidPrefix
             8, 8, 8, 8, // GuidPrefix
             0, 0, 1, 0xc1, // EntityId
+            0x15, 0x00, 4, 0x00, // PID_PROTOCOL_VERSION, Length
+            0x02, 0x04, 0x00, 0x00, // ProtocolVersion
+            0x16, 0x00, 4, 0x00, // PID_VENDORID
+            73, 74, 0x00, 0x00, // VendorId
             88, 0x00, 4, 0x00, // PID_BUILTIN_ENDPOINT_SET
             0x02, 0x00, 0x00, 0x00, //
+            0x02, 0x00, 8, 0x00, // PID_PARTICIPANT_LEASE_DURATION
+            100, 0x00, 0x00, 0x00, // Duration: seconds
+            0, 0x00, 0x00, 0x00, // Duration: fraction
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ];
         assert_eq!(RtpsPlCdrSerializer::serialize(&data).unwrap(), expected);

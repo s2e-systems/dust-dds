@@ -708,7 +708,13 @@ impl DynamicData {
     }
 
     pub fn get_descriptor(&self, id: MemberId) -> XTypesResult<&MemberDescriptor> {
-        Ok(&self.r#type.get_member(id)?.descriptor)
+        if let Ok(x) = self.r#type.get_member(id) {
+            Ok(&x.descriptor)
+        } else if let Some(b) = &self.r#type.descriptor.base_type {
+            b.get_member(id)?.get_descriptor()
+        } else {
+            Err(XTypesError::InvalidId(id))
+        }
     }
 
     pub fn set_descriptor(&mut self, _id: MemberId, _value: MemberDescriptor) -> XTypesResult<()> {

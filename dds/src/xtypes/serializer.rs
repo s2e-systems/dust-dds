@@ -1,6 +1,6 @@
 use super::dynamic_type::ExtensibilityKind;
 use crate::xtypes::{
-    dynamic_type::{DynamicData, TypeKind},
+    dynamic_type::{DynamicData, DynamicType, TypeKind},
     error::{XTypesError, XTypesResult},
     read_write::Write,
 };
@@ -428,46 +428,71 @@ impl<'a, W: Write> XTypesSerializer for RtpsPlCdrSerializer<'a, W> {
     }
 
     fn serialize_mutable_struct(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
-        for field_index in 0..v.get_item_count() {
-            let member_id = v.get_member_id_at_index(field_index)?;
-            let member_descriptor = v.get_descriptor(member_id)?;
+        fn serialize_all_fields<'a, W: Write>(
+            serializer: &mut RtpsPlCdrSerializer<'a, W>,
+            dynamic_type: &DynamicType,
+            v: &DynamicData,
+        ) -> Result<(), XTypesError> {
+            for field_index in 0..dynamic_type.get_member_count() {
+                let member = dynamic_type.get_member_by_index(field_index)?;
+                let member_id = member.get_id();
 
-            let element_type = member_descriptor.r#type.get_descriptor().element_type;
-            if let Some(element_type) = element_type {
-                // Sequence
-                if element_type.get_kind() == TypeKind::STRUCTURE {
-                    for vi in v.get_complex_values(member_id)? {
-                        let padded_length = count_bytes_pl_cdr_complex(vi)?;
+                let element_type = member.descriptor.r#type.get_descriptor().element_type;
+                if v.get_value(member_id).is_err() {
+                    continue;
+                }
+
+                if let Some(element_type) = element_type {
+                    // Sequence
+                    if element_type.get_kind() == TypeKind::STRUCTURE {
+                        for vi in v.get_complex_values(member_id)? {
+                            let padded_length = count_bytes_pl_cdr_complex(vi)?;
+                            LittleEndian::write_u16(
+                                &(member_id as u16),
+                                &mut serializer.cdr1_le_serializer.writer,
+                            );
+                            LittleEndian::write_u16(
+                                &padded_length,
+                                &mut serializer.cdr1_le_serializer.writer,
+                            );
+                            serializer.serialize_complex(vi)?
+                        }
+                        serializer.cdr1_le_serializer.writer.pad(4);
+                    } else {
+                        let padded_length = count_bytes_pl_cdr(v, member_id)?;
                         LittleEndian::write_u16(
                             &(member_id as u16),
-                            &mut self.cdr1_le_serializer.writer,
+                            &mut serializer.cdr1_le_serializer.writer,
                         );
                         LittleEndian::write_u16(
                             &padded_length,
-                            &mut self.cdr1_le_serializer.writer,
+                            &mut serializer.cdr1_le_serializer.writer,
                         );
-                        self.serialize_complex(vi)?
+                        serializer.serialize_dynamic_data_member(v, member_id)?;
+                        serializer.cdr1_le_serializer.writer.pad(4);
                     }
-                    self.cdr1_le_serializer.writer.pad(4);
                 } else {
+                    // Structure
                     let padded_length = count_bytes_pl_cdr(v, member_id)?;
                     LittleEndian::write_u16(
                         &(member_id as u16),
-                        &mut self.cdr1_le_serializer.writer,
+                        &mut serializer.cdr1_le_serializer.writer,
                     );
-                    LittleEndian::write_u16(&padded_length, &mut self.cdr1_le_serializer.writer);
-                    self.serialize_dynamic_data_member(v, member_id)?;
-                    self.cdr1_le_serializer.writer.pad(4);
+                    LittleEndian::write_u16(
+                        &padded_length,
+                        &mut serializer.cdr1_le_serializer.writer,
+                    );
+                    serializer.serialize_dynamic_data_member(v, member_id)?;
+                    serializer.cdr1_le_serializer.writer.pad(4);
                 }
-            } else {
-                // Structure
-                let padded_length = count_bytes_pl_cdr(v, member_id)?;
-                LittleEndian::write_u16(&(member_id as u16), &mut self.cdr1_le_serializer.writer);
-                LittleEndian::write_u16(&padded_length, &mut self.cdr1_le_serializer.writer);
-                self.serialize_dynamic_data_member(v, member_id)?;
-                self.cdr1_le_serializer.writer.pad(4);
             }
+            Ok(())
         }
+
+        if let Some(b) = &v.r#type().get_descriptor().base_type {
+            serialize_all_fields(self, b, v)?;
+        }
+        serialize_all_fields(self, &v.r#type(), v)?;
         LittleEndian::write_u16(&PID_SENTINEL, &mut self.cdr1_le_serializer.writer);
         LittleEndian::write_u16(&0, &mut self.cdr1_le_serializer.writer);
         Ok(())
