@@ -4063,6 +4063,13 @@ impl DcpsDomainParticipant {
 
 #[tracing::instrument(skip(type_support))]
 fn get_topic_kind(type_support: &DynamicType) -> TopicKind {
+    // Check if topic has any member with key. This should include members in the base type if defined.
+    if let Some(b) = &type_support.descriptor.base_type {
+        let topic_kind = get_topic_kind(b);
+        if topic_kind == TopicKind::WithKey {
+            return topic_kind;
+        }
+    }
     for index in 0..type_support.get_member_count() {
         if let Ok(m) = type_support.get_member_by_index(index) {
             if let Ok(d) = m.get_descriptor() {
@@ -4736,22 +4743,7 @@ impl DataWriterEntity {
             return Err(DdsError::NotEnabled);
         }
 
-        let has_key = {
-            let mut has_key = false;
-            for index in 0..self.type_support.get_member_count() {
-                if self
-                    .type_support
-                    .get_member_by_index(index)?
-                    .get_descriptor()?
-                    .is_key
-                {
-                    has_key = true;
-                    break;
-                }
-            }
-            has_key
-        };
-        if !has_key {
+        if get_topic_kind(&self.type_support) == TopicKind::NoKey {
             return Err(DdsError::IllegalOperation);
         }
 
@@ -4797,22 +4789,7 @@ impl DataWriterEntity {
             return Err(DdsError::NotEnabled);
         }
 
-        let has_key = {
-            let mut has_key = false;
-            for index in 0..self.type_support.get_member_count() {
-                if self
-                    .type_support
-                    .get_member_by_index(index)?
-                    .get_descriptor()?
-                    .is_key
-                {
-                    has_key = true;
-                    break;
-                }
-            }
-            has_key
-        };
-        if !has_key {
+        if get_topic_kind(&self.type_support) == TopicKind::NoKey {
             return Err(DdsError::IllegalOperation);
         }
 
