@@ -959,7 +959,7 @@ fn foo_array_of_enumerators_should_read_and_write() {
 }
 
 #[test]
-fn foo_sequence_of_strucs_should_read_and_write() {
+fn foo_sequence_of_structs_should_read_and_write() {
     #[derive(Clone, Debug, PartialEq, DdsType)]
     struct MyStruct {
         id: u32,
@@ -1063,7 +1063,7 @@ fn foo_sequence_of_strucs_should_read_and_write() {
 }
 
 #[test]
-fn foo_array_of_strucs_should_read_and_write() {
+fn foo_array_of_structs_should_read_and_write() {
     #[derive(Clone, Debug, PartialEq, DdsType)]
     struct MyStruct {
         id: u32,
@@ -1343,8 +1343,6 @@ fn foo_sequence_of_bools_should_read_and_write() {
     assert_eq!(samples.len(), 1);
     assert_eq!(samples[0].data.as_ref().unwrap(), &data);
 }
-
-////// TODO: delete!
 
 #[test]
 fn foo_array_of_chars_should_read_and_write() {
