@@ -97,7 +97,7 @@ use crate::{
         dynamic_type::{DynamicData, DynamicDataFactory, DynamicType},
         serializer::{
             Cdr2BeSerializer, Cdr2LeSerializer, RtpsPlCdrSerializer, Xcdr1BeSerializer,
-            Xcdr1LeSerializer,
+            Xcdr1LeSerializer, Xcdr1Serializer,
         },
     },
 };
@@ -5854,9 +5854,9 @@ fn serialize(
     Ok(
         if representation.value.is_empty() || representation.value[0] == XCDR_DATA_REPRESENTATION {
             if cfg!(target_endian = "big") {
-                Xcdr1LeSerializer::serialize(dynamic_data)?
-            } else {
                 Xcdr1BeSerializer::serialize(dynamic_data)?
+            } else {
+                Xcdr1LeSerializer::serialize(dynamic_data)?
             }
         } else if representation.value[0] == XCDR2_DATA_REPRESENTATION {
             if cfg!(target_endian = "big") {
