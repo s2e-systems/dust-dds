@@ -1,14 +1,18 @@
 use crate::derive::{
-    attributes::get_field_attributes, enum_support::read_enum_variant_discriminant_mapping,
+    attributes::{
+        BitBound, Extensibility, get_enumerated_type_attributes, get_member_attributes,
+        get_structure_member_attributes, get_type_declaration_attributes,
+    },
+    enum_support::read_enum_variant_discriminant_mapping,
 };
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{DataEnum, DeriveInput, Fields, Index, Result, spanned::Spanned};
 
 pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
-    let input_attributes = get_input_attributes(input)?;
+    // Get the type declaration attributes as defined in Table 21 – IDL Built-in Annotations Usage of the XTypes standard
+    let input_attributes = get_type_declaration_attributes(input)?;
     let ident = &input.ident;
-
     let type_name = input_attributes.name.as_str();
     let extensibility_kind = match input_attributes.extensibility {
         Extensibility::Final => {
@@ -25,7 +29,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
 
     let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
     let (get_type_quote, create_dynamic_sample_quote, create_sample_quote) = match &input.data {
-        syn::Data::Struct(data_struct) => {
+        syn::Data::Struct(xtypes_struct) => {
             let struct_descriptor = quote! {
                 &dust_dds::xtypes::dynamic_type::TypeDescriptor {
                     kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
@@ -45,16 +49,17 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
             let mut member_dynamic_sample_seq = Vec::new();
 
             let mut next_auto_id = 0;
-            for (field_index, field) in data_struct.fields.iter().enumerate() {
-                let index = field_index as u32;
-                let field_attributes = get_field_attributes(field)?;
+            for (member_index, member) in xtypes_struct.fields.iter().enumerate() {
+                let index = member_index as u32;
+                let member_attributes = get_member_attributes(member)?;
+                let struct_member_attributes = get_structure_member_attributes(member)?;
 
                 let member_id = match input_attributes.extensibility {
                     Extensibility::Final | Extensibility::Appendable => {
-                        syn::parse_str(&field_index.to_string())
+                        syn::parse_str(&member_index.to_string())
                     }
                     Extensibility::Mutable => {
-                        if let Some(provided_id) = field_attributes.id {
+                        if let Some(provided_id) = member_attributes.id {
                             Ok(provided_id)
                         } else {
                             syn::parse_str(&next_auto_id.to_string())
@@ -68,22 +73,22 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 {
                     next_auto_id = lit_int.base10_parse::<u32>()? + 1;
                 }
-                let field_name = field
+                let member_name = member
                     .ident
                     .as_ref()
                     .map(|i| i.to_string())
-                    .unwrap_or(field_index.to_string());
+                    .unwrap_or(member_index.to_string());
 
-                let member_type = &field.ty;
-                let is_key = field_attributes.key;
-                let is_optional = field_attributes.optional;
-                let default_value = field_attributes.default_value.map(|x| quote! {#x});
+                let member_type = &member.ty;
+                let is_key = struct_member_attributes.key;
+                let is_optional = struct_member_attributes.optional;
+                let default_value = struct_member_attributes.default_value.map(|x| quote! {#x});
 
                 member_list.push(
                     quote! {
                          dust_dds::xtypes::dynamic_type::DynamicTypeMember {
                             descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                                name: #field_name,
+                                name: #member_name,
                                 id: #member_id,
                                 r#type: <#member_type as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION,
                                 default_value: None,
@@ -100,49 +105,49 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     }
                 );
 
-                if !field_attributes.non_serialized {
-                    let field_type = &field.ty;
-                    let field_default_value = default_value
-                        .unwrap_or(quote! { <#field_type as ::core::default::Default>::default()});
-                    match &field.ident {
-                        Some(field_ident) => {
-                            // In Mutable structs every field is optional even when not explicitly marked as such
+                if !struct_member_attributes.non_serialized {
+                    let member_type = &member.ty;
+                    let member_default_value = default_value
+                        .unwrap_or(quote! { <#member_type as ::core::default::Default>::default()});
+                    match &member.ident {
+                        Some(member_ident) => {
+                            // In Mutable structs every member is optional even when not explicitly marked as such
                             if input_attributes.extensibility == Extensibility::Mutable
                                 || is_optional
                             {
                                 member_sample_seq.push(quote! {
-                                    #field_ident: src.remove_value(#member_id).map_or(#field_default_value, |x| {
+                                    #member_ident: src.remove_value(#member_id).map_or(#member_default_value, |x| {
                                         dust_dds::xtypes::data_storage::DataStorageMapping::try_from_storage(x).expect("Must match")
                                     }),
                                 });
 
                                 member_dynamic_sample_seq
                                     .push(quote! {
-                                        if self.#field_ident != #field_default_value {
-                                            data.set_value(#member_id, dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(self.#field_ident));
+                                        if self.#member_ident != #member_default_value {
+                                            data.set_value(#member_id, dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(self.#member_ident));
                                         }
                                     });
                             } else {
                                 member_sample_seq.push(quote! {
-                                    #field_ident: dust_dds::xtypes::data_storage::DataStorageMapping::try_from_storage(src.remove_value(#member_id).expect("Must exist")).expect("Must match"),
+                                    #member_ident: dust_dds::xtypes::data_storage::DataStorageMapping::try_from_storage(src.remove_value(#member_id).expect("Must exist")).expect("Must match"),
                                 });
                                 member_dynamic_sample_seq
-                                    .push(quote! {data.set_value(#member_id, dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(self.#field_ident));});
+                                    .push(quote! {data.set_value(#member_id, dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(self.#member_ident));});
                             }
                         }
                         None => {
-                            let index = Index::from(field_index);
-                            // In Mutable structs every field is optional even when not explicitly marked as such
+                            let index = Index::from(member_index);
+                            // In Mutable structs every member is optional even when not explicitly marked as such
                             if input_attributes.extensibility == Extensibility::Mutable
                                 || is_optional
                             {
                                 member_sample_seq.push(quote! {
-                                    src.remove_value(#member_id).map_or(#field_default_value, |x| {
+                                    src.remove_value(#member_id).map_or(#member_default_value, |x| {
                                         DataStorageMapping::try_from_storage(x).expect("Must match")
                                     }),
                                 });
                                 member_dynamic_sample_seq.push(quote! {
-                                    if self.#index != #field_default_value {
+                                    if self.#index != #member_default_value {
                                         data.set_value(#member_id, dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(self.#index));
                                     }
                                 })
@@ -156,7 +161,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     }
                 }
             }
-            let is_tuple = match data_struct.fields.iter().next() {
+            let is_tuple = match xtypes_struct.fields.iter().next() {
                 Some(s) => s.ident.is_none(),
                 None => false,
             };
@@ -183,96 +188,122 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 create_sample_quote,
             ))
         }
-        syn::Data::Enum(data_enum) => {
-            // Separate between Unions and Enumeration which are both
-            // mapped as Rust enum types
-            if is_enum_xtypes_union(data_enum) {
-                let union_descriptor = quote! {
-                    &dust_dds::xtypes::dynamic_type::TypeDescriptor {
-                        kind: dust_dds::xtypes::dynamic_type::TypeKind::UNION,
-                        name: #type_name,
-                        base_type: None,
-                        discriminator_type: None,
-                        bound: None,
-                        element_type: None,
-                        key_element_type: None,
-                        extensibility_kind: #extensibility_kind,
-                        is_nested: #is_nested,
-                    }
-                };
-                let get_type_quote = quote! {
-                    const r#TYPE: dust_dds::xtypes::dynamic_type::DynamicType =
-                        dust_dds::xtypes::dynamic_type::DynamicType {
-                            descriptor: #union_descriptor,
-                            member_list: &[]
-                        };
-                };
-
-                let create_dynamic_sample_quote = quote! {todo!()};
-                let create_sample_quote = quote! {
-                    todo!()
-                };
-                Ok((
-                    get_type_quote,
-                    create_dynamic_sample_quote,
-                    create_sample_quote,
-                ))
-            } else {
-                // Note: Mapping has to be done with a match self strategy because the enum might not be copy so casting it using e.g. "self as i64" would
-                // be consuming it.
-                let discriminator_type =
-                    quote! {<i32 as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION};
-                let discriminator_dynamic_value =
-                    quote! {data.set_int32_value(0, self as i32).unwrap();};
-
-                let enum_descriptor = quote! {
-                    &dust_dds::xtypes::dynamic_type::TypeDescriptor {
-                        kind: dust_dds::xtypes::dynamic_type::TypeKind::ENUM,
-                        name: #type_name,
-                        base_type: None,
-                        discriminator_type: Some(#discriminator_type),
-                        bound: None,
-                        element_type: None,
-                        key_element_type: None,
-                        extensibility_kind: #extensibility_kind,
-                        is_nested: #is_nested,
-                    }
-                };
-                let get_type_quote = quote! {
-                    const r#TYPE: dust_dds::xtypes::dynamic_type::DynamicType =
-                        dust_dds::xtypes::dynamic_type::DynamicType {
-                            descriptor: #enum_descriptor,
-                            member_list: &[]
-                        };
-                };
-
-                let create_dynamic_sample_quote = quote! {
-                    #discriminator_dynamic_value
-                };
-                let enum_variant_mapping = read_enum_variant_discriminant_mapping(data_enum);
-                let mut create_sample_quote_variants = Vec::new();
-                for (variant_ident, variant_discriminant) in enum_variant_mapping {
-                    let d = Index::from(variant_discriminant);
-                    create_sample_quote_variants.push(quote! {#d => Self::#variant_ident,});
-                }
-                let create_sample_quote = quote! {
-                        let discriminator = src.get_int32_value(0).expect("Must exist");
-                        match discriminator {
-                            #(#create_sample_quote_variants)*
-                            d => panic!("Invalid discriminator {d:?}"),
-                        }
-                };
-
-                Ok((
-                    get_type_quote,
-                    create_dynamic_sample_quote,
-                    create_sample_quote,
-                ))
+        // Separate between Unions and Enumeration which are both
+        // mapped as Rust enum types
+        syn::Data::Enum(xtypes_union) if is_enum_xtypes_union(xtypes_union) => {
+            if xtypes_union.variants.len() > (u32::MAX as usize + 1) {
+                return Err(syn::Error::new(
+                    input.span(),
+                    "Union can hold at most `u32::MAX + 1` variants",
+                ));
             }
+
+            let union_descriptor = quote! {
+                &dust_dds::xtypes::dynamic_type::TypeDescriptor {
+                    kind: dust_dds::xtypes::dynamic_type::TypeKind::UNION,
+                    name: #type_name,
+                    base_type: None,
+                    discriminator_type: None,
+                    bound: None,
+                    element_type: None,
+                    key_element_type: None,
+                    extensibility_kind: #extensibility_kind,
+                    is_nested: #is_nested,
+                }
+            };
+            let get_type_quote = quote! {
+                const r#TYPE: dust_dds::xtypes::dynamic_type::DynamicType =
+                    dust_dds::xtypes::dynamic_type::DynamicType {
+                        descriptor: #union_descriptor,
+                        member_list: &[]
+                    };
+            };
+
+            let create_dynamic_sample_quote = quote! {todo!()};
+            let create_sample_quote = quote! {
+                todo!()
+            };
+            Ok((
+                get_type_quote,
+                create_dynamic_sample_quote,
+                create_sample_quote,
+            ))
+        }
+        syn::Data::Enum(xtypes_enum) => {
+            let enum_type_attributes = get_enumerated_type_attributes(input)?;
+            // Note: Mapping has to be done with a match self strategy because the enum might not be copy so casting it using e.g. "self as i64" would
+            // be consuming it.
+            let discriminator_type = match enum_type_attributes.bit_bound {
+                BitBound::I8 => {
+                    quote! {<i8 as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION}
+                }
+                BitBound::I16 => {
+                    quote! {<i16 as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION}
+                }
+                BitBound::I32 => {
+                    quote! {<i32 as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION}
+                }
+            };
+
+            let discriminator_dynamic_value = match enum_type_attributes.bit_bound {
+                BitBound::I8 => quote! {data.set_int8_value(0, self as i8).unwrap();},
+                BitBound::I16 => quote! {data.set_int16_value(0, self as i16).unwrap();},
+                BitBound::I32 => quote! {data.set_int32_value(0, self as i32).unwrap();},
+            };
+
+            let discriminator_sample = match enum_type_attributes.bit_bound  {
+                BitBound::I8 =>  quote!{src.get_int8_value(0).expect("Must exist");},
+                BitBound::I16 => quote!{src.get_int16_value(0).expect("Must exist");},
+                BitBound::I32 => quote!{src.get_int32_value(0).expect("Must exist");},
+            };
+
+            let enum_descriptor = quote! {
+                &dust_dds::xtypes::dynamic_type::TypeDescriptor {
+                    kind: dust_dds::xtypes::dynamic_type::TypeKind::ENUM,
+                    name: #type_name,
+                    base_type: None,
+                    discriminator_type: Some(#discriminator_type),
+                    bound: None,
+                    element_type: None,
+                    key_element_type: None,
+                    extensibility_kind: #extensibility_kind,
+                    is_nested: #is_nested,
+                }
+            };
+            let get_type_quote = quote! {
+                const r#TYPE: dust_dds::xtypes::dynamic_type::DynamicType =
+                    dust_dds::xtypes::dynamic_type::DynamicType {
+                        descriptor: #enum_descriptor,
+                        member_list: &[]
+                    };
+            };
+
+            let create_dynamic_sample_quote = quote! {
+                #discriminator_dynamic_value
+            };
+            let enum_variant_mapping = read_enum_variant_discriminant_mapping(xtypes_enum);
+            let mut create_sample_quote_variants = Vec::new();
+            for (variant_ident, variant_discriminant) in enum_variant_mapping {
+                let d = Index::from(variant_discriminant);
+                create_sample_quote_variants.push(quote! {#d => Self::#variant_ident,});
+            }
+            let create_sample_quote = quote! {
+                    let discriminator = #discriminator_sample;
+                    match discriminator {
+                        #(#create_sample_quote_variants)*
+                        d => panic!("Invalid discriminator {d:?}"),
+                    }
+            };
+
+            Ok((
+                get_type_quote,
+                create_dynamic_sample_quote,
+                create_sample_quote,
+            ))
         }
         syn::Data::Union(data_union) => Err(syn::Error::new(
             data_union.union_token.span,
-            "Union not supported",
+            "Rust union not supported in Dust DDS. For IDL union mapping use enum with types in variants.",
         )),
     }?;
 
@@ -289,68 +320,6 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 #create_dynamic_sample_quote
             }
         }
-    })
-}
-
-#[derive(PartialEq, Eq, Clone, Copy)]
-enum Extensibility {
-    Final,
-    Appendable,
-    Mutable,
-}
-
-struct InputAttributes {
-    name: String,
-    extensibility: Extensibility,
-    is_nested: bool,
-}
-
-fn get_input_attributes(input: &DeriveInput) -> Result<InputAttributes> {
-    let mut name = input.ident.to_string();
-    let mut extensibility = Extensibility::Final;
-    let mut is_nested = false;
-    if let Some(xtypes_attribute) = input
-        .attrs
-        .iter()
-        .find(|attr| attr.path().is_ident("dust_dds"))
-    {
-        xtypes_attribute.parse_nested_meta(|meta| {
-            if meta.path.is_ident("name") {
-                name = meta.value()?.parse::<syn::LitStr>()?.value();
-                Ok(())
-            } else if meta.path.is_ident("extensibility") {
-                let format_str: syn::LitStr = meta.value()?.parse()?;
-                match format_str.value().as_ref() {
-                    "final" => {
-                        extensibility = Extensibility::Final;
-                        Ok(())
-                    }
-                    "appendable" => {
-                        extensibility = Extensibility::Appendable;
-                        Ok(())
-                    }
-                    "mutable" => {
-                        extensibility = Extensibility::Mutable;
-                        Ok(())
-                    }
-                    _ => Err(syn::Error::new(
-                        meta.path.span(),
-                        r#"Invalid format specified. Valid options are "final", "appendable", "mutable". "#,
-                    )),
-                }
-            } else if meta.path.is_ident("nested") {
-                is_nested = true;
-                Ok(())
-            }
-            else {
-                Ok(())
-            }
-        })?;
-    }
-    Ok(InputAttributes {
-        name,
-        extensibility,
-        is_nested,
     })
 }
 
