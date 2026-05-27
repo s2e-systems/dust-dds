@@ -121,7 +121,7 @@ pub fn get_type_declaration_attributes(input: &DeriveInput) -> Result<TypeDeclar
     })
 }
 
-pub enum BitBound{
+pub enum BitBound {
     I8,
     I16,
     I32,
@@ -140,7 +140,6 @@ pub fn get_enumerated_type_attributes(input: &DeriveInput) -> Result<EnumeratedT
     {
         xtypes_attribute.parse_nested_meta(|meta| {
             if meta.path.is_ident("bit_bound") {
-                
                 let format_str: syn::LitStr = meta.value()?.parse()?;
                 match format_str.value().as_ref() {
                     "8" => {
@@ -160,11 +159,62 @@ pub fn get_enumerated_type_attributes(input: &DeriveInput) -> Result<EnumeratedT
                         r#"Invalid bit_bound specified. Valid options are "8", "16", "32". "#,
                     )),
                 }
-            } 
-            else {
+            } else {
                 Ok(())
             }
         })?;
     }
     Ok(EnumeratedTypeAttributes { bit_bound })
+}
+
+pub struct UnionAttributes {
+    pub discriminator_type: syn::Type,
+    pub is_discriminator_key: bool,
+}
+
+pub fn get_union_type_attributes(input: &DeriveInput) -> Result<UnionAttributes> {
+    let mut is_discriminator_key = false;
+    let mut discriminator_type = None;
+    if let Some(xtypes_attribute) = input
+        .attrs
+        .iter()
+        .find(|attr| attr.path().is_ident("dust_dds"))
+    {
+        // xtypes_attribute.parse_nested_meta(|meta| {
+        //     if meta.path.is_ident("switch") {
+        //         switch_attributes.parse_nested_meta
+
+        //         let format_str: syn::LitStr = meta.value()?.parse()?;
+        //         match format_str.value().as_ref() {
+        //             "8" => {
+        //                 bit_bound = BitBound::I8;
+        //                 Ok(())
+        //             }
+        //             "16" => {
+        //                 bit_bound = BitBound::I16;
+        //                 Ok(())
+        //             }
+        //             "32" => {
+        //                 bit_bound = BitBound::I32;
+        //                 Ok(())
+        //             }
+        //             _ => Err(syn::Error::new(
+        //                 meta.path.span(),
+        //                 r#"Invalid bit_bound specified. Valid options are "8", "16", "32". "#,
+        //             )),
+        //         }
+        //     }
+        //     else {
+        //         Ok(())
+        //     }
+        // })?;
+    };
+    let discriminator_type = discriminator_type.ok_or(syn::Error::new(
+        input.span(),
+        r#"Union must defined its discriminator type by adding #[dust_dds(switch(#type))] "#,
+    ))?;
+    Ok(UnionAttributes {
+        discriminator_type,
+        is_discriminator_key,
+    })
 }

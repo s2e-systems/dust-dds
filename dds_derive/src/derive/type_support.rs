@@ -2,6 +2,7 @@ use crate::derive::{
     attributes::{
         BitBound, Extensibility, get_enumerated_type_attributes, get_member_attributes,
         get_structure_member_attributes, get_type_declaration_attributes,
+        get_union_type_attributes,
     },
     enum_support::read_enum_variant_discriminant_mapping,
 };
@@ -191,6 +192,8 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
         // Separate between Unions and Enumeration which are both
         // mapped as Rust enum types
         syn::Data::Enum(xtypes_union) if is_enum_xtypes_union(xtypes_union) => {
+            let union_attributes = get_union_type_attributes(input)?;
+            let discriminator_type = union_attributes.discriminator_type;
             if xtypes_union.variants.len() > (u32::MAX as usize + 1) {
                 return Err(syn::Error::new(
                     input.span(),
@@ -203,7 +206,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     kind: dust_dds::xtypes::dynamic_type::TypeKind::UNION,
                     name: #type_name,
                     base_type: None,
-                    discriminator_type: None,
+                    discriminator_type: ::core::option::Option::Some(<#discriminator_type as ::dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION),
                     bound: None,
                     element_type: None,
                     key_element_type: None,
@@ -211,11 +214,18 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     is_nested: #is_nested,
                 }
             };
+
+            let mut variant_list: Vec<TokenStream> = Vec::new();
+            let mut variant_sample_seq: Vec<TokenStream> = Vec::new();
+            let mut variant_dynamic_sample_seq: Vec<TokenStream> = Vec::new();
+
+            for (variant_index, variant) in xtypes_union.variants.iter().enumerate() {}
+
             let get_type_quote = quote! {
                 const r#TYPE: dust_dds::xtypes::dynamic_type::DynamicType =
                     dust_dds::xtypes::dynamic_type::DynamicType {
                         descriptor: #union_descriptor,
-                        member_list: &[]
+                        member_list: &[#(#variant_list,)*]
                     };
             };
 
@@ -251,10 +261,10 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 BitBound::I32 => quote! {data.set_int32_value(0, self as i32).unwrap();},
             };
 
-            let discriminator_sample = match enum_type_attributes.bit_bound  {
-                BitBound::I8 =>  quote!{src.get_int8_value(0).expect("Must exist");},
-                BitBound::I16 => quote!{src.get_int16_value(0).expect("Must exist");},
-                BitBound::I32 => quote!{src.get_int32_value(0).expect("Must exist");},
+            let discriminator_sample = match enum_type_attributes.bit_bound {
+                BitBound::I8 => quote! {src.get_int8_value(0).expect("Must exist");},
+                BitBound::I16 => quote! {src.get_int16_value(0).expect("Must exist");},
+                BitBound::I32 => quote! {src.get_int32_value(0).expect("Must exist");},
             };
 
             let enum_descriptor = quote! {
