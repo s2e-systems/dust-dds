@@ -1,8 +1,7 @@
 use crate::derive::{
     attributes::{
-        BitBound, Extensibility, get_enumerated_type_attributes, get_member_attributes,
-        get_structure_member_attributes, get_type_declaration_attributes,
-        get_union_type_attributes, get_union_variant_attributes,
+        BitBound, Extensibility, get_enumerated_type_attributes, get_struct_attributes,
+        get_structure_member_attributes, get_union_type_attributes, get_union_variant_attributes,
     },
     enum_support::read_enum_variant_discriminant_mapping,
 };
@@ -11,26 +10,26 @@ use quote::quote;
 use syn::{DataEnum, DeriveInput, Fields, Index, Result, spanned::Spanned};
 
 pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
-    // Get the type declaration attributes as defined in Table 21 – IDL Built-in Annotations Usage of the XTypes standard
-    let input_attributes = get_type_declaration_attributes(input)?;
     let ident = &input.ident;
-    let type_name = input_attributes.name.as_str();
-    let extensibility_kind = match input_attributes.extensibility {
-        Extensibility::Final => {
-            quote! {dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final}
-        }
-        Extensibility::Appendable => {
-            quote! {dust_dds::xtypes::dynamic_type::ExtensibilityKind::Appendable}
-        }
-        Extensibility::Mutable => {
-            quote! {dust_dds::xtypes::dynamic_type::ExtensibilityKind::Mutable}
-        }
-    };
-    let is_nested = input_attributes.is_nested;
-
     let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
     let (get_type_quote, create_dynamic_sample_quote, create_sample_quote) = match &input.data {
         syn::Data::Struct(xtypes_struct) => {
+            // Get the type declaration attributes as defined in Table 21 – IDL Built-in Annotations Usage of the XTypes standard
+            let r#struct = get_struct_attributes(input)?;
+            let type_name = r#struct.name.as_str();
+            let extensibility_kind = match r#struct.extensibility {
+                Extensibility::Final => {
+                    quote! {dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final}
+                }
+                Extensibility::Appendable => {
+                    quote! {dust_dds::xtypes::dynamic_type::ExtensibilityKind::Appendable}
+                }
+                Extensibility::Mutable => {
+                    quote! {dust_dds::xtypes::dynamic_type::ExtensibilityKind::Mutable}
+                }
+            };
+            let is_nested = r#struct.is_nested;
+
             let struct_descriptor = quote! {
                 &dust_dds::xtypes::dynamic_type::TypeDescriptor {
                     kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
@@ -52,15 +51,14 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
             let mut next_auto_id = 0;
             for (member_index, member) in xtypes_struct.fields.iter().enumerate() {
                 let index = member_index as u32;
-                let member_attributes = get_member_attributes(member)?;
                 let struct_member_attributes = get_structure_member_attributes(member)?;
 
-                let member_id = match input_attributes.extensibility {
+                let member_id = match r#struct.extensibility {
                     Extensibility::Final | Extensibility::Appendable => {
                         syn::parse_str(&member_index.to_string())
                     }
                     Extensibility::Mutable => {
-                        if let Some(provided_id) = member_attributes.id {
+                        if let Some(provided_id) = struct_member_attributes.id {
                             Ok(provided_id)
                         } else {
                             syn::parse_str(&next_auto_id.to_string())
@@ -113,9 +111,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     match &member.ident {
                         Some(member_ident) => {
                             // In Mutable structs every member is optional even when not explicitly marked as such
-                            if input_attributes.extensibility == Extensibility::Mutable
-                                || is_optional
-                            {
+                            if r#struct.extensibility == Extensibility::Mutable || is_optional {
                                 member_sample_seq.push(quote! {
                                     #member_ident: src.remove_value(#member_id).map_or(#member_default_value, |x| {
                                         dust_dds::xtypes::data_storage::DataStorageMapping::try_from_storage(x).expect("Must match")
@@ -139,9 +135,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                         None => {
                             let index = Index::from(member_index);
                             // In Mutable structs every member is optional even when not explicitly marked as such
-                            if input_attributes.extensibility == Extensibility::Mutable
-                                || is_optional
-                            {
+                            if r#struct.extensibility == Extensibility::Mutable || is_optional {
                                 member_sample_seq.push(quote! {
                                     src.remove_value(#member_id).map_or(#member_default_value, |x| {
                                         DataStorageMapping::try_from_storage(x).expect("Must match")
@@ -194,6 +188,19 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
         syn::Data::Enum(xtypes_union) if is_enum_xtypes_union(xtypes_union) => {
             let union_attributes = get_union_type_attributes(input)?;
             let discriminator_type = union_attributes.discriminator_type;
+            let type_name = union_attributes.name.as_str();
+            let extensibility_kind = match union_attributes.extensibility {
+                Extensibility::Final => {
+                    quote! {dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final}
+                }
+                Extensibility::Appendable => {
+                    quote! {dust_dds::xtypes::dynamic_type::ExtensibilityKind::Appendable}
+                }
+                Extensibility::Mutable => {
+                    quote! {dust_dds::xtypes::dynamic_type::ExtensibilityKind::Mutable}
+                }
+            };
+            let is_nested = union_attributes.is_nested;
             if xtypes_union.variants.len() > (u32::MAX as usize + 1) {
                 return Err(syn::Error::new(
                     input.span(),
@@ -244,10 +251,63 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 let index = variant_index + 1;
 
                 match &variant.fields {
-                    Fields::Named(fields_named) => todo!(),
-                    Fields::Unnamed(fields_unnamed) => todo!(),
+                    // If there is a single field we handle this as the single type wrapper which is the most common case
+                    Fields::Named(fields_named) if fields_named.named.len() == 1 => {
+                        let variant_name = fields_named.named[0]
+                            .ident
+                            .as_ref()
+                            .ok_or(syn::Error::new(
+                                fields_named.span(),
+                                "Field of named variant must have defined name",
+                            ))?
+                            .to_string();
+                        let variant_ty = &fields_named.named[0].ty;
+                        variant_list.push(quote!{ dust_dds::xtypes::dynamic_type::DynamicTypeMember {
+                            descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
+                                name: #variant_name,
+                                id: #index as u32,
+                                r#type: <#variant_ty as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION,
+                                default_value: None,
+                                index: #index as u32,
+                                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+                                label: None,
+                                is_key: false,
+                                is_optional: true,
+                                is_must_understand: true,
+                                is_shared: false,
+                                is_default_label: false,
+                            }
+                        }
+                        });
+                    }
+                    Fields::Unnamed(fields_unnamed) if fields_unnamed.unnamed.len() == 1 => {
+                        let variant_ty = &fields_unnamed.unnamed[0].ty;
+                        variant_list.push(quote!{ dust_dds::xtypes::dynamic_type::DynamicTypeMember {
+                            descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
+                                name: #variant_name,
+                                id: #index as u32,
+                                r#type: <#variant_ty as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION,
+                                default_value: None,
+                                index: #index as u32,
+                                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+                                label: None,
+                                is_key: false,
+                                is_optional: true,
+                                is_must_understand: true,
+                                is_shared: false,
+                                is_default_label: false,
+                            }
+                        }
+                        });
+                    }
+                    Fields::Named(_) | Fields::Unnamed(_) => {
+                        return Err(syn::Error::new(
+                            variant.span(),
+                            "Only variants with a single field are supported",
+                        ));
+                    }
                     Fields::Unit => {
-                        variant_list.push(quote!{
+                        variant_list.push(quote!{ dust_dds::xtypes::dynamic_type::DynamicTypeMember {
                             descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
                                 name: #variant_name,
                                 id: #index as u32,
@@ -275,6 +335,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                                 is_shared: false,
                                 is_default_label: false,
                             }
+                        }
                         });
                     }
                 }
@@ -300,6 +361,8 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
         }
         syn::Data::Enum(xtypes_enum) => {
             let enum_type_attributes = get_enumerated_type_attributes(input)?;
+            let type_name = enum_type_attributes.name;
+            let is_nested = enum_type_attributes.is_nested;
             // Note: Mapping has to be done with a match self strategy because the enum might not be copy so casting it using e.g. "self as i64" would
             // be consuming it.
             let discriminator_type = match enum_type_attributes.bit_bound {
@@ -335,7 +398,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     bound: None,
                     element_type: None,
                     key_element_type: None,
-                    extensibility_kind: #extensibility_kind,
+                    extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
                     is_nested: #is_nested,
                 }
             };

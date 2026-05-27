@@ -1,27 +1,7 @@
 use syn::{DeriveInput, Expr, Field, Result, Variant, spanned::Spanned};
 
-pub struct MemberAttributes {
-    pub id: Option<Expr>,
-}
-
-pub fn get_member_attributes(field: &Field) -> Result<MemberAttributes> {
-    let mut id = None;
-    if let Some(xtypes_attribute) = field
-        .attrs
-        .iter()
-        .find(|attr| attr.path().is_ident("dust_dds"))
-    {
-        xtypes_attribute.parse_nested_meta(|meta| {
-            if meta.path.is_ident("id") {
-                id = Some(meta.value()?.parse()?);
-            }
-            Ok(())
-        })?;
-    }
-    Ok(MemberAttributes { id })
-}
-
 pub struct StructureMemberAttributes {
+    pub id: Option<Expr>,
     pub key: bool,
     pub optional: bool,
     pub non_serialized: bool,
@@ -29,6 +9,7 @@ pub struct StructureMemberAttributes {
 }
 
 pub fn get_structure_member_attributes(field: &Field) -> Result<StructureMemberAttributes> {
+    let mut id = None;
     let mut key = false;
     let mut optional = false;
     let mut default_value = None;
@@ -39,7 +20,9 @@ pub fn get_structure_member_attributes(field: &Field) -> Result<StructureMemberA
         .find(|attr| attr.path().is_ident("dust_dds"))
     {
         xtypes_attribute.parse_nested_meta(|meta| {
-            if meta.path.is_ident("key") {
+            if meta.path.is_ident("id") {
+                id = Some(meta.value()?.parse()?);
+            } else if meta.path.is_ident("key") {
                 key = true;
             } else if meta.path.is_ident("default_value") {
                 default_value = Some(meta.value()?.parse()?);
@@ -52,6 +35,7 @@ pub fn get_structure_member_attributes(field: &Field) -> Result<StructureMemberA
         })?;
     }
     Ok(StructureMemberAttributes {
+        id,
         key,
         optional,
         default_value,
@@ -66,13 +50,13 @@ pub enum Extensibility {
     Mutable,
 }
 
-pub struct TypeDeclarationAttributes {
+pub struct StructAttributes {
     pub name: String,
     pub extensibility: Extensibility,
     pub is_nested: bool,
 }
 
-pub fn get_type_declaration_attributes(input: &DeriveInput) -> Result<TypeDeclarationAttributes> {
+pub fn get_struct_attributes(input: &DeriveInput) -> Result<StructAttributes> {
     let mut name = input.ident.to_string();
     let mut extensibility = Extensibility::Final;
     let mut is_nested = false;
@@ -114,7 +98,7 @@ pub fn get_type_declaration_attributes(input: &DeriveInput) -> Result<TypeDeclar
             }
         })?;
     }
-    Ok(TypeDeclarationAttributes {
+    Ok(StructAttributes {
         name,
         extensibility,
         is_nested,
@@ -128,10 +112,14 @@ pub enum BitBound {
 }
 
 pub struct EnumeratedTypeAttributes {
+    pub name: String,
+    pub is_nested: bool,
     pub bit_bound: BitBound,
 }
 
 pub fn get_enumerated_type_attributes(input: &DeriveInput) -> Result<EnumeratedTypeAttributes> {
+    let mut name = input.ident.to_string();
+    let mut is_nested = false;
     let mut bit_bound = BitBound::I32;
     if let Some(xtypes_attribute) = input
         .attrs
@@ -139,7 +127,13 @@ pub fn get_enumerated_type_attributes(input: &DeriveInput) -> Result<EnumeratedT
         .find(|attr| attr.path().is_ident("dust_dds"))
     {
         xtypes_attribute.parse_nested_meta(|meta| {
-            if meta.path.is_ident("bit_bound") {
+            if meta.path.is_ident("name") {
+                name = meta.value()?.parse::<syn::LitStr>()?.value();
+                Ok(())
+            } else if meta.path.is_ident("nested") {
+                is_nested = true;
+                Ok(())
+            } else if meta.path.is_ident("bit_bound") {
                 let format_str: syn::LitStr = meta.value()?.parse()?;
                 match format_str.value().as_ref() {
                     "8" => {
@@ -164,15 +158,25 @@ pub fn get_enumerated_type_attributes(input: &DeriveInput) -> Result<EnumeratedT
             }
         })?;
     }
-    Ok(EnumeratedTypeAttributes { bit_bound })
+    Ok(EnumeratedTypeAttributes {
+        name,
+        is_nested,
+        bit_bound,
+    })
 }
 
 pub struct UnionAttributes {
+    pub name: String,
+    pub extensibility: Extensibility,
+    pub is_nested: bool,
     pub discriminator_type: syn::Type,
     pub is_discriminator_key: bool,
 }
 
 pub fn get_union_type_attributes(input: &DeriveInput) -> Result<UnionAttributes> {
+    let mut name = input.ident.to_string();
+    let mut extensibility = Extensibility::Final;
+    let mut is_nested = false;
     let mut is_discriminator_key = false;
     let mut discriminator_type = None;
     if let Some(xtypes_attribute) = input
@@ -181,7 +185,29 @@ pub fn get_union_type_attributes(input: &DeriveInput) -> Result<UnionAttributes>
         .find(|attr| attr.path().is_ident("dust_dds"))
     {
         xtypes_attribute.parse_nested_meta(|meta| {
-            if meta.path.is_ident("switch") {
+            if meta.path.is_ident("name") {
+                name = meta.value()?.parse::<syn::LitStr>()?.value();
+            } else if meta.path.is_ident("extensibility") {
+                let format_str: syn::LitStr = meta.value()?.parse()?;
+                match format_str.value().as_ref() {
+                    "final" => {
+                        extensibility = Extensibility::Final;
+                    }
+                    "appendable" => {
+                        extensibility = Extensibility::Appendable;
+                    }
+                    "mutable" => {
+                        extensibility = Extensibility::Mutable;
+                    }
+                    _ => return Err(syn::Error::new(
+                        meta.path.span(),
+                        r#"Invalid format specified. Valid options are "final", "appendable", "mutable". "#,
+                    )),
+                }
+            } else if meta.path.is_ident("nested") {
+                is_nested = true;
+            }
+             else if meta.path.is_ident("switch") {
                 let content;
                 syn::parenthesized!(content in meta.input);
                 let fork = content.fork();
@@ -202,6 +228,9 @@ pub fn get_union_type_attributes(input: &DeriveInput) -> Result<UnionAttributes>
         r#"Union must defined its discriminator type by adding #[dust_dds(switch(#type))] "#,
     ))?;
     Ok(UnionAttributes {
+        name,
+        extensibility,
+        is_nested,
         discriminator_type,
         is_discriminator_key,
     })
