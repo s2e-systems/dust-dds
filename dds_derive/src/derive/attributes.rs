@@ -180,34 +180,22 @@ pub fn get_union_type_attributes(input: &DeriveInput) -> Result<UnionAttributes>
         .iter()
         .find(|attr| attr.path().is_ident("dust_dds"))
     {
-        // xtypes_attribute.parse_nested_meta(|meta| {
-        //     if meta.path.is_ident("switch") {
-        //         switch_attributes.parse_nested_meta
-
-        //         let format_str: syn::LitStr = meta.value()?.parse()?;
-        //         match format_str.value().as_ref() {
-        //             "8" => {
-        //                 bit_bound = BitBound::I8;
-        //                 Ok(())
-        //             }
-        //             "16" => {
-        //                 bit_bound = BitBound::I16;
-        //                 Ok(())
-        //             }
-        //             "32" => {
-        //                 bit_bound = BitBound::I32;
-        //                 Ok(())
-        //             }
-        //             _ => Err(syn::Error::new(
-        //                 meta.path.span(),
-        //                 r#"Invalid bit_bound specified. Valid options are "8", "16", "32". "#,
-        //             )),
-        //         }
-        //     }
-        //     else {
-        //         Ok(())
-        //     }
-        // })?;
+        xtypes_attribute.parse_nested_meta(|meta| {
+            if meta.path.is_ident("switch") {
+                let content;
+                syn::parenthesized!(content in meta.input);
+                let fork = content.fork();
+                if let Ok(ident) = fork.parse::<syn::Ident>() {
+                    if ident == "key" && fork.parse::<syn::Token![,]>().is_ok() {
+                        is_discriminator_key = true;
+                        let _: syn::Ident = content.parse()?;
+                        let _: syn::Token![,] = content.parse()?;
+                    }
+                }
+                discriminator_type = Some(content.parse::<syn::Type>()?);
+            }
+            Ok(())
+        })?;
     };
     let discriminator_type = discriminator_type.ok_or(syn::Error::new(
         input.span(),
