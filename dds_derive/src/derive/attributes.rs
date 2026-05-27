@@ -216,7 +216,7 @@ pub struct UnionVariantAttributes {
     pub case: UnionDiscriminatorKind,
 }
 
-pub fn get_union_member_attributes(variant: &Variant) -> Result<UnionVariantAttributes> {
+pub fn get_union_variant_attributes(variant: &Variant) -> Result<UnionVariantAttributes> {
     let mut case = None;
     if let Some(xtypes_attribute) = variant
         .attrs

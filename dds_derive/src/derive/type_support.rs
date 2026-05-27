@@ -2,7 +2,7 @@ use crate::derive::{
     attributes::{
         BitBound, Extensibility, get_enumerated_type_attributes, get_member_attributes,
         get_structure_member_attributes, get_type_declaration_attributes,
-        get_union_type_attributes,
+        get_union_type_attributes, get_union_variant_attributes,
     },
     enum_support::read_enum_variant_discriminant_mapping,
 };
@@ -215,11 +215,70 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 }
             };
 
-            let mut variant_list: Vec<TokenStream> = Vec::new();
+            let is_key = union_attributes.is_discriminator_key;
+            let mut variant_list: Vec<TokenStream> = vec![quote! {
+                 dust_dds::xtypes::dynamic_type::DynamicTypeMember {
+                    descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
+                        name: "disc",
+                        id: 0u32,
+                        r#type: <#discriminator_type as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION,
+                        default_value: None,
+                        index: 0u32,
+                        try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+                        label: None,
+                        is_key: #is_key,
+                        is_optional: false,
+                        is_must_understand: true,
+                        is_shared: false,
+                        is_default_label: false,
+                    }
+                }
+            }];
             let mut variant_sample_seq: Vec<TokenStream> = Vec::new();
             let mut variant_dynamic_sample_seq: Vec<TokenStream> = Vec::new();
 
-            for (variant_index, variant) in xtypes_union.variants.iter().enumerate() {}
+            for (variant_index, variant) in xtypes_union.variants.iter().enumerate() {
+                let variant_attributes = get_union_variant_attributes(variant)?;
+
+                let variant_name = variant.ident.to_string();
+                let index = variant_index + 1;
+
+                match &variant.fields {
+                    Fields::Named(fields_named) => todo!(),
+                    Fields::Unnamed(fields_unnamed) => todo!(),
+                    Fields::Unit => {
+                        variant_list.push(quote!{
+                            descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
+                                name: #variant_name,
+                                id: #index as u32,
+                                r#type: dust_dds::xtypes::dynamic_type::DynamicType {
+                                    descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
+                                        kind: dust_dds::xtypes::dynamic_type::TypeKind::NONE,
+                                        name: "",
+                                        base_type: None,
+                                        discriminator_type: None,
+                                        bound: None,
+                                        element_type: None,
+                                        key_element_type: None,
+                                        extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
+                                        is_nested: false,
+                                    },
+                                    member_list: &[],
+                                },
+                                default_value: None,
+                                index: #index as u32,
+                                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+                                label: None,
+                                is_key: false,
+                                is_optional: true,
+                                is_must_understand: true,
+                                is_shared: false,
+                                is_default_label: false,
+                            }
+                        });
+                    }
+                }
+            }
 
             let get_type_quote = quote! {
                 const r#TYPE: dust_dds::xtypes::dynamic_type::DynamicType =
