@@ -1,10 +1,10 @@
-use syn::{DeriveInput, Expr, Field, Result, spanned::Spanned};
+use syn::{DeriveInput, Expr, Field, Result, Variant, spanned::Spanned};
 
 pub struct MemberAttributes {
     pub id: Option<Expr>,
 }
 
-pub fn get_member_attributes(field: &Field) -> syn::Result<MemberAttributes> {
+pub fn get_member_attributes(field: &Field) -> Result<MemberAttributes> {
     let mut id = None;
     if let Some(xtypes_attribute) = field
         .attrs
@@ -28,7 +28,7 @@ pub struct StructureMemberAttributes {
     pub default_value: Option<Expr>,
 }
 
-pub fn get_structure_member_attributes(field: &Field) -> syn::Result<StructureMemberAttributes> {
+pub fn get_structure_member_attributes(field: &Field) -> Result<StructureMemberAttributes> {
     let mut key = false;
     let mut optional = false;
     let mut default_value = None;
@@ -205,4 +205,36 @@ pub fn get_union_type_attributes(input: &DeriveInput) -> Result<UnionAttributes>
         discriminator_type,
         is_discriminator_key,
     })
+}
+
+pub enum UnionDiscriminatorKind {
+    Case(Expr),
+    Default,
+}
+
+pub struct UnionVariantAttributes {
+    pub case: UnionDiscriminatorKind,
+}
+
+pub fn get_union_member_attributes(variant: &Variant) -> Result<UnionVariantAttributes> {
+    let mut case = None;
+    if let Some(xtypes_attribute) = variant
+        .attrs
+        .iter()
+        .find(|attr| attr.path().is_ident("dust_dds"))
+    {
+        xtypes_attribute.parse_nested_meta(|meta| {
+            if meta.path.is_ident("case") {
+                case = Some(UnionDiscriminatorKind::Case(meta.value()?.parse()?));
+            } else if meta.path.is_ident("default") {
+                case = Some(UnionDiscriminatorKind::Default);
+            }
+            Ok(())
+        })?;
+    }
+    let case = case.ok_or(syn::Error::new(
+        variant.span(),
+        r#"Union variant must define its discriminator value by using #[dust_dds(case = #value)] or #[dust_dds(default)] "#,
+    ))?;
+    Ok(UnionVariantAttributes { case })
 }
