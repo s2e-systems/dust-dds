@@ -236,17 +236,14 @@ pub fn get_union_type_attributes(input: &DeriveInput) -> Result<UnionAttributes>
     })
 }
 
-pub enum UnionDiscriminatorKind {
-    Case(Expr),
-    Default,
-}
-
 pub struct UnionVariantAttributes {
-    pub case: UnionDiscriminatorKind,
+    pub case: Expr,
+    pub is_default: bool,
 }
 
 pub fn get_union_variant_attributes(variant: &Variant) -> Result<UnionVariantAttributes> {
     let mut case = None;
+    let mut is_default = false;
     if let Some(xtypes_attribute) = variant
         .attrs
         .iter()
@@ -254,16 +251,16 @@ pub fn get_union_variant_attributes(variant: &Variant) -> Result<UnionVariantAtt
     {
         xtypes_attribute.parse_nested_meta(|meta| {
             if meta.path.is_ident("case") {
-                case = Some(UnionDiscriminatorKind::Case(meta.value()?.parse()?));
+                case = Some(meta.value()?.parse()?);
             } else if meta.path.is_ident("default") {
-                case = Some(UnionDiscriminatorKind::Default);
+                is_default = true;
             }
             Ok(())
         })?;
     }
     let case = case.ok_or(syn::Error::new(
         variant.span(),
-        r#"Union variant must define its discriminator value by using #[dust_dds(case = #value)] or #[dust_dds(default)] "#,
+        r#"Union variant must define its discriminator value by using #[dust_dds(case = #value)] "#,
     ))?;
-    Ok(UnionVariantAttributes { case })
+    Ok(UnionVariantAttributes { case, is_default })
 }

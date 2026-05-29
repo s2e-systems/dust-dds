@@ -305,58 +305,6 @@ fn foo_xtypes_union_should_read_and_write() {
     #[derive(Clone, Debug, PartialEq, DdsType)]
     struct MyInnerType(u32);
 
-    // impl dust_dds::infrastructure::type_support::TypeSupport for MyEnum {
-    //     const r#TYPE: dust_dds::xtypes::dynamic_type::DynamicType = dust_dds::xtypes::dynamic_type::DynamicType {
-    //     descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
-    //         kind: dust_dds::xtypes::dynamic_type::TypeKind::UNION,name: "MyEnum",base_type: None,discriminator_type: ::core::option::Option::Some(<u8 as ::dust_dds::xtypes::binding::XTypesBinding> ::TYPE_INFORMATION),bound: None,element_type: None,key_element_type: None,extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,is_nested: false,
-    //     },member_list: &[dust_dds::xtypes::dynamic_type::DynamicTypeMember {
-    //         descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
-    //             name: "disc",id: 0u32,r#type: <u8 as dust_dds::xtypes::binding::XTypesBinding> ::TYPE_INFORMATION,default_value: None,index: 0u32,try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,label: None,is_key: false,is_optional: false,is_must_understand: true,is_shared: false,is_default_label: false,
-    //         }
-    //     },dust_dds::xtypes::dynamic_type::DynamicTypeMember {
-    //         descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
-    //             name: "_VariantA",id: 1usize as u32,r#type: <MyInnerType as dust_dds::xtypes::binding::XTypesBinding> ::TYPE_INFORMATION,default_value: None,index: 1usize as u32,try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,label: None,is_key: false,is_optional: true,is_must_understand: true,is_shared: false,is_default_label: false,
-    //         }
-    //     },dust_dds::xtypes::dynamic_type::DynamicTypeMember {
-    //         descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
-    //             name: "a",id: 2usize as u32,r#type: <u32 as dust_dds::xtypes::binding::XTypesBinding> ::TYPE_INFORMATION,default_value: None,index: 2usize as u32,try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,label: None,is_key: false,is_optional: true,is_must_understand: true,is_shared: false,is_default_label: false,
-    //         }
-    //     },dust_dds::xtypes::dynamic_type::DynamicTypeMember {
-    //         descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
-    //             name: "_VariantC",id: 3usize as u32,r#type: dust_dds::xtypes::dynamic_type::DynamicType {
-    //                 descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
-    //                     kind: dust_dds::xtypes::dynamic_type::TypeKind::NONE,name: "",base_type: None,discriminator_type: None,bound: None,element_type: None,key_element_type: None,extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,is_nested: false,
-    //                 },member_list: &[],
-    //             },default_value: None,index: 3usize as u32,try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,label: None,is_key: false,is_optional: true,is_must_understand: true,is_shared: false,is_default_label: false,
-    //         }
-    //     },]
-    // };
-    //     fn create_sample(src: &mut dust_dds::xtypes::dynamic_type::DynamicData) -> Self {
-    //         let disc =
-    //             <u8 as ::dust_dds::xtypes::data_storage::DataStorageMapping>::try_from_storage(
-    //                 src.remove_value(0).expect("Must exist"),
-    //             )
-    //             .expect("Must match");
-    //         match disc {
-    //             5 => MyEnum::_VariantA(
-    //                 <MyInnerType as ::dust_dds::xtypes::data_storage::DataStorageMapping>::try_from_storage(
-    //                     src.remove_value(1).expect("Must exist"),
-    //                 )
-    //                 .expect("Must match"),
-    //             ),
-    //             6 => MyEnum::VariantB { a: <u32 as ::dust_dds::xtypes::data_storage::DataStorageMapping>::try_from_storage(
-    //                     src.remove_value(2).expect("Must exist"),
-    //                 )
-    //                 .expect("Must match") },
-    //             7 => MyEnum::_VariantC,
-    //             _ => panic!(),
-    //         }
-    //     }
-    //     fn create_dynamic_sample(self, data: &mut dust_dds::xtypes::dynamic_type::DynamicData) {
-    //         todo!()
-    //     }
-    // }
-
     #[derive(Clone, Debug, PartialEq, DdsType)]
     #[dust_dds(switch(u8))]
     enum MyEnum {
