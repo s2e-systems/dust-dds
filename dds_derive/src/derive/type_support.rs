@@ -9,6 +9,8 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{DataEnum, DeriveInput, Fields, Index, Result, spanned::Spanned};
 
+use super::attributes::UnionDiscriminatorKind;
+
 pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
     let ident = &input.ident;
     let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
@@ -247,20 +249,18 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
             for (variant_index, variant) in xtypes_union.variants.iter().enumerate() {
                 let variant_attributes = get_union_variant_attributes(variant)?;
 
-                let variant_name = variant.ident.to_string();
+                let variant_ident = &variant.ident;
+                let variant_name = variant_ident.to_string();
                 let index = variant_index + 1;
 
                 match &variant.fields {
                     // If there is a single field we handle this as the single type wrapper which is the most common case
                     Fields::Named(fields_named) if fields_named.named.len() == 1 => {
-                        let variant_name = fields_named.named[0]
-                            .ident
-                            .as_ref()
-                            .ok_or(syn::Error::new(
+                        let variant_field_name =
+                            fields_named.named[0].ident.as_ref().ok_or(syn::Error::new(
                                 fields_named.span(),
                                 "Field of named variant must have defined name",
-                            ))?
-                            .to_string();
+                            ))?;
                         let variant_ty = &fields_named.named[0].ty;
                         variant_list.push(quote!{ dust_dds::xtypes::dynamic_type::DynamicTypeMember {
                             descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
@@ -279,6 +279,15 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                             }
                         }
                         });
+                        let variant_sample = quote! {
+                            Self::#variant_ident {#variant_field_name: <#variant_ty as ::dust_dds::xtypes::data_storage::DataStorageMapping>::try_from_storage(
+                              src.remove_value(#index as u32).expect("Must exist"),
+                            ).expect("Must match")},
+                        };
+                        variant_sample_seq.push(match variant_attributes.case {
+                            UnionDiscriminatorKind::Case(expr) => quote! {#expr => #variant_sample},
+                            UnionDiscriminatorKind::Default => quote! {_ => #variant_sample},
+                        })
                     }
                     Fields::Unnamed(fields_unnamed) if fields_unnamed.unnamed.len() == 1 => {
                         let variant_ty = &fields_unnamed.unnamed[0].ty;
@@ -299,6 +308,15 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                             }
                         }
                         });
+                        let variant_sample = quote! {
+                            Self::#variant_ident(<#variant_ty as ::dust_dds::xtypes::data_storage::DataStorageMapping>::try_from_storage(
+                              src.remove_value(#index as u32).expect("Must exist"),
+                            ).expect("Must match")),
+                        };
+                        variant_sample_seq.push(match variant_attributes.case {
+                            UnionDiscriminatorKind::Case(expr) => quote! {#expr => #variant_sample},
+                            UnionDiscriminatorKind::Default => quote! {_ => #variant_sample},
+                        })
                     }
                     Fields::Named(_) | Fields::Unnamed(_) => {
                         return Err(syn::Error::new(
@@ -337,6 +355,13 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                             }
                         }
                         });
+                        let variant_sample = quote! {
+                            Self::#variant_ident,
+                        };
+                        variant_sample_seq.push(match variant_attributes.case {
+                            UnionDiscriminatorKind::Case(expr) => quote! {#expr => #variant_sample},
+                            UnionDiscriminatorKind::Default => quote! {_ => #variant_sample},
+                        })
                     }
                 }
             }
@@ -349,9 +374,20 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     };
             };
 
-            let create_dynamic_sample_quote = quote! {todo!()};
-            let create_sample_quote = quote! {
+            let create_dynamic_sample_quote = quote! {
                 todo!()
+            };
+
+            let create_sample_quote = quote! {
+                let disc =
+                    <#discriminator_type as ::dust_dds::xtypes::data_storage::DataStorageMapping>::try_from_storage(
+                        src.remove_value(0).expect("Must exist"),
+                    )
+                    .expect("Must match");
+                match disc {
+                    #(#variant_sample_seq)*
+                    _ => panic!(),
+                }
             };
             Ok((
                 get_type_quote,
