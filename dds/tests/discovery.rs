@@ -829,7 +829,6 @@ fn reader_matched_to_already_existing_writer_with_matched_reader() {
 }
 
 #[test]
-#[ignore = "SPDP key has to be fixed"]
 fn discovered_participant_removed_after_deletion() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
