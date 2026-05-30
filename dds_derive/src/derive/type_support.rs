@@ -255,6 +255,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 let variant_ident = &variant.ident;
                 let variant_name = variant_ident.to_string();
                 let index = variant_index + 1;
+                let variant_index_unsuffixed = syn::Index::from(variant_index);
 
                 match &variant.fields {
                     // If there is a single field we handle this as the single type wrapper which is the most common case
@@ -287,16 +288,19 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                               src.remove_value(#index as u32).expect("Must exist"),
                             ).expect("Must match")},
                         };
-                        let expr = &variant_attributes.case;
+                        let disc_expr = match &variant_attributes.case {
+                            Some(e) => quote! {#e},
+                            None => quote! {#variant_index_unsuffixed},
+                        };
                         variant_sample_seq.push(if variant_attributes.is_default {
                             quote! {_ => #variant_sample}
                         } else {
-                            quote! {#expr => #variant_sample}
+                            quote! {#disc_expr => #variant_sample}
                         });
                         variant_dynamic_sample_seq
                             .push(quote! {Self::#variant_ident {#variant_field_name} => {
-                                data.set_value(0, ::dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(#expr));
-                                data.set_value(#index as u32, ::dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(a));
+                                data.set_value(0, ::dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(#disc_expr));
+                                data.set_value(#index as u32, ::dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(#variant_field_name));
                             }});
                     }
                     Fields::Unnamed(fields_unnamed) if fields_unnamed.unnamed.len() == 1 => {
@@ -323,15 +327,18 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                               src.remove_value(#index as u32).expect("Must exist"),
                             ).expect("Must match")),
                         };
-                        let expr = &variant_attributes.case;
+                        let disc_expr = match &variant_attributes.case {
+                            Some(e) => quote! {#e},
+                            None => quote! {#variant_index_unsuffixed},
+                        };
                         variant_sample_seq.push(if variant_attributes.is_default {
                             quote! {_ => #variant_sample}
                         } else {
-                            quote! {#expr => #variant_sample}
+                            quote! {#disc_expr => #variant_sample}
                         });
                         variant_dynamic_sample_seq
                             .push(quote! {Self::#variant_ident (a) => {
-                                data.set_value(0, ::dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(#expr));
+                                data.set_value(0, ::dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(#disc_expr));
                                 data.set_value(#index as u32, ::dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(a));
                             }});
                     }
@@ -369,14 +376,17 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                         let variant_sample = quote! {
                             Self::#variant_ident,
                         };
-                        let expr = &variant_attributes.case;
+                        let disc_expr = match &variant_attributes.case {
+                            Some(e) => quote! {#e},
+                            None => quote! {#variant_index_unsuffixed},
+                        };
                         variant_sample_seq.push(if variant_attributes.is_default {
                             quote! {_ => #variant_sample}
                         } else {
-                            quote! {#expr => #variant_sample}
+                            quote! {#disc_expr => #variant_sample}
                         });
                         variant_dynamic_sample_seq.push(quote! {Self::#variant_ident => {
-                            data.set_value(0, ::dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(#expr));
+                            data.set_value(0, ::dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(#disc_expr));
                         },});
                     }
                     Fields::Named(_) | Fields::Unnamed(_) => {

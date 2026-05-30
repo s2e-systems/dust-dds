@@ -1,12 +1,11 @@
 use alloc::{boxed::Box, string::String, vec::Vec};
+use dust_dds_derive::DdsType;
 
 pub trait XTypesTypeObject {
     fn type_object() -> TypeObject;
 }
 
 use crate::xtypes::dynamic_type::TypeKind;
-
-use super::dynamic_type::TryConstructKind;
 
 /* Manually created from dds-xtypes_typeobject.idl */
 
@@ -63,7 +62,8 @@ pub type SBound = u8;
 pub type SBoundSeq = Vec<SBound>;
 pub const INVALID_SBOUND: SBound = 0;
 
-// @extensibility(FINAL) @nested
+#[derive(DdsType)]
+#[dust_dds(extensibility = "final", nested, switch(u8))]
 #[repr(u8)]
 pub enum TypeObjectHashId {
     EkComplete { hash: EquivalenceHash },
@@ -74,49 +74,54 @@ pub enum TypeObjectHashId {
 // members/elements and DO affect type assignability
 // Depending on the flag it may not apply to members of all types
 // When not all, the applicable member types are listed
-// @bit_bound(16)
-pub struct MemberFlag(pub u16);
-// @position(0) TRY_CONSTRUCT1, // T1 | 00 = INVALID, 01 = DISCARD
-// @position(1) TRY_CONSTRUCT2, // T2 | 10 = USE_DEFAULT, 11 = TRIM
-// @position(2) IS_EXTERNAL, // X StructMember, UnionMember,
-// // CollectionElement
-// @position(3) IS_OPTIONAL, // O StructMember
-// @position(4) IS_MUST_UNDERSTAND, // M StructMember
-// @position(5) IS_KEY, // K StructMember, UnionDiscriminator
-// @position(6) IS_DEFAULT // D UnionMember, EnumerationLiteral
 
-pub struct CollectionElementFlag {
-    pub try_construct: TryConstructKind,
-    pub is_external: bool,
-} // T1, T2, X
+// bitmask @bit_bound(16)
+#[derive(Clone, Copy, DdsType)]
+pub struct MemberFlag(u16);
 
-pub struct StructMemberFlag {
-    pub try_construct: TryConstructKind,
-    pub is_external: bool,
-    pub is_optional: bool,
-    pub is_must_undestand: bool,
-    pub is_key: bool,
-} // T1, T2, O, M, K, X
-pub struct UnionMemberFlag {
-    pub try_construct: TryConstructKind,
-    pub is_default: bool,
-    pub is_external: bool,
-} // T1, T2, D, X
-pub struct UnionDiscriminatorFlag {
-    pub try_construct: TryConstructKind,
-    pub is_key: bool,
-} // T1, T2, K
-pub struct EnumeratedLiteralFlag {
-    pub is_default: bool,
-} // D
-pub struct AnnotationParameterFlag; // Unused. No flags apply
-pub struct AliasMemberFlag; // Unused. No flags apply
-pub struct BitflagFlag; // Unused. No flags apply
-pub struct BitsetMemberFlag; // Unused. No flags apply
+impl PartialEq for MemberFlag {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 & other.0 == other.0
+    }
+}
+
+impl core::ops::Add for MemberFlag {
+    type Output = MemberFlag;
+
+    fn add(self, rhs: MemberFlag) -> Self::Output {
+        Self(self.0 + rhs.0)
+    }
+}
+
+impl core::ops::AddAssign for MemberFlag {
+    fn add_assign(&mut self, rhs: Self) {
+        self.0 += rhs.0;
+    }
+}
+
+pub const TRY_CONSTRUCT1: MemberFlag = MemberFlag(1 << 0); // T1 | 00 = INVALID, 01 = DISCARD
+pub const TRY_CONSTRUCT2: MemberFlag = MemberFlag(1 << 1); // T2 | 10 = USE_DEFAULT, 11 = TRIM
+pub const IS_EXTERNAL: MemberFlag = MemberFlag(1 << 2); // X StructMember, UnionMember,
+// CollectionElement
+pub const IS_OPTIONAL: MemberFlag = MemberFlag(1 << 3); // O StructMember
+pub const IS_MUST_UNDERSTAND: MemberFlag = MemberFlag(1 << 4); // M StructMember
+pub const IS_KEY: MemberFlag = MemberFlag(1 << 5); // K StructMember, UnionDiscriminator
+pub const IS_DEFAULT: MemberFlag = MemberFlag(1 << 6); // D UnionMember, EnumerationLiteral
+
+pub type CollectionElementFlag = MemberFlag; // T1, T2, X
+
+pub type StructMemberFlag = MemberFlag; // T1, T2, O, M, K, X
+pub type UnionMemberFlag = MemberFlag; // T1, T2, D, X
+pub type UnionDiscriminatorFlag = MemberFlag; // T1, T2, K
+pub type EnumeratedLiteralFlag = MemberFlag; // D
+pub type AnnotationParameterFlag = MemberFlag; // Unused. No flags apply
+pub type AliasMemberFlag = MemberFlag; // Unused. No flags apply
+pub type BitflagFlag = MemberFlag; // Unused. No flags apply
+pub type BitsetMemberFlag = MemberFlag; // Unused. No flags apply
 
 // Mask used to remove the flags that do no affect assignability
 // Selects T1, T2, O, M, K, D
-pub const MEMBER_FLAG_MINIMAL_MASK: u16 = 0x003f;
+pub const MEMBER_FLAG_MINIMAL_MASK: MemberFlag = MemberFlag(0x003f);
 // Flags that apply to type declarationa and DO affect assignability
 // Depending on the flag it may not apply to all types
 // When not all, the applicable types are listed
@@ -155,27 +160,32 @@ pub struct BitsetTypeFlag; // Unused. No flags apply
 pub const TYPE_FLAG_MINIMAL_MASK: u16 = 0x0007; // Selects M, A, F
 
 // 1 Byte
-// @extensibility(FINAL) @nested
+#[derive(DdsType)]
+#[dust_dds(extensibility = "final", nested)]
 pub struct StringSTypeDefn {
     pub bound: SBound,
 }
 // 4 Bytes
-// @extensibility(FINAL) @nested
+#[derive(DdsType)]
+#[dust_dds(extensibility = "final", nested)]
 pub struct StringLTypeDefn {
     pub bound: LBound,
 }
 
-// @extensibility(FINAL) @nested
+#[derive(DdsType)]
+#[dust_dds(extensibility = "final", nested)]
 pub struct PlainCollectionHeader {
     pub equiv_kind: EquivalenceKind,
     pub element_flags: CollectionElementFlag,
 }
 
-// @extensibility(FINAL) @nested
+// #[derive(DdsType)]
+// #[dust_dds(extensibility = "final", nested)]
 pub struct PlainSequenceSElemDefn {
     pub header: PlainCollectionHeader,
     pub bound: SBound,
-    pub element_identifier: TypeIdentifier,
+    // #[dust_dds(external)]
+    pub element_identifier: Box<TypeIdentifier>,
 }
 
 // @extensibility(FINAL) @nested
@@ -250,7 +260,8 @@ pub struct ExtendedTypeDefn {
 // according to both the MINIMAL and the COMMON equivalence relation.
 // This means the TypeIdentifier is the same for both relationships
 //
-// @extensibility(FINAL) @nested
+#[derive(DdsType)]
+#[dust_dds(extensibility = "final", nested, switch(u8))]
 #[repr(u8)]
 pub enum TypeIdentifier {
     TkNone,
@@ -270,51 +281,41 @@ pub enum TypeIdentifier {
     TkChar8Type,
     TkChar16Type,
     // ============ Strings - use TypeIdentifierKind ===================
-    TiString8Small {
-        string_sdefn: StringSTypeDefn,
-    },
-    TiString16Small {
-        string_sdefn: StringSTypeDefn,
-    },
-    TiString8Large {
-        string_ldefn: StringLTypeDefn,
-    },
-    TiString16Large {
-        string_ldefn: StringLTypeDefn,
-    },
+    TiString8Small { string_sdefn: StringSTypeDefn },
+    TiString16Small { string_sdefn: StringSTypeDefn },
+    TiString8Large { string_ldefn: StringLTypeDefn },
+    TiString16Large { string_ldefn: StringLTypeDefn },
     // ============ Plain collectios - use TypeIdentifierKind =========
-    TiPlainSequenceSmall {
-        seq_sdefn: Box<PlainSequenceSElemDefn>,
-    },
-    TiPlainSequenceLarge {
-        seq_ldefn: Box<PlainSequenceLElemDefn>,
-    },
-    TiPlainArraySmall {
-        array_sdefn: Box<PlainArraySElemDefn>,
-    },
-    TiPlainArrayLarge {
-        array_ldefn: Box<PlainArrayLElemDefn>,
-    },
-    TiPlainMapSmall {
-        map_sdefn: Box<PlainMapSTypeDefn>,
-    },
-    TiPlainMapLarge {
-        map_ldefn: Box<PlainMapLTypeDefn>,
-    },
-    // ============ Types that are mutually dependent on each other ===
-    TiStronglyConnectedComponent {
-        sc_component_id: StronglyConnectedComponentId,
-    },
-    // ============ The remaining cases - use EquivalenceKind =========
-    EkComplete {
-        equivalence_hash: EquivalenceHash,
-    },
-    EkMinimal {
-        equivalence_hash: EquivalenceHash,
-    },
-    // =================== Future extensibility ============
-    // default:
-    // MinimalExtendedType extended_type;
+    // TiPlainSequenceSmall { seq_sdefn: PlainSequenceSElemDefn },
+    // TiPlainSequenceLarge {
+    //     seq_ldefn: Box<PlainSequenceLElemDefn>,
+    // },
+    // TiPlainArraySmall {
+    //     array_sdefn: Box<PlainArraySElemDefn>,
+    // },
+    // TiPlainArrayLarge {
+    //     array_ldefn: Box<PlainArrayLElemDefn>,
+    // },
+    // TiPlainMapSmall {
+    //     map_sdefn: Box<PlainMapSTypeDefn>,
+    // },
+    // TiPlainMapLarge {
+    //     map_ldefn: Box<PlainMapLTypeDefn>,
+    // },
+    // // ============ Types that are mutually dependent on each other ===
+    // TiStronglyConnectedComponent {
+    //     sc_component_id: StronglyConnectedComponentId,
+    // },
+    // // ============ The remaining cases - use EquivalenceKind =========
+    // EkComplete {
+    //     equivalence_hash: EquivalenceHash,
+    // },
+    // EkMinimal {
+    //     equivalence_hash: EquivalenceHash,
+    // },
+    // // =================== Future extensibility ============
+    // // default:
+    // // MinimalExtendedType extended_type;
 }
 pub type TypeIdentifierSeq = Vec<TypeIdentifier>;
 
