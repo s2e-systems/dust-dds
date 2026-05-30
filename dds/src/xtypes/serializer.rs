@@ -1512,39 +1512,6 @@ mod tests {
                 1, 0, 0, 0, // Sentinel
             ]
         );
-        // assert_eq!(
-        //     serialize_v2_be(&v),
-        //     vec![
-        //         0x00, 0x0a, 0x00, 0x00, // CDR Header
-        //         0x00, 96, 0, 1, // PID | length
-        //         5, 0, 0, 0, // field_primitive | padding (3 bytes)
-        //         0x00, 97, 0, 20, // PID | length
-        //         0, 0, 0, 13, // DHEADER (length)
-        //         0x10, 0, 0, 80, // EMHEADER1 incl. LC 0b001 (2 bytes)
-        //         0, 8, 0, 0, // two_bytes | padding (2 bytes)
-        //         0, 0, 0, 90, // EMHEADER1 incl. LC 0b000 (1 bytes)
-        //         7, 0, 0, 0, // one_byte | padding 3 bytes
-        //         0, 9, 0, 0, // field_final: primitive | padding (2 bytes)
-        //         0, 1, 0, 0, // Sentinel
-        //     ]
-        // );
-        // assert_eq!(
-        //     serialize_v2_le(&v),
-        //     vec![
-        //         0x00, 0x0b, 0x00, 0x00, // CDR Header
-        //         96, 0x00, 1, 0, // PID | length
-        //         5, 0, 0, 0, // field_primitive | padding (3 bytes)
-        //         97, 0x00, 20, 0, // PID | length
-        //         0x050, 0x00, 2, 0, // field_mutable: PID | length
-        //         8, 0, 0, 0, // field_mutable: participant_key | padding (2 bytes)
-        //         0x05A, 0x00, 1, 0, // field_mutable: PID | length
-        //         7, 0, 0, 0, // field_mutable: key | padding (3 bytes)
-        //         1, 0, 0, 0, // field_mutable: Sentinel
-        //         0x062, 0x00, 2, 0, // field_mutable: PID | length
-        //         9, 0, 0, 0, // field_final: primitive | padding (2 bytes)
-        //         1, 0, 0, 0, // Sentinel
-        //     ]
-        // );
     }
 
     #[test]
