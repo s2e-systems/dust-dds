@@ -504,7 +504,7 @@ mod tests {
             11, 0x00, 0x00, 0x00, // Duration: fraction
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ];
-        assert_eq!(RtpsPlCdrSerializer::serialize_top_level(&data).unwrap(), expected);
+        assert_eq!(RtpsPlCdrSerializer::serialize(&data).unwrap(), expected);
     }
 
     #[test]
@@ -557,7 +557,7 @@ mod tests {
             0, 0x00, 0x00, 0x00, // Duration: fraction
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ];
-        assert_eq!(RtpsPlCdrSerializer::serialize_top_level(&data).unwrap(), expected);
+        assert_eq!(RtpsPlCdrSerializer::serialize(&data).unwrap(), expected);
     }
 
     #[test]
