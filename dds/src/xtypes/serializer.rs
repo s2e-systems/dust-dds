@@ -140,7 +140,8 @@ trait XTypesSerializer<'a> {
     fn serialize_enc_header(&mut self, dynamic_data: &DynamicData) -> XTypesResult<()>;
 
     fn serialize_options(&mut self) -> XTypesResult<()> {
-        Ok(self.serialize_p_array_type(&REPRESENTATION_OPTIONS))
+        let _: () = self.serialize_p_array_type(&REPRESENTATION_OPTIONS);
+        Ok(())
     }
     fn serialize_dheader(&mut self, ssize: usize) {
         self.serialize_primitive_type(&(ssize as u32))
@@ -272,9 +273,18 @@ trait XTypesSerializer<'a> {
             .discriminator_type
             .ok_or(XTypesError::InvalidType)?;
         match holder_type.descriptor.kind {
-            TypeKind::INT8 => Ok(self.serialize_primitive_type(v.get_int8_value(0)?)),
-            TypeKind::INT16 => Ok(self.serialize_primitive_type(v.get_int16_value(0)?)),
-            TypeKind::INT32 => Ok(self.serialize_primitive_type(v.get_int32_value(0)?)),
+            TypeKind::INT8 => {
+                let _: () = self.serialize_primitive_type(v.get_int8_value(0)?);
+                Ok(())
+            },
+            TypeKind::INT16 => {
+                let _: () = self.serialize_primitive_type(v.get_int16_value(0)?);
+                Ok(())
+            },
+            TypeKind::INT32 => {
+                let _: () = self.serialize_primitive_type(v.get_int32_value(0)?);
+                Ok(())
+            },
             _ => Err(XTypesError::InvalidType),
         }
     }
@@ -501,7 +511,8 @@ impl<'a, W: Write> XTypesSerializer<'a> for RtpsPlCdrSerializer<'a, W> {
     }
 
     fn serialize_enc_header(&mut self, _dynamic_data: &DynamicData) -> XTypesResult<()> {
-        Ok(self.serialize_p_array_type(&PL_CDR_LE))
+        let _: () = self.serialize_p_array_type(&PL_CDR_LE);
+        Ok(())
     }
 
     fn serialize_primitive_type(&mut self, v: &impl super::serializer::CdrPrimitiveTypeSerialize) {
@@ -598,7 +609,7 @@ impl<'a, W: Write, E: EndiannessWrite> XTypesSerializer<'a> for Xcdr1Serializer<
         self.writer.pad(v)
     }
     fn serialize_enc_header(&mut self, dynamic_data: &DynamicData) -> XTypesResult<()> {
-        Ok(self.serialize_p_array_type(&match dynamic_data
+        let _: () = self.serialize_p_array_type(&match dynamic_data
             .r#type()
             .get_descriptor()
             .extensibility_kind
@@ -611,7 +622,8 @@ impl<'a, W: Write, E: EndiannessWrite> XTypesSerializer<'a> for Xcdr1Serializer<
                 Endianness::Big => PL_CDR_BE,
                 Endianness::Little => PL_CDR_LE,
             },
-        }))
+        });
+        Ok(())
     }
 
     fn push_origin_0(&mut self) {
@@ -662,7 +674,7 @@ impl<'a, W: Write, E: EndiannessWrite> XTypesSerializer<'a> for Xcdr2Serializer<
     }
 
     fn serialize_enc_header(&mut self, dynamic_data: &DynamicData) -> XTypesResult<()> {
-        Ok(self.serialize_p_array_type(&match dynamic_data
+        let _: () = self.serialize_p_array_type(&match dynamic_data
             .r#type()
             .get_descriptor()
             .extensibility_kind
@@ -679,7 +691,8 @@ impl<'a, W: Write, E: EndiannessWrite> XTypesSerializer<'a> for Xcdr2Serializer<
                 Endianness::Big => PL_CDR2_BE,
                 Endianness::Little => PL_CDR2_LE,
             },
-        }))
+        });
+        Ok(())
     }
 
     fn push_origin_0(&mut self) {
