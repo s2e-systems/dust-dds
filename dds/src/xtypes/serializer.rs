@@ -276,15 +276,15 @@ trait XTypesSerializer<'a> {
             TypeKind::INT8 => {
                 let _: () = self.serialize_primitive_type(v.get_int8_value(0)?);
                 Ok(())
-            },
+            }
             TypeKind::INT16 => {
                 let _: () = self.serialize_primitive_type(v.get_int16_value(0)?);
                 Ok(())
-            },
+            }
             TypeKind::INT32 => {
                 let _: () = self.serialize_primitive_type(v.get_int32_value(0)?);
                 Ok(())
-            },
+            }
             _ => Err(XTypesError::InvalidType),
         }
     }
