@@ -4,10 +4,7 @@ use crate::xtypes::{
     error::{XTypesError, XTypesResult},
     read_write::Write,
 };
-use alloc::{
-    string::{String, ToString},
-    vec::Vec,
-};
+use alloc::{string::ToString, vec::Vec};
 
 trait CdrVersion {
     const MAX_ALIGN: usize;
@@ -254,14 +251,14 @@ trait XTypesSerializer<'a> {
     fn serialize_primitive_type(&mut self, v: &impl CdrPrimitiveTypeSerialize);
 
     /// Serialization Rule (3)
-    fn serialize_string_type(&mut self, v: &String) {
+    fn serialize_string_type(&mut self, v: &str) {
         self.serialize_primitive_type(&(v.len() as u32 + 1));
         self.serialize_primitive_type(&v.as_bytes());
         self.serialize_primitive_type(&0u8);
     }
 
     /// Serialization Rule (4)
-    fn _serialize_wstring_type(&mut self, _v: &String) {
+    fn _serialize_wstring_type(&mut self, _v: &str) {
         todo!()
     }
 
