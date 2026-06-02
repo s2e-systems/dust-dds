@@ -306,11 +306,14 @@ fn foo_xtypes_union_should_read_and_write() {
     struct MyInnerType(u32);
 
     #[derive(Clone, Debug, PartialEq, DdsType)]
-    #[repr(u8)]
+    #[dust_dds(switch(u8))]
     enum MyEnum {
-        _VariantA(MyInnerType) = 5,
-        VariantB { a: u32, b: i16 } = 6,
-        _VariantC = 7,
+        #[dust_dds(case = 5)]
+        _VariantA(MyInnerType),
+        #[dust_dds(case = 6)]
+        VariantB { a: u32 },
+        #[dust_dds(case = 7)]
+        _VariantC,
     }
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
@@ -377,7 +380,7 @@ fn foo_xtypes_union_should_read_and_write() {
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
-    let data = MyEnum::VariantB { a: 10, b: -20 };
+    let data = MyEnum::VariantB { a: 10 };
 
     writer.write(data.clone(), None).unwrap();
 
