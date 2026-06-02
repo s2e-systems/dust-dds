@@ -5,8 +5,6 @@ pub trait XTypesTypeObject {
     fn type_object() -> TypeObject;
 }
 
-use crate::xtypes::dynamic_type::TypeKind;
-
 /* Manually created from dds-xtypes_typeobject.idl */
 
 // ---------- Equivalence Kinds -------------------
@@ -74,7 +72,6 @@ pub enum TypeObjectHashId {
 // Depending on the flag it may not apply to members of all types
 // When not all, the applicable member types are listed
 
-// bitmask @bit_bound(16)
 #[derive(Clone, Copy, DdsType)]
 pub struct MemberFlag(u16);
 
@@ -155,7 +152,6 @@ pub const IS_MUTABLE: TypeFlag = TypeFlag(1 << 2); // M | (exactly one flag)
 pub const IS_NESTED: TypeFlag = TypeFlag(1 << 3); // N Struct, Union
 pub const IS_AUTOID_HASH: TypeFlag = TypeFlag(1 << 4); // H Struct
 
-//@bit_bound(16)
 pub type StructTypeFlag = TypeFlag; // All flags apply
 pub type UnionTypeFlag = TypeFlag; // All flags apply
 pub type CollectionTypeFlag = TypeFlag; // Unused. No flags apply
@@ -1003,8 +999,7 @@ pub struct CommonBitfield {
     pub position: u16,
     pub flags: BitsetMemberFlag,
     pub bitcount: u8,
-    // TODO:
-    // pub holder_type: TypeKind, // Must be primitive integer type
+    pub holder_type: u8, // Original in IDL: TypeKind which for us is a Rust enum but in IDL is an octet // Must be primitive integer type
 }
 
 #[derive(DdsType, PartialEq)]
