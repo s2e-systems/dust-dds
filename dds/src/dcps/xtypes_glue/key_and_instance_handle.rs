@@ -4,7 +4,7 @@ use crate::{
         dynamic_type::{DynamicData, TypeKind},
         error::XTypesError,
         read_write::Write,
-        serializer::Xcdr2BeSerializer,
+        serializer::serialize_final_without_header,
     },
 };
 
@@ -49,7 +49,7 @@ pub fn get_instance_handle_from_dynamic_data(
     };
     let key = if dynamic_data.r#type().get_kind() == TypeKind::STRUCTURE {
         dynamic_data.clear_nonkey_values()?;
-        Xcdr2BeSerializer::serialize_final_without_header(md5_collection, &dynamic_data)?.into_key()
+        serialize_final_without_header(md5_collection, &dynamic_data)?.into_key()
     } else {
         [0; 16]
     };
