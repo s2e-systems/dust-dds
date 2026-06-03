@@ -1307,8 +1307,8 @@ impl From<&DynamicType> for TypeIdentifier {
             TypeKind::UINT8 => TypeIdentifier::TkUint8Type,
             TypeKind::CHAR8 => TypeIdentifier::TkChar8Type,
             TypeKind::CHAR16 => TypeIdentifier::TkChar16Type,
-            TypeKind::STRING8 => TypeIdentifier::TiString8Small {
-                string_sdefn: StringSTypeDefn { bound: u8::MAX },
+            TypeKind::STRING8 => TypeIdentifier::TiString8Large {
+                string_ldefn: StringLTypeDefn { bound: u32::MAX },
             },
             TypeKind::STRING16 => TypeIdentifier::TiString16Small {
                 string_sdefn: StringSTypeDefn { bound: u8::MAX },
@@ -1474,7 +1474,16 @@ mod tests {
                 .complete
                 .typeid_with_size
                 .typeobject_serialized_size,
-            132
+            132 + 4
+        );
+        assert_eq!(
+            type_information.minimal.typeid_with_size.type_id,
+            TypeIdentifier::EkMinimal {
+                equivalence_hash: [
+                    0xd3, 0xd5, 0x89, 0xfb, 0x12, 0x8b, 0x55, 0xdb, 0x4b, 0x83, 0x3d, 0x99, 0xa4,
+                    0x02
+                ]
+            }
         );
         assert_eq!(
             type_information
