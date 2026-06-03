@@ -1380,14 +1380,19 @@ impl TryFrom<&DynamicType> for TypeInformation {
     type Error = XTypesError;
 
     fn try_from(value: &DynamicType) -> Result<Self, Self::Error> {
-        let minimal_type_object = MinimalTypeObject::from(value);
-        let mut data = DynamicDataFactory::create_data(CompleteTypeObject::TYPE);
+        let minimal_type_object = TypeObject::EkMinimal {
+            minimal: MinimalTypeObject::from(value),
+        };
+        let mut data = DynamicDataFactory::create_data(TypeObject::TYPE);
         minimal_type_object.create_dynamic_sample(&mut data);
         let serialized_minimal_type_object = serialize_cdr2_le(&data)?;
+        println!("serialized_minimal_type_object {serialized_minimal_type_object:?}");
         let hash_minimal_type_object = md5::compute(&serialized_minimal_type_object);
 
-        let complete_type_object = CompleteTypeObject::from(value);
-        let mut data = DynamicDataFactory::create_data(CompleteTypeObject::TYPE);
+        let complete_type_object = TypeObject::EkComplete {
+            complete: CompleteTypeObject::from(value),
+        };
+        let mut data = DynamicDataFactory::create_data(TypeObject::TYPE);
         complete_type_object.create_dynamic_sample(&mut data);
         let serialized_complete_type_object = serialize_cdr2_le(&data)?;
         let hash_complete_type_object = md5::compute(&serialized_complete_type_object);
@@ -1444,5 +1449,39 @@ impl TryFrom<&DynamicType> for TypeInformation {
                 dependent_typeids: Vec::new(),
             },
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn shape_type_hash() {
+        #[derive(Debug, PartialEq, TypeSupport)]
+        #[dust_dds(extensibility = "final")]
+        struct ShapeType {
+            #[dust_dds(key)]
+            color: String,
+            x: i32,
+            y: i32,
+            shapesize: i32,
+        }
+
+        let type_information = TypeInformation::try_from(&ShapeType::TYPE).unwrap();
+        assert_eq!(
+            type_information
+                .complete
+                .typeid_with_size
+                .typeobject_serialized_size,
+            132
+        );
+        assert_eq!(
+            type_information
+                .minimal
+                .typeid_with_size
+                .typeobject_serialized_size,
+            92
+        );
     }
 }
