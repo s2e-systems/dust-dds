@@ -123,7 +123,7 @@ trait XTypesSerializer<'a> {
     fn serialize_enc_header(&mut self, dynamic_data: &DynamicData) -> XTypesResult<()>;
 
     fn serialize_options(&mut self) -> XTypesResult<()> {
-        let _: () = self.serialize_p_array_type(&REPRESENTATION_OPTIONS);
+        self.serialize_p_array_type(&REPRESENTATION_OPTIONS);
         Ok(())
     }
     fn serialize_dheader(&mut self, ssize: usize) {
@@ -260,15 +260,15 @@ trait XTypesSerializer<'a> {
             .ok_or(XTypesError::InvalidType)?;
         match holder_type.descriptor.kind {
             TypeKind::INT8 => {
-                let _: () = self.serialize_primitive_type(v.get_int8_value(0)?);
+                self.serialize_primitive_type(v.get_int8_value(0)?);
                 Ok(())
             }
             TypeKind::INT16 => {
-                let _: () = self.serialize_primitive_type(v.get_int16_value(0)?);
+                self.serialize_primitive_type(v.get_int16_value(0)?);
                 Ok(())
             }
             TypeKind::INT32 => {
-                let _: () = self.serialize_primitive_type(v.get_int32_value(0)?);
+                self.serialize_primitive_type(v.get_int32_value(0)?);
                 Ok(())
             }
             _ => Err(XTypesError::InvalidType),
@@ -497,7 +497,7 @@ impl<'a, W: Write> XTypesSerializer<'a> for RtpsPlCdrSerializer<'a, W> {
     }
 
     fn serialize_enc_header(&mut self, _dynamic_data: &DynamicData) -> XTypesResult<()> {
-        let _: () = self.serialize_p_array_type(&PL_CDR_LE);
+        self.serialize_p_array_type(&PL_CDR_LE);
         Ok(())
     }
 
@@ -598,20 +598,18 @@ impl<'a, W: Write, E: EndiannessWrite> XTypesSerializer<'a> for Xcdr1Serializer<
     }
 
     fn serialize_enc_header(&mut self, dynamic_data: &DynamicData) -> XTypesResult<()> {
-        let _: () = self.serialize_p_array_type(&match dynamic_data
-            .r#type()
-            .get_descriptor()
-            .extensibility_kind
-        {
-            ExtensibilityKind::Final | ExtensibilityKind::Appendable => match E::ENDIANNESS {
-                Endianness::Big => CDR_BE,
-                Endianness::Little => CDR_LE,
+        self.serialize_p_array_type(
+            &match dynamic_data.r#type().get_descriptor().extensibility_kind {
+                ExtensibilityKind::Final | ExtensibilityKind::Appendable => match E::ENDIANNESS {
+                    Endianness::Big => CDR_BE,
+                    Endianness::Little => CDR_LE,
+                },
+                ExtensibilityKind::Mutable => match E::ENDIANNESS {
+                    Endianness::Big => PL_CDR_BE,
+                    Endianness::Little => PL_CDR_LE,
+                },
             },
-            ExtensibilityKind::Mutable => match E::ENDIANNESS {
-                Endianness::Big => PL_CDR_BE,
-                Endianness::Little => PL_CDR_LE,
-            },
-        });
+        );
         Ok(())
     }
 
@@ -661,24 +659,22 @@ impl<'a, W: Write, E: EndiannessWrite> XTypesSerializer<'a> for Xcdr2Serializer<
     }
 
     fn serialize_enc_header(&mut self, dynamic_data: &DynamicData) -> XTypesResult<()> {
-        let _: () = self.serialize_p_array_type(&match dynamic_data
-            .r#type()
-            .get_descriptor()
-            .extensibility_kind
-        {
-            ExtensibilityKind::Final => match E::ENDIANNESS {
-                Endianness::Big => CDR2_BE,
-                Endianness::Little => CDR2_LE,
+        self.serialize_p_array_type(
+            &match dynamic_data.r#type().get_descriptor().extensibility_kind {
+                ExtensibilityKind::Final => match E::ENDIANNESS {
+                    Endianness::Big => CDR2_BE,
+                    Endianness::Little => CDR2_LE,
+                },
+                ExtensibilityKind::Appendable => match E::ENDIANNESS {
+                    Endianness::Big => D_CDR2_BE,
+                    Endianness::Little => D_CDR2_LE,
+                },
+                ExtensibilityKind::Mutable => match E::ENDIANNESS {
+                    Endianness::Big => PL_CDR2_BE,
+                    Endianness::Little => PL_CDR2_LE,
+                },
             },
-            ExtensibilityKind::Appendable => match E::ENDIANNESS {
-                Endianness::Big => D_CDR2_BE,
-                Endianness::Little => D_CDR2_LE,
-            },
-            ExtensibilityKind::Mutable => match E::ENDIANNESS {
-                Endianness::Big => PL_CDR2_BE,
-                Endianness::Little => PL_CDR2_LE,
-            },
-        });
+        );
         Ok(())
     }
 
@@ -785,13 +781,13 @@ impl CdrPrimitiveTypeSerialize for i128 {
     }
 }
 impl CdrPrimitiveTypeSerialize for f32 {
-    const BYTES: usize = 32 as usize / 8;
+    const BYTES: usize = 32 / 8;
     fn serialize<W: Write, E: EndiannessWrite>(&self, writer: &mut CdrWriter<W, E>) {
         E::write_f32(self, writer);
     }
 }
 impl CdrPrimitiveTypeSerialize for f64 {
-    const BYTES: usize = 64 as usize / 8;
+    const BYTES: usize = 64 / 8;
     fn serialize<W: Write, E: EndiannessWrite>(&self, writer: &mut CdrWriter<W, E>) {
         E::write_f64(self, writer);
     }
