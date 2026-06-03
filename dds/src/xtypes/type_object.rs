@@ -455,6 +455,7 @@ pub type AppliedAnnotationParameterSeq = Vec<AppliedAnnotationParameter>;
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct AppliedAnnotation {
     pub annotation_typeid: TypeIdentifier,
+    #[dust_dds(optional)]
     pub param_seq: Option<AppliedAnnotationParameterSeq>,
 }
 // Sorted by AppliedAnnotation.annotation_typeid
@@ -472,10 +473,14 @@ pub struct AppliedVerbatimAnnotation {
 #[derive(DdsType, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct AppliedBuiltinMemberAnnotations {
-    pub unit: Option<String>,                  // @unit("<unit>")
+    #[dust_dds(optional)]
+    pub unit: Option<String>, // @unit("<unit>")
+    #[dust_dds(optional)]
     pub min: Option<AnnotationParameterValue>, // @min , @range
+    #[dust_dds(optional)]
     pub max: Option<AnnotationParameterValue>, // @max , @range
-    pub hash_id: Option<String>,               // @hashid("<membername>")
+    #[dust_dds(optional)]
+    pub hash_id: Option<String>, // @hashid("<membername>")
 }
 
 #[derive(DdsType, PartialEq)]
@@ -491,7 +496,9 @@ pub struct CommonStructMember {
 #[dust_dds(extensibility = "final", nested)]
 pub struct CompleteMemberDetail {
     pub name: MemberName,
+    #[dust_dds(optional)]
     pub ann_builtin: Option<AppliedBuiltinMemberAnnotations>,
+    #[dust_dds(optional)]
     pub ann_custom: Option<AppliedAnnotationSeq>,
 }
 // MINIMAL Details for a member of an aggregate type
@@ -522,6 +529,7 @@ pub type MinimalStructMemberSeq = Vec<MinimalStructMember>;
 #[derive(DdsType, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct AppliedBuiltinTypeAnnotations {
+    #[dust_dds(optional)]
     pub verbatim: Option<AppliedVerbatimAnnotation>, // @verbatim(...)
 }
 
@@ -534,7 +542,9 @@ pub struct MinimalTypeDetail {
 #[derive(DdsType, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct CompleteTypeDetail {
+    #[dust_dds(optional)]
     pub ann_builtin: Option<AppliedBuiltinTypeAnnotations>,
+    #[dust_dds(optional)]
     pub ann_custom: Option<AppliedAnnotationSeq>,
     pub type_name: QualifiedTypeName,
 }
@@ -614,7 +624,9 @@ pub struct CommonDiscriminatorMember {
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct CompleteDiscriminatorMember {
     pub common: CommonDiscriminatorMember,
+    #[dust_dds(optional)]
     pub ann_builtin: Option<AppliedBuiltinTypeAnnotations>,
+    #[dust_dds(optional)]
     pub ann_custom: Option<AppliedAnnotationSeq>,
 }
 // Member of a union type
@@ -722,7 +734,9 @@ pub struct CommonAliasBody {
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct CompleteAliasBody {
     pub common: CommonAliasBody,
+    #[dust_dds(optional)]
     pub ann_builtin: Option<AppliedBuiltinMemberAnnotations>,
+    #[dust_dds(optional)]
     pub ann_custom: Option<AppliedAnnotationSeq>,
 }
 
@@ -764,7 +778,9 @@ pub struct MinimalAliasType {
 #[derive(DdsType)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct CompleteElementDetail {
+    #[dust_dds(optional)]
     pub ann_builtin: Option<AppliedBuiltinMemberAnnotations>,
+    #[dust_dds(optional)]
     pub ann_custom: Option<AppliedAnnotationSeq>,
 }
 
@@ -798,6 +814,7 @@ pub struct CommonCollectionHeader {
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct CompleteCollectionHeader {
     pub common: CommonCollectionHeader,
+    #[dust_dds(optional)]
     pub detail: Option<CompleteTypeDetail>, // not present for anonymous
 }
 
