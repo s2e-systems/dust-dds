@@ -1,10 +1,6 @@
 use alloc::{boxed::Box, string::String, vec::Vec};
 use dust_dds_derive::DdsType;
 
-pub trait XTypesTypeObject {
-    fn type_object() -> TypeObject;
-}
-
 /* Manually created from dds-xtypes_typeobject.idl */
 
 // ---------- Equivalence Kinds -------------------
