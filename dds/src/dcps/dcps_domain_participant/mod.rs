@@ -86,7 +86,8 @@ use crate::{
         self,
         interface::{RtpsTransportParticipant, WriteMessage},
         types::{
-            BUILT_IN_READER_GROUP, BUILT_IN_READER_WITH_KEY, BUILT_IN_TOPIC, BUILT_IN_WRITER_GROUP,
+            BUILT_IN_READER_GROUP, BUILT_IN_READER_NO_KEY, BUILT_IN_READER_WITH_KEY,
+            BUILT_IN_TOPIC, BUILT_IN_WRITER_GROUP, BUILT_IN_WRITER_NO_KEY,
             BUILT_IN_WRITER_WITH_KEY, CacheChange, ChangeKind, DurabilityKind,
             ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN, EntityId, Guid, GuidPrefix, ReliabilityKind,
             TopicKind,
@@ -140,6 +141,20 @@ const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER: EntityId =
 
 const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR: EntityId =
     EntityId::new([0, 0, 0x04], BUILT_IN_READER_WITH_KEY);
+
+// XTypes Table 61 – Built-in Endpoints added by the XTYPES specification
+
+const ENTITYID_TL_SVC_REQ_WRITER: EntityId =
+    EntityId::new([0x00, 0x03, 0x00], BUILT_IN_WRITER_NO_KEY);
+
+const ENTITYID_TL_SVC_REQ_READER: EntityId =
+    EntityId::new([0x00, 0x03, 0x00], BUILT_IN_READER_NO_KEY);
+
+const ENTITYID_TL_SVC_REPLY_WRITER: EntityId =
+    EntityId::new([0x00, 0x03, 0x01], BUILT_IN_WRITER_NO_KEY);
+
+const ENTITYID_TL_SVC_REPLY_READER: EntityId = 
+ EntityId::new([0x00, 0x03, 0x01], BUILT_IN_READER_NO_KEY);
 
 fn poll_timeout<T>(
     mut timer_handle: impl Timer,
