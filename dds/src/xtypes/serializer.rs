@@ -184,6 +184,11 @@ trait XTypesSerializer<'a> {
                     ExtensibilityKind::Mutable => self.serialize_mstruct_type(dynamic_data),
                 }?
             }
+            TypeKind::UNION => match dynamic_data.r#type().get_descriptor().extensibility_kind {
+                ExtensibilityKind::Final => self.serialize_funion_type(dynamic_data),
+                ExtensibilityKind::Appendable => self.serialize_appendable_type(dynamic_data),
+                ExtensibilityKind::Mutable => self.serialize_munion_type(dynamic_data),
+            }?,
             kind => unimplemented!("Should not reach for {kind:?}"),
         }
         Ok(())
@@ -215,7 +220,7 @@ trait XTypesSerializer<'a> {
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
             TypeKind::STRUCTURE => self.serialize_t_as_nested(v.get_complex_value(member_id)?)?,
-            TypeKind::UNION => todo!(),
+            TypeKind::UNION => self.serialize_funion_type(v.get_complex_value(member_id)?)?,
             TypeKind::BITSET => todo!(),
             TypeKind::SEQUENCE => self.serialize_sequence_type(v, member_id)?,
             TypeKind::ARRAY => self.serialize_array_type(v, member_id)?,
@@ -333,7 +338,11 @@ trait XTypesSerializer<'a> {
                     self.serialize_t_as_nested(v)?;
                 }
             }
-            TypeKind::UNION => todo!(),
+            TypeKind::UNION => {
+                for v in v.get_complex_values(member_id)? {
+                    self.serialize_funion_type(v)?;
+                }
+            }
             TypeKind::BITSET => todo!(),
             TypeKind::SEQUENCE => todo!(),
             TypeKind::ARRAY => todo!(),
@@ -401,7 +410,13 @@ trait XTypesSerializer<'a> {
                     self.serialize_t_as_nested(v)?;
                 }
             }
-            TypeKind::UNION => todo!(),
+            TypeKind::UNION => {
+                let list = v.get_complex_values(member_id)?;
+                self.serialize_primitive_type(&(list.len() as u32));
+                for v in list {
+                    self.serialize_funion_type(v)?;
+                }
+            }
             TypeKind::BITSET => todo!(),
             TypeKind::SEQUENCE => todo!(),
             TypeKind::ARRAY => todo!(),
@@ -472,12 +487,16 @@ trait XTypesSerializer<'a> {
     fn serialize_mmember(&mut self, v: &DynamicData, member_id: u32) -> Result<(), XTypesError>;
 
     /// Serialization Rule (26)
-    fn _serialize_funion_type(&mut self, _v: &DynamicData) -> Result<(), XTypesError> {
-        todo!()
+    fn serialize_funion_type(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
+        self.serialize_nopt_fmember(v, 0)?;
+        if let Ok(member_id) = v.get_member_id_at_index(1) {
+            self.serialize_nopt_fmember(v, member_id)?;
+        }
+        Ok(())
     }
 
-    /// Serialization Rule (2) & (28)
-    fn _serialize_munion_type(&mut self, _v: &DynamicData) -> Result<(), XTypesError> {
+    /// Serialization Rule (27) & (28)
+    fn serialize_munion_type(&mut self, _v: &DynamicData) -> Result<(), XTypesError> {
         todo!()
     }
 
@@ -1522,6 +1541,111 @@ mod tests {
                 20, 0, 0, 0, // y
                 30, 0, 0, 0, // shapesize
                 0, 0, 0, 0, // additional_payload_size: length
+            ]
+        );
+    }
+
+    #[test]
+    fn serialize_final_union_type() {
+        #[derive(Debug, PartialEq, TypeSupport)]
+        struct MyInnerType(u32);
+
+        #[derive(Debug, PartialEq, TypeSupport)]
+        #[dust_dds(extensibility = "final", switch(u16))]
+        enum MyDynamicType {
+            #[dust_dds(case = 5)]
+            VariantA(MyInnerType),
+            #[dust_dds(case = 6)]
+            VariantB { a: u32 },
+            #[dust_dds(case = 7)]
+            VariantC,
+        }
+        let mut variantb = DynamicDataFactory::create_data(MyDynamicType::TYPE);
+        MyDynamicType::VariantB { a: 10 }.create_dynamic_sample(&mut variantb);
+
+        assert_eq!(
+            serialize_cdr1_be(&variantb).unwrap(),
+            vec![
+                0x00, 0x00, 0x00, 0x00, // CDR_BE
+                0, 6, 0, 0, // discriminant (u16) | padding (2 bytes)
+                0, 0, 0, 10, // u32 (VariantB)
+            ]
+        );
+        assert_eq!(
+            serialize_cdr2_be(&variantb).unwrap(),
+            vec![
+                0x00, 0x06, 0x00, 0x00, // CDR2_BE
+                0, 6, 0, 0, // discriminant (u16) | padding (2 bytes)
+                0, 0, 0, 10, // u32 (VariantB)
+            ]
+        );
+        let mut variantc = DynamicDataFactory::create_data(MyDynamicType::TYPE);
+        MyDynamicType::VariantC.create_dynamic_sample(&mut variantc);
+
+        assert_eq!(
+            serialize_cdr1_be(&variantc).unwrap(),
+            vec![
+                0x00, 0x00, 0x00, 0x02, // CDR_BE
+                0, 7, 0, 0, // discriminant (u16) | padding (2 bytes)
+            ]
+        );
+        assert_eq!(
+            serialize_cdr2_be(&variantc).unwrap(),
+            vec![
+                0x00, 0x06, 0x00, 0x02, // CDR2_BE
+                0, 7, 0, 0, // discriminant (u16) | padding (2 bytes)
+            ]
+        );
+
+        let mut varianta = DynamicDataFactory::create_data(MyDynamicType::TYPE);
+        MyDynamicType::VariantA(MyInnerType(10)).create_dynamic_sample(&mut varianta);
+
+        assert_eq!(
+            serialize_cdr1_be(&varianta).unwrap(),
+            vec![
+                0x00, 0x00, 0x00, 0x00, // CDR_BE
+                0, 5, 0, 0, // discriminant (u16) | padding (2 bytes)
+                0, 0, 0, 10, // u32 (VariantA)
+            ]
+        );
+        assert_eq!(
+            serialize_cdr2_be(&varianta).unwrap(),
+            vec![
+                0x00, 0x06, 0x00, 0x00, // CDR2_BE
+                0, 5, 0, 0, // discriminant (u16) | padding (2 bytes)
+                0, 0, 0, 10, // u32 (VariantA)
+            ]
+        );
+    }
+
+    #[test]
+    fn serialize_final_union_type_nested() {
+        #[derive(Debug, PartialEq, TypeSupport)]
+        #[dust_dds(extensibility = "final", switch(u16))]
+        enum MyDynamicType {
+            #[dust_dds(case = 6)]
+            VariantB { a: u32 },
+            #[dust_dds(case = 7)]
+            VariantC,
+        }
+
+        #[derive(Debug, PartialEq, TypeSupport)]
+        struct MyType {
+            field: MyDynamicType,
+        }
+
+        let mut variantb = DynamicDataFactory::create_data(MyType::TYPE);
+        MyType {
+            field: MyDynamicType::VariantB { a: 10 },
+        }
+        .create_dynamic_sample(&mut variantb);
+
+        assert_eq!(
+            serialize_cdr1_be(&variantb).unwrap(),
+            vec![
+                0x00, 0x00, 0x00, 0x00, // CDR_BE
+                0, 6, 0, 0, // discriminant (u16) | padding (2 bytes)
+                0, 0, 0, 10, // u32 (VariantB)
             ]
         );
     }
