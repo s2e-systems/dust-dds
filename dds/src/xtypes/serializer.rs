@@ -1553,7 +1553,7 @@ mod tests {
         struct MyInnerType(u32);
 
         #[derive(Debug, PartialEq, TypeSupport)]
-        #[dust_dds(extensibility = "final", switch(u8))]
+        #[dust_dds(extensibility = "final", switch(u16))]
         enum MyDynamicType {
             #[dust_dds(case = 5)]
             _VariantA(MyInnerType),
@@ -1569,7 +1569,7 @@ mod tests {
             serialize_cdr1_be(&v).unwrap(),
             vec![
                 0x00, 0x00, 0x00, 0x00, // CDR_BE
-                6, 0, 0, 0, // discriminant (u8) | padding (3 bytes)
+                0, 6, 0, 0, // discriminant (u16) | padding (3 bytes)
                 0, 0, 0, 10, // u32 (VariantB)
             ]
         );

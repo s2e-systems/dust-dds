@@ -295,7 +295,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                         });
                         variant_dynamic_sample_seq
                             .push(quote! {Self::#variant_ident {#variant_field_name} => {
-                                data.set_value(0, ::dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(#expr));
+                                data.set_value(0, <#discriminator_type as ::dust_dds::xtypes::data_storage::DataStorageMapping>::into_storage(#expr));
                                 data.set_value(#index as u32, ::dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(a));
                             }});
                     }
@@ -331,7 +331,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                         });
                         variant_dynamic_sample_seq
                             .push(quote! {Self::#variant_ident (a) => {
-                                data.set_value(0, ::dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(#expr));
+                                data.set_value(0, <#discriminator_type as ::dust_dds::xtypes::data_storage::DataStorageMapping>::into_storage(#expr));
                                 data.set_value(#index as u32, ::dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(a));
                             }});
                     }
@@ -376,7 +376,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                             quote! {#expr => #variant_sample}
                         });
                         variant_dynamic_sample_seq.push(quote! {Self::#variant_ident => {
-                            data.set_value(0, ::dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(#expr));
+                            data.set_value(0, <#discriminator_type as ::dust_dds::xtypes::data_storage::DataStorageMapping>::into_storage(#expr));
                         },});
                     }
                     Fields::Named(_) | Fields::Unnamed(_) => {
