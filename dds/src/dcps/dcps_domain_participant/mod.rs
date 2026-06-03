@@ -93,7 +93,7 @@ use crate::{
         },
     },
     xtypes::{
-        deserializer::{deserialize_builtin, deserialize_full, deserialize_key_only},
+        deserializer::{deserialize_builtin, deserialize_full},
         dynamic_type::{DynamicData, DynamicDataFactory, DynamicType},
         serializer::{
             serialize_cdr1_be, serialize_cdr1_le, serialize_cdr2_be, serialize_cdr2_le,
@@ -5270,7 +5270,7 @@ impl DataReaderEntity {
                     let instance_handle = InstanceHandle::new(i);
                     (data_value, instance_handle)
                 }
-                None => todo!()
+                None => todo!(),
             },
         };
 
