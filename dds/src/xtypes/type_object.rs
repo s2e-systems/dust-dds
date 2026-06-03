@@ -1,6 +1,10 @@
 use alloc::{boxed::Box, string::String, vec::Vec};
 use dust_dds_derive::DdsType;
 
+use crate::xtypes::dynamic_type::{DynamicType, DynamicTypeMember};
+
+use super::dynamic_type::{ExtensibilityKind, TryConstructKind, TypeKind};
+
 /* Manually created from dds-xtypes_typeobject.idl */
 
 // ---------- Equivalence Kinds -------------------
@@ -77,28 +81,28 @@ impl PartialEq for MemberFlag {
     }
 }
 
-impl core::ops::Add for MemberFlag {
+impl core::ops::BitOr for MemberFlag {
     type Output = MemberFlag;
 
-    fn add(self, rhs: MemberFlag) -> Self::Output {
+    fn bitor(self, rhs: Self) -> Self::Output {
         Self(self.0 + rhs.0)
     }
 }
 
-impl core::ops::AddAssign for MemberFlag {
-    fn add_assign(&mut self, rhs: Self) {
+impl core::ops::BitOrAssign for MemberFlag {
+    fn bitor_assign(&mut self, rhs: Self) {
         self.0 += rhs.0;
     }
 }
 
-pub const TRY_CONSTRUCT1: MemberFlag = MemberFlag(1 << 0); // T1 | 00 = INVALID, 01 = DISCARD
-pub const TRY_CONSTRUCT2: MemberFlag = MemberFlag(1 << 1); // T2 | 10 = USE_DEFAULT, 11 = TRIM
-pub const IS_EXTERNAL: MemberFlag = MemberFlag(1 << 2); // X StructMember, UnionMember,
+pub const MEMBER_FLAG_TRY_CONSTRUCT1: MemberFlag = MemberFlag(1 << 0); // T1 | 00 = INVALID, 01 = DISCARD
+pub const MEMBER_FLAG_TRY_CONSTRUCT2: MemberFlag = MemberFlag(1 << 1); // T2 | 10 = USE_DEFAULT, 11 = TRIM
+pub const MEMBER_FLAG_IS_EXTERNAL: MemberFlag = MemberFlag(1 << 2); // X StructMember, UnionMember,
 // CollectionElement
-pub const IS_OPTIONAL: MemberFlag = MemberFlag(1 << 3); // O StructMember
-pub const IS_MUST_UNDERSTAND: MemberFlag = MemberFlag(1 << 4); // M StructMember
-pub const IS_KEY: MemberFlag = MemberFlag(1 << 5); // K StructMember, UnionDiscriminator
-pub const IS_DEFAULT: MemberFlag = MemberFlag(1 << 6); // D UnionMember, EnumerationLiteral
+pub const MEMBER_FLAG_IS_OPTIONAL: MemberFlag = MemberFlag(1 << 3); // O StructMember
+pub const MEMBER_FLAG_IS_MUST_UNDERSTAND: MemberFlag = MemberFlag(1 << 4); // M StructMember
+pub const MEMBER_FLAG_IS_KEY: MemberFlag = MemberFlag(1 << 5); // K StructMember, UnionDiscriminator
+pub const MEMBER_FLAG_IS_DEFAULT: MemberFlag = MemberFlag(1 << 6); // D UnionMember, EnumerationLiteral
 
 pub type CollectionElementFlag = MemberFlag; // T1, T2, X
 
@@ -128,25 +132,25 @@ impl PartialEq for TypeFlag {
     }
 }
 
-impl core::ops::Add for TypeFlag {
+impl core::ops::BitOr for TypeFlag {
     type Output = TypeFlag;
 
-    fn add(self, rhs: TypeFlag) -> Self::Output {
+    fn bitor(self, rhs: TypeFlag) -> Self::Output {
         Self(self.0 + rhs.0)
     }
 }
 
-impl core::ops::AddAssign for TypeFlag {
-    fn add_assign(&mut self, rhs: Self) {
+impl core::ops::BitOrAssign for TypeFlag {
+    fn bitor_assign(&mut self, rhs: Self) {
         self.0 += rhs.0;
     }
 }
 
-pub const IS_FINAL: TypeFlag = TypeFlag(1 << 0); // F
-pub const IS_APPENDABLE: TypeFlag = TypeFlag(1 << 1); // A |- Struct, Union
-pub const IS_MUTABLE: TypeFlag = TypeFlag(1 << 2); // M | (exactly one flag)
-pub const IS_NESTED: TypeFlag = TypeFlag(1 << 3); // N Struct, Union
-pub const IS_AUTOID_HASH: TypeFlag = TypeFlag(1 << 4); // H Struct
+pub const TYPE_FLAG_IS_FINAL: TypeFlag = TypeFlag(1 << 0); // F
+pub const TYPE_FLAG_IS_APPENDABLE: TypeFlag = TypeFlag(1 << 1); // A |- Struct, Union
+pub const TYPE_FLAG_IS_MUTABLE: TypeFlag = TypeFlag(1 << 2); // M | (exactly one flag)
+pub const TYPE_FLAG_IS_NESTED: TypeFlag = TypeFlag(1 << 3); // N Struct, Union
+pub const TYPE_FLAG_IS_AUTOID_HASH: TypeFlag = TypeFlag(1 << 4); // H Struct
 
 pub type StructTypeFlag = TypeFlag; // All flags apply
 pub type UnionTypeFlag = TypeFlag; // All flags apply
@@ -1194,3 +1198,156 @@ pub struct TypeInformation {
     pub complete: TypeIdentifierWithDependencies,
 }
 pub type TypeInformationSeq = Vec<TypeInformation>;
+
+impl From<&DynamicType> for MinimalTypeObject {
+    fn from(value: &DynamicType) -> Self {
+        match value.get_kind() {
+            TypeKind::STRUCTURE => {
+                let mut struct_flags = match value.descriptor.extensibility_kind {
+                    ExtensibilityKind::Final => TYPE_FLAG_IS_FINAL,
+                    ExtensibilityKind::Appendable => TYPE_FLAG_IS_APPENDABLE,
+                    ExtensibilityKind::Mutable => TYPE_FLAG_IS_MUTABLE,
+                };
+                if value.descriptor.is_nested {
+                    struct_flags |= TYPE_FLAG_IS_NESTED
+                };
+
+                let header = MinimalStructHeader {
+                    base_type: TypeIdentifier::TkNone, // TODO: Include base type
+                    detail: MinimalTypeDetail {},
+                };
+                let member_seq = value.member_list.iter().map(From::from).collect();
+                let struct_type = MinimalStructType {
+                    struct_flags,
+                    header,
+                    member_seq,
+                };
+                MinimalTypeObject::TkStructure { struct_type }
+            }
+            t => todo!("Not yet implemeneted for {t:?}"),
+        }
+    }
+}
+
+impl From<&DynamicType> for CompleteTypeObject {
+    fn from(value: &DynamicType) -> Self {
+        match value.get_kind() {
+            TypeKind::STRUCTURE => {
+                let mut struct_flags = match value.descriptor.extensibility_kind {
+                    ExtensibilityKind::Final => TYPE_FLAG_IS_FINAL,
+                    ExtensibilityKind::Appendable => TYPE_FLAG_IS_APPENDABLE,
+                    ExtensibilityKind::Mutable => TYPE_FLAG_IS_MUTABLE,
+                };
+                if value.descriptor.is_nested {
+                    struct_flags |= TYPE_FLAG_IS_NESTED
+                };
+
+                let header = CompleteStructHeader {
+                    base_type: TypeIdentifier::TkNone, // TODO: Include base type
+                    detail: CompleteTypeDetail {
+                        type_name: value.get_name().to_string(),
+                        // TODO: Implement annotations
+                        ann_builtin: None,
+                        ann_custom: None,
+                    },
+                };
+                let member_seq = value.member_list.iter().map(From::from).collect();
+                let struct_type = CompleteStructType {
+                    struct_flags,
+                    header,
+                    member_seq,
+                };
+                CompleteTypeObject::TkStructure { struct_type }
+            }
+            t => todo!("Not yet implemeneted for {t:?}"),
+        }
+    }
+}
+
+impl From<&DynamicType> for TypeIdentifier {
+    fn from(value: &DynamicType) -> Self {
+        match value.descriptor.kind {
+            TypeKind::NONE => TypeIdentifier::TkNone,
+            TypeKind::BOOLEAN => TypeIdentifier::TkBoolean,
+            TypeKind::BYTE => TypeIdentifier::TkByteType,
+            TypeKind::INT16 => TypeIdentifier::TkInt16Type,
+            TypeKind::INT32 => TypeIdentifier::TkInt32Type,
+            TypeKind::INT64 => TypeIdentifier::TkInt64Type,
+            TypeKind::UINT16 => TypeIdentifier::TkUint16Type,
+            TypeKind::UINT32 => TypeIdentifier::TkUint32Type,
+            TypeKind::UINT64 => TypeIdentifier::TkUint64Type,
+            TypeKind::FLOAT32 => TypeIdentifier::TkFloat32Type,
+            TypeKind::FLOAT64 => TypeIdentifier::TkFloat64Type,
+            TypeKind::FLOAT128 => TypeIdentifier::TkFloat128Type,
+            TypeKind::INT8 => TypeIdentifier::TkInt8Type,
+            TypeKind::UINT8 => TypeIdentifier::TkUint8Type,
+            TypeKind::CHAR8 => TypeIdentifier::TkChar8Type,
+            TypeKind::CHAR16 => TypeIdentifier::TkChar16Type,
+            TypeKind::STRING8 => TypeIdentifier::TiString8Small {
+                string_sdefn: StringSTypeDefn { bound: u8::MAX },
+            },
+            TypeKind::STRING16 => TypeIdentifier::TiString16Small {
+                string_sdefn: StringSTypeDefn { bound: u8::MAX },
+            },
+            TypeKind::ALIAS => todo!(),
+            TypeKind::ENUM => todo!(),
+            TypeKind::BITMASK => todo!(),
+            TypeKind::ANNOTATION => todo!(),
+            TypeKind::STRUCTURE => todo!(),
+            TypeKind::UNION => todo!(),
+            TypeKind::BITSET => todo!(),
+            TypeKind::SEQUENCE => todo!(),
+            TypeKind::ARRAY => todo!(),
+            TypeKind::MAP => todo!(),
+        }
+    }
+}
+
+impl From<&DynamicTypeMember> for CommonStructMember {
+    fn from(value: &DynamicTypeMember) -> Self {
+        let mut member_flags = match value.descriptor.try_construct_kind {
+            TryConstructKind::UseDefault => MEMBER_FLAG_TRY_CONSTRUCT2,
+            TryConstructKind::Discard => MEMBER_FLAG_TRY_CONSTRUCT1,
+            TryConstructKind::Trim => MEMBER_FLAG_TRY_CONSTRUCT1 | MEMBER_FLAG_TRY_CONSTRUCT2,
+        };
+        if value.descriptor.is_key {
+            member_flags |= MEMBER_FLAG_IS_KEY;
+        }
+        if value.descriptor.is_must_understand {
+            member_flags |= MEMBER_FLAG_IS_MUST_UNDERSTAND;
+        }
+        if value.descriptor.is_optional {
+            member_flags |= MEMBER_FLAG_IS_OPTIONAL;
+        }
+
+        CommonStructMember {
+            member_id: value.get_id(),
+            member_flags,
+            member_type_id: (&value.descriptor.r#type).into(),
+        }
+    }
+}
+
+impl From<&DynamicTypeMember> for MinimalStructMember {
+    fn from(value: &DynamicTypeMember) -> Self {
+        let common = value.into();
+        let name_hash = <[u8; 16]>::from(md5::compute(value.get_name().as_bytes()));
+        let detail = MinimalMemberDetail {
+            name_hash: [name_hash[0], name_hash[1], name_hash[2], name_hash[3]],
+        };
+        MinimalStructMember { common, detail }
+    }
+}
+
+impl From<&DynamicTypeMember> for CompleteStructMember {
+    fn from(value: &DynamicTypeMember) -> Self {
+        let common = value.into();
+        let detail = CompleteMemberDetail {
+            name: value.get_name().to_string(),
+            // TODO: Applied builtin and custom annotations
+            ann_builtin: None,
+            ann_custom: None,
+        };
+        CompleteStructMember { common, detail }
+    }
+}
