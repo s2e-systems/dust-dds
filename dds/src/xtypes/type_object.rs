@@ -56,7 +56,7 @@ pub type SBound = u8;
 pub type SBoundSeq = Vec<SBound>;
 pub const INVALID_SBOUND: SBound = 0;
 
-#[derive(DdsType, PartialEq)]
+#[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested, switch(u8))]
 pub enum TypeObjectHashId {
     EkComplete { hash: EquivalenceHash },
@@ -68,7 +68,7 @@ pub enum TypeObjectHashId {
 // Depending on the flag it may not apply to members of all types
 // When not all, the applicable member types are listed
 
-#[derive(Clone, Copy, DdsType)]
+#[derive(Debug, Clone, Copy, DdsType)]
 pub struct MemberFlag(u16);
 
 impl PartialEq for MemberFlag {
@@ -161,26 +161,26 @@ pub type BitsetTypeFlag = TypeFlag; // Unused. No flags apply
 pub const TYPE_FLAG_MINIMAL_MASK: TypeFlag = TypeFlag(0x0007); // Selects M, A, F
 
 // 1 Byte
-#[derive(DdsType, PartialEq)]
+#[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct StringSTypeDefn {
     pub bound: SBound,
 }
 // 4 Bytes
-#[derive(DdsType, PartialEq)]
+#[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct StringLTypeDefn {
     pub bound: LBound,
 }
 
-#[derive(DdsType, PartialEq)]
+#[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct PlainCollectionHeader {
     pub equiv_kind: EquivalenceKind,
     pub element_flags: CollectionElementFlag,
 }
 
-#[derive(DdsType, PartialEq)]
+#[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct PlainSequenceSElemDefn {
     pub header: PlainCollectionHeader,
@@ -189,7 +189,7 @@ pub struct PlainSequenceSElemDefn {
     pub element_identifier: Box<TypeIdentifier>,
 }
 
-#[derive(DdsType, PartialEq)]
+#[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct PlainSequenceLElemDefn {
     pub header: PlainCollectionHeader,
@@ -198,7 +198,7 @@ pub struct PlainSequenceLElemDefn {
     pub element_identifier: Box<TypeIdentifier>,
 }
 
-#[derive(DdsType, PartialEq)]
+#[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct PlainArraySElemDefn {
     pub header: PlainCollectionHeader,
@@ -207,7 +207,7 @@ pub struct PlainArraySElemDefn {
     pub element_identifier: Box<TypeIdentifier>,
 }
 
-#[derive(DdsType, PartialEq)]
+#[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct PlainArrayLElemDefn {
     pub header: PlainCollectionHeader,
@@ -216,7 +216,7 @@ pub struct PlainArrayLElemDefn {
     pub element_identifier: Box<TypeIdentifier>,
 }
 
-#[derive(DdsType, PartialEq)]
+#[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct PlainMapSTypeDefn {
     pub header: PlainCollectionHeader,
@@ -228,7 +228,7 @@ pub struct PlainMapSTypeDefn {
     pub key_identifier: Box<TypeIdentifier>,
 }
 
-#[derive(DdsType, PartialEq)]
+#[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct PlainMapLTypeDefn {
     pub header: PlainCollectionHeader,
@@ -241,7 +241,7 @@ pub struct PlainMapLTypeDefn {
 }
 
 // Used for Types that have cyclic depencencies with other types
-#[derive(DdsType, PartialEq)]
+#[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct StronglyConnectedComponentId {
     pub sc_component_id: TypeObjectHashId, // Hash StronglyConnectedComponent
@@ -275,7 +275,7 @@ pub struct ExtendedTypeDefn {
 // according to both the MINIMAL and the COMMON equivalence relation.
 // This means the TypeIdentifier is the same for both relationships
 //
-#[derive(DdsType, PartialEq)]
+#[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested, switch(u8))]
 pub enum TypeIdentifier {
     TkNone,
@@ -1092,7 +1092,7 @@ pub enum CompleteTypeObject {
        // CompleteExtendedType extended_type;
 }
 
-#[derive(DdsType, PartialEq, Default)]
+#[derive(DdsType, Debug, Clone, PartialEq, Default)]
 #[dust_dds(extensibility = "mutable", nested)]
 pub struct MinimalExtendedType {
     // Empty. Available for future extension
@@ -1165,7 +1165,7 @@ pub struct TypeIdentifierPair {
 }
 pub type TypeIdentifierPairSeq = Vec<TypeIdentifierPair>;
 
-#[derive(DdsType, PartialEq, Default)]
+#[derive(DdsType, Debug, Clone, PartialEq, Default)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct TypeIdentifierWithSize {
     pub type_id: TypeIdentifier,
@@ -1173,7 +1173,7 @@ pub struct TypeIdentifierWithSize {
 }
 pub type TypeIdentfierWithSizeSeq = Vec<TypeIdentifierWithSize>;
 
-#[derive(DdsType, PartialEq, Default)]
+#[derive(DdsType, Debug, Clone, PartialEq, Default)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct TypeIdentifierWithDependencies {
     pub typeid_with_size: TypeIdentifierWithSize,
@@ -1183,7 +1183,7 @@ pub struct TypeIdentifierWithDependencies {
 }
 pub type TypeIdentifierWithDependenciesSeq = Vec<TypeIdentifierWithDependencies>;
 
-#[derive(DdsType, PartialEq)]
+#[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "mutable", nested)]
 pub struct TypeInformation {
     #[dust_dds(id = 0x1001)]

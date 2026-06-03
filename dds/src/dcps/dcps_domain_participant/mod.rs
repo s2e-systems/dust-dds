@@ -1088,6 +1088,7 @@ impl DcpsDomainParticipant {
                     value: topic.instance_handle.into(),
                 },
                 name: topic.topic_name.clone(),
+                type_information: None,
                 type_name: topic.type_name.clone(),
                 durability: topic.qos.durability.clone(),
                 deadline: topic.qos.deadline.clone(),
@@ -2133,6 +2134,7 @@ impl DcpsDomainParticipant {
                             key: BuiltInTopicKey::default(),
                             name: publication_builtin_topic_data.topic_name.clone(),
                             type_name: publication_builtin_topic_data.type_name.clone(),
+                            type_information: None,
                             durability: publication_builtin_topic_data.durability().clone(),
                             deadline: publication_builtin_topic_data.deadline().clone(),
                             latency_budget: publication_builtin_topic_data.latency_budget().clone(),
@@ -2258,7 +2260,7 @@ impl DcpsDomainParticipant {
                                 .dds_subscription_data
                                 .get_type_name()
                                 .to_string(),
-
+                            type_information: None,
                             topic_data: discovered_reader_data
                                 .dds_subscription_data
                                 .topic_data()

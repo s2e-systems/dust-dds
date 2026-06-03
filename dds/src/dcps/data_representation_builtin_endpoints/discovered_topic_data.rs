@@ -6,7 +6,7 @@ use crate::{
             PID_DATA_REPRESENTATION, PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY,
             PID_ENDPOINT_GUID, PID_HISTORY, PID_LATENCY_BUDGET, PID_LIFESPAN, PID_LIVELINESS,
             PID_OWNERSHIP, PID_RELIABILITY, PID_RESOURCE_LIMITS, PID_TOPIC_DATA, PID_TOPIC_NAME,
-            PID_TRANSPORT_PRIORITY, PID_TYPE_NAME,
+            PID_TRANSPORT_PRIORITY, PID_TYPE_INFORMATION, PID_TYPE_NAME,
         },
     },
     infrastructure::{
@@ -23,7 +23,7 @@ use crate::{
 };
 use alloc::string::String;
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct DiscoveredTopicData {
     pub(crate) topic_builtin_topic_data: TopicBuiltinTopicData,
 }
@@ -119,6 +119,11 @@ impl TypeSupport for DiscoveredTopicData {
                     src.remove_value(PID_TOPIC_NAME as u32).expect("Must exist"),
                 )
                 .expect("Must match"),
+                type_information: src
+                    .remove_value(PID_TYPE_INFORMATION as u32)
+                    .map_or(None, |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
                 durability: src
                     .remove_value(PID_DURABILITY as u32)
                     .map_or(DurabilityQosPolicy::const_default(), |x| {
@@ -201,6 +206,14 @@ impl TypeSupport for DiscoveredTopicData {
             PID_TYPE_NAME as u32,
             self.topic_builtin_topic_data.type_name.into_storage(),
         );
+        if self.topic_builtin_topic_data.type_information != Default::default() {
+            data.set_value(
+                PID_TYPE_INFORMATION as u32,
+                self.topic_builtin_topic_data
+                    .type_information
+                    .into_storage(),
+            );
+        }
         if self.topic_builtin_topic_data.durability != Default::default() {
             data.set_value(
                 PID_DURABILITY as u32,
@@ -311,6 +324,7 @@ mod tests {
                 },
                 name: "ab".to_string(),
                 type_name: "cd".to_string(),
+                type_information: None,
                 durability: topic_qos.durability,
                 deadline: topic_qos.deadline,
                 latency_budget: topic_qos.latency_budget,
@@ -357,6 +371,7 @@ mod tests {
                 },
                 name: "ab".to_string(),
                 type_name: "cd".to_string(),
+                type_information: None,
                 durability: topic_qos.durability,
                 deadline: topic_qos.deadline,
                 latency_budget: topic_qos.latency_budget,

@@ -51,6 +51,8 @@ pub const _PID_PROPERTY_LIST: ParameterId = 0x0059;
 pub const _PID_TYPE_MAX_SIZE_SERIALIZED: ParameterId = 0x0060;
 pub const _PID_ENTITY_NAME: ParameterId = 0x0062;
 pub const PID_ENDPOINT_GUID: ParameterId = 0x005a;
+// Following PID name is not defined in standard but the number is in the Xtypes v1.3 standard
+pub const PID_TYPE_INFORMATION: ParameterId = 0x0075;
 // Following PID is not defined in standard
 // (but its listed in "Table 9.14 - ParameterId mapping and default values")
 pub const _PID_DATA_MAX_SIZE_SERIALIZED: ParameterId = _PID_TYPE_MAX_SIZE_SERIALIZED;
