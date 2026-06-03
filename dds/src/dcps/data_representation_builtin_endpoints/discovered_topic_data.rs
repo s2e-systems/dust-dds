@@ -295,7 +295,7 @@ mod tests {
         builtin_topics::BuiltInTopicKey,
         infrastructure::qos::TopicQos,
         xtypes::{
-            deserializer::CdrDeserializer, dynamic_type::DynamicDataFactory,
+            deserializer::deserialize_builtin, dynamic_type::DynamicDataFactory,
             serializer::serialize_rtps,
         },
     };
@@ -390,7 +390,7 @@ mod tests {
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
         assert_eq!(
-            CdrDeserializer::deserialize_builtin(DiscoveredTopicData::TYPE, &data).unwrap(),
+            deserialize_builtin(DiscoveredTopicData::TYPE, &data).unwrap(),
             expected
         );
     }

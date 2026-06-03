@@ -394,7 +394,7 @@ mod tests {
         infrastructure::qos_policy::UserDataQosPolicy,
         rtps::types::PROTOCOLVERSION_2_4,
         xtypes::{
-            deserializer::CdrDeserializer, dynamic_type::DynamicDataFactory,
+            deserializer::deserialize_builtin, dynamic_type::DynamicDataFactory,
             serializer::serialize_rtps,
         },
     };
@@ -677,8 +677,7 @@ mod tests {
         ];
 
         assert_eq!(
-            CdrDeserializer::deserialize_builtin(SpdpDiscoveredParticipantData::TYPE, &data)
-                .unwrap(),
+            deserialize_builtin(SpdpDiscoveredParticipantData::TYPE, &data).unwrap(),
             expected
         );
     }

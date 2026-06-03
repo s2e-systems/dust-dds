@@ -418,7 +418,7 @@ mod tests {
             USER_DEFINED_UNKNOWN,
         },
         xtypes::{
-            deserializer::CdrDeserializer, dynamic_type::DynamicDataFactory,
+            deserializer::deserialize_builtin, dynamic_type::DynamicDataFactory,
             serializer::serialize_rtps,
         },
     };
@@ -628,7 +628,7 @@ mod tests {
         ];
 
         assert_eq!(
-            CdrDeserializer::deserialize_builtin(DiscoveredReaderData::TYPE, &data).unwrap(),
+            deserialize_builtin(DiscoveredReaderData::TYPE, &data).unwrap(),
             expected
         );
     }
