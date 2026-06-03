@@ -1,7 +1,14 @@
 use alloc::{boxed::Box, string::String, vec::Vec};
 use dust_dds_derive::DdsType;
 
-use crate::xtypes::dynamic_type::{DynamicType, DynamicTypeMember};
+use crate::{
+    infrastructure::type_support::TypeSupport,
+    xtypes::{
+        dynamic_type::{DynamicDataFactory, DynamicType, DynamicTypeMember},
+        error::XTypesError,
+        serializer::serialize_cdr2_le,
+    },
+};
 
 use super::dynamic_type::{ExtensibilityKind, TryConstructKind, TypeKind};
 
@@ -1349,5 +1356,76 @@ impl From<&DynamicTypeMember> for CompleteStructMember {
             ann_custom: None,
         };
         CompleteStructMember { common, detail }
+    }
+}
+
+impl TryFrom<&DynamicType> for TypeInformation {
+    type Error = XTypesError;
+
+    fn try_from(value: &DynamicType) -> Result<Self, Self::Error> {
+        let minimal_type_object = MinimalTypeObject::from(value);
+        let mut data = DynamicDataFactory::create_data(CompleteTypeObject::TYPE);
+        minimal_type_object.create_dynamic_sample(&mut data);
+        let serialized_minimal_type_object = serialize_cdr2_le(&data)?;
+        let hash_minimal_type_object = md5::compute(&serialized_minimal_type_object);
+
+        let complete_type_object = CompleteTypeObject::from(value);
+        let mut data = DynamicDataFactory::create_data(CompleteTypeObject::TYPE);
+        complete_type_object.create_dynamic_sample(&mut data);
+        let serialized_complete_type_object = serialize_cdr2_le(&data)?;
+        let hash_complete_type_object = md5::compute(&serialized_complete_type_object);
+
+        Ok(TypeInformation {
+            minimal: TypeIdentifierWithDependencies {
+                typeid_with_size: TypeIdentifierWithSize {
+                    type_id: TypeIdentifier::EkMinimal {
+                        equivalence_hash: [
+                            hash_minimal_type_object[0],
+                            hash_minimal_type_object[1],
+                            hash_minimal_type_object[2],
+                            hash_minimal_type_object[3],
+                            hash_minimal_type_object[4],
+                            hash_minimal_type_object[5],
+                            hash_minimal_type_object[6],
+                            hash_minimal_type_object[7],
+                            hash_minimal_type_object[8],
+                            hash_minimal_type_object[9],
+                            hash_minimal_type_object[10],
+                            hash_minimal_type_object[11],
+                            hash_minimal_type_object[12],
+                            hash_minimal_type_object[13],
+                        ],
+                    },
+                    typeobject_serialized_size: serialized_minimal_type_object.len() as u32,
+                },
+                dependent_typeid_count: -1,
+                dependent_typeids: Vec::new(),
+            },
+            complete: TypeIdentifierWithDependencies {
+                typeid_with_size: TypeIdentifierWithSize {
+                    type_id: TypeIdentifier::EkComplete {
+                        equivalence_hash: [
+                            hash_complete_type_object[0],
+                            hash_complete_type_object[1],
+                            hash_complete_type_object[2],
+                            hash_complete_type_object[3],
+                            hash_complete_type_object[4],
+                            hash_complete_type_object[5],
+                            hash_complete_type_object[6],
+                            hash_complete_type_object[7],
+                            hash_complete_type_object[8],
+                            hash_complete_type_object[9],
+                            hash_complete_type_object[10],
+                            hash_complete_type_object[11],
+                            hash_complete_type_object[12],
+                            hash_complete_type_object[13],
+                        ],
+                    },
+                    typeobject_serialized_size: serialized_complete_type_object.len() as u32,
+                },
+                dependent_typeid_count: -1,
+                dependent_typeids: Vec::new(),
+            },
+        })
     }
 }

@@ -99,6 +99,7 @@ use crate::{
             serialize_cdr1_be, serialize_cdr1_le, serialize_cdr2_be, serialize_cdr2_le,
             serialize_rtps,
         },
+        type_object::TypeInformation,
     },
 };
 use alloc::{
@@ -1088,7 +1089,7 @@ impl DcpsDomainParticipant {
                     value: topic.instance_handle.into(),
                 },
                 name: topic.topic_name.clone(),
-                type_information: None,
+                type_information: TypeInformation::try_from(&topic.type_support).ok(),
                 type_name: topic.type_name.clone(),
                 durability: topic.qos.durability.clone(),
                 deadline: topic.qos.deadline.clone(),
