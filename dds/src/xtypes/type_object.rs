@@ -112,7 +112,9 @@ pub const INVALID_SBOUND: SBound = 0;
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested, switch(u8))]
 pub enum TypeObjectHashId {
+    #[dust_dds(case=EK_COMPLETE)]
     EkComplete { hash: EquivalenceHash },
+    #[dust_dds(case=EK_MINIMAL)]
     EkMinimal { hash: EquivalenceHash },
 }
 
@@ -428,53 +430,40 @@ pub struct ExtendedAnnotationParameterValue {
 #[derive(DdsType, PartialEq)]
 #[dust_dds(extensibility = "final", nested, switch(u8))]
 pub enum AnnotationParameterValue {
-    TkBoolean {
-        boolean_value: bool,
-    },
-    TkByte {
-        byte_value: u8,
-    },
-    TkInt8 {
-        int8_value: i8,
-    },
-    TkUint8 {
-        uint8_value: u8,
-    },
-    TkInt16 {
-        int16_value: i16,
-    },
-    TkUint16 {
-        uint_16_value: u16,
-    },
-    TkInt32 {
-        int32_value: i32,
-    },
-    TkUint32 {
-        uint32_value: u32,
-    },
-    TkInt64 {
-        int64_value: i64,
-    },
-    TkUint64 {
-        uint64_value: u64,
-    },
-    TkFloat32 {
-        float32_value: f32,
-    },
-    TkFloat64 {
-        float64_value: f64,
-    },
+    #[dust_dds(case=TK_BOOLEAN)]
+    TkBoolean { boolean_value: bool },
+    #[dust_dds(case=TK_BYTE)]
+    TkByte { byte_value: u8 },
+    #[dust_dds(case=TK_INT8)]
+    TkInt8 { int8_value: i8 },
+    #[dust_dds(case=TK_UINT8)]
+    TkUint8 { uint8_value: u8 },
+    #[dust_dds(case=TK_INT16)]
+    TkInt16 { int16_value: i16 },
+    #[dust_dds(case=TK_UINT16)]
+    TkUint16 { uint_16_value: u16 },
+    #[dust_dds(case=TK_INT32)]
+    TkInt32 { int32_value: i32 },
+    #[dust_dds(case=TK_UINT32)]
+    TkUint32 { uint32_value: u32 },
+    #[dust_dds(case=TK_INT64)]
+    TkInt64 { int64_value: i64 },
+    #[dust_dds(case=TK_UINT64)]
+    TkUint64 { uint64_value: u64 },
+    #[dust_dds(case=TK_FLOAT32)]
+    TkFloat32 { float32_value: f32 },
+    #[dust_dds(case=TK_FLOAT64)]
+    TkFloat64 { float64_value: f64 },
     // TkFloat128 {
     //     float128_value: i128,
     // },
-    TkChar8 {
-        char_value: char,
-    },
+    #[dust_dds(case=TK_CHAR8)]
+    TkChar8 { char_value: char },
     // TypeKind::CHAR16 {
     // wchar_value: char16},
-    TkEnum {
-        enumerated_value: i32,
-    },
+    #[dust_dds(case=TK_ENUM)]
+    TkEnum { enumerated_value: i32 },
+    #[dust_dds(case=TK_STRING8)]
     TkString8 {
         string8_value: String, /*string<ANNOTATION_STR_VALUE_MAX_LEN>  */
     },
@@ -1131,38 +1120,33 @@ pub struct CompleteExtendedType {
 #[derive(DdsType)]
 #[dust_dds(extensibility = "final", nested, switch(u8))]
 pub enum CompleteTypeObject {
-    TkAlias {
-        alias_type: CompleteAliasType,
-    },
+    #[dust_dds(case = TK_ALIAS)]
+    TkAlias { alias_type: CompleteAliasType },
+    #[dust_dds(case = TK_ANNOTATION)]
     TkAnnotation {
         annotation_type: CompleteAnnotationType,
     },
-    TkStructure {
-        struct_type: CompleteStructType,
-    },
-    TkUnion {
-        union_type: CompleteUnionType,
-    },
-    TkBitset {
-        bitset_type: CompleteBitsetType,
-    },
-    TkSequence {
-        sequence_type: CompleteSequenceType,
-    },
-    TkArray {
-        array_type: CompleteArrayType,
-    },
-    TkMap {
-        map_type: CompleteMapType,
-    },
+    #[dust_dds(case = TK_STRUCTURE)]
+    TkStructure { struct_type: CompleteStructType },
+    #[dust_dds(case = TK_UNION)]
+    TkUnion { union_type: CompleteUnionType },
+    #[dust_dds(case = TK_BITSET)]
+    TkBitset { bitset_type: CompleteBitsetType },
+    #[dust_dds(case = TK_SEQUENCE)]
+    TkSequence { sequence_type: CompleteSequenceType },
+    #[dust_dds(case = TK_ARRAY)]
+    TkArray { array_type: CompleteArrayType },
+    #[dust_dds(case = TK_MAP)]
+    TkMap { map_type: CompleteMapType },
+    #[dust_dds(case = TK_ENUM)]
     TkEnum {
         enumerated_type: CompleteEnumeratedType,
     },
-    TkBitmask {
-        bitmask_type: CompleteBitmaskType,
-    }, // =================== Future extensibility ============
-       // default:
-       // CompleteExtendedType extended_type;
+    #[dust_dds(case = TK_BITMASK)]
+    TkBitmask { bitmask_type: CompleteBitmaskType },
+    // =================== Future extensibility ============
+    #[dust_dds(default)]
+    Default { extended_type: CompleteExtendedType },
 }
 
 #[derive(DdsType, Debug, Clone, PartialEq, Default)]
@@ -1174,49 +1158,42 @@ pub struct MinimalExtendedType {
 #[derive(DdsType)]
 #[dust_dds(extensibility = "final", nested, switch(u8))]
 pub enum MinimalTypeObject {
-    TkAlias {
-        alias_type: MinimalAliasType,
-    },
+    #[dust_dds(case = TK_ALIAS)]
+    TkAlias { alias_type: MinimalAliasType },
+    #[dust_dds(case = TK_ANNOTATION)]
     TkAnnotation {
         annotation_type: MinimalAnnotationType,
     },
-    TkStructure {
-        struct_type: MinimalStructType,
-    },
-    TkUnion {
-        union_type: MinimalUnionType,
-    },
-    TkBitset {
-        bitset_type: MinimalBitsetType,
-    },
-    TkSequence {
-        sequence_type: MinimalSequenceType,
-    },
-    TkArray {
-        array_type: MinimalArrayType,
-    },
-    TkMap {
-        map_type: MinimalMapType,
-    },
+    #[dust_dds(case = TK_STRUCTURE)]
+    TkStructure { struct_type: MinimalStructType },
+    #[dust_dds(case = TK_UNION)]
+    TkUnion { union_type: MinimalUnionType },
+    #[dust_dds(case = TK_BITSET)]
+    TkBitset { bitset_type: MinimalBitsetType },
+    #[dust_dds(case = TK_SEQUENCE)]
+    TkSequence { sequence_type: MinimalSequenceType },
+    #[dust_dds(case = TK_ARRAY)]
+    TkArray { array_type: MinimalArrayType },
+    #[dust_dds(case = TK_MAP)]
+    TkMap { map_type: MinimalMapType },
+    #[dust_dds(case = TK_ENUM)]
     TkEnum {
         enumerated_type: MinimalEnumeratedType,
     },
-    TkBitmask {
-        bitmask_type: MinimalBitmaskType,
-    },
+    #[dust_dds(case = TK_BITMASK)]
+    TkBitmask { bitmask_type: MinimalBitmaskType },
     // =================== Future extensibility ============
     #[dust_dds(default)]
-    Default {
-        extended_type: MinimalExtendedType,
-    },
+    Default { extended_type: MinimalExtendedType },
 }
 
 #[derive(DdsType)]
 #[dust_dds(extensibility = "appendable", nested, switch(u8))]
 #[allow(clippy::large_enum_variant)]
 pub enum TypeObject {
-    // EquivalenceKind
+    #[dust_dds(case=EK_COMPLETE)]
     EkComplete { complete: CompleteTypeObject },
+    #[dust_dds(case=EK_MINIMAL)]
     EkMinimal { minimal: MinimalTypeObject },
 }
 pub type TypeObjectSeq = Vec<TypeObject>;
@@ -1502,7 +1479,6 @@ mod tests {
     use super::*;
 
     #[test]
-    #[ignore]
     fn shape_type_hash() {
         #[derive(Debug, PartialEq, TypeSupport)]
         #[dust_dds(extensibility = "final")]
@@ -1521,6 +1497,15 @@ mod tests {
                 .typeid_with_size
                 .typeobject_serialized_size,
             132
+        );
+        assert_eq!(
+            type_information.complete.typeid_with_size.type_id,
+            TypeIdentifier::EkComplete {
+                equivalence_hash: [
+                    0xce, 0x6d, 0x79, 0x13, 0x05, 0x8d, 0xaa, 0x30, 0x78, 0xa8, 0x8f, 0x98, 0x21,
+                    0x96
+                ]
+            }
         );
 
         assert_eq!(
