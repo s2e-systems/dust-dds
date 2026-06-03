@@ -96,8 +96,8 @@ use crate::{
         deserializer::{CdrDeserializer, DeserializeKind},
         dynamic_type::{DynamicData, DynamicDataFactory, DynamicType},
         serializer::{
-            Cdr1BeSerializer, Cdr1LeSerializer, Cdr2BeSerializer, Cdr2LeSerializer,
-            RtpsPlCdrSerializer,
+            serialize_cdr1_be, serialize_cdr1_le, serialize_cdr2_be, serialize_cdr2_le,
+            serialize_rtps,
         },
     },
 };
@@ -5856,20 +5856,20 @@ fn serialize(
     Ok(
         if representation.value.is_empty() || representation.value[0] == XCDR_DATA_REPRESENTATION {
             if cfg!(target_endian = "big") {
-                Cdr1BeSerializer::serialize(dynamic_data)?
+                serialize_cdr1_be(dynamic_data)
             } else {
-                Cdr1LeSerializer::serialize(dynamic_data)?
+                serialize_cdr1_le(dynamic_data)
             }
         } else if representation.value[0] == XCDR2_DATA_REPRESENTATION {
             if cfg!(target_endian = "big") {
-                Cdr2BeSerializer::serialize(dynamic_data)?
+                serialize_cdr2_be(dynamic_data)
             } else {
-                Cdr2LeSerializer::serialize(dynamic_data)?
+                serialize_cdr2_le(dynamic_data)
             }
         } else if representation.value[0] == BUILT_IN_DATA_REPRESENTATION {
-            RtpsPlCdrSerializer::serialize(dynamic_data)?
+            serialize_rtps(dynamic_data)
         } else {
             panic!("Invalid data representation")
-        },
+        }?,
     )
 }
