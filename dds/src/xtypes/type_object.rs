@@ -1132,8 +1132,10 @@ pub enum MinimalTypeObject {
         bitmask_type: MinimalBitmaskType,
     },
     // =================== Future extensibility ============
-    // default:
-    // MinimalExtendedType extended_type;
+    #[dust_dds(default)]
+    Default {
+        extended_type: MinimalExtendedType,
+    },
 }
 
 #[derive(DdsType)]
