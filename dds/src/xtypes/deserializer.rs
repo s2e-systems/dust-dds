@@ -71,6 +71,100 @@ pub fn deserialize_builtin(dynamic_type: DynamicType, buffer: &[u8]) -> XTypesRe
     Ok(dynamic_data)
 }
 
+pub fn deserialize_key_only(dynamic_type: DynamicType, buffer: &[u8]) -> XTypesResult<DynamicData> {
+    if buffer.len() < 4 {
+        return Err(XTypesError::NotEnoughData);
+    }
+    let mut dynamic_data = DynamicDataFactory::create_data(dynamic_type);
+    let representation_identifier = [buffer[0], buffer[1]];
+    match representation_identifier {
+        CDR_BE => {
+            let mut deserializer = Cdr1KeyDeserializer::new(&buffer[4..], BigEndian);
+            deserializer.deserialize_dynamic_data(&dynamic_type, &mut dynamic_data)?;
+        }
+        CDR_LE => {
+            let mut deserializer = Cdr1KeyDeserializer::new(&buffer[4..], LittleEndian);
+            deserializer.deserialize_dynamic_data(&dynamic_type, &mut dynamic_data)?;
+        }
+        CDR2_BE => {
+            let mut deserializer = Cdr2KeyDeserializer::new(&buffer[4..], BigEndian);
+            deserializer.deserialize_dynamic_data(&dynamic_type, &mut dynamic_data)?;
+        }
+        CDR2_LE => {
+            let mut deserializer = Cdr2KeyDeserializer::new(&buffer[4..], LittleEndian);
+            deserializer.deserialize_dynamic_data(&dynamic_type, &mut dynamic_data)?;
+        }
+        _ => return Err(XTypesError::InvalidData),
+    }
+    Ok(dynamic_data)
+}
+
+struct Cdr1KeyDeserializer<'a, E: EndiannessRead> {
+    reader: CdrReader<'a, E, CdrVersion1>,
+}
+
+impl<'a, E: EndiannessRead> Cdr1KeyDeserializer<'a, E> {
+    fn new(buffer: &'a [u8], endianness: E) -> Self {
+        Self {
+            reader: CdrReader::new(buffer, endianness, CdrVersion1),
+        }
+    }
+}
+
+impl<'a, E: EndiannessRead> XTypesDeserialize for Cdr1KeyDeserializer<'a, E> {
+    fn deserialize_final_struct(
+        &mut self,
+        dynamic_type: &DynamicType,
+        dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()> {
+        for member_index in 0..dynamic_type.get_member_count() {
+            let member = dynamic_type.get_member_by_index(member_index)?;
+            if member.get_descriptor()?.is_key {
+                self.deserialize_final_member(member, dynamic_data)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn deserialize_mutable_struct(
+        &mut self,
+        _dynamic_type: &DynamicType,
+        _dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()> {
+        unimplemented!("Not available for key")
+    }
+
+    fn deserialize_primitive_type<T: CdrPrimitiveTypeDeserialize>(&mut self) -> XTypesResult<T> {
+        T::deserialize(&mut self.reader)
+    }
+}
+
+struct Cdr2KeyDeserializer<'a, E: EndiannessRead> {
+    reader: CdrReader<'a, E, CdrVersion2>,
+}
+
+impl<'a, E: EndiannessRead> Cdr2KeyDeserializer<'a, E> {
+    fn new(buffer: &'a [u8], endianness: E) -> Self {
+        Self {
+            reader: CdrReader::new(buffer, endianness, CdrVersion2),
+        }
+    }
+}
+
+impl<'a, E: EndiannessRead> XTypesDeserialize for Cdr2KeyDeserializer<'a, E> {
+    fn deserialize_mutable_struct(
+        &mut self,
+        _dynamic_type: &DynamicType,
+        _dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()> {
+        unimplemented!("Not available for key")
+    }
+
+    fn deserialize_primitive_type<T: CdrPrimitiveTypeDeserialize>(&mut self) -> XTypesResult<T> {
+        T::deserialize(&mut self.reader)
+    }
+}
+
 struct Cdr1Deserializer<'a, E: EndiannessRead> {
     reader: CdrReader<'a, E, CdrVersion1>,
 }
