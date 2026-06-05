@@ -251,9 +251,10 @@ impl DcpsDomainParticipant {
                 ..Default::default()
             }
         }
-
-        let mut data_reader_list = Vec::with_capacity(4);
-        let mut topic_list = Vec::with_capacity(4);
+        const NUMBER_BUILTIN_ENTITIES: usize = 4;
+        let mut topic_list = Vec::with_capacity(NUMBER_BUILTIN_ENTITIES);
+        let mut builtin_data_reader_list = Vec::with_capacity(NUMBER_BUILTIN_ENTITIES);
+        let mut builtin_data_writer_list = Vec::with_capacity(NUMBER_BUILTIN_ENTITIES);
 
         topic_list.push(TopicDescriptionKind::Topic(TopicEntity::new(
             TopicQos::default(),
@@ -343,7 +344,7 @@ impl DcpsDomainParticipant {
             Vec::new(),
             RtpsReaderKind::Stateless(rtps_stateless_reader),
         );
-        data_reader_list.push(dcps_participant_reader);
+        builtin_data_reader_list.push(dcps_participant_reader);
 
         let dcps_topic_transport_reader = RtpsStatefulReader::new(
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR),
@@ -359,7 +360,7 @@ impl DcpsDomainParticipant {
             Vec::new(),
             RtpsReaderKind::Stateful(dcps_topic_transport_reader),
         );
-        data_reader_list.push(dcps_topic_reader);
+        builtin_data_reader_list.push(dcps_topic_reader);
 
         let dcps_publication_transport_reader = RtpsStatefulReader::new(
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR),
@@ -375,7 +376,7 @@ impl DcpsDomainParticipant {
             Vec::new(),
             RtpsReaderKind::Stateful(dcps_publication_transport_reader),
         );
-        data_reader_list.push(dcps_publication_reader);
+        builtin_data_reader_list.push(dcps_publication_reader);
 
         let dcps_subscription_transport_reader = RtpsStatefulReader::new(
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR),
@@ -391,12 +392,12 @@ impl DcpsDomainParticipant {
             Vec::new(),
             RtpsReaderKind::Stateful(dcps_subscription_transport_reader),
         );
-        data_reader_list.push(dcps_subscription_reader);
+        builtin_data_reader_list.push(dcps_subscription_reader);
 
         let builtin_subscriber = SubscriberEntity::new(
             InstanceHandle::new(Guid::new(guid_prefix, ENTITYID_BUILTIN_SUBSCRIBER).into()),
             SubscriberQos::default(),
-            data_reader_list,
+            builtin_data_reader_list,
             None,
             vec![],
         );
@@ -418,6 +419,7 @@ impl DcpsDomainParticipant {
             vec![],
             spdp_writer_qos,
         );
+        builtin_data_writer_list.push(dcps_participant_writer);
 
         let dcps_topics_transport_writer = RtpsStatefulWriter::new(
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER),
@@ -434,6 +436,8 @@ impl DcpsDomainParticipant {
             vec![],
             sedp_data_writer_qos(),
         );
+        builtin_data_writer_list.push(dcps_topics_writer);
+
         let dcps_publications_transport_writer = RtpsStatefulWriter::new(
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER),
             transport.fragment_size,
@@ -449,6 +453,7 @@ impl DcpsDomainParticipant {
             vec![],
             sedp_data_writer_qos(),
         );
+        builtin_data_writer_list.push(dcps_publications_writer);
 
         let dcps_subscriptions_transport_writer = RtpsStatefulWriter::new(
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER),
@@ -464,12 +469,7 @@ impl DcpsDomainParticipant {
             vec![],
             sedp_data_writer_qos(),
         );
-        let builtin_data_writer_list = vec![
-            dcps_participant_writer,
-            dcps_topics_writer,
-            dcps_publications_writer,
-            dcps_subscriptions_writer,
-        ];
+        builtin_data_writer_list.push(dcps_subscriptions_writer);
 
         let builtin_publisher = PublisherEntity::new(
             PublisherQos::default(),
