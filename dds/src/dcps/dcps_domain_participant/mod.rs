@@ -153,8 +153,8 @@ const ENTITYID_TL_SVC_REQ_READER: EntityId =
 const ENTITYID_TL_SVC_REPLY_WRITER: EntityId =
     EntityId::new([0x00, 0x03, 0x01], BUILT_IN_WRITER_NO_KEY);
 
-const ENTITYID_TL_SVC_REPLY_READER: EntityId = 
- EntityId::new([0x00, 0x03, 0x01], BUILT_IN_READER_NO_KEY);
+const ENTITYID_TL_SVC_REPLY_READER: EntityId =
+    EntityId::new([0x00, 0x03, 0x01], BUILT_IN_READER_NO_KEY);
 
 fn poll_timeout<T>(
     mut timer_handle: impl Timer,

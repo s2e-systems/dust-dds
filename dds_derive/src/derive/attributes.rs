@@ -6,6 +6,7 @@ pub struct StructureMemberAttributes {
     pub optional: bool,
     pub non_serialized: bool,
     pub external: bool,
+    pub hashid: bool,
     pub default_value: Option<Expr>,
 }
 
@@ -16,6 +17,7 @@ pub fn get_structure_member_attributes(field: &Field) -> Result<StructureMemberA
     let mut default_value = None;
     let mut non_serialized = false;
     let mut external = false;
+    let mut hashid = false;
     if let Some(xtypes_attribute) = field
         .attrs
         .iter()
@@ -34,6 +36,8 @@ pub fn get_structure_member_attributes(field: &Field) -> Result<StructureMemberA
                 non_serialized = true;
             } else if meta.path.is_ident("external") {
                 external = true;
+            } else if meta.path.is_ident("hashid") {
+                hashid = true;
             }
             Ok(())
         })?;
@@ -42,9 +46,10 @@ pub fn get_structure_member_attributes(field: &Field) -> Result<StructureMemberA
         id,
         key,
         optional,
-        default_value,
-        external,
         non_serialized,
+        external,
+        hashid,
+        default_value,
     })
 }
 

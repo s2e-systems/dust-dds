@@ -65,6 +65,13 @@ impl BuiltinEndpointSet {
     /*
     Bits 12-15 have been reserved by the DDS-Xtypes 1.2 Specification
     and future revisions thereof.
+    */
+    pub const _BUILTIN_ENDPOINT_TYPE_LOOKUP_SERVICE_REQUEST_DATA_WRITER: u32 = 1 << 12;
+    pub const _BUILTIN_ENDPOINT_TYPE_LOOKUP_SERVICE_REQUEST_DATA_READER: u32 = 1 << 13;
+    pub const _BUILTIN_ENDPOINT_TYPE_LOOKUP_SERVICE_REPLY_DATA_WRITER: u32 = 1 << 14;
+    pub const _BUILTIN_ENDPOINT_TYPE_LOOKUP_SERVICE_REPLY_DATA_READER: u32 = 1 << 15;
+
+    /*
     Bits 16-27 have been reserved by the DDS-Security 1.1 Specification
     and future revisions thereof.
     */
