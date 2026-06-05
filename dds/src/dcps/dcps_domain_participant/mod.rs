@@ -118,6 +118,16 @@ use core::{
 use regex::Regex;
 use tracing::info;
 
+const ENTITYID_SPDP_TOPIC: EntityId = EntityId::new([0, 0, 0], BUILT_IN_TOPIC);
+const ENTITYID_SEDP_TOPICS_TOPIC: EntityId = EntityId::new([0, 0, 1], BUILT_IN_TOPIC);
+const ENTITYID_SEDP_PUBLICATIONS_TOPIC: EntityId = EntityId::new([0, 0, 2], BUILT_IN_TOPIC);
+const ENTITYID_SEDP_SUBSCRIPTIONS_TOPIC: EntityId = EntityId::new([0, 0, 3], BUILT_IN_TOPIC);
+const ENTITYID_TL_SVC_REQ_TOPIC: EntityId = EntityId::new([0, 0, 4], BUILT_IN_TOPIC);
+const ENTITYID_TL_SVC_RPL_TOPIC: EntityId = EntityId::new([0, 0, 5], BUILT_IN_TOPIC);
+
+const ENTITYID_BUILTIN_SUBSCRIBER: EntityId = EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP);
+const ENTITYID_BUILTIN_PUBLISHER: EntityId = EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP);
+
 const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
     EntityId::new([0x00, 0x01, 0x00], BUILT_IN_WRITER_WITH_KEY);
 
@@ -243,136 +253,51 @@ impl DcpsDomainParticipant {
         }
 
         let mut data_reader_list = Vec::with_capacity(4);
+        let mut topic_list = Vec::with_capacity(4);
 
-        let spdp_participant_type = SpdpDiscoveredParticipantData::TYPE;
-        let discovered_topic_type = DiscoveredTopicData::TYPE;
-        let discovered_writer_type = DiscoveredWriterData::TYPE;
-        let discovered_reader_type = DiscoveredReaderData::TYPE;
-
-        let mut topic_list = Vec::new();
-
-        let spdp_topic_participant_handle = [
-            participant_handle[0],
-            participant_handle[1],
-            participant_handle[2],
-            participant_handle[3],
-            participant_handle[4],
-            participant_handle[5],
-            participant_handle[6],
-            participant_handle[7],
-            participant_handle[8],
-            participant_handle[9],
-            participant_handle[10],
-            participant_handle[11],
-            0,
-            0,
-            0,
-            BUILT_IN_TOPIC,
-        ];
-
-        let spdp_topic_participant = TopicEntity::new(
+        topic_list.push(TopicDescriptionKind::Topic(TopicEntity::new(
             TopicQos::default(),
             "SpdpDiscoveredParticipantData".to_string(),
             String::from(DCPS_PARTICIPANT),
-            InstanceHandle::new(spdp_topic_participant_handle),
+            InstanceHandle::new(Guid::new(guid_prefix, ENTITYID_SPDP_TOPIC).into()),
             DcpsStatusCondition::default(),
             None,
             vec![],
-            spdp_participant_type,
-        );
+            SpdpDiscoveredParticipantData::TYPE,
+        )));
 
-        topic_list.push(TopicDescriptionKind::Topic(spdp_topic_participant));
-
-        let sedp_topic_topics_handle = [
-            participant_handle[0],
-            participant_handle[1],
-            participant_handle[2],
-            participant_handle[3],
-            participant_handle[4],
-            participant_handle[5],
-            participant_handle[6],
-            participant_handle[7],
-            participant_handle[8],
-            participant_handle[9],
-            participant_handle[10],
-            participant_handle[11],
-            0,
-            0,
-            1,
-            BUILT_IN_TOPIC,
-        ];
-        let sedp_topic_topics = TopicEntity::new(
+        topic_list.push(TopicDescriptionKind::Topic(TopicEntity::new(
             TopicQos::default(),
             "DiscoveredTopicData".to_string(),
             String::from(DCPS_TOPIC),
-            InstanceHandle::new(sedp_topic_topics_handle),
+            InstanceHandle::new(Guid::new(guid_prefix, ENTITYID_SEDP_TOPICS_TOPIC).into()),
             DcpsStatusCondition::default(),
             None,
             vec![],
-            discovered_topic_type,
-        );
+            DiscoveredTopicData::TYPE,
+        )));
 
-        topic_list.push(TopicDescriptionKind::Topic(sedp_topic_topics));
-
-        let sedp_topic_publications_handle = [
-            participant_handle[0],
-            participant_handle[1],
-            participant_handle[2],
-            participant_handle[3],
-            participant_handle[4],
-            participant_handle[5],
-            participant_handle[6],
-            participant_handle[7],
-            participant_handle[8],
-            participant_handle[9],
-            participant_handle[10],
-            participant_handle[11],
-            0,
-            0,
-            2,
-            BUILT_IN_TOPIC,
-        ];
-        let sedp_topic_publications = TopicEntity::new(
+        topic_list.push(TopicDescriptionKind::Topic(TopicEntity::new(
             TopicQos::default(),
             "DiscoveredWriterData".to_string(),
             String::from(DCPS_PUBLICATION),
-            InstanceHandle::new(sedp_topic_publications_handle),
+            InstanceHandle::new(Guid::new(guid_prefix, ENTITYID_SEDP_PUBLICATIONS_TOPIC).into()),
             DcpsStatusCondition::default(),
             None,
             vec![],
-            discovered_writer_type,
-        );
-        topic_list.push(TopicDescriptionKind::Topic(sedp_topic_publications));
+            DiscoveredWriterData::TYPE,
+        )));
 
-        let sedp_topic_subscriptions_handle = [
-            participant_handle[0],
-            participant_handle[1],
-            participant_handle[2],
-            participant_handle[3],
-            participant_handle[4],
-            participant_handle[5],
-            participant_handle[6],
-            participant_handle[7],
-            participant_handle[8],
-            participant_handle[9],
-            participant_handle[10],
-            participant_handle[11],
-            0,
-            0,
-            3,
-            BUILT_IN_TOPIC,
-        ];
-        let sedp_topic_subscriptions = TopicEntity::new(
+        topic_list.push(TopicDescriptionKind::Topic(TopicEntity::new(
             TopicQos::default(),
             "DiscoveredReaderData".to_string(),
             String::from(DCPS_SUBSCRIPTION),
-            InstanceHandle::new(sedp_topic_subscriptions_handle),
+            InstanceHandle::new(Guid::new(guid_prefix, ENTITYID_SEDP_SUBSCRIPTIONS_TOPIC).into()),
             DcpsStatusCondition::default(),
             None,
             vec![],
-            discovered_reader_type,
-        );
-        topic_list.push(TopicDescriptionKind::Topic(sedp_topic_subscriptions));
+            DiscoveredReaderData::TYPE,
+        )));
 
         let spdp_writer_qos = DataWriterQos {
             durability: DurabilityQosPolicy {
@@ -413,7 +338,7 @@ impl DcpsDomainParticipant {
             InstanceHandle::new(rtps_stateless_reader.guid().into()),
             spdp_reader_qos,
             String::from(DCPS_PARTICIPANT),
-            spdp_participant_type,
+            SpdpDiscoveredParticipantData::TYPE,
             None,
             Vec::new(),
             RtpsReaderKind::Stateless(rtps_stateless_reader),
@@ -429,7 +354,7 @@ impl DcpsDomainParticipant {
             InstanceHandle::new(dcps_topic_transport_reader.guid().into()),
             sedp_data_reader_qos(),
             String::from(DCPS_TOPIC),
-            discovered_topic_type,
+            DiscoveredTopicData::TYPE,
             None,
             Vec::new(),
             RtpsReaderKind::Stateful(dcps_topic_transport_reader),
@@ -445,7 +370,7 @@ impl DcpsDomainParticipant {
             InstanceHandle::new(dcps_publication_transport_reader.guid().into()),
             sedp_data_reader_qos(),
             String::from(DCPS_PUBLICATION),
-            discovered_writer_type,
+            DiscoveredWriterData::TYPE,
             None,
             Vec::new(),
             RtpsReaderKind::Stateful(dcps_publication_transport_reader),
@@ -461,33 +386,15 @@ impl DcpsDomainParticipant {
             InstanceHandle::new(dcps_subscription_transport_reader.guid().into()),
             sedp_data_reader_qos(),
             String::from(DCPS_SUBSCRIPTION),
-            discovered_reader_type,
+            DiscoveredReaderData::TYPE,
             None,
             Vec::new(),
             RtpsReaderKind::Stateful(dcps_subscription_transport_reader),
         );
         data_reader_list.push(dcps_subscription_reader);
 
-        let builtin_subscriber_handle = [
-            participant_handle[0],
-            participant_handle[1],
-            participant_handle[2],
-            participant_handle[3],
-            participant_handle[4],
-            participant_handle[5],
-            participant_handle[6],
-            participant_handle[7],
-            participant_handle[8],
-            participant_handle[9],
-            participant_handle[10],
-            participant_handle[11],
-            0,
-            0,
-            0,
-            BUILT_IN_READER_GROUP,
-        ];
         let builtin_subscriber = SubscriberEntity::new(
-            InstanceHandle::new(builtin_subscriber_handle),
+            InstanceHandle::new(Guid::new(guid_prefix, ENTITYID_BUILTIN_SUBSCRIBER).into()),
             SubscriberQos::default(),
             data_reader_list,
             None,
@@ -506,7 +413,7 @@ impl DcpsDomainParticipant {
             RtpsWriterKind::Stateless(dcps_participant_transport_writer),
             String::from(DCPS_PARTICIPANT),
             "SpdpDiscoveredParticipantData".to_string(),
-            spdp_participant_type,
+            SpdpDiscoveredParticipantData::TYPE,
             None,
             vec![],
             spdp_writer_qos,
@@ -522,7 +429,7 @@ impl DcpsDomainParticipant {
             RtpsWriterKind::Stateful(dcps_topics_transport_writer),
             String::from(DCPS_TOPIC),
             "DiscoveredTopicData".to_string(),
-            discovered_topic_type,
+            DiscoveredTopicData::TYPE,
             None,
             vec![],
             sedp_data_writer_qos(),
@@ -537,7 +444,7 @@ impl DcpsDomainParticipant {
             RtpsWriterKind::Stateful(dcps_publications_transport_writer),
             String::from(DCPS_PUBLICATION),
             "DiscoveredWriterData".to_string(),
-            discovered_writer_type,
+            DiscoveredWriterData::TYPE,
             None,
             vec![],
             sedp_data_writer_qos(),
@@ -552,7 +459,7 @@ impl DcpsDomainParticipant {
             RtpsWriterKind::Stateful(dcps_subscriptions_transport_writer),
             String::from(DCPS_SUBSCRIPTION),
             "DiscoveredReaderData".to_string(),
-            discovered_reader_type,
+            DiscoveredReaderData::TYPE,
             None,
             vec![],
             sedp_data_writer_qos(),
@@ -563,27 +470,10 @@ impl DcpsDomainParticipant {
             dcps_publications_writer,
             dcps_subscriptions_writer,
         ];
-        let builtin_publisher_handle = [
-            participant_handle[0],
-            participant_handle[1],
-            participant_handle[2],
-            participant_handle[3],
-            participant_handle[4],
-            participant_handle[5],
-            participant_handle[6],
-            participant_handle[7],
-            participant_handle[8],
-            participant_handle[9],
-            participant_handle[10],
-            participant_handle[11],
-            0,
-            0,
-            0,
-            BUILT_IN_WRITER_GROUP,
-        ];
+
         let builtin_publisher = PublisherEntity::new(
             PublisherQos::default(),
-            InstanceHandle::new(builtin_publisher_handle),
+            InstanceHandle::new(Guid::new(guid_prefix, ENTITYID_BUILTIN_PUBLISHER).into()),
             builtin_data_writer_list,
             None,
             vec![],
