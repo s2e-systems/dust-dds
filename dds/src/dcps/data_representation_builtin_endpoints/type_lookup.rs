@@ -44,10 +44,13 @@ pub struct TypeLookupGetTypeDependenciesIn {
     pub continuation_point: Vec<u8>, // @hashid sequence<octet, 32> ;
 }
 
-// @extensibility(MUTABLE)
+#[derive(DdsType)]
+#[dust_dds(extensibility = "mutable")]
 pub struct TypeLookupGetTypeDependenciesOut {
-    pub dependent_typeids: Vec<TypeIdentifierWithSize>, //@hashid
-    pub continuation_point: Vec<u8>,                    //@hashid sequence<octet, 32>
+    #[dust_dds(hashid)]
+    pub dependent_typeids: Vec<TypeIdentifierWithSize>,
+    #[dust_dds(hashid)]
+    pub continuation_point: Vec<u8>,
 }
 
 // union TypeLookup_getTypeDependencies_Result switch(long){
@@ -58,7 +61,6 @@ pub enum TypeLookupGetTypeDependenciesResult {
 }
 
 // Service Request
-// union TypeLookup_Call switch(long) {
 #[derive(DdsType)]
 #[dust_dds(switch(i32))]
 pub enum TypeLookupCall {
@@ -99,6 +101,7 @@ pub struct RequestHeader {
     instance_name: InstanceName,
 }
 
+#[derive(DdsType)]
 pub struct ReplyHeader {
     related_request_id: SampleIdentity,
 }

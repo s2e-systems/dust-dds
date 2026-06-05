@@ -53,30 +53,44 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 let index = member_index as u32;
                 let struct_member_attributes = get_structure_member_attributes(member)?;
 
-                let member_id = match r#struct.extensibility {
-                    Extensibility::Final | Extensibility::Appendable => {
-                        syn::parse_str(&member_index.to_string())
-                    }
-                    Extensibility::Mutable => {
-                        if let Some(provided_id) = struct_member_attributes.id {
-                            Ok(provided_id)
-                        } else {
-                            syn::parse_str(&next_auto_id.to_string())
-                        }
-                    }
-                }?;
-                if let syn::Expr::Lit(syn::ExprLit {
-                    lit: syn::Lit::Int(lit_int),
-                    ..
-                }) = &member_id
-                {
-                    next_auto_id = lit_int.base10_parse::<u32>()? + 1;
-                }
                 let member_name = member
                     .ident
                     .as_ref()
                     .map(|i| i.to_string())
                     .unwrap_or(member_index.to_string());
+
+                let member_id = if struct_member_attributes.hashid {
+                    let member_hash = <[u8; 16]>::from(md5::compute(member_name.as_bytes()));
+                    let member_hash_int = u32::from_le_bytes([
+                        member_hash[0],
+                        member_hash[1],
+                        member_hash[2],
+                        member_hash[3],
+                    ]);
+                    syn::parse_str(&member_hash_int.to_string())?
+                } else {
+                    match r#struct.extensibility {
+                        Extensibility::Final | Extensibility::Appendable => {
+                            syn::parse_str(&member_index.to_string())
+                        }
+                        Extensibility::Mutable => {
+                            if let Some(provided_id) = struct_member_attributes.id {
+                                Ok(provided_id)
+                            } else {
+                                syn::parse_str(&next_auto_id.to_string())
+                            }
+                        }
+                    }?
+                };
+
+                if let syn::Expr::Lit(syn::ExprLit {
+                    lit: syn::Lit::Int(lit_int),
+                    ..
+                }) = &member_id
+                    && !struct_member_attributes.hashid
+                {
+                    next_auto_id = lit_int.base10_parse::<u32>()? + 1;
+                }
 
                 let member_type = &member.ty;
                 let is_key = struct_member_attributes.key;
