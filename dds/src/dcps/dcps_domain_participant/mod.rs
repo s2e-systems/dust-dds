@@ -25,7 +25,7 @@ use crate::{
                 BuiltinEndpointQos, BuiltinEndpointSet, ParticipantProxy,
                 SpdpDiscoveredParticipantData,
             },
-            type_lookup::TypeLookupRequest,
+            type_lookup::{TypeLookupReply, TypeLookupRequest},
         },
         dcps_mail::{DcpsMail, EventServiceMail},
         listeners::domain_participant_listener::ListenerMail,
@@ -515,7 +515,7 @@ impl DcpsDomainParticipant {
             InstanceHandle::new(type_lookup_reply_transport_reader.guid().into()),
             TYPE_LOOKUP_READER_QOS,
             String::from(TYPE_LOOKUP_REPLY_TOPIC_NAME),
-            TypeLookupRequest::TYPE,
+            TypeLookupReply::TYPE,
             None,
             Vec::new(),
             RtpsReaderKind::Stateful(type_lookup_reply_transport_reader),
@@ -598,6 +598,38 @@ impl DcpsDomainParticipant {
             sedp_data_writer_qos(),
         );
         builtin_data_writer_list.push(dcps_subscriptions_writer);
+
+        let type_lookup_request_transport_writer = RtpsStatefulWriter::new(
+            Guid::new(guid_prefix, ENTITYID_TL_SVC_REQ_WRITER),
+            transport.fragment_size,
+        );
+        let type_lookup_request_writer = DataWriterEntity::new(
+            InstanceHandle::new(type_lookup_request_transport_writer.guid().into()),
+            RtpsWriterKind::Stateful(type_lookup_request_transport_writer),
+            String::from(TYPE_LOOKUP_REQUEST_TOPIC_NAME),
+            String::from(TypeLookupRequest::TYPE.descriptor.name),
+            TypeLookupRequest::TYPE,
+            None,
+            Vec::new(),
+            TYPE_LOOKUP_WRITER_QOS,
+        );
+        builtin_data_writer_list.push(type_lookup_request_writer);
+
+        let type_lookup_reply_transport_writer = RtpsStatefulWriter::new(
+            Guid::new(guid_prefix, ENTITYID_TL_SVC_REPLY_WRITER),
+            transport.fragment_size,
+        );
+        let type_lookup_reply_writer = DataWriterEntity::new(
+            InstanceHandle::new(type_lookup_reply_transport_writer.guid().into()),
+            RtpsWriterKind::Stateful(type_lookup_reply_transport_writer),
+            String::from(TYPE_LOOKUP_REPLY_TOPIC_NAME),
+            String::from(TypeLookupReply::TYPE.descriptor.name),
+            TypeLookupReply::TYPE,
+            None,
+            Vec::new(),
+            TYPE_LOOKUP_WRITER_QOS,
+        );
+        builtin_data_writer_list.push(type_lookup_reply_writer);
 
         let builtin_publisher = PublisherEntity::new(
             PublisherQos::default(),
@@ -1122,7 +1154,7 @@ impl DcpsDomainParticipant {
                     value: topic.instance_handle.into(),
                 },
                 name: topic.topic_name.clone(),
-                type_information: TypeInformation::try_from(&topic.type_support).ok(),
+                type_information: None, //TODO: TypeInformation::try_from(&topic.type_support).ok(),
                 type_name: topic.type_name.clone(),
                 durability: topic.qos.durability.clone(),
                 deadline: topic.qos.deadline.clone(),

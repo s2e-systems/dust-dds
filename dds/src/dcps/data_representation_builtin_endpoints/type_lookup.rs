@@ -29,8 +29,10 @@ pub struct TypeLookupGetTypesOut {
     pub complete_to_minimal: Vec<TypeIdentifierPair>,
 }
 
-// union TypeLookup_getTypes_Result switch(long) {
+#[derive(DdsType)]
+#[dust_dds(switch(i32))]
 pub enum TypeLookupGetTypesResult {
+    #[dust_dds(case = 0)]
     Ok { result: TypeLookupGetTypesOut },
 }
 
@@ -53,8 +55,10 @@ pub struct TypeLookupGetTypeDependenciesOut {
     pub continuation_point: Vec<u8>,
 }
 
-// union TypeLookup_getTypeDependencies_Result switch(long){
+#[derive(DdsType)]
+#[dust_dds(switch(i32))]
 pub enum TypeLookupGetTypeDependenciesResult {
+    #[dust_dds(case = 0)]
     Ok {
         result: TypeLookupGetTypeDependenciesOut,
     },
@@ -79,16 +83,18 @@ pub struct TypeLookupRequest {
 }
 
 // Service Reply
-// union TypeLookup_Return switch(long) {
+#[derive(DdsType)]
+#[dust_dds(switch(i32))]
 pub enum TypeLookupReturn {
-    TypeLookupGetTypesHash {
-        get_type: TypeLookupGetTypesResult,
-    },
+    #[dust_dds(case=TYPE_LOOKUP_GET_TYPES_HASH_ID)]
+    TypeLookupGetTypesHash { get_type: TypeLookupGetTypesResult },
+    #[dust_dds(case=TYPE_LOOKUP_GET_DEPENDENCIES_HASH_ID)]
     TypeLookupGetDependenciesHash {
         get_type_dependencies: TypeLookupGetTypeDependenciesResult,
     },
 }
 
+#[derive(DdsType)]
 pub struct TypeLookupReply {
     pub header: RequestHeader,
     pub r#return: TypeLookupReturn,
