@@ -136,13 +136,13 @@ impl core::ops::BitOr for MemberFlag {
     type Output = MemberFlag;
 
     fn bitor(self, rhs: Self) -> Self::Output {
-        Self(self.0 + rhs.0)
+        Self(self.0 | rhs.0)
     }
 }
 
 impl core::ops::BitOrAssign for MemberFlag {
     fn bitor_assign(&mut self, rhs: Self) {
-        self.0 += rhs.0;
+        self.0 |= rhs.0;
     }
 }
 
@@ -185,15 +185,14 @@ impl PartialEq for TypeFlag {
 
 impl core::ops::BitOr for TypeFlag {
     type Output = TypeFlag;
-
     fn bitor(self, rhs: TypeFlag) -> Self::Output {
-        Self(self.0 + rhs.0)
+        Self(self.0 | rhs.0)
     }
 }
 
 impl core::ops::BitOrAssign for TypeFlag {
     fn bitor_assign(&mut self, rhs: Self) {
-        self.0 += rhs.0;
+        self.0 |= rhs.0;
     }
 }
 
@@ -1205,7 +1204,6 @@ pub type StronglyConnectedComponent = TypeObjectSeq;
 
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
-
 pub struct TypeIdentifierTypeObjectPair {
     pub type_identifier: TypeIdentifier,
     pub type_object: TypeObject,

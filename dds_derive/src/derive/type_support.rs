@@ -95,6 +95,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 let member_type = &member.ty;
                 let is_key = struct_member_attributes.key;
                 let is_optional = struct_member_attributes.optional;
+                let is_external = struct_member_attributes.external;
                 let default_value = struct_member_attributes.default_value.map(|x| quote! {#x});
 
                 member_list.push(
@@ -113,6 +114,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                                 is_must_understand: false,
                                 is_shared: false,
                                 is_default_label: false,
+                                is_external: #is_external,
                             }
                         }
                     }
@@ -252,6 +254,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                         is_must_understand: true,
                         is_shared: false,
                         is_default_label: false,
+                        is_external: false,
                     }
                 }
             }];
@@ -294,6 +297,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                                 is_must_understand: false,
                                 is_shared: false,
                                 is_default_label: false,
+                                is_external: false,
                             }
                         }
                         });
@@ -333,6 +337,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                                 is_must_understand: false,
                                 is_shared: false,
                                 is_default_label: false,
+                                is_external: false,
                             }
                         }
                         });
@@ -384,6 +389,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                                 is_must_understand: false,
                                 is_shared: false,
                                 is_default_label: false,
+                                is_external: false,
                             }
                         }
                         });

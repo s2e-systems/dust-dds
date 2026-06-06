@@ -41,6 +41,7 @@ impl ConvenienceTypeBuilder {
                 is_must_understand: true,
                 is_shared: false,
                 is_default_label: false,
+                is_external: false,
             },
         }
     }
@@ -64,6 +65,7 @@ impl ConvenienceTypeBuilder {
                 is_must_understand: true,
                 is_shared: false,
                 is_default_label: false,
+                is_external: false,
             },
         }
     }
@@ -87,6 +89,7 @@ impl ConvenienceTypeBuilder {
                 is_must_understand: true,
                 is_shared: false,
                 is_default_label: false,
+                is_external: false,
             },
         }
     }
