@@ -25,6 +25,7 @@ use crate::{
                 BuiltinEndpointQos, BuiltinEndpointSet, ParticipantProxy,
                 SpdpDiscoveredParticipantData,
             },
+            type_lookup::TypeLookupRequest,
         },
         dcps_mail::{DcpsMail, EventServiceMail},
         listeners::domain_participant_listener::ListenerMail,
@@ -48,13 +49,16 @@ use crate::{
         qos_policy::{
             BUILT_IN_DATA_REPRESENTATION, DATA_REPRESENTATION_QOS_POLICY_ID,
             DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID,
-            DataRepresentationQosPolicy, DestinationOrderQosPolicyKind, DurabilityQosPolicy,
-            DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
-            LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID, LifespanQosPolicy,
-            OWNERSHIP_QOS_POLICY_ID, OwnershipQosPolicyKind, PRESENTATION_QOS_POLICY_ID,
-            QosPolicyId, RELIABILITY_QOS_POLICY_ID, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
-            ResourceLimitsQosPolicy, TransportPriorityQosPolicy, XCDR_DATA_REPRESENTATION,
-            XCDR2_DATA_REPRESENTATION,
+            DataRepresentationQosPolicy, DeadlineQosPolicy, DestinationOrderQosPolicy,
+            DestinationOrderQosPolicyKind, DurabilityQosPolicy, DurabilityQosPolicyKind,
+            HistoryQosPolicy, HistoryQosPolicyKind, LATENCYBUDGET_QOS_POLICY_ID,
+            LIVELINESS_QOS_POLICY_ID, LatencyBudgetQosPolicy, LifespanQosPolicy,
+            LivelinessQosPolicy, OWNERSHIP_QOS_POLICY_ID, OwnershipQosPolicy,
+            OwnershipQosPolicyKind, OwnershipStrengthQosPolicy, PRESENTATION_QOS_POLICY_ID,
+            QosPolicyId, RELIABILITY_QOS_POLICY_ID, ReaderDataLifecycleQosPolicy,
+            ReliabilityQosPolicy, ReliabilityQosPolicyKind, ResourceLimitsQosPolicy,
+            TimeBasedFilterQosPolicy, TransportPriorityQosPolicy, UserDataQosPolicy,
+            WriterDataLifecycleQosPolicy, XCDR_DATA_REPRESENTATION, XCDR2_DATA_REPRESENTATION,
         },
         sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
         status::{
@@ -166,6 +170,142 @@ const ENTITYID_TL_SVC_REPLY_WRITER: EntityId =
 const ENTITYID_TL_SVC_REPLY_READER: EntityId =
     EntityId::new([0x00, 0x03, 0x01], BUILT_IN_READER_NO_KEY);
 
+const TYPE_LOOKUP_REQUEST_TOPIC_NAME: &'static str = "TypeLookupRequest";
+const TYPE_LOOKUP_REPLY_TOPIC_NAME: &'static str = "TypeLookupReply";
+
+const SPDP_READER_QOS: DataReaderQos = DataReaderQos {
+    durability: DurabilityQosPolicy {
+        kind: DurabilityQosPolicyKind::TransientLocal,
+    },
+    history: HistoryQosPolicy {
+        kind: HistoryQosPolicyKind::KeepLast(1),
+    },
+    reliability: ReliabilityQosPolicy {
+        kind: ReliabilityQosPolicyKind::BestEffort,
+        max_blocking_time: DurationKind::Finite(Duration::new(0, 0)),
+    },
+    deadline: DeadlineQosPolicy::const_default(),
+    latency_budget: LatencyBudgetQosPolicy::const_default(),
+    liveliness: LivelinessQosPolicy::const_default(),
+    destination_order: DestinationOrderQosPolicy::const_default(),
+    resource_limits: ResourceLimitsQosPolicy::const_default(),
+    user_data: UserDataQosPolicy::const_default(),
+    ownership: OwnershipQosPolicy::const_default(),
+    time_based_filter: TimeBasedFilterQosPolicy::const_default(),
+    reader_data_lifecycle: ReaderDataLifecycleQosPolicy::const_default(),
+    representation: DataRepresentationQosPolicy::const_default(),
+};
+
+const SEDP_DATA_READER_QOS: DataReaderQos = DataReaderQos {
+    durability: DurabilityQosPolicy {
+        kind: DurabilityQosPolicyKind::TransientLocal,
+    },
+    history: HistoryQosPolicy {
+        kind: HistoryQosPolicyKind::KeepLast(1),
+    },
+    reliability: ReliabilityQosPolicy {
+        kind: ReliabilityQosPolicyKind::Reliable,
+        max_blocking_time: DurationKind::Finite(Duration::new(0, 0)),
+    },
+    deadline: DeadlineQosPolicy::const_default(),
+    latency_budget: LatencyBudgetQosPolicy::const_default(),
+    liveliness: LivelinessQosPolicy::const_default(),
+    destination_order: DestinationOrderQosPolicy::const_default(),
+    resource_limits: ResourceLimitsQosPolicy::const_default(),
+    user_data: UserDataQosPolicy::const_default(),
+    ownership: OwnershipQosPolicy::const_default(),
+    time_based_filter: TimeBasedFilterQosPolicy::const_default(),
+    reader_data_lifecycle: ReaderDataLifecycleQosPolicy::const_default(),
+    representation: DataRepresentationQosPolicy::const_default(),
+};
+
+fn spdp_writer_qos() -> DataWriterQos {
+    DataWriterQos {
+        durability: DurabilityQosPolicy {
+            kind: DurabilityQosPolicyKind::TransientLocal,
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepLast(1),
+        },
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::BestEffort,
+            max_blocking_time: DurationKind::Finite(Duration::new(0, 0)),
+        },
+        representation: DataRepresentationQosPolicy {
+            value: vec![BUILT_IN_DATA_REPRESENTATION],
+        },
+        ..Default::default()
+    }
+}
+
+fn sedp_data_writer_qos() -> DataWriterQos {
+    DataWriterQos {
+        durability: DurabilityQosPolicy {
+            kind: DurabilityQosPolicyKind::TransientLocal,
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepLast(1),
+        },
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(0, 0)),
+        },
+        representation: DataRepresentationQosPolicy {
+            value: vec![BUILT_IN_DATA_REPRESENTATION],
+        },
+        ..Default::default()
+    }
+}
+
+// DDS RPC default QoS as specified in DDS-RPC standard 7.10.2 Default QoS
+const TYPE_LOOKUP_READER_QOS: DataReaderQos = DataReaderQos {
+    durability: DurabilityQosPolicy {
+        kind: DurabilityQosPolicyKind::Volatile,
+    },
+    history: HistoryQosPolicy {
+        kind: HistoryQosPolicyKind::KeepAll,
+    },
+    reliability: ReliabilityQosPolicy {
+        kind: ReliabilityQosPolicyKind::Reliable,
+        max_blocking_time: DurationKind::Finite(Duration::new(0, 0)),
+    },
+    deadline: DeadlineQosPolicy::const_default(),
+    latency_budget: LatencyBudgetQosPolicy::const_default(),
+    liveliness: LivelinessQosPolicy::const_default(),
+    destination_order: DestinationOrderQosPolicy::const_default(),
+    resource_limits: ResourceLimitsQosPolicy::const_default(),
+    user_data: UserDataQosPolicy::const_default(),
+    ownership: OwnershipQosPolicy::const_default(),
+    time_based_filter: TimeBasedFilterQosPolicy::const_default(),
+    reader_data_lifecycle: ReaderDataLifecycleQosPolicy::const_default(),
+    representation: DataRepresentationQosPolicy::const_default(),
+};
+
+const TYPE_LOOKUP_WRITER_QOS: DataWriterQos = DataWriterQos {
+    durability: DurabilityQosPolicy {
+        kind: DurabilityQosPolicyKind::Volatile,
+    },
+    history: HistoryQosPolicy {
+        kind: HistoryQosPolicyKind::KeepAll,
+    },
+    reliability: ReliabilityQosPolicy {
+        kind: ReliabilityQosPolicyKind::Reliable,
+        max_blocking_time: DurationKind::Finite(Duration::new(0, 0)),
+    },
+    deadline: DeadlineQosPolicy::const_default(),
+    latency_budget: LatencyBudgetQosPolicy::const_default(),
+    liveliness: LivelinessQosPolicy::const_default(),
+    destination_order: DestinationOrderQosPolicy::const_default(),
+    resource_limits: ResourceLimitsQosPolicy::const_default(),
+    user_data: UserDataQosPolicy::const_default(),
+    ownership: OwnershipQosPolicy::const_default(),
+    ownership_strength: OwnershipStrengthQosPolicy::const_default(),
+    lifespan: LifespanQosPolicy::const_default(),
+    transport_priority: TransportPriorityQosPolicy::const_default(),
+    writer_data_lifecycle: WriterDataLifecycleQosPolicy::const_default(),
+    representation: DataRepresentationQosPolicy::const_default(),
+};
+
 fn poll_timeout<T>(
     mut timer_handle: impl Timer,
     duration: core::time::Duration,
@@ -217,41 +357,7 @@ impl DcpsDomainParticipant {
 
         let participant_handle = InstanceHandle::new(guid.into());
 
-        fn sedp_data_reader_qos() -> DataReaderQos {
-            DataReaderQos {
-                durability: DurabilityQosPolicy {
-                    kind: DurabilityQosPolicyKind::TransientLocal,
-                },
-                history: HistoryQosPolicy {
-                    kind: HistoryQosPolicyKind::KeepLast(1),
-                },
-                reliability: ReliabilityQosPolicy {
-                    kind: ReliabilityQosPolicyKind::Reliable,
-                    max_blocking_time: DurationKind::Finite(Duration::new(0, 0)),
-                },
-                ..Default::default()
-            }
-        }
-
-        fn sedp_data_writer_qos() -> DataWriterQos {
-            DataWriterQos {
-                durability: DurabilityQosPolicy {
-                    kind: DurabilityQosPolicyKind::TransientLocal,
-                },
-                history: HistoryQosPolicy {
-                    kind: HistoryQosPolicyKind::KeepLast(1),
-                },
-                reliability: ReliabilityQosPolicy {
-                    kind: ReliabilityQosPolicyKind::Reliable,
-                    max_blocking_time: DurationKind::Finite(Duration::new(0, 0)),
-                },
-                representation: DataRepresentationQosPolicy {
-                    value: vec![BUILT_IN_DATA_REPRESENTATION],
-                },
-                ..Default::default()
-            }
-        }
-        const NUMBER_BUILTIN_ENTITIES: usize = 4;
+        const NUMBER_BUILTIN_ENTITIES: usize = 6;
         let mut topic_list = Vec::with_capacity(NUMBER_BUILTIN_ENTITIES);
         let mut builtin_data_reader_list = Vec::with_capacity(NUMBER_BUILTIN_ENTITIES);
         let mut builtin_data_writer_list = Vec::with_capacity(NUMBER_BUILTIN_ENTITIES);
@@ -300,35 +406,27 @@ impl DcpsDomainParticipant {
             DiscoveredReaderData::TYPE,
         )));
 
-        let spdp_writer_qos = DataWriterQos {
-            durability: DurabilityQosPolicy {
-                kind: DurabilityQosPolicyKind::TransientLocal,
-            },
-            history: HistoryQosPolicy {
-                kind: HistoryQosPolicyKind::KeepLast(1),
-            },
-            reliability: ReliabilityQosPolicy {
-                kind: ReliabilityQosPolicyKind::BestEffort,
-                max_blocking_time: DurationKind::Finite(Duration::new(0, 0)),
-            },
-            representation: DataRepresentationQosPolicy {
-                value: vec![BUILT_IN_DATA_REPRESENTATION],
-            },
-            ..Default::default()
-        };
-        let spdp_reader_qos = DataReaderQos {
-            durability: DurabilityQosPolicy {
-                kind: DurabilityQosPolicyKind::TransientLocal,
-            },
-            history: HistoryQosPolicy {
-                kind: HistoryQosPolicyKind::KeepLast(1),
-            },
-            reliability: ReliabilityQosPolicy {
-                kind: ReliabilityQosPolicyKind::BestEffort,
-                max_blocking_time: DurationKind::Finite(Duration::new(0, 0)),
-            },
-            ..Default::default()
-        };
+        topic_list.push(TopicDescriptionKind::Topic(TopicEntity::new(
+            TopicQos::default(),
+            "TypeLookup_Request".to_string(),
+            String::from(TYPE_LOOKUP_REQUEST_TOPIC_NAME),
+            InstanceHandle::new(Guid::new(guid_prefix, ENTITYID_TL_SVC_REQ_TOPIC).into()),
+            DcpsStatusCondition::default(),
+            None,
+            vec![],
+            DiscoveredReaderData::TYPE,
+        )));
+
+        topic_list.push(TopicDescriptionKind::Topic(TopicEntity::new(
+            TopicQos::default(),
+            "TypeLookup_Reply".to_string(),
+            String::from(TYPE_LOOKUP_REPLY_TOPIC_NAME),
+            InstanceHandle::new(Guid::new(guid_prefix, ENTITYID_TL_SVC_RPL_TOPIC).into()),
+            DcpsStatusCondition::default(),
+            None,
+            vec![],
+            DiscoveredReaderData::TYPE,
+        )));
 
         let rtps_stateless_reader = RtpsStatelessReader::new(Guid::new(
             guid_prefix,
@@ -337,7 +435,7 @@ impl DcpsDomainParticipant {
 
         let dcps_participant_reader = DataReaderEntity::new(
             InstanceHandle::new(rtps_stateless_reader.guid().into()),
-            spdp_reader_qos,
+            SPDP_READER_QOS,
             String::from(DCPS_PARTICIPANT),
             SpdpDiscoveredParticipantData::TYPE,
             None,
@@ -353,7 +451,7 @@ impl DcpsDomainParticipant {
 
         let dcps_topic_reader = DataReaderEntity::new(
             InstanceHandle::new(dcps_topic_transport_reader.guid().into()),
-            sedp_data_reader_qos(),
+            SEDP_DATA_READER_QOS,
             String::from(DCPS_TOPIC),
             DiscoveredTopicData::TYPE,
             None,
@@ -369,7 +467,7 @@ impl DcpsDomainParticipant {
 
         let dcps_publication_reader = DataReaderEntity::new(
             InstanceHandle::new(dcps_publication_transport_reader.guid().into()),
-            sedp_data_reader_qos(),
+            SEDP_DATA_READER_QOS,
             String::from(DCPS_PUBLICATION),
             DiscoveredWriterData::TYPE,
             None,
@@ -385,7 +483,7 @@ impl DcpsDomainParticipant {
 
         let dcps_subscription_reader = DataReaderEntity::new(
             InstanceHandle::new(dcps_subscription_transport_reader.guid().into()),
-            sedp_data_reader_qos(),
+            SEDP_DATA_READER_QOS,
             String::from(DCPS_SUBSCRIPTION),
             DiscoveredReaderData::TYPE,
             None,
@@ -393,6 +491,36 @@ impl DcpsDomainParticipant {
             RtpsReaderKind::Stateful(dcps_subscription_transport_reader),
         );
         builtin_data_reader_list.push(dcps_subscription_reader);
+
+        let type_lookup_request_transport_reader = RtpsStatefulReader::new(
+            Guid::new(guid_prefix, ENTITYID_TL_SVC_REQ_READER),
+            ReliabilityKind::Reliable,
+        );
+        let type_lookup_request_reader = DataReaderEntity::new(
+            InstanceHandle::new(type_lookup_request_transport_reader.guid().into()),
+            TYPE_LOOKUP_READER_QOS,
+            String::from(TYPE_LOOKUP_REQUEST_TOPIC_NAME),
+            TypeLookupRequest::TYPE,
+            None,
+            Vec::new(),
+            RtpsReaderKind::Stateful(type_lookup_request_transport_reader),
+        );
+        builtin_data_reader_list.push(type_lookup_request_reader);
+
+        let type_lookup_reply_transport_reader = RtpsStatefulReader::new(
+            Guid::new(guid_prefix, ENTITYID_TL_SVC_REPLY_READER),
+            ReliabilityKind::Reliable,
+        );
+        let type_lookup_reply_reader = DataReaderEntity::new(
+            InstanceHandle::new(type_lookup_reply_transport_reader.guid().into()),
+            TYPE_LOOKUP_READER_QOS,
+            String::from(TYPE_LOOKUP_REPLY_TOPIC_NAME),
+            TypeLookupRequest::TYPE,
+            None,
+            Vec::new(),
+            RtpsReaderKind::Stateful(type_lookup_reply_transport_reader),
+        );
+        builtin_data_reader_list.push(type_lookup_reply_reader);
 
         let builtin_subscriber = SubscriberEntity::new(
             InstanceHandle::new(Guid::new(guid_prefix, ENTITYID_BUILTIN_SUBSCRIBER).into()),
@@ -417,7 +545,7 @@ impl DcpsDomainParticipant {
             SpdpDiscoveredParticipantData::TYPE,
             None,
             vec![],
-            spdp_writer_qos,
+            spdp_writer_qos(),
         );
         builtin_data_writer_list.push(dcps_participant_writer);
 
