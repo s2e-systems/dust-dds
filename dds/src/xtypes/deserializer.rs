@@ -966,7 +966,37 @@ impl<'a> XTypesDeserialize for RtpsPlCdrDeserializer<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::infrastructure::type_support::TypeSupport;
+    use crate::{
+        dcps::xtypes_glue::key_and_instance_handle::get_instance_handle_from_dynamic_data,
+        infrastructure::type_support::TypeSupport,
+    };
+
+    #[test]
+    fn cyclone_dispose_message() {
+        #[derive(Debug, PartialEq, TypeSupport)]
+        pub struct DisposeDataType {
+            #[dust_dds(key)]
+            pub name: String,
+            pub value: u8,
+        }
+        let dispose_serialized_key_from_data_message = deserialize_key_only(
+            DisposeDataType::TYPE,
+            &[
+                0x0, 0x1, 0x0, 0x1, 0xf, 0x0, 0x0, 0x0, 0x56, 0x65, 0x72, 0x79, 0x20, 0x4c, 0x6f,
+                0x6e, 0x67, 0x20, 0x4e, 0x61, 0x6d, 0x65, 0x0, 0x0,
+            ],
+        )
+        .unwrap();
+        let instance_handle =
+            get_instance_handle_from_dynamic_data(dispose_serialized_key_from_data_message.clone())
+                .unwrap();
+        assert_eq!(
+            instance_handle,
+            [
+                170, 156, 253, 79, 26, 61, 29, 0, 160, 59, 3, 163, 8, 9, 203, 167,
+            ]
+        )
+    }
 
     #[test]
     fn deserialize_final_struct() {
