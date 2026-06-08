@@ -330,7 +330,11 @@ trait XTypesSerializer<'a> {
             }
             TypeKind::STRING16 => todo!(),
             TypeKind::ALIAS => todo!(),
-            TypeKind::ENUM => todo!(),
+            TypeKind::ENUM => {
+                for v in v.get_complex_values(member_id)? {
+                    self.serialize_t_as_nested(v)?;
+                }
+            }
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
             TypeKind::STRUCTURE => {
@@ -389,7 +393,7 @@ trait XTypesSerializer<'a> {
             TypeKind::FLOAT128 => self.serialize_p_sequence_type(v.get_float128_values(member_id)?),
             TypeKind::INT8 => self.serialize_p_sequence_type(v.get_int8_values(member_id)?),
             TypeKind::UINT8 => self.serialize_p_sequence_type(v.get_uint8_values(member_id)?),
-            TypeKind::CHAR8 => todo!(),
+            TypeKind::CHAR8 => self.serialize_p_sequence_type(v.get_char8_values(member_id)?),
             TypeKind::CHAR16 => todo!(),
             TypeKind::STRING8 => {
                 let list = v.get_string_values(member_id)?;
@@ -400,7 +404,13 @@ trait XTypesSerializer<'a> {
             }
             TypeKind::STRING16 => todo!(),
             TypeKind::ALIAS => todo!(),
-            TypeKind::ENUM => todo!(),
+            TypeKind::ENUM => {
+                let list = v.get_complex_values(member_id)?;
+                self.serialize_primitive_type(&(list.len() as u32));
+                for v in list {
+                    self.serialize_t_as_nested(v)?;
+                }
+            }
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
             TypeKind::STRUCTURE => {

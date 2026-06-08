@@ -497,13 +497,20 @@ trait XTypesDeserialize {
                 self.deserialize_primitive_type_array(bound)?,
             ),
             TypeKind::CHAR16 => todo!(),
-            TypeKind::STRING8 => todo!(),
+            TypeKind::STRING8 => dynamic_data
+                .set_string_values(member.get_id(), self.deserialize_string_array(bound)?),
             TypeKind::STRING16 => todo!(),
             TypeKind::ALIAS => todo!(),
-            TypeKind::ENUM => todo!(),
+            TypeKind::ENUM => dynamic_data.set_complex_values(
+                member.get_id(),
+                self.deserialize_complex_array(member, bound)?,
+            ),
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
-            TypeKind::STRUCTURE => todo!(),
+            TypeKind::STRUCTURE => dynamic_data.set_complex_values(
+                member.get_id(),
+                self.deserialize_complex_array(member, bound)?,
+            ),
             TypeKind::UNION => todo!(),
             TypeKind::BITSET => todo!(),
             TypeKind::SEQUENCE => todo!(),
@@ -530,18 +537,23 @@ trait XTypesDeserialize {
         Ok(values)
     }
 
-    fn deserialize_string_sequence(&mut self) -> XTypesResult<Vec<String>> {
+    fn deserialize_string_array(&mut self, length: u32) -> XTypesResult<Vec<String>> {
         let mut sequence_of_string = Vec::new();
-        let length = self.deserialize_primitive_type::<u32>()?;
         for _ in 0..length {
             sequence_of_string.push(self.deserialize_string()?);
         }
         Ok(sequence_of_string)
     }
 
-    fn deserialize_complex_sequence(
+    fn deserialize_string_sequence(&mut self) -> XTypesResult<Vec<String>> {
+        let length = self.deserialize_primitive_type::<u32>()?;
+        self.deserialize_string_array(length)
+    }
+
+    fn deserialize_complex_array(
         &mut self,
         member: &DynamicTypeMember,
+        length: u32,
     ) -> XTypesResult<Vec<DynamicData>> {
         let mut sequence_of_dynamic_data = Vec::new();
         let element_type = member
@@ -550,11 +562,18 @@ trait XTypesDeserialize {
             .get_descriptor()
             .element_type
             .expect("must have element type");
-        let length = self.deserialize_primitive_type::<u32>()?;
         for _ in 0..length {
             sequence_of_dynamic_data.push(self.deserialize_complex_value(element_type)?);
         }
         Ok(sequence_of_dynamic_data)
+    }
+
+    fn deserialize_complex_sequence(
+        &mut self,
+        member: &DynamicTypeMember,
+    ) -> XTypesResult<Vec<DynamicData>> {
+        let length = self.deserialize_primitive_type::<u32>()?;
+        self.deserialize_complex_array(member, length)
     }
 
     fn deserialize_sequence(
@@ -605,7 +624,8 @@ trait XTypesDeserialize {
             }
             TypeKind::STRING16 => todo!(),
             TypeKind::ALIAS => todo!(),
-            TypeKind::ENUM => todo!(),
+            TypeKind::ENUM => dynamic_data
+                .set_complex_values(member.get_id(), self.deserialize_complex_sequence(member)?),
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
             TypeKind::STRUCTURE => dynamic_data
