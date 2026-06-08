@@ -209,7 +209,7 @@ pub struct PublicationBuiltinTopicData {
     pub(crate) latency_budget: LatencyBudgetQosPolicy,
     #[dust_dds(id=PID_LIVELINESS as u32)]
     pub(crate) liveliness: LivelinessQosPolicy,
-    #[dust_dds(id=PID_RELIABILITY as u32, optional, default_value=DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER)]
+    #[dust_dds(id=PID_RELIABILITY as u32, default_value=DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER)]
     pub(crate) reliability: ReliabilityQosPolicy,
     #[dust_dds(id=PID_LIFESPAN as u32)]
     pub(crate) lifespan: LifespanQosPolicy,
@@ -350,7 +350,7 @@ pub struct SubscriptionBuiltinTopicData {
     pub(crate) latency_budget: LatencyBudgetQosPolicy,
     #[dust_dds(id=PID_LIVELINESS as u32)]
     pub(crate) liveliness: LivelinessQosPolicy,
-    #[dust_dds(id=PID_RELIABILITY as u32, optional, default_value=DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS)]
+    #[dust_dds(id=PID_RELIABILITY as u32, default_value=DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS)]
     pub(crate) reliability: ReliabilityQosPolicy,
     #[dust_dds(id=PID_OWNERSHIP as u32)]
     pub(crate) ownership: OwnershipQosPolicy,

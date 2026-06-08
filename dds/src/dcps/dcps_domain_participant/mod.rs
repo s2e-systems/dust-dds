@@ -1154,7 +1154,7 @@ impl DcpsDomainParticipant {
                     value: topic.instance_handle.into(),
                 },
                 name: topic.topic_name.clone(),
-                type_information: None, //TODO: TypeInformation::try_from(&topic.type_support).ok(),
+                type_information: TypeInformation::try_from(&topic.type_support).ok(),
                 type_name: topic.type_name.clone(),
                 durability: topic.qos.durability.clone(),
                 deadline: topic.qos.deadline.clone(),
@@ -4375,11 +4375,13 @@ fn fnmatch_to_regex(pattern: &str) -> String {
     out
 }
 
-const BUILT_IN_TOPIC_NAME_LIST: [&str; 4] = [
+const BUILT_IN_TOPIC_NAME_LIST: [&str; 6] = [
     DCPS_PARTICIPANT,
     DCPS_TOPIC,
     DCPS_PUBLICATION,
     DCPS_SUBSCRIPTION,
+    TYPE_LOOKUP_REQUEST_TOPIC_NAME,
+    TYPE_LOOKUP_REPLY_TOPIC_NAME,
 ];
 
 struct DomainParticipantEntity {
