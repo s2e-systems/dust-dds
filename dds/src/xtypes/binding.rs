@@ -2,7 +2,7 @@ use crate::{
     infrastructure::type_support::TypeSupport,
     xtypes::dynamic_type::{DynamicType, ExtensibilityKind, TypeDescriptor, TypeKind},
 };
-use alloc::{string::String, vec::Vec, boxed::Box};
+use alloc::{boxed::Box, string::String, vec::Vec};
 
 pub trait XTypesBinding {
     const TYPE_INFORMATION: DynamicType;
