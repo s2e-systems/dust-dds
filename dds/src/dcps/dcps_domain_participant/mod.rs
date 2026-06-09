@@ -170,8 +170,8 @@ const ENTITYID_TL_SVC_REPLY_WRITER: EntityId =
 const ENTITYID_TL_SVC_REPLY_READER: EntityId =
     EntityId::new([0x00, 0x03, 0x01], BUILT_IN_READER_NO_KEY);
 
-const TYPE_LOOKUP_REQUEST_TOPIC_NAME: &'static str = "TypeLookupRequest";
-const TYPE_LOOKUP_REPLY_TOPIC_NAME: &'static str = "TypeLookupReply";
+const TYPE_LOOKUP_REQUEST_TOPIC_NAME: &str = "TypeLookupRequest";
+const TYPE_LOOKUP_REPLY_TOPIC_NAME: &str = "TypeLookupReply";
 
 const SPDP_READER_QOS: DataReaderQos = DataReaderQos {
     durability: DurabilityQosPolicy {
@@ -1154,7 +1154,7 @@ impl DcpsDomainParticipant {
                     value: topic.instance_handle.into(),
                 },
                 name: topic.topic_name.clone(),
-                type_information: TypeInformation::try_from(&topic.type_support).ok(),
+                type_information: None,
                 type_name: topic.type_name.clone(),
                 durability: topic.qos.durability.clone(),
                 deadline: topic.qos.deadline.clone(),
