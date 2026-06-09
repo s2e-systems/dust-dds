@@ -423,6 +423,7 @@ fn dynamic_data_should_read_and_write() {
             is_must_understand: true,
             is_shared: false,
             is_default_label: false,
+            is_external: false,
         })
         .unwrap();
     type_buider
@@ -439,6 +440,7 @@ fn dynamic_data_should_read_and_write() {
             is_must_understand: true,
             is_shared: false,
             is_default_label: false,
+            is_external: false,
         })
         .unwrap();
     let dynamic_type = type_buider.build();

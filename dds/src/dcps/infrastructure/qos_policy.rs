@@ -1135,6 +1135,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for HistoryQosPolicy {
                     is_must_understand: true,
                     is_shared: false,
                     is_default_label: false,
+                    is_external: false,
                 },
             },
             DynamicTypeMember {
@@ -1152,6 +1153,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for HistoryQosPolicy {
                     is_must_understand: true,
                     is_shared: false,
                     is_default_label: false,
+                    is_external: false,
                 },
             },
         ],

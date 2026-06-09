@@ -15,7 +15,7 @@ categories.workspace = true
 [dependencies]
 dust_dds_derive = { version = "0.16", path = "../dds_derive" }
 
-md5 = { version = "0.7.0", default-features = false } # Chose this crate over other possibilities since it doesn't have any other dependencies
+md5.workspace = true
 
 socket2 = { version = "0.5", features = ["all"], optional = true }
 network-interface = { version = "2.0.3", optional = true }

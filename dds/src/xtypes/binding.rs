@@ -2,7 +2,7 @@ use crate::{
     infrastructure::type_support::TypeSupport,
     xtypes::dynamic_type::{DynamicType, ExtensibilityKind, TypeDescriptor, TypeKind},
 };
-use alloc::{string::String, vec::Vec};
+use alloc::{boxed::Box, string::String, vec::Vec};
 
 pub trait XTypesBinding {
     const TYPE_INFORMATION: DynamicType;
@@ -302,4 +302,16 @@ impl<T: XTypesBinding, const N: usize> XTypesBinding for [T; N] {
 
 impl<T: XTypesBinding> XTypesBinding for Option<T> {
     const TYPE_INFORMATION: DynamicType = T::TYPE_INFORMATION;
+}
+
+impl<T: TypeSupport> TypeSupport for Box<T> {
+    const r#TYPE: DynamicType = <u64 as XTypesBinding>::TYPE_INFORMATION;
+
+    fn create_sample(src: &mut super::dynamic_type::DynamicData) -> Self {
+        Box::new(T::create_sample(src))
+    }
+
+    fn create_dynamic_sample(self, data: &mut super::dynamic_type::DynamicData) {
+        T::create_dynamic_sample(*self, data);
+    }
 }

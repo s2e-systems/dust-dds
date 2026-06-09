@@ -1,0 +1,122 @@
+use dust_dds_derive::DdsType;
+
+use crate::{
+    transport::types::{Guid, SequenceNumber},
+    xtypes::type_object::{
+        TypeIdentifier, TypeIdentifierPair, TypeIdentifierTypeObjectPair, TypeIdentifierWithSize,
+    },
+};
+use alloc::{string::String, vec::Vec};
+
+// // computed from @hashid("getTypes")
+pub const TYPE_LOOKUP_GET_TYPES_HASH_ID: i32 = 0x018252d3;
+// computed from @hashid("getDependencies");
+pub const TYPE_LOOKUP_GET_DEPENDENCIES_HASH_ID: i32 = 0x05aafb31;
+
+// Query the TypeObjects associated with one or more TypeIdentifiers
+#[derive(DdsType)]
+#[dust_dds(extensibility = "mutable")]
+pub struct TypeLookupGetTypesIn {
+    #[dust_dds(hashid)]
+    pub type_ids: Vec<TypeIdentifier>,
+}
+
+#[derive(DdsType)]
+#[dust_dds(extensibility = "mutable")]
+pub struct TypeLookupGetTypesOut {
+    #[dust_dds(hashid)]
+    pub types: Vec<TypeIdentifierTypeObjectPair>,
+    #[dust_dds(hashid)]
+    pub complete_to_minimal: Vec<TypeIdentifierPair>,
+}
+
+#[derive(DdsType)]
+#[dust_dds(switch(i32))]
+pub enum TypeLookupGetTypesResult {
+    #[dust_dds(case = 0)]
+    Ok { result: TypeLookupGetTypesOut },
+}
+
+// Query TypeIdentifiers that the specified types depend on
+#[derive(DdsType)]
+#[dust_dds(extensibility = "mutable")]
+pub struct TypeLookupGetTypeDependenciesIn {
+    #[dust_dds(hashid)]
+    pub type_ids: Vec<TypeIdentifier>, // @hashid
+    #[dust_dds(hashid)]
+    pub continuation_point: Vec<u8>, // @hashid sequence<octet, 32> ;
+}
+
+#[derive(DdsType)]
+#[dust_dds(extensibility = "mutable")]
+pub struct TypeLookupGetTypeDependenciesOut {
+    #[dust_dds(hashid)]
+    pub dependent_typeids: Vec<TypeIdentifierWithSize>,
+    #[dust_dds(hashid)]
+    pub continuation_point: Vec<u8>,
+}
+
+#[derive(DdsType)]
+#[dust_dds(switch(i32))]
+pub enum TypeLookupGetTypeDependenciesResult {
+    #[dust_dds(case = 0)]
+    Ok {
+        result: TypeLookupGetTypeDependenciesOut,
+    },
+}
+
+// Service Request
+#[derive(DdsType)]
+#[dust_dds(switch(i32))]
+pub enum TypeLookupCall {
+    #[dust_dds(case=TYPE_LOOKUP_GET_TYPES_HASH_ID)]
+    TypeLookupGetTypesHashId { get_types: TypeLookupGetTypesIn },
+    #[dust_dds(case=TYPE_LOOKUP_GET_DEPENDENCIES_HASH_ID)]
+    TypeLookupGetDependenciesHash {
+        get_type_dependencies: TypeLookupGetTypeDependenciesIn,
+    },
+}
+
+#[derive(DdsType)]
+pub struct TypeLookupRequest {
+    pub header: RequestHeader,
+    pub call: TypeLookupCall,
+}
+
+// Service Reply
+#[derive(DdsType)]
+#[dust_dds(switch(i32))]
+pub enum TypeLookupReturn {
+    #[dust_dds(case=TYPE_LOOKUP_GET_TYPES_HASH_ID)]
+    TypeLookupGetTypesHash { get_type: TypeLookupGetTypesResult },
+    #[dust_dds(case=TYPE_LOOKUP_GET_DEPENDENCIES_HASH_ID)]
+    TypeLookupGetDependenciesHash {
+        get_type_dependencies: TypeLookupGetTypeDependenciesResult,
+    },
+}
+
+#[derive(DdsType)]
+pub struct TypeLookupReply {
+    pub header: RequestHeader,
+    pub r#return: TypeLookupReturn,
+}
+
+// DDS RPC Types
+#[derive(DdsType)]
+pub struct RequestHeader {
+    request_id: SampleIdentity,
+    instance_name: InstanceName,
+}
+
+#[derive(DdsType)]
+pub struct ReplyHeader {
+    related_request_id: SampleIdentity,
+}
+
+#[derive(DdsType)]
+pub struct SampleIdentity {
+    writer_guid: Guid,
+    sequence_number: SequenceNumber,
+}
+
+pub type InstanceName = String; //typedef string<255> InstanceName;
