@@ -83,13 +83,14 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     }?
                 };
 
-                if let syn::Expr::Lit(syn::ExprLit {
-                    lit: syn::Lit::Int(lit_int),
-                    ..
-                }) = &member_id
-                    && !struct_member_attributes.hashid
-                {
-                    next_auto_id = lit_int.base10_parse::<u32>()? + 1;
+                if !struct_member_attributes.hashid {
+                    if let syn::Expr::Lit(syn::ExprLit {
+                        lit: syn::Lit::Int(lit_int),
+                        ..
+                    }) = &member_id
+                    {
+                        next_auto_id = lit_int.base10_parse::<u32>()? + 1;
+                    }
                 }
 
                 let member_type = &member.ty;

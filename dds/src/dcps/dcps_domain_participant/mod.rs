@@ -104,7 +104,6 @@ use crate::{
             serialize_cdr1_be, serialize_cdr1_le, serialize_cdr2_be, serialize_cdr2_le,
             serialize_rtps,
         },
-        type_object::TypeInformation,
     },
 };
 use alloc::{
