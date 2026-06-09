@@ -900,11 +900,14 @@ impl<'a> RustGenerator<'a> {
 
     #[inline]
     fn const_type(&mut self, pair: IdlPair) {
-        self.generate(
-            pair.into_inner()
-                .next()
-                .expect("Must have an element according to grammar"),
-        )
+        let inner_type = pair
+            .into_inner()
+            .next()
+            .expect("Must have an element according to grammar");
+        match inner_type.clone().as_rule() {
+            Rule::string_type => self.writer.push_str("&str"),
+            _ => self.generate(inner_type),
+        }
     }
 
     #[inline]
