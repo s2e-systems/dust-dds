@@ -1052,7 +1052,7 @@ mod tests {
         let mut rust_generator = RustGenerator::new(&mut writer);
         rust_generator.generate(p);
 
-        assert_eq!(&writer, "pub const a:String='a';\n");
+        assert_eq!(&writer, "pub const a:&str='a';\n");
     }
 
     #[test]
