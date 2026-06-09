@@ -6,6 +6,7 @@ use crate::{
         TypeIdentifier, TypeIdentifierPair, TypeIdentifierTypeObjectPair, TypeIdentifierWithSize,
     },
 };
+use alloc::{string::String, vec::Vec};
 
 // // computed from @hashid("getTypes")
 pub const TYPE_LOOKUP_GET_TYPES_HASH_ID: i32 = 0x018252d3;

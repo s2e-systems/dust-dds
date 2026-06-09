@@ -1292,7 +1292,7 @@ impl From<&DynamicType> for CompleteTypeObject {
                 let header = CompleteStructHeader {
                     base_type: TypeIdentifier::TkNone, // TODO: Include base type
                     detail: CompleteTypeDetail {
-                        type_name: value.get_name().to_string(),
+                        type_name: String::from(value.get_name()),
                         // TODO: Implement annotations
                         ann_builtin: None,
                         ann_custom: None,
@@ -1390,7 +1390,7 @@ impl From<&DynamicTypeMember> for CompleteStructMember {
     fn from(value: &DynamicTypeMember) -> Self {
         let common = value.into();
         let detail = CompleteMemberDetail {
-            name: value.get_name().to_string(),
+            name: String::from(value.get_name()),
             // TODO: Applied builtin and custom annotations
             ann_builtin: None,
             ann_custom: None,
@@ -1409,7 +1409,6 @@ impl TryFrom<&DynamicType> for TypeInformation {
         let mut data = DynamicDataFactory::create_data(TypeObject::TYPE);
         minimal_type_object.create_dynamic_sample(&mut data);
         let serialized_minimal_type_object = serialize_cdr2_le(&data)?;
-        println!("serialized_minimal_type_object {serialized_minimal_type_object:?}");
         let hash_minimal_type_object = md5::compute(&serialized_minimal_type_object);
 
         let complete_type_object = TypeObject::EkComplete {
