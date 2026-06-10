@@ -364,7 +364,7 @@ impl<'a> RustGenerator<'a> {
     }
 
     fn enum_dcl(&mut self, pair: IdlPair) {
-        let inner_pairs = pair.into_inner();
+        let inner_pairs = pair.clone().into_inner();
         let identifier = inner_pairs
             .clone()
             .find(|p| p.as_rule() == Rule::identifier)
@@ -377,6 +377,38 @@ impl<'a> RustGenerator<'a> {
                 self.hierarchical_type_name(identifier.as_str())
             );
             self.writer.push_str(&name);
+        }
+        for annotation_appl in pair
+            .into_inner()
+            .filter(|x| x.as_rule() == Rule::annotation_appl)
+        {
+            let inner_pairs = annotation_appl.into_inner();
+
+            let scoped_name = inner_pairs
+                .clone()
+                .find(|p| p.as_rule() == Rule::scoped_name)
+                .expect("Must have a scoped name according to the grammar");
+
+            let identifier = scoped_name
+                .into_inner()
+                .next()
+                .expect("Must have an identifier according to the grammar");
+
+            if identifier.as_str() == "bit_bound" {
+                if let Some(annotation_appl_params) = inner_pairs
+                    .clone()
+                    .find(|p| p.as_rule() == Rule::annotation_appl_params)
+                {
+                    if let Some(expr) = annotation_appl_params
+                        .into_inner()
+                        .find(|p| p.as_rule() == Rule::const_expr)
+                    {
+                        self.writer.push_str("#[dust_dds(bit_bound( ");
+                        self.writer.push_str(expr.as_str());
+                        self.writer.push_str("))]");
+                    }
+                }
+            }
         }
         self.writer.push_str("pub enum ");
         self.generate(identifier);
