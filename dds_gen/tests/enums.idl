@@ -1,1 +1,16 @@
 enum Suits { Spades, Hearts, Diamonds, Clubs };
+
+enum HttpStatusCode {
+    @value(100)
+    CONTINUE,
+    @value(200)
+    OK,
+    @value(300)
+    MULTIPLE_CHOICES,
+    @value(400)
+    BAD_REQUEST,
+    @value(404)
+    NOT_FOUND,
+    @value(500),
+    INTERNAL_SERVER_ERROR
+}
