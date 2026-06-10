@@ -180,7 +180,8 @@ scoped_name = { "::"? ~ identifier ~ ("::" ~ identifier)* }
 const_dcl = { "const" ~ const_type ~ identifier ~ "=" ~ const_expr }
 // (6)
 const_type = {
-    integer_type
+    scoped_name
+    | integer_type
     | floating_pt_type
     | fixed_pt_const_type
     | char_type
@@ -189,7 +190,6 @@ const_type = {
     | octet_type
     | string_type
     | wide_string_type
-    | scoped_name
 }
 // (7)
 const_expr = { unary_expr ~ (or_expr | xor_expr | and_expr | lshift_expr | rshift_expr | add_expr | sub_expr | mul_expr | div_expr | mod_expr)? }
@@ -242,8 +242,8 @@ unary_operator = {
 }
 // (16)
 primary_expr = {
-    literal
-    | scoped_name
+    scoped_name
+    | literal
     | "(" ~ const_expr ~ ")"
 }
 // (17)
@@ -279,8 +279,8 @@ type_spec = {
 }
 // (22)
 simple_type_spec = {
-    base_type_spec
-    | scoped_name
+    scoped_name
+    | base_type_spec
 }
 // (23)
 base_type_spec = {
@@ -419,11 +419,10 @@ union_dcl = {
 union_def = { "union" ~ identifier ~ "switch" ~ "(" ~ switch_type_spec ~ ")" ~ "{" ~ switch_body ~ "}" }
 // (51)
 switch_type_spec = {
-    integer_type
+    scoped_name
+    | integer_type
     | char_type
     | boolean_type
-    | scoped_name
-    // (196)
     | wide_char_type
     | octet_type
 }
@@ -697,9 +696,8 @@ component_export = {
 provides_dcl = { "provides" ~ interface_type ~ identifier }
 // (142)
 interface_type = {
-    // (157)
-    "Object"
-    | scoped_name
+    scoped_name
+    | "Object"
 }
 // (143)
 uses_dcl = { "uses" ~ /*(158)*/"multiple"? ~ interface_type ~ identifier }
@@ -910,7 +908,7 @@ annotation_body = {
 // (222)
 annotation_member = { annotation_member_type ~ simple_declarator ~ ( "default" ~ const_expr )? ~ ";" }
 // (223)
-annotation_member_type = { const_type | any_const_type | scoped_name }
+annotation_member_type = { scoped_name | const_type | any_const_type }
 // (224)
 any_const_type = { "any" }
 // (225)
