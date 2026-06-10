@@ -1,0 +1,138 @@
+module interoperability {
+    module test {
+        enum VariantEnum {
+            VARIANT_ENUM_X,
+            VARIANT_ENUM_Y,
+            VARIANT_ENUM_Z
+        };
+
+        struct VariantStructure {
+            uint8 x;
+            uint16 y;
+            uint32 z;
+        };
+
+        union VariantUnion switch (uint16) {
+            case 10:
+            case 20:
+            case 30:
+                uint8 x;
+            case 100:
+            case 200:
+            case 300:
+                uint16 y;
+            case 1000:
+            case 2000:
+            case 3000:
+                uint32 z;
+        };
+
+        enum UnionDiscriminator {
+            @value(0)
+            UNION_DISCRIMINATOR_NONE,
+            @value(1)
+            UNION_DISCRIMINATOR_BOOLEAN,
+            @value(2)
+            UNION_DISCRIMINATOR_BYTE,
+            @value(4)
+            UNION_DISCRIMINATOR_INT16,
+            @value(8)
+            UNION_DISCRIMINATOR_INT32,
+            @value(16)
+            UNION_DISCRIMINATOR_INT64,
+            @value(32)
+            UNION_DISCRIMINATOR_UINT16,
+            @value(64)
+            UNION_DISCRIMINATOR_UINT32,
+            @value(128)
+            UNION_DISCRIMINATOR_UINT64,
+            @value(256)
+            UNION_DISCRIMINATOR_FLOAT32,
+            @value(512)
+            UNION_DISCRIMINATOR_FLOAT64,
+            // @value(1024)
+            // UNION_DISCRIMINATOR_FLOAT128,
+            @value(2048)
+            UNION_DISCRIMINATOR_INT8,
+            @value(4096)
+            UNION_DISCRIMINATOR_UINT8,
+            @value(8192)
+            UNION_DISCRIMINATOR_CHAR8,
+            // @value(16384)
+            // UNION_DISCRIMINATOR_CHAR16,
+            @value(32768)
+            UNION_DISCRIMINATOR_STRING8,
+            // @value(65536)
+            // UNION_DISCRIMINATOR_STRING16,
+            // @value(131072)
+            // UNION_DISCRIMINATOR_ALIAS,
+            @value(262144)
+            UNION_DISCRIMINATOR_ENUM,
+            // @value(524288)
+            // UNION_DISCRIMINATOR_BITMASK,
+            // @value(1048576)
+            // UNION_DISCRIMINATOR_ANNOTATION,
+            @value(2097152)
+            UNION_DISCRIMINATOR_STRUCTURE,
+            @value(4194304)
+            UNION_DISCRIMINATOR_UNION,
+            // @value(8388608)
+            // UNION_DISCRIMINATOR_BITSET,
+            @value(16777216)
+            UNION_DISCRIMINATOR_SEQUENCE,
+            @value(33554432)
+            UNION_DISCRIMINATOR_ARRAY
+            // @value(67108864)
+            // UNION_DISCRIMINATOR_MAP
+        };
+
+        union UnionType switch (UnionDiscriminator) {
+            // case UNION_DISCRIMINATOR_NONE:
+            //    ;
+            case UNION_DISCRIMINATOR_BOOLEAN:
+                boolean v_boolean;
+            case UNION_DISCRIMINATOR_BYTE:
+                octet v_byte;
+            case UNION_DISCRIMINATOR_INT16:
+                int16 v_int16;
+            case UNION_DISCRIMINATOR_INT32:
+                int32 v_int32;
+            case UNION_DISCRIMINATOR_INT64:
+                int64 v_int64;
+            case UNION_DISCRIMINATOR_UINT16:
+                uint16 v_uint16;
+            case UNION_DISCRIMINATOR_UINT32:
+                uint32 v_uint32;
+            case UNION_DISCRIMINATOR_UINT64:
+                uint64 v_uint64;
+            case UNION_DISCRIMINATOR_FLOAT32:
+                float v_float32;
+            case UNION_DISCRIMINATOR_FLOAT64:
+                double v_float64;
+            case UNION_DISCRIMINATOR_INT8:
+                int8 v_int8;
+            case UNION_DISCRIMINATOR_UINT8:
+                uint8 v_uint8;
+            case UNION_DISCRIMINATOR_CHAR8:
+                char v_char8;
+            case UNION_DISCRIMINATOR_STRING8:
+                string v_string8;
+            case UNION_DISCRIMINATOR_ENUM:
+                VariantEnum v_enum;
+            case UNION_DISCRIMINATOR_STRUCTURE:
+                VariantStructure v_structure;
+            case UNION_DISCRIMINATOR_UNION:
+                VariantUnion v_union;
+            case UNION_DISCRIMINATOR_SEQUENCE:
+                sequence<string> v_sequence;
+            case UNION_DISCRIMINATOR_ARRAY:
+                double v_array[3];
+        };
+
+        struct UnionTypeWrapper {
+            UnionType union_type;
+            UnionType union_array[20];
+            sequence<UnionType, 20> union_sequence;
+        };
+    };
+};
