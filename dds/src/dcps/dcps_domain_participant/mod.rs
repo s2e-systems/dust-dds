@@ -23,7 +23,6 @@ use crate::{
             spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
             type_lookup::{TypeLookupReply, TypeLookupRequest},
         },
-        dcps_mail::{DcpsMail, EventServiceMail},
         listeners::domain_participant_listener::ListenerMail,
         status_condition::DcpsStatusCondition,
         xtypes_glue::key_and_instance_handle::get_instance_handle_from_dynamic_data,
@@ -64,25 +63,17 @@ use crate::{
         type_support::TypeSupport,
     },
     rtps::{
-        message_receiver::MessageReceiver, stateful_reader::RtpsStatefulReader,
-        stateful_writer::RtpsStatefulWriter, stateless_reader::RtpsStatelessReader,
-        stateless_writer::RtpsStatelessWriter,
+        stateful_reader::RtpsStatefulReader, stateful_writer::RtpsStatefulWriter,
+        stateless_reader::RtpsStatelessReader, stateless_writer::RtpsStatelessWriter,
     },
-    rtps_messages::{
-        overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
-        submessages::{
-            data::DataSubmessage, data_frag::DataFragSubmessage, gap::GapSubmessage,
-            heartbeat::HeartbeatSubmessage,
-        },
-    },
-    runtime::{Clock, DdsRuntime, Spawner, Timer},
+    runtime::{Clock, DdsRuntime, Timer},
     transport::{
         interface::{RtpsTransportParticipant, WriteMessage},
         types::{
             BUILT_IN_READER_GROUP, BUILT_IN_READER_NO_KEY, BUILT_IN_READER_WITH_KEY,
             BUILT_IN_TOPIC, BUILT_IN_WRITER_GROUP, BUILT_IN_WRITER_NO_KEY,
-            BUILT_IN_WRITER_WITH_KEY, CacheChange, ChangeKind, ENTITYID_PARTICIPANT,
-            ENTITYID_UNKNOWN, EntityId, Guid, GuidPrefix, ReliabilityKind, TopicKind,
+            BUILT_IN_WRITER_WITH_KEY, CacheChange, ChangeKind, ENTITYID_PARTICIPANT, EntityId,
+            Guid, GuidPrefix, ReliabilityKind, TopicKind,
         },
     },
     xtypes::{
@@ -106,7 +97,6 @@ use core::{
     pin::{Pin, pin},
     task::Poll,
 };
-use tracing::info;
 
 const ENTITYID_SPDP_TOPIC: EntityId = EntityId::new([0, 0, 0], BUILT_IN_TOPIC);
 const ENTITYID_SEDP_TOPICS_TOPIC: EntityId = EntityId::new([0, 0, 1], BUILT_IN_TOPIC);
