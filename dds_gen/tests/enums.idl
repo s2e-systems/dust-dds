@@ -11,6 +11,6 @@ enum HttpStatusCode {
     BAD_REQUEST,
     @value(404)
     NOT_FOUND,
-    @value(500),
+    @value(500)
     INTERNAL_SERVER_ERROR
-}
+};
