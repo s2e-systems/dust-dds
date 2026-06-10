@@ -98,9 +98,7 @@ use crate::{
         },
     },
     xtypes::{
-        deserializer::{
-            deserialize_builtin, deserialize_full, deserialize_key_only, deserialize_top_level_type,
-        },
+        deserializer::{deserialize_builtin, deserialize_key_only, deserialize_top_level_type},
         dynamic_type::{DynamicData, DynamicDataFactory, DynamicType},
         serializer::{
             serialize_cdr1_be, serialize_cdr1_le, serialize_cdr2_be, serialize_cdr2_le,
@@ -371,7 +369,7 @@ impl DcpsDomainParticipant {
             DcpsStatusCondition::default(),
             None,
             vec![],
-            SpdpDiscoveredParticipantData::TYPE,
+            ParticipantBuiltinTopicData::TYPE,
         )));
 
         topic_list.push(TopicDescriptionKind::Topic(TopicEntity::new(
@@ -382,7 +380,7 @@ impl DcpsDomainParticipant {
             DcpsStatusCondition::default(),
             None,
             vec![],
-            DiscoveredTopicData::TYPE,
+            TopicBuiltinTopicData::TYPE,
         )));
 
         topic_list.push(TopicDescriptionKind::Topic(TopicEntity::new(
@@ -393,7 +391,7 @@ impl DcpsDomainParticipant {
             DcpsStatusCondition::default(),
             None,
             vec![],
-            DiscoveredWriterData::TYPE,
+            PublicationBuiltinTopicData::TYPE,
         )));
 
         topic_list.push(TopicDescriptionKind::Topic(TopicEntity::new(
@@ -404,7 +402,7 @@ impl DcpsDomainParticipant {
             DcpsStatusCondition::default(),
             None,
             vec![],
-            DiscoveredReaderData::TYPE,
+            SubscriptionBuiltinTopicData::TYPE,
         )));
 
         topic_list.push(TopicDescriptionKind::Topic(TopicEntity::new(
@@ -415,7 +413,7 @@ impl DcpsDomainParticipant {
             DcpsStatusCondition::default(),
             None,
             vec![],
-            DiscoveredReaderData::TYPE,
+            TypeLookupRequest::TYPE,
         )));
 
         topic_list.push(TopicDescriptionKind::Topic(TopicEntity::new(
@@ -426,7 +424,7 @@ impl DcpsDomainParticipant {
             DcpsStatusCondition::default(),
             None,
             vec![],
-            DiscoveredReaderData::TYPE,
+            TypeLookupReply::TYPE,
         )));
 
         let rtps_stateless_reader = RtpsStatelessReader::new(Guid::new(
@@ -438,7 +436,7 @@ impl DcpsDomainParticipant {
             InstanceHandle::new(rtps_stateless_reader.guid().into()),
             SPDP_READER_QOS,
             String::from(DCPS_PARTICIPANT),
-            SpdpDiscoveredParticipantData::TYPE,
+            ParticipantBuiltinTopicData::TYPE,
             None,
             Vec::new(),
             RtpsReaderKind::Stateless(rtps_stateless_reader),
@@ -454,7 +452,7 @@ impl DcpsDomainParticipant {
             InstanceHandle::new(dcps_topic_transport_reader.guid().into()),
             SEDP_DATA_READER_QOS,
             String::from(DCPS_TOPIC),
-            DiscoveredTopicData::TYPE,
+            TopicBuiltinTopicData::TYPE,
             None,
             Vec::new(),
             RtpsReaderKind::Stateful(dcps_topic_transport_reader),
@@ -470,7 +468,7 @@ impl DcpsDomainParticipant {
             InstanceHandle::new(dcps_publication_transport_reader.guid().into()),
             SEDP_DATA_READER_QOS,
             String::from(DCPS_PUBLICATION),
-            DiscoveredWriterData::TYPE,
+            PublicationBuiltinTopicData::TYPE,
             None,
             Vec::new(),
             RtpsReaderKind::Stateful(dcps_publication_transport_reader),
@@ -486,7 +484,7 @@ impl DcpsDomainParticipant {
             InstanceHandle::new(dcps_subscription_transport_reader.guid().into()),
             SEDP_DATA_READER_QOS,
             String::from(DCPS_SUBSCRIPTION),
-            DiscoveredReaderData::TYPE,
+            SubscriptionBuiltinTopicData::TYPE,
             None,
             Vec::new(),
             RtpsReaderKind::Stateful(dcps_subscription_transport_reader),
@@ -2109,22 +2107,12 @@ impl DcpsDomainParticipant {
         cache_change: &CacheChange,
         runtime: &impl DdsRuntime,
     ) {
-        let spdp_type_support =
-            if let Some(TopicDescriptionKind::Topic(discovered_participant_data_type)) = self
-                .domain_participant
-                .topic_description_list
-                .iter()
-                .find(|n| n.topic_name() == DCPS_PARTICIPANT)
-            {
-                discovered_participant_data_type.type_support
-            } else {
-                return;
-            };
         match cache_change.kind {
             ChangeKind::Alive => {
-                if let Ok(mut dynamic_data) =
-                    deserialize_builtin(spdp_type_support, cache_change.data_value.as_ref())
-                {
+                if let Ok(mut dynamic_data) = deserialize_builtin(
+                    SpdpDiscoveredParticipantData::TYPE,
+                    cache_change.data_value.as_ref(),
+                ) {
                     let discovered_participant_data =
                         SpdpDiscoveredParticipantData::create_sample(&mut dynamic_data);
 
@@ -2169,22 +2157,12 @@ impl DcpsDomainParticipant {
         cache_change: &CacheChange,
         runtime: &impl DdsRuntime,
     ) {
-        let sedp_writer_type_support =
-            if let Some(TopicDescriptionKind::Topic(discovered_participant_data_type)) = self
-                .domain_participant
-                .topic_description_list
-                .iter()
-                .find(|n| n.topic_name() == DCPS_PUBLICATION)
-            {
-                discovered_participant_data_type.type_support
-            } else {
-                return;
-            };
         match cache_change.kind {
             ChangeKind::Alive => {
-                if let Ok(mut dynamic_data) =
-                    deserialize_builtin(sedp_writer_type_support, cache_change.data_value.as_ref())
-                {
+                if let Ok(mut dynamic_data) = deserialize_builtin(
+                    DiscoveredWriterData::TYPE,
+                    cache_change.data_value.as_ref(),
+                ) {
                     let discovered_writer_data =
                         DiscoveredWriterData::create_sample(&mut dynamic_data);
                     let publication_builtin_topic_data =
@@ -2289,22 +2267,12 @@ impl DcpsDomainParticipant {
         cache_change: &CacheChange,
         runtime: &impl DdsRuntime,
     ) {
-        let sedp_reader_type_support =
-            if let Some(TopicDescriptionKind::Topic(discovered_participant_data_type)) = self
-                .domain_participant
-                .topic_description_list
-                .iter()
-                .find(|n| n.topic_name() == DCPS_SUBSCRIPTION)
-            {
-                discovered_participant_data_type.type_support
-            } else {
-                return;
-            };
         match cache_change.kind {
             ChangeKind::Alive => {
-                if let Ok(mut dynamic_data) =
-                    deserialize_builtin(sedp_reader_type_support, cache_change.data_value.as_ref())
-                {
+                if let Ok(mut dynamic_data) = deserialize_builtin(
+                    DiscoveredReaderData::TYPE,
+                    cache_change.data_value.as_ref(),
+                ) {
                     let discovered_reader_data =
                         DiscoveredReaderData::create_sample(&mut dynamic_data);
                     if self
@@ -2437,21 +2405,10 @@ impl DcpsDomainParticipant {
         cache_change: &CacheChange,
         runtime: &impl DdsRuntime,
     ) {
-        let sedp_topic_type_support =
-            if let Some(TopicDescriptionKind::Topic(discovered_participant_data_type)) = self
-                .domain_participant
-                .topic_description_list
-                .iter()
-                .find(|n| n.topic_name() == DCPS_TOPIC)
-            {
-                discovered_participant_data_type.type_support
-            } else {
-                return;
-            };
         match cache_change.kind {
             ChangeKind::Alive => {
                 if let Ok(mut dynamic_data) =
-                    deserialize_builtin(sedp_topic_type_support, cache_change.data_value.as_ref())
+                    deserialize_builtin(DiscoveredTopicData::TYPE, cache_change.data_value.as_ref())
                 {
                     let topic_builtin_topic_data =
                         TopicBuiltinTopicData::create_sample(&mut dynamic_data);
@@ -5331,8 +5288,10 @@ impl DataReaderEntity {
     ) -> DdsResult<ReaderSample> {
         let (data_value, instance_handle) = match cache_change.kind {
             ChangeKind::Alive | ChangeKind::AliveFiltered => {
-                let data_value: DynamicData =
-                    deserialize_full(self.type_support, cache_change.data_value.as_ref())?;
+                let data_value: DynamicData = deserialize_top_level_type(
+                    self.type_support,
+                    cache_change.data_value.as_ref(),
+                )?;
                 let instance_handle = get_instance_handle_from_dynamic_data(data_value.clone())?;
                 (data_value, instance_handle)
             }

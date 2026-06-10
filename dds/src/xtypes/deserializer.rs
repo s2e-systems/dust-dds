@@ -444,8 +444,6 @@ impl EncodingVersion for EncodingVersion1 {
         let orig_pos = deserializer.reader.pos;
         let result = if deserializer.reader.seek_to_pid_v1(pid)? {
             deserializer.deserialize_nopt_member(member, dynamic_data)
-        } else if !member.descriptor.is_optional {
-            Err(XTypesError::PidNotFound(pid))
         } else {
             Ok(())
         };
@@ -745,7 +743,23 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
                         V::deserialize_mstruct_type(deserializer, dynamic_type, dynamic_data)
                     }
                 },
-                TypeKind::ENUM => todo!(),
+                TypeKind::ENUM => {
+                    let discriminator_type = dynamic_type
+                        .descriptor
+                        .discriminator_type
+                        .ok_or(XTypesError::InvalidType)?;
+                    match discriminator_type.get_kind() {
+                        TypeKind::INT8 => {
+                            let value = deserializer.deserialize_primitive_type::<i8>()?;
+                            dynamic_data.set_int8_value(0, value)
+                        }
+                        TypeKind::INT32 => {
+                            let value = deserializer.deserialize_primitive_type::<i32>()?;
+                            dynamic_data.set_int32_value(0, value)
+                        }
+                        d => panic!("Invalid discriminator {d:?}"),
+                    }
+                }
                 TypeKind::UNION => todo!(),
                 kind => {
                     debug!("Expected structure, enum or union. Got kind {kind:?} ");
