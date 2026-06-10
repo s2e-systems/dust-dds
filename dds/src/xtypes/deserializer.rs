@@ -30,40 +30,6 @@ pub trait Read {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DeserializeKind {
-    Full,
-    KeyOnly,
-}
-
-pub fn deserialize_full(dynamic_type: DynamicType, buffer: &[u8]) -> XTypesResult<DynamicData> {
-    if buffer.len() < 4 {
-        return Err(XTypesError::NotEnoughData);
-    }
-    let mut dynamic_data = DynamicDataFactory::create_data(dynamic_type);
-    let representation_identifier = [buffer[0], buffer[1]];
-    match representation_identifier {
-        CDR_BE | PL_CDR_BE => {
-            let mut deserializer = Cdr1Deserializer::new(&buffer[4..], BigEndian);
-            deserializer.deserialize_dynamic_data(&dynamic_type, &mut dynamic_data)?;
-        }
-        CDR_LE | PL_CDR_LE => {
-            let mut deserializer = Cdr1Deserializer::new(&buffer[4..], LittleEndian);
-            deserializer.deserialize_dynamic_data(&dynamic_type, &mut dynamic_data)?;
-        }
-        CDR2_BE | D_CDR2_BE | PL_CDR2_BE => {
-            let mut deserializer = Cdr2Deserializer::new(&buffer[4..], BigEndian);
-            deserializer.deserialize_dynamic_data(&dynamic_type, &mut dynamic_data)?;
-        }
-        CDR2_LE | D_CDR2_LE | PL_CDR2_LE => {
-            let mut deserializer = Cdr2Deserializer::new(&buffer[4..], LittleEndian);
-            deserializer.deserialize_dynamic_data(&dynamic_type, &mut dynamic_data)?;
-        }
-        _ => return Err(XTypesError::InvalidData),
-    }
-    Ok(dynamic_data)
-}
-
 pub fn deserialize_builtin(dynamic_type: DynamicType, buffer: &[u8]) -> XTypesResult<DynamicData> {
     if buffer.len() < 4 {
         return Err(XTypesError::NotEnoughData);
@@ -186,17 +152,6 @@ impl<'a, E: EndiannessRead> Cdr1Deserializer<'a, E> {
     }
 }
 
-struct Cdr2Deserializer<'a, E: EndiannessRead> {
-    reader: CdrReader<'a, E, CdrVersion2>,
-}
-
-impl<'a, E: EndiannessRead> Cdr2Deserializer<'a, E> {
-    fn new(buffer: &'a [u8], endianness: E) -> Self {
-        Self {
-            reader: CdrReader::new(buffer, endianness, CdrVersion2),
-        }
-    }
-}
 
 struct RtpsPlCdrDeserializer<'a> {
     cdr1_deserializer: Cdr1Deserializer<'a, LittleEndian>,
@@ -235,24 +190,6 @@ trait EndiannessRead {
     fn read_f32<R: Read>(reader: &mut R) -> XTypesResult<f32>;
     fn read_f64<R: Read>(reader: &mut R) -> XTypesResult<f64>;
 }
-
-// trait ReadArray {
-//     fn read_array<const N: usize>(&mut self) -> [u8; N];
-// }
-
-// trait ReadFromReader<E: EndiannessRead> {
-//     fn read(reader: impl ReadArray) -> Self;
-// }
-// impl ReadFromReader<BigEndian> for u16 {
-//     fn read(mut reader: impl ReadArray) -> Self {
-//         u16::from_be_bytes(reader.read_array())
-//     }
-// }
-// impl ReadFromReader<LittleEndian> for u16 {
-//     fn read(reader: impl ReadArray -> Self {
-//         u16::from_le_bytes(reader.read_array())
-//     }
-// }
 
 struct BigEndian;
 
@@ -1595,20 +1532,6 @@ struct NextCdrReader<'a, E> {
     _endianness: E,
 }
 
-// trait ReadArray<const N: usize> {
-//     fn read_array_n(&mut self) -> XTypesResult<[u8; N]>;
-// }
-// impl<'a, E> ReadArray<2> for NextCdrReader<'a, E> {
-//     fn read_array_n(&mut self) -> XTypesResult<[u8; 2]> {
-//         todo!()
-//     }
-// }
-// impl<'a, E> ReadArray<4> for NextCdrReader<'a, E> {
-//     fn read_array_n(&mut self) -> XTypesResult<[u8; 4]> {
-//         todo!()
-//     }
-// }
-
 impl<'a, E: EndiannessRead> NextCdrReader<'a, E> {
     fn new(buffer: &'a [u8], endianness: E) -> Self {
         Self {
@@ -1772,41 +1695,6 @@ impl<'a, E: EndiannessRead> XTypesDeserialize for Cdr1Deserializer<'a, E> {
 
     fn deserialize_primitive_type<T: CdrPrimitiveTypeDeserialize>(&mut self) -> XTypesResult<T> {
         T::deserialize(&mut self.reader)
-    }
-}
-
-impl<'a, E: EndiannessRead> XTypesDeserialize for Cdr2Deserializer<'a, E> {
-    fn deserialize_primitive_type<T: CdrPrimitiveTypeDeserialize>(&mut self) -> XTypesResult<T> {
-        T::deserialize(&mut self.reader)
-    }
-
-    fn deserialize_mutable_struct(
-        &mut self,
-        dynamic_type: &DynamicType,
-        dynamic_data: &mut DynamicData,
-    ) -> XTypesResult<()> {
-        for member_index in 0..dynamic_type.get_member_count() {
-            let member = dynamic_type.get_member_by_index(member_index)?;
-            let member_descriptor = member.get_descriptor()?;
-            let pid = member.get_id() as u16;
-
-            self.reader.set_position(0);
-            if self.reader.seek_to_pid(pid)? {
-                self.deserialize_final_member(member, dynamic_data)?;
-            } else if !member_descriptor.is_optional {
-                return Err(XTypesError::PidNotFound(pid));
-            }
-        }
-        Ok(())
-    }
-
-    fn deserialize_appendable_struct(
-        &mut self,
-        dynamic_type: &DynamicType,
-        dynamic_data: &mut DynamicData,
-    ) -> XTypesResult<()> {
-        let _dheader = self.deserialize_primitive_type::<u32>()?;
-        self.deserialize_final_struct(dynamic_type, dynamic_data)
     }
 }
 
