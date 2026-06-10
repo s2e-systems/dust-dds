@@ -28,6 +28,7 @@ impl<'a> RustGenerator<'a> {
             Rule::line_comment => (),
             Rule::COMMENT => (),
             Rule::reserved_keyword => (),
+            Rule::semicolon => (),
             Rule::identifier => self.identifier(pair),
             Rule::character_literal => todo!(),
             Rule::string_literal => todo!(),
@@ -1136,5 +1137,18 @@ mod tests {
             &writer,
             "pub mod root{pub mod a{#[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]\n#[dust_dds(name = \"root::a::A\")]\npub struct A {pub x:u8,pub y:u16,pub z:u32,}\n}pub mod b{#[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]\n#[dust_dds(name = \"root::b::B\")]\npub enum B {X,Y,Z,}\n}}",
         );
+    }
+
+    #[test]
+    fn parse_missing_semicolon_error() {
+        let err = IdlParser::parse(
+            Rule::specification,
+            "struct SomeStruct {}
+            enum SomeEnum {}",
+        )
+        .unwrap_err()
+        .to_string();
+
+        assert!(err.contains("expected semicolon"));
     }
 }

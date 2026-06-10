@@ -105,11 +105,10 @@ reserved_keyword = {
     | ^"uint64"
 }
 
-// Identifier can not be a keyword. The optional is used instead of the negative lookahead (!)
-// because the identifier might start with a keyword as long as it has something after it.
+// Identifier cannot be a keyword. We use negative lookahead to ensure exact keywords are not matched
+// as identifiers, while still allowing identifiers that start with keywords.
 identifier = @{
-    reserved_keyword? ~ (ASCII | "_") ~ ("_" | ASCII_ALPHANUMERIC )*
-    | "_" ~ (ASCII | "_") ~ ("_" | ASCII_ALPHANUMERIC )*
+    !(reserved_keyword ~ !("_" | ASCII_ALPHANUMERIC)) ~ (ASCII_ALPHA | "_") ~ ("_" | ASCII_ALPHANUMERIC)*
 }
 
 character_literal = @{ "'" ~ (!"'" ~ (escape | ANY)) ~ "'" }
@@ -143,33 +142,34 @@ float_suffix = ${ ("f" | "F" | "d" | "D") }
 // (1)
 specification = { SOI ~ definition+ ~ EOI}
 // (2)
+semicolon = { ";" }
 definition = {
-    module_dcl ~ ";"
-    | const_dcl ~ ";"
-    | type_dcl ~ ";"
+    module_dcl ~ semicolon
+    | const_dcl ~ semicolon
+    | type_dcl ~ semicolon
     // (71)
-    | except_dcl ~ ";"
-    | interface_dcl ~ ";"
+    | except_dcl ~ semicolon
+    | interface_dcl ~ semicolon
     // (98)
-    | value_dcl ~ ";"
+    | value_dcl ~ semicolon
     // (111)
-    | type_id_dcl ~ ";"
-    | type_prefix_dcl ~ ";"
-    | import_dcl ~ ";"
+    | type_id_dcl ~ semicolon
+    | type_prefix_dcl ~ semicolon
+    | import_dcl ~ semicolon
     // (133)
-    | component_dcl ~ ";"
+    | component_dcl ~ semicolon
     // (144)
-    | home_dcl ~ ";"
+    | home_dcl ~ semicolon
     // (153)
-    | event_dcl ~ ";"
+    | event_dcl ~ semicolon
     // (171)
-    | porttype_dcl ~ ";"
-    | connector_dcl ~ ";"
+    | porttype_dcl ~ semicolon
+    | connector_dcl ~ semicolon
     // (184)
-    | template_module_dcl ~ ";"
-    | template_module_inst ~ ";"
+    | template_module_dcl ~ semicolon
+    | template_module_inst ~ semicolon
     // (218)
-    | annotation_dcl ~ ";"
+    | annotation_dcl ~ semicolon
 
 }
 // (3)
