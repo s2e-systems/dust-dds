@@ -1,0 +1,11 @@
+module gha {
+    struct ObjectiveType {
+        string name;
+    };
+};
+
+module gha {
+    struct Objective {
+        ObjectiveType objective_type;
+    };
+};
