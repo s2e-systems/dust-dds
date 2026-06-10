@@ -381,7 +381,7 @@ trait EncodingVersion {
         deserializer: &mut XTypesDeserializer<'a, E, V>,
         member: &DynamicTypeMember,
         dynamic_data: &mut DynamicData,
-        length: usize
+        length: usize,
     ) -> XTypesResult<()>;
 
     /// Serialization Rule (27) & (28)
@@ -390,9 +390,11 @@ trait EncodingVersion {
     }
 
     /// Serialization Rule (29) & (30)
-    fn deserialize_appendable_type(&mut self) -> XTypesResult<DynamicData> {
-        todo!()
-    }
+    fn deserialize_appendable_type<'a, E: EndiannessRead, V: EncodingVersion>(
+        deserializer: &mut XTypesDeserializer<'a, E, V>,
+        dynamic_type: DynamicType,
+        dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()>;
 }
 
 struct EncodingVersion1;
@@ -445,7 +447,7 @@ impl EncodingVersion for EncodingVersion1 {
         deserializer: &mut XTypesDeserializer<'a, E, V>,
         member: &DynamicTypeMember,
         dynamic_data: &mut DynamicData,
-        length: usize
+        length: usize,
     ) -> XTypesResult<()> {
         // (24) using short PL encoding when both M.id <= 2^14 and M.value.ssize <= 2^16
         deserializer.align(4);
@@ -462,6 +464,15 @@ impl EncodingVersion for EncodingVersion1 {
         result
 
         // TODO (25) using long PL encoding
+    }
+
+    /// Serialization Rule (29)
+    fn deserialize_appendable_type<'a, E: EndiannessRead, V: EncodingVersion>(
+        deserializer: &mut XTypesDeserializer<'a, E, V>,
+        dynamic_type: DynamicType,
+        dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()> {
+        deserializer.deserialize_fstruct_type(dynamic_type, dynamic_data)
     }
 }
 
@@ -514,7 +525,7 @@ impl EncodingVersion for EncodingVersion2 {
         deserializer: &mut XTypesDeserializer<'a, E, V>,
         member: &DynamicTypeMember,
         dynamic_data: &mut DynamicData,
-        length: usize
+        length: usize,
     ) -> XTypesResult<()> {
         deserializer.align(4);
         // TODO: If LC(C)>=4
@@ -531,6 +542,16 @@ impl EncodingVersion for EncodingVersion2 {
         };
         deserializer.reader.set_position(orig_pos);
         result
+    }
+
+    /// Serialization Rule (30)
+    fn deserialize_appendable_type<'a, E: EndiannessRead, V: EncodingVersion>(
+        deserializer: &mut XTypesDeserializer<'a, E, V>,
+        dynamic_type: DynamicType,
+        dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()> {
+        let _dheader = deserializer.deserialize_primitive_type::<u32>();
+        deserializer.deserialize_fstruct_type(dynamic_type, dynamic_data)
     }
 }
 
@@ -726,7 +747,9 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
                 ExtensibilityKind::Final => {
                     self.deserialize_fstruct_type(dynamic_type, &mut dynamic_data)?;
                 }
-                ExtensibilityKind::Appendable => todo!(),
+                ExtensibilityKind::Appendable => {
+                    V::deserialize_appendable_type(self, dynamic_type, &mut dynamic_data)?
+                }
                 ExtensibilityKind::Mutable => {
                     V::deserialize_mstruct_type(self, dynamic_type, &mut dynamic_data)?;
                 }
@@ -2277,7 +2300,7 @@ mod tests {
         }
         .create_dynamic_sample(&mut expected);
         assert_eq!(
-            deserialize_full(
+            deserialize_top_level_type(
                 AppendableType::TYPE,
                 &[
                     0x00, 0x00, 0x00, 0x00, // CDR_BE
@@ -2289,38 +2312,13 @@ mod tests {
             expected
         );
         assert_eq!(
-            deserialize_full(
-                AppendableType::TYPE,
-                &[
-                    0x00, 0x01, 0x00, 0x00, // CDR_LE
-                    7, 0, 0, 0, // key | padding
-                    8, 0, 0, 0, // participant_key
-                ],
-            )
-            .unwrap(),
-            expected
-        );
-        assert_eq!(
-            deserialize_full(
+            deserialize_top_level_type(
                 AppendableType::TYPE,
                 &[
                     0x00, 0x08, 0x00, 0x00, // D_CDR2_BE
                     0, 0, 0, 8, // DHEADER
                     7, 0, 0, 0, // key | padding
                     0, 0, 0, 8, // participant_key
-                ],
-            )
-            .unwrap(),
-            expected
-        );
-        assert_eq!(
-            deserialize_full(
-                AppendableType::TYPE,
-                &[
-                    0x00, 0x09, 0x00, 0x00, // D_CDR2_LE
-                    0, 0, 0, 8, // DHEADER
-                    7, 0, 0, 0, // key | padding
-                    8, 0, 0, 0, // participant_key
                 ],
             )
             .unwrap(),
@@ -2350,7 +2348,7 @@ mod tests {
         }
         .create_dynamic_sample(&mut expected);
         assert_eq!(
-            deserialize_full(
+            deserialize_top_level_type(
                 AppendableShapesType::TYPE,
                 &[
                     0x00, 0x00, 0x00, 0x00, // CDR_BE
@@ -2367,24 +2365,7 @@ mod tests {
             expected
         );
         assert_eq!(
-            deserialize_full(
-                AppendableShapesType::TYPE,
-                &[
-                    0x00, 0x01, 0x00, 0x00, // CDR_LE
-                    5, 0, 0, 0, // color: length
-                    b'B', b'L', b'U', b'E', // color
-                    0, 0, 0, 0, // color: terminating 0 | padding
-                    10, 0, 0, 0, // x
-                    20, 0, 0, 0, // y
-                    30, 0, 0, 0, // shapesize
-                    0, 0, 0, 0, // additional_payload_size: length
-                ],
-            )
-            .unwrap(),
-            expected
-        );
-        assert_eq!(
-            deserialize_full(
+            deserialize_top_level_type(
                 AppendableShapesType::TYPE,
                 &[
                     0x00, 0x08, 0x00, 0x00, // D_CDR2_BE
@@ -2395,24 +2376,6 @@ mod tests {
                     0, 0, 0, 10, // x
                     0, 0, 0, 20, // y
                     0, 0, 0, 30, // shapesize
-                    0, 0, 0, 0, // additional_payload_size: length
-                ],
-            )
-            .unwrap(),
-            expected
-        );
-        assert_eq!(
-            deserialize_full(
-                AppendableShapesType::TYPE,
-                &[
-                    0x00, 0x09, 0x00, 0x00, // D_CDR2_LE
-                    28, 0, 0, 0, // Dheader
-                    5, 0, 0, 0, // color: length
-                    b'B', b'L', b'U', b'E', // color
-                    0, 0, 0, 0, // color: terminating 0 | padding
-                    10, 0, 0, 0, // x
-                    20, 0, 0, 0, // y
-                    30, 0, 0, 0, // shapesize
                     0, 0, 0, 0, // additional_payload_size: length
                 ],
             )
