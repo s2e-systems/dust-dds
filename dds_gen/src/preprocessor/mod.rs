@@ -126,6 +126,9 @@ impl<'a> Preprocessor<'a> {
             | Rule::angle_bracketed_string
             | Rule::identifier
             | Rule::value
+            | Rule::line_comment
+            | Rule::block_comment
+            | Rule::trailing_comment
             | Rule::WHITESPACE
             | Rule::NEWLINE
             | Rule::EOI => (),
