@@ -93,7 +93,7 @@ use crate::{
         },
     },
     xtypes::{
-        deserializer::{deserialize_builtin, deserialize_full, deserialize_key_only},
+        deserializer::{deserialize_builtin, deserialize_full, deserialize_top_level_type, deserialize_key_only},
         dynamic_type::{DynamicData, DynamicDataFactory, DynamicType},
         serializer::{
             serialize_cdr1_be, serialize_cdr1_le, serialize_cdr2_be, serialize_cdr2_le,
@@ -2318,7 +2318,7 @@ impl DcpsDomainParticipant {
                 let discovered_reader_handle = if let Some(h) = cache_change.instance_handle {
                     InstanceHandle::new(h)
                 } else if let Ok(mut dynamic_data) =
-                    deserialize_full(InstanceHandle::TYPE, cache_change.data_value.as_ref())
+                    deserialize_top_level_type(InstanceHandle::TYPE, cache_change.data_value.as_ref())
                 {
                     InstanceHandle::create_sample(&mut dynamic_data)
                 } else {

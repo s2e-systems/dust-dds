@@ -1,12 +1,9 @@
-use crate::{
-    dcps::data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
-    xtypes::{
-        dynamic_type::{
-            self, DynamicData, DynamicDataFactory, DynamicType, DynamicTypeMember,
-            ExtensibilityKind, TypeKind,
-        },
-        error::{XTypesError, XTypesResult},
+use crate::xtypes::{
+    dynamic_type::{
+        DynamicData, DynamicDataFactory, DynamicType, DynamicTypeMember, ExtensibilityKind,
+        TypeKind,
     },
+    error::{XTypesError, XTypesResult},
 };
 use alloc::{string::String, vec::Vec};
 use tracing::debug;
@@ -239,26 +236,18 @@ trait EndiannessRead {
     fn read_f64<R: Read>(reader: &mut R) -> XTypesResult<f64>;
 }
 
-struct Buffer<'a>(&'a mut [u8]);
+// trait ReadArray {
+//     fn read_array<const N: usize>(&mut self) -> [u8; N];
+// }
 
-impl<'a> Buffer<'a> {
-    fn read_array<const N: usize>(&mut self) -> [u8; N] {
-        self.0[..N].try_into().unwrap()
-    }
-}
-
-trait ReadArray {
-    fn read_array<const N: usize>(&mut self) -> [u8; N];
-}
-
-trait ReadFromReader<E: EndiannessRead> {
-    fn read(reader: impl ReadArray) -> Self;
-}
-impl ReadFromReader<BigEndian> for u16 {
-    fn read(mut reader: impl ReadArray) -> Self {
-        u16::from_be_bytes(reader.read_array())
-    }
-}
+// trait ReadFromReader<E: EndiannessRead> {
+//     fn read(reader: impl ReadArray) -> Self;
+// }
+// impl ReadFromReader<BigEndian> for u16 {
+//     fn read(mut reader: impl ReadArray) -> Self {
+//         u16::from_be_bytes(reader.read_array())
+//     }
+// }
 // impl ReadFromReader<LittleEndian> for u16 {
 //     fn read(reader: impl ReadArray -> Self {
 //         u16::from_le_bytes(reader.read_array())
@@ -363,8 +352,8 @@ trait EncodingVersion {
     ) -> XTypesResult<()>;
 
     /// Serialization Rule (15) & (16)
-    fn deserialize_map_type<'a, E: EndiannessRead, V: EncodingVersion>(
-        deserializer: &mut XTypesDeserializer<'a, E, V>,
+    fn _deserialize_map_type<'a, E: EndiannessRead, V: EncodingVersion>(
+        _deserializer: &mut XTypesDeserializer<'a, E, V>,
     ) -> XTypesResult<()> {
         todo!()
     }
@@ -385,7 +374,7 @@ trait EncodingVersion {
     ) -> XTypesResult<()>;
 
     /// Serialization Rule (27) & (28)
-    fn deserialize_munion_type(&mut self) -> XTypesResult<()> {
+    fn _deserialize_munion_type(&mut self) -> XTypesResult<()> {
         todo!()
     }
 
@@ -447,7 +436,7 @@ impl EncodingVersion for EncodingVersion1 {
         deserializer: &mut XTypesDeserializer<'a, E, V>,
         member: &DynamicTypeMember,
         dynamic_data: &mut DynamicData,
-        length: usize,
+        _length: usize,
     ) -> XTypesResult<()> {
         // (24) using short PL encoding when both M.id <= 2^14 and M.value.ssize <= 2^16
         deserializer.align(4);
@@ -556,7 +545,7 @@ impl EncodingVersion for EncodingVersion2 {
 }
 
 /// Serialization Rule (1)
-fn deserialize_top_level_type(
+pub fn deserialize_top_level_type(
     dynamic_type: DynamicType,
     buffer: &[u8],
 ) -> XTypesResult<DynamicData> {
@@ -578,7 +567,7 @@ fn deserialize_top_level_type(
             XTypesDeserializer::new(data, EncodingVersion2, LittleEndian)
                 .deserialize_as_nested(dynamic_type)
         }
-        _ => return Err(XTypesError::InvalidData),
+        _ => Err(XTypesError::InvalidData),
     }
 }
 
@@ -736,7 +725,7 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         let mut dynamic_data = DynamicDataFactory::create_data(dynamic_type);
 
         // We start by deserializing the base type if it exists before proceeding with the rest of the type
-        if let Some(base_dynamic_type) = dynamic_type.descriptor.base_type {
+        if let Some(_base_dynamic_type) = dynamic_type.descriptor.base_type {
             // self.deserialize_as_nested(base_dynamic_type, dynamic_data)?;
             todo!()
         }
@@ -844,7 +833,6 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
                 }
             }
             TypeKind::MAP => todo!(),
-            _ => todo!(),
         }
     }
 
@@ -903,7 +891,7 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
     }
 
     /// Serialization Rule (14)
-    fn deserialize_pmap_type(&mut self) -> XTypesResult<()> {
+    fn _deserialize_pmap_type(&mut self) -> XTypesResult<()> {
         todo!()
     }
 
@@ -930,7 +918,7 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
     }
 
     /// Serialization Rule (26)
-    fn deserialize_funion_type(&mut self) -> XTypesResult<DynamicData> {
+    fn _deserialize_funion_type(&mut self) -> XTypesResult<DynamicData> {
         todo!()
     }
 }
@@ -1368,7 +1356,7 @@ impl Align for f64 {
     }
 }
 impl Align for char {
-    fn align<'a, E: EndiannessRead, V: EncodingVersion>(reader: &mut NextCdrReader<'a, E>) {}
+    fn align<'a, E: EndiannessRead, V: EncodingVersion>(_reader: &mut NextCdrReader<'a, E>) {}
 }
 
 trait AsBytes {
@@ -1595,12 +1583,6 @@ impl<'a, E: EndiannessRead> NextCdrReader<'a, E> {
         let ret = self.buffer[self.pos];
         self.pos += 1;
         Ok(ret)
-    }
-
-    fn read_array<const N: usize>(&mut self) -> XTypesResult<[u8; N]> {
-        self.read_all(N)?
-            .try_into()
-            .map_err(|_e| XTypesError::InvalidData)
     }
 
     fn read_all(&mut self, length: usize) -> XTypesResult<&'a [u8]> {

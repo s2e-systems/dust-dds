@@ -1,6 +1,4 @@
-use crate::xtypes::error::{XTypesError, XTypesResult};
 use alloc::vec::Vec;
-
 
 /// A trait to Write bytes into a potentially growing buffer
 pub trait Write {
