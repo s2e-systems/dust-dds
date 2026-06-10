@@ -6,8 +6,7 @@ use syn::File;
 fn module_generation() {
     let idl_file = Path::new("tests/module_generation.idl");
 
-    let expected = syn::parse2::<File>(
-        r#"
+    let expected_string = r#"
         pub mod Game {
             pub mod Chess {
                 #[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]
@@ -43,19 +42,25 @@ fn module_generation() {
             pub x: f64,
             pub y: f64,
         }
-    "#
-        .parse()
-        .unwrap(),
-    )
-    .unwrap();
 
-    let result = syn::parse2::<File>(
-        dust_dds_gen::compile_idl(idl_file)
-            .unwrap()
-            .parse()
-            .unwrap(),
-    )
-    .unwrap();
+        pub mod foo{
+            pub type Bar=i32;
+            pub mod frob{
+                #[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]
+                #[dust_dds(name = "foo::frob::Baz")]
+                pub struct Baz {
+                    pub qux: ::foo::Bar,
+                }
+            }
+        }
+    "#;
+    let expected = syn::parse2::<File>(expected_string.parse().unwrap()).unwrap();
 
-    assert_eq!(result, expected);
+    let compiled_idl = dust_dds_gen::compile_idl(idl_file).unwrap();
+    let result = syn::parse2::<File>(compiled_idl.parse().unwrap()).unwrap();
+
+    assert_eq!(
+        result, expected,
+        "Expected: \n\n {expected_string} \n\n ====== Generated: \n\n {compiled_idl}"
+    );
 }
