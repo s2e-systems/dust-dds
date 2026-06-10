@@ -11,7 +11,8 @@ use crate::{
         PID_ENDPOINT_GUID, PID_GROUP_DATA, PID_HISTORY, PID_LATENCY_BUDGET, PID_LIFESPAN,
         PID_LIVELINESS, PID_OWNERSHIP, PID_OWNERSHIP_STRENGTH, PID_PARTICIPANT_GUID, PID_PARTITION,
         PID_PRESENTATION, PID_RELIABILITY, PID_RESOURCE_LIMITS, PID_TIME_BASED_FILTER,
-        PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TRANSPORT_PRIORITY, PID_TYPE_NAME, PID_USER_DATA,
+        PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TRANSPORT_PRIORITY, PID_TYPE_INFORMATION,
+        PID_TYPE_NAME, PID_USER_DATA,
     },
     infrastructure::{
         qos_policy::{
@@ -20,6 +21,7 @@ use crate::{
         },
         type_support::TypeSupport,
     },
+    xtypes::type_object::TypeInformation,
 };
 use alloc::string::String;
 
@@ -66,7 +68,7 @@ impl ParticipantBuiltinTopicData {
 }
 
 /// Structure representing a discovered [`Topic`](crate::topic_definition::topic::Topic).
-#[derive(Debug, PartialEq, Eq, Clone, TypeSupport)]
+#[derive(Debug, PartialEq, Clone, TypeSupport)]
 #[dust_dds(extensibility = "mutable")]
 pub struct TopicBuiltinTopicData {
     #[dust_dds(id=PID_ENDPOINT_GUID as u32, key)]
@@ -75,6 +77,8 @@ pub struct TopicBuiltinTopicData {
     pub(crate) name: String,
     #[dust_dds(id=PID_TYPE_NAME as u32)]
     pub(crate) type_name: String,
+    #[dust_dds(id=PID_TYPE_INFORMATION as u32, optional)]
+    pub(crate) type_information: Option<TypeInformation>,
     #[dust_dds(id=PID_DURABILITY as u32)]
     pub(crate) durability: DurabilityQosPolicy,
     #[dust_dds(id=PID_DEADLINE as u32)]
@@ -205,7 +209,7 @@ pub struct PublicationBuiltinTopicData {
     pub(crate) latency_budget: LatencyBudgetQosPolicy,
     #[dust_dds(id=PID_LIVELINESS as u32)]
     pub(crate) liveliness: LivelinessQosPolicy,
-    #[dust_dds(id=PID_RELIABILITY as u32, optional, default_value=DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER)]
+    #[dust_dds(id=PID_RELIABILITY as u32, default_value=DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER)]
     pub(crate) reliability: ReliabilityQosPolicy,
     #[dust_dds(id=PID_LIFESPAN as u32)]
     pub(crate) lifespan: LifespanQosPolicy,
@@ -346,7 +350,7 @@ pub struct SubscriptionBuiltinTopicData {
     pub(crate) latency_budget: LatencyBudgetQosPolicy,
     #[dust_dds(id=PID_LIVELINESS as u32)]
     pub(crate) liveliness: LivelinessQosPolicy,
-    #[dust_dds(id=PID_RELIABILITY as u32, optional, default_value=DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS)]
+    #[dust_dds(id=PID_RELIABILITY as u32, default_value=DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS)]
     pub(crate) reliability: ReliabilityQosPolicy,
     #[dust_dds(id=PID_OWNERSHIP as u32)]
     pub(crate) ownership: OwnershipQosPolicy,

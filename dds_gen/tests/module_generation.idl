@@ -31,3 +31,13 @@ struct Point
     double x;
     double y;
 };
+
+module foo {
+    typedef long Bar;
+
+    module frob {
+        struct Baz {
+            ::foo::Bar qux;
+        };
+    };
+};

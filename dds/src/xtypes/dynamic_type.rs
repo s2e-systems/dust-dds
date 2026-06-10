@@ -392,6 +392,7 @@ impl DynamicTypeBuilderFactory {
                         is_must_understand: false,
                         is_shared: false,
                         is_default_label,
+                        is_external: false,
                     };
 
                     builder.add_member(member_desc)?;
@@ -421,6 +422,7 @@ impl DynamicTypeBuilderFactory {
                         is_must_understand: false,
                         is_shared: false,
                         is_default_label: false,
+                        is_external: false,
                     };
 
                     builder.add_member(member_desc)?;
@@ -457,6 +459,7 @@ impl DynamicTypeBuilderFactory {
                         is_must_understand: false,
                         is_shared: false,
                         is_default_label: false,
+                        is_external: false,
                     };
 
                     builder.add_member(member_desc)?;
@@ -513,6 +516,7 @@ pub struct MemberDescriptor {
     pub is_must_understand: bool,
     pub is_shared: bool,
     pub is_default_label: bool,
+    pub is_external: bool,
 }
 
 pub struct DynamicTypeMember {

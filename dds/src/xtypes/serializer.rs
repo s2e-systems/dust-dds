@@ -167,6 +167,9 @@ trait XTypesSerializer<'a> {
             TypeKind::STRUCTURE => {
                 self.serialize_fstruct_type(dynamic_data)?;
             }
+            TypeKind::UNION => {
+                self.serialize_funion_type(dynamic_data)?;
+            }
             kind => unimplemented!("Should not reach for {kind:?}"),
         }
         Ok(())

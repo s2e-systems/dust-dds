@@ -25,6 +25,7 @@ use crate::{
                 BuiltinEndpointQos, BuiltinEndpointSet, ParticipantProxy,
                 SpdpDiscoveredParticipantData,
             },
+            type_lookup::{TypeLookupReply, TypeLookupRequest},
         },
         dcps_mail::{DcpsMail, EventServiceMail},
         listeners::domain_participant_listener::ListenerMail,
@@ -48,13 +49,16 @@ use crate::{
         qos_policy::{
             BUILT_IN_DATA_REPRESENTATION, DATA_REPRESENTATION_QOS_POLICY_ID,
             DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID,
-            DataRepresentationQosPolicy, DestinationOrderQosPolicyKind, DurabilityQosPolicy,
-            DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
-            LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID, LifespanQosPolicy,
-            OWNERSHIP_QOS_POLICY_ID, OwnershipQosPolicyKind, PRESENTATION_QOS_POLICY_ID,
-            QosPolicyId, RELIABILITY_QOS_POLICY_ID, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
-            ResourceLimitsQosPolicy, TransportPriorityQosPolicy, XCDR_DATA_REPRESENTATION,
-            XCDR2_DATA_REPRESENTATION,
+            DataRepresentationQosPolicy, DeadlineQosPolicy, DestinationOrderQosPolicy,
+            DestinationOrderQosPolicyKind, DurabilityQosPolicy, DurabilityQosPolicyKind,
+            HistoryQosPolicy, HistoryQosPolicyKind, LATENCYBUDGET_QOS_POLICY_ID,
+            LIVELINESS_QOS_POLICY_ID, LatencyBudgetQosPolicy, LifespanQosPolicy,
+            LivelinessQosPolicy, OWNERSHIP_QOS_POLICY_ID, OwnershipQosPolicy,
+            OwnershipQosPolicyKind, OwnershipStrengthQosPolicy, PRESENTATION_QOS_POLICY_ID,
+            QosPolicyId, RELIABILITY_QOS_POLICY_ID, ReaderDataLifecycleQosPolicy,
+            ReliabilityQosPolicy, ReliabilityQosPolicyKind, ResourceLimitsQosPolicy,
+            TimeBasedFilterQosPolicy, TransportPriorityQosPolicy, UserDataQosPolicy,
+            WriterDataLifecycleQosPolicy, XCDR_DATA_REPRESENTATION, XCDR2_DATA_REPRESENTATION,
         },
         sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
         status::{
@@ -86,7 +90,8 @@ use crate::{
         self,
         interface::{RtpsTransportParticipant, WriteMessage},
         types::{
-            BUILT_IN_READER_GROUP, BUILT_IN_READER_WITH_KEY, BUILT_IN_TOPIC, BUILT_IN_WRITER_GROUP,
+            BUILT_IN_READER_GROUP, BUILT_IN_READER_NO_KEY, BUILT_IN_READER_WITH_KEY,
+            BUILT_IN_TOPIC, BUILT_IN_WRITER_GROUP, BUILT_IN_WRITER_NO_KEY,
             BUILT_IN_WRITER_WITH_KEY, CacheChange, ChangeKind, DurabilityKind,
             ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN, EntityId, Guid, GuidPrefix, ReliabilityKind,
             TopicKind,
@@ -118,6 +123,16 @@ use core::{
 use regex::Regex;
 use tracing::info;
 
+const ENTITYID_SPDP_TOPIC: EntityId = EntityId::new([0, 0, 0], BUILT_IN_TOPIC);
+const ENTITYID_SEDP_TOPICS_TOPIC: EntityId = EntityId::new([0, 0, 1], BUILT_IN_TOPIC);
+const ENTITYID_SEDP_PUBLICATIONS_TOPIC: EntityId = EntityId::new([0, 0, 2], BUILT_IN_TOPIC);
+const ENTITYID_SEDP_SUBSCRIPTIONS_TOPIC: EntityId = EntityId::new([0, 0, 3], BUILT_IN_TOPIC);
+const ENTITYID_TL_SVC_REQ_TOPIC: EntityId = EntityId::new([0, 0, 4], BUILT_IN_TOPIC);
+const ENTITYID_TL_SVC_RPL_TOPIC: EntityId = EntityId::new([0, 0, 5], BUILT_IN_TOPIC);
+
+const ENTITYID_BUILTIN_SUBSCRIBER: EntityId = EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP);
+const ENTITYID_BUILTIN_PUBLISHER: EntityId = EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP);
+
 const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
     EntityId::new([0x00, 0x01, 0x00], BUILT_IN_WRITER_WITH_KEY);
 
@@ -141,6 +156,156 @@ const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER: EntityId =
 
 const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR: EntityId =
     EntityId::new([0, 0, 0x04], BUILT_IN_READER_WITH_KEY);
+
+// XTypes Table 61 – Built-in Endpoints added by the XTYPES specification
+
+const ENTITYID_TL_SVC_REQ_WRITER: EntityId =
+    EntityId::new([0x00, 0x03, 0x00], BUILT_IN_WRITER_NO_KEY);
+
+const ENTITYID_TL_SVC_REQ_READER: EntityId =
+    EntityId::new([0x00, 0x03, 0x00], BUILT_IN_READER_NO_KEY);
+
+const ENTITYID_TL_SVC_REPLY_WRITER: EntityId =
+    EntityId::new([0x00, 0x03, 0x01], BUILT_IN_WRITER_NO_KEY);
+
+const ENTITYID_TL_SVC_REPLY_READER: EntityId =
+    EntityId::new([0x00, 0x03, 0x01], BUILT_IN_READER_NO_KEY);
+
+const TYPE_LOOKUP_REQUEST_TOPIC_NAME: &str = "TypeLookupRequest";
+const TYPE_LOOKUP_REPLY_TOPIC_NAME: &str = "TypeLookupReply";
+
+const SPDP_READER_QOS: DataReaderQos = DataReaderQos {
+    durability: DurabilityQosPolicy {
+        kind: DurabilityQosPolicyKind::TransientLocal,
+    },
+    history: HistoryQosPolicy {
+        kind: HistoryQosPolicyKind::KeepLast(1),
+    },
+    reliability: ReliabilityQosPolicy {
+        kind: ReliabilityQosPolicyKind::BestEffort,
+        max_blocking_time: DurationKind::Finite(Duration::new(0, 0)),
+    },
+    deadline: DeadlineQosPolicy::const_default(),
+    latency_budget: LatencyBudgetQosPolicy::const_default(),
+    liveliness: LivelinessQosPolicy::const_default(),
+    destination_order: DestinationOrderQosPolicy::const_default(),
+    resource_limits: ResourceLimitsQosPolicy::const_default(),
+    user_data: UserDataQosPolicy::const_default(),
+    ownership: OwnershipQosPolicy::const_default(),
+    time_based_filter: TimeBasedFilterQosPolicy::const_default(),
+    reader_data_lifecycle: ReaderDataLifecycleQosPolicy::const_default(),
+    representation: DataRepresentationQosPolicy::const_default(),
+};
+
+const SEDP_DATA_READER_QOS: DataReaderQos = DataReaderQos {
+    durability: DurabilityQosPolicy {
+        kind: DurabilityQosPolicyKind::TransientLocal,
+    },
+    history: HistoryQosPolicy {
+        kind: HistoryQosPolicyKind::KeepLast(1),
+    },
+    reliability: ReliabilityQosPolicy {
+        kind: ReliabilityQosPolicyKind::Reliable,
+        max_blocking_time: DurationKind::Finite(Duration::new(0, 0)),
+    },
+    deadline: DeadlineQosPolicy::const_default(),
+    latency_budget: LatencyBudgetQosPolicy::const_default(),
+    liveliness: LivelinessQosPolicy::const_default(),
+    destination_order: DestinationOrderQosPolicy::const_default(),
+    resource_limits: ResourceLimitsQosPolicy::const_default(),
+    user_data: UserDataQosPolicy::const_default(),
+    ownership: OwnershipQosPolicy::const_default(),
+    time_based_filter: TimeBasedFilterQosPolicy::const_default(),
+    reader_data_lifecycle: ReaderDataLifecycleQosPolicy::const_default(),
+    representation: DataRepresentationQosPolicy::const_default(),
+};
+
+fn spdp_writer_qos() -> DataWriterQos {
+    DataWriterQos {
+        durability: DurabilityQosPolicy {
+            kind: DurabilityQosPolicyKind::TransientLocal,
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepLast(1),
+        },
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::BestEffort,
+            max_blocking_time: DurationKind::Finite(Duration::new(0, 0)),
+        },
+        representation: DataRepresentationQosPolicy {
+            value: vec![BUILT_IN_DATA_REPRESENTATION],
+        },
+        ..Default::default()
+    }
+}
+
+fn sedp_data_writer_qos() -> DataWriterQos {
+    DataWriterQos {
+        durability: DurabilityQosPolicy {
+            kind: DurabilityQosPolicyKind::TransientLocal,
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepLast(1),
+        },
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(0, 0)),
+        },
+        representation: DataRepresentationQosPolicy {
+            value: vec![BUILT_IN_DATA_REPRESENTATION],
+        },
+        ..Default::default()
+    }
+}
+
+// DDS RPC default QoS as specified in DDS-RPC standard 7.10.2 Default QoS
+const TYPE_LOOKUP_READER_QOS: DataReaderQos = DataReaderQos {
+    durability: DurabilityQosPolicy {
+        kind: DurabilityQosPolicyKind::Volatile,
+    },
+    history: HistoryQosPolicy {
+        kind: HistoryQosPolicyKind::KeepAll,
+    },
+    reliability: ReliabilityQosPolicy {
+        kind: ReliabilityQosPolicyKind::Reliable,
+        max_blocking_time: DurationKind::Finite(Duration::new(0, 0)),
+    },
+    deadline: DeadlineQosPolicy::const_default(),
+    latency_budget: LatencyBudgetQosPolicy::const_default(),
+    liveliness: LivelinessQosPolicy::const_default(),
+    destination_order: DestinationOrderQosPolicy::const_default(),
+    resource_limits: ResourceLimitsQosPolicy::const_default(),
+    user_data: UserDataQosPolicy::const_default(),
+    ownership: OwnershipQosPolicy::const_default(),
+    time_based_filter: TimeBasedFilterQosPolicy::const_default(),
+    reader_data_lifecycle: ReaderDataLifecycleQosPolicy::const_default(),
+    representation: DataRepresentationQosPolicy::const_default(),
+};
+
+const TYPE_LOOKUP_WRITER_QOS: DataWriterQos = DataWriterQos {
+    durability: DurabilityQosPolicy {
+        kind: DurabilityQosPolicyKind::Volatile,
+    },
+    history: HistoryQosPolicy {
+        kind: HistoryQosPolicyKind::KeepAll,
+    },
+    reliability: ReliabilityQosPolicy {
+        kind: ReliabilityQosPolicyKind::Reliable,
+        max_blocking_time: DurationKind::Finite(Duration::new(0, 0)),
+    },
+    deadline: DeadlineQosPolicy::const_default(),
+    latency_budget: LatencyBudgetQosPolicy::const_default(),
+    liveliness: LivelinessQosPolicy::const_default(),
+    destination_order: DestinationOrderQosPolicy::const_default(),
+    resource_limits: ResourceLimitsQosPolicy::const_default(),
+    user_data: UserDataQosPolicy::const_default(),
+    ownership: OwnershipQosPolicy::const_default(),
+    ownership_strength: OwnershipStrengthQosPolicy::const_default(),
+    lifespan: LifespanQosPolicy::const_default(),
+    transport_priority: TransportPriorityQosPolicy::const_default(),
+    writer_data_lifecycle: WriterDataLifecycleQosPolicy::const_default(),
+    representation: DataRepresentationQosPolicy::const_default(),
+};
 
 fn poll_timeout<T>(
     mut timer_handle: impl Timer,
@@ -193,202 +358,76 @@ impl DcpsDomainParticipant {
 
         let participant_handle = InstanceHandle::new(guid.into());
 
-        fn sedp_data_reader_qos() -> DataReaderQos {
-            DataReaderQos {
-                durability: DurabilityQosPolicy {
-                    kind: DurabilityQosPolicyKind::TransientLocal,
-                },
-                history: HistoryQosPolicy {
-                    kind: HistoryQosPolicyKind::KeepLast(1),
-                },
-                reliability: ReliabilityQosPolicy {
-                    kind: ReliabilityQosPolicyKind::Reliable,
-                    max_blocking_time: DurationKind::Finite(Duration::new(0, 0)),
-                },
-                ..Default::default()
-            }
-        }
+        const NUMBER_BUILTIN_ENTITIES: usize = 6;
+        let mut topic_list = Vec::with_capacity(NUMBER_BUILTIN_ENTITIES);
+        let mut builtin_data_reader_list = Vec::with_capacity(NUMBER_BUILTIN_ENTITIES);
+        let mut builtin_data_writer_list = Vec::with_capacity(NUMBER_BUILTIN_ENTITIES);
 
-        fn sedp_data_writer_qos() -> DataWriterQos {
-            DataWriterQos {
-                durability: DurabilityQosPolicy {
-                    kind: DurabilityQosPolicyKind::TransientLocal,
-                },
-                history: HistoryQosPolicy {
-                    kind: HistoryQosPolicyKind::KeepLast(1),
-                },
-                reliability: ReliabilityQosPolicy {
-                    kind: ReliabilityQosPolicyKind::Reliable,
-                    max_blocking_time: DurationKind::Finite(Duration::new(0, 0)),
-                },
-                representation: DataRepresentationQosPolicy {
-                    value: vec![BUILT_IN_DATA_REPRESENTATION],
-                },
-                ..Default::default()
-            }
-        }
-
-        let mut data_reader_list = Vec::with_capacity(4);
-
-        let spdp_participant_type = SpdpDiscoveredParticipantData::TYPE;
-        let discovered_topic_type = DiscoveredTopicData::TYPE;
-        let discovered_writer_type = DiscoveredWriterData::TYPE;
-        let discovered_reader_type = DiscoveredReaderData::TYPE;
-
-        let mut topic_list = Vec::new();
-
-        let spdp_topic_participant_handle = [
-            participant_handle[0],
-            participant_handle[1],
-            participant_handle[2],
-            participant_handle[3],
-            participant_handle[4],
-            participant_handle[5],
-            participant_handle[6],
-            participant_handle[7],
-            participant_handle[8],
-            participant_handle[9],
-            participant_handle[10],
-            participant_handle[11],
-            0,
-            0,
-            0,
-            BUILT_IN_TOPIC,
-        ];
-
-        let spdp_topic_participant = TopicEntity::new(
+        topic_list.push(TopicDescriptionKind::Topic(TopicEntity::new(
             TopicQos::default(),
             "SpdpDiscoveredParticipantData".to_string(),
             String::from(DCPS_PARTICIPANT),
-            InstanceHandle::new(spdp_topic_participant_handle),
+            InstanceHandle::new(Guid::new(guid_prefix, ENTITYID_SPDP_TOPIC).into()),
             DcpsStatusCondition::default(),
             None,
             vec![],
-            spdp_participant_type,
-        );
+            SpdpDiscoveredParticipantData::TYPE,
+        )));
 
-        topic_list.push(TopicDescriptionKind::Topic(spdp_topic_participant));
-
-        let sedp_topic_topics_handle = [
-            participant_handle[0],
-            participant_handle[1],
-            participant_handle[2],
-            participant_handle[3],
-            participant_handle[4],
-            participant_handle[5],
-            participant_handle[6],
-            participant_handle[7],
-            participant_handle[8],
-            participant_handle[9],
-            participant_handle[10],
-            participant_handle[11],
-            0,
-            0,
-            1,
-            BUILT_IN_TOPIC,
-        ];
-        let sedp_topic_topics = TopicEntity::new(
+        topic_list.push(TopicDescriptionKind::Topic(TopicEntity::new(
             TopicQos::default(),
             "DiscoveredTopicData".to_string(),
             String::from(DCPS_TOPIC),
-            InstanceHandle::new(sedp_topic_topics_handle),
+            InstanceHandle::new(Guid::new(guid_prefix, ENTITYID_SEDP_TOPICS_TOPIC).into()),
             DcpsStatusCondition::default(),
             None,
             vec![],
-            discovered_topic_type,
-        );
+            DiscoveredTopicData::TYPE,
+        )));
 
-        topic_list.push(TopicDescriptionKind::Topic(sedp_topic_topics));
-
-        let sedp_topic_publications_handle = [
-            participant_handle[0],
-            participant_handle[1],
-            participant_handle[2],
-            participant_handle[3],
-            participant_handle[4],
-            participant_handle[5],
-            participant_handle[6],
-            participant_handle[7],
-            participant_handle[8],
-            participant_handle[9],
-            participant_handle[10],
-            participant_handle[11],
-            0,
-            0,
-            2,
-            BUILT_IN_TOPIC,
-        ];
-        let sedp_topic_publications = TopicEntity::new(
+        topic_list.push(TopicDescriptionKind::Topic(TopicEntity::new(
             TopicQos::default(),
             "DiscoveredWriterData".to_string(),
             String::from(DCPS_PUBLICATION),
-            InstanceHandle::new(sedp_topic_publications_handle),
+            InstanceHandle::new(Guid::new(guid_prefix, ENTITYID_SEDP_PUBLICATIONS_TOPIC).into()),
             DcpsStatusCondition::default(),
             None,
             vec![],
-            discovered_writer_type,
-        );
-        topic_list.push(TopicDescriptionKind::Topic(sedp_topic_publications));
+            DiscoveredWriterData::TYPE,
+        )));
 
-        let sedp_topic_subscriptions_handle = [
-            participant_handle[0],
-            participant_handle[1],
-            participant_handle[2],
-            participant_handle[3],
-            participant_handle[4],
-            participant_handle[5],
-            participant_handle[6],
-            participant_handle[7],
-            participant_handle[8],
-            participant_handle[9],
-            participant_handle[10],
-            participant_handle[11],
-            0,
-            0,
-            3,
-            BUILT_IN_TOPIC,
-        ];
-        let sedp_topic_subscriptions = TopicEntity::new(
+        topic_list.push(TopicDescriptionKind::Topic(TopicEntity::new(
             TopicQos::default(),
             "DiscoveredReaderData".to_string(),
             String::from(DCPS_SUBSCRIPTION),
-            InstanceHandle::new(sedp_topic_subscriptions_handle),
+            InstanceHandle::new(Guid::new(guid_prefix, ENTITYID_SEDP_SUBSCRIPTIONS_TOPIC).into()),
             DcpsStatusCondition::default(),
             None,
             vec![],
-            discovered_reader_type,
-        );
-        topic_list.push(TopicDescriptionKind::Topic(sedp_topic_subscriptions));
+            DiscoveredReaderData::TYPE,
+        )));
 
-        let spdp_writer_qos = DataWriterQos {
-            durability: DurabilityQosPolicy {
-                kind: DurabilityQosPolicyKind::TransientLocal,
-            },
-            history: HistoryQosPolicy {
-                kind: HistoryQosPolicyKind::KeepLast(1),
-            },
-            reliability: ReliabilityQosPolicy {
-                kind: ReliabilityQosPolicyKind::BestEffort,
-                max_blocking_time: DurationKind::Finite(Duration::new(0, 0)),
-            },
-            representation: DataRepresentationQosPolicy {
-                value: vec![BUILT_IN_DATA_REPRESENTATION],
-            },
-            ..Default::default()
-        };
-        let spdp_reader_qos = DataReaderQos {
-            durability: DurabilityQosPolicy {
-                kind: DurabilityQosPolicyKind::TransientLocal,
-            },
-            history: HistoryQosPolicy {
-                kind: HistoryQosPolicyKind::KeepLast(1),
-            },
-            reliability: ReliabilityQosPolicy {
-                kind: ReliabilityQosPolicyKind::BestEffort,
-                max_blocking_time: DurationKind::Finite(Duration::new(0, 0)),
-            },
-            ..Default::default()
-        };
+        topic_list.push(TopicDescriptionKind::Topic(TopicEntity::new(
+            TopicQos::default(),
+            "TypeLookup_Request".to_string(),
+            String::from(TYPE_LOOKUP_REQUEST_TOPIC_NAME),
+            InstanceHandle::new(Guid::new(guid_prefix, ENTITYID_TL_SVC_REQ_TOPIC).into()),
+            DcpsStatusCondition::default(),
+            None,
+            vec![],
+            DiscoveredReaderData::TYPE,
+        )));
+
+        topic_list.push(TopicDescriptionKind::Topic(TopicEntity::new(
+            TopicQos::default(),
+            "TypeLookup_Reply".to_string(),
+            String::from(TYPE_LOOKUP_REPLY_TOPIC_NAME),
+            InstanceHandle::new(Guid::new(guid_prefix, ENTITYID_TL_SVC_RPL_TOPIC).into()),
+            DcpsStatusCondition::default(),
+            None,
+            vec![],
+            DiscoveredReaderData::TYPE,
+        )));
 
         let rtps_stateless_reader = RtpsStatelessReader::new(Guid::new(
             guid_prefix,
@@ -397,14 +436,14 @@ impl DcpsDomainParticipant {
 
         let dcps_participant_reader = DataReaderEntity::new(
             InstanceHandle::new(rtps_stateless_reader.guid().into()),
-            spdp_reader_qos,
+            SPDP_READER_QOS,
             String::from(DCPS_PARTICIPANT),
-            spdp_participant_type,
+            SpdpDiscoveredParticipantData::TYPE,
             None,
             Vec::new(),
             RtpsReaderKind::Stateless(rtps_stateless_reader),
         );
-        data_reader_list.push(dcps_participant_reader);
+        builtin_data_reader_list.push(dcps_participant_reader);
 
         let dcps_topic_transport_reader = RtpsStatefulReader::new(
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR),
@@ -413,14 +452,14 @@ impl DcpsDomainParticipant {
 
         let dcps_topic_reader = DataReaderEntity::new(
             InstanceHandle::new(dcps_topic_transport_reader.guid().into()),
-            sedp_data_reader_qos(),
+            SEDP_DATA_READER_QOS,
             String::from(DCPS_TOPIC),
-            discovered_topic_type,
+            DiscoveredTopicData::TYPE,
             None,
             Vec::new(),
             RtpsReaderKind::Stateful(dcps_topic_transport_reader),
         );
-        data_reader_list.push(dcps_topic_reader);
+        builtin_data_reader_list.push(dcps_topic_reader);
 
         let dcps_publication_transport_reader = RtpsStatefulReader::new(
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR),
@@ -429,14 +468,14 @@ impl DcpsDomainParticipant {
 
         let dcps_publication_reader = DataReaderEntity::new(
             InstanceHandle::new(dcps_publication_transport_reader.guid().into()),
-            sedp_data_reader_qos(),
+            SEDP_DATA_READER_QOS,
             String::from(DCPS_PUBLICATION),
-            discovered_writer_type,
+            DiscoveredWriterData::TYPE,
             None,
             Vec::new(),
             RtpsReaderKind::Stateful(dcps_publication_transport_reader),
         );
-        data_reader_list.push(dcps_publication_reader);
+        builtin_data_reader_list.push(dcps_publication_reader);
 
         let dcps_subscription_transport_reader = RtpsStatefulReader::new(
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR),
@@ -445,37 +484,49 @@ impl DcpsDomainParticipant {
 
         let dcps_subscription_reader = DataReaderEntity::new(
             InstanceHandle::new(dcps_subscription_transport_reader.guid().into()),
-            sedp_data_reader_qos(),
+            SEDP_DATA_READER_QOS,
             String::from(DCPS_SUBSCRIPTION),
-            discovered_reader_type,
+            DiscoveredReaderData::TYPE,
             None,
             Vec::new(),
             RtpsReaderKind::Stateful(dcps_subscription_transport_reader),
         );
-        data_reader_list.push(dcps_subscription_reader);
+        builtin_data_reader_list.push(dcps_subscription_reader);
 
-        let builtin_subscriber_handle = [
-            participant_handle[0],
-            participant_handle[1],
-            participant_handle[2],
-            participant_handle[3],
-            participant_handle[4],
-            participant_handle[5],
-            participant_handle[6],
-            participant_handle[7],
-            participant_handle[8],
-            participant_handle[9],
-            participant_handle[10],
-            participant_handle[11],
-            0,
-            0,
-            0,
-            BUILT_IN_READER_GROUP,
-        ];
+        let type_lookup_request_transport_reader = RtpsStatefulReader::new(
+            Guid::new(guid_prefix, ENTITYID_TL_SVC_REQ_READER),
+            ReliabilityKind::Reliable,
+        );
+        let type_lookup_request_reader = DataReaderEntity::new(
+            InstanceHandle::new(type_lookup_request_transport_reader.guid().into()),
+            TYPE_LOOKUP_READER_QOS,
+            String::from(TYPE_LOOKUP_REQUEST_TOPIC_NAME),
+            TypeLookupRequest::TYPE,
+            None,
+            Vec::new(),
+            RtpsReaderKind::Stateful(type_lookup_request_transport_reader),
+        );
+        builtin_data_reader_list.push(type_lookup_request_reader);
+
+        let type_lookup_reply_transport_reader = RtpsStatefulReader::new(
+            Guid::new(guid_prefix, ENTITYID_TL_SVC_REPLY_READER),
+            ReliabilityKind::Reliable,
+        );
+        let type_lookup_reply_reader = DataReaderEntity::new(
+            InstanceHandle::new(type_lookup_reply_transport_reader.guid().into()),
+            TYPE_LOOKUP_READER_QOS,
+            String::from(TYPE_LOOKUP_REPLY_TOPIC_NAME),
+            TypeLookupReply::TYPE,
+            None,
+            Vec::new(),
+            RtpsReaderKind::Stateful(type_lookup_reply_transport_reader),
+        );
+        builtin_data_reader_list.push(type_lookup_reply_reader);
+
         let builtin_subscriber = SubscriberEntity::new(
-            InstanceHandle::new(builtin_subscriber_handle),
+            InstanceHandle::new(Guid::new(guid_prefix, ENTITYID_BUILTIN_SUBSCRIBER).into()),
             SubscriberQos::default(),
-            data_reader_list,
+            builtin_data_reader_list,
             None,
             vec![],
         );
@@ -492,11 +543,12 @@ impl DcpsDomainParticipant {
             RtpsWriterKind::Stateless(dcps_participant_transport_writer),
             String::from(DCPS_PARTICIPANT),
             "SpdpDiscoveredParticipantData".to_string(),
-            spdp_participant_type,
+            SpdpDiscoveredParticipantData::TYPE,
             None,
             vec![],
-            spdp_writer_qos,
+            spdp_writer_qos(),
         );
+        builtin_data_writer_list.push(dcps_participant_writer);
 
         let dcps_topics_transport_writer = RtpsStatefulWriter::new(
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER),
@@ -508,11 +560,13 @@ impl DcpsDomainParticipant {
             RtpsWriterKind::Stateful(dcps_topics_transport_writer),
             String::from(DCPS_TOPIC),
             "DiscoveredTopicData".to_string(),
-            discovered_topic_type,
+            DiscoveredTopicData::TYPE,
             None,
             vec![],
             sedp_data_writer_qos(),
         );
+        builtin_data_writer_list.push(dcps_topics_writer);
+
         let dcps_publications_transport_writer = RtpsStatefulWriter::new(
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER),
             transport.fragment_size,
@@ -523,11 +577,12 @@ impl DcpsDomainParticipant {
             RtpsWriterKind::Stateful(dcps_publications_transport_writer),
             String::from(DCPS_PUBLICATION),
             "DiscoveredWriterData".to_string(),
-            discovered_writer_type,
+            DiscoveredWriterData::TYPE,
             None,
             vec![],
             sedp_data_writer_qos(),
         );
+        builtin_data_writer_list.push(dcps_publications_writer);
 
         let dcps_subscriptions_transport_writer = RtpsStatefulWriter::new(
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER),
@@ -538,38 +593,48 @@ impl DcpsDomainParticipant {
             RtpsWriterKind::Stateful(dcps_subscriptions_transport_writer),
             String::from(DCPS_SUBSCRIPTION),
             "DiscoveredReaderData".to_string(),
-            discovered_reader_type,
+            DiscoveredReaderData::TYPE,
             None,
             vec![],
             sedp_data_writer_qos(),
         );
-        let builtin_data_writer_list = vec![
-            dcps_participant_writer,
-            dcps_topics_writer,
-            dcps_publications_writer,
-            dcps_subscriptions_writer,
-        ];
-        let builtin_publisher_handle = [
-            participant_handle[0],
-            participant_handle[1],
-            participant_handle[2],
-            participant_handle[3],
-            participant_handle[4],
-            participant_handle[5],
-            participant_handle[6],
-            participant_handle[7],
-            participant_handle[8],
-            participant_handle[9],
-            participant_handle[10],
-            participant_handle[11],
-            0,
-            0,
-            0,
-            BUILT_IN_WRITER_GROUP,
-        ];
+        builtin_data_writer_list.push(dcps_subscriptions_writer);
+
+        let type_lookup_request_transport_writer = RtpsStatefulWriter::new(
+            Guid::new(guid_prefix, ENTITYID_TL_SVC_REQ_WRITER),
+            transport.fragment_size,
+        );
+        let type_lookup_request_writer = DataWriterEntity::new(
+            InstanceHandle::new(type_lookup_request_transport_writer.guid().into()),
+            RtpsWriterKind::Stateful(type_lookup_request_transport_writer),
+            String::from(TYPE_LOOKUP_REQUEST_TOPIC_NAME),
+            String::from(TypeLookupRequest::TYPE.descriptor.name),
+            TypeLookupRequest::TYPE,
+            None,
+            Vec::new(),
+            TYPE_LOOKUP_WRITER_QOS,
+        );
+        builtin_data_writer_list.push(type_lookup_request_writer);
+
+        let type_lookup_reply_transport_writer = RtpsStatefulWriter::new(
+            Guid::new(guid_prefix, ENTITYID_TL_SVC_REPLY_WRITER),
+            transport.fragment_size,
+        );
+        let type_lookup_reply_writer = DataWriterEntity::new(
+            InstanceHandle::new(type_lookup_reply_transport_writer.guid().into()),
+            RtpsWriterKind::Stateful(type_lookup_reply_transport_writer),
+            String::from(TYPE_LOOKUP_REPLY_TOPIC_NAME),
+            String::from(TypeLookupReply::TYPE.descriptor.name),
+            TypeLookupReply::TYPE,
+            None,
+            Vec::new(),
+            TYPE_LOOKUP_WRITER_QOS,
+        );
+        builtin_data_writer_list.push(type_lookup_reply_writer);
+
         let builtin_publisher = PublisherEntity::new(
             PublisherQos::default(),
-            InstanceHandle::new(builtin_publisher_handle),
+            InstanceHandle::new(Guid::new(guid_prefix, ENTITYID_BUILTIN_PUBLISHER).into()),
             builtin_data_writer_list,
             None,
             vec![],
@@ -1090,6 +1155,7 @@ impl DcpsDomainParticipant {
                     value: topic.instance_handle.into(),
                 },
                 name: topic.topic_name.clone(),
+                type_information: None,
                 type_name: topic.type_name.clone(),
                 durability: topic.qos.durability.clone(),
                 deadline: topic.qos.deadline.clone(),
@@ -2132,6 +2198,7 @@ impl DcpsDomainParticipant {
                             key: BuiltInTopicKey::default(),
                             name: publication_builtin_topic_data.topic_name.clone(),
                             type_name: publication_builtin_topic_data.type_name.clone(),
+                            type_information: None,
                             durability: publication_builtin_topic_data.durability().clone(),
                             deadline: publication_builtin_topic_data.deadline().clone(),
                             latency_budget: publication_builtin_topic_data.latency_budget().clone(),
@@ -2255,7 +2322,7 @@ impl DcpsDomainParticipant {
                                 .dds_subscription_data
                                 .get_type_name()
                                 .to_string(),
-
+                            type_information: None,
                             topic_data: discovered_reader_data
                                 .dds_subscription_data
                                 .topic_data()
@@ -4301,11 +4368,13 @@ fn fnmatch_to_regex(pattern: &str) -> String {
     out
 }
 
-const BUILT_IN_TOPIC_NAME_LIST: [&str; 4] = [
+const BUILT_IN_TOPIC_NAME_LIST: [&str; 6] = [
     DCPS_PARTICIPANT,
     DCPS_TOPIC,
     DCPS_PUBLICATION,
     DCPS_SUBSCRIPTION,
+    TYPE_LOOKUP_REQUEST_TOPIC_NAME,
+    TYPE_LOOKUP_REPLY_TOPIC_NAME,
 ];
 
 struct DomainParticipantEntity {

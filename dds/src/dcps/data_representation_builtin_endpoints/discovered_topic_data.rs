@@ -6,7 +6,7 @@ use crate::{
             PID_DATA_REPRESENTATION, PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY,
             PID_ENDPOINT_GUID, PID_HISTORY, PID_LATENCY_BUDGET, PID_LIFESPAN, PID_LIVELINESS,
             PID_OWNERSHIP, PID_RELIABILITY, PID_RESOURCE_LIMITS, PID_TOPIC_DATA, PID_TOPIC_NAME,
-            PID_TRANSPORT_PRIORITY, PID_TYPE_NAME,
+            PID_TRANSPORT_PRIORITY, PID_TYPE_INFORMATION, PID_TYPE_NAME,
         },
     },
     infrastructure::{
@@ -19,11 +19,13 @@ use crate::{
         },
         type_support::TypeSupport,
     },
-    xtypes::{data_storage::DataStorageMapping, dynamic_type::DynamicType},
+    xtypes::{
+        data_storage::DataStorageMapping, dynamic_type::DynamicType, type_object::TypeInformation,
+    },
 };
 use alloc::string::String;
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct DiscoveredTopicData {
     pub(crate) topic_builtin_topic_data: TopicBuiltinTopicData,
 }
@@ -35,68 +37,73 @@ impl TypeSupport for DiscoveredTopicData {
             ConvenienceTypeBuilder::key_member::<BuiltInTopicKey>(0, "key", PID_ENDPOINT_GUID),
             ConvenienceTypeBuilder::member::<String>(1, "name", PID_TOPIC_NAME),
             ConvenienceTypeBuilder::member::<String>(2, "type_name", PID_TYPE_NAME),
-            ConvenienceTypeBuilder::member_with_default::<DurabilityQosPolicy>(
+            ConvenienceTypeBuilder::member_with_default::<TypeInformation>(
                 3,
+                "type_information",
+                PID_TYPE_INFORMATION,
+            ),
+            ConvenienceTypeBuilder::member_with_default::<DurabilityQosPolicy>(
+                4,
                 "durability",
                 PID_DURABILITY,
             ),
             ConvenienceTypeBuilder::member_with_default::<DeadlineQosPolicy>(
-                4,
+                5,
                 "deadline",
                 PID_DEADLINE,
             ),
             ConvenienceTypeBuilder::member_with_default::<LatencyBudgetQosPolicy>(
-                5,
+                6,
                 "latency_budget",
                 PID_LATENCY_BUDGET,
             ),
             ConvenienceTypeBuilder::member_with_default::<LivelinessQosPolicy>(
-                6,
+                7,
                 "liveliness",
                 PID_LIVELINESS,
             ),
             ConvenienceTypeBuilder::member_with_default::<ReliabilityQosPolicy>(
-                7,
+                8,
                 "reliability",
                 PID_RELIABILITY,
             ),
             ConvenienceTypeBuilder::member_with_default::<TransportPriorityQosPolicy>(
-                8,
+                9,
                 "transport_priority",
                 PID_TRANSPORT_PRIORITY,
             ),
             ConvenienceTypeBuilder::member_with_default::<LifespanQosPolicy>(
-                9,
+                10,
                 "lifespan",
                 PID_LIFESPAN,
             ),
             ConvenienceTypeBuilder::member_with_default::<DestinationOrderQosPolicy>(
-                10,
+                11,
                 "destination_order",
                 PID_DESTINATION_ORDER,
             ),
             ConvenienceTypeBuilder::member_with_default::<HistoryQosPolicy>(
-                11,
+                12,
                 "history",
                 PID_HISTORY,
             ),
             ConvenienceTypeBuilder::member_with_default::<ResourceLimitsQosPolicy>(
-                12,
+                13,
                 "resource_limits",
                 PID_RESOURCE_LIMITS,
             ),
             ConvenienceTypeBuilder::member_with_default::<OwnershipQosPolicy>(
-                13,
+                14,
                 "ownership",
                 PID_OWNERSHIP,
             ),
             ConvenienceTypeBuilder::member_with_default::<TopicDataQosPolicy>(
-                14,
+                15,
                 "topic_data",
                 PID_TOPIC_DATA,
             ),
             ConvenienceTypeBuilder::member_with_default::<DataRepresentationQosPolicy>(
-                15,
+                16,
                 "representation",
                 PID_DATA_REPRESENTATION,
             ),
@@ -119,6 +126,11 @@ impl TypeSupport for DiscoveredTopicData {
                     src.remove_value(PID_TOPIC_NAME as u32).expect("Must exist"),
                 )
                 .expect("Must match"),
+                type_information: src
+                    .remove_value(PID_TYPE_INFORMATION as u32)
+                    .map_or(None, |x| {
+                        DataStorageMapping::try_from_storage(x).expect("Must match")
+                    }),
                 durability: src
                     .remove_value(PID_DURABILITY as u32)
                     .map_or(DurabilityQosPolicy::const_default(), |x| {
@@ -201,6 +213,14 @@ impl TypeSupport for DiscoveredTopicData {
             PID_TYPE_NAME as u32,
             self.topic_builtin_topic_data.type_name.into_storage(),
         );
+        if self.topic_builtin_topic_data.type_information != Default::default() {
+            data.set_value(
+                PID_TYPE_INFORMATION as u32,
+                self.topic_builtin_topic_data
+                    .type_information
+                    .into_storage(),
+            );
+        }
         if self.topic_builtin_topic_data.durability != Default::default() {
             data.set_value(
                 PID_DURABILITY as u32,
@@ -311,6 +331,7 @@ mod tests {
                 },
                 name: "ab".to_string(),
                 type_name: "cd".to_string(),
+                type_information: None,
                 durability: topic_qos.durability,
                 deadline: topic_qos.deadline,
                 latency_budget: topic_qos.latency_budget,
@@ -357,6 +378,7 @@ mod tests {
                 },
                 name: "ab".to_string(),
                 type_name: "cd".to_string(),
+                type_information: None,
                 durability: topic_qos.durability,
                 deadline: topic_qos.deadline,
                 latency_budget: topic_qos.latency_budget,

@@ -5,6 +5,8 @@ pub struct StructureMemberAttributes {
     pub key: bool,
     pub optional: bool,
     pub non_serialized: bool,
+    pub external: bool,
+    pub hashid: bool,
     pub default_value: Option<Expr>,
 }
 
@@ -14,6 +16,8 @@ pub fn get_structure_member_attributes(field: &Field) -> Result<StructureMemberA
     let mut optional = false;
     let mut default_value = None;
     let mut non_serialized = false;
+    let mut external = false;
+    let mut hashid = false;
     if let Some(xtypes_attribute) = field
         .attrs
         .iter()
@@ -30,6 +34,10 @@ pub fn get_structure_member_attributes(field: &Field) -> Result<StructureMemberA
                 optional = true;
             } else if meta.path.is_ident("non_serialized") {
                 non_serialized = true;
+            } else if meta.path.is_ident("external") {
+                external = true;
+            } else if meta.path.is_ident("hashid") {
+                hashid = true;
             }
             Ok(())
         })?;
@@ -38,8 +46,10 @@ pub fn get_structure_member_attributes(field: &Field) -> Result<StructureMemberA
         id,
         key,
         optional,
-        default_value,
         non_serialized,
+        external,
+        hashid,
+        default_value,
     })
 }
 
@@ -237,7 +247,7 @@ pub fn get_union_type_attributes(input: &DeriveInput) -> Result<UnionAttributes>
 }
 
 pub struct UnionVariantAttributes {
-    pub case: Expr,
+    pub case: Option<Expr>,
     pub is_default: bool,
 }
 
@@ -258,9 +268,5 @@ pub fn get_union_variant_attributes(variant: &Variant) -> Result<UnionVariantAtt
             Ok(())
         })?;
     }
-    let case = case.ok_or(syn::Error::new(
-        variant.span(),
-        r#"Union variant must define its discriminator value by using #[dust_dds(case = #value)] "#,
-    ))?;
     Ok(UnionVariantAttributes { case, is_default })
 }

@@ -108,6 +108,7 @@ pub fn convert_python_type_to_dynamic_type(
                 is_must_understand: true,
                 is_shared: false,
                 is_default_label: false,
+                is_external: false,
             })
             .map_err(|_| PyRuntimeError::new_err("Failed to add member to dynamic type"))?;
     }
