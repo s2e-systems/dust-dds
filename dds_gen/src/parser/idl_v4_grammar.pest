@@ -441,7 +441,7 @@ element_spec = { type_spec ~ declarator }
 // (56)
 union_forward_dcl = { "union" ~ identifier }
 // (57)
-enum_dcl = { "enum" ~ identifier ~ "{" ~ enumerator ~ ("," ~ enumerator)* ~ "}" }
+enum_dcl = { annotation_appl* ~ "enum" ~ identifier ~ "{" ~ enumerator ~ ("," ~ enumerator)* ~ "}" }
 // (58)
 enumerator = { annotation_appl* ~ identifier }
 // (59)

@@ -1,5 +1,6 @@
 enum Suits { Spades, Hearts, Diamonds, Clubs };
 
+@bit_bound(16)
 enum HttpStatusCode {
     @value(100)
     CONTINUE,
