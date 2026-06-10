@@ -346,69 +346,18 @@ trait EncodingVersion {
     const MAX_ALIGN: usize;
 
     /// Serialization Rule (9) & (10)
-    fn serialize_array_type(&mut self);
+    fn deserialize_array_type<'a, E: EndiannessRead, V: EncodingVersion>(
+        deserializer: &mut XTypesDeserializer<'a, E, V>,
+        member: &DynamicTypeMember,
+        dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()>;
 
     /// Serialization Rule (12)
     fn deserialize_sequence_type<'a, E: EndiannessRead, V: EncodingVersion>(
         deserializer: &mut XTypesDeserializer<'a, E, V>,
         member: &DynamicTypeMember,
         dynamic_data: &mut DynamicData,
-    ) -> XTypesResult<()> {
-        match member
-            .descriptor
-            .r#type
-            .descriptor
-            .element_type
-            .expect("Sequence must have element type")
-            .get_kind()
-        {
-            TypeKind::NONE => todo!(),
-            TypeKind::BOOLEAN => dynamic_data
-                .set_boolean_values(member.get_id(), deserializer.deserialize_psequence_type()?),
-            TypeKind::BYTE => dynamic_data
-                .set_byte_values(member.get_id(), deserializer.deserialize_psequence_type()?),
-            TypeKind::INT16 => dynamic_data
-                .set_int16_values(member.get_id(), deserializer.deserialize_psequence_type()?),
-            TypeKind::INT32 => dynamic_data
-                .set_int32_values(member.get_id(), deserializer.deserialize_psequence_type()?),
-            TypeKind::INT64 => dynamic_data
-                .set_int64_values(member.get_id(), deserializer.deserialize_psequence_type()?),
-            TypeKind::UINT16 => dynamic_data
-                .set_uint16_values(member.get_id(), deserializer.deserialize_psequence_type()?),
-            TypeKind::UINT32 => dynamic_data
-                .set_uint32_values(member.get_id(), deserializer.deserialize_psequence_type()?),
-            TypeKind::UINT64 => dynamic_data
-                .set_uint64_values(member.get_id(), deserializer.deserialize_psequence_type()?),
-            TypeKind::FLOAT32 => dynamic_data
-                .set_float32_values(member.get_id(), deserializer.deserialize_psequence_type()?),
-            TypeKind::FLOAT64 => dynamic_data
-                .set_float64_values(member.get_id(), deserializer.deserialize_psequence_type()?),
-            TypeKind::FLOAT128 => dynamic_data
-                .set_float128_values(member.get_id(), deserializer.deserialize_psequence_type()?),
-            TypeKind::INT8 => dynamic_data
-                .set_int8_values(member.get_id(), deserializer.deserialize_psequence_type()?),
-            TypeKind::UINT8 => dynamic_data
-                .set_uint8_values(member.get_id(), deserializer.deserialize_psequence_type()?),
-            TypeKind::CHAR8 => dynamic_data
-                .set_char8_values(member.get_id(), deserializer.deserialize_psequence_type()?),
-            TypeKind::CHAR16 => todo!(),
-            TypeKind::STRING8 => {
-                //dynamic_data.set_string_values(member.get_id(), self.deserialize_string_sequence()?)
-                todo!()
-            }
-            TypeKind::STRING16 => todo!(),
-            TypeKind::ALIAS => todo!(),
-            TypeKind::ENUM => todo!(),
-            TypeKind::BITMASK => todo!(),
-            TypeKind::ANNOTATION => todo!(),
-            TypeKind::STRUCTURE => todo!(), //dynamic_data.set_complex_values(member.get_id(), V::deserialize_sequence_type(deserializer, member, dynamic_data)?),
-            TypeKind::UNION => todo!(),
-            TypeKind::BITSET => todo!(),
-            TypeKind::SEQUENCE => todo!(),
-            TypeKind::ARRAY => todo!(),
-            TypeKind::MAP => todo!(),
-        }
-    }
+    ) -> XTypesResult<()>;
 
     /// Serialization Rule (15) & (16)
     fn deserialize_map_type<'a, E: EndiannessRead, V: EncodingVersion>(
@@ -439,8 +388,18 @@ struct EncodingVersion1;
 impl EncodingVersion for EncodingVersion1 {
     const MAX_ALIGN: usize = 8;
 
-    fn serialize_array_type(&mut self) {
-        todo!()
+    fn deserialize_array_type<'a, E: EndiannessRead, V: EncodingVersion>(
+        deserializer: &mut XTypesDeserializer<'a, E, V>,
+        member: &DynamicTypeMember,
+        dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()> {
+        let bound = member
+            .descriptor
+            .r#type
+            .descriptor
+            .bound
+            .ok_or(XTypesError::InvalidType)?;
+        deserializer.deserialize_sequence_elements(member, dynamic_data, bound as usize)
     }
 
     /// Serialization Rule (12)
@@ -449,7 +408,8 @@ impl EncodingVersion for EncodingVersion1 {
         member: &DynamicTypeMember,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
-        deserializer.deserialize_sequence_elements(member, dynamic_data)
+        let length = deserializer.deserialize_primitive_type::<u32>()?;
+        deserializer.deserialize_sequence_elements(member, dynamic_data, length as usize)
     }
 }
 
@@ -457,8 +417,19 @@ struct EncodingVersion2;
 impl EncodingVersion for EncodingVersion2 {
     const MAX_ALIGN: usize = 4;
 
-    fn serialize_array_type(&mut self) {
-        todo!()
+    fn deserialize_array_type<'a, E: EndiannessRead, V: EncodingVersion>(
+        deserializer: &mut XTypesDeserializer<'a, E, V>,
+        member: &DynamicTypeMember,
+        dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()> {
+        let _dheader = deserializer.deserialize_primitive_type::<u32>()?;
+        let bound = member
+            .descriptor
+            .r#type
+            .descriptor
+            .bound
+            .ok_or(XTypesError::InvalidType)?;
+        deserializer.deserialize_sequence_elements(member, dynamic_data, bound as usize)
     }
 
     /// Serialization Rule (12)
@@ -468,7 +439,8 @@ impl EncodingVersion for EncodingVersion2 {
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
         let _dheader = deserializer.deserialize_primitive_type::<u32>()?;
-        deserializer.deserialize_sequence_elements(member, dynamic_data)
+        let length = deserializer.deserialize_primitive_type::<u32>()?;
+        deserializer.deserialize_sequence_elements(member, dynamic_data, length as usize)
     }
 }
 
@@ -504,6 +476,33 @@ struct XTypesDeserializer<'a, E, V> {
     _encoding_version: V,
 }
 
+fn is_element_type_kind_primitive(member: &DynamicTypeMember) -> XTypesResult<bool> {
+    Ok(matches!(
+        member
+            .descriptor
+            .r#type
+            .descriptor
+            .element_type
+            .ok_or(XTypesError::InvalidType)?
+            .get_kind(),
+        TypeKind::BOOLEAN
+            | TypeKind::BYTE
+            | TypeKind::INT16
+            | TypeKind::INT32
+            | TypeKind::INT64
+            | TypeKind::UINT16
+            | TypeKind::UINT32
+            | TypeKind::UINT64
+            | TypeKind::FLOAT32
+            | TypeKind::FLOAT64
+            | TypeKind::FLOAT128
+            | TypeKind::INT8
+            | TypeKind::UINT8
+            | TypeKind::CHAR8
+            | TypeKind::CHAR16
+    ))
+}
+
 impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
     fn new(buffer: &'a [u8], encoding_version: V, endianness: E) -> Self {
         Self {
@@ -512,48 +511,87 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         }
     }
 
+    fn deserialize_primitive_sequence_elements<O: AsBytes + Align>(
+        &mut self,
+        length: usize,
+    ) -> XTypesResult<Vec<O>> {
+        let mut sequence = Vec::with_capacity(length);
+        for _ in 0..length {
+            sequence.push(self.deserialize_primitive_type()?);
+        }
+        Ok(sequence)
+    }
+
     fn deserialize_sequence_elements(
         &mut self,
         member: &DynamicTypeMember,
         dynamic_data: &mut DynamicData,
+        length: usize,
     ) -> XTypesResult<()> {
-        match member
+        let element_type = member
             .descriptor
             .r#type
             .descriptor
             .element_type
-            .expect("Sequence must have element type")
-            .get_kind()
-        {
+            .ok_or(XTypesError::InvalidType)?;
+        match element_type.get_kind() {
             TypeKind::NONE => todo!(),
-            TypeKind::BOOLEAN => dynamic_data
-                .set_boolean_values(member.get_id(), self.deserialize_psequence_type()?),
-            TypeKind::BYTE => dynamic_data
-                .set_byte_values(member.get_id(), self.deserialize_psequence_type()?),
-            TypeKind::INT16 => dynamic_data
-                .set_int16_values(member.get_id(), self.deserialize_psequence_type()?),
-            TypeKind::INT32 => dynamic_data
-                .set_int32_values(member.get_id(), self.deserialize_psequence_type()?),
-            TypeKind::INT64 => dynamic_data
-                .set_int64_values(member.get_id(), self.deserialize_psequence_type()?),
-            TypeKind::UINT16 => dynamic_data
-                .set_uint16_values(member.get_id(), self.deserialize_psequence_type()?),
-            TypeKind::UINT32 => dynamic_data
-                .set_uint32_values(member.get_id(), self.deserialize_psequence_type()?),
-            TypeKind::UINT64 => dynamic_data
-                .set_uint64_values(member.get_id(), self.deserialize_psequence_type()?),
-            TypeKind::FLOAT32 => dynamic_data
-                .set_float32_values(member.get_id(), self.deserialize_psequence_type()?),
-            TypeKind::FLOAT64 => dynamic_data
-                .set_float64_values(member.get_id(), self.deserialize_psequence_type()?),
-            TypeKind::FLOAT128 => dynamic_data
-                .set_float128_values(member.get_id(), self.deserialize_psequence_type()?),
-            TypeKind::INT8 => dynamic_data
-                .set_int8_values(member.get_id(), self.deserialize_psequence_type()?),
-            TypeKind::UINT8 => dynamic_data
-                .set_uint8_values(member.get_id(), self.deserialize_psequence_type()?),
-            TypeKind::CHAR8 => dynamic_data
-                .set_char8_values(member.get_id(), self.deserialize_psequence_type()?),
+            TypeKind::BOOLEAN => dynamic_data.set_boolean_values(
+                member.get_id(),
+                self.deserialize_primitive_sequence_elements(length)?,
+            ),
+            TypeKind::BYTE => dynamic_data.set_byte_values(
+                member.get_id(),
+                self.deserialize_primitive_sequence_elements(length)?,
+            ),
+            TypeKind::INT16 => dynamic_data.set_int16_values(
+                member.get_id(),
+                self.deserialize_primitive_sequence_elements(length)?,
+            ),
+            TypeKind::INT32 => dynamic_data.set_int32_values(
+                member.get_id(),
+                self.deserialize_primitive_sequence_elements(length)?,
+            ),
+            TypeKind::INT64 => dynamic_data.set_int64_values(
+                member.get_id(),
+                self.deserialize_primitive_sequence_elements(length)?,
+            ),
+            TypeKind::UINT16 => dynamic_data.set_uint16_values(
+                member.get_id(),
+                self.deserialize_primitive_sequence_elements(length)?,
+            ),
+            TypeKind::UINT32 => dynamic_data.set_uint32_values(
+                member.get_id(),
+                self.deserialize_primitive_sequence_elements(length)?,
+            ),
+            TypeKind::UINT64 => dynamic_data.set_uint64_values(
+                member.get_id(),
+                self.deserialize_primitive_sequence_elements(length)?,
+            ),
+            TypeKind::FLOAT32 => dynamic_data.set_float32_values(
+                member.get_id(),
+                self.deserialize_primitive_sequence_elements(length)?,
+            ),
+            TypeKind::FLOAT64 => dynamic_data.set_float64_values(
+                member.get_id(),
+                self.deserialize_primitive_sequence_elements(length)?,
+            ),
+            TypeKind::FLOAT128 => dynamic_data.set_float128_values(
+                member.get_id(),
+                self.deserialize_primitive_sequence_elements(length)?,
+            ),
+            TypeKind::INT8 => dynamic_data.set_int8_values(
+                member.get_id(),
+                self.deserialize_primitive_sequence_elements(length)?,
+            ),
+            TypeKind::UINT8 => dynamic_data.set_uint8_values(
+                member.get_id(),
+                self.deserialize_primitive_sequence_elements(length)?,
+            ),
+            TypeKind::CHAR8 => dynamic_data.set_char8_values(
+                member.get_id(),
+                self.deserialize_primitive_sequence_elements(length)?,
+            ),
             TypeKind::CHAR16 => todo!(),
             TypeKind::STRING8 => {
                 //dynamic_data.set_string_values(member.get_id(), self.deserialize_string_sequence()?)
@@ -564,7 +602,13 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
             TypeKind::ENUM => todo!(),
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
-            TypeKind::STRUCTURE => todo!(), //dynamic_data.set_complex_values(member.get_id(), V::deserialize_sequence_type(deserializer, member, dynamic_data)?),
+            TypeKind::STRUCTURE => {
+                let mut complex_values = Vec::with_capacity(length);
+                for _ in 0..length {
+                    complex_values.push(self.deserialize_as_nested(element_type)?);
+                }
+                dynamic_data.set_complex_values(member.get_id(), complex_values)
+            }
             TypeKind::UNION => todo!(),
             TypeKind::BITSET => todo!(),
             TypeKind::SEQUENCE => todo!(),
@@ -666,8 +710,20 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
             ),
             TypeKind::UNION => todo!(),
             TypeKind::BITSET => todo!(),
-            TypeKind::SEQUENCE => V::deserialize_sequence_type(self, member, dynamic_data),
-            TypeKind::ARRAY => todo!(),
+            TypeKind::SEQUENCE => {
+                if is_element_type_kind_primitive(member)? {
+                    self.deserialize_psequence_type(member, dynamic_data)
+                } else {
+                    V::deserialize_sequence_type(self, member, dynamic_data)
+                }
+            }
+            TypeKind::ARRAY => {
+                if is_element_type_kind_primitive(member)? {
+                    self.deserialize_parray_type(member, dynamic_data)
+                } else {
+                    V::deserialize_array_type(self, member, dynamic_data)
+                }
+            }
             TypeKind::MAP => todo!(),
             _ => todo!(),
         }
@@ -682,7 +738,8 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
     /// Serialization Rule (3) & (4)
     fn deserialize_string_type(&mut self) -> XTypesResult<String> {
         let length = self.deserialize_primitive_type::<u32>()?;
-        let values = self.reader.read_all(length as usize)?.to_vec();
+        let values = self.reader.read_all(length as usize - 1)?.to_vec();
+        self.reader.read_byte()?; // 0-termination
         String::from_utf8(values).map_err(|_| XTypesError::InvalidData)
     }
 
@@ -702,18 +759,28 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
     }
 
     /// Serialization Rule (8)
-    fn deserialize_parray_type(&mut self) -> XTypesResult<()> {
-        todo!()
+    fn deserialize_parray_type(
+        &mut self,
+        member: &DynamicTypeMember,
+        dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()> {
+        let bound = member
+            .descriptor
+            .r#type
+            .descriptor
+            .bound
+            .ok_or(XTypesError::InvalidType)?;
+        self.deserialize_sequence_elements(member, dynamic_data, bound as usize)
     }
 
     /// Serialization Rule (11)
-    fn deserialize_psequence_type<O: AsBytes + Align>(&mut self) -> XTypesResult<Vec<O>> {
+    fn deserialize_psequence_type(
+        &mut self,
+        member: &DynamicTypeMember,
+        dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()> {
         let length = self.deserialize_primitive_type::<u32>()?;
-        let mut sequence = Vec::with_capacity(length as usize);
-        for _ in 0..length {
-            sequence.push(self.deserialize_primitive_type()?);
-        }
-        Ok(sequence)
+        self.deserialize_sequence_elements(member, dynamic_data, length as usize)
     }
 
     /// Serialization Rule (14)
@@ -1860,7 +1927,6 @@ mod tests {
                     0x00, 0x06, 0x00, 0x00, // CDR2_BE
                     0, 7, 0, 0, // field_u16 | padding (2 bytes)
                     0, 0, 0, 0, 0, 0, 0, 9, // field_u64
-                    0, 0, 0, 12, // DHEAEDER
                     0, 0, 0, 2, // field_seq_u32 Length (u32)
                     0, 0, 0, 1, // field_seq_u32[0]
                     0, 0, 0, 4, // field_seq_u32[0]
@@ -1876,7 +1942,6 @@ mod tests {
                     0x00, 0x07, 0x00, 0x00, // CDR2_LE
                     7, 0, 0, 0, // field_u16 | padding (2 bytes)
                     9, 0, 0, 0, 0, 0, 0, 0, // field_u64
-                    12, 0, 0, 0, // DHEAEDER
                     2, 0, 0, 0, // field_seq_u32 Length (u32)
                     1, 0, 0, 0, // field_seq_u32[0]
                     4, 0, 0, 0, // field_seq_u32[0]
@@ -1894,7 +1959,7 @@ mod tests {
         let mut expected = DynamicDataFactory::create_data(FinalString::TYPE);
         FinalString(String::from("Hola")).create_dynamic_sample(&mut expected);
         assert_eq!(
-            deserialize_full(
+            deserialize_top_level_type(
                 FinalString::TYPE,
                 &[
                     0x00, 0x00, 0x00, 0x00, // CDR_BE
@@ -1907,7 +1972,7 @@ mod tests {
             expected
         );
         assert_eq!(
-            deserialize_full(
+            deserialize_top_level_type(
                 FinalString::TYPE,
                 &[
                     0x00, 0x01, 0x00, 0x00, // CDR_LE
@@ -1920,7 +1985,7 @@ mod tests {
             expected
         );
         assert_eq!(
-            deserialize_full(
+            deserialize_top_level_type(
                 FinalString::TYPE,
                 &[
                     0x00, 0x06, 0x00, 0x00, // CDR2_BE
@@ -1933,7 +1998,7 @@ mod tests {
             expected
         );
         assert_eq!(
-            deserialize_full(
+            deserialize_top_level_type(
                 FinalString::TYPE,
                 &[
                     0x00, 0x07, 0x00, 0x00, // CDR2_LE
@@ -1954,7 +2019,7 @@ mod tests {
         let mut expected = DynamicDataFactory::create_data(ByteArray::TYPE);
         ByteArray([1u8, 2]).create_dynamic_sample(&mut expected);
         assert_eq!(
-            deserialize_full(
+            deserialize_top_level_type(
                 ByteArray::TYPE,
                 &[
                     0x00, 0x00, 0x00, 0x00, // CDR_BE
@@ -1965,7 +2030,7 @@ mod tests {
             expected
         );
         assert_eq!(
-            deserialize_full(
+            deserialize_top_level_type(
                 ByteArray::TYPE,
                 &[
                     0x00, 0x01, 0x00, 0x00, // CDR_LE
@@ -1976,7 +2041,7 @@ mod tests {
             expected
         );
         assert_eq!(
-            deserialize_full(
+            deserialize_top_level_type(
                 ByteArray::TYPE,
                 &[
                     0x00, 0x06, 0x00, 0x00, // CDR2_BE
@@ -1987,7 +2052,7 @@ mod tests {
             expected
         );
         assert_eq!(
-            deserialize_full(
+            deserialize_top_level_type(
                 ByteArray::TYPE,
                 &[
                     0x00, 0x07, 0x00, 0x00, // CD2R_LE
@@ -2009,7 +2074,7 @@ mod tests {
         let mut expected = DynamicDataFactory::create_data(Sequence::TYPE);
         Sequence(vec![Atype(1), Atype(2)]).create_dynamic_sample(&mut expected);
         assert_eq!(
-            deserialize_full(
+            deserialize_top_level_type(
                 Sequence::TYPE,
                 &[
                     0x00, 0x00, 0x00, 0x00, // CDR_BE
