@@ -33,6 +33,15 @@ fn structs_generation() {
                 pub name: String,
                 pub active: bool,
             }
+            #[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]
+            pub struct ObjectiveType {
+                pub name: String,
+            }
+
+            #[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]
+            pub struct Objective {
+                pub objective_type: ObjectiveType,
+            }
     "#
         .parse()
         .unwrap(),
