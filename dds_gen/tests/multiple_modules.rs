@@ -3,7 +3,7 @@ use std::path::Path;
 use syn::File;
 
 #[test]
-fn template_types() {
+fn multiple_modules() {
     let idl_file = Path::new("tests/multiple_modules.idl");
 
     let expected = syn::parse2::<File>(
