@@ -1,3 +1,8 @@
+use alloc::{
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
 use regex::Regex;
 
 use crate::{
