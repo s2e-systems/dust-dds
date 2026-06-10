@@ -3,7 +3,7 @@ use std::path::Path;
 use syn::File;
 
 #[test]
-fn enums_generation() {
+fn enums() {
     let idl_file = Path::new("tests/enums.idl");
 
     let expected = syn::parse2::<File>(

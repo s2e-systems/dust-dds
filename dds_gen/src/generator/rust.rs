@@ -865,12 +865,18 @@ impl<'a> RustGenerator<'a> {
     }
 
     fn scoped_name(&mut self, pair: IdlPair) {
-        let identifier = pair
-            .into_inner()
-            .next()
-            .expect("Must have an identifier according to the grammar");
-
-        self.writer.push_str(identifier.as_str())
+        let pair_str = pair.as_str();
+        if pair_str.starts_with("::") {
+            // The :: is added as part of the pair so make sure it doesn't start with ::
+            // and that the last iteration doesn't get ::
+            for i in 0..self.modules.len() {
+                if i > 0 {
+                    self.writer.push_str("::");
+                }
+                self.writer.push_str("super");
+            }
+        }
+        self.writer.push_str(pair.as_str())
     }
 
     fn const_dcl(&mut self, pair: IdlPair) {
