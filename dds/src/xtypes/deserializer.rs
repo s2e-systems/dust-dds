@@ -1,6 +1,6 @@
 use crate::xtypes::{
     dynamic_type::{
-        DynamicData, DynamicDataFactory, DynamicType, DynamicTypeMember, ExtensibilityKind,
+        self, DynamicData, DynamicDataFactory, DynamicType, DynamicTypeMember, ExtensibilityKind,
         TypeKind,
     },
     error::{XTypesError, XTypesResult},
@@ -349,12 +349,71 @@ trait EncodingVersion {
     fn serialize_array_type(&mut self);
 
     /// Serialization Rule (12)
-    fn deserialize_sequence_type(&mut self) -> XTypesResult<()> {
-        todo!()
+    fn deserialize_sequence_type<'a, E: EndiannessRead, V: EncodingVersion>(
+        deserializer: &mut XTypesDeserializer<'a, E, V>,
+        member: &DynamicTypeMember,
+        dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()> {
+        match member
+            .descriptor
+            .r#type
+            .descriptor
+            .element_type
+            .expect("Sequence must have element type")
+            .get_kind()
+        {
+            TypeKind::NONE => todo!(),
+            TypeKind::BOOLEAN => dynamic_data
+                .set_boolean_values(member.get_id(), deserializer.deserialize_psequence_type()?),
+            TypeKind::BYTE => dynamic_data
+                .set_byte_values(member.get_id(), deserializer.deserialize_psequence_type()?),
+            TypeKind::INT16 => dynamic_data
+                .set_int16_values(member.get_id(), deserializer.deserialize_psequence_type()?),
+            TypeKind::INT32 => dynamic_data
+                .set_int32_values(member.get_id(), deserializer.deserialize_psequence_type()?),
+            TypeKind::INT64 => dynamic_data
+                .set_int64_values(member.get_id(), deserializer.deserialize_psequence_type()?),
+            TypeKind::UINT16 => dynamic_data
+                .set_uint16_values(member.get_id(), deserializer.deserialize_psequence_type()?),
+            TypeKind::UINT32 => dynamic_data
+                .set_uint32_values(member.get_id(), deserializer.deserialize_psequence_type()?),
+            TypeKind::UINT64 => dynamic_data
+                .set_uint64_values(member.get_id(), deserializer.deserialize_psequence_type()?),
+            TypeKind::FLOAT32 => dynamic_data
+                .set_float32_values(member.get_id(), deserializer.deserialize_psequence_type()?),
+            TypeKind::FLOAT64 => dynamic_data
+                .set_float64_values(member.get_id(), deserializer.deserialize_psequence_type()?),
+            TypeKind::FLOAT128 => dynamic_data
+                .set_float128_values(member.get_id(), deserializer.deserialize_psequence_type()?),
+            TypeKind::INT8 => dynamic_data
+                .set_int8_values(member.get_id(), deserializer.deserialize_psequence_type()?),
+            TypeKind::UINT8 => dynamic_data
+                .set_uint8_values(member.get_id(), deserializer.deserialize_psequence_type()?),
+            TypeKind::CHAR8 => dynamic_data
+                .set_char8_values(member.get_id(), deserializer.deserialize_psequence_type()?),
+            TypeKind::CHAR16 => todo!(),
+            TypeKind::STRING8 => {
+                //dynamic_data.set_string_values(member.get_id(), self.deserialize_string_sequence()?)
+                todo!()
+            }
+            TypeKind::STRING16 => todo!(),
+            TypeKind::ALIAS => todo!(),
+            TypeKind::ENUM => todo!(),
+            TypeKind::BITMASK => todo!(),
+            TypeKind::ANNOTATION => todo!(),
+            TypeKind::STRUCTURE => todo!(), //dynamic_data.set_complex_values(member.get_id(), V::deserialize_sequence_type(deserializer, member, dynamic_data)?),
+            TypeKind::UNION => todo!(),
+            TypeKind::BITSET => todo!(),
+            TypeKind::SEQUENCE => todo!(),
+            TypeKind::ARRAY => todo!(),
+            TypeKind::MAP => todo!(),
+        }
     }
 
     /// Serialization Rule (15) & (16)
-    fn deserialize_map_type(&mut self) -> XTypesResult<()> {
+    fn deserialize_map_type<'a, E: EndiannessRead, V: EncodingVersion>(
+        deserializer: &mut XTypesDeserializer<'a, E, V>,
+    ) -> XTypesResult<()> {
         todo!()
     }
 
@@ -383,6 +442,15 @@ impl EncodingVersion for EncodingVersion1 {
     fn serialize_array_type(&mut self) {
         todo!()
     }
+
+    /// Serialization Rule (12)
+    fn deserialize_sequence_type<'a, E: EndiannessRead, V: EncodingVersion>(
+        deserializer: &mut XTypesDeserializer<'a, E, V>,
+        member: &DynamicTypeMember,
+        dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()> {
+        deserializer.deserialize_sequence_elements(member, dynamic_data)
+    }
 }
 
 struct EncodingVersion2;
@@ -391,6 +459,16 @@ impl EncodingVersion for EncodingVersion2 {
 
     fn serialize_array_type(&mut self) {
         todo!()
+    }
+
+    /// Serialization Rule (12)
+    fn deserialize_sequence_type<'a, E: EndiannessRead, V: EncodingVersion>(
+        deserializer: &mut XTypesDeserializer<'a, E, V>,
+        member: &DynamicTypeMember,
+        dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()> {
+        let _dheader = deserializer.deserialize_primitive_type::<u32>()?;
+        deserializer.deserialize_sequence_elements(member, dynamic_data)
     }
 }
 
@@ -431,6 +509,67 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         Self {
             reader: NextCdrReader::new(buffer, endianness),
             _encoding_version: encoding_version,
+        }
+    }
+
+    fn deserialize_sequence_elements(
+        &mut self,
+        member: &DynamicTypeMember,
+        dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()> {
+        match member
+            .descriptor
+            .r#type
+            .descriptor
+            .element_type
+            .expect("Sequence must have element type")
+            .get_kind()
+        {
+            TypeKind::NONE => todo!(),
+            TypeKind::BOOLEAN => dynamic_data
+                .set_boolean_values(member.get_id(), self.deserialize_psequence_type()?),
+            TypeKind::BYTE => dynamic_data
+                .set_byte_values(member.get_id(), self.deserialize_psequence_type()?),
+            TypeKind::INT16 => dynamic_data
+                .set_int16_values(member.get_id(), self.deserialize_psequence_type()?),
+            TypeKind::INT32 => dynamic_data
+                .set_int32_values(member.get_id(), self.deserialize_psequence_type()?),
+            TypeKind::INT64 => dynamic_data
+                .set_int64_values(member.get_id(), self.deserialize_psequence_type()?),
+            TypeKind::UINT16 => dynamic_data
+                .set_uint16_values(member.get_id(), self.deserialize_psequence_type()?),
+            TypeKind::UINT32 => dynamic_data
+                .set_uint32_values(member.get_id(), self.deserialize_psequence_type()?),
+            TypeKind::UINT64 => dynamic_data
+                .set_uint64_values(member.get_id(), self.deserialize_psequence_type()?),
+            TypeKind::FLOAT32 => dynamic_data
+                .set_float32_values(member.get_id(), self.deserialize_psequence_type()?),
+            TypeKind::FLOAT64 => dynamic_data
+                .set_float64_values(member.get_id(), self.deserialize_psequence_type()?),
+            TypeKind::FLOAT128 => dynamic_data
+                .set_float128_values(member.get_id(), self.deserialize_psequence_type()?),
+            TypeKind::INT8 => dynamic_data
+                .set_int8_values(member.get_id(), self.deserialize_psequence_type()?),
+            TypeKind::UINT8 => dynamic_data
+                .set_uint8_values(member.get_id(), self.deserialize_psequence_type()?),
+            TypeKind::CHAR8 => dynamic_data
+                .set_char8_values(member.get_id(), self.deserialize_psequence_type()?),
+            TypeKind::CHAR16 => todo!(),
+            TypeKind::STRING8 => {
+                //dynamic_data.set_string_values(member.get_id(), self.deserialize_string_sequence()?)
+                todo!()
+            }
+            TypeKind::STRING16 => todo!(),
+            TypeKind::ALIAS => todo!(),
+            TypeKind::ENUM => todo!(),
+            TypeKind::BITMASK => todo!(),
+            TypeKind::ANNOTATION => todo!(),
+            TypeKind::STRUCTURE => todo!(), //dynamic_data.set_complex_values(member.get_id(), V::deserialize_sequence_type(deserializer, member, dynamic_data)?),
+            TypeKind::UNION => todo!(),
+            TypeKind::BITSET => todo!(),
+            TypeKind::SEQUENCE => todo!(),
+            TypeKind::ARRAY => todo!(),
+            TypeKind::MAP => todo!(),
         }
     }
 
@@ -527,7 +666,7 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
             ),
             TypeKind::UNION => todo!(),
             TypeKind::BITSET => todo!(),
-            TypeKind::SEQUENCE => todo!(),
+            TypeKind::SEQUENCE => V::deserialize_sequence_type(self, member, dynamic_data),
             TypeKind::ARRAY => todo!(),
             TypeKind::MAP => todo!(),
             _ => todo!(),
@@ -568,8 +707,13 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
     }
 
     /// Serialization Rule (11)
-    fn deserialize_psequence_type(&mut self) -> XTypesResult<()> {
-        todo!()
+    fn deserialize_psequence_type<O: AsBytes + Align>(&mut self) -> XTypesResult<Vec<O>> {
+        let length = self.deserialize_primitive_type::<u32>()?;
+        let mut sequence = Vec::with_capacity(length as usize);
+        for _ in 0..length {
+            sequence.push(self.deserialize_primitive_type()?);
+        }
+        Ok(sequence)
     }
 
     /// Serialization Rule (14)
@@ -1545,7 +1689,7 @@ mod tests {
             expected
         );
         assert_eq!(
-            deserialize_full(
+            deserialize_top_level_type(
                 FinalType::TYPE,
                 &[
                     0x00, 0x01, 0x00, 0x00, // CDR_LE
@@ -1557,7 +1701,7 @@ mod tests {
             expected
         );
         assert_eq!(
-            deserialize_full(
+            deserialize_top_level_type(
                 FinalType::TYPE,
                 &[
                     0x00, 0x06, 0x00, 0x00, // CDR2_BE
@@ -1569,7 +1713,7 @@ mod tests {
             expected
         );
         assert_eq!(
-            deserialize_full(
+            deserialize_top_level_type(
                 FinalType::TYPE,
                 &[
                     0x00, 0x07, 0x00, 0x00, // CDR2_LE
@@ -1621,7 +1765,7 @@ mod tests {
             expected
         );
         assert_eq!(
-            deserialize_full(
+            deserialize_top_level_type(
                 NestedFinalType::TYPE,
                 &[
                     0x00, 0x01, 0x00, 0x00, // CDR_LE
@@ -1635,7 +1779,7 @@ mod tests {
         );
 
         assert_eq!(
-            deserialize_full(
+            deserialize_top_level_type(
                 NestedFinalType::TYPE,
                 &[
                     0x00, 0x06, 0x00, 0x00, // CDR2_BE
@@ -1649,7 +1793,7 @@ mod tests {
         );
 
         assert_eq!(
-            deserialize_full(
+            deserialize_top_level_type(
                 NestedFinalType::TYPE,
                 &[
                     0x00, 0x07, 0x00, 0x00, // CDR2_LE
@@ -1680,7 +1824,7 @@ mod tests {
         }
         .create_dynamic_sample(&mut expected);
         assert_eq!(
-            deserialize_full(
+            deserialize_top_level_type(
                 FinalTypeWithSequence::TYPE,
                 &[
                     0x00, 0x00, 0x00, 0x00, // CDR_BE
@@ -1695,7 +1839,7 @@ mod tests {
             expected
         );
         assert_eq!(
-            deserialize_full(
+            deserialize_top_level_type(
                 FinalTypeWithSequence::TYPE,
                 &[
                     0x00, 0x01, 0x00, 0x00, // CDR_LE
@@ -1710,12 +1854,13 @@ mod tests {
             expected
         );
         assert_eq!(
-            deserialize_full(
+            deserialize_top_level_type(
                 FinalTypeWithSequence::TYPE,
                 &[
                     0x00, 0x06, 0x00, 0x00, // CDR2_BE
                     0, 7, 0, 0, // field_u16 | padding (2 bytes)
                     0, 0, 0, 0, 0, 0, 0, 9, // field_u64
+                    0, 0, 0, 12, // DHEAEDER
                     0, 0, 0, 2, // field_seq_u32 Length (u32)
                     0, 0, 0, 1, // field_seq_u32[0]
                     0, 0, 0, 4, // field_seq_u32[0]
@@ -1725,12 +1870,13 @@ mod tests {
             expected
         );
         assert_eq!(
-            deserialize_full(
+            deserialize_top_level_type(
                 FinalTypeWithSequence::TYPE,
                 &[
                     0x00, 0x07, 0x00, 0x00, // CDR2_LE
                     7, 0, 0, 0, // field_u16 | padding (2 bytes)
                     9, 0, 0, 0, 0, 0, 0, 0, // field_u64
+                    12, 0, 0, 0, // DHEAEDER
                     2, 0, 0, 0, // field_seq_u32 Length (u32)
                     1, 0, 0, 0, // field_seq_u32[0]
                     4, 0, 0, 0, // field_seq_u32[0]
