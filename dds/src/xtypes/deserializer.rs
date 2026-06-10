@@ -152,7 +152,6 @@ impl<'a, E: EndiannessRead> Cdr1Deserializer<'a, E> {
     }
 }
 
-
 struct RtpsPlCdrDeserializer<'a> {
     cdr1_deserializer: Cdr1Deserializer<'a, LittleEndian>,
 }
