@@ -17,7 +17,7 @@ fn enums() {
             }
 
             #[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]
-            pub enum Suits {
+            pub enum HttpStatusCode {
                 CONTINUE = 100,
                 OK = 200,
                 MULTIPLE_CHOICES = 300,

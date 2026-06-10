@@ -395,11 +395,11 @@ impl<'a> RustGenerator<'a> {
 
     #[inline]
     fn enumerator(&mut self, pair: IdlPair) {
-        self.generate(
-            pair.into_inner()
-                .next()
-                .expect("Must have an element according to the grammar"),
-        )
+        let identifier = pair
+            .into_inner()
+            .find(|x| x.as_rule() == Rule::identifier)
+            .expect("Must have an identifier according to the grammar");
+        self.writer.push_str(identifier.as_str());
     }
 
     fn member(&mut self, pair: IdlPair) {
