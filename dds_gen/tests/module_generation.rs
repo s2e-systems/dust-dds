@@ -49,7 +49,7 @@ fn module_generation() {
                 #[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]
                 #[dust_dds(name = "foo::frob::Baz")]
                 pub struct Baz {
-                    pub qux: ::foo::Bar,
+                    pub qux: super::super::foo::Bar,
                 }
             }
         }
