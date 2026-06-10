@@ -194,7 +194,11 @@ int main(int argc, char *argv[]) {
 	msg.union_sequence._buffer = (interoperability_test_UnionType *) unions;
 	msg.union_sequence._release = false;
 
-	dds_write(data_writer, &msg);
+	rc = dds_write(data_writer, &msg);
+	if (rc != DDS_RETCODE_OK)
+	{
+		DDS_FATAL("dds_write: %s\n", dds_strretcode(-rc));
+	}
 
 	rc = dds_wait_for_acks(data_writer, DDS_SECS(30));
 	if (rc != DDS_RETCODE_OK) {
