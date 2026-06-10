@@ -34,10 +34,12 @@ struct Point
 
 module foo {
     typedef long Bar;
+    typedef long Car;
 
     module frob {
         struct Baz {
-            ::foo::Bar qux;
+            @key ::foo::Bar qux;
+            ::foo::Car qix;
         };
     };
 };
