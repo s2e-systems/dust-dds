@@ -698,8 +698,11 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
             ),
             TypeKind::CHAR16 => todo!(),
             TypeKind::STRING8 => {
-                //dynamic_data.set_string_values(member.get_id(), self.deserialize_string_sequence()?)
-                todo!()
+                let mut values = Vec::with_capacity(length);
+                for _ in 0..length {
+                    values.push(self.deserialize_string_type()?);
+                }
+                dynamic_data.set_string_values(member.get_id(), values)
             }
             TypeKind::STRING16 => todo!(),
             TypeKind::ALIAS => todo!(),
@@ -707,11 +710,11 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
             TypeKind::STRUCTURE => {
-                let mut complex_values = Vec::with_capacity(length);
+                let mut values = Vec::with_capacity(length);
                 for _ in 0..length {
-                    complex_values.push(self.deserialize_as_nested(element_type)?);
+                    values.push(self.deserialize_as_nested(element_type)?);
                 }
-                dynamic_data.set_complex_values(member.get_id(), complex_values)
+                dynamic_data.set_complex_values(member.get_id(), values)
             }
             TypeKind::UNION => todo!(),
             TypeKind::BITSET => todo!(),
@@ -724,32 +727,38 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
     fn deserialize_as_nested(&mut self, dynamic_type: DynamicType) -> XTypesResult<DynamicData> {
         let mut dynamic_data = DynamicDataFactory::create_data(dynamic_type);
 
-        // We start by deserializing the base type if it exists before proceeding with the rest of the type
-        if let Some(_base_dynamic_type) = dynamic_type.descriptor.base_type {
-            // self.deserialize_as_nested(base_dynamic_type, dynamic_data)?;
-            todo!()
-        }
-
-        // Deserialize the top-level which must be either a struct, an enum or a union.
-        match dynamic_type.get_descriptor().kind {
-            TypeKind::STRUCTURE => match dynamic_type.get_descriptor().extensibility_kind {
-                ExtensibilityKind::Final => {
-                    self.deserialize_fstruct_type(dynamic_type, &mut dynamic_data)?;
+        fn deserialize_as_nested_inner<'a, E: EndiannessRead, V: EncodingVersion>(
+            deserializer: &mut XTypesDeserializer<'a, E, V>,
+            dynamic_type: DynamicType,
+            dynamic_data: &mut DynamicData,
+        ) -> XTypesResult<()> {
+            // Deserialize the top-level which must be either a struct, an enum or a union.
+            match dynamic_type.get_descriptor().kind {
+                TypeKind::STRUCTURE => match dynamic_type.get_descriptor().extensibility_kind {
+                    ExtensibilityKind::Final => {
+                        deserializer.deserialize_fstruct_type(dynamic_type, dynamic_data)
+                    }
+                    ExtensibilityKind::Appendable => {
+                        V::deserialize_appendable_type(deserializer, dynamic_type, dynamic_data)
+                    }
+                    ExtensibilityKind::Mutable => {
+                        V::deserialize_mstruct_type(deserializer, dynamic_type, dynamic_data)
+                    }
+                },
+                TypeKind::ENUM => todo!(),
+                TypeKind::UNION => todo!(),
+                kind => {
+                    debug!("Expected structure, enum or union. Got kind {kind:?} ");
+                    Err(XTypesError::InvalidType)
                 }
-                ExtensibilityKind::Appendable => {
-                    V::deserialize_appendable_type(self, dynamic_type, &mut dynamic_data)?
-                }
-                ExtensibilityKind::Mutable => {
-                    V::deserialize_mstruct_type(self, dynamic_type, &mut dynamic_data)?;
-                }
-            },
-            TypeKind::ENUM => todo!(),
-            TypeKind::UNION => todo!(),
-            kind => {
-                debug!("Expected structure, enum or union. Got kind {kind:?} ");
-                return Err(XTypesError::InvalidType);
             }
         }
+
+        // We start by deserializing the base type if it exists before proceeding with the rest of the type
+        if let Some(base_dynamic_type) = dynamic_type.descriptor.base_type {
+            deserialize_as_nested_inner(self, base_dynamic_type, &mut dynamic_data)?;
+        }
+        deserialize_as_nested_inner(self, dynamic_type, &mut dynamic_data)?;
 
         Ok(dynamic_data)
     }
@@ -809,7 +818,25 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
             }
             TypeKind::STRING16 => todo!(),
             TypeKind::ALIAS => todo!(),
-            TypeKind::ENUM => todo!(),
+            TypeKind::ENUM => {
+                let discriminator_type = member
+                    .descriptor
+                    .r#type
+                    .descriptor
+                    .discriminator_type
+                    .ok_or(XTypesError::InvalidType)?;
+                match discriminator_type.get_kind() {
+                    TypeKind::INT8 => {
+                        let value = self.deserialize_primitive_type::<i8>()?;
+                        dynamic_data.set_int8_value(0, value)
+                    }
+                    TypeKind::INT32 => {
+                        let value = self.deserialize_primitive_type::<i32>()?;
+                        dynamic_data.set_int32_value(0, value)
+                    }
+                    d => panic!("Invalid discriminator {d:?}"),
+                }
+            }
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
             TypeKind::STRUCTURE => dynamic_data.set_complex_value(

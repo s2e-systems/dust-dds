@@ -2068,9 +2068,10 @@ impl DcpsDomainParticipant {
             ChangeKind::NotAliveDisposed | ChangeKind::NotAliveDisposedUnregistered => {
                 let discovered_participant_handle = if let Some(h) = cache_change.instance_handle {
                     InstanceHandle::new(h)
-                } else if let Ok(mut dynamic_data) =
-                    deserialize_full(BuiltInKeyHolder::TYPE, cache_change.data_value.as_ref())
-                {
+                } else if let Ok(mut dynamic_data) = deserialize_top_level_type(
+                    BuiltInKeyHolder::TYPE,
+                    cache_change.data_value.as_ref(),
+                ) {
                     InstanceHandle::new(
                         BuiltInKeyHolder::create_sample(&mut dynamic_data).key.value,
                     )
@@ -2171,9 +2172,10 @@ impl DcpsDomainParticipant {
             ChangeKind::NotAliveDisposed | ChangeKind::NotAliveDisposedUnregistered => {
                 let discovered_writer_handle = if let Some(h) = cache_change.instance_handle {
                     InstanceHandle::new(h)
-                } else if let Ok(mut dynamic_data) =
-                    deserialize_full(BuiltInKeyHolder::TYPE, cache_change.data_value.as_ref())
-                {
+                } else if let Ok(mut dynamic_data) = deserialize_top_level_type(
+                    BuiltInKeyHolder::TYPE,
+                    cache_change.data_value.as_ref(),
+                ) {
                     InstanceHandle::new(
                         BuiltInKeyHolder::create_sample(&mut dynamic_data).key.value,
                     )
@@ -2471,7 +2473,7 @@ impl DcpsDomainParticipant {
             if let TopicDescriptionKind::ContentFilteredTopic(content_filtered_topic) = reader_topic
             {
                 if cache_change.kind == ChangeKind::Alive {
-                    let Ok(data) = deserialize_full(
+                    let Ok(data) = deserialize_top_level_type(
                         data_reader.type_support,
                         cache_change.data_value.as_ref(),
                     ) else {
@@ -5260,7 +5262,7 @@ impl DataReaderEntity {
     ) -> DdsResult<ReaderSample> {
         let (data_value, instance_handle) = match cache_change.kind {
             ChangeKind::Alive | ChangeKind::AliveFiltered => {
-                let data_value =
+                let data_value: DynamicData =
                     deserialize_full(self.type_support, cache_change.data_value.as_ref())?;
                 let instance_handle = get_instance_handle_from_dynamic_data(data_value.clone())?;
                 (data_value, instance_handle)
