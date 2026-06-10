@@ -60,3 +60,11 @@ path = "dust_dds_subscriber_nested.rs"
 [[bin]]
 name = "dust_dds_publisher_nested"
 path = "dust_dds_publisher_nested.rs"
+
+[[bin]]
+name = "dust_dds_subscriber_union"
+path = "dust_dds_subscriber_union.rs"
+
+[[bin]]
+name = "dust_dds_publisher_union"
+path = "dust_dds_publisher_union.rs"

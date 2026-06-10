@@ -174,9 +174,9 @@ jobs:
           key: cargo-bloat-bin-v1-{{ arch }}
           paths:
             - ~/.cargo/bin/cargo-bloat
-      - run: 
+      - run:
           name: Check compilation time
-          command: cargo build --package dust_dds --timings --tests --examples      
+          command: cargo build --package dust_dds --timings --tests --examples
       - run:
           name: Check binary size hello_world_publisher
           command: cargo bloat -p dust_dds --example hello_world_publisher --release --wide -n 100 --filter dust_dds > hello_world_publisher_bloat.txt
@@ -304,6 +304,20 @@ jobs:
             cargo run --package dust_dds_interoperability --bin dust_dds_subscriber_nested &
             pid=$!
             build/cyclone_dds/CycloneDdsPublisherNested
+            wait $pid
+      - run:
+          name: Cyclone publisher union interoperability test
+          command: |
+            cargo run --package dust_dds_interoperability --bin dust_dds_subscriber_union &
+            pid=$!
+            build/cyclone_dds/CycloneDdsPublisherUnion
+            wait $pid
+      - run:
+          name: Cyclone subscriber union interoperability test
+          command: |
+            build/cyclone_dds/CycloneDdsSubscriberUnion &
+            pid=$!
+            cargo run --package dust_dds_interoperability --bin dust_dds_publisher_union
             wait $pid
 
   multi_machine_tests:
