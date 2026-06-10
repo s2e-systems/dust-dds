@@ -201,4 +201,13 @@ mod tests {
 
         assert_eq!(output, expected);
     }
+
+    #[test]
+    fn preprocessor_file_with_comments() {
+        let idl_file = Path::new("src/preprocessor/test_resources/file_with_comments.idl");
+        let expected = "\nstruct SimpleStruct {\nboolean a;\nchar b;\nlong i;\n};\n\nstruct OtherStruct {\nlong i;\n};\n\nstruct SimpleStruct {\nlong i;\n};\n\n";
+        let output = Preprocessor::parse(idl_file).unwrap();
+
+        assert_eq!(output, expected);
+    }
 }
