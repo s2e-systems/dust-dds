@@ -900,11 +900,14 @@ impl<'a> RustGenerator<'a> {
 
     #[inline]
     fn const_type(&mut self, pair: IdlPair) {
-        self.generate(
-            pair.into_inner()
-                .next()
-                .expect("Must have an element according to grammar"),
-        )
+        let inner_type = pair
+            .into_inner()
+            .next()
+            .expect("Must have an element according to grammar");
+        match inner_type.clone().as_rule() {
+            Rule::string_type => self.writer.push_str("&str"),
+            _ => self.generate(inner_type),
+        }
     }
 
     #[inline]
@@ -1049,7 +1052,7 @@ mod tests {
         let mut rust_generator = RustGenerator::new(&mut writer);
         rust_generator.generate(p);
 
-        assert_eq!(&writer, "pub const a:String='a';\n");
+        assert_eq!(&writer, "pub const a:&str='a';\n");
     }
 
     #[test]
