@@ -395,11 +395,43 @@ impl<'a> RustGenerator<'a> {
 
     #[inline]
     fn enumerator(&mut self, pair: IdlPair) {
-        self.generate(
-            pair.into_inner()
+        let identifier = pair
+            .clone()
+            .into_inner()
+            .find(|x| x.as_rule() == Rule::identifier)
+            .expect("Must have an identifier according to the grammar");
+        self.writer.push_str(identifier.as_str());
+        for annotation_appl in pair
+            .into_inner()
+            .filter(|x| x.as_rule() == Rule::annotation_appl)
+        {
+            let inner_pairs = annotation_appl.into_inner();
+
+            let scoped_name = inner_pairs
+                .clone()
+                .find(|p| p.as_rule() == Rule::scoped_name)
+                .expect("Must have a scoped name according to the grammar");
+
+            let identifier = scoped_name
+                .into_inner()
                 .next()
-                .expect("Must have an element according to the grammar"),
-        )
+                .expect("Must have an identifier according to the grammar");
+
+            if identifier.as_str() == "value" {
+                if let Some(annotation_appl_params) = inner_pairs
+                    .clone()
+                    .find(|p| p.as_rule() == Rule::annotation_appl_params)
+                {
+                    if let Some(expr) = annotation_appl_params
+                        .into_inner()
+                        .find(|p| p.as_rule() == Rule::const_expr)
+                    {
+                        self.writer.push_str(" = ");
+                        self.writer.push_str(expr.as_str());
+                    }
+                }
+            }
+        }
     }
 
     fn member(&mut self, pair: IdlPair) {

@@ -443,7 +443,7 @@ union_forward_dcl = { "union" ~ identifier }
 // (57)
 enum_dcl = { "enum" ~ identifier ~ "{" ~ enumerator ~ ("," ~ enumerator)* ~ "}" }
 // (58)
-enumerator = { identifier }
+enumerator = { annotation_appl* ~ identifier }
 // (59)
 array_declarator = { identifier ~ fixed_array_size+ }
 // (60)

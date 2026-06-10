@@ -15,6 +15,16 @@ fn enums() {
                 Diamonds,
                 Clubs,
             }
+
+            #[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]
+            pub enum HttpStatusCode {
+                CONTINUE = 100,
+                OK = 200,
+                MULTIPLE_CHOICES = 300,
+                BAD_REQUEST = 400,
+                NOT_FOUND = 404,
+                INTERNAL_SERVER_ERROR = 500,
+            }
     "#
         .parse()
         .unwrap(),
