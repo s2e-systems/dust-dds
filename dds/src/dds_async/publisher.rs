@@ -70,7 +70,7 @@ impl PublisherAsync {
                     topic_name,
                     qos,
                     dcps_listener,
-                    mask: mask.to_vec(),
+                    listener_mask: mask.iter().collect(),
                     reply_sender,
                 },
             ))
@@ -240,7 +240,7 @@ impl PublisherAsync {
                     participant_handle: self.participant.get_instance_handle(),
                     publisher_handle: self.handle,
                     dcps_listener,
-                    mask: mask.to_vec(),
+                    listener_mask: mask.iter().collect(),
                     reply_sender,
                 },
             ))

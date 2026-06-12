@@ -1,7 +1,6 @@
 use alloc::{
     format,
     string::{String, ToString},
-    vec,
     vec::Vec,
 };
 
@@ -24,7 +23,6 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
-        status::StatusKind,
     },
     runtime::DdsRuntime,
     transport::types::{USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC, USER_DEFINED_WRITER_GROUP},
@@ -37,7 +35,7 @@ impl DcpsDomainParticipant {
         &mut self,
         qos: QosKind<PublisherQos>,
         dcps_listener: Option<DcpsPublisherListener>,
-        mask: Vec<StatusKind>,
+        listener_mask: StatusMask,
         runtime: &impl DdsRuntime,
     ) -> DdsResult<InstanceHandle> {
         let publisher_qos = match qos {
@@ -71,7 +69,7 @@ impl DcpsDomainParticipant {
             publisher_handle,
             data_writer_list,
             listener_sender,
-            mask,
+            listener_mask,
         );
 
         if self.domain_participant.enabled
@@ -128,7 +126,7 @@ impl DcpsDomainParticipant {
         &mut self,
         qos: QosKind<SubscriberQos>,
         dcps_listener: Option<DcpsSubscriberListener>,
-        mask: Vec<StatusKind>,
+        listener_mask: StatusMask,
         runtime: &impl DdsRuntime,
     ) -> DdsResult<InstanceHandle> {
         let subscriber_qos = match qos {
@@ -155,7 +153,6 @@ impl DcpsDomainParticipant {
         ]);
         self.subscriber_counter += 1;
 
-        let listener_mask = mask.to_vec();
         let data_reader_list = Default::default();
 
         let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
@@ -225,7 +222,7 @@ impl DcpsDomainParticipant {
         type_name: String,
         qos: QosKind<TopicQos>,
         dcps_listener: Option<DcpsTopicListener>,
-        mask: Vec<StatusKind>,
+        listener_mask: StatusMask,
         type_support: DynamicType,
         runtime: &impl DdsRuntime,
     ) -> DdsResult<InstanceHandle> {
@@ -274,7 +271,7 @@ impl DcpsDomainParticipant {
             topic_handle,
             status_condition,
             listener_sender,
-            mask,
+            listener_mask,
             type_support,
         );
 
@@ -467,7 +464,7 @@ impl DcpsDomainParticipant {
                     topic_handle,
                     status_condition,
                     None,
-                    vec![],
+                    StatusMask::default(),
                     type_support,
                 );
                 topic.enabled = true;

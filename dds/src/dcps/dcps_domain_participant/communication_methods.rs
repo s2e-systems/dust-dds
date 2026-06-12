@@ -239,7 +239,7 @@ impl DcpsDomainParticipant {
                     }
                     let data_reader_on_data_available_active = data_reader
                         .listener_mask
-                        .contains(&StatusKind::DataAvailable);
+                        .is_enabled(&StatusKind::DataAvailable);
 
                     let Some(subscriber) = self
                         .domain_participant
@@ -252,7 +252,7 @@ impl DcpsDomainParticipant {
 
                     if subscriber
                         .listener_mask
-                        .contains(&StatusKind::DataOnReaders)
+                        .is_enabled(&StatusKind::DataOnReaders)
                     {
                         let Ok(the_subscriber) = self.get_subscriber_async(*subscriber_handle)
                         else {
@@ -331,7 +331,7 @@ impl DcpsDomainParticipant {
 
                     if data_reader
                         .listener_mask
-                        .contains(&StatusKind::SampleRejected)
+                        .is_enabled(&StatusKind::SampleRejected)
                     {
                         let status = data_reader.get_sample_rejected_status();
                         let Ok(the_reader) =
@@ -361,7 +361,7 @@ impl DcpsDomainParticipant {
                         };
                     } else if subscriber
                         .listener_mask
-                        .contains(&StatusKind::SampleRejected)
+                        .is_enabled(&StatusKind::SampleRejected)
                     {
                         let Ok(the_reader) =
                             self.get_data_reader_async(subscriber_handle, data_reader_handle)

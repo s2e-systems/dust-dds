@@ -77,7 +77,7 @@ impl DomainParticipantAsync {
                     participant_handle: self.handle,
                     qos,
                     dcps_listener,
-                    mask: mask.to_vec(),
+                    listener_mask: mask.iter().collect(),
                     reply_sender,
                 },
             ))
@@ -121,7 +121,7 @@ impl DomainParticipantAsync {
                     participant_handle: self.handle,
                     qos,
                     dcps_listener,
-                    mask: mask.to_vec(),
+                    listener_mask: mask.iter().collect(),
                     reply_sender,
                 },
             ))
@@ -186,7 +186,7 @@ impl DomainParticipantAsync {
                 type_name: String::from(type_name),
                 qos,
                 dcps_listener,
-                mask: mask.to_vec(),
+                listener_mask: mask.iter().collect(),
                 type_support: dynamic_type_representation,
                 reply_sender,
             }))

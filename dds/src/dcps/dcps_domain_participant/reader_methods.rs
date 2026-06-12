@@ -8,6 +8,7 @@ use crate::{
         dcps_domain_participant::{DcpsDomainParticipant, RtpsReaderKind, poll_timeout},
         dcps_mail::{DcpsMail, MessageServiceMail},
         listeners::data_reader_listener::DcpsDataReaderListener,
+        status_mask::StatusMask,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -376,7 +377,7 @@ impl DcpsDomainParticipant {
         subscriber_handle: &InstanceHandle,
         data_reader_handle: &InstanceHandle,
         dcps_listener: Option<DcpsDataReaderListener>,
-        listener_mask: Vec<StatusKind>,
+        listener_mask: StatusMask,
         runtime: &impl DdsRuntime,
     ) -> DdsResult<()> {
         let Some(subscriber) = self

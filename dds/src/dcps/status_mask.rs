@@ -46,7 +46,7 @@ mod tests {
     #[test]
     fn test_from_iterator() {
         let mask: StatusMask = [StatusKind::SampleLost, StatusKind::PublicationMatched]
-            .into_iter()
+            .iter()
             .collect();
 
         assert!(mask.is_enabled(&StatusKind::SampleLost));
