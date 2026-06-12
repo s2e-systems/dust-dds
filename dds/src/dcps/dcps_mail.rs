@@ -29,7 +29,7 @@ use crate::{
         sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
         status::{
             InconsistentTopicStatus, OfferedDeadlineMissedStatus, PublicationMatchedStatus,
-            StatusKind, SubscriptionMatchedStatus,
+            SubscriptionMatchedStatus,
         },
         time::{Duration, Time},
     },
@@ -564,11 +564,11 @@ pub enum ReaderServiceMail {
 pub enum StatusConditionMail {
     GetStatusConditionEnabledStatuses {
         entity: StatusConditionEntity,
-        reply_sender: OneshotSender<DdsResult<Vec<StatusKind>>>,
+        reply_sender: OneshotSender<DdsResult<StatusMask>>,
     },
     SetStatusConditionEnabledStatuses {
         entity: StatusConditionEntity,
-        status_mask: Vec<StatusKind>,
+        status_mask: StatusMask,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
     GetStatusConditionTriggerValue {

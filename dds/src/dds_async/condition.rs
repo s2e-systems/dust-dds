@@ -63,7 +63,8 @@ impl StatusConditionAsync {
                 },
             ))
             .await;
-        reply_receiver.await?
+        // reply_receiver.await?
+        todo!()
     }
 
     /// Async version of [`set_enabled_statuses`](crate::infrastructure::condition::StatusCondition::set_enabled_statuses).
@@ -74,7 +75,7 @@ impl StatusConditionAsync {
             .send(DcpsMail::StatusCondition(
                 StatusConditionMail::SetStatusConditionEnabledStatuses {
                     entity: self.entity.clone(),
-                    status_mask: mask.to_vec(),
+                    status_mask: mask.iter().collect(),
                     reply_sender,
                 },
             ))
