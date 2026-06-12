@@ -90,7 +90,7 @@ impl IntoIterator for StatusMask {
     }
 }
 
-impl<'a> IntoIterator for &'a StatusMask {
+impl IntoIterator for &StatusMask {
     type Item = StatusKind;
     type IntoIter = StatusMaskIter;
 

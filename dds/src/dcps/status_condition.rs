@@ -74,7 +74,7 @@ impl DcpsStatusCondition {
     }
 
     pub fn get_enabled_statuses(&self) -> StatusMask {
-        self.enabled_statuses.clone()
+        self.enabled_statuses
     }
 
     pub fn set_enabled_statuses(&mut self, mask: StatusMask) {
@@ -83,7 +83,7 @@ impl DcpsStatusCondition {
 
     pub fn get_trigger_value(&self) -> bool {
         for status in &self.status_changes {
-            if self.enabled_statuses.is_enabled(&status) {
+            if self.enabled_statuses.is_enabled(status) {
                 return true;
             }
         }

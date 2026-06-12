@@ -646,7 +646,7 @@ impl DomainParticipantAsync {
             .send(DcpsMail::Participant(ParticipantServiceMail::SetListener {
                 participant_handle: self.handle,
                 dcps_listener,
-                listener_mask: mask.into_iter().collect(),
+                listener_mask: mask.iter().collect(),
                 reply_sender,
             }))
             .await;
