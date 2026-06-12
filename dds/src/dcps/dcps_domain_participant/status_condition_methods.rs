@@ -1,7 +1,7 @@
 use crate::{
     dcps::{
-        channels::oneshot::OneshotSender, dcps_participant_factory::DcpsParticipantFactory,
-        status_condition::StatusConditionEntity,
+        channels::notification::NotificationSender,
+        dcps_participant_factory::DcpsParticipantFactory, status_condition::StatusConditionEntity,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -290,7 +290,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
     pub fn register_notification(
         &mut self,
         entity: StatusConditionEntity,
-        notification_sender: OneshotSender<()>,
+        notification_sender: NotificationSender,
     ) -> DdsResult<()> {
         match entity {
             StatusConditionEntity::Subscriber {

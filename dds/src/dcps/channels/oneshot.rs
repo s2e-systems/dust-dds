@@ -41,7 +41,6 @@ struct OneshotInner<T> {
     has_sender: bool,
 }
 
-#[derive(Clone)]
 pub struct OneshotSender<T> {
     inner: Arc<Mutex<RefCell<OneshotInner<T>>>>,
 }

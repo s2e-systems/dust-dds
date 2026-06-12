@@ -1,5 +1,5 @@
 use crate::{
-    dcps::channels::oneshot::OneshotSender,
+    dcps::channels::notification::NotificationSender,
     infrastructure::{instance::InstanceHandle, status::StatusKind},
 };
 use alloc::{vec, vec::Vec};
@@ -29,7 +29,7 @@ pub enum StatusConditionEntity {
 pub struct DcpsStatusCondition {
     enabled_statuses: Vec<StatusKind>,
     status_changes: Vec<StatusKind>,
-    registered_notifications: Vec<OneshotSender<()>>,
+    registered_notifications: Vec<NotificationSender>,
 }
 
 impl Default for DcpsStatusCondition {
@@ -62,7 +62,7 @@ impl DcpsStatusCondition {
         if self.get_trigger_value() {
             for w in self.registered_notifications.drain(..) {
                 // Do not care if there is no channel waiting for response
-                w.send(());
+                w.notify();
             }
         }
     }
@@ -88,9 +88,9 @@ impl DcpsStatusCondition {
         false
     }
 
-    pub fn register_notification(&mut self, notification_sender: OneshotSender<()>) {
+    pub fn register_notification(&mut self, notification_sender: NotificationSender) {
         if self.get_trigger_value() {
-            notification_sender.send(());
+            notification_sender.notify();
         } else {
             self.registered_notifications.push(notification_sender);
         }
