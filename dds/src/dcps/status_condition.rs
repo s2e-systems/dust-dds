@@ -83,7 +83,7 @@ impl DcpsStatusCondition {
 
     pub fn get_trigger_value(&self) -> bool {
         for status in &self.status_changes {
-            if self.enabled_statuses.is_enabled(status) {
+            if self.enabled_statuses.is_enabled(&status) {
                 return true;
             }
         }
