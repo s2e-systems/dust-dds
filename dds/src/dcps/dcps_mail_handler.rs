@@ -20,7 +20,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 domain_id,
                 qos,
                 dcps_listener,
-                status_kind,
+                listener_mask,
                 reply_sender,
                 transport_participant,
                 domain_tag,
@@ -30,7 +30,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 domain_id,
                 qos,
                 dcps_listener,
-                status_kind,
+                listener_mask,
                 transport_participant,
                 domain_tag,
                 participant_announcement_interval,
@@ -322,7 +322,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
             DcpsMail::Participant(ParticipantServiceMail::SetListener {
                 participant_handle,
                 dcps_listener,
-                status_kind,
+                listener_mask,
                 reply_sender,
             }) => reply_sender.send(
                 self.domain_participant_list
@@ -330,7 +330,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                     .find(|x| x.get_instance_handle() == &participant_handle)
                     .ok_or(DdsError::AlreadyDeleted)
                     .and_then(|p| {
-                        p.set_domain_participant_listener(dcps_listener, status_kind, &self.runtime)
+                        p.set_domain_participant_listener(dcps_listener, listener_mask, &self.runtime)
                     }),
             ),
             DcpsMail::Participant(ParticipantServiceMail::Enable {

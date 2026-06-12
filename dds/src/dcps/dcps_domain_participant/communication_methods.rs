@@ -392,7 +392,7 @@ impl DcpsDomainParticipant {
                     } else if self
                         .domain_participant
                         .listener_mask
-                        .contains(&StatusKind::SampleRejected)
+                        .is_enabled(&StatusKind::SampleRejected)
                     {
                         let Ok(the_reader) =
                             self.get_data_reader_async(subscriber_handle, data_reader_handle)

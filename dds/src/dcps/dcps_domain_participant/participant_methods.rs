@@ -18,6 +18,7 @@ use crate::{
             topic_listener::DcpsTopicListener,
         },
         status_condition::DcpsStatusCondition,
+        status_mask::StatusMask,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -722,12 +723,12 @@ impl DcpsDomainParticipant {
     pub fn set_domain_participant_listener(
         &mut self,
         dcps_listener: Option<DcpsDomainParticipantListener>,
-        status_kind: Vec<StatusKind>,
+        listener_mask: StatusMask,
         runtime: &impl DdsRuntime,
     ) -> DdsResult<()> {
         let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
         self.domain_participant.listener_sender = listener_sender;
-        self.domain_participant.listener_mask = status_kind;
+        self.domain_participant.listener_mask = listener_mask;
 
         Ok(())
     }

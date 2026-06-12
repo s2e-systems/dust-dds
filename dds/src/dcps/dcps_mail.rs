@@ -16,6 +16,7 @@ use crate::{
             topic_listener::DcpsTopicListener,
         },
         status_condition::StatusConditionEntity,
+        status_mask::StatusMask,
     },
     infrastructure::{
         domain::DomainId,
@@ -58,7 +59,7 @@ pub enum ParticipantFactoryMail {
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
         dcps_listener: Option<DcpsDomainParticipantListener>,
-        status_kind: Vec<StatusKind>,
+        listener_mask: StatusMask,
         reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
         transport_participant: RtpsTransportParticipant,
         domain_tag: String,
@@ -231,7 +232,7 @@ pub enum ParticipantServiceMail {
     SetListener {
         participant_handle: InstanceHandle,
         dcps_listener: Option<DcpsDomainParticipantListener>,
-        status_kind: Vec<StatusKind>,
+        listener_mask: StatusMask,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
     Enable {

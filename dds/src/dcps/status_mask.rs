@@ -6,11 +6,11 @@ pub struct StatusMask(u16);
 
 impl StatusMask {
     /// Checks if the status kind is enabled in this mask.
-    pub fn is_enabled(&self, status: StatusKind) -> bool {
+    pub fn is_enabled(&self, status: &StatusKind) -> bool {
         (self.0 & Self::status_kind_bit(status)) != 0
     }
 
-    const fn status_kind_bit(status: StatusKind) -> u16 {
+    const fn status_kind_bit(status: &StatusKind) -> u16 {
         match status {
             StatusKind::InconsistentTopic => 1 << 0,
             StatusKind::OfferedDeadlineMissed => 1 << 1,
@@ -29,8 +29,8 @@ impl StatusMask {
     }
 }
 
-impl core::iter::FromIterator<StatusKind> for StatusMask {
-    fn from_iter<T: IntoIterator<Item = StatusKind>>(iter: T) -> Self {
+impl<'a> core::iter::FromIterator<&'a StatusKind> for StatusMask {
+    fn from_iter<T: IntoIterator<Item = &'a StatusKind>>(iter: T) -> Self {
         let mut mask = 0;
         for status in iter {
             mask |= Self::status_kind_bit(status);
@@ -49,8 +49,8 @@ mod tests {
             .into_iter()
             .collect();
 
-        assert!(mask.is_enabled(StatusKind::SampleLost));
-        assert!(mask.is_enabled(StatusKind::PublicationMatched));
-        assert!(!mask.is_enabled(StatusKind::DataAvailable));
+        assert!(mask.is_enabled(&StatusKind::SampleLost));
+        assert!(mask.is_enabled(&StatusKind::PublicationMatched));
+        assert!(!mask.is_enabled(&StatusKind::DataAvailable));
     }
 }

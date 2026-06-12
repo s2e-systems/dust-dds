@@ -25,6 +25,7 @@ use crate::{
         },
         listeners::domain_participant_listener::ListenerMail,
         status_condition::DcpsStatusCondition,
+        status_mask::StatusMask,
         xtypes_glue::key_and_instance_handle::get_instance_handle_from_dynamic_data,
     },
     dds_async::{
@@ -325,7 +326,7 @@ impl DcpsDomainParticipant {
         guid_prefix: GuidPrefix,
         domain_participant_qos: DomainParticipantQos,
         listener_sender: Option<MpscSender<ListenerMail>>,
-        status_kind: Vec<StatusKind>,
+        listener_mask: StatusMask,
         transport: RtpsTransportParticipant,
         dcps_sender: DcpsSender,
     ) -> Self {
@@ -619,7 +620,7 @@ impl DcpsDomainParticipant {
             domain_id,
             domain_participant_qos,
             listener_sender,
-            status_kind,
+            listener_mask,
             participant_handle,
             builtin_publisher,
             builtin_subscriber,
@@ -865,7 +866,7 @@ impl DcpsDomainParticipant {
         } else if self
             .domain_participant
             .listener_mask
-            .contains(&StatusKind::OfferedDeadlineMissed)
+            .is_enabled(&StatusKind::OfferedDeadlineMissed)
         {
             let Ok(the_writer) = self.get_data_writer_async(publisher_handle, data_writer_handle)
             else {
@@ -1012,7 +1013,7 @@ impl DcpsDomainParticipant {
         } else if self
             .domain_participant
             .listener_mask
-            .contains(&StatusKind::RequestedDeadlineMissed)
+            .is_enabled(&StatusKind::RequestedDeadlineMissed)
         {
             let Ok(the_reader) = self.get_data_reader_async(subscriber_handle, data_reader_handle)
             else {
@@ -1115,7 +1116,7 @@ struct DomainParticipantEntity {
     ignored_subscriptions: BTreeSet<InstanceHandle>,
     _ignored_topic_list: BTreeSet<InstanceHandle>,
     listener_sender: Option<MpscSender<ListenerMail>>,
-    listener_mask: Vec<StatusKind>,
+    listener_mask: StatusMask,
 }
 
 impl DomainParticipantEntity {
@@ -1124,7 +1125,7 @@ impl DomainParticipantEntity {
         domain_id: DomainId,
         domain_participant_qos: DomainParticipantQos,
         listener_sender: Option<MpscSender<ListenerMail>>,
-        listener_mask: Vec<StatusKind>,
+        listener_mask: StatusMask,
         instance_handle: InstanceHandle,
         builtin_publisher: PublisherEntity,
         builtin_subscriber: SubscriberEntity,
