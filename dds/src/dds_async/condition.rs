@@ -1,9 +1,6 @@
 use crate::{
     dcps::{
-        channels::{
-            notification::NotificationSender,
-            oneshot::{OneshotSender, oneshot},
-        },
+        channels::{notification::NotificationSender, oneshot::oneshot},
         dcps_mail::{DcpsMail, StatusConditionMail},
         status_condition::StatusConditionEntity,
     },

@@ -1,3 +1,3 @@
 pub mod mpsc;
-pub mod oneshot;
 pub mod notification;
+pub mod oneshot;
