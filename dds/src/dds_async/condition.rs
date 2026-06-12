@@ -1,6 +1,9 @@
 use crate::{
     dcps::{
-        channels::oneshot::{OneshotSender, oneshot},
+        channels::{
+            notification::NotificationSender,
+            oneshot::{OneshotSender, oneshot},
+        },
         dcps_mail::{DcpsMail, StatusConditionMail},
         status_condition::StatusConditionEntity,
     },
@@ -34,7 +37,7 @@ impl StatusConditionAsync {
 
     pub(crate) async fn register_notification(
         &self,
-        notification_sender: OneshotSender<()>,
+        notification_sender: NotificationSender,
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
         self.dcps_sender
