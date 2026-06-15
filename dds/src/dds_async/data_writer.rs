@@ -459,7 +459,7 @@ impl<Foo> DataWriterAsync<Foo> {
                 publisher_handle: self.publisher.get_instance_handle(),
                 data_writer_handle: self.handle,
                 dcps_listener,
-                listener_mask: mask.to_vec(),
+                listener_mask: mask.iter().collect(),
                 reply_sender,
             }))
             .await;

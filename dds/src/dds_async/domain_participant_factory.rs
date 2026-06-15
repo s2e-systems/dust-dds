@@ -84,7 +84,7 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
 
         let domain_tag = configuration.domain_tag().to_owned();
         let participant_announcement_interval = configuration.participant_announcement_interval();
-        let status_kind = mask.to_vec();
+        let listener_mask = mask.iter().collect();
         let dcps_listener = a_listener.map(DcpsDomainParticipantListener::new);
         let (reply_sender, reply_receiver) = oneshot();
         self.dcps_sender
@@ -94,7 +94,7 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                     domain_id,
                     qos,
                     dcps_listener,
-                    status_kind,
+                    listener_mask,
                     reply_sender,
                     transport_participant,
                     domain_tag,

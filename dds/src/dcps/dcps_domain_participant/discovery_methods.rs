@@ -650,7 +650,7 @@ impl DcpsDomainParticipant {
 
                     if data_writer
                         .listener_mask
-                        .contains(&StatusKind::PublicationMatched)
+                        .is_enabled(&StatusKind::PublicationMatched)
                     {
                         let status = data_writer.get_publication_matched_status();
                         let Ok(the_writer) =
@@ -679,7 +679,7 @@ impl DcpsDomainParticipant {
                         }
                     } else if publisher
                         .listener_mask
-                        .contains(&StatusKind::PublicationMatched)
+                        .is_enabled(&StatusKind::PublicationMatched)
                     {
                         let Ok(the_writer) =
                             self.get_data_writer_async(publisher_handle, data_writer_handle)
@@ -709,7 +709,7 @@ impl DcpsDomainParticipant {
                     } else if self
                         .domain_participant
                         .listener_mask
-                        .contains(&StatusKind::PublicationMatched)
+                        .is_enabled(&StatusKind::PublicationMatched)
                     {
                         let Ok(the_writer) =
                             self.get_data_writer_async(publisher_handle, data_writer_handle)
@@ -766,7 +766,7 @@ impl DcpsDomainParticipant {
 
                     if data_writer
                         .listener_mask
-                        .contains(&StatusKind::OfferedIncompatibleQos)
+                        .is_enabled(&StatusKind::OfferedIncompatibleQos)
                     {
                         let status = data_writer.get_offered_incompatible_qos_status();
                         let Ok(the_writer) =
@@ -795,7 +795,7 @@ impl DcpsDomainParticipant {
                         }
                     } else if publisher
                         .listener_mask
-                        .contains(&StatusKind::OfferedIncompatibleQos)
+                        .is_enabled(&StatusKind::OfferedIncompatibleQos)
                     {
                         let Ok(the_writer) =
                             self.get_data_writer_async(publisher_handle, data_writer_handle)
@@ -825,7 +825,7 @@ impl DcpsDomainParticipant {
                     } else if self
                         .domain_participant
                         .listener_mask
-                        .contains(&StatusKind::OfferedIncompatibleQos)
+                        .is_enabled(&StatusKind::OfferedIncompatibleQos)
                     {
                         let Ok(the_writer) =
                             self.get_data_writer_async(publisher_handle, data_writer_handle)
@@ -1097,7 +1097,7 @@ impl DcpsDomainParticipant {
 
                     if data_reader
                         .listener_mask
-                        .contains(&StatusKind::SubscriptionMatched)
+                        .is_enabled(&StatusKind::SubscriptionMatched)
                     {
                         let Ok(the_reader) =
                             self.get_data_reader_async(subscriber_handle, data_reader_handle)
@@ -1126,7 +1126,7 @@ impl DcpsDomainParticipant {
                         }
                     } else if subscriber
                         .listener_mask
-                        .contains(&StatusKind::SubscriptionMatched)
+                        .is_enabled(&StatusKind::SubscriptionMatched)
                     {
                         let Ok(the_reader) =
                             self.get_data_reader_async(subscriber_handle, data_reader_handle)
@@ -1156,7 +1156,7 @@ impl DcpsDomainParticipant {
                     } else if self
                         .domain_participant
                         .listener_mask
-                        .contains(&StatusKind::SubscriptionMatched)
+                        .is_enabled(&StatusKind::SubscriptionMatched)
                     {
                         let Ok(the_reader) =
                             self.get_data_reader_async(subscriber_handle, data_reader_handle)
@@ -1213,7 +1213,7 @@ impl DcpsDomainParticipant {
 
                     if data_reader
                         .listener_mask
-                        .contains(&StatusKind::RequestedIncompatibleQos)
+                        .is_enabled(&StatusKind::RequestedIncompatibleQos)
                     {
                         let status = data_reader.get_requested_incompatible_qos_status();
                         let Ok(the_reader) =
@@ -1242,7 +1242,7 @@ impl DcpsDomainParticipant {
                         }
                     } else if subscriber
                         .listener_mask
-                        .contains(&StatusKind::RequestedIncompatibleQos)
+                        .is_enabled(&StatusKind::RequestedIncompatibleQos)
                     {
                         let Ok(the_reader) =
                             self.get_data_reader_async(subscriber_handle, data_reader_handle)
@@ -1272,7 +1272,7 @@ impl DcpsDomainParticipant {
                     } else if self
                         .domain_participant
                         .listener_mask
-                        .contains(&StatusKind::RequestedIncompatibleQos)
+                        .is_enabled(&StatusKind::RequestedIncompatibleQos)
                     {
                         let Ok(the_reader) =
                             self.get_data_reader_async(subscriber_handle, data_reader_handle)

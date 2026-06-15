@@ -16,6 +16,7 @@ use crate::{
             topic_listener::DcpsTopicListener,
         },
         status_condition::StatusConditionEntity,
+        status_mask::StatusMask,
     },
     infrastructure::{
         domain::DomainId,
@@ -28,7 +29,7 @@ use crate::{
         sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
         status::{
             InconsistentTopicStatus, OfferedDeadlineMissedStatus, PublicationMatchedStatus,
-            StatusKind, SubscriptionMatchedStatus,
+            SubscriptionMatchedStatus,
         },
         time::{Duration, Time},
     },
@@ -58,7 +59,7 @@ pub enum ParticipantFactoryMail {
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
         dcps_listener: Option<DcpsDomainParticipantListener>,
-        status_kind: Vec<StatusKind>,
+        listener_mask: StatusMask,
         reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
         transport_participant: RtpsTransportParticipant,
         domain_tag: String,
@@ -89,7 +90,7 @@ pub enum ParticipantServiceMail {
         participant_handle: InstanceHandle,
         qos: QosKind<PublisherQos>,
         dcps_listener: Option<DcpsPublisherListener>,
-        mask: Vec<StatusKind>,
+        listener_mask: StatusMask,
         reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
     },
     DeleteUserDefinedPublisher {
@@ -102,7 +103,7 @@ pub enum ParticipantServiceMail {
         participant_handle: InstanceHandle,
         qos: QosKind<SubscriberQos>,
         dcps_listener: Option<DcpsSubscriberListener>,
-        mask: Vec<StatusKind>,
+        listener_mask: StatusMask,
         reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
     },
     DeleteUserDefinedSubscriber {
@@ -117,7 +118,7 @@ pub enum ParticipantServiceMail {
         type_name: String,
         qos: QosKind<TopicQos>,
         dcps_listener: Option<DcpsTopicListener>,
-        mask: Vec<StatusKind>,
+        listener_mask: StatusMask,
         type_support: DynamicType,
         reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
     },
@@ -231,7 +232,7 @@ pub enum ParticipantServiceMail {
     SetListener {
         participant_handle: InstanceHandle,
         dcps_listener: Option<DcpsDomainParticipantListener>,
-        status_kind: Vec<StatusKind>,
+        listener_mask: StatusMask,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
     Enable {
@@ -276,7 +277,7 @@ pub enum PublisherServiceMail {
         topic_name: String,
         qos: QosKind<DataWriterQos>,
         dcps_listener: Option<DcpsDataWriterListener>,
-        mask: Vec<StatusKind>,
+        listener_mask: StatusMask,
         reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
     },
     DeleteDataWriter {
@@ -311,7 +312,7 @@ pub enum PublisherServiceMail {
         participant_handle: InstanceHandle,
         publisher_handle: InstanceHandle,
         dcps_listener: Option<DcpsPublisherListener>,
-        mask: Vec<StatusKind>,
+        listener_mask: StatusMask,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
 }
@@ -323,7 +324,7 @@ pub enum SubscriberServiceMail {
         topic_name: String,
         qos: QosKind<DataReaderQos>,
         dcps_listener: Option<DcpsDataReaderListener>,
-        mask: Vec<StatusKind>,
+        listener_mask: StatusMask,
         reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
     },
     DeleteDataReader {
@@ -364,7 +365,7 @@ pub enum SubscriberServiceMail {
         participant_handle: InstanceHandle,
         subscriber_handle: InstanceHandle,
         dcps_listener: Option<DcpsSubscriberListener>,
-        mask: Vec<StatusKind>,
+        listener_mask: StatusMask,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
 }
@@ -375,7 +376,7 @@ pub enum WriterServiceMail {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         dcps_listener: Option<DcpsDataWriterListener>,
-        listener_mask: Vec<StatusKind>,
+        listener_mask: StatusMask,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
     GetDataWriterQos {
@@ -555,7 +556,7 @@ pub enum ReaderServiceMail {
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
         dcps_listener: Option<DcpsDataReaderListener>,
-        listener_mask: Vec<StatusKind>,
+        listener_mask: StatusMask,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
 }
@@ -563,11 +564,11 @@ pub enum ReaderServiceMail {
 pub enum StatusConditionMail {
     GetStatusConditionEnabledStatuses {
         entity: StatusConditionEntity,
-        reply_sender: OneshotSender<DdsResult<Vec<StatusKind>>>,
+        reply_sender: OneshotSender<DdsResult<StatusMask>>,
     },
     SetStatusConditionEnabledStatuses {
         entity: StatusConditionEntity,
-        status_mask: Vec<StatusKind>,
+        status_mask: StatusMask,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
     GetStatusConditionTriggerValue {

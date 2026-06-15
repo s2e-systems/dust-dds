@@ -71,7 +71,7 @@ impl SubscriberAsync {
                     topic_name: a_topic.get_name(),
                     qos,
                     dcps_listener,
-                    mask: mask.to_vec(),
+                    listener_mask: mask.iter().collect(),
                     reply_sender,
                 },
             ))
@@ -245,7 +245,7 @@ impl SubscriberAsync {
                 participant_handle: self.participant.get_instance_handle(),
                 subscriber_handle: self.handle,
                 dcps_listener,
-                mask: mask.to_vec(),
+                listener_mask: mask.iter().collect(),
                 reply_sender,
             }))
             .await;

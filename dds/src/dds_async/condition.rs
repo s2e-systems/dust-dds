@@ -7,7 +7,6 @@ use crate::{
     dds_async::domain_participant_factory::DcpsSender,
     infrastructure::{error::DdsResult, status::StatusKind},
 };
-use alloc::vec::Vec;
 
 /// Async version of [`StatusCondition`](crate::infrastructure::condition::StatusCondition).
 pub struct StatusConditionAsync {
@@ -53,7 +52,7 @@ impl StatusConditionAsync {
 impl StatusConditionAsync {
     /// Async version of [`get_enabled_statuses`](crate::infrastructure::condition::StatusCondition::get_enabled_statuses).
     #[tracing::instrument(skip(self))]
-    pub async fn get_enabled_statuses(&self) -> DdsResult<Vec<StatusKind>> {
+    pub async fn get_enabled_statuses(&self) -> DdsResult<impl IntoIterator<Item = StatusKind>> {
         let (reply_sender, reply_receiver) = oneshot();
         self.dcps_sender
             .send(DcpsMail::StatusCondition(
@@ -74,7 +73,7 @@ impl StatusConditionAsync {
             .send(DcpsMail::StatusCondition(
                 StatusConditionMail::SetStatusConditionEnabledStatuses {
                     entity: self.entity.clone(),
-                    status_mask: mask.to_vec(),
+                    status_mask: mask.iter().collect(),
                     reply_sender,
                 },
             ))

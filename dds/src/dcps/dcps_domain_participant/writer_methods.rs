@@ -10,6 +10,7 @@ use crate::{
         },
         dcps_mail::{DcpsMail, EventServiceMail, MessageServiceMail, WriterServiceMail},
         listeners::data_writer_listener::DcpsDataWriterListener,
+        status_mask::StatusMask,
         xtypes_glue::key_and_instance_handle::get_instance_handle_from_dynamic_data,
     },
     infrastructure::{
@@ -62,7 +63,7 @@ impl DcpsDomainParticipant {
         publisher_handle: &InstanceHandle,
         data_writer_handle: &InstanceHandle,
         dcps_listener: Option<DcpsDataWriterListener>,
-        listener_mask: Vec<StatusKind>,
+        listener_mask: StatusMask,
         runtime: &impl DdsRuntime,
     ) -> DdsResult<()> {
         let Some(publisher) = self

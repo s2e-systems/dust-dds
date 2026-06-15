@@ -3,6 +3,7 @@ use crate::{
         dcps_domain_participant::DcpsDomainParticipant,
         dcps_mail::{DcpsMail, DiscoveryServiceMail, MessageServiceMail},
         listeners::domain_participant_listener::DcpsDomainParticipantListener,
+        status_mask::StatusMask,
     },
     dds_async::domain_participant_factory::DcpsSender,
     infrastructure::{
@@ -10,7 +11,6 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
-        status::StatusKind,
     },
     runtime::{DdsRuntime, Spawner, Timer},
     transport::{interface::RtpsTransportParticipant, types::GuidPrefix},
@@ -43,7 +43,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
         dcps_listener: Option<DcpsDomainParticipantListener>,
-        status_kind: Vec<StatusKind>,
+        listener_mask: StatusMask,
         transport_participant: RtpsTransportParticipant,
         domain_tag: String,
         participant_announcement_interval: core::time::Duration,
@@ -63,7 +63,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
             guid_prefix,
             domain_participant_qos,
             listener_sender,
-            status_kind,
+            listener_mask,
             transport_participant,
             self.dcps_sender,
         );

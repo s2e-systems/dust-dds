@@ -5,6 +5,7 @@ pub mod dcps_mail_handler;
 pub mod dcps_participant_factory;
 pub mod listeners;
 pub mod status_condition;
+pub mod status_mask;
 pub mod xtypes_glue;
 
 /// Contains the built-in topics used by the service to propagate information needed for discovery and other data.

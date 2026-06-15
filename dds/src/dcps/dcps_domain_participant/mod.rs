@@ -25,6 +25,7 @@ use crate::{
         },
         listeners::domain_participant_listener::ListenerMail,
         status_condition::DcpsStatusCondition,
+        status_mask::StatusMask,
         xtypes_glue::key_and_instance_handle::get_instance_handle_from_dynamic_data,
     },
     dds_async::{
@@ -325,7 +326,7 @@ impl DcpsDomainParticipant {
         guid_prefix: GuidPrefix,
         domain_participant_qos: DomainParticipantQos,
         listener_sender: Option<MpscSender<ListenerMail>>,
-        status_kind: Vec<StatusKind>,
+        listener_mask: StatusMask,
         transport: RtpsTransportParticipant,
         dcps_sender: DcpsSender,
     ) -> Self {
@@ -345,7 +346,7 @@ impl DcpsDomainParticipant {
             InstanceHandle::new(Guid::new(guid_prefix, ENTITYID_SPDP_TOPIC).into()),
             DcpsStatusCondition::default(),
             None,
-            vec![],
+            StatusMask::default(),
             ParticipantBuiltinTopicData::TYPE,
         )));
 
@@ -356,7 +357,7 @@ impl DcpsDomainParticipant {
             InstanceHandle::new(Guid::new(guid_prefix, ENTITYID_SEDP_TOPICS_TOPIC).into()),
             DcpsStatusCondition::default(),
             None,
-            vec![],
+            StatusMask::default(),
             TopicBuiltinTopicData::TYPE,
         )));
 
@@ -367,7 +368,7 @@ impl DcpsDomainParticipant {
             InstanceHandle::new(Guid::new(guid_prefix, ENTITYID_SEDP_PUBLICATIONS_TOPIC).into()),
             DcpsStatusCondition::default(),
             None,
-            vec![],
+            StatusMask::default(),
             PublicationBuiltinTopicData::TYPE,
         )));
 
@@ -378,7 +379,7 @@ impl DcpsDomainParticipant {
             InstanceHandle::new(Guid::new(guid_prefix, ENTITYID_SEDP_SUBSCRIPTIONS_TOPIC).into()),
             DcpsStatusCondition::default(),
             None,
-            vec![],
+            StatusMask::default(),
             SubscriptionBuiltinTopicData::TYPE,
         )));
 
@@ -389,7 +390,7 @@ impl DcpsDomainParticipant {
             InstanceHandle::new(Guid::new(guid_prefix, ENTITYID_TL_SVC_REQ_TOPIC).into()),
             DcpsStatusCondition::default(),
             None,
-            vec![],
+            StatusMask::default(),
             TypeLookupRequest::TYPE,
         )));
 
@@ -400,7 +401,7 @@ impl DcpsDomainParticipant {
             InstanceHandle::new(Guid::new(guid_prefix, ENTITYID_TL_SVC_RPL_TOPIC).into()),
             DcpsStatusCondition::default(),
             None,
-            vec![],
+            StatusMask::default(),
             TypeLookupReply::TYPE,
         )));
 
@@ -415,7 +416,7 @@ impl DcpsDomainParticipant {
             String::from(DCPS_PARTICIPANT),
             ParticipantBuiltinTopicData::TYPE,
             None,
-            Vec::new(),
+            StatusMask::default(),
             RtpsReaderKind::Stateless(rtps_stateless_reader),
         );
         builtin_data_reader_list.push(dcps_participant_reader);
@@ -431,7 +432,7 @@ impl DcpsDomainParticipant {
             String::from(DCPS_TOPIC),
             TopicBuiltinTopicData::TYPE,
             None,
-            Vec::new(),
+            StatusMask::default(),
             RtpsReaderKind::Stateful(dcps_topic_transport_reader),
         );
         builtin_data_reader_list.push(dcps_topic_reader);
@@ -447,7 +448,7 @@ impl DcpsDomainParticipant {
             String::from(DCPS_PUBLICATION),
             PublicationBuiltinTopicData::TYPE,
             None,
-            Vec::new(),
+            StatusMask::default(),
             RtpsReaderKind::Stateful(dcps_publication_transport_reader),
         );
         builtin_data_reader_list.push(dcps_publication_reader);
@@ -463,7 +464,7 @@ impl DcpsDomainParticipant {
             String::from(DCPS_SUBSCRIPTION),
             SubscriptionBuiltinTopicData::TYPE,
             None,
-            Vec::new(),
+            StatusMask::default(),
             RtpsReaderKind::Stateful(dcps_subscription_transport_reader),
         );
         builtin_data_reader_list.push(dcps_subscription_reader);
@@ -478,7 +479,7 @@ impl DcpsDomainParticipant {
             String::from(TYPE_LOOKUP_REQUEST_TOPIC_NAME),
             TypeLookupRequest::TYPE,
             None,
-            Vec::new(),
+            StatusMask::default(),
             RtpsReaderKind::Stateful(type_lookup_request_transport_reader),
         );
         builtin_data_reader_list.push(type_lookup_request_reader);
@@ -493,7 +494,7 @@ impl DcpsDomainParticipant {
             String::from(TYPE_LOOKUP_REPLY_TOPIC_NAME),
             TypeLookupReply::TYPE,
             None,
-            Vec::new(),
+            StatusMask::default(),
             RtpsReaderKind::Stateful(type_lookup_reply_transport_reader),
         );
         builtin_data_reader_list.push(type_lookup_reply_reader);
@@ -503,7 +504,7 @@ impl DcpsDomainParticipant {
             SubscriberQos::default(),
             builtin_data_reader_list,
             None,
-            vec![],
+            StatusMask::default(),
         );
 
         let mut dcps_participant_transport_writer = RtpsStatelessWriter::new(Guid::new(
@@ -520,7 +521,7 @@ impl DcpsDomainParticipant {
             "SpdpDiscoveredParticipantData".to_string(),
             SpdpDiscoveredParticipantData::TYPE,
             None,
-            vec![],
+            StatusMask::default(),
             spdp_writer_qos(),
         );
         builtin_data_writer_list.push(dcps_participant_writer);
@@ -537,7 +538,7 @@ impl DcpsDomainParticipant {
             "DiscoveredTopicData".to_string(),
             DiscoveredTopicData::TYPE,
             None,
-            vec![],
+            StatusMask::default(),
             sedp_data_writer_qos(),
         );
         builtin_data_writer_list.push(dcps_topics_writer);
@@ -554,7 +555,7 @@ impl DcpsDomainParticipant {
             "DiscoveredWriterData".to_string(),
             DiscoveredWriterData::TYPE,
             None,
-            vec![],
+            StatusMask::default(),
             sedp_data_writer_qos(),
         );
         builtin_data_writer_list.push(dcps_publications_writer);
@@ -570,7 +571,7 @@ impl DcpsDomainParticipant {
             "DiscoveredReaderData".to_string(),
             DiscoveredReaderData::TYPE,
             None,
-            vec![],
+            StatusMask::default(),
             sedp_data_writer_qos(),
         );
         builtin_data_writer_list.push(dcps_subscriptions_writer);
@@ -586,7 +587,7 @@ impl DcpsDomainParticipant {
             String::from(TypeLookupRequest::TYPE.descriptor.name),
             TypeLookupRequest::TYPE,
             None,
-            Vec::new(),
+            StatusMask::default(),
             TYPE_LOOKUP_WRITER_QOS,
         );
         builtin_data_writer_list.push(type_lookup_request_writer);
@@ -602,7 +603,7 @@ impl DcpsDomainParticipant {
             String::from(TypeLookupReply::TYPE.descriptor.name),
             TypeLookupReply::TYPE,
             None,
-            Vec::new(),
+            StatusMask::default(),
             TYPE_LOOKUP_WRITER_QOS,
         );
         builtin_data_writer_list.push(type_lookup_reply_writer);
@@ -612,14 +613,14 @@ impl DcpsDomainParticipant {
             InstanceHandle::new(Guid::new(guid_prefix, ENTITYID_BUILTIN_PUBLISHER).into()),
             builtin_data_writer_list,
             None,
-            vec![],
+            StatusMask::default(),
         );
 
         let domain_participant = DomainParticipantEntity::new(
             domain_id,
             domain_participant_qos,
             listener_sender,
-            status_kind,
+            listener_mask,
             participant_handle,
             builtin_publisher,
             builtin_subscriber,
@@ -806,7 +807,7 @@ impl DcpsDomainParticipant {
 
         if data_writer
             .listener_mask
-            .contains(&StatusKind::OfferedDeadlineMissed)
+            .is_enabled(&StatusKind::OfferedDeadlineMissed)
         {
             let status = data_writer.get_offered_deadline_missed_status();
             let Ok(the_writer) = self.get_data_writer_async(publisher_handle, data_writer_handle)
@@ -836,7 +837,7 @@ impl DcpsDomainParticipant {
             }
         } else if publisher
             .listener_mask
-            .contains(&StatusKind::OfferedDeadlineMissed)
+            .is_enabled(&StatusKind::OfferedDeadlineMissed)
         {
             let Ok(the_writer) = self.get_data_writer_async(publisher_handle, data_writer_handle)
             else {
@@ -865,7 +866,7 @@ impl DcpsDomainParticipant {
         } else if self
             .domain_participant
             .listener_mask
-            .contains(&StatusKind::OfferedDeadlineMissed)
+            .is_enabled(&StatusKind::OfferedDeadlineMissed)
         {
             let Ok(the_writer) = self.get_data_writer_async(publisher_handle, data_writer_handle)
             else {
@@ -954,7 +955,7 @@ impl DcpsDomainParticipant {
 
         if data_reader
             .listener_mask
-            .contains(&StatusKind::RequestedDeadlineMissed)
+            .is_enabled(&StatusKind::RequestedDeadlineMissed)
         {
             let status = data_reader.get_requested_deadline_missed_status();
             let Ok(the_reader) = self.get_data_reader_async(subscriber_handle, data_reader_handle)
@@ -982,7 +983,7 @@ impl DcpsDomainParticipant {
             }
         } else if subscriber
             .listener_mask
-            .contains(&StatusKind::RequestedDeadlineMissed)
+            .is_enabled(&StatusKind::RequestedDeadlineMissed)
         {
             let Ok(the_reader) = self.get_data_reader_async(subscriber_handle, data_reader_handle)
             else {
@@ -1012,7 +1013,7 @@ impl DcpsDomainParticipant {
         } else if self
             .domain_participant
             .listener_mask
-            .contains(&StatusKind::RequestedDeadlineMissed)
+            .is_enabled(&StatusKind::RequestedDeadlineMissed)
         {
             let Ok(the_reader) = self.get_data_reader_async(subscriber_handle, data_reader_handle)
             else {
@@ -1115,7 +1116,7 @@ struct DomainParticipantEntity {
     ignored_subscriptions: BTreeSet<InstanceHandle>,
     _ignored_topic_list: BTreeSet<InstanceHandle>,
     listener_sender: Option<MpscSender<ListenerMail>>,
-    listener_mask: Vec<StatusKind>,
+    listener_mask: StatusMask,
 }
 
 impl DomainParticipantEntity {
@@ -1124,7 +1125,7 @@ impl DomainParticipantEntity {
         domain_id: DomainId,
         domain_participant_qos: DomainParticipantQos,
         listener_sender: Option<MpscSender<ListenerMail>>,
-        listener_mask: Vec<StatusKind>,
+        listener_mask: StatusMask,
         instance_handle: InstanceHandle,
         builtin_publisher: PublisherEntity,
         builtin_subscriber: SubscriberEntity,
@@ -1289,7 +1290,7 @@ struct SubscriberEntity {
     default_data_reader_qos: DataReaderQos,
     status_condition: DcpsStatusCondition,
     listener_sender: Option<MpscSender<ListenerMail>>,
-    listener_mask: Vec<StatusKind>,
+    listener_mask: StatusMask,
 }
 
 impl SubscriberEntity {
@@ -1298,7 +1299,7 @@ impl SubscriberEntity {
         qos: SubscriberQos,
         data_reader_list: Vec<DataReaderEntity>,
         listener_sender: Option<MpscSender<ListenerMail>>,
-        listener_mask: Vec<StatusKind>,
+        listener_mask: StatusMask,
     ) -> Self {
         Self {
             instance_handle,
@@ -1337,7 +1338,7 @@ struct TopicEntity {
     inconsistent_topic_status: InconsistentTopicStatus,
     status_condition: DcpsStatusCondition,
     _listener_sender: Option<MpscSender<ListenerMail>>,
-    _status_kind: Vec<StatusKind>,
+    _listener_mask: StatusMask,
     type_support: DynamicType,
 }
 
@@ -1350,7 +1351,7 @@ impl TopicEntity {
         instance_handle: InstanceHandle,
         status_condition: DcpsStatusCondition,
         listener_sender: Option<MpscSender<ListenerMail>>,
-        status_kind: Vec<StatusKind>,
+        listener_mask: StatusMask,
         type_support: DynamicType,
     ) -> Self {
         Self {
@@ -1362,7 +1363,7 @@ impl TopicEntity {
             inconsistent_topic_status: InconsistentTopicStatus::const_default(),
             status_condition,
             _listener_sender: listener_sender,
-            _status_kind: status_kind,
+            _listener_mask: listener_mask,
             type_support,
         }
     }
@@ -1375,7 +1376,7 @@ struct PublisherEntity {
     enabled: bool,
     default_datawriter_qos: DataWriterQos,
     listener_sender: Option<MpscSender<ListenerMail>>,
-    listener_mask: Vec<StatusKind>,
+    listener_mask: StatusMask,
 }
 
 impl PublisherEntity {
@@ -1384,7 +1385,7 @@ impl PublisherEntity {
         instance_handle: InstanceHandle,
         data_writer_list: Vec<DataWriterEntity>,
         listener_sender: Option<MpscSender<ListenerMail>>,
-        listener_mask: Vec<StatusKind>,
+        listener_mask: StatusMask,
     ) -> Self {
         Self {
             qos,
@@ -1456,7 +1457,7 @@ struct DataWriterEntity {
     enabled: bool,
     status_condition: DcpsStatusCondition,
     listener_sender: Option<MpscSender<ListenerMail>>,
-    listener_mask: Vec<StatusKind>,
+    listener_mask: StatusMask,
     max_seq_num: Option<i64>,
     last_change_sequence_number: i64,
     qos: DataWriterQos,
@@ -1481,7 +1482,7 @@ impl DataWriterEntity {
         type_name: String,
         type_support: DynamicType,
         listener_sender: Option<MpscSender<ListenerMail>>,
-        listener_mask: Vec<StatusKind>,
+        listener_mask: StatusMask,
         qos: DataWriterQos,
     ) -> Self {
         Self {
@@ -1832,7 +1833,7 @@ struct DataReaderEntity {
     incompatible_writer_list: Vec<InstanceHandle>,
     status_condition: DcpsStatusCondition,
     listener_sender: Option<MpscSender<ListenerMail>>,
-    listener_mask: Vec<StatusKind>,
+    listener_mask: StatusMask,
     instances: Vec<InstanceState>,
     instance_ownership: Vec<InstanceOwnership>,
     transport_reader: RtpsReaderKind,
@@ -1846,7 +1847,7 @@ impl DataReaderEntity {
         topic_name: String,
         type_support: DynamicType,
         listener_sender: Option<MpscSender<ListenerMail>>,
-        listener_mask: Vec<StatusKind>,
+        listener_mask: StatusMask,
         transport_reader: RtpsReaderKind,
     ) -> Self {
         Self {
