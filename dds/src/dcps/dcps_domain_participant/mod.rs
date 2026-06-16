@@ -46,8 +46,8 @@ use crate::{
             BUILT_IN_DATA_REPRESENTATION, DataRepresentationQosPolicy, DeadlineQosPolicy,
             DestinationOrderQosPolicy, DestinationOrderQosPolicyKind, DurabilityQosPolicy,
             DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
-            LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy,
-            OwnershipQosPolicyKind, OwnershipStrengthQosPolicy, QosPolicyId,
+            LatencyBudgetQosPolicy, Length, LifespanQosPolicy, LivelinessQosPolicy,
+            OwnershipQosPolicy, OwnershipQosPolicyKind, OwnershipStrengthQosPolicy, QosPolicyId,
             ReaderDataLifecycleQosPolicy, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
             ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy, TransportPriorityQosPolicy,
             UserDataQosPolicy, WriterDataLifecycleQosPolicy, XCDR_DATA_REPRESENTATION,
@@ -1509,6 +1509,132 @@ impl DataWriterEntity {
             acknowledgement_notification: None,
             wait_for_acknowledgments_notification: Vec::new(),
         }
+    }
+
+    fn write_w_timestamp(
+        &mut self,
+        sample_instance_handle: InstanceHandle,
+        serialized_data: Vec<u8>,
+        sample_timestamp: Time,
+        now: Time,
+        message_writer: &(impl WriteMessage + ?Sized),
+        runtime: &impl DdsRuntime,
+    ) -> DdsResult<()> {
+        if !self
+            .registered_instance_list
+            .contains(&sample_instance_handle)
+        {
+            if self.registered_instance_list.len() < self.qos.resource_limits.max_instances {
+                self.registered_instance_list.push(sample_instance_handle);
+            } else {
+                return Err(DdsError::OutOfResources);
+            }
+        }
+
+        if let Length::Limited(max_instances) = self.qos.resource_limits.max_instances {
+            if !self
+                .instance_samples
+                .iter()
+                .any(|x| x.instance == sample_instance_handle)
+                && self.instance_samples.len() == max_instances as usize
+            {
+                return Err(DdsError::OutOfResources);
+            }
+        }
+
+        if let Length::Limited(max_samples_per_instance) =
+            self.qos.resource_limits.max_samples_per_instance
+        {
+            // If the history Qos guarantess that the number of samples
+            // is below the limit there is no need to check
+            match self.qos.history.kind {
+                HistoryQosPolicyKind::KeepLast(depth)
+                    if depth as i32 <= max_samples_per_instance => {}
+                _ => {
+                    if let Some(s) = self
+                        .instance_samples
+                        .iter()
+                        .find(|x| x.instance == sample_instance_handle)
+                    {
+                        // Only Alive changes count towards the resource limits
+                        if s.samples.len() >= max_samples_per_instance as usize {
+                            return Err(DdsError::OutOfResources);
+                        }
+                    }
+                }
+            }
+        }
+
+        if let Length::Limited(max_samples) = self.qos.resource_limits.max_samples {
+            let total_samples = self
+                .instance_samples
+                .iter()
+                .fold(0, |acc, x| acc + x.samples.len());
+
+            if total_samples >= max_samples as usize {
+                return Err(DdsError::OutOfResources);
+            }
+        }
+
+        self.last_change_sequence_number += 1;
+        let change = CacheChange {
+            kind: ChangeKind::Alive,
+            writer_guid: self.transport_writer.guid(),
+            sequence_number: self.last_change_sequence_number,
+            source_timestamp: Some(sample_timestamp.into()),
+            instance_handle: Some(sample_instance_handle.into()),
+            data_value: serialized_data.into(),
+        };
+        let seq_num = change.sequence_number;
+
+        if seq_num > self.max_seq_num.unwrap_or(0) {
+            self.max_seq_num = Some(seq_num)
+        }
+
+        match self
+            .instance_publication_time
+            .iter_mut()
+            .find(|x| x.instance == sample_instance_handle)
+        {
+            Some(x) => {
+                if x.last_write_time < sample_timestamp {
+                    x.last_write_time = sample_timestamp;
+                }
+            }
+            None => self
+                .instance_publication_time
+                .push(InstancePublicationTime {
+                    instance: sample_instance_handle,
+                    last_write_time: sample_timestamp,
+                }),
+        }
+
+        match self
+            .instance_samples
+            .iter_mut()
+            .find(|x| x.instance == sample_instance_handle)
+        {
+            Some(s) => s.samples.push_back(change.sequence_number),
+            None => {
+                let s = InstanceSamples {
+                    instance: sample_instance_handle,
+                    samples: VecDeque::from([change.sequence_number]),
+                };
+                self.instance_samples.push(s);
+            }
+        }
+
+        if let DurationKind::Finite(lifespan_duration) = self.qos.lifespan.duration {
+            let duration_until_expired = sample_timestamp - now + lifespan_duration;
+            if duration_until_expired <= Duration::new(0, 0) {
+                return Ok(());
+            }
+        }
+
+        self.transport_writer
+            .add_change(change, message_writer, runtime);
+
+        Ok(())
     }
 
     fn dispose_w_timestamp(
