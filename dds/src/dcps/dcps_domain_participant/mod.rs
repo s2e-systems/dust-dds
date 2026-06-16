@@ -43,15 +43,14 @@ use crate::{
             TopicQos,
         },
         qos_policy::{
-            BUILT_IN_DATA_REPRESENTATION, DataRepresentationQosPolicy, DeadlineQosPolicy,
-            DestinationOrderQosPolicy, DestinationOrderQosPolicyKind, DurabilityQosPolicy,
-            DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
-            LatencyBudgetQosPolicy, Length, LifespanQosPolicy, LivelinessQosPolicy,
-            OwnershipQosPolicy, OwnershipQosPolicyKind, OwnershipStrengthQosPolicy, QosPolicyId,
-            ReaderDataLifecycleQosPolicy, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
-            ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy, TransportPriorityQosPolicy,
-            UserDataQosPolicy, WriterDataLifecycleQosPolicy, XCDR_DATA_REPRESENTATION,
-            XCDR2_DATA_REPRESENTATION,
+            DataRepresentationQosPolicy, DeadlineQosPolicy, DestinationOrderQosPolicy,
+            DestinationOrderQosPolicyKind, DurabilityQosPolicy, DurabilityQosPolicyKind,
+            HistoryQosPolicy, HistoryQosPolicyKind, LatencyBudgetQosPolicy, Length,
+            LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, OwnershipQosPolicyKind,
+            OwnershipStrengthQosPolicy, QosPolicyId, ReaderDataLifecycleQosPolicy,
+            ReliabilityQosPolicy, ReliabilityQosPolicyKind, ResourceLimitsQosPolicy,
+            TimeBasedFilterQosPolicy, TransportPriorityQosPolicy, UserDataQosPolicy,
+            WriterDataLifecycleQosPolicy, XCDR_DATA_REPRESENTATION, XCDR2_DATA_REPRESENTATION,
         },
         sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
         status::{
@@ -80,17 +79,13 @@ use crate::{
     xtypes::{
         deserializer::{deserialize_key_only, deserialize_top_level_type},
         dynamic_type::{DynamicData, DynamicDataFactory, DynamicType},
-        serializer::{
-            serialize_cdr1_be, serialize_cdr1_le, serialize_cdr2_be, serialize_cdr2_le,
-            serialize_rtps,
-        },
+        serializer::{serialize_cdr1_be, serialize_cdr1_le, serialize_cdr2_be, serialize_cdr2_le},
     },
 };
 use alloc::{
     boxed::Box,
     collections::{BTreeSet, VecDeque},
     string::{String, ToString},
-    vec,
     vec::Vec,
 };
 use core::{
@@ -208,9 +203,7 @@ fn spdp_writer_qos() -> DataWriterQos {
             kind: ReliabilityQosPolicyKind::BestEffort,
             max_blocking_time: DurationKind::Finite(Duration::new(0, 0)),
         },
-        representation: DataRepresentationQosPolicy {
-            value: vec![BUILT_IN_DATA_REPRESENTATION],
-        },
+        representation: DataRepresentationQosPolicy::const_default(),
         ..Default::default()
     }
 }
@@ -227,9 +220,7 @@ fn sedp_data_writer_qos() -> DataWriterQos {
             kind: ReliabilityQosPolicyKind::Reliable,
             max_blocking_time: DurationKind::Finite(Duration::new(0, 0)),
         },
-        representation: DataRepresentationQosPolicy {
-            value: vec![BUILT_IN_DATA_REPRESENTATION],
-        },
+        representation: DataRepresentationQosPolicy::const_default(),
         ..Default::default()
     }
 }
@@ -2765,8 +2756,6 @@ fn serialize(
             } else {
                 serialize_cdr2_le(dynamic_data)
             }
-        } else if representation.value[0] == BUILT_IN_DATA_REPRESENTATION {
-            serialize_rtps(dynamic_data)
         } else {
             panic!("Invalid data representation")
         }?,

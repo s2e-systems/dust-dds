@@ -12,7 +12,6 @@ use crate::{
         TopicBuiltinTopicData,
     },
     dcps::{
-        channels::oneshot::oneshot,
         data_representation_builtin_endpoints::{
             discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
             discovered_topic_data::DiscoveredTopicData,
@@ -377,26 +376,32 @@ impl DcpsDomainParticipant {
             dds_subscription_data,
             reader_proxy,
         };
-        let data_writer_handle = InstanceHandle::new(
-            Guid::new(
-                Guid::from(*self.domain_participant.instance_handle.as_ref()).prefix(),
-                ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
-            )
-            .into(),
-        );
-        let timestamp = runtime.clock().now();
-        let publisher_handle = self.domain_participant.builtin_publisher.instance_handle;
-        let (reply_sender, _) = oneshot();
+
         let mut data = DynamicDataFactory::create_data(DiscoveredReaderData::TYPE);
         discovered_reader_data.create_dynamic_sample(&mut data);
-        self.write_w_timestamp(
-            &publisher_handle,
-            &data_writer_handle,
-            &data,
-            timestamp,
-            runtime,
-            reply_sender,
-        );
+
+        if let Some(dw) = self
+            .domain_participant
+            .builtin_publisher
+            .data_writer_list
+            .iter_mut()
+            .find(|x| x.topic_name == DCPS_SUBSCRIPTION)
+        {
+            let now = runtime.clock().now();
+            let sample_instance_handle = data_reader.transport_reader.guid().into();
+            let serialized_data = serialize_rtps(&data).expect("Must succeed");
+            let sample_timestamp = now;
+            let message_writer = self.transport.message_writer.as_ref();
+            dw.write_w_timestamp(
+                sample_instance_handle,
+                serialized_data,
+                sample_timestamp,
+                now,
+                message_writer,
+                runtime,
+            )
+            .ok();
+        }
     }
 
     #[tracing::instrument(skip(self, data_reader, runtime))]
@@ -465,26 +470,31 @@ impl DcpsDomainParticipant {
             },
         };
 
-        let data_writer_handle = InstanceHandle::new(
-            Guid::new(
-                Guid::from(*self.domain_participant.instance_handle.as_ref()).prefix(),
-                ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
-            )
-            .into(),
-        );
-        let timestamp = runtime.clock().now();
-        let publisher_handle = self.domain_participant.builtin_publisher.instance_handle;
-        let (reply_sender, _) = oneshot();
         let mut data = DynamicDataFactory::create_data(DiscoveredTopicData::TYPE);
         discovered_topic_data.create_dynamic_sample(&mut data);
-        self.write_w_timestamp(
-            &publisher_handle,
-            &data_writer_handle,
-            &data,
-            timestamp,
-            runtime,
-            reply_sender,
-        );
+
+        if let Some(dw) = self
+            .domain_participant
+            .builtin_publisher
+            .data_writer_list
+            .iter_mut()
+            .find(|x| x.topic_name == DCPS_TOPIC)
+        {
+            let sample_instance_handle = topic.instance_handle;
+            let serialized_data = serialize_rtps(&data).expect("Must succeed");
+            let now = runtime.clock().now();
+            let sample_timestamp = now;
+            let message_writer = self.transport.message_writer.as_ref();
+            dw.write_w_timestamp(
+                sample_instance_handle,
+                serialized_data,
+                sample_timestamp,
+                now,
+                message_writer,
+                runtime,
+            )
+            .ok();
+        }
     }
 
     #[tracing::instrument(skip(self))]
