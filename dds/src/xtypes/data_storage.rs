@@ -585,31 +585,6 @@ impl<const N: usize> DataStorageMapping for [String; N] {
     }
 }
 
-// impl<T: TypeSupport> DataStorageMapping for T {
-//     fn into_storage(self) -> DataStorage {
-//         let mut data = DynamicDataFactory::create_data(T::TYPE);
-//         self.create_dynamic_sample(&mut data);
-//         DataStorage::ComplexValue(data)
-//     }
-
-//     fn try_from_storage(mut data_storage: DataStorage) -> XTypesResult<Self> {
-//         match &mut data_storage {
-//             DataStorage::ComplexValue(x) => Ok(T::create_sample(x)),
-//             _ => Err(XTypesError::InvalidType),
-//         }
-//     }
-// }
-
-// impl<T: DataStorageMapping> DataStorageMapping for Option<T> {
-//     fn into_storage(self) -> DataStorage {
-//         T::into_storage(self.expect("Only options with value are converted. This usually indicated a member annotation #[dust_dds(optional)] is missing."))
-//     }
-
-//     fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
-//         Ok(Some(T::try_from_storage(data_storage)?))
-//     }
-// }
-
 impl<T: TypeSupport + ComplexData> DataStorageMapping for Vec<T> {
     fn into_storage(self) -> DataStorage {
         DataStorage::SequenceComplexValue(
@@ -678,7 +653,20 @@ impl<T: ComplexData + TypeSupport> DataStorageMapping for T {
 }
 
 impl<T: TypeSupport> TypeSupport for Box<T> {
-    const r#TYPE: DynamicType = T::TYPE;
+    const r#TYPE: DynamicType = DynamicType {
+        descriptor: &TypeDescriptor {
+            kind: TypeKind::ALIAS,
+            name: "",
+            base_type: None,
+            discriminator_type: None,
+            bound: None,
+            element_type: None,
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Final,
+            is_nested: false,
+        },
+        member_list: &[],
+    };
 
     fn create_sample(src: &mut super::dynamic_type::DynamicData) -> Self {
         Box::new(T::create_sample(src))

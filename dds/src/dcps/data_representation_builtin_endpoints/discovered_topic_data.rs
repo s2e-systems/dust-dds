@@ -39,7 +39,7 @@ impl TypeSupport for DiscoveredTopicData {
             ConvenienceTypeBuilder::member::<String>(2, "type_name", PID_TYPE_NAME),
             ConvenienceTypeBuilder::member_with_default::<TypeInformation>(
                 3,
-                "TYPE",
+                "type_information",
                 PID_TYPE_INFORMATION,
             ),
             ConvenienceTypeBuilder::member_with_default::<DurabilityQosPolicy>(

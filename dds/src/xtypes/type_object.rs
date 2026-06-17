@@ -329,901 +329,103 @@ pub struct ExtendedTypeDefn {
 // according to both the MINIMAL and the COMMON equivalence relation.
 // This means the TypeIdentifier is the same for both relationships
 //
-#[derive(Debug, Clone, PartialEq)]
-// #[dust_dds(extensibility = "final", nested, switch(u8))]
+#[derive(DdsType, Debug, Clone, PartialEq)]
+#[dust_dds(extensibility = "final", nested, switch(u8))]
 pub enum TypeIdentifier {
-    // #[dust_dds(case=TK_NONE)]
+    #[dust_dds(case=TK_NONE)]
     TkNone,
-    // #[dust_dds(case=TK_BOOLEAN)]
+    #[dust_dds(case=TK_BOOLEAN)]
     TkBoolean,
-    // #[dust_dds(case=TK_BYTE)]
+    #[dust_dds(case=TK_BYTE)]
     TkByteType,
-    // #[dust_dds(case=TK_INT8)]
+    #[dust_dds(case=TK_INT8)]
     TkInt8Type,
-    // #[dust_dds(case=TK_INT16)]
+    #[dust_dds(case=TK_INT16)]
     TkInt16Type,
-    // #[dust_dds(case=TK_INT32)]
+    #[dust_dds(case=TK_INT32)]
     TkInt32Type,
-    // #[dust_dds(case=TK_INT64)]
+    #[dust_dds(case=TK_INT64)]
     TkInt64Type,
-    // #[dust_dds(case=TK_UINT8)]
+    #[dust_dds(case=TK_UINT8)]
     TkUint8Type,
-    // #[dust_dds(case=TK_UINT16)]
+    #[dust_dds(case=TK_UINT16)]
     TkUint16Type,
-    // #[dust_dds(case=TK_UINT32)]
+    #[dust_dds(case=TK_UINT32)]
     TkUint32Type,
-    // #[dust_dds(case=TK_UINT64)]
+    #[dust_dds(case=TK_UINT64)]
     TkUint64Type,
-    // #[dust_dds(case=TK_FLOAT32)]
+    #[dust_dds(case=TK_FLOAT32)]
     TkFloat32Type,
-    // #[dust_dds(case=TK_FLOAT64)]
+    #[dust_dds(case=TK_FLOAT64)]
     TkFloat64Type,
-    // #[dust_dds(case=TK_FLOAT128)]
+    #[dust_dds(case=TK_FLOAT128)]
     TkFloat128Type,
-    // #[dust_dds(case=TK_CHAR8)]
+    #[dust_dds(case=TK_CHAR8)]
     TkChar8Type,
-    // #[dust_dds(case=TK_CHAR16)]
+    #[dust_dds(case=TK_CHAR16)]
     TkChar16Type,
     // ============ Strings - use TypeIdentifierKind ===================
-    // #[dust_dds(case=TI_STRING8_SMALL)]
+    #[dust_dds(case=TI_STRING8_SMALL)]
     TiString8Small {
         string_sdefn: StringSTypeDefn,
     },
-    // #[dust_dds(case=TI_STRING16_SMALL)]
+    #[dust_dds(case=TI_STRING16_SMALL)]
     TiString16Small {
         string_sdefn: StringSTypeDefn,
     },
-    // #[dust_dds(case=TI_STRING8_LARGE)]
+    #[dust_dds(case=TI_STRING8_LARGE)]
     TiString8Large {
         string_ldefn: StringLTypeDefn,
     },
-    // #[dust_dds(case=TI_STRING16_LARGE)]
+    #[dust_dds(case=TI_STRING16_LARGE)]
     TiString16Large {
         string_ldefn: StringLTypeDefn,
     },
     // ============ Plain collectios - use TypeIdentifierKind =========
-    // #[dust_dds(case=TI_PLAIN_SEQUENCE_SMALL)]
+    #[dust_dds(case=TI_PLAIN_SEQUENCE_SMALL)]
     TiPlainSequenceSmall {
         seq_sdefn: PlainSequenceSElemDefn,
     },
-    // #[dust_dds(case=TI_PLAIN_SEQUENCE_LARGE)]
+    #[dust_dds(case=TI_PLAIN_SEQUENCE_LARGE)]
     TiPlainSequenceLarge {
         seq_ldefn: PlainSequenceLElemDefn,
     },
-    // #[dust_dds(case=TI_PLAIN_ARRAY_SMALL)]
+    #[dust_dds(case=TI_PLAIN_ARRAY_SMALL)]
     TiPlainArraySmall {
         array_sdefn: PlainArraySElemDefn,
     },
-    // #[dust_dds(case=TI_PLAIN_ARRAY_LARGE)]
+    #[dust_dds(case=TI_PLAIN_ARRAY_LARGE)]
     TiPlainArrayLarge {
         array_ldefn: PlainArrayLElemDefn,
     },
-    // #[dust_dds(case=TI_PLAIN_MAP_SMALL)]
+    #[dust_dds(case=TI_PLAIN_MAP_SMALL)]
     TiPlainMapSmall {
         map_sdefn: PlainMapSTypeDefn,
     },
-    // #[dust_dds(case=TI_PLAIN_MAP_LARGE)]
+    #[dust_dds(case=TI_PLAIN_MAP_LARGE)]
     TiPlainMapLarge {
         map_ldefn: PlainMapLTypeDefn,
     },
     // ============ Types that are mutually dependent on each other ===
-    // #[dust_dds(case=TI_STRONGLY_CONNECTED_COMPONENT)]
+    #[dust_dds(case=TI_STRONGLY_CONNECTED_COMPONENT)]
     TiStronglyConnectedComponent {
         sc_component_id: StronglyConnectedComponentId,
     },
     // ============ The remaining cases - use EquivalenceKind =========
-    // #[dust_dds(case=EK_COMPLETE)]
+    #[dust_dds(case=EK_COMPLETE)]
     EkComplete {
         equivalence_hash: EquivalenceHash,
     },
-    // #[dust_dds(case=EK_MINIMAL)]
+    #[dust_dds(case=EK_MINIMAL)]
     EkMinimal {
         equivalence_hash: EquivalenceHash,
     },
     // =================== Future extensibility ============
-    // #[dust_dds(default)]
+    #[dust_dds(default)]
     Default {
         extended_type: MinimalExtendedType,
     },
 }
-// Recursive expansion of DdsType macro
-// =====================================
-
-impl dust_dds::infrastructure::type_support::TypeSupport for TypeIdentifier {
-    const r#TYPE: dust_dds::xtypes::dynamic_type::DynamicType =
-        dust_dds::xtypes::dynamic_type::DynamicType {
-            descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
-                kind: dust_dds::xtypes::dynamic_type::TypeKind::UNION,
-                name: "TypeIdentifier",
-                base_type: None,
-                discriminator_type: ::core::option::Option::Some(
-                    <u8 as ::dust_dds::infrastructure::type_support::TypeSupport>::TYPE,
-                ),
-                bound: None,
-                element_type: None,
-                key_element_type: None,
-                extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
-                is_nested: true,
-            },
-            member_list: &[
-                dust_dds::xtypes::dynamic_type::DynamicTypeMember {
-                    descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                        name: "disc",
-                        id: 0u32,
-                        r#type: <u8 as dust_dds::infrastructure::type_support::TypeSupport>::TYPE,
-                        default_value: None,
-                        index: 0u32,
-                        try_construct_kind:
-                            dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
-                        label: None,
-                        is_key: false,
-                        is_optional: false,
-                        is_must_understand: true,
-                        is_shared: false,
-                        is_default_label: false,
-                        is_external: false,
-                    },
-                },
-                dust_dds::xtypes::dynamic_type::DynamicTypeMember {
-                    descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                        name: "TkNone",
-                        id: 1usize as u32,
-                        r#type: dust_dds::xtypes::dynamic_type::DynamicType {
-                            descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
-                                kind: dust_dds::xtypes::dynamic_type::TypeKind::NONE,
-                                name: "",
-                                base_type: None,
-                                discriminator_type: None,
-                                bound: None,
-                                element_type: None,
-                                key_element_type: None,
-                                extensibility_kind:
-                                    dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
-                                is_nested: false,
-                            },
-                            member_list: &[],
-                        },
-                        default_value: None,
-                        index: 1usize as u32,
-                        try_construct_kind:
-                            dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
-                        label: None,
-                        is_key: false,
-                        is_optional: true,
-                        is_must_understand: false,
-                        is_shared: false,
-                        is_default_label: false,
-                        is_external: false,
-                    },
-                },
-                dust_dds::xtypes::dynamic_type::DynamicTypeMember {
-                    descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                        name: "TkBoolean",
-                        id: 2usize as u32,
-                        r#type: dust_dds::xtypes::dynamic_type::DynamicType {
-                            descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
-                                kind: dust_dds::xtypes::dynamic_type::TypeKind::NONE,
-                                name: "",
-                                base_type: None,
-                                discriminator_type: None,
-                                bound: None,
-                                element_type: None,
-                                key_element_type: None,
-                                extensibility_kind:
-                                    dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
-                                is_nested: false,
-                            },
-                            member_list: &[],
-                        },
-                        default_value: None,
-                        index: 2usize as u32,
-                        try_construct_kind:
-                            dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
-                        label: None,
-                        is_key: false,
-                        is_optional: true,
-                        is_must_understand: false,
-                        is_shared: false,
-                        is_default_label: false,
-                        is_external: false,
-                    },
-                },
-                dust_dds::xtypes::dynamic_type::DynamicTypeMember {
-                    descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                        name: "TkByteType",
-                        id: 3usize as u32,
-                        r#type: dust_dds::xtypes::dynamic_type::DynamicType {
-                            descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
-                                kind: dust_dds::xtypes::dynamic_type::TypeKind::NONE,
-                                name: "",
-                                base_type: None,
-                                discriminator_type: None,
-                                bound: None,
-                                element_type: None,
-                                key_element_type: None,
-                                extensibility_kind:
-                                    dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
-                                is_nested: false,
-                            },
-                            member_list: &[],
-                        },
-                        default_value: None,
-                        index: 3usize as u32,
-                        try_construct_kind:
-                            dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
-                        label: None,
-                        is_key: false,
-                        is_optional: true,
-                        is_must_understand: false,
-                        is_shared: false,
-                        is_default_label: false,
-                        is_external: false,
-                    },
-                },
-                dust_dds::xtypes::dynamic_type::DynamicTypeMember {
-                    descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                        name: "TkInt8Type",
-                        id: 4usize as u32,
-                        r#type: dust_dds::xtypes::dynamic_type::DynamicType {
-                            descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
-                                kind: dust_dds::xtypes::dynamic_type::TypeKind::NONE,
-                                name: "",
-                                base_type: None,
-                                discriminator_type: None,
-                                bound: None,
-                                element_type: None,
-                                key_element_type: None,
-                                extensibility_kind:
-                                    dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
-                                is_nested: false,
-                            },
-                            member_list: &[],
-                        },
-                        default_value: None,
-                        index: 4usize as u32,
-                        try_construct_kind:
-                            dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
-                        label: None,
-                        is_key: false,
-                        is_optional: true,
-                        is_must_understand: false,
-                        is_shared: false,
-                        is_default_label: false,
-                        is_external: false,
-                    },
-                },
-                dust_dds::xtypes::dynamic_type::DynamicTypeMember {
-                    descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                        name: "TkInt16Type",
-                        id: 5usize as u32,
-                        r#type: dust_dds::xtypes::dynamic_type::DynamicType {
-                            descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
-                                kind: dust_dds::xtypes::dynamic_type::TypeKind::NONE,
-                                name: "",
-                                base_type: None,
-                                discriminator_type: None,
-                                bound: None,
-                                element_type: None,
-                                key_element_type: None,
-                                extensibility_kind:
-                                    dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
-                                is_nested: false,
-                            },
-                            member_list: &[],
-                        },
-                        default_value: None,
-                        index: 5usize as u32,
-                        try_construct_kind:
-                            dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
-                        label: None,
-                        is_key: false,
-                        is_optional: true,
-                        is_must_understand: false,
-                        is_shared: false,
-                        is_default_label: false,
-                        is_external: false,
-                    },
-                },
-                dust_dds::xtypes::dynamic_type::DynamicTypeMember {
-                    descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                        name: "TkInt32Type",
-                        id: 6usize as u32,
-                        r#type: dust_dds::xtypes::dynamic_type::DynamicType {
-                            descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
-                                kind: dust_dds::xtypes::dynamic_type::TypeKind::NONE,
-                                name: "",
-                                base_type: None,
-                                discriminator_type: None,
-                                bound: None,
-                                element_type: None,
-                                key_element_type: None,
-                                extensibility_kind:
-                                    dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
-                                is_nested: false,
-                            },
-                            member_list: &[],
-                        },
-                        default_value: None,
-                        index: 6usize as u32,
-                        try_construct_kind:
-                            dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
-                        label: None,
-                        is_key: false,
-                        is_optional: true,
-                        is_must_understand: false,
-                        is_shared: false,
-                        is_default_label: false,
-                        is_external: false,
-                    },
-                },
-                dust_dds::xtypes::dynamic_type::DynamicTypeMember {
-                    descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                        name: "TkInt64Type",
-                        id: 7usize as u32,
-                        r#type: dust_dds::xtypes::dynamic_type::DynamicType {
-                            descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
-                                kind: dust_dds::xtypes::dynamic_type::TypeKind::NONE,
-                                name: "",
-                                base_type: None,
-                                discriminator_type: None,
-                                bound: None,
-                                element_type: None,
-                                key_element_type: None,
-                                extensibility_kind:
-                                    dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
-                                is_nested: false,
-                            },
-                            member_list: &[],
-                        },
-                        default_value: None,
-                        index: 7usize as u32,
-                        try_construct_kind:
-                            dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
-                        label: None,
-                        is_key: false,
-                        is_optional: true,
-                        is_must_understand: false,
-                        is_shared: false,
-                        is_default_label: false,
-                        is_external: false,
-                    },
-                },
-                dust_dds::xtypes::dynamic_type::DynamicTypeMember {
-                    descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                        name: "TkUint8Type",id: 8usize as u32,r#type: dust_dds::xtypes::dynamic_type::DynamicType {
-                            descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
-                                kind: dust_dds::xtypes::dynamic_type::TypeKind::NONE,name: "",base_type: None,discriminator_type: None,bound: None,element_type: None,key_element_type: None,extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,is_nested: false,
-                            },member_list: &[],
-                        },default_value: None,index: 8usize as u32,try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,label: None,is_key: false,is_optional: true,is_must_understand: false,is_shared: false,is_default_label: false,is_external: false,
-                    }
-                },
-                dust_dds::xtypes::dynamic_type::DynamicTypeMember {
-                    descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                        name: "TkUint16Type",id: 9usize as u32,r#type: dust_dds::xtypes::dynamic_type::DynamicType {
-                            descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
-                                kind: dust_dds::xtypes::dynamic_type::TypeKind::NONE,name: "",base_type: None,discriminator_type: None,bound: None,element_type: None,key_element_type: None,extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,is_nested: false,
-                            },member_list: &[],
-                        },default_value: None,index: 9usize as u32,try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,label: None,is_key: false,is_optional: true,is_must_understand: false,is_shared: false,is_default_label: false,is_external: false,
-                    }
-                },
-                dust_dds::xtypes::dynamic_type::DynamicTypeMember {
-                    descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                        name: "TkUint32Type",id: 10usize as u32,r#type: dust_dds::xtypes::dynamic_type::DynamicType {
-                            descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
-                                kind: dust_dds::xtypes::dynamic_type::TypeKind::NONE,name: "",base_type: None,discriminator_type: None,bound: None,element_type: None,key_element_type: None,extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,is_nested: false,
-                            },member_list: &[],
-                        },default_value: None,index: 10usize as u32,try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,label: None,is_key: false,is_optional: true,is_must_understand: false,is_shared: false,is_default_label: false,is_external: false,
-                    }
-                },
-                dust_dds::xtypes::dynamic_type::DynamicTypeMember {
-                    descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                        name: "TkUint64Type",id: 11usize as u32,r#type: dust_dds::xtypes::dynamic_type::DynamicType {
-                            descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
-                                kind: dust_dds::xtypes::dynamic_type::TypeKind::NONE,name: "",base_type: None,discriminator_type: None,bound: None,element_type: None,key_element_type: None,extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,is_nested: false,
-                            },member_list: &[],
-                        },default_value: None,index: 11usize as u32,try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,label: None,is_key: false,is_optional: true,is_must_understand: false,is_shared: false,is_default_label: false,is_external: false,
-                    }
-                },
-                dust_dds::xtypes::dynamic_type::DynamicTypeMember {
-                    descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                        name: "TkFloat32Type",id: 12usize as u32,r#type: dust_dds::xtypes::dynamic_type::DynamicType {
-                            descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
-                                kind: dust_dds::xtypes::dynamic_type::TypeKind::NONE,name: "",base_type: None,discriminator_type: None,bound: None,element_type: None,key_element_type: None,extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,is_nested: false,
-                            },member_list: &[],
-                        },default_value: None,index: 12usize as u32,try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,label: None,is_key: false,is_optional: true,is_must_understand: false,is_shared: false,is_default_label: false,is_external: false,
-                    }
-                },
-                dust_dds::xtypes::dynamic_type::DynamicTypeMember {
-                    descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                        name: "TkFloat64Type",id: 13usize as u32,r#type: dust_dds::xtypes::dynamic_type::DynamicType {
-                            descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
-                                kind: dust_dds::xtypes::dynamic_type::TypeKind::NONE,name: "",base_type: None,discriminator_type: None,bound: None,element_type: None,key_element_type: None,extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,is_nested: false,
-                            },member_list: &[],
-                        },default_value: None,index: 13usize as u32,try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,label: None,is_key: false,is_optional: true,is_must_understand: false,is_shared: false,is_default_label: false,is_external: false,
-                    }
-                },
-                dust_dds::xtypes::dynamic_type::DynamicTypeMember {
-                    descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                        name: "TkFloat128Type",id: 14usize as u32,r#type: dust_dds::xtypes::dynamic_type::DynamicType {
-                            descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
-                                kind: dust_dds::xtypes::dynamic_type::TypeKind::NONE,name: "",base_type: None,discriminator_type: None,bound: None,element_type: None,key_element_type: None,extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,is_nested: false,
-                            },member_list: &[],
-                        },default_value: None,index: 14usize as u32,try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,label: None,is_key: false,is_optional: true,is_must_understand: false,is_shared: false,is_default_label: false,is_external: false,
-                    }
-                },
-                dust_dds::xtypes::dynamic_type::DynamicTypeMember {
-                    descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                        name: "TkChar8Type",id: 15usize as u32,r#type: dust_dds::xtypes::dynamic_type::DynamicType {
-                            descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
-                                kind: dust_dds::xtypes::dynamic_type::TypeKind::NONE,name: "",base_type: None,discriminator_type: None,bound: None,element_type: None,key_element_type: None,extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,is_nested: false,
-                            },member_list: &[],
-                        },default_value: None,index: 15usize as u32,try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,label: None,is_key: false,is_optional: true,is_must_understand: false,is_shared: false,is_default_label: false,is_external: false,
-                    }
-                },
-                dust_dds::xtypes::dynamic_type::DynamicTypeMember {
-                    descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                        name: "TkChar16Type",id: 16usize as u32,r#type: dust_dds::xtypes::dynamic_type::DynamicType {
-                            descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
-                                kind: dust_dds::xtypes::dynamic_type::TypeKind::NONE,name: "",base_type: None,discriminator_type: None,bound: None,element_type: None,key_element_type: None,extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,is_nested: false,
-                            },member_list: &[],
-                        },default_value: None,index: 16usize as u32,try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,label: None,is_key: false,is_optional: true,is_must_understand: false,is_shared: false,is_default_label: false,is_external: false,
-                    }
-                },
-                dust_dds::xtypes::dynamic_type::DynamicTypeMember {
-                    descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                        name: "TiString8Small",id: 17usize as u32,r#type: <StringSTypeDefn as dust_dds::infrastructure::type_support::TypeSupport> ::TYPE,default_value: None,index: 17usize as u32,try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,label: None,is_key: false,is_optional: true,is_must_understand: false,is_shared: false,is_default_label: false,is_external: false,
-                    }
-                },
-                dust_dds::xtypes::dynamic_type::DynamicTypeMember {
-                    descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                        name: "TiString16Small",id: 18usize as u32,r#type: <StringSTypeDefn as dust_dds::infrastructure::type_support::TypeSupport> ::TYPE,default_value: None,index: 18usize as u32,try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,label: None,is_key: false,is_optional: true,is_must_understand: false,is_shared: false,is_default_label: false,is_external: false,
-                    }
-                },
-                dust_dds::xtypes::dynamic_type::DynamicTypeMember {
-                    descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                        name: "TiString8Large",id: 19usize as u32,r#type: <StringLTypeDefn as dust_dds::infrastructure::type_support::TypeSupport> ::TYPE,default_value: None,index: 19usize as u32,try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,label: None,is_key: false,is_optional: true,is_must_understand: false,is_shared: false,is_default_label: false,is_external: false,
-                    }
-                },
-                dust_dds::xtypes::dynamic_type::DynamicTypeMember {
-                    descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                        name: "TiString16Large",id: 20usize as u32,r#type: <StringLTypeDefn as dust_dds::infrastructure::type_support::TypeSupport> ::TYPE,default_value: None,index: 20usize as u32,try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,label: None,is_key: false,is_optional: true,is_must_understand: false,is_shared: false,is_default_label: false,is_external: false,
-                    }
-                },
-                // dust_dds::xtypes::dynamic_type::DynamicTypeMember {
-                //     descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                //         name: "TiPlainSequenceSmall",id: 21usize as u32,r#type: <PlainSequenceSElemDefn as dust_dds::infrastructure::type_support::TypeSupport> ::TYPE,default_value: None,index: 21usize as u32,try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,label: None,is_key: false,is_optional: true,is_must_understand: false,is_shared: false,is_default_label: false,is_external: false,
-                //     }
-                // },
-                // dust_dds::xtypes::dynamic_type::DynamicTypeMember {
-                //     descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                //         name: "TiPlainSequenceLarge",id: 22usize as u32,r#type: <PlainSequenceLElemDefn as dust_dds::infrastructure::type_support::TypeSupport> ::TYPE,default_value: None,index: 22usize as u32,try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,label: None,is_key: false,is_optional: true,is_must_understand: false,is_shared: false,is_default_label: false,is_external: false,
-                //     }
-                // },
-                // dust_dds::xtypes::dynamic_type::DynamicTypeMember {
-                //     descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                //         name: "TiPlainArraySmall",id: 23usize as u32,r#type: <PlainArraySElemDefn as dust_dds::infrastructure::type_support::TypeSupport> ::TYPE,default_value: None,index: 23usize as u32,try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,label: None,is_key: false,is_optional: true,is_must_understand: false,is_shared: false,is_default_label: false,is_external: false,
-                //     }
-                // },
-                // dust_dds::xtypes::dynamic_type::DynamicTypeMember {
-                //     descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                //         name: "TiPlainArrayLarge",id: 24usize as u32,r#type: <PlainArrayLElemDefn as dust_dds::infrastructure::type_support::TypeSupport> ::TYPE,default_value: None,index: 24usize as u32,try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,label: None,is_key: false,is_optional: true,is_must_understand: false,is_shared: false,is_default_label: false,is_external: false,
-                //     }
-                // },
-                // dust_dds::xtypes::dynamic_type::DynamicTypeMember {
-                //     descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                //         name: "TiPlainMapSmall",id: 25usize as u32,r#type: <PlainMapSTypeDefn as dust_dds::infrastructure::type_support::TypeSupport> ::TYPE,default_value: None,index: 25usize as u32,try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,label: None,is_key: false,is_optional: true,is_must_understand: false,is_shared: false,is_default_label: false,is_external: false,
-                //     }
-                // },
-                // dust_dds::xtypes::dynamic_type::DynamicTypeMember {
-                //     descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                //         name: "TiPlainMapLarge",id: 26usize as u32,r#type: <PlainMapLTypeDefn as dust_dds::infrastructure::type_support::TypeSupport> ::TYPE,default_value: None,index: 26usize as u32,try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,label: None,is_key: false,is_optional: true,is_must_understand: false,is_shared: false,is_default_label: false,is_external: false,
-                //     }
-                // },
-                dust_dds::xtypes::dynamic_type::DynamicTypeMember {
-                    descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                        name: "TiStronglyConnectedComponent",id: 27usize as u32,r#type: <StronglyConnectedComponentId as dust_dds::infrastructure::type_support::TypeSupport> ::TYPE,default_value: None,index: 27usize as u32,try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,label: None,is_key: false,is_optional: true,is_must_understand: false,is_shared: false,is_default_label: false,is_external: false,
-                    }
-                },
-                dust_dds::xtypes::dynamic_type::DynamicTypeMember {
-                    descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                        name: "EkComplete",id: 28usize as u32,r#type: <EquivalenceHash as dust_dds::infrastructure::type_support::TypeSupport> ::TYPE,default_value: None,index: 28usize as u32,try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,label: None,is_key: false,is_optional: true,is_must_understand: false,is_shared: false,is_default_label: false,is_external: false,
-                    }
-                },
-                dust_dds::xtypes::dynamic_type::DynamicTypeMember {
-                    descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                        name: "EkMinimal",id: 29usize as u32,r#type: <EquivalenceHash as dust_dds::infrastructure::type_support::TypeSupport> ::TYPE,default_value: None,index: 29usize as u32,try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,label: None,is_key: false,is_optional: true,is_must_understand: false,is_shared: false,is_default_label: false,is_external: false,
-                    }
-                },
-                dust_dds::xtypes::dynamic_type::DynamicTypeMember {
-                    descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                        name: "Default",id: 30usize as u32,r#type: <MinimalExtendedType as dust_dds::infrastructure::type_support::TypeSupport> ::TYPE,default_value: None,index: 30usize as u32,try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,label: None,is_key: false,is_optional: true,is_must_understand: false,is_shared: false,is_default_label: false,is_external: false,
-                    }
-                }
-            ],
-        };
-    fn create_sample(src: &mut dust_dds::xtypes::dynamic_type::DynamicData) -> Self {
-        let disc = <u8 as ::dust_dds::xtypes::data_storage::DataStorageMapping>::try_from_storage(
-            src.remove_value(0).expect("Must exist"),
-        )
-        .expect("Must match");
-        match disc {
-            TK_NONE => Self::TkNone,
-            TK_BOOLEAN => Self::TkBoolean,
-            TK_BYTE => Self::TkByteType,
-            TK_INT8 => Self::TkInt8Type,
-            TK_INT16 => Self::TkInt16Type,
-            TK_INT32 => Self::TkInt32Type,
-            TK_INT64 => Self::TkInt64Type,
-            TK_UINT8 => Self::TkUint8Type,
-            TK_UINT16 => Self::TkUint16Type,
-            TK_UINT32 => Self::TkUint32Type,
-            TK_UINT64 => Self::TkUint64Type,
-            TK_FLOAT32 => Self::TkFloat32Type,
-            TK_FLOAT64 => Self::TkFloat64Type,
-            TK_FLOAT128 => Self::TkFloat128Type,
-            TK_CHAR8 => Self::TkChar8Type,
-            TK_CHAR16 => Self::TkChar16Type,
-            TI_STRING8_SMALL => Self::TiString8Small {
-                string_sdefn: <StringSTypeDefn as ::dust_dds::xtypes::data_storage::DataStorageMapping> ::try_from_storage(src.remove_value(17usize as u32).expect("Must exist"),).expect("Must match")
-            },
-            TI_STRING16_SMALL => Self::TiString16Small {
-                string_sdefn: <StringSTypeDefn as ::dust_dds::xtypes::data_storage::DataStorageMapping> ::try_from_storage(src.remove_value(18usize as u32).expect("Must exist"),).expect("Must match")
-            },
-            TI_STRING8_LARGE => Self::TiString8Large {
-                string_ldefn: <StringLTypeDefn as ::dust_dds::xtypes::data_storage::DataStorageMapping> ::try_from_storage(src.remove_value(19usize as u32).expect("Must exist"),).expect("Must match")
-            },
-            TI_STRING16_LARGE => Self::TiString16Large {
-                string_ldefn: <StringLTypeDefn as ::dust_dds::xtypes::data_storage::DataStorageMapping> ::try_from_storage(src.remove_value(20usize as u32).expect("Must exist"),).expect("Must match")
-            },
-            TI_PLAIN_SEQUENCE_SMALL => Self::TiPlainSequenceSmall {
-                seq_sdefn: <PlainSequenceSElemDefn as ::dust_dds::xtypes::data_storage::DataStorageMapping> ::try_from_storage(src.remove_value(21usize as u32).expect("Must exist"),).expect("Must match")
-            },
-            TI_PLAIN_SEQUENCE_LARGE => Self::TiPlainSequenceLarge {
-                seq_ldefn: <PlainSequenceLElemDefn as ::dust_dds::xtypes::data_storage::DataStorageMapping> ::try_from_storage(src.remove_value(22usize as u32).expect("Must exist"),).expect("Must match")
-            },
-            TI_PLAIN_ARRAY_SMALL => Self::TiPlainArraySmall {
-                array_sdefn: <PlainArraySElemDefn as ::dust_dds::xtypes::data_storage::DataStorageMapping> ::try_from_storage(src.remove_value(23usize as u32).expect("Must exist"),).expect("Must match")
-            },
-            TI_PLAIN_ARRAY_LARGE => Self::TiPlainArrayLarge {
-                array_ldefn: <PlainArrayLElemDefn as ::dust_dds::xtypes::data_storage::DataStorageMapping> ::try_from_storage(src.remove_value(24usize as u32).expect("Must exist"),).expect("Must match")
-            },
-            TI_PLAIN_MAP_SMALL => Self::TiPlainMapSmall {
-                map_sdefn: <PlainMapSTypeDefn as ::dust_dds::xtypes::data_storage::DataStorageMapping> ::try_from_storage(src.remove_value(25usize as u32).expect("Must exist"),).expect("Must match")
-            },
-            TI_PLAIN_MAP_LARGE => Self::TiPlainMapLarge {
-                map_ldefn: <PlainMapLTypeDefn as ::dust_dds::xtypes::data_storage::DataStorageMapping> ::try_from_storage(src.remove_value(26usize as u32).expect("Must exist"),).expect("Must match")
-            },
-            TI_STRONGLY_CONNECTED_COMPONENT => Self::TiStronglyConnectedComponent {
-                sc_component_id: <StronglyConnectedComponentId as ::dust_dds::xtypes::data_storage::DataStorageMapping> ::try_from_storage(src.remove_value(27usize as u32).expect("Must exist"),).expect("Must match")
-            },
-            EK_COMPLETE => Self::EkComplete {
-                equivalence_hash: <EquivalenceHash as ::dust_dds::xtypes::data_storage::DataStorageMapping> ::try_from_storage(src.remove_value(28usize as u32).expect("Must exist"),).expect("Must match")
-            },
-            EK_MINIMAL => Self::EkMinimal {
-                equivalence_hash: <EquivalenceHash as ::dust_dds::xtypes::data_storage::DataStorageMapping> ::try_from_storage(src.remove_value(29usize as u32).expect("Must exist"),).expect("Must match")
-            },
-            _ => Self::Default {
-                extended_type: <MinimalExtendedType as ::dust_dds::xtypes::data_storage::DataStorageMapping> ::try_from_storage(src.remove_value(30usize as u32).expect("Must exist"),).expect("Must match")
-            },
-        }
-    }
-    fn create_dynamic_sample(self, data: &mut dust_dds::xtypes::dynamic_type::DynamicData) {
-        match self {
-            Self::TkNone => {
-                data.set_value(
-                    0,
-                    <u8 as ::dust_dds::xtypes::data_storage::DataStorageMapping>::into_storage(
-                        TK_NONE,
-                    ),
-                );
-            }
-            Self::TkBoolean => {
-                data.set_value(
-                    0,
-                    <u8 as ::dust_dds::xtypes::data_storage::DataStorageMapping>::into_storage(
-                        TK_BOOLEAN,
-                    ),
-                );
-            }
-            Self::TkByteType => {
-                data.set_value(
-                    0,
-                    <u8 as ::dust_dds::xtypes::data_storage::DataStorageMapping>::into_storage(
-                        TK_BYTE,
-                    ),
-                );
-            }
-            Self::TkInt8Type => {
-                data.set_value(
-                    0,
-                    <u8 as ::dust_dds::xtypes::data_storage::DataStorageMapping>::into_storage(
-                        TK_INT8,
-                    ),
-                );
-            }
-            Self::TkInt16Type => {
-                data.set_value(
-                    0,
-                    <u8 as ::dust_dds::xtypes::data_storage::DataStorageMapping>::into_storage(
-                        TK_INT16,
-                    ),
-                );
-            }
-            Self::TkInt32Type => {
-                data.set_value(
-                    0,
-                    <u8 as ::dust_dds::xtypes::data_storage::DataStorageMapping>::into_storage(
-                        TK_INT32,
-                    ),
-                );
-            }
-            Self::TkInt64Type => {
-                data.set_value(
-                    0,
-                    <u8 as ::dust_dds::xtypes::data_storage::DataStorageMapping>::into_storage(
-                        TK_INT64,
-                    ),
-                );
-            }
-            Self::TkUint8Type => {
-                data.set_value(
-                    0,
-                    <u8 as ::dust_dds::xtypes::data_storage::DataStorageMapping>::into_storage(
-                        TK_UINT8,
-                    ),
-                );
-            }
-            Self::TkUint16Type => {
-                data.set_value(
-                    0,
-                    <u8 as ::dust_dds::xtypes::data_storage::DataStorageMapping>::into_storage(
-                        TK_UINT16,
-                    ),
-                );
-            }
-            Self::TkUint32Type => {
-                data.set_value(
-                    0,
-                    <u8 as ::dust_dds::xtypes::data_storage::DataStorageMapping>::into_storage(
-                        TK_UINT32,
-                    ),
-                );
-            }
-            Self::TkUint64Type => {
-                data.set_value(
-                    0,
-                    <u8 as ::dust_dds::xtypes::data_storage::DataStorageMapping>::into_storage(
-                        TK_UINT64,
-                    ),
-                );
-            }
-            Self::TkFloat32Type => {
-                data.set_value(
-                    0,
-                    <u8 as ::dust_dds::xtypes::data_storage::DataStorageMapping>::into_storage(
-                        TK_FLOAT32,
-                    ),
-                );
-            }
-            Self::TkFloat64Type => {
-                data.set_value(
-                    0,
-                    <u8 as ::dust_dds::xtypes::data_storage::DataStorageMapping>::into_storage(
-                        TK_FLOAT64,
-                    ),
-                );
-            }
-            Self::TkFloat128Type => {
-                data.set_value(
-                    0,
-                    <u8 as ::dust_dds::xtypes::data_storage::DataStorageMapping>::into_storage(
-                        TK_FLOAT128,
-                    ),
-                );
-            }
-            Self::TkChar8Type => {
-                data.set_value(
-                    0,
-                    <u8 as ::dust_dds::xtypes::data_storage::DataStorageMapping>::into_storage(
-                        TK_CHAR8,
-                    ),
-                );
-            }
-            Self::TkChar16Type => {
-                data.set_value(
-                    0,
-                    <u8 as ::dust_dds::xtypes::data_storage::DataStorageMapping>::into_storage(
-                        TK_CHAR16,
-                    ),
-                );
-            }
-            Self::TiString8Small { string_sdefn } => {
-                data.set_value(
-                    0,
-                    <u8 as ::dust_dds::xtypes::data_storage::DataStorageMapping>::into_storage(
-                        TI_STRING8_SMALL,
-                    ),
-                );
-                data.set_value(
-                    17usize as u32,
-                    ::dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(
-                        string_sdefn,
-                    ),
-                );
-            }
-            Self::TiString16Small { string_sdefn } => {
-                data.set_value(
-                    0,
-                    <u8 as ::dust_dds::xtypes::data_storage::DataStorageMapping>::into_storage(
-                        TI_STRING16_SMALL,
-                    ),
-                );
-                data.set_value(
-                    18usize as u32,
-                    ::dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(
-                        string_sdefn,
-                    ),
-                );
-            }
-            Self::TiString8Large { string_ldefn } => {
-                data.set_value(
-                    0,
-                    <u8 as ::dust_dds::xtypes::data_storage::DataStorageMapping>::into_storage(
-                        TI_STRING8_LARGE,
-                    ),
-                );
-                data.set_value(
-                    19usize as u32,
-                    ::dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(
-                        string_ldefn,
-                    ),
-                );
-            }
-            Self::TiString16Large { string_ldefn } => {
-                data.set_value(
-                    0,
-                    <u8 as ::dust_dds::xtypes::data_storage::DataStorageMapping>::into_storage(
-                        TI_STRING16_LARGE,
-                    ),
-                );
-                data.set_value(
-                    20usize as u32,
-                    ::dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(
-                        string_ldefn,
-                    ),
-                );
-            }
-            Self::TiPlainSequenceSmall { seq_sdefn } => {
-                data.set_value(
-                    0,
-                    <u8 as ::dust_dds::xtypes::data_storage::DataStorageMapping>::into_storage(
-                        TI_PLAIN_SEQUENCE_SMALL,
-                    ),
-                );
-                data.set_value(
-                    21usize as u32,
-                    ::dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(seq_sdefn),
-                );
-            }
-            Self::TiPlainSequenceLarge { seq_ldefn } => {
-                data.set_value(
-                    0,
-                    <u8 as ::dust_dds::xtypes::data_storage::DataStorageMapping>::into_storage(
-                        TI_PLAIN_SEQUENCE_LARGE,
-                    ),
-                );
-                data.set_value(
-                    22usize as u32,
-                    ::dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(seq_ldefn),
-                );
-            }
-            Self::TiPlainArraySmall { array_sdefn } => {
-                data.set_value(
-                    0,
-                    <u8 as ::dust_dds::xtypes::data_storage::DataStorageMapping>::into_storage(
-                        TI_PLAIN_ARRAY_SMALL,
-                    ),
-                );
-                data.set_value(
-                    23usize as u32,
-                    ::dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(array_sdefn),
-                );
-            }
-            Self::TiPlainArrayLarge { array_ldefn } => {
-                data.set_value(
-                    0,
-                    <u8 as ::dust_dds::xtypes::data_storage::DataStorageMapping>::into_storage(
-                        TI_PLAIN_ARRAY_LARGE,
-                    ),
-                );
-                data.set_value(
-                    24usize as u32,
-                    ::dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(array_ldefn),
-                );
-            }
-            Self::TiPlainMapSmall { map_sdefn } => {
-                data.set_value(
-                    0,
-                    <u8 as ::dust_dds::xtypes::data_storage::DataStorageMapping>::into_storage(
-                        TI_PLAIN_MAP_SMALL,
-                    ),
-                );
-                data.set_value(
-                    25usize as u32,
-                    ::dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(map_sdefn),
-                );
-            }
-            Self::TiPlainMapLarge { map_ldefn } => {
-                data.set_value(
-                    0,
-                    <u8 as ::dust_dds::xtypes::data_storage::DataStorageMapping>::into_storage(
-                        TI_PLAIN_MAP_LARGE,
-                    ),
-                );
-                data.set_value(
-                    26usize as u32,
-                    ::dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(map_ldefn),
-                );
-            }
-            Self::TiStronglyConnectedComponent { sc_component_id } => {
-                data.set_value(
-                    0,
-                    <u8 as ::dust_dds::xtypes::data_storage::DataStorageMapping>::into_storage(
-                        TI_STRONGLY_CONNECTED_COMPONENT,
-                    ),
-                );
-                data.set_value(
-                    27usize as u32,
-                    ::dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(
-                        sc_component_id,
-                    ),
-                );
-            }
-            Self::EkComplete { equivalence_hash } => {
-                data.set_value(
-                    0,
-                    <u8 as ::dust_dds::xtypes::data_storage::DataStorageMapping>::into_storage(
-                        EK_COMPLETE,
-                    ),
-                );
-                data.set_value(
-                    28usize as u32,
-                    ::dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(
-                        equivalence_hash,
-                    ),
-                );
-            }
-            Self::EkMinimal { equivalence_hash } => {
-                data.set_value(
-                    0,
-                    <u8 as ::dust_dds::xtypes::data_storage::DataStorageMapping>::into_storage(
-                        EK_MINIMAL,
-                    ),
-                );
-                data.set_value(
-                    29usize as u32,
-                    ::dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(
-                        equivalence_hash,
-                    ),
-                );
-            }
-            Self::Default { extended_type } => {
-                data.set_value(
-                    0,
-                    <u8 as ::dust_dds::xtypes::data_storage::DataStorageMapping>::into_storage(29),
-                );
-                data.set_value(
-                    30usize as u32,
-                    ::dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(
-                        extended_type,
-                    ),
-                );
-            }
-        }
-    }
-}
-#[automatically_derived]
-impl dust_dds::xtypes::data_storage::ComplexData for TypeIdentifier {}
 
 impl Default for TypeIdentifier {
     fn default() -> Self {
