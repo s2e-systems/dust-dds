@@ -49,8 +49,8 @@ fn detect_stale_participant() {
     static PARTICIPANT_FACTORY_ASYNC: OnceLock<DomainParticipantFactoryAsync<MockTransport>> =
         OnceLock::new();
 
-    let (data_receiver_sender, data_receiver_receiver) = std::sync::mpsc::sync_channel(1);
-    let transport = MockTransport(data_receiver_sender);
+    let (data_receiver_send, data_receiver_recv) = std::sync::mpsc::sync_channel(1);
+    let transport = MockTransport(data_receiver_send);
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory =
         DomainParticipantFactory::new(PARTICIPANT_FACTORY_ASYNC.get_or_init(|| {
@@ -72,7 +72,7 @@ fn detect_stale_participant() {
         .try_into()
         .unwrap();
 
-    let data_receiver = data_receiver_receiver.recv().unwrap();
+    let data_receiver = data_receiver_recv.recv().unwrap();
 
     let reader_id = ENTITYID_UNKNOWN;
     const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
@@ -125,6 +125,7 @@ fn detect_stale_participant() {
 
     assert_eq!(participant.get_discovered_participants().unwrap().len(), 1);
 
+    // Wait longer than lease duration communicated in the discovery message
     std::thread::sleep(std::time::Duration::from_secs(2));
 
     assert_eq!(participant.get_discovered_participants().unwrap().len(), 0);

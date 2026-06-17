@@ -168,4 +168,11 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
             dp.poke(&self.runtime.clock());
         }
     }
+
+    pub(crate) fn remove_stale_participants(&mut self) {
+        let now = self.runtime.clock().now();
+        for dp in &mut self.domain_participant_list {
+            dp.remove_stale_participants(now);
+        }
+    }
 }

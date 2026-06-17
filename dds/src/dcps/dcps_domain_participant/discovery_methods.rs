@@ -44,7 +44,7 @@ use crate::{
             TransportPriorityQosPolicy, XCDR_DATA_REPRESENTATION,
         },
         status::StatusKind,
-        time::Duration,
+        time::{Duration, Time},
         type_support::TypeSupport,
     },
     rtps::types::{PROTOCOLVERSION, VENDOR_ID_S2E},
@@ -166,6 +166,23 @@ impl DcpsDomainParticipant {
                 )
                 .ok();
             }
+        }
+    }
+
+    pub fn remove_stale_participants(&mut self, now: Time) {
+        while let Some(handle) = self
+            .domain_participant
+            .discovered_participant_list
+            .iter()
+            .find_map(|x| {
+                if now - x.reception_timestamp > x.lease_duration {
+                    Some(InstanceHandle::new(x.dds_participant_data.key.value))
+                } else {
+                    None
+                }
+            })
+        {
+            self.remove_discovered_participant(&handle);
         }
     }
 
@@ -1789,6 +1806,7 @@ impl DcpsDomainParticipant {
                 default_multicast_locator_list: discovered_participant_data
                     .participant_proxy
                     .default_multicast_locator_list,
+                lease_duration: discovered_participant_data.lease_duration.into(),
                 reception_timestamp: runtime.clock().now(),
             };
             match self

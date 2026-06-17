@@ -279,6 +279,7 @@ struct DiscoveredParticipantInfo {
     guid_prefix: GuidPrefix,
     default_unicast_locator_list: Vec<Locator>,
     default_multicast_locator_list: Vec<Locator>,
+    lease_duration: Duration,
     reception_timestamp: Time,
 }
 
@@ -643,7 +644,7 @@ impl DcpsDomainParticipant {
         self.domain_participant
             .discovered_participant_list
             .iter()
-            .map(|dp| now - dp.reception_timestamp)
+            .map(|dp| dp.lease_duration - (now - dp.reception_timestamp))
             .min()
     }
 
