@@ -1080,16 +1080,6 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                     p.handle_data(data_message.as_slice(), &self.runtime);
                 }
             }
-            DcpsMail::Message(MessageServiceMail::Poke { participant_handle }) => {
-                if let Ok(p) = self
-                    .domain_participant_list
-                    .iter_mut()
-                    .find(|x| x.get_instance_handle() == &participant_handle)
-                    .ok_or(DdsError::AlreadyDeleted)
-                {
-                    p.poke(&self.runtime.clock())
-                }
-            }
             DcpsMail::Event(EventServiceMail::OfferedDeadlineMissed {
                 participant_handle,
                 publisher_handle,
