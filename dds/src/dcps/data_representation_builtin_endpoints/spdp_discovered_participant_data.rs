@@ -142,7 +142,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParti
         descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
             kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
             name: "SpdpDiscoveredParticipantData",
-            base_type: Some(ParticipantBuiltinTopicData::TYPE_INFORMATION),
+            base_type: Some(ParticipantBuiltinTopicData::TYPE),
             discriminator_type: None,
             bound: None,
             element_type: None,

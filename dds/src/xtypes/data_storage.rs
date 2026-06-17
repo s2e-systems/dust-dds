@@ -6,6 +6,7 @@ use crate::{
     },
 };
 use alloc::{string::String, vec::Vec};
+use dust_dds::xtypes::dynamic_type::{DynamicType, ExtensibilityKind, TypeDescriptor, TypeKind};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum DataStorage {
@@ -214,16 +215,6 @@ impl DataStorageMapping for String {
             DataStorage::String(x) => Ok(x),
             _ => Err(XTypesError::InvalidType),
         }
-    }
-}
-
-impl<T: DataStorageMapping> DataStorageMapping for Option<T> {
-    fn into_storage(self) -> DataStorage {
-        T::into_storage(self.expect("Only options with value are converted. This usually indicated a member annotation #[dust_dds(optional)] is missing."))
-    }
-
-    fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
-        Ok(Some(T::try_from_storage(data_storage)?))
     }
 }
 
@@ -594,22 +585,32 @@ impl<const N: usize> DataStorageMapping for [String; N] {
     }
 }
 
-impl<T: TypeSupport> DataStorageMapping for T {
-    fn into_storage(self) -> DataStorage {
-        let mut data = DynamicDataFactory::create_data(T::TYPE);
-        self.create_dynamic_sample(&mut data);
-        DataStorage::ComplexValue(data)
-    }
+// impl<T: TypeSupport> DataStorageMapping for T {
+//     fn into_storage(self) -> DataStorage {
+//         let mut data = DynamicDataFactory::create_data(T::TYPE);
+//         self.create_dynamic_sample(&mut data);
+//         DataStorage::ComplexValue(data)
+//     }
 
-    fn try_from_storage(mut data_storage: DataStorage) -> XTypesResult<Self> {
-        match &mut data_storage {
-            DataStorage::ComplexValue(x) => Ok(T::create_sample(x)),
-            _ => Err(XTypesError::InvalidType),
-        }
-    }
-}
+//     fn try_from_storage(mut data_storage: DataStorage) -> XTypesResult<Self> {
+//         match &mut data_storage {
+//             DataStorage::ComplexValue(x) => Ok(T::create_sample(x)),
+//             _ => Err(XTypesError::InvalidType),
+//         }
+//     }
+// }
 
-impl<T: TypeSupport> DataStorageMapping for Vec<T> {
+// impl<T: DataStorageMapping> DataStorageMapping for Option<T> {
+//     fn into_storage(self) -> DataStorage {
+//         T::into_storage(self.expect("Only options with value are converted. This usually indicated a member annotation #[dust_dds(optional)] is missing."))
+//     }
+
+//     fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
+//         Ok(Some(T::try_from_storage(data_storage)?))
+//     }
+// }
+
+impl<T: TypeSupport + ComplexData> DataStorageMapping for Vec<T> {
     fn into_storage(self) -> DataStorage {
         DataStorage::SequenceComplexValue(
             self.into_iter()
@@ -632,7 +633,13 @@ impl<T: TypeSupport> DataStorageMapping for Vec<T> {
     }
 }
 
-impl<const N: usize, T: TypeSupport> DataStorageMapping for [T; N] {
+pub trait ComplexData {}
+
+impl<T> ComplexData for Box<T> {}
+// impl<T: ComplexData> ComplexData for Vec<T> {}
+impl<T> ComplexData for Option<T> {}
+
+impl<const N: usize, T: TypeSupport + ComplexData> DataStorageMapping for [T; N] {
     fn into_storage(self) -> DataStorage {
         DataStorage::SequenceComplexValue(
             self.into_iter()
@@ -654,4 +661,645 @@ impl<const N: usize, T: TypeSupport> DataStorageMapping for [T; N] {
             _ => Err(XTypesError::InvalidType),
         }
     }
+}
+
+impl<T: ComplexData + TypeSupport> DataStorageMapping for T {
+    fn into_storage(self) -> DataStorage {
+        let mut data = DynamicDataFactory::create_data(T::TYPE);
+        self.create_dynamic_sample(&mut data);
+        DataStorage::ComplexValue(data)
+    }
+
+    fn try_from_storage(mut data_storage: DataStorage) -> XTypesResult<Self> {
+        match &mut data_storage {
+            DataStorage::ComplexValue(x) => Ok(T::create_sample(x)),
+            _ => Err(XTypesError::InvalidType),
+        }
+    }
+}
+
+impl<T: TypeSupport> TypeSupport for Box<T> {
+    const r#TYPE: DynamicType = T::TYPE;
+
+    fn create_sample(src: &mut super::dynamic_type::DynamicData) -> Self {
+        Box::new(T::create_sample(src))
+    }
+
+    fn create_dynamic_sample(self, data: &mut super::dynamic_type::DynamicData) {
+        T::create_dynamic_sample(*self, data);
+    }
+}
+
+impl<T: TypeSupport> TypeSupport for Option<T> {
+    const r#TYPE: DynamicType = T::TYPE;
+
+    fn create_sample(src: &mut super::dynamic_type::DynamicData) -> Self {
+        todo!()
+    }
+
+    fn create_dynamic_sample(self, data: &mut super::dynamic_type::DynamicData) {
+        todo!()
+    }
+}
+
+impl TypeSupport for &str {
+    const r#TYPE: DynamicType = DynamicType {
+        descriptor: &TypeDescriptor {
+            kind: TypeKind::STRING8,
+            name: "",
+            base_type: None,
+            discriminator_type: None,
+            bound: None,
+            element_type: None,
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Final,
+            is_nested: false,
+        },
+        member_list: &[],
+    };
+    fn create_sample(src: &mut DynamicData) -> Self {
+        "todo"
+    }
+    fn create_dynamic_sample(self, data: &mut DynamicData) {
+        todo!()
+    }
+}
+
+impl TypeSupport for &[u8] {
+    const r#TYPE: DynamicType = DynamicType {
+        descriptor: &TypeDescriptor {
+            kind: TypeKind::STRING8,
+            name: "",
+            base_type: None,
+            discriminator_type: None,
+            bound: None,
+            element_type: None,
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Final,
+            is_nested: false,
+        },
+        member_list: &[],
+    };
+    fn create_sample(src: &mut DynamicData) -> Self {
+        todo!()
+    }
+    fn create_dynamic_sample(self, data: &mut DynamicData) {
+        todo!()
+    }
+}
+
+impl TypeSupport for bool {
+    const r#TYPE: DynamicType = DynamicType {
+        descriptor: &TypeDescriptor {
+            kind: TypeKind::BOOLEAN,
+            name: "",
+            base_type: None,
+            discriminator_type: None,
+            bound: None,
+            element_type: None,
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Final,
+            is_nested: false,
+        },
+        member_list: &[],
+    };
+    fn create_sample(src: &mut DynamicData) -> Self {
+        DataStorageMapping::try_from_storage(src.remove_value(0).expect("Must exist"))
+            .expect("Must match")
+    }
+    fn create_dynamic_sample(self, data: &mut DynamicData) {
+        todo!()
+    }
+}
+
+impl TypeSupport for u8 {
+    const r#TYPE: DynamicType = DynamicType {
+        descriptor: &TypeDescriptor {
+            kind: TypeKind::UINT8,
+            name: "",
+            base_type: None,
+            discriminator_type: None,
+            bound: None,
+            element_type: None,
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Final,
+            is_nested: false,
+        },
+        member_list: &[],
+    };
+    fn create_sample(src: &mut DynamicData) -> Self {
+        DataStorageMapping::try_from_storage(src.remove_value(0).expect("Must exist"))
+            .expect("Must match")
+    }
+    fn create_dynamic_sample(self, data: &mut DynamicData) {
+        todo!()
+    }
+}
+
+impl TypeSupport for i8 {
+    const r#TYPE: DynamicType = DynamicType {
+        descriptor: &TypeDescriptor {
+            kind: TypeKind::INT8,
+            name: "",
+            base_type: None,
+            discriminator_type: None,
+            bound: None,
+            element_type: None,
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Final,
+            is_nested: false,
+        },
+        member_list: &[],
+    };
+    fn create_sample(src: &mut DynamicData) -> Self {
+        DataStorageMapping::try_from_storage(src.remove_value(0).expect("Must exist"))
+            .expect("Must match")
+    }
+    fn create_dynamic_sample(self, data: &mut DynamicData) {
+        data.set_value(0, DataStorageMapping::into_storage(self));
+    }
+}
+
+impl TypeSupport for u16 {
+    const r#TYPE: DynamicType = DynamicType {
+        descriptor: &TypeDescriptor {
+            kind: TypeKind::UINT16,
+            name: "",
+            base_type: None,
+            discriminator_type: None,
+            bound: None,
+            element_type: None,
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Final,
+            is_nested: false,
+        },
+        member_list: &[],
+    };
+    fn create_sample(src: &mut DynamicData) -> Self {
+        DataStorageMapping::try_from_storage(src.remove_value(0).expect("Must exist"))
+            .expect("Must match")
+    }
+    fn create_dynamic_sample(self, data: &mut DynamicData) {
+        data.set_value(0, DataStorage::UInt16(self));
+    }
+}
+
+impl TypeSupport for i16 {
+    const r#TYPE: DynamicType = DynamicType {
+        descriptor: &TypeDescriptor {
+            kind: TypeKind::INT16,
+            name: "",
+            base_type: None,
+            discriminator_type: None,
+            bound: None,
+            element_type: None,
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Final,
+            is_nested: false,
+        },
+        member_list: &[],
+    };
+    fn create_sample(src: &mut DynamicData) -> Self {
+        DataStorageMapping::try_from_storage(src.remove_value(0).expect("Must exist"))
+            .expect("Must match")
+    }
+    fn create_dynamic_sample(self, data: &mut DynamicData) {
+        todo!()
+    }
+}
+
+impl TypeSupport for i32 {
+    const r#TYPE: DynamicType = DynamicType {
+        descriptor: &TypeDescriptor {
+            kind: TypeKind::INT32,
+            name: "",
+            base_type: None,
+            discriminator_type: None,
+            bound: None,
+            element_type: None,
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Final,
+            is_nested: false,
+        },
+        member_list: &[],
+    };
+    fn create_sample(src: &mut DynamicData) -> Self {
+        DataStorageMapping::try_from_storage(src.remove_value(0).expect("Must exist"))
+            .expect("Must match")
+    }
+    fn create_dynamic_sample(self, data: &mut DynamicData) {
+        todo!()
+    }
+}
+
+impl TypeSupport for u32 {
+    const r#TYPE: DynamicType = DynamicType {
+        descriptor: &TypeDescriptor {
+            kind: TypeKind::UINT32,
+            name: "",
+            base_type: None,
+            discriminator_type: None,
+            bound: None,
+            element_type: None,
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Final,
+            is_nested: false,
+        },
+        member_list: &[],
+    };
+    fn create_sample(src: &mut DynamicData) -> Self {
+        DataStorageMapping::try_from_storage(src.remove_value(0).expect("Must exist"))
+            .expect("Must match")
+    }
+    fn create_dynamic_sample(self, data: &mut DynamicData) {
+        data.set_value(0, DataStorageMapping::into_storage(self));
+    }
+}
+
+impl TypeSupport for i64 {
+    const r#TYPE: DynamicType = DynamicType {
+        descriptor: &TypeDescriptor {
+            kind: TypeKind::INT64,
+            name: "",
+            base_type: None,
+            discriminator_type: None,
+            bound: None,
+            element_type: None,
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Final,
+            is_nested: false,
+        },
+        member_list: &[],
+    };
+    fn create_sample(src: &mut DynamicData) -> Self {
+        DataStorageMapping::try_from_storage(src.remove_value(0).expect("Must exist"))
+            .expect("Must match")
+    }
+    fn create_dynamic_sample(self, data: &mut DynamicData) {
+        todo!()
+    }
+}
+impl TypeSupport for u64 {
+    const r#TYPE: DynamicType = DynamicType {
+        descriptor: &TypeDescriptor {
+            kind: TypeKind::UINT64,
+            name: "",
+            base_type: None,
+            discriminator_type: None,
+            bound: None,
+            element_type: None,
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Final,
+            is_nested: false,
+        },
+        member_list: &[],
+    };
+    fn create_sample(src: &mut DynamicData) -> Self {
+        DataStorageMapping::try_from_storage(src.remove_value(0).expect("Must exist"))
+            .expect("Must match")
+    }
+    fn create_dynamic_sample(self, data: &mut DynamicData) {
+        todo!()
+    }
+}
+
+impl TypeSupport for f32 {
+    const r#TYPE: DynamicType = DynamicType {
+        descriptor: &TypeDescriptor {
+            kind: TypeKind::FLOAT32,
+            name: "",
+            base_type: None,
+            discriminator_type: None,
+            bound: None,
+            element_type: None,
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Final,
+            is_nested: false,
+        },
+        member_list: &[],
+    };
+    fn create_sample(src: &mut DynamicData) -> Self {
+        DataStorageMapping::try_from_storage(src.remove_value(0).expect("Must exist"))
+            .expect("Must match")
+    }
+    fn create_dynamic_sample(self, data: &mut DynamicData) {
+        todo!()
+    }
+}
+impl TypeSupport for f64 {
+    const r#TYPE: DynamicType = DynamicType {
+        descriptor: &TypeDescriptor {
+            kind: TypeKind::FLOAT64,
+            name: "",
+            base_type: None,
+            discriminator_type: None,
+            bound: None,
+            element_type: None,
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Final,
+            is_nested: false,
+        },
+        member_list: &[],
+    };
+    fn create_sample(src: &mut DynamicData) -> Self {
+        DataStorageMapping::try_from_storage(src.remove_value(0).expect("Must exist"))
+            .expect("Must match")
+    }
+    fn create_dynamic_sample(self, data: &mut DynamicData) {
+        todo!()
+    }
+}
+
+impl TypeSupport for char {
+    const r#TYPE: DynamicType = DynamicType {
+        descriptor: &TypeDescriptor {
+            kind: TypeKind::CHAR8,
+            name: "",
+            base_type: None,
+            discriminator_type: None,
+            bound: None,
+            element_type: None,
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Final,
+            is_nested: false,
+        },
+        member_list: &[],
+    };
+    fn create_sample(src: &mut DynamicData) -> Self {
+        DataStorageMapping::try_from_storage(src.remove_value(0).expect("Must exist"))
+            .expect("Must match")
+    }
+    fn create_dynamic_sample(self, data: &mut DynamicData) {
+        todo!()
+    }
+}
+
+impl TypeSupport for String {
+    const r#TYPE: DynamicType = DynamicType {
+        descriptor: &TypeDescriptor {
+            kind: TypeKind::STRING8,
+            name: "",
+            base_type: None,
+            discriminator_type: None,
+            bound: Some(u32::MAX),
+            element_type: None,
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Final,
+            is_nested: false,
+        },
+        member_list: &[],
+    };
+    fn create_sample(src: &mut DynamicData) -> Self {
+        DataStorageMapping::try_from_storage(src.remove_value(0).expect("Must exist"))
+            .expect("Must match")
+    }
+    fn create_dynamic_sample(self, data: &mut DynamicData) {
+        todo!()
+    }
+}
+
+impl<T: TypeSupport, const N: usize> TypeSupport for [T; N]
+where
+    Self: DataStorageMapping,
+{
+    const r#TYPE: DynamicType = DynamicType {
+        descriptor: &TypeDescriptor {
+            kind: TypeKind::ARRAY,
+            name: "",
+            base_type: None,
+            discriminator_type: None,
+            bound: Some(N as u32),
+            element_type: Some(T::TYPE),
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Final,
+            is_nested: false,
+        },
+        member_list: &[],
+    };
+    fn create_sample(src: &mut DynamicData) -> Self {
+        DataStorageMapping::try_from_storage(src.remove_value(0).expect("Must exist"))
+            .expect("Must match")
+    }
+    fn create_dynamic_sample(self, data: &mut DynamicData) {
+        data.set_value(0, DataStorageMapping::into_storage(self));
+    }
+}
+
+impl<T: TypeSupport + ComplexData> TypeSupport for Vec<T> {
+    const r#TYPE: DynamicType = DynamicType {
+        descriptor: &TypeDescriptor {
+            kind: TypeKind::SEQUENCE,
+            name: "",
+            base_type: None,
+            discriminator_type: None,
+            bound: Some(u32::MAX),
+            element_type: Some(T::TYPE),
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Final,
+            is_nested: false,
+        },
+        member_list: &[],
+    };
+    fn create_sample(src: &mut DynamicData) -> Self {
+        todo!()
+    }
+    fn create_dynamic_sample(self, data: &mut DynamicData) {
+        data.set_value(
+            0,
+            DataStorage::SequenceComplexValue(
+                self.into_iter()
+                    .map(|x| {
+                        let mut data = DynamicDataFactory::create_data(T::TYPE);
+                        x.create_dynamic_sample(&mut data);
+                        data
+                    })
+                    .collect(),
+            ),
+        );
+    }
+}
+
+impl TypeSupport for Vec<u8> {
+    const r#TYPE: DynamicType = DynamicType {
+        descriptor: &TypeDescriptor {
+            kind: TypeKind::SEQUENCE,
+            name: "",
+            base_type: None,
+            discriminator_type: None,
+            bound: Some(u32::MAX),
+            element_type: Some(u8::TYPE),
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Final,
+            is_nested: false,
+        },
+        member_list: &[],
+    };
+    fn create_sample(src: &mut DynamicData) -> Self {
+        DataStorageMapping::try_from_storage(src.remove_value(0).expect("Must exist"))
+            .expect("Must match")
+    }
+    fn create_dynamic_sample(self, data: &mut DynamicData) {
+        data.set_value(0, DataStorageMapping::into_storage(self));
+    }
+}
+impl TypeSupport for Vec<u32> {
+    const r#TYPE: DynamicType = DynamicType {
+        descriptor: &TypeDescriptor {
+            kind: TypeKind::SEQUENCE,
+            name: "",
+            base_type: None,
+            discriminator_type: None,
+            bound: Some(u32::MAX),
+            element_type: Some(u32::TYPE),
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Final,
+            is_nested: false,
+        },
+        member_list: &[],
+    };
+    fn create_sample(src: &mut DynamicData) -> Self {
+        DataStorageMapping::try_from_storage(src.remove_value(0).expect("Must exist"))
+            .expect("Must match")
+    }
+    fn create_dynamic_sample(self, data: &mut DynamicData) {
+        data.set_value(0, DataStorageMapping::into_storage(self));
+    }
+}
+impl TypeSupport for Vec<i32> {
+    const r#TYPE: DynamicType = DynamicType {
+        descriptor: &TypeDescriptor {
+            kind: TypeKind::SEQUENCE,
+            name: "",
+            base_type: None,
+            discriminator_type: None,
+            bound: Some(u32::MAX),
+            element_type: Some(i32::TYPE),
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Final,
+            is_nested: false,
+        },
+        member_list: &[],
+    };
+    fn create_sample(src: &mut DynamicData) -> Self {
+        DataStorageMapping::try_from_storage(src.remove_value(0).expect("Must exist"))
+            .expect("Must match")
+    }
+    fn create_dynamic_sample(self, data: &mut DynamicData) {
+        data.set_value(0, DataStorageMapping::into_storage(self));
+    }
+}
+impl TypeSupport for Vec<u16> {
+    const r#TYPE: DynamicType = DynamicType {
+        descriptor: &TypeDescriptor {
+            kind: TypeKind::SEQUENCE,
+            name: "",
+            base_type: None,
+            discriminator_type: None,
+            bound: Some(u32::MAX),
+            element_type: Some(u16::TYPE),
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Final,
+            is_nested: false,
+        },
+        member_list: &[],
+    };
+    fn create_sample(src: &mut DynamicData) -> Self {
+        DataStorageMapping::try_from_storage(src.remove_value(0).expect("Must exist"))
+            .expect("Must match")
+    }
+    fn create_dynamic_sample(self, data: &mut DynamicData) {
+        data.set_value(0, DataStorageMapping::into_storage(self));
+    }
+}
+
+impl TypeSupport for Vec<String> {
+    const r#TYPE: DynamicType = DynamicType {
+        descriptor: &TypeDescriptor {
+            kind: TypeKind::SEQUENCE,
+            name: "",
+            base_type: None,
+            discriminator_type: None,
+            bound: Some(u32::MAX),
+            element_type: Some(String::TYPE),
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Final,
+            is_nested: false,
+        },
+        member_list: &[],
+    };
+    fn create_sample(src: &mut DynamicData) -> Self {
+        DataStorageMapping::try_from_storage(src.remove_value(0).expect("Must exist"))
+            .expect("Must match")
+    }
+    fn create_dynamic_sample(self, data: &mut DynamicData) {
+        data.set_value(0, DataStorageMapping::into_storage(self));
+    }
+}
+
+#[test]
+fn basic_type_should_create_sample() {
+    #[derive(Debug, PartialEq, TypeSupport)]
+    pub struct Inner {
+        x: u16,
+    }
+    let mut inner = DynamicDataFactory::create_data(Inner::TYPE);
+    inner.set_uint16_value(0, 2).unwrap();
+
+    let v = Inner { x: 2 };
+    assert_eq!(v.really_create_dynamic_sample(), inner);
+}
+
+#[test]
+fn complex_type_should_create_sample() {
+    #[derive(Debug, PartialEq, TypeSupport)]
+    pub struct Inner {
+        x: u16,
+    }
+    #[derive(Debug, PartialEq, TypeSupport)]
+    pub struct Outer {
+        y: Inner,
+    }
+
+    let v = Outer { y: Inner { x: 2 } };
+    let mut inner = DynamicDataFactory::create_data(Inner::TYPE);
+    inner.set_uint16_value(0, 2).unwrap();
+    let mut outer = DynamicDataFactory::create_data(Outer::TYPE);
+    outer.set_complex_value(0, inner).unwrap();
+
+    assert_eq!(v.really_create_dynamic_sample(), outer);
+}
+
+#[test]
+fn vector_of_basic_type_should_create_sample() {
+    #[derive(Debug, PartialEq, TypeSupport)]
+    pub struct Inner {
+        x: Vec<u16>,
+    }
+    let mut inner = DynamicDataFactory::create_data(Inner::TYPE);
+    inner.set_uint16_values(0, vec![2]).unwrap();
+
+    let v = Inner { x: vec![2] };
+    assert_eq!(v.really_create_dynamic_sample(), inner);
+}
+
+#[test]
+fn vector_of_complex_type_should_create_sample() {
+    #[derive(Debug, PartialEq, TypeSupport)]
+    pub struct Inner {
+        x: u16,
+    }
+    #[derive(Debug, PartialEq, TypeSupport)]
+    pub struct Outer {
+        list: Vec<Inner>,
+    }
+
+    let v = Outer {
+        list: vec![Inner { x: 2 }],
+    };
+    let mut inner = DynamicDataFactory::create_data(Inner::TYPE);
+    inner.set_uint16_value(0, 2).unwrap();
+    let mut outer = DynamicDataFactory::create_data(Outer::TYPE);
+    outer.set_complex_values(0, vec![inner]).unwrap();
+
+    assert_eq!(v.really_create_dynamic_sample(), outer);
 }

@@ -6,8 +6,7 @@ use crate::{
     },
     transport::types::{DurabilityKind, ReliabilityKind},
     xtypes::{
-        binding::XTypesBinding,
-        dynamic_type::{DynamicData, DynamicDataFactory, DynamicType, DynamicTypeMember},
+        binding::XTypesBinding, data_storage::ComplexData, dynamic_type::{DynamicData, DynamicDataFactory, DynamicType, DynamicTypeMember}
     },
 };
 use alloc::{string::String, vec::Vec};
@@ -44,6 +43,7 @@ impl TypeSupport for Length {
         }
     }
 }
+impl ComplexData for Length{}
 
 const LENGTH_UNLIMITED: i32 = i32::MAX;
 
@@ -1105,6 +1105,7 @@ impl HistoryQosPolicy {
         }
     }
 }
+impl ComplexData for HistoryQosPolicy {}
 
 impl dust_dds::infrastructure::type_support::TypeSupport for HistoryQosPolicy {
     const r#TYPE: DynamicType = DynamicType {
@@ -1124,7 +1125,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for HistoryQosPolicy {
                 descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
                     name: "kind",
                     id: 0,
-                    r#type: HistoryQosPolicyKind::TYPE_INFORMATION,
+                    r#type: HistoryQosPolicyKind::TYPE,
                     default_value: None,
                     index: 0u32,
                     try_construct_kind:

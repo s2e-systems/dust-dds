@@ -279,9 +279,9 @@ impl<T: XTypesBinding> XTypesBinding for Vec<T> {
     };
 }
 
-impl<T: TypeSupport> XTypesBinding for T {
-    const TYPE_INFORMATION: DynamicType = T::TYPE;
-}
+// impl<T: TypeSupport> XTypesBinding for T {
+//     const TYPE_INFORMATION: DynamicType = T::TYPE;
+// }
 
 impl<T: XTypesBinding, const N: usize> XTypesBinding for [T; N] {
     const TYPE_INFORMATION: DynamicType = DynamicType {
@@ -300,18 +300,6 @@ impl<T: XTypesBinding, const N: usize> XTypesBinding for [T; N] {
     };
 }
 
-impl<T: XTypesBinding> XTypesBinding for Option<T> {
-    const TYPE_INFORMATION: DynamicType = T::TYPE_INFORMATION;
-}
-
-impl<T: TypeSupport> TypeSupport for Box<T> {
-    const r#TYPE: DynamicType = <u64 as XTypesBinding>::TYPE_INFORMATION;
-
-    fn create_sample(src: &mut super::dynamic_type::DynamicData) -> Self {
-        Box::new(T::create_sample(src))
-    }
-
-    fn create_dynamic_sample(self, data: &mut super::dynamic_type::DynamicData) {
-        T::create_dynamic_sample(*self, data);
-    }
-}
+// impl<T: XTypesBinding> XTypesBinding for Option<T> {
+//     const TYPE_INFORMATION: DynamicType = T::TYPE_INFORMATION;
+// }

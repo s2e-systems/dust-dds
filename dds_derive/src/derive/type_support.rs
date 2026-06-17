@@ -105,7 +105,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                             descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
                                 name: #member_name,
                                 id: #member_id,
-                                r#type: <#member_type as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION,
+                                r#type: <#member_type as dust_dds::infrastructure::type_support::TypeSupport>::TYPE,
                                 default_value: None,
                                 index: #index as u32,
                                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
@@ -230,7 +230,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     kind: dust_dds::xtypes::dynamic_type::TypeKind::UNION,
                     name: #type_name,
                     base_type: None,
-                    discriminator_type: ::core::option::Option::Some(<#discriminator_type as ::dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION),
+                    discriminator_type: ::core::option::Option::Some(<#discriminator_type as ::dust_dds::infrastructure::type_support::TypeSupport>::TYPE),
                     bound: None,
                     element_type: None,
                     key_element_type: None,
@@ -245,7 +245,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
                         name: "disc",
                         id: 0u32,
-                        r#type: <#discriminator_type as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION,
+                        r#type: <#discriminator_type as dust_dds::infrastructure::type_support::TypeSupport>::TYPE,
                         default_value: None,
                         index: 0u32,
                         try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
@@ -288,7 +288,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                             descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
                                 name: #variant_name,
                                 id: #index as u32,
-                                r#type: <#variant_ty as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION,
+                                r#type: <#variant_ty as dust_dds::infrastructure::type_support::TypeSupport>::TYPE,
                                 default_value: None,
                                 index: #index as u32,
                                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
@@ -328,7 +328,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                             descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
                                 name: #variant_name,
                                 id: #index as u32,
-                                r#type: <#variant_ty as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION,
+                                r#type: <#variant_ty as dust_dds::infrastructure::type_support::TypeSupport>::TYPE,
                                 default_value: None,
                                 index: #index as u32,
                                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
@@ -461,13 +461,13 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
             // be consuming it.
             let discriminator_type = match enum_type_attributes.bit_bound {
                 BitBound::I8 => {
-                    quote! {<i8 as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION}
+                    quote! {<i8 as dust_dds::infrastructure::type_support::TypeSupport>::TYPE}
                 }
                 BitBound::I16 => {
-                    quote! {<i16 as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION}
+                    quote! {<i16 as dust_dds::infrastructure::type_support::TypeSupport>::TYPE}
                 }
                 BitBound::I32 => {
-                    quote! {<i32 as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION}
+                    quote! {<i32 as dust_dds::infrastructure::type_support::TypeSupport>::TYPE}
                 }
             };
 
@@ -546,6 +546,9 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 #create_dynamic_sample_quote
             }
         }
+
+        #[automatically_derived]
+        impl #impl_generics dust_dds::xtypes::data_storage::ComplexData for #ident #type_generics #where_clause {}
     })
 }
 
