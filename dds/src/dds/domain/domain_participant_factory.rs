@@ -13,24 +13,20 @@ use crate::{
     },
     rtps_udp_transport::udp_transport::RtpsUdpTransportParticipantFactory,
     std_runtime::executor::block_on,
+    transport::interface::TransportParticipantFactory,
 };
 use tracing::warn;
 
 /// The sole purpose of this class is to allow the creation and destruction of [`DomainParticipant`] objects.
 /// [`DomainParticipantFactory`] itself has no factory. It is a pre-existing singleton object that can be accessed by means of the
 /// [`DomainParticipantFactory::get_instance`] operation.
-pub struct DomainParticipantFactory {
-    participant_factory_async:
-        &'static DomainParticipantFactoryAsync<RtpsUdpTransportParticipantFactory>,
+pub struct DomainParticipantFactory<T: TransportParticipantFactory> {
+    participant_factory_async: &'static DomainParticipantFactoryAsync<T>,
 }
 
-impl DomainParticipantFactory {
+impl<T: TransportParticipantFactory> DomainParticipantFactory<T> {
     /// Construct a new ['DomainParticipantFactory'] from an existing ['DomainParticipantFactoryAsync'] static reference
-    pub fn new(
-        participant_factory_async: &'static DomainParticipantFactoryAsync<
-            RtpsUdpTransportParticipantFactory,
-        >,
-    ) -> Self {
+    pub fn new(participant_factory_async: &'static DomainParticipantFactoryAsync<T>) -> Self {
         Self {
             participant_factory_async,
         }
@@ -120,11 +116,9 @@ impl DomainParticipantFactory {
     }
 }
 
-impl DomainParticipantFactory {
+impl<T: TransportParticipantFactory> DomainParticipantFactory<T> {
     /// Get a mutable reference to the transport object
-    pub fn get_mut_transport(
-        &self,
-    ) -> impl DerefMut<Target = RtpsUdpTransportParticipantFactory> + '_ {
+    pub fn get_mut_transport(&self) -> impl DerefMut<Target = T> + '_ {
         block_on(self.participant_factory_async.get_mut_transport())
     }
 
@@ -134,13 +128,14 @@ impl DomainParticipantFactory {
     }
 }
 
-impl DomainParticipantFactory {
+impl DomainParticipantFactory<RtpsUdpTransportParticipantFactory> {
     /// This operation returns the [`DomainParticipantFactory`] singleton. The operation is idempotent, that is, it can be called multiple
     /// times without side-effects and it will return the same [`DomainParticipantFactory`] instance.
     #[tracing::instrument]
     pub fn get_instance() -> &'static Self {
-        static PARTICIPANT_FACTORY: std::sync::OnceLock<DomainParticipantFactory> =
-            std::sync::OnceLock::new();
+        static PARTICIPANT_FACTORY: std::sync::OnceLock<
+            DomainParticipantFactory<RtpsUdpTransportParticipantFactory>,
+        > = std::sync::OnceLock::new();
         PARTICIPANT_FACTORY.get_or_init(|| DomainParticipantFactory {
             participant_factory_async: DomainParticipantFactoryAsync::get_instance(),
         })
