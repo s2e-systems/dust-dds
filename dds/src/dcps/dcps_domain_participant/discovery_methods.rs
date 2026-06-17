@@ -24,7 +24,7 @@ use crate::{
         },
         dcps_domain_participant::{
             BuiltInKeyHolder, DataReaderEntity, DataWriterEntity, DcpsDomainParticipant,
-            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+            DiscoveredParticipantInfo, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
             ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
@@ -488,13 +488,13 @@ impl DcpsDomainParticipant {
             .discovered_participant_list
             .iter()
             .find(|p| {
-                p.participant_proxy.guid_prefix
+                p.guid_prefix
                     == discovered_reader_data
                         .reader_proxy
                         .remote_reader_guid
                         .prefix()
             }) {
-            p.participant_proxy.default_unicast_locator_list.clone()
+            p.default_unicast_locator_list.clone()
         } else {
             vec![]
         };
@@ -503,13 +503,13 @@ impl DcpsDomainParticipant {
             .discovered_participant_list
             .iter()
             .find(|p| {
-                p.participant_proxy.guid_prefix
+                p.guid_prefix
                     == discovered_reader_data
                         .reader_proxy
                         .remote_reader_guid
                         .prefix()
             }) {
-            p.participant_proxy.default_multicast_locator_list.clone()
+            p.default_multicast_locator_list.clone()
         } else {
             vec![]
         };
@@ -924,13 +924,13 @@ impl DcpsDomainParticipant {
             .discovered_participant_list
             .iter()
             .find(|p| {
-                p.participant_proxy.guid_prefix
+                p.guid_prefix
                     == discovered_writer_data
                         .writer_proxy
                         .remote_writer_guid
                         .prefix()
             }) {
-            p.participant_proxy.default_unicast_locator_list.clone()
+            p.default_unicast_locator_list.clone()
         } else {
             vec![]
         };
@@ -939,13 +939,13 @@ impl DcpsDomainParticipant {
             .discovered_participant_list
             .iter()
             .find(|p| {
-                p.participant_proxy.guid_prefix
+                p.guid_prefix
                     == discovered_writer_data
                         .writer_proxy
                         .remote_writer_guid
                         .prefix()
             }) {
-            p.participant_proxy.default_multicast_locator_list.clone()
+            p.default_multicast_locator_list.clone()
         } else {
             vec![]
         };
@@ -1756,8 +1756,34 @@ impl DcpsDomainParticipant {
 
             self.announce_participant(runtime);
 
-            self.domain_participant
-                .add_discovered_participant(discovered_participant_data);
+            let discovered_participant_info = DiscoveredParticipantInfo {
+                dds_participant_data: discovered_participant_data.dds_participant_data,
+                guid_prefix: discovered_participant_data
+                    .participant_proxy
+                    .guid_prefix
+                    .into(),
+                default_unicast_locator_list: discovered_participant_data
+                    .participant_proxy
+                    .default_unicast_locator_list,
+                default_multicast_locator_list: discovered_participant_data
+                    .participant_proxy
+                    .default_multicast_locator_list,
+                reception_timestamp: runtime.clock().now(),
+            };
+            match self
+                .domain_participant
+                .discovered_participant_list
+                .iter_mut()
+                .find(|p| {
+                    p.dds_participant_data.key()
+                        == discovered_participant_info.dds_participant_data.key()
+                }) {
+                Some(x) => *x = discovered_participant_info,
+                None => self
+                    .domain_participant
+                    .discovered_participant_list
+                    .push(discovered_participant_info),
+            }
         }
     }
 

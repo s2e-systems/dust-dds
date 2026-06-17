@@ -74,7 +74,7 @@ use crate::{
             BUILT_IN_READER_GROUP, BUILT_IN_READER_NO_KEY, BUILT_IN_READER_WITH_KEY,
             BUILT_IN_TOPIC, BUILT_IN_WRITER_GROUP, BUILT_IN_WRITER_NO_KEY,
             BUILT_IN_WRITER_WITH_KEY, CacheChange, ChangeKind, ENTITYID_PARTICIPANT, EntityId,
-            Guid, GuidPrefix, ReliabilityKind, TopicKind,
+            Guid, GuidPrefix, Locator, ReliabilityKind, TopicKind,
         },
     },
     xtypes::{
@@ -282,6 +282,14 @@ const TYPE_LOOKUP_WRITER_QOS: DataWriterQos = DataWriterQos {
     writer_data_lifecycle: WriterDataLifecycleQosPolicy::const_default(),
     representation: DataRepresentationQosPolicy::const_default(),
 };
+
+struct DiscoveredParticipantInfo {
+    dds_participant_data: ParticipantBuiltinTopicData,
+    guid_prefix: GuidPrefix,
+    default_unicast_locator_list: Vec<Locator>,
+    default_multicast_locator_list: Vec<Locator>,
+    reception_timestamp: Time,
+}
 
 fn poll_timeout<T>(
     mut timer_handle: impl Timer,
@@ -638,6 +646,14 @@ impl DcpsDomainParticipant {
             domain_participant,
             dcps_sender,
         }
+    }
+
+    pub fn time_until_stale_participant(&self, now: Time) -> Option<Duration> {
+        self.domain_participant
+            .discovered_participant_list
+            .iter()
+            .map(|dp| now - dp.reception_timestamp)
+            .min()
     }
 
     fn get_participant_async(&self) -> DomainParticipantAsync {
@@ -1106,7 +1122,7 @@ struct DomainParticipantEntity {
     default_publisher_qos: PublisherQos,
     topic_description_list: Vec<TopicDescriptionKind>,
     default_topic_qos: TopicQos,
-    discovered_participant_list: Vec<SpdpDiscoveredParticipantData>,
+    discovered_participant_list: Vec<DiscoveredParticipantInfo>,
     discovered_topic_list: Vec<TopicBuiltinTopicData>,
     discovered_reader_list: Vec<DiscoveredReaderData>,
     discovered_writer_list: Vec<DiscoveredWriterData>,
@@ -1188,20 +1204,6 @@ impl DomainParticipantEntity {
         self.discovered_topic_list
             .iter()
             .find(|&discovered_topic_data| discovered_topic_data.name() == topic_name)
-    }
-
-    fn add_discovered_participant(
-        &mut self,
-        discovered_participant_data: SpdpDiscoveredParticipantData,
-    ) {
-        match self.discovered_participant_list.iter_mut().find(|p| {
-            p.dds_participant_data.key() == discovered_participant_data.dds_participant_data.key()
-        }) {
-            Some(x) => *x = discovered_participant_data,
-            None => self
-                .discovered_participant_list
-                .push(discovered_participant_data),
-        }
     }
 
     fn add_discovered_reader(&mut self, discovered_reader_data: DiscoveredReaderData) {

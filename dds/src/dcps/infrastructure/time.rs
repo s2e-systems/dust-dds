@@ -111,6 +111,15 @@ impl Sub<Duration> for Duration {
     }
 }
 
+impl Ord for Duration {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        match self.sec.cmp(&other.sec) {
+            std::cmp::Ordering::Equal => self.nanosec.cmp(&other.nanosec),
+            ord => ord,
+        }
+    }
+}
+
 fn fraction_to_nanosec(fraction: u32) -> u32 {
     ((fraction as u64 * 1_000_000_000) / (1u64 << 32)) as u32
 }
@@ -251,5 +260,20 @@ mod tests {
         let dds_time_from_rtps_time = Duration::from(rtps_time);
 
         assert_eq!(dds_time, dds_time_from_rtps_time)
+    }
+
+    #[test]
+    fn duration_ord() {
+        let d1 = Duration::new(1, 100);
+        let d2 = Duration::new(1, 200);
+        let d3 = Duration::new(2, 50);
+
+        assert!(d1 == d1);
+        assert!(d1 < d2);
+        assert!(d2 < d3);
+        assert!(d1 < d3);
+        assert_eq!(d1.cmp(&d1), std::cmp::Ordering::Equal);
+        assert_eq!(d1.cmp(&d2), std::cmp::Ordering::Less);
+        assert_eq!(d2.cmp(&d1), std::cmp::Ordering::Greater);
     }
 }
