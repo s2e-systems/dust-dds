@@ -40,12 +40,23 @@ impl Ord for TimerWake {
     }
 }
 
+pub enum TimerMessage {
+    Wake(TimerWake),
+    Cancel(usize),
+}
+
 #[derive(Debug)]
 pub struct Sleep {
     id: usize,
     deadline: Option<Instant>,
     duration: Duration,
-    periodic_task_sender: std::sync::mpsc::Sender<TimerWake>,
+    periodic_task_sender: std::sync::mpsc::Sender<TimerMessage>,
+}
+
+impl Drop for Sleep {
+    fn drop(&mut self) {
+        let _ = self.periodic_task_sender.send(TimerMessage::Cancel(self.id));
+    }
 }
 
 impl Sleep {
@@ -85,7 +96,7 @@ impl Future for Sleep {
                 waker: cx.waker().clone(),
             };
             this.periodic_task_sender
-                .send(timer_wake)
+                .send(TimerMessage::Wake(timer_wake))
                 .expect("Shouldn't fail to send");
             Poll::Pending
         }
@@ -131,12 +142,18 @@ impl TimerHeap {
             t.waker.wake();
         }
     }
+
+    #[inline(always)]
+    fn remove(&mut self, id: usize) {
+        let heap = std::mem::take(&mut self.heap);
+        self.heap = heap.into_iter().filter(|t| t.id != id).collect();
+    }
 }
 
 #[derive(Debug)]
 struct HandleInner {
     sleep_task_id: usize,
-    periodic_task_sender: std::sync::mpsc::Sender<TimerWake>,
+    periodic_task_sender: std::sync::mpsc::Sender<TimerMessage>,
 }
 
 #[derive(Clone, Debug)]
@@ -181,7 +198,7 @@ impl Default for TimerDriver {
 impl TimerDriver {
     pub fn new() -> Self {
         let (periodic_task_sender, periodic_task_receiver) =
-            std::sync::mpsc::channel::<TimerWake>();
+            std::sync::mpsc::channel::<TimerMessage>();
         let timer_thread_join_handle = std::thread::Builder::new()
             .name("Dust DDS Timer".to_string())
             .spawn(move || {
@@ -211,7 +228,8 @@ impl TimerDriver {
                     };
 
                     match new_timer {
-                        Ok(t) => timer_heap.push(t),
+                        Ok(TimerMessage::Wake(t)) => timer_heap.push(t),
+                        Ok(TimerMessage::Cancel(id)) => timer_heap.remove(id),
                         Err(RecvTimeoutError::Timeout) => (),
                         Err(RecvTimeoutError::Disconnected) => break,
                     }
