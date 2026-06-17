@@ -1796,17 +1796,14 @@ impl DcpsDomainParticipant {
 
             let discovered_participant_info = DiscoveredParticipantInfo {
                 dds_participant_data: discovered_participant_data.dds_participant_data,
-                guid_prefix: discovered_participant_data
-                    .participant_proxy
-                    .guid_prefix
-                    .into(),
+                guid_prefix: discovered_participant_data.participant_proxy.guid_prefix,
                 default_unicast_locator_list: discovered_participant_data
                     .participant_proxy
                     .default_unicast_locator_list,
                 default_multicast_locator_list: discovered_participant_data
                     .participant_proxy
                     .default_multicast_locator_list,
-                lease_duration: discovered_participant_data.lease_duration.into(),
+                lease_duration: discovered_participant_data.lease_duration,
                 reception_timestamp: runtime.clock().now(),
             };
             match self

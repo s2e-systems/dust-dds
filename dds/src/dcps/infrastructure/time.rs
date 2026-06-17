@@ -53,7 +53,7 @@ impl PartialOrd<DurationKind> for DurationKind {
 }
 
 /// Structure representing a time interval with a nanosecond resolution.
-#[derive(PartialOrd, PartialEq, Eq, Debug, Clone, Copy, TypeSupport)]
+#[derive(PartialOrd, Ord, PartialEq, Eq, Debug, Clone, Copy, TypeSupport)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct Duration {
     sec: i32,
@@ -108,15 +108,6 @@ impl Sub<Duration> for Duration {
             self.nanosec - rhs.nanosec
         };
         Self { sec, nanosec }
-    }
-}
-
-impl Ord for Duration {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        match self.sec.cmp(&other.sec) {
-            std::cmp::Ordering::Equal => self.nanosec.cmp(&other.nanosec),
-            ord => ord,
-        }
     }
 }
 
